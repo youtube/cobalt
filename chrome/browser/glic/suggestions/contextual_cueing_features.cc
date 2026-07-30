@@ -6,7 +6,6 @@
 
 #include "base/metrics/field_trial_params.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/glic/host/glic_features.mojom.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/common/chrome_features.h"
 #include "components/variations/service/variations_service.h"
@@ -152,7 +151,7 @@ const base::FeatureParam<base::TimeDelta> kZSSPageContextTimeout(
     base::Seconds(5));
 
 const base::FeatureParam<int> kMaxPinnedPagesForTriggeringSuggestions(
-    &glic::mojom::features::kZeroStateSuggestionsV2,
+    &kGlicZeroStateSuggestions,
     "ZSSMaxPinnedPagesForTriggeringSuggestions",
     10);
 

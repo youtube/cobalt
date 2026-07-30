@@ -193,6 +193,8 @@ class MEDIA_EXPORT AudioInputStream {
     kFailedSystemPermissions,
     // Failed to open as the device is exclusively opened by another app.
     kFailedInUse,
+    // Failed to open as the device has been removed.
+    kFailedDeviceRemoved,
   };
 
   // Open the stream and prepares it for recording. Call Start() to actually

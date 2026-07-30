@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/byte_size.h"
 #include "base/check_op.h"
 #include "base/feature_list.h"
 #include "base/format_macros.h"
@@ -223,8 +224,8 @@ void BlobURLLoader::DidReadSideData(std::optional<mojo_base::BigBuffer> data) {
 void BlobURLLoader::OnComplete(net::Error error_code,
                                uint64_t total_written_bytes) {
   network::URLLoaderCompletionStatus status(error_code);
-  status.encoded_body_length = total_written_bytes;
-  status.decoded_body_length = total_written_bytes;
+  status.encoded_body_length = base::ByteSize(total_written_bytes);
+  status.decoded_body_length = base::ByteSize(total_written_bytes);
   client_->OnComplete(status);
 }
 void BlobURLLoader::HeadersCompleted(

@@ -1186,14 +1186,18 @@ class ScrollingContentsCullRectTest : public CompositingTest {
         ->SetPreferCompositingToLCDTextForTesting(false);
   }
 
+  CompositorElementId ScrollElementId(const char* id) {
+    return GetLayoutObjectById(id)
+        ->FirstFragment()
+        .PaintProperties()
+        ->Scroll()
+        ->GetCompositorElementId();
+  }
+
   void CheckCullRect(const char* id, const std::optional<gfx::Rect>& expected) {
     const gfx::Rect* actual =
         GetPropertyTrees()->scroll_tree().ScrollingContentsCullRect(
-            GetLayoutObjectById(id)
-                ->FirstFragment()
-                .PaintProperties()
-                ->Scroll()
-                ->GetCompositorElementId());
+            ScrollElementId(id));
     if (expected) {
       ASSERT_TRUE(actual);
       EXPECT_EQ(*expected, *actual);
@@ -1343,6 +1347,49 @@ TEST_P(ScrollingContentsCullRectTest, RepaintOnlyScroll) {
             PaintArtifactCompositor::UpdateType::kRepaint);
   EXPECT_EQ(sequence_number, GetPropertyTrees()->sequence_number());
   CheckCullRect("scroller", gfx::Rect(0, 1000, 400, 5100));
+}
+
+TEST_P(ScrollingContentsCullRectTest, RemoveScroller) {
+  InitializeWithHTML(*WebView()->MainFrameImpl()->GetFrame(), R"HTML(
+    <!doctype html>
+    <div id="scroller" style="width: 400px; height: 400px; overflow: scroll">
+      <div style="height: 10000px; background: blue">Content</div>
+    </div>
+  )HTML");
+
+  UpdateAllLifecyclePhases();
+  EXPECT_TRUE(CcLayerByDOMElementId("scroller"));
+  auto element_id = ScrollElementId("scroller");
+  EXPECT_TRUE(
+      GetPropertyTrees()->scroll_tree().ScrollingContentsCullRect(element_id));
+
+  GetElementById("scroller")->remove();
+  UpdateAllLifecyclePhases();
+  EXPECT_FALSE(CcLayerByDOMElementId("scroller"));
+  EXPECT_FALSE(
+      GetPropertyTrees()->scroll_tree().ScrollingContentsCullRect(element_id));
+}
+
+TEST_P(ScrollingContentsCullRectTest, ScrollingContentsBecomeShorter) {
+  InitializeWithHTML(*WebView()->MainFrameImpl()->GetFrame(), R"HTML(
+    <!doctype html>
+    <div id="scroller" style="width: 400px; height: 400px; overflow: scroll">
+      <div id="content" style="height: 10000px; background: blue">Content</div>
+    </div>
+  )HTML");
+
+  UpdateAllLifecyclePhases();
+  EXPECT_TRUE(CcLayerByDOMElementId("scroller"));
+  auto element_id = ScrollElementId("scroller");
+  EXPECT_TRUE(
+      GetPropertyTrees()->scroll_tree().ScrollingContentsCullRect(element_id));
+
+  GetElementById("content")->SetInlineStyleProperty(CSSPropertyID::kHeight,
+                                                    "2000px");
+  UpdateAllLifecyclePhases();
+  EXPECT_TRUE(CcLayerByDOMElementId("scroller"));
+  EXPECT_FALSE(
+      GetPropertyTrees()->scroll_tree().ScrollingContentsCullRect(element_id));
 }
 
 class CompositingSimTest : public PaintTestConfigurations, public SimTest {

@@ -55,6 +55,7 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kPostGetMyMemoryStateToBackground);
 BASE_EXPORT BASE_DECLARE_FEATURE(kRebindingChildServiceConnectionController);
 BASE_EXPORT BASE_DECLARE_FEATURE(kRebindServiceBatchApi);
 BASE_EXPORT BASE_DECLARE_FEATURE(kUseSharedRebindServiceConnection);
+BASE_EXPORT BASE_DECLARE_FEATURE(kVirtualKeyboardGeometryAndInsetFixes);
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kBackgroundThreadPoolFieldTrial);
 BASE_EXPORT BASE_DECLARE_FEATURE(kShutdownPreNativeThreadPoolAfterStartup);

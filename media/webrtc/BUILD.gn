@@ -24,6 +24,13 @@ component("webrtc") {
     "webrtc_features.h",
   ]
 
+  if (chrome_wide_echo_cancellation_supported) {
+    sources += [
+      "voice_isolation/voice_isolation.cc",
+      "voice_isolation/voice_isolation.h",
+    ]
+  }
+
   defines = [ "IS_MEDIA_WEBRTC_IMPL" ]
 
   deps = [

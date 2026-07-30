@@ -667,6 +667,9 @@ should be able to be added at any place in this file.
   <variant name="_MostVisitedTilesCustomizationPin"
       summary="In product help for MVT Customization feature to pin a
                shortcut."/>
+  <variant name="_MultistepFilterPromo"
+      summary="In product help for a first time user about Multistep Filter
+               suggestions."/>
   <variant name="_NewTab" summary="For NewTab feature."/>
   <variant name="_NewTabPageButton" summary="Deprecated in M79-."/>
   <variant name="_NewTabPageHomeButton"
@@ -11687,6 +11690,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="CookieControls.Bubble.SendFeedback">
+  <obsolete>Obsolete as of 06/2026</obsolete>
   <owner>boujane@google.com</owner>
   <owner>sauski@google.com</owner>
   <description>
@@ -15967,6 +15971,17 @@ should be able to be added at any place in this file.
   <description>The Glic instance WebUI is warmed.</description>
 </action>
 
+<action name="Glic.Onboarding.Invoked">
+  <owner>perrier@google.com</owner>
+  <owner>glic+metrics@google.com</owner>
+  <description>
+    Logged when Glic is invoked during onboarding. Invoked is defined as a new
+    embedder being shown for a tab or Floaty. Tab switching or focus events are
+    not considered invoking, but daisy chaining, conversation switching, or
+    re-opening on an already bound tab are considered invoking.
+  </description>
+</action>
+
 <action name="Glic.Onboarding.OptInAccept">
   <owner>basiaz@google.com</owner>
   <owner>dewittj@google.com</owner>
@@ -15983,6 +15998,14 @@ should be able to be added at any place in this file.
   <description>
     The Glic web client has signalled that an onboarding flow has been shown,
     and the instance is ready and visible.
+  </description>
+</action>
+
+<action name="Glic.Onboarding.PromptSubmitted">
+  <owner>perrier@google.com</owner>
+  <owner>glic+metrics@google.com</owner>
+  <description>
+    Logged when a prompt is submitted by the user during onboarding.
   </description>
 </action>
 
@@ -19592,6 +19615,15 @@ should be able to be added at any place in this file.
   <owner>stkhapugin@chromium.org</owner>
   <owner>christianxu@google.com</owner>
   <description>Recorded when user taps Voice button in Fusebox.</description>
+</action>
+
+<action name="IOS.Omnibox.PhysicalKeyboardShiftReturn">
+  <owner>lpromero@google.com</owner>
+  <owner>stkhapugin@google.com</owner>
+  <description>
+    Recorded when the user presses shift+return on a physical keyboard in the
+    omnibox.
+  </description>
 </action>
 
 <action name="IOS.OpenIn">
@@ -29722,6 +29754,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="MobileMenuSignin">
+  <obsolete>Obsolete as the feature implementation was reverted.</obsolete>
   <owner>jlebel@chromium.org</owner>
   <owner>chrome-signin-mobile-team@google.com</owner>
   <description>
@@ -39280,6 +39313,15 @@ should be able to be added at any place in this file.
     being clicked, navigates the user to the notifications category settings
     page. This metric can be baselined against
     &quot;Permissions.QuietChip.TimeToInteraction&quot; histogram.
+  </description>
+</action>
+
+<action name="PersonalContext.AtMemory.Notice.SettingsLinkClick">
+  <owner>lamzin@google.com</owner>
+  <owner>chrome-browser-privacy-team@google.com</owner>
+  <description>
+    Recorded when the user clicks the Manage Settings link in the AtMemory
+    notice.
   </description>
 </action>
 
@@ -53679,12 +53721,14 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="TrackingProtection.UserBypass.Animated">
+  <obsolete>Obsolete as of 06/2026.</obsolete>
   <owner>alvingo@google.com</owner>
   <owner>koilos@google.com</owner>
   <description>User bypass icon was animated.</description>
 </action>
 
 <action name="TrackingProtection.UserBypass.Animated.Opened">
+  <obsolete>Obsolete as of 06/2026.</obsolete>
   <owner>alvingo@google.com</owner>
   <owner>koilos@google.com</owner>
   <description>User bypass icon was animated and clicked on.</description>
@@ -54800,6 +54844,24 @@ should be able to be added at any place in this file.
   <description>
     Recorded when the user ends dragging the vertical tab strip with it in the
     uncollapsed state.
+  </description>
+</action>
+
+<action name="VerticalTabs_TabStrip_ViewMenuToggleCollapsed">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user collapses the vertical tab strip using the view menu
+    on mac.
+  </description>
+</action>
+
+<action name="VerticalTabs_TabStrip_ViewMenuToggleUncollapsed">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user uncollapses the vertical tab strip using the view
+    menu on mac.
   </description>
 </action>
 

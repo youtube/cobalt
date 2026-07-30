@@ -62,8 +62,10 @@
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/browsing_data_remover.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/session_storage_namespace.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -1770,6 +1772,37 @@ IN_PROC_BROWSER_TEST_F(NoStatePrefetchBrowserTest, CancelAll) {
   }
 }
 
+// Checks that the hidden WebContents created for a prefetch is given its own
+// SessionStorageNamespace rather than the namespace of the launching tab. The
+// prefetch contents are never swapped in, so they have no need for the
+// launcher's session storage data, and the launcher's namespace should remain
+// available for matching only.
+IN_PROC_BROWSER_TEST_F(NoStatePrefetchBrowserTest,
+                       PrefetchUsesIsolatedSessionStorageNamespace) {
+  GURL url = src_server()->GetURL(kHungPrerenderPage);
+  std::unique_ptr<TestPrerender> prerender =
+      PrefetchFromURL(url, FINAL_STATUS_CANCELLED, 0);
+
+  ASSERT_TRUE(prerender->contents());
+  content::WebContents* prefetch_web_contents =
+      prerender->contents()->no_state_prefetch_contents();
+  ASSERT_TRUE(prefetch_web_contents);
+
+  content::SessionStorageNamespace* launcher_namespace =
+      GetSessionStorageNamespace();
+  ASSERT_TRUE(launcher_namespace);
+  content::SessionStorageNamespace* prefetch_namespace =
+      prefetch_web_contents->GetController()
+          .GetDefaultSessionStorageNamespace();
+  ASSERT_TRUE(prefetch_namespace);
+
+  EXPECT_NE(launcher_namespace->id(), prefetch_namespace->id());
+  EXPECT_TRUE(prerender->contents()->Matches(url, launcher_namespace));
+
+  GetNoStatePrefetchManager()->CancelAllPrerenders();
+  prerender->WaitForStop();
+}
+
 // Cancels the prerender of a page with its own prerender.  The second prerender
 // should never be started.
 IN_PROC_BROWSER_TEST_F(NoStatePrefetchBrowserTest,
@@ -2004,6 +2037,45 @@ IN_PROC_BROWSER_TEST_F(NoStatePrefetchFencedFrameBrowserTest,
   recorded = GetNoStatePrefetchManager()->HasRecentlyBeenNavigatedTo(
       ORIGIN_NONE, fenced_frame_url);
   EXPECT_FALSE(recorded);
+}
+
+// <link rel=prerender> inside a fenced frame must not trigger NoStatePrefetch.
+IN_PROC_BROWSER_TEST_F(NoStatePrefetchFencedFrameBrowserTest,
+                       LinkRelPrerenderInFencedFrame) {
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
+
+  const GURL fenced_frame_url =
+      embedded_test_server()->GetURL("/fenced_frames/title1.html");
+  content::RenderFrameHost* fenced_frame_host =
+      fenced_frame_test_helper().CreateFencedFrame(
+          GetWebContents()->GetPrimaryMainFrame(), fenced_frame_url);
+  ASSERT_TRUE(fenced_frame_host);
+
+  const GURL target_url = embedded_test_server()->GetURL(kPrefetchPage);
+  ASSERT_TRUE(content::ExecJs(
+      fenced_frame_host,
+      content::JsReplace("const l = document.createElement('link');"
+                         "l.rel = 'prerender'; l.href = $1;"
+                         "document.head.appendChild(l);",
+                         target_url)));
+
+  // Trigger and wait for NoStatePrefetch from the primary main frame for a
+  // different URL. By the time this prefetch finishes, any prefetch issued for
+  // `target_url` would have already reached the test server.
+  std::unique_ptr<TestPrerender> control_prerender =
+      no_state_prefetch_contents_factory()->ExpectNoStatePrefetchContents(
+          FINAL_STATUS_NOSTATE_PREFETCH_FINISHED);
+  const GURL control_url = embedded_test_server()->GetURL(kPrefetchPage2);
+  ASSERT_TRUE(content::ExecJs(
+      GetWebContents()->GetPrimaryMainFrame(),
+      content::JsReplace("const l = document.createElement('link');"
+                         "l.rel = 'prerender'; l.href = $1;"
+                         "document.head.appendChild(l);",
+                         control_url)));
+  control_prerender->WaitForStop();
+
+  EXPECT_EQ(0u, GetRequestCount(target_url));
 }
 
 }  // namespace prerender

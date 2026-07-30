@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
@@ -33,7 +34,7 @@ TaskTypeToProto(TaskType task_type);
 
 class TraceableVariable;
 
-PLATFORM_EXPORT perfetto::NamedTrack MakeNamedTrack(
+PLATFORM_EXPORT perfetto::StateTrack MakeStateTrack(
     perfetto::StaticString name,
     const void* ptr,
     perfetto::Track parent = perfetto::ThreadTrack::Current());
@@ -100,7 +101,7 @@ class TraceableState : public TraceableVariable {
   using ConverterFuncPtr = perfetto::StaticString (*)(T);
 
   TraceableState(T initial_state,
-                 perfetto::NamedTrack track,
+                 perfetto::StateTrack track,
                  TraceableVariableController* controller,
                  ConverterFuncPtr converter)
       : TraceableVariable(controller),
@@ -112,11 +113,7 @@ class TraceableState : public TraceableVariable {
 
   TraceableState(const TraceableState&) = delete;
 
-  ~TraceableState() override {
-    if (slice_is_open_) {
-      TRACE_EVENT_END(category.value, track_);
-    }
-  }
+  ~TraceableState() override { TRACE_STATE(category.value, nullptr, track_); }
 
   TraceableState& operator=(const T& value) {
     Assign(value);
@@ -153,23 +150,13 @@ class TraceableState : public TraceableVariable {
       return;
     }
     perfetto::StaticString state_str = converter_(state_);
-    if (slice_is_open_) {
-      TRACE_EVENT_END(category.value, track_);
-    }
-    slice_is_open_ = !!state_str;
-    if (state_str) {
-      TRACE_EVENT_BEGIN(category.value, state_str, track_);
-    }
+    TRACE_STATE(category.value, state_str, track_);
   }
 
   const ConverterFuncPtr converter_;
 
   T state_;
-  perfetto::NamedTrack track_;
-
-  // We have to track whether slice is open to avoid confusion since assignment,
-  // "absent" state and OnTraceLogEnabled can happen anytime.
-  bool slice_is_open_ = false;
+  perfetto::StateTrack track_;
 };
 
 template <typename T, TracingCategory category>

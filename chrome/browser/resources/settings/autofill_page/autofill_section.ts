@@ -152,6 +152,15 @@ export class SettingsAutofillSectionElement extends
         type: Boolean,
         value: () => loadTimeData.getBoolean('enableYourSavedInfoSettingsPage'),
       },
+
+      /**
+       * Computed field that determines if the Gmail OTP filling toggle should
+       * be shown.
+       */
+      showGmailOtpFillingToggle_: {
+        type: Boolean,
+        computed: 'computeShowGmailOtpFillingToggle_(accountInfo_)',
+      },
     };
   }
 
@@ -168,6 +177,7 @@ export class SettingsAutofillSectionElement extends
   declare private isEmailVerificationProtocolEnabled_: boolean;
   declare private isYourSavedInfoSubpage_: boolean;
   declare private emailVerificationAddresses_: string[];
+  declare private showGmailOtpFillingToggle_: boolean;
   private emailSharedMenuModel_: string = '';
   private autofillManager_: AutofillManagerProxy =
       AutofillManagerImpl.getInstance();
@@ -553,6 +563,12 @@ export class SettingsAutofillSectionElement extends
     return !!(accountInfo?.isAutofillSyncToggleAvailable);
   }
 
+  private computeShowGmailOtpFillingToggle_(): boolean {
+    const isSignedIn = !!this.accountInfo_;
+    return isSignedIn &&
+        loadTimeData.getBoolean('autofillGmailOtpFillingEnabled');
+  }
+
   private getRecordTypeSuffix_(
       recordType: chrome.autofillPrivate.AddressRecordType): string {
     switch (recordType) {
@@ -612,6 +628,11 @@ export class SettingsAutofillSectionElement extends
         'Settings.ManageOptionOnSettingsSelected');
     OpenWindowProxyImpl.getInstance().openUrl(
         loadTimeData.getString('plusAddressManagementUrl'));
+  }
+
+  private onGmailOtpFillingLinkClick_() {
+    OpenWindowProxyImpl.getInstance().openUrl(
+        loadTimeData.getString('gmailOtpFillingLearnMoreUrl'));
   }
 
   // SettingsViewMixin implementation.

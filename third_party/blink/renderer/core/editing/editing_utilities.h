@@ -123,9 +123,12 @@ CORE_EXPORT Node* EnclosingNodeOfType(
     EditingBoundaryCrossingRule = kCannotCrossEditingBoundary);
 
 HTMLSpanElement* TabSpanElement(const Node*);
-Element* TableElementJustAfter(const VisiblePosition&);
+CORE_EXPORT Element* TableElementJustBefore(const Position&);
+CORE_EXPORT Element* TableElementJustBefore(const PositionInFlatTree&);
 CORE_EXPORT Element* TableElementJustBefore(const VisiblePosition&);
 CORE_EXPORT Element* TableElementJustBefore(const VisiblePositionInFlatTree&);
+Element* TableElementJustAfter(const Position&);
+Element* TableElementJustAfter(const VisiblePosition&);
 Element* EnclosingTableCell(const Position&);
 Element* EnclosingTableCell(const PositionInFlatTree&);
 

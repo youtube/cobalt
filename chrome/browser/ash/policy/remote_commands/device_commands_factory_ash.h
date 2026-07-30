@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/memory/raw_ref.h"
+#include "base/memory/scoped_refptr.h"
 #include "chrome/browser/ash/policy/remote_commands/device_command_screenshot_job.h"
 #include "components/policy/core/common/remote_commands/remote_commands_factory.h"
 
@@ -15,8 +16,13 @@ namespace ash::attestation {
 class MachineCertificateUploader;
 }  // namespace ash::attestation
 
+namespace network {
+class SharedURLLoaderFactory;
+}  // namespace network
+
 namespace policy {
 
+class BrowserPolicyConnectorAsh;
 class StartCrdSessionJobDelegate;
 
 class DeviceCommandsFactoryAsh : public RemoteCommandsFactory {
@@ -46,7 +52,9 @@ class DeviceCommandsFactoryAsh : public RemoteCommandsFactory {
   raw_ref<StartCrdSessionJobDelegate> crd_delegate_;
 
   std::unique_ptr<DeviceCommandScreenshotJob::Delegate>
-  CreateScreenshotDelegate();
+  CreateScreenshotDelegate(
+      scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
+      BrowserPolicyConnectorAsh* browser_policy_connector_ash);
 };
 
 }  // namespace policy

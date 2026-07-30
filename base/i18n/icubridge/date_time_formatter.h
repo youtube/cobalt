@@ -11,6 +11,7 @@
 #include "base/i18n/base_i18n_export.h"
 #include "base/i18n/icubridge/icu_bridge.h"
 #include "base/i18n/time_formatting_types.h"
+#include "base/i18n/timezone.h"
 #include "base/time/time.h"
 #include "base/types/pass_key.h"
 
@@ -18,6 +19,8 @@ namespace base::i18n {
 
 class IcuBridge;
 struct DateTimeFormatterOptions;
+
+class BASE_I18N_EXPORT LanguageTag;
 
 // DateTimeFormatter provides a set of helper functions for formatting dates and
 // times using ICU. It handles locale-specific formatting and provides
@@ -27,6 +30,7 @@ struct DateTimeFormatterOptions;
 //
 // #include "base/i18n/icubridge/icu_bridge.h"
 // #include "base/i18n/icubridge/date_time_formatter.h"
+// #include "base/i18n/language_tag.h"
 //
 // // Simple usage with predefined shorthands:
 // std::u16string simple = base::i18n::IcuBridge::GetInstance()
@@ -35,12 +39,24 @@ struct DateTimeFormatterOptions;
 //
 // // Advanced usage with fluent builder:
 // std::u16string advanced = base::i18n::IcuBridge::GetInstance()
+//    .date_time_formatter()
+//    .Format(base::Time::Now(),
+//            base::i18n::datetime_options::YMDT::Medium()
+//               .with_year_style(DateTimeFormatterOptions::YearStyle::kNoEra)
+//               .with_time_precision(
+//                   DateTimeFormatterOptions::TimePrecision::kSecond)
+//               .with_time_zone(base::i18n::TimeZone::FromString("Asia/Tokyo"))
+//               .with_time_zone_style(
+//                   DateTimeFormatterOptions::TimeZoneStyle::kShortSpecific));
+//
+// // Usage with a specific locale:
+// auto locale = base::i18n::LanguageTagConverter::GetInstance()
+//     .FromString("ja-JP");
+// std::u16string localized = base::i18n::IcuBridge::GetInstance()
 //     .date_time_formatter()
 //     .Format(base::Time::Now(),
-//             base::i18n::datetime_options::YMDT::Medium()
-//                 .with_year_style(DateTimeFormatterOptions::YearStyle::kNoEra)
-//                 .with_time_precision(
-//                     DateTimeFormatterOptions::TimePrecision::kSecond));
+//             *locale,
+//             base::i18n::datetime_options::YMDT::Short());
 class BASE_I18N_EXPORT IcuBridge::DateTimeFormatter {
  public:
   // Formats date and time according to the provided options.
@@ -49,13 +65,18 @@ class BASE_I18N_EXPORT IcuBridge::DateTimeFormatter {
   std::u16string Format(const base::Time& time,
                         const DateTimeFormatterOptions& options) const;
 
+  // Formats date and time according to the provided options and locale.
+  std::u16string Format(const base::Time& time,
+                        const LanguageTag& locale,
+                        const DateTimeFormatterOptions& options) const;
+
   explicit DateTimeFormatter(base::PassKey<IcuBridge>) {}
 };
 
 // Options for date and time formatting.
 //
-// These options define which components (date, time, or both) and in what
-// format they should be presented.
+// These options define which components (date, time, timezone, or a
+// combination) and in what format they should be presented.
 //
 // NOTE: These options MUST be constructed using the predefined shorthand
 // functions in the `base::i18n::datetime_options` namespace (e.g.,
@@ -116,10 +137,21 @@ struct BASE_I18N_EXPORT DateTimeFormatterOptions {
     kSubsecond_4,     // e.g., "10:30:00.0000 AM"
   };
 
+  // Timezone style options.
+  enum class TimeZoneStyle {
+    kNone,
+    kShortSpecific,  // e.g., "PDT"
+    kLongSpecific,   // e.g., "Pacific Daylight Time"
+    kShortGeneric,   // e.g., "PT"
+    kLongGeneric,    // e.g., "Pacific Time"
+  };
+
   ItemLength length = ItemLength::kNone;
   FormatIdentifier format_identifier = FormatIdentifier::kNone;
   YearStyle year_style = YearStyle::kAuto;
   TimePrecision time_precision = TimePrecision::kNone;
+  TimeZoneStyle time_zone_style = TimeZoneStyle::kNone;
+  std::optional<base::i18n::TimeZone> time_zone;
   std::optional<base::HourClockType> hour_clock_type;
   std::optional<base::AmPmClockType> am_pm_clock_type;
 
@@ -144,6 +176,8 @@ class BASE_I18N_EXPORT DateTimeFormatterOptions::Builder {
     options.format_identifier = component_type_value;
     options.year_style = year_style_;
     options.time_precision = time_precision_;
+    options.time_zone_style = time_zone_style_;
+    options.time_zone = time_zone_;
     options.hour_clock_type = hour_clock_type_;
     options.am_pm_clock_type = am_pm_clock_type_;
     options.length = length;
@@ -161,6 +195,16 @@ class BASE_I18N_EXPORT DateTimeFormatterOptions::Builder {
   // Sets the time precision for the formatter.
   auto& with_time_precision(TimePrecision time_precision_arg) {
     time_precision_ = time_precision_arg;
+    return *this;
+  }
+  // Sets the time zone style for the formatter.
+  auto& with_time_zone_style(TimeZoneStyle time_zone_style_arg) {
+    time_zone_style_ = time_zone_style_arg;
+    return *this;
+  }
+  // Sets the time zone for the formatter.
+  auto& with_time_zone(const base::i18n::TimeZone& time_zone_arg) {
+    time_zone_ = time_zone_arg;
     return *this;
   }
   // Sets the hour clock type for the formatter.
@@ -193,6 +237,8 @@ class BASE_I18N_EXPORT DateTimeFormatterOptions::Builder {
  private:
   YearStyle year_style_ = YearStyle::kAuto;
   TimePrecision time_precision_ = TimePrecision::kNone;
+  TimeZoneStyle time_zone_style_ = TimeZoneStyle::kNone;
+  std::optional<base::i18n::TimeZone> time_zone_;
   std::optional<base::HourClockType> hour_clock_type_;
   std::optional<base::AmPmClockType> am_pm_clock_type_;
 };
@@ -205,7 +251,9 @@ class BASE_I18N_EXPORT DateTimeFormatterOptions::Builder {
 //
 // All `DateTimeFormatterOptions` should be initiated from this namespace.
 //
-// Example: datetime_options::YMDT::Short() -> Year, Month, Day, Time (Short)
+// Example:
+// datetime_options::YMDT::Short() -> Year, Month, Day, Time (Short)
+// datetime_options::T::Long().with_time_zone_style(...) -> Time with Timezone
 namespace datetime_options {
 // Day of month (standalone)
 using D = DateTimeFormatterOptions::Builder<

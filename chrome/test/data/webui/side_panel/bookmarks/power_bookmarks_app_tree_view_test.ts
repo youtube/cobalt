@@ -713,4 +713,38 @@ suite('TreeView', () => {
     const updatedFolder5 = getPowerBookmarksRowElement(powerBookmarksApp, '5')!;
     assertTrue(updatedFolder5.toggleExpand, 'Folder 5 should remain expanded');
   });
+
+  test('FolderRowReRendersAfterChildMovedOut', async () => {
+    bookmarksApi = new TestBookmarksApiProxy();
+    bookmarksApi.setAllBookmarks(structuredClone(nestedBookmarks));
+    BookmarksApiProxyImpl.setInstance(bookmarksApi);
+    powerBookmarksApp = await initializeAppUi(bookmarksApi);
+
+    // Folder 5 initially has 5 children.
+    let folder5Row = getPowerBookmarksRowElement(powerBookmarksApp, '5')!;
+    assertTrue(!!folder5Row);
+    assertEquals(5, folder5Row.bookmark.children!.length);
+
+    // Move bookmark 22 from folder 5 (index 2) to folder 6 (index 0).
+    bookmarksApi.callbackRouterRemote.onBookmarkNodeMoved(
+        /*oldParentId=*/ '5', /*oldIndex=*/ 2, /*newParentId=*/ '6',
+        /*newIndex=*/ 0);
+    await microtasksFinished();
+
+    folder5Row = getPowerBookmarksRowElement(powerBookmarksApp, '5')!;
+    assertTrue(!!folder5Row);
+    assertEquals(4, folder5Row.bookmark.children!.length);
+
+    // The folder row must have re-rendered. Verify the update completed.
+    await folder5Row.updateComplete;
+    const folder5Item = getPowerBookmarksRowItemElement(powerBookmarksApp, '5');
+    assertTrue(!!folder5Item);
+    const description =
+        folder5Item.getBookmarkDescriptionForTests(folder5Row.bookmark);
+    assertTrue(
+        !!description && description.includes('4'),
+        `Folder 5 description should reflect 4 children after move, ` +
+            `got: ${description}`);
+  });
+
 });

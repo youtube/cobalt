@@ -9,6 +9,7 @@
 
 #include "build/build_config.h"
 #include "media/base/media_export.h"
+#include "media/media_buildflags.h"
 
 namespace media {
 
@@ -26,14 +27,22 @@ struct MEDIA_EXPORT AudioProcessingSettings {
   // If true, a system loopback stream will be used as the echo cancellation
   // reference signal.
   bool use_loopback_aec_reference = false;
+#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+  // If true, voice isolation will be applied.
+  bool voice_isolation = false;
+#endif
 
   bool operator==(const AudioProcessingSettings& b) const {
-    return echo_cancellation == b.echo_cancellation &&
-           noise_suppression == b.noise_suppression &&
-           automatic_gain_control == b.automatic_gain_control &&
-           multi_channel_capture_processing ==
-               b.multi_channel_capture_processing &&
-           use_loopback_aec_reference == b.use_loopback_aec_reference;
+    bool equal = echo_cancellation == b.echo_cancellation &&
+                 noise_suppression == b.noise_suppression &&
+                 automatic_gain_control == b.automatic_gain_control &&
+                 multi_channel_capture_processing ==
+                     b.multi_channel_capture_processing &&
+                 use_loopback_aec_reference == b.use_loopback_aec_reference;
+#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+    equal = equal && voice_isolation == b.voice_isolation;
+#endif
+    return equal;
   }
 
   bool NeedWebrtcAudioProcessing() const {
@@ -43,6 +52,11 @@ struct MEDIA_EXPORT AudioProcessingSettings {
     if (echo_cancellation || automatic_gain_control) {
       return true;
     }
+#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+    if (voice_isolation) {
+      return true;
+    }
+#endif
 #endif
 
     return noise_suppression;

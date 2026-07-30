@@ -536,12 +536,12 @@ public class TabListEditorCoordinator {
     }
 
     /**
-     * Removes a special {@link org.chromium.ui.modelutil.MVCListAdapter.ListItem} that has the
-     * given {@code uiType} and/or its {@link PropertyModel} has the given {@code itemIdentifier}.
+     * Removes a special {@link MVCListAdapter.ListItem} that has the given {@code uiType} and/or
+     * its {@link PropertyModel} has the given {@code itemIdentifier}.
      *
      * @param uiType The uiType to match.
      * @param itemIdentifier The itemIdentifier to match. This can be obsoleted if the {@link
-     *     org.chromium.ui.modelutil.MVCListAdapter.ListItem} does not need additional identifier.
+     *     MVCListAdapter.ListItem} does not need additional identifier.
      */
     public void removeSpecialListItem(@UiType int uiType, int itemIdentifier) {
         assert mTabListCoordinator != null;
@@ -549,8 +549,8 @@ public class TabListEditorCoordinator {
     }
 
     /**
-     * Removes a {@link org.chromium.ui.modelutil.MVCListAdapter.ListItem} that has the given {@code
-     * uiType} and the {@link PropertyModel} has the given {@link TabListEditorItemSelectionId}.
+     * Removes a {@link MVCListAdapter.ListItem} that has the given {@code uiType} and the {@link
+     * PropertyModel} has the given {@link TabListEditorItemSelectionId}.
      *
      * @param uiType The uiType to match.
      * @param itemId The itemId to match.

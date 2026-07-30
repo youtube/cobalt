@@ -5,8 +5,6 @@
 #ifndef CHROMEOS_UI_WM_DEBUG_UTIL_H_
 #define CHROMEOS_UI_WM_DEBUG_UTIL_H_
 
-#include <memory>
-#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -28,7 +26,7 @@ using GetChildrenCallback = base::RepeatingCallback<
 // child windows are structured under a window.
 COMPONENT_EXPORT(CHROMEOS_UI_BASE)
 std::vector<std::string> PrintWindowHierarchy(
-    aura::Window::Windows roots,
+    aura::Window::Windows windows,
     bool scrub_data,
     std::ostringstream* out,
     GetChildrenCallback children_callback = GetChildrenCallback());

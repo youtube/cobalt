@@ -101,6 +101,7 @@ class ChildProcessSecurityPolicy {
   // capability to upload the requested file.
   virtual bool CanReadFile(ChildProcessId child_id,
                            const base::FilePath& file) = 0;
+
   virtual bool CanCreateReadWriteFile(int child_id,
                                       const base::FilePath& file) = 0;
 

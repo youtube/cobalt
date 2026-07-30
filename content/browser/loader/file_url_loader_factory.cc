@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base/byte_count.h"
+#include "base/byte_size.h"
 #include "base/command_line.h"
 #include "base/containers/span.h"
 #include "base/files/file.h"
@@ -347,9 +348,12 @@ class FileURLDirectoryLoader
     data_producer_.reset();
 
     network::URLLoaderCompletionStatus completion_status(status);
-    completion_status.encoded_data_length = total_bytes_written_;
-    completion_status.encoded_body_length = total_bytes_written_;
-    completion_status.decoded_body_length = total_bytes_written_;
+    completion_status.encoded_data_length =
+        base::ByteSize(total_bytes_written_);
+    completion_status.encoded_body_length =
+        base::ByteSize(total_bytes_written_);
+    completion_status.decoded_body_length =
+        base::ByteSize(total_bytes_written_);
 
     client_->OnComplete(completion_status);
     client_.reset();
@@ -794,9 +798,9 @@ class FileURLLoader : public network::mojom::URLLoader {
 
     if (result == MOJO_RESULT_OK) {
       network::URLLoaderCompletionStatus status(net::OK);
-      status.encoded_data_length = total_bytes_written_;
-      status.encoded_body_length = total_bytes_written_;
-      status.decoded_body_length = total_bytes_written_;
+      status.encoded_data_length = base::ByteSize(total_bytes_written_);
+      status.encoded_body_length = base::ByteSize(total_bytes_written_);
+      status.decoded_body_length = base::ByteSize(total_bytes_written_);
       client_->OnComplete(status);
     } else {
       client_->OnComplete(network::URLLoaderCompletionStatus(net::ERR_FAILED));

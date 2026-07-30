@@ -30,6 +30,7 @@
 #include "chrome/browser/ui/autofill/autofill_suggestion_controller_utils.h"
 #include "chrome/browser/ui/autofill/chrome_autofill_client.h"
 #include "chrome/browser/ui/autofill/next_idle_barrier.h"
+#include "components/autofill/content/browser/renderer_forms_from_browser_form.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
@@ -450,7 +451,8 @@ void AutofillKeyboardAccessoryControllerImpl::AcceptSuggestion(
   base::UmaHistogramEnumeration("Autofill.SuggestionAccepted.Method",
                                 accept_method);
   delegate_->DidAcceptSuggestion(
-      suggestion, AutofillSuggestionDelegate::SuggestionMetadata{.row = index});
+      suggestion, AutofillSuggestionDelegate::SuggestionMetadata{
+                      .multi_index = {static_cast<size_t>(index)}});
 }
 
 bool AutofillKeyboardAccessoryControllerImpl::RemoveSuggestion(
@@ -458,6 +460,9 @@ bool AutofillKeyboardAccessoryControllerImpl::RemoveSuggestion(
     AutofillMetrics::SingleEntryRemovalMethod removal_method) {
   CHECK_EQ(removal_method,
            AutofillMetrics::SingleEntryRemovalMethod::kKeyboardAccessory);
+  if (base::checked_cast<size_t>(index) >= suggestions_.size()) {
+    return false;
+  }
   RemovalConfirmationText removal_text;
   if (!GetRemovalConfirmationText(index, &removal_text)) {
     return false;
@@ -468,30 +473,28 @@ bool AutofillKeyboardAccessoryControllerImpl::RemoveSuggestion(
       removal_text.confirm_button_text,
       base::BindOnce(
           &AutofillKeyboardAccessoryControllerImpl::OnDeletionDialogClosed,
-          GetWeakPtr(), index));
+          GetWeakPtr(), suggestions_[index]));
   return true;
 }
 
 void AutofillKeyboardAccessoryControllerImpl::OnDeletionDialogClosed(
-    int index,
+    const Suggestion& suggestion,
     bool confirmed) {
-  // This function might be called in a callback, so ensure the list index is
-  // still in bounds. If not, terminate the removing and consider it failed.
-  // TODO(crbug.com/40766704): Replace these checks with a stronger identifier.
-  if (base::checked_cast<size_t>(index) >= suggestions_.size()) {
+  auto it = std::ranges::find(suggestions_, suggestion);
+  if (it == suggestions_.end()) {
     return;
   }
   CHECK_EQ(suggestions_.size(), labels_.size());
 
   const FillingProduct filling_product =
-      GetFillingProductFromSuggestionType(GetSuggestionAt(index).type);
+      GetFillingProductFromSuggestionType(suggestion.type);
 
   if (filling_product == FillingProduct::kAddress && web_contents_) {
     PersonalDataManager* pdm = PersonalDataManagerFactory::GetForBrowserContext(
         web_contents_->GetBrowserContext());
 
-    const auto* payload = std::get_if<Suggestion::AutofillProfilePayload>(
-        &GetSuggestionAt(index).payload);
+    const auto* payload =
+        std::get_if<Suggestion::AutofillProfilePayload>(&suggestion.payload);
     if (pdm && payload) {
       const AutofillProfile* profile =
           pdm->address_data_manager().GetProfileByGUID(payload->guid.value());
@@ -506,7 +509,7 @@ void AutofillKeyboardAccessoryControllerImpl::OnDeletionDialogClosed(
     return;
   }
 
-  if (!delegate_->RemoveSuggestion(suggestions_[index])) {
+  if (!delegate_->RemoveSuggestion(suggestion)) {
     return;
   }
   switch (filling_product) {
@@ -537,7 +540,8 @@ void AutofillKeyboardAccessoryControllerImpl::OnDeletionDialogClosed(
   }
 
   // Remove the deleted element.
-  suggestions_.erase(suggestions_.begin() + index);
+  const size_t index = std::distance(suggestions_.begin(), it);
+  suggestions_.erase(it);
   labels_.erase(labels_.begin() + index);
 
   if (HasSuggestions()) {
@@ -589,18 +593,29 @@ void AutofillKeyboardAccessoryControllerImpl::Show(
     return;
   }
 
-  // The focused frame may be a different frame than the one the delegate is
-  // associated with. This happens in two scenarios:
-  // - With frame-transcending forms: the focused frame is subframe, whose
-  //   form has been flattened into an ancestor form.
-  // - With race conditions: while Autofill parsed the form, the focused may
-  //   have moved to another frame.
-  // We support the case where the focused frame is a descendant of the
-  // `delegate_`'s frame. We observe the focused frame's RenderFrameDeleted()
-  // event.
-  content::RenderFrameHost* rfh = web_contents_->GetFocusedFrame();
-  if (!rfh || !delegate_ ||
-      !IsAncestorOf(GetRenderFrameHost(*delegate_), rfh)) {
+  content::RenderFrameHost* rfh = nullptr;
+  if (base::FeatureList::IsEnabled(features::kAutofillSimplifyFocusCheck)) {
+    rfh = FindRenderFrameHostByToken(*web_contents_,
+                                     controller_common_.frame_token);
+  } else {
+    // The focused frame may be different from the one one the controller is
+    // anchored to. This happens in two scenarios:
+    // - With frame-transcending forms: the focused frame is subframe, whose
+    //   form has been flattened into an ancestor form.
+    // - With race conditions: while Autofill parsed the form, the focused may
+    //   have moved to another frame.
+    // We support the case where the focused frame is a descendant of the
+    // `delegate_`'s frame. We observe the focused frame's RenderFrameDeleted()
+    // event.
+    rfh = web_contents_->GetFocusedFrame();
+    content::RenderFrameHost* anchor_rfh = FindRenderFrameHostByToken(
+        *web_contents_, controller_common_.frame_token);
+    if (!rfh || !delegate_ || !IsAncestorOf(anchor_rfh, rfh)) {
+      rfh = nullptr;
+    }
+  }
+
+  if (!rfh) {
     Hide(SuggestionHidingReason::kNoFrameHasFocus);
     return;
   }

@@ -1447,6 +1447,43 @@ TEST_F(ServiceWorkerMainResourceLoaderTest, Lifetime_RaceNetworkRequest) {
   EXPECT_FALSE(loader);
 }
 
+// Tests that the loader handles being detached while running the fallback
+// callback. This can happen if the navigation is cancelled while the fallback
+// callback is on the stack.
+TEST_F(ServiceWorkerMainResourceLoaderTest, DetachedDuringFallbackCallback) {
+  service_worker_->RespondWithFallback();
+  SetupNetworkResponse();
+
+  std::unique_ptr<network::ResourceRequest> request = CreateRequest();
+  service_worker_client_ = std::make_unique<ScopedServiceWorkerClient>(
+      CreateServiceWorkerClient(helper_->context(), request->url));
+  service_worker_client()->AddMatchingRegistration(registration_.get());
+  service_worker_client()->SetControllerRegistration(
+      registration_, /*notify_controllerchange=*/false);
+
+  base::RunLoop run_loop;
+  loader_ = std::make_unique<ServiceWorkerMainResourceLoader>(
+      base::BindLambdaForTesting(
+          [&](ResponseHeadUpdateParams) -> network::mojom::URLLoaderFactory* {
+            // Simulate the owning interceptor being torn down while the
+            // fallback callback is running.
+            loader_.release()->DetachedFromRequest();
+            run_loop.Quit();
+            return fake_url_loader_factory_.get();
+          }),
+      /*fetch_event_client_id=*/"", service_worker_client()->AsWeakPtr(),
+      /*find_registration_start_time=*/base::TimeTicks::Now());
+  base::WeakPtr<ServiceWorkerMainResourceLoader> loader = loader_->AsWeakPtr();
+  loader_->StartRequest(loader_remote_.BindNewPipeAndPassReceiver(),
+                        /*request_id=*/0, /*options=*/0, *request,
+                        client_.CreateRemote(),
+                        net::MutableNetworkTrafficAnnotationTag());
+  run_loop.Run();
+
+  // The loader should have been deleted.
+  EXPECT_FALSE(loader);
+}
+
 TEST_F(ServiceWorkerMainResourceLoaderTest, ConnectionErrorDuringFetchEvent) {
   service_worker_->DeferResponse();
   StartRequest(CreateRequest());

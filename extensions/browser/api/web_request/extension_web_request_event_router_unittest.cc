@@ -6,7 +6,7 @@
 
 #include "base/test/values_test_util.h"
 #include "extensions/browser/api/web_request/web_request_api_constants.h"
-#include "extensions/browser/api/web_request/web_request_resource_type.h"
+#include "extensions/common/api/web_request/web_request_resource_type.h"
 #include "extensions/common/url_pattern.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

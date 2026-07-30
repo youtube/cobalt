@@ -38,6 +38,7 @@
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/sharing_hub/sharing_hub_features.h"
 #include "chrome/browser/ui/accelerator_table.h"
+#include "chrome/browser/ui/autofill/payments/payments_churned_users_bubble_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/search_engines/ai_mode_button_config.h"
@@ -2083,6 +2084,16 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
             .Build());
   }
 
+  // Fake Page Action for Chrome internals page debugging.
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {},
+              bwi))
+          .SetActionId(kActionFakePageActionForDebug)
+          .Build());
+
   root_action_item_->AddChild(
       actions::ActionItem::Builder(
           base::BindRepeating(
@@ -3949,6 +3960,39 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
           .SetActionId(kActionSpellcheckMultiLingual)
           .Build());
 #endif
+
+#if !BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableResurrectingPaymentsUsers)) {
+    root_action_item_->AddChild(
+        actions::ActionItem::Builder(
+            base::BindRepeating(
+                [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                   actions::ActionInvocationContext context) {
+                  if (!bwi) {
+                    return;
+                  }
+
+                  auto* tab = bwi->GetActiveTabInterface();
+                  if (!tab) {
+                    return;
+                  }
+
+                  if (auto* controller =
+                          autofill::PaymentsChurnedUsersBubbleController::From(
+                              *tab)) {
+                    controller->ReshowBubble();
+                  }
+                },
+                bwi))
+            .SetActionId(kActionShowPaymentsChurnedUsersBubble)
+            .SetImage(ui::ImageModel::FromVectorIcon(
+                features::IsRoundedIconsEnabled()
+                    ? kCreditCardIcon
+                    : kCreditCardChromeRefreshOldIcon))
+            .Build());
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 void BrowserActions::AddListeners() {

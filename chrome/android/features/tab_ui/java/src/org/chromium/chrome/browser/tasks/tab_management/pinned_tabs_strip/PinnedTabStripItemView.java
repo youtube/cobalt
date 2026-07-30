@@ -15,12 +15,12 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.ColorInt;
-import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.widget.ImageViewCompat;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab_ui.TabCardThemeUtil;
@@ -83,8 +83,7 @@ public class PinnedTabStripItemView extends FrameLayout {
      * @param favicon The {@link TabFavicon} to display.
      * @param isSelected Whether the tab is selected.
      */
-    private void setFavicon(
-            @org.chromium.build.annotations.Nullable TabFavicon favicon, boolean isSelected) {
+    private void setFavicon(@Nullable TabFavicon favicon, boolean isSelected) {
         if (mFavicon == null) return;
 
         if (favicon == null) {

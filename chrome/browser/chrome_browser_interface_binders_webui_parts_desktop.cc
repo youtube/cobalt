@@ -116,6 +116,7 @@
 #include "components/page_image_service/mojom/page_image_service.mojom.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/search/ntp_features.h"
+#include "components/signin/public/base/signin_buildflags.h"
 #include "components/surface_embed/browser/surface_embed_host.h"
 #include "components/surface_embed/common/features.h"
 #include "components/surface_embed/common/surface_embed.mojom.h"
@@ -220,6 +221,10 @@
 #include "chrome/browser/ui/webui/default_browser/default_browser_modal_ui.h"
 #endif
 
+#if BUILDFLAG(IS_WIN)
+#include "chrome/browser/ui/webui/default_browser/visual_guided_setter_ui.h"
+#endif
+
 namespace chrome::internal {
 
 using content::RegisterWebUIControllerInterfaceBinder;
@@ -284,6 +289,12 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
     RegisterWebUIControllerInterfaceBinder<history::mojom::PageHandler,
                                            HistoryUI>(map);
   }
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  RegisterWebUIControllerInterfaceBinder<
+      history_cross_device_signin_promo::mojom::
+          HistoryCrossDeviceSigninPromoHandler,
+      HistoryUI>(map);
+#endif
   if (TabsFromOtherDevicesSidePanelCoordinator::IsSupported(
           Profile::FromBrowserContext(
               render_frame_host->GetBrowserContext()))) {
@@ -633,6 +644,12 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
         default_browser_modal::mojom::PageHandlerFactory,
         DefaultBrowserModalUI>(map);
   }
+#endif
+
+#if BUILDFLAG(IS_WIN)
+  RegisterWebUIControllerInterfaceBinder<
+      visual_guided_setter::mojom::PageHandlerFactory, VisualGuidedSetterUI>(
+      map);
 #endif
 
   RegisterWebUIControllerInterfaceBinder<

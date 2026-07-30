@@ -50,7 +50,6 @@ using chrome_test_util::OpenLinkInIncognitoButton;
 using chrome_test_util::OpenLinkInNewTabButton;
 using chrome_test_util::SearchBar;
 using chrome_test_util::ShareButton;
-using chrome_test_util::TabGridEditButton;
 using chrome_test_util::TappableBookmarkNodeWithLabel;
 
 namespace chrome_test_util {
@@ -74,7 +73,6 @@ id<GREYMatcher> BookmarksContextMenuEditButton() {
   return grey_allOf(
       EditButton(), grey_userInteractionEnabled(),
       grey_not(grey_accessibilityID(kBookmarksHomeTrailingButtonIdentifier)),
-      grey_not(TabGridEditButton()),
       grey_not(grey_ancestor(
           grey_accessibilityID(kBookmarksHomeTrailingButtonIdentifier))),
       nil);

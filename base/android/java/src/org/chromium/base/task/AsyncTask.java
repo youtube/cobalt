@@ -15,12 +15,16 @@ import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.DoNotInline;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -42,6 +46,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @NullMarked
 public abstract class AsyncTask<Result extends @Nullable Object> {
     private static final String TAG = "AsyncTask";
+
+    private static final @Nullable Set<AsyncTask<?>> sActiveTasks =
+            BuildConfig.IS_FOR_TEST ? Collections.synchronizedSet(new HashSet<>()) : null;
 
     private static final String GET_STATUS_UMA_HISTOGRAM =
             "Android.Jank.AsyncTaskGetOnUiThreadStatus";
@@ -158,6 +165,9 @@ public abstract class AsyncTask<Result extends @Nullable Object> {
         // We check if this task is of a type which does not require post-execution.
         if (this instanceof BackgroundOnlyAsyncTask) {
             mStatus = Status.FINISHED;
+            if (sActiveTasks != null) {
+                sActiveTasks.remove(this);
+            }
         } else if (mIterationIdForTesting == PostTask.sTestIterationForTesting) {
             ThreadUtils.postOnUiThread(
                     () -> {
@@ -394,6 +404,9 @@ public abstract class AsyncTask<Result extends @Nullable Object> {
         }
 
         mStatus = Status.RUNNING;
+        if (sActiveTasks != null) {
+            sActiveTasks.add(this);
+        }
 
         onPreExecute();
     }
@@ -512,6 +525,9 @@ public abstract class AsyncTask<Result extends @Nullable Object> {
             onPostExecute(result);
         }
         mStatus = Status.FINISHED;
+        if (sActiveTasks != null) {
+            sActiveTasks.remove(this);
+        }
     }
 
     class NamedFutureTask extends FutureTask<Result> {
@@ -556,5 +572,17 @@ public abstract class AsyncTask<Result extends @Nullable Object> {
                 postResultIfNotInvoked(null);
             }
         }
+    }
+
+    public static void cancelAllTasksForTesting() {
+        if (sActiveTasks == null) return;
+        AsyncTask<?>[] tasks;
+        synchronized (sActiveTasks) {
+            tasks = sActiveTasks.toArray(new AsyncTask<?>[0]);
+        }
+        for (AsyncTask<?> task : tasks) {
+            task.cancel(true);
+        }
+        sActiveTasks.clear();
     }
 }

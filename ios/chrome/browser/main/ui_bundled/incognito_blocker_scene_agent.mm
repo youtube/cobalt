@@ -29,7 +29,7 @@
   if (!_overlayView) {
     // Cover the largest area potentially shown in the app switcher, in case
     // the screenshot is reused in a different orientation or size class.
-    CGRect screenBounds = [[UIScreen mainScreen] bounds];
+    CGRect screenBounds = self.sceneState.window.bounds;
     CGFloat maxDimension =
         std::max(CGRectGetWidth(screenBounds), CGRectGetHeight(screenBounds));
     _overlayView = [[UIView alloc]

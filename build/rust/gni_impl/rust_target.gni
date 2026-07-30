@@ -289,6 +289,11 @@ template("rust_target") {
     _cxx_bindings = invoker.cxx_bindings
   }
   _rustenv = [ "OUT_DIR=" + rebase_path(_env_out_dir, root_build_dir) ]
+  if (rust_clippy_conf_file != "") {
+    _clippy_conf_dir = get_path_info(rust_clippy_conf_file, "dir")
+    _rustenv +=
+        [ "CLIPPY_CONF_DIR=" + rebase_path(_clippy_conf_dir, root_build_dir) ]
+  }
   if (defined(invoker.rustenv)) {
     _rustenv += invoker.rustenv
   }
@@ -723,6 +728,9 @@ template("rust_target") {
             inputs += [ "//third_party/rust-toolchain/bin/clippy-driver.exe" ]
           } else {
             inputs += [ "//third_party/rust-toolchain/bin/clippy-driver" ]
+          }
+          if (rust_clippy_conf_file != "") {
+            inputs += [ rust_clippy_conf_file ]
           }
 
           args = [

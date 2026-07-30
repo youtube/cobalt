@@ -9,3 +9,6 @@ mod sequenced_task_runner_unittest;
 
 #[path = "files/file_path_unittest.rs"]
 mod file_path_unittest;
+
+#[path = "command_line_unittest.rs"]
+mod command_line_unittest;

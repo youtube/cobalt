@@ -473,6 +473,12 @@ AutofillSettingsPage SuggestionToAutofillSettingsPage(
   return NO;
 }
 
+- (BOOL)formInputAccessoryViewController:
+            (FormInputAccessoryViewController*)formInputAccessoryViewController
+                          shouldShowRPId:(NSString*)rpId {
+  return [_formInputAccessoryMediator shouldShowRPId:rpId];
+}
+
 #pragma mark - AutofillSuggestionContextMenuHandler
 
 - (void)openSettingsForSuggestion:(FormSuggestion*)suggestion {
@@ -483,6 +489,20 @@ AutofillSettingsPage SuggestionToAutofillSettingsPage(
 
 - (void)openEditForSuggestion:(FormSuggestion*)suggestion {
   // TODO(crbug.com/521517095): Implement edit action.
+}
+
+- (BOOL)isPersonalContextSuggestion:(FormSuggestion*)suggestion {
+  web::WebState* activeWebState = [self activeWebState];
+  if (!activeWebState) {
+    return NO;
+  }
+  base::optional_ref<const autofill::EntityInstance> entity =
+      autofill::GetEntityInstance(
+          ProfileIOS::FromBrowserState(activeWebState->GetBrowserState()),
+          suggestion.payload);
+  return entity.has_value() &&
+         entity->record_type() ==
+             autofill::EntityInstance::RecordType::kPersonalContext;
 }
 
 #pragma mark - FallbackCoordinatorDelegate

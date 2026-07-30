@@ -26,6 +26,7 @@
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_ui.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
+#import "ios/testing/earl_grey/app_launch_manager.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "net/test/embedded_test_server/embedded_test_server.h"
 #import "ui/base/l10n/l10n_util.h"
@@ -201,7 +202,6 @@ void RemoveAttachmentWithTitle(NSString* title) {
 
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config = [super appConfigurationForTestCase];
-  config.features_enabled.push_back(kComposeboxIOS);
   config.features_enabled.push_back(kComposeboxIpad);
   config.features_disabled.push_back(kComposeboxAIMDisabled);
   // Only rely on local conditions for AIM eligibility, so disable the
@@ -601,6 +601,7 @@ void RemoveAttachmentWithTitle(NSString* title) {
   [ChromeEarlGrey closeAllNormalTabs];
 
   // Open the first tab and load a page.
+  [ChromeEarlGrey openNewTab];
   GURL firstURL = self.testServer->GetURL(base::StringPrintf(kPageURL, 1));
   [ChromeEarlGrey loadURL:firstURL];
   [ChromeEarlGrey
@@ -615,7 +616,14 @@ void RemoveAttachmentWithTitle(NSString* title) {
 
   // Restart the application to trigger session restoration.
   // After restart, the first tab will be restored in an unrealized state.
-  [self triggerRestoreByRestartingApplication];
+  // Note: Using ForceRelaunchByKilling instead of
+  // triggerRestoreByRestartingApplication to prevent the test from crashing
+  // during graceful termination on iOS 18. See crbug.com/527964556.
+  [ChromeEarlGrey saveSessionImmediately];
+
+  AppLaunchConfiguration config = [self appConfigurationForTestCase];
+  config.relaunch_policy = ForceRelaunchByKilling;
+  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
 
   // Re-enable tools after restart since they are reset.
   [ComposeboxAppInterface enableAllTools];
@@ -662,7 +670,6 @@ void RemoveAttachmentWithTitle(NSString* title) {
 
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config = [super appConfigurationForTestCase];
-  config.features_enabled.push_back(kComposeboxIOS);
   config.features_enabled.push_back(kComposeboxIpad);
   config.features_disabled.push_back(kComposeboxAIMDisabled);
   // Only rely on local conditions for AIM eligibility, so disable the

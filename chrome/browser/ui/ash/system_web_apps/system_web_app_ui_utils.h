@@ -10,7 +10,7 @@
 
 #include "base/files/file_path.h"
 #include "chrome/browser/ash/browser_delegate/browser_controller.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chromeos/ash/components/system_web_apps/system_web_app_type.h"
 #include "components/services/app_service/public/cpp/app_launch_params.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
@@ -18,6 +18,7 @@
 #include "components/webapps/common/web_app_id.h"
 #include "url/gurl.h"
 
+class Browser;
 class Profile;
 
 namespace ash {
@@ -121,7 +122,8 @@ BrowserDelegate* LaunchSystemWebAppImpl(Profile* profile,
 // TODO(crbug.com/369689187): Migrate to the BrowserDelegate* overload.
 Browser* FindSystemWebAppBrowser(Profile* profile,
                                  SystemWebAppType app_type,
-                                 Browser::Type browser_type = Browser::TYPE_APP,
+                                 BrowserWindowInterface::Type browser_type =
+                                     BrowserWindowInterface::TYPE_APP,
                                  const GURL& url = GURL());
 // The `browser_type` must be kApp or kAppPopup.
 BrowserDelegate* FindSystemWebAppBrowser(Profile* profile,
@@ -132,22 +134,14 @@ BrowserDelegate* FindSystemWebAppBrowser(Profile* profile,
 // Returns a count of the `app_type` SWA Browser instances for `profile`.
 int CountSystemWebAppBrowsers(Profile* profile, SystemWebAppType app_type);
 
-// Returns true if the |browser| is dedicated (see above) to hosting a system
-// web app.
-bool IsSystemWebApp(Browser* browser);
-
 // Returns whether the |browser| is dedicated (see above) to hosting the system
 // app |type|.
-bool IsBrowserForSystemWebApp(BrowserWindowInterface* browser,
+bool IsBrowserForSystemWebApp(const BrowserDelegate& browser,
                               SystemWebAppType type);
 
 // Returns the SystemWebAppType that should capture the |url|.
 std::optional<SystemWebAppType> GetCapturingSystemAppForURL(Profile* profile,
                                                             const GURL& url);
-
-// Returns the minimum window size for a system web app, or an empty size if
-// the app does not specify a minimum size.
-gfx::Size GetSystemWebAppMinimumWindowSize(Browser* browser);
 
 }  // namespace ash
 

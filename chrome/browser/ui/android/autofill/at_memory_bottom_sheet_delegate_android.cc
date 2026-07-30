@@ -59,8 +59,34 @@ void AtMemoryBottomSheetDelegateAndroid::OnSuggestionSelected(int position) {
   Suggestion suggestion = suggestions_[position];
   if (delegate_) {
     delegate_->DidAcceptSuggestion(
-        suggestion,
-        AutofillSuggestionDelegate::SuggestionMetadata{.row = position});
+        suggestion, AutofillSuggestionDelegate::SuggestionMetadata{
+                        .multi_index = {static_cast<size_t>(position)}});
+  }
+}
+
+void AtMemoryBottomSheetDelegateAndroid::OnChildSuggestionSelected(
+    int parent_position,
+    int child_position) {
+  if (parent_position < 0 ||
+      base::checked_cast<size_t>(parent_position) >= suggestions_.size()) {
+    return;
+  }
+
+  const Suggestion& parent_suggestion = suggestions_[parent_position];
+  if (child_position < 0 || base::checked_cast<size_t>(child_position) >=
+                                parent_suggestion.children.size()) {
+    return;
+  }
+
+  // Use a copy instead of a reference here. Under certain circumstances,
+  // `DidAcceptSuggestion()` can trigger focus changes or hiding that
+  // destroys `this` or overwrites `suggestions_`, invalidating the reference.
+  Suggestion suggestion = parent_suggestion.children[child_position];
+  if (delegate_) {
+    delegate_->DidAcceptSuggestion(
+        suggestion, AutofillSuggestionDelegate::SuggestionMetadata{
+                        .multi_index = {static_cast<size_t>(parent_position),
+                                        static_cast<size_t>(child_position)}});
   }
 }
 

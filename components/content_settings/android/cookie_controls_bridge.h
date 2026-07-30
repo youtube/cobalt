@@ -49,19 +49,10 @@ class CookieControlsBridge : public CookieControlsObserver {
 
   void OnUiClosing(JNIEnv* env);
 
-  void OnEntryPointAnimated(JNIEnv* env);
-
   // CookieControlsObserver:
   void OnStatusChanged(CookieControlsState controls_state,
                        CookieControlsEnforcement enforcement,
                        base::Time expiration) override;
-
-  void OnCookieControlsIconStatusChanged(
-      bool icon_visible,
-      CookieControlsState controls_state,
-      bool should_highlight) override;
-
-  void OnReloadThresholdExceeded() override;
 
  private:
   base::android::ScopedJavaGlobalRef<jobject> jobject_;

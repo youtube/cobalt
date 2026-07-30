@@ -161,6 +161,8 @@ component("net") {
     "base/backoff_entry_serializer.h",
     "base/base64.cc",
     "base/base64.h",
+    "base/bssl_refcounted.cc",
+    "base/bssl_refcounted.h",
     "base/cache_type.h",
     "base/chunked_upload_data_stream.cc",
     "base/chunked_upload_data_stream.h",
@@ -639,6 +641,8 @@ component("net") {
     "http/http_byte_range.h",
     "http/http_cache.cc",
     "http/http_cache.h",
+    "http/http_cache_invalidation_pickle_traits.cc",
+    "http/http_cache_invalidation_pickle_traits.h",
     "http/http_cache_transaction.cc",
     "http/http_cache_transaction.h",
     "http/http_cache_util.cc",
@@ -2969,6 +2973,7 @@ target(_test_target_type, "net_unittests") {
     "http/http_auth_unittest.cc",
     "http/http_basic_state_unittest.cc",
     "http/http_byte_range_unittest.cc",
+    "http/http_cache_invalidation_pickle_traits_unittest.cc",
     "http/http_cache_unittest.cc",
     "http/http_cache_writers_unittest.cc",
     "http/http_chunked_decoder_unittest.cc",
@@ -3622,6 +3627,7 @@ target(_test_target_type, "net_unittests") {
     deps += [
       "//base/version_info",
       "//net/data/ssl/chrome_root_store:gen_root_store_test_inc",
+      "//net/data/ssl/chrome_root_store:gen_signer_set_inc",
     ]
 
     if (is_win) {

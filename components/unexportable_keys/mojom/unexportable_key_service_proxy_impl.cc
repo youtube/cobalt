@@ -124,9 +124,8 @@ void unexportable_keys::UnexportableKeyServiceProxyImpl::GenerateSigningKey(
     GenerateSigningKeyCallback callback) {
   unexportable_key_service_->GenerateSigningKeySlowlyAsync(
       acceptable_algorithms, priority,
-      base::BindOnce(PopulateNewSigningKeyData,
-                     std::ref(*unexportable_key_service_))
-          .Then(std::move(callback)));
+      base::BindOnce(&UnexportableKeyServiceProxyImpl::OnSigningKeyCreated,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
 
 void unexportable_keys::UnexportableKeyServiceProxyImpl::FromWrappedSigningKey(
@@ -139,9 +138,8 @@ void unexportable_keys::UnexportableKeyServiceProxyImpl::FromWrappedSigningKey(
   }
   unexportable_key_service_->FromWrappedSigningKeySlowlyAsync(
       wrapped_key, priority,
-      base::BindOnce(PopulateNewSigningKeyData,
-                     std::ref(*unexportable_key_service_))
-          .Then(std::move(callback)));
+      base::BindOnce(&UnexportableKeyServiceProxyImpl::OnSigningKeyCreated,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
 
 void unexportable_keys::UnexportableKeyServiceProxyImpl::GenerateAttestationKey(
@@ -151,9 +149,8 @@ void unexportable_keys::UnexportableKeyServiceProxyImpl::GenerateAttestationKey(
     GenerateAttestationKeyCallback callback) {
   unexportable_key_service_->GenerateAttestationKeySlowlyAsync(
       acceptable_algorithms, priority,
-      base::BindOnce(PopulateNewAttestationKeyData,
-                     std::ref(*unexportable_key_service_))
-          .Then(std::move(callback)));
+      base::BindOnce(&UnexportableKeyServiceProxyImpl::OnAttestationKeyCreated,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
 
 void unexportable_keys::UnexportableKeyServiceProxyImpl::
@@ -166,9 +163,8 @@ void unexportable_keys::UnexportableKeyServiceProxyImpl::
   }
   unexportable_key_service_->FromWrappedAttestationKeySlowlyAsync(
       wrapped_key, priority,
-      base::BindOnce(PopulateNewAttestationKeyData,
-                     std::ref(*unexportable_key_service_))
-          .Then(std::move(callback)));
+      base::BindOnce(&UnexportableKeyServiceProxyImpl::OnAttestationKeyCreated,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
 
 void unexportable_keys::UnexportableKeyServiceProxyImpl::Sign(
@@ -196,9 +192,10 @@ void unexportable_keys::UnexportableKeyServiceProxyImpl::
         BackgroundTaskPriority priority,
         GetAllKeysForGarbageCollectionCallback callback) {
   unexportable_key_service_->GetAllKeysForGarbageCollectionSlowlyAsync(
-      priority, base::BindOnce(PopulateAllNewKeyData,
-                               std::ref(*unexportable_key_service_))
-                    .Then(std::move(callback)));
+      priority,
+      base::BindOnce(
+          &UnexportableKeyServiceProxyImpl::OnGetAllKeysForGarbageCollection,
+          weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
 
 void unexportable_keys::UnexportableKeyServiceProxyImpl::DeleteKeys(
@@ -214,6 +211,27 @@ void unexportable_keys::UnexportableKeyServiceProxyImpl::DeleteAllKeys(
     DeleteAllKeysCallback callback) {
   unexportable_key_service_->DeleteAllKeysSlowlyAsync(
       base::BindOnce(&AdaptSizeType).Then(std::move(callback)));
+}
+
+void UnexportableKeyServiceProxyImpl::OnSigningKeyCreated(
+    NewSigningKeyCallback callback,
+    ServiceErrorOr<UnexportableSigningKeyId> error_or_key_id) {
+  std::move(callback).Run(PopulateNewSigningKeyData(
+      *unexportable_key_service_, std::move(error_or_key_id)));
+}
+
+void UnexportableKeyServiceProxyImpl::OnAttestationKeyCreated(
+    NewAttestationKeyCallback callback,
+    ServiceErrorOr<UnexportableAttestationKeyId> error_or_key_id) {
+  std::move(callback).Run(PopulateNewAttestationKeyData(
+      *unexportable_key_service_, std::move(error_or_key_id)));
+}
+
+void UnexportableKeyServiceProxyImpl::OnGetAllKeysForGarbageCollection(
+    GetAllKeysForGarbageCollectionCallback callback,
+    ServiceErrorOr<std::vector<UnexportableKeyId>> error_or_key_ids) {
+  std::move(callback).Run(PopulateAllNewKeyData(*unexportable_key_service_,
+                                                std::move(error_or_key_ids)));
 }
 
 }  // namespace unexportable_keys

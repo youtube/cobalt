@@ -43,9 +43,10 @@ source_set("first_run") {
     "//base",
     "//chrome/browser/personal_context",
     "//chrome/browser/profiles:profile",
-    "//components/accessibility_annotator/core",
-    "//components/accessibility_annotator/core:features",
+    "//chrome/browser/signin",
     "//components/keyed_service/content",
+    "//components/personal_context/core",
+    "//components/personal_context/core:features",
     "//components/personal_context/first_run",
     "//content/public/browser",
   ]

@@ -16,7 +16,7 @@ class Profile;
 
 namespace glic {
 
-class GlicButtonControllerDelegate;
+class GlicSplitButtonDelegate;
 class GlicKeyedService;
 
 // Controller class for the button entry point. Manages visibility, icon
@@ -25,8 +25,8 @@ class GlicButtonController {
  public:
   GlicButtonController(Profile* profile,
                        BrowserWindowInterface& browser,
-                       GlicButtonControllerDelegate* tab_strip_delegate,
-                       GlicButtonControllerDelegate* toolbar_delegate,
+                       GlicSplitButtonDelegate* tab_strip_delegate,
+                       GlicSplitButtonDelegate* toolbar_delegate,
                        GlicKeyedService* service);
   ~GlicButtonController();
 
@@ -38,8 +38,8 @@ class GlicButtonController {
 
   raw_ptr<Profile> profile_;
   raw_ref<BrowserWindowInterface> browser_;
-  raw_ptr<GlicButtonControllerDelegate> tab_strip_glic_controller_delegate_;
-  raw_ptr<GlicButtonControllerDelegate> toolbar_glic_controller_delegate_;
+  raw_ptr<GlicSplitButtonDelegate> tab_strip_glic_controller_delegate_;
+  raw_ptr<GlicSplitButtonDelegate> toolbar_glic_controller_delegate_;
   raw_ptr<GlicKeyedService> glic_keyed_service_;
   PrefChangeRegistrar pref_registrar_;
 

@@ -568,17 +568,12 @@ void HTMLFrameOwnerElement::AddResourceTiming(
     return;
   }
 
-  // This would only happen in rare cases, where the frame is navigated from the
-  // outside, e.g. by a web extension or window.open() with target, and that
-  // navigation would cancel the container-initiated navigation. This safeguard
-  // would make this type of race harmless.
-  // TODO(crbug.com/1410705): fix this properly by moving IFrame reporting to
-  // the browser side.
-  if (fallback_timing_info_->name != info->name) {
-    return;
-  }
-
   info->initiator_url = fallback_timing_info_->initiator_url;
+
+  // When the kSanitizeOriginalUrlDuringNavigation feature is enabled, the
+  // original URL will be sanitized in the child frame's commit parameters.
+  // Restore it from the fallback info.
+  info->name = fallback_timing_info_->name;
 
   DOMWindowPerformance::performance(*GetDocument().domWindow())
       ->AddResourceTiming(std::move(info), localName());

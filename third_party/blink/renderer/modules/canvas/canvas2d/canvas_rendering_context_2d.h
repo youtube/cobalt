@@ -85,7 +85,7 @@ class MemoryManagedPaintCanvas;
 class MemoryManagedPaintRecorder;
 class Path2D;
 class SVGResource;
-class Canvas2DResourceProviderSharedImage;
+class Canvas2DResourceProvider;
 class Canvas2DBitmapProvider;
 enum class FlushReason;
 enum class PredefinedColorSpace;
@@ -160,7 +160,7 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   bool ShouldDisableAccelerationBecauseOfReadback() const override;
 
   // CanvasHibernationHandler::Delegate implementation
-  Canvas2DResourceProviderSharedImage* GetSharedImageProvider() const override;
+  Canvas2DResourceProvider* GetSharedImageProvider() const override;
   Canvas2DBitmapProvider* GetBitmapProviderForTesting() const {
     return bitmap_provider_.get();
   }
@@ -239,7 +239,7 @@ class MODULES_EXPORT CanvasRenderingContext2D final
 
   bool InitializeResourceProvider() override;
   void SetCanvas2DResourceProviderForTesting(
-      std::unique_ptr<Canvas2DResourceProviderSharedImage> provider,
+      std::unique_ptr<Canvas2DResourceProvider> provider,
       const gfx::Size& size);
   void SetBitmapProviderForTesting(
       std::unique_ptr<Canvas2DBitmapProvider> provider,
@@ -281,7 +281,7 @@ class MODULES_EXPORT CanvasRenderingContext2D final
 
   void Dispose() override;
 
-  void CreateCanvasResourceProvider();
+  void CreateProvider();
 
   void PruneLocalFontCache(size_t target_size);
 
@@ -304,11 +304,13 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   void ColorSchemeMayHaveChanged() override;
 
   // If the ResourceProvider currently exists, replaces it with a newly-created
-  // CanvasResourceProvider.
+  // resource provider.
   void DropAndRecreateExistingResourceProvider();
 
   // This method should be called only when both providers are null.
   void RecreateResourceProvider();
+
+  void FlushIfRecordingLimitExceeded();
 
   void WakeUpFromHibernation();
 
@@ -318,7 +320,7 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   LinkedHashSet<String> font_lru_list_;
 
   std::unique_ptr<CanvasHibernationHandler> hibernation_handler_;
-  std::unique_ptr<Canvas2DResourceProviderSharedImage> shared_image_provider_;
+  std::unique_ptr<Canvas2DResourceProvider> shared_image_provider_;
   std::unique_ptr<Canvas2DBitmapProvider> bitmap_provider_;
 
   // `did_fail_to_create_resource_provider_` prevents repeated attempts in

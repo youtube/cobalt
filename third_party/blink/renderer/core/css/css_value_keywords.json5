@@ -1704,6 +1704,9 @@
     "-internal-variable-value",
     "env",
 
+    // CSS Link Parameters
+    "param",
+
     // CSS Functions
     "arg",
 

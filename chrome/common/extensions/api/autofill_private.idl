@@ -655,7 +655,7 @@ namespace autofillPrivate {
     // Returns the list of attributes satisfying the entity type's import
     // requirements. The list represents a disjunction: presenting any one
     // attribute is sufficient. Returns an empty list if there are no
-    // requirements.
+    // requirements, or if the entity type is read-only.
     static void getRequiredAttributeTypesForEntityTypeName(
         long entityTypeName,
         GetAttributeTypesCallback callback);

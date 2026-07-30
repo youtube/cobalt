@@ -7,6 +7,7 @@
 
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/frame/virtual_keyboard_overlay_changed_observer.h"
+#include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 
@@ -23,9 +24,10 @@ class Navigator;
 // The VirtualKeyboard API provides control of the on-screen keyboard
 // to JS authors. The VirtualKeyboard object lives in the Navigator.
 // It is exposed to JS via a new attribute virtualKeyboard in the Navigator.
-class VirtualKeyboard final : public EventTarget,
-                              public Supplement<Navigator>,
-                              public VirtualKeyboardOverlayChangedObserver {
+class MODULES_EXPORT VirtualKeyboard final
+    : public EventTarget,
+      public Supplement<Navigator>,
+      public VirtualKeyboardOverlayChangedObserver {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -47,6 +49,8 @@ class VirtualKeyboard final : public EventTarget,
   void setOverlaysContent(bool overlays_content);
   DOMRect* boundingRect() const;
 
+  // The rect is in CSS px relative to the widget origin, after conversion from
+  // the DIPs passed over the frame mojo API.
   void VirtualKeyboardOverlayChanged(const gfx::Rect&) final;
 
   // Public APIs for controlling the visibility of VirtualKeyboard.

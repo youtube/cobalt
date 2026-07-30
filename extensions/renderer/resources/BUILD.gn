@@ -60,7 +60,6 @@ generate_grd("build_grdp") {
     "guest_view/web_view/web_view_deny.js",
     "guest_view/web_view/web_view_element.js",
     "guest_view/web_view/web_view_events.js",
-    "guest_view/web_view/web_view_internal.js",
     "guest_view/web_view/web_view.js",
     "guest_view/web_view/web_view_request_custom_bindings.js",
     "image_util.js",

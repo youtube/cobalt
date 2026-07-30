@@ -778,35 +778,47 @@ TEST_F(ScrollPredictorTest, RefinedHasPredictionTimeout) {
       scroll_predictor_->ResampleLatency(interval);
   EXPECT_EQ(resample_latency, base::Milliseconds(3));
 
-  // MaxResampleTime = 20ms.
-  // last_event_time = 10ms.
-
-  // Test Case 1: t=26ms.
-  // Old: 26 - 10 = 16 <= 20 (TRUE).
-  // New: 26 + 3 - 10 = 19 <= 20 (TRUE).
-  base::TimeTicks time_a = start_time + base::Milliseconds(26);
-
-  // Test Case 2: t=29ms.
-  // Old: 29 - 10 = 19 <= 20 (TRUE).
-  // New: 29 + 3 - 10 = 22 > 20 (FALSE).
-  base::TimeTicks time_b = start_time + base::Milliseconds(29);
+  // Dynamically query the configured max resample time (e.g., 20ms or 35ms)
+  const base::TimeDelta max_resample_time =
+      blink::features::kScrollPredictorMaxResampleTime.Get();
+  const base::TimeTicks last_event_time = start_time + base::Milliseconds(10);
 
   {
-    // Feature DISABLED: Uses Old Logic (frame_time - last_event).
+    // Feature disabled: Uses Old Logic (frame_time - last_event >
+    // max_resample_time).
+    // The exact maximum frame time that should still produce a prediction:
+    const base::TimeTicks max_frame_time_old =
+        last_event_time + max_resample_time;
+
     base::test::ScopedFeatureList scoped_feature_list;
     scoped_feature_list.InitAndDisableFeature(
         blink::features::kScrollPredictorRefinedHasPrediction);
-    EXPECT_TRUE(scroll_predictor_->HasPrediction(time_a, interval));
-    EXPECT_TRUE(scroll_predictor_->HasPrediction(time_b, interval));
+
+    // At the exact limit, it must succeed.
+    EXPECT_TRUE(scroll_predictor_->HasPrediction(max_frame_time_old, interval));
+
+    // Exactly 1 microsecond over the limit, it must timeout.
+    EXPECT_FALSE(scroll_predictor_->HasPrediction(
+        max_frame_time_old + base::Microseconds(1), interval));
   }
 
   {
-    // Feature ENABLED: Uses New Logic (frame_time + latency - last_event).
+    // Feature enabled: Uses New Logic (frame_time + latency - last_event >
+    // max_resample_time).
+    // The exact maximum frame time that should still produce a prediction:
+    const base::TimeTicks max_frame_time_new =
+        last_event_time + max_resample_time - resample_latency;
+
     base::test::ScopedFeatureList scoped_feature_list;
     scoped_feature_list.InitAndEnableFeature(
         blink::features::kScrollPredictorRefinedHasPrediction);
-    EXPECT_TRUE(scroll_predictor_->HasPrediction(time_a, interval));
-    EXPECT_FALSE(scroll_predictor_->HasPrediction(time_b, interval));
+
+    // At the exact limit, it must succeed.
+    EXPECT_TRUE(scroll_predictor_->HasPrediction(max_frame_time_new, interval));
+
+    // Exactly 1 microsecond over the limit, it must timeout.
+    EXPECT_FALSE(scroll_predictor_->HasPrediction(
+        max_frame_time_new + base::Microseconds(1), interval));
   }
 }
 

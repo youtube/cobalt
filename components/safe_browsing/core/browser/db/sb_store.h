@@ -6,18 +6,52 @@
 #define COMPONENTS_SAFE_BROWSING_CORE_BROWSER_DB_SB_STORE_H_
 
 #include <string>
+#include <string_view>
 
 #include "base/files/file.h"
 #include "base/files/file_path.h"
+#include "base/location.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
+#include "components/safe_browsing/core/browser/db/sb_protocol_manager_util.h"
+#include "components/safe_browsing/core/common/proto/webui.pb.h"
 #include "third_party/protobuf/src/google/protobuf/io/zero_copy_stream.h"
 #include "third_party/protobuf/src/google/protobuf/io/zero_copy_stream_impl_lite.h"
 class V5StoreFileFormat;
 
+// TODO(crbug.com/362791941): replace all |comments| with `comments`.
 namespace safe_browsing {
 
 class V4StoreFileFormat;
+class SBStore;
+class ListInfo;
+
+struct SBStoreDeleter;
+using SBStorePtr = std::unique_ptr<SBStore, SBStoreDeleter>;
+
+class SBStoreFactory {
+ public:
+  virtual ~SBStoreFactory() = default;
+  virtual SBStorePtr CreateStore(
+      const scoped_refptr<base::SequencedTaskRunner>& db_task_runner,
+      const base::FilePath& base_path,
+      const ListInfo& list_info) = 0;
+};
+
+// This will have either a `v4_response` or a `v5_response`. Having a shared
+// wrapper struct allows for more code reuse during the v4 -> v5 transition.
+struct SBUpdateResponse {
+  SBUpdateResponse();
+  ~SBUpdateResponse();
+
+  std::unique_ptr<ListUpdateResponse> v4_response;
+  // TODO(crbug.com/362791941): add `v5_response`
+};
+
+using SBUpdateResponseMap =
+    std::unordered_map<ListIdentifier, std::unique_ptr<SBUpdateResponse>>;
+using UpdatedStoreReadyCallback =
+    base::OnceCallback<void(SBStorePtr new_store)>;
 
 // Enumerate different failure events while parsing the file read from disk for
 // histogramming purposes.  DO NOT CHANGE THE ORDERING OF THESE VALUES.
@@ -62,6 +96,9 @@ enum StoreReadResult {
 
   // Failed to migrate from v5 to v4.
   V5_TO_V4_MIGRATION_FAILURE = 11,
+
+  // V5 to V4 migration was ineligible, and wiping V5 succeeded.
+  V5_TO_V4_MIGRATION_WIPED_SUCCESSFULLY = 12,
 
   // Memory space for histograms is determined by the max.  ALWAYS
   // ADD NEW VALUES BEFORE THIS ONE.
@@ -109,7 +146,10 @@ enum class V5StoreReadResult {
   // Failed to migrate from v4 to v5.
   kV4ToV5MigrationFailure = 10,
 
-  kMaxValue = kV4ToV5MigrationFailure
+  // Migration was needed but the store was ineligible, and wiping V4 succeeded.
+  kV4ToV5MigrationWipedSuccessfully = 11,
+
+  kMaxValue = kV4ToV5MigrationWipedSuccessfully
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/safe_browsing/enums.xml:SafeBrowsingV5StoreReadResult)
 
@@ -183,7 +223,51 @@ class SBStore {
 
   int64_t file_size() const { return file_size_; }
 
+  // Records (in kilobytes) and returns the size of the file on disk for this
+  // store using |base_metric| as prefix and the filename as suffix.
+  virtual int64_t RecordAndReturnFileSize(const std::string& base_metric) = 0;
+
+  // Reset internal state.
+  virtual void Reset() = 0;
+
+  // TODO(crbug.com/362791941): All comments in sb_* files should use the modern
+  // `code` format rather than the older |code| format.
+  // Scheduled after reading the store file from disk on startup. When run, it
+  // ensures that the checksum of the hash prefixes in lexicographical sorted
+  // order matches the expected value in |expected_checksum_|. Returns true if
+  // it matches; false otherwise. Checksum verification can take a long time,
+  // so it is performed outside of the hotpath of loading SafeBrowsing database,
+  // which blocks resource loads.
+  virtual bool VerifyChecksum() = 0;
+
+  // Populates the DatabaseInfo message.
+  virtual void CollectStoreInfo(
+      DatabaseManagerInfo::DatabaseInfo::StoreInfo* store_info) = 0;
+
+  // Updates the SBStore with the response received from the SafeBrowsing
+  // service. `response` contains the protocol-specific update payload. `runner`
+  // is the task runner on which the callback should be run. `callback` is
+  // scheduled once the update has been processed.
+  virtual void ApplyUpdate(
+      std::unique_ptr<SBUpdateResponse> response,
+      const scoped_refptr<base::SequencedTaskRunner>& runner,
+      UpdatedStoreReadyCallback callback) = 0;
+
+  // If a hash prefix in this store matches `full_hash`, returns that hash
+  // prefix; otherwise returns an empty hash prefix.
+  virtual HashPrefixStr GetMatchingHashPrefix(const FullHashStr& full_hash) = 0;
+
+  // Returns the state of the store (i.e. state for V4, version for V5).
+  virtual const std::string& GetStoreState() const = 0;
+
  protected:
+  // Converts a 32-character V4 extension ID string into its raw 16-byte V5
+  // binary hash representation.
+  // `v4_id` is the base-16 string extension ID to convert. Must be exactly 32
+  // characters long.
+  // Returns a string containing the raw 16 binary bytes.
+  static std::string ExtensionV4IdToV5Hash(std::string_view v4_id);
+
   static constexpr uint32_t kFileMagic = 0x600D71FE;
   static constexpr uint32_t kV4FileVersion = 9;
   static constexpr uint32_t kV5FileVersion = 10;
@@ -213,6 +297,9 @@ class SBStore {
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
  private:
+  friend class V4StoreTest;
+  friend class V5StoreTest;
+
   static void RecordBooleanWithAndWithoutSuffix(const std::string& metric,
                                                 bool value,
                                                 const std::string& suffix);
@@ -222,6 +309,26 @@ class SBStore {
   // A counter used to manage how frequently the value of `has_valid_data_`
   // below is recorded.
   uint8_t record_has_valid_data_counter_ = 0;
+};
+
+struct SBStoreDeleter {
+  explicit SBStoreDeleter(scoped_refptr<base::SequencedTaskRunner> task_runner);
+  ~SBStoreDeleter();
+
+  SBStoreDeleter(SBStoreDeleter&&);
+  SBStoreDeleter& operator=(SBStoreDeleter&&);
+
+  void operator()(const SBStore* ptr) {
+    if (ptr) {
+      if (task_runner_->RunsTasksInCurrentSequence()) {
+        delete ptr;
+      } else {
+        task_runner_->DeleteSoon(FROM_HERE, ptr);
+      }
+    }
+  }
+
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 };
 
 }  // namespace safe_browsing

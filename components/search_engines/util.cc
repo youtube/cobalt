@@ -708,11 +708,13 @@ ActionsFromCurrentData CreateActionsFromCurrentPrepopulateData(
   int entries_matching_dsp_to_reconcile = 0;
   TemplateURL* dsp_match = nullptr;
 
+  size_t raw_regulatory_count = 0;
   for (auto& turl : existing_urls) {
     if (turl->CreatedByRegulatoryProgram()) {
       // This might be a deprecated keyword, as variants for some engines have
       // changed since programs were introduced. See
       // `ReconcilingTemplateURLDataHolder::GetOrComputeKeyword()`.
+      ++raw_regulatory_count;
       regulatory_entries.insert({turl->keyword(), turl.get()});
     }
     int prepopulate_id = turl->prepopulate_id();
@@ -732,6 +734,20 @@ ActionsFromCurrentData CreateActionsFromCurrentPrepopulateData(
       }
 
       ++entries_matching_dsp_to_reconcile;
+    }
+  }
+
+  if (raw_regulatory_count > 1) {
+    bool all_regulatory_same_keyword = (regulatory_entries.size() == 1);
+    base::UmaHistogramBoolean(
+        "Omnibox.TemplateUrl.DBRefresh.RegulatoryDuplicatesSameKeyword",
+        all_regulatory_same_keyword);
+
+    if (base::FeatureList::IsEnabled(switches::kKwdbRefreshDebugging) &&
+        regulatory_entries.size() > 1) {
+      // We expect to only have one regulatory program engine at a time, see
+      // `TemplateURLService::ResetPlayAPISearchEngine()`.
+      base::debug::DumpWithoutCrashing();
     }
   }
 
@@ -806,10 +822,6 @@ ActionsFromCurrentData CreateActionsFromCurrentPrepopulateData(
       base::debug::DumpWithoutCrashing();
     }
   }
-
-  // We expect to only have one regulatory program engine at a time, see
-  // `TemplateURLService::ResetPlayAPISearchEngine()`.
-  CHECK_LE(regulatory_entries.size(), 1u, base::NotFatalUntil::M152);
 
   // For each current prepopulated URL, check whether |template_urls| contained
   // a matching prepopulated URL.  If so, update the passed-in URL to match the

@@ -66,7 +66,7 @@ class FrameNodeImpl
                 FrameNodeImpl* outer_document_for_inner_frame_root,
                 int render_frame_id,
                 const blink::LocalFrameToken& frame_token,
-                const perfetto::NamedTrack& tracing_track,
+                const perfetto::Track& tracing_track,
                 content::BrowsingInstanceId browsing_instance_id,
                 content::SiteInstanceGroupId site_instance_group_id,
                 bool is_current,
@@ -139,7 +139,6 @@ class FrameNodeImpl
   PageNodeImpl* page_node() const;
   ProcessNodeImpl* process_node() const;
   int render_frame_id() const;
-  perfetto::Track tracing_track() const;
 
   // Getters for non-const properties. These are not thread safe.
   NodeSetView<FrameNodeImpl*> child_frame_nodes() const;
@@ -348,7 +347,7 @@ class FrameNodeImpl
   const RenderFrameHostProxy render_frame_host_proxy_;
 
   // Perfetto track that can record trace events for the page.
-  const perfetto::NamedTrack tracing_track_;
+  const perfetto::Track tracing_track_;
 
   base::ScopedObservation<TracingObserverList, TracingObserver>
       tracing_observation_{this};

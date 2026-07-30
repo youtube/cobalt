@@ -45,9 +45,11 @@ class ATL_NO_VTABLE CReauthCredential
   IFACEMETHODIMP SetOSUserInfo(BSTR sid, BSTR domain, BSTR username) override;
   IFACEMETHODIMP SetEmailForReauth(BSTR email) override;
 
-  const CComBSTR& get_os_user_sid() const { return os_user_sid_; }
-  const CComBSTR& get_os_user_domain() const { return os_user_domain_; }
-  const CComBSTR& get_os_username() const { return os_username_; }
+  const base::win::ScopedBstr& get_os_user_sid() const { return os_user_sid_; }
+  const base::win::ScopedBstr& get_os_user_domain() const {
+    return os_user_domain_;
+  }
+  const base::win::ScopedBstr& get_os_username() const { return os_username_; }
 
   // CGaiaCredentialBase
 
@@ -71,11 +73,11 @@ class ATL_NO_VTABLE CReauthCredential
   bool CheckIfTosAccepted();
 
   // Information about the OS user.
-  CComBSTR os_user_domain_;
-  CComBSTR os_username_;
-  CComBSTR os_user_sid_;
+  base::win::ScopedBstr os_user_domain_;
+  base::win::ScopedBstr os_username_;
+  base::win::ScopedBstr os_user_sid_;
 
-  CComBSTR email_for_reauth_;
+  base::win::ScopedBstr email_for_reauth_;
 };
 
 }  // namespace credential_provider

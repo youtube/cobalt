@@ -15,13 +15,13 @@
 #include "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_2d_color_params.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_2d_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
 
 namespace blink {
 
 class Canvas2DBitmapProvider;
-class Canvas2DResourceProviderSharedImage;
+class Canvas2DResourceProvider;
 class ExceptionState;
 class ExecutionContext;
 class MemoryManagedPaintCanvas;
@@ -103,6 +103,8 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   void WillDraw(const gfx::Rect& dirty_rect,
                 CanvasPerformanceMonitor::DrawType) final;
 
+  void FlushIfRecordingLimitExceeded();
+
   sk_sp<PaintFilter> StateGetFilter() final;
 
   bool HasAlpha() const final { return CreationAttributes().alpha; }
@@ -146,8 +148,9 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   scoped_refptr<CanvasResource> ProduceCanvasResource(FlushReason);
 
   bool InitializeResourceProvider() override;
+  bool IsResourceProviderValid() const;
 
-  std::unique_ptr<Canvas2DResourceProviderSharedImage> shared_image_provider_;
+  std::unique_ptr<Canvas2DResourceProvider> shared_image_provider_;
   std::unique_ptr<Canvas2DBitmapProvider> bitmap_provider_;
 };
 

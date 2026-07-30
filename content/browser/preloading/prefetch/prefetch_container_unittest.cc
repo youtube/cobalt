@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "base/byte_size.h"
 #include "base/strings/strcat.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -686,7 +687,7 @@ TEST_P(PrefetchContainerTest, PrefetchProxyPrefetchedResourceUkm) {
       CreateSpeculationRulesPrefetchContainer(GURL("https://test.com"));
 
   network::URLLoaderCompletionStatus completion_status;
-  completion_status.encoded_data_length = 100;
+  completion_status.encoded_data_length = base::ByteSize(100u);
   completion_status.completion_time =
       base::TimeTicks() + base::Milliseconds(200);
 
@@ -866,18 +867,12 @@ TEST_P(PrefetchContainerTest, EligibilityCheck) {
   prefetch_container->SimulatePrefetchEligibleForTest();
   prefetch_container->SimulatePrefetchStartedForTest();
 
-  EXPECT_EQ(prefetch_document_manager->GetReferringPageMetrics()
-                .prefetch_eligible_count,
-            1);
 
   // Add a redirect, register a callback for it, and then mark it as eligible.
   prefetch_container->SimulatePrefetchRedirectedForTest(kTestUrl2);
 
   // Referring page metrics is only incremented for the original prefetch URL
   // and not any redirects.
-  EXPECT_EQ(prefetch_document_manager->GetReferringPageMetrics()
-                .prefetch_eligible_count,
-            1);
 }
 
 TEST_P(PrefetchContainerTest, IneligibleRedirect) {
@@ -894,9 +889,6 @@ TEST_P(PrefetchContainerTest, IneligibleRedirect) {
   prefetch_container->SimulatePrefetchEligibleForTest();
   prefetch_container->SimulatePrefetchStartedForTest();
 
-  EXPECT_EQ(prefetch_document_manager->GetReferringPageMetrics()
-                .prefetch_eligible_count,
-            1);
 
   // Receives an ineligible redirect.
   prefetch_container->SimulatePrefetchRedirectedForTest(
@@ -904,9 +896,6 @@ TEST_P(PrefetchContainerTest, IneligibleRedirect) {
 
   // Ineligible redirects are treated as failed prefetches, and not ineligible
   // prefetches.
-  EXPECT_EQ(prefetch_document_manager->GetReferringPageMetrics()
-                .prefetch_eligible_count,
-            1);
   EXPECT_EQ(prefetch_container->GetPrefetchStatus(),
             PrefetchStatus::kPrefetchFailedIneligibleRedirect);
 }

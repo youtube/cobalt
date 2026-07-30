@@ -6,6 +6,7 @@
 
 #include <string_view>
 
+#include "base/containers/fixed_flat_set.h"
 #include "base/i18n/tag_converters.h"
 #include "base/i18n/tags.h"
 #include "base/test/gmock_expected_support.h"
@@ -31,8 +32,14 @@ MATCHER_P(OptionalRegionToString, expected, "") {
       arg, result_listener);
 }
 
+MATCHER_P(LanguageSubtagString, expected, "") {
+  return ExplainMatchResult(
+      Property(&LanguageSubtag::base_type::subtag_string, Eq(expected)), arg,
+      result_listener);
+}
+
 TEST(LanguageTagTest, ParseAndToString) {
-  EXPECT_THAT(GetKnownLanguageTag<"en-US">(), language_tags::ENGLISH_US());
+  EXPECT_THAT(GetKnownLanguageTag("en-US"), GetKnownLanguageTag("en-US"));
 
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("EN-us"),
               OptionalToString("en-US"));
@@ -63,7 +70,7 @@ TEST(LanguageTagTest, ValidButUnknowLocales) {
 }
 
 TEST(LanguageTagTest, ToLegacyICUFormat) {
-  EXPECT_EQ(GetKnownLanguageTag<"pt-BR">().ToLegacyICUFormat(), "pt_BR");
+  EXPECT_EQ(GetKnownLanguageTag("pt-BR").ToLegacyICUFormat(), "pt_BR");
 
   {
     ASSERT_OK_AND_ASSIGN(
@@ -104,9 +111,9 @@ TEST(LanguageTagTest, ComplexLocales) {
 TEST(LanguageTagTest, NumericRegions) {
   // Locales with numeric regions.
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("es-419"),
-              Optional(language_tags::SPANISH_LATIN_AMERICAN()));
+              Optional(GetKnownLanguageTag("es-419")));
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("es-419"),
-              Optional(GetKnownLanguageTag<"es-419">()));
+              Optional(GetKnownLanguageTag("es-419")));
 }
 
 TEST(LanguageTagTest, ThreeLetterLanguages) {
@@ -122,39 +129,39 @@ TEST(LanguageTagTest, ThreeLetterLanguages) {
 TEST(LanguageTagIso639_2Test, German) {
   // German: ISO 639-2/T is "deu", ISO 639-2/B is "ger".
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("deu"),
-              Optional(language_tags::GERMAN()));
+              Optional(GetKnownLanguageTag("de")));
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("ger"),
-              Optional(language_tags::GERMAN()));
+              Optional(GetKnownLanguageTag("de")));
 }
 
 TEST(LanguageTagIso639_2Test, Spanish) {
   // Spanish: ISO 639-2/T and /B are both "spa".
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("spa"),
-              Optional(language_tags::SPANISH()));
+              Optional(GetKnownLanguageTag("es")));
 }
 
 TEST(LanguageTagIso639_2Test, Portuguese) {
   // Portuguese: ISO 639-2/T and /B are both "por".
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("por"),
-              Optional(language_tags::PORTUGUESE()));
+              Optional(GetKnownLanguageTag("pt")));
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("por-BR"),
-              Optional(language_tags::BRAZILIAN_PORTUGUESE()));
+              Optional(GetKnownLanguageTag("pt-BR")));
 }
 
 TEST(LanguageTagIso639_2Test, French) {
   // French: ISO 639-2/T is "fra", ISO 639-2/B is "fre".
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("fra"),
-              Optional(language_tags::FRENCH()));
+              Optional(GetKnownLanguageTag("fr")));
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("fre"),
-              Optional(language_tags::FRENCH()));
+              Optional(GetKnownLanguageTag("fr")));
 }
 
 TEST(LanguageTagIso639_2Test, Chinese) {
   // Chinese: ISO 639-2/T is "zho", ISO 639-2/B is "chi".
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("zho"),
-              Optional(language_tags::CHINESE()));
+              Optional(GetKnownLanguageTag("zh")));
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("chi"),
-              Optional(language_tags::CHINESE()));
+              Optional(GetKnownLanguageTag("zh")));
 }
 
 TEST(LanguageTagIso639_2SpecialCodesTest, SpecialCodes) {
@@ -178,15 +185,15 @@ TEST(LanguageTagIso639_2PrivateUseTest, PrivateUseRanges) {
 TEST(LanguageTagIso639_2Test, OtherCommonLanguages) {
   // English: ISO 639-2/T and /B are both "eng".
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("eng"),
-              Optional(language_tags::ENGLISH()));
+              Optional(GetKnownLanguageTag("en")));
 
   // Hawaiian (no 2-letter equivalent).
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("haw"),
-              Optional(language_tags::HAWAIIAN()));
+              Optional(GetKnownLanguageTag("haw")));
 
   // Asturian (no 2-letter equivalent).
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("ast"),
-              Optional(language_tags::ASTURIAN()));
+              Optional(GetKnownLanguageTag("ast")));
 }
 
 TEST(LanguageTagTest, Variants) {
@@ -501,11 +508,11 @@ TEST(LanguageTagTest, CopyAndMove) {
 TEST(LanguageTagTest, Canonicalize) {
   // Deprecated tags: "iw" -> "he"
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("iw"),
-              Optional(language_tags::HEBREW()));
+              Optional(GetKnownLanguageTag("he")));
 
   // Deprecated tags: "cmn" -> "zh"
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("cmn"),
-              Optional(language_tags::CHINESE()));
+              Optional(GetKnownLanguageTag("zh")));
 }
 
 TEST(LanguageTagTest, LegacyLanguages) {
@@ -530,61 +537,90 @@ TEST(LanguageTagTest, LegacyLanguages) {
 }
 
 TEST(LanguageTagTest, UndefinedLanguageTag) {
-  EXPECT_EQ(language_tags::UNDEFINED().tag_string(), "und");
+  EXPECT_EQ(GetKnownLanguageTag("und").tag_string(), "und");
 }
 
-TEST(LanguageTagTest, region_subtag) {
+TEST(LanguageTagTest, CanCreateFixedFlatSet) {
+  constexpr auto kLanguageTagsSet = base::MakeFixedFlatSet<LanguageTag>({
+      GetKnownLanguageTag("en-US"),
+      GetKnownLanguageTag("pt-BR"),
+  });
+
+  EXPECT_TRUE(kLanguageTagsSet.contains(GetKnownLanguageTag("en-US")));
+  EXPECT_TRUE(kLanguageTagsSet.contains(GetKnownLanguageTag("pt-BR")));
+}
+
+TEST(LanguageTagTest, GetLanguageSubtag) {
   // Simple case.
   ASSERT_OK_AND_ASSIGN(LanguageTag lt_en_us,
                        LanguageTagConverter::GetInstance().FromString("en-US"));
-  EXPECT_THAT(lt_en_us.region_subtag(), OptionalRegionToString("US"));
+  EXPECT_THAT(lt_en_us.GetLanguageSubtag(), LanguageSubtagString("en"));
+
+  // Undefined case.
+  ASSERT_OK_AND_ASSIGN(
+      LanguageTag und_us,
+      LanguageTagConverter::GetInstance().FromString("und-US"));
+  EXPECT_THAT(und_us.GetLanguageSubtag(), LanguageSubtagString("und"));
+
+  // Chinese case.
+  ASSERT_OK_AND_ASSIGN(
+      LanguageTag zh_cn,
+      LanguageTagConverter::GetInstance().FromString("zh-Hans-CN"));
+  EXPECT_THAT(zh_cn.GetLanguageSubtag(), LanguageSubtagString("zh"));
+}
+
+TEST(LanguageTagTest, GetRegionSubtag) {
+  // Simple case.
+  ASSERT_OK_AND_ASSIGN(LanguageTag lt_en_us,
+                       LanguageTagConverter::GetInstance().FromString("en-US"));
+  EXPECT_THAT(lt_en_us.GetRegionSubtag(), OptionalRegionToString("US"));
 
   // No region.
   ASSERT_OK_AND_ASSIGN(LanguageTag lt_en,
                        LanguageTagConverter::GetInstance().FromString("en"));
-  EXPECT_FALSE(lt_en.region_subtag().has_value());
+  EXPECT_FALSE(lt_en.GetRegionSubtag().has_value());
 
   // Language, Script, Region.
   ASSERT_OK_AND_ASSIGN(
       LanguageTag lt_zh_hant_tw,
       LanguageTagConverter::GetInstance().FromString("zh-Hant-TW"));
-  EXPECT_THAT(lt_zh_hant_tw.region_subtag(), OptionalRegionToString("TW"));
+  EXPECT_THAT(lt_zh_hant_tw.GetRegionSubtag(), OptionalRegionToString("TW"));
 
   // Numeric region.
   ASSERT_OK_AND_ASSIGN(
       LanguageTag lt_es_419,
       LanguageTagConverter::GetInstance().FromString("es-419"));
-  EXPECT_THAT(lt_es_419.region_subtag(), OptionalRegionToString("419"));
+  EXPECT_THAT(lt_es_419.GetRegionSubtag(), OptionalRegionToString("419"));
 
   // Script but no region.
   ASSERT_OK_AND_ASSIGN(
       LanguageTag lt_sr_latn,
       LanguageTagConverter::GetInstance().FromString("sr-Latn"));
-  EXPECT_FALSE(lt_sr_latn.region_subtag().has_value());
+  EXPECT_FALSE(lt_sr_latn.GetRegionSubtag().has_value());
 
   // Complex case with extensions.
   ASSERT_OK_AND_ASSIGN(
       LanguageTag lt_complex,
       LanguageTagConverter::GetInstance().FromString("en-US-u-ca-gregory"));
-  EXPECT_THAT(lt_complex.region_subtag(), OptionalRegionToString("US"));
+  EXPECT_THAT(lt_complex.GetRegionSubtag(), OptionalRegionToString("US"));
 
   // Extension but no region.
   ASSERT_OK_AND_ASSIGN(
       LanguageTag lt_ext_no_region,
       LanguageTagConverter::GetInstance().FromString("en-u-ca-gregory"));
-  EXPECT_FALSE(lt_ext_no_region.region_subtag().has_value());
+  EXPECT_FALSE(lt_ext_no_region.GetRegionSubtag().has_value());
 
   // Script + Extension but no region.
   ASSERT_OK_AND_ASSIGN(
       LanguageTag lt_script_ext_no_region,
       LanguageTagConverter::GetInstance().FromString("sr-Latn-u-ca-gregory"));
-  EXPECT_FALSE(lt_script_ext_no_region.region_subtag().has_value());
+  EXPECT_FALSE(lt_script_ext_no_region.GetRegionSubtag().has_value());
 }
 
 struct LanguageTestData {
   std::string_view tag;
   std::string_view name;
-  const LanguageTag& (*get_code)();
+  LanguageTag language_tag;
 };
 
 class LanguageTagAllCodesTest
@@ -595,14 +631,14 @@ class LanguageTagAllCodesTest
 TEST_P(LanguageTagAllCodesTest, VerifyAllLangCodeFunctions) {
   const LanguageTestData& param = GetParam();
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString(param.tag),
-              Optional(param.get_code()));
+              Optional(param.language_tag));
 }
-const LanguageTestData kTestData[] = {
+constexpr LanguageTestData kTestData[] = {
 #define IMPL_LANGUAGECODE_TAG_NAME(tag, name) \
-  {tag, #name, &language_tags::name},
+  {tag, #name, GetKnownLanguageTag(tag)},
 #include "base/i18n/internal/canonical_language_tags.inc"
-#undef IMPL_LANGUAGECODE_TAG_NAME
 };
+#undef IMPL_LANGUAGECODE_TAG_NAME
 
 INSTANTIATE_TEST_SUITE_P(
     All,

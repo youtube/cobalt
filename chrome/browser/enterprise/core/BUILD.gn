@@ -28,3 +28,22 @@ source_set("test_support") {
     "//testing/gmock",
   ]
 }
+
+source_set("unit_tests") {
+  testonly = true
+  configs += [ "//components/enterprise:extra_warnings" ]
+
+  sources = []
+  deps = []
+
+  if (is_linux || is_mac || is_win) {
+    sources += [ "dependency_factory_impl_unittest.cc" ]
+    deps += [
+      ":core",
+      ":test_support",
+      "//base",
+      "//chrome/test:test_support",
+      "//testing/gtest",
+    ]
+  }
+}

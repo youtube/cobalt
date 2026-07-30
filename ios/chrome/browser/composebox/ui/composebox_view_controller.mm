@@ -522,9 +522,9 @@ UIImage* CloseButtonImage(UIColor* backgroundColor, BOOL highlighted) {
           [_inputViewController.view.trailingAnchor
               constraintEqualToAnchor:_closeButton.leadingAnchor
                              constant:-kInputPlateTrailingPadding],
-          [_closeButton.topAnchor
-              constraintEqualToAnchor:_inputViewController.view.topAnchor
-                             constant:0]
+          [_closeButton.centerYAnchor
+              constraintEqualToAnchor:_inputViewController.omniboxContainer
+                                          .centerYAnchor]
         ]];
 
         _closeButton.hidden = NO;
@@ -733,6 +733,13 @@ UIImage* CloseButtonImage(UIColor* backgroundColor, BOOL highlighted) {
 - (void)popupDidCloseForPresenter:(OmniboxPopupPresenter*)presenter {
   _incognitoView.hidden = NO;
   _omniboxPopupContainer.hidden = YES;
+  if ([self currentInputPlatePosition] == ComposeboxInputPlatePosition::kiPad) {
+    // When the omnibox popup is closed (e.g. because suggestion results went
+    // from some to none), the preferred content size must be updated to
+    // collapse the container and remove empty white space.
+    _omniboxPreferredContentHeight = 0;
+    [self updatePreferredContentSize:_inputViewController];
+  }
   [self.proxiedPresenterDelegate popupDidCloseForPresenter:presenter];
 }
 

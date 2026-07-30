@@ -11,6 +11,7 @@
 
 #include "base/base64.h"
 #include "base/functional/bind.h"
+#include "base/json/json_reader.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_util.h"
@@ -222,18 +223,10 @@ void EnhancedNetworkTtsImpl::OnServerResponseReceived(
     return;
   }
 
-  // Send the JSON string to a dedicated service for safe parsing.
-  data_decoder_.ParseJson(
-      *json_response,
-      base::BindOnce(&EnhancedNetworkTtsImpl::OnResponseJsonParsed,
-                     weak_factory_.GetWeakPtr(), start_index, is_last_request));
-}
-
-void EnhancedNetworkTtsImpl::OnResponseJsonParsed(
-    const int start_index,
-    const bool is_last_request,
-    data_decoder::DataDecoder::ValueOrError result) {
-  // Extract results for the request.
+  // Parse the JSON string.
+  base::JSONReader::Result result =
+      base::JSONReader::ReadAndReturnValueWithError(*json_response,
+                                                    base::JSON_PARSE_RFC);
   if (result.has_value() && result->is_list()) {
     SendResponse(
         UnpackJsonResponse(result->GetList(), start_index, is_last_request));
@@ -243,9 +236,7 @@ void EnhancedNetworkTtsImpl::OnResponseJsonParsed(
   } else {
     ResetAndSendErrorResponse(mojom::TtsRequestError::kReceivedUnexpectedData);
     DVLOG(1) << "Parsing server response JSON failed with error: "
-             << (!result.has_value() || result.error().empty()
-                     ? "No reason reported."
-                     : result.error());
+             << (result.has_value() ? "Not a list." : result.error().message);
   }
 }
 

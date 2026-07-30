@@ -51,16 +51,17 @@ void FakeDistiller::DistillPage(
   if (execute_callback_) {
     std::unique_ptr<DistilledArticleProto> proto(new DistilledArticleProto);
     proto->add_pages()->set_url(url_.spec());
-    PostDistillerCallback(std::move(proto));
+    PostDistillerCallback(std::move(proto), DistillationParseResult::kSuccess);
   }
 }
 
 void FakeDistiller::RunDistillerCallback(
-    std::unique_ptr<DistilledArticleProto> proto) {
+    std::unique_ptr<DistilledArticleProto> proto,
+    DistillationParseResult result) {
   ASSERT_FALSE(execute_callback_) << "Cannot explicitly run the distiller "
                                      "callback for a fake distiller created "
                                      "with automatic callback execution.";
-  PostDistillerCallback(std::move(proto));
+  PostDistillerCallback(std::move(proto), result);
 }
 
 void FakeDistiller::RunDistillerUpdateCallback(
@@ -69,19 +70,22 @@ void FakeDistiller::RunDistillerUpdateCallback(
 }
 
 void FakeDistiller::PostDistillerCallback(
-    std::unique_ptr<DistilledArticleProto> proto) {
+    std::unique_ptr<DistilledArticleProto> proto,
+    DistillationParseResult result) {
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(&FakeDistiller::RunDistillerCallbackInternal,
-                                base::Unretained(this), std::move(proto)));
+      FROM_HERE,
+      base::BindOnce(&FakeDistiller::RunDistillerCallbackInternal,
+                     base::Unretained(this), std::move(proto), result));
 }
 
 void FakeDistiller::RunDistillerCallbackInternal(
-    std::unique_ptr<DistilledArticleProto> proto) {
+    std::unique_ptr<DistilledArticleProto> proto,
+    DistillationParseResult result) {
   EXPECT_FALSE(article_callback_.is_null());
 
   base::AutoReset<bool> dont_delete_this_in_callback(&destruction_allowed_,
                                                      false);
-  std::move(article_callback_).Run(std::move(proto));
+  std::move(article_callback_).Run(std::move(proto), result);
 }
 
 }  // namespace test

@@ -38,7 +38,10 @@ class ReferenceSignalProvider {
     // and has shut down.
     STREAM_PREVIOUS_ERROR = 5,
 
-    kMaxValue = STREAM_PREVIOUS_ERROR,
+    // Failed to create reference stream due to device being removed
+    STREAM_OPEN_DEVICE_REMOVED_ERROR = 6,
+
+    kMaxValue = STREAM_OPEN_DEVICE_REMOVED_ERROR,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/media/enums.xml)
 

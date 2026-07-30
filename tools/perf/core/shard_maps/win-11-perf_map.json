@@ -49,6 +49,14 @@
                     "--extra-browser-args=--force-renderer-accessibility",
                     "--enable-field-trials"
                 ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
+                    "--enable-field-trials"
+                ]
             }
         }
     },
@@ -83,6 +91,14 @@
                 "crossbench_name": "speedometer_3",
                 "arguments": [
                     "--extra-browser-args=--force-renderer-accessibility",
+                    "--enable-field-trials"
+                ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
                     "--enable-field-trials"
                 ]
             },
@@ -141,6 +157,14 @@
                     "--extra-browser-args=--force-renderer-accessibility",
                     "--enable-field-trials"
                 ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
+                    "--enable-field-trials"
+                ]
             }
         }
     },
@@ -185,6 +209,14 @@
                 "crossbench_name": "speedometer_3",
                 "arguments": [
                     "--extra-browser-args=--force-renderer-accessibility",
+                    "--enable-field-trials"
+                ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
                     "--enable-field-trials"
                 ]
             }
@@ -233,6 +265,14 @@
                     "--extra-browser-args=--force-renderer-accessibility",
                     "--enable-field-trials"
                 ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
+                    "--enable-field-trials"
+                ]
             }
         }
     },
@@ -264,6 +304,14 @@
                 "crossbench_name": "speedometer_3",
                 "arguments": [
                     "--extra-browser-args=--force-renderer-accessibility",
+                    "--enable-field-trials"
+                ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
                     "--enable-field-trials"
                 ]
             }
@@ -300,6 +348,14 @@
                 "crossbench_name": "speedometer_3",
                 "arguments": [
                     "--extra-browser-args=--force-renderer-accessibility",
+                    "--enable-field-trials"
+                ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
                     "--enable-field-trials"
                 ]
             }
@@ -351,6 +407,14 @@
                     "--extra-browser-args=--force-renderer-accessibility",
                     "--enable-field-trials"
                 ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
+                    "--enable-field-trials"
+                ]
             }
         }
     },
@@ -380,6 +444,14 @@
                 "crossbench_name": "speedometer_3",
                 "arguments": [
                     "--extra-browser-args=--force-renderer-accessibility",
+                    "--enable-field-trials"
+                ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
                     "--enable-field-trials"
                 ]
             }
@@ -412,6 +484,14 @@
                 "crossbench_name": "speedometer_3",
                 "arguments": [
                     "--extra-browser-args=--force-renderer-accessibility",
+                    "--enable-field-trials"
+                ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
                     "--enable-field-trials"
                 ]
             },
@@ -454,6 +534,14 @@
                     "--extra-browser-args=--force-renderer-accessibility",
                     "--enable-field-trials"
                 ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
+                    "--enable-field-trials"
+                ]
             }
         }
     },
@@ -475,6 +563,14 @@
                 "crossbench_name": "speedometer_3",
                 "arguments": [
                     "--extra-browser-args=--force-renderer-accessibility",
+                    "--enable-field-trials"
+                ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
                     "--enable-field-trials"
                 ]
             },
@@ -528,6 +624,14 @@
                     "--enable-field-trials"
                 ]
             },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
+                    "--enable-field-trials"
+                ]
+            },
             "speedometer3-turbolev.crossbench": {
                 "crossbench_name": "speedometer_3",
                 "arguments": [
@@ -566,6 +670,14 @@
                     "--extra-browser-args=--force-renderer-accessibility",
                     "--enable-field-trials"
                 ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
+                    "--enable-field-trials"
+                ]
             }
         }
     },
@@ -589,6 +701,14 @@
                 "crossbench_name": "speedometer_3",
                 "arguments": [
                     "--extra-browser-args=--force-renderer-accessibility",
+                    "--enable-field-trials"
+                ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
                     "--enable-field-trials"
                 ]
             }
@@ -616,6 +736,14 @@
                     "--extra-browser-args=--force-renderer-accessibility",
                     "--enable-field-trials"
                 ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
+                    "--enable-field-trials"
+                ]
             }
         }
     },
@@ -639,6 +767,14 @@
                 "crossbench_name": "speedometer_3",
                 "arguments": [
                     "--extra-browser-args=--force-renderer-accessibility",
+                    "--enable-field-trials"
+                ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
                     "--enable-field-trials"
                 ]
             }
@@ -677,6 +813,14 @@
                     "--extra-browser-args=--force-renderer-accessibility",
                     "--enable-field-trials"
                 ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
+                    "--enable-field-trials"
+                ]
             }
         }
     },
@@ -702,6 +846,14 @@
                 "crossbench_name": "speedometer_3",
                 "arguments": [
                     "--extra-browser-args=--force-renderer-accessibility",
+                    "--enable-field-trials"
+                ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
                     "--enable-field-trials"
                 ]
             }
@@ -741,34 +893,42 @@
                     "--extra-browser-args=--force-renderer-accessibility",
                     "--enable-field-trials"
                 ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
+                    "--enable-field-trials"
+                ]
             }
         }
     },
     "extra_infos": {
-        "num_stories": 757,
-        "predicted_min_shard_time": 810.0,
+        "num_stories": 777,
+        "predicted_min_shard_time": 870.0,
         "predicted_min_shard_index": 10,
-        "predicted_max_shard_time": 1035.0,
+        "predicted_max_shard_time": 1095.0,
         "predicted_max_shard_index": 19,
-        "shard #0": 965.0,
-        "shard #1": 1024.0,
-        "shard #2": 1028.0,
-        "shard #3": 951.0,
-        "shard #4": 952.0,
-        "shard #5": 951.0,
-        "shard #6": 954.0,
-        "shard #7": 820.0,
-        "shard #8": 937.0,
-        "shard #9": 968.0,
-        "shard #10": 810.0,
-        "shard #11": 992.0,
-        "shard #12": 986.0,
-        "shard #13": 1017.0,
-        "shard #14": 963.0,
-        "shard #15": 995.0,
-        "shard #16": 1008.0,
-        "shard #17": 983.0,
-        "shard #18": 952.0,
-        "shard #19": 1035.0
+        "shard #0": 1025.0,
+        "shard #1": 1084.0,
+        "shard #2": 1088.0,
+        "shard #3": 1011.0,
+        "shard #4": 1012.0,
+        "shard #5": 1011.0,
+        "shard #6": 1014.0,
+        "shard #7": 880.0,
+        "shard #8": 997.0,
+        "shard #9": 1028.0,
+        "shard #10": 870.0,
+        "shard #11": 1052.0,
+        "shard #12": 1046.0,
+        "shard #13": 1077.0,
+        "shard #14": 1023.0,
+        "shard #15": 1055.0,
+        "shard #16": 1068.0,
+        "shard #17": 1043.0,
+        "shard #18": 1012.0,
+        "shard #19": 1095.0
     }
 }

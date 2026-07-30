@@ -14,6 +14,9 @@ class PrefService;
 
 namespace subscription_eligibility {
 
+// Command-line switch to force the AI subscription tier to a specific value.
+extern const char kForceAiSubscriptionTier[];
+
 class SubscriptionEligibilityService : public KeyedService {
  public:
   class Observer : public base::CheckedObserver {

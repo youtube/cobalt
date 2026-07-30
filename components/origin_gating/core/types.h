@@ -11,11 +11,23 @@
 
 namespace origin_gating {
 
+// Enumerate the result of a single predicate check.
+enum class Decision {
+  // The predicate neither explicitly allowed nor explicitly blocked the event.
+  kNoDecision,
+  // The predicate explicitly allowed the event.
+  kAllowed,
+  // The predicate explicitly blocked the event.
+  kBlocked,
+};
+
 // Enumerates the source of any positive/negative decision.
 enum class DecisionSource {
+  kAllowSameOrigin,
   kCache,
   kNoVerdict,
 };
+
 // Struct wrapping the final gating verdict and its resolution metadata.
 struct GatingDecision {
   bool is_allowed = false;

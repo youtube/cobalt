@@ -106,6 +106,18 @@ class CONTENT_EXPORT DocumentAssociatedData : public base::SupportsUserData {
     pending_did_stop_loading_for_prerendering_ = true;
   }
 
+  // Stores the original URL of the navigation that committed this document.
+  // When `kSanitizeOriginalUrlDuringNavigation` is enabled, the renderer
+  // process only receives an origin-sanitized version of the original URL, but
+  // they then provide that sanitized value to browser-side features (such as
+  // observers) that still expect the full URL. Since `NavigationRequest` is
+  // destroyed upon commit, we preserve the original URL for the document's
+  // lifetime.
+  const GURL& original_url() const { return original_url_; }
+  void set_original_url(const GURL& original_url) {
+    original_url_ = original_url;
+  }
+
   // Reporting API:
   //
   // Contains the reporting source token for this document, which will be
@@ -230,6 +242,7 @@ class CONTENT_EXPORT DocumentAssociatedData : public base::SupportsUserData {
   bool is_discarded_ = false;
   std::optional<GURL> pending_did_finish_load_url_for_prerendering_;
   bool pending_did_stop_loading_for_prerendering_ = false;
+  GURL original_url_;
   std::vector<raw_ptr<internal::DocumentServiceBase, VectorExperimental>>
       services_;
   scoped_refptr<NavigationOrDocumentHandle> navigation_or_document_handle_;

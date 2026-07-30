@@ -151,7 +151,9 @@ OrderSummaryViewController::~OrderSummaryViewController() {
     spec()->RemoveObserver(this);
   }
 
-  state()->RemoveObserver(this);
+  if (state()) {
+    state()->RemoveObserver(this);
+  }
 }
 
 void OrderSummaryViewController::OnSpecUpdated() {

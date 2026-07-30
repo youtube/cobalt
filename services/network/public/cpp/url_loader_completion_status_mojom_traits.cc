@@ -4,6 +4,7 @@
 
 #include "services/network/public/cpp/url_loader_completion_status_mojom_traits.h"
 
+#include "mojo/public/cpp/base/byte_size_mojom_traits.h"
 #include "mojo/public/cpp/base/time_mojom_traits.h"
 #include "services/network/public/cpp/network_param_mojom_traits.h"
 #include "services/network/public/cpp/ssl_info_mojom_traits.h"
@@ -27,16 +28,16 @@ bool StructTraits<network::mojom::URLLoaderCompletionStatusDataView,
       !data.ReadTrustTokenOperationStatus(&out->trust_token_operation_status) ||
       !data.ReadSslInfo(&out->ssl_info) ||
       !data.ReadBlockedByResponseReason(&out->blocked_by_response_reason) ||
-      !data.ReadResolveErrorInfo(&out->resolve_error_info)) {
+      !data.ReadResolveErrorInfo(&out->resolve_error_info) ||
+      !data.ReadEncodedDataLength(&out->encoded_data_length) ||
+      !data.ReadEncodedBodyLength(&out->encoded_body_length) ||
+      !data.ReadDecodedBodyLength(&out->decoded_body_length)) {
     return false;
   }
 
   out->error_code = data.error_code();
   out->extended_error_code = data.extended_error_code();
   out->exists_in_cache = data.exists_in_cache();
-  out->encoded_data_length = data.encoded_data_length();
-  out->encoded_body_length = data.encoded_body_length();
-  out->decoded_body_length = data.decoded_body_length();
   out->should_report_orb_blocking = data.should_report_orb_blocking();
   out->should_collapse_initiator = data.should_collapse_initiator();
   return true;

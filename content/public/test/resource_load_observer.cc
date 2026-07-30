@@ -8,7 +8,9 @@
 #include <string>
 #include <vector>
 
+#include "base/byte_size.h"
 #include "base/files/file_util.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "content/public/browser/render_frame_host.h"
@@ -20,8 +22,10 @@ namespace content {
 
 ResourceLoadObserver::ResourceLoadEntry::ResourceLoadEntry(
     blink::mojom::ResourceLoadInfoPtr resource_load_info,
+    const GURL& original_url,
     bool resource_is_associated_with_main_frame)
     : resource_load_info(std::move(resource_load_info)),
+      original_url(original_url),
       resource_is_associated_with_main_frame(
           resource_is_associated_with_main_frame) {}
 
@@ -59,7 +63,7 @@ void ResourceLoadObserver::CheckResourceLoaded(
   bool resource_load_info_found = false;
   for (const auto& resource_load_entry : resource_load_entries_) {
     const auto& resource_load_info = resource_load_entry.resource_load_info;
-    if (resource_load_info->original_url != original_url) {
+    if (resource_load_entry.original_url != original_url) {
       continue;
     }
 
@@ -101,10 +105,10 @@ void ResourceLoadObserver::CheckResourceLoaded(
       CheckTime(timing.connect_timing.connect_end);
     }
     if (file_size.has_value()) {
-      EXPECT_EQ(file_size.value(),
-                resource_load_info->raw_body_bytes.InBytes());
-      EXPECT_LT(file_size.value(),
-                resource_load_info->total_received_bytes.InBytes());
+      ASSERT_GE(file_size.value(), 0u);
+      const base::ByteSize file_byte_size(base::as_unsigned(file_size.value()));
+      EXPECT_EQ(file_byte_size, resource_load_info->raw_body_bytes);
+      EXPECT_LT(file_byte_size, resource_load_info->total_received_bytes);
     }
   }
   EXPECT_TRUE(resource_load_info_found);
@@ -114,7 +118,7 @@ void ResourceLoadObserver::CheckResourceLoaded(
 blink::mojom::ResourceLoadInfoPtr* ResourceLoadObserver::GetResource(
     const GURL& original_url) {
   for (auto& entry : resource_load_entries_) {
-    if (entry.resource_load_info->original_url == original_url) {
+    if (entry.original_url == original_url) {
       return &entry.resource_load_info;
     }
   }
@@ -129,7 +133,7 @@ void ResourceLoadObserver::Reset() {
 void ResourceLoadObserver::WaitForResourceCompletion(const GURL& original_url) {
   // If we've already seen the resource, return immediately.
   for (const auto& entry : resource_load_entries_) {
-    if (entry.resource_load_info->original_url == original_url) {
+    if (entry.original_url == original_url) {
       return;
     }
   }
@@ -145,10 +149,12 @@ void ResourceLoadObserver::WaitForResourceCompletion(const GURL& original_url) {
 void ResourceLoadObserver::ResourceLoadComplete(
     content::RenderFrameHost* render_frame_host,
     const GlobalRequestID& request_id,
+    const GURL& original_url,
     const blink::mojom::ResourceLoadInfo& resource_load_info) {
   EXPECT_NE(nullptr, render_frame_host);
-  resource_load_entries_.emplace_back(ResourceLoadEntry(
-      resource_load_info.Clone(), render_frame_host->IsInPrimaryMainFrame()));
+  resource_load_entries_.emplace_back(
+      ResourceLoadEntry(resource_load_info.Clone(), original_url,
+                        render_frame_host->IsInPrimaryMainFrame()));
   // Sorts entries with request start time since the resource loading time is
   // not deterministic.
   std::sort(resource_load_entries_.begin(), resource_load_entries_.end(),
@@ -158,7 +164,7 @@ void ResourceLoadObserver::ResourceLoadComplete(
             });
   // Have we been waiting for this resource? If so, run the callback.
   if (waiting_original_url_.is_valid() &&
-      resource_load_info.original_url == waiting_original_url_) {
+      original_url == waiting_original_url_) {
     waiting_original_url_ = GURL();
     std::move(waiting_callback_).Run();
   }

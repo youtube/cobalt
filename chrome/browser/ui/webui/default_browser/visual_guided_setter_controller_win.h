@@ -18,10 +18,15 @@
 #include "base/timer/timer.h"
 #include "base/win/windows_types.h"
 #include "chrome/browser/ui/webui/default_browser/settings_window_finder_win.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
+
+namespace content {
+class WebContents;
+}
 
 class GuidedSetterOverlayWindowWin;
 
@@ -31,7 +36,8 @@ class GuidedSetterOverlayWindowWin;
 // button.
 //
 // All public methods and timer callbacks run on the browser UI sequence.
-class VisualGuidedSetterControllerWin : public views::WidgetObserver {
+class VisualGuidedSetterControllerWin : public views::WidgetObserver,
+                                        public content::WebContentsObserver {
  public:
   // Specifies the behavior of the Settings window.
   enum class TopmostPolicy {
@@ -60,6 +66,8 @@ class VisualGuidedSetterControllerWin : public views::WidgetObserver {
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/ui/enums.xml:DefaultBrowserVisualGuideOutcome)
 
+  using ErrorCallback = base::RepeatingCallback<void(bool)>;
+
   explicit VisualGuidedSetterControllerWin(views::Widget* parent_widget);
 
   VisualGuidedSetterControllerWin(const VisualGuidedSetterControllerWin&) =
@@ -74,6 +82,8 @@ class VisualGuidedSetterControllerWin : public views::WidgetObserver {
 
   void SetTopmostPolicy(TopmostPolicy policy);
   void SetAnchorRectInWebUi(const gfx::Rect& rect);
+  void SetWebContents(content::WebContents* web_contents);
+  void SetErrorCallback(ErrorCallback callback);
 
   bool is_running() const { return is_running_; }
   bool has_anchor_rect() const { return has_anchor_rect_; }
@@ -99,6 +109,12 @@ class VisualGuidedSetterControllerWin : public views::WidgetObserver {
   void OnWidgetDestroyed(views::Widget* widget) override;
   void OnWidgetVisibilityChanged(views::Widget* widget, bool visible) override;
   void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
+  void OnWidgetShowStateChanged(views::Widget* widget) override;
+  void OnWidgetThemeChanged(views::Widget* widget) override;
+
+  // content::WebContentsObserver:
+  void OnVisibilityChanged(content::Visibility visibility) override;
+  void PrimaryPageChanged(content::Page& page) override;
 
   // Starts the polling and event-hooking logic to find the Settings window.
   void StartFindSettingsWindow();
@@ -117,11 +133,21 @@ class VisualGuidedSetterControllerWin : public views::WidgetObserver {
   void EnterDegradedFloating(Outcome reason);
 
   void UpdateOverlay();
+  void UpdateOverlayColor();
+
+  gfx::Rect GetAnchorRectScreenDip() const;
+
+  // Notifies error_callback_ of error status changes.
+  void NotifyErrorState(bool is_error);
 
   // Halts the controller, kills timers, and releases OS resources.
   void TearDownInternal();
 
+  ErrorCallback error_callback_;
+  std::optional<bool> last_reported_error_;
+
   raw_ptr<views::Widget> parent_widget_ = nullptr;
+  raw_ptr<content::WebContents> web_contents_ = nullptr;
   HWND chrome_hwnd_ = nullptr;
   HWND settings_hwnd_ = nullptr;
 
@@ -131,8 +157,8 @@ class VisualGuidedSetterControllerWin : public views::WidgetObserver {
       widget_observation_{this};
 
   std::unique_ptr<SettingsWindowFinderWin> settings_window_finder_;
-  base::RepeatingTimer dock_timer_;
   base::TimeTicks find_settings_start_time_;
+  base::RepeatingTimer dock_timer_;
 
   TopmostPolicy topmost_policy_ = TopmostPolicy::kRequiresFocus;
   bool is_running_ = false;

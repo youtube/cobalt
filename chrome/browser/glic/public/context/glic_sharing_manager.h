@@ -176,6 +176,10 @@ class GlicSharingManager {
 
   // Queries whether the given tab has been explicitly pinned.
   virtual bool IsTabPinned(tabs::TabHandle tab_handle) const = 0;
+
+  // Queries whether the given tab is shared with Glic (i.e. is focused and
+  // valid, or pinned).
+  virtual bool IsTabShared(tabs::TabInterface* tab) const = 0;
 };
 
 // Responsible for managing all shared context (focused tabs, explicitly-shared
@@ -285,6 +289,7 @@ class GlicSharingManagerInternal : public GlicSharingManager {
 
   // GlicSharingManager override.
   bool IsTabPinned(tabs::TabHandle tab_handle) const override = 0;
+  bool IsTabShared(tabs::TabInterface* tab) const override = 0;
 
   // Queries whether the given tab is focused.
   // Note: this signal should only be used by features that care about live mode

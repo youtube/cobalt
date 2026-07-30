@@ -98,6 +98,12 @@ bool GlicDelegatingSharingManagerBase::IsTabPinned(
              : false;
 }
 
+bool GlicDelegatingSharingManagerBase::IsTabShared(
+    tabs::TabInterface* tab) const {
+  return sharing_manager_delegate_ ? sharing_manager_delegate_->IsTabShared(tab)
+                                   : false;
+}
+
 bool GlicDelegatingSharingManagerBase::IsTabFocused(
     tabs::TabHandle tab_handle) const {
   return sharing_manager_delegate_

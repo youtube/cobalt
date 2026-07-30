@@ -239,6 +239,16 @@ public class UrlBarCoordinator
         mMediator.setAccessibilityWarning(warning);
     }
 
+    /** Set the state of "Always Show AI Mode" option. */
+    public void setShowAiMode(boolean showAiMode) {
+        mModel.set(UrlBarProperties.IS_AI_MODE_PREF_ENABLED, showAiMode);
+    }
+
+    /** Set the callback when "Always Show AI Mode" is toggled. */
+    public void setShowAiModeCallback(@Nullable Callback<Boolean> callback) {
+        mModel.set(UrlBarProperties.AI_MODE_PREF_TOGGLE_CALLBACK, callback);
+    }
+
     /**
      * Clears text selection, which also has the side effect of dismissing the Android selection
      * handles and context menu if showing.

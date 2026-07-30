@@ -4,6 +4,7 @@
 
 #include "services/network/public/cpp/url_loader_completion_status.h"
 
+#include "base/byte_size.h"
 #include "base/trace_event/trace_event.h"
 #include "net/base/net_errors.h"
 
@@ -50,9 +51,9 @@ void URLLoaderCompletionStatus::WriteIntoTrace(
   auto dict = std::move(context).WriteDictionary();
   dict.Add("error_code", error_code);
   dict.Add("extended_error_code", extended_error_code);
-  dict.Add("encoded_data_length", encoded_data_length);
-  dict.Add("encoded_body_length", encoded_body_length);
-  dict.Add("decoded_body_length", decoded_body_length);
+  dict.Add("encoded_data_length", encoded_data_length.InBytes());
+  dict.Add("encoded_body_length", encoded_body_length.InBytes());
+  dict.Add("decoded_body_length", decoded_body_length.InBytes());
 }
 
 }  // namespace network

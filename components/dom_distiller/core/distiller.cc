@@ -138,9 +138,10 @@ void DistillerImpl::OnPageDistillationFinished(
     int page_num,
     const GURL& page_url,
     std::unique_ptr<proto::DomDistillerResult> distiller_result,
-    bool distillation_successful) {
+    DistillationParseResult result) {
   DCHECK(started_pages_index_.find(page_num) != started_pages_index_.end());
-  if (!distillation_successful) {
+  if (result != DistillationParseResult::kSuccess) {
+    last_error_ = result;
     started_pages_index_.erase(page_num);
     RunDistillerCallbackIfDone();
     return;
@@ -361,7 +362,9 @@ void DistillerImpl::RunDistillerCallbackIfDone() {
 
     base::AutoReset<bool> dont_delete_this_in_callback(&destruction_allowed_,
                                                        false);
-    std::move(finished_cb_).Run(std::move(article_proto));
+    std::move(finished_cb_)
+        .Run(std::move(article_proto),
+             last_error_.value_or(DistillationParseResult::kSuccess));
   }
 }
 

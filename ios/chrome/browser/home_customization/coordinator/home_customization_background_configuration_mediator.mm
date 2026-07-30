@@ -86,15 +86,12 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
 @interface HomeCustomizationBackgroundConfigurationMediator () <
     HomeBackgroundCustomizationServiceObserving> {
   // The image fetcher used to download individual background preset images.
-  raw_ptr<image_fetcher::ImageFetcher, DanglingUntriaged> _imageFetcher;
+  raw_ptr<image_fetcher::ImageFetcher> _imageFetcher;
   // The service that provides the background images.
-  raw_ptr<HomeBackgroundImageService, DanglingUntriaged>
-      _homeBackgroundImageService;
+  raw_ptr<HomeBackgroundImageService> _homeBackgroundImageService;
   // Used to get and observe the background state.
-  raw_ptr<HomeBackgroundCustomizationService, DanglingUntriaged>
-      _backgroundCustomizationService;
-  raw_ptr<UserUploadedImageManager, DanglingUntriaged>
-      _userUploadedImageManager;
+  raw_ptr<HomeBackgroundCustomizationService> _backgroundCustomizationService;
+  raw_ptr<UserUploadedImageManager> _userUploadedImageManager;
 
   // Observer for the customization service.
   std::unique_ptr<HomeBackgroundCustomizationServiceObserverBridge>
@@ -304,6 +301,10 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
 
 - (void)disconnect {
   _backgroundCustomizationServiceObserverBridge.reset();
+  _backgroundCustomizationService = nullptr;
+  _imageFetcher = nullptr;
+  _homeBackgroundImageService = nullptr;
+  _userUploadedImageManager = nullptr;
 }
 
 #pragma mark - HomeCustomizationBackgroundConfigurationMutator

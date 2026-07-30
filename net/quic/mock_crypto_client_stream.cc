@@ -274,7 +274,15 @@ bool MockCryptoClientStream::EarlyDataAccepted() const {
 }
 
 ssl_early_data_reason_t MockCryptoClientStream::EarlyDataReason() const {
+  if (early_data_reason_.has_value()) {
+    return *early_data_reason_;
+  }
   return EarlyDataAccepted() ? ssl_early_data_accepted : ssl_early_data_unknown;
+}
+
+std::optional<quic::QuicWallTime>
+MockCryptoClientStream::GetSessionTicketCreationTime() const {
+  return ticket_creation_time_;
 }
 
 const QuicCryptoNegotiatedParameters&

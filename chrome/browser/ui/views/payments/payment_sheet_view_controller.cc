@@ -399,7 +399,9 @@ PaymentSheetViewController::~PaymentSheetViewController() {
     spec()->RemoveObserver(this);
   }
 
-  state()->RemoveObserver(this);
+  if (state()) {
+    state()->RemoveObserver(this);
+  }
 }
 
 void PaymentSheetViewController::OnSpecUpdated() {

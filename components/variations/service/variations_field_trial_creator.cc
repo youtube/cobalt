@@ -373,6 +373,7 @@ bool VariationsFieldTrialCreator::SetUpFieldTrials(
 
   platform_field_trials->RegisterRuntimeMutableFeatures(feature_list.get());
 
+  feature_list->SetVariationCountry(GetPermanentConsistencyCountry());
   base::FeatureList::SetInstance(std::move(feature_list));
 
   GetSeedStore()->AllowToPurgeSeedsDataFromMemory();

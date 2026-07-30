@@ -137,8 +137,8 @@ class BASE_EXPORT PowerMonitor : public perfetto::TrackEventSessionObserver {
   mutable Lock battery_power_status_lock_;
 
   bool emit_global_event_ = false;
-  const perfetto::NamedTrack suspend_track_;
-  const perfetto::NamedTrack battery_power_track_;
+  const perfetto::StateTrack suspend_track_;
+  const perfetto::StateTrack battery_power_track_;
   PowerThermalObserver::DeviceThermalState power_thermal_state_
       GUARDED_BY(power_thermal_state_lock_) =
           PowerThermalObserver::DeviceThermalState::kUnknown;

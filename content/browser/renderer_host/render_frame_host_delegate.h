@@ -492,6 +492,7 @@ class CONTENT_EXPORT RenderFrameHostDelegate {
   virtual void ResourceLoadComplete(
       RenderFrameHostImpl* render_frame_host,
       const GlobalRequestID& request_id,
+      const GURL& original_url,
       blink::mojom::ResourceLoadInfoPtr resource_load_info) {}
 
   // Request to print a frame that is in a different process than its parent.

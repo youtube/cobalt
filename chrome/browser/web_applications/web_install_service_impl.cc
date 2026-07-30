@@ -382,11 +382,14 @@ void WebInstallServiceImpl::OnManifestFetched(
     return;
   }
 
-  // Use the original profile to access the web app command system for parsing,
-  // as `profile` could still be off-the-record.
+  // Select the profile where web apps are enabled to access the command system
+  // for parsing. The provider lives on the original profile for desktop
+  // Incognito, but on the off-the-record profile for ChromeOS guest sessions.
   auto* profile =
       Profile::FromBrowserContext(render_frame_host().GetBrowserContext());
-  auto* provider = WebAppProvider::GetForWebApps(profile->GetOriginalProfile());
+  Profile* provider_profile =
+      AreWebAppsEnabled(profile) ? profile : profile->GetOriginalProfile();
+  auto* provider = WebAppProvider::GetForWebApps(provider_profile);
   if (!provider) {
     std::move(callback_with_guard)
         .Run(blink::mojom::WebInstallServiceResult::kAbortError);
@@ -433,9 +436,31 @@ void WebInstallServiceImpl::OnManifestParsed(
   }
 
   // Manifest was successfully parsed and meets all web install requirements.
-  // TODO(liahiscock): Initiate Incognito dialog and early return. Then proceed
-  // with the installation process.
+  // Check if web app installs are supported in this profile (fails for
+  // Incognito/Guest). This check intentionally comes after fetch+parse so that
+  // DataErrors surface identically regardless of profile type.
+  auto* profile =
+      Profile::FromBrowserContext(render_frame_host().GetBrowserContext());
+  if (!AreWebAppsUserInstallable(profile)) {
+    WebAppUiManager::TriggerInstallNotSupportedDialog(
+        content::WebContents::FromRenderFrameHost(&render_frame_host()),
+        profile,
+        base::BindOnce(
+            &WebInstallServiceImpl::OnManifestInstallNotSupportedDialogClosed,
+            weak_ptr_factory_.GetWeakPtr(), std::move(callback_with_guard)));
+    return;
+  }
+
+  // TODO(liahiscock): Initiate permission prompt and installation process.
   NOTIMPLEMENTED();
+  std::move(callback_with_guard)
+      .Run(blink::mojom::WebInstallServiceResult::kAbortError);
+}
+
+void WebInstallServiceImpl::OnManifestInstallNotSupportedDialogClosed(
+    InstallFromManifestCallbackWithGuard callback_with_guard) {
+  // This dialog is informational only; No "accepted" value is needed, closure
+  // always results in an abort error.
   std::move(callback_with_guard)
       .Run(blink::mojom::WebInstallServiceResult::kAbortError);
 }

@@ -4,10 +4,6 @@
 
 source_set("sessions") {
   sources = [
-    "drop_target.h",
-    "drop_target_id.h",
-    "drop_target_registry.h",
-    "drop_target_registry_impl.h",
     "tab_drag_event_router.h",
     "tab_drag_session.h",
     "tab_drag_session_injector.h",
@@ -19,6 +15,7 @@ source_set("sessions") {
   public_deps = [
     "//components/browser_apis/tab_drag:mojom",
     "//components/browser_apis/tab_drag/adapters",
+    "//components/browser_apis/tab_drag/destinations",
     "//components/browser_apis/tab_strip:mojom",
     "//components/browser_apis/tab_strip/types",
     "//mojo/public/cpp/bindings",
@@ -33,8 +30,6 @@ source_set("sessions") {
 
 source_set("impl") {
   sources = [
-    "drop_target.cc",
-    "drop_target_registry_impl.cc",
     "tab_drag_event_router.cc",
     "tab_drag_session.cc",
     "tab_drag_session_manager.cc",
@@ -46,6 +41,7 @@ source_set("impl") {
     "//base",
     "//components/browser_apis/tab_drag:mojom",
     "//components/browser_apis/tab_drag/adapters",
+    "//components/browser_apis/tab_drag/destinations:impl",
     "//mojo/public/cpp/bindings",
     "//ui/gfx",
     "//ui/gfx/geometry",
@@ -56,7 +52,6 @@ source_set("unit_tests") {
   testonly = true
 
   sources = [
-    "drop_target_registry_impl_unittest.cc",
     "tab_drag_event_router_unittest.cc",
     "tab_drag_session_unittest.cc",
   ]

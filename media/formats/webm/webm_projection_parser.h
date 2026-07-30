@@ -45,7 +45,6 @@ class MEDIA_EXPORT WebMProjectionParser : public WebMParserClient {
   std::optional<int64_t> projection_type_;
   std::vector<uint8_t> projection_private_;
   std::optional<double> pose_yaw_;    // value must be [-180, 180]
-  std::optional<double> pose_pitch_;  // value must be [-90, 90]
   std::optional<double> pose_roll_;   // value must be [-180, 180]
 
   // Derived fields, used to store calculated projection type and

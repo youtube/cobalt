@@ -125,6 +125,14 @@ class ClipboardTest : public PageTestBase {
             GetFrame().GetBrowserInterfaceBroker());
   }
 
+  void TearDown() override {
+    // Clear the binder before `permission_service_` is destroyed; the broker
+    // holds it Unretained, so a later request would be a use-after-free.
+    GetFrame().DomWindow()->GetBrowserInterfaceBroker().SetBinderForTesting(
+        mojom::blink::PermissionService::Name_, {});
+    PageTestBase::TearDown();
+  }
+
   void SetPageFocus(bool focused) {
     GetPage().GetFocusController().SetActive(focused);
     GetPage().GetFocusController().SetFocused(focused);

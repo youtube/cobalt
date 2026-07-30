@@ -92,6 +92,9 @@ int UDPClientSocket::Connect(const IPEndPoint& address) {
 int UDPClientSocket::ConnectUsingNetwork(handles::NetworkHandle network,
                                          const IPEndPoint& address) {
   CHECK(!connect_called_);
+  if (!IsPortAllowedForIpEndpoint(address)) {
+    return ERR_UNSAFE_PORT;
+  }
   connect_called_ = true;
   if (!NetworkChangeNotifier::AreNetworkHandlesSupported())
     return ERR_NOT_IMPLEMENTED;
@@ -118,6 +121,9 @@ int UDPClientSocket::ConnectUsingNetwork(handles::NetworkHandle network,
 
 int UDPClientSocket::ConnectUsingDefaultNetwork(const IPEndPoint& address) {
   CHECK(!connect_called_);
+  if (!IsPortAllowedForIpEndpoint(address)) {
+    return ERR_UNSAFE_PORT;
+  }
   connect_called_ = true;
   if (!NetworkChangeNotifier::AreNetworkHandlesSupported())
     return ERR_NOT_IMPLEMENTED;

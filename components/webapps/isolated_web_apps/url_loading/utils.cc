@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 
+#include "base/byte_size.h"
 #include "base/containers/span.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
@@ -130,9 +131,10 @@ void CompleteWithGeneratedResponse(
   }
 
   network::URLLoaderCompletionStatus status(net::OK);
-  status.encoded_data_length = headers.size() + content_length;
-  status.encoded_body_length = content_length;
-  status.decoded_body_length = content_length;
+  status.encoded_data_length =
+      base::ByteSize(headers.size()) + base::ByteSize(content_length);
+  status.encoded_body_length = base::ByteSize(content_length);
+  status.decoded_body_length = base::ByteSize(content_length);
   loader_client->OnComplete(status);
 }
 

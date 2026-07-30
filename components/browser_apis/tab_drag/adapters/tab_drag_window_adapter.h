@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_BROWSER_APIS_TAB_DRAG_ADAPTERS_TAB_DRAG_WINDOW_ADAPTER_H_
 #define COMPONENTS_BROWSER_APIS_TAB_DRAG_ADAPTERS_TAB_DRAG_WINDOW_ADAPTER_H_
 
+#include "base/functional/callback.h"
 #include "base/types/expected.h"
 #include "base/types/id_type.h"
 #include "components/browser_apis/tab_strip/types/node_id.h"
@@ -26,6 +27,9 @@ enum class DragMoveLoopResult {
 // Represents a browser window for the TabDragAPI.
 class TabDragWindowAdapter {
  public:
+  using WindowMoveCallback =
+      base::RepeatingCallback<void(const gfx::Point& cursor_screen_point)>;
+
   virtual ~TabDragWindowAdapter() = default;
 
   virtual TabDragWindowId GetWindowId() const = 0;
@@ -64,7 +68,8 @@ class TabDragWindowAdapter {
   // Runs the native window drag-move loop for this window.
   virtual DragMoveLoopResult RunWindowMoveLoop(
       const gfx::Point& screen_point,
-      const gfx::Vector2d& drag_offset) = 0;
+      const gfx::Vector2d& drag_offset,
+      WindowMoveCallback move_callback) = 0;
 
   // Signals the native window manager to end the blocking window move loop.
   virtual void EndWindowMoveLoop() = 0;

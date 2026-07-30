@@ -143,7 +143,7 @@ suite('settings system page official', function() {
     assertTrue(!!section);
 
     const feedbackButton =
-        section.shadowRoot!.querySelector<HTMLElement>('#feedback');
+        section.shadowRoot.querySelector<HTMLElement>('#feedback');
     assertTrue(!!feedbackButton);
 
     feedbackButton.click();

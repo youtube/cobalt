@@ -48,6 +48,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.customview.widget.ExploreByTouchHelper;
 
+import org.chromium.base.BaseFeatureList;
 import org.chromium.base.Callback;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.InputHintChecker;
@@ -1157,8 +1158,10 @@ public class CompositorViewHolder extends FrameLayout
             controlsInsets = mControlsResizeView ? controlsHeight : controlsMinHeight;
         }
 
-        int keyboardInset = getEffectiveWebContentsHeightInset();
-        int verticalViewportInsets = controlsInsets + keyboardInset;
+        // In OVERLAYS_CONTENT/RESIZES_VISUAL, webContentsHeightInset can be negative to
+        // outset the WebContents and counter the Android View resize caused by the keyboard.
+        int webContentsHeightInset = getEffectiveWebContentsHeightInset();
+        int verticalViewportInsets = controlsInsets + webContentsHeightInset;
 
         int webContentsWidth = width - horizontalViewportInsets;
         int webContentsHeight = height - verticalViewportInsets;
@@ -1166,12 +1169,13 @@ public class CompositorViewHolder extends FrameLayout
         if (ChromeFeatureList.sVirtualKeyboardTransientInnerHeightFix.isEnabled()
                 && virtualKeyboardModeOutsetsWebContentsHeight()
                 && mApplicationBottomInsetSupplier != null) {
-            int rawKeyboardInset =
+            int rawWebContentsHeightInset =
                     mApplicationBottomInsetSupplier.getInsets().webContentsHeightInset;
-            boolean keyboardCompensationActive = keyboardInset < 0 || rawKeyboardInset < 0;
+            boolean keyboardCompensationActive =
+                    webContentsHeightInset < 0 || rawWebContentsHeightInset < 0;
             boolean keyboardInsetTransitionInProgress =
                     mDeferredWebContentsHeightInsetUpdate != null
-                            || rawKeyboardInset != mAppliedWebContentsHeightInset;
+                            || rawWebContentsHeightInset != mAppliedWebContentsHeightInset;
             boolean keyboardVisible =
                     KeyboardVisibilityDelegate.getInstance().isKeyboardShowing(this);
 
@@ -1196,7 +1200,12 @@ public class CompositorViewHolder extends FrameLayout
                 int keyboardHeight =
                         KeyboardVisibilityDelegate.getInstance()
                                 .calculateTotalKeyboardHeight(this.getRootView());
-                notifyVirtualKeyboardOverlayGeometryChangeEvent(width, keyboardHeight, webContents);
+                int geometryChangeWidth =
+                        BaseFeatureList.sVirtualKeyboardGeometryAndInsetFixes.isEnabled()
+                                ? webContentsWidth
+                                : width;
+                notifyVirtualKeyboardOverlayGeometryChangeEvent(
+                        geometryChangeWidth, webContentsHeight, keyboardHeight, webContents);
             }
         } else {
             // Need to call layout() for the following View if it is not attached to the view
@@ -1227,12 +1236,14 @@ public class CompositorViewHolder extends FrameLayout
 
     /**
      * Notifies geometrychange event to JS.
-     * @param w  Width of the view.
-     * @param keyboardHeight Height of the keyboard.
+     *
+     * @param viewportWidth Width of the viewport in px.
+     * @param viewportHeight Height of the viewport in px.
+     * @param keyboardHeight Height of the keyboard in px.
      * @param webContents Active WebContent for which this event needs to be fired.
      */
     private void notifyVirtualKeyboardOverlayGeometryChangeEvent(
-            int w, int keyboardHeight, WebContents webContents) {
+            int viewportWidth, int viewportHeight, int keyboardHeight, WebContents webContents) {
         assert mVirtualKeyboardMode == VirtualKeyboardMode.OVERLAYS_CONTENT;
 
         boolean keyboardVisible = keyboardHeight > 0;
@@ -1241,14 +1252,22 @@ public class CompositorViewHolder extends FrameLayout
         }
 
         mHasKeyboardGeometryChangeFired = keyboardVisible;
-        Rect appRect = new Rect();
-        getRootView().getWindowVisibleDisplayFrame(appRect);
         if (keyboardVisible) {
             // Fire geometrychange event to JS.
-            // The assumption here is that the keyboard is docked at the bottom so we use the
-            // root visible window frame's origin to calculate the position of the keyboard.
-            notifyVirtualKeyboardOverlayRect(
-                    webContents, appRect.left, appRect.top, w, keyboardHeight);
+            if (BaseFeatureList.sVirtualKeyboardGeometryAndInsetFixes.isEnabled()) {
+                // The virtual keyboard rectangle is specified relative to the application
+                // viewport's origin. Assuming a bottom-docked keyboard, y is the top edge from
+                // that origin.
+                int keyboardTop = Math.max(0, viewportHeight - keyboardHeight);
+                notifyVirtualKeyboardOverlayRect(
+                        webContents, 0, keyboardTop, viewportWidth, keyboardHeight);
+            } else {
+                // Legacy behavior uses root visible frame origin.
+                Rect appRect = new Rect();
+                getRootView().getWindowVisibleDisplayFrame(appRect);
+                notifyVirtualKeyboardOverlayRect(
+                        webContents, appRect.left, appRect.top, viewportWidth, keyboardHeight);
+            }
         } else {
             // Keyboard has hidden.
             notifyVirtualKeyboardOverlayRect(webContents, 0, 0, 0, 0);
@@ -1300,12 +1319,13 @@ public class CompositorViewHolder extends FrameLayout
     }
 
     /**
-     * Fires geometrychange event to JS with the keyboard size.
+     * Fires geometrychange event to JS with the keyboard rectangle.
+     *
      * @param webContents Active WebContent for which this event needs to be fired.
-     * @param x When the keyboard is shown, it has the left position of the app's rect, else, 0.
-     * @param y When the keyboard is shown, it has the top position of the app's rect, else, 0.
-     * @param width  When the keyboard is shown, it has the width of the view, else, 0.
-     * @param height The height of the keyboard.
+     * @param x Keyboard rectangle left in viewport client coordinates, or 0 when hidden.
+     * @param y Keyboard rectangle top in viewport client coordinates, or 0 when hidden.
+     * @param width Keyboard rectangle width, or 0 when hidden.
+     * @param height Keyboard rectangle height, or 0 when hidden.
      */
     @VisibleForTesting
     void notifyVirtualKeyboardOverlayRect(

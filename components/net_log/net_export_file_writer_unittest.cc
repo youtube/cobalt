@@ -887,4 +887,20 @@ TEST_F(NetExportFileWriterTest, HandleCrash) {
   ASSERT_TRUE(VerifyState(std::move(state), kStateNotLoggingString));
 }
 
+TEST_F(NetExportFileWriterTest, IsLogging) {
+  EXPECT_FALSE(file_writer()->IsLogging());
+
+  ASSERT_TRUE(InitializeThenVerifyNewState(true, false));
+  EXPECT_FALSE(file_writer()->IsLogging());
+
+  ASSERT_TRUE(StartThenVerifyNewState(
+      base::FilePath(), net::NetLogCaptureMode::kDefault,
+      kCaptureModeDefaultString, network_context()));
+  EXPECT_TRUE(file_writer()->IsLogging());
+
+  ASSERT_TRUE(StopThenVerifyNewStateAndFile(base::FilePath(), base::DictValue(),
+                                            kCaptureModeDefaultString));
+  EXPECT_FALSE(file_writer()->IsLogging());
+}
+
 }  // namespace net_log

@@ -13,6 +13,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
+#include "base/memory/stack_allocated.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/views/frame/browser_root_view.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_context.h"
@@ -181,6 +182,9 @@ class TabDragHandlerImpl : public TabDragHandler, public TabDragContext {
  private:
   // Encapsulates data needed to initialize a drag session.
   struct DragInitData {
+    STACK_ALLOCATED();
+
+   public:
     DragInitData();
     ~DragInitData();
     DragInitData(const DragInitData&);

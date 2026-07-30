@@ -125,6 +125,11 @@ bool OzonePlatform::RunningOnWaylandForTest() {
   return OzonePlatform::GetPlatformNameForTest() == "wayland";
 }
 
+// static
+bool OzonePlatform::RunningOnX11ForTest() {
+  return OzonePlatform::GetPlatformNameForTest() == "x11";
+}
+
 PlatformClipboard* OzonePlatform::GetPlatformClipboard() {
   // Platforms that support system clipboard must override this method.
   return nullptr;

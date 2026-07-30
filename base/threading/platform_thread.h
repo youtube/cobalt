@@ -201,16 +201,15 @@ class BASE_EXPORT PlatformThreadBase {
 
     RaiseThreadTypeLease() = delete;
     RaiseThreadTypeLease(const RaiseThreadTypeLease&) = delete;
+    RaiseThreadTypeLease(RaiseThreadTypeLease&& other) noexcept;
     RaiseThreadTypeLease& operator=(const RaiseThreadTypeLease&) = delete;
-    RaiseThreadTypeLease(RaiseThreadTypeLease&&) = delete;
-    RaiseThreadTypeLease& operator=(RaiseThreadTypeLease&&) = delete;
 
     ThreadType thread_type() const { return leased_thread_type_; }
 
    private:
     friend class PlatformThreadThreadTypeManagerTest;
-    explicit RaiseThreadTypeLease(ThreadType thread_type,
-                                  internal::ThreadTypeManager* manager);
+    RaiseThreadTypeLease(ThreadType thread_type,
+                         internal::ThreadTypeManager* manager);
 
     ThreadType leased_thread_type_;
     raw_ptr<internal::ThreadTypeManager> manager_;
@@ -314,8 +313,7 @@ class BASE_EXPORT PlatformThreadBase {
   // Declares the type of work running on the current thread. This will affect
   // things like thread priority and thread QoS (Quality of Service) to the best
   // of the current platform's abilities.
-  // TODO(crbug.com/470337728): Rename this method to SetDefaultThreadType.
-  static void SetCurrentThreadType(ThreadType thread_type);
+  static void SetDefaultThreadType(ThreadType thread_type);
 
   // Get the last effective `thread_type` set by SetCurrentThreadType and
   // currently active leases.

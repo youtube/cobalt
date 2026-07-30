@@ -11,6 +11,7 @@
 #include "build/branding_buildflags.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/actor/resources/grit/actor_browser_resources.h"
+#include "chrome/browser/dictation/features.h"
 #include "chrome/browser/glic/browser_ui/glic_vector_icon_manager.h"
 #include "chrome/browser/indigo/indigo_page_action_controller.h"
 #include "chrome/browser/indigo/resources/grit/indigo_strings.h"
@@ -647,6 +648,28 @@ void ToastService::RegisterToasts(
                                         : kTextAnalysisOldIcon,
                                     IDS_AUTOFILL_AI_PRE_FETCH_ERROR_MESSAGE)
             .AddGlobalScoped()
+            .Build());
+  }
+
+#if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
+  toast_registry_->RegisterToast(
+      ToastId::kEnterpriseCopyAudit,
+      ToastSpecification::Builder(vector_icons::kDomainIcon,
+                                  IDS_ENTERPRISE_COPY_MONITORED_TOAST_BODY)
+          .Build());
+  toast_registry_->RegisterToast(
+      ToastId::kEnterpriseCopyKeptInManagedChrome,
+      ToastSpecification::Builder(vector_icons::kDomainIcon,
+                                  IDS_ENTERPRISE_COPY_MONITORED_TOAST_BODY)
+          .Build());
+#endif
+  if (base::FeatureList::IsEnabled(dictation::kDictation)) {
+    toast_registry_->RegisterToast(
+        ToastId::kDictationError,
+        ToastSpecification::Builder(features::IsRoundedIconsEnabled()
+                                        ? vector_icons::kErrorIcon
+                                        : vector_icons::kErrorOldIcon,
+                                    IDS_DICTATION_ERROR_TOAST)
             .Build());
   }
 }  // RegisterToasts() end.

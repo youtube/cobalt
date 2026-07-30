@@ -37,7 +37,7 @@ void ExternalDisplayLinkMac::TryRecordDisplayLinkCreation(
   auto& globals = DisplayLinkGlobals::Get();
   base::AutoLock lock(globals.lock);
 
-  if (!VSyncProviderMac::GetInstance()->IsConnectedToBrowser()) {
+  if (!VSyncProviderMac::GetInstance()->IsConnectedToBrowserOnVizThread()) {
     return;
   }
 

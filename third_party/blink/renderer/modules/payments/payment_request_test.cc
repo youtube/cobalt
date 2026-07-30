@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_tester.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_payment_validation_errors.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/events/native_event_listener.h"
 #include "third_party/blink/renderer/core/event_type_names.h"
@@ -21,6 +22,7 @@
 #include "third_party/blink/renderer/modules/payments/payment_test_helper.h"
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
+#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 namespace blink {
@@ -643,18 +645,15 @@ TEST(PaymentRequestTest, DetailsIdIsSet) {
 // An event listener that owns a page and destroys it when the event is invoked.
 class PageDeleter final : public NativeEventListener {
  public:
-  PageDeleter()
-      : holder_(DummyPageHolder::CreateAndCommitNavigation(
-            KURL("https://www.example.com"))) {}
-  ~PageDeleter() override = default;
-
   // NativeEventListener:
   void Invoke(ExecutionContext*, Event*) override { holder_.reset(); }
 
   DummyPageHolder* page() { return holder_.get(); }
 
  private:
-  std::unique_ptr<DummyPageHolder> holder_;
+  std::unique_ptr<DummyPageHolder> holder_ =
+      DummyPageHolder::CreateAndCommitNavigation(
+          KURL("https://www.example.com"));
 };
 
 TEST(PaymentRequestTest, NoCrashWhenPaymentMethodChangeEventDestroysContext) {
@@ -775,6 +774,86 @@ TEST(PaymentRequestTest, NotDeprecatedPaymentMethod) {
 
   EXPECT_FALSE(scope.GetDocument().IsUseCounted(
       WebFeature::kPaymentRequestDeprecatedPaymentMethod));
+}
+
+TEST(PaymentRequestTest, ShowWithNonActiveDocumentRejectsWithAbortError) {
+  test::TaskEnvironment task_environment;
+  PaymentRequestV8TestingScope scope;
+  ScopedPaymentRequestNonFullyActiveDocumentCheckInvalidStateErrorForTest
+      kill_switch_enabler(false);
+
+  PaymentRequest* request = PaymentRequest::Create(
+      scope.GetExecutionContext(), BuildPaymentMethodDataForTest(),
+      BuildPaymentDetailsInitForTest(), ASSERT_NO_EXCEPTION);
+
+  ScriptState* script_state = scope.GetScriptState();
+  scope.GetFrame().Detach(FrameDetachType::kRemove);
+
+  DummyExceptionStateForTesting exception_state;
+  request->show(script_state, exception_state);
+  EXPECT_EQ(exception_state.CodeAs<DOMExceptionCode>(),
+            DOMExceptionCode::kAbortError);
+}
+
+TEST(PaymentRequestTest,
+     ShowWithNonActiveDocumentRejectsWithInvalidStateError) {
+  test::TaskEnvironment task_environment;
+  PaymentRequestV8TestingScope scope;
+  ScopedPaymentRequestNonFullyActiveDocumentCheckInvalidStateErrorForTest
+      kill_switch_enabler(true);
+
+  PaymentRequest* request = PaymentRequest::Create(
+      scope.GetExecutionContext(), BuildPaymentMethodDataForTest(),
+      BuildPaymentDetailsInitForTest(), ASSERT_NO_EXCEPTION);
+
+  ScriptState* script_state = scope.GetScriptState();
+  scope.GetFrame().Detach(FrameDetachType::kRemove);
+
+  DummyExceptionStateForTesting exception_state;
+  request->show(script_state, exception_state);
+  EXPECT_EQ(exception_state.CodeAs<DOMExceptionCode>(),
+            DOMExceptionCode::kInvalidStateError);
+}
+
+TEST(PaymentRequestTest, RetryWithNonActiveDocumentRejectsWithAbortError) {
+  test::TaskEnvironment task_environment;
+  PaymentRequestV8TestingScope scope;
+  ScopedPaymentRequestNonFullyActiveDocumentCheckInvalidStateErrorForTest
+      kill_switch_enabler(false);
+
+  PaymentRequest* request = PaymentRequest::Create(
+      scope.GetExecutionContext(), BuildPaymentMethodDataForTest(),
+      BuildPaymentDetailsInitForTest(), ASSERT_NO_EXCEPTION);
+
+  ScriptState* script_state = scope.GetScriptState();
+  scope.GetFrame().Detach(FrameDetachType::kRemove);
+
+  DummyExceptionStateForTesting exception_state;
+  request->Retry(script_state, PaymentValidationErrors::Create(),
+                 exception_state);
+  EXPECT_EQ(exception_state.CodeAs<DOMExceptionCode>(),
+            DOMExceptionCode::kAbortError);
+}
+
+TEST(PaymentRequestTest,
+     RetryWithNonActiveDocumentRejectsWithInvalidStateError) {
+  test::TaskEnvironment task_environment;
+  PaymentRequestV8TestingScope scope;
+  ScopedPaymentRequestNonFullyActiveDocumentCheckInvalidStateErrorForTest
+      kill_switch_enabler(true);
+
+  PaymentRequest* request = PaymentRequest::Create(
+      scope.GetExecutionContext(), BuildPaymentMethodDataForTest(),
+      BuildPaymentDetailsInitForTest(), ASSERT_NO_EXCEPTION);
+
+  ScriptState* script_state = scope.GetScriptState();
+  scope.GetFrame().Detach(FrameDetachType::kRemove);
+
+  DummyExceptionStateForTesting exception_state;
+  request->Retry(script_state, PaymentValidationErrors::Create(),
+                 exception_state);
+  EXPECT_EQ(exception_state.CodeAs<DOMExceptionCode>(),
+            DOMExceptionCode::kInvalidStateError);
 }
 
 }  // namespace

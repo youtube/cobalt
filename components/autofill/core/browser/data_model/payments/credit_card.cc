@@ -335,6 +335,7 @@ int CreditCard::IconResourceId(Suggestion::Icon icon) {
       return ShouldUseNewFopDisplay() ? IDR_AUTOFILL_METADATA_CC_GENERIC
                                       : IDR_AUTOFILL_METADATA_CC_GENERIC_OLD;
     case Suggestion::Icon::kAccount:
+    case Suggestion::Icon::kCardGenericSpark:
     case Suggestion::Icon::kClear:
     case Suggestion::Icon::kCode:
     case Suggestion::Icon::kDelete:
@@ -361,6 +362,7 @@ int CreditCard::IconResourceId(Suggestion::Icon icon) {
     case Suggestion::Icon::kIban:
     case Suggestion::Icon::kKey:
     case Suggestion::Icon::kLocation:
+    case Suggestion::Icon::kLocationSpark:
     case Suggestion::Icon::kLoyalty:
     case Suggestion::Icon::kMagic:
     case Suggestion::Icon::kNoIcon:
@@ -377,6 +379,7 @@ int CreditCard::IconResourceId(Suggestion::Icon icon) {
     case Suggestion::Icon::kSettings:
     case Suggestion::Icon::kShipment:
     case Suggestion::Icon::kShipmentSpark:
+    case Suggestion::Icon::kTextSpark:
     case Suggestion::Icon::kUndo:
     case Suggestion::Icon::kBnplGeneric:
     case Suggestion::Icon::kBnplAffirm:

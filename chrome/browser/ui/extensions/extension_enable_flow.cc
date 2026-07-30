@@ -26,6 +26,7 @@
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
 using extensions::Extension;
+using extensions::InstallPromptData;
 
 ExtensionEnableFlow::ExtensionEnableFlow(Profile* profile,
                                          const std::string& extension_id,
@@ -141,13 +142,13 @@ void ExtensionEnableFlow::CheckPermissionAndMaybePromptUser() {
   }
 
   CreatePrompt();
-  ExtensionInstallPrompt::PromptType type =
+  InstallPromptData::PromptType type =
       ExtensionInstallPrompt::GetReEnablePromptTypeForExtension(profile_,
                                                                 extension);
   prompt_->ShowDialog(base::BindOnce(&ExtensionEnableFlow::InstallPromptDone,
                                      weak_ptr_factory_.GetWeakPtr()),
                       extension, nullptr,
-                      std::make_unique<ExtensionInstallPrompt::Prompt>(type),
+                      std::make_unique<InstallPromptData>(type),
                       ExtensionInstallPrompt::GetDefaultShowDialogCallback());
 }
 

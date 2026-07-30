@@ -322,10 +322,8 @@ TEST_F(LaserPointerControllerTest, MouseCursorState) {
   EXPECT_FALSE(cursor_manager->IsCursorLocked());
   EXPECT_EQ(1, controller_test_api_->laser_points().GetNumberOfPoints());
   event_generator->ReleaseTouch();
-  // Wait until laser pointer view created by touch goes away. Otherwise mouse
-  // event will be dropped.
-  EXPECT_TRUE(base::test::RunUntil(
-      [&]() { return !controller_test_api_->HasLaserPointerView(); }));
+  // We reset the pointer view to simulate the timer expiration or view reuse.
+  controller_test_api_->ResetPointerView();
 
   // Verify that moving the mouse cursor shows the cursor.
   event_generator->MoveMouseTo(gfx::Point(6, 6));
@@ -359,9 +357,11 @@ TEST_F(LaserPointerControllerTest, TouchTakeOverMouse) {
       event_generator->EnterPenPointerMode();
     }
     event_generator->PressTouch();
-    // A new laser pointer view is created by touch event.
-    EXPECT_NE(view_created_by_mouse,
+    // The existing laser pointer view is reused for the touch event.
+    EXPECT_EQ(view_created_by_mouse,
               controller_test_api_->GetLaserPointerView());
+    // Since the view is reused but reset, the point from the mouse event is
+    // cleared.
     EXPECT_EQ(1, controller_test_api_->laser_points().GetNumberOfPoints());
     event_generator->MoveTouch(gfx::Point(2, 2));
     event_generator->MoveTouch(gfx::Point(1, 1));
@@ -407,6 +407,35 @@ TEST_F(LaserPointerControllerTest, NoMouseInterference) {
     }
   }
 
+  controller_test_api_->SetEnabled(false);
+}
+
+// Verify that the laser pointer view is reused if a new gesture starts while
+// the view is still kept alive.
+TEST_F(LaserPointerControllerTest, LaserPointerViewReuse) {
+  ui::test::EventGenerator* event_generator = GetEventGenerator();
+  controller_test_api_->SetEnabled(true);
+
+  // 1. Create laser pointer view.
+  event_generator->PressTouch();
+  event_generator->MoveTouch(gfx::Point(1, 1));
+  auto* view_1 = controller_test_api_->GetLaserPointerView();
+  EXPECT_TRUE(view_1);
+  EXPECT_EQ(2, controller_test_api_->laser_points().GetNumberOfPoints());
+
+  // 2. Release touch to trigger fade out and keep-alive.
+  event_generator->ReleaseTouch();
+  EXPECT_TRUE(controller_test_api_->HasLaserPointerView());
+
+  // 3. Start a new gesture before the keep-alive timer expires.
+  event_generator->PressTouch();
+  auto* view_2 = controller_test_api_->GetLaserPointerView();
+
+  // 4. Verify the view is reused and points are reset.
+  EXPECT_EQ(view_1, view_2);
+  EXPECT_EQ(1, controller_test_api_->laser_points().GetNumberOfPoints());
+
+  event_generator->ReleaseTouch();
   controller_test_api_->SetEnabled(false);
 }
 

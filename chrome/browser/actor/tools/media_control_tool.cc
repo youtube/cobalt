@@ -61,11 +61,11 @@ void MediaControlTool::Invoke(ToolCallback callback) {
       absl::Overload(
           [media_session](const PlayMedia& arg) {
             // Resume media playback.
-            media_session->Resume(content::MediaSession::SuspendType::kUI);
+            media_session->Resume(content::MediaSession::SuspendType::kSystem);
           },
           [media_session](const PauseMedia& arg) {
             // Suspend media playback.
-            media_session->Suspend(content::MediaSession::SuspendType::kUI);
+            media_session->Suspend(content::MediaSession::SuspendType::kSystem);
           },
           [media_session](const SeekMedia& arg) {
             // Seek to a specific time in the media.

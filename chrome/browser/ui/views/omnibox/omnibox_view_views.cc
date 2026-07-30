@@ -217,10 +217,12 @@ std::u16string AimPlaceholderText(
 // OmniboxState ---------------------------------------------------------------
 OmniboxState::OmniboxState(const OmniboxEditModel::State& model_state,
                            const gfx::Range& selection,
-                           const gfx::Range& saved_selection_for_focus_change)
+                           const gfx::Range& saved_selection_for_focus_change,
+                           const bool show_full_url)
     : model_state(model_state),
       selection(selection),
-      saved_selection_for_focus_change(saved_selection_for_focus_change) {}
+      saved_selection_for_focus_change(saved_selection_for_focus_change),
+      show_full_url(show_full_url) {}
 
 OmniboxState::~OmniboxState() = default;
 
@@ -587,6 +589,9 @@ void OmniboxViewViews::SetFocus(bool is_user_initiated) {
   // |is_user_initiated| is true for focus events from keyboard accelerators.
   if (is_user_initiated) {
     controller()->edit_model()->StartZeroSuggestRequest();
+    if (location_bar_view_) {
+      location_bar_view_->OpenOmniboxPopup();
+    }
   }
 
   // Restore caret visibility if focus is explicitly requested. This is
@@ -1781,10 +1786,7 @@ void OmniboxViewViews::OnBlur() {
   // This should never exit keyword mode.
   if (GetWidget() && GetWidget()->IsActive() &&
       !controller()->edit_model()->is_keyword_selected()) {
-    // Bypass native RevertAll when Full WebUI V2 is enabled to prevent wiping
-    // out active WebUI drafting states.
-    if (!base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup) &&
-        ((!controller()->edit_model()->user_input_in_progress() &&
+    if (((!controller()->edit_model()->user_input_in_progress() &&
           GetText() != controller()->edit_model()->GetPermanentDisplayText()) ||
          (controller()->edit_model()->user_input_in_progress() &&
           GetText() ==
@@ -1808,11 +1810,6 @@ void OmniboxViewViews::OnBlur() {
                  controller()->client()->GetOmniboxPopupCloser()) {
     if (!base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup)) {
       popup_closer->CloseWithReason(omnibox::PopupCloseReason::kBlur);
-    } else {
-      // In the dragging case of the full webUI popup we still need to revert
-      // the text to reapply elision. Since the dropdown is not visible (popup
-      // is not open), it skips the `RevertAll` above.
-      RevertAll();
     }
   }
 

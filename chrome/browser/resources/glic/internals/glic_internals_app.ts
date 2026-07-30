@@ -540,6 +540,10 @@ export class GlicInternalsAppElement extends CrLitElement {
         label: 'Primary Account Needs Signed In',
         value: debugInfo.primaryAccountNeedsSignedIn,
       },
+      {
+        label: 'Dogfood Client Status',
+        value: debugInfo.dogfoodStatus,
+      },
     ];
 
     if (debugInfo.booleanSettings) {

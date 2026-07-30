@@ -47,6 +47,7 @@
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -259,10 +260,29 @@ void HTMLSlotElement::Assign(const HeapVector<Member<Node>>& nodes) {
   }
 
   if (!changed_slots.empty()) {
-    for (HTMLSlotElement& slot :
-         Traversal<HTMLSlotElement>::DescendantsOf(*shadow_root)) {
-      if (changed_slots.Contains(&slot)) {
-        slot.DidSlotChange(SlotChangeType::kSignalSlotChangeEvent);
+    if (RuntimeEnabledFeatures::SlotAssignNotifyDifferentShadowRootsEnabled()) {
+      if (shadow_root) {
+        for (HTMLSlotElement& slot :
+             Traversal<HTMLSlotElement>::DescendantsOf(*shadow_root)) {
+          if (changed_slots.Take(&slot)) {
+            slot.DidSlotChange(SlotChangeType::kSignalSlotChangeEvent);
+          }
+        }
+      }
+      // A previous slot may belong to a different shadow tree than `this`, or
+      // `this` may not be in a shadow tree at all. Such slots are not reached
+      // by the traversal above; signal them here.
+      for (HTMLSlotElement* slot : changed_slots) {
+        slot->DidSlotChange(SlotChangeType::kSignalSlotChangeEvent);
+      }
+    } else {
+      if (shadow_root) {
+        for (HTMLSlotElement& slot :
+             Traversal<HTMLSlotElement>::DescendantsOf(*shadow_root)) {
+          if (changed_slots.Contains(&slot)) {
+            slot.DidSlotChange(SlotChangeType::kSignalSlotChangeEvent);
+          }
+        }
       }
     }
   }

@@ -503,8 +503,13 @@ BASE_FEATURE_PARAM(int,
 BASE_FEATURE(kSplitViewLinkOpen, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDesktopGlowUp, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kGlassFrame, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(double, kExpandOnHoverOpacity, &kGlassFrame, 1.0);
+BASE_FEATURE_PARAM(double, kExpandOnHoverBlurRadius, &kGlassFrame, 5.0);
+
 BASE_FEATURE(kRoundedIcons, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebUIRoundedIcons, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGlassFrameEnabled() {
 #if BUILDFLAG(IS_MAC)
@@ -518,6 +523,10 @@ bool IsGlassFrameEnabled() {
 bool IsRoundedIconsEnabled() {
   return base::FeatureList::IsEnabled(kDesktopGlowUp) ||
          base::FeatureList::IsEnabled(kRoundedIcons);
+}
+
+bool IsWebUIRoundedIconsEnabled() {
+  return base::FeatureList::IsEnabled(kWebUIRoundedIcons);
 }
 
 }  // namespace features

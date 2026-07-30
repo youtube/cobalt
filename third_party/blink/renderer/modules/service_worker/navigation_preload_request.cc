@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/byte_size.h"
 #include "base/task/thread_pool.h"
 #include "net/http/http_response_headers.h"
 #include "services/network/public/cpp/content_decoding_interceptor.h"
@@ -153,9 +154,10 @@ void NavigationPreloadRequest::OnComplete(
                                         mojo::ScopedDataPipeConsumerHandle());
   }
   // This will delete |this|.
-  owner_->OnNavigationPreloadComplete(
-      fetch_event_id_, status.completion_time, status.encoded_data_length,
-      status.encoded_body_length, status.decoded_body_length);
+  owner_->OnNavigationPreloadComplete(fetch_event_id_, status.completion_time,
+                                      status.encoded_data_length.InBytes(),
+                                      status.encoded_body_length.InBytes(),
+                                      status.decoded_body_length.InBytes());
 }
 
 void NavigationPreloadRequest::MaybeReportResponseToOwner() {

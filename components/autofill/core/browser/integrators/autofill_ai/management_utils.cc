@@ -7,6 +7,7 @@
 #include <string>
 
 #include "base/notreached.h"
+#include "build/build_config.h"
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
@@ -17,117 +18,132 @@
 
 namespace autofill {
 
-std::string GetEntityTypeSectionTitleStringForI18n(EntityType entity_type) {
-  switch (entity_type.name()) {
+namespace {
+
+struct EntityTypeResources {
+  int section_title_id = 0;
+  int add_entity_id = 0;
+  int add_entity_branded_id = 0;
+  int edit_entity_id = 0;
+  int delete_entity_id = 0;
+};
+
+EntityTypeResources GetResourcesForType(EntityTypeName type_name) {
+  switch (type_name) {
     case EntityTypeName::kDriversLicense:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_DRIVERS_LICENSES_TITLE);
+      return {
+          .section_title_id = IDS_AUTOFILL_AI_DRIVERS_LICENSES_TITLE,
+          .add_entity_id = IDS_AUTOFILL_AI_ADD_DRIVERS_LICENSE_ENTITY,
+          .add_entity_branded_id = IDS_AUTOFILL_AI_ADD_DRIVERS_LICENSE_ENTITY,
+          .edit_entity_id = IDS_AUTOFILL_AI_EDIT_DRIVERS_LICENSE_ENTITY,
+          .delete_entity_id = IDS_AUTOFILL_AI_DELETE_DRIVERS_LICENSE_ENTITY,
+      };
     case EntityTypeName::kKnownTravelerNumber:
-      return l10n_util::GetStringUTF8(
-          IDS_AUTOFILL_AI_KNOWN_TRAVELER_NUMBER_TITLE);
+      return {
+          .section_title_id = IDS_AUTOFILL_AI_KNOWN_TRAVELER_NUMBER_TITLE,
+          .add_entity_id = IDS_AUTOFILL_AI_ADD_KNOWN_TRAVELER_NUMBER_ENTITY,
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_CHROMEOS)
+          .add_entity_branded_id =
+              IDS_AUTOFILL_AI_SAVE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE_BRANDED,
+#endif
+          .edit_entity_id = IDS_AUTOFILL_AI_EDIT_KNOWN_TRAVELER_NUMBER_ENTITY,
+          .delete_entity_id =
+              IDS_AUTOFILL_AI_DELETE_KNOWN_TRAVELER_NUMBER_ENTITY,
+      };
     case EntityTypeName::kNationalIdCard:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_NATIONAL_IDS_SHORT_TITLE);
+      return {
+          .section_title_id = IDS_AUTOFILL_AI_NATIONAL_IDS_SHORT_TITLE,
+          .add_entity_id = IDS_AUTOFILL_AI_ADD_NATIONAL_ID_CARD_ENTITY,
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_CHROMEOS)
+          .add_entity_branded_id =
+              IDS_AUTOFILL_AI_SAVE_ID_CARD_ENTITY_DIALOG_TITLE_BRANDED,
+#endif
+          .edit_entity_id = IDS_AUTOFILL_AI_EDIT_NATIONAL_ID_CARD_ENTITY,
+          .delete_entity_id = IDS_AUTOFILL_AI_DELETE_NATIONAL_ID_CARD_ENTITY,
+      };
     case EntityTypeName::kPassport:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_PASSPORTS_TITLE);
+      return {
+          .section_title_id = IDS_AUTOFILL_AI_PASSPORTS_TITLE,
+          .add_entity_id = IDS_AUTOFILL_AI_ADD_PASSPORT_ENTITY,
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_CHROMEOS)
+          .add_entity_branded_id =
+              IDS_AUTOFILL_AI_SAVE_PASSPORT_ENTITY_DIALOG_TITLE_BRANDED,
+#endif
+          .edit_entity_id = IDS_AUTOFILL_AI_EDIT_PASSPORT_ENTITY,
+          .delete_entity_id = IDS_AUTOFILL_AI_DELETE_PASSPORT_ENTITY,
+      };
     case EntityTypeName::kRedressNumber:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_REDRESS_NUMBER_TITLE);
+      return {
+          .section_title_id = IDS_AUTOFILL_AI_REDRESS_NUMBER_TITLE,
+          .add_entity_id = IDS_AUTOFILL_AI_ADD_REDRESS_NUMBER_ENTITY,
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_CHROMEOS)
+          .add_entity_branded_id =
+              IDS_AUTOFILL_AI_SAVE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE_BRANDED,
+#endif
+          .edit_entity_id = IDS_AUTOFILL_AI_EDIT_REDRESS_NUMBER_ENTITY,
+          .delete_entity_id = IDS_AUTOFILL_AI_DELETE_REDRESS_NUMBER_ENTITY,
+      };
     case EntityTypeName::kVehicle:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_VEHICLES_TITLE);
+      return {
+          .section_title_id = IDS_AUTOFILL_AI_VEHICLES_TITLE,
+          .add_entity_id = IDS_AUTOFILL_AI_ADD_VEHICLE_ENTITY,
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_CHROMEOS)
+          .add_entity_branded_id =
+              IDS_AUTOFILL_AI_SAVE_VEHICLE_ENTITY_DIALOG_TITLE_BRANDED,
+#endif
+          .edit_entity_id = IDS_AUTOFILL_AI_EDIT_VEHICLE_ENTITY,
+          .delete_entity_id = IDS_AUTOFILL_AI_DELETE_VEHICLE_ENTITY,
+      };
     case EntityTypeName::kFlightReservation:
-      return l10n_util::GetStringUTF8(
-          IDS_AUTOFILL_AI_FLIGHT_RESERVATIONS_TITLE);
+      return {
+          .section_title_id = IDS_AUTOFILL_AI_FLIGHT_RESERVATIONS_TITLE,
+      };
     case EntityTypeName::kOrder:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_ORDERS_TITLE);
+      return {
+          .section_title_id = IDS_AUTOFILL_AI_ORDERS_TITLE,
+      };
     case EntityTypeName::kShipment:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_SHIPMENTS_TITLE);
+      return {
+          .section_title_id = IDS_AUTOFILL_AI_SHIPMENTS_TITLE,
+      };
   }
   NOTREACHED();
 }
 
-std::string GetAddEntityTypeStringForI18n(EntityType entity_type) {
-  switch (entity_type.name()) {
-    case EntityTypeName::kDriversLicense:
-      return l10n_util::GetStringUTF8(
-          IDS_AUTOFILL_AI_ADD_DRIVERS_LICENSE_ENTITY);
-    case EntityTypeName::kKnownTravelerNumber:
-      return l10n_util::GetStringUTF8(
-          IDS_AUTOFILL_AI_ADD_KNOWN_TRAVELER_NUMBER_ENTITY);
-    case EntityTypeName::kNationalIdCard:
-      return l10n_util::GetStringUTF8(
-          IDS_AUTOFILL_AI_ADD_NATIONAL_ID_CARD_ENTITY);
-    case EntityTypeName::kPassport:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_ADD_PASSPORT_ENTITY);
-    case EntityTypeName::kRedressNumber:
-      return l10n_util::GetStringUTF8(
-          IDS_AUTOFILL_AI_ADD_REDRESS_NUMBER_ENTITY);
-    case EntityTypeName::kVehicle:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_ADD_VEHICLE_ENTITY);
-    case EntityTypeName::kFlightReservation:
-      // Flight reservations are read-only and do not use this string.
-    case EntityTypeName::kOrder:
-      // Orders are read-only and do not use this string.
-    case EntityTypeName::kShipment:
-      // Shipments are read-only and do not use this string.
-      return "";
-  }
-  NOTREACHED();
+std::string GetStringResource(int resource_id) {
+  return resource_id == 0 ? std::string()
+                          : l10n_util::GetStringUTF8(resource_id);
+}
+
+}  // namespace
+
+std::string GetEntityTypeSectionTitleStringForI18n(EntityType entity_type) {
+  return GetStringResource(
+      GetResourcesForType(entity_type.name()).section_title_id);
+}
+
+std::string GetAddEntityTypeStringForI18n(EntityType entity_type,
+                                          bool is_wallet_branded) {
+  EntityTypeResources resources = GetResourcesForType(entity_type.name());
+  return GetStringResource(
+      is_wallet_branded && resources.add_entity_branded_id != 0
+          ? resources.add_entity_branded_id
+          : resources.add_entity_id);
 }
 
 std::string GetEditEntityTypeStringForI18n(EntityType entity_type) {
-  switch (entity_type.name()) {
-    case EntityTypeName::kDriversLicense:
-      return l10n_util::GetStringUTF8(
-          IDS_AUTOFILL_AI_EDIT_DRIVERS_LICENSE_ENTITY);
-    case EntityTypeName::kKnownTravelerNumber:
-      return l10n_util::GetStringUTF8(
-          IDS_AUTOFILL_AI_EDIT_KNOWN_TRAVELER_NUMBER_ENTITY);
-    case EntityTypeName::kNationalIdCard:
-      return l10n_util::GetStringUTF8(
-          IDS_AUTOFILL_AI_EDIT_NATIONAL_ID_CARD_ENTITY);
-    case EntityTypeName::kPassport:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_EDIT_PASSPORT_ENTITY);
-    case EntityTypeName::kRedressNumber:
-      return l10n_util::GetStringUTF8(
-          IDS_AUTOFILL_AI_EDIT_REDRESS_NUMBER_ENTITY);
-    case EntityTypeName::kVehicle:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_EDIT_VEHICLE_ENTITY);
-    case EntityTypeName::kFlightReservation:
-      // Flight reservations are read-only and do not use this string.
-    case EntityTypeName::kOrder:
-      // Orders are read-only and do not use this string.
-    case EntityTypeName::kShipment:
-      // Shipments are read-only and do not use this string.
-      return "";
-  }
-  NOTREACHED();
+  return GetStringResource(
+      GetResourcesForType(entity_type.name()).edit_entity_id);
 }
 
 std::string GetDeleteEntityTypeStringForI18n(EntityType entity_type) {
-  switch (entity_type.name()) {
-    case EntityTypeName::kDriversLicense:
-      return l10n_util::GetStringUTF8(
-          IDS_AUTOFILL_AI_DELETE_DRIVERS_LICENSE_ENTITY);
-    case EntityTypeName::kKnownTravelerNumber:
-      return l10n_util::GetStringUTF8(
-          IDS_AUTOFILL_AI_DELETE_KNOWN_TRAVELER_NUMBER_ENTITY);
-    case EntityTypeName::kNationalIdCard:
-      return l10n_util::GetStringUTF8(
-          IDS_AUTOFILL_AI_DELETE_NATIONAL_ID_CARD_ENTITY);
-    case EntityTypeName::kPassport:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_DELETE_PASSPORT_ENTITY);
-    case EntityTypeName::kRedressNumber:
-      return l10n_util::GetStringUTF8(
-          IDS_AUTOFILL_AI_DELETE_REDRESS_NUMBER_ENTITY);
-    case EntityTypeName::kVehicle:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_DELETE_VEHICLE_ENTITY);
-    case EntityTypeName::kFlightReservation:
-      // Flight reservations are read-only and do not use this string.
-    case EntityTypeName::kOrder:
-      // Orders are read-only and do not use this string.
-    case EntityTypeName::kShipment:
-      // Shipments are read-only and do not use this string.
-      return "";
-  }
-  NOTREACHED();
+  return GetStringResource(
+      GetResourcesForType(entity_type.name()).delete_entity_id);
 }
 
 DenseSet<EntityType> GetWritableEntityTypes(

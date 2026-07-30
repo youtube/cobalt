@@ -36,8 +36,6 @@ source_set("event_router") {
     "event_observation_crosapi.h",
     "event_router.cc",
     "event_router.h",
-    "remote_event_service_strategy.cc",
-    "remote_event_service_strategy.h",
   ]
 
   deps = [
@@ -66,6 +64,7 @@ source_set("event_manager") {
     "//chrome/browser/chromeos/extensions/telemetry/api/common",
     "//chrome/browser/chromeos/extensions/telemetry/api/common:util",
     "//chrome/common/chromeos/extensions",
+    "//chromeos/ash/components/telemetry_extension/events",
     "//chromeos/crosapi/mojom",
     "//content/public/browser",
   ]
@@ -90,24 +89,6 @@ source_set("event_converters") {
   ]
 }
 
-source_set("test_support") {
-  testonly = true
-  sources = [
-    "fake_events_service.cc",
-    "fake_events_service.h",
-    "fake_events_service_factory.cc",
-    "fake_events_service_factory.h",
-  ]
-
-  deps = [ "//base/test:test_support" ]
-
-  public_deps = [
-    "//chromeos/ash/components/telemetry_extension/events",
-    "//chromeos/crosapi/mojom",
-    "//mojo/public/cpp/bindings",
-  ]
-}
-
 source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
@@ -115,13 +96,13 @@ source_set("browser_tests") {
 
   deps = [
     ":events",
-    ":test_support",
     "//chrome/browser/chromeos/extensions/telemetry/api/common:test_support",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/test:test_support_ui",
-    "//chromeos/crosapi/mojom",
+    "//chromeos/ash/services/cros_healthd/public/cpp:test_support",
+    "//chromeos/ash/services/cros_healthd/public/mojom",
     "//content/test:test_support",
     "//extensions/common",
     "//mojo/public/cpp/bindings",
@@ -143,7 +124,6 @@ source_set("unit_tests") {
     ":event_converters",
     ":event_manager",
     ":event_router",
-    ":test_support",
     "//chrome/browser/chromeos/extensions/telemetry/api/common",
     "//chrome/browser/ui",
     "//chrome/browser/web_applications:web_applications_test_support",
@@ -151,6 +131,7 @@ source_set("unit_tests") {
     "//chrome/common/chromeos/extensions",
     "//chrome/common/chromeos/extensions/api",
     "//chrome/test:test_support",
+    "//chromeos/ash/components/mojo_service_manager:test_support",
     "//chromeos/constants",
     "//chromeos/crosapi/mojom",
     "//content/public/browser",

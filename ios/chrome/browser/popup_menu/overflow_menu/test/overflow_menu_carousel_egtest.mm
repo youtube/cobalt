@@ -5,6 +5,7 @@
 #import "components/feature_engagement/public/feature_constants.h"
 #import "components/signin/internal/identity_manager/account_capabilities_constants.h"
 #import "components/signin/public/base/signin_metrics.h"
+#import "ios/chrome/browser/authentication/account_menu/public/account_menu_constants.h"
 #import "ios/chrome/browser/authentication/test/expected_signin_histograms.h"
 #import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
@@ -238,73 +239,50 @@ void ResolvePassphraseErrorFromOverflowMenu() {
                                               @"BubbleViewLabelIdentifier")];
 }
 
-// Tests that the identity button (Sign in) is shown in the overflow menu
-// when signed out and identity awareness is enabled. Tapping it opens the
-// sign-in flow.
-- (void)testSigninButtonVisibleWhenSignedOut {
+
+// Tests that tapping the identity button (when signed in) opens the Account
+// Menu and records the correct user action and access point UMA metric.
+- (void)testAccountMenuFromOverflowMenu {
   AppLaunchConfiguration config;
   config.additional_args.push_back("--enable-features=IdentityAwareness");
   [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
 
   FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];
-  [SigninEarlGrey addFakeIdentity:fakeIdentity];
+  [SigninEarlGrey signinWithFakeIdentity:fakeIdentity];
 
   chrome_test_util::GREYAssertErrorNil(
       [MetricsAppInterface setupHistogramTester]);
 
   [ChromeEarlGreyUI openToolsMenu];
 
-  // Verify the "Sign in…" button is visible.
-  id<GREYMatcher> signinButton = grey_accessibilityID(kToolsMenuSigninId);
-  [[EarlGrey selectElementWithMatcher:signinButton]
+  // Verify the identity button is visible.
+  id<GREYMatcher> identityButton = grey_accessibilityID(kToolsMenuIdentityId);
+  [[EarlGrey selectElementWithMatcher:identityButton]
       assertWithMatcher:grey_sufficientlyVisible()];
 
   GREYAssertNil([MetricsAppInterface setupUserActionTester],
                 @"Cannot setup user action tester.");
 
-  // Tap on "Sign in…" button.
-  [[EarlGrey selectElementWithMatcher:signinButton] performAction:grey_tap()];
+  // Tap on the identity button in the overflow menu.
+  [[EarlGrey selectElementWithMatcher:identityButton] performAction:grey_tap()];
 
   GREYAssertNil([MetricsAppInterface expectCount:1
-                                   forUserAction:@"MobileMenuSignin"],
-                @"MobileMenuSignin user action was not recorded.");
+                                   forUserAction:@"MobileMenuIdentityMenu"],
+                @"MobileMenuIdentityMenu user action was not recorded.");
 
   GREYAssertNil([MetricsAppInterface releaseUserActionTester],
                 @"Cannot release user action tester.");
 
-  // Confirm sign in bottom sheet is displayed.
+  // Verify the Account Menu is displayed.
   [[EarlGrey
-      selectElementWithMatcher:
-          grey_allOf(
-              grey_accessibilityID(
-                  kConsistencySigninPrimaryButtonAccessibilityIdentifier),
-              grey_sufficientlyVisible(), nil)] performAction:grey_tap()];
-
-  // Dismiss the confirmation snackbar if any.
-  [SigninEarlGreyUI dismissSigninConfirmationSnackbarForIdentity:fakeIdentity
-                                                   assertVisible:NO];
-
-  // Verify that the History Sync Opt-In screen is shown.
-  [[EarlGrey
-      selectElementWithMatcher:grey_accessibilityID(
-                                   kHistorySyncViewAccessibilityIdentifier)]
+      selectElementWithMatcher:grey_accessibilityID(kAccountMenuTableViewId)]
       assertWithMatcher:grey_sufficientlyVisible()];
 
-  // Decline History Sync.
-  [[[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonStackSecondaryButton()]
-         usingSearchAction:chrome_test_util::HistoryOptInScrollDown()
-      onElementWithMatcher:chrome_test_util::HistoryOptInPromoMatcher()]
-      performAction:grey_tap()];
-
-  // Verify signed in.
-  [SigninEarlGrey verifySignedInWithFakeIdentity:fakeIdentity];
-
-  ExpectedSigninHistograms* expecteds = [[ExpectedSigninHistograms alloc]
-      initWithAccessPoint:signin_metrics::AccessPoint::kOverflowMenu];
-  expecteds.signinSignInStarted = 1;
-  expecteds.signinSignInCompleted = 1;
-  [SigninEarlGrey assertExpectedSigninHistograms:expecteds];
+  chrome_test_util::GREYAssertErrorNil([MetricsAppInterface
+      expectUniqueSampleWithCount:1
+                        forBucket:static_cast<int>(
+                                      AccountMenuAccessPoint::kOverflowMenu)
+                     forHistogram:@"Signin.IOSAccountMenu.Opened"]);
 
   chrome_test_util::GREYAssertErrorNil(
       [MetricsAppInterface releaseHistogramTester]);

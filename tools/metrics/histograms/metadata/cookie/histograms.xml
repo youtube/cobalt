@@ -564,7 +564,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cookie.OnPreconnect.LoadCookie" enum="BooleanAttempted"
-    expires_after="2026-09-08">
+    expires_after="2026-12-27">
   <owner>yoichio@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>

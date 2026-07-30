@@ -200,6 +200,8 @@ void LaserPointerView::AddNewPoint(const gfx::PointF& new_point,
                                    predicted_laser_points_.GetOldest().location)
                                       .Length())
                      : 0);
+
+  is_fading_out_ = false;
   AddPoint(new_point, new_time);
   stationary_point_location_ = new_point;
   stationary_timer_.Reset();
@@ -207,6 +209,16 @@ void LaserPointerView::AddNewPoint(const gfx::PointF& new_point,
 
 void LaserPointerView::FadeOut(base::OnceClosure done) {
   fadeout_done_ = std::move(done);
+  is_fading_out_ = true;
+}
+
+void LaserPointerView::Reset() {
+  laser_points_.Clear();
+  predicted_laser_points_.Clear();
+  is_fading_out_ = false;
+  fadeout_done_.Reset();
+  stationary_timer_.Stop();
+  ScheduleUpdateBuffer();
 }
 
 void LaserPointerView::AddPoint(const gfx::PointF& point,
@@ -258,7 +270,7 @@ void LaserPointerView::UpdateBuffer() {
 }
 
 void LaserPointerView::UpdateTime() {
-  if (fadeout_done_.is_null()) {
+  if (!is_fading_out_) {
     // Pointer still active but stationary, repeat the most recent position.
     AddPoint(stationary_point_location_, ui::EventTimeForNow());
     return;
@@ -266,7 +278,10 @@ void LaserPointerView::UpdateTime() {
 
   if (laser_points_.IsEmpty() && predicted_laser_points_.IsEmpty()) {
     // No points left to show, complete the fadeout.
-    std::move(fadeout_done_).Run();  // This will delete the LaserPointerView.
+    if (!fadeout_done_.is_null()) {
+      // This will schedule deletion of the LaserPointerView.
+      std::move(fadeout_done_).Run();
+    }
     return;
   }
 

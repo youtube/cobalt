@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/webui/skills/skills_dialog_view.h"
 #include "chrome/browser/ui/webui/skills/skills_ui.h"
 #include "components/constrained_window/constrained_window_views.h"
+#include "components/skills/features.h"
 #include "components/skills/public/skill.h"
 #include "components/skills/public/skill.mojom.h"
 #include "components/skills/public/skills_metrics.h"
@@ -165,38 +166,44 @@ bool SkillsUiTabController::IsShowing() const {
 
 void SkillsUiTabController::InvokeSkill(std::string_view skill_id) {
   last_invoked_skill_id_for_testing_ = skill_id;
-  const skills::Skill* skill = GetSkill(skill_id);
 
-  if (!skill) {
-    // TODO(https://crbug.com/475549806): provide user feedback.
-    RecordSkillsInvokeResult(SkillsInvokeResult::kSkillNotFound);
-    return;
-  }
+  const skills::Skill* skill = nullptr;
+  if (!base::FeatureList::IsEnabled(features::kSkillsWebViewV2Enabled)) {
+    skill = GetSkill(skill_id);
 
-  RecordSkillsInvokeResult(SkillsInvokeResult::kSuccess);
-  switch (skill->source) {
-    case sync_pb::SkillSource::SKILL_SOURCE_FIRST_PARTY:
-      RecordSkillsInvokeAction(SkillsInvokeAction::kFirstParty);
-      break;
-    case sync_pb::SkillSource::SKILL_SOURCE_USER_CREATED:
-      RecordSkillsInvokeAction(SkillsInvokeAction::kUserCreated);
-      break;
-    case sync_pb::SkillSource::SKILL_SOURCE_DERIVED_FROM_FIRST_PARTY:
-      RecordSkillsInvokeAction(SkillsInvokeAction::kDerivedFromFirstParty);
-      break;
-    // This is an edge case. It occurs when there is an update that introduces
-    // a new SkillSource, but the user is using an older version of Chrome that
-    // isn't updated to support the new SkillSource.
-    case sync_pb::SkillSource::SKILL_SOURCE_UNKNOWN:
-      RecordSkillsInvokeAction(SkillsInvokeAction::kUnknown);
-      break;
+    if (!skill) {
+      // TODO(https://crbug.com/475549806): provide user feedback.
+      RecordSkillsInvokeResult(SkillsInvokeResult::kSkillNotFound);
+      return;
+    }
+
+    RecordSkillsInvokeResult(SkillsInvokeResult::kSuccess);
+    switch (skill->source) {
+      case sync_pb::SkillSource::SKILL_SOURCE_FIRST_PARTY:
+        RecordSkillsInvokeAction(SkillsInvokeAction::kFirstParty);
+        break;
+      case sync_pb::SkillSource::SKILL_SOURCE_USER_CREATED:
+        RecordSkillsInvokeAction(SkillsInvokeAction::kUserCreated);
+        break;
+      case sync_pb::SkillSource::SKILL_SOURCE_DERIVED_FROM_FIRST_PARTY:
+        RecordSkillsInvokeAction(SkillsInvokeAction::kDerivedFromFirstParty);
+        break;
+      // This is an edge case. It occurs when there is an update that introduces
+      // a new SkillSource, but the user is using an older version of Chrome
+      // that isn't updated to support the new SkillSource.
+      case sync_pb::SkillSource::SKILL_SOURCE_UNKNOWN:
+        RecordSkillsInvokeAction(SkillsInvokeAction::kUnknown);
+        break;
+    }
   }
 
   if (auto* service = GetGlicService()) {
     glic::GlicInvokeOptions options(
         glic::Target(tab_.get(), glic::DefaultConversation()),
         glic::mojom::InvocationSource::kSkills);
-    options.prompts.push_back(skill->prompt);
+    if (skill) {
+      options.prompts.push_back(skill->prompt);
+    }
     options.skill_id = std::string(skill_id);
     if (target_) {
       options.target = std::move(*target_);

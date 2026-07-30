@@ -13,6 +13,7 @@
 #include "base/no_destructor.h"
 #include "base/notimplemented.h"
 #include "base/trace_event/trace_event.h"
+#include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/host/context/glic_pin_candidate_provider.h"
 #include "chrome/browser/glic/host/context/glic_screenshot_capturer.h"
@@ -24,6 +25,7 @@
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/host/webui_contents_container.h"
 #include "chrome/browser/glic/public/features.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_instance_metrics_backwards_compatibility.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
@@ -131,16 +133,6 @@ bool Host::IsWebContentPresentAndMatches(
 void Host::NotifyActorTaskListRowClicked(int32_t task_id) {
   if (auto* client = GetPrimaryWebClient()) {
     client->NotifyActorTaskListRowClicked(task_id);
-  }
-}
-
-void Host::NotifyContextualSkillsChanged(
-    std::vector<mojom::SkillPreviewPtr> contextual_skill_previews) {
-  if (auto* client = GetPrimaryWebClient()) {
-    client->NotifyContextualSkillPreviewsChanged(
-        std::move(contextual_skill_previews));
-  } else {
-    pending_contextual_skills_ = std::move(contextual_skill_previews);
   }
 }
 
@@ -420,12 +412,6 @@ void Host::SetWebClient(GlicWebClientAccess* web_client) {
   CHECK(web_client);
   handler_info_->web_client = web_client;
 
-  // TODO(b/507074189): Refactor Skills to use the invoke API.
-  if (!pending_contextual_skills_.empty()) {
-    web_client->NotifyContextualSkillPreviewsChanged(
-        std::move(pending_contextual_skills_));
-    pending_contextual_skills_.clear();
-  }
 
   for (auto& [source, context] : pending_additional_contexts_) {
     web_client->NotifyAdditionalContext(std::move(context));
@@ -596,6 +582,9 @@ bool Host::IsWebClientConnected() const {
 void Host::WebUiStateChanged(GlicPageHandler* page_handler,
                              mojom::WebUiState new_state) {
   base::UmaHistogramEnumeration("Glic.PanelWebUiState", new_state);
+  if (!GlicEnabling::HasConsentedForProfile(profile_)) {
+    base::UmaHistogramEnumeration("Glic.Fre.PanelWebUiState", new_state);
+  }
   // UI State has changed
   primary_webui_state_ = new_state;
   observers_.Notify(&Observer::WebUiStateChanged, primary_webui_state_);

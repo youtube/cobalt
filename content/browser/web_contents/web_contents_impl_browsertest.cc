@@ -823,18 +823,20 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
                             page_destination_url /* expected_commit_url */));
 
   ASSERT_EQ(2U, observer.resource_load_entries().size());
+  const auto& resource_load_entry = observer.resource_load_entries()[0];
   const blink::mojom::ResourceLoadInfoPtr& page_load_info =
-      observer.resource_load_entries()[0].resource_load_info;
+      resource_load_entry.resource_load_info;
   EXPECT_EQ(page_destination_url, page_load_info->final_url);
-  EXPECT_EQ(page_original_url, page_load_info->original_url);
+  EXPECT_EQ(page_original_url, resource_load_entry.original_url);
 
   GURL image_destination_url(embedded_test_server()->GetURL("/blank.jpg"));
   GURL image_original_url(
       embedded_test_server()->GetURL("/server-redirect?blank.jpg"));
+  const auto& image_load_entry = observer.resource_load_entries()[1];
   const blink::mojom::ResourceLoadInfoPtr& image_load_info =
-      observer.resource_load_entries()[1].resource_load_info;
+      image_load_entry.resource_load_info;
   EXPECT_EQ(image_destination_url, image_load_info->final_url);
-  EXPECT_EQ(image_original_url, image_load_info->original_url);
+  EXPECT_EQ(image_original_url, image_load_entry.original_url);
 }
 
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,

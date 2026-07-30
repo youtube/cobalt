@@ -77,7 +77,7 @@ void DangerousDownloadDialogBridge::Show(download::DownloadItem* download_item,
       download_item->GetTotalBytes(),
       base::android::ConvertUTF16ToJavaString(env,
                                               GetDownloadDomain(download_item)),
-      ResourceMapper::MapToJavaDrawableId(IDR_ANDROID_INFOBAR_WARNING),
+      ResourceMapper::MapToJavaDrawableId(IDR_ANDROID_PERMISSION_WARNING),
       download_item->IsDangerous());
 }
 

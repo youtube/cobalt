@@ -61,23 +61,23 @@ using MediationRequirement = ::password_manager::CredentialMediationRequirement;
 using RpMode = blink::mojom::RpMode;
 using TokenError = IdentityCredentialTokenError;
 
+using RequestTokenCallback =
+    base::OnceCallback<void(blink::mojom::RequestTokenStatus,
+                            const std::optional<GURL>&,
+                            std::optional<base::Value>,
+                            blink::mojom::TokenErrorPtr,
+                            bool)>;
+
 // Request handles mojo connections from the renderer to fulfill a single
 // WebID-related request. It is owned and managed by RequestService.
 class CONTENT_EXPORT Request
-    : public blink::mojom::FederatedAuthRequest,
-      public blink::mojom::FederatedRequest,
+    : public blink::mojom::FederatedRequest,
       public content::FederatedIdentityPermissionContextDelegate::
           IdpSigninStatusObserver,
       public IdentityRegistryDelegate,
       public webid::AutofillSource {
  public:
-  Request(
-      RenderFrameHost* rfh,
-      RequestService& request_service,
-      FederatedIdentityApiPermissionContextDelegate* api_permission_delegate,
-      FederatedIdentityAutoReauthnPermissionContextDelegate*
-          auto_reauthn_permission_delegate,
-      FederatedIdentityPermissionContextDelegate* permission_delegate);
+  Request(RenderFrameHost* rfh, RequestService& request_service);
 
   Request(const Request&) = delete;
   Request& operator=(const Request&) = delete;
@@ -90,8 +90,6 @@ class CONTENT_EXPORT Request
     return render_frame_host().GetLastCommittedOrigin();
   }
 
-  void BindReceiver(mojo::PendingReceiver<blink::mojom::FederatedAuthRequest>
-                        pending_receiver);
   void BindReceiver(
       mojo::PendingReceiver<blink::mojom::FederatedRequest> pending_receiver);
 
@@ -118,41 +116,12 @@ class CONTENT_EXPORT Request
       const GURL& intercepted_url,
       RequestTokenCallback);
 
-  // blink::mojom::FederatedAuthRequest:
-  void RequestToken(std::vector<blink::mojom::IdentityProviderGetParametersPtr>
-                        idp_get_params_ptrs,
-                    MediationRequirement requirement,
-                    RequestTokenCallback) override;
-  void RequestUserInfo(blink::mojom::IdentityProviderConfigPtr provider,
-                       RequestUserInfoCallback) override;
-  void CancelTokenRequest() override;
-  void ResolveTokenRequest(const std::optional<std::string>& account_id,
-                           blink::mojom::ResolveTokenParamsPtr params,
-                           ResolveTokenRequestCallback callback) override;
-  void SetIdpSigninStatus(
-      const url::Origin& origin,
-      blink::mojom::IdpSigninStatus status,
-      const std::optional<::blink::common::webid::LoginStatusOptions>& options,
-      SetIdpSigninStatusCallback) override;
-  void RegisterIdP(const ::GURL& idp, RegisterIdPCallback) override;
-  void UnregisterIdP(const ::GURL& idp, UnregisterIdPCallback) override;
-
-  void CloseModalDialogView() override;
-  void PreventSilentAccess(PreventSilentAccessCallback callback) override;
-  void Disconnect(blink::mojom::IdentityCredentialDisconnectOptionsPtr options,
-                  DisconnectCallback) override;
-
   // blink::mojom::FederatedRequest:
   void Abort() override;
 
   // FederatedIdentityPermissionContextDelegate::IdpSigninStatusObserver:
   void OnIdpSigninStatusReceived(const url::Origin& idp_config_origin,
                                  bool idp_signin_status) override;
-
-  void SetNetworkManagerForTests(
-      std::unique_ptr<IdpNetworkRequestManager> manager);
-  void SetDialogControllerForTests(
-      std::unique_ptr<IdentityRequestDialogController> controller);
 
   base::WeakPtr<Request> GetWeakPtr();
 
@@ -439,8 +408,6 @@ class CONTENT_EXPORT Request
       std::optional<base::Value> token_data,
       bool is_auto_selected);
 
-  std::unique_ptr<IdpNetworkRequestManager> CreateNetworkManager();
-
   // Creates an inspector issue related to a federated authentication request to
   // the Issues panel in DevTools.
   void AddDevToolsIssue(blink::mojom::FederatedAuthRequestResult result);
@@ -484,10 +451,6 @@ class CONTENT_EXPORT Request
       std::optional<IdpNetworkRequestManager::FedCmErrorUrlType>
           error_url_type);
 
-  void OnIdpRegistrationConfigFetched(
-      RegisterIdPCallback callback,
-      const GURL& idp,
-      std::vector<ConfigFetcher::FetchResult> fetch_results);
   std::unique_ptr<Metrics> CreateFedCmMetrics();
 
   bool IsNewlyLoggedIn(const IdentityRequestAccount& account);
@@ -500,6 +463,12 @@ class CONTENT_EXPORT Request
   // If the client metadata has not been received yet the UI may not be able to
   // show a correct title, so we need to indicate that in the RelyingPartyData.
   RelyingPartyData CreateRpData(bool client_metadata_received) const;
+
+  FederatedIdentityApiPermissionContextDelegate* api_permission_delegate()
+      const;
+  FederatedIdentityAutoReauthnPermissionContextDelegate*
+  auto_reauthn_permission_delegate() const;
+  FederatedIdentityPermissionContextDelegate* permission_delegate() const;
 
   std::unique_ptr<IdpNetworkRequestManager> network_manager_;
 
@@ -532,12 +501,6 @@ class CONTENT_EXPORT Request
   // that URL. Populated by OnAllConfigAndWellKnownFetched().
   base::flat_map<GURL, IdentityProviderLoginUrlInfo> idp_login_infos_;
 
-  raw_ptr<FederatedIdentityApiPermissionContextDelegate>
-      api_permission_delegate_ = nullptr;
-  raw_ptr<FederatedIdentityAutoReauthnPermissionContextDelegate>
-      auto_reauthn_permission_delegate_ = nullptr;
-  raw_ptr<FederatedIdentityPermissionContextDelegate> permission_delegate_ =
-      nullptr;
   raw_ptr<RenderFrameHost> render_frame_host_;
   // RequestService owns `this`, so it is expected to outlive it.
   const raw_ref<RequestService> request_service_;
@@ -666,7 +629,6 @@ class CONTENT_EXPORT Request
 
   bool is_mojo_{true};
 
-  mojo::ReceiverSet<blink::mojom::FederatedAuthRequest> auth_request_receivers_;
   mojo::ReceiverSet<blink::mojom::FederatedRequest> receivers_;
 
   base::WeakPtrFactory<Request> weak_ptr_factory_{this};

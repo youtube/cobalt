@@ -79,6 +79,8 @@ async function launch(methodNameOverride) {
   }
 }
 
+let responsePromise = null;
+
 /**
  * Launches the payment handler without waiting for a response to be returned.
  * @param {string} methodNameOverride - The payment method to launch. If not
@@ -104,7 +106,22 @@ function launchWithoutWaitForResponseWithMethods(methodData) {
     request = new PaymentRequest(methodData, {
       total: {label: 'Total', amount: {currency: 'USD', value: '0.01'}},
     });
-    request.show();
+    responsePromise = request.show();
+    return 'success';
+  } catch (e) {
+    return e.toString();
+  }
+}
+
+/**
+ * Completes the resolved payment response with the specified status.
+ * @param {string} status - 'success' or 'fail'.
+ * @return {Promise<string>} - 'success' or error message on failure.
+ */
+async function completeResponse(status) {
+  try {
+    const response = await responsePromise;
+    await response.complete(status);
     return 'success';
   } catch (e) {
     return e.toString();

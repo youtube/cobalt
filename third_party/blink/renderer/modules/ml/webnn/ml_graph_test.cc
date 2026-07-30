@@ -373,17 +373,6 @@ class WebNNContextHelper {
       tensor_impls_;
 };
 
-class FakeWebNNGraph : public blink_mojom::WebNNGraph {
- public:
-  explicit FakeWebNNGraph(MLGraphTest& helper) : helper_(helper) {}
-  FakeWebNNGraph(const FakeWebNNGraph&) = delete;
-  FakeWebNNGraph(FakeWebNNGraph&&) = delete;
-  ~FakeWebNNGraph() override = default;
-
- private:
-  // TODO(crbug.com/354741414): Fix this dangling pointer.
-  const raw_ref<MLGraphTest, DanglingUntriaged> helper_;
-};
 
 class FakeWebNNTensor : public blink_mojom::WebNNTensor {
  public:
@@ -478,15 +467,8 @@ class FakeWebNNGraphBuilder : public blink_mojom::WebNNGraphBuilder {
                    CreateGraphCallback callback) override {
     helper_->SetGraphInfo(std::move(graph_info));
 
-    mojo::PendingRemote<blink_mojom::WebNNGraph> blink_remote;
-    // The receiver bind to FakeWebNNGraph.
-    mojo::MakeSelfOwnedReceiver<blink_mojom::WebNNGraph>(
-        std::make_unique<FakeWebNNGraph>(*helper_),
-        blink_remote.InitWithNewPipeAndPassReceiver());
-
     auto success = blink_mojom::CreateGraphSuccess::New(
-        std::move(blink_remote), blink::WebNNGraphToken(),
-        Vector<blink_mojom::Device>());
+        blink::WebNNGraphToken(), Vector<blink_mojom::Device>());
     std::move(callback).Run(std::move(success));
   }
 
@@ -2141,6 +2123,71 @@ TEST_F(MLGraphTest, MLTransposeEliminationTransformerTest) {
     EXPECT_EQ(*outputs.at("transpose4"), add0_updated->Descriptor());
     EXPECT_EQ(*outputs.at("transpose5"), add1_updated->Descriptor());
     EXPECT_EQ(*outputs.at("transpose7"), gelu_updated->Descriptor());
+  }
+
+  {
+    DummyExceptionStateForTesting exception_state;
+    auto* builder = MLGraphBuilder::Create(scope.GetScriptState(), context,
+                                           exception_state);
+    ASSERT_THAT(builder, testing::NotNull());
+
+    // Test that TransposeEliminationTransformer correctly eliminates transposes
+    // when a transpose output is used multiple times by the same operator.
+    //
+    //                        / \
+    // [a] -> transpose -> [b]   add -> [c] -> transpose -> [d]
+    //                        \ /
+    //
+    // Should be simplified to:
+    // [a] -> add -> [d]
+
+    auto* a = BuildInput(scope.GetScriptState(), builder, "a", {3, 4, 5},
+                         V8MLOperandDataType::Enum::kFloat32, exception_state);
+    auto* transpose_options = MLTransposeOptions::Create();
+    transpose_options->setPermutation({0, 2, 1});
+    auto* b = builder->transpose(a, transpose_options, exception_state);
+    ASSERT_THAT(b, testing::NotNull());
+
+    auto* add_options = MLOperatorOptions::Create();
+    auto* add = builder->add(b, b, add_options, exception_state);
+    ASSERT_THAT(add, testing::NotNull());
+
+    auto* transpose_options2 = MLTransposeOptions::Create();
+    transpose_options2->setPermutation({0, 2, 1});
+    auto* d = builder->transpose(add, transpose_options2, exception_state);
+    ASSERT_THAT(d, testing::NotNull());
+
+    MLNamedOperands named_outputs = {{"d", d}};
+
+    auto [graph, error_name, error_message] =
+        BuildGraph(scope, builder, named_outputs);
+    ASSERT_THAT(graph, testing::NotNull());
+
+    // Verify the graph output has the expected descriptor (shape {3, 4, 5}).
+    const auto& outputs = graph->GetOutputConstraints();
+    EXPECT_EQ(outputs.size(), static_cast<uint32_t>(1));
+    // The output name "d" should still be present, but its descriptor should
+    // match the original input "a" (because transposes are eliminated).
+    EXPECT_EQ(*outputs.at("d"), a->Descriptor());
+
+    // Verify that the transposes have been eliminated in the Mojo graph.
+    auto graph_info = GetGraphInfo();
+    ASSERT_FALSE(graph_info.is_null());
+
+    // Expect only 1 operation (the add operator), transposes should be
+    // eliminated.
+    ASSERT_EQ(graph_info->operations.size(), 1u);
+    auto& operation = graph_info->operations[0];
+    ASSERT_TRUE(operation->is_element_wise_binary());
+    auto& element_wise_binary = operation->get_element_wise_binary();
+    EXPECT_EQ(element_wise_binary->kind,
+              blink_mojom::ElementWiseBinary::Kind::kAdd);
+
+    // Expect the inputs to the add operator to be the graph input "a".
+    ASSERT_EQ(graph_info->input_operands.size(), 1u);
+    auto input_operand_id = graph_info->input_operands[0];
+    EXPECT_EQ(element_wise_binary->lhs_operand_id, input_operand_id);
+    EXPECT_EQ(element_wise_binary->rhs_operand_id, input_operand_id);
   }
 }
 

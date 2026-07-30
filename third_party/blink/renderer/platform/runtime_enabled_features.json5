@@ -758,14 +758,6 @@
       status: "stable",
     },
     {
-      // Reflects the HTML `autocorrect` content attribute's used autocorrection
-      // state to the platform IME: autocorrection is On by default and forced
-      // Off for URL/Email/Password inputs (and an `autocorrect=off` form owner).
-      // https://html.spec.whatwg.org/multipage/interaction.html#autocorrection
-      name: "AutocorrectByDefault",
-      status: "experimental",
-    },
-    {
       name: "AutoDarkMode",
       base_feature: "none",
     },
@@ -1546,6 +1538,14 @@
       status: "test",
     },
     {
+      // https://crbug.com/41089999: Legacy ASCII case-insensitive attribute
+      // value matching only applies to HTML elements, so SVG and
+      // empty-namespace elements compare attribute values case-sensitively.
+      // Enabled by default; kept as a killswitch.
+      name: "CSSAttributeValueCaseSensitiveNonHTML",
+      status: "stable",
+    },
+    {
       // https://chromestatus.com/feature/6234471210811392
       // Ship in M150, should be removed in M152.
       name: "CSSBackgroundClipBorderArea",
@@ -1856,7 +1856,7 @@
     },
     {
       name: "CSSPseudoElementBackdrop",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "CSSPseudoElementInterface",
@@ -1865,7 +1865,7 @@
     {
       name: "CSSPseudoElementViewTransitions",
       depends_on: ["CSSPseudoElementInterface"],
-      status: "test",
+      status: "stable",
     },
     {
       // Enables the :has-slotted pseudo-selector.
@@ -1988,10 +1988,6 @@
       // scroll-target-group property sets aria-current=true on :target-current html scroll marker.
       name: "CSSScrollTargetGroupAriaCurrent",
       status: "experimental",
-    },
-    {
-      name: "CSSShapeEllipseCirclePositionSerialization",
-      status: "stable",
     },
     {
       // path() and shape() basic shapes for shape-outside.
@@ -2197,7 +2193,13 @@
       name: "DeclarativePerformanceObserver",
       origin_trial_feature_name: "DeclarativePerformanceObserver",
       status: "experimental",
-      base_feature: "none",
+      // base_feature is meant as kill-switch. This runtime-enabled feature
+      // should follow the Origin Trial unless explicitly overriden by Finch or
+      // commandline flags.
+      base_feature_status: "enabled",
+      // Enables the Blink feature only when the base::Feature is overridden by
+      // field trial or command line.
+      copied_from_base_feature_if: "overridden",
     },
     {
       name: "DeclarativeSkeletons",
@@ -2546,6 +2548,16 @@
       // When disabled, only the filename is sent as text/plain (legacy behavior).
       name: "DragAndDropJSFileObjects",
       status: "test",
+    },
+    {
+      // When enabled, drag image previews are generated for images regardless
+      // of their intrinsic size (the output is still clamped to
+      // MaxDragImageSize). When disabled, images whose intrinsic area exceeds
+      // kMaxOriginalImageArea produce no drag preview (legacy behavior). Acts
+      // as a kill switch for the removal of that cap. See
+      // https://crbug.com/518266739
+      name: "DragImageForLargeImages",
+      status: "stable",
     },
     {
       // See: crrev.com/c/7874048
@@ -3751,15 +3763,6 @@
       public: true,
     },
     {
-      // The following LayoutBox functions are implemented using information
-      // from physical fragments, rather than computed style, and containing
-      // block walking (was needed for percentage padding):
-      //   ClientLeft(), ClientTop(), ClientWidth(), ClientHeight(),
-      //   ContentLeft(), ContentTop(), ContentWidth(), ContentHeight().
-      name: "LayoutBoxRectGettersUseFragments",
-      status: "stable",
-    },
-    {
       name: "LayoutIgnoreMarginsForSticky",
     },
     {
@@ -4148,10 +4151,6 @@
       status: "stable",
     },
     {
-      name: "MulticolColumnWrapping",
-      status: "stable",
-    },
-    {
       name: "NavigateEventAddHandlerOnPrecommit",
       status: "stable",
     },
@@ -4524,10 +4523,7 @@
       depends_on: ["PagePopup"],
       status: "stable",
     },
-    {
-      name: "PageRevealEvent",
-      status: "stable",
-    },
+
     {
       name: "PageSwapEvent",
       status: "stable",
@@ -4589,6 +4585,10 @@
       base_feature: "none",
     },
     {
+      name: "PaymentRequestNonFullyActiveDocumentCheckInvalidStateError",
+      status: "stable",
+    },
+    {
       name: "PerformanceManagerInstrumentation",
       base_feature: "none",
       public: true,
@@ -4619,6 +4619,10 @@
       origin_trial_feature_name: "PerMethodCanMakePaymentQuota",
       status: "experimental",
       base_feature: "none",
+    },
+    {
+      name: "PermissionsPolicyAPI",
+      status: "experimental",
     },
     {
       name: "PermissionsRequestRevoke",
@@ -4654,7 +4658,8 @@
     {
       // Simplifies the behavior and stacking interactions of popover=hint and
       // popover=auto. See https://crbug.com/499019927.
-      // This shipped in M150 and can be removed in M152.
+      // This shipped in M150, was disabled via Finch, and was re-enabled in
+      // M151. It can be removed in M153.
       name: "PopoverHintNewBehavior",
       status: "stable",
     },
@@ -4757,6 +4762,10 @@
       // When enabled, preserves dropEffect in drag event set during dragover
       // events. See https://crbug.com/434151262
       name: "PreserveDropEffect",
+      status: "stable",
+    },
+    {
+      name: "PreserveHtmlEquivalentTagsInTypingStyle",
       status: "stable",
     },
     {
@@ -5160,6 +5169,10 @@
       status: "experimental",
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
+    },
+    {
+      name: "RTCEncodedAudioFrameConstructor",
+      status: "experimental",
     },
     {
       name: "RTCEncodedFrameAudioLevel",
@@ -5645,6 +5658,12 @@
       name: "ShadowRootReferenceTargetAriaOwns",
     },
     {
+      // Lets declarative shadow roots opt into manual slot assignment.
+      // crbug.com/493315747
+      name: "ShadowRootSlotAssignment",
+      status: "experimental",
+    },
+    {
       name: "SharedArrayBuffer",
       base_feature: "none",
       public: true,
@@ -5758,6 +5777,13 @@
       status: "stable",
     },
     {
+      // Fix for notifying changed slots in different shadow roots during
+      // manual assignment. crbug.com/517322978
+      // Enabled in M151, safe to remove in M153.
+      name: "SlotAssignNotifyDifferentShadowRoots",
+      status: "stable",
+    },
+    {
       name: "SmallerViewportUnits",
       status: "stable",
     },
@@ -5825,6 +5851,19 @@
       name: "SpeculationMeasurement",
       origin_trial_feature_name: "SpeculationMeasurement",
       origin_trial_allows_third_party: true,
+      status: "experimental",
+    },
+    {
+      // Exposes author controls for the mobile "moderate" eagerness viewport
+      // heuristic via a ruleset-level "moderate_viewport_heuristics" key in
+      // speculation rules. Android-only, since the heuristic only runs on
+      // Android. Third-party tokens are allowed so that scripts injecting
+      // speculation rules cross-origin (e.g. performance libraries) can opt in.
+      // https://groups.google.com/a/chromium.org/g/blink-dev/c/YYBd-eksiE8
+      name: "SpeculationRulesModerateViewportHeuristicsControl",
+      origin_trial_feature_name: "SpeculationRulesModerateViewportHeuristicsControl",
+      origin_trial_allows_third_party: true,
+      origin_trial_os: ["Android"],
       status: "experimental",
     },
     {
@@ -6026,20 +6065,12 @@
       status: "experimental",
     },
     {
-      name: "SvgPointListClearOnParsingFailure",
-      status: "stable",
-    },
-    {
       name: "SvgScriptElementAsyncAttribute",
       status: "stable",
     },
     {
       name: "SvgSizingWithPreserveAspectRatioNone",
       status: "experimental",
-    },
-    {
-      name: "SvgSmilClockValueValidation",
-      status: "stable",
     },
     {
       name: "SvgStyleElementReflectTypeAndMedia",
@@ -6247,7 +6278,7 @@
       // selection focus is inside the element, revealing the full text content.
       // See https://crbug.com/40731275
       name: "TextOverflowClipWithSelection",
-      status: "test",
+      status: "stable",
     },
     {
       // https://crbug.com/41492459
@@ -6425,6 +6456,11 @@
       // This feature acts as a kill switch for https://crbug.com/40580002.
       name: "TreatMhtmlInitialDocumentLoadsAsCrossDocument",
       status: "stable",
+    },
+    {
+      // crbug.com/451651633
+      name: "TreeRubyPlacement",
+      status: "experimental",
     },
     {
       // When enabled, trusted types can be used to enforce sanitization &
@@ -6612,6 +6648,9 @@
       name: "V8IdleTasks",
       base_feature: "none",
       public: true,
+    },
+    {
+      name: "VariableSystemFontSupportOnWindows",
     },
     {
       // Whether a video element should automatically play fullscreen unless
@@ -6847,6 +6886,14 @@
       base_feature: "none",
       public: true,
     },
+    {
+      // Reflects the HTML `autocorrect` content attribute's used autocorrection
+      // state to the platform IME: autocorrection is On by default and forced
+      // Off for URL/Email/Password inputs (and an `autocorrect=off` form owner).
+      // https://html.spec.whatwg.org/multipage/interaction.html#autocorrection
+      name: "WebAutocorrectByDefault",
+      status: "experimental",
+    },
 
     // WebBluetooth is enabled by default on Android, ChromeOS, iOS, macOS and
     // Windows.
@@ -7055,7 +7102,8 @@
       // Experimental implementation of
       // https://www.ietf.org/archive/id/draft-hancke-tsvwg-snap-00.html
       name: "WebRtcSctpSnap",
-      status: "test",
+      origin_trial_feature_name: "WebRtcSctpSnap",
+      status: "experimental",
     },
     {
       // Restricts the sharing of SerialPort instances across different V8
@@ -7339,6 +7387,9 @@
       name: "XSLT",
       status: "stable",
       public: true,
+      origin_trial_feature_name: "XSLT",
+      origin_trial_type: "deprecation",
+      origin_trial_allows_insecure: true,
     },
     {
       // A feature flag that will be used for a "special trial" of disabling

@@ -25,6 +25,7 @@ import org.chromium.content_public.browser.GlobalRenderFrameHostId;
 import org.chromium.content_public.browser.LifecycleState;
 import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.Page;
+import org.chromium.content_public.browser.test.mock.MockPage;
 import org.chromium.content_public.browser.test.util.TestCallbackHelperContainer;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.url.GURL;
@@ -72,7 +73,7 @@ public class AwWebContentsObserverTest extends AwParameterizedTest {
                 mContentsClient.getOnPageFinishedHelper();
 
         int callCount = onPageFinishedHelper.getCallCount();
-        Page page = Page.createForTesting();
+        Page page = new MockPage();
         mWebContentsObserver.didFinishLoadInPrimaryMainFrame(
                 page, frameId, mExampleURL, true, LifecycleState.ACTIVE);
         mWebContentsObserver.didStopLoading(mExampleURL, true);
@@ -92,13 +93,9 @@ public class AwWebContentsObserverTest extends AwParameterizedTest {
 
         callCount = onPageFinishedHelper.getCallCount();
         mWebContentsObserver.didFinishLoadInPrimaryMainFrame(
-                Page.createForTesting(),
-                frameId,
-                mUnreachableWebDataUrl,
-                false,
-                LifecycleState.ACTIVE);
+                new MockPage(), frameId, mUnreachableWebDataUrl, false, LifecycleState.ACTIVE);
         mWebContentsObserver.didFinishLoadInPrimaryMainFrame(
-                Page.createForTesting(), frameId, mSyncURL, true, LifecycleState.ACTIVE);
+                new MockPage(), frameId, mSyncURL, true, LifecycleState.ACTIVE);
         mWebContentsObserver.didStopLoading(mSyncURL, true);
         onPageFinishedHelper.waitForCallback(callCount);
         Assert.assertEquals(
@@ -148,7 +145,7 @@ public class AwWebContentsObserverTest extends AwParameterizedTest {
                 !isRendererInitiated,
                 PageTransition.TYPED);
         mWebContentsObserver.didFinishLoadInPrimaryMainFrame(
-                Page.createForTesting(), frameId, mSyncURL, true, LifecycleState.ACTIVE);
+                new MockPage(), frameId, mSyncURL, true, LifecycleState.ACTIVE);
         mWebContentsObserver.didStopLoading(mSyncURL, true);
         onPageFinishedHelper.waitForCallback(callCount);
         onPageFinishedHelper.waitForCallback(callCount);
@@ -275,7 +272,7 @@ public class AwWebContentsObserverTest extends AwParameterizedTest {
                 awNavigationStart.didCommitErrorPage());
         Assert.assertNull("onNavigationStarted should have null page", awNavigationStart.getPage());
 
-        @Nullable Page page = Page.createForTesting();
+        @Nullable Page page = new MockPage();
         navigation.didFinish(
                 gurl,
                 isErrorPage,

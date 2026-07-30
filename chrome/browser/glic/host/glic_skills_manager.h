@@ -30,6 +30,9 @@ class GlicSkillsManager {
   GlicSkillsManager(const GlicSkillsManager&) = delete;
   GlicSkillsManager& operator=(const GlicSkillsManager&) = delete;
 
+  virtual void Bind(mojo::PendingReceiver<mojom::SkillsHandler> receiver,
+                    mojo::PendingRemote<mojom::SkillsClient> client) = 0;
+
   // Triggers sending skills previews to the web client. The |updated_tab|
   // is used when the preview update is due to a change at the tab level.
   // TODO(b:481051392): support updating all skill previews rather than just
@@ -52,6 +55,9 @@ class GlicSkillsManager {
 
   // Notify that a glic panel associated with the skill manager is being opened.
   virtual void NotifyPanelOpenedOrActivated() = 0;
+
+  virtual void NotifyContextualSkillsChanged(
+      std::vector<mojom::SkillPreviewPtr> contextual_skill_previews) = 0;
 };
 
 }  // namespace glic

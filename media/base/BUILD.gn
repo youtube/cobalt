@@ -651,6 +651,7 @@ source_set("unit_tests") {
     "fake_audio_worker_unittest.cc",
     "fake_demuxer_stream_unittest.cc",
     "feedback_signal_accumulator_unittest.cc",
+    "format_utils_unittest.cc",
     "frame_buffer_pool_unittest.cc",
     "frame_rate_estimator_unittest.cc",
     "hdr_metadata_reordering_map_unittest.cc",

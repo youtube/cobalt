@@ -62,6 +62,18 @@ class ToolControllerTest : public PlatformTest, public ToolDelegate {
   ActorTaskId GetTaskId() const override { return ActorTaskId(1); }
   AggregatedJournal& GetJournal() const override { return *journal_; }
   ActorToolFactory& GetToolFactory() const override { return *tool_factory_; }
+  actor_login::ActorLoginService* GetActorLoginService() override {
+    return nullptr;
+  }
+  void PromptToSelectCredential(
+      const std::vector<actor_login::Credential>& credentials,
+      CredentialSelectedCallback callback) override {}
+  std::optional<CredentialWithPermission> GetUserSelectedCredential(
+      const url::Origin& request_origin) const override {
+    return std::nullopt;
+  }
+  void InterruptFromTool() override {}
+  void UninterruptFromTool() override {}
 
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};

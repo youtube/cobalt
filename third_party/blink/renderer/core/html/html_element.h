@@ -297,7 +297,7 @@ class CORE_EXPORT HTMLElement : public Element {
   bool IsPopoverReady(PopoverTriggerAction action,
                       ExceptionState* exception_state,
                       bool include_event_handler_text,
-                      Document* expected_document) const;
+                      Document* expected_document);
   bool togglePopover(ExceptionState& exception_state);
   bool togglePopover(V8UnionBooleanOrTogglePopoverOptions* options_or_force,
                      ExceptionState& exception_state);
@@ -408,6 +408,7 @@ class CORE_EXPORT HTMLElement : public Element {
 
   // The Unbounded Element API. See crbug.com/508672616.
   ScriptPromise<IDLUndefined> showUnboundedElement(ScriptState*);
+  ScriptPromise<IDLUndefined> hideUnboundedElement(ScriptState*);
   bool IsUnboundedElementActive() const;
   void SetUnboundedElementActive(bool active);
   gfx::Rect LastSentUnboundedBounds() const;

@@ -883,12 +883,7 @@ bool IsLocationBarBadgeMigrationEnabled() {
   return base::FeatureList::IsEnabled(kLocationBarBadgeMigration);
 }
 
-BASE_FEATURE(kComposeboxIOS, base::FEATURE_ENABLED_BY_DEFAULT);
-
 bool IsComposeboxIOSEnabled() {
-  if (!base::FeatureList::IsEnabled(kComposeboxIOS)) {
-    return false;
-  }
   if (ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_PHONE) {
     return IsComposeboxIpadEnabled();
   }
@@ -1121,8 +1116,7 @@ bool IsFullscreenRefactoringEnabled() {
   return base::FeatureList::IsEnabled(kFullscreenRefactoring);
 }
 
-BASE_FEATURE(kPageToolsFeatureUnavailability,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPageToolsFeatureUnavailability, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsPageToolsFeatureUnavailabilityEnabled() {
   return base::FeatureList::IsEnabled(kPageToolsFeatureUnavailability);

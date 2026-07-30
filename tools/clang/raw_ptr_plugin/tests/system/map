@@ -20,6 +20,10 @@ struct map {
   void erase() {}
 };
 
+template <typename T = void>
+struct less {};
+
+
 }  // namespace std
 
 #endif

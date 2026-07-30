@@ -185,6 +185,10 @@
     "dependencies": ["permission:dns"],
     "contexts": ["privileged_extension"]
   },
+  "dom": {
+    "channel": "stable",
+    "contexts": ["privileged_extension", "content_script"]
+  },
   // This is not a real API, only here for documentation purposes.
   // See http://crbug.com/275944 for background.
   "extensionTypes": {

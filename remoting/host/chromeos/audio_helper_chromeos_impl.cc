@@ -62,6 +62,11 @@ void RecordOpenOutcome(media::AudioInputStream::OpenOutcome open_outcome) {
     case media::AudioInputStream::OpenOutcome::kFailedInUse:
       open_outcome_chromeos = OpenOutcomeChromeOs::kFailedInUse;
       break;
+    case media::AudioInputStream::OpenOutcome::kFailedDeviceRemoved:
+      // This outcome is only returned by the Windows WASAPI implementation.
+      // It should never be reached on ChromeOS, but is required here to
+      // satisfy the compiler's exhaustive switch checking.
+      NOTREACHED();
   }
   base::UmaHistogramEnumeration(kAudioStreamOpenOutcomeHistogramName,
                                 open_outcome_chromeos);

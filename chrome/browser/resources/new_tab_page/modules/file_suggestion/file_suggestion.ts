@@ -39,11 +39,15 @@ export class FileSuggestionElement extends CrLitElement {
     return {
       files: {type: Array},
       moduleName: {type: String},
+      seeMoreUrl: {type: String},
+      seeMoreText: {type: String},
     };
   }
 
   accessor files: File[] = [];
   accessor moduleName: string = '';
+  accessor seeMoreUrl: string = '';
+  accessor seeMoreText: string = '';
 
   protected onFileClick_(e: Event) {
     const clickFileEvent = new Event('usage', {composed: true, bubbles: true});
@@ -58,6 +62,10 @@ export class FileSuggestionElement extends CrLitElement {
           `NewTabPage.${this.moduleName}.RecommendationTypeClick`,
           file.recommendationType, RecommendationType.MAX_VALUE + 1);
     }
+  }
+
+  protected onSeeMoreClick_() {
+    this.dispatchEvent(new Event('usage', {composed: true, bubbles: true}));
   }
 }
 

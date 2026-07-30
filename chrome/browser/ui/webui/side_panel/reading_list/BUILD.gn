@@ -15,3 +15,67 @@ mojom("mojo_bindings") {
     "//url/mojom:url_mojom_gurl",
   ]
 }
+
+source_set("reading_list") {
+  public = [
+    "reading_list_page_handler.h",
+    "reading_list_ui.h",
+  ]
+  public_deps = [
+    ":mojo_bindings",
+    "//chrome/browser:browser_public_dependencies",
+    "//chrome/browser/ui/webui:webui_load_timer",
+    "//chrome/browser/ui/webui/top_chrome",
+    "//components/reading_list/core",
+    "//components/user_education/webui",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+  ]
+}
+
+source_set("impl") {
+  sources = [
+    "reading_list_page_handler.cc",
+    "reading_list_ui.cc",
+  ]
+  public_deps = [ ":reading_list" ]
+  deps = [
+    "//chrome/app:command_ids",
+    "//chrome/browser:browser_process",
+    "//chrome/browser/feature_engagement",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/reading_list",
+    "//chrome/browser/resources/side_panel/reading_list:resources",
+    "//chrome/browser/resources/side_panel/shared:resources_grit",
+    "//chrome/browser/ui:ui_features",
+    "//chrome/browser/ui/bookmarks",
+    "//chrome/browser/ui/profiles",
+    "//chrome/browser/ui/tabs:tab_strip",
+    "//chrome/browser/ui/webui:favicon_source",
+    "//chrome/browser/ui/webui_browser",
+    "//chrome/common",
+    "//components/favicon_base",
+    "//components/prefs",
+    "//components/profile_metrics",
+    "//components/reading_list/core",
+    "//components/strings:components_strings",
+    "//components/url_formatter",
+    "//components/user_education/webui",
+    "//ui/webui",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "reading_list_page_handler_unittest.cc" ]
+  deps = [
+    ":impl",
+    "//base/test:test_support",
+    "//chrome/browser/prefs",
+    "//chrome/browser/reading_list",
+    "//chrome/test:test_support",
+    "//components/reading_list/core:test_support",
+    "//content/test:test_support",
+    "//testing/gtest",
+  ]
+}

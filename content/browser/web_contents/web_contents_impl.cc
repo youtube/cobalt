@@ -1397,7 +1397,8 @@ WebContentsImpl::~WebContentsImpl() {
   base::trace_event::TraceSessionObserverList::RemoveObserver(this);
   TRACE_EVENT0("content", "WebContentsImpl::~WebContentsImpl");
   if (tracing_track_) {
-    TRACE_EVENT_END("content", tracing_track_->track());
+    TRACE_STATE("content.web_contents.lifecycle", nullptr,
+                tracing_track_->track());
   }
 
   WebContentsOfBrowserContext::Detach(*this);
@@ -1715,7 +1716,7 @@ const WebContents::UniqueToken& WebContentsImpl::GetUniqueToken() const {
   return web_contents_token_;
 }
 
-const perfetto::NamedTrack& WebContentsImpl::GetTracingTrack() const {
+const perfetto::Track& WebContentsImpl::GetTracingTrack() const {
   CHECK(tracing_track_);
   return tracing_track_->track();
 }
@@ -7214,7 +7215,6 @@ void WebContentsImpl::SetVisibilityAndNotifyObservers(Visibility visibility) {
 
 void WebContentsImpl::OnStart(const perfetto::DataSourceBase::StartArgs&) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  TRACE_EVENT_END("content", tracing_track_->track());
   EmitTracingSlice(base::UTF16ToUTF8(GetTitle()));
 }
 
@@ -8530,6 +8530,7 @@ void WebContentsImpl::ViewSource(RenderFrameHostImpl* frame) {
 void WebContentsImpl::ResourceLoadComplete(
     RenderFrameHostImpl* render_frame_host,
     const GlobalRequestID& request_id,
+    const GURL& original_url,
     blink::mojom::ResourceLoadInfoPtr resource_load_info) {
   OPTIONAL_TRACE_EVENT2("content", "WebContentsImpl::ResourceLoadComplete",
                         "render_frame_host", render_frame_host, "request_id",
@@ -8537,7 +8538,7 @@ void WebContentsImpl::ResourceLoadComplete(
   const blink::mojom::ResourceLoadInfo& resource_load_info_ref =
       *resource_load_info;
   observers_.NotifyObservers(&WebContentsObserver::ResourceLoadComplete,
-                             render_frame_host, request_id,
+                             render_frame_host, request_id, original_url,
                              resource_load_info_ref);
 }
 
@@ -12947,15 +12948,14 @@ void WebContentsImpl::WarmUpAndroidSpareRenderer() {
 }
 
 void WebContentsImpl::EmitTracingSlice(const std::string& title) {
-  TRACE_EVENT_BEGIN(
-      "content", nullptr, tracing_track_->track(),
-      [&](perfetto::EventContext ctx) {
-        if (!ctx.ShouldFilterDynamicEventNames() && !title.empty()) {
-          ctx.event()->set_name(title);
-        } else {
-          ctx.event()->set_name("WebContents");
-        }
-      });
+  TRACE_STATE("content.web_contents.lifecycle", nullptr,
+              tracing_track_->track(), [&](perfetto::EventContext ctx) {
+                if (!ctx.ShouldFilterDynamicEventNames() && !title.empty()) {
+                  ctx.event()->set_name(title);
+                } else {
+                  ctx.event()->set_name("WebContents");
+                }
+              });
 }
 
 }  // namespace content

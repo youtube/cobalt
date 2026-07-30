@@ -181,6 +181,12 @@ void ReportKeyboardTextHighlight(const ink::Brush& brush) {
                                 StrokeMetricInputDeviceType::kKeyboard);
 }
 
+void RecordPdfLoadedWithInkTextAnnotations(
+    PDFLoadedWithInkTextAnnotations loaded_with_annotations) {
+  base::UmaHistogramEnumeration("PDF.LoadedWithInkTextAnnotations",
+                                loaded_with_annotations);
+}
+
 void RecordPdfLoadedWithV2InkAnnotations(
     PDFLoadedWithV2InkAnnotations loaded_with_annotations) {
   base::UmaHistogramEnumeration("PDF.LoadedWithV2InkAnnotations2",

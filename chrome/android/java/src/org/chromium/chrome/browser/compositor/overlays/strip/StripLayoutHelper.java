@@ -22,6 +22,7 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.PointF;
@@ -128,7 +129,6 @@ import org.chromium.chrome.browser.ui.vertical_tabs.VerticalTabUtils;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.styles.ChromeColors;
-import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.collaboration.CollaborationService;
 import org.chromium.components.data_sharing.DataSharingService;
 import org.chromium.components.data_sharing.GroupData;
@@ -142,7 +142,6 @@ import org.chromium.ui.accessibility.AccessibilityState;
 import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.WindowAndroid;
-import org.chromium.ui.util.ColorUtils;
 import org.chromium.ui.util.MotionEventUtils;
 import org.chromium.ui.util.StyleUtils;
 import org.chromium.ui.widget.RectProvider;
@@ -497,9 +496,15 @@ public class StripLayoutHelper
         @Nullable CompositorButton getGlicButton();
     }
 
+    public interface LeadingButtonDelegate {
+        /** Called when the tab search button is clicked. */
+        void onTabSearchClicked();
+    }
+
     // External influences
     private final SceneOverlay mSceneOverlay;
     private final TrailingButtonDelegate mTrailingButtonDelegate;
+    private final LeadingButtonDelegate mLeadingButtonDelegate;
     private final LayoutUpdateHost mUpdateHost;
     private final LayoutRenderHost mRenderHost;
     private final LayoutManagerHost mManagerHost;
@@ -727,6 +732,7 @@ public class StripLayoutHelper
      * @param sceneOverlay The {@link SceneOverlay} to use.
      * @param trailingButtonDelegate A delegate to communicate with the trailing buttons
      *     coordinator.
+     * @param leadingButtonDelegate A delegate to communicate with the leading buttons.
      * @param managerHost The parent {@link LayoutManagerHost}.
      * @param updateHost The parent {@link LayoutUpdateHost}.
      * @param renderHost The {@link LayoutRenderHost}.
@@ -757,6 +763,7 @@ public class StripLayoutHelper
             Context context,
             SceneOverlay sceneOverlay,
             TrailingButtonDelegate trailingButtonDelegate,
+            LeadingButtonDelegate leadingButtonDelegate,
             LayoutManagerHost managerHost,
             LayoutUpdateHost updateHost,
             LayoutRenderHost renderHost,
@@ -811,6 +818,7 @@ public class StripLayoutHelper
 
         mSceneOverlay = sceneOverlay;
         mTrailingButtonDelegate = trailingButtonDelegate;
+        mLeadingButtonDelegate = leadingButtonDelegate;
         mManagerHost = managerHost;
         mUpdateHost = updateHost;
         mRenderHost = renderHost;
@@ -831,33 +839,15 @@ public class StripLayoutHelper
                         R.drawable.bg_circle_tab_strip_button,
                         BUTTON_CLICK_SLOP_DP);
 
-        @ColorRes int iconTintRes = R.color.default_icon_color_tint_list;
-        @ColorRes int bgHoverTintRes = R.color.tab_strip_button_bg_hover_tint;
-        @ColorRes int bgPressedTintRes = R.color.tab_strip_button_bg_pressed_tint;
-
-        @ColorInt int bgTint = TabUiThemeProvider.getDefaultNtbContainerColor(context);
-        @ColorInt
-        int bgPeripheralPressedTint =
-                context.getColor(R.color.tab_strip_button_bg_peripheral_pressed_tint);
-
-        if (incognito) {
-            iconTintRes = R.color.modern_white;
-            bgTint = context.getColor(R.color.tab_strip_bg_incognito_default_tint);
-            bgHoverTintRes = R.color.tab_strip_button_bg_incognito_hover_tint;
-            bgPressedTintRes = R.color.tab_strip_bg_incognito_pressed_tint;
-            bgPeripheralPressedTint =
-                    context.getColor(R.color.tab_strip_button_bg_incognito_peripheral_pressed_tint);
-        } else if (ColorUtils.inNightMode(context)) {
-            bgTint = SemanticColorUtils.getColorSurfaceContainerLow(context);
-            bgPeripheralPressedTint = SemanticColorUtils.getColorSurfaceContainerHighest(context);
-        }
-
+        @ColorRes
+        int iconTintRes = incognito ? R.color.modern_white : R.color.default_icon_color_tint_list;
+        @ColorRes
+        int bgTintRes =
+                incognito
+                        ? R.color.tab_strip_ntb_bg_incognito_tint_list
+                        : R.color.tab_strip_ntb_bg_tint_list;
         mNewTabButton.setTint(context.getColor(iconTintRes));
-        mNewTabButton.setBackgroundTint(
-                bgTint,
-                context.getColor(bgHoverTintRes),
-                context.getColor(bgPressedTintRes),
-                bgPeripheralPressedTint);
+        mNewTabButton.setBackgroundTint(context.getColorStateList(bgTintRes));
 
         // y-offset  = lowered tab container + (tab container size - bg size)/2 -
         // Tab title y-offset = 2 + (38 - 32)/2 - 2 = 3dp
@@ -962,11 +952,9 @@ public class StripLayoutHelper
                         ? context.getColor(R.color.white_alpha_20)
                         : TabUiThemeProvider.getFaviconBackgroundColor(
                                 context, /* isIncognito= */ false);
-        button.setBackgroundTint(bgTint, bgTint, bgTint, bgTint);
+        button.setBackgroundTint(ColorStateList.valueOf(bgTint));
 
-        @ColorInt
-        int iconColor = ChromeColors.getPrimaryIconTint(context, incognito).getDefaultColor();
-        button.setTint(iconColor);
+        button.setTint(ChromeColors.getPrimaryIconTint(context, incognito).getDefaultColor());
         button.setDrawY(BUTTON_BACKGROUND_Y_OFFSET_DP);
         button.setAccessibilityDescription(
                 res.getString(R.string.accessibility_search_loupe_tooltip_text));
@@ -3123,7 +3111,7 @@ public class StripLayoutHelper
     }
 
     private void showTabHoverCardView(boolean isDelayedCall) {
-        if (mLastHoveredTab == null) {
+        if (mLastHoveredTab == null || isSelectedTab(mLastHoveredTab.getTabId())) {
             return;
         }
         // TODO(crbug.com/396683827): If there are no calls with unexpectedly null
@@ -3277,7 +3265,7 @@ public class StripLayoutHelper
     }
 
     private void handleTabSearchClick() {
-        // TODO(crbug.com/527609826): Implemented when the overlay floating container is added.
+        mLeadingButtonDelegate.onTabSearchClicked();
     }
 
     @Override
@@ -3504,11 +3492,10 @@ public class StripLayoutHelper
         if (tab == null || tab.isDying() || mModel == null) return;
         RecordUserAction.record("MobileTabSwitched.TabletTabStrip");
         recordTabSwitchTimeHistogram();
-
-        int newIndex = TabModelUtils.getTabIndexById(mModel, tab.getTabId());
+        Tab modelTab = mModel.getTabById(tab.getTabId());
         // Early return, since placeholder tabs are known to not have tab ids.
-        if (newIndex == Tab.INVALID_TAB_ID) return;
-        TabModelUtils.setIndex(mModel, newIndex);
+        if (modelTab == null) return;
+        TabModelUtils.setIndex(mModel, mModel.indexOf(modelTab));
     }
 
     /**

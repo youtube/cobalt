@@ -4,6 +4,7 @@
 
 #import "components/webauthn/ios/passkey_tab_helper.h"
 
+#import "base/base64.h"
 #import "base/rand_util.h"
 #import "base/strings/string_number_conversions.h"
 #import "base/test/metrics/histogram_tester.h"
@@ -440,6 +441,48 @@ TEST_F(PasskeyTabHelperTest, SendPasskeysToWebAuthnCredentialsDelegate) {
             AsByteVector(kCredentialId));
 }
 
+// Tests that marking a passkey as user verified is correctly reflected when the
+// passkey is selected via the delegate.
+TEST_F(PasskeyTabHelperTest, MarkPasskeyAsUserVerified) {
+  SetUpWebFramesManagerAndWebFrame(GURL(kOriginURL));
+  SetUpIOSPasswordManagerDriver();
+  SetUpChildFrameRegistrarAndRegisterFrame(web::kMainFakeFrameId,
+                                           kMainRemoteFrameId);
+
+  // Add passkey with `kCredentialId`.
+  sync_pb::WebauthnCredentialSpecifics passkey = GetTestPasskey(kCredentialId);
+  passkey_model_->AddNewPasskeyForTesting(std::move(passkey));
+
+  IOSWebAuthnCredentialsDelegate* delegate =
+      IOSWebAuthnCredentialsDelegateFactory::GetFactory(&fake_web_state_)
+          ->GetDelegateForFrameId(web::kMainFakeFrameId);
+
+  AssertionRequestParams params = BuildTestAssertionRequestParams(
+      /*allow_credentials=*/{}, device::UserVerificationRequirement::kPreferred,
+      kFakeRequestId, web::kMainFakeFrameId, kMainRemoteFrameId);
+  passkey_tab_helper()->HandleGetRequestedEvent(std::move(params));
+
+  // Verify that the delegate has received the passkey.
+  auto passkeys = delegate->GetPasskeys();
+  ASSERT_TRUE(passkeys.has_value());
+  ASSERT_EQ(passkeys.value()->size(), 1u);
+
+  // Base64 encode the credential ID to use as backend_id.
+  std::string backend_id = base::Base64Encode(kCredentialId);
+
+  // Mark the passkey as user verified.
+  delegate->MarkPasskeyAsUserVerified(backend_id);
+
+  // Select the passkey.
+  base::RunLoop run_loop;
+  delegate->SelectPasskey(backend_id, run_loop.QuitClosure());
+  run_loop.Run();
+
+  // The last verification status should now be kCompleted.
+  EXPECT_EQ(client_->last_user_verification_status(),
+            PasskeyUserVerificationStatus::kCompleted);
+}
+
 // Tests that example.ca can access passkeys using relying party id
 // example.com when remote validation passes.
 TEST_F(PasskeyTabHelperTest, RequestPasskeyFromRelatedOriginSuccess) {
@@ -681,6 +724,123 @@ TEST_F(PasskeyTabHelperTest, AutomaticPasskeyUpgradeRpIdNormalization) {
   RegistrationRequestParams params = BuildRegistrationRequestParams({});
 
   EXPECT_TRUE(CanPerformAutomaticPasskeyUpgrade(params, results));
+}
+
+// Tests that a conditional create request does NOT show the incognito
+// interstitial when automatic passkey upgrade is denied.
+TEST_F(PasskeyTabHelperTest, ConditionalCreateOffTheRecordUpgradeDeny) {
+  fake_browser_state_.SetOffTheRecord(true);
+  SetUpWebFramesManagerAndWebFrame(GURL(kOriginURL));
+  SetUpIOSPasswordManagerDriver();
+
+  IOSPasskeyClient::RequestInfo request_info(web::kMainFakeFrameId,
+                                             kFakeRequestId);
+  device::PublicKeyCredentialRpEntity rp_entity(kRpId);
+  std::vector<uint8_t> challenge;
+  PasskeyRequestParams::RequestType request_type =
+      PasskeyRequestParams::RequestType::kConditionalCreate;
+  PasskeyExtensionData extension_data;
+  PasskeyRequestParams request_params(
+      std::move(request_info), std::move(rp_entity), std::move(challenge),
+      device::UserVerificationRequirement::kPreferred, request_type,
+      std::move(extension_data));
+  device::PublicKeyCredentialUserEntity user_entity;
+  RegistrationRequestParams params(std::move(request_params),
+                                   std::move(user_entity),
+                                   /*exclude_credentials=*/{});
+
+  passkey_tab_helper()->HandleCreateRequestedEvent(std::move(params));
+
+  EXPECT_FALSE(client_->DidShowInterstitial());
+
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_FALSE(client_->DidShowInterstitial());
+  EXPECT_FALSE(client_->DidFetchKeys());
+}
+
+// Tests that a conditional create request shows the incognito interstitial
+// when automatic passkey upgrade is allowed, and creation proceeds if the user
+// chooses to proceed.
+TEST_F(PasskeyTabHelperTest, ConditionalCreateOffTheRecordUpgradeAllowProceed) {
+  fake_browser_state_.SetOffTheRecord(true);
+  SetUpWebFramesManagerAndWebFrame(GURL(kOriginURL));
+  SetUpIOSPasswordManagerDriver();
+
+  password_manager::PasswordForm form;
+  form.username_value = u"";
+  form.url = GURL(kOriginURL);
+  form.date_last_used = base::Time::Now();
+  test_password_store_->AddLogin(password_manager::FromPasswordForm(form));
+  base::RunLoop().RunUntilIdle();
+
+  IOSPasskeyClient::RequestInfo request_info(web::kMainFakeFrameId,
+                                             kFakeRequestId);
+  device::PublicKeyCredentialRpEntity rp_entity(kRpId);
+  std::vector<uint8_t> challenge;
+  PasskeyRequestParams::RequestType request_type =
+      PasskeyRequestParams::RequestType::kConditionalCreate;
+  PasskeyExtensionData extension_data;
+  PasskeyRequestParams request_params(
+      std::move(request_info), std::move(rp_entity), std::move(challenge),
+      device::UserVerificationRequirement::kPreferred, request_type,
+      std::move(extension_data));
+  device::PublicKeyCredentialUserEntity user_entity;
+  RegistrationRequestParams params(std::move(request_params),
+                                   std::move(user_entity),
+                                   /*exclude_credentials=*/{});
+
+  client_->SetInterstitialProceeds(true);
+
+  passkey_tab_helper()->HandleCreateRequestedEvent(std::move(params));
+
+  EXPECT_FALSE(client_->DidShowInterstitial());
+
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_TRUE(client_->DidShowInterstitial());
+  EXPECT_TRUE(client_->DidFetchKeys());
+}
+
+// Tests that a conditional create request shows the incognito interstitial
+// when automatic passkey upgrade is allowed, and creation is cancelled if the
+// user cancels.
+TEST_F(PasskeyTabHelperTest, ConditionalCreateOffTheRecordUpgradeAllowCancel) {
+  fake_browser_state_.SetOffTheRecord(true);
+  SetUpWebFramesManagerAndWebFrame(GURL(kOriginURL));
+  SetUpIOSPasswordManagerDriver();
+
+  password_manager::PasswordForm form;
+  form.username_value = u"";
+  form.url = GURL(kOriginURL);
+  form.date_last_used = base::Time::Now();
+  test_password_store_->AddLogin(password_manager::FromPasswordForm(form));
+  base::RunLoop().RunUntilIdle();
+
+  IOSPasskeyClient::RequestInfo request_info(web::kMainFakeFrameId,
+                                             kFakeRequestId);
+  device::PublicKeyCredentialRpEntity rp_entity(kRpId);
+  std::vector<uint8_t> challenge;
+  PasskeyRequestParams::RequestType request_type =
+      PasskeyRequestParams::RequestType::kConditionalCreate;
+  PasskeyExtensionData extension_data;
+  PasskeyRequestParams request_params(
+      std::move(request_info), std::move(rp_entity), std::move(challenge),
+      device::UserVerificationRequirement::kPreferred, request_type,
+      std::move(extension_data));
+  device::PublicKeyCredentialUserEntity user_entity;
+  RegistrationRequestParams params(std::move(request_params),
+                                   std::move(user_entity),
+                                   /*exclude_credentials=*/{});
+
+  client_->SetInterstitialProceeds(false);
+
+  passkey_tab_helper()->HandleCreateRequestedEvent(std::move(params));
+
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_TRUE(client_->DidShowInterstitial());
+  EXPECT_FALSE(client_->DidFetchKeys());
 }
 
 // Tests that a passkey assertion request defers back to the renderer when

@@ -11,11 +11,14 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
+#include "build/build_config.h"
 #include "components/personal_context/core/personal_context_enablement_service.h"
 #include "components/personal_context/core/personal_context_features.h"
 #include "components/personal_context/core/personal_context_prefs.h"
 #include "components/personal_context/core/personal_context_types.h"
 #include "components/prefs/testing_pref_service.h"
+#include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "content/public/browser/web_contents.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -56,7 +59,13 @@ class PersonalContextFirstRunServiceImplTest : public testing::Test {
     client_ = client.get();
 
     service_ = std::make_unique<PersonalContextFirstRunServiceImpl>(
-        std::move(client), &enablement_service_, &pref_service_);
+        std::move(client), &enablement_service_, &pref_service_,
+        identity_test_env_.identity_manager());
+  }
+
+  void SignIn(const std::string& email) {
+    identity_test_env_.MakePrimaryAccountAvailable(
+        email, signin::ConsentLevel::kSignin);
   }
 
   TestingPrefServiceSimple* pref_service() { return &pref_service_; }
@@ -69,18 +78,43 @@ class PersonalContextFirstRunServiceImplTest : public testing::Test {
 
   PersonalContextFirstRunServiceImpl* service() { return service_.get(); }
 
+  signin::IdentityTestEnvironment* identity_test_env() {
+    return &identity_test_env_;
+  }
+
  private:
   base::test::TaskEnvironment task_environment_;
+  base::test::ScopedFeatureList scoped_feature_list_{
+      features::kPersonalContextFirstRunNoticePhase2};
   TestingPrefServiceSimple pref_service_;
   MockPersonalContextEnablementService enablement_service_;
+  signin::IdentityTestEnvironment identity_test_env_;
   std::unique_ptr<PersonalContextFirstRunServiceImpl> service_;
   raw_ptr<MockPersonalContextFirstRunClient> client_ = nullptr;
 };
 
+#if !BUILDFLAG(IS_CHROMEOS)  // Signing out does not work on ChromeOS.
+TEST_F(PersonalContextFirstRunServiceImplTest, ClearsPrefOnSignout) {
+  SignIn("test@gmail.com");
+  pref_service()->SetBoolean(
+      prefs::kPersonalContextAmbientAutofillNoticeShouldBeShown, false);
+  pref_service()->SetBoolean(prefs::kPersonalContextAtMemoryNoticeShouldBeShown,
+                             false);
+  pref_service()->SetBoolean(
+      prefs::kPersonalContextInAutofillSettingsToggleStatus, false);
+  identity_test_env()->ClearPrimaryAccount();
+  EXPECT_TRUE(pref_service()->GetBoolean(
+      prefs::kPersonalContextAmbientAutofillNoticeShouldBeShown));
+  EXPECT_TRUE(pref_service()->GetBoolean(
+      prefs::kPersonalContextAtMemoryNoticeShouldBeShown));
+  EXPECT_TRUE(pref_service()->GetBoolean(
+      prefs::kPersonalContextInAutofillSettingsToggleStatus));
+}
+#endif  // !BUILDFLAG(IS_CHROMEOS)
+
 TEST_F(PersonalContextFirstRunServiceImplTest, SetsPrefOnAcknowledge) {
   EXPECT_CALL(*enablement_service(), GetEnablementState())
-      .WillOnce(
-          Return(PersonalContextEnablementState::kEnabledShouldShowNotice));
+      .WillOnce(Return(PersonalContextEnablementState::kEnabled));
 
   EXPECT_CALL(*client(), ShowNotice)
       .WillOnce([](content::WebContents*, FirstRunInvocationSource,
@@ -95,13 +129,12 @@ TEST_F(PersonalContextFirstRunServiceImplTest, SetsPrefOnAcknowledge) {
 
   EXPECT_EQ(future.Get(), FirstRunTriggerResult::kSuccess);
   EXPECT_FALSE(pref_service()->GetBoolean(
-      prefs::kPersonalContextInAutofillNoticeShouldBeShown));
+      prefs::kPersonalContextAmbientAutofillNoticeShouldBeShown));
 }
 
 TEST_F(PersonalContextFirstRunServiceImplTest, DoesNotSetPrefOnDismiss) {
   EXPECT_CALL(*enablement_service(), GetEnablementState())
-      .WillOnce(
-          Return(PersonalContextEnablementState::kEnabledShouldShowNotice));
+      .WillOnce(Return(PersonalContextEnablementState::kEnabled));
 
   EXPECT_CALL(*client(), ShowNotice)
       .WillOnce([](content::WebContents*, FirstRunInvocationSource,
@@ -116,7 +149,7 @@ TEST_F(PersonalContextFirstRunServiceImplTest, DoesNotSetPrefOnDismiss) {
 
   EXPECT_EQ(future.Get(), FirstRunTriggerResult::kSuccess);
   EXPECT_TRUE(pref_service()->GetBoolean(
-      prefs::kPersonalContextInAutofillNoticeShouldBeShown));
+      prefs::kPersonalContextAmbientAutofillNoticeShouldBeShown));
 }
 
 TEST_F(PersonalContextFirstRunServiceImplTest, DoesNotTriggerWhenNotEligible) {
@@ -136,7 +169,9 @@ TEST_F(PersonalContextFirstRunServiceImplTest, DoesNotTriggerWhenNotEligible) {
 TEST_F(PersonalContextFirstRunServiceImplTest,
        DoesNotTriggerWhenAlreadyEnabled) {
   EXPECT_CALL(*enablement_service(), GetEnablementState())
-      .WillOnce(Return(PersonalContextEnablementState::kEnabled));
+      .WillRepeatedly(Return(PersonalContextEnablementState::kEnabled));
+  pref_service()->SetBoolean(
+      prefs::kPersonalContextAmbientAutofillNoticeShouldBeShown, false);
 
   EXPECT_CALL(*client(), ShowNotice).Times(0);
 
@@ -154,14 +189,15 @@ TEST_F(PersonalContextFirstRunServiceImplTest, DoesNotTriggerWhenNeedsOptIn) {
 
   EXPECT_CALL(*client(), ShowNotice).Times(0);
 
+  base::test::TestFuture<FirstRunTriggerResult> future;
   service()->MaybeTriggerFirstRun(nullptr, FirstRunInvocationSource::kAutofill,
-                                  base::DoNothing());
+                                  future.GetCallback());
+  EXPECT_EQ(future.Get(), FirstRunTriggerResult::kIgnoredNotEligible);
 }
 
 TEST_F(PersonalContextFirstRunServiceImplTest, TriggersWhenShouldShowNotice) {
   EXPECT_CALL(*enablement_service(), GetEnablementState())
-      .WillOnce(
-          Return(PersonalContextEnablementState::kEnabledShouldShowNotice));
+      .WillOnce(Return(PersonalContextEnablementState::kEnabled));
 
   EXPECT_CALL(*client(), ShowNotice).Times(1);
 
@@ -170,50 +206,93 @@ TEST_F(PersonalContextFirstRunServiceImplTest, TriggersWhenShouldShowNotice) {
 }
 
 TEST_F(PersonalContextFirstRunServiceImplTest,
-       MarkPersonalContextInAutofillNoticeAsAcknowledgedSetsPrefs) {
+       MarkPersonalContextAmbientAutofillNoticeAsAcknowledgedSetsPrefs) {
   pref_service()->SetBoolean(
-      prefs::kPersonalContextInAutofillNoticeShouldBeShown, true);
+      prefs::kPersonalContextAmbientAutofillNoticeShouldBeShown, true);
 
-  service()->MarkPersonalContextInAutofillNoticeAsAcknowledged();
+  service()->MarkPersonalContextAmbientAutofillNoticeAsAcknowledged();
 
   EXPECT_FALSE(pref_service()->GetBoolean(
-      prefs::kPersonalContextInAutofillNoticeShouldBeShown));
+      prefs::kPersonalContextAmbientAutofillNoticeShouldBeShown));
 }
 
 TEST_F(PersonalContextFirstRunServiceImplTest,
-       ShouldShowPersonalContextAutofillNotice_FeatureDisabled) {
+       ShouldShowPersonalContextAmbientAutofillNotice_FeatureDisabled) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndDisableFeature(
       features::kPersonalContextFirstRunNoticePhase2);
 
   EXPECT_CALL(*enablement_service(), GetEnablementState())
-      .WillRepeatedly(
-          Return(PersonalContextEnablementState::kEnabledShouldShowNotice));
+      .WillRepeatedly(Return(PersonalContextEnablementState::kEnabled));
 
-  EXPECT_FALSE(service()->ShouldShowPersonalContextAutofillNotice());
+  EXPECT_FALSE(service()->ShouldShowPersonalContextAmbientAutofillNotice());
 }
 
 TEST_F(PersonalContextFirstRunServiceImplTest,
-       ShouldShowPersonalContextAutofillNotice_FeatureEnabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      features::kPersonalContextFirstRunNoticePhase2);
-
-  // Test kEnabledShouldShowNotice
-  EXPECT_CALL(*enablement_service(), GetEnablementState())
-      .WillOnce(
-          Return(PersonalContextEnablementState::kEnabledShouldShowNotice));
-  EXPECT_TRUE(service()->ShouldShowPersonalContextAutofillNotice());
-
-  // Test kEnabled (should be false)
+       ShouldShowPersonalContextAmbientAutofillNotice_FeatureEnabled) {
+  // Test kEnabled (and prefs true by default)
   EXPECT_CALL(*enablement_service(), GetEnablementState())
       .WillOnce(Return(PersonalContextEnablementState::kEnabled));
-  EXPECT_FALSE(service()->ShouldShowPersonalContextAutofillNotice());
+  EXPECT_TRUE(service()->ShouldShowPersonalContextAmbientAutofillNotice());
+
+  // Test kEnabled (with pref false)
+  EXPECT_CALL(*enablement_service(), GetEnablementState())
+      .WillOnce(Return(PersonalContextEnablementState::kEnabled));
+  pref_service()->SetBoolean(
+      prefs::kPersonalContextAmbientAutofillNoticeShouldBeShown, false);
+  EXPECT_FALSE(service()->ShouldShowPersonalContextAmbientAutofillNotice());
 
   // Test kDisabledNotEligible (should be false)
   EXPECT_CALL(*enablement_service(), GetEnablementState())
       .WillOnce(Return(PersonalContextEnablementState::kDisabledNotEligible));
-  EXPECT_FALSE(service()->ShouldShowPersonalContextAutofillNotice());
+  EXPECT_FALSE(service()->ShouldShowPersonalContextAmbientAutofillNotice());
+}
+
+TEST_F(PersonalContextFirstRunServiceImplTest,
+       MarkPersonalContextInAtMemoryNoticeAsAcknowledgedSetsPrefs) {
+  pref_service()->SetBoolean(
+      prefs::kPersonalContextAmbientAutofillNoticeShouldBeShown, true);
+  pref_service()->SetBoolean(prefs::kPersonalContextAtMemoryNoticeShouldBeShown,
+                             true);
+
+  service()->MarkPersonalContextInAtMemoryNoticeAsAcknowledged();
+
+  EXPECT_FALSE(pref_service()->GetBoolean(
+      prefs::kPersonalContextAmbientAutofillNoticeShouldBeShown));
+  EXPECT_FALSE(pref_service()->GetBoolean(
+      prefs::kPersonalContextAtMemoryNoticeShouldBeShown));
+}
+
+TEST_F(PersonalContextFirstRunServiceImplTest,
+       ShouldShowPersonalContextAtMemoryNotice_FeatureDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kPersonalContextFirstRunNoticePhase2);
+
+  EXPECT_CALL(*enablement_service(), GetEnablementState())
+      .WillRepeatedly(Return(PersonalContextEnablementState::kEnabled));
+
+  EXPECT_FALSE(service()->ShouldShowPersonalContextAtMemoryNotice());
+}
+
+TEST_F(PersonalContextFirstRunServiceImplTest,
+       ShouldShowPersonalContextAtMemoryNotice_FeatureEnabled) {
+  // Test kEnabled (and prefs true by default)
+  EXPECT_CALL(*enablement_service(), GetEnablementState())
+      .WillOnce(Return(PersonalContextEnablementState::kEnabled));
+  EXPECT_TRUE(service()->ShouldShowPersonalContextAtMemoryNotice());
+
+  // Test kEnabled (with pref false)
+  EXPECT_CALL(*enablement_service(), GetEnablementState())
+      .WillOnce(Return(PersonalContextEnablementState::kEnabled));
+  pref_service()->SetBoolean(prefs::kPersonalContextAtMemoryNoticeShouldBeShown,
+                             false);
+  EXPECT_FALSE(service()->ShouldShowPersonalContextAtMemoryNotice());
+
+  // Test kDisabledNotEligible (should be false)
+  EXPECT_CALL(*enablement_service(), GetEnablementState())
+      .WillOnce(Return(PersonalContextEnablementState::kDisabledNotEligible));
+  EXPECT_FALSE(service()->ShouldShowPersonalContextAtMemoryNotice());
 }
 
 }  // namespace

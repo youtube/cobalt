@@ -4,7 +4,11 @@
 
 #include "third_party/blink/renderer/modules/virtualkeyboard/virtual_keyboard.h"
 
+#include <algorithm>
+
 #include "base/trace_event/trace_event.h"
+#include "build/build_config.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
 #include "third_party/blink/renderer/core/css/document_style_environment_variables.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
@@ -115,21 +119,48 @@ void VirtualKeyboard::VirtualKeyboardOverlayChanged(
   if (!window)
     return;
 
-  bounding_rect_ = DOMRect::FromRectF(gfx::RectF(keyboard_rect));
+  bool use_virtual_keyboard_api_fixes = true;
+#if BUILDFLAG(IS_ANDROID)
+  use_virtual_keyboard_api_fixes =
+      features::IsVirtualKeyboardGeometryAndInsetFixesEnabled();
+#endif
+
+  gfx::Rect visible_keyboard_rect =
+      (use_virtual_keyboard_api_fixes && keyboard_rect.IsEmpty())
+          ? gfx::Rect()
+          : keyboard_rect;
+  bounding_rect_ = DOMRect::FromRectF(gfx::RectF(visible_keyboard_rect));
+
+  int keyboard_inset_right;
+  int keyboard_inset_bottom;
+  if (use_virtual_keyboard_api_fixes && !visible_keyboard_rect.IsEmpty()) {
+    keyboard_inset_right =
+        std::max(0, window->innerWidth() - visible_keyboard_rect.right());
+    keyboard_inset_bottom =
+        std::max(0, window->innerHeight() - visible_keyboard_rect.bottom());
+  } else {
+    keyboard_inset_right = visible_keyboard_rect.right();
+    keyboard_inset_bottom = visible_keyboard_rect.bottom();
+  }
+
   DocumentStyleEnvironmentVariables& vars =
       window->document()->GetStyleEngine().EnsureEnvironmentVariables();
-  vars.SetVariable(UADefinedVariable::kKeyboardInsetTop,
-                   StyleEnvironmentVariables::FormatPx(keyboard_rect.y()));
-  vars.SetVariable(UADefinedVariable::kKeyboardInsetLeft,
-                   StyleEnvironmentVariables::FormatPx(keyboard_rect.x()));
+  vars.SetVariable(
+      UADefinedVariable::kKeyboardInsetTop,
+      StyleEnvironmentVariables::FormatPx(visible_keyboard_rect.y()));
+  vars.SetVariable(
+      UADefinedVariable::kKeyboardInsetLeft,
+      StyleEnvironmentVariables::FormatPx(visible_keyboard_rect.x()));
   vars.SetVariable(UADefinedVariable::kKeyboardInsetBottom,
-                   StyleEnvironmentVariables::FormatPx(keyboard_rect.bottom()));
+                   StyleEnvironmentVariables::FormatPx(keyboard_inset_bottom));
   vars.SetVariable(UADefinedVariable::kKeyboardInsetRight,
-                   StyleEnvironmentVariables::FormatPx(keyboard_rect.right()));
-  vars.SetVariable(UADefinedVariable::kKeyboardInsetWidth,
-                   StyleEnvironmentVariables::FormatPx(keyboard_rect.width()));
-  vars.SetVariable(UADefinedVariable::kKeyboardInsetHeight,
-                   StyleEnvironmentVariables::FormatPx(keyboard_rect.height()));
+                   StyleEnvironmentVariables::FormatPx(keyboard_inset_right));
+  vars.SetVariable(
+      UADefinedVariable::kKeyboardInsetWidth,
+      StyleEnvironmentVariables::FormatPx(visible_keyboard_rect.width()));
+  vars.SetVariable(
+      UADefinedVariable::kKeyboardInsetHeight,
+      StyleEnvironmentVariables::FormatPx(visible_keyboard_rect.height()));
   DispatchEvent(*(MakeGarbageCollected<VirtualKeyboardGeometryChangeEvent>(
       event_type_names::kGeometrychange)));
 }

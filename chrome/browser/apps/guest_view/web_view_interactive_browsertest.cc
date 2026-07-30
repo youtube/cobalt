@@ -66,6 +66,10 @@
 #include "ui/gfx/range/range.h"
 #include "ui/touch_selection/touch_selection_menu_runner.h"
 
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
+
 #if BUILDFLAG(IS_MAC)
 #include "ui/base/test/scoped_fake_nswindow_fullscreen.h"
 #endif
@@ -76,13 +80,6 @@ using guest_view::GuestViewBase;
 using guest_view::GuestViewManager;
 using guest_view::TestGuestViewManager;
 using guest_view::TestGuestViewManagerFactory;
-
-#if !BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
-// Some test helpers, like ui_test_utils::SendMouseMoveSync, don't work properly
-// on some platforms. Tests that require these helpers need to be skipped for
-// these cases.
-#define SUPPORTS_SYNC_MOUSE_UTILS
-#endif
 
 #if BUILDFLAG(IS_MAC)
 class PopupShowAttemptObserver : content::RenderWidgetHostViewCocoaObserver {
@@ -564,13 +561,19 @@ class WebViewPointerLockInteractiveTest : public WebViewInteractiveTest {};
 class DISABLED_WebViewPopupInteractiveTest : public WebViewInteractiveTest {};
 
 // Timeouts flakily: crbug.com/40098536
-#if defined(SUPPORTS_SYNC_MOUSE_UTILS) && !BUILDFLAG(IS_CHROMEOS) && \
-    !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN) && defined(NDEBUG)
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN) && \
+    defined(NDEBUG)
 #define MAYBE_PointerLock PointerLock
 #else
 #define MAYBE_PointerLock DISABLED_PointerLock
 #endif
 IN_PROC_BROWSER_TEST_F(WebViewPointerLockInteractiveTest, MAYBE_PointerLock) {
+#if BUILDFLAG(IS_OZONE)
+  // ui_test_utils::SendMouseMoveSync, don't work properly on Wayland.
+  if (::ui::OzonePlatform::RunningOnWaylandForTest()) {
+    GTEST_SKIP() << "Wayland doesn't support Sync Mouse Utils";
+  }
+#endif
   SetupTest("web_view/pointer_lock");
 
   // Move the mouse over the Lock Pointer button.
@@ -633,14 +636,18 @@ IN_PROC_BROWSER_TEST_F(WebViewPointerLockInteractiveTest, MAYBE_PointerLock) {
 }
 
 // flaky http://crbug.com/40383431
-#if defined(SUPPORTS_SYNC_MOUSE_UTILS) && !BUILDFLAG(IS_CHROMEOS) && \
-    !BUILDFLAG(IS_MAC) && defined(NDEBUG)
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_MAC) && defined(NDEBUG)
 #define MAYBE_PointerLockFocus PointerLockFocus
 #else
 #define MAYBE_PointerLockFocus DISABLED_PointerLockFocus
 #endif
 IN_PROC_BROWSER_TEST_F(WebViewPointerLockInteractiveTest,
                        MAYBE_PointerLockFocus) {
+#if BUILDFLAG(IS_OZONE)
+  if (::ui::OzonePlatform::RunningOnWaylandForTest()) {
+    GTEST_SKIP() << "Wayland doesn't support Sync Mouse Utils";
+  }
+#endif
   SetupTest("web_view/pointer_lock_focus");
 
   // Move the mouse over the Lock Pointer button.

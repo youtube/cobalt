@@ -45,6 +45,7 @@ namespace autofill {
 
 AutofillClient::PopupOpenArgs::PopupOpenArgs() = default;
 AutofillClient::PopupOpenArgs::PopupOpenArgs(
+    LocalFrameToken frame_token,
     const gfx::RectF& element_bounds,
     base::i18n::TextDirection text_direction,
     std::vector<Suggestion> suggestions,
@@ -53,7 +54,8 @@ AutofillClient::PopupOpenArgs::PopupOpenArgs(
     PopupAnchorType anchor_type,
     bool show_tabbed_popup,
     bool prefer_prev_arrow_side_on_suggestions_update)
-    : element_bounds(element_bounds),
+    : frame_token(std::move(frame_token)),
+      element_bounds(element_bounds),
       text_direction(text_direction),
       suggestions(std::move(suggestions)),
       trigger_source(trigger_source),
@@ -120,11 +122,17 @@ AutofillClient::GetPasswordManagerFieldClassificationModelHandler() {
   return nullptr;
 }
 
-bool AutofillClient::ShouldShowPersonalContextAutofillNotice() const {
+bool AutofillClient::ShouldShowPersonalContextAmbientAutofillNotice() const {
   return false;
 }
 
-void AutofillClient::MarkPersonalContextInAutofillNoticeAsAcknowledged() {}
+void AutofillClient::MarkPersonalContextAmbientAutofillNoticeAsAcknowledged() {}
+
+bool AutofillClient::ShouldShowPersonalContextAtMemoryNotice() const {
+  return false;
+}
+
+void AutofillClient::MarkPersonalContextAtMemoryNoticeAsAcknowledged() {}
 
 AutofillComposeDelegate* AutofillClient::GetComposeDelegate() {
   return nullptr;
@@ -133,8 +141,7 @@ const AutofillComposeDelegate* AutofillClient::GetComposeDelegate() const {
   return const_cast<AutofillClient*>(this)->GetComposeDelegate();
 }
 
-accessibility_annotator::AtMemoryQueryService*
-AutofillClient::GetAtMemoryQueryService() {
+AtMemoryQueryService* AutofillClient::GetAtMemoryQueryService() {
   return nullptr;
 }
 

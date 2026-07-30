@@ -69,3 +69,9 @@
     outline: solid 2px var(--cr-focus-outline-color);
   }
 }
+
+#promo-message-text {
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+

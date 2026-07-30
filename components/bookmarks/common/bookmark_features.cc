@@ -30,7 +30,7 @@ BASE_FEATURE(kEnableBookmarkNodeDataNewPickleFormat,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // This feature enables encryption of bookmarks.
-BASE_FEATURE(kEncryptBookmarks, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEncryptBookmarks, base::FEATURE_ENABLED_BY_DEFAULT);
 // Define the stage of the bookmark encryption feature. This param is ignored if
 // kEncryptBookmarks is disabled.
 // The possible values are:
@@ -46,8 +46,11 @@ BASE_FEATURE(kEncryptBookmarks, base::FEATURE_DISABLED_BY_DEFAULT);
 // loading bookmarks. We'll fall back to the unencrypted file if the encrypted
 // file is missing. After a successful load from the encrypted file, the
 // clear text file is deleted.
-const base::FeatureParam<std::string> kBookmarkEncryptionStageParam{
-    &kEncryptBookmarks, "stage", "write_both_read_only_clear"};
+BASE_FEATURE_PARAM(std::string,
+                   kBookmarkEncryptionStageParam,
+                   &kEncryptBookmarks,
+                   "stage",
+                   "write_both_read_only_clear");
 
 constexpr auto kBookmarkEncryptionStageMap =
     base::MakeFixedFlatMap<std::string_view, BookmarkEncryptionStage>(

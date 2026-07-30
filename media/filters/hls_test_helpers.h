@@ -186,14 +186,16 @@ class StringHlsDataSourceStreamFactory {
  public:
   static std::unique_ptr<HlsDataSourceStream> CreateStream(
       std::string content,
-      std::optional<hls::SecurityMetadata> info);
+      std::optional<hls::SecurityMetadata> info = std::nullopt,
+      GURL uri = GURL("http://test-only-data-sources.com"));
 };
 
 class FileHlsDataSourceStreamFactory {
  public:
   static std::unique_ptr<HlsDataSourceStream> CreateStream(
       std::string file,
-      std::optional<hls::SecurityMetadata> info);
+      std::optional<hls::SecurityMetadata> info = std::nullopt,
+      GURL uri = GURL("http://test-only-data-sources.com"));
 };
 
 class MockDataSourceFactory : public CrossOriginDataSource::Factory {

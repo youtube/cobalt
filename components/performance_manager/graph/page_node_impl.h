@@ -73,7 +73,7 @@ class PageNodeImpl
                const GURL& visible_url,
                PagePropertyFlags initial_properties,
                base::TimeTicks visibility_change_time,
-               const perfetto::NamedTrack& tracing_track);
+               const perfetto::Track& tracing_track);
 
   PageNodeImpl(const PageNodeImpl&) = delete;
   PageNodeImpl& operator=(const PageNodeImpl&) = delete;

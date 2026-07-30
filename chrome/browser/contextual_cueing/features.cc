@@ -91,6 +91,11 @@ const base::FeatureParam<bool> kUsePrivateAi(&kContextualCueingV2,
                                              "ContextualCueingV2UsePrivateAi",
                                              true);
 
+const base::FeatureParam<base::TimeDelta> kAnnotationTimeout(
+    &kContextualCueingV2MultiSource,
+    "ContextualCueingV2MultiSourceAnnotationTimeout",
+    base::Seconds(3));
+
 // UCB scorer hyperparameters. Defaults are a reasonable starting point;
 // tune via Finch once multi-source experiments are running.
 const base::FeatureParam<double> kUcbExplorationWeight(

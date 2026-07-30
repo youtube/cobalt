@@ -207,7 +207,8 @@ PageContentAnnotationsService::PageContentAnnotationsService(
     annotation_types_to_execute_.push_back(AnnotationType::kContentVisibility);
   }
 
-  if (base::FeatureList::IsEnabled(features::kOnDeviceCategoryClassifier)) {
+  if (features::ShouldExecuteOnDeviceCategoryClassifierOnPageContent(
+          application_locale, country_code)) {
     on_device_category_classifier_ =
         std::make_unique<OnDeviceCategoryClassifier>(
             optimization_guide_model_provider, embedder_metadata_provider);

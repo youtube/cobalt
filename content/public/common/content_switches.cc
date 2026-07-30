@@ -747,6 +747,9 @@ const char kTouchEventFeatureDetectionDisabled[] = "disabled";
 // system clock changes, this allows synchronizing them to a single value.
 const char kTimeTicksAtUnixEpoch[] = "time-ticks-at-unix-epoch";
 
+// Enables debug mode for unbounded windows (draws a red border).
+const char kUnboundedWindowDebug[] = "unbounded-window-debug";
+
 // Replaces the existing codecs supported in peer connection with a single fake
 // codec entry that create a fake video encoder and decoder.
 const char kUseFakeCodecForPeerConnection[] =

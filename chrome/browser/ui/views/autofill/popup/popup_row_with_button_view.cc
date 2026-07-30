@@ -7,17 +7,12 @@
 #include <memory>
 #include <utility>
 
-#include "base/functional/bind.h"
-#include "base/functional/callback.h"
 #include "base/i18n/rtl.h"
 #include "chrome/browser/ui/autofill/autofill_popup_controller.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_row_content_view.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_row_view.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "components/input/native_web_keyboard_event.h"
-#include "components/strings/grit/components_strings.h"
-#include "ui/accessibility/ax_enums.mojom.h"
-#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/events/keycodes/keyboard_codes.h"

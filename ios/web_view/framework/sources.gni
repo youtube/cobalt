@@ -361,6 +361,7 @@ ios_web_view_deps = [
   "//components/signin/public/identity_manager/ios",
   "//components/signin/public/webdata",
   "//components/ssl_errors",
+  "//components/strike_database:features",
   "//components/strings",
   "//components/sync",
   "//components/sync/invalidations",

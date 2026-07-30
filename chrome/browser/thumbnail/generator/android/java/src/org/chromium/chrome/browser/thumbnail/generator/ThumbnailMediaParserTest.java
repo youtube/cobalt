@@ -8,17 +8,16 @@ import androidx.test.filters.LargeTest;
 
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.base.test.util.UrlUtils;
-import org.chromium.chrome.test.ChromeBrowserTestRule;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.content_public.browser.test.NativeLibraryTestUtils;
 import org.chromium.ui.base.DeviceFormFactor;
@@ -38,8 +37,6 @@ import java.io.File;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
 public class ThumbnailMediaParserTest {
-    @Rule public ChromeBrowserTestRule mTestRule = new ChromeBrowserTestRule();
-
     /** Wraps result from media parser. */
     public static class MediaParserResult {
         public boolean done;
@@ -161,6 +158,8 @@ public class ThumbnailMediaParserTest {
     @Test
     @LargeTest
     @Feature({"MediaParser"})
+    // TODO(crbug.com/528212805): Re-enable after flakiness is fixed.
+    @DisableIf.Device(DeviceFormFactor.DESKTOP)
     public void testParseVideoThumbnailH265() {
         String filePath = UrlUtils.getIsolatedTestRoot() + "/media/test/data/bear-hevc-frag.mp4";
         MediaParserResult result = parseMediaFile(filePath, "video/mp4");

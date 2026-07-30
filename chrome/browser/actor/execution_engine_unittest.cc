@@ -1071,9 +1071,12 @@ TEST_F(ExecutionEngineNavigationGatingTest,
   content::MockNavigationHandle navigation_handle(kDestinationUrl, main_rfh());
   navigation_handle.set_initiator_origin(kInitiatorOrigin);
 
+  base::test::TestFuture<bool> future;
   EXPECT_EQ(task_->GetExecutionEngine().ShouldDeferNavigation(
-                navigation_handle, base::NullCallback()),
-            content::NavigationThrottle::PROCEED);
+                navigation_handle, future.GetCallback()),
+            content::NavigationThrottle::DEFER);
+
+  EXPECT_TRUE(future.Get());
 
   histograms_.ExpectUniqueSample(
       "Actor.NavigationGating.GatingDecision2",
@@ -1104,9 +1107,12 @@ TEST_F(ExecutionEngineNavigationGatingTest,
 
   content::MockNavigationHandle navigation_handle(kDestinationUrl, main_rfh());
 
+  base::test::TestFuture<bool> future;
   EXPECT_EQ(task_->GetExecutionEngine().ShouldDeferNavigation(
-                navigation_handle, base::NullCallback()),
-            content::NavigationThrottle::PROCEED);
+                navigation_handle, future.GetCallback()),
+            content::NavigationThrottle::DEFER);
+
+  EXPECT_TRUE(future.Get());
 
   // Verify that SameOriginSource is true, indicating it used the precursor
   // origin.

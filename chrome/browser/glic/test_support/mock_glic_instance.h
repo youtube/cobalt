@@ -24,6 +24,7 @@ class MockGlicInstance : public GlicInstance {
   ~MockGlicInstance() override;
 
   MOCK_METHOD(bool, IsActive, (), (override));
+  MOCK_METHOD(bool, IsHibernated, (), (const, override));
   MOCK_METHOD(void,
               AddStateObserver,
               (PanelStateObserver * observer),
@@ -67,7 +68,6 @@ class MockGlicInstance : public GlicInstance {
               (mojo::PendingRemote<mojom::ExperimentalTriggeringUpdatesHandler>,
                base::OnceCallback<void(bool)>),
               (override));
-  MOCK_METHOD(Host&, host, (), (override));
   MOCK_METHOD(void,
               SendAdditionalContext,
               (mojom::AdditionalContextPtr),

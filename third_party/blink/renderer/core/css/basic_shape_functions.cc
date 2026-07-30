@@ -383,24 +383,6 @@ struct ShapeSegmentToShapeCommandVisitor {
   float zoom;
 };
 
-static CSSValue* ValueForCenterCoordinate(
-    const ComputedStyle& style,
-    const BasicShapeCenterCoordinate& center,
-    EBoxOrient orientation) {
-  if (center.GetDirection() == BasicShapeCenterCoordinate::kTopLeft) {
-    return CSSValue::Create(center.length(), style.EffectiveZoom());
-  }
-
-  CSSValueID keyword = orientation == EBoxOrient::kHorizontal
-                           ? CSSValueID::kRight
-                           : CSSValueID::kBottom;
-
-  return MakeGarbageCollected<CSSValuePair>(
-      CSSIdentifierValue::Create(keyword),
-      CSSValue::Create(center.length(), style.EffectiveZoom()),
-      CSSValuePair::kDropIdenticalValues);
-}
-
 static CSSValuePair* ValueForLengthSize(const LengthSize& length_size,
                                         const ComputedStyle& style) {
   return MakeGarbageCollected<CSSValuePair>(
@@ -461,13 +443,11 @@ CSSValue* ValueForBasicShape(const ComputedStyle& style,
       const auto& ray = To<StyleRay>(basic_shape);
       const CSSValue* center_x =
           ray.HasExplicitCenter()
-              ? ValueForCenterCoordinate(style, ray.CenterX(),
-                                         EBoxOrient::kHorizontal)
+              ? CSSValue::Create(ray.Center().X(), style.EffectiveZoom())
               : nullptr;
       const CSSValue* center_y =
           ray.HasExplicitCenter()
-              ? ValueForCenterCoordinate(style, ray.CenterY(),
-                                         EBoxOrient::kVertical)
+              ? CSSValue::Create(ray.Center().Y(), style.EffectiveZoom())
               : nullptr;
       return MakeGarbageCollected<cssvalue::CSSRayValue>(
           *CSSNumericLiteralValue::Create(
@@ -501,10 +481,10 @@ CSSValue* ValueForBasicShape(const ComputedStyle& style,
           MakeGarbageCollected<cssvalue::CSSBasicShapeCircleValue>();
 
       if (circle.HasExplicitCenter()) {
-        circle_value->SetCenterX(ValueForCenterCoordinate(
-            style, circle.CenterX(), EBoxOrient::kHorizontal));
-        circle_value->SetCenterY(ValueForCenterCoordinate(
-            style, circle.CenterY(), EBoxOrient::kVertical));
+        circle_value->SetCenterX(
+            CSSValue::Create(circle.Center().X(), style.EffectiveZoom()));
+        circle_value->SetCenterY(
+            CSSValue::Create(circle.Center().Y(), style.EffectiveZoom()));
       }
       circle_value->SetRadius(
           BasicShapeRadiusToCSSValue(style, circle.Radius()));
@@ -516,10 +496,10 @@ CSSValue* ValueForBasicShape(const ComputedStyle& style,
           MakeGarbageCollected<cssvalue::CSSBasicShapeEllipseValue>();
 
       if (ellipse.HasExplicitCenter()) {
-        ellipse_value->SetCenterX(ValueForCenterCoordinate(
-            style, ellipse.CenterX(), EBoxOrient::kHorizontal));
-        ellipse_value->SetCenterY(ValueForCenterCoordinate(
-            style, ellipse.CenterY(), EBoxOrient::kVertical));
+        ellipse_value->SetCenterX(
+            CSSValue::Create(ellipse.Center().X(), style.EffectiveZoom()));
+        ellipse_value->SetCenterY(
+            CSSValue::Create(ellipse.Center().Y(), style.EffectiveZoom()));
       }
       ellipse_value->SetRadiusX(
           BasicShapeRadiusToCSSValue(style, ellipse.RadiusX()));
@@ -584,54 +564,20 @@ static LengthSize ConvertToLengthSize(const StyleResolverState& state,
       ConvertToLength(state, To<CSSPrimitiveValue>(value->Second())));
 }
 
-static BasicShapeCenterCoordinate ConvertToCenterCoordinate(
-    const StyleResolverState& state,
-    const CSSValue* value) {
-  BasicShapeCenterCoordinate::Direction direction;
-  std::optional<Length> offset;
-
-  CSSValueID keyword = CSSValueID::kTop;
-  if (!value) {
-    keyword = CSSValueID::kCenter;
-  } else if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(*value)) {
-    keyword = identifier_value->GetValueID();
-  } else if (auto* value_pair = DynamicTo<CSSValuePair>(*value)) {
-    keyword = To<CSSIdentifierValue>(value_pair->First()).GetValueID();
-    offset =
-        ConvertToLength(state, To<CSSPrimitiveValue>(value_pair->Second()));
-  } else {
-    offset = ConvertToLength(state, To<CSSPrimitiveValue>(*value));
+static LengthPoint ConvertToPosition(const StyleResolverState& state,
+                                     const CSSValue* value_x,
+                                     const CSSValue* value_y) {
+  CHECK_EQ(!!value_x, !!value_y);
+  if (!value_x) {
+    return LengthPoint(Length::Percent(50), Length::Percent(50));
   }
-
-  switch (keyword) {
-    case CSSValueID::kTop:
-    case CSSValueID::kLeft:
-      direction = BasicShapeCenterCoordinate::kTopLeft;
-      break;
-    case CSSValueID::kRight:
-    case CSSValueID::kBottom:
-      direction = BasicShapeCenterCoordinate::kBottomRight;
-      break;
-    case CSSValueID::kCenter:
-      direction = BasicShapeCenterCoordinate::kTopLeft;
-      offset = Length::Percent(50);
-      break;
-    default:
-      NOTREACHED();
-  }
-
-  if (RuntimeEnabledFeatures::
-          CSSShapeEllipseCirclePositionSerializationEnabled()) {
-    offset = offset.value_or(Length::Percent(0));
-    if (direction == BasicShapeCenterCoordinate::kBottomRight) {
-      offset = offset->SubtractFromOneHundredPercent();
-      direction = BasicShapeCenterCoordinate::kTopLeft;
-    }
-  } else {
-    offset = offset.value_or(Length::Fixed(0));
-  }
-
-  return BasicShapeCenterCoordinate(direction, *offset);
+  return LengthPoint(
+      StyleBuilderConverter::ConvertPositionLength<CSSValueID::kLeft,
+                                                   CSSValueID::kRight>(
+          state, *value_x),
+      StyleBuilderConverter::ConvertPositionLength<CSSValueID::kTop,
+                                                   CSSValueID::kBottom>(
+          state, *value_y));
 }
 
 static BasicShapeRadius CssValueToBasicShapeRadius(
@@ -666,10 +612,8 @@ BasicShape* BasicShapeForValue(const StyleResolverState& state,
           DynamicTo<cssvalue::CSSBasicShapeCircleValue>(basic_shape_value)) {
     auto* circle = MakeGarbageCollected<BasicShapeCircle>();
 
-    circle->SetCenterX(
-        ConvertToCenterCoordinate(state, circle_value->CenterX()));
-    circle->SetCenterY(
-        ConvertToCenterCoordinate(state, circle_value->CenterY()));
+    circle->SetCenter(ConvertToPosition(state, circle_value->CenterX(),
+                                        circle_value->CenterY()));
     circle->SetRadius(
         CssValueToBasicShapeRadius(state, circle_value->Radius()));
     circle->SetHasExplicitCenter(circle_value->CenterX());
@@ -680,10 +624,8 @@ BasicShape* BasicShapeForValue(const StyleResolverState& state,
                      basic_shape_value)) {
     auto* ellipse = MakeGarbageCollected<BasicShapeEllipse>();
 
-    ellipse->SetCenterX(
-        ConvertToCenterCoordinate(state, ellipse_value->CenterX()));
-    ellipse->SetCenterY(
-        ConvertToCenterCoordinate(state, ellipse_value->CenterY()));
+    ellipse->SetCenter(ConvertToPosition(state, ellipse_value->CenterX(),
+                                         ellipse_value->CenterY()));
     ellipse->SetRadiusX(
         CssValueToBasicShapeRadius(state, ellipse_value->RadiusX()));
     ellipse->SetRadiusY(
@@ -785,8 +727,7 @@ BasicShape* BasicShapeForValue(const StyleResolverState& state,
     bool contain = !!ray_value->Contain();
     return MakeGarbageCollected<StyleRay>(
         angle, size, contain,
-        ConvertToCenterCoordinate(state, ray_value->CenterX()),
-        ConvertToCenterCoordinate(state, ray_value->CenterY()),
+        ConvertToPosition(state, ray_value->CenterX(), ray_value->CenterY()),
         ray_value->CenterX());
   } else if (const auto* path_value =
                  DynamicTo<cssvalue::CSSPathValue>(basic_shape_value)) {

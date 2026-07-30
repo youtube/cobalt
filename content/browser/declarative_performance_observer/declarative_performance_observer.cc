@@ -5,6 +5,7 @@
 #include "content/browser/declarative_performance_observer/declarative_performance_observer.h"
 
 #include "base/check.h"
+#include "base/metrics/histogram_functions.h"
 #include "content/browser/declarative_performance_observer/declarative_performance_observer_store.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/public/browser/navigation_handle.h"
@@ -16,6 +17,7 @@
 #include "net/base/load_timing_info.h"
 #include "net/base/net_errors.h"
 #include "services/network/public/mojom/network_context.mojom.h"
+#include "third_party/blink/public/common/features.h"
 
 namespace content {
 
@@ -130,6 +132,11 @@ DeclarativePerformanceObserver::~DeclarativePerformanceObserver() {
     AppendSessionEndEntry();
     FlushMetrics();
   }
+  base::UmaHistogramMemoryKB("DeclarativePerformanceObserver.PeakBufferSize",
+                             peak_buffer_bytes_ / 1024);
+  base::UmaHistogramBoolean(
+      "DeclarativePerformanceObserver.BufferLimitExceeded",
+      buffer_limit_exceeded_);
 }
 
 void DeclarativePerformanceObserver::OnDidFinishNavigation(
@@ -139,6 +146,7 @@ void DeclarativePerformanceObserver::OnDidFinishNavigation(
 
   navigation_start_ = navigation_handle->NavigationStart();
   buffered_entries_.clear();
+  current_buffer_bytes_ = 0;
 
   // Reset `is_session_ended_` so that a new session-end entry can be appended
   // when this restored document eventually enters BFCache or is closed.
@@ -236,6 +244,7 @@ void DeclarativePerformanceObserver::FlushMetrics() {
   base::DictValue body;
   body.Set("entries", std::move(buffered_entries_));
   buffered_entries_.clear();
+  current_buffer_bytes_ = 0;
 
   StoragePartition* storage_partition =
       storage_partition_for_testing_
@@ -271,6 +280,19 @@ void DeclarativePerformanceObserver::AppendSessionEndEntry() {
 }
 
 void DeclarativePerformanceObserver::AddEntryToBuffer(base::DictValue entry) {
+  size_t max_entries = max_buffered_entries_for_testing_
+                           ? max_buffered_entries_for_testing_
+                           : kMaxBufferedEntries;
+  if (buffered_entries_.size() >= max_entries) {
+    return;
+  }
+  size_t entry_size = entry.EstimateMemoryUsage();
+  if (current_buffer_bytes_ + entry_size > kMaxDocumentBufferBytes) {
+    buffer_limit_exceeded_ = true;
+    return;
+  }
+  current_buffer_bytes_ += entry_size;
+  peak_buffer_bytes_ = std::max(peak_buffer_bytes_, current_buffer_bytes_);
   buffered_entries_.Append(std::move(entry));
 }
 
@@ -323,6 +345,13 @@ void DeclarativePerformanceObserver::RecordEarlyNavigationFailure(
     NavigationHandle* handle,
     StoragePartition* partition,
     int net_error) {
+  if (!base::FeatureList::IsEnabled(
+          blink::features::kDeclarativePerformanceObserver) ||
+      !blink::features::
+           kDeclarativePerformanceObserverSupportCaptureEarlyFailures.Get()) {
+    return;
+  }
+
   if (!handle || !partition) {
     return;
   }
@@ -409,7 +438,9 @@ void DeclarativePerformanceObserver::RecordEarlyNavigationFailure(
 void DeclarativePerformanceObserver::OnEarlyFailureReportsTaken(
     base::ListValue reports) {
   for (auto& val : reports) {
-    buffered_entries_.Append(std::move(val));
+    if (val.is_dict()) {
+      AddEntryToBuffer(std::move(val).TakeDict());
+    }
   }
 }
 

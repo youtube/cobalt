@@ -30,6 +30,9 @@ const char kDisableSeccompFilterSandbox[] = "disable-seccomp-filter-sandbox";
 // Disable the setuid sandbox (Linux only).
 const char kDisableSetuidSandbox[] = "disable-setuid-sandbox";
 
+// Disables the WebNN compiler process sandbox.
+const char kDisableWebNNCompilerSandbox[] = "disable-webnn-compiler-sandbox";
+
 // Allows shmat() system call in the GPU sandbox.
 const char kGpuSandboxAllowSysVShm[] = "gpu-sandbox-allow-sysv-shm";
 
@@ -54,6 +57,7 @@ const char kAllowThirdPartyModules[] = "allow-third-party-modules";
 // Add additional capabilities to the AppContainer sandbox used for XR
 // compositing.
 const char kAddXrAppContainerCaps[] = "add-xr-appcontainer-caps";
+
 #endif
 
 #if BUILDFLAG(IS_MAC)

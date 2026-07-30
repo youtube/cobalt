@@ -231,11 +231,19 @@ bool IPAddress::IsPubliclyRoutable() const {
 }
 
 bool IPAddress::IsMulticast() const {
+  // 224.0.0.0/4
   if (IsIPv4()) {
     uint8_t first_byte = ip_address_[0];
     return first_byte >= 224 && first_byte <= 239;
   }
 
+  // [::ffff:224.0.0.0]/100
+  if (IsIPv4MappedIPv6()) {
+    uint8_t first_byte = ip_address_[12];
+    return first_byte >= 224 && first_byte <= 239;
+  }
+
+  // [ff00::]/8
   if (IsIPv6()) {
     return ip_address_[0] == 0xff;
   }

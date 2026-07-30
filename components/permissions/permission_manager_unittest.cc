@@ -41,6 +41,7 @@
 #include "services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "url/origin.h"
@@ -253,6 +254,23 @@ class PermissionManagerTest : public content::RenderViewHostTestHarness {
                        const GURL& embedding_origin) {
     GetPermissionManager()->ResetPermission(permission, requesting_origin,
                                             embedding_origin);
+  }
+
+  content::PermissionController::SubscriptionId
+  SubscribeToContentSettingsTypeChange(
+      ContentSettingsType content_settings_type,
+      const GURL& requesting_origin,
+      const GURL& embedding_origin,
+      base::RepeatingCallback<void(const PermissionSetting&)> callback) {
+    return GetPermissionManager()->SubscribeToContentSettingsTypeChange(
+        content_settings_type, requesting_origin, embedding_origin,
+        std::move(callback));
+  }
+
+  void UnsubscribeFromContentSettingsTypeChange(
+      content::PermissionController::SubscriptionId subscription_id) {
+    GetPermissionManager()->UnsubscribeFromContentSettingsTypeChange(
+        subscription_id);
   }
 
   const GURL& url() const { return url_; }
@@ -920,6 +938,34 @@ TEST_F(PermissionManagerTest,
   EXPECT_TRUE(!context);
 }
 
+TEST_F(PermissionManagerTest, StorageAccessPermissionStatusMasksDenied) {
+  SetPermission(PermissionType::STORAGE_ACCESS_GRANT,
+                PermissionStatus::GRANTED);
+  CheckPermissionStatus(PermissionType::STORAGE_ACCESS_GRANT,
+                        PermissionStatus::GRANTED);
+
+  SetPermission(PermissionType::STORAGE_ACCESS_GRANT, PermissionStatus::ASK);
+  CheckPermissionStatus(PermissionType::STORAGE_ACCESS_GRANT,
+                        PermissionStatus::ASK);
+
+  SetPermission(PermissionType::STORAGE_ACCESS_GRANT, PermissionStatus::DENIED);
+  CheckPermissionStatus(PermissionType::STORAGE_ACCESS_GRANT,
+                        PermissionStatus::ASK);
+  CheckPermissionResult(PermissionType::STORAGE_ACCESS_GRANT,
+                        PermissionStatus::ASK,
+                        content::PermissionStatusSource::UNSPECIFIED);
+}
+
+TEST_F(PermissionManagerTest, StorageAccessPermissionRequestMasksDenied) {
+  NavigateAndCommit(url());
+  SetPermission(PermissionType::STORAGE_ACCESS_GRANT, PermissionStatus::DENIED);
+
+  RequestPermissionFromCurrentDocument(PermissionType::STORAGE_ACCESS_GRANT,
+                                       main_rfh());
+  EXPECT_TRUE(callback_called());
+  EXPECT_EQ(PermissionStatus::ASK, callback_result());
+}
+
 class PermissionManagerWithGeolocationTest : public PermissionManagerTest {
  public:
   PermissionManagerWithGeolocationTest() {
@@ -966,6 +1012,77 @@ TEST_F(PermissionManagerWithGeolocationTest, GetGeolocationPermissionStatus) {
       url(), url(), content_settings_type,
       GeolocationSetting{PermissionOption::kDenied, PermissionOption::kDenied});
   CheckPermissionStatus(permission_type, PermissionStatus::DENIED);
+}
+
+TEST_F(PermissionManagerTest, SubscribeToContentSettingsTypeChange) {
+  ContentSettingsType type = ContentSettingsType::NOTIFICATIONS;
+
+  class Mocker {
+   public:
+    MOCK_METHOD(void, Callback, (const PermissionSetting&), ());
+  };
+
+  Mocker mocker;
+  content::PermissionController::SubscriptionId subscription_id =
+      SubscribeToContentSettingsTypeChange(
+          type, url(), url(),
+          base::BindRepeating(&Mocker::Callback, base::Unretained(&mocker)));
+
+  EXPECT_TRUE(subscription_id);
+
+  // Now change the setting. Expect the callback to be called.
+  EXPECT_CALL(mocker, Callback(PermissionSetting(CONTENT_SETTING_ALLOW)));
+  SetPermission(PermissionType::NOTIFICATIONS, PermissionStatus::GRANTED);
+
+  // Change it back to ASK.
+  EXPECT_CALL(mocker, Callback(PermissionSetting(CONTENT_SETTING_ASK)));
+  SetPermission(PermissionType::NOTIFICATIONS, PermissionStatus::ASK);
+
+  // Unsubscribe.
+  UnsubscribeFromContentSettingsTypeChange(subscription_id);
+
+  // Change it again, callback should not be called.
+  EXPECT_CALL(mocker, Callback(testing::_)).Times(0);
+  SetPermission(PermissionType::NOTIFICATIONS, PermissionStatus::GRANTED);
+}
+
+TEST_F(PermissionManagerWithGeolocationTest,
+       SubscribeToContentSettingsTypeChangeGeolocation) {
+  ContentSettingsType type = ContentSettingsType::GEOLOCATION_WITH_OPTIONS;
+
+  class Mocker {
+   public:
+    MOCK_METHOD(void, Callback, (const PermissionSetting&), ());
+  };
+
+  Mocker mocker;
+  content::PermissionController::SubscriptionId subscription_id =
+      SubscribeToContentSettingsTypeChange(
+          type, url(), url(),
+          base::BindRepeating(&Mocker::Callback, base::Unretained(&mocker)));
+
+  EXPECT_TRUE(subscription_id);
+
+  // Change Geolocation setting.
+  EXPECT_CALL(mocker,
+              Callback(PermissionSetting(GeolocationSetting{
+                  PermissionOption::kAllowed, PermissionOption::kDenied})));
+  GetHostContentSettingsMap()->SetPermissionSettingDefaultScope(
+      url(), url(), type,
+      GeolocationSetting{PermissionOption::kAllowed,
+                         PermissionOption::kDenied});
+
+  // Change it again.
+  EXPECT_CALL(mocker,
+              Callback(PermissionSetting(GeolocationSetting{
+                  PermissionOption::kAllowed, PermissionOption::kAllowed})));
+  GetHostContentSettingsMap()->SetPermissionSettingDefaultScope(
+      url(), url(), type,
+      GeolocationSetting{PermissionOption::kAllowed,
+                         PermissionOption::kAllowed});
+
+  // Unsubscribe.
+  UnsubscribeFromContentSettingsTypeChange(subscription_id);
 }
 
 }  // namespace permissions

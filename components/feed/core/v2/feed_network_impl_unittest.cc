@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "base/base64.h"
+#include "base/byte_size.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
@@ -190,7 +191,7 @@ class FeedNetworkTest : public testing::Test {
         head->headers = base::MakeRefCounted<net::HttpResponseHeaders>(
             "HTTP/1.1 " + base::NumberToString(code));
       }
-      status.decoded_body_length = response_string.length();
+      status.decoded_body_length = base::ByteSize(response_string.length());
     }
 
     test_factory_.AddResponse(url, std::move(head), response_string, status);

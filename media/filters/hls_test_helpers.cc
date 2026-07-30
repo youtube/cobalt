@@ -48,15 +48,16 @@ const GURL& MockHlsRendition::MediaPlaylistUri() const {
 std::unique_ptr<HlsDataSourceStream>
 StringHlsDataSourceStreamFactory::CreateStream(
     std::string content,
-    std::optional<hls::SecurityMetadata> info) {
-  HlsDataSourceProvider::UrlDataSegment segment(GURL("http://dummy.com"),
-                                                std::nullopt);
+    std::optional<hls::SecurityMetadata> info,
+    GURL uri) {
+  HlsDataSourceProvider::UrlDataSegment segment(uri, std::nullopt);
   auto stream = std::make_unique<HlsDataSourceStream>(
       HlsDataSourceStream::StreamId::FromUnsafeValue(42), std::move(segment),
       base::DoNothing());
   base::span<uint8_t> buffer = stream->LockStreamForWriting(content.length());
   buffer.copy_from(base::as_byte_span(content));
   stream->UnlockStreamPostWrite(content.length(), true);
+  stream->SetPostRedirectUri(uri);
   if (info.has_value()) {
     stream->SetSecurityInfoForTesting(*info);
   }
@@ -67,13 +68,13 @@ StringHlsDataSourceStreamFactory::CreateStream(
 std::unique_ptr<HlsDataSourceStream>
 FileHlsDataSourceStreamFactory::CreateStream(
     std::string filename,
-    std::optional<hls::SecurityMetadata> info) {
+    std::optional<hls::SecurityMetadata> info,
+    GURL uri) {
   base::FilePath file_path = GetTestDataFilePath(filename);
   std::optional<int64_t> file_size = base::GetFileSize(file_path);
   CHECK(file_size.has_value())
       << "Failed to get file size for '" << filename << "'";
-  HlsDataSourceProvider::UrlDataSegment segment(GURL("http://dummy.com"),
-                                                std::nullopt);
+  HlsDataSourceProvider::UrlDataSegment segment(uri, std::nullopt);
   auto stream = std::make_unique<HlsDataSourceStream>(
       HlsDataSourceStream::StreamId::FromUnsafeValue(42), std::move(segment),
       base::DoNothing());
@@ -82,7 +83,7 @@ FileHlsDataSourceStreamFactory::CreateStream(
   CHECK_EQ(buffer.size(), base::ReadFile(file_path, buffer).value_or(0));
   stream->UnlockStreamPostWrite(base::checked_cast<size_t>(file_size.value()),
                                 true);
-
+  stream->SetPostRedirectUri(uri);
   if (info.has_value()) {
     stream->SetSecurityInfoForTesting(*info);
   }

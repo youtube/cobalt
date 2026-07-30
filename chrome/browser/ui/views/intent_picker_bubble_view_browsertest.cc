@@ -434,6 +434,9 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::Bool()),
     GetLinkCapturingTestName);
 
+#if BUILDFLAG(IS_CHROMEOS)
+// This test verifies UXes that show up when an app is not set to be the
+// preferred app for capturing links.
 class IntentPickerIconBrowserBubbleTest
     : public IntentPickerBrowserTest,
       public ::testing::WithParamInterface<
@@ -471,21 +474,24 @@ class IntentPickerIconBrowserBubbleTest
         .size();
   }
 
+  // The intent picker icon bubble shows up only when the app is not set as
+  // the preferred app to capture links on ChromeOS.
+  void InstallTestWebAppAndDisableLinkCapturingIfNecessary() {
+    InstallTestWebApp();
+    if (LinkCapturingEnabledByDefault()) {
+      auto result =
+          apps::test::DisableLinkCapturingByUser(profile(), test_web_app_id());
+      ASSERT_TRUE(result.has_value()) << result.error();
+    }
+  }
+
  private:
   base::test::ScopedFeatureList feature_list_;
 };
 
-#if BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_P(IntentPickerIconBrowserBubbleTest,
                        IntentChipOpensBubble) {
-  // TODO(b/521860617): Under kV2DefaultOn, navigation directly launches the
-  // app on ChromeOS. Skip this test under kV2DefaultOn until default-on
-  // behavior is resolved.
-  if (LinkCapturingEnabledByDefault()) {
-    GTEST_SKIP() << "Skipping due to default-on auto-launch on ChromeOS";
-  }
-
-  InstallTestWebApp();
+  InstallTestWebAppAndDisableLinkCapturingIfNecessary();
   const GURL in_scope_url =
       embedded_https_test_server().GetURL(GetAppUrlHost(), GetInScopeUrlPath());
 
@@ -501,15 +507,9 @@ IN_PROC_BROWSER_TEST_P(IntentPickerIconBrowserBubbleTest,
 
 // Test that the "Remember this choice" checkbox works.
 IN_PROC_BROWSER_TEST_P(IntentPickerIconBrowserBubbleTest, RememberOpenWebApp) {
-  // TODO(b/521860617): Skipping because under kV2DefaultOn, navigations need to
-  // be fixed on ChromeOS.
-  if (LinkCapturingEnabledByDefault()) {
-    GTEST_SKIP() << "Skipping due to default-on auto-launch on ChromeOS";
-  }
-
   base::HistogramTester histogram_tester;
 
-  InstallTestWebApp();
+  InstallTestWebAppAndDisableLinkCapturingIfNecessary();
   const GURL in_scope_url =
       embedded_https_test_server().GetURL(GetAppUrlHost(), GetInScopeUrlPath());
 
@@ -549,30 +549,6 @@ IN_PROC_BROWSER_TEST_P(IntentPickerIconBrowserBubbleTest, RememberOpenWebApp) {
       apps::IntentHandlingMetrics::LinkCapturingEvent::kSettingsChanged, 1);
 }
 
-#else
-IN_PROC_BROWSER_TEST_P(IntentPickerIconBrowserBubbleTest,
-                       DISABLED_IntentChipLaunchesAppDirectly) {
-  InstallTestWebApp();
-  const GURL in_scope_url =
-      embedded_https_test_server().GetURL(GetAppUrlHost(), GetInScopeUrlPath());
-
-  views::Button* intent_picker_icon = GetIntentChip(browser());
-
-  OpenNewTab(in_scope_url);
-  EXPECT_TRUE(intent_picker_icon->GetVisible());
-
-  views::test::ButtonTestApi test_api(intent_picker_icon);
-  test_api.NotifyClick(ui::MouseEvent(
-      ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
-      base::TimeTicks(), ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON));
-  Browser* app_browser = ui_test_utils::WaitForBrowserToOpen();
-  EXPECT_FALSE(intent_picker_bubble());
-  EXPECT_TRUE(app_browser);
-  ASSERT_TRUE(web_app::AppBrowserController::IsForWebApp(app_browser,
-                                                         test_web_app_id()));
-}
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
 INSTANTIATE_TEST_SUITE_P(
     All,
     IntentPickerIconBrowserBubbleTest,
@@ -581,6 +557,7 @@ INSTANTIATE_TEST_SUITE_P(
                                      LinkCapturingFeatureVersion::kV2DefaultOn),
                      testing::Bool()),
     GetLinkCapturingTestName);
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // This test only works when link capturing is set to default off for desktop
 // platforms, as prerendering navigations are aborted during link captured app

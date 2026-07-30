@@ -193,6 +193,9 @@ public final class ChromePreferenceKeys {
     public static final String CONTEXT_MENU_SEARCH_IMAGE_WITH_GOOGLE_LENS_CLICKED =
             "Chrome.ContextMenu.SearchWithGoogleLensClicked";
 
+    public static final String CONTEXT_MENU_SEARCH_TAB_WITH_GOOGLE_LENS_CLICKED =
+            "Chrome.ContextMenu.SearchTabWithGoogleLensClicked";
+
     public static final String CONTEXT_MENU_SHOP_IMAGE_WITH_GOOGLE_LENS_CLICKED =
             "Chrome.ContextMenu.ShopImageWithGoogleLensClicked";
 
@@ -721,7 +724,8 @@ public final class ChromePreferenceKeys {
 
     /**
      * The number at the end should be consistent with {@link
-     * org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase.PlatformType}
+     * org.chromium.chrome.browser.ntp_customization.theme_sync.data.
+     * NtpBackgroundDataBase.PlatformType}
      */
     public static final KeyPrefix NTP_CUSTOMIZATION_SYNC_HISTORY_DATA =
             new KeyPrefix("Chrome.NtpCustomizationSync.HistoryData.*");
@@ -793,26 +797,13 @@ public final class ChromePreferenceKeys {
     public static final String PRIVACY_IN_SAMPLE_FOR_CRASHES =
             "Chrome.Privacy.InSampleForCrashReporting";
 
-    // TODO(b/483043192): Remove this preference once metrics reporting migration is complete.
     public static final String PRIVACY_METRICS_REPORTING_PERMITTED_BY_USER =
             "Chrome.Privacy.UsageAndCrashReportingPermittedByUser";
 
-    // TODO(b/483043192): Remove this preference once metrics reporting migration is complete.
     public static final String PRIVACY_METRICS_REPORTING_PERMITTED_BY_POLICY =
             "Chrome.Privacy.UsageAndCrashReportingPermittedByPolicy";
 
-    /**
-     * The metrics reporting level as set by the user. Value is from {@link
-     * org.chromium.components.metrics.MetricsReportingLevel}.
-     */
-    public static final String PRIVACY_METRICS_REPORTING_LEVEL =
-            "Chrome.Privacy.MetricsReportingLevel";
-
-    /** Whether metrics reporting is disabled by policy. */
-    public static final String PRIVACY_METRICS_REPORTING_DISABLED_BY_POLICY =
-            "Chrome.Privacy.MetricsReportingDisabledByPolicy";
-
-    /** Whether to use metrics consent restructure. */
+    /** Whether to use metrics choice restructure. */
     public static final String PRIVACY_SHOULD_USE_METRICS_CHOICE_RESTRUCTURE =
             "Chrome.Privacy.ShouldUseMetricsChoiceRestructure";
 
@@ -1202,6 +1193,7 @@ public final class ChromePreferenceKeys {
                 CONTEXT_MENU_OPEN_IMAGE_IN_EPHEMERAL_TAB_CLICKED,
                 CONTEXT_MENU_OPEN_IN_EPHEMERAL_TAB_CLICKED,
                 CONTEXT_MENU_SEARCH_IMAGE_WITH_GOOGLE_LENS_CLICKED,
+                CONTEXT_MENU_SEARCH_TAB_WITH_GOOGLE_LENS_CLICKED,
                 CONTEXT_MENU_SHOP_IMAGE_WITH_GOOGLE_LENS_CLICKED,
                 CROSS_DEVICE_IMPORTED_BOTTOM_OMNIBOX,
                 CROSS_DEVICE_IMPORTED_ALL_SETTINGS,
@@ -1316,8 +1308,6 @@ public final class ChromePreferenceKeys {
                 PRIVACY_IN_SAMPLE_FOR_CRASHES,
                 PRIVACY_METRICS_REPORTING_PERMITTED_BY_USER,
                 PRIVACY_METRICS_REPORTING_PERMITTED_BY_POLICY,
-                PRIVACY_METRICS_REPORTING_LEVEL,
-                PRIVACY_METRICS_REPORTING_DISABLED_BY_POLICY,
                 PRIVACY_SHOULD_USE_METRICS_CHOICE_RESTRUCTURE,
                 PROMO_IS_DISMISSED.pattern(),
                 PROMO_TIMES_SEEN.pattern(),

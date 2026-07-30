@@ -4,7 +4,6 @@
 
 #include "chrome/browser/ui/views/bookmarks/saved_tab_groups/saved_tab_group_drag_data.h"
 
-#include <memory>
 #include <string>
 
 #include "base/pickle.h"

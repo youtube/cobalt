@@ -358,13 +358,6 @@ void RootCompositorFrameSinkImpl::SetDisplayVisible(bool visible) {
   display_->SetVisible(visible);
 }
 
-#if BUILDFLAG(IS_WIN)
-void RootCompositorFrameSinkImpl::DisableSwapUntilResize(
-    DisableSwapUntilResizeCallback callback) {
-  display_->DisableSwapUntilResize(std::move(callback));
-}
-#endif
-
 void RootCompositorFrameSinkImpl::Resize(const gfx::Size& size) {
   if (!display_->resize_based_on_root_surface())
     display_->Resize(size);
@@ -449,7 +442,8 @@ RootCompositorFrameSinkImpl::GetSupportedFrameIntervals() {
         display_frame_interval_);
   }
 
-  return {display_frame_interval_, display_frame_interval_ * 2};
+  return BeginFrameSource::GetDefaultSupportedFrameIntervals(
+      display_frame_interval_);
 }
 
 void RootCompositorFrameSinkImpl::UpdateVSyncParameters() {
@@ -533,12 +527,10 @@ void RootCompositorFrameSinkImpl::SetSupportedRefreshRates(
     exact_supported_refresh_rates_[interval] = rate;
   }
 
-#if BUILDFLAG(IS_ANDROID)
   if (external_begin_frame_source_) {
     external_begin_frame_source_->SetSupportedRefreshRates(
         exact_supported_refresh_rates_);
   }
-#endif
 
   UpdateFrameIntervalDeciderSettings();
 }

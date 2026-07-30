@@ -2292,7 +2292,7 @@ void UserSessionManager::ShowNotificationsIfNeeded(Profile* profile) {
       ->MaybeShowNotificationOnLogin();
 
   policy::DeviceCommandQueryGeolocationJob::
-      ShowLocationReportedNotificationIfNeeded();
+      ShowLocationReportedNotificationIfNeeded(&local_state_.get());
 
   // Show a notification about ADB sideloading policy change if applicable.
   browser_policy_connector_ash_->GetAdbSideloadingAllowanceModePolicyHandler()

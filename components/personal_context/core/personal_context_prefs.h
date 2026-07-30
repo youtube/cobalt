@@ -9,8 +9,11 @@ class PrefRegistrySimple;
 
 namespace personal_context::prefs {
 
-inline constexpr char kPersonalContextInAutofillNoticeShouldBeShown[] =
-    "autofill.personal_context.notice_should_be_shown";
+inline constexpr char kPersonalContextAmbientAutofillNoticeShouldBeShown[] =
+    "autofill.personal_context.ambient_autofill_notice_should_be_shown";
+
+inline constexpr char kPersonalContextAtMemoryNoticeShouldBeShown[] =
+    "autofill.personal_context.at_memory_notice_should_be_shown";
 
 // Represents the user-visible toggle in Autofill settings. Note that this only
 // represents the settings toggle, which is only one of multiple conditions for

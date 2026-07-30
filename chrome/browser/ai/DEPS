@@ -4,4 +4,5 @@
 
 include_rules = [
   "+components/on_device_ai",
+  "+services/passage_embeddings/public/mojom",
 ]

@@ -71,7 +71,7 @@ PageNodeImpl::PageNodeImpl(base::WeakPtr<content::WebContents> web_contents,
                            const GURL& visible_url,
                            PagePropertyFlags initial_properties,
                            base::TimeTicks visibility_change_time,
-                           const perfetto::NamedTrack& tracing_track)
+                           const perfetto::Track& tracing_track)
     : web_contents_(std::move(web_contents)),
       page_token_(page_token),
       frames_track_("Frames", 0, tracing_track),

@@ -9,9 +9,9 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/actions/chrome_actions.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/side_panel/side_panel_action_callback.h"
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -30,9 +30,9 @@
 namespace extensions {
 
 ExtensionSidePanelManager::ExtensionSidePanelManager(
-    Browser* browser,
+    BrowserWindowInterface* browser,
     SidePanelRegistry* registry)
-    : profile_(browser->profile()),
+    : profile_(browser->GetProfile()),
       browser_(browser),
       tab_interface_(nullptr),
       registry_(registry),
@@ -95,7 +95,7 @@ void ExtensionSidePanelManager::MaybeCreateActionItemForExtension(
 
   actions::ActionId extension_action_id =
       GetOrCreateActionIdForExtension(extension);
-  BrowserActions* browser_actions = browser_->browser_actions();
+  BrowserActions* browser_actions = browser_->GetActions();
   actions::ActionItem* extension_action_item =
       actions::ActionManager::Get().FindAction(
           extension_action_id, browser_actions->root_action_item());
@@ -134,7 +134,7 @@ void ExtensionSidePanelManager::MaybeRemoveActionItemForExtension(
     const Extension* extension) {
   if (browser_ && extension->permissions_data()->HasAPIPermission(
                       mojom::APIPermissionID::kSidePanel)) {
-    BrowserActions* browser_actions = browser_->browser_actions();
+    BrowserActions* browser_actions = browser_->GetActions();
     std::optional<actions::ActionId> extension_action_id =
         actions::ActionIdMap::StringToActionId(
             SidePanelEntry::Key(SidePanelEntry::Id::kExtension, extension->id())

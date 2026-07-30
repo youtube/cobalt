@@ -19,7 +19,7 @@ bool IsProtectedUrlV2(const GURL& url) {
   return false;
 }
 
-const std::u16string GetPageContextShouldDetachScriptV2() {
+std::u16string GetPageContextShouldDetachScriptV2() {
   return kShouldDetachPageContextScript;
 }
 

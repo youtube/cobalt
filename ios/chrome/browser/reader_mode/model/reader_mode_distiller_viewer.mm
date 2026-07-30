@@ -51,7 +51,8 @@ void ReaderModeDistillerViewer::OnArticleDistillationUpdated(
     const dom_distiller::ArticleDistillationUpdate& article_update) {}
 
 void ReaderModeDistillerViewer::OnDistillerFinished(
-    std::unique_ptr<dom_distiller::DistilledArticleProto> distilled_article) {
+    std::unique_ptr<dom_distiller::DistilledArticleProto> distilled_article,
+    dom_distiller::DistillationParseResult /*result*/) {
   OnArticleReady(distilled_article.get());
 }
 

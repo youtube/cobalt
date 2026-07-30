@@ -18,6 +18,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory_coordinator/memory_coordinator_features.h"
+#include "base/memory_coordinator/traits.h"
 #include "base/memory_coordinator/utils.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/checked_math.h"
@@ -259,6 +260,18 @@ bool CompressProgramBinaries() {
 #endif  // !BUILDFLAG(IS_ANDROID)
 }
 
+constexpr base::MemoryConsumerTraits kMemoryProgramCacheTraits(
+    // Default capacity is small, under 10MB.
+    base::MemoryConsumerTraits::EstimatedMemoryUsage::kSmall,
+    // Evicting entries requires traversing the LRU cache.
+    base::MemoryConsumerTraits::ReleaseMemoryCost::kRequiresTraversal,
+    // Shaders can be re-compiled and re-linked if evicted.
+    base::MemoryConsumerTraits::InformationRetention::kLossless,
+    // Asynchronous since AsyncMemoryConsumerRegistration is used.
+    base::MemoryConsumerTraits::ExecutionType::kAsynchronous,
+    // Compiling and linking shaders is highly CPU intensive.
+    base::MemoryConsumerTraits::RecreateMemoryCost::kExpensive);
+
 }  // namespace
 
 MemoryProgramCache::MemoryProgramCache(
@@ -276,7 +289,7 @@ MemoryProgramCache::MemoryProgramCache(
       use_shader_cache_shm_count_(use_shader_cache_shm_count),
       memory_consumer_registration_(
           "MemoryProgramCache",
-          std::nullopt,  // TODO(crbug.com/489671163): Add traits.
+          kMemoryProgramCacheTraits,
           this,
           base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled),
       current_max_size_bytes_(max_cache_size_bytes) {}

@@ -628,10 +628,10 @@ void WebstorePrivateBeginInstallWithManifest3Function::OnInstallStatusCheckDone(
                                 OnRequestPromptDone,
                             this),
         dummy_extension_.get(), &icon_,
-        std::make_unique<ExtensionInstallPrompt::Prompt>(
+        std::make_unique<InstallPromptData>(
             install_status == kCanRequest
-                ? ExtensionInstallPrompt::EXTENSION_REQUEST_PROMPT
-                : ExtensionInstallPrompt::EXTENSION_PENDING_REQUEST_PROMPT),
+                ? InstallPromptData::EXTENSION_REQUEST_PROMPT
+                : InstallPromptData::EXTENSION_PENDING_REQUEST_PROMPT),
         ExtensionInstallPrompt::GetDefaultShowDialogCallback());
   } else {
     ReportWebStoreInstallEsbAllowlistParameter(details().esb_allowlist);
@@ -772,8 +772,8 @@ void WebstorePrivateBeginInstallWithManifest3Function::
           ->GetSupervisedUserExtensionsDelegate();
   CHECK(supervised_user_extensions_delegate);
 
-  auto prompt = std::make_unique<ExtensionInstallPrompt::Prompt>(
-      ExtensionInstallPrompt::EXTENSION_PARENT_APPROVAL_PROMPT);
+  auto prompt = std::make_unique<InstallPromptData>(
+      InstallPromptData::EXTENSION_PARENT_APPROVAL_PROMPT);
   prompt->AddObserver(
       supervised_user_extensions_delegate->GetInstallPromptObserver());
 
@@ -1152,8 +1152,8 @@ void WebstorePrivateBeginInstallWithManifest3Function::
 
 void WebstorePrivateBeginInstallWithManifest3Function::ShowInstallDialog(
     content::WebContents* contents) {
-  auto prompt = std::make_unique<ExtensionInstallPrompt::Prompt>(
-      ExtensionInstallPrompt::INSTALL_PROMPT);
+  auto prompt =
+      std::make_unique<InstallPromptData>(InstallPromptData::INSTALL_PROMPT);
 
   if (!dummy_extension_->is_theme()) {
     auto* supervised_user_extensions_delegate =

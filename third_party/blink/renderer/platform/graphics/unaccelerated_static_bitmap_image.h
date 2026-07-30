@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_UNACCELERATED_STATIC_BITMAP_IMAGE_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_UNACCELERATED_STATIC_BITMAP_IMAGE_H_
 
+#include "base/functional/function_ref.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
@@ -26,6 +27,11 @@ class PLATFORM_EXPORT UnacceleratedStaticBitmapImage final
   static scoped_refptr<UnacceleratedStaticBitmapImage> Create(
       PaintImage,
       ImageOrientation orientation = ImageOrientationEnum::kDefault);
+  static scoped_refptr<StaticBitmapImage> CreateFromRaster(
+      const gfx::Size& size,
+      base::FunctionRef<void(cc::PaintCanvas&)> draw_callback,
+      scoped_refptr<const cc::AnimatedImageFrameIndexMap>
+          animated_image_frame_index_map);
 
   bool IsOpaque() override;
 

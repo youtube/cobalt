@@ -191,11 +191,16 @@ TEST_F(ReadAloudServiceTest, DistillPageAndArticleFailure) {
 
   // Simulate DomDistiller finishing distillation with failure (no pages).
   dom_distiller::DistilledArticleProto proto;
+  delegate_ptr->OnDistillationFailed(
+      dom_distiller::DistillationParseResult::kContentTooShort);
   delegate_ptr->OnArticleReady(&proto);
 
   EXPECT_EQ(nullptr, service()->GetViewerHandleForTesting());
   histograms.ExpectTotalCount("ReadAloud.Distillation.Duration", 1);
   histograms.ExpectUniqueSample("ReadAloud.Distillation.Success", false, 1);
+  histograms.ExpectUniqueSample(
+      "ReadAloud.Distillation.FailureReason",
+      dom_distiller::DistillationParseResult::kContentTooShort, 1);
 }
 
 TEST_F(ReadAloudServiceTest, OnArticleUpdated) {

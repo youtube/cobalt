@@ -6,8 +6,10 @@
 
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/rand_util.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
+#include "base/uuid.h"
 #include "components/critical_actions/core/browser/critical_action_types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -34,47 +36,52 @@ class CriticalActionBackendTest : public testing::Test {
 };
 
 TEST_F(CriticalActionBackendTest, InitBackend) {
-  EXPECT_TRUE(backend_->Init());
+  backend_->Init();
   EXPECT_TRUE(base::PathExists(db_path_));
 }
 
 TEST_F(CriticalActionBackendTest, CallBeforeInitReturnsGracefully) {
-  // Database is not initialized. Operations should return gracefully without
-  // crashing.
+  const std::string action_id =
+      base::Uuid::GenerateRandomV4().AsLowercaseString();
   CriticalActionEntry entry;
-  entry.critical_action_id = "test-uuid";
+  entry.critical_action_id = action_id;
   entry.timestamp = base::Time::Now();
   entry.action_type = ActionType::kFormFill;
 
-  EXPECT_FALSE(backend_->AddCriticalAction(entry));
-  EXPECT_FALSE(backend_->GetCriticalAction("test-uuid").has_value());
-  EXPECT_FALSE(backend_->DeleteCriticalAction("test-uuid"));
-  EXPECT_FALSE(backend_->DeleteCriticalActionsInTimeRange(base::Time::Now(),
-                                                          base::Time::Now()));
+  // Database is not initialized. All the operations should return gracefully
+  // without crashing.
+  backend_->AddCriticalAction(entry);
+  EXPECT_FALSE(backend_->GetCriticalAction(action_id).has_value());
+  backend_->DeleteCriticalAction(action_id);
+  backend_->DeleteCriticalActionsInTimeRange(base::Time::Now(),
+                                             base::Time::Now());
+  backend_->DeleteCriticalActionsByVisitIds({123, 456});
 }
 
 TEST_F(CriticalActionBackendTest, ForwardCallsToDatabase) {
-  ASSERT_TRUE(backend_->Init());
+  backend_->Init();
 
+  const std::string action_id =
+      base::Uuid::GenerateRandomV4().AsLowercaseString();
   CriticalActionEntry entry;
-  entry.critical_action_id = "test-uuid";
+  entry.critical_action_id = action_id;
   entry.timestamp = base::Time::Now();
-  entry.visit_id = 123;
-  entry.conversation_id = "conversation-123";
-  entry.actor_task_id = "task-456";
+  entry.visit_id = base::RandIntInclusive(1, 1000000);
+  entry.conversation_id = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  entry.actor_task_id = base::Uuid::GenerateRandomV4().AsLowercaseString();
   entry.action_type = ActionType::kFormFill;
   entry.url = GURL("https://example.com");
   entry.metadata = "{}";
 
   // Verify basic crud operations are successfully forwarded.
-  EXPECT_TRUE(backend_->AddCriticalAction(entry));
+  backend_->AddCriticalAction(entry);
 
-  auto retrieved = backend_->GetCriticalAction("test-uuid");
+  auto retrieved = backend_->GetCriticalAction(action_id);
   ASSERT_TRUE(retrieved.has_value());
   EXPECT_EQ(*retrieved, entry);
 
-  EXPECT_TRUE(backend_->DeleteCriticalAction("test-uuid"));
-  EXPECT_FALSE(backend_->GetCriticalAction("test-uuid").has_value());
+  backend_->DeleteCriticalAction(action_id);
+  EXPECT_FALSE(backend_->GetCriticalAction(action_id).has_value());
 }
 
 }  // namespace critical_actions

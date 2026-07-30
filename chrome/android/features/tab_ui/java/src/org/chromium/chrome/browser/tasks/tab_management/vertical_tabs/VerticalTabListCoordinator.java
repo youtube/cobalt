@@ -231,10 +231,6 @@ public class VerticalTabListCoordinator {
         recyclerView.setLayoutManager(layoutManager);
         recyclerView.setAdapter(adapter);
         recyclerView.setupCustomItemAnimator(/* useClipAnimations= */ true);
-        mSpineDecoration =
-                new VerticalTabGroupSpineDecoration(
-                        activity, recyclerView::postInvalidate, mModelList, tabModelSelector);
-        recyclerView.addItemDecoration(mSpineDecoration);
         recyclerView.setVisibility(View.VISIBLE);
 
         // Create the gesture detector to catch long-presses on VT empty space.
@@ -290,9 +286,17 @@ public class VerticalTabListCoordinator {
                         // up to the parent (recyclerView), causing
                         // recyclerView.setOnContextClickListener to be skipped.
                         if ((e.getButtonState() & MotionEvent.BUTTON_SECONDARY) != 0) {
-                            handleContextMenuInteraction(
-                                    activity, recyclerView, e.getX(), e.getY());
-                            return true;
+                            View childView = recyclerView.findChildViewUnder(e.getX(), e.getY());
+
+                            if (childView != null) {
+                                handleContextMenuInteraction(
+                                        activity, recyclerView, e.getX(), e.getY());
+                                return true;
+                            }
+                            // For empty space context menus, we let
+                            // recyclerView.setOnContextClickListener call
+                            // #handleContextMenuInteraction instead of calling it here.
+                            return false;
                         }
 
                         // Feed all touch events to the detector. ACTION_DOWN schedules a long-press
@@ -332,8 +336,6 @@ public class VerticalTabListCoordinator {
 
         // Handles long-presses for tab item/group context menus. long-presses for empty space
         // context menus are handled by the gesture detector.
-        // TODO(crbug.com/521982129): Context menus are displaying horizontal strip text
-        // ("... to the right") and need layout updates for vertical specific UI.
         touchHelperCallback.setOnLongPressTabItemEventListener(
                 (tabId, cardView) -> {
                     // Drop the incorrect cardView sent by the orchestrator timer thread.
@@ -358,10 +360,16 @@ public class VerticalTabListCoordinator {
                 touchHelperCallback.createMouseDragDetector(itemTouchHelper));
 
         itemTouchHelper.attachToRecyclerView(recyclerView);
+        touchHelperCallback.setRecyclerView(recyclerView);
 
         recyclerView.addOnItemTouchListener(
                 VerticalTabListItemTouchHelperCallback.createAfterOnItemTouchListener(
                         touchHelperCallback));
+
+        mSpineDecoration =
+                new VerticalTabGroupSpineDecoration(
+                        activity, recyclerView::postInvalidate, mModelList, tabModelSelector);
+        recyclerView.addItemDecoration(mSpineDecoration);
 
         // TODO(crbug.com/509226293):
         // Attach ItemTouchHelper for vertical row dragging & reordering.
@@ -393,7 +401,7 @@ public class VerticalTabListCoordinator {
                                 v -> verticalTabsActionDelegate.openHubPane(PaneId.TAB_GROUPS))
                         .with(
                                 VerticalTabListProperties.ON_SEARCH_CLICK_LISTENER,
-                                v -> verticalTabsActionDelegate.openHubPane(PaneId.TAB_SWITCHER))
+                                v -> verticalTabsActionDelegate.openTabSearch())
                         .with(
                                 VerticalTabListProperties.ON_NEW_TAB_CLICK_LISTENER,
                                 v -> handleNewTabButtonClick())
@@ -638,15 +646,11 @@ public class VerticalTabListCoordinator {
      */
     private boolean handleContextMenuInteraction(
             Activity activity, RecyclerView recyclerView, float localX, float localY) {
-        // TODO(crbug.com/509226293): Check with UX on the exact menu anchoring behavior
-        // we want for Vertical Tabs. Investigate if changing verticalOverlapAnchor to true
-        // in TabGroupContextMenuCoordinator allows the menu to open directly at the
-        // touch/click coordinate on both tablets and desktop.
         View childView = recyclerView.findChildViewUnder(localX, localY);
 
         // If childView is null, the coordinates landed on an empty space. Launch empty space menu.
         if (childView == null) {
-            showEmptySpaceContextMenu(activity, recyclerView, localX, localY);
+            showEmptySpaceContextMenu(activity, localX, localY);
             return true;
         }
         int position = recyclerView.getChildAdapterPosition(childView);
@@ -726,19 +730,8 @@ public class VerticalTabListCoordinator {
         mTabContextMenuCoordinator.showMenu(rectProvider, anchorInfo);
     }
 
-    private void showEmptySpaceContextMenu(
-            Activity activity, RecyclerView recyclerView, float localX, float localY) {
-        // Get the top-left edge pos of the scrollable recycler view.
-        int[] recyclerViewPos = new int[2];
-        recyclerView.getLocationInWindow(recyclerViewPos);
-
-        // Calculate window-relative anchor coordinates.
-        int windowX = recyclerViewPos[0] + (int) localX;
-        int windowY = recyclerViewPos[1] + (int) localY;
-
-        // Build a tight 1x1 bounding box directly underneath the pointer location.
-        Rect anchorRect = new Rect(windowX, windowY, windowX + 1, windowY + 1);
-        RectProvider rectProvider = new RectProvider(anchorRect);
+    private void showEmptySpaceContextMenu(Activity activity, float localX, float localY) {
+        RectProvider rectProvider = calculateTouchAnchor(localX, localY);
 
         if (mTabStripContextMenuCoordinator == null) {
             mTabStripContextMenuCoordinator =
@@ -755,16 +748,35 @@ public class VerticalTabListCoordinator {
     }
 
     private RectProvider getAnchorRectProvider(View itemView) {
+        if (mLastTouchPoint.x != 0 || mLastTouchPoint.y != 0) {
+            return calculateTouchAnchor(mLastTouchPoint.x, mLastTouchPoint.y);
+        }
+
+        // Fallback: Create a precise bounding box wrapped around the tab item.
         int[] viewPos = new int[2];
         itemView.getLocationInWindow(viewPos);
-
-        // Create a precise bounding box wrapped around the tab item.
         Rect anchorRect =
                 new Rect(
                         viewPos[0],
                         viewPos[1],
                         viewPos[0] + itemView.getWidth(),
                         viewPos[1] + itemView.getHeight());
+        return new RectProvider(anchorRect);
+    }
+
+    private RectProvider calculateTouchAnchor(float localX, float localY) {
+        // Get the top-left edge pos of the scrollable recycler view relative to the Android
+        // application window screen.
+        int[] recyclerViewPos = new int[2];
+        mRecyclerView.getLocationInWindow(recyclerViewPos);
+
+        // Calculate window-relative anchor coordinates, where localX and localY are relative to the
+        // recycler view.
+        int windowX = recyclerViewPos[0] + (int) localX;
+        int windowY = recyclerViewPos[1] + (int) localY;
+
+        // Build a precise 1x1 bounding box right under the cursor/pointer.
+        Rect anchorRect = new Rect(windowX, windowY, windowX + 1, windowY + 1);
         return new RectProvider(anchorRect);
     }
 

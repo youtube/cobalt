@@ -431,6 +431,62 @@ TEST_F(URLUtilTest, PotentiallyDanglingMarkup) {
   }
 }
 
+TEST_F(URLUtilTest, DataURLWhitespaceHandlingIsSchemeCaseInsensitive) {
+  // Whitespace removal is skipped for data: URLs so that the body is
+  // preserved verbatim. Scheme matching is ASCII case-insensitive, so the
+  // skip must apply regardless of the case used to spell the scheme, and
+  // regardless of any tab/CR/LF preceding it.
+  struct {
+    const char* input;
+    const char* canonicalized;
+    bool potentially_dangling_markup;
+  } cases[] = {
+      {"data:text/html,a\nb", "data:text/html,a%0Ab", false},
+      {"DATA:text/html,a\nb", "data:text/html,a%0Ab", false},
+      {"Data:text/html,a\nb", "data:text/html,a%0Ab", false},
+      {"dAtA:text/html,a\nb", "data:text/html,a%0Ab", false},
+      {"data:text/html,<a\nb", "data:text/html,<a%0Ab", false},
+      {"DATA:text/html,<a\nb", "data:text/html,<a%0Ab", false},
+      {"\tdata:text/html,a\nb", "data:text/html,a%0Ab", false},
+      {"\tDATA:text/html,a\nb", "data:text/html,a%0Ab", false},
+      {"\r\n\tdata:text/html,<a\nb", "data:text/html,<a%0Ab", false},
+      // Inputs that merely contain "data:" later still have whitespace
+      // removed as usual.
+      {"dat\ta:text/html,<ab", "data:text/html,<ab", true},
+  };
+
+  for (const auto& test : cases) {
+    SCOPED_TRACE(test.input);
+
+    // Direct canonicalization.
+    {
+      Parsed parsed;
+      std::string out;
+      StdStringCanonOutput output(&out);
+      ASSERT_TRUE(Canonicalize(test.input, true, nullptr, &output, &parsed));
+      output.Complete();
+      EXPECT_EQ(test.canonicalized, out);
+      EXPECT_EQ(test.potentially_dangling_markup,
+                parsed.potentially_dangling_markup);
+    }
+
+    // Resolution against a base URL.
+    {
+      const char* base = "https://example.com/";
+      Parsed base_parsed = ParseStandardUrl(base);
+      Parsed parsed;
+      std::string out;
+      StdStringCanonOutput output(&out);
+      ASSERT_TRUE(ResolveRelative(base, base_parsed, test.input, nullptr,
+                                  &output, &parsed));
+      output.Complete();
+      EXPECT_EQ(test.canonicalized, out);
+      EXPECT_EQ(test.potentially_dangling_markup,
+                parsed.potentially_dangling_markup);
+    }
+  }
+}
+
 TEST_F(URLUtilTest, PotentiallyDanglingMarkupAfterReplacement) {
   // Parse a URL with potentially dangling markup.
   Parsed original_parsed;

@@ -13,6 +13,7 @@
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/public/glic_passkeys.h"
 #include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
+#include "chrome/browser/glic/service/glic_instance_impl.h"
 #include "chrome/browser/glic/service/glic_invoke_handler.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_helper_metrics.h"
 #include "chrome/browser/glic/test_support/glic_browser_test.h"
@@ -215,7 +216,8 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeCallsOnClientConnected) {
   // Verify that there is a connected web client when our callback fires.
   base::WeakPtr<GlicInstance> instance = connected_future.Get();
   ASSERT_TRUE(instance);
-  EXPECT_TRUE(instance->host().IsWebClientConnected());
+  auto* instance_impl = static_cast<GlicInstanceImpl*>(instance.get());
+  EXPECT_TRUE(instance_impl->host().IsWebClientConnected());
 
   // Verify that the passed instance is the correct one.
   EXPECT_EQ(instance.get(), GetInstanceForTab(tab));
@@ -540,6 +542,9 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithPromptsSmokeTest) {
   ASSERT_OK(WaitForGlicClient(instance));
 }
 
+// TODO(crbug.com/528472503): Re-enable this test on Android once flakiness is
+// fixed.
+#if !BUILDFLAG(IS_ANDROID)
 IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest,
                        InvokeWithClipboardPolicySuccess) {
   tabs::TabInterface* tab = CreateAndActivateTab(GURL("about:blank"));
@@ -575,6 +580,7 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest,
   EXPECT_TRUE(success_future.Wait());
   EXPECT_TRUE(GetInstanceForTab(tab));
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithPolicyCheckNone) {
   tabs::TabInterface* tab = CreateAndActivateTab(GURL("about:blank"));
@@ -739,6 +745,9 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTestWithoutActor,
   EXPECT_EQ(error_future.Get(), GlicInvokeError::kInvalidConfiguration);
 }
 
+// TODO(crbug.com/529441715): Re-enable this test on Android once flakiness is
+// fixed.
+#if !BUILDFLAG(IS_ANDROID)
 IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithInvalidContextData) {
   tabs::TabInterface* tab = CreateAndActivateTab(GURL("about:blank"));
   ASSERT_TRUE(content::NavigateToURL(tab->GetContents(), GURL("about:blank")));
@@ -767,6 +776,7 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithInvalidContextData) {
             GlicInvokeError::kAdditionalContextNoClipboardMetadata);
   EXPECT_TRUE(GetInstanceForTab(tab));
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithTabsToPin) {
   tabs::TabInterface* tab1 = GetTabListInterface()->GetActiveTab();
   tabs::TabInterface* tab2 = CreateUserInitiatedTab(GURL("about:blank"));

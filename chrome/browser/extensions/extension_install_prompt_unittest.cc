@@ -82,7 +82,7 @@ class ExtensionInstallPromptUnitTest : public testing::Test {
 using ShowDialogTestFuture =
     base::test::TestFuture<std::unique_ptr<ExtensionInstallPromptShowParams>,
                            ExtensionInstallPrompt::DoneCallback,
-                           std::unique_ptr<ExtensionInstallPrompt::Prompt>>;
+                           std::unique_ptr<InstallPromptData>>;
 
 }  // namespace
 
@@ -107,8 +107,8 @@ TEST_F(ExtensionInstallPromptUnitTest, PromptShowsPermissionWarnings) {
 
   prompt.ShowDialog(
       ExtensionInstallPrompt::DoneCallback(), extension.get(), nullptr,
-      std::make_unique<ExtensionInstallPrompt::Prompt>(
-          ExtensionInstallPrompt::PERMISSIONS_PROMPT),
+      std::make_unique<InstallPromptData>(
+          InstallPromptData::PERMISSIONS_PROMPT),
       std::move(permission_set), show_dialog_future.GetRepeatingCallback());
 
   auto [params, done_callback, install_prompt] = show_dialog_future.Take();

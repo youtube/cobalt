@@ -89,7 +89,7 @@ class TaskManagerViewTest : public InProcessBrowserTest {
     return GetView() ? GetView()->tab_table_.get() : nullptr;
   }
 
-  void PressKillButton() { GetView()->Accept(); }
+  void PressKillButton() { GetView()->AcceptDialog(); }
 
   void ClearStoredColumnSettings() const {
     PrefService* local_state = g_browser_process->local_state();

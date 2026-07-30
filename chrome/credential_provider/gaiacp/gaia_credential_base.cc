@@ -33,6 +33,7 @@
 #include "base/win/current_module.h"
 #include "base/win/ntsecapi_shim.h"
 #include "base/win/registry.h"
+#include "base/win/scoped_bstr.h"
 #include "base/win/scoped_com_initializer.h"
 #include "base/win/scoped_handle.h"
 #include "build/branding_buildflags.h"
@@ -950,7 +951,7 @@ CGaiaCredentialBase::~CGaiaCredentialBase() {
 
 bool CGaiaCredentialBase::AreCredentialsValid() const {
   return CanAttemptWindowsLogon() &&
-         IsWindowsPasswordValidForStoredUser(password_) == S_OK;
+         IsWindowsPasswordValidForStoredUser(password_.Get()) == S_OK;
 }
 
 bool CGaiaCredentialBase::CanAttemptWindowsLogon() const {
@@ -965,7 +966,8 @@ HRESULT CGaiaCredentialBase::IsWindowsPasswordValidForStoredUser(
   if (::SysStringLen(password) == 0)
     return S_FALSE;
   OSUserManager* manager = OSUserManager::Get();
-  return manager->IsWindowsPasswordValid(domain_, username_, password);
+  return manager->IsWindowsPasswordValid(domain_.Get(), username_.Get(),
+                                         password);
 }
 
 HRESULT CGaiaCredentialBase::GetStringValueImpl(DWORD field_id,
@@ -985,7 +987,7 @@ HRESULT CGaiaCredentialBase::GetStringValueImpl(DWORD field_id,
     }
     case FID_CURRENT_PASSWORD_FIELD: {
       hr = ::SHStrDupW(current_windows_password_.Length() > 0
-                           ? current_windows_password_
+                           ? current_windows_password_.Get()
                            : L"",
                        value);
       break;
@@ -1022,14 +1024,14 @@ HRESULT CGaiaCredentialBase::GetBitmapValueImpl(DWORD field_id,
 
 void CGaiaCredentialBase::ResetInternalState() {
   LOGFN(VERBOSE);
-  username_.Empty();
-  domain_.Empty();
+  username_.Reset();
+  domain_.Reset();
   wait_for_report_result_ = false;
 
-  SecurelyClearBuffer((BSTR)password_, password_.ByteLength());
-  password_.Empty();
+  SecurelyClearBuffer(password_.Get(), password_.ByteLength());
+  password_.Reset();
 
-  current_windows_password_.Empty();
+  current_windows_password_.Reset();
 
   SecurelyClearDictionaryValue(authentication_results_);
   needs_windows_password_ = false;
@@ -1046,7 +1048,7 @@ void CGaiaCredentialBase::ResetInternalState() {
     events_->SetFieldState(this, FID_FORGOT_PASSWORD_LINK, CPFS_HIDDEN);
     events_->SetFieldState(this, FID_CURRENT_PASSWORD_FIELD, CPFS_HIDDEN);
     events_->SetFieldString(this, FID_CURRENT_PASSWORD_FIELD,
-                            current_windows_password_);
+                            current_windows_password_.Get());
     events_->SetFieldSubmitButton(this, FID_SUBMIT, FID_DESCRIPTION);
     UpdateSubmitButtonInteractiveState();
   }
@@ -1208,8 +1210,7 @@ void CGaiaCredentialBase::DisplayErrorInUI(LONG status,
 HRESULT CGaiaCredentialBase::HandleAutologon(
     CREDENTIAL_PROVIDER_GET_SERIALIZATION_RESPONSE* cpgsr,
     CREDENTIAL_PROVIDER_CREDENTIAL_SERIALIZATION* cpcs) {
-  USES_CONVERSION;
-  LOGFN(VERBOSE) << "user-sid=" << get_sid().m_str;
+  LOGFN(VERBOSE) << "user-sid=" << get_sid().Get();
   DCHECK(cpgsr);
   DCHECK(cpcs);
 
@@ -1224,7 +1225,8 @@ HRESULT CGaiaCredentialBase::HandleAutologon(
   if (needs_windows_password_) {
     OSUserManager* manager = OSUserManager::Get();
     if (request_force_password_change_) {
-      HRESULT hr = manager->SetUserPassword(domain_, username_, password_);
+      HRESULT hr = manager->SetUserPassword(domain_.Get(), username_.Get(),
+                                            password_.Get());
       if (FAILED(hr)) {
         LOGFN(ERROR) << "SetUserPassword hr=" << putHR(hr);
         if (events_) {
@@ -1238,10 +1240,11 @@ HRESULT CGaiaCredentialBase::HandleAutologon(
       password_updated = true;
     } else {
       HRESULT hr =
-          IsWindowsPasswordValidForStoredUser(current_windows_password_);
+          IsWindowsPasswordValidForStoredUser(current_windows_password_.Get());
       if (hr == S_OK) {
-        hr = manager->ChangeUserPassword(domain_, username_,
-                                         current_windows_password_, password_);
+        hr = manager->ChangeUserPassword(domain_.Get(), username_.Get(),
+                                         current_windows_password_.Get(),
+                                         password_.Get());
 
         if (FAILED(hr)) {
           if (hr != HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED)) {
@@ -1250,7 +1253,7 @@ HRESULT CGaiaCredentialBase::HandleAutologon(
             return hr;
           }
           LOGFN(ERROR) << "Access was denied to ChangeUserPassword.";
-          password_ = current_windows_password_;
+          password_.Reset(::SysAllocString(current_windows_password_.Get()));
         } else {
           password_updated = true;
         }
@@ -1273,7 +1276,7 @@ HRESULT CGaiaCredentialBase::HandleAutologon(
   // so that a new password can be saved.
   if (password_updated) {
     HRESULT hr = PasswordRecoveryManager::Get()->ClearUserRecoveryPassword(
-        OLE2CW(get_sid()));
+        get_sid().Get());
     if (FAILED(hr))
       LOGFN(ERROR) << "ClearUserRecoveryPassword hr=" << putHR(hr);
   }
@@ -1283,7 +1286,7 @@ HRESULT CGaiaCredentialBase::HandleAutologon(
   DWORD cpus = 0;
   provider()->GetUsageScenario(&cpus);
   HRESULT hr = BuildCredPackAuthenticationBuffer(
-      domain_, get_username(), get_password(),
+      domain_.Get(), get_username().Get(), get_password().Get(),
       static_cast<CREDENTIAL_PROVIDER_USAGE_SCENARIO>(cpus), cpcs);
   if (FAILED(hr)) {
     LOGFN(ERROR) << "BuildCredPackAuthenticationBuffer hr=" << putHR(hr);
@@ -1299,7 +1302,7 @@ HRESULT CGaiaCredentialBase::HandleAutologon(
   PreventDenyAccessUpdate();
 
   // Restore user's access so that they can sign in.
-  hr = AssociatedUserValidator::Get()->RestoreUserAccess(OLE2W(get_sid()));
+  hr = AssociatedUserValidator::Get()->RestoreUserAccess(get_sid().Get());
   if (FAILED(hr) && hr != HRESULT_FROM_NT(STATUS_OBJECT_NAME_NOT_FOUND)) {
     LOGFN(ERROR) << "RestoreUserAccess hr=" << putHR(hr);
     ::CoTaskMemFree(cpcs->rgbSerialization);
@@ -1382,16 +1385,16 @@ void CGaiaCredentialBase::PreventDenyAccessUpdate() {
 
 // static
 BSTR CGaiaCredentialBase::AllocErrorString(UINT id) {
-  CComBSTR str(GetStringResource(id).c_str());
-  return str.Detach();
+  base::win::ScopedBstr str(GetStringResource(id).c_str());
+  return str.Release();
 }
 
 // static
 BSTR CGaiaCredentialBase::AllocErrorString(
     UINT id,
     const std::vector<std::wstring>& replacements) {
-  CComBSTR str(GetStringResource(id, replacements).c_str());
-  return str.Detach();
+  base::win::ScopedBstr str(GetStringResource(id, replacements).c_str());
+  return str.Release();
 }
 
 // static
@@ -1529,13 +1532,11 @@ HRESULT CGaiaCredentialBase::GetComboBoxValueAt(DWORD field_id,
 
 HRESULT CGaiaCredentialBase::SetStringValue(DWORD field_id,
                                             const wchar_t* psz) {
-  USES_CONVERSION;
-
   HRESULT hr = E_INVALIDARG;
   switch (field_id) {
     case FID_CURRENT_PASSWORD_FIELD:
       if (needs_windows_password_) {
-        current_windows_password_ = W2COLE(psz);
+        current_windows_password_.Reset(::SysAllocString(psz));
         UpdateSubmitButtonInteractiveState();
       }
       hr = S_OK;
@@ -1573,7 +1574,7 @@ bool CGaiaCredentialBase::CanProceedToLogonStub(wchar_t** status_text) {
   }
 
   if (!can_proceed_to_logon_stub) {
-    ::SHStrDupW(OLE2CW(error_message), status_text);
+    ::SHStrDupW(error_message, status_text);
     ::SysFreeString(error_message);
   }
 
@@ -1596,7 +1597,6 @@ HRESULT CGaiaCredentialBase::GetSerialization(
     CREDENTIAL_PROVIDER_CREDENTIAL_SERIALIZATION* cpcs,
     wchar_t** status_text,
     CREDENTIAL_PROVIDER_STATUS_ICON* status_icon) {
-  USES_CONVERSION;
   LOGFN(VERBOSE);
   DCHECK(status_text);
   DCHECK(status_icon);
@@ -1665,7 +1665,7 @@ HRESULT CGaiaCredentialBase::GetSerialization(
         if (FAILED(hr)) {
           std::wstring error_message(
               GetStringResource(IDS_FAILED_CREATE_LOGON_STUB_BASE));
-          ::SHStrDupW(OLE2CW(error_message.c_str()), status_text);
+          ::SHStrDupW(error_message.c_str(), status_text);
 
           *status_icon = CPSI_NONE;
           *cpgsr = CPGSR_NO_CREDENTIAL_FINISHED;
@@ -1984,7 +1984,6 @@ HRESULT CGaiaCredentialBase::ForkPerformPostSigninActionsStub(
 
 // static
 unsigned __stdcall CGaiaCredentialBase::WaitForLoginUI(void* param) {
-  USES_CONVERSION;
   DCHECK(param);
   std::unique_ptr<UIProcessInfo> uiprocinfo(
       reinterpret_cast<UIProcessInfo*>(param));
@@ -2001,11 +2000,11 @@ unsigned __stdcall CGaiaCredentialBase::WaitForLoginUI(void* param) {
 
   DCHECK(uiprocinfo.get());
 
-  CComBSTR status_text;
+  base::win::ScopedBstr status_text;
   DWORD exit_code;
   std::string json_result;
   HRESULT hr = WaitForLoginUIAndGetResult(uiprocinfo.get(), &json_result,
-                                          &exit_code, &status_text);
+                                          &exit_code, status_text.Receive());
   if (SUCCEEDED(hr)) {
     // Notify that the new user is created.
     // TODO(rogerta): Docs say this should not be called on a background
@@ -2014,12 +2013,13 @@ unsigned __stdcall CGaiaCredentialBase::WaitForLoginUI(void* param) {
     // suspect there could be a problem if this call races with a call to
     // CGaiaCredentialBase::Unadvise().
     std::wstring json_result16 = base::UTF8ToWide(json_result);
-    CComBSTR result_string(W2COLE(json_result16.c_str()));
+    base::win::ScopedBstr result_string(json_result16.c_str());
     SecurelyClearString(json_result16);
 
-    hr = uiprocinfo->credential->OnUserAuthenticated(result_string,
-                                                     &status_text);
-    SecurelyClearBuffer((BSTR)result_string, result_string.ByteLength());
+    status_text.Reset();
+    hr = uiprocinfo->credential->OnUserAuthenticated(result_string.Get(),
+                                                     status_text.Receive());
+    SecurelyClearBuffer(result_string.Get(), result_string.ByteLength());
   }
 
   SecurelyClearString(json_result);
@@ -2037,8 +2037,9 @@ unsigned __stdcall CGaiaCredentialBase::WaitForLoginUI(void* param) {
 
     // Either WaitForLoginUIAndGetResult did not fail or there should be an
     // error message to display.
-    DCHECK(sts == STATUS_SUCCESS || status_text != nullptr);
-    hr = uiprocinfo->credential->ReportError(sts, STATUS_SUCCESS, status_text);
+    DCHECK(sts == STATUS_SUCCESS || status_text.Get() != nullptr);
+    hr = uiprocinfo->credential->ReportError(sts, STATUS_SUCCESS,
+                                             status_text.Get());
     if (FAILED(hr))
       LOGFN(ERROR) << "uiprocinfo->credential->ReportError hr=" << putHR(hr);
   }
@@ -2232,13 +2233,13 @@ HRESULT CGaiaCredentialBase::ReportResult(
     // so that the PerformPostSigninActions process can correctly sign in to the
     // user account.
     authentication_results_->Set(
-        kKeySID, base::Value(base::WideToUTF8((BSTR)user_sid_)));
+        kKeySID, base::Value(base::WideToUTF8(user_sid_.Get())));
     authentication_results_->Set(kKeyDomain,
-                                 base::Value(base::WideToUTF8((BSTR)domain_)));
+                                 base::Value(base::WideToUTF8(domain_.Get())));
     authentication_results_->Set(
-        kKeyUsername, base::Value(base::WideToUTF8((BSTR)username_)));
+        kKeyUsername, base::Value(base::WideToUTF8(username_.Get())));
     authentication_results_->Set(
-        kKeyPassword, base::Value(base::WideToUTF8((BSTR)password_)));
+        kKeyPassword, base::Value(base::WideToUTF8(password_.Get())));
 
     std::wstring gaia_id = GetDictString(*authentication_results_, kKeyId);
     if (gaia_id.empty()) {
@@ -2258,18 +2259,18 @@ HRESULT CGaiaCredentialBase::ReportResult(
     // handle. Token handle is saved as empty here, so that if for any reason
     // forked process fails to save association, it will enforce re-auth due to
     // invalid token handle.
-    std::wstring sid = OLE2CW(user_sid_);
-    HRESULT hr = RegisterAssociation(sid, gaia_id, email, (BSTR)domain_,
-                                     (BSTR)username_, /*token_handle*/ L"");
+    std::wstring sid = user_sid_.Get();
+    HRESULT hr = RegisterAssociation(sid, gaia_id, email, domain_.Get(),
+                                     username_.Get(), /*token_handle*/ L"");
     if (FAILED(hr))
       return hr;
 
     // At this point the user and password stored in authentication_results_
     // should match what is stored in username_ and password_ so the
     // PerformPostSigninActions process can be forked.
-    CComBSTR status_text;
+    base::win::ScopedBstr status_text;
     hr = ForkPerformPostSigninActionsStub(*authentication_results_,
-                                          &status_text);
+                                          status_text.Receive());
     if (FAILED(hr))
       LOGFN(ERROR) << "ForkPerformPostSigninActionsStub hr=" << putHR(hr);
   }
@@ -2467,7 +2468,6 @@ HRESULT CGaiaCredentialBase::ValidateOrCreateUser(const base::DictValue& result,
 
 HRESULT CGaiaCredentialBase::OnUserAuthenticated(BSTR authentication_info,
                                                  BSTR* status_text) {
-  USES_CONVERSION;
   DCHECK(status_text);
   *status_text = nullptr;
 
@@ -2479,8 +2479,8 @@ HRESULT CGaiaCredentialBase::OnUserAuthenticated(BSTR authentication_info,
   // Convert the string to a base::Dictionary and add the calculated username
   // to it to be passed to the PerformPostSigninActions process.
   std::string json_string;
-  base::WideToUTF8(OLE2CW(authentication_info),
-                   ::SysStringLen(authentication_info), &json_string);
+  base::WideToUTF8(authentication_info, ::SysStringLen(authentication_info),
+                   &json_string);
 
   std::optional<base::DictValue> properties =
       base::JSONReader::ReadDict(json_string, base::JSON_ALLOW_TRAILING_COMMAS);
@@ -2536,7 +2536,11 @@ HRESULT CGaiaCredentialBase::OnUserAuthenticated(BSTR authentication_info,
     // The value in |dict| is now known to contain everything that is needed
     // from the GLS. Try to validate the user that wants to sign in and then
     // add additional information into |dict| as needed.
-    hr = ValidateOrCreateUser(*properties, &domain_, &username_, &user_sid_,
+    domain_.Reset();
+    username_.Reset();
+    user_sid_.Reset();
+    hr = ValidateOrCreateUser(*properties, domain_.Receive(),
+                              username_.Receive(), user_sid_.Receive(),
                               status_text);
     if (FAILED(hr)) {
       // In case an error text isn't set in any failure path, have one to use as
@@ -2550,7 +2554,7 @@ HRESULT CGaiaCredentialBase::OnUserAuthenticated(BSTR authentication_info,
 
     authentication_results_ = std::move(properties);
     // Update the info whether the user is an AD joined user or local user.
-    std::wstring sid = OLE2CW(user_sid_);
+    std::wstring sid = user_sid_.Get();
     authentication_results_->Set(
         kKeyIsAdJoinedUser,
         base::Value(OSUserManager::Get()->IsUserDomainJoined(sid) ? "true"
@@ -2561,12 +2565,12 @@ HRESULT CGaiaCredentialBase::OnUserAuthenticated(BSTR authentication_info,
   // TODO(crbug.com/41466886) Use downscoped token here.
   std::wstring access_token =
       GetDictString(*authentication_results_, kKeyAccessToken);
-  GetUserConfigsIfStale(OLE2CW(user_sid_), gaia_id, access_token);
+  GetUserConfigsIfStale(user_sid_.Get(), gaia_id, access_token);
   SecurelyClearString(access_token);
 
   std::wstring local_password =
       GetDictString(*authentication_results_, kKeyPassword);
-  password_ = ::SysAllocString(local_password.c_str());
+  password_.Reset(::SysAllocString(local_password.c_str()));
   SecurelyClearString(local_password);
 
   // Disable the submit button. Either the signon will succeed with the given
@@ -2585,8 +2589,8 @@ HRESULT CGaiaCredentialBase::OnUserAuthenticated(BSTR authentication_info,
     // Pre-fill the old password if possible so that the sign in will proceed to
     // automatically update the password.
     if (SUCCEEDED(RecoverWindowsPasswordIfPossible(&old_windows_password))) {
-      current_windows_password_ =
-          ::SysAllocString(old_windows_password.c_str());
+      current_windows_password_.Reset(
+          ::SysAllocString(old_windows_password.c_str()));
       SecurelyClearString(old_windows_password);
     } else {
       // Fall-through to continue with auto sign in and try the recovered
@@ -2608,13 +2612,13 @@ HRESULT CGaiaCredentialBase::OnUserAuthenticated(BSTR authentication_info,
   // can't actually save the info until the user's profile is created, which
   // happens on first logon.
   return provider_->OnUserAuthenticated(static_cast<IGaiaCredential*>(this),
-                                        username_, password_, user_sid_, TRUE);
+                                        username_.Get(), password_.Get(),
+                                        user_sid_.Get(), TRUE);
 }
 
 HRESULT CGaiaCredentialBase::ReportError(LONG status,
                                          LONG substatus,
                                          BSTR status_text) {
-  USES_CONVERSION;
   LOGFN(VERBOSE);
 
   // Provider may be unset if the GLS process ended as a result of a kill
@@ -2634,8 +2638,8 @@ HRESULT CGaiaCredentialBase::ReportError(LONG status,
 
   DisplayErrorInUI(status, STATUS_SUCCESS, status_text);
 
-  return provider_->OnUserAuthenticated(nullptr, CComBSTR(), CComBSTR(),
-                                        CComBSTR(), FALSE);
+  return provider_->OnUserAuthenticated(nullptr, nullptr, nullptr, nullptr,
+                                        FALSE);
 }
 
 bool CGaiaCredentialBase::UpdateSubmitButtonInteractiveState() {
@@ -2671,7 +2675,7 @@ void CGaiaCredentialBase::DisplayPasswordField(int password_message) {
                                CPFS_DISPLAY_IN_SELECTED_TILE);
         // Force password link won't be displayed if the machine is domain
         // joined or force reset password is disabled through registry.
-        if (!OSUserManager::Get()->IsUserDomainJoined(get_sid().m_str) &&
+        if (!OSUserManager::Get()->IsUserDomainJoined(get_sid().Get()) &&
             GetGlobalFlagOrDefault(kRegMdmEnableForcePasswordReset, 1)) {
           events_->SetFieldState(this, FID_FORGOT_PASSWORD_LINK,
                                  CPFS_DISPLAY_IN_SELECTED_TILE);
@@ -2712,7 +2716,7 @@ HRESULT CGaiaCredentialBase::RecoverWindowsPasswordIfPossible(
   }
 
   return PasswordRecoveryManager::Get()->RecoverWindowsPasswordIfPossible(
-      OLE2CW(get_sid()), *access_token, recovered_password);
+      get_sid().Get(), *access_token, recovered_password);
 }
 
 }  // namespace credential_provider

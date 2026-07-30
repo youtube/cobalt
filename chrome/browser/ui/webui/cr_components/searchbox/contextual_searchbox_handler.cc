@@ -97,8 +97,8 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/drive_picker_host/drive_picker_host_controller.h"
 #include "chrome/browser/ui/views/drive_picker_host/drive_picker_sanitizer.h"
-#include "chrome/browser/ui/webui/drive_picker_host/drive_disclaimer_controller.h"
 #include "chrome/browser/ui/webui/drive_picker_host/drive_picker_host_request.h"
+#include "components/contextual_search/footprints/public/drive_disclaimer_controller.h"
 #include "components/contextual_search/footprints/public/fpop_service.h"
 #include "content/public/browser/storage_partition.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -221,6 +221,12 @@ void ContextualSearchboxHandler::GetRecentTabs(GetRecentTabsCallback callback) {
     std::move(callback).Run({});
     return;
   }
+
+  if (!tab_list_observation_.IsObservingSource(tab_list)) {
+    tab_list_observation_.Reset();
+    tab_list_observation_.Observe(tab_list);
+  }
+
   struct TabTime {
     raw_ptr<tabs::TabInterface> tab;
     base::TimeTicks time;
@@ -231,6 +237,9 @@ void ContextualSearchboxHandler::GetRecentTabs(GetRecentTabsCallback callback) {
       active_tab_interface ? active_tab_interface->GetContents() : nullptr;
   for (tabs::TabInterface* tab : tab_list->GetAllTabs()) {
     content::WebContents* web_contents = tab->GetContents();
+    if (!web_contents) {
+      continue;
+    }
     const GURL& url = web_contents->GetLastCommittedURL();
     if (!url.is_valid()) {
       continue;
@@ -1169,7 +1178,10 @@ void ContextualSearchboxHandler::InitializeInputStateModel() {
 #if !BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(
           omnibox::kComposeboxDriveContextMenuOption)) {
-    if (auto* controller = GetDriveDisclaimerController()) {
+    if (base::FeatureList::IsEnabled(omnibox::kForceDriveDisclaimerAccepted)) {
+      OnDriveDisclaimerChecked(
+          drive_picker::DriveDisclaimerController::DisclaimerStatus::kAccepted);
+    } else if (auto* controller = GetDriveDisclaimerController()) {
       controller->CheckDisclaimerStatusAsync(
           base::BindOnce(&ContextualSearchboxHandler::OnDriveDisclaimerChecked,
                          weak_ptr_factory_.GetWeakPtr()));
@@ -1405,7 +1417,8 @@ void ContextualSearchboxHandler::OpenAutocompleteMatch(uint8_t line,
                                                        bool alt_key,
                                                        bool ctrl_key,
                                                        bool meta_key,
-                                                       bool shift_key) {
+                                                       bool shift_key,
+                                                       bool via_keyboard) {
   const AutocompleteMatch* match = GetMatchWithUrl(line, url);
 
   // Record match navigations for composebox matches.
@@ -1431,7 +1444,7 @@ void ContextualSearchboxHandler::OpenAutocompleteMatch(uint8_t line,
 
   SearchboxHandler::OpenAutocompleteMatch(line, url, are_matches_showing,
                                           mouse_button, alt_key, ctrl_key,
-                                          meta_key, shift_key);
+                                          meta_key, shift_key, via_keyboard);
 }
 
 void ContextualSearchboxHandler::SetSmartComposeStats(
@@ -1458,6 +1471,10 @@ void ContextualSearchboxHandler::GetDriveDisclaimerStatus(
 #if BUILDFLAG(IS_ANDROID)
   std::move(callback).Run(searchbox::mojom::DriveDisclaimerStatus::kRestricted);
 #else
+  if (base::FeatureList::IsEnabled(omnibox::kForceDriveDisclaimerAccepted)) {
+    std::move(callback).Run(searchbox::mojom::DriveDisclaimerStatus::kAccepted);
+    return;
+  }
   auto* controller = GetDriveDisclaimerController();
   if (!controller) {
     std::move(callback).Run(
@@ -1494,8 +1511,9 @@ void ContextualSearchboxHandler::GetDriveDisclaimerStatus(
 }
 
 void ContextualSearchboxHandler::OnDriveDisclaimerAccepted() {
-  profile_->GetPrefs()->SetBoolean(contextual_search::kDriveDisclaimerAccepted,
-                                   true);
+  profile_->GetPrefs()->SetInteger(
+      contextual_search::kDriveConsentState,
+      static_cast<int>(contextual_search::DriveConsentState::kConsent));
 }
 
 void ContextualSearchboxHandler::QueryAutocomplete(
@@ -1936,26 +1954,27 @@ void ContextualSearchboxHandler::OnDriveDisclaimerChecked(
   DVLOG(1) << "ContextualSearchboxHandler::OnDriveDisclaimerChecked: status is "
            << drive_picker::DriveDisclaimerController::DisclaimerStatusToString(
                   status);
-  if (!input_state_model_) {
-    return;
-  }
 
+  PrefService* prefs = profile_->GetPrefs();
   contextual_search::DriveConsentState consent_state =
       contextual_search::DriveConsentState::kNotReady;
   switch (status) {
     case drive_picker::DriveDisclaimerController::DisclaimerStatus::kAccepted:
+      // User accepted the disclaimer.
       consent_state = contextual_search::DriveConsentState::kConsent;
       break;
     case drive_picker::DriveDisclaimerController::DisclaimerStatus::
         kNotAccepted:
+      // Disclaimer has not been accepted.
       consent_state = contextual_search::DriveConsentState::kNotConsent;
       break;
     case drive_picker::DriveDisclaimerController::DisclaimerStatus::kRestricted:
+      // Policy restricts access.
       consent_state = contextual_search::DriveConsentState::kRestricted;
       break;
   }
-
-  input_state_model_->SetDriveConsentState(consent_state);
+  prefs->SetInteger(contextual_search::kDriveConsentState,
+                    static_cast<int>(consent_state));
 }
 
 drive_picker::DriveDisclaimerController*

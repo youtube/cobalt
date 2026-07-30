@@ -1,0 +1,88 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef COMPONENTS_CRITICAL_ACTIONS_CORE_BROWSER_CRITICAL_ACTION_SERVICE_H_
+#define COMPONENTS_CRITICAL_ACTIONS_CORE_BROWSER_CRITICAL_ACTION_SERVICE_H_
+
+#include <cstdint>
+#include <optional>
+#include <string_view>
+#include <vector>
+
+#include "base/files/file_path.h"
+#include "base/functional/callback.h"
+#include "base/scoped_observation.h"
+#include "base/sequence_checker.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/threading/sequence_bound.h"
+#include "base/time/time.h"
+#include "components/critical_actions/core/browser/critical_action_types.h"
+#include "components/history/core/browser/history_service.h"
+#include "components/history/core/browser/history_service_observer.h"
+#include "components/keyed_service/core/keyed_service.h"
+
+namespace critical_actions {
+
+class CriticalActionBackend;
+
+// UI thread service for recording and retrieving critical action history.
+class CriticalActionService : public KeyedService,
+                              public history::HistoryServiceObserver {
+ public:
+  CriticalActionService(
+      const base::FilePath& db_path,
+      scoped_refptr<base::SequencedTaskRunner> backend_task_runner,
+      history::HistoryService* history_service = nullptr);
+  CriticalActionService(const CriticalActionService&) = delete;
+  CriticalActionService& operator=(const CriticalActionService&) = delete;
+  ~CriticalActionService() override;
+
+  // KeyedService:
+  void Shutdown() override;
+
+  // history::HistoryServiceObserver:
+  void OnHistoryDeletions(history::HistoryService* history_service,
+                          const history::DeletionInfo& deletion_info) override;
+
+  void HistoryServiceBeingDeleted(
+      history::HistoryService* history_service) override;
+
+  // UI thread entry point to add a new critical action.
+  void AddCriticalAction(const CriticalActionEntry& entry);
+
+  // UI thread entry point to retrieve a critical action record by ID.
+  void GetCriticalAction(
+      std::string_view critical_action_id,
+      base::OnceCallback<void(std::optional<CriticalActionEntry>)> callback);
+
+  // UI thread entry point to retrieve critical action records matching
+  // `options`.
+  void GetCriticalActions(
+      const CriticalActionQueryOptions& options,
+      base::OnceCallback<void(std::vector<CriticalActionEntry>)> callback);
+
+  // UI thread entry point to delete a critical action record by ID.
+  void DeleteCriticalAction(std::string_view critical_action_id);
+
+  // UI thread entry point to delete all critical action records in given range.
+  void DeleteCriticalActionsInTimeRange(base::Time start_time,
+                                        base::Time end_time);
+
+  // UI thread entry point to delete all critical action records associated with
+  // the given visit IDs.
+  void DeleteCriticalActionsByVisitIds(const std::vector<int64_t>& visit_ids);
+
+ private:
+  SEQUENCE_CHECKER(sequence_checker_);
+  base::SequenceBound<CriticalActionBackend> backend_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+
+  base::ScopedObservation<history::HistoryService,
+                          history::HistoryServiceObserver>
+      history_service_observation_{this};
+};
+
+}  // namespace critical_actions
+
+#endif  // COMPONENTS_CRITICAL_ACTIONS_CORE_BROWSER_CRITICAL_ACTION_SERVICE_H_

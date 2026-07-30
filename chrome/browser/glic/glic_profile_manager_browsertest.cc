@@ -13,6 +13,7 @@
 #include "base/run_loop.h"
 #include "base/test/scoped_amount_of_physical_memory_override.h"
 #include "base/test/test_future.h"
+#include "build/build_config.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/browser_process.h"
@@ -45,6 +46,10 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/ozone_buildflags.h"
+
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_switches.h"
@@ -277,15 +282,19 @@ IN_PROC_BROWSER_TEST_F(GlicProfileManagerBrowserTest,
   ui_test_utils::WaitForBrowserSetLastActive(browser2);
   EXPECT_EQ(profile1, profile_manager->GetProfileForLaunch());
 
-#if !BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
-  // profile0 is the most recently used profile
+  bool is_wayland = false;
+#if BUILDFLAG(IS_OZONE)
+  is_wayland = ::ui::OzonePlatform::RunningOnWaylandForTest();
+#endif
+  if (!is_wayland) {
+    // profile0 is the most recently used profile
 #if BUILDFLAG(IS_CHROMEOS)
-  session_manager::SessionManager::Get()->SwitchActiveSession(kAccountId0);
+    session_manager::SessionManager::Get()->SwitchActiveSession(kAccountId0);
 #endif  //  BUILDFLAG(IS_CHROMEOS)
-  browser()->GetWindow()->Activate();
-  ui_test_utils::WaitForBrowserSetLastActive(browser());
-  EXPECT_EQ(profile0, profile_manager->GetProfileForLaunch());
-#endif  // !BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
+    browser()->GetWindow()->Activate();
+    ui_test_utils::WaitForBrowserSetLastActive(browser());
+    EXPECT_EQ(profile0, profile_manager->GetProfileForLaunch());
+  }
 }
 
 class GlicProfileManagerPreloadingTest

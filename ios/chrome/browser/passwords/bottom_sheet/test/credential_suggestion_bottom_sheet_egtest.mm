@@ -83,7 +83,6 @@ id<GREYMatcher> SubtitleWithPasskeysString(const GURL& url) {
 id<GREYMatcher> NavigationBarEditButton() {
   return grey_allOf(chrome_test_util::ButtonWithAccessibilityLabelId(
                         IDS_IOS_NAVIGATION_BAR_EDIT_BUTTON),
-                    grey_not(chrome_test_util::TabGridEditButton()),
                     grey_userInteractionEnabled(), nil);
 }
 

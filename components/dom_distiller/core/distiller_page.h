@@ -22,6 +22,19 @@ class SourcePageHandle {
   virtual ~SourcePageHandle() = default;
 };
 
+// This enum is used to record histograms for OnDistillationDone results.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(DistillationParseResult)
+enum class DistillationParseResult {
+  kSuccess = 0,
+  kParseFailure = 1,
+  kNoData = 2,
+  kContentTooShort = 3,
+  kMaxValue = kContentTooShort,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/accessibility/enums.xml:DistillationParseResult)
+
 // Injects JavaScript into a page, and uses it to extract and return long-form
 // content. The class can be reused to load and distill multiple pages,
 // following the state transitions described along with the class's states.
@@ -31,7 +44,7 @@ class DistillerPage {
  public:
   using DistillerPageCallback = base::OnceCallback<void(
       std::unique_ptr<proto::DomDistillerResult> distilled_page,
-      bool distillation_successful)>;
+      DistillationParseResult result)>;
 
   DistillerPage();
   virtual ~DistillerPage();

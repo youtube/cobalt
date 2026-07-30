@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "base/base64.h"
+#include "base/byte_size.h"
 #include "base/command_line.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
@@ -166,7 +167,7 @@ class RequestInterceptor {
     if (0 != (expectations & kShouldBeBlocked)) {
       // Verify that the body is empty.
       EXPECT_EQ("", response_body());
-      EXPECT_EQ(0, completion_status().decoded_body_length);
+      EXPECT_EQ(0u, completion_status().decoded_body_length.InBytes());
 
       // Verify that the console message would have been printed.
       EXPECT_TRUE(completion_status().should_report_orb_blocking);
@@ -932,8 +933,8 @@ IN_PROC_BROWSER_TEST_F(CrossSiteDocumentBlockingTestBase,
 
   // Verify that the body has been allowed by ORB.
   EXPECT_EQ(png_body, interceptor.response_body());
-  EXPECT_EQ(static_cast<int64_t>(png_body.size()),
-            interceptor.completion_status().decoded_body_length);
+  EXPECT_EQ(png_body.size(),
+            interceptor.completion_status().decoded_body_length.InBytes());
   EXPECT_EQ(static_cast<int64_t>(png_body.size()),
             interceptor.response_head()->content_length);
 
@@ -996,8 +997,8 @@ IN_PROC_BROWSER_TEST_F(CrossSiteDocumentBlockingTestBase,
 
   // Verify that the body has been allowed by ORB.
   EXPECT_EQ(png_body, interceptor.response_body());
-  EXPECT_EQ(static_cast<int64_t>(png_body.size()),
-            interceptor.completion_status().decoded_body_length);
+  EXPECT_EQ(png_body.size(),
+            interceptor.completion_status().decoded_body_length.InBytes());
   EXPECT_EQ(static_cast<int64_t>(png_body.size()),
             interceptor.response_head()->content_length);
 

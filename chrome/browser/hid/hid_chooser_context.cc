@@ -130,7 +130,9 @@ HidChooserContext::~HidChooserContext() {
     observer.OnHidChooserContextShutdown();
     DCHECK(!device_observer_list_.HasObserver(&observer));
   }
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   web_view_chooser_context_.OnHidChooserContextShutdown();
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
   DCHECK(permission_observer_list_.empty());
 }
 
@@ -393,9 +395,13 @@ void HidChooserContext::GrantDevicePermission(
     const device::mojom::HidDeviceInfo& device,
     const std::optional<url::Origin>& embedding_origin_of_web_view) {
   if (embedding_origin_of_web_view) {
+#if BUILDFLAG(ENABLE_EXTENSIONS)
     web_view_chooser_context_.GrantDevicePermission(
         origin, *embedding_origin_of_web_view, device);
     return;
+#else
+    NOTREACHED();
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
   }
   if (CanStorePersistentEntry(device)) {
     GrantObjectPermission(origin, DeviceInfoToValue(device));
@@ -410,9 +416,13 @@ void HidChooserContext::RevokeDevicePermission(
     const device::mojom::HidDeviceInfo& device,
     const std::optional<url::Origin>& embedding_origin_of_web_view) {
   if (embedding_origin_of_web_view) {
+#if BUILDFLAG(ENABLE_EXTENSIONS)
     web_view_chooser_context_.RevokeDevicePermission(
         origin, *embedding_origin_of_web_view, device);
     return;
+#else
+    NOTREACHED();
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
   }
   if (CanStorePersistentEntry(device)) {
     RevokePersistentDevicePermission(origin, device);
@@ -471,11 +481,13 @@ bool HidChooserContext::HasDevicePermission(
     bool is_device_protected_due_to_fido = std::ranges::contains(
         device.collections, device::mojom::kPageFido,
         [](const auto& c) { return c->usage->usage_page; });
+#if !BUILDFLAG(IS_ANDROID)
     if (base::FeatureList::IsEnabled(
             features::kSecurityKeyHidInterfacesAreFido) &&
         IsKnownSecurityKey(device)) {
       is_device_protected_due_to_fido = true;
     }
+#endif  // !BUILDFLAG(IS_ANDROID)
     if (!is_device_protected_due_to_fido || !IsFidoAllowedForOrigin(origin)) {
       return false;
     }
@@ -491,8 +503,12 @@ bool HidChooserContext::HasDevicePermission(
     return false;
 
   if (embedding_origin_of_web_view) {
+#if BUILDFLAG(ENABLE_EXTENSIONS)
     return web_view_chooser_context_.HasDevicePermission(
         origin, *embedding_origin_of_web_view, device);
+#else
+    NOTREACHED();
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
   }
 
   auto it = ephemeral_devices_.find(origin);

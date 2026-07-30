@@ -13,16 +13,28 @@ public class PdfInfo {
     public final @Nullable String filename;
     public final @Nullable String filepath;
     public final boolean isDownloadSafe;
+    public final boolean preferReuse;
 
-    public PdfInfo(String filename, @Nullable String filepath, boolean isDownloadSafe) {
+    public static PdfInfo initReuse(boolean preferReuse) {
+        return new PdfInfo(null, null, true, preferReuse);
+    }
+
+    private PdfInfo(
+            @Nullable String filename,
+            @Nullable String filepath,
+            boolean isDownloadSafe,
+            boolean preferReuse) {
         this.filename = filename;
         this.filepath = filepath;
         this.isDownloadSafe = isDownloadSafe;
+        this.preferReuse = preferReuse;
+    }
+
+    public PdfInfo(@Nullable String filename, @Nullable String filepath, boolean isDownloadSafe) {
+        this(filename, filepath, isDownloadSafe, false);
     }
 
     public PdfInfo() {
-        filename = null;
-        filepath = null;
-        isDownloadSafe = true;
+        this(null, null, true, false);
     }
 }

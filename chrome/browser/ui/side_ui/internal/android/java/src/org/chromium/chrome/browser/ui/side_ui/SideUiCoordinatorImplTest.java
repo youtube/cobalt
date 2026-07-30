@@ -283,6 +283,12 @@ public class SideUiCoordinatorImplTest {
         assertEquals(0, leftUiContainer.mNumOnWillAutoCloseReceived);
         assertEquals(0, leftUiContainer.mNumOnWillAutoRestoreReceived);
 
+        // Assert: Only the right container should receive onUiUpdateCompleted notification.
+        assertEquals(1, rightUiContainer.mNumOnUiUpdateCompletedReceived);
+        assertEquals(Integer.valueOf(0), rightUiContainer.mLastOldWidth);
+        assertEquals(Integer.valueOf(expectedRightSideUiWidth), rightUiContainer.mLastNewWidth);
+        assertEquals(0, leftUiContainer.mNumOnUiUpdateCompletedReceived);
+
         // Assert: The observer is notified with both containers being showable.
         //
         // The right SideUiContainer is currently visible, so it's definitely showable.
@@ -320,6 +326,14 @@ public class SideUiCoordinatorImplTest {
         assertEquals(0, leftUiContainer.mNumOnWillAutoCloseReceived);
         assertEquals(0, leftUiContainer.mNumOnWillAutoRestoreReceived);
 
+        // Assert: Both containers should receive onUiUpdateCompleted notification.
+        assertEquals(2, rightUiContainer.mNumOnUiUpdateCompletedReceived);
+        assertEquals(Integer.valueOf(expectedRightSideUiWidth), rightUiContainer.mLastOldWidth);
+        assertEquals(Integer.valueOf(0), rightUiContainer.mLastNewWidth);
+        assertEquals(1, leftUiContainer.mNumOnUiUpdateCompletedReceived);
+        assertEquals(Integer.valueOf(0), leftUiContainer.mLastOldWidth);
+        assertEquals(Integer.valueOf(expectedLeftSideUiWidth), leftUiContainer.mLastNewWidth);
+
         // Assert: The observer is notified that the right (low-priority) container is no longer
         // showable.
         verify(mSideUiObserver).onShowableSideUisUpdated(showabilityCaptor.capture());
@@ -349,6 +363,14 @@ public class SideUiCoordinatorImplTest {
         assertEquals(1, rightUiContainer.mNumOnWillAutoRestoreReceived);
         assertEquals(0, leftUiContainer.mNumOnWillAutoCloseReceived);
         assertEquals(0, leftUiContainer.mNumOnWillAutoRestoreReceived);
+
+        // Assert: Both containers should receive onUiUpdateCompleted notification.
+        assertEquals(3, rightUiContainer.mNumOnUiUpdateCompletedReceived);
+        assertEquals(Integer.valueOf(0), rightUiContainer.mLastOldWidth);
+        assertEquals(Integer.valueOf(expectedRightSideUiWidth), rightUiContainer.mLastNewWidth);
+        assertEquals(2, leftUiContainer.mNumOnUiUpdateCompletedReceived);
+        assertEquals(Integer.valueOf(expectedLeftSideUiWidth), leftUiContainer.mLastOldWidth);
+        assertEquals(Integer.valueOf(0), leftUiContainer.mLastNewWidth);
 
         // Assert: The observer is notified that both containers are showable.
         verify(mSideUiObserver).onShowableSideUisUpdated(showabilityCaptor.capture());
@@ -459,6 +481,32 @@ public class SideUiCoordinatorImplTest {
                 Integer.valueOf(WINDOW_SIZE_PX.getWidth() - minWebContentsWidthPx),
                 sideUiContainer.mLastAvailableWidth);
         assertEquals(Integer.valueOf(WINDOW_SIZE_PX.getWidth()), sideUiContainer.mLastWindowWidth);
+    }
+
+    @Test
+    public void testUpdateUi_noUiChange_onUiUpdateCompletedNotCalled() {
+        // Arrange: Register and show a SideUiContainer.
+        var sideUiContainer =
+                new TestSideUiContainer(
+                        mCoordinator, mSideUiContainerView, SideUiId.SIDE_PANEL, AnchorSide.RIGHT);
+        mCoordinator.registerSideUiContainer(sideUiContainer);
+        mCoordinator.updateUi(
+                new UiUpdateRequest(sideUiContainer.getSideUiId(), /* suppressAnimations= */ true));
+        RobolectricUtil.runAllBackgroundAndUi();
+
+        // Assert:
+        @Px int sideUiWidth = getSideUiContainerViewWidth();
+        assertEquals(1, sideUiContainer.mNumOnUiUpdateCompletedReceived);
+        assertEquals(Integer.valueOf(0), sideUiContainer.mLastOldWidth);
+        assertEquals(Integer.valueOf(sideUiWidth), sideUiContainer.mLastNewWidth);
+
+        // Act: Trigger another UI update. This update should be a no-op.
+        mCoordinator.updateUi(
+                new UiUpdateRequest(sideUiContainer.getSideUiId(), /* suppressAnimations= */ true));
+        RobolectricUtil.runAllBackgroundAndUi();
+
+        // Assert: onUiUpdateCompleted shouldn't be called again.
+        assertEquals(1, sideUiContainer.mNumOnUiUpdateCompletedReceived);
     }
 
     @Test

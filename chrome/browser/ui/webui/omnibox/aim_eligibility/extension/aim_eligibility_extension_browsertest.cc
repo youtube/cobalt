@@ -81,6 +81,7 @@ class AimEligibilityExtensionBrowserTest : public ExtensionApiTest {
 
   base::CallbackListSubscription create_services_subscription_;
   base::test::ScopedFeatureList scoped_feature_list_;
+  bool aim_eligible_ = true;
 };
 
 // Tests that multiple page handler instances can exist and that disconnecting
@@ -142,10 +143,9 @@ IN_PROC_BROWSER_TEST_F(AimEligibilityExtensionBrowserTest, UiParity) {
       AimEligibilityServiceFactory::GetForProfile(profile()));
   EXPECT_CALL(*mock_service, IsServerEligibilityEnabled())
       .WillRepeatedly(testing::Return(false));
-  bool aim_eligible = true;
-  EXPECT_CALL(*mock_service, IsAimEligible()).WillRepeatedly([&aim_eligible]() {
-    return aim_eligible;
-  });
+  aim_eligible_ = true;
+  EXPECT_CALL(*mock_service, IsAimEligible())
+      .WillRepeatedly(testing::ReturnPointee(&aim_eligible_));
 
   // Intercept the registration of eligibility changed callbacks to invoke it
   // manually.
@@ -191,7 +191,7 @@ IN_PROC_BROWSER_TEST_F(AimEligibilityExtensionBrowserTest, UiParity) {
       << get_ui_checklist();
 
   // Change state to Ineligible.
-  aim_eligible = false;
+  aim_eligible_ = false;
   ASSERT_TRUE(eligibility_changed_callback);
   eligibility_changed_callback.Run();
 

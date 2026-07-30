@@ -9,15 +9,13 @@
 
 namespace blink {
 
-perfetto::NamedTrack BLINK_COMMON_EXPORT
+perfetto::StateTrack BLINK_COMMON_EXPORT
 GetLocalFrameTracingTrack(const LocalFrameToken& frame_token,
                           bool is_main_frame,
                           perfetto::Track parent) {
-  auto track =
-      perfetto::NamedTrack(
-          perfetto::StaticString(is_main_frame ? "MainFrame" : "SubFrame"),
-          base::PersistentHash(frame_token->AsBytes()), parent)
-          .disable_sibling_merge();
+  auto track = perfetto::StateTrack(
+      perfetto::StaticString(is_main_frame ? "MainFrame" : "SubFrame"),
+      base::PersistentHash(frame_token->AsBytes()), parent);
   return track;
 }
 

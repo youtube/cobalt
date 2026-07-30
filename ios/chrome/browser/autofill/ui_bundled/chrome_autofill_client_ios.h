@@ -50,6 +50,7 @@ namespace autofill {
 class AutofillAiSaveEntityInfoBarDelegateIOS;
 class AutofillSuggestionDelegate;
 class LogRouter;
+class PersonalContextAccessManager;
 
 enum class SuggestionType;
 
@@ -103,6 +104,7 @@ class ChromeAutofillClientIOS : public AutofillClientIOS {
   AutocompleteHistoryManager* GetAutocompleteHistoryManager() override;
   void GetAiPageContent(GetAiPageContentCallback callback) override;
   AutofillAiManager* GetAutofillAiManager() override;
+  PersonalContextAccessManager* GetPersonalContextAccessManager() override;
   AutofillAiModelCache* GetAutofillAiModelCache() override;
   AutofillAiModelExecutor* GetAutofillAiModelExecutor() override;
   optimization_guide::RemoteModelExecutor* GetRemoteModelExecutor() override;
@@ -168,6 +170,7 @@ class ChromeAutofillClientIOS : public AutofillClientIOS {
   void ShowAutofillAiLocalSaveNotification() override;
   void ShowAutofillAiSaveToWalletFailureNotification() override;
   void ShowAutofillAiFetchFromWalletFailureNotification() override;
+  void ShowAutofillAiPreFetchFailureNotification() override;
 
   // Searches infobars managed by the infobar_manager_ for infobar of the type
   // AutofillSaveCardInfoBarDelegateIOS and returns it if found else returns a

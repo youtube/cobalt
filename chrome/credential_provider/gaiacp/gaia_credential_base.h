@@ -13,6 +13,7 @@
 #include "base/threading/thread.h"
 #include "base/values.h"
 #include "base/win/atl.h"
+#include "base/win/scoped_bstr.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/scoped_process_information.h"
 #include "chrome/credential_provider/gaiacp/associated_user_validator.h"
@@ -91,10 +92,10 @@ class ATL_NO_VTABLE CGaiaCredentialBase
   const Microsoft::WRL::ComPtr<IGaiaCredentialProvider> provider() const {
     return provider_;
   }
-  const CComBSTR& get_username() const { return username_; }
-  const CComBSTR& get_password() const { return password_; }
-  const CComBSTR& get_sid() const { return user_sid_; }
-  const CComBSTR& get_current_windows_password() const {
+  const base::win::ScopedBstr& get_username() const { return username_; }
+  const base::win::ScopedBstr& get_password() const { return password_; }
+  const base::win::ScopedBstr& get_sid() const { return user_sid_; }
+  const base::win::ScopedBstr& get_current_windows_password() const {
     return current_windows_password_;
   }
   const std::optional<base::DictValue>& get_authentication_results() const {
@@ -312,10 +313,10 @@ class ATL_NO_VTABLE CGaiaCredentialBase
   HANDLE logon_ui_process_ = INVALID_HANDLE_VALUE;
 
   // Information about the just created or re-auth-ed user.
-  CComBSTR username_;
-  CComBSTR domain_;
-  CComBSTR password_;
-  CComBSTR user_sid_;
+  base::win::ScopedBstr username_;
+  base::win::ScopedBstr domain_;
+  base::win::ScopedBstr password_;
+  base::win::ScopedBstr user_sid_;
 
   // Indicates that the Windows password does not match the Gaia password and
   // the user must be enter the former.  For example this is used to properly
@@ -329,7 +330,7 @@ class ATL_NO_VTABLE CGaiaCredentialBase
 
   // The password entered into the FID_CURRENT_PASSWORD_FIELD to update the
   // Windows password with the gaia password.
-  CComBSTR current_windows_password_;
+  base::win::ScopedBstr current_windows_password_;
 
   // Contains the information about the Gaia account that signed in.  See the
   // kKeyXXX constants for the data that is stored here.

@@ -11,7 +11,6 @@ import("//build/timestamp.gni")
 import("//build/util/lastchange.gni")
 import("//build/util/process_version.gni")
 import("//chrome/installer/installers.gni")
-import("//chrome/installer/linux/common/key.gni")
 import("//chrome/version.gni")
 import("//components/optimization_guide/features.gni")
 import("//services/on_device_model/on_device_model.gni")
@@ -313,7 +312,7 @@ action("deb_repo_package") {
     package = "chromium-browser-repo"
   }
 
-  outputs = [ "$root_out_dir/${package}_${pgp_key_version}_${deb_arch}.deb" ]
+  outputs = [ "$root_out_dir/${package}_${deb_arch}.deb" ]
 
   args = [
     "-a",

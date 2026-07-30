@@ -53,7 +53,8 @@
 #include "extensions/browser/safe_browsing_delegate.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/api/web_request/web_request_activity_log_constants.h"
-#include "extensions/common/error_utils.h"
+#include "extensions/common/api/web_request/web_request_filter.h"
+#include "extensions/common/api/web_request/web_request_resource_type.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/mojom/event_dispatcher.mojom.h"
 
@@ -100,12 +101,6 @@ constexpr size_t kWebRequestEventPrefixLen =
     std::char_traits<char>::length(kWebRequestEventPrefix);
 constexpr size_t kWebViewEventPrefixLen =
     std::char_traits<char>::length(kWebViewEventPrefix);
-
-constexpr char kRequestFilterUrlsKey[] = "urls";
-constexpr char kRequestFilterTypesKey[] = "types";
-constexpr char kRequestFilterTabIdKey[] = "tabId";
-constexpr char kRequestFilterWindowIdKey[] = "windowId";
-constexpr char kRequestFilterOptionsKey[] = "_options";
 
 // List of all the webRequest events. Note: this doesn't include
 // "onActionIgnored" which is not related to a request's lifecycle and is
@@ -775,65 +770,6 @@ base::DictValue SummarizeResponseDelta(
 
 }  // namespace
 
-bool WebRequestEventRouter::RequestFilter::InitFromValue(
-    const base::DictValue& value,
-    std::string* error) {
-  if (!value.Find(kRequestFilterUrlsKey)) {
-    return false;
-  }
-
-  for (const auto dict_item : value) {
-    if (dict_item.first == kRequestFilterUrlsKey &&
-        dict_item.second.is_list()) {
-      for (const auto& item : dict_item.second.GetList()) {
-        std::string url;
-        URLPattern pattern(kWebRequestFilterValidSchemes);
-        if (item.is_string()) {
-          url = item.GetString();
-        }
-
-        // Parse will fail on an empty url, so we don't need to distinguish
-        // between `item` not being a string and `item` being an empty string.
-        if (url.empty() ||
-            pattern.Parse(url) != URLPattern::ParseResult::kSuccess) {
-          *error = ErrorUtils::FormatErrorMessage(
-              keys::kInvalidRequestFilterUrl, url);
-          return false;
-        }
-        urls.AddPattern(pattern);
-      }
-    } else if (dict_item.first == kRequestFilterTypesKey &&
-               dict_item.second.is_list()) {
-      for (const auto& type : dict_item.second.GetList()) {
-        std::string type_str;
-        if (type.is_string()) {
-          type_str = type.GetString();
-        }
-        types.push_back(WebRequestResourceType::OTHER);
-        if (type_str.empty() ||
-            !ParseWebRequestResourceType(type_str, &types.back())) {
-          return false;
-        }
-      }
-    } else if (dict_item.first == kRequestFilterTabIdKey &&
-               dict_item.second.is_int()) {
-      tab_id = dict_item.second.GetInt();
-    } else if (dict_item.first == kRequestFilterWindowIdKey &&
-               dict_item.second.is_int()) {
-      window_id = dict_item.second.GetInt();
-    } else if (dict_item.first == kRequestFilterOptionsKey) {
-      // The renderer-side bindings inject an "_options" key into the
-      // filter to pass along some extra information (like `extraInfo` and
-      // `webViewInstanceId`). We ignore it here, as it's not a part of the
-      // RequestFilter.
-      continue;
-    } else {
-      return false;
-    }
-  }
-  return true;
-}
-
 base::DictValue WebRequestEventRouter::RequestFilter::ToValue() const {
   base::DictValue dict;
 
@@ -865,16 +801,6 @@ WebRequestEventRouter::EventResponse::EventResponse(
       cancel(false) {}
 
 WebRequestEventRouter::EventResponse::~EventResponse() = default;
-
-WebRequestEventRouter::RequestFilter::RequestFilter()
-    : tab_id(-1), window_id(-1) {}
-WebRequestEventRouter::RequestFilter::~RequestFilter() = default;
-
-WebRequestEventRouter::RequestFilter::RequestFilter(RequestFilter&& other) =
-    default;
-WebRequestEventRouter::RequestFilter&
-WebRequestEventRouter::RequestFilter::operator=(RequestFilter&& other) =
-    default;
 
 WebRequestEventRouter::SignaledRequestIDTracker::SignaledRequestIDTracker() =
     default;

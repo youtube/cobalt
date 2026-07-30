@@ -27,15 +27,7 @@ class FakeFastPairHandshake : public FastPairHandshake {
   FakeFastPairHandshake& operator=(const FakeFastPairHandshake&) = delete;
   ~FakeFastPairHandshake() override;
 
-  void SetUpHandshake(OnFailureCallback on_failure_callback,
-                      OnCompleteCallbackNew on_success_callback) override;
-  void Reset() override;
-
   void InvokeCallback(std::optional<PairFailure> failure = std::nullopt);
-
-  void set_completed_successfully(bool completed_successfully) {
-    completed_successfully_ = completed_successfully;
-  }
 };
 
 }  // namespace ash::quick_pair

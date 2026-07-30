@@ -5,6 +5,7 @@
 #include "chrome/browser/glic/glic_metrics.h"
 
 #include <optional>
+#include <utility>
 
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/metrics/user_action_tester.h"
@@ -814,7 +815,7 @@ TEST_F(GlicMetricsFeaturesEnabledTest, ImpressionAfterFreNotPermittedByPolicy) {
   // Disable kGeminiSettings
   profile()->GetPrefs()->SetInteger(
       ::prefs::kGeminiSettings,
-      static_cast<int>(glic::prefs::SettingsPolicyState::kDisabled));
+      std::to_underlying(glic::prefs::SettingsPolicyState::kDisabled));
 
   ExpectEntryPointImpressionLogged(EntryPointStatus::kAfterFreNotEligible);
 }
@@ -837,13 +838,13 @@ TEST_F(GlicMetricsFeaturesEnabledTest, EnablingChanged) {
 
   profile()->GetPrefs()->SetInteger(
       ::prefs::kGeminiSettings,
-      static_cast<int>(glic::prefs::SettingsPolicyState::kDisabled));
+      std::to_underlying(glic::prefs::SettingsPolicyState::kDisabled));
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Disabled"), 2);
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Enabled"), 2);
 
   profile()->GetPrefs()->SetInteger(
       ::prefs::kGeminiSettings,
-      static_cast<int>(glic::prefs::SettingsPolicyState::kEnabled));
+      std::to_underlying(glic::prefs::SettingsPolicyState::kEnabled));
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Disabled"), 2);
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Enabled"), 3);
 

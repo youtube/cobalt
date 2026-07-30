@@ -27,6 +27,8 @@ class IdentityManager;
 
 namespace skills {
 
+using ToastType = ::skills::mojom::ToastType;
+
 class SkillsPageHandlerV2 : public ::skills::mojom::SkillsPageHandler {
  public:
   SkillsPageHandlerV2(
@@ -40,6 +42,7 @@ class SkillsPageHandlerV2 : public ::skills::mojom::SkillsPageHandler {
 
   // ::skills::mojom::SkillsPageHandler:
   void SyncCookies(SyncCookiesCallback callback) override;
+  void ShowToast(const std::string& skill_id, ToastType toast_type) override;
 
  private:
   mojo::Receiver<::skills::mojom::SkillsPageHandler> receiver_;

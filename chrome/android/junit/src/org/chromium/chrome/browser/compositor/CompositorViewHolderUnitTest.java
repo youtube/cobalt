@@ -57,6 +57,7 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
+import org.chromium.base.BaseFeatures;
 import org.chromium.base.InputHintChecker;
 import org.chromium.base.InputHintCheckerJni;
 import org.chromium.base.UserDataHost;
@@ -715,7 +716,11 @@ public class CompositorViewHolderUnitTest {
         verify(mWebContents, times(1)).setSize(fullViewportWidth, fullViewportHeight);
         verify(mCompositorViewHolder, times(1))
                 .notifyVirtualKeyboardOverlayRect(
-                        mWebContents, 0, 0, fullViewportWidth, KEYBOARD_HEIGHT);
+                        mWebContents,
+                        0,
+                        fullViewportHeight - KEYBOARD_HEIGHT,
+                        fullViewportWidth,
+                        KEYBOARD_HEIGHT);
 
         reset(mWebContents);
 
@@ -888,6 +893,40 @@ public class CompositorViewHolderUnitTest {
                 .setSize(fullViewportWidth, fullViewportHeight + KEYBOARD_HEIGHT);
     }
 
+    @Test
+    @DisableFeatures(BaseFeatures.VIRTUAL_KEYBOARD_GEOMETRY_AND_INSET_FIXES)
+    public void testWebContentResizeTriggeredDueToKeyboardShow_withKillSwitch_usesLegacyOrigin() {
+        mCompositorViewHolder.updateVirtualKeyboardMode(VirtualKeyboardMode.OVERLAYS_CONTENT);
+        reset(mWebContents);
+
+        int fullViewportHeight = 941;
+        int fullViewportWidth = 1080;
+        int adjustedHeight = fullViewportHeight - KEYBOARD_HEIGHT;
+
+        View rootView = mock(View.class);
+        when(mCompositorViewHolder.getRootView()).thenReturn(rootView);
+        doAnswer(
+                        invocation -> {
+                            Rect appRect = invocation.getArgument(0);
+                            appRect.set(17, 23, 17 + fullViewportWidth, 23 + fullViewportHeight);
+                            return null;
+                        })
+                .when(rootView)
+                .getWindowVisibleDisplayFrame(any(Rect.class));
+
+        when(mMockKeyboard.isKeyboardShowing(any())).thenReturn(true);
+        when(mMockKeyboard.calculateTotalKeyboardHeight(any())).thenReturn(KEYBOARD_HEIGHT);
+        when(mCompositorViewHolder.getWidth()).thenReturn(fullViewportWidth);
+        when(mCompositorViewHolder.getHeight()).thenReturn(adjustedHeight);
+
+        mKeyboardInsetSupplier.set(KEYBOARD_HEIGHT);
+        mCompositorViewHolder.updateWebContentsSize(mTab);
+
+        verify(mCompositorViewHolder, times(1))
+                .notifyVirtualKeyboardOverlayRect(
+                        mWebContents, 17, 23, fullViewportWidth, KEYBOARD_HEIGHT);
+    }
+
     // Keyboard resize tests for geometrychange event fired to JS.
     @Test
     public void testWebContentResizeTriggeredDueToKeyboardShow_keyboardInOverlayMode() {
@@ -919,7 +958,11 @@ public class CompositorViewHolderUnitTest {
         verify(mWebContents, times(1)).setSize(fullViewportWidth, fullViewportHeight);
         verify(mCompositorViewHolder, times(1))
                 .notifyVirtualKeyboardOverlayRect(
-                        mWebContents, 0, 0, fullViewportWidth, KEYBOARD_HEIGHT);
+                        mWebContents,
+                        0,
+                        fullViewportHeight - KEYBOARD_HEIGHT,
+                        fullViewportWidth,
+                        KEYBOARD_HEIGHT);
 
         reset(mWebContents);
 

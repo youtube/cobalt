@@ -65,7 +65,8 @@ class OSExchangeData;
 struct OmniboxState : public base::SupportsUserData::Data {
   OmniboxState(const OmniboxEditModel::State& model_state,
                const gfx::Range& selection,
-               const gfx::Range& saved_selection_for_focus_change);
+               const gfx::Range& saved_selection_for_focus_change,
+               const bool show_full_url = false);
 
   ~OmniboxState() override;
 
@@ -77,6 +78,7 @@ struct OmniboxState : public base::SupportsUserData::Data {
   // and tabbing back into the omnibox.
   const gfx::Range selection;
   const gfx::Range saved_selection_for_focus_change;
+  const bool show_full_url;
 };
 
 // Views-implementation of OmniboxView.
@@ -225,6 +227,8 @@ class OmniboxViewViews
   FRIEND_TEST_ALL_PREFIXES(OmniboxViewViewsTest, AccessibleTextSelectBoundTest);
   FRIEND_TEST_ALL_PREFIXES(OmniboxViewViewsAIMButtonPreferenceTest,
                            ButtonVisibilityTogglesWithPref_OmniboxFocused);
+  FRIEND_TEST_ALL_PREFIXES(OmniboxViewViewsAIMButtonDynamicTest,
+                           QueryShowsArrowIcon);
   FRIEND_TEST_ALL_PREFIXES(OmniboxViewViewsPlaceholderTest,
                            ContextualTasksPlaceholderForContextualTasksPage);
   FRIEND_TEST_ALL_PREFIXES(OmniboxViewViewsPlaceholderTest,

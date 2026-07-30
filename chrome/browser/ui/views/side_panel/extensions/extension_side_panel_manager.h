@@ -14,7 +14,7 @@
 #include "extensions/common/extension_id.h"
 #include "ui/actions/action_id.h"
 
-class Browser;
+class BrowserWindowInterface;
 class Profile;
 class SidePanelRegistry;
 
@@ -37,7 +37,8 @@ class Extension;
 // extension's ExtensionSidePanelCoordinator.
 class ExtensionSidePanelManager : public ExtensionRegistryObserver {
  public:
-  ExtensionSidePanelManager(Browser* browser, SidePanelRegistry* registry);
+  ExtensionSidePanelManager(BrowserWindowInterface* browser,
+                            SidePanelRegistry* registry);
   ExtensionSidePanelManager(Profile* profile,
                             tabs::TabInterface* tab_interface,
                             SidePanelRegistry* tab_registry);
@@ -86,7 +87,7 @@ class ExtensionSidePanelManager : public ExtensionRegistryObserver {
 
   // The browser or tab that this class is associated with. Only one of
   // `browser_` or `tab_interface_` should be defined.
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<tabs::TabInterface> tab_interface_;
 
   // The SidePanelRegistry that lives in the same user data that an instance of

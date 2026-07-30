@@ -65,18 +65,6 @@ id<GREYMatcher> GetMatcherForDoneButton() {
   return chrome_test_util::TabGridDoneButton();
 }
 
-// Matcher for the "Edit" button on the Tab Grid.
-id<GREYMatcher> GetMatcherForEditButton() {
-  return grey_allOf(grey_accessibilityID(kTabGridEditButtonIdentifier),
-                    grey_sufficientlyVisible(), nil);
-}
-
-// Matcher for the "Undo" button on the Tab Grid.
-id<GREYMatcher> GetMatcherForUndoButton() {
-  return grey_allOf(grey_accessibilityID(kTabGridUndoCloseAllButtonIdentifier),
-                    grey_sufficientlyVisible(), nil);
-}
-
 // Matcher for the pinned view.
 id<GREYMatcher> GetMatcherForPinnedView() {
   return grey_allOf(grey_accessibilityID(kPinnedViewIdentifier),
@@ -496,88 +484,6 @@ GURL GetURLForTitle(net::EmbeddedTestServer* test_server, NSString* title) {
       assertWithMatcher:grey_enabled()];
 }
 
-// TODO(crbug.com/441313129): This test is disabled because of its flakiness.
-// Tests closing all the regular tabs with "Close All" button and then undoing
-// the action.
-- (void)DISABLED_testUndoCloseAllRegularTabs {
-  if ([ChromeEarlGrey isIPadIdiom]) {
-    EARL_GREY_TEST_SKIPPED(@"Skipped for iPad. The Pinned Tabs feature is only "
-                           @"supported on iPhone.");
-  }
-
-  // Create tabs.
-  CreatePinnedTabs(2, self.testServer);
-  CreateRegularTabs(2, self.testServer);
-
-  // Open the Tab Grid.
-  [ChromeEarlGreyUI openTabGrid];
-
-  // Verify regular tabs are present.
-  [[EarlGrey selectElementWithMatcher:GetMatcherForRegularCellWithTitle(
-                                          @"RegularTab0")]
-      assertWithMatcher:grey_sufficientlyVisible()];
-  [[EarlGrey selectElementWithMatcher:GetMatcherForRegularCellWithTitle(
-                                          @"RegularTab1")]
-      assertWithMatcher:grey_sufficientlyVisible()];
-
-  // Verify last regular tab is selected.
-  [[EarlGrey selectElementWithMatcher:GetMatcherForRegularCellWithTitle(
-                                          @"RegularTab1")]
-      assertWithMatcher:grey_selected()];
-
-  // Tap on "Edit" button.
-  [[EarlGrey selectElementWithMatcher:GetMatcherForEditButton()]
-      performAction:grey_tap()];
-
-  // Tap on "Close All Tabs" menu action.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::
-                                          TabGridEditMenuCloseAllButton()]
-      performAction:grey_tap()];
-
-  // Verify regular tabs are not present.
-  [[EarlGrey selectElementWithMatcher:GetMatcherForRegularCellWithTitle(
-                                          @"RegularTab0")]
-      assertWithMatcher:grey_nil()];
-  [[EarlGrey selectElementWithMatcher:GetMatcherForRegularCellWithTitle(
-                                          @"RegularTab1")]
-      assertWithMatcher:grey_nil()];
-
-  // Verify last pinned tab is selected.
-  [[EarlGrey
-      selectElementWithMatcher:GetMatcherForPinnedCellWithTitle(@"PinnedTab1")]
-      assertWithMatcher:grey_selected()];
-
-  // Verify "Edit" button becomes an "Undo" button.
-  [[EarlGrey selectElementWithMatcher:GetMatcherForEditButton()]
-      assertWithMatcher:grey_notVisible()];
-  [[EarlGrey selectElementWithMatcher:GetMatcherForUndoButton()]
-      assertWithMatcher:grey_sufficientlyVisible()];
-
-  // Tap on "Undo" button.
-  [[EarlGrey selectElementWithMatcher:GetMatcherForUndoButton()]
-      performAction:grey_tap()];
-
-  // Verify regular tabs are present.
-  [[EarlGrey selectElementWithMatcher:GetMatcherForRegularCellWithTitle(
-                                          @"RegularTab0")]
-      assertWithMatcher:grey_sufficientlyVisible()];
-  [[EarlGrey selectElementWithMatcher:GetMatcherForRegularCellWithTitle(
-                                          @"RegularTab1")]
-      assertWithMatcher:grey_sufficientlyVisible()];
-
-  // Verify last regular tab is selected.
-  [[EarlGrey selectElementWithMatcher:GetMatcherForRegularCellWithTitle(
-                                          @"RegularTab1")]
-      assertWithMatcher:grey_selected()];
-
-  [self waitForAnimationCompletionWithMacther:GetMatcherForEditButton()];
-
-  // Verify "Undo" button becomes an "Edit" button.
-  [[EarlGrey selectElementWithMatcher:GetMatcherForUndoButton()]
-      assertWithMatcher:grey_notVisible()];
-  [[EarlGrey selectElementWithMatcher:GetMatcherForEditButton()]
-      assertWithMatcher:grey_sufficientlyVisible()];
-}
 
 // TODO(crbug.com/441313129): This test is disabled because of its flakiness.
 // Tests scrolling of the pinned tabs collection.

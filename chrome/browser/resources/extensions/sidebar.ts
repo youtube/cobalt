@@ -122,11 +122,11 @@ export class ExtensionsSidebarElement extends ExtensionsSidebarElementBase {
     });
   }
 
-  protected computeDocsPromoText_(): TrustedHTML {
+  protected computeModernWebGuidancePromoText_(): TrustedHTML {
     return this.i18nAdvanced('sidebarDocsPromo', {
       tags: ['a'],
       attrs: ['target'],
-      substitutions: [loadTimeData.getString('extensionsWhatsNewURL')],
+      substitutions: [loadTimeData.getString('modernWebGuidanceURL')],
     });
   }
 }

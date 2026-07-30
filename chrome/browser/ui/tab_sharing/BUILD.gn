@@ -64,6 +64,7 @@ if (!is_android) {
       ":tab_sharing",
       "//chrome/app:generated_resources",
       "//chrome/browser/ui/tab_sharing:test_support",
+      "//chrome/browser/ui/views:layout_provider",
       "//chrome/test:test_support",
       "//components/infobars/content",
       "//components/url_formatter",

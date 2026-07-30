@@ -64,14 +64,25 @@ std::basic_string_view<CHAR> DoRemoveUrlWhitespace(
     return input;
   }
 
-  // Skip whitespace removal for `data:` URLs.
+  // Skip whitespace removal for `data:` URLs. The scheme is matched
+  // ASCII-case-insensitively and after stepping over any leading removable
+  // whitespace, so that the result is the same regardless of how the scheme
+  // is spelled.
   //
   // TODO(mkwst): Ideally, this would use something like `base::StartsWith`, but
   // that turns out to be difficult to do correctly given this function's
   // character type templating.
-  if (input.length() > 5 && input[0] == 'd' && input[1] == 'a' &&
-      input[2] == 't' && input[3] == 'a' && input[4] == ':') {
-    return input;
+  size_t scheme_start = 0;
+  while (scheme_start < input.length() &&
+         IsRemovableURLWhitespace(input[scheme_start])) {
+    ++scheme_start;
+  }
+  std::basic_string_view<CHAR> trimmed = input.substr(scheme_start);
+  if (trimmed.length() > 5 && (trimmed[0] == 'd' || trimmed[0] == 'D') &&
+      (trimmed[1] == 'a' || trimmed[1] == 'A') &&
+      (trimmed[2] == 't' || trimmed[2] == 'T') &&
+      (trimmed[3] == 'a' || trimmed[3] == 'A') && trimmed[4] == ':') {
+    return trimmed;
   }
 
   // Remove the whitespace into the new buffer and return it.

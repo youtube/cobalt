@@ -56,7 +56,7 @@ class CORE_EXPORT ResponsivenessMetrics
   // Lifecycle and Testing
   void FlushAllEvents();
   void StopUkmSamplingForTesting() { sampling_ = false; }
-  uint32_t GetInteractionCount() const;
+  uint64_t GetInteractionCount() const;
 
   void SetCurrentInteractionEventQueuedTimestamp(base::TimeTicks queued_time);
   base::TimeTicks CurrentInteractionEventQueuedTimestamp() const;

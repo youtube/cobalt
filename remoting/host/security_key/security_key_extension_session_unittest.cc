@@ -78,6 +78,8 @@ class TestClientStub : public protocol::ClientStub {
   void SetTransportInfo(const protocol::TransportInfo& transport_info) override;
   void SetActiveDisplay(const protocol::ActiveDisplay& active_display) override;
   void ControlMicrophone(const protocol::MicrophoneControl& control) override;
+  void DeliverTerminalControl(
+      const protocol::TerminalControl& terminal_control) override;
 
   // protocol::ClipboardStub implementation.
   void InjectClipboardEvent(const protocol::ClipboardEvent& event) override;
@@ -125,6 +127,9 @@ void TestClientStub::SetActiveDisplay(
 
 void TestClientStub::ControlMicrophone(
     const protocol::MicrophoneControl& control) {}
+
+void TestClientStub::DeliverTerminalControl(
+    const protocol::TerminalControl& terminal_control) {}
 
 void TestClientStub::InjectClipboardEvent(
     const protocol::ClipboardEvent& event) {}

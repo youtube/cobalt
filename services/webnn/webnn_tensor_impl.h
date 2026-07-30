@@ -84,9 +84,15 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNTensorImpl
   // The caller blocks but the target sequence never blocks.
   // It is important the task does not post back to the current sequence, to
   // prevent deadlocks.
-  static void RunOrPostTaskAndWaitOnSequence(
+  void RunOrPostTaskAndWaitOnSequence(
       scoped_refptr<base::SequencedTaskRunner> target,
       base::OnceClosure task);
+
+  // Destroys tensor shared image access and representation on their bound
+  // sequences, and waits for teardown to complete before returning.
+  // Called when the tensor is disconnected from the context or when the
+  // context is destroyed.
+  void DestroyAccessAndRepresentationAndWait();
 
  protected:
   ~WebNNTensorImpl() override;

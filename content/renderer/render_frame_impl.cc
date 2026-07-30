@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "base/byte_count.h"
+#include "base/byte_size.h"
 #include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/containers/flat_map.h"
@@ -1383,9 +1384,9 @@ mojo::ScopedDataPipeConsumerHandle FillResponseForInitialWebUI(
   mojo::Remote<network::mojom::URLLoaderClient> client(
       std::move(client_remote));
   network::URLLoaderCompletionStatus status(net::OK);
-  status.encoded_data_length = output_size;
-  status.encoded_body_length = output_size;
-  status.decoded_body_length = output_size;
+  status.encoded_data_length = base::ByteSize(output_size);
+  status.encoded_body_length = base::ByteSize(output_size);
+  status.decoded_body_length = base::ByteSize(output_size);
   client->OnComplete(status);
   return std::move(response_body);
 }

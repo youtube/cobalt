@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/autofill/mock_autofill_popup_controller.h"
 #include "chrome/browser/ui/views/autofill/popup/mock_accessibility_selection_delegate.h"
 #include "chrome/browser/ui/views/autofill/popup/mock_selection_delegate.h"
@@ -89,12 +88,12 @@ TEST_F(PopupPersonalContextNoticeViewTest, InitialState) {
   views::StyledLabel* description = view().description_for_testing();
   ASSERT_NE(description, nullptr);
   EXPECT_TRUE(description->GetVisible());
-  EXPECT_EQ(u"Manage in settings", description->GetText());
+  EXPECT_EQ(u"lorem ipsum lorem ipsum lorem ipsum", description->GetText());
 
   // Check that the description contains a link with a correct text.
   views::Link* settings_link = description->GetFirstLinkForTesting();
   EXPECT_TRUE(settings_link);
-  EXPECT_EQ(u"settings", settings_link->GetText());
+  EXPECT_EQ(u"lorem ipsum", settings_link->GetText());
 
   // Check that the "Got it" button is visible and has the correct text.
   views::MdTextButton* got_it_button = view().got_it_button_for_testing();
@@ -123,6 +122,31 @@ TEST_F(PopupPersonalContextNoticeViewTest,
       .WillOnce(testing::Return(true));
 
   generator().MoveMouseTo(got_it_button->GetBoundsInScreen().CenterPoint());
+  generator().ClickLeftButton();
+}
+
+// Tests that clicking the settings link triggers `OnSettingsLinkClicked`.
+TEST_F(PopupPersonalContextNoticeViewTest, ClickSettingsLink) {
+  ShowView();
+
+  // Ensure the child views are laid out in the widget.
+  widget().LayoutRootViewIfNecessary();
+
+  views::StyledLabel* description = view().description_for_testing();
+  views::Link* settings_link = description->GetFirstLinkForTesting();
+  ASSERT_NE(settings_link, nullptr);
+
+  // The link must not be natively focusable so that it does not steal focus
+  // from the search bar/input field.
+  EXPECT_EQ(settings_link->GetFocusBehavior(),
+            views::View::FocusBehavior::NEVER);
+
+  // Since `chrome::ShowSettingsSubPageForProfile` is not mockable, we verify
+  // that `OnSettingsLinkClicked` was triggered by checking the only other thing
+  // in the method - that the controller was queried for its WebContents.
+  EXPECT_CALL(controller(), GetWebContents()).Times(testing::AtLeast(1));
+
+  generator().MoveMouseTo(settings_link->GetBoundsInScreen().CenterPoint());
   generator().ClickLeftButton();
 }
 

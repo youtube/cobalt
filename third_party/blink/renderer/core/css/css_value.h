@@ -145,6 +145,7 @@ class CORE_EXPORT CSSValue : public GarbageCollected<CSSValue> {
   bool IsLayoutFunctionValue() const {
     return class_type_ == kLayoutFunctionClass;
   }
+  bool IsParamValuePair() const { return class_type_ == kParamValuePairClass; }
   bool IsLinearGradientValue() const {
     return class_type_ == kLinearGradientClass;
   }
@@ -299,6 +300,7 @@ class CORE_EXPORT CSSValue : public GarbageCollected<CSSValue> {
     kURLPatternClass,
     kValuePairClass,
     kLightDarkValuePairClass,
+    kParamValuePairClass,
     kScrollClass,
     kViewClass,
     kRatioClass,

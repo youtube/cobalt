@@ -304,10 +304,10 @@ void UmaSessionStats::SessionTimeTracker::BeginBackgroundSession() {
 // the Java side.
 static void JNI_UmaSessionStats_ChangeMetricsReportingState(
     JNIEnv*,
-    bool consent,
+    bool enabled,
     int32_t called_from) {
   metrics::UpdateMetricsPrefsOnPermissionChange(
-      consent,
+      enabled,
       static_cast<metrics::ChangeMetricsReportingStateCalledFrom>(called_from));
 
   // This function ensures a consent file in the data directory is either
@@ -318,7 +318,7 @@ static void JNI_UmaSessionStats_ChangeMetricsReportingState(
       FROM_HERE,
       base::BindOnce(
           base::IgnoreResult(GoogleUpdateSettings::SetCollectStatsConsent),
-          consent));
+          enabled));
 }
 
 // Initialize the local consent bool variable to false. Used only for testing.

@@ -121,6 +121,7 @@ class MockWebContentsObserver : public WebContentsObserver {
               ResourceLoadComplete,
               (RenderFrameHost* render_frame_host,
                const GlobalRequestID& request_id,
+               const GURL& original_url,
                const blink::mojom::ResourceLoadInfo& resource_load_info),
               (override));
   MOCK_METHOD(void, OnFedCmFederatedLogin, (bool success), (override));

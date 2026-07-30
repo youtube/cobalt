@@ -139,8 +139,9 @@
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/graphics/accelerated_static_bitmap_image.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_2d_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_non_2d_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/canvas_utils.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/image_extractor.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
@@ -962,10 +963,10 @@ scoped_refptr<StaticBitmapImage> WebGLRenderingContextBase::GetImage() {
                              gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
                              gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
 
-  std::unique_ptr<CanvasNon2DResourceProviderSharedImage> resource_provider;
+  std::unique_ptr<CanvasNon2DResourceProvider> resource_provider;
   if (SharedGpuContext::IsGpuCompositingEnabled()) {
     // Create an accelerated CRP in order to produce an accelerated snapshot.
-    resource_provider = CanvasNon2DResourceProviderSharedImage::Create(
+    resource_provider = CanvasNon2DResourceProvider::Create(
         size, GetSharedImageFormat(), GetAlphaType(), GetColorSpace(),
         GetDrawingBuffer()->GetHdrMetadata(),
         SharedGpuContext::ContextProviderWrapper(), shared_image_usages);
@@ -985,8 +986,8 @@ scoped_refptr<StaticBitmapImage> WebGLRenderingContextBase::GetImage() {
     // N32 and premul (as set by
     // `CopyRenderingResultsFromDrawingBufferAccelerated`) and
     // top-left origin (the orientation that is used by
-    // `CanvasResourceProvider::Snapshot()` when it is not passed an orientation
-    // explicitly).
+    // `CanvasNon2DResourceProvider::Snapshot()` when it is not passed an
+    // orientation explicitly).
     return CopyRenderingResultsToUnacceleratedStaticBitmapImage(
         kBackBuffer, viz::SharedImageFormat::N32Format(), kPremul_SkAlphaType,
         kTopLeft_GrSurfaceOrigin);
@@ -1008,16 +1009,17 @@ ScriptPromise<IDLUndefined> WebGLRenderingContextBase::makeXRCompatible(
   if (xr_compatible_)
     return ToResolvedUndefinedPromise(script_state);
 
-  // If there's a request currently in progress, return the same promise.
-  if (make_xr_compatible_resolver_)
-    return make_xr_compatible_resolver_->Promise();
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
 
-  make_xr_compatible_resolver_ =
-      MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
-          script_state, exception_state.GetContext());
-  auto promise = make_xr_compatible_resolver_->Promise();
-
-  MakeXrCompatibleAsync();
+  // If there's a request currently in progress, share its result; otherwise
+  // start a new one.
+  bool request_in_progress = !make_xr_compatible_resolvers_.empty();
+  make_xr_compatible_resolvers_.push_back(resolver);
+  if (!request_in_progress) {
+    MakeXrCompatibleAsync();
+  }
 
   return promise;
 }
@@ -1117,17 +1119,16 @@ void WebGLRenderingContextBase::OnMakeXrCompatibleFinished(
 
 void WebGLRenderingContextBase::CompleteXrCompatiblePromiseIfPending(
     DOMExceptionCode exception_code) {
-  if (make_xr_compatible_resolver_) {
+  HeapVector<Member<ScriptPromiseResolver<IDLUndefined>>> resolvers;
+  resolvers.swap(make_xr_compatible_resolvers_);
+  for (auto& resolver : resolvers) {
     if (xr_compatible_) {
       DCHECK(exception_code == DOMExceptionCode::kNoError);
-      make_xr_compatible_resolver_->Resolve();
+      resolver->Resolve();
     } else {
       DCHECK(exception_code != DOMExceptionCode::kNoError);
-      make_xr_compatible_resolver_->Reject(
-          MakeGarbageCollected<DOMException>(exception_code));
+      resolver->Reject(MakeGarbageCollected<DOMException>(exception_code));
     }
-
-    make_xr_compatible_resolver_ = nullptr;
   }
 }
 
@@ -2065,7 +2066,7 @@ WebGLRenderingContextBase::PaintRenderingResultsToSnapshot(
     }
   }
 
-  CanvasNon2DResourceProviderSharedImage* resource_provider =
+  CanvasNon2DResourceProvider* resource_provider =
       GetSharedImageResourceProvider();
   if (!resource_provider) {
     // As a last resort, try to create and return an unaccelerated snapshot.
@@ -2073,7 +2074,7 @@ WebGLRenderingContextBase::PaintRenderingResultsToSnapshot(
     // N32 and premul (as set by
     // `CopyRenderingResultsFromDrawingBuffer{Accelerated, Unaccelerated}`) and
     // top-left origin (the orientation that is used by
-    // `CanvasResourceProvider::Snapshot()` when it is not passed an
+    // `CanvasNon2DResourceProvider::Snapshot()` when it is not passed an
     // orientation explicitly).
     if (!cached_snapshot_) {
       cached_snapshot_ = CopyRenderingResultsToUnacceleratedStaticBitmapImage(
@@ -2167,7 +2168,7 @@ WebGLRenderingContextBase::PaintRenderingResultsToResource(
   return CopyRenderingResultsFromDrawingBufferToResource(source_buffer);
 }
 
-CanvasNon2DResourceProviderSharedImage*
+CanvasNon2DResourceProvider*
 WebGLRenderingContextBase::GetSharedImageResourceProvider() {
   // If `cached_snapshot_` is non-null, it means that
   // PaintRenderingResultsToSnapshot() was unable to populate
@@ -2220,13 +2221,13 @@ WebGLRenderingContextBase::GetSharedImageResourceProvider() {
     if (UseOverlaysForWebGL()) {
       shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
     }
-    resource_provider_ = CanvasNon2DResourceProviderSharedImage::Create(
+    resource_provider_ = CanvasNon2DResourceProvider::Create(
         size, format, alpha_type, color_space, hdr_metadata,
         SharedGpuContext::ContextProviderWrapper(), shared_image_usage_flags,
         Host());
   } else {
     resource_provider_ =
-        CanvasNon2DResourceProviderSharedImage::CreateForSoftwareCompositor(
+        CanvasNon2DResourceProvider::CreateForSoftwareCompositor(
             size, format, alpha_type, color_space, hdr_metadata,
             SharedGpuContext::SharedImageInterfaceProvider(), Host());
   }
@@ -2252,7 +2253,7 @@ WebGLRenderingContextBase::CopyRenderingResultsFromDrawingBufferToResource(
                "WebGLRenderingContextBase::"
                "CopyRenderingResultsFromDrawingBufferToResource");
 
-  CanvasNon2DResourceProviderSharedImage* resource_provider =
+  CanvasNon2DResourceProvider* resource_provider =
       GetSharedImageResourceProvider();
   if (!resource_provider) {
     return nullptr;
@@ -2306,7 +2307,7 @@ WebGLRenderingContextBase::CopyRenderingResultsFromDrawingBufferToResource(
 
 bool WebGLRenderingContextBase::
     CopyRenderingResultsFromDrawingBufferAccelerated(
-        CanvasNon2DResourceProviderSharedImage* resource_provider,
+        CanvasNon2DResourceProvider* resource_provider,
         SourceDrawingBuffer source_buffer) {
   DCHECK(resource_provider);
   DCHECK(!resource_provider->IsSingleBuffered());
@@ -6712,7 +6713,7 @@ void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
   auto info = CreateSnapshotProviderInfoForVideoFrame(
       *media_video_frame, dest_rect.size(), reinterpret_video_as_srgb);
 
-  CanvasNon2DResourceProviderSharedImage* provider = nullptr;
+  CanvasNon2DResourceProvider* provider = nullptr;
   if (can_upload_via_gpu) {
     viz::RasterContextProvider* raster_context_provider = nullptr;
     if (auto wrapper = SharedGpuContext::ContextProviderWrapper()) {
@@ -6720,7 +6721,7 @@ void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
           wrapper->ContextProvider().RasterContextProvider();
     }
     if (ShouldCreateAcceleratedImages(raster_context_provider)) {
-      provider = generated_video_cache_.GetCanvasResourceProvider(info);
+      provider = generated_video_cache_.GetCanvasNon2DResourceProvider(info);
       if (!provider) {
         return;
       }
@@ -7610,10 +7611,9 @@ void WebGLRenderingContextBase::ForceLostContext(
     tracker->LoseExtension(false);
   }
 
-  // This resolver is non-null during a makeXRCompatible call, while waiting
-  // for a response from the browser and XR process. If the WebGL context is
-  // lost before we get a response, the resolver has to be rejected to be
-  // be properly disposed of.
+  // makeXRCompatible() resolvers are pending while waiting for a response from
+  // the browser and XR process. If the WebGL context is lost before we get a
+  // response, the resolvers have to be rejected to be properly disposed of.
   xr_compatible_ = false;
   CompleteXrCompatiblePromiseIfPending(DOMExceptionCode::kInvalidStateError);
 
@@ -9074,16 +9074,16 @@ String WebGLRenderingContextBase::EnsureNotNull(const String& text) const {
   return text;
 }
 
-WebGLRenderingContextBase::LRUCanvasResourceProviderCache::
-    LRUCanvasResourceProviderCache(wtf_size_t capacity)
+WebGLRenderingContextBase::LRUCanvasNon2DResourceProviderCache::
+    LRUCanvasNon2DResourceProviderCache(wtf_size_t capacity)
     : capacity_(capacity), providers_(capacity) {}
 
-CanvasNon2DResourceProviderSharedImage* WebGLRenderingContextBase::
-    LRUCanvasResourceProviderCache::GetCanvasResourceProvider(
+CanvasNon2DResourceProvider* WebGLRenderingContextBase::
+    LRUCanvasNon2DResourceProviderCache::GetCanvasNon2DResourceProvider(
         const CanvasSnapshotInfo& info) {
   wtf_size_t i;
   for (i = 0; i < capacity_; ++i) {
-    CanvasNon2DResourceProviderSharedImage* provider = providers_[i].get();
+    CanvasNon2DResourceProvider* provider = providers_[i].get();
     if (!provider) {
       break;
     }
@@ -9094,8 +9094,8 @@ CanvasNon2DResourceProviderSharedImage* WebGLRenderingContextBase::
     return provider;
   }
 
-  std::unique_ptr<CanvasNon2DResourceProviderSharedImage> temp =
-      CanvasNon2DResourceProviderSharedImage::Create(
+  std::unique_ptr<CanvasNon2DResourceProvider> temp =
+      CanvasNon2DResourceProvider::Create(
           info.size, info.format, info.alpha_type, info.color_space,
           info.hdr_metadata, SharedGpuContext::ContextProviderWrapper(),
           gpu::SHARED_IMAGE_USAGE_DISPLAY_READ);
@@ -9107,13 +9107,13 @@ CanvasNon2DResourceProviderSharedImage* WebGLRenderingContextBase::
   i = std::min(capacity_ - 1, i);
   providers_[i] = std::move(temp);
 
-  CanvasNon2DResourceProviderSharedImage* provider = providers_[i].get();
+  CanvasNon2DResourceProvider* provider = providers_[i].get();
   BubbleToFront(i);
   return provider;
 }
 
-void WebGLRenderingContextBase::LRUCanvasResourceProviderCache::BubbleToFront(
-    wtf_size_t idx) {
+void WebGLRenderingContextBase::LRUCanvasNon2DResourceProviderCache::
+    BubbleToFront(wtf_size_t idx) {
   for (wtf_size_t i = idx; i > 0; --i) {
     providers_[i].swap(providers_[i - 1]);
   }
@@ -9312,7 +9312,7 @@ void WebGLRenderingContextBase::Trace(Visitor* visitor) const {
   visitor->Trace(texture_units_);
   visitor->Trace(extensions_);
   visitor->Trace(buffers_);
-  visitor->Trace(make_xr_compatible_resolver_);
+  visitor->Trace(make_xr_compatible_resolvers_);
   visitor->Trace(program_completion_query_list_);
   visitor->Trace(program_completion_query_map_);
   WebGLContextObjectSupport::Trace(visitor);

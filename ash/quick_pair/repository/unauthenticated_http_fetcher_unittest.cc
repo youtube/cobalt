@@ -5,6 +5,7 @@
 #include "ash/quick_pair/repository/unauthenticated_http_fetcher.h"
 
 #include "ash/quick_pair/common/mock_quick_pair_browser_delegate.h"
+#include "base/byte_size.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/test/task_environment.h"
 #include "net/http/http_util.h"
@@ -52,7 +53,7 @@ TEST_F(UnauthenticatedHttpFetcherTest, ExecuteGetRequest_Success) {
       net::HttpUtil::AssembleRawHeaders(""));
   head->headers->GetMimeType(&head->mime_type);
   network::URLLoaderCompletionStatus status(net::Error::OK);
-  status.decoded_body_length = body.size();
+  status.decoded_body_length = base::ByteSize(body.size());
   url_loader_factory_.AddResponse(url, std::move(head), body, status);
 
   http_fetcher_->ExecuteGetRequest(

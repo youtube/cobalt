@@ -978,6 +978,16 @@ void PaymentRequest::OnPaymentResponseError(
   reject_show_error_reason_ =
       ConvertPaymentEventResponseTypeToErrorReason(error);
 
+  // If the user has interacted with the payment handler window before any error
+  // occurred, close the dialog directly without navigating to the error message
+  // view.
+  if (base::FeatureList::IsEnabled(
+          features::kPaymentRequestMandatoryPaymentAppUi) &&
+      state_->WasPaymentHandlerWindowInteractedWith()) {
+    delegate_->CloseDialog();
+    return;
+  }
+
   ShowErrorMessageAndAbortPayment();
 }
 

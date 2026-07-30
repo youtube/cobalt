@@ -3,5 +3,17 @@
     "type": "array",
     "name": "kAiModeButtonConfigs"
   },
-  "elements": {}
+  "elements": {
+    "google_debug": {
+      "id": "SEARCH_ENGINE_BING",
+      "text": "Google DEBÜG",
+      "tooltip": "DEBÜG tooltip",
+      "a11y_label": "DEBÜG a11y",
+      "context_menu_label": "DEBÜG context menu",
+      "placeholder_text": "DEBÜG placeholder",
+      "favicon_url": "https://www.google.com/favicon.ico",
+      "navigation_url": "https://www.google.com/search?q={searchTerms}",
+      "navigation_url_empty": "https://www.google.com"
+    }
+  }
 }

@@ -34,9 +34,9 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.state.ShoppingPersistedTabDataTestUtils.ShoppingServiceResponse;
-import org.chromium.chrome.test.ChromeBrowserTestRule;
 import org.chromium.components.commerce.core.ShoppingService;
 import org.chromium.content_public.browser.NavigationHandle;
+import org.chromium.content_public.browser.test.NativeLibraryTestUtils;
 
 import java.util.concurrent.Semaphore;
 
@@ -46,7 +46,6 @@ import java.util.concurrent.Semaphore;
 @CommandLineFlags.Add(ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE)
 public class ShoppingPersistedTabDataDeferredStartupTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
-    @Rule public final ChromeBrowserTestRule mBrowserTestRule = new ChromeBrowserTestRule();
 
     @Mock ShoppingService mShoppingService;
 
@@ -58,6 +57,7 @@ public class ShoppingPersistedTabDataDeferredStartupTest {
 
     @Before
     public void setUp() {
+        NativeLibraryTestUtils.loadNativeLibraryAndInitBrowserProcess();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     PersistedTabDataConfiguration.setUseTestConfig(true);
@@ -238,5 +238,39 @@ public class ShoppingPersistedTabDataDeferredStartupTest {
                             true);
                 });
         ShoppingPersistedTabDataTestUtils.acquireSemaphore(semaphore);
+    }
+
+    @SmallTest
+    @Test
+    public void testTabDestructionClearsQueue() {
+        final Tab tab = ShoppingPersistedTabDataTestUtils.createTabOnUiThread(0, mProfileMock);
+        Assert.assertEquals(0, ShoppingPersistedTabData.getQueueSizeForTesting());
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ShoppingPersistedTabData.initialize(tab);
+                });
+        Assert.assertEquals(1, ShoppingPersistedTabData.getQueueSizeForTesting());
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    tab.destroy();
+                });
+        // Without the fix, this will fail because the queue size will still be 1 (leak).
+        Assert.assertEquals(0, ShoppingPersistedTabData.getQueueSizeForTesting());
+    }
+
+    @SmallTest
+    @Test
+    public void testInitializeWithDestroyedTabDoesNotQueue() {
+        final Tab tab = mock(Tab.class);
+        doReturn(true).when(tab).isDestroyed();
+        Assert.assertEquals(0, ShoppingPersistedTabData.getQueueSizeForTesting());
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ShoppingPersistedTabData.initialize(tab);
+                });
+        Assert.assertEquals(0, ShoppingPersistedTabData.getQueueSizeForTesting());
     }
 }

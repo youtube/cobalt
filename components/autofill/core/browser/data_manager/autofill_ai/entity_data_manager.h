@@ -193,6 +193,13 @@ class EntityDataManager : public KeyedService,
 
   const GeoIpCountryCode& GetVariationCountryCode() const;
 
+  // Populates this `EntityDataManager` directly with `entities`. This should
+  // only be used for testing purposes.
+  void SetPersonalContextEntitiesForTesting(
+      base::span<const EntityInstance> entities) {
+    AddPersonalContextEntities(entities);
+  }
+
   base::WeakPtr<EntityDataManager> GetWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
   }
@@ -202,6 +209,9 @@ class EntityDataManager : public KeyedService,
 
   base::optional_ref<EntityInstance> GetMutableEntityInstance(
       const EntityInstance::EntityId& guid);
+
+  // Populates this `EntityDataManager` with the provided `entities`.
+  void AddPersonalContextEntities(base::span<const EntityInstance> entities);
 
   // Wallet private passes are not supported on devices without re-auth.
   // Depending on the `reauth_availability_`, this function might remove them

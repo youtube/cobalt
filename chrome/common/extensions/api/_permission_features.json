@@ -509,10 +509,6 @@
     "channel": "stable",
     "extension_types": ["extension", "platform_app"]
   },
-  "idltest": {
-    "channel": "trunk",
-    "extension_types": ["extension"]
-  },
   "indigoPrivate": {
     "channel": "stable",
     "extension_types": ["extension"],

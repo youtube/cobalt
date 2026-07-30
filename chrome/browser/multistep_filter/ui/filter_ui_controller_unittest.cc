@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/contextual_cueing/prefs.h"
 #include "chrome/browser/multistep_filter/ui/filter_ui_controller_test_api.h"
@@ -15,11 +16,11 @@
 #include "chrome/browser/ui/page_action/action_ids.h"
 #include "chrome/browser/ui/page_action/test_support/mock_page_action_controller.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
-#include "components/favicon/core/test/mock_favicon_service.h"
 #include "components/multistep_filter/content/filter_initiated_navigation_marker.h"
 #include "components/multistep_filter/core/annotation_index/mock_annotation_index_client.h"
 #include "components/multistep_filter/core/data_models/suggestion_user_decision.h"
 #include "components/multistep_filter/core/features.h"
+#include "components/multistep_filter/core/logging/multistep_filter_metrics.h"
 #include "components/multistep_filter/core/multistep_filter_service.h"
 #include "components/multistep_filter/core/multistep_filter_util.h"
 #include "components/multistep_filter/core/storage/filter_store.h"
@@ -35,10 +36,8 @@
 #include "content/public/test/web_contents_tester.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/unowned_user_data/unowned_user_data_host.h"
-#include "ui/gfx/image/image.h"
 #include "ui/strings/grit/ui_strings.h"
 #include "url/gurl.h"
 
@@ -58,7 +57,10 @@ class MockFilterUiController : public FilterUiController {
       : FilterUiController(tab) {}
   ~MockFilterUiController() override = default;
 
-  MOCK_METHOD(void, NavigateTo, (const GURL& url), (override));
+  MOCK_METHOD(void,
+              NavigateTo,
+              (const UrlFilterSuggestion& suggestion),
+              (override));
 };
 
 class TestFilterUiController : public FilterUiController {
@@ -161,7 +163,6 @@ class FilterUiControllerTest : public ChromeRenderViewHostTestHarness {
         testing::NiceMock<page_actions::MockPageActionController>>();
     test_api(*controller_)
         .set_page_action_controller(mock_page_action_controller_.get());
-    test_api(*controller_).set_favicon_service(&mock_favicon_service_);
 
     mock_service_ =
         std::make_unique<testing::NiceMock<MockMultistepFilterService>>(
@@ -197,7 +198,6 @@ class FilterUiControllerTest : public ChromeRenderViewHostTestHarness {
   std::unique_ptr<testing::NiceMock<MockFilterUiController>> controller_;
   std::unique_ptr<testing::NiceMock<page_actions::MockPageActionController>>
       mock_page_action_controller_;
-  testing::NiceMock<favicon::MockFaviconService> mock_favicon_service_;
   std::unique_ptr<MockMultistepFilterService> mock_service_;
 };
 
@@ -227,11 +227,6 @@ TEST_F(FilterUiControllerTest, OnSuggestionGeneratedShowsCue) {
   suggestion.suggestion_message = u"Test Message";
 
   controller_->OnSuggestionGenerated(suggestion);
-
-  favicon_base::FaviconImageResult result;
-  // Manually invoke the callback to simulate successful async favicon returns
-  // in a synthetic test environment.
-  test_api(*controller_).OnFaviconAvailable(suggestion, result);
 
   const std::optional<FilterUiController::SuggestionState>& state =
       test_api(*controller_).suggestion_state();
@@ -268,16 +263,6 @@ TEST_F(FilterUiControllerTest,
   EXPECT_FALSE(test_api(*controller_).suggestion_state().has_value());
 }
 
-TEST_F(FilterUiControllerTest, OnSuggestionGeneratedWithNullFaviconService) {
-  test_api(*controller_).set_favicon_service(nullptr);
-
-  UrlFilterSuggestion suggestion =
-      CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
-  suggestion.suggestion_message = u"Test Message";
-
-  controller_->OnSuggestionGenerated(suggestion);
-  EXPECT_FALSE(test_api(*controller_).suggestion_state().has_value());
-}
 
 TEST_F(FilterUiControllerTest, OnSuggestionGeneratedWithNullPrefService) {
   test_api(*controller_).set_pref_service(nullptr);
@@ -350,9 +335,6 @@ TEST_F(FilterUiControllerTest, ClearSuggestionResetsCachedSuggestion) {
 }
 
 TEST_F(FilterUiControllerTest, ClearSuggestionHidesPageAction) {
-  EXPECT_CALL(mock_favicon_service_, GetFaviconImageForPageURL(_, _, _))
-      .WillOnce(Return(base::CancelableTaskTracker::TaskId()));
-
   UrlFilterSuggestion suggestion =
       CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
   suggestion.suggestion_message = u"Test Message";
@@ -361,11 +343,6 @@ TEST_F(FilterUiControllerTest, ClearSuggestionHidesPageAction) {
   EXPECT_CALL(*mock_page_action_controller_, Show(kActionMultistepFilter))
       .Times(1);
   controller_->OnSuggestionGenerated(suggestion);
-
-  favicon_base::FaviconImageResult result;
-  // Manually invoke the callback to simulate successful async favicon returns
-  // in a synthetic test environment.
-  test_api(*controller_).OnFaviconAvailable(suggestion, result);
 
   // Now clear suggestion and verify it hides the cue.
   EXPECT_CALL(*mock_page_action_controller_, Hide(kActionMultistepFilter))
@@ -409,7 +386,7 @@ TEST_F(FilterUiControllerTest, ApplySuggestion) {
       CreateDummySuggestion(url, DefaultAttributes());
   controller_->OnSuggestionGenerated(suggestion);
 
-  EXPECT_CALL(*controller_, NavigateTo(url));
+  EXPECT_CALL(*controller_, NavigateTo(suggestion));
   controller_->ApplySuggestion();
 }
 
@@ -422,7 +399,9 @@ TEST_F(FilterUiControllerTest, NavigateToWithNullWebContentsDoesNotCrash) {
       std::make_unique<TestFilterUiController>(*mock_tab_null_contents);
 
   // Should not crash.
-  controller_null_contents->NavigateTo(GURL("https://example.com"));
+  UrlFilterSuggestion suggestion =
+      CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
+  controller_null_contents->NavigateTo(suggestion);
 }
 
 TEST_F(FilterUiControllerTest, NavigateToWithWebContents) {
@@ -436,6 +415,8 @@ TEST_F(FilterUiControllerTest, NavigateToWithWebContents) {
   web_contents()->SetDelegate(&delegate);
 
   GURL url("https://example.com");
+  UrlFilterSuggestion suggestion =
+      CreateDummySuggestion(url, DefaultAttributes());
 
   EXPECT_CALL(
       delegate,
@@ -454,7 +435,7 @@ TEST_F(FilterUiControllerTest, NavigateToWithWebContents) {
             return web_contents();
           });
 
-  controller->NavigateTo(url);
+  controller->NavigateTo(suggestion);
 }
 
 // === Group 5: Menu Delegate Methods (IsCommandIdChecked, IsCommandIdEnabled,
@@ -465,6 +446,8 @@ TEST_F(FilterUiControllerTest, IsCommandIdCheckedReturnsFalse) {
       test_api(*controller_).IsCommandIdChecked(internal::kDismissCommand));
   EXPECT_FALSE(
       test_api(*controller_).IsCommandIdChecked(internal::kSettingsCommand));
+  EXPECT_FALSE(test_api(*controller_)
+                   .IsCommandIdChecked(internal::kSendFeedbackCommand));
 }
 
 TEST_F(FilterUiControllerTest, IsCommandIdEnabledReturnsTrue) {
@@ -472,6 +455,44 @@ TEST_F(FilterUiControllerTest, IsCommandIdEnabledReturnsTrue) {
       test_api(*controller_).IsCommandIdEnabled(internal::kDismissCommand));
   EXPECT_TRUE(
       test_api(*controller_).IsCommandIdEnabled(internal::kSettingsCommand));
+  EXPECT_TRUE(test_api(*controller_)
+                  .IsCommandIdEnabled(internal::kSendFeedbackCommand));
+}
+
+TEST_F(FilterUiControllerTest, ExecuteCommandDismissClearsSuggestion) {
+  UrlFilterSuggestion suggestion =
+      CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
+  controller_->OnSuggestionGenerated(suggestion);
+  EXPECT_NE(test_api(*controller_).suggestion_state(), std::nullopt);
+
+  test_api(*controller_).ExecuteCommand(internal::kDismissCommand, 0);
+  EXPECT_EQ(test_api(*controller_).suggestion_state(), std::nullopt);
+}
+
+TEST_F(FilterUiControllerTest,
+       ExecuteCommandSendFeedbackDoesNotClearSuggestion) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      kMultistepFilterSendFeedback,
+      {{"MultistepFilterSendFeedbackUrl", "https://feedback.google.com"}});
+
+  MockWebContentsDelegate delegate;
+  web_contents()->SetDelegate(&delegate);
+
+  EXPECT_CALL(delegate, OpenURLFromTab(
+                            web_contents(),
+                            testing::Field(&content::OpenURLParams::url,
+                                           GURL("https://feedback.google.com")),
+                            _))
+      .WillOnce(testing::Return(web_contents()));
+
+  UrlFilterSuggestion suggestion =
+      CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
+  controller_->OnSuggestionGenerated(suggestion);
+  EXPECT_NE(test_api(*controller_).suggestion_state(), std::nullopt);
+
+  test_api(*controller_).ExecuteCommand(internal::kSendFeedbackCommand, 0);
+  EXPECT_NE(test_api(*controller_).suggestion_state(), std::nullopt);
 }
 
 // === Group 6: Action Invocation (OnActionInvoked) ===
@@ -580,6 +601,8 @@ TEST_F(
   EXPECT_TRUE(test_api(*controller_).suggestion_state().has_value());
 }
 
+// === Group 8: Impression Logging ===
+
 TEST_F(FilterUiControllerTest, RecordImpressionOnMessageShown) {
   UrlFilterSuggestion suggestion =
       CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
@@ -622,6 +645,74 @@ TEST_F(FilterUiControllerTest, RecordAcceptanceOnApplySuggestion) {
       .Times(1);
 
   controller_->OnActionInvoked();
+}
+
+// === Group 9: End-to-End Metrics & Lifecycle Logging ===
+
+TEST_F(FilterUiControllerTest, HistogramLoggingInitialCueAccepted) {
+  base::HistogramTester histogram_tester;
+
+  UrlFilterSuggestion suggestion =
+      CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
+  controller_->OnSuggestionGenerated(suggestion);
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+
+  controller_->ClearSuggestion(SuggestionUserDecision::kAccepted);
+
+  histogram_tester.ExpectUniqueSample(
+      kMultistepFilterAcceptanceInitialCueHistogram,
+      SuggestionUserDecision::kAccepted, 1);
+  histogram_tester.ExpectUniqueSample(kMultistepFilterAcceptanceHistogram,
+                                      SuggestionUserDecision::kAccepted, 1);
+  histogram_tester.ExpectTotalCount(
+      kMultistepFilterAcceptanceReopenedCueHistogram, 0);
+}
+
+TEST_F(FilterUiControllerTest,
+       HistogramLoggingReopenedCueIgnoredMultipleTimes) {
+  base::HistogramTester histogram_tester;
+
+  UrlFilterSuggestion suggestion =
+      CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
+  controller_->OnSuggestionGenerated(suggestion);
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+
+  // 1. Initial cue ignored -> collapses into omnibox.
+  test_api(*controller_).OnPageActionAnchoredMessageHidden(ActionState());
+  histogram_tester.ExpectTotalCount(
+      kMultistepFilterAcceptanceInitialCueHistogram, 0);
+  histogram_tester.ExpectTotalCount(kMultistepFilterAcceptanceHistogram, 0);
+
+  // 2. User reopens from omnibox and ignores (closes) it.
+  controller_->OnActionInvoked();
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+  test_api(*controller_).OnPageActionAnchoredMessageHidden(ActionState());
+
+  histogram_tester.ExpectTotalCount(
+      kMultistepFilterAcceptanceReopenedCueHistogram, 0);
+  histogram_tester.ExpectTotalCount(kMultistepFilterAcceptanceHistogram, 0);
+
+  // 3. User reopens a 2nd time and ignores it again.
+  controller_->OnActionInvoked();
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+  test_api(*controller_).OnPageActionAnchoredMessageHidden(ActionState());
+
+  histogram_tester.ExpectTotalCount(
+      kMultistepFilterAcceptanceReopenedCueHistogram, 0);
+  histogram_tester.ExpectTotalCount(kMultistepFilterAcceptanceHistogram, 0);
+
+  // 4. Tab closes -> records single overall outcome and deduplicated surface
+  // metrics.
+  controller_->ClearSuggestion(SuggestionUserDecision::kIgnored);
+
+  histogram_tester.ExpectUniqueSample(
+      kMultistepFilterAcceptanceInitialCueHistogram,
+      SuggestionUserDecision::kIgnored, 1);
+  histogram_tester.ExpectUniqueSample(kMultistepFilterAcceptanceHistogram,
+                                      SuggestionUserDecision::kIgnored, 1);
+  histogram_tester.ExpectUniqueSample(
+      kMultistepFilterAcceptanceReopenedCueHistogram,
+      SuggestionUserDecision::kIgnored, 1);
 }
 
 }  // namespace

@@ -44,7 +44,7 @@ PermissionUpdateMessageDelegate::PermissionUpdateMessageDelegate(
   message_->SetTitle(l10n_util::GetStringUTF16(title_id));
   message_->SetDescription(l10n_util::GetStringUTF16(description_id));
   message_->SetPrimaryButtonText(
-      l10n_util::GetStringUTF16(IDS_INFOBAR_UPDATE_PERMISSIONS_BUTTON_TEXT));
+      l10n_util::GetStringUTF16(IDS_MESSAGE_UPDATE_PERMISSIONS_BUTTON_TEXT));
   message_->SetIconResourceId(ResourceMapper::MapToJavaDrawableId(icon_id));
   messages::MessageDispatcherBridge::Get()->EnqueueMessage(
       message_.get(), web_contents, messages::MessageScopeType::NAVIGATION,

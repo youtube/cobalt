@@ -25,7 +25,6 @@
 #if !BUILDFLAG(IS_FUCHSIA)
 #include "components/variations/service/google_groups_manager.h"  // nogncheck
 #endif  // !BUILDFLAG(IS_FUCHSIA)
-#include "components/accessibility_annotator/core/at_memory_query_service.h"
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.h"
 #include "components/autofill/core/browser/crowdsourcing/mock_autofill_crowdsourcing_manager.h"
@@ -41,6 +40,7 @@
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/autofill_driver_factory.h"
 #include "components/autofill/core/browser/foundations/test_autofill_driver_factory.h"
+#include "components/autofill/core/browser/integrators/at_memory/at_memory_query_service.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/mock_autofill_ai_manager.h"
 #include "components/autofill/core/browser/integrators/compose/autofill_compose_delegate.h"
 #include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
@@ -229,8 +229,7 @@ class TestAutofillClientTemplate : public T {
     return &mock_autocomplete_history_manager_;
   }
 
-  accessibility_annotator::AtMemoryQueryService* GetAtMemoryQueryService()
-      override {
+  AtMemoryQueryService* GetAtMemoryQueryService() override {
     return at_memory_query_service_.get();
   }
 
@@ -332,6 +331,8 @@ class TestAutofillClientTemplate : public T {
   url::Origin GetLastCommittedPrimaryMainFrameOrigin() const override {
     return last_committed_primary_main_frame_origin_;
   }
+
+  std::u16string_view GetPageTitle() const override { return page_title_; }
 
   security_state::SecurityLevel GetSecurityLevelForUmaHistograms() override {
     return security_level_;
@@ -502,6 +503,8 @@ class TestAutofillClientTemplate : public T {
     return is_device_large_form_factor_;
   }
 
+  bool SupportsDeviceReauth() const override { return supports_device_reauth_; }
+
   std::unique_ptr<device_reauth::DeviceAuthenticator> GetDeviceAuthenticator(
       std::string histogram) const override {
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
@@ -538,17 +541,31 @@ class TestAutofillClientTemplate : public T {
     return test_addresses_;
   }
 
-  bool ShouldShowPersonalContextAutofillNotice() const override {
-    return should_show_personal_context_autofill_notice_;
+  bool ShouldShowPersonalContextAmbientAutofillNotice() const override {
+    return should_show_personal_context_ambient_autofill_notice_;
   }
-  void set_should_show_personal_context_autofill_notice(bool should_show) {
-    should_show_personal_context_autofill_notice_ = should_show;
+  void set_should_show_personal_context_ambient_autofill_notice(
+      bool should_show) {
+    should_show_personal_context_ambient_autofill_notice_ = should_show;
   }
-  void MarkPersonalContextInAutofillNoticeAsAcknowledged() override {
-    is_personal_context_notice_acknowledged_ = true;
+  void MarkPersonalContextAmbientAutofillNoticeAsAcknowledged() override {
+    is_personal_context_ambient_autofill_notice_acknowledged_ = true;
   }
-  bool is_personal_context_notice_acknowledged() const {
-    return is_personal_context_notice_acknowledged_;
+  bool is_personal_context_ambient_autofill_notice_acknowledged() const {
+    return is_personal_context_ambient_autofill_notice_acknowledged_;
+  }
+
+  bool ShouldShowPersonalContextAtMemoryNotice() const override {
+    return should_show_personal_context_at_memory_notice_;
+  }
+  void set_should_show_personal_context_at_memory_notice(bool should_show) {
+    should_show_personal_context_at_memory_notice_ = should_show;
+  }
+  void MarkPersonalContextAtMemoryNoticeAsAcknowledged() override {
+    is_personal_context_at_memory_notice_acknowledged_ = true;
+  }
+  bool is_personal_context_at_memory_notice_acknowledged() const {
+    return is_personal_context_at_memory_notice_acknowledged_;
   }
 
   personal_context::PersonalContextEnablementService*
@@ -710,6 +727,10 @@ class TestAutofillClientTemplate : public T {
     is_credit_card_upload_enabled_ = is_credit_card_upload_enabled;
   }
 
+  void set_supports_device_reauth(bool supports_device_reauth) {
+    supports_device_reauth_ = supports_device_reauth;
+  }
+
   void set_crowdsourcing_manager(
       std::unique_ptr<AutofillCrowdsourcingManager> crowdsourcing_manager) {
     crowdsourcing_manager_ = std::move(crowdsourcing_manager);
@@ -721,8 +742,7 @@ class TestAutofillClientTemplate : public T {
   }
 
   void set_at_memory_query_service(
-      std::unique_ptr<accessibility_annotator::AtMemoryQueryService>
-          at_memory_query_service) {
+      std::unique_ptr<AtMemoryQueryService> at_memory_query_service) {
     at_memory_query_service_ = std::move(at_memory_query_service);
   }
 
@@ -804,8 +824,7 @@ class TestAutofillClientTemplate : public T {
   std::unique_ptr<GoogleGroupsManager> google_groups_manager_;
 #endif
   std::unique_ptr<OtpPhishGuardDelegate> otp_phish_guard_delegate_;
-  std::unique_ptr<accessibility_annotator::AtMemoryQueryService>
-      at_memory_query_service_;
+  std::unique_ptr<AtMemoryQueryService> at_memory_query_service_;
   personal_context::PersonalContextEnablementState
       personal_context_enablement_state_ =
           personal_context::PersonalContextEnablementState::kEnabled;
@@ -878,10 +897,14 @@ class TestAutofillClientTemplate : public T {
 
   bool is_credit_card_upload_enabled_ = true;
 
+  bool supports_device_reauth_ = true;
+
   bool is_tab_in_actor_mode_ = false;
 
-  bool should_show_personal_context_autofill_notice_ = false;
-  bool is_personal_context_notice_acknowledged_ = false;
+  bool should_show_personal_context_ambient_autofill_notice_ = false;
+  bool is_personal_context_ambient_autofill_notice_acknowledged_ = false;
+  bool should_show_personal_context_at_memory_notice_ = false;
+  bool is_personal_context_at_memory_notice_acknowledged_ = false;
 
   bool is_glic_enabled_ = false;
 
@@ -907,6 +930,7 @@ class TestAutofillClientTemplate : public T {
   GURL last_committed_primary_main_frame_url_{"https://example.test"};
   url::Origin last_committed_primary_main_frame_origin_ =
       url::Origin::Create(last_committed_primary_main_frame_url_);
+  std::u16string page_title_ = u"Test page title";
 
   std::optional<AutofillClient::SuggestionUiSessionId>
       suggestion_ui_session_id_;

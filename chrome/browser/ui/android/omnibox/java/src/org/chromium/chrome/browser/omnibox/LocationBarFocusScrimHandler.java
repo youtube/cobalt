@@ -112,19 +112,11 @@ public class LocationBarFocusScrimHandler {
 
     /** Compute and apply property updates needed for accurate visual representation of scrim. */
     public void updateScrimVisualState() {
-        if (ChromeFeatureList.sOmniboxAutofocusOnIncognitoNtp.isEnabled()
-                && mLocationBarDataProvider
-                        .getNewTabPageDelegate()
-                        .isIncognitoNewTabPageCurrentlyVisible()) {
-            return;
-        }
-
         boolean isTablet = DeviceFormFactor.isNonMultiDisplayContextOnTablet(mContext);
         boolean useTransparentScrim =
                 isTablet
                         && (OmniboxFeatures.isMultimodalInputEnabled(mContext)
-                                || (OmniboxCapabilities.isDesktopPlatform()
-                                        && OmniboxFeatures.sAndroidDesktopAimGate.isEnabled()));
+                                || OmniboxCapabilities.isDesktopPlatform());
         boolean useLightColor =
                 !isTablet
                         && !mLocationBarDataProvider.isIncognitoBranded()

@@ -44,7 +44,11 @@ public class ActionButtonView extends AppCompatImageView {
      */
     public void enableShowOnlyOnFocus(boolean showOnlyOnFocus) {
         mShowOnlyOnFocus = showOnlyOnFocus;
-        setVisibility(mShowOnlyOnFocus ? View.INVISIBLE : View.VISIBLE);
+        if (mShowOnlyOnFocus) {
+            updateVisibility();
+        } else {
+            setVisibility(View.VISIBLE);
+        }
     }
 
     /**
