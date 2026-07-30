@@ -109,11 +109,11 @@ export class SettingsGlicSubpageElement extends SettingsGlicSubpageElementBase {
       // real pref which could be either value.
       fakePref_: {
         type: Object,
-        value: {
+        value: () => ({
           key: 'glic.fake_pref',
           type: chrome.settingsPrivate.PrefType.BOOLEAN,
           value: 0,
-        },
+        }),
       },
 
       closedCaptionsToggleEnabled_: {
@@ -231,10 +231,7 @@ export class SettingsGlicSubpageElement extends SettingsGlicSubpageElementBase {
 
       webActuationFeatureEnabled_: {
         type: Boolean,
-        value: () => {
-          return loadTimeData.getBoolean('glicWebActuationFeatureEnabled') &&
-              loadTimeData.getBoolean('glicActorEnabled');
-        },
+        value: false,
       },
 
       isWebActuationDisabledForEnterprise_: {
@@ -349,6 +346,16 @@ export class SettingsGlicSubpageElement extends SettingsGlicSubpageElementBase {
         'glic-web-actuation-capability-changed',
         (canActOnWeb: boolean) =>
             this.onWebActuationCapabilityChanged_(canActOnWeb));
+    this.addWebUiListener(
+        'glic-web-actuation-toggle-visibility-changed',
+        (visible: boolean) =>
+            this.onWebActuationToggleVisibilityChanged_(visible));
+
+    this.browserProxy_.getWebActuationToggleVisibility().then(
+        (visible: boolean) => {
+            this.onWebActuationToggleVisibilityChanged_(visible);
+        });
+
     this.registeredShortcut_ = await this.browserProxy_.getGlicShortcut();
     this.registeredFocusToggleShortcut_ =
         await this.browserProxy_.getGlicFocusToggleShortcut();
@@ -683,6 +690,10 @@ export class SettingsGlicSubpageElement extends SettingsGlicSubpageElementBase {
     if (this.isWebActuationDisabledForEnterprise_) {
       this.webActuationEnabledExpanded_ = false;
     }
+  }
+
+  private onWebActuationToggleVisibilityChanged_(visible: boolean) {
+    this.webActuationFeatureEnabled_ = visible;
   }
 }
 

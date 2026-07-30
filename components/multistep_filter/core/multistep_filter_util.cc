@@ -5,6 +5,7 @@
 #include "components/multistep_filter/core/multistep_filter_util.h"
 
 #include <algorithm>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -14,6 +15,7 @@
 #include "base/strings/string_util.h"
 #include "components/multistep_filter/core/features.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
+#include "net/base/url_util.h"
 #include "url/gurl.h"
 
 namespace multistep_filter {
@@ -23,8 +25,12 @@ constexpr std::string_view kWildcardDomain = "*";
 }  // namespace
 
 std::string GetEtldPlusOne(const GURL& url) {
-  return net::registry_controlled_domains::GetDomainAndRegistry(
+  std::string domain = net::registry_controlled_domains::GetDomainAndRegistry(
       url, net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
+  if (domain.empty()) {
+    return std::string(url.host());
+  }
+  return domain;
 }
 
 bool IsUrlAllowed(const GURL& url) {
@@ -42,12 +48,6 @@ bool IsUrlAllowed(const GURL& url) {
   }
 
   std::string domain_and_registry = GetEtldPlusOne(url);
-  if (domain_and_registry.empty()) {
-    // If the domain and registry is empty, use the host as a fallback. This
-    // handles IP addresses (e.g., 127.0.0.1) and intranet hosts (e.g.,
-    // localhost).
-    domain_and_registry = url.host();
-  }
 
   return std::ranges::any_of(domains, [&](std::string_view domain) {
     return base::EqualsCaseInsensitiveASCII(domain_and_registry, domain);
@@ -55,11 +55,47 @@ bool IsUrlAllowed(const GURL& url) {
 }
 
 bool IsSameDomainOrHost(const GURL& url, const GURL& other) {
-  std::string current_domain = GetEtldPlusOne(url);
-  std::string other_domain = GetEtldPlusOne(other);
+  return GetEtldPlusOne(url) == GetEtldPlusOne(other);
+}
 
-  return (!current_domain.empty() && current_domain == other_domain) ||
-         (current_domain.empty() && url.host() == other.host());
+bool IsUrlSubsumedBy(const GURL& candidate_url, const GURL& reference_url) {
+  if (!candidate_url.is_valid() || !reference_url.is_valid()) {
+    return false;
+  }
+
+  if (candidate_url == reference_url) {
+    return true;
+  }
+
+  // If base URLs (everything except query and ref) are different, it's not
+  // redundant.
+  GURL::Replacements replacements;
+  replacements.ClearQuery();
+  replacements.ClearRef();
+  if (candidate_url.ReplaceComponents(replacements) !=
+      reference_url.ReplaceComponents(replacements)) {
+    return false;
+  }
+
+  // Extract query parameters from both URLs.
+  std::multiset<std::pair<std::string_view, std::string>> reference_params;
+  for (net::QueryIterator it(reference_url); !it.IsAtEnd(); it.Advance()) {
+    reference_params.emplace(it.GetKey(), it.GetUnescapedValue());
+  }
+
+  // If the candidate parameters are a subset of (or identical to) the
+  // reference URL parameters, the candidate is redundant.
+  for (net::QueryIterator it(candidate_url); !it.IsAtEnd(); it.Advance()) {
+    auto match = reference_params.find(
+        std::make_pair(it.GetKey(), it.GetUnescapedValue()));
+    if (match == reference_params.end()) {
+      return false;
+    }
+    // Erase the matched parameter to handle duplicate keys correctly.
+    reference_params.erase(match);
+  }
+
+  return true;
 }
 
 }  // namespace multistep_filter

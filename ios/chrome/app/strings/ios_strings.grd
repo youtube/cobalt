@@ -186,7 +186,7 @@
         No thanks
       </message>
       <message name="IDS_AUTOFILL_SCAN_CARD_AND_AUTOFILL_PROMPT_PRIMARY_BUTTON_LABEL" desc="Label for the primary button of scan card and save prompt offer. This prompt is shown if the user clicks on the credit card form field and there are no saved cards on file on IOS devices.">
-        Scan Card and Autofill
+        Scan card and autofill
       </message>
       <message name="IDS_AUTOFILL_SCAN_SAVE_AND_FILL_BOTTOM_SHEET_DESCRIPTION" desc="Description for the `Scan, Save and Fill` suggestion shown in the Autofill bottom sheet for users who don't have any cards saved in Autofill. When the suggestion is clicked, users are offered to scan, save and fill a credit card with a single click.">
         Save your card in your Google Account to autofill it for this purchase and future purchases made on Chrome
@@ -574,8 +574,8 @@
       <message name="IDS_IOS_AUTOFILL_AI_FOOTER_SAVE_TO_WALLET" desc="Footer text in the save/update dialog explaining the benefits of saving to Google Wallet. [iOS only]">
       Save your info and get things done faster, like filling forms across Google products. You can manage your info in Google Wallet for <ph name="USER_EMAIL">$1<ex>janedoe@google.com</ex></ph>.
       </message>
-      <message name="IDS_IOS_AUTOFILL_AI_IDENTITY_DOCS_TITLE" desc="Title for the Your saved info settings sub page that allows user to manage their list of saved identity documents. Sentence-Cased." formatter_data="android_java">
-        Identity docs
+      <message name="IDS_IOS_AUTOFILL_AI_OTHER_TITLE" desc="Title for the other section in Addresses and more page for entities that are not identity docs, nor travel docs. [iOS only]">
+        Other
       </message>
       <message name="IDS_IOS_AUTOFILL_AI_SAVE_FALLBACK_BODY" desc="Body text of the alert shown when saving to Wallet fails but saving to device succeeds. [iOS only]">
       You’ll have the chance to save this info to Wallet the next time you fill a relevant form.
@@ -585,9 +585,6 @@
       </message>
       <message name="IDS_IOS_AUTOFILL_AI_SAVE_PROMPT" desc="The prompt text asking the user to save a new entity to Autofill AI. [iOS only]">
         Save <ph name="ENTITY_TYPE">$1<ex>Passport</ex></ph>?
-      </message>
-      <message name="IDS_IOS_AUTOFILL_AI_TRAVEL_TITLE" desc="Title for the Your saved info settings sub page that allows user to manage their list of saved travel info. Sentence-Cased." formatter_data="android_java">
-        Travel
       </message>
       <message name="IDS_IOS_AUTOFILL_AI_UPDATE_PROMPT" desc="The prompt text asking the user to update an existing entity in Autofill AI. [iOS only]">
         Update <ph name="ENTITY_TYPE">$1<ex>Passport</ex></ph>?
@@ -773,6 +770,9 @@
       </message>
       <message name="IDS_IOS_AUTOFILL_WALLET_SERVER_NAME" desc="The name of the data source for non-local card and address info. Title case. 'Google Pay' should not be translated as it is the product name. [Length: 15em] [iOS only]">
         Google Pay
+      </message>
+      <message name="IDS_IOS_AUTOFILL_WALLET_TEXT" desc="Label used to differentiate when an Autofill AI entity (such as vehicle information) is stored in Google Wallet.">
+        Google Wallet
       </message>
       <message name="IDS_IOS_AUTOFILL_ZIP" desc="Title of the field of a profile address representing the postal code of the address. [Length: 15em] [iOS only]">
         Zip code
@@ -1578,7 +1578,7 @@
         Turn on AI Mode
       </message>
       <message name="IDS_IOS_COMPOSEBOX_AIM_ENABLED_PLACEHOLDER" desc="The placeholder to show when AIM is enabled and no user text was added.">
-        Ask Google anything
+        Ask anything
       </message>
       <message name="IDS_IOS_COMPOSEBOX_ASK_ABOUT_THIS_PAGE_ACTION" desc="A Composebox button to attach the current tab as context. [iOS only].">
         Ask about this page
@@ -1764,6 +1764,9 @@
       <message name="IDS_IOS_CONTENT_CONTEXT_DELETESHAREDGROUP" desc="The iOS context menu item for deleting a shared tab group. [iOS only]">
         Delete Group
       </message>
+      <message name="IDS_IOS_CONTENT_CONTEXT_EDITGROUP" desc="The iOS context menu item for editing a tab group. [iOS only]">
+        Edit Group
+      </message>
       <message name="IDS_IOS_CONTENT_CONTEXT_KEEPSHAREDGROUP" desc="The iOS context menu item for keeping a shared tab group. [iOS only]">
         Keep Group
       </message>
@@ -1823,9 +1826,6 @@
       </message>
       <message name="IDS_IOS_CONTENT_CONTEXT_REMOVEFROMGROUP" desc="The iOS context menu item for removing a tab from a group. [iOS only]">
         Remove From Group
-      </message>
-      <message name="IDS_IOS_CONTENT_CONTEXT_RENAMEGROUP" desc="The iOS context menu item for renaming a tab group. [iOS only]">
-        Rename Group
       </message>
       <message name="IDS_IOS_CONTENT_CONTEXT_SAVEIMAGE" desc="The name of the Save Image As command in the content area context menu">
         Save in Photos
@@ -6500,6 +6500,9 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_SAFE_MODE_UNKNOWN_CAUSE" desc="The message indicating that Chrome crashed for an unknown reason. [Length: 140em]">
         Something went really wrong. We'll work on that.
       </message>
+      <message name="IDS_IOS_SAVE_ENTITY_IN_SETTINGS_BUTTON_TEXT" desc="Button text used to save an Autofill AI entity (such as vehicle information) in settings.">
+        Save
+      </message>
       <message name="IDS_IOS_SAVE_IMAGE_ERROR" desc="Message informing the user that the image could not be saved because there was an error.">
         Error saving image.
       </message>
@@ -6694,15 +6697,6 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_SEND_TAB_TO_SELF_TARGET_DEVICE_ACTION" desc="Button label for the Send Tab To Self modal dialog that sends the current tab to a user's other device. [iOS only]">
         Send to your device
-      </message>
-      <message name="IDS_IOS_SEND_TAB_TO_SELF_TARGET_DEVICE_ITEM_SUBTITLE_DAY" desc="Text label for the Send Tab To Self modal dialog that shows the last active time of a user's device. [iOS only]">
-        Active 1 day ago
-      </message>
-      <message name="IDS_IOS_SEND_TAB_TO_SELF_TARGET_DEVICE_ITEM_SUBTITLE_DAYS" desc="Text label for the Send Tab To Self modal dialog that shows the last active time of a user's devicet. [iOS only]">
-        Active <ph name="Days">$1<ex>2</ex></ph> days ago
-      </message>
-      <message name="IDS_IOS_SEND_TAB_TO_SELF_TARGET_DEVICE_ITEM_SUBTITLE_TODAY" desc="Text label for the Send Tab To Self modal dialog that shows the last active time of a user's device. [iOS only]">
-        Active today
       </message>
       <message name="IDS_IOS_SEND_TAB_TO_SELF_TARGET_DEVICE_TITLE" desc="Title for the Send Tab To Self modal dialog that chooses the device to which the current tab will be sent. [iOS only]">
         Send webpage
@@ -7373,6 +7367,9 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_SIGNIN_PROMO_REVIEW_SETTINGS_BUTTON" desc="This string is on a promo button intended to promote reviewing the user's Google Account settings page to enable the type toggle. It appears on the Bookmarks or Reading List page when the user is signed in.">
         Open settings
+      </message>
+      <message name="IDS_IOS_SIGNIN_PROMO_SAVE_TO_DRIVE" desc="This string is on a promo intended to promote signing in to Chrome with the user's Google Account. It appears on the Save to Drive page when the user is not signed in.">
+        Save files in your Google Drive and access them any time.
       </message>
       <message name="IDS_IOS_SIGNIN_PROMO_SIGNIN_WITH_UNO" desc="Button that the user can press if they want to sign-in in the browser. [iOS only]">
         Sign in

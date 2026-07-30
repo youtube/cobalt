@@ -251,7 +251,8 @@ suite('AppContent', () => {
       });
 
   test('showLoading clears read aloud state', () => {
-    setContent('My name is Regina George', readAloudModel);
+    const node = setContent('My name is Regina George', readAloudModel);
+    app.$.container.appendChild(node);
     emitEvent(app, ToolbarEvent.PLAY_PAUSE);
     assertTrue(speechController.isSpeechActive());
 
@@ -462,29 +463,25 @@ suite('AppContent', () => {
           '"><span class="parent-of-highlight"><span class="' +
           'current-read-highlight">Try</span> to keep it hidden</span></a>';
 
-      setup(() => {
-        const parent = document.createElement('a');
-        const text = document.createTextNode(linkText);
-        parent.href = url;
-        parent.appendChild(text);
-        nodeStore.setDomNode(parent, linkId);
-        nodeStore.setDomNode(text, textId);
-        const segments =
-            [{node: ReadAloudNode.create(text)!, start: 0, length: 3}];
+      setup(async () => {
         let calls = 0;
         readAloudModel.setInitialized(true);
         readAloudModel.setCurrentTextContent(linkText);
         readAloudModel.getCurrentTextSegments = () => {
           calls++;
           if (calls === 1) {
-            return segments;
+            return [{
+              node: ReadAloudNode.create(nodeStore.getDomNode(textId)!)!,
+              start: 0,
+              length: 3,
+            }];
           } else {
             return [];
           }
         };
 
-
-        return app.updateContent();
+        app.updateContent();
+        await microtasksFinished();
       });
 
       test('hides links when speech active', async () => {
@@ -861,6 +858,14 @@ suite('AppContent', () => {
       let link = app.$.container.querySelector('a');
       assertTrue(!!link, '<a> should be present before speech');
 
+      readAloudModel.setInitialized(true);
+      readAloudModel.setCurrentTextContent(text);
+      readAloudModel.setCurrentTextSegments([{
+        node: ReadAloudNode.create(link.firstChild!)!,
+        start: 0,
+        length: text.length,
+      }]);
+
       // When speech becomes active, the link should be converted to a `<span>`.
       emitEvent(app, ToolbarEvent.PLAY_PAUSE);
       await microtasksFinished();
@@ -1057,5 +1062,90 @@ suite('AppContent', () => {
               () => !app.$.containerScroller.classList.contains('fade'));
           assertFalse(app.$.containerScroller.classList.contains('fade'));
         });
+
+    test('applies immersive classes correctly to appFlexParent', async () => {
+      const flexParent = app.shadowRoot.querySelector('#appFlexParent');
+      assertTrue(!!flexParent);
+
+      assertTrue(flexParent.classList.contains('immersive'));
+      assertFalse(flexParent.classList.contains('full-page'));
+
+      app.isImmersiveMode = () => true;
+      app.requestUpdate();
+      await microtasksFinished();
+
+      assertTrue(flexParent.classList.contains('immersive'));
+      assertTrue(flexParent.classList.contains('full-page'));
+    });
+
+    suite('Immersive Scrollbar Hover', () => {
+      let scroller: HTMLElement;
+      setup(() => {
+        scroller = app.$.containerScroller;
+        assertTrue(!!scroller);
+        chrome.readingMode.onPresentationStateReceived(
+            chrome.readingMode.inImmersiveOverlayPresentationState);
+      });
+
+      test('mousemove toggles hover class', () => {
+        assertTrue(!!scroller);
+        scroller.getBoundingClientRect = () => {
+          return {
+            left: 0,
+            right: 100,
+            top: 0,
+            bottom: 100,
+            width: 100,
+            height: 100,
+            x: 0,
+            y: 0,
+            toJSON: () => {},
+          };
+        };
+        scroller.style.setProperty('--immersive-scrollbar-width', '14px');
+
+        // Mouse over center (x=50), shouldn't trigger hover (needs to be >= 86)
+        scroller.dispatchEvent(new MouseEvent('mousemove', {clientX: 50}));
+        assertFalse(scroller.classList.contains('scrollbar-hovered'));
+
+        // Mouse over right edge (x=90), should trigger hover
+        scroller.dispatchEvent(new MouseEvent('mousemove', {clientX: 90}));
+        assertTrue(scroller.classList.contains('scrollbar-hovered'));
+
+        // Mouse moves back to center, should remove hover
+        scroller.dispatchEvent(new MouseEvent('mousemove', {clientX: 80}));
+        assertFalse(scroller.classList.contains('scrollbar-hovered'));
+      });
+
+      test('mouseleave removes hover class', () => {
+        scroller.classList.add('scrollbar-hovered');
+        scroller.dispatchEvent(new MouseEvent('mouseleave'));
+
+        assertFalse(scroller.classList.contains('scrollbar-hovered'));
+      });
+
+      test('mousemove does nothing if not in full page immersive mode', () => {
+        chrome.readingMode.onPresentationStateReceived(
+            chrome.readingMode.inSidePanelPresentationState);
+        scroller.getBoundingClientRect = () => {
+          return {
+            left: 0,
+            right: 100,
+            top: 0,
+            bottom: 100,
+            width: 100,
+            height: 100,
+            x: 0,
+            y: 0,
+            toJSON: () => {},
+          };
+        };
+        scroller.style.setProperty('--immersive-scrollbar-width', '14px');
+
+        // Even if we hover the right edge, the class shouldn't be added
+        scroller.dispatchEvent(new MouseEvent('mousemove', {clientX: 90}));
+        assertFalse(scroller.classList.contains('scrollbar-hovered'));
+      });
+    });
   });
 });

@@ -40,10 +40,8 @@ struct FileData {
 };
 
 // ComposeboxHandler for the Contextual Tasks UI.
-class ContextualTasksComposeboxHandler
-    : public ComposeboxHandler,
-      public ui::SelectFileDialog::Listener,
-      public contextual_tasks::QueryContextualizer::Delegate {
+class ContextualTasksComposeboxHandler : public ComposeboxHandler,
+                                         public ui::SelectFileDialog::Listener {
  public:
   friend class ContextualTasksComposeboxHandlerTest;
   using TakeInputStateModelCallback =
@@ -131,11 +129,6 @@ class ContextualTasksComposeboxHandler
       contextual_tasks::QueryContextualizer::TabId id,
       base::OnceCallback<void(std::unique_ptr<lens::ContextualInputData>)>
           callback) override;
-  void UploadTabContextWithData(
-      contextual_tasks::QueryContextualizer::TabId id,
-      std::optional<int64_t> context_id,
-      std::unique_ptr<lens::ContextualInputData> data,
-      base::OnceCallback<void(bool)> callback) override;
   void OnPageContextIneligible() override;
   void OnTabProcessedForQueryContextualization(
       contextual_tasks::QueryContextualizer::TabId id) override;

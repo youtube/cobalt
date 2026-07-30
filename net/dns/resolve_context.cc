@@ -14,7 +14,6 @@
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/metrics/sample_vector.h"
 #include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
@@ -23,8 +22,11 @@
 #include "base/strings/stringprintf.h"
 #include "base/time/clock.h"
 #include "base/time/tick_clock.h"
+#include "base/time/time.h"
 #include "net/base/features.h"
 #include "net/base/ip_address.h"
+#include "net/base/load_timing_internal_info.h"
+#include "net/base/net_errors.h"
 #include "net/base/network_change_notifier.h"
 #include "net/dns/dns_attempt.h"
 #include "net/dns/dns_server_iterator.h"
@@ -36,6 +38,7 @@
 #include "net/dns/public/doh_provider_entry.h"
 #include "net/dns/public/secure_dns_mode.h"
 #include "net/http/http_connection_info.h"
+#include "net/http/http_response_info.h"
 #include "net/url_request/url_request_context.h"
 
 namespace net {
@@ -280,34 +283,69 @@ void ResolveContext::RecordRtt(size_t server_index,
 
 void ResolveContext::RecordDohSessionStatus(
     size_t server_index,
-    const DnsHTTPAttempt::DnsHttpAttemptInfo& info,
+    const HttpResponseInfo& response_info,
+    const LoadTimingInternalInfo& internal_load_timing,
     base::TimeDelta rtt,
     int rv,
     const DnsSession* session) {
-  if (!IsCurrentSession(session) || !info.session_source.has_value()) {
+  if (!IsCurrentSession(session) ||
+      !internal_load_timing.session_source.has_value()) {
     return;
   }
 
   const std::string provider_id =
       GetDohProviderIdForUma(server_index, /*is_doh_server=*/true, session);
-  const std::string_view protocol =
-      HttpConnectionInfoCoarseToString(info.connection_info);
-  const std::string_view session_source =
-      info.session_source.value() == SessionSource::kNew ? "New" : "Existing";
+  const std::string_view protocol = HttpConnectionInfoCoarseToString(
+      HttpConnectionInfoToCoarse(response_info.connection_info));
+  const std::string_view session_source_str =
+      internal_load_timing.session_source.value() == SessionSource::kNew
+          ? "New"
+          : "Existing";
 
   base::UmaHistogramEnumeration(
       base::JoinString(
           {"Net.DNS.DnsTransaction", provider_id, protocol, "SessionSource"},
           "."),
-      info.session_source.value());
+      internal_load_timing.session_source.value());
 
-  const std::string_view outcome =
-      (rv == OK || rv == ERR_NAME_NOT_RESOLVED) ? "SuccessTime" : "FailureTime";
+  const bool success = rv == OK || rv == ERR_NAME_NOT_RESOLVED;
+  const std::string_view outcome = success ? "SuccessTime" : "FailureTime";
   base::UmaHistogramMediumTimes(
       base::JoinString({"Net.DNS.DnsTransaction", provider_id, protocol,
-                        session_source, outcome},
+                        session_source_str, outcome},
                        "."),
       rtt);
+
+  // Record further metrics for successful responses.
+  if (success) {
+    // Max stream limit pending delay must be populated for successful
+    // responses.
+    CHECK(internal_load_timing.max_stream_limit_pending_delay.has_value());
+    base::UmaHistogramMediumTimes(
+        base::JoinString({"Net.DNS.DnsTransaction", provider_id, protocol,
+                          session_source_str, "MaxStreamLimitPendingDelay"},
+                         "."),
+        internal_load_timing.max_stream_limit_pending_delay.value());
+
+    // SSLInfo::early_data_accepted is populated only when the request accessed
+    // network.
+    // TODO(crbug.com/485672648): Change this `if` to CHECK if responses always
+    // come from network (i.e., not coming from caches).
+    if (response_info.network_accessed) {
+      base::UmaHistogramBoolean(
+          base::JoinString({"Net.DNS.DnsTransaction", provider_id, protocol,
+                            session_source_str, "EarlyDataAccepted"},
+                           "."),
+          response_info.ssl_info.early_data_accepted);
+      const std::string_view early_data_status =
+          response_info.ssl_info.early_data_accepted ? "0RTT" : "1RTT";
+      base::UmaHistogramMediumTimes(
+          base::JoinString({"Net.DNS.DnsTransaction", provider_id, protocol,
+                            session_source_str, early_data_status, "Time"},
+                           "."),
+          rtt);
+    }
+  }
 }
 
 base::TimeDelta ResolveContext::NextClassicFallbackPeriod(
@@ -689,7 +727,9 @@ bool ResolveContext::IsDohFallbackProbeEnabled() const {
   }
   return current_session_->config().secure_dns_mode ==
              SecureDnsMode::kAutomatic &&
-         current_session_->config().should_perform_doh_fallback_upgrade;
+         current_session_->config().should_perform_doh_fallback_upgrade &&
+         doh_fallback_canary_domain_check_status_ !=
+             CanaryDomainCheckStatus::kInactive;
 }
 
 // static

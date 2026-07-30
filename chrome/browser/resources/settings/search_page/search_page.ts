@@ -61,12 +61,25 @@ export class SettingsSearchPageElement extends SettingsSearchPageElementBase {
         computed: 'computeDefaultSearchEngine_(searchEngines_)',
       },
 
+      // The title of the page and the default search engine card.
+      searchPageTitle_: {
+        type: String,
+        computed: 'computeSearchPageTitle_()',
+      },
+
       // Boolean to check whether we need to show the dialog or not.
       showSearchEngineListDialog_: Boolean,
 
       // The label of the confirmation toast that is displayed when the user
       // chooses a default search engine.
       confirmationToastLabel_: String,
+
+      // With this enabled, the shortcuts settings are present on this page
+      // rather than the search engines subpage.
+      searchSettingsUpdateEnabled_: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('searchSettingsUpdate'),
+      },
     };
   }
 
@@ -82,6 +95,9 @@ export class SettingsSearchPageElement extends SettingsSearchPageElementBase {
   private isEeaChoiceCountry_: boolean =
       loadTimeData.getBoolean('isEeaChoiceCountry');
 
+  declare private searchSettingsUpdateEnabled_: boolean;
+
+  declare private searchPageTitle_: string;
   declare private confirmationToastLabel_: string;
 
   override ready() {
@@ -123,6 +139,12 @@ export class SettingsSearchPageElement extends SettingsSearchPageElementBase {
     return pref.enforcement === chrome.settingsPrivate.Enforcement.ENFORCED;
   }
 
+  private computeSearchPageTitle_(): string {
+    return this.i18n(
+        this.searchSettingsUpdateEnabled_ ? 'defaultSearch' :
+                                            'searchPageTitle');
+  }
+
   private computeDefaultSearchEngine_() {
     if (!this.searchEngines_.length) {
       return null;
@@ -154,13 +176,17 @@ export class SettingsSearchPageElement extends SettingsSearchPageElementBase {
 
   // SettingsViewMixin implementation.
   override getFocusConfig() {
-    return new Map([
-      [routes.SEARCH_ENGINES.path, '#enginesSubpageTrigger'],
-    ]);
+    const map = new Map();
+
+    if (!this.searchSettingsUpdateEnabled_) {
+      map.set(routes.SEARCH_ENGINES.path, '#enginesSubpageTrigger');
+    }
+    return map;
   }
 
   // SettingsViewMixin implementation.
   override getAssociatedControlFor(childViewId: string): HTMLElement {
+    assert(!this.searchSettingsUpdateEnabled_);
     assert(childViewId === 'searchEngines');
     const control =
         this.shadowRoot!.querySelector<HTMLElement>('#enginesSubpageTrigger');

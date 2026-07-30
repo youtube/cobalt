@@ -1674,7 +1674,7 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
             extracted_amount_in_micros);
   std::vector<BnplIssuer> bnpl_issuers = payments_data().GetBnplIssuers();
   EXPECT_THAT(
-      updated_suggestions[current_suggestion_index++],
+      updated_suggestions[current_suggestion_index],
       AllOf(EqualsSuggestion(
                 SuggestionType::kBnplEntry,
                 l10n_util::GetStringUTF16(
@@ -1685,6 +1685,8 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
                     bnpl_issuers[1].GetDisplayName(),
                     bnpl_issuers[0].GetDisplayName()))}}),
             EqualSuggestionTabIndex(kDefaultSuggestionTabIndex)));
+  EXPECT_EQ(updated_suggestions[current_suggestion_index++].acceptability,
+            Suggestion::Acceptability::kAcceptable);
 
   // Checks the footer suggestions stayed in the same order after the insertion.
   EXPECT_THAT(updated_suggestions[current_suggestion_index++],
@@ -1694,6 +1696,24 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
               AllOf(EqualsSuggestion(SuggestionType::kManageCreditCard),
                     EqualSuggestionTabIndex(kDefaultSuggestionTabIndex)));
   EXPECT_EQ(current_suggestion_index, updated_suggestions.size());
+}
+
+// Ensures that `GetSuggestionsForBnpl` sets the acceptability to
+// `kUnacceptableWithDeactivatedStyle` when there is an amount extraction error.
+TEST_F(PaymentsSuggestionGeneratorBnplTest,
+       GetSuggestionsForBnpl_AmountExtractionError) {
+  payments::BnplIssuerContext issuer_context(
+      test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplZip),
+      payments::BnplIssuerEligibilityForPage::
+          kNotEligibleAmountExtractionErrorUnsupportedCurrency);
+
+  std::vector<Suggestion> suggestions =
+      GetSuggestionsForBnpl({issuer_context}, /*app_locale=*/"en-US",
+                            /*is_card_number_field_empty=*/true);
+
+  ASSERT_EQ(suggestions.size(), 1U);
+  EXPECT_EQ(suggestions[0].acceptability,
+            Suggestion::Acceptability::kUnacceptableWithDeactivatedStyle);
 }
 
 // Ensures that the separator and pay over time option is generated with
@@ -2233,7 +2253,7 @@ TEST_F(
 
   EXPECT_EQ(disabled_bnpl_suggestion->main_text.value,
             linked_issuer.GetDisplayName());
-  EXPECT_EQ(disabled_bnpl_suggestion->icon, Suggestion::Icon::kBnplZipLinked);
+  EXPECT_EQ(disabled_bnpl_suggestion->icon, Suggestion::Icon::kBnplZip);
   EXPECT_THAT(
       disabled_bnpl_suggestion->labels,
       ElementsAre(std::vector<Suggestion::Text>{
@@ -2556,8 +2576,7 @@ TEST_P(PaymentsSuggestionGeneratorPnplTabTestForIssuer,
       << "Expected a BNPL suggestion to be generated.";
 
   EXPECT_EQ(bnpl_it->main_text.value, issuer.GetDisplayName());
-  EXPECT_EQ(bnpl_it->icon,
-            payments::GetBnplSuggestionIcon(IssuerId(), /*is_linked=*/true));
+  EXPECT_EQ(bnpl_it->icon, payments::GetBnplSuggestionIcon(IssuerId()));
   EXPECT_THAT(bnpl_it->labels,
               ElementsAre(std::vector<Suggestion::Text>{ExpectedLabelText()}));
   EXPECT_TRUE(std::holds_alternative<Suggestion::BnplIssuer>(bnpl_it->payload));
@@ -2677,6 +2696,19 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
                                       /*price_upper_bound=*/200'000'000)})};
 
   EXPECT_EQ(GetBnplPriceLowerBoundForTest(bnpl_issuers), u"$35");
+}
+
+// Verifies that `GetLoadingSuggestionForPayLaterTab()` creates suggestions with
+// expected values.
+TEST_F(PaymentsSuggestionGeneratorBnplTest,
+       GetLoadingSuggestionForPayLaterTab) {
+  Suggestion loading_suggestion = GetLoadingSuggestionForPayLaterTab(2);
+
+  EXPECT_EQ(loading_suggestion.type, SuggestionType::kLoadingThrobber);
+  EXPECT_EQ(loading_suggestion.acceptability,
+            Suggestion::Acceptability::kUnacceptable);
+  EXPECT_EQ(loading_suggestion.tab_index, kPayLaterSuggestionTabIndex);
+  EXPECT_EQ(loading_suggestion.expected_number_of_suggestions, 2u);
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -4612,22 +4644,17 @@ TEST_P(SuggestionIphBubbleTest,
 }
 
 // Params of GetFilteredCardsToSuggestTest:
-// -- bool IsCvcStorageEnhancementEnabled: Indicates if the flag is enabled.
 // -- FieldType get_trigger_field_type: Indicates triggered field type.
 class GetFilteredCardsToSuggestTest
     : public PaymentsSuggestionGeneratorTest,
-      public testing::WithParamInterface<std::tuple<bool, FieldType, bool>> {
+      public testing::WithParamInterface<std::tuple<FieldType, bool>> {
  public:
-  bool IsCvcStorageEnhancementEnabled() { return std::get<0>(GetParam()); }
-  FieldType get_trigger_field_type() { return std::get<1>(GetParam()); }
-  bool IsCvcSavingSupported() { return std::get<2>(GetParam()); }
+  FieldType get_trigger_field_type() { return std::get<0>(GetParam()); }
+  bool IsCvcSavingSupported() { return std::get<1>(GetParam()); }
 
  private:
   void SetUp() override {
     PaymentsSuggestionGeneratorTest::SetUp();
-    scoped_feature_list_.InitWithFeatureState(
-        features::kAutofillEnableCvcStorageAndFillingEnhancement,
-        IsCvcStorageEnhancementEnabled());
     autofill_client().set_is_cvc_saving_supported(IsCvcSavingSupported());
     // Create 2 local cards and 2 server cards.
     payments_data().ClearCreditCards();
@@ -4650,15 +4677,12 @@ class GetFilteredCardsToSuggestTest
     payments_data().AddServerCreditCard(server_card_1);
     payments_data().AddServerCreditCard(server_card_2);
   }
-
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 INSTANTIATE_TEST_SUITE_P(
     PaymentsSuggestionGeneratorTest,
     GetFilteredCardsToSuggestTest,
-    testing::Combine(testing::Bool(),
-                     testing::Values(FieldType::CREDIT_CARD_VERIFICATION_CODE,
+    testing::Combine(testing::Values(FieldType::CREDIT_CARD_VERIFICATION_CODE,
                                      FieldType::CREDIT_CARD_NUMBER),
 #if BUILDFLAG(IS_IOS)
                      testing::Bool()
@@ -4688,9 +4712,8 @@ TEST_P(GetFilteredCardsToSuggestTest, GetFilteredCardsToSuggest) {
   if (get_trigger_field_type() == FieldType::CREDIT_CARD_VERIFICATION_CODE &&
       !IsCvcSavingSupported()) {
     EXPECT_THAT(suggestions, IsEmpty());
-  } else if (IsCvcStorageEnhancementEnabled() &&
-             get_trigger_field_type() ==
-                 FieldType::CREDIT_CARD_VERIFICATION_CODE) {
+  } else if (get_trigger_field_type() ==
+             FieldType::CREDIT_CARD_VERIFICATION_CODE) {
     // There are 3 suggestions, 1 for local card suggestion, followed by a
     // separator, and followed by "Manage payment methods..." which redirects to
     // the Chrome payment methods settings page.
@@ -4812,9 +4835,8 @@ TEST_P(GetFilteredCardsToSuggestTest, NoMatchCard) {
   if (get_trigger_field_type() == FieldType::CREDIT_CARD_VERIFICATION_CODE &&
       !IsCvcSavingSupported()) {
     EXPECT_THAT(suggestions, IsEmpty());
-  } else if (IsCvcStorageEnhancementEnabled() &&
-             get_trigger_field_type() ==
-                 FieldType::CREDIT_CARD_VERIFICATION_CODE) {
+  } else if (get_trigger_field_type() ==
+             FieldType::CREDIT_CARD_VERIFICATION_CODE) {
     // There are no suggestions.
     EXPECT_EQ(suggestions.size(), 0U);
   } else {
@@ -4850,21 +4872,22 @@ class CvcStorageAndFillingStandaloneFormEnhancementTest
   void SetUp() override {
     PaymentsSuggestionGeneratorTest::SetUp();
     autofill_client().set_is_cvc_saving_supported(IsCvcSavingSupported());
+#if !BUILDFLAG(IS_IOS)
     if (IsCvcStorageStandaloneFormEnhancementEnabled()) {
       scoped_feature_list_.InitWithFeatures(
           /*enabled_features=*/
-          {features::kAutofillEnableCvcStorageAndFillingEnhancement,
-           features::
+          {features::
                kAutofillEnableCvcStorageAndFillingStandaloneFormEnhancement},
           /*disabled_features=*/{});
     } else {
       scoped_feature_list_.InitWithFeatures(
           /*enabled_features=*/
-          {features::kAutofillEnableCvcStorageAndFillingEnhancement},
+          {},
           /*disabled_features=*/
           {features::
                kAutofillEnableCvcStorageAndFillingStandaloneFormEnhancement});
     }
+#endif
     // Create 2 local cards and 2 server cards.
     payments_data().ClearCreditCards();
     CreditCard local_card_1 =
@@ -4892,13 +4915,15 @@ class CvcStorageAndFillingStandaloneFormEnhancementTest
 
 INSTANTIATE_TEST_SUITE_P(PaymentsSuggestionGeneratorTest,
                          CvcStorageAndFillingStandaloneFormEnhancementTest,
-                         testing::Combine(testing::Bool(),
+                         testing::Combine(
 #if BUILDFLAG(IS_IOS)
-                                          testing::Bool()
+                             testing::Values(true),
+                             testing::Bool()
 #else
-                                          testing::Values(false)
+                             testing::Bool(),
+                             testing::Values(false)
 #endif
-                                              ));
+                                 ));
 
 // Tests that GetCreditCardSuggestions function correctly returns masked server
 // card suggestions when no VCN suggestions for a standalone cvc field.

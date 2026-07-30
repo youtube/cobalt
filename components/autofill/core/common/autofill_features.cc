@@ -210,6 +210,9 @@ BASE_FEATURE_PARAM(std::string,
 // both the previous and the new value of an updated entity attribute.
 BASE_FEATURE(kAutofillAiNewUpdatePrompt, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, AutofillAi supports order entities.
+BASE_FEATURE(kAutofillAiOrder, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, AutofillAi requires re-auth when filling/viewing sensitive
 // fields. As part of this feature sensitive fields are also obfuscated during
 // suggestion generation time.
@@ -284,6 +287,14 @@ BASE_FEATURE_PARAM(bool,
                    &kAutofillAiServerModel,
                    "autofill_ai_model_use_cache_results",
                    false);
+
+// If enabled, AutofillAi supports shipment entities.
+BASE_FEATURE(kAutofillAiShipment, base::FEATURE_DISABLED_BY_DEFAULT);
+// Controls whether a banner is shown in settings when wallet data sharing is
+// disabled.
+
+BASE_FEATURE(kAutofillAiShowWalletDisabledBanner,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, the client may trigger the server model for AutofillAI type
 // predictions using Private AI Compute.
@@ -599,12 +610,7 @@ BASE_FEATURE(kAutofillEnableSupportForHomeAndWork,
 // When enabled, chrome will support name and email address profile.
 // TODO(crbug.com/356845298): Clean up when launched.
 BASE_FEATURE(kAutofillEnableSupportForNameAndEmail,
-#if BUILDFLAG(IS_IOS)
-             base::FEATURE_DISABLED_BY_DEFAULT
-#else  // Desktop and Android
-             base::FEATURE_ENABLED_BY_DEFAULT
-#endif
-);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // The number of times after which, a never accepted `kAccountNameEmail`
 // suggestion will result in the `kAccountNameEmail` profile being deleted.

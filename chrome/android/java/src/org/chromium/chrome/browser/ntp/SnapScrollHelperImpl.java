@@ -101,12 +101,16 @@ public class SnapScrollHelperImpl implements SnapScrollHelper {
     /** Update scroll offset and perform snap scroll if necessary. */
     @Override
     public void handleScroll() {
-        int scrollY = mNewTabPageCoordinator.getScrollDelegate().getVerticalScrollOffset();
+        if (mView == null) return;
+
+        var scrollDelegate = mNewTabPageCoordinator.getScrollDelegate();
+        if (scrollDelegate == null) return;
+
+        int scrollY = scrollDelegate.getVerticalScrollOffset();
         if (mLastScrollY == scrollY) return;
 
         mLastScrollY = scrollY;
         if (mPendingSnapScroll) {
-            assumeNonNull(mView);
             mView.removeCallbacks(mSnapScrollRunnable);
             mView.postDelayed(mSnapScrollRunnable, SNAP_SCROLL_DELAY_MS);
         }
@@ -202,7 +206,10 @@ public class SnapScrollHelperImpl implements SnapScrollHelper {
             assert mPendingSnapScroll;
             mPendingSnapScroll = false;
 
-            mNewTabPageCoordinator.getScrollDelegate().snapScroll();
+            var scrollDelegate = mNewTabPageCoordinator.getScrollDelegate();
+            if (scrollDelegate != null) {
+                scrollDelegate.snapScroll();
+            }
         }
     }
 }

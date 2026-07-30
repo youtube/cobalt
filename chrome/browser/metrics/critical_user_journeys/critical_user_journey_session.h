@@ -6,11 +6,13 @@
 #define CHROME_BROWSER_METRICS_CRITICAL_USER_JOURNEYS_CRITICAL_USER_JOURNEY_SESSION_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/timer/timer.h"
 #include "ui/base/interaction/interaction_sequence.h"
 
 namespace ui {
@@ -25,6 +27,17 @@ class CriticalUserJourney;
 // Uses ui::InteractionSequence to track progress through steps.
 class CriticalUserJourneySession {
  public:
+  // LINT.IfChange(JourneyResult)
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  enum class JourneyResult {
+    kCompleted = 0,
+    kAborted = 1,
+    kTimeout = 2,
+    kMaxValue = kTimeout,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/critical_user_journeys/enums.xml:CriticalUserJourneyResult)
+
   explicit CriticalUserJourneySession(const CriticalUserJourney* journey);
   ~CriticalUserJourneySession();
 
@@ -33,8 +46,10 @@ class CriticalUserJourneySession {
       delete;
 
   // Starts the journey. If |element| is provided, it is treated as the trigger
-  // that already matched the first step of the journey.
-  void Start(ui::TrackedElement* element);
+  // that already matched the first step of the journey, with the specified
+  // metric ID.
+  void Start(std::optional<int> first_step_metric_id,
+             ui::TrackedElement* element);
 
   void set_on_done_callback(base::OnceClosure on_done_callback) {
     on_done_callback_ = std::move(on_done_callback);
@@ -47,10 +62,12 @@ class CriticalUserJourneySession {
       ui::ElementContext context,
       const CriticalUserJourney* journey,
       bool is_root,
-      ui::TrackedElement* initial_element = nullptr);
+      std::optional<int> first_step_metric_id,
+      ui::TrackedElement* initial_element);
 
   // Callbacks for InteractionSequence events.
-  void OnStepStarted(int metric_id);
+  void OnStepStarted(int metric_id, base::TimeDelta timeout);
+  void OnTimeout();
   void OnAborted(const ui::InteractionSequence::AbortedData& data);
   void OnCompleted();
 
@@ -59,6 +76,8 @@ class CriticalUserJourneySession {
   std::unique_ptr<ui::InteractionSequence> sequence_;
 
   int last_reached_metric_id_ = -1;
+  base::OneShotTimer timeout_timer_;
+  bool was_timeout_ = false;
 
   base::WeakPtrFactory<CriticalUserJourneySession> weak_factory_{this};
 };

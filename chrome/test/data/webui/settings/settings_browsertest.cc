@@ -836,6 +836,7 @@ INSTANTIATE_TEST_SUITE_P(
         WebActuationTestParams{
             .test_name = "SimulateCanActOnWebOnAndOff",
             .policy_control_exemption = true,
+            .consent_pref_set = true,
             .expected_suite = "GlicSubpage SimulateCanActOnWebOnAndOff"},
 
         WebActuationTestParams{
@@ -1394,6 +1395,12 @@ IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest, AdTopicsCardNavigations) {
           "runMochaSuite('AdTopicsCardNavigations')");
 }
 
+IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest,
+                       AdTopicsCardHiddenAdPrivacyDeprecationEnabled) {
+  RunTest("settings/privacy_guide_page_test.js",
+          "runMochaSuite('AdTopicsCardHiddenAdPrivacyDeprecationEnabled')");
+}
+
 IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest, PrivacyGuideDialog) {
   RunTest("settings/privacy_guide_page_test.js",
           "runMochaSuite('PrivacyGuideDialog')");
@@ -1510,6 +1517,25 @@ IN_PROC_BROWSER_TEST_F(
           "runMochaSuite('PrivacySandbox4EnabledButRestrictedWithNotice')");
 }
 
+class SettingsPrivacyPagePrivacySandboxAdPrivacyUxDeprecationEnabledTest
+    : public SettingsBrowserTest {
+ protected:
+  SettingsPrivacyPagePrivacySandboxAdPrivacyUxDeprecationEnabledTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        privacy_sandbox::kPrivacySandboxAdPrivacyUxDeprecation);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(
+    SettingsPrivacyPagePrivacySandboxAdPrivacyUxDeprecationEnabledTest,
+    PrivacySandboxAdPrivacyUxDeprecationEnabled) {
+  RunTest("settings/privacy_page_test.js",
+          "runMochaSuite('PrivacySandboxAdPrivacyUxDeprecationEnabled')");
+}
+
 class SettingsPrivacyPageTest : public SettingsBrowserTest {
  protected:
   SettingsPrivacyPageTest() {
@@ -1621,7 +1647,16 @@ IN_PROC_BROWSER_TEST_F(
           "runMochaSuite('V8Page_BlockOnUnfamiliarSitesFeatureDisabled')");
 }
 
-class SettingsPrivacySandboxPageTest : public SettingsBrowserTest {};
+class SettingsPrivacySandboxPageTest : public SettingsBrowserTest {
+ protected:
+  SettingsPrivacySandboxPageTest() {
+    scoped_feature_list_.InitAndDisableFeature(
+        privacy_sandbox::kPrivacySandboxAdPrivacyUxDeprecation);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
 
 IN_PROC_BROWSER_TEST_F(SettingsPrivacySandboxPageTest, PrivacySandboxPage) {
   RunTest("settings/privacy_sandbox_page_test.js",

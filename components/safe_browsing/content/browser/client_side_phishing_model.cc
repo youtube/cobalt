@@ -19,10 +19,10 @@
 #include "base/memory/shared_memory_mapping.h"
 #include "base/memory/singleton.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/numerics/byte_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/thread_pool.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
@@ -198,11 +198,9 @@ void RecordImageEmbeddingModelUpdateSuccess(bool success) {
 
 }  // namespace
 
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 TargetEmbedding::TargetEmbedding(tflite::task::vision::FeatureVector embedding,
                                  float threshold)
     : embedding(std::move(embedding)), threshold(threshold) {}
-#endif
 
 // --- ClientSidePhishingModel methods ---
 
@@ -212,9 +210,13 @@ ClientSidePhishingModel::ClientSidePhishingModel(
       background_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT})),
       beginning_time_(base::TimeTicks::Now()) {
-  opt_guide_->AddObserverForOptimizationTargetModel(
-      optimization_guide::proto::OPTIMIZATION_TARGET_CLIENT_SIDE_PHISHING,
-      /*model_metadata=*/std::nullopt, background_task_runner_, this);
+  if (!base::FeatureList::IsEnabled(
+          kClientSideDetectionOnlyESBClassification)) {
+    subscribed_to_image_classifier_ = true;
+    opt_guide_->AddObserverForOptimizationTargetModel(
+        optimization_guide::proto::OPTIMIZATION_TARGET_CLIENT_SIDE_PHISHING,
+        /*model_metadata=*/std::nullopt, background_task_runner_, this);
+  }
 }
 
 void ClientSidePhishingModel::OnModelUpdated(
@@ -294,6 +296,15 @@ void ClientSidePhishingModel::OnModelUpdated(
   }
 }
 
+void ClientSidePhishingModel::SubscribeToImageClassifierOptimizationGuide() {
+  if (!subscribed_to_image_classifier_ && opt_guide_) {
+    subscribed_to_image_classifier_ = true;
+    opt_guide_->AddObserverForOptimizationTargetModel(
+        optimization_guide::proto::OPTIMIZATION_TARGET_CLIENT_SIDE_PHISHING,
+        /*model_metadata=*/std::nullopt, background_task_runner_, this);
+  }
+}
+
 void ClientSidePhishingModel::SubscribeToImageEmbedderOptimizationGuide() {
   if (!subscribed_to_image_embedder_ && opt_guide_) {
     subscribed_to_image_embedder_ = true;
@@ -329,8 +340,34 @@ void ClientSidePhishingModel::UnsubscribeToImageEmbedderOptimizationGuide() {
   }
 }
 
+void ClientSidePhishingModel::UnsubscribeToImageClassifierOptimizationGuide() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (subscribed_to_image_classifier_ && opt_guide_) {
+    subscribed_to_image_classifier_ = false;
+    opt_guide_->RemoveObserverForOptimizationTargetModel(
+        optimization_guide::proto::OPTIMIZATION_TARGET_CLIENT_SIDE_PHISHING,
+        this);
+    if (visual_tflite_model_) {
+      background_task_runner_->PostTask(
+          FROM_HERE,
+          base::BindOnce(&CloseModelFile, std::move(*visual_tflite_model_)));
+      // Run callback to remove models from the renderer process. When a
+      // callback is called and there are no models in this class while the
+      // model type is set, it's expected that it's asked to remove the models.
+      content::GetUIThreadTaskRunner({})->PostTask(
+          FROM_HERE,
+          base::BindOnce(&ClientSidePhishingModel::NotifyCallbacksOnUI,
+                         weak_ptr_factory_.GetWeakPtr()));
+    }
+  }
+}
+
 bool ClientSidePhishingModel::IsSubscribedToImageEmbeddingModelUpdates() {
   return subscribed_to_image_embedder_;
+}
+
+bool ClientSidePhishingModel::IsSubscribedToImageClassifierModelUpdates() {
+  return subscribed_to_image_classifier_;
 }
 
 void ClientSidePhishingModel::OnModelAndVisualTfLiteFileLoaded(
@@ -512,7 +549,6 @@ void ClientSidePhishingModel::OnImageEmbeddingModelFileAndEmbeddingListLoaded(
   }
   // Drop any existing target image embeddings in preparation for a new set.
   target_image_embeddings_.clear();
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   // Only load image embeddings when the version of their embedder matches the
   // version of the embedder that's been loaded.
   if (model_and_list.second.has_value() &&
@@ -531,7 +567,6 @@ void ClientSidePhishingModel::OnImageEmbeddingModelFileAndEmbeddingListLoaded(
   }
   base::UmaHistogramCounts100000("SBClientPhishing.ImageEmbeddingList.Size",
                                  target_image_embeddings_.size());
-#endif
   // There is no use of the image embedding model if the visual trigger model is
   // not present, so we will only send to the renderer when that is the case.
   if (visual_tflite_model_ && image_embedding_model_) {
@@ -562,7 +597,6 @@ int ClientSidePhishingModel::GetImageEmbeddingModelVersion() {
              : 0;
 }
 
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 const std::vector<TargetEmbedding>&
 ClientSidePhishingModel::GetTargetImageEmbeddings() const {
   return target_image_embeddings_;
@@ -572,7 +606,7 @@ void ClientSidePhishingModel::SetTargetImageEmbeddingsForTesting(
     std::vector<TargetEmbedding> target_embeddings) {
   target_image_embeddings_ = std::move(target_embeddings);
 }
-#endif
+
 int ClientSidePhishingModel::GetClassificationInputWidth() {
   return classification_input_width_.has_value()
              ? classification_input_width_.value()
@@ -600,9 +634,11 @@ int ClientSidePhishingModel::GetImageEmbeddingInputHeight() {
 ClientSidePhishingModel::~ClientSidePhishingModel() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  opt_guide_->RemoveObserverForOptimizationTargetModel(
-      optimization_guide::proto::OPTIMIZATION_TARGET_CLIENT_SIDE_PHISHING,
-      this);
+  if (subscribed_to_image_classifier_) {
+    opt_guide_->RemoveObserverForOptimizationTargetModel(
+        optimization_guide::proto::OPTIMIZATION_TARGET_CLIENT_SIDE_PHISHING,
+        this);
+  }
 
   if (subscribed_to_image_embedder_) {
     opt_guide_->RemoveObserverForOptimizationTargetModel(

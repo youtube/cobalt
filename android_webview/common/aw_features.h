@@ -26,7 +26,6 @@ BASE_DECLARE_FEATURE(kWebViewDeferStartupGmsCalls);
 BASE_DECLARE_FEATURE(kWebViewEarlyStartupTracing);
 BASE_DECLARE_FEATURE(kWebViewEarlyTracingInit);
 BASE_DECLARE_FEATURE(kWebViewFileSystemAccess);
-BASE_DECLARE_FEATURE(kWebViewIgnoreDuplicateNavs);
 BASE_DECLARE_FEATURE(kWebViewInvokeZoomPickerOnGSU);
 BASE_DECLARE_FEATURE(kWebViewLazyFetchHandWritingIcon);
 BASE_DECLARE_FEATURE(kWebViewLatchedCookiePolicy);
@@ -79,6 +78,8 @@ BASE_DECLARE_FEATURE(kWebViewTestNonembeddedLowEntropySource);
 BASE_DECLARE_FEATURE(kWebViewUseNonembeddedLowEntropySource);
 BASE_DECLARE_FEATURE(kWebViewFasterGetDefaultUserAgent);
 BASE_DECLARE_FEATURE(kWebViewSaveStateIncludeHeaders);
+BASE_DECLARE_FEATURE(kWebViewSkipFaviconJavaCopyUntilNeeded);
+BASE_DECLARE_FEATURE(kWebViewPassNullFaviconToOnPageStarted);
 }  // namespace android_webview::features
 
 #endif  // ANDROID_WEBVIEW_COMMON_AW_FEATURES_H_

@@ -60,7 +60,6 @@
 <translation id="1035875743511577452">ចុច “ផ្លាស់ប្ដូរទម្រង់រចនា” ដើម្បីរុករកទម្រង់រចនាដែលបំផុសគំនិតដោយសិល្បករ ធម្មជាតិ និងអ្វីៗជាច្រើនទៀត</translation>
 <translation id="1036348656032585052">បិទ</translation>
 <translation id="1036511912703768636">ចូលប្រើឧបករណ៍ USB ណាមួយទាំងនេះ</translation>
-<translation id="1038168778161626396">បម្លែងតែប៉ុណ្ណោះ</translation>
 <translation id="1038462104119736705">យ៉ាងហោច​ណាស់ <ph name="INSTALL_SIZE" /> នៃទំហំផ្ទុក​ត្រូវបានណែនាំ​ឱ្យប្រើសម្រាប់ Linux។ ដើម្បីបង្កើនទំហំផ្ទុក សូមលុបឯកសារចេញពីឧបករណ៍របស់អ្នក។</translation>
 <translation id="1038643060055067718">បន្ទាត់៖</translation>
 <translation id="1039337018183941703">ឯកសារ​មិន​ត្រឹមត្រូវ ឬ​ខូច</translation>
@@ -116,7 +115,6 @@
 <translation id="1070357312245925724">ផ្លូវកាត់​សម្រាប់​ការរុករក</translation>
 <translation id="1070705170564860382">នឹងបើក​កម្មវិធីរុករកតាម​អ៊ីនធឺណិត​ផ្សេង​ក្នុងរយៈពេល <ph name="COUNTDOWN_SECONDS" /> វិនាទី</translation>
 <translation id="1071661533099313342">បំបែក​ទិដ្ឋភាព</translation>
-<translation id="1071917609930274619">ការបម្លែងទិន្នន័យ</translation>
 <translation id="1072700771426194907">បានរកឃើញឧបករណ៍ USB</translation>
 <translation id="107278043869924952">ប្រើកូដ PIN បន្ថែមពីលើពាក្យសម្ងាត់</translation>
 <translation id="1075920807995555452">ដំណើរការ​ឧបករណ៍, កម្មវិធីកែ និង IDE នៅក្នុង​មជ្ឈដ្ឋាន​ដែលគ្រប់គ្រងដោយ​សហគ្រាស​របស់អ្នក​នៅលើ <ph name="DEVICE_TYPE" /> របស់អ្នក។ <ph name="LINK_BEGIN" />ស្វែងយល់បន្ថែម<ph name="LINK_END" /></translation>
@@ -159,6 +157,7 @@
 <translation id="1099070179078143183">ដើម្បីដំណើរការមុខងារ ដូចជាការចាប់ដឹងការឆបោក Chrome អាចប្រើគំរូ AI ដែលដំណើរការដោយផ្ទាល់នៅលើឧបករណ៍របស់អ្នកដោយមិនផ្ញើទិន្នន័យរបស់អ្នកទៅម៉ាស៊ីនមេ Google។ នៅពេលបិទការកំណត់នេះ មុខងារទាំងនេះប្រហែលមិនដំណើរការទេ។ <ph name="BEGIN_LINK" />ស្វែងយល់បន្ថែមអំពី AI នៅលើឧបករណ៍<ph name="END_LINK" /></translation>
 <translation id="1099962274138857708">រូបភាពដែលបានចម្លងពី <ph name="DEVICE_NAME" /></translation>
 <translation id="1100504063505580045">រូបតំណាង​បច្ចុប្បន្ន</translation>
+<translation id="1101267749138963680">កំពុង​ពិនិត្យ​សុវត្ថិភាព...</translation>
 <translation id="1102759278139578486">មិនអាច​ទាញយក​ឯកសារ​ចំណារ​ណត​ចម្បង​បានទេ។ សូមព្យាយាមម្ដងទៀតនៅពេលក្រោយ។</translation>
 <translation id="1103523840287552314">បកប្រែ <ph name="LANGUAGE" /> ជានិច្ច</translation>
 <translation id="1104098698795583187">អ្នកនឹង​បាត់បង់​សិទ្ធិចូលប្រើ​ក្រុមផ្ទាំងនេះ ហើយ​វានឹងត្រូវបាន​លុបចេញពី​ឧបករណ៍​ទាំងអស់​របស់អ្នក</translation>
@@ -219,7 +218,6 @@
 <translation id="114036956334641753">សំឡេង និង​អក្សររត់</translation>
 <translation id="1142002900084379065">រូបថត​ថ្មីៗ</translation>
 <translation id="1142713751288681188">ប្រភេទក្រដាស</translation>
-<translation id="1143142264369994168">អ្នកចុះហត្ថលេខាវិញ្ញាបនប័ត្រ</translation>
 <translation id="1145593918056169051">ម៉ាស៊ីនបោះពុម្ព​បានឈប់</translation>
 <translation id="1147098843963878839">{SELECTED_ITEMS,plural, =0{កម្មវិធី​បន្ថែម}=1{កម្មវិធី​បន្ថែម ({SELECTED_ITEMS})}other{កម្មវិធី​បន្ថែម ({SELECTED_ITEMS})}}</translation>
 <translation id="114715166554490743">ព្រួញដែលបញ្ជា​ដោយ​ក្បាល</translation>
@@ -339,9 +337,9 @@
 <translation id="1218015446623563536">លុប Linux</translation>
 <translation id="1219219114431716687">នំផ្លែឈើ</translation>
 <translation id="122082903575839559">នីតិវិធីដោះស្រាយហត្ថលេខាវិញ្ញាបនប័ត្រ</translation>
-<translation id="1221024147024329929">PKCS #1 MD2 ជាមួយការអ៊ីនគ្រីប RSA</translation>
 <translation id="1221266967850882682">បន្តឡើងវិញ</translation>
 <translation id="1221825588892235038">ការជ្រើសរើសតែប៉ុណ្ណោះ</translation>
+<translation id="1222786882236067545">ផ្ទុក​ឯកសារ​ប្រវត្តិ</translation>
 <translation id="1222835797152767346">កំណត់​កូដ PIN ដើម្បីធ្វើឱ្យ​ការចូលគណនី​កាន់តែ​ងាយស្រួល</translation>
 <translation id="1223484782328004593"><ph name="APP_NAME" /> តម្រូវឱ្យមាន​អាជ្ញាបណ្ណ</translation>
 <translation id="1223498995510244364">សង្ខេប</translation>
@@ -950,14 +948,12 @@
 <translation id="1637765355341780467">មានអ្វីមួយខុសប្រក្រតីនៅពេលបើកប្រវត្តិរូបរបស់អ្នក។ លក្ខណៈមួយចំនួនមិនអាចប្រើបានទេ។</translation>
 <translation id="1639239467298939599">កំពុងដំណើរការ</translation>
 <translation id="1640235262200048077"><ph name="IME_NAME" /> មិនទាន់ដំណើរការ​នៅក្នុង​កម្មវិធី Linux នៅឡើយទេ</translation>
-<translation id="1640283014264083726">PKCS #1 MD4 ជាមួយនឹងការអ៊ីនគ្រីប RSA</translation>
 <translation id="1641113438599504367">ការរុករកសុវត្ថិភាព</translation>
 <translation id="1641496881756082050">សកម្មភាព​ច្រើន​ទៀត​សម្រាប់ <ph name="NETWORK_NAME" /></translation>
 <translation id="1641884605525735390">{NUM_PASSWORDS,plural, =1{ពាក្យសម្ងាត់ 1 ផ្សេងទៀត​មិន​ត្រូវបាន​នាំចូលទេ ដោយសារ​ពាក្យសម្ងាត់​នោះ​មានទម្រង់​មិន​ត្រឹមត្រូវ}other{ពាក្យសម្ងាត់ {NUM_PASSWORDS} ផ្សេងទៀត​មិន​ត្រូវបាន​នាំចូល​ទេ ដោយសារ​ពាក្យសម្ងាត់​ទាំងនោះ​មាន​ទម្រង់​មិន​ត្រឹមត្រូវ}}</translation>
 <translation id="1642299742557467312">ឯកសារ​នេះ​អាចបង្ក​គ្រោះថ្នាក់​ដល់​ឧបករណ៍របស់អ្នក</translation>
 <translation id="1642492862748815878">បានភ្ជាប់​ជាមួយ <ph name="DEVICE" /> និង​ឧបករណ៍​ប៊្លូធូស <ph name="NUMBER_OF_DEVICES" /> ទៀត</translation>
 <translation id="1642494467033190216">តម្រូវឲ្យមានការយកចេញការការពារ rootfs និងការចាប់ផ្តើមឡើងវិញ មុនពេលបើកដំណើរការលក្ខណៈពិសេសកម្ចាត់កំហុសផ្សេងទៀត។</translation>
-<translation id="1643072738649235303">ហត្ថលេខា X9.62 ECDSA ជាមួយ SHA-1</translation>
 <translation id="1643921258693943800">ដើម្បីប្រើការ​ចែករំលែកនៅ​ជិត សូមបើកប៊្លូធូស និង Wi-Fi</translation>
 <translation id="1644574205037202324">ប្រវត្តិ</translation>
 <translation id="1644852018355792105">បញ្ចូលកូដសម្ងាត់ប៊្លូធូសសម្រាប់ឧបករណ៍ <ph name="DEVICE" /></translation>
@@ -976,7 +972,6 @@
 <translation id="1652281434788353738">គិតគូរល្អិតល្អន់</translation>
 <translation id="1652326691684645429">បើក​ការចែករំលែក​នៅជិត</translation>
 <translation id="1652862280638399816">ដើម្បីប្រើ​កម្មវិធី​គ្រប់គ្រង​ពាក្យសម្ងាត់​ជាមួយ macOS Keychain សូម​ចាប់ផ្តើម Chromium ឡើងវិញ និង​អនុញ្ញាត​ឱ្យចូលប្រើ Keychain។ ផ្ទាំង​របស់អ្នក​នឹងបើក​ឡើងវិញ បន្ទាប់ពី​ចាប់ផ្តើម​ឡើងវិញ។</translation>
-<translation id="1653958716132599769">ដាក់​ផ្ទាំង​ដែលពាក់ព័ន្ធ​ជាក្រុម</translation>
 <translation id="165448107578581061">Gemini កំពុង​ធ្វើកិច្ចការ​របស់អ្នក...</translation>
 <translation id="1654580009054503925">មិន​បាន​អនុញ្ញាត​ឱ្យ​បង្ហាញ​សំណើ​</translation>
 <translation id="1654713139320245449">រកមិនឃើញ​ទិសដៅ​បញ្ជូនទេ។ ត្រូវការ​ជំនួយ​ឬ?</translation>
@@ -1100,7 +1095,6 @@
 <translation id="1732380773380808394">អ្នក​ក៏នឹង​ទទួលបាន​ពាក្យ​សម្ងាត់​របស់អ្នក និង​អ្វីៗជាច្រើនទៀត​ពីគណនី Google របស់អ្នក​ផងដែរ។</translation>
 <translation id="1734212868489994726">ខៀវខ្ចី</translation>
 <translation id="1734824808160898225"><ph name="PRODUCT_NAME" /> ប្រហែល​ជាមិនអាច​បន្ត​ដំឡើងជំនាន់​​ដោយខ្លួនឯងទេ</translation>
-<translation id="1735636854292329504"><ph name="TASK_TITLE" />\nខ្ញុំ​កំពុងធ្វើ​កិច្ចការ​របស់អ្នក ហើយនឹង​ប្រាប់ឱ្យអ្នកដឹង ប្រសិនបើ​ចាំបាច់​ត្រូវធ្វើ​សកម្មភាព​បន្ថែម</translation>
 <translation id="1735983780784385591">បាននាំចូលពី Linux</translation>
 <translation id="173628468822554835">យល់ហើយ។ តាមលំនាំដើម គេហទំព័រថ្មីៗ​ដែលអ្នកចូលមើល​នឹងមិនផ្ញើ​ការជូនដំណឹង​ទៅអ្នកទេ។</translation>
 <translation id="1737228213718001685">កំពុងធ្វើ​កិច្ចការ​របស់អ្នក</translation>
@@ -1127,7 +1121,6 @@
 <translation id="1755601632425835748">ទំហំ​អក្សរ</translation>
 <translation id="1756963401828337401">ជ្រើសរើស​អេក្រង់​ដែល​ត្រូវថត</translation>
 <translation id="1757132445735080748">ដើម្បីបញ្ចប់​ការរៀបចំ Linux សូមដំឡើងកំណែ ChromeOS Flex រួចព្យាយាមម្ដងទៀត។</translation>
-<translation id="1757301747492736405">ការលុប​មិនទាន់សម្រេច</translation>
 <translation id="175772926354468439">បើកដំណើរការធីម</translation>
 <translation id="1757786065507923842">សំណើសុំ​ការអនុញ្ញាត​ពី​មាតាបិតា​មិនបានសម្រេច​ទេ។</translation>
 <translation id="17584710573359123">មើល​នៅក្នុង Chrome Web Store</translation>
@@ -1143,6 +1136,7 @@
 <translation id="1767043563165955993">ប្រើជាមួយកម្មវិធី Android</translation>
 <translation id="1767508543310534319">ការអានសញ្ញាវណ្ណយុត្ត</translation>
 <translation id="1768212860412467516">ផ្ញើ​មតិកែលម្អ​សម្រាប់ <ph name="EXPERIMENT_NAME" />។</translation>
+<translation id="1768928167751703843">មើល​ទិន្នន័យក្នុង​ឧបករណ៍</translation>
 <translation id="1769104665586091481">បើកតំណនៅក្នុងផ្ទាំងថ្មី</translation>
 <translation id="1769157454356586138">ការស្កេន​មិនបានសម្រេចទេ។ ឯកសារនេះ​ត្រូវបាន​ទប់ស្កាត់​ដោយ​អ្នកគ្រប់គ្រង​របស់អ្នក</translation>
 <translation id="176920518817780870">បំប្លែង​ក្រុម​ទៅជា​ថត​ចំណាំ</translation>
@@ -1373,7 +1367,6 @@
 <translation id="1922496389170590548">គណនី​សាលារៀន​របស់កុមារ</translation>
 <translation id="1923468477587371721">គេហទំព័រ Google ដូចជា Gmail, ថាស និង YouTube ជាដើមប្រើ​ភាសា​គណនី Google របស់អ្នក លុះត្រាតែអ្នក​បានប្ដូរភាសាផលិតផល​នីមួយៗ</translation>
 <translation id="1923539912171292317">ចុចដោយស្វ័យប្រវត្តិ</translation>
-<translation id="1924637506777872526">បង្កើត​ក្រុមផ្ទាំង​ដោយស្វ័យប្រវត្តិ​ដោយផ្អែកលើ​ផ្ទាំងដែលអ្នក​បើក</translation>
 <translation id="192494336144674234">បើកដោយប្រើ</translation>
 <translation id="1925017091976104802">ចុច <ph name="MODIFIER_KEY_DESCRIPTION" /> ដើម្បី​ដាក់ចូល</translation>
 <translation id="1925021887439448749">បញ្ចូល​អាសយដ្ឋាន​ទំព័រ​ផ្ទាល់ខ្លួន</translation>
@@ -1649,7 +1642,6 @@
 <translation id="2112554630428445878">សូមស្វាគមន៍ <ph name="USERNAME" /></translation>
 <translation id="21133533946938348">ដៅផ្ទាំង</translation>
 <translation id="2113479184312716848">បើកឯកសារ...</translation>
-<translation id="2113921862428609753">ការចូលប្រើព័ត៌មានអាជ្ញាធរ</translation>
 <translation id="2114326799768592691">ដំណើរការហ្វ្រេមឡើងវិញ</translation>
 <translation id="2114995631896158695">មិនបាន​ស៊កបញ្ចូល​ស៊ីមកាតទេ</translation>
 <translation id="2115808389282428160">មិន​អនុញ្ញាតឱ្យ​គេហទំព័រ​ចូលប្រើ​កម្មវិធី និង​សេវាកម្ម​ផ្សេងទៀត​នៅលើ​ឧបករណ៍​នេះទេ</translation>
@@ -1771,7 +1763,6 @@
 <translation id="2193567467390483943">មាតាបិតារបស់អ្នកមិនបានអនុញ្ញាតកម្មវិធីបន្ថែមនេះទេ</translation>
 <translation id="2194856509914051091">ចំណុច​ដែលត្រូវ​ពិចារណា</translation>
 <translation id="2195331105963583686">អ្នកនឹងនៅតែ​អាចប្រើ <ph name="DEVICE_TYPE" /> នេះ​បានដដែល បន្ទាប់ពី​ពេលនោះ ប៉ុន្តែវានឹង​លែងទទួលបាន​កំណែកម្មវិធី និងសុវត្ថិភាពថ្មី​ដោយស្វ័យប្រវត្តិ​ហើយ</translation>
-<translation id="2195729137168608510">ការការពារអ៊ីម៉ែល</translation>
 <translation id="2198625180564913276">កំពុងបញ្ចូល​កម្រងព័ត៌មាន។ ដំណើរការនេះ​អាចចំណាយ​ពេលពីរបីនាទី។</translation>
 <translation id="2198712775285959645">កែ</translation>
 <translation id="2199298570273670671">បញ្ហា</translation>
@@ -2261,6 +2252,7 @@
 <translation id="2518024842978892609">ប្រើវិញ្ញាបនបត្រម៉ាស៊ីនកូនរបស់អ្នក</translation>
 <translation id="2518620532958109495">អនុញ្ញាតឱ្យ​ចូល​អេក្រង់​ពេញ​ដោយស្វ័យប្រវត្តិ</translation>
 <translation id="2519250377986324805">មើលរបៀប</translation>
+<translation id="2519448661890412804"><ph name="TASK_TITLE" />\nGemini ត្រូវការ​ជំនួយ​របស់អ្នក ដើម្បីបន្ត​ធ្វើកិច្ចការ​របស់អ្នក។</translation>
 <translation id="2519517390894391510">ឈ្មោះ​កម្រងព័ត៌មាន​វិញ្ញាបនបត្រ</translation>
 <translation id="2520644704042891903">កំពុងរង់ចាំរន្ធភ្ជាប់ដែលមាន...</translation>
 <translation id="2521427645491031107">សមកាលកម្ម​កម្មវិធី​ត្រូវបាន​កំណត់​នៅក្នុង​ការកំណត់ឧបករណ៍</translation>
@@ -2407,6 +2399,7 @@
 <translation id="2628258844236035475">ដក​អាសយដ្ឋាន​ផ្ទះ​របស់អ្នក​ចេញពី​ការបំពេញ​ស្វ័យប្រវត្តិ​របស់ Chrome ឬ?</translation>
 <translation id="2628770867680720336">តម្រូវឱ្យកំណត់ Chromebook នេះដូច​ដើមឡើងវិញ ដើម្បីបើក​ការជួសជុល ADB។ <ph name="BEGIN_LINK_LEARN_MORE" />ស្វែងយល់​បន្ថែម<ph name="END_LINK_LEARN_MORE" /></translation>
 <translation id="2628874386573004005">ចាប់ផ្ដើម​ការជជែកថ្មី​ជាមួយ Gemini</translation>
+<translation id="2629058811622993283">ចែករំលែក​សំឡេង​កម្មវិធី (ពី​កម្មវិធី​ដែលពាក់ព័ន្ធ និង​វិនដូ​ទាំងអស់​របស់វា) ផងដែរ</translation>
 <translation id="2629227353894235473">អភិវឌ្ឍកម្មវិធី Android</translation>
 <translation id="2629437048544561682">សម្អាត​ផ្ទាំង</translation>
 <translation id="2630703150574465936">អ្នកបានអនុញ្ញាតឱ្យ Gemini ចូលគេហទំព័រ និងកម្មវិធីទាំងនេះឱ្យអ្នកដោយស្វ័យប្រវត្តិដោយប្រើគណនីរបស់អ្នក</translation>
@@ -2459,7 +2452,6 @@
 <translation id="2660779039299703961">ព្រឹត្តិការណ៍</translation>
 <translation id="266079277508604648">មិនអាច​ភ្ជាប់​ម៉ាស៊ីន​បោះពុម្ព​បានទេ។ សូម​ពិនិត្យ​ថា​ម៉ាស៊ីន​បោះពុម្ពនេះ​ត្រូវបាន​បើក និង​បាន​ភ្ជាប់​ជាមួយ Chromebook របស់​អ្នក​តាមរយៈ Wi-Fi ឬ USB ។</translation>
 <translation id="2661315027005813059">ទំព័រនៃ​ឃ្លាំងបម្រុងទុក​ទំព័រក្នុងសភាពដើម​ទាំងស្រុង៖ <ph name="BACK_FORWARD_CACHE_PAGE_URL" /></translation>
-<translation id="2661714428027871023">រុករករហ័ស​ជាងមុន និងប្រើទិន្នន័យ​តិចជាងមុន​ដោយប្រើមុខងារស្រាល។ ចុចដើម្បី​ស្វែងយល់បន្ថែម។</translation>
 <translation id="2662876636500006917">Chrome Web Store</translation>
 <translation id="2663253180579749458">កំពុងបញ្ចូលកម្រងព័ត៌មាន eSIM។ ដំណើរការនេះ​អាច​ចំណាយ​ពេលបន្តិច។</translation>
 <translation id="2663302507110284145">ភាសា</translation>
@@ -2602,6 +2594,7 @@
 <translation id="2750020734439919571">ការអនុញ្ញាត និងការកំណត់កម្មវិធី Chrome ច្រើនទៀត</translation>
 <translation id="275010360476017464">ប្រើ​មីក្រូហ្វូន​របស់អ្នក ដើម្បី​ជជែក​ជាមួយ Gemini។ នៅពេល​អ្នកនិយាយ​ទៅកាន់ Gemini សំឡេង​ត្រូវបាន​រក្សាទុក​នៅក្នុង​សកម្មភាព​កម្មវិធី Gemini (ប្រសិនបើ​បើកវា)។</translation>
 <translation id="2750602041558385535">បានទប់ស្កាត់​ការទាញយក​ដែលមិនបាន​ផ្ទៀងផ្ទាត់</translation>
+<translation id="2751320815618312249">+ <ph name="NUM" /> ទៀត</translation>
 <translation id="2751454300227269244">ធ្វើចលនា​មាត់​របស់អ្នក​ទៅស្ដាំ</translation>
 <translation id="2751883373055093745"><ph name="WEBSITE" /> ចង់ដឹងអំពីលេខកូដសម្គាល់សោសុវត្ថិភាព​របស់អ្នក។ គេហទំព័រ​នឹងដឹងយ៉ាងច្បាស់ថា សោសុវត្ថិភាព​ណាមួយ​ដែលអ្នកកំពុងប្រើ។</translation>
 <translation id="275213133112113418">កាតរបស់អ្នកត្រូវបានរក្សាទុក</translation>
@@ -2925,6 +2918,7 @@
 <translation id="2979893796619951531">ដកគេហទំព័រចេញ</translation>
 <translation id="2979966855249721010">ដោយផ្អែកលើចំណាប់អារម្មណ៍របស់អ្នក អ្នកអាចឃើញការណែនាំកម្មវិធី គន្លឹះ និងអ្វីៗជាច្រើនទៀត</translation>
 <translation id="2981113813906970160">បង្ហាញព្រួញកណ្តុរធំ</translation>
+<translation id="2981728693230031897">សង្ខេប​ទំព័រនេះ​ដោយប្រើ Gemini</translation>
 <translation id="2983102365694924129">ផ្អែក​លើ​សកម្មភាព​របស់​អ្នក​នៅលើ​គេហទំព័រ។ ការកំណត់​នេះត្រូវបាន​បិទ។</translation>
 <translation id="2983311431122838216">សួរ​មុខងារ AI នៅក្នុង​ម៉ាស៊ីន​ស្វែងរក​នៅលើ Google</translation>
 <translation id="2983373101216420412">កម្រិតថ្ម​ប្រអប់កាស <ph name="PERCENTAGE" />%។</translation>
@@ -3114,7 +3108,6 @@
 <translation id="3108957152224931571">ពណ៌រំលេច</translation>
 <translation id="3109206895301430738">ក្រុម​ផ្ទាំង​ដែលបានរក្សាទុក</translation>
 <translation id="3109724472072898302">បានបង្រួមចូល</translation>
-<translation id="3109876277590516364">+<ph name="NUM" /> ទៀត</translation>
 <translation id="3112292765614504292">ទំហំកម្មវិធី៖ <ph name="APP_SIZE" /></translation>
 <translation id="311347022006935575">បានបញ្ចូល​ផ្ទាំងនេះ</translation>
 <translation id="311394601889664316">មិនអនុញ្ញាតឱ្យ​គេហទំព័រ​កែឯកសារ ឬថត​នៅក្នុងឧបករណ៍​របស់អ្នកទេ</translation>
@@ -3253,14 +3246,12 @@
 <translation id="321367297115597343">បញ្ចូលចំណាំទៅថតនេះ</translation>
 <translation id="3213681682237645841">កំពុងទាញយកសំឡេងជាភាសា<ph name="LANGUAGE" />...</translation>
 <translation id="3217843140356091325">បង្កើត​ផ្លូវកាត់​ដែរទេ?</translation>
-<translation id="321834671654278338">កម្មវិធីលុប Linux</translation>
 <translation id="3220943972464248773">ដើម្បី​ធ្វើសមកាលកម្ម​ពាក្យសម្ងាត់​របស់អ្នក សូមផ្ទៀងផ្ទាត់​ថាជាអ្នក</translation>
 <translation id="3222066309010235055">មុនបម្លែង៖ <ph name="PRERENDER_CONTENTS_NAME" /></translation>
 <translation id="3222779980972075989">ភ្ជាប់ជាមួយ <ph name="USB_VM_NAME" /></translation>
 <translation id="3223109931751684474">ដកសិទ្ធិ​ចូលប្រើ​កូដសម្ងាត់​របស់អ្នក​នៅលើ​ឧបករណ៍នេះ</translation>
 <translation id="3223531857777746191">ប៊ូតុង​កំណត់ឡើងវិញ</translation>
 <translation id="3225084153129302039">រូបតំណាងពណ៌ស្វាយលំនាំដើម</translation>
-<translation id="3225319735946384299">ការចុះហត្ថលេខាជាលេខកូដ</translation>
 <translation id="3226487301970807183">បិទ/បើកផ្ទាំងចំហៀង​ដែលតម្រឹមខាងឆ្វេង</translation>
 <translation id="322708765617468434">អ្នកអាច​បញ្ចូលមនុស្ស​ម្នាក់ទៀត​ទៅក្នុង​ឧបករណ៍​បានជានិច្ច បន្ទាប់ពី​រៀបចំហើយ។ មនុស្សម្នាក់ៗ​អាចកំណត់​បទពិសោធន៍ប្រើប្រាស់​របស់ខ្លួន​ឱ្យមាន​លក្ខណៈផ្ទាល់ខ្លួន និងរក្សា​ទិន្នន័យជា​លក្ខណៈឯកជន។</translation>
 <translation id="3227137524299004712">ម៉ៃក្រូហ្វូន</translation>
@@ -3292,7 +3283,6 @@
 <translation id="324366796737464147">ការកាត់បន្ថយ​សំឡេងរំខាន</translation>
 <translation id="3244271242291266297">ខែ</translation>
 <translation id="3244294424315804309">បន្ត​បិទ​សំឡេង</translation>
-<translation id="3247006341013237647">រៀបចំ​ផ្ទាំងឬ?</translation>
 <translation id="3247649647204519958">ពីទីនេះ អ្នក​អាច​មើលឃើញ និង​គ្រប់គ្រង​ការអនុញ្ញាត​កម្មវិធីបន្ថែម​សម្រាប់​គេហទំព័រ​ដែលអ្នកស្ថិតនៅលើ</translation>
 <translation id="324849028894344899"><ph name="WINDOW_TITLE" /> - បណ្តាញមានបញ្ហា</translation>
 <translation id="3248902735035392926">សុវត្ថិភាព​ពិតជា​សំខាន់​។ ចំណាយ​ពេល​បន្តិច ដើម្បី<ph name="BEGIN_LINK" />ពិនិត្យមើល​កម្មវិធី​បន្ថែម​របស់អ្នក​ឥឡូវនេះ<ph name="END_LINK" /></translation>
@@ -3385,7 +3375,6 @@
 <translation id="3310379801837527592">ចូលរួម​ក្រុមផ្ទាំង​ជាមួយ <ph name="OWNER_FIRST_NAME" /> និង <ph name="NUM_OTHER_MEMBERS" /> នាក់​ផ្សេងទៀត</translation>
 <translation id="331080746368555063">គេហទំព័រឯកជនអាចរួមបញ្ចូលអ្វីៗ ដូចជាអ៊ីនត្រាណិតរបស់ក្រុមហ៊ុនអ្នកជាដើម</translation>
 <translation id="3311007761540106761">លំនាំដើមប្រព័ន្ធ</translation>
-<translation id="3311445899360743395">ទិន្នន័យ​ដែល​ពាក់ព័ន្ធនឹង​កម្មវិធីនេះ​អាចត្រូវ​បានលុបចេញ​ពីឧបករណ៍​នេះ។</translation>
 <translation id="3312300514034250578">ការរុករក​ដោយសុវត្ថិភាពបន្ថែម</translation>
 <translation id="3312470654018965389">កំពុងកំណត់រចនាសម្ព័ន្ធទម្រង់ផ្ទុក Linux</translation>
 <translation id="3312883087018430408">ដើម្បីស្វែងរក​ផ្នែកនៃ Chrome ឬគេហទំព័រ​ជាក់លាក់ សូមវាយបញ្ចូលផ្លូវកាត់របស់វានៅក្នុងរបារអាសយដ្ឋាន ដោយបញ្ចូលផ្លូវកាត់ក្ដារចុចដែលអ្នកចង់ប្រើនៅពីក្រោយ។ ឧទាហរណ៍ ដើម្បីស្វែងរកតែចំណាំ សូមវាយបញ្ចូល "@bookmarks" រួចចុច Tab ឬ Space។</translation>
@@ -3506,7 +3495,6 @@
 <translation id="3402585168444815892">កំពុងចុះ​ឈ្មោះប្រើ​មុខងារ​សាកល្បង</translation>
 <translation id="340282674066624"><ph name="DOWNLOAD_RECEIVED" />, <ph name="TIME_LEFT" /></translation>
 <translation id="3404065873681873169">មិន​មាន​​ពាក្យសម្ងាត់​​ដែលបានរក្សា​ទុកសម្រាប់​ទំព័រ​នេះ​ទេ</translation>
-<translation id="3405382848027996799">អាច​រៀបចំ​ហាតវែរ Google Beam របស់អ្នក​បានហើយ</translation>
 <translation id="3405664148539009465">ប្តូរពុម្ពអក្សរតាមបំណង</translation>
 <translation id="3405763860805964263">...</translation>
 <translation id="3406290648907941085">អនុញ្ញាតឱ្យប្រើទិន្នន័យ និងឧបករណ៍ VR</translation>
@@ -3528,7 +3516,6 @@
 <translation id="3417835166382867856">ស្វែងរកផ្ទាំង</translation>
 <translation id="3417836307470882032">នាឡិកា 24 ម៉ោង</translation>
 <translation id="3418798368381485936">អ្នក​មិនអាច​ចូល​ដោយប្រើ​គណនីនេះ​បានទេ</translation>
-<translation id="3421387094817716717">សោសាធារណ: Elliptic Curve</translation>
 <translation id="3422989558057853751">បាន​ជ្រើសរើស​ធាតុ​ចុងក្រោយ, ការដក​ការជ្រើសរើសវា​នឹងចាកចេញពី​មុខងារ​ជ្រើសរើស</translation>
 <translation id="3423111258700187173">បានរកឃើញ​លទ្ធផល​នៅក្នុង <ph name="FOLDER_TITLE" /></translation>
 <translation id="3423275441470187644">ជឿទុកចិត្ត</translation>
@@ -3713,7 +3700,6 @@
 <translation id="3543296862747913985">អ្វីដែល​វាធ្វើ</translation>
 <translation id="3543298914473315872">ដំណើរការ​កម្មវិធី​ដំឡើងកំណែ</translation>
 <translation id="3543393733900874979">ការធ្វើបច្ចុប្បន្នភាពបានបរាជ័យ (កំហុសឆ្គង៖ <ph name="ERROR_NUMBER" />)</translation>
-<translation id="3543597750097719865">ហត្ថលេខា X9.62 ECDSA ជាមួយ SHA-512</translation>
 <translation id="3544058026430919413">ក្រុមហ៊ុន​អាច​កំណត់​ក្រុម​គេហទំព័រ​ដែល​អាច​ប្រើប្រាស់​ខូគី ដើម្បី​ចែករំលែក​សកម្មភាព​របស់​អ្នក​នៅ​ក្នុងក្រុមនេះ។ ជម្រើសនេះត្រូវ​បានបិទ​នៅ​ក្នុង​មុខងារឯកជន។</translation>
 <translation id="3544879808695557954">ឈ្មោះ​អ្នក​ប្រើប្រាស់ (ជាជម្រើស)</translation>
 <translation id="3547954654003013442">ការកំណត់ប្រូកស៊ី</translation>
@@ -4156,7 +4142,6 @@
 <translation id="3819261658055281761">ប្រព័ន្ធ​មិន​អាចផ្ទុក​ទិន្នន័យចូល API រយៈពេលវែង​សម្រាប់ឧបករណ៍​នេះ​បាន​ទេ។</translation>
 <translation id="3819800052061700452">ពេញអេក្រង់</translation>
 <translation id="3820638253182943944">{MUTED_NOTIFICATIONS_COUNT,plural, =1{បង្ហាញ}other{បង្ហាញ​ទាំងអស់}}</translation>
-<translation id="3820749202859700794">SECG elliptic curve secp521r1 (aka NIST P-521)</translation>
 <translation id="3821074617718452587">ការជូនដំណឹងពីមណ្ឌលទូរសព្ទ</translation>
 <translation id="3821372858277557370">{NUM_EXTENSIONS,plural, =1{កម្មវិធីបន្ថែមមួយ​ត្រូវបាន​អនុញ្ញាតហើយ}other{កម្មវិធីបន្ថែម # ត្រូវបាន​អនុញ្ញាតហើយ}}</translation>
 <translation id="3822426549715448461">ថ្ងៃ</translation>
@@ -4217,7 +4202,6 @@
 <translation id="3858860766373142691">ឈ្មោះ</translation>
 <translation id="385939467708172187">ប្រើ​ពាក្យសម្ងាត់ខ្លាំង</translation>
 <translation id="3859869403161297890">ផ្ញើ​មតិកែលម្អ​របស់អ្នក​ពាក់ព័ន្ធនឹង​ក្រុមផ្ទាំង​ដែលបាន​ចែករំលែក​នៅទីនេះ</translation>
-<translation id="3859987779882450877">ណែនាំ និង​បង្កើតក្រុម​ពីផ្ទាំងដែល​អ្នកបើក​ដោយស្វ័យប្រវត្តិ</translation>
 <translation id="386009056910366930">គ្រប់គ្រង​ក្រុមផ្ទាំង “<ph name="GROUP_NAME" />”</translation>
 <translation id="3861638017150647085">មិនមាន​ឈ្មោះអ្នកប្រើប្រាស់ "<ph name="USERNAME" />" ទេ</translation>
 <translation id="3861852898230054539">បច្ចុប្បន្នកំពុងប្រើពាក្យសម្ងាត់​គណនី Google។ អ្នកអាចរៀបចំពាក្យសម្ងាត់ <ph name="DEVICE_TYPE" /> ដើម្បីឱ្យកាន់តែងាយស្រួលចូលគណនី។</translation>
@@ -4571,6 +4555,7 @@
 <translation id="4107793386654579933">ជ្រើសរើស​ផ្លូវកាត់​សម្រាប់​សកម្មភាព<ph name="ACTION_NAME" /></translation>
 <translation id="4109135793348361820">ផ្លាស់ទីផ្ទាំងទៅ <ph name="USER_NAME" /> (<ph name="USER_EMAIL" />)</translation>
 <translation id="4110485659976215879">ស្ដារ​ការព្រមាន</translation>
+<translation id="411052834366185695">ត្រូវតែមាន​យ៉ាងតិច 1 ខ្ទង់</translation>
 <translation id="4112194537011183136"><ph name="DEVICE_NAME" /> (គ្មានអ៊ីនធឺណិត)</translation>
 <translation id="4113743276555482284">ពាក្យសម្ងាត់​ឯកសារ</translation>
 <translation id="4114391251600134209">{COUNT,plural, =0{មិនមាន​ពាក្យសម្ងាត់ដែលបានរក្សាទុកទេ}=1{បាន​ពិនិត្យ​ពាក្យ​សម្ងាត់ 1}other{បាន​ពិនិត្យ​ពាក្យ​សម្ងាត់ {COUNT}}}</translation>
@@ -4668,6 +4653,7 @@
 <translation id="4190492351494485814">សម្រាប់​ការរៀបចំ​ដំបូង អ្នកត្រូវភ្ជាប់ទៅអ៊ីនធឺណិត ដើម្បីឱ្យ​ឯកសារ​អាចធ្វើ​សម​កាលកម្មទៅ Chromebook បាន</translation>
 <translation id="4190828427319282529">រំលេច​ការផ្ដោត​ក្ដារចុច</translation>
 <translation id="4191892134568599822">ទទួល​ដោយប្រើ<ph name="FEATURE_NAME" />ឬ?</translation>
+<translation id="4192850526869217634"><ph name="TASK_TITLE" />\nGemini កំពុងធ្វើ​កិច្ចការ​របស់អ្នក ហើយនឹង​ប្រាប់ឱ្យ​អ្នកដឹង ប្រសិនបើ​ចាំបាច់​ត្រូវធ្វើ​សកម្មភាព​បន្ថែម។</translation>
 <translation id="4192850928807059784"><ph name="BEGIN_PARAGRAPH1" />ផ្តាច់​មុខសម្រាប់ <ph name="DEVICE_TYPE" />។<ph name="END_PARAGRAPH1" />
     <ph name="BEGIN_PARAGRAPH2" />AI ដែលមាន​សមត្ថភាព​បង្កើត​ជាកំណែពិសោធន៍ ស្ថិតក្នុង​ដំណាក់កាល​អភិវឌ្ឍន៍​ដំបូង និង​អាចឱ្យប្រើបាន​ដោយមានដែនកំណត់នាពេលបច្ចុប្បន្ន។<ph name="END_PARAGRAPH2" /></translation>
 <translation id="4193251682249731404">CA ដែលទុកចិត្ត</translation>
@@ -4730,6 +4716,7 @@
 <translation id="4241140145060464825">ខ្លឹមសារ​កម្មវិធី</translation>
 <translation id="4241224519481557898">ប្រភេទ</translation>
 <translation id="4242145785130247982">មិនអាចប្រើ​វិញ្ញាបនបត្រ​កម្មវិធីភ្ញៀវ​ច្រើនបានទេ</translation>
+<translation id="4242245038391716252">បាន​ទាញយក​ដោយ​កម្មវិធីបន្ថែម៖ &lt;a href="<ph name="URL" />"&gt;<ph name="EXTENSION" />&lt;/a&gt;</translation>
 <translation id="4242533952199664413">បើកការកំណត់</translation>
 <translation id="4242577469625748426">បានបរាជ័យក្នុងការតំឡើងការកំណត់គោលការណ៍នៅឧបករណ៍នេះ៖ <ph name="VALIDATION_ERROR" />។</translation>
 <translation id="4242825475818569385"><ph name="BEGIN_LINK" />កម្មវិធីរុករក​តាមអ៊ីនធឺណិត និង​កម្រងព័ត៌មាន​របស់អ្នក​ស្ថិតក្រោម​ការគ្រប់គ្រង<ph name="END_LINK" />របស់ <ph name="DOMAIN" /></translation>
@@ -4747,7 +4734,6 @@
 <translation id="4250680216510889253">ទេ</translation>
 <translation id="4251243704979202079"><ph name="ORIGIN" /> នឹងអាច​មើល និង​បង្កើតច្បាប់ចម្លង​ឯកសារ​របស់ខ្លួនផ្ទាល់​នៅក្នុង <ph name="FOLDERNAME" /></translation>
 <translation id="4251377547188244181">ការចុះឈ្មោះ​ឧបករណ៍ Kiosk និង signage</translation>
-<translation id="4252828488489674554">ចុចកណ្ដុរ​ខាងស្ដាំ​លើឈ្មោះ​ក្រុមផ្ទាំង ដើម្បីកែ​ក្រុមនេះ ឬចុច​ដើម្បី​បង្រួម</translation>
 <translation id="4252899949534773101">បានបិទប៊្លូធូស</translation>
 <translation id="4252996741873942488"><ph name="WINDOW_TITLE" /> - បានចែករំលែកមាតិការបស់ផ្ទាំង</translation>
 <translation id="4253168017788158739">កំណត់ត្រា</translation>
@@ -4776,7 +4762,6 @@
 <translation id="4267792239557443927">{COUNT,plural, =0{រកមិនឃើញពាក្យសម្ងាត់ទេ}=1{បាន​រកឃើញ​លទ្ធផល 1}other{បាន​រកឃើញ​លទ្ធផល {COUNT}}}</translation>
 <translation id="4267924571297947682">ស្នើសុំ​ការអនុញ្ញាត​ពីមាតាបិតា</translation>
 <translation id="4267953847983678297">ភ្ជាប់​បណ្ដាញ​ចល័ត​ដោយស្វ័យប្រវត្តិ</translation>
-<translation id="4268025649754414643">ការបម្លែងសោ</translation>
 <translation id="4268168858499812335">ផ្លូវ​កាត់គេហទំព័រដែលមាន</translation>
 <translation id="4268516942564021145">មិនអាចប្រើ​ការកំណត់នេះ​សម្រាប់​គណនី​របស់អ្នក​បានទេ។</translation>
 <translation id="4270393598798225102">កំណែ <ph name="NUMBER" /></translation>
@@ -4863,7 +4848,6 @@
 <translation id="432160826079505197">បង្ហាញ <ph name="FILE_NAME" /> នៅ​ក្នុង​ Finder</translation>
 <translation id="4322394346347055525">បិទផ្ទាំងផ្សេងទៀត</translation>
 <translation id="4324577459193912240">ឯកសារមិនពេញលេញ</translation>
-<translation id="4325237902968425115">កំពុងលុប <ph name="LINUX_APP_NAME" />...</translation>
 <translation id="4325433082696797523">ទំហំផ្ទុក និង​ថាមពល</translation>
 <translation id="4325515113816851466">ជម្រើស​របស់​មាតាបិតា​អ្នក​នឹងមិន​ត្រូវបានអនុវត្តទេ បន្ទាប់ពី​អ្នកចេញពី​គណនី</translation>
 <translation id="4326146840124313313">សុវត្ថិភាព​ខ្លាំងបំផុត​របស់ Chrome ធ្វើបានកាន់តែច្រើន​ក្នុងការការពារអ្នកពី​កម្មវិធី​បន្ថែម ការទាញ​យក និង​គេហទំព័រដែល​គ្រោះថ្នាក់</translation>
@@ -4871,7 +4855,6 @@
 <translation id="4330191372652740264">ទឹកកក</translation>
 <translation id="4330387663455830245">កុំបកប្រែភាសា <ph name="LANGUAGE" /> ឲ្យសោះ</translation>
 <translation id="4332976768901252016">រៀបចំ​ការគ្រប់គ្រង​ដោយ​មាតាបិតា</translation>
-<translation id="4333854382783149454">PKCS #1 SHA-1 ជាមួយការអ៊ីនគ្រីប RSA</translation>
 <translation id="4334768748331667190">អ្នកនឹងមើលមិនឃើញ <ph name="MODULE_NAME" /> ទៀតទេ</translation>
 <translation id="4335835283689002019">ការរុករក​ដោយសុវត្ថិភាព​ត្រូវបានបិទ</translation>
 <translation id="4336967529148557673">អ្នកត្រូវ​ចូលគណនី ទើប Chromium អាចបញ្ចប់​កិច្ចការ​នេះបាន</translation>
@@ -5001,7 +4984,6 @@
 <translation id="4414232939543644979">ផ្ទាំងអនាមិកថ្មី</translation>
 <translation id="4415213869328311284">អ្នកអាចចាប់ផ្តើមប្រើ <ph name="DEVICE_TYPE" /> របស់អ្នកបានហើយ។</translation>
 <translation id="4415276339145661267">គ្រប់គ្រង​គណនី Google របស់​អ្នក</translation>
-<translation id="4415748029120993980">SECG elliptic curve secp384r1 (aka NIST P-384)</translation>
 <translation id="4415815425191869676">រក្សា​គេហទំព័រ​ទាំងនេះ​ឱ្យសកម្ម​ជានិច្ច</translation>
 <translation id="4416582610654027550">វាយ​បញ្ចូល URL ដែល​ត្រឹមត្រូវ</translation>
 <translation id="4417555042033340400">{NUM_TABS,plural, =1{ផ្អាក​ផ្ទាំងនេះ}other{ផ្អាក​ផ្ទាំង​ទាំងនេះ}}</translation>
@@ -5064,13 +5046,13 @@
 <translation id="4461483878391246134">បញ្ចូល​ភាសាទៅក្នុងបញ្ជីភាសាមិនផ្ដល់​ជូន​ការ​បកប្រែ</translation>
 <translation id="4462159676511157176">ម៉ាស៊ីនមេឈ្មោះផ្ទាល់ខ្លូន</translation>
 <translation id="4465236939126352372">បានកំណត់រយៈពេលកំណត់ <ph name="TIME" /> សម្រាប់ <ph name="APP_NAME" /></translation>
+<translation id="4466922176191762830">+ <ph name="NUM" /> ទៀត</translation>
 <translation id="4467373268340082204">កូដ PIN មិន​ត្រឹមត្រូវទេ</translation>
 <translation id="4469324811108161144">កំណត់ចំណាំ​អាចមាន​រហូតដល់ <ph name="CHARACTER_LIMIT" /> តួអក្សរ។</translation>
 <translation id="4469762931504673593"><ph name="ORIGIN" /> អាចកែ​ឯកសារ​នៅក្នុង <ph name="FOLDERNAME" /></translation>
 <translation id="4470957202018033307">ចំណូលចិត្ត​ទំហំផ្ទុក​ខាងក្រៅ</translation>
 <translation id="4471250205822310967">ធាតុត្រួតពីលើសម្រាប់ការជ្រើសរើស Gemini</translation>
 <translation id="4471354919263203780">កំពុងទាញយក​ឯកសារ​សម្គាល់ការនិយាយ... <ph name="PERCENT" />%</translation>
-<translation id="4472194221638903160">ដាក់ផ្ទាំង​ជាក្រុម​ដោយប្រើ AI</translation>
 <translation id="4472298120638043495">អ្នក​អាច​ប្រើប្រាស់​ភាសា​គណនី Google ដែល​អ្នក​ចង់បាន (<ph name="NEW_LOCALE_FROM_GAIA" />)</translation>
 <translation id="447252321002412580">ជួយ​កែលម្អ​មុខងារ និង​ប្រតិបត្តិការ​របស់ Chrome</translation>
 <translation id="4472533928615930332">រូបភាព <ph name="SUBJECT" /> ដែលបានបង្កើតទី <ph name="INDEX" /> ជារចនាប័ទ្ម <ph name="STYLE" /></translation>
@@ -5284,6 +5266,7 @@
 <translation id="4624054169152573743">រចនាប័ទ្ម​ពណ៌</translation>
 <translation id="4625078469366263107">បើក​កម្មវិធី</translation>
 <translation id="4625905218692741757">ពណ៌​លំនាំដើម​ប្រផេះ</translation>
+<translation id="4626906635466987740"><ph name="TASK_TITLE" />\nGemini បានផ្អាក​កិច្ចការ​របស់អ្នក​ហើយ។ សូម​ត្រឡប់ទៅ Chrome វិញ ដើម្បី​ពិនិត្យមើល​វា។</translation>
 <translation id="4627107755957573804">អនុញ្ញាតឱ្យ​គេហទំព័រ និង​កម្មវិធី​ដំឡើងកម្រិត​គណនី​ដែលមានស្រាប់ ដើម្បីប្រើ​កូដសម្ងាត់</translation>
 <translation id="4627442949885028695">បន្តពីឧបករណ៍ផ្សេងទៀត</translation>
 <translation id="4628762811416793313">ការរៀបចំទម្រង់ផ្ទុក Linux មិន​បាន​បញ្ចប់ទេ។ សូមព្យាយាមម្ដងទៀត។</translation>
@@ -5326,6 +5309,7 @@
 <translation id="4653116291358041820">ស្រមោល​តូច</translation>
 <translation id="4654236001025007561">ចែករំលែក​ឯកសារ​ជាមួយឧបករណ៍ Android និង Chromebook នៅជុំវិញអ្នក</translation>
 <translation id="4654801841330730814">ទាំងអស់</translation>
+<translation id="4657724094180965385">មិនចាប់អារម្មណ៍</translation>
 <translation id="4657810666108475055">ការស្វែងរកផ្ទាំង</translation>
 <translation id="4657914796247705218">ល្បឿន TrackPoint</translation>
 <translation id="4658285806588491142">រក្សាអេក្រង់របស់អ្នកជាលក្ខណៈឯកជន</translation>
@@ -5479,6 +5463,7 @@
 <translation id="4766551476047591055">{MINUTES,plural, =0{កំពុង​ពិនិត្យមើល​កូដ​សាធារណៈ និង​ប្លុកសុក្រឹតភាព... នៅសល់តិចជាង 1 នាទី}=1{កំពុង​ពិនិត្យមើល​កូដ​សាធារណៈ និង​ប្លុកសុក្រឹតភាព... នៅសល់ 1 នាទី​ទៀត}other{កំពុង​ពិនិត្យមើល​កូដ​សាធារណៈ និង​ប្លុកសុក្រឹតភាព... នៅសល់ # នាទី​ទៀត}}</translation>
 <translation id="4766598565665644999">កម្មវិធី​បន្ថែម​ទាំងអស់​អាច​អាន និង​ផ្លាស់ប្ដូរ <ph name="HOST" /></translation>
 <translation id="4767427586072640478">ស្វែងយល់បន្ថែមអំពីកម្មវិធីបន្ថែមដែលបានបិទ។</translation>
+<translation id="4769359569327438364">ត្រូវតែមាន​យ៉ាងតិច 4 ខ្ទង់</translation>
 <translation id="4769632191812288342">អ្នកកំពុង​ទទួលបាន​ការការពារ​ស្តង់ដារ</translation>
 <translation id="4770119228883592393">បានស្នើសុំការអនុញ្ញាត, ចុច ⌘ + ជម្រើស + ព្រួញចុះក្រោម ដើម្បីឆ្លើយតប</translation>
 <translation id="4772914216048388646">មានសណ្តាប់ធ្នាប់</translation>
@@ -5938,7 +5923,6 @@
 <translation id="5087864757604726239">ថយក្រោយ</translation>
 <translation id="5088347662971855383">ខ្ទាស់ Gemini</translation>
 <translation id="5088427648965532275">ក្រុមហ៊ុន​ផ្ដល់សេវា Passpoint</translation>
-<translation id="5088534251099454936">PKCS #1 SHA-512 ជាមួយនឹងការអ៊ិនគ្រីប RSA</translation>
 <translation id="5090637338841444533">មិនអនុញ្ញាតឱ្យតាមដានទីតាំងកាមេរ៉ារបស់អ្នកទេ</translation>
 <translation id="5091636240353511739">បង្ហាញ​កូដ PIN</translation>
 <translation id="5093447877601682598">ផ្ញើមតិកែលម្អអំពីរបារផ្ទាំង</translation>
@@ -6058,7 +6042,6 @@
 <translation id="5174169235862638850">បានចម្លង​ពាក្យសម្ងាត់​ទៅឃ្លីបបត</translation>
 <translation id="517488401359338823">ដោះសោ​ឧបករណ៍​សុវត្ថិភាព</translation>
 <translation id="5177479852722101802">បន្តរារាំងការចូលប្រើកាមេរ៉ា និងម៉ៃក្រូហ្វូន</translation>
-<translation id="5177549709747445269">អ្នកកំពុងប្រើទិន្នន័យទូរស័ព្ទចល័ត</translation>
 <translation id="5178667623289523808">ស្វែងរកពីមុន</translation>
 <translation id="5180276433875360121">បង្ហាញ <ph name="CERT_LIST" /></translation>
 <translation id="5181140330217080051">កំពុងទាញយក</translation>
@@ -6068,6 +6051,7 @@
 <translation id="5183344263225877832">កំណត់​ការអនុញ្ញាត​ឧបករណ៍ HID ទាំងអស់​ឡើងវិញឬ?</translation>
 <translation id="5184063094292164363">ខនសូល JavaScript</translation>
 <translation id="5184209580557088469">សំបុត្រដែលមាន​ឈ្មោះអ្នកប្រើប្រាស់​នេះមាន​រួចហើយ</translation>
+<translation id="5184329579814168207">បើកនៅក្នុង Chrome</translation>
 <translation id="5184662919967270437">កំពុងអាប់ដេតឧបករណ៍របស់អ្នក</translation>
 <translation id="5185386675596372454">កំណែថ្មីបំផុតនៃ "<ph name="EXTENSION_NAME" />" ត្រូវបានបិទដំណើរការ ដោយសារតែវាទាមទារ ការអនុញ្ញាតបន្ថែមទៀត។</translation>
 <translation id="5185500136143151980">គ្មាន​អ៊ីនធឺណិតទេ</translation>
@@ -6102,6 +6086,7 @@
 <translation id="5200191131577845078">បាន​អនុញ្ញាត​ការជូនដំណឹង​ពី <ph name="DOMAIN" /></translation>
 <translation id="5200680225062692606">Touch ID ត្រូវបានចាក់សោ។ ដើម្បីបន្ត សូមបញ្ចូលពាក្យ​សម្ងាត់របស់អ្នក។</translation>
 <translation id="5201945335223486172">សម្រាប់ <ph name="EXAMPLE_DOMAIN_1" /></translation>
+<translation id="5202290165471714103">{NUM_EVENTS,plural, =1{កំពុងមើល​ប្រវត្តិពី​ឯកសារ 1}other{កំពុងមើល​ប្រវត្តិពី​ឯកសារ #}}</translation>
 <translation id="5203035663139409780">អាចកែឯកសារ ឬថត​នៅលើឧបករណ៍របស់អ្នក</translation>
 <translation id="5203920255089865054">{NUM_EXTENSIONS,plural, =1{ចុចដើម្បីមើល​កម្មវិធីបន្ថែម}other{ចុចដើម្បីមើល​កម្មវិធីបន្ថែម​ទាំងនេះ}}</translation>
 <translation id="5204282224596194174">ពាក្យ​សម្ងាត់​សម្រាប់​ការស្ដារ <ph name="USER_EMAIL" /> ឡើងវិញ</translation>
@@ -6161,6 +6146,7 @@
 <translation id="5240931875940563122">ចូលគណនី​ដោយប្រើទូរសព្ទ Android</translation>
 <translation id="5241689948221696942">ចំពោះផលិតផលមួយចំនួន តារាងប្រៀបធៀបសង្ខេបមតិវាយតម្លៃពី​បណ្ដាញ</translation>
 <translation id="5242724311594467048">បើកដំណើរការ "<ph name="EXTENSION_NAME" />"?</translation>
+<translation id="5243477050423867768">ត្រូវតែមាន​យ៉ាងតិច 8 ខ្ទង់ និង​មិនអាច​មានលេខស្ទួន ឬតាមលំដាប់លំដោយទេ</translation>
 <translation id="5244234799035360187">ឥឡូវនេះ OneDrive នឹងបង្ហាញនៅក្នុងកម្មវិធី Files</translation>
 <translation id="5244466461749935369">រក្សាទុក​សិន</translation>
 <translation id="5244474230056479698">កំពុងធ្វើសមកាលកម្មទៅ <ph name="EMAIL" /></translation>
@@ -6298,7 +6284,6 @@
 <translation id="5345916423802287046">ចាប់ផ្ដើមកម្មវិធី នៅពេលអ្នកចូល</translation>
 <translation id="5350116201946341974">ប្លែកភ្នែក</translation>
 <translation id="535123479159372765">អត្ថបទដែលបានចម្លង​ពីឧបករណ៍ផ្សេងទៀត</translation>
-<translation id="5352033265844765294">ការបិទតែមពេលវេលា</translation>
 <translation id="5352257124367865087">គ្រប់គ្រងការអនុញ្ញាតគេហទំព័រ</translation>
 <translation id="5352535894553509810">បញ្ចូលផ្ទាំងទៅតារាងប្រៀបធៀបថ្មី</translation>
 <translation id="5353769147530541973">ដក <ph name="SITE_NAME" /> ចេញពី​បញ្ជីផ្ទាំង ដើម្បី​ធ្វើឱ្យ​ប្រែជា​អសកម្ម</translation>
@@ -6418,7 +6403,6 @@
 <translation id="5432872710261597882">"លើកមេដៃ" ដាក់បញ្ជូនមតិកែលម្អដែលប្រាប់ថា អ្នកចូលចិត្តមុខងារនេះ។</translation>
 <translation id="543338862236136125">កែពាក្យ​សម្ងាត់</translation>
 <translation id="5433865420958136693">ប្រើការបង្កើនល្បឿនក្រាហ្វិក នៅពេលអាចប្រើបាន</translation>
-<translation id="5434065355175441495">ការអ៊ីនគ្រីប PKCS #1 RSA</translation>
 <translation id="5435274640623994081">បើក​ការធ្វើ​កំណត់ហេតុ​សំឡេងសម្គាល់</translation>
 <translation id="5435779377906857208">អនុញ្ញាតឱ្យ <ph name="HOST" /> ចូលប្រើទីតាំងរបស់អ្នកជានិច្ច</translation>
 <translation id="5436211819997237281">កម្មវិធី​បន្ថែម​បច្ចុប្បន្ន​ដែល​គ្រប់គ្រង​ទំព័រ​ផ្ទាំងថ្មី​របស់អ្នក</translation>
@@ -6535,7 +6519,6 @@
 <translation id="5503910407200952415">{NUM_PROFILES,plural, =1{&amp;បិទកម្រងព័ត៌មាននេះ}other{&amp;បិទកម្រងព័ត៌មាននេះ (វិនដូ #)}}</translation>
 <translation id="5503982651688210506">បន្តអនុញ្ញាត <ph name="HOST" /> ឱ្យប្រើ និងផ្លាស់ទីកាមេរ៉ារបស់អ្នក និងប្រើមីក្រូហ្វូនរបស់អ្នក</translation>
 <translation id="5505307013568720083">អស់ទឹកថ្នាំ</translation>
-<translation id="5507756662695126555">ការមិនបដិសេធ</translation>
 <translation id="5509693895992845810">រក្សាទុកជា...</translation>
 <translation id="5509914365760201064">អ្នកចេញផ្សាយ៖ <ph name="CERTIFICATE_AUTHORITY" /></translation>
 <translation id="5510775624736435856">ទាញយក​ការពណ៌នា​​រូបភាពពី Google</translation>
@@ -6668,7 +6651,6 @@
 <translation id="5611398002774823980">រក្សាទុកនៅក្នុងគណនី</translation>
 <translation id="5611474372949142946">បិទផ្ទាំង​ខាងក្រោម</translation>
 <translation id="561236229031062396"><ph name="SHORTCUT_NAME" />, <ph name="APP_FULL_NAME" /></translation>
-<translation id="5614190747811328134">ជូនដំណឹងអ្នកប្រើ</translation>
 <translation id="5614553682702429503">រក្សាទុក​ពាក្យសម្ងាត់?</translation>
 <translation id="5614947000616625327">iCloud Keychain</translation>
 <translation id="561552177910095306">បញ្ជី​គេហទំព័រ​ថ្មីៗដែល​អ្នកបាន​ចូលមើល ដែល​អាច​ណែនាំ​ការ​ផ្សាយ​ពាណិជ្ជកម្ម​ដល់​គេហទំព័រ​ផ្សេងទៀត​ នៅ​ពេល​អ្នកបន្ត​រុករក</translation>
@@ -6723,7 +6705,6 @@
 <translation id="5641608986289282154">ចាប់​ផ្ដើម​ប្រើ​ប្រាស់ <ph name="DEVICE_OS" /></translation>
 <translation id="5641648607875312660">កម្មវិធីកែ​រូបភាព​រូបថត​អេក្រង់</translation>
 <translation id="5641715878999557094">"<ph name="EXTENSION_NAME" />" បានប្ដូរ​ទំព័រ​ដែលបង្ហាញ នៅពេល​អ្នកចុច​ប៊ូតុងទំព័រ​ដើម។</translation>
-<translation id="5642508497713047">អ្នកចុះហត្ថលេខា CRL</translation>
 <translation id="5643191124441701136">លេខកូដ​សុវត្ថិភាព​របស់អ្នក​ស្ថិតនៅផ្នែក​ខាងមុខ​នៃកាត​របស់អ្នក</translation>
 <translation id="5643321261065707929">បណ្ដាញផ្អែកតាមទិន្នន័យដែលប្រើ</translation>
 <translation id="5646376287012673985">ទីតាំង</translation>
@@ -6822,7 +6803,6 @@
 <translation id="5731247495086897348">បិទភ្ជាប់ និងទៅ</translation>
 <translation id="5733109311583381874">បញ្ចូល​ពាក្យ​របស់​អ្នក​ផ្ទាល់ទៅ​ក្នុង​វចនានុក្រម​​​អ្នកប្រើប្រាស់ ដើម្បី​ប្ដូរពាក្យ​បំប្លែង​តាម​បំណង។</translation>
 <translation id="5733669387494115331">ការកំណត់សេវាកម្ម Google</translation>
-<translation id="5733913382424854675">ដាក់ផ្ទាំង​ជាក្រុម​ដោយប្រើ AI</translation>
 <translation id="5734362860645681824">ការប្រាស្រ័យទាក់ទង</translation>
 <translation id="5734697361979786483">បញ្ចូលឧបករណ៍​ចែករំលែក​ឯកសារ</translation>
 <translation id="573520097779121706">ប្រើគ្រាប់ចុច 7, 8, 9, u, o, j, k, l ដើម្បីផ្លាស់ទីទស្សន៍ទ្រនិច</translation>
@@ -6892,7 +6872,6 @@
 <translation id="57838592816432529">បិទសម្លេង</translation>
 <translation id="5784291589716625675">ប្ដូរភាសា​កម្មវិធី</translation>
 <translation id="5785583009707899920">ការប្រើប្រាស់​ឯកសារ Chrome</translation>
-<translation id="5787146423283493983">ការព្រមព្រៀងចំពោះសោ</translation>
 <translation id="5787420647064736989">ឈ្មោះ​ឧបករណ៍</translation>
 <translation id="5787582109651427233">ចូល​ទៅកាន់ Google Wallet ដើម្បី​បញ្ចូល ឬ​គ្រប់គ្រង<ph name="BEGIN_LINK_LOYALTY_CARDS" />កាត​សមាជិក<ph name="END_LINK_LOYALTY_CARDS" /> ឬ<ph name="BEGIN_LINK_PAYMENT_METHODS" />វិធី​បង់ប្រាក់<ph name="END_LINK_PAYMENT_METHODS" />តាម Google Pay</translation>
 <translation id="5788367137662787332">សូមទោស យ៉ាងហោចណាស់ផ្នែកមួយនៃឧបករណ៍នេះ <ph name="DEVICE_LABEL" /> មិនអាចម៉ោនបានទេ។</translation>
@@ -6929,7 +6908,6 @@
 <translation id="5804241973901381774">ការអនុញ្ញាត</translation>
 <translation id="5804259315582798390">មិន​អាច​បើក​ការ​ស្ដារទិន្នន័យ​ក្នុង​ឧបករណ៍​​ឡើងវិញបាន​ទេ</translation>
 <translation id="5805268472388605531">ចុច​គ្រាប់ចុច​លើក្ដារចុច​ឱ្យជាប់ ដើម្បីមើល​សញ្ញាសម្គាល់​សំឡេង និង​តួអក្សរ​ពិសេស</translation>
-<translation id="5805697420284793859">កម្មវិធី​គ្រប់គ្រង​វិនដូ</translation>
 <translation id="5806322307130093061"><ph name="FILE_NAME" /> ចុច enter ដើម្បី​លុប​ឯកសារ</translation>
 <translation id="5806447147478173900">ទំហំផ្ទុក​សរុប​ដែល​បានប្រើ​ដោយ​គេហទំព័រ​ដែល​បង្ហាញ៖ <ph name="TOTAL_USAGE" /></translation>
 <translation id="5806773519584576205">0° (លំនាំដើម)</translation>
@@ -7066,7 +7044,6 @@
 <translation id="5895335062901455404">សកម្មភាព និង​ចំណូលចិត្ត​ដែលអ្នក​បានរក្សាទុក​នឹងអាចប្រើបាន​នៅលើរាល់​ឧបករណ៍ ChromeOS Flex នៅពេលអ្នក​ចូល​ដោយប្រើ​គណនី Google របស់អ្នក។ អ្នកអាចជ្រើសរើស​អ្វីដែលត្រូវធ្វើសមកាលកម្ម​នៅក្នុងការកំណត់។</translation>
 <translation id="5895338131909306775">មន្ទីរពិសោធន៍គីមីសាស្រ្ត</translation>
 <translation id="589541317545606110">ស្វែងរក​ទំព័រ​ដោយប្រើ <ph name="VISUAL_SEARCH_PROVIDER" /></translation>
-<translation id="5895549920267917925">ជួយអ្នក​ឱ្យផ្ដោតលើ​អ្វីដែលអ្នក​កំពុងធ្វើ</translation>
 <translation id="5895758411979561724"><ph name="APP_ORIGIN" /> កំពុងថត​អេក្រង់​របស់អ្នក</translation>
 <translation id="5896436821193322561">មិនអនុញ្ញាត</translation>
 <translation id="5899860758576822363">ចាក់​ក្នុង​កម្រិត​សំឡេង​ទាប​ជាង​មុន​ នៅ​ពេល​ដែល ChromeVox កំពុង​និយាយ</translation>
@@ -7089,7 +7066,6 @@
 <translation id="5910726859585389579"><ph name="DEVICE_TYPE" /> គ្មានអ៊ីនធឺណិតទេ</translation>
 <translation id="5911030830365207728">កម្មវិធីបកប្រែ Google</translation>
 <translation id="5911497236110691522">ដើម្បីប្ដូរទៅវិធីបញ្ចូលបន្ទាប់ សូមចុច <ph name="KEY_CODES" /></translation>
-<translation id="5911533659001334206">កម្មវិធីមើល​ផ្លូវកាត់</translation>
 <translation id="5911545422157959623">មិនមានចំណាំ​នៅ​ក្នុង​មុខងារភ្ញៀវទេ</translation>
 <translation id="5914016309240354769">ធម្មជាតិ</translation>
 <translation id="5914724413750400082">បរិមាណវាស់វែង (<ph name="MODULUS_NUM_BITS" /> ប៊ីត):
@@ -7112,7 +7088,6 @@
 <translation id="5924527146239595929">ថតរូបថ្មី ឬជ្រើសរើសរូបថត ឬរូបតំណាងដែលមានស្រាប់។
     <ph name="LINE_BREAK" />
     រូបភាពនេះនឹងបង្ហាញនៅលើអេក្រង់ចាក់សោ និងអេក្រង់ចូល Chromebook ។</translation>
-<translation id="5925147183566400388">ឧបករណ៍ចង្អុលរបាយការណ៍អនុវត្តវិញ្ញាបនប័ត្រ</translation>
 <translation id="5926936390113611560">បើក​កម្រងព័ត៌មាន​ទាំងអស់</translation>
 <translation id="5927132638760172455">កំពុងខាសទៅឧបករណ៍ទទួលដែលមិនស្គាល់</translation>
 <translation id="592880897588170157">ទាញយកឯកសារ PDF ជំនួស​ឲ្យការបើក​ឯកសារទាំងនោះដោយស្វ័យប្រវត្តិនៅក្នុង Chrome</translation>
@@ -7235,7 +7210,6 @@
 <translation id="6011193465932186973">ស្នាម​ម្រាមដៃ</translation>
 <translation id="6011308810877101166">កែលម្អ​ការណែនាំ​ការស្វែងរក</translation>
 <translation id="6011908034087870826">កំពុងផ្ញើ​តំណទៅ <ph name="DEVICE_NAME" /></translation>
-<translation id="6013003831291591200">បាន​បញ្ចប់​កិច្ចការ</translation>
 <translation id="6013027779243312217">ទទួលបាន​អក្សររត់​សម្រាប់​សំឡេង និង​វីដេអូរបស់អ្នក</translation>
 <translation id="6014293228235665243">មិនទាន់អាន</translation>
 <translation id="6015776718598175635">ផ្កាយ</translation>
@@ -7289,7 +7263,6 @@
 <translation id="6054284857788651331">ក្រុមផ្ទាំងដែលបានបិទ​នាពេលថ្មីៗ</translation>
 <translation id="6054819000749443354">បើក "ការកំណត់​ប្រព័ន្ធ"</translation>
 <translation id="6054961935262556546">ប្ដូរ​លទ្ធភាពមើលឃើញ</translation>
-<translation id="6055392876709372977">PKCS #1 SHA-256 ជាមួយនឹងការអ៊ិនគ្រីប RSA</translation>
 <translation id="6055544610007596637">ដំឡើង​កម្មវិធី​សម្រាប់ <ph name="DEVICE_TYPE" /> របស់អ្នក​ពី Google Play Store</translation>
 <translation id="6056710589053485679">ដំណើរការឡើងវិញធម្មតា</translation>
 <translation id="6057312498756061228">ឯកសារនេះធំពេកសម្រាប់ការពិនិត្យ​សុវត្ថិភាព។ អ្នកអាចបើកឯកសាររហូតដល់ 50 MB។</translation>
@@ -7351,6 +7324,7 @@
 <translation id="6095696531220637741">នំម៉ាការ៉ុន</translation>
 <translation id="6095984072944024315">−</translation>
 <translation id="6096047740730590436">បើកការពង្រីក</translation>
+<translation id="6096192567014958958">សូម​ស្វាគមន៍ <ph name="USER_NAME" />!</translation>
 <translation id="6096326118418049043">ឈ្មោះ X.500</translation>
 <translation id="6097480669505687979">ប្រសិនបើអ្នកមិនបង្កើនទំហំផ្ទុកទេ អ្នកប្រើ និងទិន្នន័យអាចត្រូវបានលុបចេញដោយស្វ័យប្រវត្តិ។</translation>
 <translation id="6097600385983390082">បានបិទ​ការស្វែងរក​តាម​សំឡេង</translation>
@@ -7408,7 +7382,6 @@
 <translation id="6136285399872347291">លុបថយក្រោយ</translation>
 <translation id="6136287496450963112">សោសុវត្ថិភាពរបស់អ្នក​មិនបាន​ប្រើកូដ PIN សម្រាប់​ការពារទេ។ ដើម្បីគ្រប់គ្រងស្នាម​ម្រាមដៃ សូមបង្កើតកូដ PIN ជាមុនសិន។</translation>
 <translation id="6136637346277431354">បញ្ចូល​ផ្ទាំង និងអ្វីៗជា​ច្រើនទៀត</translation>
-<translation id="6138680304137685902">ហត្ថលេខា X9.62 ECDSA ជាមួយ SHA-384</translation>
 <translation id="6140948187512243695">បង្ហាញ​ព័ត៌មាន​លម្អិត</translation>
 <translation id="6141988275892716286">បញ្ជាក់​ការទាញយក</translation>
 <translation id="6143186082490678276">ទទួលយកជំនួយ</translation>
@@ -7711,7 +7684,6 @@
 <translation id="6350821834561350243">ផ្ដល់​ការពណ៌នា​ច្បាស់លាស់​អំពី​បញ្ហា និង​ជំហាន​ក្នុងការបង្កើត​បញ្ហានោះ​ឡើងវិញ (ប្រសិនបើ​អាច)</translation>
 <translation id="6351178441572658285">ភាសាកម្មវិធី</translation>
 <translation id="6352992678231622317">បានផ្លាស់ទីផ្ទាំងចុះក្រោម</translation>
-<translation id="6354918092619878358">SECG elliptic curve secp256r1 (aka ANSI X9.62 prime256v1, NIST P-256)</translation>
 <translation id="6355632359041940003">ទទួល​គ្រប់គ្រង​កិច្ចការបន្ត</translation>
 <translation id="635609604405270300">បន្តបើក​ឧបករណ៍</translation>
 <translation id="6356537493253478650">ស្ងប់ស្ងាត់</translation>
@@ -7732,7 +7704,6 @@
 <translation id="6367097275976877956">តើអ្នកចង់​បើកដំណើរការ ChromeVox ដែលជា​កម្មវិធី​អានអេក្រង់​ភ្ជាប់មកជាមួយស្រាប់​សម្រាប់ ChromeOS ដែរទេ? ប្រសិនបើដូច្នេះមែន សូមចុចរបារដកឃ្លា។</translation>
 <translation id="6367196786591004737">លុបធាតុ</translation>
 <translation id="6367396429435748845">ចុច <ph name="ALT" /> + <ph name="LAUNCHER" /> + <ph name="NUM_4" /> ដើម្បីផ្អាក និងបន្តគ្រាប់ចុចម៉ៅស៍ឡើងវិញ</translation>
-<translation id="6367428649223439405"><ph name="TASK_TITLE" />\nខ្ញុំបានផ្អាក​កិច្ចការ​របស់អ្នក</translation>
 <translation id="6367853307713830174">Gemini បង្ហាញ​ជំហាន​របស់ខ្លួន និង​ព្យាយាម​បញ្ជាក់ មុនពេល​អនុវត្ត​ជំហានរសើប។ អ្នកអាច​បញ្ឈប់ ឬទទួល​គ្រប់គ្រងបន្ត​នៅពេល​ណាក៏បាន។</translation>
 <translation id="6367985768157257101">ទទួលដោយប្រើការ​ចែករំលែកនៅ​ជិតឬ?</translation>
 <translation id="6368157733310917710">&amp;អាសយដ្ឋាន និង​អ្វីៗជាច្រើនទៀត</translation>
@@ -7916,7 +7887,6 @@
 <translation id="650457560773015827">ប៊ូតុងឆ្វេង</translation>
 <translation id="6504601948739128893">មិនអនុញ្ញាតឱ្យប្រើពុម្ព​អក្សរ​ ដែលបានដំឡើងនៅលើឧបករណ៍របស់អ្នកទេ</translation>
 <translation id="6504611359718185067">ភ្ជាប់អ៊ីនធឺណិតដើម្បីបន្ថែមម៉ាស៊ីនបោះពុម្ព</translation>
-<translation id="6506374932220792071">ហត្ថលេខា X9.62 ECDSA ជាមួយ SHA-256</translation>
 <translation id="6507194767856842483">{NUM_SUB_APP_INSTALLS,plural, =1{"<ph name="APP_NAME" />" ចង់​ដំឡើង​កម្មវិធី​ខាងក្រោម​នៅលើ​ឧបករណ៍នេះ៖}other{"<ph name="APP_NAME" />" ចង់​ដំឡើង​កម្មវិធី​ខាងក្រោម​នៅលើ​ឧបករណ៍នេះ៖}}</translation>
 <translation id="6508248480704296122">ទាក់ទង​នឹង <ph name="NAME_PH" /></translation>
 <translation id="6508261954199872201">កម្មវិធី៖ <ph name="APP_NAME" /></translation>
@@ -8090,6 +8060,7 @@
 <translation id="6619990499523117484">បញ្ជាក់​កូដ PIN របស់​អ្នក</translation>
 <translation id="6621282332208609777">សួរ Google ឬ​វាយបញ្ចូល URL</translation>
 <translation id="6621391692573306628">ដើម្បីបញ្ជូន​ផ្ទាំងនេះ​ទៅ​ឧបករណ៍​ផ្សេង សូម​ចូល Chrome នៅលើ​ឧបករណ៍​ទាំងពីរ</translation>
+<translation id="6622212269189717101">ត្រូវតែមាន​យ៉ាងតិច 6 ខ្ទង់ និង​មិនអាច​មានលេខស្ទួន ឬតាមលំដាប់លំដោយទេ</translation>
 <translation id="6622980291894852883">បន្តការរារាំងរូបភាព</translation>
 <translation id="6624036901798307345">នៅក្នុងមុខងារ​ថេប្លេត សូមចុចលើ​ប៊ូតុងរបារឧបករណ៍​កម្មវិធីរាប់ផ្ទាំង ដើម្បីបើក​របារផ្ទាំងថ្មី ដែលបង្ហាញ​រូបក្របតំណាង​ផ្ទាំងនីមួយៗ។</translation>
 <translation id="6624538059730609162">បិទ​ទិដ្ឋភាព​ខាងស្ដាំ</translation>
@@ -8234,7 +8205,6 @@
 <translation id="6723839827191551955">គ្រប់គ្រងមេឌៀដែលអ្នកកំពុងបញ្ជូន</translation>
 <translation id="6723839937902243910">ថាមពល</translation>
 <translation id="6723946439672043591">ជ្រើសរើស​កម្រងព័ត៌មាន​ផ្សេងទៀត</translation>
-<translation id="6725073593266469338">សេវាកម្ម UI</translation>
 <translation id="6725206449694821596">ប្រូតូកូលបោះពុម្ពលើអ៊ីនធឺណិត (IPP)</translation>
 <translation id="6725970970008349185">ចំនួនបេក្ខជនដើម្បីបង្ហាញក្នុងមួយទំព័រ</translation>
 <translation id="672609503628871915">មើលអ្វីដែលថ្មី</translation>
@@ -8340,6 +8310,7 @@
 <translation id="6798420440063423019">សោសុវត្ថិភាព​ជាប់សោហើយ ដោយសារបញ្ចូល​កូដ PIN មិនត្រឹមត្រូវ​ច្រើនដងពេក។ អ្នកនឹង​ត្រូវកំណត់​សោសុវត្ថិភាព​ឡើងវិញ។</translation>
 <translation id="679845623837196966">បង្ហាញ​បញ្ជីអាន</translation>
 <translation id="6798578729981748444">ដើម្បីបញ្ចប់ការនាំចូល សូមបិទវិនដូ Firefox ទាំងអស់។</translation>
+<translation id="6798688411671553980"><ph name="TASK_TITLE" />\nGemini បានបញ្ចប់​កិច្ចការ​របស់អ្នក​ហើយ អ្នកអាច​មើលវា​នៅក្នុង Chrome។</translation>
 <translation id="6798780071646309401">បើកពុម្ពអក្សរធំ</translation>
 <translation id="679905836499387150">ប៊ូតុង​របារឧបករណ៍​ដែល​បានលាក់</translation>
 <translation id="6800893479155997609">កម្មវិធីពេញនិយមសម្រាប់ <ph name="DEVICE_TYPE" /> របស់អ្នក</translation>
@@ -8464,7 +8435,6 @@
 <translation id="6870953451576517204">ការធ្វើតេស្ត​ដោយខ្លួនឯង​បាន​ជោគជ័យ​ហើយ</translation>
 <translation id="6871644448911473373">ឧបករណ៍ឆ្លើយតប OCSP៖ <ph name="LOCATION" /></translation>
 <translation id="6871860225073478239">ភាសា...</translation>
-<translation id="6872859537300194762"><ph name="TASK_TITLE" />\nខ្ញុំបានផ្អាក​កិច្ចការ​របស់អ្នក ដោយសារតែ​សកម្មភាព​ផ្សេងទៀត។ អ្នកអាច​ត្រឡប់ទៅ chrome ដើម្បី​មើលវា នៅពេល​រួចរាល់។</translation>
 <translation id="6873156759937047811">កូដ PIN ៖</translation>
 <translation id="6873571253135628430">ប្ដូរ​ការអនុញ្ញាត​គេហទំព័រ</translation>
 <translation id="6876155724392614295">កង់</translation>
@@ -8533,7 +8503,6 @@
 <translation id="6921104647315081813">សម្អាត​សកម្មភាព</translation>
 <translation id="692114467174262153">មិន​អាច​បើក <ph name="ALTERNATIVE_BROWSER_NAME" /> បានទេ</translation>
 <translation id="692135145298539227">លុប</translation>
-<translation id="6922128026973287222">សន្សំសំចៃទិន្នន័យ និងរុករកបានលឿនជាងមុនដោយប្រើកម្មវិធីសន្សំសំចៃទិន្ន័យ Google។ ចុចដើម្បីស្វែងយល់បន្ថែម។</translation>
 <translation id="6922745772873733498">បញ្ចូល​កូដ pin ដើម្បី​បោះពុម្ព</translation>
 <translation id="6922763095098248079">ឧបករណ៍​របស់អ្នក​ស្ថិត​ក្រោម​ការ​គ្រប់គ្រង​របស់ស្ថាប័ន​​អ្នក។ អ្នកគ្រប់គ្រងអាចចូលប្រើទិន្នន័យនៅក្នុងកម្រងព័ត៌មានទាំងឡាយ ដែលមាននៅក្នុងឧបករណ៍នេះ។</translation>
 <translation id="6923633482430812883">មានបញ្ហា​ក្នុងការ​ភ្ជាប់ការចែករំលែក។ សូមពិនិត្យមើលថា​ម៉ាស៊ីនមេ​ឯកសារ​ដែលអ្នកកំពុងភ្ជាប់ អាចប្រើ SMBv2 ឬកំណែថ្មីជាងនេះឬអត់។</translation>
@@ -8576,7 +8545,6 @@
 <translation id="695817292005698051">កម្រិតកំណត់នៃការចាប់ដឹងចលនា</translation>
 <translation id="6959882218873172284">សំណើ POST</translation>
 <translation id="6960133692707095572">ចូលមើលដោយគ្មានសំបុត្រ</translation>
-<translation id="6960408801933394526">ជ្រើសរើស​ក្រុមផ្ទាំង ហើយ​បើកដំណើរការ​ម៉ឺនុយ​បរិបទ ដើម្បីកែ</translation>
 <translation id="6960507406838246615">តម្រូវឱ្យ​ដំឡើងកំណែ Linux</translation>
 <translation id="6960648667961844909">មិនអាច​ទាញយក​ឯកសារនៃ​ការនិយាយ​ជាភាសា<ph name="LANGUAGE" />បានទេ។ នឹងព្យាយាម​ទាញយក​នៅពេលក្រោយ។ ការនិយាយ​ត្រូវបានផ្ញើទៅ Google ដើម្បីដំណើរការ រហូតដល់បញ្ចប់​ការទាញយក។</translation>
 <translation id="696103774840402661">ឯកសារ និងទិន្នន័យមូលដ្ឋាន​ទាំងអស់សម្រាប់អ្នកប្រើប្រាស់ទាំងអស់នៅលើ <ph name="DEVICE_TYPE" /> នេះត្រូវបានលុបជាអចិន្ត្រៃយ៍។</translation>
@@ -8656,7 +8624,6 @@
 <translation id="7003844668372540529">មិនស្គាល់ផលិតផល <ph name="PRODUCT_ID" /> ពី <ph name="VENDOR_NAME" /></translation>
 <translation id="7004402701596653846">គេហទំព័រ​អាចប្រើ MIDI</translation>
 <translation id="7004499039102548441">ផ្ទាំងថ្មីៗ</translation>
-<translation id="7004562620237466965">បម្លែងតែប៉ុណ្ណោះ</translation>
 <translation id="7004969808832734860">បញ្ចុះតម្លៃ​រហូតដល់ <ph name="DISCOUNT_UP_TO_AMOUNT" /></translation>
 <translation id="7005496624875927304">ការអនុញ្ញាតបន្ថែម</translation>
 <translation id="7005812687360380971">ការបរាជ័យ</translation>
@@ -8751,7 +8718,6 @@
 <translation id="7072078320324181561">កម្មវិធី និង​គេហទំព័រ​ដែលមាន​ការអនុញ្ញាត​ឱ្យប្រើទីតាំង ក៏ដូចជាសេវាកម្ម​ប្រព័ន្ធ អាចប្រើ​ទីតាំង​របស់អ្នក​បាន <ph name="LINK_BEGIN" />ស្វែងយល់បន្ថែម<ph name="LINK_END" /></translation>
 <translation id="7072573590175540692">ផ្លូវកាត់មុខងារ និងកម្មវិធីបន្ថែមដែលមាន</translation>
 <translation id="7074703793383805632">ក្រុម <ph name="GROUP_NAME" /> <ph name="SHARED_STATE" /> - <ph name="OPENED_STATE" /></translation>
-<translation id="7075513071073410194">PKCS #1 MD5 ជាមួយនឹងការអ៊ីនគ្រីប RSA</translation>
 <translation id="7075625805486468288">គ្រប់គ្រងវិញ្ញាបនបត្រ HTTPS/SSL និងការកំណត់</translation>
 <translation id="707772989579681711">ជម្រើស​ពីមុន​របស់អ្នក</translation>
 <translation id="7077751457066325012">មើល និង​ប្ដូរផ្លូវកាត់​ក្ដារចុច​តាមបំណង</translation>
@@ -8902,7 +8868,6 @@
 <translation id="7191632649590906354">ឥឡូវនេះ សមាជិក​គ្រួសារ​របស់អ្នក​អាចប្រើ​ឈ្មោះអ្នក​ប្រើប្រាស់ និង​ពាក្យសម្ងាត់​របស់អ្នកបាន នៅពេលដែល​ពួកគេប្រើ​កម្មវិធីគ្រប់គ្រង​ពាក្យសម្ងាត់។ សូមប្រាប់​ឱ្យពួកគេ​ចូលទៅកាន់ <ph name="WEBSITE" /> ដើម្បី​ចូលគណនី។</translation>
 <translation id="7193051357671784796">កម្មវិធី​នេះ​ត្រូវបាន​បញ្ចូល​ដោយ​ស្ថាប័ន​របស់អ្នក។ សូមចាប់ផ្ដើម​កម្មវិធី​នេះឡើងវិញ ដើម្បី​បញ្ចប់​ការដំឡើង។</translation>
 <translation id="7193374945610105795">មិន​មាន​ពាក្យ​សម្ងាត់​ដែល​បាន​រក្សា​ទុក​សម្រាប់ <ph name="ORIGIN" /> ទេ</translation>
-<translation id="7193663868864659844">ផ្ញើ​មតិកែលម្អ​អំពី​ក្រុម​ដែលបាន​ណែនាំ</translation>
 <translation id="7194343495483122559">ពង្រីកផ្ទាំង</translation>
 <translation id="7194873994243265344">ស្ថាប័ន​របស់អ្នក​បានទប់ស្កាត់​ឯកសារ​នេះ ដោយសារ​វាត្រូវបាន​អ៊ីនគ្រីប។ សូមស្នើ​ឱ្យ​ម្ចាស់​ឯកសារ​នេះ​ធ្វើការ​ឌិគ្រីប។</translation>
 <translation id="7196107899576756066">{COUNT,plural, =1{ការទាញយក 1 កំពុង​ដំណើរការ}other{ការទាញយក # កំពុង​ដំណើរការ}}</translation>
@@ -9030,7 +8995,6 @@
 <translation id="7284411326658527427">មនុស្សម្នាក់ៗ​អាចកំណត់​គណនីរបស់គេជាលក្ខណៈផ្ទាល់ខ្លួន និងរក្សាទិន្នន័យជាលក្ខណៈឯកជន។</translation>
 <translation id="7285008278689343502">ឧទ្យានជាតិ Grand Teton</translation>
 <translation id="7286867818472074330">ជ្រើសរើសកូដសម្ងាត់</translation>
-<translation id="7287143125007575591">បានបដិសេធការចូលប្រើ។</translation>
 <translation id="7287411021188441799">ស្ដារ​ផ្ទៃខាងក្រោយ​លំនាំដើម</translation>
 <translation id="7287949630503871403">ទិន្នន័យ​ដែលបាន​រក្សាទុក​នៅក្នុង​កម្មវិធី</translation>
 <translation id="7288676996127329262"><ph name="HORIZONTAL_DPI" />x<ph name="VERTICAL_DPI" /> dpi</translation>
@@ -9277,7 +9241,6 @@
 <translation id="7444176988908839653">{COUNT,plural, =0{ខូគី​នឹងត្រូវបាន​ទប់ស្កាត់​ម្ដង​ទៀត​នៅ​ថ្ងៃនេះ}=1{ខូគី​នឹង​ត្រូវ​បានទប់ស្កាត់​ម្ដង​ទៀត​នៅ​ថ្ងៃស្អែក}other{នៅសល់ # ថ្ងៃ​ទៀត​ទើប​ខូគី​ត្រូវ​បានទប់ស្កាត់​ម្ដងទៀត}}</translation>
 <translation id="7446716846072322308">ការធ្វើបែបនេះ​នឹងលុប​ទិន្នន័យ <ph name="TOTAL_USAGE" /> ដែលបាន​រក្សាទុក​ដោយ <ph name="SITE_NAME" /> និង​គេហទំព័រ​ដែល​ពាក់ព័ន្ធ</translation>
 <translation id="7448430327655618736">ដំឡើងកម្មវិធី​ដោយស្វ័យប្រវត្តិ</translation>
-<translation id="7448639287059644731"><ph name="TASK_TITLE" />\nខ្ញុំត្រូវការ​ឱ្យអ្នកជួយ ដើម្បីបន្ត​កិច្ចការ​របស់អ្នក</translation>
 <translation id="7448664748118305024">លុប​ទិន្នន័យ​ដែលគេហទំព័រ​បាន​រក្សាទុក​ទៅក្នុង​ឧបករណ៍​របស់​អ្នក នៅពេល​អ្នកបិទ​វិនដូ​ទាំងអស់</translation>
 <translation id="7450761244949417357">កំពុង​បើក​នៅក្នុង <ph name="ALTERNATIVE_BROWSER_NAME" /> ឥឡូវនេះ</translation>
 <translation id="7450926666485653189">បញ្ជូនផ្នែក​ដែលបានបំភ័ន្តណាមួយរបស់ URL ទៅ Google តាមរយៈ​ម៉ាស៊ីនមេ​ឯកជនភាព​ដែលលាក់​អាសយដ្ឋាន IP របស់អ្នក</translation>
@@ -9349,7 +9312,6 @@
 <translation id="7493386493263658176">ផ្នែកបន្ថែម <ph name="EXTENSION_NAME" /> អាចនឹងប្រមូលអត្ថបទទាំងអស់ដែលអ្នកវាយបញ្ចូល ដោយរាប់បញ្ចូលទាំងទិន្នន័យផ្ទាល់ខ្លួនដូចជាពាក្យសម្ងាត់ លេខកាតឥណទានជាដើម។ តើអ្នកចង់ប្រើផ្នែកបន្ថែមនេះឬទេ?</translation>
 <translation id="7494694779888133066"><ph name="WIDTH" /> x <ph name="HEIGHT" /></translation>
 <translation id="7495149565104413027">កម្មវិធី Android</translation>
-<translation id="7495217365392072364">រៀបចំ​ផ្ទាំង​ស្រដៀងគ្នា</translation>
 <translation id="7497322070873193353">Google AI</translation>
 <translation id="7497981768003291373">អ្នកមិនមានកំណត់ហេតុអត្ថបទ WebRTC ដែលបាន​ថតថ្មីៗ​នេះទេ។</translation>
 <translation id="7501957181231305652">ឬ</translation>
@@ -9637,7 +9599,6 @@
 <translation id="7685351732518564314">ចុចប៊ូតុងនៅលើ <ph name="DEVICE_NAME" /> របស់អ្នក។</translation>
 <translation id="7686086654630106285">ច្រើន​ទៀត​អំពី​កា​រផ្សាយពាណិជ្ជកម្ម​ដែល​បានណែនាំ​ដោយគេហទំព័រ</translation>
 <translation id="7686938547853266130"><ph name="FRIENDLY_NAME" /> (<ph name="DEVICE_PATH" />)</translation>
-<translation id="7689495576379510159">+<ph name="NUM" /> ទៀត</translation>
 <translation id="7690378713476594306">ជ្រើសរើស​ពី​បញ្ជី</translation>
 <translation id="7690853182226561458">បន្ថែមថតឯកសារ...</translation>
 <translation id="7691077781194517083">មិនអាចកំណត់​សោសុវត្ថិភាពនេះ​ឡើងវិញបានទេ។ <ph name="ERROR_CODE" /> មានបញ្ហា។</translation>
@@ -9887,7 +9848,6 @@
 <translation id="7864825798076155402">រក្សាទុកនៅក្នុងគណនី Google របស់អ្នកឬ?</translation>
 <translation id="7865127013871431856">ជម្រើស​បកប្រែ</translation>
 <translation id="786957569166715433"><ph name="DEVICE_NAME" /> - ត្រូវបានផ្គូផ្គង</translation>
-<translation id="7869655448736341731">មួយណាក៏បាន</translation>
 <translation id="7870005751202275328">ចុចលើរបារអាសយដ្ឋាន</translation>
 <translation id="787069710204604994">ឧទាហរណ៍ ប្រសិនបើ​អ្នកចូលមើលគេហទំព័រ​ដែល​​លក់ស្បែក​ជើង​សម្រាប់ការ​រត់​រយៈចម្ងាយឆ្ងាយ គេហទំព័រ​នោះ​ប្រហែលជា​សម្រេចចិត្ត​ថា ​អ្នក​​ចាប់​អារម្មណ៍​លើ​ការ​រត់​ម៉ារ៉ាតុង។ ក្រោយ​មក ប្រសិនបើ​អ្នក​ចូលមើល​គេហទំព័រ​ផ្សេង គេហទំព័រ​នោះ​អាច​បង្ហាញ​​ដល់អ្នកនូវការផ្សាយ​ពាណិជ្ជកម្ម​អំពី​ស្បែក​ជើង​សម្រាប់​រត់ ​ដែលត្រូវ​​បានណែនាំ​ដោយ​គេហទំព័រ​ដំបូង។</translation>
 <translation id="7870730066603611552">ពិនិត្យ​មើល​ជម្រើស​សមកាលកម្ម​បន្ទាប់ពី​រៀបចំរួច</translation>
@@ -9953,6 +9913,7 @@
 <translation id="7916364730877325865">ស្ថាប័ន​របស់​អ្នក​មិនអនុញ្ញាត​ឱ្យ​អ្នក​បើក​ការ​ធ្វើសមកាលកម្ម​ជា​មួយ​គណនីនេះ​ទេ</translation>
 <translation id="791698251820376781">ស្ថាប័ន​របស់អ្នក​មិនអនុញ្ញាតឱ្យ​អ្នកចូល​គណនីទេ</translation>
 <translation id="7918257978052780342">ចុះឈ្មោះ</translation>
+<translation id="7918928051723770926">បានបញ្ចប់​កិច្ចការ</translation>
 <translation id="7919123827536834358">បកប្រែភាសាទាំងនេះដោយស្វ័យប្រវត្តិ</translation>
 <translation id="7919210519031517829"><ph name="DURATION" />វិ</translation>
 <translation id="7920363873148656176"><ph name="ORIGIN" /> អាចមើល <ph name="FILENAME" /></translation>
@@ -10008,6 +9969,7 @@
 <translation id="7947962633355574091">ថតចម្លងអាសយដ្ឋានវីដេអូ</translation>
 <translation id="7947964080535614577">ជាធម្មតា គេហទំព័រ​បង្ហាញ​ការផ្សាយពាណិជ្ជកម្ម ដើម្បីអាចឱ្យ​ពួកគេ​ផ្ដល់ខ្លឹមសារ ឬសេវាកម្ម​ដោយឥតគិតថ្លៃ។ ប៉ុន្តែគេហទំព័រមួយចំនួនត្រូវបានគេស្គាល់ថា បង្ហាញ​ការផ្សាយពាណិជ្ជកម្ម​នាំឱ្យយល់ច្រឡំ ឬរំខាន។</translation>
 <translation id="7948407723851303488">ទំព័រទាំងអស់នៃ <ph name="DOMAIN_NAME" /></translation>
+<translation id="7949038991703929816">មិនអាចផ្ទុក​ប្រវត្តិ​បានទេ។ សូម​ប្រាកដថា ឯកសារមាន​កំណត់ហេតុ​សេវាកម្មដំឡើងកំណែ​ដែលត្រឹមត្រូវ។</translation>
 <translation id="7950629216186736592">មូលហេតុ៖ LBS ស្គាល់តែ http://, https:// និង file:// URLs ប៉ុណ្ណោះ។</translation>
 <translation id="7950814699499457511">បើក • កម្មវិធីបន្ថែម​នេះមិនបានបោះផ្សាយការអនុវត្តឯកជនភាព ដូចជារបៀបដែលកម្មវិធីបន្ថែមនេះប្រមូល និងប្រើទិន្នន័យទេ</translation>
 <translation id="7951265006188088697">ដើម្បី​បញ្ចូល ឬ​គ្រប់គ្រង​វិធីបង់ប្រាក់ Google Pay សូមចូល​ទៅកាន់<ph name="BEGIN_LINK" />គណនី Google<ph name="END_LINK" /> របស់អ្នក</translation>
@@ -10044,7 +10006,6 @@
 <translation id="7969046989155602842">បញ្ជា</translation>
 <translation id="7969144945436590933">យក​ព័ត៌មានលម្អិត​បន្ថែម</translation>
 <translation id="7970673414865679092">ព័ត៌មានលម្អិត​អំពី​អ៊ីសឺរណិត</translation>
-<translation id="7972714317346275248">PKCS #1 SHA-384 ជាមួយនឹងការអ៊ិនគ្រីប RSA</translation>
 <translation id="7972837668077967426">Canvas</translation>
 <translation id="7973149423217802477">"ឱ្យមេដៃ​ចុះ" ដាក់បញ្ជូនមតិកែលម្អដែលប្រាប់ថា អ្នកមិនចូលចិត្តមុខងារនេះទេ។</translation>
 <translation id="7973776233567882054">តើចំណុចខាងក្រោមណាមួយដែលពណ៌នាអំពីបណ្ដាញរបស់អ្នកបានត្រឹមត្រូវបំផុត?</translation>
@@ -10100,7 +10061,6 @@
 <translation id="8006630792898017994">Space ឬ Tab</translation>
 <translation id="8006906484704059308">បន្តទប់ស្កាត់​គេហទំព័រនេះ​មិនឱ្យ​គ្រប់គ្រង និង​សរសេរកម្មវិធី​ឧបករណ៍ MIDI របស់អ្នក​ឡើងវិញ</translation>
 <translation id="8008704580256716350">បានទប់ស្កាត់​ឯកសារ​ដែលគួរឱ្យ​សង្ស័យ</translation>
-<translation id="8009196983040865987">នៅពេលអ្នកប្រើ "រៀបចំផ្ទាំង" ចំណងជើង និង URL នៃផ្ទាំងដែលអ្នកបើកនឹងត្រូវបានបញ្ជូនទៅ Google ដើម្បីបង្កើតក្រុមផ្ទាំងដែលបានណែនាំ</translation>
 <translation id="8009225694047762179">គ្រប់គ្រង​ពាក្យសម្ងាត់</translation>
 <translation id="8010312870936510509">ទិន្នន័យ​ត្រូវបាន​អ៊ីនគ្រីប​ដោយប្រើ​ឃ្លា​សម្ងាត់​សមកាលកម្ម​របស់អ្នក​នៅថ្ងៃទី <ph name="TIME" />។ ទិន្នន័យនេះមិន​រួមបញ្ចូល​អាសយដ្ឋាន និងវិធីបង់ប្រាក់​ពី Google Pay ទេ។</translation>
 <translation id="8011372169388649948">បានផ្លាស់ទី '<ph name="BOOKMARK_TITLE" />'។</translation>
@@ -10351,7 +10311,6 @@
 <translation id="8184288427634747179">ប្តូរទៅ <ph name="AVATAR_NAME" /></translation>
 <translation id="8184318863960255706">ព័ត៌មានបន្ថែម</translation>
 <translation id="8184472985242519288">ឯកសណ្ឋាន</translation>
-<translation id="8185614942934189676">អ៊ីមែល​ត្រូវបាន​ផ្ទៀងផ្ទាត់​ដោយ​ស្វ័យប្រវត្តិ</translation>
 <translation id="8186013737729037962">ស្វែងយល់បន្ថែមអំពីឧបករណ៍ដែលបានចុះឈ្មោះជាលក្ខណៈសហគ្រាស</translation>
 <translation id="8186047833733689201">ម៉ឺនុយសញ្ញា​សង្កត់សំឡេងត្រូវបានបើក។ ចុច​ទៅឆ្វេង ទៅស្ដាំ ឬ​ចុចគ្រាប់ចុចលេខ ដើម្បីរុករក ហើយចុច enter ដើម្បីបញ្ចូល។</translation>
 <translation id="8186609076106987817">ម៉ាស៊ីនមេមិនអាចស្វែងរកឯកសារទេ។</translation>
@@ -10391,6 +10350,7 @@
 <translation id="8207404892907560325">ជ្រើសរើស​កូដសម្ងាត់</translation>
 <translation id="8207794858944505786">មាន VM "<ph name="DEFAULT_VM_NAME" />" ប៉ុន្តែ​ហាក់ដូចជាមិនមែនជា <ph name="VM_TYPE" /> VM ដែល​ត្រឹមត្រូវ​ទេ។ សូមទាក់ទង​ទៅអ្នកគ្រប់គ្រង​របស់អ្នក។</translation>
 <translation id="8207901006380134182">រលកដ៏ធំ​លេបត្របាក់មហាសាគរ ហើយនៅច្រាំងមានព្រៃងងឹត។</translation>
+<translation id="8208043093301544621">ទំព័រដើម</translation>
 <translation id="8208216423136871611">កុំរក្សាទុក</translation>
 <translation id="8210398899759134986">{MUTED_NOTIFICATIONS_COUNT,plural, =1{ការជូនដំណឹងថ្មី}other{ការជូនដំណឹង​ថ្មីៗ #}}</translation>
 <translation id="8212008074015601248">{NUM_DOWNLOAD,plural, =1{ការទាញយក​កំពុង​ដំណើរការ}other{ការទាញយក​កំពុង​ដំណើរការ}}</translation>
@@ -10443,6 +10403,7 @@
 <translation id="8244724656154470844">ការពិនិត្យរកមើលកំណែថ្មីមិនបានសម្រេចទេ។</translation>
 <translation id="8246776524656196770">ការពារសោសុវត្ថិភាព​របស់អ្នកដោយប្រើកូដ PIN (លេខសម្គាល់ផ្ទាល់ខ្លួន)</translation>
 <translation id="824713170151383793">តាមរយៈឧបករណ៍អ្នកអភិវឌ្ឍន៍</translation>
+<translation id="8247210755024677100">កំពុង​ចូលគណនី...</translation>
 <translation id="8247795734638043885">ទាញយក​ឯកសារ​ដែលគ្មានសុវត្ថិភាព</translation>
 <translation id="8248050856337841185">ដាក់ចូល</translation>
 <translation id="8248381369318572865">ចូលប្រើមីក្រូហ្វូនរបស់អ្នក និងវិភាគការនិយាយរបស់អ្នក</translation>
@@ -10516,7 +10477,6 @@
 <translation id="8293206222192510085">បន្ថែមចំណាំ</translation>
 <translation id="8293957715257389063">ស្វែងរកស៊ីជម្រៅ​លើផ្ទាំង</translation>
 <translation id="8294431847097064396">ប្រភព</translation>
-<translation id="8294476140219241086">មុខងារ​រៀបចំ​ផ្ទាំង</translation>
 <translation id="8295449579927246485">បកប្រែភ្លាមៗ</translation>
 <translation id="8295450130892483256">ដំឡើង Microsoft 365</translation>
 <translation id="8297292446125062288">ការកំណត់ HID</translation>
@@ -10573,7 +10533,6 @@
 <translation id="8327676037044516220">ការកំណត់​ខ្លឹមសារ និង​ការអនុញ្ញាត</translation>
 <translation id="8328228852664998535">ប្រសិនបើ​អ្នកបន្ត ពាក្យ​សម្ងាត់ កូដសម្ងាត់ និង​ទិន្នន័យ​ផ្សេងទៀត​របស់អ្នក​នឹងត្រូវបាន​លុបចេញពី <ph name="BRAND" /> ជាអចិន្ត្រៃយ៍។ គណនី​ដែលអ្នក​បានបង្កើត​សម្រាប់​គេហទំព័រ ឬ​កម្មវិធី​នឹងមិន​ត្រូវបាន​លុបឡើយ។</translation>
 <translation id="8328777765163860529">បិទ​ទាំងអស់</translation>
-<translation id="8328826250763337630">ស្វែងយល់បន្ថែមអំពីមុខងារ​រៀបចំផ្ទាំង</translation>
 <translation id="8330617762701840933">បញ្ជីគេហទំព័រ​ដែលបញ្ជូនបន្ត​ទៅកម្មវិធី​រុករក​តាមអ៊ីនធឺណិត​ផ្សេងទៀត។</translation>
 <translation id="8330689128072902965">ទំនាក់ទំនងនៅជិតអាចចែករំលែកជាមួយអ្នកបាន។ ចុចដើម្បីផ្លាស់ប្ដូរ។</translation>
 <translation id="8331323939220256760">{FILE_TYPE_COUNT,plural, =1{ប្រភេទឯកសារដែលអាចប្រើបាន៖ <ph name="FILE_TYPE1" />}=2{ប្រភេទឯកសារដែលអាចប្រើបាន៖ <ph name="FILE_TYPE1" />, <ph name="FILE_TYPE2" />}=3{ប្រភេទឯកសារដែលអាចប្រើបាន៖ <ph name="FILE_TYPE1" />, <ph name="FILE_TYPE2" />, <ph name="FILE_TYPE3" />}=4{ប្រភេទឯកសារដែលអាចប្រើបាន៖ <ph name="FILE_TYPE1" />, <ph name="FILE_TYPE2" />, <ph name="FILE_TYPE3" />, <ph name="FILE_TYPE4" />}other{ប្រភេទឯកសារដែលអាចប្រើបាន៖ <ph name="FILE_TYPE1" />, <ph name="FILE_TYPE2" />, <ph name="FILE_TYPE3" />, <ph name="FILE_TYPE4" /> (<ph name="LINK" />និង {OVERFLOW_COUNT} ទៀត<ph name="END_LINK" />)}}</translation>
@@ -10605,7 +10564,6 @@
 <translation id="8351316842353540018">បង្ហាញ​ជម្រើសភាពងាយស្រួល​ជានិច្ច</translation>
 <translation id="8351419472474436977">កម្មវិធីបន្ថែមនេះបានគ្រប់គ្រងការកំណត់ប្រូកស៊ីរបស់អ្នក មានន័យថាវាអាចប្តូរ បំបែក និងលួចតាមដានអ្វីដែលធ្វើនៅលើអ៊ីនធឺណិតទាំងអស់។ ប្រសិនបើអ្នកមិនប្រាកដថាហេតុអ្វីការប្តូរនេះបានកើតឡើង អ្នកប្រហែលជាមិនចង់បានវាទេ។</translation>
 <translation id="8352287103893778223">ចំណង​ជើង​ក្រុមផ្ទាំង</translation>
-<translation id="835238322900896202">មានបញ្ហា​បានកើតឡើង​អំឡុងពេលលុប។ សូមលុបតាមរយៈច្រក។</translation>
 <translation id="8353420862507374944">បញ្ជូន រក្សាទុក និង​ចែករំលែក</translation>
 <translation id="8353683614194668312">វាអាច៖</translation>
 <translation id="8354034204605718473">បានបញ្ចូលកូដ PIN របស់កូនអ្នកហើយ</translation>
@@ -10719,7 +10677,6 @@
 <translation id="8428634594422941299">យល់ហើយ</translation>
 <translation id="84297032718407999">អ្នកនឹង​ត្រូវបានបង្ខំឱ្យចាកចេញ​ក្នុងរយៈពេល <ph name="LOGOUT_TIME_LEFT" /> ទៀត</translation>
 <translation id="8429928917752180743">ជម្រើស​ច្រើន​ទៀត​សម្រាប់ <ph name="EXTENSION_NAME" /></translation>
-<translation id="8431190899827883166">បង្ហាញការចុច</translation>
 <translation id="843173223122814223">បង្កើត​ផ្ទៃខាងក្រោយ​ដោយប្រើ AI</translation>
 <translation id="8431977087510901105">បានកំណត់​ការកំណត់​ទស្សន៍ទ្រនិច​ឡើងវិញ</translation>
 <translation id="8434109185104929038">កន្លែងអានសៀវភៅ</translation>
@@ -10891,6 +10848,7 @@
 <translation id="8557022314818157177">បន្ត​ចុច​សោសុវត្ថិភាព​ រហូតទាល់តែ​ថតបាន​ស្នាមម្រាមដៃ​របស់អ្នក</translation>
 <translation id="8557100046150195444">ប្រើ Touch ID ដើម្បីបន្ត</translation>
 <translation id="8557856025359704738">ការទាញយក​បន្ទាប់គឺនៅ <ph name="NEXT_DATE_DOWNLOAD" />។</translation>
+<translation id="8558063527625343224">រៀបចំ Google Beam</translation>
 <translation id="8559858985063901027">កូដសម្ងាត់</translation>
 <translation id="8559961053328923750">Chrome ដាក់កំហិត​លើចំនួន​ទិន្នន័យ​សរុប​ដែល​គេហទំព័រ​អាច​ចែករំលែក​តាមរយៈ​កម្មវិធីរុករកតាមអ៊ីនធឺណិត ដើម្បី​វាស់ស្ទង់​ប្រតិបត្តិការ​នៃ​ការ​ផ្សាយ​ពាណិជ្ជកម្ម</translation>
 <translation id="8560327176991673955">{COUNT,plural, =0{បើកទាំងអស់នៅក្នុង&amp;វិនដូថ្មី}=1{បើកនៅក្នុង&amp;វិនដូថ្មី}other{បើកទាំងអស់ ({COUNT}) នៅក្នុង&amp;វិនដូថ្មី}}</translation>
@@ -11121,7 +11079,6 @@
 <translation id="8708671767545720562">ព័ត៌មានបន្ថែម</translation>
 <translation id="8709368517685334931">អ្នកអាច​រកមើល​ពណ៌ចាស់ៗ​នៅក្នុង Chrome Web Store</translation>
 <translation id="8710414664106871428">ការស្រមើស្រមៃ</translation>
-<translation id="8710550057342691420">រៀបចំ​ផ្ទាំង​ស្រដៀងគ្នា</translation>
 <translation id="8711402221661888347">ក្តិបត្រសក់</translation>
 <translation id="8711538096655725662">ដំណើរការ​ដោយស្វ័យប្រវត្តិ​នៅលើ​គេហទំព័រ​ទាំងអស់​ដែលអ្នក​ចូលមើល</translation>
 <translation id="8712637175834984815">យល់ហើយ</translation>
@@ -11399,7 +11356,6 @@
 <translation id="8892168913673237979">បានកំណត់ទាំងអស់ហើយ!</translation>
 <translation id="8892246501904593980">មើលចំណាំ​ទាំងអស់​របស់អ្នក​នៅក្នុង​ចំណាំ និង​បញ្ជី</translation>
 <translation id="8893779047492837414">បច្ចុប្បន្ននេះ អ្នកមាន<ph name="NUMBERED_ITEM_1" />, <ph name="NUMBERED_ITEM_2" /> និង​អ្វីៗជា​ច្រើនទៀត។ ស្ថាប័ន​របស់អ្នក <ph name="ACCOUNT_MANAGER" /> នឹងអាច​មើលឃើញ និង​គ្រប់គ្រង​ទិន្នន័យ​នេះបាន។</translation>
-<translation id="8893801527741465188">ការលុប​បានបញ្ចប់</translation>
 <translation id="8893928184421379330">សូមទោល ឧបករណ៍ <ph name="DEVICE_LABEL" /> មិនអាចត្រូវបានសម្គាល់ទេ។</translation>
 <translation id="8894761918470382415">ការការពារ​សិទ្ធិចូលប្រើ​ទិន្នន័យ​សម្រាប់​ឧបករណ៍​សម្រាប់​ភ្ជាប់​ជាមួយ​កុំព្យូទ័រ</translation>
 <translation id="8895454554629927345">បញ្ជីចំណាំ</translation>
@@ -11408,6 +11364,7 @@
 <translation id="8898786835233784856">ជ្រើសរើសផ្ទាំងបន្ទាប់</translation>
 <translation id="8898790559170352647">បញ្ចូល​គណនី Microsoft របស់អ្នក</translation>
 <translation id="8898822736010347272">បញ្ជូន URL នៃ​គេហទំព័រ​មួយចំនួន​ដែលអ្នក​ចូលមើល ព័ត៌មាន​ប្រព័ន្ធ​មួយចំនួន និង​ខ្លឹមសារ​ទំព័រ​មួយចំនួន​ទៅ Google ដើម្បីជួយ​ស្វែងរក​ការគំរាមកំហែង​ថ្មី និង​ការពារ​អ្នកគ្រប់គ្នា​នៅលើ​អ៊ីនធឺណិត​។</translation>
+<translation id="8898837844145554490"><ph name="TASK_TITLE" />\nGemini បានឈប់​ធ្វើកិច្ចការ​របស់អ្នក​ហើយ។</translation>
 <translation id="8899851313684471736">បើកតំណនៅក្នុងផ្ទាំងថ្មី</translation>
 <translation id="8900413463156971200">បើក​បណ្ដាញ​ចល័ត</translation>
 <translation id="8902059453911237649">{NUM_DAYS,plural, =1{<ph name="MANAGER" /> តម្រូវឱ្យអ្នកបម្រុងទុកទិន្នន័យរបស់អ្នក និងបញ្ជូន <ph name="DEVICE_TYPE" /> នេះត្រឡប់ទៅវិញនៅថ្ងៃនេះ។}other{<ph name="MANAGER" /> តម្រូវឱ្យអ្នកបម្រុងទុកទិន្នន័យរបស់អ្នក និងបញ្ជូន <ph name="DEVICE_TYPE" /> នេះត្រឡប់ទៅវិញ មុនថ្ងៃផុតកំណត់។}}</translation>
@@ -11562,7 +11519,6 @@
 <translation id="8999560016882908256">វាក្យសម្ព័ន្ធនៃ​ផ្នែកមានបញ្ហា៖ <ph name="ERROR_LINE" /></translation>
 <translation id="8999651235576960439">ចលនា​ដែលបាន​កាត់បន្ថយ​នៅលើ​អេក្រង់</translation>
 <translation id="9000185763019430629">ប៉ះ​សេនស័រចាប់ស្នាមម្រាមដៃនៅ​ខាងស្ដាំដៃនៃ <ph name="DEVICE_TYPE" /> របស់​អ្នក។ ទិន្នន័យស្នាមម្រាមដៃ​របស់អ្នកត្រូវបាន​រក្សាទុកយ៉ាង​មានសុវត្ថិភាព និងមិនចេញពី <ph name="DEVICE_TYPE" /> របស់អ្នកឡើយ។</translation>
-<translation id="9000341229894259710"><ph name="TASK_TITLE" />\nខ្ញុំអាច​បំពេញតាម​សំណើ​របស់អ្នក​បាន អ្នកអាច​មើលវាបាន​នៅក្នុង Chrome</translation>
 <translation id="9000529821022336229">រកមិនឃើញ​ការដំឡើង​កម្មវិធី​ដំឡើង​កំណែទេ។</translation>
 <translation id="900267527532832868">កូដសម្ងាត់នេះ​មិនដំណើរការ​ទៀតទេ។ វានឹង​ត្រូវបានលុប​ចេញពី<ph name="GOOGLE_PASSWORD_MANAGER" />ឆាប់ៗនេះ។</translation>
 <translation id="9003031149571024583">បញ្ចូលខ្ទង់ទី <ph name="NUM_DIGIT" /> នៃ 6 របស់កូដ PIN។ សូមប្រើ Backspace ឬ Delete ដើម្បីលុបខ្ទង់ចុងក្រោយ។</translation>

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/metrics/critical_user_journeys/critical_user_journey_session.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -14,11 +15,6 @@
 #include "chrome/browser/metrics/critical_user_journeys/critical_user_journey_step.h"
 #include "ui/base/interaction/element_tracker.h"
 
-namespace {
-// Defines the maximum number of steps in a journey.
-constexpr int MAX_JOURNEY_STEPS = 20;
-}  // namespace
-
 namespace metrics {
 
 CriticalUserJourneySession::CriticalUserJourneySession(
@@ -27,14 +23,15 @@ CriticalUserJourneySession::CriticalUserJourneySession(
 
 CriticalUserJourneySession::~CriticalUserJourneySession() = default;
 
-void CriticalUserJourneySession::Start(ui::TrackedElement* element) {
-  if (journey_->steps().empty()) {
+void CriticalUserJourneySession::Start(std::optional<int> first_step_metric_id,
+                                       ui::TrackedElement* element) {
+  if (journey_->steps().empty() || !element) {
     return;
   }
 
-  sequence_ =
-      BuildSequence(element->context(), journey_, /*is_root=*/true, element)
-          .Build();
+  sequence_ = BuildSequence(element->context(), journey_, /*is_root=*/true,
+                            first_step_metric_id, element)
+                  .Build();
   sequence_->Start();
 }
 
@@ -42,6 +39,7 @@ ui::InteractionSequence::Builder CriticalUserJourneySession::BuildSequence(
     ui::ElementContext context,
     const CriticalUserJourney* journey,
     bool is_root,
+    std::optional<int> first_step_metric_id,
     ui::TrackedElement* initial_element) {
   ui::InteractionSequence::Builder builder;
   builder.SetContext(context);
@@ -54,31 +52,42 @@ ui::InteractionSequence::Builder CriticalUserJourneySession::BuildSequence(
           initial_element,
           base::BindOnce(
               [](base::WeakPtr<CriticalUserJourneySession> self, int metric_id,
-                 ui::InteractionSequence*, ui::TrackedElement*) {
+                 base::TimeDelta timeout, ui::InteractionSequence*,
+                 ui::TrackedElement*) {
                 if (self) {
-                  self->OnStepStarted(metric_id);
+                  self->OnStepStarted(metric_id, timeout);
                 }
               },
-              weak_factory_.GetWeakPtr(), step->metric_id)));
+              weak_factory_.GetWeakPtr(),
+              first_step_metric_id.value_or(step->metric_id),
+              step->time_out_duration)));
       continue;
     }
 
     if (step->branches.empty()) {
-      builder.AddStep(ui::InteractionSequence::StepBuilder()
-                          .SetElement(step->id)
-                          .SetType(step->type)
-                          .SetDescription(base::NumberToString(step->metric_id))
-                          .SetStartCallback(base::BindOnce(
-                              &CriticalUserJourneySession::OnStepStarted,
-                              weak_factory_.GetWeakPtr(), step->metric_id)));
+      auto step_builder = ui::InteractionSequence::StepBuilder();
+      if (step->type == ui::InteractionSequence::StepType::kCustomEvent) {
+        step_builder.SetType(step->type, step->custom_event_type);
+      } else {
+        step_builder.SetType(step->type);
+        step_builder.SetElement(step->id);
+      }
+      step_builder.SetContext(step->context)
+          .SetDescription(base::NumberToString(step->metric_id))
+          .SetStartCallback(
+              base::BindOnce(&CriticalUserJourneySession::OnStepStarted,
+                             weak_factory_.GetWeakPtr(), step->metric_id,
+                             step->time_out_duration));
+
+      builder.AddStep(std::move(step_builder));
     } else {
       ui::InteractionSequence::StepBuilder step_builder =
           std::move(ui::InteractionSequence::StepBuilder().SetSubsequenceMode(
               step->mode));
       for (const auto& branch : step->branches) {
         // Recursively add subsequences for each branch.
-        step_builder.AddSubsequence(
-            BuildSequence(context, branch.get(), /*is_root=*/false));
+        step_builder.AddSubsequence(BuildSequence(
+            context, branch.get(), /*is_root=*/false, std::nullopt, nullptr));
       }
       builder.AddStep(std::move(step_builder));
     }
@@ -94,33 +103,54 @@ ui::InteractionSequence::Builder CriticalUserJourneySession::BuildSequence(
   return builder;
 }
 
-void CriticalUserJourneySession::OnStepStarted(int metric_id) {
+void CriticalUserJourneySession::OnStepStarted(int metric_id,
+                                               base::TimeDelta timeout) {
   last_reached_metric_id_ = metric_id;
-  base::UmaHistogramExactLinear(
+  base::UmaHistogramSparse(
       base::StrCat({"CriticalUserJourney.", journey_->name(), ".StepReached"}),
-      metric_id, MAX_JOURNEY_STEPS + 1);
+      metric_id);
+
+  if (!timeout.is_zero()) {
+    timeout_timer_.Start(FROM_HERE, timeout, this,
+                         &CriticalUserJourneySession::OnTimeout);
+  } else {
+    timeout_timer_.Stop();
+  }
+}
+
+void CriticalUserJourneySession::OnTimeout() {
+  was_timeout_ = true;
+  sequence_.reset();
 }
 
 void CriticalUserJourneySession::OnAborted(
     const ui::InteractionSequence::AbortedData& data) {
+  timeout_timer_.Stop();
   int aborted_metric_id = last_reached_metric_id_;
   if (!data.step_description.empty()) {
     CHECK_NE(aborted_metric_id, -1);
     base::StringToInt(data.step_description, &aborted_metric_id);
   }
-  base::UmaHistogramExactLinear(
-      base::StrCat(
-          {"CriticalUserJourney.", journey_->name(), ".AbortedAtStep"}),
-      aborted_metric_id, MAX_JOURNEY_STEPS);
+
+  base::UmaHistogramSparse(
+      base::StrCat({"CriticalUserJourney.", journey_->name(), ".StepAborted"}),
+      aborted_metric_id);
+
+  base::UmaHistogramEnumeration(
+      base::StrCat({"CriticalUserJourney.", journey_->name(), ".Result"}),
+      was_timeout_ ? JourneyResult::kTimeout : JourneyResult::kAborted);
+
   if (on_done_callback_) {
     std::move(on_done_callback_).Run();
   }
 }
 
 void CriticalUserJourneySession::OnCompleted() {
-  base::UmaHistogramBoolean(
-      base::StrCat({"CriticalUserJourney.", journey_->name(), ".Completed"}),
-      true);
+  timeout_timer_.Stop();
+  base::UmaHistogramEnumeration(
+      base::StrCat({"CriticalUserJourney.", journey_->name(), ".Result"}),
+      JourneyResult::kCompleted);
+
   if (journey_->completion_callback()) {
     journey_->completion_callback().Run();
   }

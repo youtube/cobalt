@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/feature_list.h"
+#include "base/functional/callback_helpers.h"
 #include "base/no_destructor.h"
 #include "chrome/browser/auxiliary_search/auxiliary_search_donation_service.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
@@ -59,12 +60,18 @@ AuxiliarySearchDonationServiceFactory::BuildServiceInstanceForBrowserContext(
       PageContentAnnotationsServiceFactory::GetForProfile(profile),
       visited_url_ranking::VisitedURLRankingServiceFactory::GetForProfile(
           profile),
-      profile->GetPrefs());
+      profile->GetPrefs(),
+      // TODO: https://crbug.com/432359106 - Use AuxiliarySearchDonor to donate
+      // the entries.
+      /*donate_callback=*/base::DoNothing());
 }
 
 bool AuxiliarySearchDonationServiceFactory::ServiceIsCreatedWithBrowserContext()
     const {
-  return true;
+  // Don't attempt to eagerly create the service (and its dependents) if we know
+  // the feature is disabled.
+  return base::FeatureList::IsEnabled(
+      chrome::android::kAuxiliarySearchHistoryDonation);
 }
 
 bool AuxiliarySearchDonationServiceFactory::ServiceIsNULLWhileTesting() const {

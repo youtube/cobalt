@@ -13,24 +13,27 @@ interface PageHandlerFactory {
 
 // Implemented by browser C++ code. Called by WebUI.
 interface PageHandler {
-  // Returns the API key for the AI backend. Used only for development/testing,
-  // without the key being specified on the command line this returns an empty
-  // string.
-  GetApiKey() => (string api_key);
-
   // Returns the JSON data for the mock audio files specified on the command
   // line. Returns null if no file was specified or the file couldn't be read.
   // This is used during development to provide precanned audio data that can
   // be sent on devices without a microphone.
   GetMockAudioData() => (string? json_data);
+
+  // Retrieves the built-in tool definitions as a JSON string.
+  GetToolDefinitions() => (string tool_definitions_json);
+
+  // Executes a tool by name with JSON arguments. Returns the result as JSON.
+  ExecuteTool(string name, string json_args) => (string json_result);
 };
 
 // Implemented by the WebUI (TypeScript/JS). Called by the Browser C++.
 interface Page {
-  // Called whenever the page context has become stale (e.g. a new tab has been
-  // focused, or the current page has navigated).
-  InvalidatePageContext();
+  // Called whenever the page has changed (e.g. a new tab has been focused, or
+  // the current page has navigated). The provided URL is passed as a string
+  // since it's only ever used as page context for a prompt; it's never parsed
+  // or navigated.
+  DidChangePage(string url, string? title, string? content);
 
   // Passes context about the current page to the app.
-  UpdateCurrentPageContext(string url, string page_title, string page_content);
+  UpdateCurrentPageContext(string page_title, string page_content);
 };

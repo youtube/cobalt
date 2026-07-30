@@ -11,7 +11,6 @@
 
 #include "base/check_op.h"
 #include "base/memory/raw_ptr.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "components/performance_manager/frame_node_source.h"
 #include "components/performance_manager/graph/frame_node_impl.h"
@@ -32,7 +31,7 @@ using WorkerNodeSet = base::flat_set<raw_ptr<WorkerNodeImpl, CtnExperimental>>;
 namespace {
 
 // Retrieves the process node associated with the |render_process_id|.
-ProcessNodeImpl* GetProcessNode(int render_process_id) {
+ProcessNodeImpl* GetProcessNode(content::ChildProcessId render_process_id) {
   auto* render_process_host =
       content::RenderProcessHost::FromID(render_process_id);
   DCHECK(render_process_host);
@@ -161,7 +160,7 @@ void WorkerWatcher::TearDown() {
 
 void WorkerWatcher::OnWorkerCreated(
     const blink::DedicatedWorkerToken& dedicated_worker_token,
-    int worker_process_id,
+    content::ChildProcessId worker_process_id,
     const url::Origin& security_origin,
     content::DedicatedWorkerCreator creator) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -254,7 +253,7 @@ void WorkerWatcher::OnFinalResponseURLDetermined(
 
 void WorkerWatcher::OnWorkerCreated(
     const blink::SharedWorkerToken& shared_worker_token,
-    int worker_process_id,
+    content::ChildProcessId worker_process_id,
     const url::Origin& security_origin,
     const base::UnguessableToken& /* dev_tools_token */) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -339,13 +338,11 @@ void WorkerWatcher::OnVersionStartedRunning(
     const content::ServiceWorkerRunningInfo& running_info) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  // TODO(crbug.com/379869738) Remove GetUnsafeValue.
   const auto& [it, node_inserted] = service_worker_nodes_.emplace(
-      version_id,
-      PerformanceManagerImpl::CreateWorkerNode(
-          browser_context_id_, WorkerNode::WorkerType::kService,
-          GetProcessNode(running_info.render_process_id.GetUnsafeValue()),
-          running_info.token, running_info.key.origin()));
+      version_id, PerformanceManagerImpl::CreateWorkerNode(
+                      browser_context_id_, WorkerNode::WorkerType::kService,
+                      GetProcessNode(running_info.render_process_id),
+                      running_info.token, running_info.key.origin()));
   DCHECK(node_inserted);
   WorkerNodeImpl* worker_node = it->second.get();
 

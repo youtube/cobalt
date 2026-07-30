@@ -473,12 +473,6 @@ ExtensionTelemetryService::ExtensionTelemetryService(
       prefs::kSafeBrowsingEnhanced,
       base::BindRepeating(&ExtensionTelemetryService::OnESBPrefChanged,
                           base::Unretained(this)));
-  pref_change_registrar_.Add(
-      prefs::kExtensionDOMActivityLoggingEnabled,
-      base::BindRepeating(
-          &ExtensionTelemetryService::OnExtensionDOMActivityLoggingPrefChanged,
-          base::Unretained(this)));
-
   // Set initial enable/disable state for ESB.
   SetEnabledForESB(IsEnhancedProtectionEnabled(*pref_service_));
 
@@ -526,10 +520,6 @@ void ExtensionTelemetryService::OnEnterprisePolicyChanged() {
 #else
   SetEnabledForEnterprise(false);
 #endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
-}
-
-void ExtensionTelemetryService::OnExtensionDOMActivityLoggingPrefChanged() {
-  UpdateDOMActivityLoggingState();
 }
 
 // Telemetry features for ESB include:
@@ -634,32 +624,41 @@ void ExtensionTelemetryService::SetEnabledForESB(bool enable) {
 // - Enterprise signals
 // - Off-store data collection
 void ExtensionTelemetryService::SetEnabledForEnterprise(bool enable) {
-  // Make call idempotent.
-  if (enterprise_enabled_ == enable) {
-    return;
-  }
-
+  bool was_enabled = enterprise_enabled_;
   enterprise_enabled_ = enable;
-  if (enterprise_enabled_) {
-    SetUpSignalProcessorsAndSubscribersForEnterprise();
-    SetUpOffstoreFileDataCollection();
+
+  // Only do setup/teardown when the enterprise reporting state
+  // actually changes.
+  if (was_enabled != enable) {
+    if (enable) {
+      SetUpSignalProcessorsAndSubscribersForEnterprise();
+      SetUpOffstoreFileDataCollection();
 
 #if BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
-    enterprise_timer_.Start(
-        FROM_HERE, kExtensionTelemetryEnterpriseReportingIntervalSeconds, this,
-        &ExtensionTelemetryService::CreateAndSendEnterpriseReport);
+      base::TimeDelta interval =
+          base::FeatureList::IsEnabled(
+              kExtensionTelemetryEnterpriseShortReportingInterval)
+              ? base::Seconds(30)
+              : kExtensionTelemetryEnterpriseReportingIntervalSeconds;
+      enterprise_timer_.Start(
+          FROM_HERE, interval, this,
+          &ExtensionTelemetryService::CreateAndSendEnterpriseReport);
 #endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
-  } else {
-    // Stop enterprise timer for periodic telemetry reports.
-    enterprise_timer_.Stop();
-    // Clear all enterprise data stored by the service.
-    enterprise_extension_store_.clear();
-    // Destruct signal subscribers.
-    enterprise_signal_subscribers_.clear();
-    // Destruct signal processors.
-    enterprise_signal_processors_.clear();
-    StopOffstoreFileDataCollection();
+    } else {
+      // Cancel any pending enterprise telemetry reports.
+      enterprise_timer_.Stop();
+      // Clear enterprise extension store.
+      enterprise_extension_store_.clear();
+      // Destruct enterprise signal subscribers.
+      enterprise_signal_subscribers_.clear();
+      // Destruct signal processors.
+      enterprise_signal_processors_.clear();
+      StopOffstoreFileDataCollection();
+    }
   }
+
+  // Always update the DOM activity logging state, as its policy can change
+  // independently of the main enterprise reporting setting.
   UpdateDOMActivityLoggingState();
 }
 
@@ -1342,8 +1341,53 @@ void ExtensionTelemetryService::DumpReportForTesting(
         }
         continue;
       }
+
+      // DOM Access
+      if (signal_pb.has_dom_access_info()) {
+        const auto& dom_access_info_pb = signal_pb.dom_access_info();
+        const RepeatedPtrField<
+            ExtensionTelemetryReportRequest_SignalInfo_DOMAccessInfo_DOMAccess>&
+            dom_accesses = dom_access_info_pb.dom_accesses();
+        if (!dom_accesses.empty()) {
+          ss << "  Signal: DOMAccess\n";
+          for (const auto& entry : dom_accesses) {
+            ss << "    DOM Access Details:\n"
+               << "      api_name: " << entry.api_name() << "\n"
+               << "      url: " << entry.url() << "\n"
+               << "      access_type: "
+               << base::NumberToString(static_cast<int>(entry.access_type()))
+               << "\n"
+               << "      count: " << entry.count() << "\n";
+          }
+        }
+        continue;
+      }
+
+      // Script Injection
+      if (signal_pb.has_script_injection_info()) {
+        const auto& script_injection_info_pb =
+            signal_pb.script_injection_info();
+        const RepeatedPtrField<
+            ExtensionTelemetryReportRequest_SignalInfo_ScriptInjectionInfo_ScriptInjection>&
+            script_injections = script_injection_info_pb.script_injections();
+        if (!script_injections.empty()) {
+          ss << "  Signal: ScriptInjection\n";
+          for (const auto& entry : script_injections) {
+            ss << "    Script Injection Details:\n"
+               << "      api_name: " << entry.api_name() << "\n"
+               << "      url: " << entry.url() << "\n"
+               << "      arg_url: " << entry.arg_url() << "\n";
+            for (const auto& arg : entry.args_list()) {
+              ss << "      arg: " << arg << "\n";
+            }
+            ss << "      count: " << entry.count() << "\n";
+          }
+        }
+        continue;
+      }
     }
   }
+
   DVLOG(1) << "Telemetry Report: " << ss.str();
 }
 
@@ -1791,16 +1835,25 @@ void ExtensionTelemetryService::OnOffstoreFileDataCollected(
 }
 
 void ExtensionTelemetryService::UpdateDOMActivityLoggingState() {
-  bool dom_telemetry_allowed =
+  if (is_shutdown_) {
+    return;
+  }
+
+  bool dom_telemetry_enabled = false;
+
+#if BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
+  dom_telemetry_enabled =
       enterprise_enabled_ &&
       base::FeatureList::IsEnabled(
           extensions_features::kEnterpriseExtensionDOMActivityTelemetry) &&
-      pref_service_->GetBoolean(prefs::kExtensionDOMActivityLoggingEnabled);
+      GetExtensionTelemetryEventRouter(profile_)
+          ->IsDOMActivityTelemetryEnabled();
+#endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
 
-  if (dom_telemetry_allowed && !activity_log_ingester_) {
+  if (dom_telemetry_enabled && !activity_log_ingester_) {
     activity_log_ingester_ =
         std::make_unique<ActivityLogIngester>(profile_, this);
-  } else if (!dom_telemetry_allowed && activity_log_ingester_) {
+  } else if (!dom_telemetry_enabled && activity_log_ingester_) {
     activity_log_ingester_.reset();
   }
 }

@@ -10,6 +10,7 @@
 #include "components/account_manager_core/account_manager_facade.h"
 #include "google_apis/gaia/oauth2_access_token_fetcher.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "services/network/test/test_network_connection_tracker.h"
 
 namespace signin {
 
@@ -20,10 +21,7 @@ TestProfileOAuth2TokenServiceDelegateChromeOS::
         account_manager::AccountManagerFacade* account_manager_facade,
         bool is_regular_profile)
     : ProfileOAuth2TokenServiceDelegate(/*use_backoff=*/true) {
-  if (!network::TestNetworkConnectionTracker::HasInstance()) {
-    owned_tracker_ = network::TestNetworkConnectionTracker::CreateInstance();
-  }
-
+  CHECK(network::TestNetworkConnectionTracker::HasInstance());
   delegate_ = std::make_unique<ProfileOAuth2TokenServiceDelegateChromeOS>(
       client, account_tracker_service,
       network::TestNetworkConnectionTracker::GetInstance(),
@@ -108,7 +106,7 @@ void TestProfileOAuth2TokenServiceDelegateChromeOS::LoadCredentialsInternal(
 void TestProfileOAuth2TokenServiceDelegateChromeOS::UpdateCredentialsInternal(
     const CoreAccountId& account_id,
     const std::string& refresh_token,
-    const std::vector<uint8_t>& /*wrapped_binding_key*/) {
+    const signin::TokenBindingInfo& /*token_binding_info*/) {
   delegate_->UpdateCredentials(account_id, refresh_token);
 }
 

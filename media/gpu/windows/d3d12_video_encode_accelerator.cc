@@ -159,6 +159,10 @@ void GenerateResourceOnSynTokenReleased(
   RETURN_ON_FAILURE_WITH_CALLBACK(representation ? S_OK : E_FAIL,
                                   "Failed to produce video");
 
+  if (representation->size() != frame->coded_size()) {
+    RETURN_ON_FAILURE_WITH_CALLBACK(E_FAIL, "SharedImage size mismatch");
+  }
+
   auto scoped_read_access = representation->BeginScopedReadAccess();
   gpu::D3D11TextureAndArrayIndex input_texture =
       scoped_read_access->GetD3D11Texture();
@@ -548,7 +552,7 @@ void D3D12VideoEncodeAccelerator::InitializeTask(
 
   copy_command_queue_ = D3D12CopyCommandQueueWrapper::Create(device_.Get());
   if (!copy_command_queue_) {
-    return NotifyError({EncoderStatus::Codes::kSystemAPICallError,
+    return NotifyError({EncoderStatus::Codes::kD3D12CreateCopyQueueFailed,
                         "Failed to create D3D12CopyCommandQueueWrapper"});
   }
 
@@ -980,7 +984,7 @@ void D3D12VideoEncodeAccelerator::OnCommandBufferHelperAvailable(
                          .Get());
   if (!source_texture_fence_) {
     return NotifyError(
-        {EncoderStatus::Codes::kSystemAPICallError,
+        {EncoderStatus::Codes::kD3D12CreateFenceFailed,
          "Failed to create interop fence for shared image encoding"});
   }
   acquired_command_buffer_ = true;
@@ -1025,14 +1029,14 @@ void D3D12VideoEncodeAccelerator::OnSharedImageResolved(
     MEDIA_LOG(ERROR, media_log_)
         << "Failed to resolve shared image for frame, error code: " << std::hex
         << hr;
-    return NotifyError({EncoderStatus::Codes::kSystemAPICallError,
+    return NotifyError({EncoderStatus::Codes::kSharedImageResolveFailed,
                         "Failed to resolve shared image"});
   }
   Microsoft::WRL::ComPtr<ID3D12Resource> input_texture;
   hr = device_->OpenSharedHandle(shared_handle.Get(),
                                  IID_PPV_ARGS(&input_texture));
   if (FAILED(hr)) {
-    return NotifyError({EncoderStatus::Codes::kSystemAPICallError,
+    return NotifyError({EncoderStatus::Codes::kD3D12OpenSharedHandleFailed,
                         "Failed to open shared handle for D3D12 resource"});
   }
 

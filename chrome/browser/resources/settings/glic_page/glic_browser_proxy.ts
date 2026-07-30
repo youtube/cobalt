@@ -33,6 +33,7 @@ export interface GlicBrowserProxy {
   revokeActorLoginPermission(signonRealm: string, username: string): void;
   getGlicSelectionShortcut(): Promise<string>;
   setGlicSelectionShortcut(shortcut: string): Promise<void>;
+  getWebActuationToggleVisibility(): Promise<boolean>;
 }
 
 export class GlicBrowserProxyImpl implements GlicBrowserProxy {
@@ -41,19 +42,19 @@ export class GlicBrowserProxyImpl implements GlicBrowserProxy {
   }
 
   getGlicShortcut() {
-    return sendWithPromise('getGlicShortcut');
+    return sendWithPromise<string>('getGlicShortcut');
   }
 
   setGlicShortcut(shortcut: string) {
-    return sendWithPromise('setGlicShortcut', shortcut);
+    return sendWithPromise<void>('setGlicShortcut', shortcut);
   }
 
   getGlicFocusToggleShortcut() {
-    return sendWithPromise('getGlicFocusToggleShortcut');
+    return sendWithPromise<string>('getGlicFocusToggleShortcut');
   }
 
   setGlicFocusToggleShortcut(shortcut: string) {
-    return sendWithPromise('setGlicFocusToggleShortcut', shortcut);
+    return sendWithPromise<void>('setGlicFocusToggleShortcut', shortcut);
   }
 
   setShortcutSuspensionState(shouldSuspend: boolean) {
@@ -61,11 +62,11 @@ export class GlicBrowserProxyImpl implements GlicBrowserProxy {
   }
 
   getDisallowedByAdmin() {
-    return sendWithPromise('getGlicDisallowedByAdmin');
+    return sendWithPromise<boolean>('getGlicDisallowedByAdmin');
   }
 
   getActorLoginPermissions() {
-    return sendWithPromise('getActorLoginPermissions');
+    return sendWithPromise<LoginPermission[]>('getActorLoginPermissions');
   }
 
   revokeActorLoginPermission(signonRealm: string, username: string) {
@@ -73,11 +74,15 @@ export class GlicBrowserProxyImpl implements GlicBrowserProxy {
   }
 
   getGlicSelectionShortcut() {
-    return sendWithPromise('getGlicSelectionShortcut');
+    return sendWithPromise<string>('getGlicSelectionShortcut');
   }
 
   setGlicSelectionShortcut(shortcut: string) {
-    return sendWithPromise('setGlicSelectionShortcut', shortcut);
+    return sendWithPromise<void>('setGlicSelectionShortcut', shortcut);
+  }
+
+  getWebActuationToggleVisibility() {
+    return sendWithPromise<boolean>('getWebActuationToggleVisibility');
   }
 
   static getInstance(): GlicBrowserProxy {

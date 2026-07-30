@@ -41,6 +41,7 @@
 #include "google_apis/gaia/gaia_constants.h"
 #include "net/base/url_util.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
+#include "third_party/lens_server_proto/aim_icon.pb.h"
 #include "third_party/lens_server_proto/modality_chip_props.pb.h"
 #include "third_party/omnibox_proto/chrome_aim_entry_point.pb.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -110,17 +111,17 @@ PopulateContextualResources(contextual_tasks::ContextualTaskContext* context) {
   return context_items;
 }
 
-contextual_tasks::mojom::IconType IconTypeToMojom(lens::IconType icon_id) {
+contextual_tasks::mojom::IconType IconTypeToMojom(lens::AimIconType icon_id) {
   switch (icon_id) {
-    case lens::IconType::ICON_TYPE_ADD:
+    case lens::AimIconType::ICON_TYPE_ADD:
       return contextual_tasks::mojom::IconType::kAdd;
-    case lens::IconType::ICON_TYPE_CHECK:
+    case lens::AimIconType::ICON_TYPE_CHECK:
       return contextual_tasks::mojom::IconType::kCheck;
-    case lens::IconType::ICON_TYPE_FORMAT_QUOTE_FILLED:
+    case lens::AimIconType::ICON_TYPE_FORMAT_QUOTE_FILLED:
       return contextual_tasks::mojom::IconType::kFormatQuoteFilled;
-    case lens::IconType::ICON_TYPE_IMAGE:
+    case lens::AimIconType::ICON_TYPE_IMAGE:
       return contextual_tasks::mojom::IconType::kImage;
-    case lens::IconType::ICON_TYPE_DRIVE_PDF:
+    case lens::AimIconType::ICON_TYPE_DRIVE_PDF:
       return contextual_tasks::mojom::IconType::kDrivePdf;
     default:
       return contextual_tasks::mojom::IconType::kUnspecified;
@@ -242,6 +243,17 @@ void ContextualTasksPageHandler::IsPendingErrorPage(
   std::move(callback).Run(ui_service_->IsPendingErrorPage(task_id));
 }
 
+void ContextualTasksPageHandler::IsEmbeddedPageErrorDocument(
+    IsEmbeddedPageErrorDocumentCallback callback) {
+  bool is_error = false;
+  if (auto* inner_contents = web_ui_controller_->GetInnerWebContents()) {
+    if (auto* main_frame = inner_contents->GetPrimaryMainFrame()) {
+      is_error = main_frame->IsErrorDocument();
+    }
+  }
+  std::move(callback).Run(is_error);
+}
+
 void ContextualTasksPageHandler::CloseSidePanel() {
   web_ui_controller_->CloseSidePanel();
 }
@@ -267,24 +279,19 @@ void ContextualTasksPageHandler::OpenHelpUi() {
   if (skip_feedback_ui_for_testing_) {
     return;
   }
+  BrowserWindowInterface* browser = web_ui_controller_->GetBrowser();
+  if (!browser) {
+    return;
+  }
   GURL page_url =
       web_ui_controller_->GetWebUIWebContents()->GetLastCommittedURL();
-  if (auto* browser = web_ui_controller_->GetBrowser()) {
-    if (auto* tab_list = TabListInterface::From(browser)) {
-      if (auto* active_tab = tab_list->GetActiveTab()) {
-        page_url = active_tab->GetContents()->GetLastCommittedURL();
-      }
+  if (auto* tab_list = TabListInterface::From(browser)) {
+    if (auto* active_tab = tab_list->GetActiveTab()) {
+      page_url = active_tab->GetContents()->GetLastCommittedURL();
     }
   }
-#if !BUILDFLAG(IS_ANDROID)
-  chrome::ShowFeedbackPage(page_url, web_ui_controller_->GetProfile(),
-                           feedback::kFeedbackSourceAI,
-                           /*description_template=*/std::string(),
-                           /*description_placeholder_text=*/
-                           l10n_util::GetStringUTF8(IDS_LENS_SEND_FEEDBACK),
-                           /*category_tag=*/"cobrowse",
-                           /*extra_diagnostics=*/std::string());
-#endif
+
+  ui_service_->OpenHelpUi(browser, page_url);
 }
 
 void ContextualTasksPageHandler::OpenOnboardingHelpUi() {
@@ -480,7 +487,7 @@ void ContextualTasksPageHandler::UpdateContextForTask(
     return;
   }
   contextual_tasks_service_->GetContextForTask(
-      task_id, {contextual_tasks::ContextualTaskContextSource::kTabStrip},
+      task_id, {},
       std::make_unique<contextual_tasks::ContextDecorationParams>(),
       base::BindOnce(
           [](base::WeakPtr<ContextualTasksPageHandler> self,

@@ -51,6 +51,7 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/management/management_ui.h"
 #include "chrome/browser/ui/webui/policy_indicator_localized_strings_provider.h"
+#include "chrome/browser/ui/webui/settings/glic_handler.h"
 #include "chrome/browser/ui/webui/settings/reset_settings_handler.h"
 #include "chrome/browser/ui/webui/settings/shared_settings_localized_strings_provider.h"
 #include "chrome/browser/ui/webui/version/version_ui.h"
@@ -61,6 +62,7 @@
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/accessibility_annotator/core/url_constants.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/content/browser/content_autofill_driver_factory.h"
@@ -518,6 +520,8 @@ void AddAppearanceStrings(content::WebUIDataSource* html_source,
       {"showProjectsPanelButton", IDS_SETTINGS_SHOW_PROJECTS_PANEL_BUTTON},
       {"showEverythingMenuButton", IDS_SETTINGS_SHOW_EVERYTHING_MENU_BUTTON},
       {"tabStripPosition", IDS_SETTINGS_TAB_STRIP_POSITION},
+      {"showVerticalTabsExpandOnHover",
+       IDS_SETTINGS_VERTICAL_TABS_EXPAND_ON_HOVER},
       {"allowSplitViewDragAndDrop",
        IDS_SETTINGS_ALLOW_SPLIT_VIEW_DRAG_AND_DROP},
       {"showTabGroupsInBookmarksBar",
@@ -579,8 +583,10 @@ void AddAppearanceStrings(content::WebUIDataSource* html_source,
       base::FeatureList::IsEnabled(features::kTabHoverCardImages));
   html_source->AddBoolean("showVerticalTabsEnabled",
                           tabs::IsVerticalTabsFeatureEnabled());
+  html_source->AddBoolean("showVerticalTabsExpandOnHoverEnabled",
+                          tabs::IsVerticalTabsExpandOnHoverFeatureEnabled());
   html_source->AddBoolean(
-      "showTabStripComboButtonEnabled",
+      "showTabSearchEnabled",
       tabs::IsVerticalTabsFeatureEnabled() ||
           base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton));
   html_source->AddBoolean("showProjectsPanelEnabled",
@@ -721,6 +727,8 @@ void AddDefaultBrowserStrings(content::WebUIDataSource* html_source) {
        IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT_USER_VALUE},
       {"defaultBrowserMakeDefaultAndPin",
        IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT_AND_PIN},
+      {"defaultBrowserMakeDefaultAndPinUserValue",
+       IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT_AND_PIN_USER_VALUE},
       {"defaultBrowserMakeDefaultButton",
        IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT_BUTTON},
       {"defaultBrowserError", IDS_SETTINGS_DEFAULT_BROWSER_ERROR},
@@ -755,57 +763,6 @@ bool IsWebActuationDisabledForEnterprise(Profile* profile) {
   return !glic_service->actor_policy_checker().CanActOnWeb() &&
          glic_service->actor_policy_checker().CannotActOnWebReason() ==
              glic::GlicActorPolicyChecker::CannotActReason::kDisabledByPolicy;
-}
-
-bool ShouldShowWebActuationToggle(Profile* profile) {
-  auto* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(::switches::kGlicAlwaysShowWebActuationToggle)) {
-    return true;
-  }
-  if (!base::FeatureList::IsEnabled(features::kGlicWebActuationSetting)) {
-    return false;
-  }
-
-  // If the account is ineligible, hide the toggle.
-  auto* glic_service =
-      glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile);
-  if (!glic_service) {
-    return false;
-  }
-  if (glic_service->actor_policy_checker().CannotActOnWebReason() ==
-      glic::GlicActorPolicyChecker::CannotActReason::
-          kAccountCapabilityIneligible) {
-    return false;
-  }
-
-  // NOTE: kGlicWebActuationSettingsToggle controls toggle visibility based
-  // solely on subscription eligibility. If this feature is disabled, the
-  // toggle remains visible only if the user has previously accepted the
-  // consent card.
-
-  const base::flat_set<int32_t>& allowed_tiers =
-      glic::GlicActorPolicyChecker::GetActorEligibleTiers();
-  // If no tiers are allowed, the toggle should never be shown.
-  if (allowed_tiers.empty()) {
-    return false;
-  }
-  // If the toggle feature is on, enforce toggle visibility based on
-  // subscription eligibility.
-  if (base::FeatureList::IsEnabled(features::kGlicWebActuationSettingsToggle)) {
-    auto* subscription_service = subscription_eligibility::
-        SubscriptionEligibilityServiceFactory::GetForProfile(profile);
-    CHECK(subscription_service);
-    return allowed_tiers.contains(
-        subscription_service->GetAiSubscriptionTier());
-  }
-  // Show the toggle if the user has explicitly modified the preference before
-  // (via accepting the consent card).
-  const auto* pref = profile->GetPrefs()->FindPreference(
-      glic::prefs::kGlicUserEnabledActuationOnWeb);
-  if (pref && !pref->IsDefaultValue()) {
-    return true;
-  }
-  return false;
 }
 
 void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
@@ -887,6 +844,8 @@ void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
        IDS_SETTINGS_GLIC_ACTOR_LOGIN_PERMISSIONS_SECTION_SUBLABEL},
       {"glicLoginPermissionsPageTitle",
        IDS_SETTINGS_GLIC_LOGIN_PERMISSIONS_PAGE_TITLE},
+      {"glicLoginPermissionsOfflineWarning",
+       IDS_SETTINGS_GLIC_LOGIN_PERMISSIONS_OFFLINE_WARNING},
       {"glicLoginPermissionsPageDescription",
        IDS_SETTINGS_GLIC_LOGIN_PERMISSIONS_PAGE_DESCRIPTION},
       {"glicLoginPermissionsNoSites",
@@ -956,29 +915,39 @@ void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
       has_url ? command_line->GetSwitchValueASCII(
                     ::switches::kGlicShortcutsLearnMoreURL)
               : features::kGlicShortcutsLearnMoreURL.Get();
-  html_source->AddString("glicKeyboardShortcutLearnMoreUrl",
-                         keyboard_shortcut_learn_more_url);
-  html_source->AddString("glicLauncherToggleLearnMoreUrl",
-                         features::kGlicLauncherToggleLearnMoreURL.Get());
-  html_source->AddString("glicLocationToggleLearnMoreUrl",
-                         features::kGlicLocationToggleLearnMoreURL.Get());
-  html_source->AddString("glicTabAccessToggleLearnMoreUrl",
-                         features::kGlicTabAccessToggleLearnMoreURL.Get());
-  html_source->AddString(
+
+  const std::string& application_locale =
+      g_browser_process->GetApplicationLocale();
+
+  auto add_localized_url = [&](std::string_view name,
+                               std::string_view url_string) {
+    html_source->AddString(name, google_util::AppendGoogleLocaleParam(
+                                     GURL(url_string), application_locale)
+                                     .spec());
+  };
+
+  add_localized_url("glicKeyboardShortcutLearnMoreUrl",
+                    keyboard_shortcut_learn_more_url);
+  add_localized_url("glicLauncherToggleLearnMoreUrl",
+                    features::kGlicLauncherToggleLearnMoreURL.Get());
+  add_localized_url("glicLocationToggleLearnMoreUrl",
+                    features::kGlicLocationToggleLearnMoreURL.Get());
+  add_localized_url("glicTabAccessToggleLearnMoreUrl",
+                    features::kGlicTabAccessToggleLearnMoreURL.Get());
+  add_localized_url(
       "glicTabAccessToggleLearnMoreUrlDataProtected",
       features::kGlicTabAccessToggleLearnMoreURLDataProtected.Get());
-  html_source->AddString(
-      "glicDefaultTabAccessToggleLearnMoreUrl",
-      features::kGlicDefaultTabAccessToggleLearnMoreURL.Get());
-  html_source->AddString(
+  add_localized_url("glicDefaultTabAccessToggleLearnMoreUrl",
+                    features::kGlicDefaultTabAccessToggleLearnMoreURL.Get());
+  add_localized_url(
       "glicDefaultTabAccessToggleLearnMoreUrlDataProtected",
       features::kGlicDefaultTabAccessToggleLearnMoreURLDataProtected.Get());
-  html_source->AddString("glicSettingsPageLearnMoreUrl",
-                         features::kGlicSettingsPageLearnMoreURL.Get());
-  html_source->AddString("glicExtensionsManagementUrl",
-                         features::kGlicExtensionsManagementUrl.Get());
-  html_source->AddString("glicWebActuationToggleLearnMoreUrl",
-                         features::kGlicWebActuationToggleLearnMoreURL.Get());
+  add_localized_url("glicSettingsPageLearnMoreUrl",
+                    features::kGlicSettingsPageLearnMoreURL.Get());
+  add_localized_url("glicExtensionsManagementUrl",
+                    features::kGlicExtensionsManagementUrl.Get());
+  add_localized_url("glicWebActuationToggleLearnMoreUrl",
+                    features::kGlicWebActuationToggleLearnMoreURL.Get());
   html_source->AddString(
       "glicWebActuationToggleConsider2",
       l10n_util::GetStringFUTF16(
@@ -1003,7 +972,7 @@ void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
       "showGlicKeepSidepanelOpenOnNewTabsSetting",
       base::FeatureList::IsEnabled(features::kGlicDaisyChainNewTabs));
   html_source->AddBoolean("glicWebActuationFeatureEnabled",
-                          ShouldShowWebActuationToggle(profile));
+                          GlicHandler::ShouldShowWebActuationToggle(profile));
   html_source->AddBoolean("isWebActuationDisabledForEnterprise",
                           IsWebActuationDisabledForEnterprise(profile));
   html_source->AddBoolean("glicActorEnabled",
@@ -1397,11 +1366,6 @@ bool CheckDeviceAuthAvailability(content::WebContents* web_contents) {
       client->GetDeviceAuthenticator().get());
 }
 
-bool IsCvcStorageAndFillingEnabled() {
-  return base::FeatureList::IsEnabled(
-      autofill::features::kAutofillEnableCvcStorageAndFilling);
-}
-
 bool IsWalletServerStorageEnabled() {
   return base::FeatureList::IsEnabled(syncer::kSyncWalletFlightReservations) ||
          base::FeatureList::IsEnabled(syncer::kSyncWalletVehicleRegistrations);
@@ -1759,8 +1723,7 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
   html_source->AddBoolean("deviceAuthAvailable",
                           CheckDeviceAuthAvailability(web_contents));
 
-  html_source->AddBoolean("cvcStorageAvailable",
-                          IsCvcStorageAndFillingEnabled());
+  html_source->AddBoolean("cvcStorageAvailable", true);
 
   html_source->AddBoolean("autofillCardBenefitsAvailable",
                           payments_data.IsCardBenefitsFeatureEnabled());
@@ -1866,6 +1829,10 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
   html_source->AddBoolean("autofillAiReauthOnViewingSensitiveDataEnabled",
                           base::FeatureList::IsEnabled(
                               autofill::features::kAutofillAiReauthRequired));
+
+  html_source->AddString(
+      "accessibilityAnnotatorSettingsUrl",
+      accessibility_annotator::kAccessibilityAnnotatorSettingsURL);
 }
 
 void AddSignOutDialogStrings(content::WebUIDataSource* html_source,
@@ -2878,6 +2845,7 @@ void AddSearchStrings(content::WebUIDataSource* html_source, Profile* profile) {
       {"searchEnginesCancelButton", IDS_CANCEL},
       {"searchEnginesConfirmationToastLabel",
        IDS_SEARCH_ENGINE_CHOICE_SETTINGS_CONFIRMATION_TOAST_LABEL},
+      {"defaultSearch", IDS_SETTINGS_DEFAULT_SEARCH},
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
   html_source->AddString("searchExplanationLearnMoreURL",

@@ -55,6 +55,13 @@ TEST_F(EnumSetTest, ClassConstants) {
 // Use static_assert to check that functions we expect to be compile time
 // evaluatable are really that way.
 TEST_F(EnumSetTest, ConstexprsAreValid) {
+  enum class TestEnumWide {
+    kTestMin = 0,
+    kTestMax = 127,
+  };
+  using TestEnumWideSet =
+      EnumSet<TestEnumWide, TestEnumWide::kTestMin, TestEnumWide::kTestMax>;
+
   static_assert(TestEnumSet::All().Has(TestEnum::kTest2),
                 "Expected All() to be integral constant expression");
   static_assert(TestEnumSet::FromRange(TestEnum::kTest2, TestEnum::kTest4)
@@ -66,6 +73,23 @@ TEST_F(EnumSetTest, ConstexprsAreValid) {
       TestEnumSet::FromEnumBitmask(1 << static_cast<uint64_t>(TestEnum::kTest2))
           .Has(TestEnum::kTest2),
       "Expected TestEnumSet() to be integral constant expression");
+  static_assert(TestEnumWideSet::All().size() == 128u);
+  static_assert(
+      TestEnumWideSet::FromRange(TestEnumWide::kTestMax, TestEnumWide::kTestMax)
+          .size() == 1u);
+  static_assert(TestEnumWideSet::FromRange(static_cast<TestEnumWide>(70),
+                                           static_cast<TestEnumWide>(80))
+                    .size() == 11u);
+
+  static constexpr auto kIterTest = []() {
+    TestEnumSet enums = {TestEnum::kTest1, TestEnum::kTest2};
+    int count = 0;
+    for (TestEnum e : enums) {
+      count += static_cast<int>(e);
+    }
+    return count;
+  };
+  static_assert(kIterTest() == 3);
 }
 
 TEST_F(EnumSetTest, DefaultConstructor) {
@@ -160,6 +184,37 @@ TEST_F(EnumSetTest, FromRange) {
             RestrictedRangeSet::FromRange(TestEnum::kTest2, TestEnum::kTest4));
   EXPECT_EQ(RestrictedRangeSet::All(),
             RestrictedRangeSet::FromRange(TestEnum::kTest2, TestEnum::kTest5));
+}
+
+TEST_F(EnumSetTest, FromRangeLarge) {
+  enum class TestEnumLarge {
+    kTestMin = 0,
+    kTest63 = 63,
+    kTest64 = 64,
+    kTestMax = 127,
+  };
+  using TestEnumLargeSet =
+      EnumSet<TestEnumLarge, TestEnumLarge::kTestMin, TestEnumLarge::kTestMax>;
+
+  // This should work because both are < 64.
+  EXPECT_EQ(TestEnumLargeSet({TestEnumLarge::kTest63}),
+            TestEnumLargeSet::FromRange(TestEnumLarge::kTest63,
+                                        TestEnumLarge::kTest63));
+
+  // These used to crash, but should now work.
+  EXPECT_EQ(TestEnumLargeSet({TestEnumLarge::kTest64}),
+            TestEnumLargeSet::FromRange(TestEnumLarge::kTest64,
+                                        TestEnumLarge::kTest64));
+  EXPECT_EQ(TestEnumLargeSet({TestEnumLarge::kTest63, TestEnumLarge::kTest64}),
+            TestEnumLargeSet::FromRange(TestEnumLarge::kTest63,
+                                        TestEnumLarge::kTest64));
+
+  // Test constexpr support for large ranges.
+  static_assert(
+      TestEnumLargeSet::FromRange(TestEnumLarge::kTest63,
+                                  TestEnumLarge::kTest64)
+          .Has(TestEnumLarge::kTest64),
+      "Expected FromRange() to be integral constant expression even for > 64");
 }
 
 TEST_F(EnumSetTest, Put) {

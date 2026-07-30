@@ -338,13 +338,10 @@ class PrerenderBrowserTest : public ContentBrowserTest,
     kCrossSite,
   };
 
-  explicit PrerenderBrowserTest()
-      : PrerenderBrowserTest(/*force_disable_prerender2_fallback=*/true) {}
-  explicit PrerenderBrowserTest(bool force_disable_prerender2_fallback) {
-    prerender_helper_ = std::make_unique<test::PrerenderTestHelper>(
-        base::BindRepeating(&PrerenderBrowserTest::web_contents,
-                            base::Unretained(this)),
-        force_disable_prerender2_fallback);
+  PrerenderBrowserTest() {
+    prerender_helper_ =
+        std::make_unique<test::PrerenderTestHelper>(base::BindRepeating(
+            &PrerenderBrowserTest::web_contents, base::Unretained(this)));
 
     // Input suppression during paintholding interferes with the input event
     // dispatches to top frames.  Disabling kDropInputEventsWhilePaintHolding
@@ -1093,8 +1090,7 @@ class PrerenderBrowserTestFallbackEnabledDisabled
     : public PrerenderBrowserTest,
       public ::testing::WithParamInterface<bool> {
  public:
-  PrerenderBrowserTestFallbackEnabledDisabled()
-      : PrerenderBrowserTest(/*force_disable_prerender2_fallback=*/false) {
+  PrerenderBrowserTestFallbackEnabledDisabled() {
     if (GetParam()) {
       scoped_feature_list_prerender2_fallback_.InitWithFeaturesAndParameters(
           {
@@ -1150,8 +1146,7 @@ INSTANTIATE_TEST_SUITE_P(
 // - `PrerenderWhenInitiatorInBackground_Queue_Processing`: See the test.
 class PrerenderBrowserTestFallbackDisabled : public PrerenderBrowserTest {
  public:
-  PrerenderBrowserTestFallbackDisabled()
-      : PrerenderBrowserTest(/*force_disable_prerender2_fallback=*/false) {
+  PrerenderBrowserTestFallbackDisabled() {
     // TODO(crbug.com/342089123): Add yet another feature flag to disable
     // prefetch ahead of prerender for SpeculationRules before removing
     // `kPrerender2FallbackPrefetchSpecRules`.
@@ -2643,8 +2638,7 @@ class PrerenderTargetAgnosticBrowserTest
     : public PrerenderBrowserTest,
       public testing::WithParamInterface<std::tuple<std::string, bool>> {
  public:
-  PrerenderTargetAgnosticBrowserTest()
-      : PrerenderBrowserTest(/*force_disable_prerender2_fallback=*/false) {
+  PrerenderTargetAgnosticBrowserTest() {
     if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
       scoped_feature_list_prerender2_fallback_.InitWithFeaturesAndParameters(
           {
@@ -4316,6 +4310,39 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
   wc_destroyed_watcher.Wait();
   ExpectFinalStatusForSpeculationRule(
       PrerenderFinalStatus::kTabClosedWithoutUserGesture);
+}
+
+// Tests that trigger cancellation via BrowsingDataRemover (e.g.,
+// Clear-Site-Data) is handled safely without causing Use-After-Free due to
+// synchronous destruction of the WebContentsImpl during iteration.
+IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
+                       NewTabPrerenderCancellationByBrowsingDataRemover) {
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
+
+  // Navigate to an initial page.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+
+  // Start prerendering.
+  PrerenderHostId host_id = prerender_helper()->AddPrerender(
+      prerendering_url, /*eagerness=*/std::nullopt, "_blank");
+  auto* prerender_web_contents =
+      test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
+  WebContentsDestroyedWatcher wc_destroyed_watcher(prerender_web_contents);
+
+  // Trigger browsing data removal which will call CancelHostsByOriginFilter.
+  BrowsingDataRemover* remover =
+      web_contents_impl()->GetBrowserContext()->GetBrowsingDataRemover();
+  BrowsingDataRemoverCompletionObserver completion_observer(remover);
+  remover->RemoveAndReply(base::Time::Min(), base::Time::Max(),
+                          BrowsingDataRemover::DATA_TYPE_CACHE,
+                          BrowsingDataRemover::ORIGIN_TYPE_UNPROTECTED_WEB,
+                          &completion_observer);
+  completion_observer.BlockUntilCompletion();
+
+  // WebContents created for the new-tab trigger will be destroyed safely.
+  wc_destroyed_watcher.Wait();
+  EXPECT_FALSE(prerender_helper()->HasNewTabHandle(host_id));
 }
 
 // Tests that prerendering is cancelled if a network request for the
@@ -7142,7 +7169,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kMojoBinderPolicy);
   // `TestInterfaceForCancel` doesn't have a enum value because it is not used
   // in production, so histogram_tester_ should log
-  // PrerenderCancelledInterface::kUnkown here.
+  // PrerenderCancelledInterface::kUnknown here.
   histogram_tester().ExpectUniqueSample(
       "Prerender.Experimental.PrerenderCancelledInterface.SpeculationRule",
       PrerenderCancelledInterface::kUnknown, 1);
@@ -7188,7 +7215,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kMojoBinderPolicy);
   // `TestInterfaceForCancel` doesn't have a enum value because it is not used
   // in production, so histogram_tester_ should log
-  // PrerenderCancelledInterface::kUnkown here.
+  // PrerenderCancelledInterface::kUnknown here.
   histogram_tester().ExpectUniqueSample(
       "Prerender.Experimental.PrerenderCancelledInterface.SpeculationRule",
       PrerenderCancelledInterface::kUnknown, 1);
@@ -8731,8 +8758,7 @@ class PrerenderLowMemoryBrowserTest
     : public PrerenderBrowserTest,
       public ::testing::WithParamInterface<bool> {
  public:
-  PrerenderLowMemoryBrowserTest()
-      : PrerenderBrowserTest(/*force_disable_prerender2_fallback=*/false) {
+  PrerenderLowMemoryBrowserTest() {
     // Set the value of memory threshold more than the physical memory.  The
     // test will expect that prerendering does not occur.
     std::string memory_threshold = base::NumberToString(
@@ -14984,8 +15010,7 @@ class PrerenderSpeculationRulesHoldbackBrowserTest
     : public PrerenderBrowserTest,
       public ::testing::WithParamInterface<bool> {
  public:
-  PrerenderSpeculationRulesHoldbackBrowserTest()
-      : PrerenderBrowserTest(/*force_disable_prerender2_fallback=*/false) {
+  PrerenderSpeculationRulesHoldbackBrowserTest() {
     if (GetParam()) {
       scoped_feature_list_prerender2_fallback_.InitWithFeaturesAndParameters(
           {
@@ -17089,22 +17114,50 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 class PrerenderProcessReuseBrowserTest : public PrerenderBrowserTest {
  public:
   PrerenderProcessReuseBrowserTest() {
-    feature_list_.InitWithFeatures(
-        {features::kReusePrerenderingProcessForMainFrames},
+    feature_list_.InitWithFeaturesAndParameters(
+        {{features::kReusePrerenderingProcessForMainFrames, {}},
+         // The isloated origins feature are added so that the navigation
+         // to a.test and b.test require a dedicated process on Android with
+         // partial site isolation.
+         {features::kIsolateOrigins,
+          {{features::kIsolateOriginsFieldTrialParamName,
+            "https://a.test/,https://b.test/"}}}},
         {features::kProcessPerSiteUpToMainFrameThreshold});
   }
 
+  void SetUpOnMainThread() override {
+    if (!AreAllSitesIsolatedForTesting()) {
+      browser_client_ =
+          std::make_unique<ForceSiteIsolationContentBrowserClient>();
+    }
+    PrerenderBrowserTest::SetUpOnMainThread();
+  }
+
+  void TearDownOnMainThread() override {
+    PrerenderBrowserTest::TearDownOnMainThread();
+    browser_client_.reset();
+  }
+
+  // Forces the site isolation for the origins in the test to emulate
+  // isolated sites under partial site isolation.
+  class ForceSiteIsolationContentBrowserClient
+      : public ContentBrowserTestContentBrowserClient {
+   public:
+    bool DoesSiteRequireDedicatedProcess(
+        BrowserContext* browser_context,
+        const GURL& effective_site_url) override {
+      return effective_site_url == GURL("http://a.test") ||
+             effective_site_url == GURL("http://b.test");
+    }
+  };
+
  private:
+  std::unique_ptr<ForceSiteIsolationContentBrowserClient> browser_client_;
   base::test::ScopedFeatureList feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(PrerenderProcessReuseBrowserTest,
                        ReusePrerenderProcessInNavigation) {
-  // The test assumes site isolation. Otherwise the navigation will reuse the
-  // RFH and the RPH of the current active frame rather than the prerender ones.
-  if (!AreAllSitesIsolatedForTesting()) {
-    return;
-  }
   base::HistogramTester histogram_tester;
   ASSERT_TRUE(embedded_test_server()->Start());
 
@@ -17112,6 +17165,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderProcessReuseBrowserTest,
   const GURL initial_url =
       embedded_test_server()->GetURL("b.test", "/page_with_iframe.html");
   ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  RenderProcessHost* initial_process = current_frame_host()->GetProcess();
 
   // 2. Prerender a cross-site page.
   const GURL prerender_url =
@@ -17134,6 +17188,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderProcessReuseBrowserTest,
       embedded_test_server()->GetURL("a.test", "/title2.html");
   EXPECT_TRUE(NavigateToURL(shell(), navigation_url));
   RenderProcessHost* navigation_process = current_frame_host()->GetProcess();
+  EXPECT_NE(navigation_process, initial_process);
   EXPECT_EQ(navigation_process, prerender_process);
   // Verify that the reuse policy UMA is correctly recoreded.
   histogram_tester.ExpectUniqueSample(
@@ -17500,6 +17555,7 @@ class PrerenderFormSubmissionOriginTrialBrowserTest
   // not.
   void RunFormSubmissionHintTest(bool first_attempt_form_field,
                                  std::optional<bool> second_attempt_form_field,
+                                 std::string target_hint,
                                  bool navigate_as_form_submission,
                                  bool should_activate) {
     // The URL that was used to register the Origin Trial token.
@@ -17541,12 +17597,12 @@ class PrerenderFormSubmissionOriginTrialBrowserTest
 
     // Start prerendering `prerender_url` with `form_submission` =
     // `first_attempt_form_field`.
-    prerender_helper()->AddPrerender(prerender_url, /*eagerness=*/std::nullopt,
-                                     /*no_vary_search_hint=*/std::nullopt,
-                                     /*target_hint=*/std::string(),
-                                     /*ruleset_tag=*/std::nullopt,
-                                     /*world_id=*/ISOLATED_WORLD_ID_GLOBAL,
-                                     first_attempt_form_field);
+    PrerenderHostId host_id = prerender_helper()->AddPrerender(
+        prerender_url, /*eagerness=*/std::nullopt,
+        /*no_vary_search_hint=*/std::nullopt,
+        /*target_hint=*/target_hint,
+        /*ruleset_tag=*/std::nullopt,
+        /*world_id=*/ISOLATED_WORLD_ID_GLOBAL, first_attempt_form_field);
 
     if (second_attempt_form_field.has_value()) {
       // Start prerendering `prerender_url` with `form_submission` =
@@ -17554,31 +17610,40 @@ class PrerenderFormSubmissionOriginTrialBrowserTest
       prerender_helper()->AddPrerender(prerender_url,
                                        /*eagerness=*/std::nullopt,
                                        /*no_vary_search_hint=*/std::nullopt,
-                                       /*target_hint=*/std::string(),
+                                       /*target_hint=*/target_hint,
                                        /*ruleset_tag=*/std::nullopt,
                                        /*world_id=*/ISOLATED_WORLD_ID_GLOBAL,
                                        second_attempt_form_field.value());
     }
 
-    // Start to navigate to prerender_url.
-    test::PrerenderTestHelper::NavigatePrimaryPage(
-        *web_contents_impl(), prerender_url,
-        navigate_as_form_submission ? ui::PAGE_TRANSITION_FORM_SUBMIT
-                                    : ui::PAGE_TRANSITION_LINK);
-    if (should_activate) {
-      // Ensure the state has been propagated to renderer processes.
-      ASSERT_EQ(false, EvalJs(web_contents(), "document.prerendering"));
+    auto* prerender_web_contents =
+        test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
+    EXPECT_TRUE(prerender_web_contents);
+    test::PrerenderHostObserver prerender_observer(*prerender_web_contents,
+                                                   host_id);
 
-      // The prerender host should be consumed.
-      EXPECT_FALSE(HasHostForUrl(prerender_url));
-      ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
-      ASSERT_EQ(web_contents()->GetLastCommittedURL(), prerender_url);
+    if (target_hint == "_blank") {
+      TestNavigationObserver observer(prerender_web_contents);
+      EXPECT_NE(prerender_web_contents, web_contents_impl());
+      test::PrerenderTestHelper::OpenNewWindowWithoutOpener(
+          *web_contents_impl(), prerender_url, navigate_as_form_submission);
+      observer.WaitForNavigationFinished();
+      EXPECT_EQ(observer.last_navigation_url(), prerender_url);
+    } else {
+      test::PrerenderTestHelper::NavigatePrimaryPage(
+          *web_contents_impl(), prerender_url,
+          navigate_as_form_submission ? ui::PAGE_TRANSITION_FORM_SUBMIT
+                                      : ui::PAGE_TRANSITION_LINK);
+    }
+
+    if (should_activate) {
+      EXPECT_TRUE(prerender_observer.was_activated());
     } else {
       // The prerender host should be destroyed for parameter mismatch.
       EXPECT_FALSE(HasHostForUrl(prerender_url));
       ExpectFinalStatusForSpeculationRule(
           PrerenderFinalStatus::kActivationNavigationParameterMismatch);
-      ASSERT_EQ(web_contents()->GetLastCommittedURL(), prerender_url);
+      ASSERT_EQ(prerender_web_contents->GetLastCommittedURL(), prerender_url);
     }
 
     // If a second prerender attempt is tried, it is expected to be treated as
@@ -17656,6 +17721,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderFormSubmissionOriginTrialBrowserTest,
                        FormSubmissionHint_ActivationSuccessful) {
   RunFormSubmissionHintTest(/*first_attempt_form_field=*/true,
                             /*second_attempt_form_field=*/std::nullopt,
+                            /*target_hint=*/std::string(),
                             /*navigate_as_form_submission=*/true,
                             /*should_activate=*/true);
 }
@@ -17665,6 +17731,7 @@ IN_PROC_BROWSER_TEST_F(
     FormSubmissionHint_FirstWin_TrueThenFalse_ActivationSuccesful) {
   RunFormSubmissionHintTest(/*first_attempt_form_field=*/true,
                             /*second_attempt_form_field=*/false,
+                            /*target_hint=*/std::string(),
                             /*navigate_as_form_submission=*/true,
                             /*should_activate=*/true);
 }
@@ -17674,6 +17741,7 @@ IN_PROC_BROWSER_TEST_F(
     FormSubmissionHint_FirstWin_FalseThenTrue_ActivationSuccesful) {
   RunFormSubmissionHintTest(/*first_attempt_form_field=*/false,
                             /*second_attempt_form_field=*/true,
+                            /*target_hint=*/std::string(),
                             /*navigate_as_form_submission=*/false,
                             /*should_activate=*/true);
 }
@@ -17685,6 +17753,7 @@ IN_PROC_BROWSER_TEST_F(
     FormSubmissionHint_FirstWin_TrueThenFalse_FailWithMismatch) {
   RunFormSubmissionHintTest(/*first_attempt_form_field=*/true,
                             /*second_attempt_form_field=*/false,
+                            /*target_hint=*/std::string(),
                             /*navigate_as_form_submission=*/false,
                             /*should_activate=*/false);
 }
@@ -17696,7 +17765,26 @@ IN_PROC_BROWSER_TEST_F(
     FormSubmissionHint_FirstWin_FalseThenTrue_FailWithMismatch) {
   RunFormSubmissionHintTest(/*first_attempt_form_field=*/false,
                             /*second_attempt_form_field=*/true,
+                            /*target_hint=*/std::string(),
                             /*navigate_as_form_submission=*/true,
+                            /*should_activate=*/false);
+}
+
+IN_PROC_BROWSER_TEST_F(PrerenderFormSubmissionOriginTrialBrowserTest,
+                       FormSubmissionHintBlankTargetHint_ActivationSuccessful) {
+  RunFormSubmissionHintTest(/*first_attempt_form_field=*/true,
+                            /*second_attempt_form_field=*/std::nullopt,
+                            /*target_hint=*/"_blank",
+                            /*navigate_as_form_submission=*/true,
+                            /*should_activate=*/true);
+}
+
+IN_PROC_BROWSER_TEST_F(PrerenderFormSubmissionOriginTrialBrowserTest,
+                       FormSubmissionHintBlankTargetHint_FailWithMismatch) {
+  RunFormSubmissionHintTest(/*first_attempt_form_field=*/true,
+                            /*second_attempt_form_field=*/std::nullopt,
+                            /*target_hint=*/"_blank",
+                            /*navigate_as_form_submission=*/false,
                             /*should_activate=*/false);
 }
 

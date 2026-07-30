@@ -73,6 +73,9 @@ crbug.com/931660 [ Linux ] fast/history/replacestate-nocrash.html [ Pass Timeout
 
 
 crbug.com/856601 [ Linux ] external/wpt/compression/compression-stream.any.serviceworker.html [ Pass Timeout ]
+crbug.com/490781032 [ Linux ] external/wpt/compression/compression-stream.any.worker.html [ Pass Timeout ]
+crbug.com/490702367 [ Linux ] external/wpt/compression/compression-stream.any.sharedworker.html [ Pass Timeout ]
+crbug.com/856601 [ Linux ] external/wpt/compression/compression-stream.any.html [ Pass Timeout ]
 
 # Sheriff 2020-02-10
 crbug.com/1050559 [ Linux ] external/wpt/WebCryptoAPI/derive_bits_keys/hkdf.https.any.worker.html?1-1000 [ Skip ]
@@ -190,8 +193,8 @@ crbug.com/480249475 [ Linux ] external/wpt/css/css-pseudo/input-element-pseudo-o
 
 # Flaky on Linux MSan.
 crbug.com/488337157 [ Linux ] external/wpt/css/css-pseudo/input-element-pseudo-open-click.optional.html [ Pass Timeout Crash ]
-crbug.com/490381610 [ Linux ] external/wpt/wasm/core/simd/simd_f32x4_arith.wast.js.html [ Failure Pass ]
-crbug.com/446167772 [ Linux ] external/wpt/webcodecs/audio-encoder-codec-specific.https.any.html [ Failure Pass ]
+crbug.com/490381610 [ Linux ] external/wpt/wasm/core/simd/simd_f32x4_arith.wast.js.html [ Failure Pass Timeout Crash ]
+crbug.com/446167772 [ Linux ] external/wpt/webcodecs/audio-encoder-codec-specific.https.any.html [ Failure Pass Timeout Crash ]
 
 # Flaky timing out on MSAN.
 crbug.com/487895128 [ Linux ] external/wpt/storage/estimate-indexeddb.https.any.html [ Pass Timeout ]

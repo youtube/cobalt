@@ -11,6 +11,7 @@
 #include "base/notreached.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
+#include "third_party/blink/public/mojom/permissions/permission_status.mojom.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "url/gurl.h"
 
@@ -78,7 +79,7 @@ void MediaPermissionDispatcher::HasPermission(
 
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  int request_id = RegisterCallback(std::move(permission_status_cb));
+  uint32_t request_id = RegisterCallback(std::move(permission_status_cb));
   DVLOG(2) << __func__ << ": request ID " << request_id;
 
   GetPermissionService()->HasPermission(
@@ -141,8 +142,8 @@ MediaPermissionDispatcher::GetPermissionService() {
 
 void MediaPermissionDispatcher::OnPermissionStatus(
     uint32_t request_id,
-    blink::mojom::PermissionStatus status) {
-  DVLOG(2) << __func__ << ": (" << request_id << ", " << status << ")";
+    blink::mojom::PermissionStatusWithDetailsPtr status) {
+  DVLOG(2) << __func__ << ": (" << request_id << ", " << status->status << ")";
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   auto iter = requests_.find(request_id);
@@ -152,7 +153,7 @@ void MediaPermissionDispatcher::OnPermissionStatus(
   requests_.erase(iter);
 
   std::move(permission_status_cb)
-      .Run(status == blink::mojom::PermissionStatus::GRANTED);
+      .Run(status->status == blink::mojom::PermissionStatus::GRANTED);
 }
 
 #if BUILDFLAG(IS_WIN)

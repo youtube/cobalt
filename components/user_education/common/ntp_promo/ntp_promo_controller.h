@@ -18,7 +18,6 @@
 namespace user_education {
 
 class NtpPromoRegistry;
-class NtpPromoOrderPolicy;
 class UserEducationStorageService;
 
 // The contents of a promo as it will be shown in the NTP.
@@ -38,21 +37,6 @@ struct NtpShowablePromo {
   std::string action_button_text;
 };
 
-// This struct provides a single pending promo, intended for use by the New
-// Tab Page.
-struct NtpShowablePromos {
-  NtpShowablePromos();
-  ~NtpShowablePromos();
-  NtpShowablePromos(NtpShowablePromos&&) noexcept;
-  NtpShowablePromos& operator=(NtpShowablePromos&&) noexcept;
-
-  // Returns true if there is no promo to show.
-  bool empty() const { return !promo.has_value(); }
-
-  // The single promo to show, if any.
-  std::optional<NtpShowablePromo> promo;
-};
-
 // This struct holds the values of controller-specific feature parameters.
 // An instance of this struct is passed to the `NtpPromoController` constructor.
 struct NtpPromoControllerParams {
@@ -63,13 +47,14 @@ struct NtpPromoControllerParams {
 
   // The number of sessions a promo may stay in the top spot before being
   // rotated out.
-  int max_top_spot_sessions = 0;
+  int max_sessions_per_term = 0;
+
+  // The maximum number of terms a promo can be shown before it is permanently
+  // dismissed.
+  int max_terms = 0;
 
   // How long a promo is hidden after being clicked.
-  base::TimeDelta clicked_hide_duration;
-
-  // How long all promos are hidden after being snoozed.
-  base::TimeDelta promos_snoozed_hide_duration;
+  base::TimeDelta cool_off_duration;
 
   // A list of promo IDs to suppress.
   // TODO(crbug.com/427784414): Hook up this setting.
@@ -91,16 +76,14 @@ class NtpPromoController {
                      const NtpPromoControllerParams& params);
 
   // Determines if there is a showable promo. This may return false if
-  // promos are snoozed or disabled, or if there are no eligible promos to show.
+  // promos are disabled, or if there are no eligible promos to show.
   virtual bool HasShowablePromo(
       const user_education::UserEducationContextPtr& context);
 
   // Provides a showable promo, intended to be displayed by the NTP.
-  // May update prefs as a side effect.
-  //
-  // If promos are snoozed or disabled, or there are no eligible promos, an
-  // empty struct is returned.
-  virtual NtpShowablePromos GenerateShowablePromo(
+  // May update prefs as a side effect. If promos are disabled, or
+  // there are no eligible promos, an empty struct is returned.
+  virtual std::optional<NtpShowablePromo> GenerateShowablePromo(
       const user_education::UserEducationContextPtr& context);
 
   // Called when a promo is shown by the NTP promo component.
@@ -111,38 +94,31 @@ class NtpPromoController {
       NtpPromoIdentifier id,
       const user_education::UserEducationContextPtr& context);
 
-  // Sets or resets the snoozed state. Snooze, when set, will last for a fixed
-  // period of time.
-  virtual void SetAllPromosSnoozed(bool snooze);
+  // Called when the user explicitly dismisses/hides a promo.
+  virtual void OnPromoDismissed(const NtpPromoIdentifier& id);
 
   // Sets or resets the disabled state. Disable, when set, will last
   // indefinitely.
   virtual void SetAllPromosDisabled(bool disable);
 
  private:
-  // Internal variation of promo list generation, shared between "has promos"
-  // and "make promo lists" logic. When only checking if there are promos to
-  // show, the (relatively expensive) ordering logic can be skipped.
-  NtpShowablePromos GenerateShowablePromo(
-      const user_education::UserEducationContextPtr& context,
-      bool apply_ordering);
-
   // Checks which promo ID (if any) was most recently shown in the top spot.
   // Returns an empty string if there is no recorded top-spot promo.
   NtpPromoIdentifier GetMostRecentTopSpotPromo();
 
-  // Returns whether promos are disabled or snoozed.
+  // Returns whether promos are disabled for any reason.
   bool ArePromosBlocked() const;
 
-  // Determines whether an individual promo should be shown.
-  bool ShouldShowPromo(const NtpPromoIdentifier& id,
-                       const NtpPromoData& prefs,
-                       NtpPromoSpecification::Eligibility eligibility,
-                       const base::Time& now);
+  // Decides whether a specific promo should could be shown or not, independent
+  // of any other promo.
+  bool CanShowPromo(const NtpPromoIdentifier& id,
+                    const NtpPromoData& prefs,
+                    NtpPromoSpecification::Eligibility eligibility,
+                    const base::Time& now,
+                    int current_session);
 
   const raw_ref<NtpPromoRegistry> registry_;
   const raw_ref<UserEducationStorageService> storage_service_;
-  std::unique_ptr<NtpPromoOrderPolicy> order_policy_;
   const NtpPromoControllerParams params_;
 };
 

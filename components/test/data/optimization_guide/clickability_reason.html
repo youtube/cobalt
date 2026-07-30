@@ -13,6 +13,15 @@
   <button aria-pressed="false">ARIA Toggle</button>
   <div role="option" aria-selected="true">ARIA Selectable</div>
   <div role="checkbox" aria-checked="true">ARIA Checkable</div>
+  <button tabindex="-1">Programmatic Focus</button>
+  <div tabindex="0">Tab Stop</div>
+  <div role="listbox" tabindex="0" aria-activedescendant="active-option">
+    <div id="active-option" role="option">Active Option</div>
+  </div>
+  <div role="tab" tabindex="0" aria-actions="close-action">
+    Closable Tab
+    <button id="close-action">Close</button>
+  </div>
   <script>
     const btn = document.getElementById('multiReasonBtn');
     btn.onclick = function(){};

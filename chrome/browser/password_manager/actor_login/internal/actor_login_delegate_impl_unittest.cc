@@ -67,6 +67,7 @@ using password_manager::PasswordManagerDriver;
 using password_manager::PasswordManagerInterface;
 using password_manager::PasswordSaveManagerImpl;
 using testing::_;
+using testing::An;
 using testing::Eq;
 using testing::NiceMock;
 using testing::Return;
@@ -163,7 +164,7 @@ class ActorLoginDelegateImplTest : public ChromeRenderViewHostTestHarness {
                                            -> std::unique_ptr<KeyedService> {
           auto mock_service =
               std::make_unique<NiceMock<MockActorLoginPermissionService>>();
-          ON_CALL(*mock_service, ListPermissions)
+          ON_CALL(*mock_service, ListPermissions(An<const url::Origin&>(), _))
               .WillByDefault(base::test::RunOnceCallbackRepeatedly<1>(
                   std::vector<FederatedPermission>()));
           return mock_service;
@@ -343,7 +344,7 @@ TEST_F(ActorLoginDelegateImplTest, AttemptLogin_FeatureOff) {
   base::test::TestFuture<LoginStatusResultOrError> future;
   delegate_->AttemptLogin(credential, false, mqls_logger(),
                           base::TimeTicks::Now(), future.GetCallback(),
-                          base::NullCallback());
+                          /*action_sequence_delegate=*/nullptr);
 
   ASSERT_FALSE(future.Get().has_value());
   EXPECT_EQ(future.Get().error(), ActorLoginError::kFeatureDisabled);
@@ -362,7 +363,7 @@ TEST_F(ActorLoginDelegateImplTest, AttemptLogin_FeatureOn) {
   base::test::TestFuture<LoginStatusResultOrError> future;
   delegate_->AttemptLogin(credential, false, mqls_logger(),
                           base::TimeTicks::Now(), future.GetCallback(),
-                          base::NullCallback());
+                          /*action_sequence_delegate=*/nullptr);
 
   ASSERT_TRUE(future.Get().has_value());
   EXPECT_EQ(future.Get().value(), LoginStatusResult::kErrorNoSigninForm);
@@ -385,7 +386,7 @@ TEST_F(ActorLoginDelegateImplTest, AttemptLoginLogsDomainAndLanguage) {
   EXPECT_CALL(*mqls_logger(), SetDomainAndLanguage(_, Eq(url)));
   delegate_->AttemptLogin(credential, false, mqls_logger(),
                           base::TimeTicks::Now(), base::DoNothing(),
-                          base::NullCallback());
+                          /*action_sequence_delegate=*/nullptr);
 }
 
 TEST_F(ActorLoginDelegateImplTest, AttemptLoginServiceBusy_FeatureOn) {
@@ -402,12 +403,12 @@ TEST_F(ActorLoginDelegateImplTest, AttemptLoginServiceBusy_FeatureOn) {
   base::test::TestFuture<LoginStatusResultOrError> first_future;
   delegate_->AttemptLogin(credential, false, mqls_logger(),
                           base::TimeTicks::Now(), first_future.GetCallback(),
-                          base::NullCallback());
+                          /*action_sequence_delegate=*/nullptr);
   // Immediately try to start a second request of the same type.
   base::test::TestFuture<LoginStatusResultOrError> second_future;
   delegate_->AttemptLogin(credential, false, mqls_logger(),
                           base::TimeTicks::Now(), second_future.GetCallback(),
-                          base::NullCallback());
+                          /*action_sequence_delegate=*/nullptr);
 
   // Immediately try to start a `GetCredentials` request (different type).
   base::test::TestFuture<CredentialsOrError> third_future;
@@ -453,14 +454,14 @@ TEST_F(ActorLoginDelegateImplTest, CallbacksAreResetAfterCompletion_FeatureOn) {
   base::test::TestFuture<LoginStatusResultOrError> future3;
   delegate_->AttemptLogin(credential, false, mqls_logger(),
                           base::TimeTicks::Now(), future3.GetCallback(),
-                          base::NullCallback());
+                          /*action_sequence_delegate=*/nullptr);
   ASSERT_TRUE(future3.Get().has_value());
 
   // Second `AttemptLogin` call should now be possible.
   base::test::TestFuture<LoginStatusResultOrError> future4;
   delegate_->AttemptLogin(credential, false, mqls_logger(),
                           base::TimeTicks::Now(), future4.GetCallback(),
-                          base::NullCallback());
+                          /*action_sequence_delegate=*/nullptr);
   ASSERT_TRUE(future4.Get().has_value());
 }
 
@@ -479,7 +480,7 @@ TEST_F(ActorLoginDelegateImplTest, GetCredentialsAndAttemptLogin) {
         ASSERT_TRUE(result.has_value());
         delegate_->AttemptLogin(credential, false, mqls_logger(),
                                 base::TimeTicks::Now(), future.GetCallback(),
-                                base::NullCallback());
+                                /*action_sequence_delegate=*/nullptr);
       });
 
   delegate_->GetCredentials(/*has_sign_in_with_google_button=*/false,
@@ -507,7 +508,7 @@ TEST_F(ActorLoginDelegateImplTest,
         delegate_->GetCredentials(/*has_sign_in_with_google_button=*/false,
                                   mqls_logger(), future.GetCallback());
       }),
-      base::NullCallback());
+      /*action_sequence_delegate=*/nullptr);
   ASSERT_TRUE(future.Get().has_value());
 }
 
@@ -524,7 +525,7 @@ TEST_F(ActorLoginDelegateImplTest, WebContentsDestroyedDuringAttemptLogin) {
   base::test::TestFuture<LoginStatusResultOrError> future;
   delegate_->AttemptLogin(credential, false, mqls_logger(),
                           base::TimeTicks::Now(), future.GetCallback(),
-                          base::NullCallback());
+                          /*action_sequence_delegate=*/nullptr);
 
   delegate_ = nullptr;
   // This should invoke `WebContentsDestroyed`.
@@ -576,7 +577,7 @@ TEST_F(ActorLoginDelegateImplTest, FillingReauthRequiredWindowNotActive) {
   base::test::TestFuture<LoginStatusResultOrError> future;
   delegate_->AttemptLogin(credential, false, mqls_logger(),
                           base::TimeTicks::Now(), future.GetCallback(),
-                          base::NullCallback());
+                          /*action_sequence_delegate=*/nullptr);
 
   ASSERT_TRUE(future.Get().has_value());
   EXPECT_EQ(future.Get().value(),
@@ -668,7 +669,7 @@ TEST_F(ActorLoginDelegateImplTest, RecordActorLoginMetricsOnAttemptLogin) {
   base::test::TestFuture<LoginStatusResultOrError> future;
   delegate_->AttemptLogin(credential, false, mqls_logger(),
                           base::TimeTicks::Now(), future.GetCallback(),
-                          base::NullCallback());
+                          /*action_sequence_delegate=*/nullptr);
 
   ASSERT_TRUE(future.Get().has_value());
 
@@ -728,7 +729,7 @@ TEST_F(ActorLoginDelegateImplTest,
   base::test::TestFuture<LoginStatusResultOrError> future;
   delegate_->AttemptLogin(credential, false, mqls_logger(),
                           base::TimeTicks::Now(), future.GetCallback(),
-                          base::NullCallback());
+                          /*action_sequence_delegate=*/nullptr);
 
   // Trigger completion for federated login.
   auto* request =
@@ -789,9 +790,10 @@ TEST_F(ActorLoginDelegateImplTest,
   credential.has_persistent_permission = true;
 
   base::test::TestFuture<LoginStatusResultOrError> attempt_login_future;
-  delegate_->AttemptLogin(
-      credential, false, mqls_logger(), base::TimeTicks::Now(),
-      attempt_login_future.GetCallback(), base::NullCallback());
+  delegate_->AttemptLogin(credential, false, mqls_logger(),
+                          base::TimeTicks::Now(),
+                          attempt_login_future.GetCallback(),
+                          /*action_sequence_delegate=*/nullptr);
   ASSERT_TRUE(attempt_login_future.Wait());
 
   histogram_tester.ExpectUniqueSample(
@@ -821,7 +823,8 @@ TEST_F(ActorLoginDelegateImplTest,
 
   auto* mock_permission_service = static_cast<MockActorLoginPermissionService*>(
       ActorLoginPermissionServiceFactory::GetForProfile(profile()));
-  EXPECT_CALL(*mock_permission_service, ListPermissions);
+  EXPECT_CALL(*mock_permission_service,
+              ListPermissions(An<const url::Origin&>(), _));
 
   base::test::TestFuture<CredentialsOrError> future;
   delegate_->GetCredentials(/*has_sign_in_with_google_button=*/true,
@@ -842,7 +845,9 @@ TEST_F(ActorLoginDelegateImplTest,
 
   auto* mock_permission_service = static_cast<MockActorLoginPermissionService*>(
       ActorLoginPermissionServiceFactory::GetForProfile(profile()));
-  EXPECT_CALL(*mock_permission_service, ListPermissions).Times(0);
+  EXPECT_CALL(*mock_permission_service,
+              ListPermissions(An<const url::Origin&>(), _))
+      .Times(0);
 
   base::test::TestFuture<CredentialsOrError> future;
   delegate_->GetCredentials(/*has_sign_in_with_google_button=*/false,
@@ -894,7 +899,7 @@ TEST_F(ActorLoginDelegateImplTest, RemovedOnUserTakeover) {
   delegate_->AttemptLogin(credential, /*should_store_permission=*/false,
                           mqls_logger(), base::TimeTicks::Now(),
                           attempt_login_future.GetCallback(),
-                          base::NullCallback());
+                          /*action_sequence_delegate=*/nullptr);
 
   // Check that a FederatedEmbedderLoginRequest was set.
   EXPECT_NE(nullptr,

@@ -213,6 +213,7 @@
 #include "third_party/blink/renderer/core/html/html_table_rows_collection.h"
 #include "third_party/blink/renderer/core/html/html_template_element.h"
 #include "third_party/blink/renderer/core/html/media/html_video_element.h"
+#include "third_party/blink/renderer/core/html/menu_safe_triangle.h"
 #include "third_party/blink/renderer/core/html/nesting_level_incrementer.h"
 #include "third_party/blink/renderer/core/html/parser/fragment_parser.h"
 #include "third_party/blink/renderer/core/html/parser/html_element_stack.h"
@@ -1890,6 +1891,12 @@ bool Element::InterestGained(Element* target, InterestState state) {
     return false;
   }
 
+  if (MenuSafeTriangle* safe_triangle = GetDocument().GetMenuSafeTriangle()) {
+    if (safe_triangle->ShouldDeferInterestGained(this, target, state)) {
+      return false;
+    }
+  }
+
   if (Element* existing_invoker = target->SourceInterestInvoker()) {
     // We're gaining interest, but the target already has an active interest
     // invoker. There are two cases:
@@ -1960,6 +1967,13 @@ bool Element::InterestLost(Element* target,
     return false;
   }
 
+  if (MenuSafeTriangle* safe_triangle = GetDocument().GetMenuSafeTriangle()) {
+    if (safe_triangle->ShouldDeferInterestLost(this, target, cancelable,
+                                               behavior)) {
+      return false;
+    }
+  }
+
   Event* lose_interest_event =
       InterestEvent::Create(event_type_names::kLoseinterest, this,
                             cancelable == InterestLostCancelable::kCancelable
@@ -1997,6 +2011,7 @@ bool Element::InterestLost(Element* target,
 void Element::HandlePointerEventsForInterestFor(
     const AtomicString& event_type) {
   if (!RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled()) {
+    CHECK(!RuntimeEnabledFeatures::MenuElementsEnabled());
     return;
   }
   if (event_type == event_type_names::kPointerover) {
@@ -2030,6 +2045,9 @@ void Element::DefaultEventHandler(Event& event) {
     // explicitly check it here. So we just immediately show interest here for
     // all buttons that don't yet have interest.
     // TODO: should <area> elements be handled here also?
+    // TODO(https://crbug.com/406566432): Should this also consider
+    // <menuitem>?  This affects whether we can assume <menuitem> never has
+    // InterestState::kExplicitInterest.
     if (auto* button = DynamicTo<HTMLButtonElement>(this);
         button && IsA<GestureEvent>(event) &&
         type == event_type_names::kGesturelongpress &&
@@ -8882,10 +8900,8 @@ bool Element::ActivateDisplayLockIfNeeded(DisplayLockActivationReason reason) {
 void Element::SetIsAdRelated(AdProvenance ad_provenance) {
   DCHECK(!IsA<HTMLFrameOwnerElement>(this));
 
-  UnpackAndRefresh(
-      EnsureRareData().EnsureDisplayAdElementMonitor(this, ad_provenance));
-
-  probe::UpdateAdRelatedState(*this, std::move(ad_provenance));
+  UnpackAndRefresh(EnsureRareData().EnsureDisplayAdElementMonitor(
+      this, std::move(ad_provenance)));
 }
 
 bool Element::IsAdRelated() const {
@@ -9867,6 +9883,18 @@ const ComputedStyle* Element::EnsureComputedStyle(
     filter_root = nullptr;
   }
 
+  // The SelectorFilter relies on FlatTreeTraversal matching the inheritance
+  // order for consistency checks, but FlatTreeTraversal does not traverse
+  // ::view-transition* pseudo-elements in their inheritance order.
+  // Disable fast-rejection of selectors to avoid the consistency check failure.
+  // This can make getComputedStyle(originating, "::view-transition-...") slower
+  // when the pseudo-element is not generated.
+  if (IsTransitionPseudoElement(pseudo_element_specifier) &&
+      pseudo_element_specifier != kPseudoIdViewTransition &&
+      !IsTransitionPseudoElement(GetPseudoId())) {
+    filter_root = nullptr;
+  }
+
   SelectorFilterParentScope root_scope(
       filter_root, SelectorFilterParentScope::ScopeType::kRoot);
   SelectorFilter& filter =
@@ -9964,6 +9992,21 @@ const ComputedStyle* Element::EnsureOwnComputedStyle(
   }
 
   const ComputedStyle* layout_parent_style = element_style;
+  const ComputedStyle* parent_style = element_style;
+
+  PseudoId parent_pseudo = ViewTransitionUtils::ParentViewTransitionPseudoId(
+      pseudo_element_specifier);
+  if (parent_pseudo != kPseudoIdNone) {
+    const AtomicString& parent_argument =
+        parent_pseudo == PseudoId::kPseudoIdViewTransition ? g_null_atom
+                                                           : pseudo_argument;
+    Element* parent_element =
+        GetStyledPseudoElement(parent_pseudo, parent_argument);
+    parent_style = (parent_element)
+                       ? parent_element->GetComputedStyle()
+                       : EnsureComputedStyle(parent_pseudo, parent_argument);
+  }
+
   if (HasDisplayContentsStyle()) {
     LayoutObject* parent_layout_object =
         LayoutTreeBuilderTraversal::ParentLayoutObject(*this);
@@ -9995,7 +10038,7 @@ const ComputedStyle* Element::EnsureOwnComputedStyle(
     style_request.layout_parent_override = highlight_element_style;
     style_request.originating_element_style = element_style;
   } else {
-    style_request.parent_override = element_style;
+    style_request.parent_override = parent_style;
     style_request.layout_parent_override = layout_parent_style;
   }
   style_request.pseudo_argument = pseudo_argument;
@@ -10521,34 +10564,66 @@ PseudoElement* Element::GetPseudoElement(
 }
 
 CSSPseudoElement* Element::pseudo(const AtomicString& type) {
-  PseudoId pseudo_id = CSSPseudoElement::ConvertTypeToSupportedPseudoId(type);
-  return EnsureCSSPseudoElement(pseudo_id);
+  auto [pseudo_id, pseudo_argument] =
+      CSSPseudoElement::ConvertTypeToSupportedPseudoId(type);
+  return EnsureCSSPseudoElement(pseudo_id, pseudo_argument);
 }
 
-CSSPseudoElement* Element::EnsureCSSPseudoElement(PseudoId pseudo_id) {
+CSSPseudoElement* Element::EnsureCSSPseudoElement(
+    PseudoId pseudo_id,
+    const AtomicString& pseudo_argument) {
   DCHECK(RuntimeEnabledFeatures::CSSPseudoElementInterfaceEnabled());
   if (!CSSPseudoElement::IsSupportedTypeForCSSPseudoElement(pseudo_id)) {
     return nullptr;
   }
+
+  // View transition pseudo-elements are nested (e.g., ::view-transition-group
+  // is a child of ::view-transition). To ensure the proxy chain matches this
+  // hierarchy, we recursively ensure the parent proxy exists.
+  auto [parent_pseudo_id, parent_argument] =
+      CSSPseudoElement::GetViewTransitionParent(pseudo_id, pseudo_argument);
+  if (parent_pseudo_id != kPseudoIdNone) {
+    CSSPseudoElement* parent =
+        EnsureCSSPseudoElement(parent_pseudo_id, parent_argument);
+    if (!parent) {
+      return nullptr;
+    }
+    // `parent->pseudo()` will either return an existing proxy from the
+    // parent's cache or create a new one.
+    return parent->pseudo(pseudo_id, pseudo_argument);
+  }
+
   EnsureRareData();
   if (CSSPseudoElement* css_pseudo_element =
-          RareData()->GetCSSPseudoElement(pseudo_id)) {
+          RareData()->GetCSSPseudoElement(pseudo_id, pseudo_argument)) {
     return css_pseudo_element;
   }
   auto* css_pseudo_element =
-      MakeGarbageCollected<CSSPseudoElement>(*this, pseudo_id);
-  data_ = RareData()->CacheCSSPseudoElement(pseudo_id, *css_pseudo_element);
+      MakeGarbageCollected<CSSPseudoElement>(*this, pseudo_id, pseudo_argument);
+  data_ = RareData()->CacheCSSPseudoElement(pseudo_id, pseudo_argument,
+                                            *css_pseudo_element);
   return css_pseudo_element;
 }
 
 void Element::CacheCSSPseudoElement(PseudoId pseudo_id,
+                                    const AtomicString& pseudo_argument,
                                     CSSPseudoElement& pseudo_element) {
-  data_ = EnsureRareData().CacheCSSPseudoElement(pseudo_id, pseudo_element);
+  data_ = EnsureRareData().CacheCSSPseudoElement(pseudo_id, pseudo_argument,
+                                                 pseudo_element);
 }
 
-CSSPseudoElement* Element::GetCSSPseudoElement(PseudoId pseudo_id) const {
+// Note: This method only checks ElementRareData, which caches top-level
+// pseudo-elements (like ::before, ::after, ::view-transition). It does not
+// resolve or return nested pseudo-elements (like view transition sub-elements:
+// ::view-transition-group, etc.) which are cached on their parent
+// pseudo-element.
+// To resolve nested pseudo-elements, use EnsureCSSPseudoElement() which
+// recursively builds the proxy chain and fetches them from their parent.
+CSSPseudoElement* Element::GetCSSPseudoElement(
+    PseudoId pseudo_id,
+    const AtomicString& pseudo_argument) const {
   if (ElementRareDataVector* data = RareData()) {
-    return data->GetCSSPseudoElement(pseudo_id);
+    return data->GetCSSPseudoElement(pseudo_id, pseudo_argument);
   }
   return nullptr;
 }
@@ -11737,7 +11812,8 @@ void Element::CloneAttributesFrom(const Element& other) {
     // Two or more children left; we don't consider it worth it
     // to try to reset the filter fully.
   }
-  for (const Attribute& attr : element_data_->Attributes()) {
+  for (wtf_size_t i = 0; i < element_data_->Attributes().size(); ++i) {
+    const Attribute& attr = element_data_->Attributes().at(i);
     attribute_or_class_bloom_ |= FilterForAttribute(attr.GetName());
     AttributeChanged(
         AttributeModificationParams(attr.GetName(), g_null_atom, attr.Value(),
@@ -12609,11 +12685,16 @@ void Element::InvalidateStyleAttribute(
 void Element::UpdateTransitionPseudoElements(
     const StyleRecalcChange style_recalc_change,
     const StyleRecalcContext& style_recalc_context) {
-  const auto* transition = ViewTransitionUtils::GetTransition(*this);
+  ViewTransition* transition = ViewTransitionUtils::GetTransition(*this);
 
   if (!IsPseudoElement()) {
     PseudoElement* old_transition_pseudo =
         GetPseudoElement(kPseudoIdViewTransition);
+    if (transition && transition->HasIncompatibleStyle() &&
+        !transition->IsDone()) {
+      transition->SkipTransitionSoon();
+      transition = nullptr;
+    }
     if (old_transition_pseudo &&
         (!transition ||
          !transition->IsGeneratingPseudo(

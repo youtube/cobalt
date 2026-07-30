@@ -50,7 +50,8 @@ bool CobrowseBrowserAgent::CanShowAssistantForWebState(
   CHECK_NE(index, WebStateList::kInvalidIndex);
 
   web::WebState* opener = web_state_list->GetOpenerOfWebStateAt(index).opener;
-  return opener && IsAimURL(opener->GetLastCommittedURL());
+  return opener && opener->IsRealized() &&
+         IsAimURL(opener->GetLastCommittedURL());
 }
 
 void CobrowseBrowserAgent::ConfigureAssistantContextForWebState(
@@ -60,6 +61,14 @@ void CobrowseBrowserAgent::ConfigureAssistantContextForWebState(
   web::WebState* opener = web_state_list->GetOpenerOfWebStateAt(index).opener;
   SetCobrowseContext(
       [[CobrowseContext alloc] initWithURL:opener->GetLastCommittedURL()]);
+}
+
+bool CobrowseBrowserAgent::IsSessionActive() {
+  return is_session_active_;
+}
+
+void CobrowseBrowserAgent::SetSessionActive(bool active) {
+  is_session_active_ = active;
 }
 
 #pragma mark - TabsDependencyInstaller

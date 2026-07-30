@@ -89,7 +89,6 @@ class TestDevToolsClient : public ::content::DevToolsAgentHostClient {
   std::vector<base::Value> invoked_events_;
   std::vector<base::Value> responded_events_;
 };
-
 class ActorToolsTestScriptTool : public ActorToolsTest {
  public:
   ActorToolsTestScriptTool() {
@@ -188,7 +187,6 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool, EmitsCdpEvents) {
 
   client.Detach();
 }
-
 IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool, BadToolName) {
   const GURL url = embedded_test_server()->GetURL("/actor/script_tool.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -250,7 +248,6 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool, EmitsCdpEventsOnFailure) {
 
   client.Detach();
 }
-
 IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool, DeclarativeTool) {
   const GURL url =
       embedded_test_server()->GetURL("/actor/declarative_script_tool.html");
@@ -382,8 +379,9 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool, DISABLED_DeclarativeToolCrossDo
   EXPECT_EQ(actual_json, expected_json);
 }
 
+// TODO(crbug.com/496357393): Re-enable this test.
 IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool,
-                       EmitsCdpEventsDeclarativeToolCrossDocument) {
+                       DISABLED_EmitsCdpEventsDeclarativeToolCrossDocument) {
   const GURL url = embedded_test_server()->GetURL(
       "/actor/declarative_script_tool_cross_document.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -424,8 +422,9 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool,
   client.Detach();
 }
 
+// TODO(crbug.com/496357393): Re-enable this test.
 IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool,
-                       DeclarativeToolCrossDocument_No_Autosubmit) {
+                       DISABLED_DeclarativeToolCrossDocument_No_Autosubmit) {
   const GURL url = embedded_test_server()->GetURL(
       "/actor/declarative_script_tool_pause.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));

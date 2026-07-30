@@ -881,11 +881,7 @@ external/wpt/clipboard-apis/clipboard-file-manual.html [ Skip ]
 external/wpt/clipboard-apis/events/copy-event-manual.html [ Skip ]
 external/wpt/clipboard-apis/events/cut-event-manual.html [ Skip ]
 external/wpt/clipboard-apis/events/paste-event-manual.html [ Skip ]
-external/wpt/console/console-count-logging-manual.html [ Skip ]
-external/wpt/console/console-countReset-logging-manual.html [ Skip ]
-external/wpt/console/console-number-format-specifiers-symbol-manual.html [ Skip ]
 external/wpt/console/console-string-format-specifier-symbol-manual.html [ Skip ]
-external/wpt/console/console-timing-logging-manual.html [ Skip ]
 external/wpt/css/css-animations/animation-delay-001-manual.html [ Skip ]
 external/wpt/css/css-animations/animation-delay-002-manual.html [ Skip ]
 external/wpt/css/css-animations/animation-delay-003-manual.html [ Skip ]
@@ -1707,6 +1703,8 @@ crbug.com/1430215 [ Mac ] external/wpt/dom/events/scrolling/overscroll-deltas.ht
 
 ######## End Unload Deprecation
 
+# Internal VT tests are not compatible with mpa serialization.
+crbug.com/40241779 virtual/view-transition-mpa-serialization/wpt_internal/view-transition/* [ Skip ]
 # View transitions cross document tests naturally exercise mpa serialization.
 crbug.com/40241779 virtual/view-transition-mpa-serialization/external/wpt/css/css-view-transitions/navigation/* [ Skip ]
 # View transitions cross document tests don't need to test wide gamut, since that's covered by same doc tests.

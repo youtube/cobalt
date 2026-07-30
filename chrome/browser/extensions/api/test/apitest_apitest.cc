@@ -203,6 +203,33 @@ IN_PROC_BROWSER_TEST_F(TestAPITest, AssertNe_Failure_Object) {
   EXPECT_EQ(kExpectedFailureMessage, result_catcher.message());
 }
 
+// Verifies that assertTrue fails when passed a non-boolean.
+IN_PROC_BROWSER_TEST_F(TestAPITest, AssertTrue_TypeCheck) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(chrome.test.runTests([
+           function assertTrueTypeCheck() {
+             chrome.test.assertTrue(1);
+           }
+         ]);)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+  EXPECT_FALSE(result_catcher.GetNextResult());
+  EXPECT_EQ(kExpectedFailureMessage, result_catcher.message());
+}
+
+// Verifies that assertFalse fails when passed a non-boolean.
+IN_PROC_BROWSER_TEST_F(TestAPITest, AssertFalse_TypeCheck) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(chrome.test.runTests([
+           function assertFalseTypeCheck() {
+             chrome.test.assertFalse(0);
+           }
+         ]);)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+  EXPECT_FALSE(result_catcher.GetNextResult());
+  EXPECT_EQ(kExpectedFailureMessage, result_catcher.message());
+}
 // Exercises chrome.test.assertNe() in failure cases (i.e., the passed values
 // are equal). We can only test one case at a time since otherwise we'd be
 // unable to determine which part of the test failed (since "failure" here is
@@ -671,5 +698,143 @@ IN_PROC_BROWSER_TEST_F(TestAPITest, ListenOnceWithPromise) {
   ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
   EXPECT_TRUE(result_catcher.GetNextResult());
 }
+
+// Tests that sequential calls to runTests() properly reset internal states. To
+// verify this, we run a passing batch, a failing batch, and another passing
+// batch. If internal state (like `testsFailed`) was not reset, the final
+// passing batch would incorrectly fail.
+IN_PROC_BROWSER_TEST_F(TestAPITest, RunTestsSuccessiveAwaits) {
+  ResultCatcher result_catcher;
+  constexpr char kBackgroundJs[] =
+      R"(async function testEntryPoint() {
+           await chrome.test.runTests([
+             function test1() { chrome.test.succeed(); }
+           ]);
+
+           try {
+             await chrome.test.runTests([
+               function test2() { chrome.test.fail('intentional failure'); }
+             ]);
+           } catch (e) {
+             // Prevent the error thrown from `runTests()` `Promise` rejecting
+             // from stopping the JS thread.
+           }
+
+           await chrome.test.runTests([
+             function test3() {
+               chrome.test.succeed();
+             }
+           ]);
+         }
+         testEntryPoint();)";
+  ASSERT_TRUE(LoadExtensionWithScript(kBackgroundJs));
+
+  // Batch 1 passes.
+  EXPECT_TRUE(result_catcher.GetNextResult());
+
+  // Batch 2 fails.
+  EXPECT_FALSE(result_catcher.GetNextResult());
+  EXPECT_EQ("Failed 1 of 1 tests", result_catcher.message());
+
+  // Batch 3 passes. If internal state was not reset, batch 3 would incorrectly
+  // fail because `testsFailed` from batch 2 would still be 1.
+  EXPECT_TRUE(result_catcher.GetNextResult());
+}
+
+// Note: these enums are the same, but are distinct for type safety and so they
+// self-document when used to construct test cases.
+enum class StandardizedOutcome {
+  kPass,
+  kFail,
+};
+
+enum class NonstandardizedOutcome {
+  kPass,
+  kFail,
+};
+
+// Allows testing the W3C browser.test proposal behavior
+// (github.com/w3c/webextensions/blob/main/proposals/browser_test_api.md)
+// ("standardized") vs existing "non-standardized" chrome.test API behavior.
+class TestStandardizedAPITest : public TestAPITest,
+                                public testing::WithParamInterface<bool> {
+ protected:
+  std::string SetUseStandardizedApiBehaviorForTesting(
+      bool standardized_behavior_enabled) const {
+    return base::StringPrintf(
+        "chrome.test.setUseStandardizedApiBehaviorForTesting(%s);",
+        standardized_behavior_enabled ? "true" : "false");
+  }
+};
+
+// Tests the differences between assertEq. The standardized version uses
+// Object.is() more extensively.
+IN_PROC_BROWSER_TEST_P(TestStandardizedAPITest, assertEq) {
+  bool standardized_behavior_enabled = GetParam();
+  std::string set_api_behavior =
+      SetUseStandardizedApiBehaviorForTesting(standardized_behavior_enabled);
+
+  struct {
+    std::string title;
+    std::string test_case;
+    StandardizedOutcome should_pass_standardized;
+    NonstandardizedOutcome should_pass_non_standardized;
+  } cases[] = {
+      {"Primitives", "chrome.test.assertEq(1, 1);", StandardizedOutcome::kPass,
+       NonstandardizedOutcome::kPass},
+      {"NaN", "chrome.test.assertEq(NaN, NaN);", StandardizedOutcome::kPass,
+       NonstandardizedOutcome::kPass},
+      {"0 vs -0", "chrome.test.assertNe(0, -0);", StandardizedOutcome::kPass,
+       NonstandardizedOutcome::kFail},
+      {"Arrays", "chrome.test.assertEq([1], [1]);", StandardizedOutcome::kPass,
+       NonstandardizedOutcome::kPass},
+      {"Plain Objects", "chrome.test.assertEq({a: 1}, {a: 1});",
+       StandardizedOutcome::kPass, NonstandardizedOutcome::kPass},
+      {"Primitive Wrappers",
+       "chrome.test.assertEq(new Number(1), new Number(1));",
+       StandardizedOutcome::kFail, NonstandardizedOutcome::kPass},
+      {"Functions",
+       "chrome.test.assertEq(function() { return 1; }, function() { return 1; "
+       "});",
+       StandardizedOutcome::kFail, NonstandardizedOutcome::kPass},
+      {"Dates", "chrome.test.assertEq(new Date(100), new Date(100));",
+       StandardizedOutcome::kFail, NonstandardizedOutcome::kPass},
+      {"Maps", "chrome.test.assertEq(new Map(), new Map());",
+       StandardizedOutcome::kFail, NonstandardizedOutcome::kPass},
+      {"Sets", "chrome.test.assertEq(new Set(), new Set());",
+       StandardizedOutcome::kFail, NonstandardizedOutcome::kPass},
+  };
+
+  for (const auto& c : cases) {
+    SCOPED_TRACE(base::StringPrintf("Case: %s", c.title.c_str()));
+    ResultCatcher result_catcher;
+    std::string script = base::StringPrintf(
+        R"(%s
+           chrome.test.runTests([
+             function test() {
+               %s
+               chrome.test.succeed();
+             }
+           ]);)",
+        set_api_behavior.c_str(), c.test_case.c_str());
+
+    ASSERT_TRUE(LoadExtensionWithScript(script.c_str()));
+
+    bool expected_pass =
+        standardized_behavior_enabled
+            ? c.should_pass_standardized == StandardizedOutcome::kPass
+            : c.should_pass_non_standardized == NonstandardizedOutcome::kPass;
+    if (expected_pass) {
+      EXPECT_TRUE(result_catcher.GetNextResult())
+          << "Expected pass for " << c.title;
+    } else {
+      EXPECT_FALSE(result_catcher.GetNextResult())
+          << "Expected fail for " << c.title;
+      EXPECT_EQ(kExpectedFailureMessage, result_catcher.message());
+    }
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(All, TestStandardizedAPITest, testing::Bool());
 
 }  // namespace extensions

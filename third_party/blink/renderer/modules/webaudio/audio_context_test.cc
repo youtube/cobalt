@@ -18,6 +18,7 @@
 #include "third_party/blink/public/mojom/frame/lifecycle.mojom-blink.h"
 #include "third_party/blink/public/mojom/media/capture_handle_config.mojom-blink.h"
 #include "third_party/blink/public/mojom/permissions/permission.mojom-blink.h"
+#include "third_party/blink/public/mojom/permissions/permission_status.mojom-blink.h"
 #include "third_party/blink/public/platform/web_audio_device.h"
 #include "third_party/blink/public/platform/web_audio_latency_hint.h"
 #include "third_party/blink/public/platform/web_audio_sink_descriptor.h"
@@ -176,7 +177,8 @@ class MockPermissionService final : public mojom::blink::PermissionService {
   void HasPermission(mojom::blink::PermissionDescriptorPtr permission,
                      HasPermissionCallback callback) override {
     EXPECT_EQ(permission->name, mojom::blink::PermissionName::AUDIO_CAPTURE);
-    std::move(callback).Run(permission_);
+    std::move(callback).Run(
+        mojom::blink::PermissionStatusWithDetails::New(permission_, nullptr));
   }
 
   void RegisterPageEmbeddedPermissionControl(
@@ -204,7 +206,7 @@ class MockPermissionService final : public mojom::blink::PermissionService {
 
   void AddPermissionObserver(
       mojom::blink::PermissionDescriptorPtr permission,
-      mojom::blink::PermissionStatus last_known_status,
+      mojom::blink::PermissionStatusWithDetailsPtr last_known_status,
       mojo::PendingRemote<mojom::blink::PermissionObserver> observer) override {
     EXPECT_EQ(permission->name, mojom::blink::PermissionName::AUDIO_CAPTURE);
     observer_.Bind(std::move(observer));

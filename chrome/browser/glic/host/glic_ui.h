@@ -33,6 +33,9 @@ class GlicUIConfig : public content::DefaultWebUIConfig<GlicUI> {
  public:
   GlicUIConfig();
   bool IsWebUIEnabled(content::BrowserContext* browser_context) override;
+  std::unique_ptr<content::WebUIController> CreateWebUIController(
+      content::WebUI* web_ui,
+      const GURL& url) override;
 };
 
 // The WebUI for chrome://glic
@@ -82,9 +85,12 @@ class GlicUI : public ui::MojoWebUIController,
   using SlimWebViewPageHandlerFactory::CreatePageHandler;
 #endif
 
+  bool IsProfileEligible();
+
   void CreatePageHandler(
       mojo::PendingReceiver<glic::mojom::PageHandler> receiver,
-      mojo::PendingRemote<glic::mojom::Page> page) override;
+      mojo::PendingRemote<glic::mojom::Page> page,
+      CreatePageHandlerCallback callback) override;
 
   void CreateInternalsPageHandler(
       mojo::PendingReceiver<glic::mojom::InternalsPageHandler> receiver)
@@ -127,6 +133,7 @@ class GlicUI : public ui::MojoWebUIController,
 
   mojo::PendingReceiver<glic::mojom::PageHandler> pending_receiver_;
   mojo::PendingRemote<glic::mojom::Page> pending_page_;
+  CreatePageHandlerCallback pending_callback_;
 
   static bool simulate_no_connection_;
 

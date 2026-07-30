@@ -222,6 +222,7 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="1925021887439448749">Ange en anpassad webbadress</translation>
 <translation id="1928618076168182477">Visar visuell vy</translation>
 <translation id="1928696683969751773">Uppdateringar</translation>
+<translation id="1934545916152269346">Senast använda</translation>
 <translation id="1943398124995840148">Dina öppna flikar har nu ett uppdaterat utseende i XR</translation>
 <translation id="1944535645109964458">Inga nycklar är tillgängliga</translation>
 <translation id="1957557050935255529">Läser in PDF …</translation>
@@ -462,6 +463,7 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="2932150158123903946">Lagring för Google <ph name="APP_NAME" /></translation>
 <translation id="2932222164150889403">Tangentbordet ändras inte</translation>
 <translation id="2936980480904111527">Chrome-aviseringar gör saker enklare</translation>
+<translation id="2939908794993783865">Ytterligare inaktiva webbplatser</translation>
 <translation id="2940075786175545812">Alternativ för att godkänna eller inte godkänna en webbplats</translation>
 <translation id="2942036813789421260">Fliken Förhandsgranskning har stängts</translation>
 <translation id="2951071800649516099">Lägg till sidor som du vill läsa senare i läslistan</translation>
@@ -700,6 +702,7 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="3985215325736559418">Vill du ladda ned <ph name="FILE_NAME" /> igen?</translation>
 <translation id="3987993985790029246">Kopiera länk</translation>
 <translation id="3994236846568425219">Aktivera mörkt tema när mörkt tema är aktiverat på enheten</translation>
+<translation id="399788104667917863">Fäst i verktygsfältet</translation>
 <translation id="4000212216660919741">Startsida offline</translation>
 <translation id="4000670338830950598">Anpassa och kontrollera Google Chrome med ett markerat objekt</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{1 utsatt lösenord i Google-kontot}other{# utsatta lösenord i Google-kontot}}</translation>
@@ -1395,7 +1398,6 @@ Vissa webbplatser kan till exempel svara på begäran genom att visa annonser so
 <translation id="6746338529702829275">Granska din kontodata</translation>
 <translation id="6746834324024491643">Logga in som <ph name="EMAIL" /> om du vill få tillgång till dina lösenord med mera på alla dina enheter</translation>
 <translation id="6751521182688001123">Öppna en ny flik snabbt. Tryck länge om du vill ändra genvägen.</translation>
-<translation id="6752130751133944215">Om du vill återställa ett nytt fönster minskar du det totala antalet fönster, både aktiva och inaktiva, till högst <ph name="MAX_WINDOW_COUNT_MINUS_ONE" />. Inaktiva fönster raderas efter sex månader.</translation>
 <translation id="6754359471209693699">Starta en ny sökning</translation>
 <translation id="6756507620369789050">Dela feedback</translation>
 <translation id="6762511428368667596"><ph name="NAME" />, <ph name="EMAIL" />.</translation>
@@ -1585,7 +1587,6 @@ Om du vill ändra den här inställningen <ph name="BEGIN_LINK" />raderar du Chr
 <translation id="7388615499319468910">Webbplatser och annonsörer kan mäta annonsernas resultat. Inställningen är inaktiverad.</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{Annat, 1 fil i listan}other{Annat, # filer i listan}}</translation>
 <translation id="7400418766976504921">Webbadress</translation>
-<translation id="7400424692675800399">Om du vill öppna ett nytt fönster minskar du det totala antalet fönster, både aktiva och inaktiva, till högst <ph name="MAX_WINDOW_COUNT_MINUS_ONE" />.</translation>
 <translation id="7403691278183511381">Första körningen av Chrome</translation>
 <translation id="7411224099004328643">Användare av Google-konto</translation>
 <translation id="7419565702166471774">Använd alltid en säker anslutning</translation>

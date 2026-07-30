@@ -91,7 +91,9 @@ public class CrossDeviceSettingImporter implements TopResumedActivityChangedObse
     private static final Set<Integer> NOT_READY_YET_STATES =
             Set.of(
                     ServiceStatus.DEVICE_INFO_TRACKER_MISSING,
-                    ServiceStatus.LOCAL_DEVICE_INFO_MISSING);
+                    ServiceStatus.LOCAL_DEVICE_INFO_MISSING,
+                    ServiceStatus.SYNC_NOT_CONFIGURED_AND_LOCAL_DEVICE_INFO_MISSING,
+                    ServiceStatus.WAITING_FOR_INITIAL_SYNC);
 
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     private final NullableObservableSupplier<Tab> mActivityTabSupplier;
@@ -112,6 +114,8 @@ public class CrossDeviceSettingImporter implements TopResumedActivityChangedObse
             };
 
     private @Nullable Tab mObservedTab;
+    private @Nullable CrossDevicePrefTracker mTrackerBeingObserved;
+    private @Nullable CrossDevicePrefTrackerObserver mTrackerObserver;
     private final Callback<@Nullable Tab> mTabChangeCallback =
             new Callback<@Nullable Tab>() {
                 @Override
@@ -156,6 +160,14 @@ public class CrossDeviceSettingImporter implements TopResumedActivityChangedObse
         onTabChangeOrGainFocus(mActivityTabSupplier.get());
     }
 
+    private void stopObservingTracker() {
+        if (mTrackerObserver != null && mTrackerBeingObserved != null) {
+            mTrackerBeingObserved.removeObserver(mTrackerObserver);
+        }
+        mTrackerObserver = null;
+        mTrackerBeingObserved = null;
+    }
+
     /**
      * Called when the current tab changes or gains focus.
      *
@@ -179,38 +191,48 @@ public class CrossDeviceSettingImporter implements TopResumedActivityChangedObse
 
         @ServiceStatus int status = crossDevicePrefTracker.getServiceStatus();
         if (NOT_READY_YET_STATES.contains(status)) {
-            crossDevicePrefTracker.addObserver(
-                    new CrossDevicePrefTrackerObserver() {
-                        @Override
-                        public void onRemotePrefChanged(
-                                String prefName,
-                                TimestampedPrefValue timestampedPrefValue,
-                                int osType,
-                                int formFactor) {}
+            if (mTrackerBeingObserved != null && mTrackerBeingObserved != crossDevicePrefTracker) {
+                stopObservingTracker();
+            }
+            if (mTrackerObserver == null) {
+                mTrackerObserver =
+                        new CrossDevicePrefTrackerObserver() {
+                            @Override
+                            public void onRemotePrefChanged(
+                                    String prefName,
+                                    TimestampedPrefValue timestampedPrefValue,
+                                    int osType,
+                                    int formFactor) {}
 
-                        @Override
-                        public void onServiceStatusChanged(int status) {
-                            // If the cross-device pref tracker is still not ready, keep listening
-                            // for a future status change.
-                            if (NOT_READY_YET_STATES.contains(status)) return;
+                            @Override
+                            public void onServiceStatusChanged(int status) {
+                                // If the cross-device pref tracker is still not ready, keep
+                                // listening for a future status change.
+                                if (NOT_READY_YET_STATES.contains(status)) return;
 
-                            // Ensure the tab and profile are up-to-date, and still non-null.
-                            @Nullable Tab tabAfterStatusChange = mActivityTabSupplier.get();
-                            if (tabAfterStatusChange == null) return;
+                                stopObservingTracker();
 
-                            @Nullable Profile profileAfterStatusChange =
-                                    tabAfterStatusChange.getProfile();
-                            if (!profile.equals(profileAfterStatusChange)) return;
+                                // Ensure the tab and profile are up-to-date, and still non-null.
+                                @Nullable Tab tabAfterStatusChange = mActivityTabSupplier.get();
+                                if (tabAfterStatusChange == null) return;
 
-                            onCrossDevicePrefTrackerReady(
-                                    crossDevicePrefTracker,
-                                    status,
-                                    profileAfterStatusChange,
-                                    tabAfterStatusChange,
-                                    /* availableImmediately= */ false);
-                        }
-                    });
+                                @Nullable Profile profileAfterStatusChange =
+                                        tabAfterStatusChange.getProfile();
+                                if (!profile.equals(profileAfterStatusChange)) return;
+
+                                onCrossDevicePrefTrackerReady(
+                                        crossDevicePrefTracker,
+                                        status,
+                                        profileAfterStatusChange,
+                                        tabAfterStatusChange,
+                                        /* availableImmediately= */ false);
+                            }
+                        };
+                mTrackerBeingObserved = crossDevicePrefTracker;
+                crossDevicePrefTracker.addObserver(mTrackerObserver);
+            }
         } else {
+            stopObservingTracker();
             onCrossDevicePrefTrackerReady(
                     crossDevicePrefTracker,
                     status,
@@ -675,5 +697,6 @@ public class CrossDeviceSettingImporter implements TopResumedActivityChangedObse
             mObservedTab.removeObserver(mTabObserver);
             mObservedTab = null;
         }
+        stopObservingTracker();
     }
 }

@@ -99,6 +99,10 @@ class CORE_EXPORT HTMLCanvasElement final
   explicit HTMLCanvasElement(Document&);
   ~HTMLCanvasElement() override;
 
+  HTMLElementType GetHTMLElementType() const final {
+    return HTMLElementType::kHTMLCanvasElement;
+  }
+
   // cc::TextureLayerClient implementation.
   bool PrepareTransferableResource(
       viz::TransferableResource* out_resource,
@@ -213,8 +217,7 @@ class CORE_EXPORT HTMLCanvasElement final
   CanvasResourceDispatcher* GetOrCreateResourceDispatcher() override;
   void DiscardResourceDispatcher() override { frame_dispatcher_ = nullptr; }
 
-  bool PushFrame(scoped_refptr<CanvasResource>&& image,
-                 std::optional<SkIRect> damage_rect) override;
+  bool PushFrame(scoped_refptr<CanvasResource>&& image) override;
 
   // ExecutionContextLifecycleObserver and PageVisibilityObserver implementation
   void ContextDestroyed() override;

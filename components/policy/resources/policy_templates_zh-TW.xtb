@@ -398,6 +398,20 @@
 <translation id="1317158052518324525">不允許使用強化版自動填入功能。</translation>
 <translation id="1317658068839330898">不允許在網站上使用 <ph name="ASSISTANT_PRODUCT_NAME" /></translation>
 <translation id="1318233005302276244">允許使用者在 Chrome 上追蹤包裹。</translation>
+<translation id="1321747583289636863">你可以透過這項政策，指定 Proxy 伺服器 WebSocket 要求的同時連線數量上限。如要修改非 WebSocket 要求的限制，請參閱 <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" />。
+
+如果未設定這項政策，預設值為 32。
+
+已知部分網頁應用程式會耗用許多連線處理停滯的 GET 動作，因此如果設定的值低於 32，開啟太多這類網頁應用程式，可能會導致瀏覽器網路當機。
+部分 Proxy 伺服器無法處理單一用戶端的大量並行連線，調降這項政策的值即可解決這個問題。
+
+最小值為 6。
+如果設定的值低於該限制，系統會使用 6。
+請自行承擔低於預設值 (32) 的風險。
+
+值應小於或等於 256。
+如果設定的值超過該上限，系統會使用 256。
+請自行承擔高於預設值 (32) 的風險。</translation>
 <translation id="1323501563951768821">F12 設定採用含有 Shift 輔助鍵的快速鍵</translation>
 <translation id="1325547947664414578">使用者切換 <ph name="PRODUCT_OS_NAME" /> 裝置時，<ph name="PRODUCT_NAME" />服務會在新裝置啟動舊裝置上的瀏覽器和應用程式視窗。
 如果將這項政策設為啟用，當使用者登入時，系統就會為目前使用者自動啟動上次使用的 <ph name="PRODUCT_OS_NAME" /> 裝置上的瀏覽器和應用程式視窗。
@@ -2769,7 +2783,6 @@ PAC 樣式的字串：
 <translation id="2901969573658712576">優先採用符合 CNSA 1.0 和 2.0 規定的加密演算法</translation>
 <translation id="2905984450136807296">驗證資料快取生命週期</translation>
 <translation id="2906874737073861391">AppPack 擴充功能清單</translation>
-<translation id="2908277604670530363">Proxy 伺服器的並行連線數量上限</translation>
 <translation id="2912366658685903301">設定瀏覽器主題的顏色</translation>
 <translation id="2914283793640833265">不允許啟用 Phone Hub 工作接續</translation>
 <translation id="2915787312243722351">這項政策可控管「使用啟動器/搜尋鍵變更功能鍵行為」的設定。這項設定可讓使用者按住啟動器按鍵，切換功能鍵和系統最上排按鍵。如果未設定這項政策，使用者可自由選擇「使用啟動器/搜尋鍵變更功能鍵行為」的設定值。
@@ -2898,6 +2911,13 @@ PAC 樣式的字串：
 <translation id="2969568582351417848">針對網域上的特定檔案類型，停用檔案類型副檔名下載警告</translation>
 <translation id="2971096666394658693">內容選單將提供可將圖片分享至 <ph name="GOOGLE_PHOTOS_PRODUCT_NAME" />的選單項目。</translation>
 <translation id="2973972555495515337">如果將這項政策設為啟用，第三方網頁應用程式可使用 <ph name="DESK_API_NAME" /> 儲存及分享 <ph name="PRODUCT_OS_NAME" /> 桌面；如果設為停用，使用者就無法透過 <ph name="DESK_API_NAME" /> 儲存及分享桌面資料；如果不設定，則行為會與設為停用時相同。只有在已註冊的裝置上，這項政策才會生效。</translation>
+<translation id="2974326457745806202">如果 SharedWorkers 建構函式中的「extendedLifetime」選項設為 true，SharedWorkers 就能延長生命週期。
+
+如果將這項政策設為啟用或未設定，SharedWorkers 就能延長生命週期。
+
+如果將這項政策設為停用，即使選項設為 true，SharedWorkers 也無法延長生命週期。
+
+這項政策僅是暫時性措施，日後將會移除。</translation>
 <translation id="2976033779241323433">根據預設系統經驗法則啟用觸控虛擬鍵盤</translation>
 <translation id="2976429807269247880">舊版 <ph name="ATTRIBUTE_SAMESITE_NAME" /> Cookie 行為設定</translation>
 <translation id="2979696534869541158">強制使用舊實作</translation>
@@ -4439,7 +4459,7 @@ ServiceWorkerAutoPreload 功能會在開始執行 ServiceWorker 啟動程序時�
 
 如果設定這項政策，但未設定「<ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />」，只要框架網址符合這份封鎖清單中的模式，系統就會封鎖整頁的「<ph name="CHROME_DEVTOOLS_NAME" />」。如果框架的網址不符合任何模式，系統會根據 <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> 政策決定是否提供服務。
 
-如果同時設定這項政策和 <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> 政策，系統會優先採用許可清單。如果框架的網址符合許可清單中的模式，系統就會允許存取，即使該網址也與封鎖清單中的模式相符。如果網址符合封鎖清單的模式，但不符合許可清單的模式，系統就會封鎖該網址。如果網址都不符合，系統會自動改用「<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />」政策。
+如果同時設定這項政策和 <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> 政策，系統會優先採用許可清單。如果框架的網址符合許可清單中的模式，系統就會允許存取，即使該網址也與封鎖清單中的模式相符。如果網址符合封鎖清單的模式，但不符合許可清單的模式，系統就會封鎖該網址。如果網址和兩份清單中的模式都不相符，系統會自動改用「<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />」政策。
 
 如果未設定這項政策，<ph name="CHROME_DEVTOOLS_NAME" /> 是否可用會取決於 <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> 和 <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> 政策。
 
@@ -4757,6 +4777,7 @@ ServiceWorkerAutoPreload 功能會在開始執行 ServiceWorker 啟動程序時�
 如果將這項政策設為停用，使用者在密碼管理工具中的資料將保持不變，但密碼管理工具會無法正常運作。
 
 這項政策一經設定，使用者就無法在 <ph name="PRODUCT_NAME" /> 中變更。</translation>
+<translation id="4321788213579606602">Proxy 伺服器非 WebSocket 要求的並行連線數量上限</translation>
 <translation id="4322842393287974810">允許使用無延遲資訊站應用程式的自動啟動功能來控制 <ph name="PRODUCT_OS_NAME" /> 版本</translation>
 <translation id="4323412353642577604">啟用內容保護的遠端認證機制</translation>
 <translation id="4325690621216251241">在系統列顯示登出按鈕</translation>
@@ -7454,6 +7475,7 @@ IP 位址空間覆寫有兩種形式：
 <translation id="6075316301208933536">如果將 <ph name="DEVICE_BATTERY_CHARGE_MODE_POLICY_NAME" /> 設為<ph name="DEVICE_BATTERY_CHARGE_CUSTOM_MODE_NAME" />，則你可以透過 <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" /> 自訂停止充電的時機 (根據電量百分比進行設定)。<ph name="DEVICE_BATTERY_CHARGE_CUSTOM_START_CHARGING_POLICY_NAME" /> 的值必須至少比 <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" /> 的值低 5 個百分點。
 
       如果不設定這項政策，系統會套用<ph name="DEVICE_BATTERY_CHARGE_STANDARD_MODE_NAME" />充電模式。</translation>
+<translation id="6080808146443476891">Proxy 伺服器 WebSocket 要求的並行連線數量上限</translation>
 <translation id="6082161804984853051">設定這項政策後，無論使用者是否指定 --disk-cache-dir 旗標，<ph name="PRODUCT_NAME" /> 都會使用你提供的目錄將快取檔案儲存在磁碟上。
 
       如果未設定，<ph name="PRODUCT_NAME" /> 會使用預設的快取目錄，但使用者可透過 --disk-cache-dir 指令列旗標來變更這項設定。
@@ -9308,6 +9330,7 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="7216442368414164495">允許使用者採用安全瀏覽模式的進階回報功能</translation>
 <translation id="7218238054592349618">允許這些網站使用 JavaScript 最佳化功能</translation>
 <translation id="721970071627370558">停用裝置電源狀態回報功能</translation>
+<translation id="7220960206733388609">SharedWorkers 可延長生命週期。</translation>
 <translation id="7221574724100909818">使用鎖頭圖示代表安全連線</translation>
 <translation id="7227348936232766462">允許使用者在意見回饋中，加入下列所有裝置類型的低階偵錯資料</translation>
 <translation id="7229365071755865554">允許使用密碼管理員儲存密碼</translation>
@@ -9940,6 +9963,7 @@ Gemini 啟動功能僅支援部分國家/地區和語言。設定這項政策無
 如果停用這項政策，PDF 檢視器會使用目前的 AGG 轉譯器。
 
 如果不設定這項政策，瀏覽器會自動選擇 PDF 轉譯器。</translation>
+<translation id="7704244074621846004">允許 SharedWorkers 的延長生命週期</translation>
 <translation id="7707869387893611318">啟用充電音效功能。
 
           這項功能可以播放充電音效。
@@ -9957,6 +9981,7 @@ Gemini 啟動功能僅支援部分國家/地區和語言。設定這項政策無
 
       建議你讓伺服器改用 ECDHE 加密套件。如果無法使用這個套件，請確保啟用的加密套件使用 RSA 金鑰交換機制。</translation>
 <translation id="7709470712369261710">不要使用 Google 服務提供自動產生的圖片說明</translation>
+<translation id="7711003696883532277">SharedWorkers 無法延長生命週期。</translation>
 <translation id="7712109699186360774">每當有任何網站要使用攝影機和/或麥克風時詢問我</translation>
 <translation id="7712245244073542805">平台會透過瀏覽器程序列印。</translation>
 <translation id="7713608076604149344">下載限制</translation>
@@ -10745,6 +10770,22 @@ Gemini 啟動功能僅支援部分國家/地區和語言。設定這項政策無
 <translation id="826163650738550159">這項政策會提供政策測試頁面的存取權，在此頁面測試政策時，系統會忽略所有其他政策。
 這項功能只能在 Canary 版中使用。啟用或不設定這項政策時，可以存取這個頁面。
 如果停用這項政策，這個頁面會遭到封鎖。</translation>
+<translation id="8264002158987842436">你可以透過這項政策，指定 Proxy 伺服器非 WebSocket 要求的同時連線數量上限。
+
+如要修改 WebSocket 要求的限制，請參閱 <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />。
+
+如果未設定這項政策，預設值為 32。
+
+已知部分網頁應用程式會耗用許多連線處理停滯的 GET 動作，因此如果設定的值低於 32，開啟太多這類網頁應用程式，可能會導致瀏覽器網路當機。
+部分 Proxy 伺服器無法處理單一用戶端的大量並行連線，調降這項政策的值即可解決這個問題。
+
+最小值為 6。
+如果設定的值低於該限制，系統會使用 6。
+請自行承擔低於預設值 (32) 的風險。
+
+最大值為 256 (<ph name="PRODUCT_NAME" /> 147 版和更早版本為 99)。
+如果設定的值超過上限，系統會使用 256 (<ph name="PRODUCT_NAME" /> 147 版和更早版本為 99)。
+請自行承擔高於預設值 (32) 的風險。</translation>
 <translation id="8266778278542911985">如果將這項政策設為 3，網站將可要求存取序列埠。如果將這項政策設為 2，網站將無法存取序列埠。
 
       如果不設定，網站可要求存取序列埠，但使用者可以變更這項設定。</translation>

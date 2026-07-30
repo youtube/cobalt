@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/modules/peerconnection/rtc_transport/rtc_transport.h"
 
 #include <optional>
+#include <span>
 #include <string_view>
 
 #include "base/functional/bind.h"
@@ -64,7 +65,7 @@ class DatagramConnectionObserver : public webrtc::DatagramConnection::Observer {
                             candidate_copy));
   }
 
-  void OnPacketReceived(webrtc::ArrayView<const uint8_t> data,
+  void OnPacketReceived(std::span<const uint8_t> data,
                         PacketMetadata metadata) override {
     Vector<uint8_t> data_vec(data);
     PostCrossThreadTask(
@@ -443,9 +444,9 @@ void RtcTransport::OnCandidateGatheredOnMainThread(
     webrtc::Candidate candidate) {
   DispatchEvent(*MakeGarbageCollected<RtcTransportIceEvent>(
       MakeGarbageCollected<RtcTransportIceCandidate>(
-          String::FromUTF8(candidate.username()),
-          String::FromUTF8(candidate.password()),
-          String::FromUTF8(candidate.address().ipaddr().ToString()),
+          String::FromUtf8(candidate.username()),
+          String::FromUtf8(candidate.password()),
+          String::FromUtf8(candidate.address().ipaddr().ToString()),
           candidate.address().port(), IceCandidateTypeFrom(candidate.type()))));
 }
 

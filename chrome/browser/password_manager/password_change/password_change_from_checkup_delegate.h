@@ -12,6 +12,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/tools/tool_delegate.h"
 #include "chrome/browser/password_manager/password_change/change_password_form_filling_submission_helper.h"
 #include "url/gurl.h"
 
@@ -43,10 +44,6 @@ class PasswordChangeFromCheckupDelegate {
       base::WeakPtr<content::WebContents> web_contents);
 
 #if defined(UNIT_TEST)
-  bool HasActorTaskSubscriptionForTesting() const {
-    return !!actor_task_state_subscription_;
-  }
-
   std::optional<actor::ActorTask::State> GetFindFormTaskState() const {
     return find_form_task_state_;
   }
@@ -54,7 +51,9 @@ class PasswordChangeFromCheckupDelegate {
 #endif
 
  private:
-  void OnPromptReady(GURL credential_url, std::string prompt);
+  void AutoSelectCredential(
+      const std::vector<actor_login::Credential>& credentials,
+      actor::ToolDelegate::CredentialSelectedCallback callback);
 
   glic::GlicKeyedService* GetGlicService();
 
@@ -74,6 +73,9 @@ class PasswordChangeFromCheckupDelegate {
 
   std::u16string username_;
   std::u16string current_password_;
+  GURL credential_url_;
+
+  std::optional<actor::TaskId> actor_task_id_;
 
   base::CallbackListSubscription actor_task_state_subscription_;
 

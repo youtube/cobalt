@@ -462,6 +462,7 @@
 <translation id="2932150158123903946">Достапен простор на Google <ph name="APP_NAME" /></translation>
 <translation id="2932222164150889403">Вашата тастатура нема да се смени</translation>
 <translation id="2936980480904111527">Известувањата на Chrome ги олеснуваат работите</translation>
+<translation id="2939908794993783865">Дополнителни неактивни сајтови</translation>
 <translation id="2940075786175545812">Опција да се одобри или да не се одобри вебсајт</translation>
 <translation id="2942036813789421260">Картичката за преглед е затворена</translation>
 <translation id="2951071800649516099">Додајте страници во списокот за читање за подоцна</translation>
@@ -699,6 +700,7 @@
 <translation id="3985215325736559418">Дали сакате да ја преземете датотеката <ph name="FILE_NAME" /> повторно?</translation>
 <translation id="3987993985790029246">Копирај линк</translation>
 <translation id="3994236846568425219">Вклучете „Темна тема“ кога е вклучена „Темната тема“ на уредот</translation>
+<translation id="399788104667917863">Закачи за алатникот</translation>
 <translation id="4000212216660919741">Офлајн</translation>
 <translation id="4000670338830950598">Приспособете го и контролирајте го Google Chrome со нагласена ставка</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{1 компромитирана лозинка во вашата сметка на Google}one{# компромитирана лозинка во вашата сметка на Google}other{# компромитирани лозинки во вашата сметка на Google}}</translation>
@@ -1394,7 +1396,6 @@
 <translation id="6746338529702829275">Прегледајте ги податоците на вашата сметка</translation>
 <translation id="6746834324024491643">За да ги добиете вашите лозинки и друго на сите ваши уреди, најавете се како <ph name="EMAIL" /></translation>
 <translation id="6751521182688001123">Брзо отворете нова картичка. За да ја измените сликава од екранот, допрете и задржете.</translation>
-<translation id="6752130751133944215">За да вратите нов прозорец, намалете го вкупниот број активни и неактивни прозорци на <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> или помалку. Неактивните прозорци се бришат по 6 месеци.</translation>
 <translation id="6754359471209693699">Започни ново пребарување</translation>
 <translation id="6756507620369789050">Споделете повратни информации</translation>
 <translation id="6762511428368667596"><ph name="NAME" />, <ph name="EMAIL" />.</translation>
@@ -1584,7 +1585,6 @@
 <translation id="7388615499319468910">Сајтовите и огласувачите може да ја разберат изведбата на рекламите. Оваа поставка е исклучена.</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{Друго, 1 датотека во список}one{Друго, # датотека во список}other{Друго, # датотеки во список}}</translation>
 <translation id="7400418766976504921">URL</translation>
-<translation id="7400424692675800399">За да отворите нов прозорец, намалете го вкупниот број активни и неактивни прозорци на <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> или помалку.</translation>
 <translation id="7403691278183511381">Искуство при првото извршување на Chrome</translation>
 <translation id="7411224099004328643">Корисник на сметка на Google</translation>
 <translation id="7419565702166471774">Секогаш користи безбедни врски</translation>

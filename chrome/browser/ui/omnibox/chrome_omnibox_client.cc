@@ -13,7 +13,6 @@
 #include "base/functional/bind.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "base/rand_util.h"
@@ -132,11 +131,14 @@
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS) && BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+#include "base/time/time.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/extension_telemetry_service.h"
 #endif
 
 namespace {
 
+using ExtensionControlledDialogResult =
+    ChromeOmniboxClient::ExtensionControlledDialogResult;
 using predictors::AutocompleteActionPredictor;
 
 LensSearchController* GetLensSearchController(
@@ -144,6 +146,21 @@ LensSearchController* GetLensSearchController(
   return web_contents ? LensSearchController::FromTabWebContents(web_contents)
                       : nullptr;
 }
+
+#if BUILDFLAG(ENABLE_EXTENSIONS) && (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC))
+ExtensionControlledDialogResult SettingDialogResultToExtensionDialogResult(
+    SettingsOverriddenDialogController::DialogResult result) {
+  using DialogResult = SettingsOverriddenDialogController::DialogResult;
+  switch (result) {
+    case DialogResult::kKeepNewSettings:
+      return ExtensionControlledDialogResult::kAccept;
+    case DialogResult::kChangeSettingsBack:
+      return ExtensionControlledDialogResult::kReject;
+    default:
+      return ExtensionControlledDialogResult::kCancel;
+  }
+}
+#endif
 
 }  // namespace
 
@@ -232,7 +249,7 @@ SessionID ChromeOmniboxClient::GetSessionID() const {
 bool ChromeOmniboxClient::
     ShowConfirmationDialogIfDefaultSearchExtensionControlled(
         const GURL& url,
-        base::OnceCallback<void(bool)> callback) {
+        base::OnceCallback<void(ExtensionControlledDialogResult)> callback) {
 #if BUILDFLAG(ENABLE_EXTENSIONS) && (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC))
   CHECK(base::FeatureList::IsEnabled(
       extensions_features::kSearchEngineExplicitChoiceDialog));
@@ -257,11 +274,11 @@ bool ChromeOmniboxClient::
   controller->ShowConfirmationDialog(
       *web_contents,
       base::BindOnce(
-          [](base::OnceCallback<void(bool)> client_callback,
+          [](base::OnceCallback<void(ExtensionControlledDialogResult)>
+                 client_callback,
              SettingsOverriddenDialogController::DialogResult result) {
             std::move(client_callback)
-                .Run(result == SettingsOverriddenDialogController::
-                                   DialogResult::kKeepNewSettings);
+                .Run(SettingDialogResultToExtensionDialogResult(result));
           },
           std::move(callback)));
 
@@ -455,24 +472,6 @@ void ChromeOmniboxClient::OnFocusChanged(OmniboxFocusState state,
   if (auto* helper =
           OmniboxTabHelper::FromWebContents(location_bar_->GetWebContents())) {
     helper->OnFocusChanged(state, reason);
-  }
-}
-
-void ChromeOmniboxClient::OnKeywordModeChanged(bool entered,
-                                               const std::u16string& keyword) {
-  if (entered) {
-    // Note, entry into keyword mode is not sufficient signal to start lens and
-    // that is handled by separate explicit actions; but whenever the '@page'
-    // keyword mode is exited, lens should be closed.
-    return;
-  }
-
-  TemplateURL* template_url =
-      GetTemplateURLService()->GetTemplateURLForKeyword(keyword);
-  if (!template_url ||
-      template_url->starter_pack_id() !=
-          template_url_starter_pack_data::StarterPackId::kPage) {
-    return;
   }
 }
 

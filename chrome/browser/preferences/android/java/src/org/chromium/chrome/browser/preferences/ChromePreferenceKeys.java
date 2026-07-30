@@ -144,10 +144,6 @@ public final class ChromePreferenceKeys {
     /** Whether Chrome is set as the default browser. Default value is false. */
     public static final String CHROME_DEFAULT_BROWSER = "applink.chrome_default_browser";
 
-    // Whether the Chrome Finds opt-in promo has been declined.
-    public static final String CHROME_FINDS_OPT_IN_PROMO_DECLINED =
-            "Chrome.FindsNotifications.OptInDeclined";
-
     /**
      * The ID generated to represent the current browser installation in the DM Server for Cloud
      * Management.
@@ -677,12 +673,6 @@ public final class ChromePreferenceKeys {
     public static final String PIH_PRIVACY_NOTICE_SHOWN_TOTAL_COUNT =
             "Chrome.PageInsightsHub.NumberOfTimesPageInsightsHubOpenedByUser";
 
-    /**
-     * Track if user ever toggled on/off any magic stack module button inside ntp cards settings
-     * bottom sheet.
-     */
-    public static final String HOME_MODULE_CONFIGURED = "Chrome.HomeModules.Configured";
-
     /** Whether NTP magic stack cards are enabled (if false, no cards can show). */
     public static final String HOME_MODULE_CARDS_ENABLED = "Chrome.HomeModules.Enabled";
 
@@ -897,6 +887,9 @@ public final class ChromePreferenceKeys {
 
     public static final String SETTINGS_WEBSITE_FAILED_BUILD_VERSION =
             "ManagedSpace.FailedBuildVersion";
+
+    public static final String SETTINGS_RECENT_SEARCH_ENTRIES =
+            "Chrome.Settings.RecentSearchEntries";
 
     public static final String SHARING_LAST_SHARED_COMPONENT_NAME =
             "Chrome.Sharing.LastSharedComponentName";
@@ -1146,7 +1139,6 @@ public final class ChromePreferenceKeys {
                 BLUETOOTH_NOTIFICATION_IDS,
                 BOOKMARKS_SORT_ORDER,
                 BOOKMARKS_VISUALS_PREF,
-                CHROME_FINDS_OPT_IN_PROMO_DECLINED,
                 CLIPBOARD_SHARED_URI,
                 CLIPBOARD_SHARED_URI_TIMESTAMP,
                 CLOUD_MANAGEMENT_CLIENT_ID,
@@ -1204,7 +1196,6 @@ public final class ChromePreferenceKeys {
                 GLIC_AUTO_BROWSE_SETTING_ENABLED,
                 HISTORY_APP_SPECIFIC_INFO_SEEN,
                 HOME_MODULE_CARDS_ENABLED,
-                HOME_MODULE_CONFIGURED,
                 HOME_MODULES_MODULE_TYPE.pattern(),
                 HOME_MODULES_FRESHNESS_COUNT.pattern(),
                 HOME_MODULES_FRESHNESS_TIMESTAMP_MS.pattern(),
@@ -1274,6 +1265,7 @@ public final class ChromePreferenceKeys {
                 SEGMENTATION_FEED_ACTIVE_USER,
                 SERIAL_NOTIFICATION_IDS,
                 SETUP_LIST_COMPLETED_KEY_PREFIX.pattern(),
+                SETTINGS_RECENT_SEARCH_ENTRIES,
                 SETTINGS_SAFETY_CHECK_LAST_RUN_TIMESTAMP,
                 SETTINGS_SAFETY_CHECK_RUN_COUNTER,
                 SHARING_LAST_SHARED_COMPONENT_NAME,

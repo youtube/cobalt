@@ -268,7 +268,10 @@ bool StylePropertySerializer::CSSPropertyValueSetForSerializer::
 int StylePropertySerializer::CSSPropertyValueSetForSerializer::
     FindPropertyIndex(const CSSProperty& property) const {
   CSSPropertyID property_id = property.PropertyID();
-  if (!HasExpandedAllProperty()) {
+  if (!need_to_expand_all_) {
+    if (HasAllProperty() && IsCSSPropertyIDWithName(property_id)) {
+      return all_index_;
+    }
     return property_set_->FindPropertyIndex(property_id);
   }
 
@@ -1496,7 +1499,7 @@ String StylePropertySerializer::FontVariantValue() const {
 
   AppendFontLonghandValueIfNotNormal(GetCSSPropertyFontVariantLigatures(),
                                      result);
-  if (result.ToString() == "none") {
+  if (result == "none") {
     is_variant_ligatures_none = true;
   }
   const unsigned variant_ligatures_result_length = result.length();
@@ -2226,6 +2229,14 @@ String StylePropertySerializer::GetShorthandValueForBidirectionalGapRuleInset(
                               row_rule_interior_end_inset_value)) {
     return String();
   }
+  if (AllCSSValuesEqual(
+          {column_rule_edge_start_inset_value,
+           column_rule_edge_end_inset_value,
+           column_rule_interior_start_inset_value,
+           column_rule_interior_end_inset_value})) {
+    return column_rule_edge_start_inset_value->CssText();
+  }
+
   if (!column_rule_edge_start_inset_value->IsInitialValue()) {
     result.Append(column_rule_edge_start_inset_value->CssText());
     result.Append(' ');
@@ -2616,6 +2627,13 @@ String StylePropertySerializer::GetShorthandValueForGapDecorationsRuleInset(
   // All values must be specified.
   CHECK(rule_edge_start_inset_value && rule_edge_end_inset_value &&
         rule_interior_start_inset_value && rule_interior_end_inset_value);
+
+  if (AllCSSValuesEqual(
+          {rule_edge_start_inset_value, rule_edge_end_inset_value,
+           rule_interior_start_inset_value,
+           rule_interior_end_inset_value})) {
+    return rule_edge_start_inset_value->CssText();
+  }
 
   StringBuilder result;
   result.Append(rule_edge_start_inset_value->CssText());

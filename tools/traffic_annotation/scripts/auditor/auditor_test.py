@@ -13,6 +13,7 @@ import platform
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from typing import cast, Tuple
 
@@ -25,6 +26,7 @@ TEST_DATA_DIR = SCRIPT_DIR.parent / "test_data"
 
 
 class AuditorTest(unittest.TestCase):
+
   def setUp(self):
     build_path = TEST_DATA_DIR / "out" / "Debug"
 
@@ -116,49 +118,82 @@ class AuditorTest(unittest.TestCase):
 
   def test_get_files_from_git(self):
     """Tests that FileFilter.get_files_from_git() returns correct files given
-    a mock git_list.txt file. It also inherently checks
-    FileFilter._is_supported_source_file()."""
-    filter = FileFilter([".cc", ".mm"])
+    a mock git_list.txt file."""
+    filter = FileFilter()
     filter.git_file_for_testing = TEST_DATA_DIR / "git_list.txt"
     filter.get_files_from_git()
 
-    relevant_files = [
+    all_files = [
+        "tools/traffic_annotation/scripts/test_data/git_list.txt",
+        "tools/traffic_annotation/scripts/test_data/irrelevant_file_name.txt",
+        "tools/traffic_annotation/scripts/test_data/objective_cpp.mm",
         "tools/traffic_annotation/scripts/test_data/"
-        "objective_cpp.mm", "tools/traffic_annotation/scripts/test_data/"
         "test_sample_annotations.cc",
         "tools/traffic_annotation/scripts/test_data/"
         "missing_new_field_sample_data/test_new_field_safelisted.cc",
         "tools/traffic_annotation/scripts/test_data/"
         "missing_new_field_sample_data/sample_new_field_not_safelisted.cc"
     ]
-    self.assertCountEqual([Path(f) for f in relevant_files], filter.git_files)
+    self.assertCountEqual([Path(f) for f in all_files], filter.git_files)
 
-  def test_get_source_files(self):
-    """Tests that FileFilter.get_source_files() gives the correct list of
+  def test_get_filtered_files(self):
+    """Tests that FileFilter.get_filtered_files() gives the correct list of
     files, given a mock git_list.txt file."""
-    filter = FileFilter([".cc", ".mm"])
+    filter = FileFilter()
     filter.git_file_for_testing = TEST_DATA_DIR / "git_list.txt"
     filter.get_files_from_git()
 
-    # Check if all files are returned with no ignore list and directory.
+    relevant_files = [
+        Path("tools/traffic_annotation/scripts/test_data/objective_cpp.mm"),
+        Path("tools/traffic_annotation/scripts/test_data/"
+             "test_sample_annotations.cc"),
+        Path("tools/traffic_annotation/scripts/test_data/"
+             "missing_new_field_sample_data/test_new_field_safelisted.cc"),
+        Path("tools/traffic_annotation/scripts/test_data/"
+             "missing_new_field_sample_data/sample_new_field_not_safelisted.cc")
+    ]
+
+    # Check if all relevant files are returned with no ignore list and prefix.
     ignore_list = {}
-    self.assertCountEqual(filter.git_files,
-                          filter.get_source_files(ignore_list, ""))
+    self.assertCountEqual(
+        relevant_files,
+        filter.get_filtered_files([".cc", ".mm"], ignore_list, ""))
 
     # Check if a file is ignored when added to the ignore list.
     ignore_list = {
-        ExceptionType.ALL: [re.compile(filter.git_files[0].as_posix())]
+        ExceptionType.ALL: [re.compile(relevant_files[0].as_posix())]
     }
     self.assertCountEqual(
-        set(filter.git_files) - set(filter.git_files[:1]),
-        filter.get_source_files(ignore_list, ""))
+        set(relevant_files) - set(relevant_files[:1]),
+        filter.get_filtered_files([".cc", ".mm"], ignore_list, ""))
 
     # Check if files are filtered based on given directory.
     ignore_list = {}
     self.assertCountEqual(
-        filter.git_files,
-        filter.get_source_files(ignore_list, "tools/traffic_annotation"))
-    self.assertEqual([], filter.get_source_files(ignore_list, "content"))
+        relevant_files,
+        filter.get_filtered_files([".cc", ".mm"], ignore_list,
+                                  "tools/traffic_annotation"))
+    self.assertEqual([],
+                     filter.get_filtered_files([".cc", ".mm"], ignore_list,
+                                               "content"))
+
+  def test_get_filtered_files_sequential(self):
+    """Tests that FileFilter.get_filtered_files() correctly respects different
+    accepted_suffixes when called sequentially."""
+    filter = FileFilter()
+    filter.git_file_for_testing = TEST_DATA_DIR / "git_list.txt"
+    filter.get_files_from_git()
+
+    cc_files = filter.get_filtered_files([".cc"], {}, "")
+    for f in cc_files:
+      self.assertEqual(".cc", f.suffix)
+    self.assertTrue(
+        any(f.name == "test_sample_annotations.cc" for f in cc_files))
+
+    mm_files = filter.get_filtered_files([".mm"], {}, "")
+    for f in mm_files:
+      self.assertEqual(".mm", f.suffix)
+    self.assertTrue(any(f.name == "objective_cpp.mm" for f in mm_files))
 
   def test_is_safelisted(self):
     """Tests if Auditor._is_safe_listed() works as expected. Inherently checks
@@ -676,8 +711,8 @@ class AuditorTest(unittest.TestCase):
     grouping_erro_xml_path = \
       TEST_DATA_DIR / "test_required_field_error_grouping.xml"
     exporter = Exporter(get_current_platform())
-    self.assertRaises(ValueError,
-                      lambda: exporter.load_grouping_xml(grouping_erro_xml_path))
+    self.assertRaises(
+        ValueError, lambda: exporter.load_grouping_xml(grouping_erro_xml_path))
 
   def test_annotations_xml_differences(self):
     """Tests if annotations.xml changes are correctly reported."""
@@ -914,6 +949,28 @@ supervised_user_refresh_token_fetcher\t\tSupervised Users\tFetches an OAuth2 ref
     errors = self.auditor.run_all_checks(path_filter, True,
                                          Exporter.GROUPING_XML_PATH)
     self.assertFalse(errors)
+
+  def test_get_gn_file_mtime_max(self):
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      tmp_path = Path(tmp_dir)
+      # Mock SRC_DIR
+      with mock.patch("auditor.SRC_DIR", tmp_path):
+        self.auditor.file_filter.git_files = [
+            Path("BUILD.gn"), Path("foo.gni"),
+            Path("src.cc")
+        ]
+        (tmp_path / "BUILD.gn").write_text("")
+        # sleep briefly to ensure mtimes are different
+        time.sleep(0.01)
+        (tmp_path / "foo.gni").write_text("")
+        (tmp_path / "src.cc").write_text("")
+
+        mtime1 = os.path.getmtime(tmp_path / "BUILD.gn")
+        mtime2 = os.path.getmtime(tmp_path / "foo.gni")
+
+        self.assertEqual(max(mtime1, mtime2),
+                         self.auditor._get_gn_file_mtime_max())
+
 
 if __name__ == "__main__":
   unittest.main()

@@ -1,7 +1,6 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="zh-CN">
-<translation id="1028699632127661925">正在发送到<ph name="DEVICE_NAME" />…</translation>
 <translation id="111910763555783249">通知设置</translation>
 <translation id="1127811143501539442">{DAYS,plural, =1{1 天前}other{# 天前}}</translation>
 <translation id="1156623771253174079">{SECONDS,plural, =1{1 分钟前}other{# 分钟前}}</translation>
@@ -70,7 +69,6 @@
 <translation id="2586657967955657006">剪贴板</translation>
 <translation id="2653844658857826081">新</translation>
 <translation id="2666092431469916601">顶部</translation>
-<translation id="2701330563083355633">共享自 <ph name="DEVICE_NAME" /></translation>
 <translation id="2824719307700604149">{YEARS,plural, =1{1 年前}other{# 年前}}</translation>
 <translation id="2878511608894704031">全部删除</translation>
 <translation id="2907671656515444832">{DAYS,plural, =1{1 天后}other{# 天后}}</translation>
@@ -110,6 +108,7 @@
 <translation id="4031910098617850788">F5</translation>
 <translation id="40579289237549812">{UNREAD_NOTIFICATIONS,plural, =1{1 条未读通知}other{# 条未读通知}}</translation>
 <translation id="41501027364808384">{COUNT,plural, =1{在无痕模式下启用以下扩展程序：}other{在无痕模式下启用以下扩展程序：}}</translation>
+<translation id="4230098358142093034">首页</translation>
 <translation id="4266252015790371705">{MONTHS,plural, =1{1 个月前}other{# 个月前}}</translation>
 <translation id="4277033906326892359">“<ph name="COLUMN_NAME" />”列目前是按升序排列</translation>
 <translation id="4289300219472526559">开始讲话</translation>

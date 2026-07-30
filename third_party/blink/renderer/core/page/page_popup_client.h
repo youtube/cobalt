@@ -105,7 +105,8 @@ class CORE_EXPORT PagePopupClient {
   virtual ~PagePopupClient() = default;
 
   // Helper functions to be used in PagePopupClient::WriteDocument().
-  static void AddString(const String&, SegmentedBuffer&);
+  static void AddString(const StringView&, SegmentedBuffer&);
+  static void AddLiteral(std::string_view, SegmentedBuffer&);
   static void AddJavaScriptString(const StringView&, SegmentedBuffer&);
   static void AddProperty(std::string_view name,
                           const StringView& value,
@@ -133,10 +134,15 @@ class CORE_EXPORT PagePopupClient {
   void AdjustSettingsFromOwnerColorScheme(Settings& popup_settings);
 };
 
-inline void PagePopupClient::AddString(const String& str,
+inline void PagePopupClient::AddString(const StringView& str,
                                        SegmentedBuffer& data) {
   StringUtf8Adaptor utf8(str);
   data.Append(base::span(utf8));
+}
+
+inline void PagePopupClient::AddLiteral(std::string_view utf8,
+                                        SegmentedBuffer& data) {
+  data.Append(utf8);
 }
 
 }  // namespace blink

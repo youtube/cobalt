@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 import {BrowserProxy, PageCallbackRouter, PageHandlerRemote} from 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
-import type {PageRemote} from 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
+import type {OmniboxAimAppElement, PageRemote} from 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
+import type {InputState} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
 import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
@@ -20,6 +21,27 @@ class TestAimBrowserProxy {
     this.handler = TestMock.fromClass(PageHandlerRemote);
     this.page = this.callbackRouter.$.bindNewPipeAndPassRemote();
   }
+}
+
+function createDefaultInputState(): InputState {
+  return {
+    allowedModels: [],
+    allowedTools: [],
+    allowedInputTypes: [],
+    activeModel: 0,
+    activeTool: 0,
+    disabledModels: [],
+    disabledTools: [],
+    disabledInputTypes: [],
+    toolConfigs: [],
+    modelConfigs: [],
+    inputTypeConfigs: [],
+    toolsSectionConfig: null,
+    modelSectionConfig: null,
+    hintText: '',
+    maxInputsByType: {},
+    maxTotalInputs: 0,
+  };
 }
 
 suite('AimAppTest', function() {
@@ -45,12 +67,12 @@ suite('AimAppTest', function() {
       attachments: [],
       toolMode: 0,
     });
-    assertTrue(!!app.$.composebox.getInputText());
+    assertTrue(!!app.$.composebox.input);
 
     // Close without preserving context (default is false).
     testProxy.page.clearPopup();
     await microtasksFinished();
-    assertTrue(!app.$.composebox.getInputText());
+    assertTrue(!app.$.composebox.input);
   });
 
   test('PreservesInputOnCloseWhenRequested', async function() {
@@ -63,13 +85,13 @@ suite('AimAppTest', function() {
       attachments: [],
       toolMode: 0,
     });
-    assertTrue(!!app.$.composebox.getInputText());
+    assertTrue(!!app.$.composebox.input);
 
     // Close with preserving context.
     testProxy.page.setPreserveContextOnClose(true);
     testProxy.page.clearPopup();
     await microtasksFinished();
-    assertTrue(!!app.$.composebox.getInputText());
+    assertTrue(!!app.$.composebox.input);
   });
 
   test('ResetsPreserveContextOnShow', async function() {
@@ -99,7 +121,7 @@ suite('AimAppTest', function() {
     // Close again, should clear input because it was reset to false.
     testProxy.page.clearPopup();
     await microtasksFinished();
-    assertTrue(!app.$.composebox.getInputText());
+    assertTrue(!app.$.composebox.input);
 
     // There's no search context being added when setting the input, therefore,
     // no context added histogram should get recorded.
@@ -174,5 +196,42 @@ suite('AimAppTest', function() {
     const result = await testProxy.handler.whenCalled('showContextMenu');
     assertEquals(point.x, result.x);
     assertEquals(point.y, result.y);
+  });
+
+  test('UsesCompactLayoutInTallModeWhenNoAllowedInputs', async function() {
+    const app: OmniboxAimAppElement = document.createElement('omnibox-aim-app');
+    document.body.appendChild(app);
+    await microtasksFinished();
+
+    // Force a 'Tall' layout mode.
+    app.setSearchboxLayoutModeForTesting('TallBottomContext');
+    app.setHasAllowedInputsForTesting(false);
+
+    assertEquals('Compact', app.getSearchboxLayoutModeForTesting());
+
+    // Now simulate allowed inputs.
+    app.$.composebox.dispatchEvent(new CustomEvent('input-state-changed', {
+      detail: {
+        inputState: {
+          ...createDefaultInputState(),
+          allowedModels: [1],
+        },
+      },
+    }));
+
+    await microtasksFinished();
+    assertTrue(app.getHasAllowedInputsForTesting());
+    assertEquals('TallBottomContext', app.getSearchboxLayoutModeForTesting());
+
+    // Now simulate no allowed inputs again.
+    app.$.composebox.dispatchEvent(new CustomEvent('input-state-changed', {
+      detail: {
+        inputState: createDefaultInputState(),
+      },
+    }));
+
+    await microtasksFinished();
+    assertTrue(!app.getHasAllowedInputsForTesting());
+    assertEquals('Compact', app.getSearchboxLayoutModeForTesting());
   });
 });

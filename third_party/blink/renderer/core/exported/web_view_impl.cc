@@ -1577,8 +1577,8 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
   settings->SetDOMPasteAllowed(prefs.dom_paste_enabled);
   settings->SetTextAreasAreResizable(prefs.text_areas_are_resizable);
   settings->SetAllowScriptsToCloseWindows(prefs.allow_scripts_to_close_windows);
-  settings->SetAllowWindowFocusWithoutUserGesture(
-      prefs.allow_window_focus_without_user_gesture);
+  settings->SetAllowUnrestrictedWindowFocus(
+      prefs.allow_unrestricted_window_focus);
   settings->SetDownloadableBinaryFontsEnabled(prefs.remote_fonts_enabled);
   settings->SetJavaScriptCanAccessClipboard(
       prefs.javascript_can_access_clipboard);
@@ -2787,11 +2787,9 @@ void ValidatePausedStateConsistency() {
       if (!window) {
         continue;
       }
-      const bool microtasks_are_paused = window->GetAgent()
-                                             ->event_loop()
-                                             ->microtask_queue()
-                                             ->GetMicrotasksScopeDepth();
-      CHECK(!microtasks_are_paused, base::NotFatalUntil::M148);
+      const bool microtasks_are_paused =
+          window->GetAgent()->event_loop()->AreMicrotasksPaused();
+      CHECK(!microtasks_are_paused, base::NotFatalUntil::M150);
     }
   }
 }
@@ -3126,6 +3124,20 @@ void WebViewImpl::SendWindowRectToMainFrameHost(
 void WebViewImpl::DidAccessInitialMainDocument() {
   DCHECK(local_main_frame_host_remote_);
   local_main_frame_host_remote_->DidAccessInitialMainDocument();
+}
+
+void WebViewImpl::DidChangeThemeColor(std::optional<SkColor> theme_color) {
+  // This is only called for main frames, so the remote must be bound.
+  CHECK(local_main_frame_host_remote_);
+  local_main_frame_host_remote_->DidChangeThemeColor(theme_color);
+}
+
+void WebViewImpl::DidChangeBackgroundColor(SkColor4f background_color,
+                                           bool color_adjust) {
+  // This is only called for main frames, so the remote must be bound.
+  CHECK(local_main_frame_host_remote_);
+  local_main_frame_host_remote_->DidChangeBackgroundColor(background_color,
+                                                          color_adjust);
 }
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
@@ -3726,10 +3738,10 @@ void WebViewImpl::UpdateRendererPreferences(
 
   if (old_accept_languages != renderer_preferences_.accept_languages) {
     FontCache::AcceptLanguagesChanged(
-        String::FromUTF8(renderer_preferences_.accept_languages));
+        String::FromUtf8(renderer_preferences_.accept_languages));
     if (GetPage()) {
       GetPage()->GetSettings().SetAcceptLanguages(
-          String::FromUTF8(renderer_preferences_.accept_languages));
+          String::FromUtf8(renderer_preferences_.accept_languages));
     }
   }
 

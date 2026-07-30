@@ -17,7 +17,6 @@
 #include "base/memory/stack_allocated.h"
 #include "base/message_loop/message_pump.h"
 #include "base/metrics/histogram.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/strings/strcat.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/lock_metrics_recorder.h"
@@ -242,16 +241,11 @@ void ThreadControllerWithMessagePumpImpl::
     InitializeSingleThreadTaskRunnerCurrentDefaultHandle() {
   // Only one SingleThreadTaskRunner::CurrentDefaultHandle can exist at any
   // time, so reset the old one.
-  main_thread_only().thread_task_runner_handle.reset();
-  main_thread_only().thread_task_runner_handle =
-      std::make_unique<SingleThreadTaskRunner::CurrentDefaultHandle>(
-          task_runner_);
+  main_thread_only().thread_task_runner_handle.emplace(task_runner_);
 
   if (is_main_thread_) {
-    main_thread_only().main_thread_default_task_runner_handle.reset();
-    main_thread_only().main_thread_default_task_runner_handle =
-        std::make_unique<SingleThreadTaskRunner::MainThreadDefaultHandle>(
-            task_runner_);
+    main_thread_only().main_thread_default_task_runner_handle.emplace(
+        task_runner_);
   }
 
   // When the task runner is known, bind the power manager. Power notifications

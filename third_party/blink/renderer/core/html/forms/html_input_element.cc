@@ -407,6 +407,8 @@ void HTMLInputElement::InitializeTypeInParsing() {
 
   UpdateHasBeenPasswordField(new_type_name);
 
+  MaybeUpdateCustomPasswordHeuristicSource();
+
   UpdateWillValidateCache();
 
   if (!default_value.IsNull())
@@ -635,6 +637,8 @@ void HTMLInputElement::UpdateType(const AtomicString& type_attribute_value) {
 
   UpdateHasBeenPasswordField(new_type_name);
 
+  MaybeUpdateCustomPasswordHeuristicSource();
+
   SetNeedsValidityCheck();
   if ((could_be_successful_submit_button || CanBeSuccessfulSubmitButton()) &&
       formOwner() && isConnected())
@@ -849,7 +853,7 @@ void HTMLInputElement::CollectStyleForPresentationAttribute(
 }
 
 void HTMLInputElement::DidRecalcStyle(const StyleRecalcChange change) {
-  HTMLElement::DidRecalcStyle(change);
+  TextControlElement::DidRecalcStyle(change);
   input_type_->DidRecalcStyle(change);
 }
 
@@ -2340,15 +2344,6 @@ void HTMLInputElement::SetShouldRevealPassword(bool value) {
   }
 }
 
-bool HTMLInputElement::IsLastInputElementInForm() {
-  DCHECK(GetDocument().GetPage());
-  return !GetDocument()
-              .GetPage()
-              ->GetFocusController()
-              .NextFocusableElementForImeAndAutofill(
-                  this, mojom::blink::FocusType::kForward);
-}
-
 void HTMLInputElement::DispatchSimulatedEnter() {
   DCHECK(GetDocument().GetPage());
   GetDocument().GetPage()->GetFocusController().SetFocusedElement(
@@ -2365,7 +2360,9 @@ FocusgroupFlags HTMLInputElement::NativeArrowKeyAxes() const {
   // Text fields use arrow keys for cursor movement (both axes).
   // Steppable inputs (number, range, date, etc.) use arrow keys for value
   // adjustment.
-  if (IsTextField() || IsSteppable()) {
+  // Radio buttons use arrow keys to navigate between radios in the same group.
+  if (IsTextField() || IsSteppable() ||
+      FormControlType() == FormControlType::kInputRadio) {
     return FocusgroupFlags::kInline | FocusgroupFlags::kBlock;
   }
   return HTMLElement::NativeArrowKeyAxes();

@@ -988,8 +988,8 @@ void ExistingUserController::OnOffTheRecordAuthSuccess() {
   // that would actually complete the login process.
 
   // Mark the device as registered., i.e. the second part of OOBE as completed.
-  if (!StartupUtils::IsDeviceRegistered()) {
-    StartupUtils::MarkDeviceRegistered(base::OnceClosure());
+  if (!StartupUtils::IsDeviceRegistered(local_state_.get())) {
+    StartupUtils::MarkDeviceRegistered(local_state_.get(), base::OnceClosure());
   }
 
   UserSessionManager::GetInstance()->CompleteGuestSessionLogin(guest_mode_url_);
@@ -1590,7 +1590,7 @@ void ExistingUserController::ContinueLoginIfDeviceNotDisabled(
   }
 
   if (features::IsOobeAutoEnrollmentCheckForcedEnabled() &&
-      !StartupUtils::IsOobeCompleted()) {
+      !StartupUtils::IsOobeCompleted(local_state_.get())) {
     // If OOBE is not yet completed, abort the current login attempt. This
     // indicates a potential bypass attempt and an error screen is shown.
     ++num_login_attempts_;

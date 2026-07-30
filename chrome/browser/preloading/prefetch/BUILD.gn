@@ -5,6 +5,28 @@
 import("//build/config/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 
+source_set("prefetch") {
+  public = [ "chrome_prefetch_manager.h" ]
+
+  public_deps = [
+    "//base",
+    "//content/public/browser",
+  ]
+}
+
+source_set("impl") {
+  sources = [ "chrome_prefetch_manager.cc" ]
+
+  deps = [
+    ":prefetch",
+    "//chrome/browser/preloading",
+  ]
+
+  if (is_android) {
+    deps += [ "//chrome/browser/flags:flags_android" ]
+  }
+}
+
 source_set("test_support") {
   testonly = true
 
@@ -41,11 +63,15 @@ source_set("platform_browser_tests") {
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
   deps = [
+    ":prefetch",
     ":test_support",
+    "//chrome/browser:browser_features",
     "//chrome/browser/autocomplete",
     "//chrome/browser/preloading",
     "//chrome/browser/preloading:test_support",
+    "//chrome/browser/preloading/prefetch/search_prefetch",
     "//chrome/browser/preloading/prefetch/search_prefetch:field_trial_settings",
+    "//chrome/browser/preloading/prefetch/search_prefetch:impl",
     "//chrome/browser/preloading/prerender",
     "//chrome/browser/search_engines",
     "//chrome/browser/ui/omnibox",
@@ -67,12 +93,17 @@ source_set("unit_tests") {
   sources = [
     "prefetch_service/chrome_prefetch_service_delegate_unittest.cc",
     "prefetch_service/prefetch_origin_decider_unittest.cc",
+    "search_prefetch/field_trial_settings_unittest.cc",
+    "search_prefetch/search_prefetch_keep_alive_request_track_unittest.cc",
   ]
 
   deps = [
     "//base/test:test_support",
     "//chrome/browser/preloading:prefs",
     "//chrome/browser/preloading/prefetch/no_state_prefetch:unit_tests",
+    "//chrome/browser/preloading/prefetch/prefetch_service",
+    "//chrome/browser/preloading/prefetch/search_prefetch",
+    "//chrome/browser/preloading/prefetch/search_prefetch:field_trial_settings",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/search_engines",
     "//chrome/test:test_support",
@@ -112,7 +143,9 @@ if (!is_android) {
       "//chrome/browser/preloading:test_support",
       "//chrome/browser/preloading/prefetch/no_state_prefetch",
       "//chrome/browser/preloading/prefetch/no_state_prefetch:browser_tests",
+      "//chrome/browser/preloading/prefetch/search_prefetch",
       "//chrome/browser/preloading/prefetch/search_prefetch:field_trial_settings",
+      "//chrome/browser/preloading/prefetch/search_prefetch:impl",
       "//chrome/browser/search_engines",
       "//chrome/test:test_support",
       "//components/embedder_support",
@@ -121,10 +154,6 @@ if (!is_android) {
       "//components/security_state/content",
       "//components/ukm:test_support",
     ]
-
-    # TODO(crbug.com/408146612): Revisit this when preloading_features.h moves
-    # into this file.
-    deps += [ "//chrome/browser" ]
 
     # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
     # enable the diagnostic by removing this line.

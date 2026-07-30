@@ -584,20 +584,6 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     return config;
   }
 
-  if (kIPHTabOrganizationSuccessFeature.name == feature->name) {
-    FeatureConfig config;
-    config.valid = true;
-    config.availability = Comparator(ANY, 0);
-    config.session_rate = Comparator(ANY, 0);
-    config.session_rate_impact.type = SessionRateImpact::Type::NONE;
-    // Show the IPH once per year.
-    config.trigger = EventConfig("iph_tab_organization_success_trigger",
-                                 Comparator(EQUAL, 0), 360, 360);
-    config.used =
-        EventConfig("tab_group_editor_shown", Comparator(EQUAL, 0), 360, 360);
-    return config;
-  }
-
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) ||
   // BUILDFLAG(IS_CHROMEOS)
 
@@ -710,7 +696,7 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
-
+  // CONFIGURATION_ANDROID_START
   if (kIPHFuseboxAttachmentFeature.name == feature->name) {
     // A config that allows measurement for user engagement on the fusebox
     // attachment button by checking:
@@ -1056,37 +1042,40 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
 
   if (kIPHAdaptiveButtonInTopToolbarCustomizationGlicFeature.name ==
       feature->name) {
-    // A config that allows measuring the usage of non-Glic buttons in the
-    // adaptive toolbar.
+    // A config that allows the Glic adaptive toolbar button IPH to be shown:
+    // * If no other adaptive toolbar button has been used.
+    // * If the Glic button itself hasn't been used.
+    // * Once per 90 days.
     FeatureConfig config;
     config.valid = true;
     config.availability = Comparator(ANY, 0);
-    config.session_rate = Comparator(ANY, 0);
-    config.trigger = EventConfig("adaptive_toolbar_glic_iph_trigger",
-                                 Comparator(ANY, 0), 90, 360);
+    config.session_rate = Comparator(EQUAL, 0);
+    config.trigger =
+        EventConfig("adaptive_toolbar_glic_iph_trigger", Comparator(EQUAL, 0),
+                    k10YearsInDays, k10YearsInDays);
     config.used = EventConfig("adaptive_toolbar_customization_glic_clicked",
-                              Comparator(ANY, 0), 90, 360);
+                              Comparator(EQUAL, 0), 90, 360);
     config.event_configs.insert(
         EventConfig("adaptive_toolbar_customization_new_tab_opened",
-                    Comparator(ANY, 0), 90, 360));
+                    Comparator(EQUAL, 0), 90, 360));
     config.event_configs.insert(
         EventConfig("adaptive_toolbar_customization_open_in_browser_opened",
-                    Comparator(ANY, 0), 90, 360));
+                    Comparator(EQUAL, 0), 90, 360));
     config.event_configs.insert(
         EventConfig("adaptive_toolbar_customization_share_opened",
-                    Comparator(ANY, 0), 90, 360));
+                    Comparator(EQUAL, 0), 90, 360));
     config.event_configs.insert(
         EventConfig("adaptive_toolbar_customization_voice_search_opened",
-                    Comparator(ANY, 0), 90, 360));
+                    Comparator(EQUAL, 0), 90, 360));
     config.event_configs.insert(
         EventConfig("adaptive_toolbar_customization_translate_opened",
-                    Comparator(ANY, 0), 90, 360));
+                    Comparator(EQUAL, 0), 90, 360));
     config.event_configs.insert(
         EventConfig("adaptive_toolbar_customization_read_aloud_clicked",
-                    Comparator(ANY, 0), 90, 360));
+                    Comparator(EQUAL, 0), 90, 360));
     config.event_configs.insert(
         EventConfig("adaptive_toolbar_customization_add_to_bookmarks_opened",
-                    Comparator(ANY, 0), 90, 360));
+                    Comparator(EQUAL, 0), 90, 360));
     return config;
   }
   if (kIPHMenuAddToGroup.name == feature->name) {
@@ -2142,6 +2131,7 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
                                  Comparator(ANY, 0), 0, 360);
     return config;
   }
+// CONFIGURATION_ANDROID_END
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) || \

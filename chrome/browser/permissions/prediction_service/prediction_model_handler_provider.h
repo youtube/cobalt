@@ -9,11 +9,12 @@
 
 #include "base/scoped_observation.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/optimization_guide/machine_learning_tflite_buildflags.h"
 #include "components/passage_embeddings/core/passage_embeddings_types.h"
 #include "components/permissions/request_type.h"
 
-class OptimizationGuideKeyedService;
+namespace optimization_guide {
+class OptimizationGuideModelProvider;
+}  // namespace optimization_guide
 
 namespace permissions {
 
@@ -25,7 +26,7 @@ class PredictionModelHandlerProvider
       public passage_embeddings::EmbedderMetadataObserver {
  public:
   explicit PredictionModelHandlerProvider(
-      OptimizationGuideKeyedService* optimization_guide,
+      optimization_guide::OptimizationGuideModelProvider* optimization_guide,
       passage_embeddings::EmbedderMetadataProvider* embedder_metadata_provider,
       passage_embeddings::Embedder* passage_embedder);
   ~PredictionModelHandlerProvider() override;
@@ -40,8 +41,6 @@ class PredictionModelHandlerProvider
   // (like OptimizationGuideKeyedService) are shut down.
   void Shutdown() override;
 
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-
   static bool IsAIv4FeatureEnabled();
   PredictionModelHandler* GetPredictionModelHandler(RequestType request_type);
   PermissionsAiv4Handler* GetPermissionsAiv4Handler(RequestType request_type);
@@ -53,14 +52,12 @@ class PredictionModelHandlerProvider
       std::unique_ptr<PermissionsAiv4Handler> handler);
   void set_passage_embedder_for_testing(
       passage_embeddings::Embedder* passage_embedder_);
-#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 
  private:
   // EmbedderMetadataObserver:
   void EmbedderMetadataUpdated(
       passage_embeddings::EmbedderMetadata metadata) override;
 
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   // LINT.IfChange(ModelHandlers)
   std::unique_ptr<PredictionModelHandler>
       notification_prediction_model_handler_;
@@ -81,7 +78,6 @@ class PredictionModelHandlerProvider
   base::ScopedObservation<passage_embeddings::EmbedderMetadataProvider,
                           passage_embeddings::EmbedderMetadataObserver>
       embedder_metadata_observation_{this};
-#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 };
 }  // namespace permissions
 #endif  // CHROME_BROWSER_PERMISSIONS_PREDICTION_SERVICE_PREDICTION_MODEL_HANDLER_PROVIDER_H_

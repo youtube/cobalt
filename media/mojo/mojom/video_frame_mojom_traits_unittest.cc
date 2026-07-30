@@ -2,16 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "media/mojo/mojom/video_frame_mojom_traits.h"
 
 #include <algorithm>
 #include <array>
 
+#include "base/compiler_specific.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/writable_shared_memory_region.h"
@@ -195,6 +191,71 @@ TEST_F(VideoFrameStructTraitsTest, MappableVideoFrame) {
   }
 }
 
+#if BUILDFLAG(IS_CHROMEOS)
+TEST_F(VideoFrameStructTraitsTest, MappableVideoFrameMJPEG) {
+  constexpr VideoPixelFormat format = PIXEL_FORMAT_MJPEG;
+  constexpr gfx::Size kCodedSize(100, 100);
+  constexpr gfx::Rect kVisibleRect(kCodedSize);
+  constexpr gfx::Size kNaturalSize = kCodedSize;
+  constexpr base::TimeDelta kTimestamp = base::Seconds(100);
+
+  const size_t kPlaneOffset = 1024;
+  const size_t kPlaneSize = 50000;
+  const size_t kAggregateSize = kPlaneOffset + kPlaneSize;
+
+  auto region = base::ReadOnlySharedMemoryRegion::Create(kAggregateSize);
+  ASSERT_TRUE(region.IsValid());
+
+  std::vector<ColorPlaneLayout> planes = {{0, kPlaneOffset, kPlaneSize}};
+
+  auto layout = VideoFrameLayout::CreateWithPlanes(format, kCodedSize, planes);
+  ASSERT_TRUE(layout.has_value());
+
+  auto mapping_span = region.mapping.GetMemoryAsSpan<uint8_t>();
+  auto frame = media::VideoFrame::WrapExternalDataWithLayout(
+      *layout, kVisibleRect, kNaturalSize, mapping_span, kTimestamp);
+  ASSERT_TRUE(frame);
+
+  frame->BackWithSharedMemory(&region.region);
+
+  ASSERT_TRUE(RoundTrip(&frame));
+  ASSERT_TRUE(frame);
+  EXPECT_EQ(frame->format(), format);
+  ASSERT_EQ(frame->storage_type(), VideoFrame::STORAGE_SHMEM);
+  EXPECT_TRUE(frame->shm_region()->IsValid());
+}
+#else
+TEST_F(VideoFrameStructTraitsTest, MappableVideoFrameMJPEG) {
+  constexpr VideoPixelFormat format = PIXEL_FORMAT_MJPEG;
+  constexpr gfx::Size kCodedSize(100, 100);
+  constexpr gfx::Rect kVisibleRect(kCodedSize);
+  constexpr gfx::Size kNaturalSize = kCodedSize;
+  constexpr base::TimeDelta kTimestamp = base::Seconds(100);
+
+  const size_t kPlaneOffset = 1024;
+  const size_t kPlaneSize = 50000;
+  const size_t kAggregateSize = kPlaneOffset + kPlaneSize;
+
+  auto region = base::ReadOnlySharedMemoryRegion::Create(kAggregateSize);
+  ASSERT_TRUE(region.IsValid());
+
+  std::vector<ColorPlaneLayout> planes = {ColorPlaneLayout(
+      /*stride=*/0, /*offset=*/kPlaneOffset, /*size=*/kPlaneSize)};
+
+  auto layout = VideoFrameLayout::CreateWithPlanes(format, kCodedSize, planes);
+  ASSERT_TRUE(layout.has_value());
+
+  auto mapping_span = region.mapping.GetMemoryAsSpan<uint8_t>();
+  auto frame = media::VideoFrame::WrapExternalDataWithLayout(
+      *layout, kVisibleRect, kNaturalSize, mapping_span, kTimestamp);
+  ASSERT_TRUE(frame);
+
+  frame->BackWithSharedMemory(&region.region);
+
+  EXPECT_TRUE(RoundTripFails(std::move(frame)));
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 TEST_F(VideoFrameStructTraitsTest, InvalidOffsets) {
   constexpr auto kFormat = PIXEL_FORMAT_I420;
 
@@ -235,9 +296,9 @@ TEST_F(VideoFrameStructTraitsTest, InvalidOffsets) {
 
   // Scan for the offsets array in the message body. It will start with an
   // array header and then have the three offsets matching our frame.
-  base::span<uint32_t> body(
+  base::span<uint32_t> body = UNSAFE_TODO(base::span<uint32_t>(
       reinterpret_cast<uint32_t*>(message.mutable_payload()),
-      message.payload_num_bytes() / sizeof(uint32_t));
+      message.payload_num_bytes() / sizeof(uint32_t)));
 
   bool patched_offsets = false;
   for (size_t i = 0; i + 3 < body.size(); ++i) {

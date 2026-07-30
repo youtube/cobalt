@@ -22,10 +22,40 @@ class TestFullscreenBrowserAgentObserver
   void WillUpdateObscuredInsetRange(FullscreenBrowserAgent* agent) override {
     will_update_obscured_inset_range_called_ = true;
   }
+  void DidUpdateObscuredInsetRange(FullscreenBrowserAgent* agent) override {
+    did_update_obscured_inset_range_called_ = true;
+  }
 
   bool will_update_called_ = false;
   bool did_update_called_ = false;
   bool will_update_obscured_inset_range_called_ = false;
+  bool did_update_obscured_inset_range_called_ = false;
+};
+
+// An observer that adds a specific obscured inset range when requested.
+class RangeTestFullscreenBrowserAgentObserver
+    : public FullscreenBrowserAgentObserver {
+ public:
+  RangeTestFullscreenBrowserAgentObserver(UIRectEdge edge,
+                                          CGFloat min,
+                                          CGFloat max)
+      : edge_(edge), min_(min), max_(max) {}
+
+  void WillUpdateObscuredInsetRange(FullscreenBrowserAgent* agent) override {
+    agent->AddObscuredInsetRange(edge_, min_, max_);
+  }
+
+  void WillUpdateState(FullscreenBrowserAgent* agent) override {
+    CGFloat progress = edge_ == UIRectEdgeBottom ? agent->bottom_progress()
+                                                 : agent->top_progress();
+    CGFloat current = min_ + (max_ - min_) * progress;
+    agent->AddObscuredInset(edge_, current);
+  }
+
+ private:
+  UIRectEdge edge_;
+  CGFloat min_;
+  CGFloat max_;
 };
 
 // Test fixture for testing FullscreenBrowserAgent class.
@@ -34,6 +64,14 @@ class FullscreenBrowserAgentTest : public PlatformTest {
   FullscreenBrowserAgentTest() {
     profile_ = TestProfileIOS::Builder().Build();
     browser_ = std::make_unique<TestBrowser>(profile_.get());
+  }
+
+  base::PassKey<FullscreenBrowserAgentTest> PassKey() {
+    return base::PassKey<FullscreenBrowserAgentTest>();
+  }
+
+  void InvalidateInsetRange(FullscreenBrowserAgent* agent) {
+    agent->InvalidateInsetRange(PassKey());
   }
 
   base::test::TaskEnvironment task_environment_;
@@ -57,4 +95,111 @@ TEST_F(FullscreenBrowserAgentTest, Observers) {
   TestFullscreenBrowserAgentObserver observer;
   agent->AddObserver(&observer);
   agent->RemoveObserver(&observer);
+}
+
+// Tests the cycle of invalidating inset ranges and calculating the new min and
+// max insets.
+TEST_F(FullscreenBrowserAgentTest, InvalidateInsetRange) {
+  FullscreenBrowserAgent::CreateForBrowser(browser_.get());
+  FullscreenBrowserAgent* agent =
+      FullscreenBrowserAgent::FromBrowser(browser_.get());
+
+  TestFullscreenBrowserAgentObserver base_observer;
+  RangeTestFullscreenBrowserAgentObserver observer1(UIRectEdgeTop, 10.0, 50.0);
+  RangeTestFullscreenBrowserAgentObserver observer2(UIRectEdgeTop, 5.0, 15.0);
+  RangeTestFullscreenBrowserAgentObserver observer3(UIRectEdgeBottom, 20.0,
+                                                    80.0);
+
+  agent->AddObserver(&base_observer);
+  agent->AddObserver(&observer1);
+  agent->AddObserver(&observer2);
+  agent->AddObserver(&observer3);
+
+  InvalidateInsetRange(agent);
+
+  EXPECT_TRUE(base_observer.will_update_obscured_inset_range_called_);
+  EXPECT_TRUE(base_observer.did_update_obscured_inset_range_called_);
+
+  EXPECT_EQ(15.0, agent->min_insets().top);
+  EXPECT_EQ(65.0, agent->max_insets().top);
+  EXPECT_EQ(20.0, agent->min_insets().bottom);
+  EXPECT_EQ(80.0, agent->max_insets().bottom);
+
+  agent->RemoveObserver(&base_observer);
+  agent->RemoveObserver(&observer1);
+  agent->RemoveObserver(&observer2);
+  agent->RemoveObserver(&observer3);
+}
+
+// Tests that IncrementalScroll calculates progress correctly and clamps values.
+TEST_F(FullscreenBrowserAgentTest, IncrementalScroll) {
+  FullscreenBrowserAgent::CreateForBrowser(browser_.get());
+  FullscreenBrowserAgent* agent =
+      FullscreenBrowserAgent::FromBrowser(browser_.get());
+
+  TestFullscreenBrowserAgentObserver base_observer;
+  RangeTestFullscreenBrowserAgentObserver observer1(UIRectEdgeTop, 10.0, 50.0);
+  RangeTestFullscreenBrowserAgentObserver observer2(UIRectEdgeBottom, 20.0,
+                                                    80.0);
+
+  agent->AddObserver(&base_observer);
+  agent->AddObserver(&observer1);
+  agent->AddObserver(&observer2);
+
+  // Initialize ranges. Top delta = 40, Bottom delta = 60.
+  InvalidateInsetRange(agent);
+
+  EXPECT_EQ(1.0, agent->top_progress());
+  EXPECT_EQ(1.0, agent->bottom_progress());
+  EXPECT_FALSE(base_observer.will_update_called_);
+  EXPECT_FALSE(base_observer.did_update_called_);
+
+  // Scroll down partially.
+  agent->IncrementalScroll(20.0, PassKey());
+
+  EXPECT_EQ(0.5, agent->top_progress());
+  EXPECT_NEAR(0.6666, agent->bottom_progress(), 0.001);
+  EXPECT_EQ(30.0, agent->insets().top);
+  EXPECT_NEAR(60.0, agent->insets().bottom, 0.001);
+
+  EXPECT_TRUE(base_observer.will_update_called_);
+  EXPECT_TRUE(base_observer.did_update_called_);
+
+  // Fast scroll down to check 0.0 bounds clamping.
+  agent->IncrementalScroll(200.0, PassKey());
+
+  EXPECT_EQ(0.0, agent->top_progress());
+  EXPECT_EQ(0.0, agent->bottom_progress());
+  EXPECT_EQ(10.0, agent->insets().top);
+  EXPECT_EQ(20.0, agent->insets().bottom);
+
+  // Fast scroll up to check 1.0 bounds clamping.
+  agent->IncrementalScroll(-500.0, PassKey());
+
+  EXPECT_EQ(1.0, agent->top_progress());
+  EXPECT_EQ(1.0, agent->bottom_progress());
+  EXPECT_EQ(50.0, agent->insets().top);
+  EXPECT_EQ(80.0, agent->insets().bottom);
+
+  agent->RemoveObserver(&base_observer);
+  agent->RemoveObserver(&observer1);
+  agent->RemoveObserver(&observer2);
+}
+
+// Tests that the disabled counter increments and decrements correctly.
+TEST_F(FullscreenBrowserAgentTest, DisabledCounter) {
+  FullscreenBrowserAgent::CreateForBrowser(browser_.get());
+  FullscreenBrowserAgent* agent =
+      FullscreenBrowserAgent::FromBrowser(browser_.get());
+  EXPECT_EQ(0u, agent->disabled_count());
+  agent->IncrementDisabledCounter(PassKey());
+  EXPECT_EQ(1u, agent->disabled_count());
+  agent->IncrementDisabledCounter(PassKey());
+  EXPECT_EQ(2u, agent->disabled_count());
+  agent->DecrementDisabledCounter(PassKey());
+  EXPECT_EQ(1u, agent->disabled_count());
+  agent->DecrementDisabledCounter(PassKey());
+  EXPECT_EQ(0u, agent->disabled_count());
+  agent->DecrementDisabledCounter(PassKey());  // Should not go below zero.
+  EXPECT_EQ(0u, agent->disabled_count());
 }

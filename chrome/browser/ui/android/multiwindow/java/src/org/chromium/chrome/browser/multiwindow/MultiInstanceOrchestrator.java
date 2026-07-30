@@ -9,9 +9,12 @@ import android.app.Activity;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.content_public.browser.LoadUrlParams;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Class that orchestrates and provides for common tasks applicable to all windows in a multi-window
@@ -55,7 +58,37 @@ public interface MultiInstanceOrchestrator {
      *     end of the destination tab group. A tab with this id must exist in the destination
      *     window, otherwise this operation will fail. If there is no tab group to move the
      *     specified tabs to, set this to {@code TabList.INVALID_TAB_INDEX}.
+     * @param bringToFront Whether the destination window should be brought to the front.
      */
     void moveTabsToWindowByIdChecked(
-            int destWindowId, List<Tab> tabs, int destTabIndex, int destGroupTabId);
+            int destWindowId,
+            List<Tab> tabs,
+            int destTabIndex,
+            int destGroupTabId,
+            boolean bringToFront);
+
+    /**
+     * @param type A bit-int representing one or more {@link PersistedInstanceType}s.
+     * @return A set of instance ids of the specified {@code type} that are not marked for deletion.
+     */
+    Set<Integer> getUsableWindowIds(@PersistedInstanceType int type);
+
+    /**
+     * Opens a URL in an existing window or a new window of the same profile type as {@code
+     * sourceTab}.
+     *
+     * @param sourceTab The tab containing the URL.
+     * @param loadUrlParams The url to open.
+     * @param preferNew Whether we should prioritize launching the tab in a new window.
+     * @return {@code true} if the url launch request was successful, {@code false} otherwise.
+     */
+    boolean openUrlInOtherWindow(Tab sourceTab, LoadUrlParams loadUrlParams, boolean preferNew);
+
+    /**
+     * Opens a URL in an incognito window.
+     *
+     * @param sourceTab The tab containing the URL.
+     * @param loadUrlParams The url to open.
+     */
+    void openUrlInIncognitoWindow(Tab sourceTab, LoadUrlParams loadUrlParams);
 }

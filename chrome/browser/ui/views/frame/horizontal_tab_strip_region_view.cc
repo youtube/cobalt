@@ -29,10 +29,10 @@
 #include "chrome/browser/ui/views/tab_search_bubble_host.h"
 #include "chrome/browser/ui/views/tabs/browser_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h"
+#include "chrome/browser/ui/views/tabs/hovercard/tab_hover_card_controller.h"
 #include "chrome/browser/ui/views/tabs/new_tab_button.h"
 #include "chrome/browser/ui/views/tabs/shared/tab_strip_combo_button.h"
 #include "chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h"
-#include "chrome/browser/ui/views/tabs/tab_hover_card_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_search_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_action_container.h"
@@ -242,14 +242,13 @@ HorizontalTabStripRegionView::HorizontalTabStripRegionView(
   GetViewAccessibility().SetRole(ax::mojom::Role::kTabList);
   GetViewAccessibility().SetIsMultiselectable(true);
 
-  tab_strip_ = AddChildView(CreateTabStrip(this, browser_view));
   BrowserWindowInterface* const browser = browser_view->browser();
 
   if (browser &&
       (browser->GetType() == BrowserWindowInterface::Type::TYPE_NORMAL) &&
       base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton)) {
-    combo_button_ =
-        AddChildView(std::make_unique<TabStripComboButton>(browser));
+    combo_button_ = AddChildView(std::make_unique<TabStripComboButton>(
+        browser, TabStripComboButton::Context::kHorizontalTabStrip));
     combo_button_->SetProperty(views::kCrossAxisAlignmentKey,
                                views::LayoutAlignment::kCenter);
     combo_button_->MaybeShowIPH();
@@ -303,6 +302,8 @@ HorizontalTabStripRegionView::HorizontalTabStripRegionView(
     tab_search_button_->SetProperty(views::kViewIgnoredByLayoutKey, true);
   }
 
+  tab_strip_ = AddChildView(CreateTabStrip(this, browser_view));
+
   // Allow the |tab_strip_| to grow into the free space available in
   // the HorizontalTabStripRegionView.
   const views::FlexSpecification tab_strip_flex_spec =
@@ -324,6 +325,14 @@ HorizontalTabStripRegionView::HorizontalTabStripRegionView(
         l10n_util::GetStringUTF16(IDS_TOOLTIP_NEW_TAB));
     new_tab_button_->GetViewAccessibility().SetName(
         l10n_util::GetStringUTF16(IDS_ACCNAME_NEWTAB));
+
+#if BUILDFLAG(IS_LINUX)
+    // On Linux, middle-clicking the New Tab Button triggers
+    // paste and navigate, either to URLs or to search queries.
+    new_tab_button_->SetTriggerableEventFlags(
+        new_tab_button_->GetTriggerableEventFlags() |
+        ui::EF_MIDDLE_MOUSE_BUTTON);
+#endif
   }
 
   reserved_grab_handle_space_ =

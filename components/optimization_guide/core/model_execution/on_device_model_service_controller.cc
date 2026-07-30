@@ -502,7 +502,8 @@ void OnDeviceModelServiceController::BaseModelController::OnDisconnect(
   if (is_idle) {
     return;
   }
-  LOG(ERROR) << "Base model disconnected unexpectedly.";
+  LOG(ERROR) << "Base model disconnected unexpectedly; reason: " << reason
+             << ", description: " << description;
   base::TimeDelta delay =
       access_controller().OnDisconnectedFromRemote() - base::Time::Now();
   if (delay.is_positive()) {
@@ -579,11 +580,6 @@ OnDeviceModelServiceController::Solution::MakeConfig() const {
       mojo_base::ProtoWrapper(safety_checker_->safety_cfg().proto());
   config->model_capabilities = controller_->GetCapabilities();
   return config;
-}
-
-const OnDeviceModelFeatureAdapter*
-OnDeviceModelServiceController::Solution::GetAdapter() const {
-  return adapter_.get();
 }
 
 void OnDeviceModelServiceController::Solution::CreateSession(

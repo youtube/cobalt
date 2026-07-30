@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_ENTERPRISE_CONNECTORS_CORE_CLOUD_CONTENT_SCANNING_DEEP_SCANNING_UTILS_H_
 #define COMPONENTS_ENTERPRISE_CONNECTORS_CORE_CLOUD_CONTENT_SCANNING_DEEP_SCANNING_UTILS_H_
 
+#include "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_request.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/common.h"
 #include "components/enterprise/connectors/core/content_analysis_info_base.h"
 #include "components/enterprise/connectors/core/reporting_event_router.h"
@@ -33,6 +34,24 @@ void MaybeReportDeepScanningVerdict(
     const ContentAnalysisResponse& response,
     EventResult event_result);
 
+// Helper function to report the user bypassed a warning to the enterprise
+// admin. This is split from MaybeReportDeepScanningVerdict since it happens
+// after getting a response. |download_digest_sha256| must be encoded using
+// base::HexEncode.
+void ReportAnalysisConnectorWarningBypass(
+    ReportingEventRouter* reporting_event_router,
+    const ContentAnalysisInfoBase* content_analysis_info,
+    const std::string& source,
+    const std::string& destination,
+    const std::string& file_name,
+    const std::string& download_digest_sha256,
+    const std::string& mime_type,
+    const std::string& trigger,
+    const std::string& content_transfer_method,
+    const int64_t content_size,
+    const ContentAnalysisResponse& response,
+    std::optional<std::u16string> user_justification);
+
 // Returns true for consumer scans and not on enterprise scans.
 bool IsConsumerScanRequest(const BinaryUploadRequest& request);
 
@@ -53,6 +72,34 @@ bool CloudResumableResultIsFailure(ScanRequestUploadResult result,
 // Returns true if `result` as returned by BinaryUploadService is considered a
 // a failed result when attempting a local content analysis.
 bool LocalResultIsFailure(ScanRequestUploadResult result);
+
+void InitializeBinaryUploadRequest(BinaryUploadRequest* request,
+                                   const ContentAnalysisInfoBase& info,
+                                   bool include_enterprise_only_fields);
+
+// Calculates the event result that is experienced by the user.
+// If data is allowed to be accessed immediately, the result will indicate that
+// the user was allowed to use the data independent of the scanning result.
+EventResult CalculateEventResult(const AnalysisSettings& settings,
+                                 bool allowed_by_scan_result,
+                                 bool should_warn);
+
+// Returns true if `result` as returned by BinaryUploadService is considered a
+// fail-closed result, regardless of attempting a cloud-based or a local-based
+// content analysis.
+bool ResultIsFailClosed(ScanRequestUploadResult result);
+
+// Determines if a request result should be used to allow a data use or to
+// block it.
+bool ResultShouldAllowDataUse(const AnalysisSettings& settings,
+                              ScanRequestUploadResult upload_result);
+
+// Calculates the result for the request handler based on the upload result and
+// the analysis response.
+RequestHandlerResult CalculateRequestHandlerResult(
+    const AnalysisSettings& settings,
+    ScanRequestUploadResult upload_result,
+    const ContentAnalysisResponse& response);
 
 }  // namespace enterprise_connectors
 

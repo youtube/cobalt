@@ -141,7 +141,10 @@ void SkillsUiTabController::OnSkillSaved(const std::string& skill_id) {
     // Delegate the global toast action to the Window Controller.
     auto* window_controller = SkillsUiWindowController::From(window_interface);
     if (window_controller) {
-      window_controller->OnSkillSaved(skill_id);
+      bool hide_toast_button =
+          tab_->GetContents()->GetVisibleURL().spec().starts_with(
+              chrome::kChromeUISkillsURL);
+      window_controller->OnSkillSaved(skill_id, hide_toast_button);
     }
   }
 }
@@ -183,6 +186,11 @@ glic::GlicKeyedService* SkillsUiTabController::GetGlicService() {
 
 void SkillsUiTabController::ShowGlicPanel() {
   if (auto* service = GetGlicService()) {
+    if (auto* instance = service->GetInstanceForTab(&tab_.get())) {
+      if (instance->IsShowing()) {
+        return;
+      }
+    }
     service->ToggleUI(tab_->GetBrowserWindowInterface(),
                       /*prevent_close=*/true,
                       glic::mojom::InvocationSource::kSkills);

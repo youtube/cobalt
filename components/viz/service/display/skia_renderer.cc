@@ -2589,8 +2589,7 @@ void SkiaRenderer::DrawTextureQuad(const TextureDrawQuad* quad,
     if (src_color_space.IsToneMappedByDefault()) {
       return true;
     }
-    if (gfx::HdrMetadataAgtm::IsEnabled() &&
-        src_hdr_metadata.getSerializedAgtm()) {
+    if (gfx::HdrMetadataAgtm::IsEnabled() && src_hdr_metadata.HasAgtm()) {
       return true;
     }
     return false;
@@ -2667,7 +2666,7 @@ void SkiaRenderer::DrawTextureQuad(const TextureDrawQuad* quad,
             features::kUseDisplaySDRMaxLuminanceNits)) {
       hdr_metadata =
           gfx::HDRMetadata::PopulateUnspecifiedWithDefaults(src_hdr_metadata);
-      hdr_metadata.ndwl = gfx::HdrMetadataNdwl(
+      hdr_metadata.SetNDWL(
           current_frame()->display_color_spaces.GetSDRMaxLuminanceNits());
     }
     cc::ToneMapUtil::AddGlobalToneMapFilterToPaint(
@@ -3140,22 +3139,15 @@ SkiaRenderer::DrawRPDQParams SkiaRenderer::CalculateRPDQParams(
       // See: crbug.com/984649
       backdrop_rect = gfx::RectFToSkRect(params->visible_rect);
     }
-    // TODO(crbug.com/471150365): Although the mirroring behavior is not without
-    // some issues (particularly with flickering) it's much better tolerated by
-    // users and has the support of WebKit and Gecko. This FF should probably be
-    // removed.
     SkIRect sk_crop_rect = backdrop_rect.roundOut();
     SkIRect sk_src_rect = rpdq_params.backdrop_filter->filterBounds(
         sk_crop_rect, SkMatrix::I(), SkImageFilter::kReverse_MapDirection,
         /*inputRect=*/nullptr);
     if (!sk_crop_rect.contains(sk_src_rect)) {
-      SkTileMode sk_tile_mode =
-          base::FeatureList::IsEnabled(features::kBackdropFilterMirrorEdgeMode)
-              ? SkTileMode::kMirror
-              : SkTileMode::kClamp;
       rpdq_params.backdrop_filter = SkImageFilters::Compose(
           /*outer=*/std::move(rpdq_params.backdrop_filter),
-          /*inner=*/SkImageFilters::Crop(backdrop_rect, sk_tile_mode, nullptr));
+          /*inner=*/SkImageFilters::Crop(backdrop_rect, SkTileMode::kMirror,
+                                         nullptr));
     }
 
     SkRect bd_filter_extra_bounds = gfx::RectFToSkRect(params->visible_rect);

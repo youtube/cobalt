@@ -29,7 +29,6 @@ import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {UnguessableToken} from 'chrome://resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import type {Uuid} from 'chrome://resources/mojo/mojo/public/mojom/base/uuid.mojom-webui.js';
 import type {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
-
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import type {ComposeboxPosition, IconType} from './contextual_tasks.mojom-webui.js';
@@ -42,6 +41,7 @@ import {getNonOccludedClipPath} from './utils/clip_path.js';
 declare global {
   interface HTMLElementEventMap {
     'loadstart': chrome.webviewTag.LoadStartEvent;
+    'loadabort': chrome.webviewTag.LoadAbortEvent;
     'loadcommit': chrome.webviewTag.LoadCommitEvent;
     'newwindow': chrome.webviewTag.NewWindowEvent;
     'permissionrequest': chrome.webviewTag.PermissionRequestEvent;
@@ -59,12 +59,17 @@ const VIEWPORT_HEIGHT_KEY = 'bih';
 const VIEWPORT_WIDTH_KEY = 'biw';
 
 const CHROME_TASK_PARAM_KEY = 'chrome_task_id';
+const DEBUG_PARAM_KEY = 'deb';
 
 // The extra padding to add to the occluders to ensure that the composebox is
 // fully visible. This helps to account for inconsistencies between the bounding
 // boxes of the element, and what is actually rendered (for example, box shadows
 // on the elements might not be included in the bounding box).
 const OCCLUDER_EXTRA_PADDING_PX = 15;
+
+// LINT.IfChange(ComposeboxBorderRadius)
+const COMPOSEBOX_BORDER_RADIUS_PX = 24;
+// LINT.ThenChange(//depot/chromium/chrome/browser/resources/contextual_tasks/composebox.css:ComposeboxBorderRadius)
 
 export interface ContextualTasksAppElement {
   $: {
@@ -125,6 +130,13 @@ function updateWebuiParams(aimUrl: Url) {
 function urlHasThreadParams(url: URL): boolean {
   return url.searchParams.has('mstk') && url.searchParams.has('mtid') &&
       url.searchParams.has('q');
+}
+
+// Returns whether the value of the "deb" param contains "nocobrowse1" which
+// should cause the user to be removed from the cobrowse ui.
+function hasExitCobrowseParam(url: URL): boolean {
+  const debParam = url.searchParams.get(DEBUG_PARAM_KEY) || '';
+  return debParam.indexOf('nocobrowse1') > -1;
 }
 
 function applyWebUiParamsToThreadUrl(threadUrl: URL, webUiUrl: URL) {
@@ -451,6 +463,14 @@ export class ContextualTasksAppElement extends CrLitElement {
           return;
         }
 
+        if (this.isShownInTab_) {
+          chrome.metricsPrivate.recordUserAction(
+              'ContextualTasks.HistoryNavigation.UserAction.NavigatedInFullTab');
+          chrome.metricsPrivate.recordBoolean(
+              'ContextualTasks.HistoryNavigation.UserAction.NavigatedInFullTab',
+              true);
+        }
+
         this.browserProxy_.handler.setTaskId({value: taskUuid});
         this.$.threadFrame.src = url;
 
@@ -474,7 +494,7 @@ export class ContextualTasksAppElement extends CrLitElement {
     this.$.threadFrame.addEventListener(
         'contentload', this.onThreadFrameContentLoad.bind(this));
     this.$.threadFrame.addEventListener(
-        'loadabort', this.onThreadFrameLoadAbort.bind(this) as EventListener);
+        'loadabort', this.onThreadFrameLoadAbort.bind(this));
 
     // Setup the webview request overrides before loading the first URL.
     this.setupWebviewRequestOverrides();
@@ -519,6 +539,15 @@ export class ContextualTasksAppElement extends CrLitElement {
           await this.browserProxy_.handler.isPendingErrorPage(
               {value: taskUuid});
       this.isErrorPageVisible_ = isPendingErrorPage;
+    }
+
+    // Allow URLs with the debug param set to exit the webui. This param is
+    // the same one used to prevent aim urls from entering the webui, so when
+    // set, it will be attached to the thread URL which will keep the user out
+    // of this UI.
+    if (hasExitCobrowseParam(webUiUrlOnLoad)) {
+      window.location.href = threadUrlAsUrl.href;
+      return;
     }
 
     // Check if the initial render should be zero state.
@@ -646,6 +675,13 @@ export class ContextualTasksAppElement extends CrLitElement {
       return;
     }
 
+    // If a thread URL is loaded with the debug param to exit coborowse,
+    // navigate the tab to that URL.
+    if (hasExitCobrowseParam(new URL(ev.url))) {
+      window.location.href = ev.url;
+      return;
+    }
+
     this.isLoadError_ = !window.navigator.onLine;
 
     // Reset the composebox bounds and the occluders since the embedded page is
@@ -657,6 +693,9 @@ export class ContextualTasksAppElement extends CrLitElement {
     this.isFrameLoading = true;
     const wasAiPage = this.isAiPage_;
     const wasZeroState = this.isZeroState_;
+
+    this.composebox_?.setToolFromUrl(ev.url);
+
     const {isAiPage} = await this.browserProxy_.handler.isAiPage(ev.url);
     const {isZeroState} = await this.browserProxy_.handler.isZeroState(ev.url);
 
@@ -720,15 +759,22 @@ export class ContextualTasksAppElement extends CrLitElement {
     this.updateBasicModeAfterNavigation();
   }
 
-  private onThreadFrameLoadAbort(e: chrome.webviewTag.LoadAbortEvent) {
-    if (e.isTopLevel) {
-      // TODO(crbug.com/489713572): Potentially query autocomplete when the
-      // error is resolved and the page reloads.
-      this.isLoadError_ = true;
-    }
+  private async onThreadFrameLoadAbort(e: chrome.webviewTag.LoadAbortEvent) {
     this.isFrameLoading = false;
     this.isLoadingZeroStateFromResults_ = false;
     this.setIsGhostLoaderVisible(false);
+
+    // Navigations delegated to external applications fire a load abort event.
+    // Check if the embedded page is showing an error document.
+    if (e.isTopLevel) {
+      const {isErrorDocument} =
+          await this.browserProxy_.handler.isEmbeddedPageErrorDocument();
+      if (isErrorDocument) {
+        // TODO(crbug.com/489713572): Potentially query autocomplete when the
+        // error is resolved and the page reloads
+        this.isLoadError_ = true;
+    }
+  }
     this.updateBasicModeAfterNavigation();
   }
 
@@ -859,10 +905,18 @@ export class ContextualTasksAppElement extends CrLitElement {
     const composeboxBounds = this.forcedComposeboxBounds_ ??
         this.getComposeboxBoundsRelativeToThreadFrame_();
 
+    const frameRect = this.$.threadFrame.getBoundingClientRect();
+
     // If occluders are present, set the clip path and a z-index that ensures
     // the thread frame is above the occluders.
+    const roundedClipPathEnabled =
+        loadTimeData.getBoolean('roundedClipPathEnabled');
+    const borderRadius =
+        roundedClipPathEnabled ? COMPOSEBOX_BORDER_RADIUS_PX : 0;
+
     return getNonOccludedClipPath(
-               composeboxBounds, this.occluders_, OCCLUDER_EXTRA_PADDING_PX) +
+               composeboxBounds, this.occluders_, OCCLUDER_EXTRA_PADDING_PX,
+               frameRect.width, frameRect.height, borderRadius) +
         'z-index: 100;';
   }
 
@@ -1017,6 +1071,12 @@ export class ContextualTasksAppElement extends CrLitElement {
 
   private addCommonSearchParams(url: URL): URL {
     for (const [key, value] of Object.entries(this.commonSearchParams_)) {
+      // If the url already has a key, skip it to avoid overriding it. `cs` is an
+      // exception since it will cause UI mismatch between native and embedded
+      // page.
+      if (key !== 'cs' && url.searchParams.has(key)) {
+        continue;
+      }
       if (value === '') {
         url.searchParams.delete(key);
       } else {
@@ -1156,11 +1216,11 @@ export class ContextualTasksAppElement extends CrLitElement {
     this.onThreadFrameContentLoad();
   }
 
-  onThreadFrameLoadAbortForTesting(event: chrome.webviewTag.LoadAbortEvent) {
-    this.onThreadFrameLoadAbort(event);
+  async onThreadFrameLoadAbortForTesting(event: chrome.webviewTag.LoadAbortEvent) {
+    await this.onThreadFrameLoadAbort(event);
   }
 
-  setIsZeroStateForTesting(isZeroState: boolean) {
+  setIsZeroStateForTesting(isZeroState: boolean|undefined) {
     this.isZeroState_ = isZeroState;
   }
 

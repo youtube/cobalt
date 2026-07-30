@@ -25,11 +25,13 @@
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/host/context/glic_screenshot_capturer.h"
+#include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/host/webui_contents_container.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/selection/selection_overlay_controller.h"
 #include "chrome/browser/glic/widget/browser_conditions.h"
 #include "chrome/browser/glic/widget/glic_view.h"
 #include "chrome/browser/glic/widget/glic_widget.h"
@@ -147,7 +149,7 @@ GlicWindowControllerImpl::GlicWindowControllerImpl(
       window_finder_(std::make_unique<WindowFinder>()),
       glic_service_(glic_service),
       enabling_(enabling),
-      id_(base::Uuid::GenerateRandomV4()) {
+      id_(InstanceId::Create(/*glic_instance_coordinator_id=*/1, 0).value()) {
   host_manager_ = std::make_unique<HostManager>(profile, GetWeakPtr());
   if (window_config_.ShouldResetOnStart()) {
     previous_position_.reset();
@@ -160,7 +162,11 @@ GlicWindowControllerImpl::GlicWindowControllerImpl(
   host_observation_.Observe(&host());
 }
 
-GlicWindowControllerImpl::~GlicWindowControllerImpl() = default;
+GlicWindowControllerImpl::~GlicWindowControllerImpl() {
+  for (auto& observer : modal_dialog_host_observers_) {
+    observer.OnHostDestroying();
+  }
+}
 
 void GlicWindowControllerImpl::WebClientInitializeFailed() {
   if (state_ == State::kWaitingForGlicToLoad) {
@@ -222,7 +228,7 @@ void GlicWindowControllerImpl::OnWidgetDestroyed(views::Widget* widget) {
 void GlicWindowControllerImpl::OnWidgetBoundsChanged(
     views::Widget* widget,
     const gfx::Rect& new_bounds) {
-  if (window_event_observer_->IsDragging() && !AlwaysDetached()) {
+  if (widget->is_dragging() && !AlwaysDetached()) {
     // While in a move loop, look for nearby browsers to toggle the drop to
     // attach indicator.
     HandleGlicButtonIndicator();
@@ -603,11 +609,8 @@ void GlicWindowControllerImpl::SetupAndShowGlicWidget(Browser* browser) {
   GetGlicView()->SetWebContents(host().webui_contents());
   GetGlicView()->UpdateBackgroundColor();
 
-  // TODO(crbug.com/439745838): This be needed for sidepanel.
   // Add capability to show web modal dialogs (e.g. Data Controls Dialogs for
   // enterprise users) via constrained_window APIs.
-  web_modal::WebContentsModalDialogManager::CreateForWebContents(
-      host().webui_contents());
   web_modal::WebContentsModalDialogManager::FromWebContents(
       host().webui_contents())
       ->SetDelegate(this);
@@ -1079,6 +1082,31 @@ void GlicWindowControllerImpl::ShowTitleBarContextMenuAt(gfx::Point event_loc) {
   views::ShowSystemMenuAtScreenPixelLocation(views::HWNDForView(GetGlicView()),
                                              event_loc);
 #endif  // BUILDFLAG(IS_WIN)
+}
+
+bool GlicWindowControllerImpl::HasSelectionOverlay() {
+  tabs::TabInterface* focused_tab =
+      host_.sharing_manager().GetFocusedTabData().focus();
+  if (!focused_tab || focused_tab->IsActivated()) {
+    return false;
+  }
+  auto* selection_overlay_controller =
+      SelectionOverlayController::FromTabWebContents(
+          focused_tab->GetContents());
+  return selection_overlay_controller->state() ==
+         SelectionOverlayController::State::kOverlay;
+}
+
+void GlicWindowControllerImpl::CloseSelectionOverlay() {
+  tabs::TabInterface* focused_tab =
+      host_.sharing_manager().GetFocusedTabData().focus();
+  if (!focused_tab || focused_tab->IsActivated()) {
+    return;
+  }
+  auto* selection_overlay_controller =
+      SelectionOverlayController::FromTabWebContents(
+          focused_tab->GetContents());
+  selection_overlay_controller->Close();
 }
 
 mojom::PanelState GlicWindowControllerImpl::GetPanelState() {

@@ -48,6 +48,8 @@ import org.chromium.android_webview.AwWebResourceRequest;
 import org.chromium.android_webview.JsPromptResultReceiver;
 import org.chromium.android_webview.JsResultReceiver;
 import org.chromium.android_webview.R;
+import org.chromium.android_webview.common.AwFeatureMap;
+import org.chromium.android_webview.common.AwFeatures;
 import org.chromium.android_webview.common.Lifetime;
 import org.chromium.android_webview.permission.AwPermissionRequest;
 import org.chromium.android_webview.permission.Resource;
@@ -390,7 +392,16 @@ class WebViewContentsClientAdapter extends SharedWebViewContentsClientAdapter {
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.APICallback.WebViewClient.onPageStarted")) {
             if (TRACE) Log.i(TAG, "onPageStarted=" + url);
-            mWebViewClient.onPageStarted(mWebView, url, mWebView.getFavicon());
+
+            Bitmap favicon = mWebView.getFavicon();
+            RecordHistogram.recordBooleanHistogram(
+                    "Android.WebView.OnPageStarted.FaviconIsNull", favicon == null);
+
+            if (AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_PASS_NULL_FAVICON_TO_ON_PAGE_STARTED)) {
+                mWebViewClient.onPageStarted(mWebView, url, null);
+            } else {
+                mWebViewClient.onPageStarted(mWebView, url, favicon);
+            }
 
             // Record UMA for onPageStarted.
             AwHistogramRecorder.recordCallbackInvocation(
@@ -507,30 +518,11 @@ class WebViewContentsClientAdapter extends SharedWebViewContentsClientAdapter {
                 return;
             }
             if (TRACE) Log.i(TAG, "onGeolocationPermissionsShowPrompt");
-            final long requestStartTime = System.currentTimeMillis();
-            GeolocationPermissions.Callback callbackWrapper =
-                    (callbackOrigin, allow, retain) -> {
-                        long durationMs = System.currentTimeMillis() - requestStartTime;
-                        RecordHistogram.recordTimesHistogram(
-                                "Android.WebView.OnGeolocationPermissionsShowPrompt.ResponseTime",
-                                durationMs);
-                        RecordHistogram.recordBooleanHistogram(
-                                "Android.WebView.OnGeolocationPermissionsShowPrompt.Granted",
-                                allow);
-                        RecordHistogram.recordBooleanHistogram(
-                                "Android.WebView.OnGeolocationPermissionsShowPrompt.Retain",
-                                retain);
-
-                        if (retain) {
-                            RecordHistogram.recordTimesHistogram(
-                                    "Android.WebView.GeolocationRetained.ResponseTime", durationMs);
-                            RecordHistogram.recordBooleanHistogram(
-                                    "Android.WebView.GeolocationRetained.Granted", allow);
-                        }
-                        callback.invoke(callbackOrigin, allow, retain);
-                    };
-            mWebChromeClient.onGeolocationPermissionsShowPrompt(
-                    origin, callback == null ? null : callbackWrapper);
+            if (callback == null) {
+                mWebChromeClient.onGeolocationPermissionsShowPrompt(origin, null);
+            } else {
+                mWebChromeClient.onGeolocationPermissionsShowPrompt(origin, callback::invoke);
+            }
         }
     }
 
@@ -1146,27 +1138,17 @@ class WebViewContentsClientAdapter extends SharedWebViewContentsClientAdapter {
             if ((resources & Resource.MIDI_SYSEX) != 0) {
                 result.add(PermissionRequest.RESOURCE_MIDI_SYSEX);
             }
-            String[] resource_array = new String[result.size()];
-            return result.toArray(resource_array);
+            String[] resourceArray = new String[result.size()];
+            return result.toArray(resourceArray);
         }
 
         private final AwPermissionRequest mAwPermissionRequest;
         private final String[] mResources;
 
-        private final long mCreationTime;
-
         public PermissionRequestAdapter(AwPermissionRequest awPermissionRequest) {
             assert awPermissionRequest != null;
             mAwPermissionRequest = awPermissionRequest;
             mResources = toPermissionResources(mAwPermissionRequest.getResources());
-            mCreationTime = System.currentTimeMillis();
-            RecordHistogram.recordCount100Histogram(
-                    "Android.WebView.OnPermissionRequest.RequestedResourceCount",
-                    mResources.length);
-            // The resources result is a bitmask of size 2^5 (32 distinct values).
-            RecordHistogram.recordSparseHistogram(
-                    "Android.WebView.OnPermissionRequest.RequestedResources",
-                    (int) mAwPermissionRequest.getResources());
         }
 
         @Override
@@ -1181,34 +1163,17 @@ class WebViewContentsClientAdapter extends SharedWebViewContentsClientAdapter {
 
         @Override
         public void grant(String[] resources) {
-            recordResponseTime();
             long requestedResource = mAwPermissionRequest.getResources();
             if ((requestedResource & toAwPermissionResources(resources)) == requestedResource) {
-                recordPermissionResult(true);
                 mAwPermissionRequest.grant();
             } else {
-                recordPermissionResult(false);
                 mAwPermissionRequest.deny();
             }
         }
 
         @Override
         public void deny() {
-            recordResponseTime();
-            recordPermissionResult(false);
             mAwPermissionRequest.deny();
-        }
-
-        private void recordPermissionResult(boolean granted) {
-            RecordHistogram.recordBooleanHistogram(
-                    "Android.WebView.OnPermissionRequest.Granted", granted);
-        }
-
-        /** Record the response time from the app to a histogram. */
-        private void recordResponseTime() {
-            long duration = System.currentTimeMillis() - mCreationTime;
-            RecordHistogram.recordTimesHistogram(
-                    "Android.WebView.OnPermissionRequest.ResponseTime", duration);
         }
     }
 

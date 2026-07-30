@@ -371,6 +371,13 @@ scoped_refptr<VideoFrame> VideoFrame::WrapSharedImage(
     const gfx::Size& natural_size,
     base::TimeDelta timestamp) {
   CHECK(shared_image);
+  if (coded_size != shared_image->size()) {
+    DLOG(ERROR) << "coded_size (" << coded_size.ToString()
+                << ") does not match shared_image size ("
+                << shared_image->size().ToString() << ")";
+    return nullptr;
+  }
+
   scoped_refptr<VideoFrame> frame = CreateFrameForNativeTexturesInternal(
       format, coded_size, visible_rect, natural_size, timestamp);
   if (!frame) {
@@ -379,10 +386,6 @@ scoped_refptr<VideoFrame> VideoFrame::WrapSharedImage(
 
   frame->acquire_sync_token_ = sync_token;
   frame->shared_image_ = shared_image->MakeUnowned();
-  CHECK_EQ(coded_size, shared_image->size())
-      << "coded_size (" << coded_size.ToString()
-      << ") does not match shared_image size ("
-      << shared_image->size().ToString() << ")";
   if (shared_image_release_cb) {
     frame->SetReleaseMailboxCB(std::move(shared_image_release_cb));
   }
@@ -1457,12 +1460,12 @@ bool VideoFrame::HasReleaseMailboxCB() const {
                         : !!shared_image_release_cb_;
 }
 
-void VideoFrame::SetLostSharedImageResource(bool lost_si_resource) {
+void VideoFrame::SetLostSharedImageResource() {
   if (wrapped_frame_) {
-    wrapped_frame_->SetLostSharedImageResource(lost_si_resource);
+    wrapped_frame_->SetLostSharedImageResource();
     return;
   }
-  lost_shared_image_resource_ = lost_si_resource;
+  lost_shared_image_resource_ = true;
 }
 
 void VideoFrame::AddDestructionObserver(base::OnceClosure callback) {

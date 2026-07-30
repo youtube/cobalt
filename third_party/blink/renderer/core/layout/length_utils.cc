@@ -154,6 +154,8 @@ LayoutUnit ResolveInlineLengthInternal(
       return kIndefiniteSize;
     case Length::kFlex:
       NOTREACHED() << "Should only be used for grid.";
+    case Length::kOverlapJoin:
+      NOTREACHED() << "Should only be used for gap decoration insets.";
   }
 }
 
@@ -271,6 +273,8 @@ LayoutUnit ResolveBlockLengthInternal(
       return kIndefiniteSize;
     case Length::kFlex:
       NOTREACHED() << "Should only be used for grid.";
+    case Length::kOverlapJoin:
+      NOTREACHED() << "Should only be used for gap decoration insets.";
   }
 }
 
@@ -1025,8 +1029,8 @@ LogicalSize ComputeReplacedSizeInternal(const BlockNode& node,
       return natural_size->block_size;
     }
     if (mode == ReplacedSizeMode::kNormal) {
-      return ComputeReplacedSize(node, space, border_padding,
-                                 ReplacedSizeMode::kIgnoreBlockLengths)
+      return ComputeReplacedSizeInternal(node, space, border_padding,
+                                         ReplacedSizeMode::kIgnoreBlockLengths)
           .block_size;
     }
     if (natural_size) {
@@ -1103,8 +1107,9 @@ LogicalSize ComputeReplacedSizeInternal(const BlockNode& node,
     } else if (natural_size) {
       DCHECK_NE(mode, ReplacedSizeMode::kIgnoreInlineLengths);
       size = mode == ReplacedSizeMode::kNormal
-                 ? ComputeReplacedSize(node, space, border_padding,
-                                       ReplacedSizeMode::kIgnoreInlineLengths)
+                 ? ComputeReplacedSizeInternal(
+                       node, space, border_padding,
+                       ReplacedSizeMode::kIgnoreInlineLengths)
                        .inline_size
                  : natural_size->inline_size;
     } else {
@@ -1130,18 +1135,6 @@ LogicalSize ComputeReplacedSizeInternal(const BlockNode& node,
         ResolveMaxInlineLength(space, style, border_padding, MinMaxSizesFunc,
                                style.LogicalMaxWidth())};
 
-    // Transfer the block min/max sizes if applicable.
-    if (style.LogicalWidth().HasAuto() &&
-        space.InlineAutoBehavior() != AutoSizeBehavior::kStretchExplicit) {
-      // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-size-transfers
-      inline_min_max_sizes.min_size =
-          std::max(inline_min_max_sizes.min_size,
-                   std::min(transferred_min_max_sizes.min_size,
-                            inline_min_max_sizes.max_size));
-      inline_min_max_sizes.max_size = std::min(
-          inline_min_max_sizes.max_size, transferred_min_max_sizes.max_size);
-    }
-
     // Ensure the max-size encompasses the min-size.
     inline_min_max_sizes.max_size =
         std::max(inline_min_max_sizes.min_size, inline_min_max_sizes.max_size);
@@ -1161,6 +1154,17 @@ LogicalSize ComputeReplacedSizeInternal(const BlockNode& node,
         replaced_inline =
             inline_min_max_sizes.ClampSizeToMinAndMax(inline_size);
       }
+    }
+
+    // Transfer the block min/max sizes if we didn't resolve our main size.
+    if (!replaced_inline) {
+      // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-size-transfers
+      inline_min_max_sizes.min_size =
+          std::max(inline_min_max_sizes.min_size,
+                   std::min(transferred_min_max_sizes.min_size,
+                            inline_min_max_sizes.max_size));
+      inline_min_max_sizes.max_size = std::min(
+          inline_min_max_sizes.max_size, transferred_min_max_sizes.max_size);
     }
   }
 

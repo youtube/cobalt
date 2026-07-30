@@ -7,6 +7,8 @@ import 'chrome://contextual-tasks/app.js';
 import {BrowserProxyImpl} from 'chrome://contextual-tasks/contextual_tasks_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
+import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
 import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
@@ -27,6 +29,7 @@ async function removeThreadFrameToPreventRaceConditions() {
 
 suite('ContextualTasksAppTest', function() {
   let initialUrl: string;
+  let metrics: MetricsTracker;
 
   suiteSetup(() => {
     initialUrl = window.location.href;
@@ -37,7 +40,13 @@ suite('ContextualTasksAppTest', function() {
     if (initialUrl) {
       window.history.replaceState({}, '', initialUrl);
     }
-    loadTimeData.overrideValues({enableBasicModeZOrder: true});
+    loadTimeData.overrideValues({
+      enableBasicModeZOrder: true,
+      enableComposeboxJumpFix: false,
+    });
+    metrics = fakeMetricsPrivate();
+    const proxy = new TestContextualTasksBrowserProxy('http://example.com');
+    BrowserProxyImpl.setInstance(proxy);
   });
 
   test('gets thread url', () => {
@@ -477,6 +486,38 @@ suite('ContextualTasksAppTest', function() {
     assertEquals(newThreadUrl, finalUrl.origin + finalUrl.pathname);
     assertEquals('some-source', finalUrl.searchParams.get('source'));
     assertEquals('some-aep', finalUrl.searchParams.get('aep'));
+  });
+
+  test('logs back button metric in full tab', async () => {
+    const threadUuid = 'ab12';
+    const url = new URL(window.location.href);
+    url.searchParams.set('chrome_task_id', threadUuid);
+    window.history.pushState({}, '', url.href);
+
+    const proxy =
+        BrowserProxyImpl.getInstance() as TestContextualTasksBrowserProxy;
+    proxy.handler.setIsShownInTab(true);
+
+    const appElement = document.createElement('contextual-tasks-app');
+    document.body.appendChild(appElement);
+    const {promise, resolve} = Promise.withResolvers<void>();
+    appElement.setPopStateFinishedCallbackForTesting(resolve);
+    await microtasksFinished();
+
+    window.dispatchEvent(new CustomEvent('popstate'));
+    await promise;
+
+    // Both recordUserAction and recordBoolean map to the same metric name in
+    // the fake metrics tracker.
+    assertEquals(
+        2,
+        metrics.count(
+            'ContextualTasks.HistoryNavigation.UserAction.NavigatedInFullTab'));
+    assertEquals(
+        1,
+        metrics.count(
+            'ContextualTasks.HistoryNavigation.UserAction.NavigatedInFullTab',
+            true));
   });
 
   test(
@@ -1081,7 +1122,7 @@ suite('ContextualTasksAppTest', function() {
     // Verify clip-path on webview
     const clipPath = webview.style.clipPath;
     assertTrue(
-        clipPath.includes('polygon'), 'clip-path should contain polygon');
+        clipPath.includes('path'), 'clip-path should contain path');
   });
 
   test('sets isFrameLoading to false when content load finishes', async () => {
@@ -1156,6 +1197,80 @@ suite('ContextualTasksAppTest', function() {
         appElement.getIsFrameLoadingForTesting(),
         'isFrameLoading should be false');
   });
+
+  test(
+      'hides composebox if load abort contains an error document',
+      async () => {
+        const proxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+        // Override isEmbeddedPageErrorDocument to return true
+        proxy.handler.isEmbeddedPageErrorDocument = () => {
+          return Promise.resolve({isErrorDocument: true});
+        };
+        BrowserProxyImpl.setInstance(proxy);
+
+        const appElement = document.createElement('contextual-tasks-app');
+        document.body.appendChild(appElement);
+        await microtasksFinished();
+
+        // Remove the thread frame to prevent unwanted loadstart events.
+        const threadFrame = appElement.shadowRoot.querySelector('#threadFrame');
+        assertTrue(!!threadFrame);
+        appElement.shadowRoot.removeChild(threadFrame);
+        await microtasksFinished();
+
+        const loadAbortEvent = new CustomEvent('loadabort') as any;
+        loadAbortEvent.isTopLevel = true;
+        loadAbortEvent.url = fixtureUrl;
+        loadAbortEvent.reason = 'ERR_CONNECTION_RESET';
+
+        // Do NOT await yet.
+        const promise =
+            appElement.onThreadFrameLoadAbortForTesting(loadAbortEvent);
+
+        await promise;
+
+        // After it resolves it should be true.
+        assertTrue(
+            appElement.isLoadErrorForTesting,
+            'isLoadError_ should be true if it was an error document');
+      });
+
+  test(
+      'does not hide composebox if load abort does not contain error document',
+      async () => {
+        const proxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+        // Override isEmbeddedPageErrorDocument to return false
+        proxy.handler.isEmbeddedPageErrorDocument = () => {
+          return Promise.resolve({isErrorDocument: false});
+        };
+        BrowserProxyImpl.setInstance(proxy);
+
+        const appElement = document.createElement('contextual-tasks-app');
+        document.body.appendChild(appElement);
+        await microtasksFinished();
+
+        // Remove the thread frame to prevent unwanted loadstart events.
+        const threadFrame = appElement.shadowRoot.querySelector('#threadFrame');
+        assertTrue(!!threadFrame);
+        appElement.shadowRoot.removeChild(threadFrame);
+        await microtasksFinished();
+
+        const loadAbortEvent = new CustomEvent('loadabort') as any;
+        loadAbortEvent.isTopLevel = true;
+        loadAbortEvent.url = fixtureUrl;
+        loadAbortEvent.reason = 'ERR_ABORTED';
+
+        // Do NOT await yet.
+        const promise =
+            appElement.onThreadFrameLoadAbortForTesting(loadAbortEvent);
+
+        await promise;
+
+        // After it resolves it should be false.
+        assertFalse(
+            appElement.isLoadErrorForTesting,
+            'isLoadError_ should be false if it was not an error document');
+      });
 
   test(
       'sets pending basic mode to false when navigating from AI page and initially not in basic mode',
@@ -1292,4 +1407,37 @@ suite('ContextualTasksAppTest', function() {
         // Should exit basic mode because pendingBasicMode_ was false.
         assertFalse(appElement.hasAttribute('is-in-basic-mode_'));
       });
+
+  test('addCommonSearchParams overrides parameters except cs', async () => {
+    const proxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+    BrowserProxyImpl.setInstance(proxy);
+
+    document.body.appendChild(document.createElement('contextual-tasks-app'));
+    await microtasksFinished();
+
+    const appElement: any = document.querySelector('contextual-tasks-app');
+
+    appElement.commonSearchParams_ = {
+      'cs': '1',
+      'hl': 'en',
+      'gsc': '2',
+    };
+
+    let url = new URL('https://example.com');
+    url = appElement.addCommonSearchParams(url);
+    assertEquals('1', url.searchParams.get('cs'));
+    assertEquals('en', url.searchParams.get('hl'));
+    assertEquals('2', url.searchParams.get('gsc'));
+
+    url = new URL('https://example.com?hl=override_hl&gsc=override_gsc');
+    url = appElement.addCommonSearchParams(url);
+    assertEquals('1', url.searchParams.get('cs'));
+    assertEquals('override_hl', url.searchParams.get('hl'));
+    assertEquals('override_gsc', url.searchParams.get('gsc'));
+
+    url = new URL('https://example.com?cs=0&hl=another');
+    url = appElement.addCommonSearchParams(url);
+    assertEquals('1', url.searchParams.get('cs'));
+    assertEquals('another', url.searchParams.get('hl'));
+  });
 });

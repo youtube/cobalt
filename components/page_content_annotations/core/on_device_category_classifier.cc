@@ -4,6 +4,9 @@
 
 #include "components/page_content_annotations/core/on_device_category_classifier.h"
 
+#include <memory>
+#include <vector>
+
 #include "base/barrier_callback.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -12,7 +15,6 @@
 #include "base/task/thread_pool.h"
 #include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
 #include "components/page_content_annotations/core/category_classifier_model_handler.h"
-#include "components/page_content_annotations/core/edu_classifier_model_handler.h"
 #include "components/page_content_annotations/core/page_content_annotation_type.h"
 #include "url/gurl.h"
 
@@ -40,7 +42,14 @@ OnDeviceCategoryClassifier::OnDeviceCategoryClassifier(
     embedder_metadata_observation_.Observe(embedder_metadata_provider);
   }
   category_classifier_model_handlers_[CategoryType::kEducation] =
-      std::make_unique<EduClassifierModelHandler>(
+      std::make_unique<CategoryClassifierModelHandler>(
+          optimization_guide::proto::OPTIMIZATION_TARGET_EDU_CLASSIFIER,
+          optimization_guide_model_provider_,
+          base::ThreadPool::CreateSequencedTaskRunner(
+              {base::MayBlock(), base::TaskPriority::BEST_EFFORT}));
+  category_classifier_model_handlers_[CategoryType::kShopping] =
+      std::make_unique<CategoryClassifierModelHandler>(
+          optimization_guide::proto::OPTIMIZATION_TARGET_SHOPPING_CLASSIFIER,
           optimization_guide_model_provider_,
           base::ThreadPool::CreateSequencedTaskRunner(
               {base::MayBlock(), base::TaskPriority::BEST_EFFORT}));
@@ -59,7 +68,14 @@ void OnDeviceCategoryClassifier::RemoveObserver(Observer* observer) {
 void OnDeviceCategoryClassifier::OnPageEmbeddingAvailable(
     const GURL& url,
     ukm::SourceId source_id,
-    const passage_embeddings::Embedding& embedding) {
+    passage_embeddings::Embedding title_url_embedding,
+    std::vector<passage_embeddings::Embedding> passage_embeddings) {
+  if (title_url_embedding.GetData().empty()) {
+    // Skip if the title-URL embedding is empty.
+    OnCategoryClassifiersCompleted(url, source_id, {});
+    return;
+  }
+
   // Run each of the category classifiers on the returned embedding.
   auto barrier_callback =
       base::BarrierCallback<std::pair<CategoryType, std::optional<float>>>(
@@ -82,10 +98,13 @@ void OnDeviceCategoryClassifier::OnPageEmbeddingAvailable(
       continue;
     }
 
+    // Execute the model with the input vector.
+    std::vector<float> input_vector = model_handler->ConstructInputVector(
+        title_url_embedding, passage_embeddings);
     model_handler->ExecuteModelWithInput(
         base::BindOnce(&OnSingleCategoryClassifierComplete, category_type,
                        barrier_callback),
-        embedding.GetData());
+        input_vector);
   }
 }
 

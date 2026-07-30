@@ -103,7 +103,7 @@ import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.merchant_viewer.MerchantTrustSignalsCoordinator;
 import org.chromium.chrome.browser.metrics.UmaActivityObserver;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.ntp.IncognitoNewTabPage;
 import org.chromium.chrome.browser.ntp.IncognitoNtpOmniboxAutofocusManager;
@@ -370,7 +370,7 @@ public class ToolbarManager
     private final OverrideUrlLoadingDelegateImpl mOverrideUrlLoadingDelegate;
     private final TopInsetProvider mTopInsetProvider;
     private final SettableNonNullObservableSupplier<@ControlsPosition Integer>
-            mToolbarPositionSupplier = ObservableSuppliers.createNonNull(ControlsPosition.NONE);
+            mToolbarPositionSupplier = ObservableSuppliers.createNonNull(ControlsPosition.TOP);
     private final OneshotSupplier<ChromeAndroidTask> mChromeAndroidTaskSupplier;
 
     private @MonotonicNonNull HomeButtonCoordinator mHomeButtonCoordinator;
@@ -769,8 +769,6 @@ public class ToolbarManager
      * @param desktopWindowStateManager The {@link DesktopWindowStateManager} instance.
      * @param lockTopControlsTokenJar {@link TokenHolder} from TopControlsLockCoordinator, used to
      *     ensure control lock state does not change.
-     * @param multiInstanceManager The {@link MultiInstanceManager} used to move tabs to new
-     *     windows.
      * @param tabBookmarkerSupplier Supplier of {@link TabBookmarker} for bookmarking a given tab.
      * @param menuButtonVisibilityDelegate Delegate for handling the visibility of the menu button.
      * @param topControlsStacker TopControlsStacker to manage the view's y-offset.
@@ -828,7 +826,6 @@ public class ToolbarManager
             MonotonicObservableSupplier<ReadAloudController> readAloudControllerSupplier,
             @Nullable DesktopWindowStateManager desktopWindowStateManager,
             @Nullable TokenHolder lockTopControlsTokenJar,
-            @Nullable MultiInstanceManager multiInstanceManager,
             MonotonicObservableSupplier<TabBookmarker> tabBookmarkerSupplier,
             @Nullable VisibilityDelegate menuButtonVisibilityDelegate,
             TopControlsStacker topControlsStacker,
@@ -1315,7 +1312,6 @@ public class ToolbarManager
                                     mActivity, mIsCustomTab),
                             pageZoomManager,
                             TabFavicon::getBitmap,
-                            multiInstanceManager,
                             snackbarManager,
                             bottomContainerView,
                             omniboxChipManager);
@@ -2017,7 +2013,10 @@ public class ToolbarManager
                         mHomeButtonCoordinator,
                         topControlsStacker,
                         mBrowserControlsSizer,
-                        () -> MultiWindowUtils.getIncognitoInstanceCount(/* activeOnly= */ true),
+                        () ->
+                                MultiWindowUtils.getInstanceCount(
+                                        PersistedInstanceType.ACTIVE
+                                                | PersistedInstanceType.OFF_THE_RECORD),
                         profileSupplier,
                         SigninAndHistorySyncActivityLauncherImpl.get(),
                         mWindowAndroid,

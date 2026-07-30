@@ -15,7 +15,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -28,6 +27,8 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodMediator.ERROR_SCREEN_SHOWN;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodMediator.ISSUER_SELECTION_SCREEN_AFFIRM_LINKED_SELECTED;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodMediator.ISSUER_SELECTION_SCREEN_AFFIRM_UNLINKED_SELECTED;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodMediator.ISSUER_SELECTION_SCREEN_AI_BASED_AMOUNT_EXTRACTION_TERMS_SHOWN_IN_BOLD_FONT;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodMediator.ISSUER_SELECTION_SCREEN_AI_BASED_AMOUNT_EXTRACTION_TERMS_SHOWN_IN_NORMAL_FONT;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodMediator.ISSUER_SELECTION_SCREEN_BACK_BUTTON_SELECTED;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodMediator.ISSUER_SELECTION_SCREEN_DISMISSED;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodMediator.ISSUER_SELECTION_SCREEN_KLARNA_LINKED_SELECTED;
@@ -146,6 +147,7 @@ import android.graphics.Typeface;
 import android.text.SpannableString;
 import android.text.TextPaint;
 import android.text.TextUtils;
+import android.text.style.CharacterStyle;
 import android.text.style.ClickableSpan;
 import android.text.style.StyleSpan;
 import android.view.View;
@@ -1109,14 +1111,8 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
 
         mTouchToFillPaymentMethodModel.get(DISMISS_HANDLER).onResult(StateChangeReason.SWIPE);
 
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION + PROGRESS_SCREEN_SHOWN));
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION + PROGRESS_SCREEN_DISMISSED));
+        assertEquals(1, getUserActionCount(PROGRESS_SCREEN_SHOWN));
+        assertEquals(1, getUserActionCount(PROGRESS_SCREEN_DISMISSED));
     }
 
     @Test
@@ -1290,11 +1286,15 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
         SpannableString spannable = (SpannableString) termsText;
         ClickableSpan[] spans = spannable.getSpans(0, spannable.length(), ClickableSpan.class);
         assertEquals("There should be exactly one clickable span", 1, spans.length);
-        assertExpectedBnplTermsLink(spans[0], /* isInProgress= */ false);
+        assertExpectedBnplSelectionScreenTermsLink(spans[0]);
 
         // Verify no bold span for AI terms.
         StyleSpan[] styleSpans = spannable.getSpans(0, spannable.length(), StyleSpan.class);
         assertEquals(0, styleSpans.length);
+        assertEquals(
+                1,
+                getUserActionCount(
+                        ISSUER_SELECTION_SCREEN_AI_BASED_AMOUNT_EXTRACTION_TERMS_SHOWN_IN_NORMAL_FONT));
     }
 
     @Test
@@ -1324,7 +1324,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
         SpannableString spannable = (SpannableString) termsText;
         ClickableSpan[] spans = spannable.getSpans(0, spannable.length(), ClickableSpan.class);
         assertEquals("There should be exactly one clickable span", 1, spans.length);
-        assertExpectedBnplTermsLink(spans[0], /* isInProgress= */ false);
+        assertExpectedBnplSelectionScreenTermsLink(spans[0]);
 
         // Verify the bold span for AI terms.
         StyleSpan[] styleSpans = spannable.getSpans(0, spannable.length(), StyleSpan.class);
@@ -1338,6 +1338,10 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
                         .substring(
                                 spannable.getSpanStart(boldTextSpan),
                                 spannable.getSpanEnd(boldTextSpan)));
+        assertEquals(
+                1,
+                getUserActionCount(
+                        ISSUER_SELECTION_SCREEN_AI_BASED_AMOUNT_EXTRACTION_TERMS_SHOWN_IN_BOLD_FONT));
     }
 
     @Test
@@ -1364,12 +1368,18 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
         SpannableString spannable = (SpannableString) termsText;
         ClickableSpan[] spans = spannable.getSpans(0, spannable.length(), ClickableSpan.class);
         assertEquals("There should be exactly one clickable span", 1, spans.length);
-        assertExpectedBnplTermsLink(spans[0], /* isInProgress= */ false);
+        assertExpectedBnplSelectionScreenTermsLink(spans[0]);
     }
 
     @Test
     @EnableFeatures({AutofillFeatures.AUTOFILL_ENABLE_AI_BASED_AMOUNT_EXTRACTION})
-    public void testBnplProgressScreenTerms_AiBasedAmountExtractionEnabled() {
+    public void testBnplProgressScreenTerms_AiBasedAmountExtractionEnabled_HasSeenAiTerms() {
+        when(mPersonalDataManager.isAutofillAmountExtractionAiTermsSeenPrefEnabled())
+                .thenReturn(true);
+
+        mCoordinator
+                .getMediatorForTesting()
+                .showBnplIssuers(List.of(BNPL_ISSUER_CONTEXT_AFFIRM_LINKED));
         mCoordinator.getMediatorForTesting().showProgressScreen();
 
         assertThat(mTouchToFillPaymentMethodModel.get(CURRENT_SCREEN), is(PROGRESS_SCREEN));
@@ -1385,9 +1395,53 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
         // Verify the expecteed terms is SpannableString type.
         assertTrue("Terms text should be a SpannableString", termsText instanceof SpannableString);
         SpannableString spannable = (SpannableString) termsText;
-        ClickableSpan[] spans = spannable.getSpans(0, spannable.length(), ClickableSpan.class);
-        assertEquals("There should be exactly one clickable span", 1, spans.length);
-        assertExpectedBnplTermsLink(spans[0], /* isInProgress= */ true);
+        CharacterStyle[] spans = spannable.getSpans(0, spannable.length(), CharacterStyle.class);
+        assertEquals("There should be exactly one character style span", 1, spans.length);
+        assertExpectedBnplProgressScreenTermsLink(spans[0]);
+    }
+
+    @Test
+    @EnableFeatures({AutofillFeatures.AUTOFILL_ENABLE_AI_BASED_AMOUNT_EXTRACTION})
+    public void testBnplProgressScreenTerms_AiBasedAmountExtractionEnabled_HasNotSeenAiTerms() {
+        when(mPersonalDataManager.isAutofillAmountExtractionAiTermsSeenPrefEnabled())
+                .thenReturn(false);
+
+        mCoordinator
+                .getMediatorForTesting()
+                .showBnplIssuers(List.of(BNPL_ISSUER_CONTEXT_AFFIRM_LINKED));
+        mCoordinator.getMediatorForTesting().showProgressScreen();
+
+        assertThat(mTouchToFillPaymentMethodModel.get(CURRENT_SCREEN), is(PROGRESS_SCREEN));
+
+        Optional<PropertyModel> termsModel =
+                getBnplSelectionProgressTermsModel(mTouchToFillPaymentMethodModel.get(SHEET_ITEMS));
+        assertTrue(termsModel.isPresent());
+
+        // Verify the expecteed terms text.
+        CharSequence termsText = termsModel.get().get(TERMS_TEXT);
+        assertThat(termsText.toString(), is(BNPL_AI_TERMS));
+
+        // Verify the expecteed terms is SpannableString type.
+        assertTrue("Terms text should be a SpannableString", termsText instanceof SpannableString);
+
+        // Verify there are two spans: one for an unclickable link and another for the bolded text.
+        SpannableString spannable = (SpannableString) termsText;
+        CharacterStyle[] spans = spannable.getSpans(0, spannable.length(), CharacterStyle.class);
+        assertEquals("There should be exactly two style spans", 2, spans.length);
+        assertExpectedBnplProgressScreenTermsLink(spans[1]);
+
+        // Verify the bold span for AI terms.
+        StyleSpan[] styleSpans = spannable.getSpans(0, spannable.length(), StyleSpan.class);
+        assertEquals(1, styleSpans.length);
+        StyleSpan boldTextSpan = styleSpans[0];
+        assertTrue(boldTextSpan.getStyle() == Typeface.BOLD);
+        assertEquals(
+                BNPL_AI_TERMS_BOLDED_TEXT,
+                spannable
+                        .toString()
+                        .substring(
+                                spannable.getSpanStart(boldTextSpan),
+                                spannable.getSpanEnd(boldTextSpan)));
     }
 
     @Test
@@ -1408,9 +1462,9 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
         // Verify the expecteed terms is SpannableString type.
         assertTrue("Terms text should be a SpannableString", termsText instanceof SpannableString);
         SpannableString spannable = (SpannableString) termsText;
-        ClickableSpan[] spans = spannable.getSpans(0, spannable.length(), ClickableSpan.class);
-        assertEquals("There should be exactly one clickable span", 1, spans.length);
-        assertExpectedBnplTermsLink(spans[0], /* isInProgress= */ true);
+        CharacterStyle[] spans = spannable.getSpans(0, spannable.length(), CharacterStyle.class);
+        assertEquals("There should be exactly one character style span", 1, spans.length);
+        assertExpectedBnplProgressScreenTermsLink(spans[0]);
     }
 
     @Test
@@ -1467,10 +1521,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
                 .showBnplIssuers(List.of(BNPL_ISSUER_CONTEXT_AFFIRM_LINKED));
 
         numIssuersShownHistogram.assertExpected();
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION + ISSUER_SELECTION_SCREEN_SHOWN));
+        assertEquals(1, getUserActionCount(ISSUER_SELECTION_SCREEN_SHOWN));
     }
 
     @Test
@@ -1486,10 +1537,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
                                 BNPL_ISSUER_CONTEXT_KLARNA_LINKED));
 
         numIssuersShownHistogram.assertExpected();
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION + ISSUER_SELECTION_SCREEN_SHOWN));
+        assertEquals(1, getUserActionCount(ISSUER_SELECTION_SCREEN_SHOWN));
     }
 
     @Test
@@ -1530,10 +1578,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
                 2,
                 RecordHistogram.getHistogramValueCountForTesting(
                         TOUCH_TO_FILL_BNPL_SELECT_ISSUER_NUMBER_OF_ISSUERS_SHOWN, /* sample= */ 1));
-        assertEquals(
-                2,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION + ISSUER_SELECTION_SCREEN_SHOWN));
+        assertEquals(2, getUserActionCount(ISSUER_SELECTION_SCREEN_SHOWN));
     }
 
     @Test
@@ -1551,11 +1596,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
 
         verify(mDelegateMock)
                 .onBnplIssuerSuggestionSelected(BNPL_ISSUER_CONTEXT_AFFIRM_LINKED.getIssuerId());
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION
-                                + ISSUER_SELECTION_SCREEN_AFFIRM_LINKED_SELECTED));
+        assertEquals(1, getUserActionCount(ISSUER_SELECTION_SCREEN_AFFIRM_LINKED_SELECTED));
     }
 
     @Test
@@ -1573,11 +1614,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
 
         verify(mDelegateMock)
                 .onBnplIssuerSuggestionSelected(BNPL_ISSUER_CONTEXT_AFFIRM_UNLINKED.getIssuerId());
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION
-                                + ISSUER_SELECTION_SCREEN_AFFIRM_UNLINKED_SELECTED));
+        assertEquals(1, getUserActionCount(ISSUER_SELECTION_SCREEN_AFFIRM_UNLINKED_SELECTED));
     }
 
     @Test
@@ -1595,11 +1632,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
 
         verify(mDelegateMock)
                 .onBnplIssuerSuggestionSelected(BNPL_ISSUER_CONTEXT_KLARNA_LINKED.getIssuerId());
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION
-                                + ISSUER_SELECTION_SCREEN_KLARNA_LINKED_SELECTED));
+        assertEquals(1, getUserActionCount(ISSUER_SELECTION_SCREEN_KLARNA_LINKED_SELECTED));
     }
 
     @Test
@@ -1617,11 +1650,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
 
         verify(mDelegateMock)
                 .onBnplIssuerSuggestionSelected(BNPL_ISSUER_CONTEXT_KLARNA_UNLINKED.getIssuerId());
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION
-                                + ISSUER_SELECTION_SCREEN_KLARNA_UNLINKED_SELECTED));
+        assertEquals(1, getUserActionCount(ISSUER_SELECTION_SCREEN_KLARNA_UNLINKED_SELECTED));
     }
 
     @Test
@@ -1639,11 +1668,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
 
         verify(mDelegateMock)
                 .onBnplIssuerSuggestionSelected(BNPL_ISSUER_CONTEXT_ZIP_LINKED.getIssuerId());
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION
-                                + ISSUER_SELECTION_SCREEN_ZIP_LINKED_SELECTED));
+        assertEquals(1, getUserActionCount(ISSUER_SELECTION_SCREEN_ZIP_LINKED_SELECTED));
     }
 
     @Test
@@ -1661,11 +1686,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
 
         verify(mDelegateMock)
                 .onBnplIssuerSuggestionSelected(BNPL_ISSUER_CONTEXT_ZIP_UNLINKED.getIssuerId());
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION
-                                + ISSUER_SELECTION_SCREEN_ZIP_UNLINKED_SELECTED));
+        assertEquals(1, getUserActionCount(ISSUER_SELECTION_SCREEN_ZIP_UNLINKED_SELECTED));
     }
 
     @Test
@@ -1706,11 +1727,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
                 .run();
 
         assertThat(mTouchToFillPaymentMethodModel.get(CURRENT_SCREEN), is(HOME_SCREEN));
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION
-                                + ISSUER_SELECTION_SCREEN_BACK_BUTTON_SELECTED));
+        assertEquals(1, getUserActionCount(ISSUER_SELECTION_SCREEN_BACK_BUTTON_SELECTED));
     }
 
     @Test
@@ -1740,11 +1757,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
         spans[0].onClick(new TextViewWithClickableSpans(mActivity));
 
         verify(mDelegateMock, times(1)).showPaymentMethodSettings();
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION
-                                + ISSUER_SELECTION_SCREEN_SETTINGS_LINK_SELECTED));
+        assertEquals(1, getUserActionCount(ISSUER_SELECTION_SCREEN_SETTINGS_LINK_SELECTED));
     }
 
     @Test
@@ -1761,10 +1774,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
 
         mTouchToFillPaymentMethodModel.get(DISMISS_HANDLER).onResult(StateChangeReason.SWIPE);
 
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION + ISSUER_SELECTION_SCREEN_DISMISSED));
+        assertEquals(1, getUserActionCount(ISSUER_SELECTION_SCREEN_DISMISSED));
     }
 
     @Test
@@ -2169,10 +2179,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
         mCoordinator.showBnplIssuerTos(BNPL_ISSUER_TOS_DETAIL_AFFIRM);
 
         assertThat(mTouchToFillPaymentMethodModel.get(CURRENT_SCREEN), is(BNPL_ISSUER_TOS_SCREEN));
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION + AFFIRM_TOS_SCREEN + SCREEN_SHOWN));
+        assertEquals(1, getUserActionCount(AFFIRM_TOS_SCREEN + SCREEN_SHOWN));
     }
 
     @Test
@@ -2180,10 +2187,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
         mCoordinator.showBnplIssuerTos(BNPL_ISSUER_TOS_DETAIL_KLARNA);
 
         assertThat(mTouchToFillPaymentMethodModel.get(CURRENT_SCREEN), is(BNPL_ISSUER_TOS_SCREEN));
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION + KLARNA_TOS_SCREEN + SCREEN_SHOWN));
+        assertEquals(1, getUserActionCount(KLARNA_TOS_SCREEN + SCREEN_SHOWN));
     }
 
     @Test
@@ -2191,10 +2195,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
         mCoordinator.showBnplIssuerTos(BNPL_ISSUER_TOS_DETAIL_ZIP);
 
         assertThat(mTouchToFillPaymentMethodModel.get(CURRENT_SCREEN), is(BNPL_ISSUER_TOS_SCREEN));
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION + ZIP_TOS_SCREEN + SCREEN_SHOWN));
+        assertEquals(1, getUserActionCount(ZIP_TOS_SCREEN + SCREEN_SHOWN));
     }
 
     @Test
@@ -2230,10 +2231,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
                 .run();
 
         verify(mDelegateMock).onBnplTosAccepted();
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION + AFFIRM_TOS_SCREEN + SCREEN_ACCEPTED));
+        assertEquals(1, getUserActionCount(AFFIRM_TOS_SCREEN + SCREEN_ACCEPTED));
     }
 
     @Test
@@ -2248,10 +2246,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
                 .get(ON_CLICK_ACTION)
                 .run();
 
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION + ZIP_TOS_SCREEN + SCREEN_DISMISSED));
+        assertEquals(1, getUserActionCount(ZIP_TOS_SCREEN + SCREEN_DISMISSED));
     }
 
     @Test
@@ -2265,10 +2260,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
         linkText.getSpans(0, linkText.length(), ClickableSpan.class)[0].onClick(
                 new TextViewWithClickableSpans(mActivity));
 
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION + KLARNA_TOS_SCREEN + WALLET_LINK_CLICKED));
+        assertEquals(1, getUserActionCount(KLARNA_TOS_SCREEN + WALLET_LINK_CLICKED));
     }
 
     @Test
@@ -2280,12 +2272,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
                 .get(LINK_OPENER)
                 .accept("http://www.test.com");
 
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION
-                                + AFFIRM_TOS_SCREEN
-                                + LEGAL_MESSAGE_LINK_CLICKED));
+        assertEquals(1, getUserActionCount(AFFIRM_TOS_SCREEN + LEGAL_MESSAGE_LINK_CLICKED));
     }
 
     @Test
@@ -2336,13 +2323,8 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
 
         mTouchToFillPaymentMethodModel.get(DISMISS_HANDLER).onResult(StateChangeReason.SWIPE);
 
-        assertEquals(
-                1,
-                mActionTester.getActionCount(TOUCH_TO_FILL_BNPL_USER_ACTION + ERROR_SCREEN_SHOWN));
-        assertEquals(
-                1,
-                mActionTester.getActionCount(
-                        TOUCH_TO_FILL_BNPL_USER_ACTION + ERROR_SCREEN_DISMISSED));
+        assertEquals(1, getUserActionCount(ERROR_SCREEN_SHOWN));
+        assertEquals(1, getUserActionCount(ERROR_SCREEN_DISMISSED));
     }
 
     @Test
@@ -3390,26 +3372,25 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
         assertThat(termsModel.get().get(TERMS_LABEL_TEXT_ID), is(textId));
     }
 
-    private void assertExpectedBnplTermsLink(ClickableSpan span, boolean isInProgress) {
+    private void assertExpectedBnplSelectionScreenTermsLink(ClickableSpan span) {
         TextPaint paint = new TextPaint();
         span.updateDrawState(paint);
         float alpha = Color.alpha(paint.getColor()) / 255f;
 
-        if (isInProgress) {
-            assertEquals(
-                    "Link should be grayed out (38% opacity) in progress screen",
-                    0.38f, alpha, 0.01f);
+        assertEquals("Link should be fully opaque on the selection screen", 1.0f, alpha, 0.01f);
 
-            // Verify the ClickableSpan is not clickable.
-            span.onClick(new View(mActivity));
-            verify(mDelegateMock, never()).showPaymentMethodSettings();
-        } else {
-            assertEquals("Link should be fully opaque on the selection screen", 1.0f, alpha, 0.01f);
+        // Verify the ClickableSpan is clickable.
+        span.onClick(new View(mActivity));
+        verify(mDelegateMock, times(1)).showPaymentMethodSettings();
+    }
 
-            // Verify the ClickableSpan is clickable.
-            span.onClick(new View(mActivity));
-            verify(mDelegateMock, times(1)).showPaymentMethodSettings();
-        }
+    private void assertExpectedBnplProgressScreenTermsLink(CharacterStyle span) {
+        TextPaint paint = new TextPaint();
+        span.updateDrawState(paint);
+        float alpha = Color.alpha(paint.getColor()) / 255f;
+
+        assertEquals(
+                "Link should be grayed out (38% opacity) in progress screen", 0.38f, alpha, 0.01f);
     }
 
     private static Optional<PropertyModel> getIbanModelByAutofillName(ModelList items, Iban iban) {
@@ -3425,5 +3406,9 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
     private void advanceClockAndClick(PropertyModel cardSuggestionModel) {
         mClock.advanceCurrentTimeMillis(InputProtector.POTENTIALLY_UNINTENDED_INPUT_THRESHOLD);
         cardSuggestionModel.get(ON_CREDIT_CARD_CLICK_ACTION).run();
+    }
+
+    private int getUserActionCount(String userAction) {
+        return mActionTester.getActionCount(TOUCH_TO_FILL_BNPL_USER_ACTION + userAction);
     }
 }

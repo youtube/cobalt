@@ -32,6 +32,7 @@
 #include "extensions/browser/event_router.h"
 #include "extensions/browser/extension_event_histogram_value.h"
 #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
+#include "extensions/browser/mime_handler/stream_container.h"
 #include "extensions/common/api/mime_handler_private.h"
 #include "pdf/buildflags.h"
 #include "pdf/pdf_features.h"
@@ -457,14 +458,19 @@ bool ShouldShowGlicSummarizeButton(content::BrowserContext* context) {
     return false;
   }
 
-  // If the user has not passed FRE, and `kPdfGlicSummarizeFre` is false, then
-  // don't show the button.
-  if (!base::FeatureList::IsEnabled(features::kPdfGlicSummarizeFre) &&
-      !glic::GlicEnabling::HasConsentedForProfile(profile)) {
+  if (!base::FeatureList::IsEnabled(features::kPdfGlicSummarize)) {
     return false;
   }
 
-  return base::FeatureList::IsEnabled(features::kPdfGlicSummarize);
+  if (glic::GlicEnabling::HasConsentedForProfile(profile)) {
+    return true;
+  }
+
+  if (glic::GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(profile)) {
+    return true;
+  }
+
+  return false;
 }
 
 }  // namespace pdf_extension_util

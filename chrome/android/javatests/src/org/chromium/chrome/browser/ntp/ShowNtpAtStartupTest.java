@@ -63,6 +63,7 @@ import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.educational_tip.EducationalTipModuleUtils;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.layouts.LayoutTestUtils;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.logo.LogoBridge.Logo;
@@ -95,8 +96,6 @@ import java.util.concurrent.TimeoutException;
 // Restrict to Phones and Tablets because Desktop Android does not show NTP at startup.
 @Restriction({Restriction.RESTRICTION_TYPE_NON_LOW_END_DEVICE, DeviceFormFactor.PHONE_OR_TABLET})
 @EnableFeatures({ChromeFeatureList.START_SURFACE_RETURN_TIME})
-// TODO(https://crbug.com/454091341): Enable this feature on this test suite.
-@DisableFeatures({ChromeFeatureList.ANDROID_COMPOSEPLATE})
 @CommandLineFlags.Add(ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE)
 @DoNotBatch(reason = "This test suite tests startup behaviors.")
 public class ShowNtpAtStartupTest {
@@ -123,6 +122,8 @@ public class ShowNtpAtStartupTest {
         SetupListManager.setInstanceForTesting(setupListManager);
 
         EducationalTipModuleUtils.setEducationalTipActiveForTesting(false);
+        // TODO(https://crbug.com/454091341): Enable incognito mode on this test suite.
+        IncognitoUtils.setEnabledForTesting(false);
     }
 
     @Test
@@ -210,7 +211,7 @@ public class ShowNtpAtStartupTest {
     @Test
     @MediumTest
     @Feature({"StartSurface"})
-    @EnableFeatures({START_SURFACE_RETURN_TIME_IMMEDIATE, ChromeFeatureList.MAGIC_STACK_ANDROID})
+    @EnableFeatures({START_SURFACE_RETURN_TIME_IMMEDIATE})
     public void testSingleTabCardGoneAfterTabClosed_MagicStack() throws IOException {
         HomeSurfaceTestUtils.prepareTabStateMetadataFile(
                 new int[] {0, 1}, new String[] {TAB_URL, TAB_URL_1}, 0);
@@ -249,7 +250,7 @@ public class ShowNtpAtStartupTest {
                 ThreadUtils.runOnUiThreadBlocking(() -> cta.getCurrentTabModel().getTabAt(0));
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    ntp.showMagicStack(newTrackingTab);
+                    ntp.showHomeSurfaceUiOnNtp(newTrackingTab);
                 });
         CriteriaHelper.pollUiThread(() -> ntp.isMagicStackVisibleForTesting());
 
@@ -294,7 +295,7 @@ public class ShowNtpAtStartupTest {
     @Test
     @MediumTest
     @Feature({"StartSurface"})
-    @EnableFeatures({START_SURFACE_RETURN_TIME_IMMEDIATE, ChromeFeatureList.MAGIC_STACK_ANDROID})
+    @EnableFeatures({START_SURFACE_RETURN_TIME_IMMEDIATE})
     public void testSingleTabModule_MagicStack() throws IOException {
         HomeSurfaceTestUtils.prepareTabStateMetadataFile(
                 new int[] {0, 1}, new String[] {TAB_URL, TAB_URL_1}, 0);
@@ -377,7 +378,7 @@ public class ShowNtpAtStartupTest {
     @Test
     @MediumTest
     @Feature({"StartSurface"})
-    @EnableFeatures({START_SURFACE_RETURN_TIME_IMMEDIATE, ChromeFeatureList.MAGIC_STACK_ANDROID})
+    @EnableFeatures({START_SURFACE_RETURN_TIME_IMMEDIATE})
     public void testClickSingleTabCardCloseNtpHomeSurface() throws IOException {
         HomeSurfaceTestUtils.prepareTabStateMetadataFile(new int[] {0}, new String[] {TAB_URL}, 0);
         mActivityTestRule.startFromLauncherAtNtp();

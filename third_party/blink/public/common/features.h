@@ -674,6 +674,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceHighPerformanceGPUForWebGL);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceOffTextAutosizing);
 
+// When enabled, forces ICC profile parsing to use skcms instead of the Rust
+// moxcms parser. Acts as a kill-switch for the Rust ICC parser.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceSkcmsICCParsing);
+
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kFrameMetadataObserver);
 
 // If enabled, shared workers will be frozen when all their clients are in the
@@ -1632,6 +1636,9 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kResamplingScrollEvents);
 // Max timeout for synthetic scroll prediction.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                                                kScrollPredictorMaxResampleTime);
+
+// Enables predicting momentum phase events (flings) in ScrollPredictor.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kResampleScrollEventsForFling);
 
 // This bypasses restrictions on selection sources and allows the spelling and
 // grammar checks to proceed for testing purposes.

@@ -796,7 +796,7 @@ TEST_F(HTMLFormMcpToolTest, ParameterSchema_ImplicitLabelText) {
       "properties": {
          "select": {
            "type": "string",
-           "oneOf": [
+           "anyOf": [
              { "type": "string", "const": "Option 1", "title": "This is option 1" },
              { "type": "string", "const": "Option 2", "title": "This is option 2" },
              { "type": "string", "const": "Option 3", "title": "This is option 3" }
@@ -834,7 +834,7 @@ TEST_F(HTMLFormMcpToolTest, ParameterSchema_Select) {
       "properties": {
          "select": {
            "type": "string",
-           "oneOf": [
+           "anyOf": [
              { "type": "string", "const": "Option 1", "title": "This is option 1" },
              { "type": "string", "const": "Option 2", "title": "This is option 2" },
              { "type": "string", "const": "Option 3", "title": "This is option 3" }
@@ -873,7 +873,7 @@ TEST_F(HTMLFormMcpToolTest, ParameterSchema_Select_Multiple) {
            "type": "array",
            "items": {
              "type": "string",
-             "oneOf": [
+             "anyOf": [
                { "type": "string", "const": "Option 1", "title": "This is option 1" },
                { "type": "string", "const": "Option 2", "title": "This is option 2" },
                { "type": "string", "const": "Option 3", "title": "This is option 3" }
@@ -1198,7 +1198,7 @@ TEST_F(HTMLFormMcpToolTest, ParameterSchema_Checkbox_Multiple) {
           "type": "array",
           "items": {
             "type": "string",
-            "oneOf": [
+            "anyOf": [
               { "type": "string", "const": "apple", "title": "Apple" },
               { "type": "string", "const": "melon", "title": "Melon" },
               { "type": "string", "const": "grape", "title": "Grape" }
@@ -1249,7 +1249,7 @@ TEST_F(HTMLFormMcpToolTest, ParameterSchema_Checkbox_ToolParamAttributes) {
           "type": "array",
           "items": {
             "type": "string",
-            "oneOf": [
+            "anyOf": [
               { "type": "string", "const": "apple" },
               { "type": "string", "const": "melon" },
               { "type": "string", "const": "grape" }
@@ -2322,7 +2322,7 @@ TEST_F(HTMLFormMcpToolTest, ParameterSchema_Radio) {
       "properties": {
          "size": {
            "type": "string",
-           "oneOf": [
+           "anyOf": [
              {
                "type": "string",
                "const": "s",
@@ -2372,7 +2372,7 @@ TEST_F(HTMLFormMcpToolTest, ParameterSchema_Radio_Multiple) {
       "properties": {
          "size": {
            "type": "string",
-           "oneOf": [
+           "anyOf": [
              {
                "type": "string",
                "const": "s"
@@ -2390,7 +2390,7 @@ TEST_F(HTMLFormMcpToolTest, ParameterSchema_Radio_Multiple) {
          },
          "item": {
            "type": "string",
-           "oneOf": [
+           "anyOf": [
              {
                "type": "string",
                "const": "hoodie"
@@ -2469,7 +2469,7 @@ TEST_F(HTMLFormMcpToolTest, ParameterSchema_Radio_Required) {
       "properties": {
          "size": {
            "type": "string",
-           "oneOf": [
+           "anyOf": [
              {
                "type": "string",
                "const": "s"
@@ -2515,7 +2515,7 @@ TEST_F(HTMLFormMcpToolTest, ParameterSchema_Radio_ToolParamDescription) {
       "properties": {
          "size": {
            "type": "string",
-           "oneOf": [
+           "anyOf": [
              {
                "type": "string",
                "const": "s"
@@ -2987,6 +2987,341 @@ TEST_F(HTMLFormMcpToolTest, GenericIssue_NotMissingDescription) {
   ComputeInputSchema(*form_element);
 
   EXPECT_EQ(0u, storage.size());
+}
+
+TEST_F(HTMLFormMcpToolTest, FieldsetDescription_Radio_Basic) {
+  SetBodyInnerHTML(
+      R"HTML(
+    <form id="form" toolname="mytool" tooldescription="perform task">
+      <fieldset toolparamdescription="FIELDSET_DESC">
+        <input type=radio name=size value=s>
+        <input type=radio name=size value=m>
+        <input type=radio name=size value=l>
+      </fieldset>
+    </form>
+  )HTML");
+
+  HTMLFormElement* form_element = GetFormElement("form");
+  ASSERT_TRUE(form_element);
+  ASSERT_TRUE(IsValidWebMCPForm(*form_element));
+  String actual = ComputeInputSchema(*form_element);
+
+  std::unique_ptr<JSONValue> expected_json = ParseJSON(R"JSON(
+    {
+      "type": "object",
+      "properties": {
+         "size": {
+           "type": "string",
+           "anyOf": [
+             { "type": "string", "const": "s" },
+             { "type": "string", "const": "m" },
+             { "type": "string", "const": "l" }
+           ],
+           "enum": ["s", "m", "l"],
+           "description": "FIELDSET_DESC"
+         }
+      },
+      "required": []
+    }
+  )JSON");
+  ASSERT_TRUE(expected_json);
+  EXPECT_EQ(expected_json->ToJSONString(), actual);
+}
+
+TEST_F(HTMLFormMcpToolTest, FieldsetDescription_Radio_Nested) {
+  SetBodyInnerHTML(
+      R"HTML(
+    <form id="form" toolname="mytool" tooldescription="perform task">
+      <fieldset toolparamdescription="OUTER_DESC">
+        <fieldset toolparamdescription="INNER_DESC">
+          <input type=radio name=size value=s>
+          <input type=radio name=size value=m>
+        </fieldset>
+      </fieldset>
+    </form>
+  )HTML");
+
+  HTMLFormElement* form_element = GetFormElement("form");
+  ASSERT_TRUE(form_element);
+  ASSERT_TRUE(IsValidWebMCPForm(*form_element));
+  String actual = ComputeInputSchema(*form_element);
+
+  std::unique_ptr<JSONValue> expected_json = ParseJSON(R"JSON(
+    {
+      "type": "object",
+      "properties": {
+         "size": {
+           "type": "string",
+           "anyOf": [
+             { "type": "string", "const": "s" },
+             { "type": "string", "const": "m" }
+           ],
+           "enum": ["s", "m"],
+           "description": "INNER_DESC"
+         }
+      },
+      "required": []
+    }
+  )JSON");
+  ASSERT_TRUE(expected_json);
+  EXPECT_EQ(expected_json->ToJSONString(), actual);
+}
+
+TEST_F(HTMLFormMcpToolTest, FieldsetDescription_Radio_NoAttrOnNearest) {
+  SetBodyInnerHTML(
+      R"HTML(
+    <form id="form" toolname="mytool" tooldescription="perform task">
+      <fieldset toolparamdescription="OUTER_DESC">
+        <fieldset>
+          <input type=radio name=size value=s>
+          <input type=radio name=size value=m>
+        </fieldset>
+      </fieldset>
+    </form>
+  )HTML");
+
+  HTMLFormElement* form_element = GetFormElement("form");
+  ASSERT_TRUE(form_element);
+  ASSERT_TRUE(IsValidWebMCPForm(*form_element));
+  String actual = ComputeInputSchema(*form_element);
+
+  std::unique_ptr<JSONValue> expected_json = ParseJSON(R"JSON(
+    {
+      "type": "object",
+      "properties": {
+         "size": {
+           "type": "string",
+           "anyOf": [
+             { "type": "string", "const": "s" },
+             { "type": "string", "const": "m" }
+           ],
+           "enum": ["s", "m"]
+         }
+      },
+      "required": []
+    }
+  )JSON");
+  ASSERT_TRUE(expected_json);
+  EXPECT_EQ(expected_json->ToJSONString(), actual);
+}
+
+TEST_F(HTMLFormMcpToolTest, FieldsetDescription_Radio_CommonOutside) {
+  SetBodyInnerHTML(
+      R"HTML(
+    <form id="form" toolname="mytool" tooldescription="perform task">
+      <fieldset toolparamdescription="FIELDSET_DESC">
+        <div id=d1>
+          <input type=radio name=size value=s>
+        </div>
+        <div id=d2>
+          <input type=radio name=size value=m>
+        </div>
+      </fieldset>
+    </form>
+  )HTML");
+
+  HTMLFormElement* form_element = GetFormElement("form");
+  ASSERT_TRUE(form_element);
+  ASSERT_TRUE(IsValidWebMCPForm(*form_element));
+  String actual = ComputeInputSchema(*form_element);
+
+  std::unique_ptr<JSONValue> expected_json = ParseJSON(R"JSON(
+    {
+      "type": "object",
+      "properties": {
+         "size": {
+           "type": "string",
+           "anyOf": [
+             { "type": "string", "const": "s" },
+             { "type": "string", "const": "m" }
+           ],
+           "enum": ["s", "m"],
+           "description": "FIELDSET_DESC"
+         }
+      },
+      "required": []
+    }
+  )JSON");
+  ASSERT_TRUE(expected_json);
+  EXPECT_EQ(expected_json->ToJSONString(), actual);
+}
+
+TEST_F(HTMLFormMcpToolTest, FieldsetDescription_Radio_NoCommonFieldset) {
+  SetBodyInnerHTML(
+      R"HTML(
+    <form id="form" toolname="mytool" tooldescription="perform task">
+      <fieldset toolparamdescription="FIELDSET1">
+        <input type=radio name=size value=s>
+      </fieldset>
+      <fieldset toolparamdescription="FIELDSET2">
+        <input type=radio name=size value=m>
+      </fieldset>
+    </form>
+  )HTML");
+
+  HTMLFormElement* form_element = GetFormElement("form");
+  ASSERT_TRUE(form_element);
+  ASSERT_TRUE(IsValidWebMCPForm(*form_element));
+  String actual = ComputeInputSchema(*form_element);
+
+  std::unique_ptr<JSONValue> expected_json = ParseJSON(R"JSON(
+    {
+      "type": "object",
+      "properties": {
+         "size": {
+           "type": "string",
+           "anyOf": [
+             { "type": "string", "const": "s" },
+             { "type": "string", "const": "m" }
+           ],
+           "enum": ["s", "m"]
+         }
+      },
+      "required": []
+    }
+  )JSON");
+  ASSERT_TRUE(expected_json);
+  EXPECT_EQ(expected_json->ToJSONString(), actual);
+}
+
+TEST_F(HTMLFormMcpToolTest, FieldsetDescription_Single_Text) {
+  SetBodyInnerHTML(
+      R"HTML(
+    <form id="form" toolname="mytool" tooldescription="perform task">
+      <fieldset toolparamdescription="FIELDSET_DESC">
+        <input type=text name=text1>
+      </fieldset>
+    </form>
+  )HTML");
+
+  HTMLFormElement* form_element = GetFormElement("form");
+  ASSERT_TRUE(form_element);
+  ASSERT_TRUE(IsValidWebMCPForm(*form_element));
+  String actual = ComputeInputSchema(*form_element);
+
+  std::unique_ptr<JSONValue> expected_json = ParseJSON(R"JSON(
+    {
+      "type": "object",
+      "properties": {
+         "text1": {
+           "type": "string"
+         }
+      },
+      "required": []
+    }
+  )JSON");
+  ASSERT_TRUE(expected_json);
+  EXPECT_EQ(expected_json->ToJSONString(), actual);
+}
+
+TEST_F(HTMLFormMcpToolTest, FieldsetDescription_Single_Text_Describes_Self) {
+  SetBodyInnerHTML(
+      R"HTML(
+    <form id="form" toolname="mytool" tooldescription="perform task">
+      <fieldset toolparamdescription="FIELDSET_DESC">
+        <input type=text name=text1 toolparamdescription="INPUT_DESC">
+      </fieldset>
+    </form>
+  )HTML");
+
+  HTMLFormElement* form_element = GetFormElement("form");
+  ASSERT_TRUE(form_element);
+  ASSERT_TRUE(IsValidWebMCPForm(*form_element));
+  String actual = ComputeInputSchema(*form_element);
+
+  std::unique_ptr<JSONValue> expected_json = ParseJSON(R"JSON(
+    {
+      "type": "object",
+      "properties": {
+         "text1": {
+           "type": "string",
+           "description": "INPUT_DESC"
+         }
+      },
+      "required": []
+    }
+  )JSON");
+  ASSERT_TRUE(expected_json);
+  EXPECT_EQ(expected_json->ToJSONString(), actual);
+}
+
+TEST_F(HTMLFormMcpToolTest, FieldsetDescription_LimitToForm) {
+  SetBodyInnerHTML(
+      R"HTML(
+    <fieldset toolparamdescription="OUTSIDE">
+      <form id="form" toolname="mytool" tooldescription="perform task">
+        <input type=radio name=size value=s>
+        <input type=radio name=size value=m>
+      </form>
+    </fieldset>
+  )HTML");
+
+  HTMLFormElement* form_element = GetFormElement("form");
+  ASSERT_TRUE(form_element);
+  ASSERT_TRUE(IsValidWebMCPForm(*form_element));
+  String actual = ComputeInputSchema(*form_element);
+
+  std::unique_ptr<JSONValue> expected_json = ParseJSON(R"JSON(
+    {
+      "type": "object",
+      "properties": {
+         "size": {
+           "type": "string",
+           "anyOf": [
+             { "type": "string", "const": "s" },
+             { "type": "string", "const": "m" }
+           ],
+           "enum": ["s", "m"]
+         }
+      },
+      "required": []
+    }
+  )JSON");
+  ASSERT_TRUE(expected_json);
+  EXPECT_EQ(expected_json->ToJSONString(), actual);
+}
+
+TEST_F(HTMLFormMcpToolTest, FieldsetDescription_Checkbox_Multiple_Basic) {
+  SetBodyInnerHTML(
+      R"HTML(
+    <form id="form" toolname="mytool" tooldescription="perform task">
+      <fieldset toolparamdescription="CHECKBOX_DESC">
+        <input type=checkbox name=colors value=red>
+        <input type=checkbox name=colors value=green>
+        <input type=checkbox name=colors value=blue>
+      </fieldset>
+    </form>
+  )HTML");
+
+  HTMLFormElement* form_element = GetFormElement("form");
+  ASSERT_TRUE(form_element);
+  ASSERT_TRUE(IsValidWebMCPForm(*form_element));
+  String actual = ComputeInputSchema(*form_element);
+
+  std::unique_ptr<JSONValue> expected_json = ParseJSON(R"JSON(
+    {
+      "type": "object",
+      "properties": {
+         "colors": {
+           "type": "array",
+           "items": {
+             "type": "string",
+             "anyOf": [
+               { "type": "string", "const": "red" },
+               { "type": "string", "const": "green" },
+               { "type": "string", "const": "blue" }
+             ],
+             "enum": ["red", "green", "blue"]
+           },
+           "uniqueItems": true,
+           "description": "CHECKBOX_DESC"
+         }
+      },
+      "required": []
+    }
+  )JSON");
+  ASSERT_TRUE(expected_json);
+  EXPECT_EQ(expected_json->ToJSONString(), actual);
 }
 
 }  // namespace blink

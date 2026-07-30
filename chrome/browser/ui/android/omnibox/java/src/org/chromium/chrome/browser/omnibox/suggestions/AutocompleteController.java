@@ -11,6 +11,7 @@ import org.jni_zero.CalledByNative;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.base.ObserverList;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -28,10 +29,8 @@ import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.url.GURL;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * Bridge to the native AutocompleteControllerAndroid.
@@ -57,7 +56,7 @@ public class AutocompleteController {
     // Maximum number of voice suggestions to show.
     private static final int MAX_VOICE_SUGGESTION_COUNT = 3;
 
-    private final Set<OnSuggestionsReceivedListener> mListeners = new HashSet<>();
+    private final ObserverList<OnSuggestionsReceivedListener> mListeners = new ObserverList<>();
     private long mNativeController;
     private @Nullable AutocompleteResult mAutocompleteResult;
 
@@ -89,14 +88,14 @@ public class AutocompleteController {
      * @param listener The listener to be notified when new suggestions are available.
      */
     public void addOnSuggestionsReceivedListener(OnSuggestionsReceivedListener listener) {
-        mListeners.add(listener);
+        mListeners.addObserver(listener);
     }
 
     /**
      * @param listener A previously registered new suggestions listener to be removed.
      */
     public void removeOnSuggestionsReceivedListener(OnSuggestionsReceivedListener listener) {
-        mListeners.remove(listener);
+        mListeners.removeObserver(listener);
     }
 
     /**
@@ -120,7 +119,7 @@ public class AutocompleteController {
                         null,
                         input.getPageUrl().getSpec(),
                         input.getPageClassification(),
-                        input.getToolModeSupplier().get(),
+                        input.getToolMode(),
                         preventInlineAutocomplete,
                         input.getSiteSearchData() != null,
                         input.allowExactKeywordMatch(),
@@ -189,7 +188,7 @@ public class AutocompleteController {
                         input.getUserText(),
                         input.getPageUrl().getSpec(),
                         input.getPageClassification(),
-                        input.getToolModeSupplier().get(),
+                        input.getToolMode(),
                         input.getPageTitle());
     }
 
@@ -265,7 +264,6 @@ public class AutocompleteController {
     public void onSuggestionsReceived(AutocompleteResult autocompleteResult, boolean isFinal) {
         mAutocompleteResult = autocompleteResult;
 
-        // Notify callbacks of suggestions.
         for (OnSuggestionsReceivedListener listener : mListeners) {
             listener.onSuggestionsReceived(autocompleteResult, isFinal);
         }
@@ -355,6 +353,8 @@ public class AutocompleteController {
 
     public void setComposeboxQueryControllerBridge(
             @Nullable ComposeboxQueryControllerBridge bridge) {
+        // This may - and occasionally will - happen during shutdown.
+        if (mNativeController == 0) return;
         AutocompleteControllerJni.get()
                 .setComposeboxQueryControllerBridge(
                         mNativeController, bridge == null ? 0L : bridge.getNativeInstance());

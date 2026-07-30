@@ -43,15 +43,15 @@ class PermissionServiceImpl : public blink::mojom::PermissionService {
  private:
   friend class PermissionServiceImplTest;
 
-  using PermissionStatusCallback =
-      base::OnceCallback<void(blink::mojom::PermissionStatus)>;
+  using InternalRequestPermissionsCallback =
+      base::OnceCallback<void(const std::vector<PermissionResult>&)>;
 
   class PendingRequest;
   using RequestsMap = base::IDMap<std::unique_ptr<PendingRequest>>;
 
   // blink::mojom::PermissionService.
   void HasPermission(blink::mojom::PermissionDescriptorPtr permission,
-                     PermissionStatusCallback callback) override;
+                     HasPermissionCallback callback) override;
   void RegisterPageEmbeddedPermissionControl(
       std::vector<blink::mojom::PermissionDescriptorPtr> permissions,
       blink::mojom::EmbeddedPermissionRequestDescriptorPtr descriptor,
@@ -63,16 +63,16 @@ class PermissionServiceImpl : public blink::mojom::PermissionService {
       RequestPageEmbeddedPermissionCallback callback) override;
   void RequestPermission(blink::mojom::PermissionDescriptorPtr permission,
                          bool user_gesture,
-                         PermissionStatusCallback callback) override;
+                         RequestPermissionCallback callback) override;
   void RequestPermissions(
       std::vector<blink::mojom::PermissionDescriptorPtr> permissions,
       bool user_gesture,
       RequestPermissionsCallback callback) override;
   void RevokePermission(blink::mojom::PermissionDescriptorPtr permission,
-                        PermissionStatusCallback callback) override;
+                        RevokePermissionCallback callback) override;
   void AddPermissionObserver(
       blink::mojom::PermissionDescriptorPtr permission,
-      blink::mojom::PermissionStatus last_known_status,
+      blink::mojom::PermissionStatusWithDetailsPtr last_known_status,
       mojo::PendingRemote<blink::mojom::PermissionObserver> observer) override;
   void AddPageEmbeddedPermissionObserver(
       blink::mojom::PermissionDescriptorPtr permission,
@@ -85,11 +85,11 @@ class PermissionServiceImpl : public blink::mojom::PermissionService {
   void RequestPermissionsInternal(
       BrowserContext* browser_context,
       PermissionRequestDescription request_description,
-      RequestPermissionsCallback callback);
+      InternalRequestPermissionsCallback callback);
 
   int CreatePendingRequest(
       const std::vector<blink::mojom::PermissionDescriptorPtr>& permissions,
-      RequestPermissionsCallback callback);
+      InternalRequestPermissionsCallback callback);
 
   void OnRequestPermissionsResponse(
       int pending_request_id,

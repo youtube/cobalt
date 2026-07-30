@@ -248,6 +248,7 @@
 #include "components/error_page/common/localized_error.h"
 #include "components/google/core/common/google_switches.h"
 #include "components/google/core/common/google_util.h"
+#include "components/guest_view/browser/guest_view_base.h"
 #include "components/guest_view/buildflags/buildflags.h"
 #include "components/heap_profiling/in_process/heap_profiler_controller.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
@@ -301,6 +302,7 @@
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/hashprefix_realtime/hash_realtime_utils.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
+#include "components/search_engines/search_engines_switches.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/security_state/core/security_state.h"
 #include "components/site_isolation/features.h"
@@ -632,6 +634,7 @@
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_set.h"
 #include "extensions/common/manifest_handlers/background_info.h"
+#include "extensions/common/mojom/context_type.mojom.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "extensions/common/switches.h"
 
@@ -3480,40 +3483,6 @@ bool ChromeContentBrowserClient::AllowWorkerWebLocks(
                                                storage_key);
 }
 
-ChromeContentBrowserClient::AllowWebBluetoothResult
-ChromeContentBrowserClient::AllowWebBluetooth(
-    content::BrowserContext* browser_context,
-    const url::Origin& requesting_origin,
-    const url::Origin& embedding_origin) {
-  // TODO(crbug.com/40462828): Don't disable if
-  // base::CommandLine::ForCurrentProcess()->
-  // HasSwitch(switches::kEnableWebBluetooth) is true.
-  if (base::GetFieldTrialParamValue(
-          permissions::ContentSettingPermissionContextBase::
-              kPermissionsKillSwitchFieldStudy,
-          "Bluetooth") == permissions::ContentSettingPermissionContextBase::
-                              kPermissionsKillSwitchBlockedValue) {
-    // The kill switch is enabled for this permission. Block requests.
-    return AllowWebBluetoothResult::BLOCK_GLOBALLY_DISABLED;
-  }
-
-  const HostContentSettingsMap* const content_settings =
-      HostContentSettingsMapFactory::GetForProfile(
-          Profile::FromBrowserContext(browser_context));
-
-  if (content_settings->GetContentSetting(
-          requesting_origin.GetURL(), embedding_origin.GetURL(),
-          ContentSettingsType::BLUETOOTH_GUARD) == CONTENT_SETTING_BLOCK) {
-    return AllowWebBluetoothResult::BLOCK_POLICY;
-  }
-  return AllowWebBluetoothResult::ALLOW;
-}
-
-std::string ChromeContentBrowserClient::GetWebBluetoothBlocklist() {
-  return base::GetFieldTrialParamValue("WebBluetoothBlocklist",
-                                       "blocklist_additions");
-}
-
 bool ChromeContentBrowserClient::IsInterestGroupAPIAllowed(
     content::BrowserContext* browser_context,
     content::RenderFrameHost* render_frame_host,
@@ -3830,24 +3799,6 @@ bool ChromeContentBrowserClient::IsServiceWorkerSyntheticResponseAllowed(
   }
 
   return true;
-}
-
-void ChromeContentBrowserClient::GrantCookieAccessDueToHeuristic(
-    content::BrowserContext* browser_context,
-    const net::SchemefulSite& top_frame_site,
-    const net::SchemefulSite& accessing_site,
-    base::TimeDelta ttl,
-    bool ignore_schemes) {
-  scoped_refptr<content_settings::CookieSettings> cookie_settings =
-      CookieSettingsFactory::GetForProfile(
-          Profile::FromBrowserContext(browser_context));
-  if (!cookie_settings) {
-    return;
-  }
-
-  cookie_settings->SetTemporaryCookieGrantForHeuristic(
-      accessing_site.GetURL(), top_frame_site.GetURL(), ttl,
-      /*use_schemeless_patterns=*/ignore_schemes);
 }
 
 bool ChromeContentBrowserClient::AreThirdPartyCookiesGenerallyAllowed(
@@ -4434,6 +4385,59 @@ ChromeContentBrowserClient::GetFeatureObserverClient() {
       ->GetFeatureObserverClient();
 }
 
+// These values are persisted to logs and used for histograms.
+enum class PopupBypassType {
+  kContentScript = 0,
+  kExtensionProcess = 1,
+  kPrivilegedWebPage = 2,
+  kMaxValue = kPrivilegedWebPage,
+};
+
+bool ChromeContentBrowserClient::IsPopupBypassAllowed(
+    content::RenderFrameHost* render_frame_host) {
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+  content::RenderProcessHost* process = render_frame_host->GetProcess();
+  content::BrowserContext* browser_context = process->GetBrowserContext();
+  extensions::ProcessMap* process_map =
+      extensions::ProcessMap::Get(browser_context);
+  if (!process_map) {
+    return false;
+  }
+
+  // Allow if it is an authorized extension process.
+  const extensions::Extension* extension =
+      process_map->GetEnabledExtensionByProcessID(process->GetID().value());
+  if (process_map->CanProcessHostContextType(
+          extension, *process,
+          extensions::mojom::ContextType::kPrivilegedExtension)) {
+    base::UmaHistogramEnumeration("Security.PopupBypassAllowedType",
+                                  PopupBypassType::kExtensionProcess);
+    return true;
+  }
+
+  // Allow if it is a privileged web page (e.g., hosted app) in an outermost
+  // main frame.
+  if (!render_frame_host->GetParentOrOuterDocument() &&
+      process_map->CanProcessHostContextType(
+          extension, *process,
+          extensions::mojom::ContextType::kPrivilegedWebPage)) {
+    base::UmaHistogramEnumeration("Security.PopupBypassAllowedType",
+                                  PopupBypassType::kPrivilegedWebPage);
+    return true;
+  }
+
+  // Allow if an extension ran a content script in this process.
+  if (!extensions::ScriptInjectionTracker::
+           GetExtensionsThatRanContentScriptsInProcess(*process)
+               .empty()) {
+    base::UmaHistogramEnumeration("Security.PopupBypassAllowedType",
+                                  PopupBypassType::kContentScript);
+    return true;
+  }
+#endif
+  return false;
+}
+
 bool ChromeContentBrowserClient::CanCreateWindow(
     RenderFrameHost* opener,
     const GURL& opener_url,
@@ -4812,7 +4816,7 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
                         web_contents->GetPrimaryMainFrame()) ==
                 blink::mojom::PermissionStatus::GRANTED) {
           web_prefs->allow_scripts_to_close_windows = true;
-          web_prefs->allow_window_focus_without_user_gesture = true;
+          web_prefs->allow_unrestricted_window_focus = true;
         }
 #if BUILDFLAG(IS_CHROMEOS)
         auto* system_app = browser->app_controller()->system_app();
@@ -7186,6 +7190,16 @@ bool ChromeContentBrowserClient::HandleWebUI(
     replacements.SetPathStr(chrome::kChromeUIContactInfoPath);
     *url = url->ReplaceComponents(replacements);
   }
+
+  // Rewrite chrome://settings/searchEngines to chrome://settings/search.
+  if (url->SchemeIs(content::kChromeUIScheme) &&
+      url->GetHost() == chrome::kChromeUISettingsHost &&
+      (url->GetPath() == chrome::kChromeUISearchEngineSettingsPath) &&
+      base::FeatureList::IsEnabled(switches::kSearchSettingsUpdate)) {
+    GURL::Replacements replacements;
+    replacements.SetPathStr(chrome::kChromeUISearchSettingsPath);
+    *url = url->ReplaceComponents(replacements);
+  }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)
 
@@ -7650,36 +7664,6 @@ int ChromeContentBrowserClient::NumVersionsInTopicsEpochs(
   CHECK(browsing_topics_service);
   return browsing_topics_service->NumVersionsInEpochs(
       main_frame->GetLastCommittedOrigin());
-}
-
-bool ChromeContentBrowserClient::IsBluetoothScanningBlocked(
-    content::BrowserContext* browser_context,
-    const url::Origin& requesting_origin,
-    const url::Origin& embedding_origin) {
-  const HostContentSettingsMap* const content_settings =
-      HostContentSettingsMapFactory::GetForProfile(
-          Profile::FromBrowserContext(browser_context));
-
-  if (content_settings->GetContentSetting(
-          requesting_origin.GetURL(), embedding_origin.GetURL(),
-          ContentSettingsType::BLUETOOTH_SCANNING) == CONTENT_SETTING_BLOCK) {
-    return true;
-  }
-
-  return false;
-}
-
-void ChromeContentBrowserClient::BlockBluetoothScanning(
-    content::BrowserContext* browser_context,
-    const url::Origin& requesting_origin,
-    const url::Origin& embedding_origin) {
-  HostContentSettingsMap* const content_settings =
-      HostContentSettingsMapFactory::GetForProfile(
-          Profile::FromBrowserContext(browser_context));
-
-  content_settings->SetContentSettingDefaultScope(
-      requesting_origin.GetURL(), embedding_origin.GetURL(),
-      ContentSettingsType::BLUETOOTH_SCANNING, CONTENT_SETTING_BLOCK);
 }
 
 void ChromeContentBrowserClient::GetMediaDeviceIDSalt(
@@ -9018,7 +9002,9 @@ ChromeContentBrowserClient::GetClipboardTypesIfPolicyApplied(
 
 bool ChromeContentBrowserClient::UsePrefetchPrerenderIntegration() {
   return base::FeatureList::IsEnabled(features::kBookmarkTriggerForPrefetch) ||
-         base::FeatureList::IsEnabled(features::kNewTabPageTriggerForPrefetch);
+         base::FeatureList::IsEnabled(
+             features::kNewTabPageTriggerForPrefetch) ||
+         base::FeatureList::IsEnabled(features::kDsePreload2);
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -9165,4 +9151,22 @@ void ChromeContentBrowserClient::UpdateCorsExemptHeaderForPrefetch(
         UpdateCorsExemptHeaders(params);
   }
 #endif
+}
+
+bool ChromeContentBrowserClient::IsAttributionInternalsWebUIEnabled() {
+  return !base::FeatureList::IsEnabled(
+      privacy_sandbox::kPrivacySandboxAdPrivacyUxDeprecation);
+}
+
+bool ChromeContentBrowserClient::IsFullscreenAllowedForUnfocusedWebContents(
+    content::WebContents* unfocused_web_contents) {
+  guest_view::GuestViewBase* guest =
+      guest_view::GuestViewBase::FromWebContents(unfocused_web_contents);
+  if (!guest) {
+    return false;
+  }
+  if (guest->IsOwnedByControlledFrameEmbedder()) {
+    return guest->embedder_web_contents()->ContainsOrIsFocusedWebContents();
+  }
+  return false;
 }

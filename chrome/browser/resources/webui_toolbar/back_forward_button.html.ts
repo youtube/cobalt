@@ -15,11 +15,13 @@ export function getHtml(this: BackForwardButtonElement) {
     aria-label="${this.ariaLabel_}"
     title="${this.tooltip_}"
     style="margin-inline-start: ${this.leadingMargin}px"
+    ?is-menu-open="${this.state.isContextMenuVisible}"
     @pointerdown="${this.pressHandler_.onPointerdown}"
     @pointerup="${this.pressHandler_.onPointerup}"
     @pointercancel="${this.pressHandler_.onPointercancel}"
     @pointerenter="${this.onPointerenter_}"
-    @contextmenu="${this.pressHandler_.onContextmenu}">
+    @contextmenu="${this.pressHandler_.onContextmenu}"
+    @click="${this.onClick_}">
   </cr-icon-button>
 
 <!--_html_template_end_-->`;

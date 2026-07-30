@@ -100,9 +100,7 @@ FetchCreditCardOrCvcFieldSuggestionDataSync(
                                require_non_empty_value_on_trigger_field,
                                /*include_virtual_cards=*/true);
 
-  if (kCvcFieldTypes.contains(trigger_field_type) &&
-      base::FeatureList::IsEnabled(
-          features::kAutofillEnableCvcStorageAndFillingEnhancement)) {
+  if (kCvcFieldTypes.contains(trigger_field_type)) {
     FilterCardsToSuggestForCvcFields(
         trigger_field_type,
         base::flat_set<std::string>(four_digit_combinations_in_dom),
@@ -191,14 +189,8 @@ std::vector<Suggestion> GenerateCreditCardOrCvcFieldSuggestionsSync(
         client.GetPersonalDataManager().payments_data_manager();
     if (payments::ShouldStartPayLaterWithLoadingSpinner(
             payments_data_manager)) {
-      Suggestion loading_suggestion =
-          Suggestion(SuggestionType::kLoadingThrobber);
-      loading_suggestion.acceptability =
-          Suggestion::Acceptability::kUnacceptable;
-      loading_suggestion.expected_number_of_suggestions =
-          payments_data_manager.GetBnplIssuers().size();
-      loading_suggestion.tab_index = kPayLaterSuggestionTabIndex;
-      suggestions.push_back(std::move(loading_suggestion));
+      suggestions.push_back(GetLoadingSuggestionForPayLaterTab(
+          payments_data_manager.GetBnplIssuers().size()));
     } else {
       suggestions.append_range(GetSuggestionsForBnpl(
           payments::GetSortedBnplIssuerContext(
@@ -374,14 +366,15 @@ std::vector<Suggestion> GetSuggestionsForBnpl(
   bnpl_suggestions.reserve(issuer_contexts.size());
 
   for (payments::BnplIssuerContext& issuer_context : issuer_contexts) {
-    const bool is_linked =
-        issuer_context.issuer.payment_instrument().has_value();
-
     Suggestion bnpl_suggestion(SuggestionType::kBnplEntry);
     bnpl_suggestion.main_text =
         Suggestion::Text(issuer_context.issuer.GetDisplayName(),
                          Suggestion::Text::IsPrimary(true));
     if (is_card_number_field_empty) {
+      bnpl_suggestion.acceptability =
+          issuer_context.IsEligible()
+              ? Suggestion::Acceptability::kAcceptable
+              : Suggestion::Acceptability::kUnacceptableWithDeactivatedStyle;
       bnpl_suggestion.labels = {
           {Suggestion::Text(payments::GetBnplIssuerSelectionOptionText(
               issuer_context.issuer.issuer_id(), app_locale,
@@ -392,8 +385,8 @@ std::vector<Suggestion> GetSuggestionsForBnpl(
       bnpl_suggestion.acceptability =
           Suggestion::Acceptability::kUnacceptableWithDeactivatedStyle;
     }
-    bnpl_suggestion.icon = payments::GetBnplSuggestionIcon(
-        issuer_context.issuer.issuer_id(), is_linked);
+    bnpl_suggestion.icon =
+        payments::GetBnplSuggestionIcon(issuer_context.issuer.issuer_id());
     bnpl_suggestion.payload =
         Suggestion::BnplIssuer(std::move(issuer_context.issuer));
     bnpl_suggestion.tab_index = kPayLaterSuggestionTabIndex;
@@ -401,6 +394,16 @@ std::vector<Suggestion> GetSuggestionsForBnpl(
   }
 
   return bnpl_suggestions;
+}
+
+Suggestion GetLoadingSuggestionForPayLaterTab(
+    int expected_number_of_suggestions) {
+  Suggestion loading_suggestion = Suggestion(SuggestionType::kLoadingThrobber);
+  loading_suggestion.acceptability = Suggestion::Acceptability::kUnacceptable;
+  loading_suggestion.expected_number_of_suggestions =
+      expected_number_of_suggestions;
+  loading_suggestion.tab_index = kPayLaterSuggestionTabIndex;
+  return loading_suggestion;
 }
 
 CreditCardSuggestionGenerator::CreditCardSuggestionGenerator(

@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_QUOTA_STORAGE_MANAGER_H_
 
 #include "third_party/blink/public/mojom/permissions/permission.mojom-blink.h"
+#include "third_party/blink/public/mojom/permissions/permission_status.mojom-shared.h"
 #include "third_party/blink/public/mojom/quota/quota_manager_host.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -39,8 +40,7 @@ class StorageManager final : public ScriptWrappable {
 
   void PermissionServiceConnectionError();
   void PermissionRequestComplete(ScriptPromiseResolver<IDLBoolean>*,
-                                 mojom::blink::PermissionStatus);
-
+                                 mojom::blink::PermissionStatusWithDetailsPtr);
   // Binds the interface (if not already bound) with the given interface
   // provider, and returns it,
   mojom::blink::QuotaManagerHost* GetQuotaHost(ExecutionContext*);

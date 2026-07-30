@@ -25,6 +25,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
@@ -122,6 +123,7 @@ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig.NoAccountSigninMode;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig.WithAccountSigninMode;
+import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncCoordinator;
 import org.chromium.chrome.browser.ui.signin.SigninAndHistorySyncActivityLauncher;
 import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncConfig;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
@@ -135,6 +137,7 @@ import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.policy.test.annotations.Policies;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
@@ -192,6 +195,7 @@ public class MainSettingsFragmentTest {
     @Mock private PasswordManagerUtilBridge.Natives mPasswordManagerUtilBridgeJniMock;
 
     @Mock private SigninAndHistorySyncActivityLauncher mSigninAndHistorySyncActivityLauncher;
+    @Mock private BottomSheetSigninAndHistorySyncCoordinator mSigninCoordinator;
 
     @Mock private Tracker mTestTracker;
     @Mock private DefaultBrowserPromoUtils mMockDefaultBrowserPromoUtils;
@@ -217,6 +221,20 @@ public class MainSettingsFragmentTest {
                         ChromePreferenceKeys.ADDRESS_BAR_SETTINGS_VIEW_COUNT,
                         ChromePreferenceKeys.APPEARANCE_SETTINGS_VIEW_COUNT)
                 .forEach(key -> prefs.writeInt(key, MainSettings.NEW_LABEL_MAX_VIEW_COUNT));
+
+        when(mSigninAndHistorySyncActivityLauncher
+                        .createBottomSheetSigninCoordinatorAndObserveAddAccountResult(
+                                any(),
+                                any(),
+                                any(),
+                                any(),
+                                any(),
+                                any(),
+                                any(),
+                                any(),
+                                any(),
+                                eq(SigninAccessPoint.SETTINGS)))
+                .thenReturn(mSigninCoordinator);
     }
 
     @After
@@ -418,7 +436,11 @@ public class MainSettingsFragmentTest {
 
     @Test
     @MediumTest
-    public void testSignInRowLaunchesSignInFlowForSignedOutAccounts() {
+    @DisableFeatures({
+        SigninFeatures.ENABLE_SEAMLESS_SIGNIN,
+        SigninFeatures.ENABLE_ACTIVITYLESS_SIGNIN_ALL_ENTRY_POINT
+    })
+    public void testSignInRowLaunchesSignInFlowForSignedOutAccounts_legacy() {
         mSyncTestRule.addTestAccount();
         startSettings();
 
@@ -441,6 +463,30 @@ public class MainSettingsFragmentTest {
                 WithAccountSigninMode.DEFAULT_ACCOUNT_BOTTOM_SHEET, config.withAccountSigninMode);
         assertEquals(HistorySyncConfig.OptInMode.OPTIONAL, config.historyOptInMode);
         assertNull(config.selectedCoreAccountId);
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures({
+        SigninFeatures.ENABLE_SEAMLESS_SIGNIN,
+        SigninFeatures.ENABLE_ACTIVITYLESS_SIGNIN_ALL_ENTRY_POINT
+    })
+    public void testSignInRowLaunchesSignInFlowForSignedOutAccounts() {
+        startSettings();
+
+        onView(withId(R.id.recycler_view))
+                .perform(scrollTo(hasDescendant(withText(R.string.signin_settings_title))));
+        onView(withText(R.string.signin_settings_subtitle)).check(matches(isDisplayed()));
+        onView(withText(R.string.signin_settings_title)).perform(click());
+
+        verify(mSigninCoordinator)
+                .startSigninFlow(any(BottomSheetSigninAndHistorySyncConfig.class));
+        verify(mSigninAndHistorySyncActivityLauncher, never())
+                .createBottomSheetSigninIntentOrShowError(
+                        any(Activity.class),
+                        any(Profile.class),
+                        any(BottomSheetSigninAndHistorySyncConfig.class),
+                        any(Integer.class));
     }
 
     // Tests that no alert icon is visible if there are no identity errors.
@@ -733,6 +779,14 @@ public class MainSettingsFragmentTest {
                 + "manage-url/https%3A%2F%2Ftest.plusaddresses.google.com"
     })
     public void testPlusAddressesEnabled() {
+        // Use anyInt() because clicking the preference launches a Custom Tab. The Custom Tab's
+        // RootUiCoordinator initializes its own sign-in flow using SigninAccessPoint.WEB_SIGNIN,
+        // while the settings UI may use SigninAccessPoint.SETTINGS.
+        when(mSigninAndHistorySyncActivityLauncher
+                        .createBottomSheetSigninCoordinatorAndObserveAddAccountResult(
+                                any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                                anyInt()))
+                .thenReturn(mSigninCoordinator);
         startSettings();
         Preference preference = mMainSettings.findPreference(MainSettings.PREF_PLUS_ADDRESSES);
         Assert.assertNotNull(preference);

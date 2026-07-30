@@ -96,7 +96,7 @@ NSString* ViewControllerPresentationStatusDescription(
     UIViewController* view_controller);
 
 // Returns an alert coordinator asking the user whether they accept to switch to
-// a managed account.
+// a managed account. Must only be called if separate profiles is disabled.
 AlertCoordinator* ManagedConfirmationDialogContentForHostedDomain(
     NSString* hosted_domain,
     Browser* browser,
@@ -108,7 +108,6 @@ AlertCoordinator* ManagedConfirmationDialogContentForHostedDomain(
 // hosted domain.
 BOOL ShouldShowManagedConfirmationForHostedDomain(
     NSString* hosted_domain,
-    signin_metrics::AccessPoint access_point,
     const GaiaId& gaia_ID,
     PrefService* prefs);
 

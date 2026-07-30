@@ -9,13 +9,16 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace autofill {
+namespace {
+
+using ::testing::Optional;
 
 TEST(FieldTypesTest, TypeStringConversion) {
   EXPECT_EQ(TypeNameToFieldType(FieldTypeToStringView(NO_SERVER_DATA)),
             NO_SERVER_DATA);
   for (int i = 0; i < MAX_VALID_FIELD_TYPE; ++i) {
     if (FieldType raw_value = static_cast<FieldType>(i);  // nocheck
-        ToSafeFieldType(raw_value, NO_SERVER_DATA) != NO_SERVER_DATA) {
+        ToSafeFieldType(raw_value).has_value()) {
       EXPECT_EQ(TypeNameToFieldType(FieldTypeToStringView(raw_value)),
                 raw_value);
     }
@@ -157,30 +160,46 @@ TEST(FieldTypesTest, IsValidFieldType) {
       ORDER_ID,
       ORDER_DATE,
       ORDER_MERCHANT_NAME,
+      SHIPMENT_TRACKING_NUMBER,
   };
-  static_assert(FieldType::MAX_VALID_FIELD_TYPE == 215,
+  static_assert(FieldType::MAX_VALID_FIELD_TYPE == 220,
                 "New field type needs to be added to kValidFieldTypes.");
   FieldType kInvalidValue = static_cast<FieldType>(123456);
   ASSERT_FALSE(kValidFieldTypes.count(kInvalidValue));
   for (int i = -10; i < MAX_VALID_FIELD_TYPE + 10; ++i) {
     FieldType raw_value = static_cast<FieldType>(i);
-    EXPECT_EQ(ToSafeFieldType(raw_value, kInvalidValue),
-              kValidFieldTypes.count(raw_value) ? raw_value : kInvalidValue);
+    if (kValidFieldTypes.contains(raw_value)) {
+      EXPECT_THAT(ToSafeFieldType(raw_value), Optional(raw_value));
+    } else {
+      EXPECT_EQ(ToSafeFieldType(raw_value), std::nullopt);
+    }
   }
 }
 
 TEST(FieldTypesTest, TestWith2DigitExpirationYear) {
   FieldType assumed_field_type =
-      ToSafeFieldType(CREDIT_CARD_EXP_2_DIGIT_YEAR, NO_SERVER_DATA);
+      ToSafeFieldType(CREDIT_CARD_EXP_2_DIGIT_YEAR).value_or(NO_SERVER_DATA);
   size_t result = DetermineExpirationYearLength(assumed_field_type);
   EXPECT_EQ(result, static_cast<size_t>(2));
 }
 
 TEST(FieldTypesTest, TestWith4DigitExpirationYear) {
   FieldType assumed_field_type =
-      ToSafeFieldType(CREDIT_CARD_EXP_4_DIGIT_YEAR, NO_SERVER_DATA);
+      ToSafeFieldType(CREDIT_CARD_EXP_4_DIGIT_YEAR).value_or(NO_SERVER_DATA);
   size_t result = DetermineExpirationYearLength(assumed_field_type);
   EXPECT_EQ(result, static_cast<size_t>(4));
 }
 
+// Tests that ToSafeHtmlFieldType() (which is constexpr) is equivalent to
+// mojom::IsKnownEnumValue().
+TEST(FieldTypesTest, ToSafeHtmlFieldType) {
+  for (auto raw = std::to_underlying(HtmlFieldType::kMinValue) - 1;
+       raw <= std::to_underlying(HtmlFieldType::kMaxValue) + 1; ++raw) {
+    EXPECT_EQ(
+        ToSafeHtmlFieldType(raw).has_value(),
+        mojom::IsKnownEnumValue(static_cast<HtmlFieldType>(raw)));  // nocheck
+  }
+}
+
+}  // namespace
 }  // namespace autofill

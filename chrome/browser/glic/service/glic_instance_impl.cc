@@ -13,6 +13,8 @@
 #include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/trace_event/named_trigger.h"
+#include "base/trace_event/trace_event.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/browser_process.h"
@@ -188,6 +190,13 @@ class GlicTabContentsObserver : public content::WebContentsObserver {
 
 void GlicInstanceImpl::MaybeDaisyChainToTab(tabs::TabInterface* source_tab,
                                             tabs::TabInterface* target_tab) {
+  // Ideally we would like to unify this daisy chaining logic with what is in
+  // `CreateTab`, but doing so would require a more involved plumbing change in
+  // order to play nicely with detached mode.
+  if (is_creating_tab_from_glic_panel_link_click_) {
+    return;
+  }
+
   auto* glic_embedder = GetEmbedderForTab(source_tab);
 
   if (base::FeatureList::IsEnabled(kGlicRemoveDaisyChainingWhenFreShowing)) {
@@ -249,6 +258,9 @@ GlicInstanceImpl::GlicInstanceImpl(
               contextual_cueing_service)),
       last_activation_timestamp_(base::Time::Now()),
       last_deactivation_timestamp_(base::TimeTicks::Now()) {
+  base::trace_event::EmitNamedTrigger("glic-instance-created");
+  TRACE_EVENT_INSTANT("browser", "GlicInstanceImpl::GlicInstanceImpl",
+                      perfetto::Flow::FromPointer(this));
   if (auto* actor_keyed_service =
           actor::ActorKeyedServiceFactory::GetActorKeyedService(profile_)) {
     actor_task_manager_ = std::make_unique<GlicActorTaskManager>(
@@ -272,6 +284,8 @@ GlicInstanceImpl::GlicInstanceImpl(
 }
 
 GlicInstanceImpl::~GlicInstanceImpl() {
+  TRACE_EVENT_INSTANT("browser", "GlicInstanceImpl::~GlicInstanceImpl",
+                      perfetto::TerminatingFlow::FromPointer(this));
   // Destroying the web contents may result in calls back here, so do it first.
   host_.Shutdown();
 
@@ -330,6 +344,8 @@ bool GlicInstanceImpl::IsLiveMode() {
 }
 
 void GlicInstanceImpl::Show(const ShowOptions& options) {
+  TRACE_EVENT_INSTANT("browser", "GlicInstanceImpl::Show",
+                      perfetto::Flow::FromPointer(this));
   if (const auto* side_panel_options =
           std::get_if<SidePanelShowOptions>(&options.embedder_options);
       side_panel_options && !side_panel_options->tab->IsActivated()) {
@@ -525,6 +541,8 @@ tabs::TabInterface* GlicInstanceImpl::CreateTab(
 
   bool is_onboarding = IsTrustFirstOnboardingPending(profile_);
 
+  base::AutoReset<bool> auto_reset(&is_creating_tab_from_glic_panel_link_click_,
+                                   true);
   tabs::TabInterface* created_tab = service_->CreateTab(
       url, open_in_background || is_onboarding, window_id, std::move(callback));
 
@@ -1159,6 +1177,8 @@ void GlicInstanceImpl::ClientReadyToShow(
 }
 
 void GlicInstanceImpl::WebUiStateChanged(mojom::WebUiState state) {
+  TRACE_EVENT_INSTANT("browser", "GlicInstanceImpl::WebUiStateChanged",
+                      perfetto::Flow::FromPointer(this), "state", state);
   instance_metrics_.OnWebUiStateChanged(state);
   if (state == mojom::WebUiState::kReady &&
       !base::FeatureList::IsEnabled(kSuppressFocusOnReady)) {
@@ -1378,6 +1398,10 @@ void GlicInstanceImpl::NotifyPanelWillOpen(
   options.auto_send = auto_send;
   options.fre_override = fre_override;
   host_.PanelWillOpen(invocation_source, std::move(options));
+
+  if (base::FeatureList::IsEnabled(features::kGlicClearTurnIdOnPanelWillOpen)) {
+    conversation_info_->turn_id = std::nullopt;
+  }
 }
 
 void GlicInstanceImpl::OnWebClientCleared() {

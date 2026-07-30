@@ -11,12 +11,14 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/strings/strcat.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/base/oauth_consumer_id.h"
 #include "components/signin/public/identity_manager/access_token_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/primary_account_access_token_fetcher.h"
+#include "google_apis/common/time_util.h"
 #include "google_apis/gaia/gaia_urls.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "net/base/net_errors.h"
@@ -32,10 +34,8 @@ namespace {
 // The maximum number of retries for the `SimpleURLLoader` requests.
 const size_t kMaxRetries = 1;
 
-// TODO(crbug.com/491035927): Update to prod URL when available.
 const char kActorLoginPermissionServiceUrlBase[] =
-    "https://staging-agenticpermission.pa.sandbox.googleapis.com/v1/"
-    "permissions:";
+    "https://agenticpermission.pa.googleapis.com/v1/permissions:";
 
 constexpr net::NetworkTrafficAnnotationTag
     kActorLoginPermissionTrafficAnnotation =
@@ -147,8 +147,12 @@ std::string CreateGrantRequestBody(const FederatedPermission& permission) {
           .Set("rpEmbedderOrigin", permission.rp_embedder_origin.Serialize())
           .Set("rpRequesterOrigin", permission.rp_requester_origin.Serialize())
           .Set("chosenAccountId", permission.chosen_account_id);
-  auto request_dict = base::DictValue().Set(
-      "federatedCredentialPermission", std::move(federated_permission_dict));
+  auto agent_dict =
+      base::DictValue().Set("type", "AGENT_TYPE_GEMINI_IN_CHROME");
+  auto request_dict = base::DictValue()
+                          .Set("federatedCredentialPermission",
+                               std::move(federated_permission_dict))
+                          .Set("agent", std::move(agent_dict));
 
   std::string post_data;
   base::JSONWriter::Write(request_dict, &post_data);
@@ -161,7 +165,11 @@ std::string CreateListRequestBody(
   for (const auto& origin : origins) {
     filters.Append(CreateFederatedPermissionFilter(origin));
   }
-  auto request_dict = base::DictValue().Set("filters", std::move(filters));
+  auto request_dict =
+      base::DictValue()
+          .Set("filters", std::move(filters))
+          .Set("minReadTimestamp",
+               google_apis::util::FormatTimeAsString(base::Time::Now()));
 
   std::string post_data;
   base::JSONWriter::Write(request_dict, &post_data);
@@ -363,9 +371,17 @@ void ActorLoginPermissionServiceImpl::ListPermissions(
           .Then(std::move(callback))));
 }
 
+void ActorLoginPermissionServiceImpl::ListPermissions(
+    const url::Origin& embedder_origin,
+    ListPermissionsResult callback) {
+  ListPermissions(
+      std::vector<FederatedOrigins>{{embedder_origin, url::Origin()}},
+      std::move(callback));
+}
+
 void ActorLoginPermissionServiceImpl::ListAllPermissions(
     ListPermissionsResult callback) {
-  ListPermissions({}, std::move(callback));
+  ListPermissions(std::vector<FederatedOrigins>(), std::move(callback));
 }
 
 void ActorLoginPermissionServiceImpl::DeletePermission(

@@ -317,10 +317,10 @@ void LoginDisplayHostCommon::StartSignInScreen() {
   // Fix for users who updated device and thus never passed register screen.
   // If we already have users, we assume that it is not a second part of
   // OOBE. See http://crosbug.com/6289
-  if (!StartupUtils::IsDeviceRegistered() && !users.empty()) {
+  if (!StartupUtils::IsDeviceRegistered(local_state_.get()) && !users.empty()) {
     VLOG(1) << "Mark device registered because there are remembered users: "
             << users.size();
-    StartupUtils::MarkDeviceRegistered(base::OnceClosure());
+    StartupUtils::MarkDeviceRegistered(local_state_.get(), base::OnceClosure());
   }
 
   // Initiate device policy fetching.

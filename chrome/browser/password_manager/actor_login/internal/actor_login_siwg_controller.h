@@ -17,6 +17,7 @@
 #include "chrome/common/chrome_render_frame.mojom.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-forward.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
+#include "components/password_manager/core/browser/actor_login/actor_login_permission_service.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -55,13 +56,19 @@ class ActorLoginSiwgController : public content::WebContentsObserver {
 
   ActorLoginSiwgController(
       content::WebContents* web_contents,
+      const Credential& credential,
+      bool should_store_permission,
+      ActorLoginPermissionService& permission_service,
       LoginStatusResultOrErrorReply on_finished_callback,
-      LoginStatusResultCallback federated_login_outcome_callback);
+      base::WeakPtr<ActionSequenceDelegate> action_sequence_delegate);
   ActorLoginSiwgController(
       content::WebContents* web_contents,
+      const Credential& credential,
       GetPageContentProvider get_page_content_provider,
+      bool should_store_permission,
+      ActorLoginPermissionService& permission_service,
       LoginStatusResultOrErrorReply on_finished_callback,
-      LoginStatusResultCallback federated_login_outcome_callback);
+      base::WeakPtr<ActionSequenceDelegate> action_sequence_delegate);
   ~ActorLoginSiwgController() override;
 
   // Not copyable or movable.
@@ -72,7 +79,6 @@ class ActorLoginSiwgController : public content::WebContentsObserver {
   // automated login is in progress, and then start the button detection and
   // click flow.
   void StartFederatedLogin(
-      const Credential& credential,
       std::unique_ptr<ActorLoginMetricsHelper> metrics_helper);
 
   // Starts the detection process for SiwG buttons on the current page and
@@ -101,10 +107,8 @@ class ActorLoginSiwgController : public content::WebContentsObserver {
 
   void OnClickFinished(actor::mojom::ActionResultPtr result);
 
-  static void OnFederatedLoginResultReceived(
-      base::WeakPtr<ActorLoginSiwgController> controller,
+  void OnFederatedLoginResultReceived(
       std::unique_ptr<ActorLoginMetricsHelper> metrics_helper,
-      LoginStatusResultCallback federated_login_outcome_callback,
       content::webid::FederatedLoginResult result);
 
   GetPageContentProvider get_page_content_provider_;
@@ -112,8 +116,15 @@ class ActorLoginSiwgController : public content::WebContentsObserver {
   // Invoked once the actions taken by this class to advance the login are
   // complete. The login itself may still be in progress.
   LoginStatusResultOrErrorReply on_finished_callback_;
-  // Invoked once the login request initiated by this class produces a result.
-  LoginStatusResultCallback federated_login_outcome_callback_;
+  // Delegate to notify once the login request initiated by this class produces
+  // a result.
+  base::WeakPtr<ActionSequenceDelegate> action_sequence_delegate_;
+
+  Credential credential_;
+  // Passed from the attempt login tool when the user clicked "Allow always".
+  bool should_store_permission_ = false;
+  // `ProfileKeyedService`, will outlive this controller.
+  const base::raw_ref<ActorLoginPermissionService> permission_service_;
 
   // Remote for the `ChromeRenderFrame` in the local root of the frame where the
   // SiwG button was found. Keeps the remote alive for the duration of the click

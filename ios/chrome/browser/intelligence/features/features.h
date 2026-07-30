@@ -6,7 +6,7 @@
 #define IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_
 
 #import "base/feature_list.h"
-#import "ios/chrome/browser/intelligence/actuation/actuation_util.h"
+#import "ios/chrome/browser/intelligence/actor/tools/utils/actor_tool_utils.h"
 
 namespace base {
 class TimeDelta;
@@ -123,11 +123,11 @@ enum class PositionForExplainGeminiEditMenu {
 // Returns the position of Explain Gemini in the EditMenu.
 PositionForExplainGeminiEditMenu ExplainGeminiEditMenuPosition();
 
-// Feature flag to enable Precise Location in BWG Settings Menu.
-BASE_DECLARE_FEATURE(kBWGPreciseLocation);
+// Feature flag to enable Precise Location in Gemini Settings Menu.
+BASE_DECLARE_FEATURE(kGeminiPreciseLocation);
 
 // Returns true if the precise location setting is enabled.
-bool IsBWGPreciseLocationEnabled();
+bool IsGeminiPreciseLocationEnabled();
 
 // Feature flag to show the AI Hub new badge.
 BASE_DECLARE_FEATURE(kAIHubNewBadge);
@@ -281,6 +281,11 @@ bool IsGeminiCopresenceEnabled();
 extern const char kGeminiCopresenceResponseReadyInterval[];
 double GetGeminiCopresenceResponseReadyInterval();
 
+// Feature parameter for kGeminiCopresence to skip checking for a Search
+// Related Page.
+extern const char kGeminiCopresenceSRPCheck[];
+bool IsGeminiCopresenceSRPCheckEnabled();
+
 // Returns true if the Gemini chat persistence is enabled.
 bool IsGeminiChatPersistenceEnabled();
 BASE_DECLARE_FEATURE(kGeminiChatPersistence);
@@ -303,12 +308,12 @@ bool IsGeminiResponseViewDynamicResizingEnabled();
 BASE_DECLARE_FEATURE(kGeminiDynamicSettings);
 bool IsGeminiDynamicSettingsEnabled();
 
-// Feature flag for Actuation tools.
-BASE_DECLARE_FEATURE(kActuationTools);
-bool IsActuationEnabled();
+// Feature flag for Actor tools.
+BASE_DECLARE_FEATURE(kActorTools);
+bool IsActorEnabled();
 
 // Returns true if the specified tool is disabled via the "DisabledTools"
-// feature parameter of the `kActuationTools` feature.
+// feature parameter of the `kActorTools` feature.
 bool IsToolDisabled(optimization_guide::proto::Action::ActionCase tool);
 
 // Feature flag for Model based page classification experiment.

@@ -577,10 +577,11 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
       [self.browserLayoutViewController removeFromParentViewController];
       self.browserLayoutViewController = viewController;
 
-      [_viewController addChildViewController:viewController];
       viewController.view.frame = frame;
       viewController.view.alpha = 1.0;
+      [_viewController addChildViewController:viewController];
       [_viewController.view addSubview:viewController.view];
+      [viewController.view layoutIfNeeded];
       [viewController didMoveToParentViewController:_viewController];
     }
     _viewController.childViewControllerForStatusBarStyle = viewController;
@@ -955,7 +956,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 #pragma mark - ChromeCoordinator
 
 - (void)start {
-  _modeHolder = [[TabGridModeHolder alloc] init];
+  _modeHolder = [[TabGridModeHolder alloc]
+      initWithTabGridState:_regularBrowser->GetSceneState().tabGridState];
 
   [_regularBrowser->GetCommandDispatcher()
       startDispatchingToTarget:self

@@ -27,6 +27,8 @@ source_set("core") {
     "connectors_prefs.h",
     "connectors_service_base.cc",
     "connectors_service_base.h",
+    "content_analysis_data.cc",
+    "content_analysis_data.h",
     "content_analysis_delegate_base.h",
     "content_analysis_info_base.h",
     "content_area_user_provider.cc",
@@ -131,6 +133,8 @@ source_set("cloud_content_scanning") {
     "cloud_content_scanning/multipart_uploader.h",
     "cloud_content_scanning/multipart_uploader_base.cc",
     "cloud_content_scanning/multipart_uploader_base.h",
+    "cloud_content_scanning/request_handler_base.cc",
+    "cloud_content_scanning/request_handler_base.h",
     "cloud_content_scanning/resumable_uploader.cc",
     "cloud_content_scanning/resumable_uploader.h",
     "cloud_content_scanning/resumable_uploader_base.cc",
@@ -150,6 +154,10 @@ source_set("cloud_content_scanning") {
     "//services/network/public/cpp",
     "//services/network/public/mojom",
   ]
+
+  if (!is_ios && !is_fuchsia) {
+    deps += [ "//components/safe_browsing/content/browser/web_ui" ]
+  }
 }
 
 source_set("constants") {
@@ -202,6 +210,25 @@ source_set("test_support") {
   if (enterprise_data_controls) {
     deps += [ "//components/enterprise/data_controls/core/browser" ]
   }
+}
+
+source_set("content_analysis_browser_test_base") {
+  testonly = true
+  configs += [ "//components/enterprise:extra_warnings" ]
+
+  sources = [
+    "content_analysis_browser_test_base.cc",
+    "content_analysis_browser_test_base.h",
+  ]
+
+  public_deps = [
+    "//base",
+    "//components/enterprise/common/proto:connectors_proto",
+    "//components/enterprise/common/proto:connectors_proto_extras",
+    "//components/enterprise/connectors/core",
+    "//net:test_support",
+    "//testing/gtest",
+  ]
 }
 
 source_set("unit_tests") {

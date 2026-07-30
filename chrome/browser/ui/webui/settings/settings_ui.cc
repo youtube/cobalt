@@ -57,7 +57,7 @@
 #include "chrome/browser/ui/webui/managed_ui_handler.h"
 #include "chrome/browser/ui/webui/metrics_handler.h"
 #include "chrome/browser/ui/webui/plural_string_handler.h"
-#include "chrome/browser/ui/webui/sanitized_image_source.h"
+#include "chrome/browser/ui/webui/sanitized_image/sanitized_image_source.h"
 #include "chrome/browser/ui/webui/settings/about_handler.h"
 #include "chrome/browser/ui/webui/settings/accessibility_main_handler.h"
 #include "chrome/browser/ui/webui/settings/appearance_handler.h"
@@ -122,7 +122,6 @@
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/regional_capabilities/regional_capabilities_service.h"
 #include "components/safe_browsing/core/common/features.h"
-#include "components/safe_browsing/core/common/hashprefix_realtime/hash_realtime_utils.h"
 #include "components/search_engines/search_engines_switches.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/signin/public/base/signin_pref_names.h"
@@ -364,10 +363,6 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
                           base::FeatureList::IsEnabled(
                               features::kSensorsAllowAskBlockPermissionModel));
 
-  html_source->AddBoolean("enableHashPrefixRealTimeLookups",
-                          safe_browsing::hash_realtime_utils::
-                              IsHashRealTimeLookupEligibleInSession());
-
   html_source->AddBoolean(
       "enableKeyboardLockPrompt",
       base::FeatureList::IsEnabled(permissions::features::kKeyboardLockPrompt));
@@ -411,26 +406,11 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
                           download_bubble_controlled_by_pref);
 
   html_source->AddBoolean(
-      "extendedReportingRemovePrefDependency",
-      base::FeatureList::IsEnabled(
-          safe_browsing::kExtendedReportingRemovePrefDependency));
-
-  html_source->AddBoolean(
-      "hashPrefixRealTimeLookupsSamplePing",
-      base::FeatureList::IsEnabled(
-          safe_browsing::kHashPrefixRealTimeLookupsSamplePing));
-
-  html_source->AddBoolean(
       "shouldShowPayOverTimeSettings",
       autofill::ContentAutofillClient::FromWebContents(web_ui->GetWebContents())
           ->GetPaymentsAutofillClient()
           ->GetPaymentsDataManager()
           .ShouldShowBnplSettings());
-
-  html_source->AddBoolean("enableBlockV8OptimizerOnUnfamiliarSites",
-                          base::FeatureList::IsEnabled(
-                              content_settings::features::
-                                  kBlockV8OptimizerOnUnfamiliarSitesSetting));
 
   html_source->AddBoolean("enableYourSavedInfoSettingsPage",
                           base::FeatureList::IsEnabled(
@@ -512,6 +492,15 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
       privacy_sandbox_service->IsPrivacySandboxRestricted();
   bool is_restricted_notice_enabled =
       privacy_sandbox_service->IsRestrictedNoticeEnabled();
+  bool is_ad_privacy_ux_deprecation_enabled = base::FeatureList::IsEnabled(
+      privacy_sandbox::kPrivacySandboxAdPrivacyUxDeprecation);
+  bool is_ad_privacy_available = true;
+  if (is_ad_privacy_ux_deprecation_enabled) {
+    is_ad_privacy_available = false;
+  } else if (is_privacy_sandbox_restricted) {
+    is_ad_privacy_available = is_restricted_notice_enabled;
+  }
+
   html_source->AddBoolean("isPrivacySandboxRestricted",
                           is_privacy_sandbox_restricted);
   html_source->AddBoolean("isPrivacySandboxRestrictedNoticeEnabled",
@@ -519,6 +508,9 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
   html_source->AddBoolean(
       "isRelatedWebsiteSetsUiEnabled",
       base::FeatureList::IsEnabled(privacy_sandbox::kRelatedWebsiteSetsUi));
+  html_source->AddBoolean("isPrivacySandboxAdPrivacyUxDeprecationEnabled",
+                          is_ad_privacy_ux_deprecation_enabled);
+  html_source->AddBoolean("isAdPrivacyAvailable", is_ad_privacy_available);
 
   // Performance
   AddSettingsPageUIHandler(std::make_unique<PerformanceHandler>());
@@ -680,6 +672,9 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
   html_source->AddBoolean(
       "searchSettingsUpdate",
       base::FeatureList::IsEnabled(switches::kSearchSettingsUpdate));
+
+  // TODO(b/493907185): Connect to accessibility annotator visibility.
+  html_source->AddBoolean("showAccessibilityAnnotatorSettingsLink", false);
 
   TryShowHatsSurveyWithTimeout();
 }

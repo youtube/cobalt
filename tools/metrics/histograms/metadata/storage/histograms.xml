@@ -22,6 +22,15 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<variants name="CompressionState">
+  <variant name="Compressed"
+      summary="Compressing achieved the minimum ratio (value was stored
+               compressed)"/>
+  <variant name="Uncompressed"
+      summary="Compressing did not achieve the minimum ratio (value was
+               stored uncompressed)"/>
+</variants>
+
 <variants name="DomStorageBackingStoreLifetime">
   <variant name="InMemory" summary="in-memory database"/>
   <variant name="OnDisk" summary="on-disk database"/>
@@ -190,7 +199,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="API.StorageAccessHeader.StorageAccessStatusOutcome"
-    enum="StorageAccessStatusOutcome" expires_after="2026-05-24">
+    enum="StorageAccessStatusOutcome" expires_after="2026-09-20">
   <owner>sledoux@chromium.org</owner>
   <owner>cfredric@chromium.org</owner>
   <summary>
@@ -873,14 +882,6 @@ chromium-metrics-reviews@google.com.
     enough to be stored compressed. This is NOT logged for values where
     compression was not even attempted.
   </summary>
-  <token key="CompressionState">
-    <variant name="Compressed"
-        summary="Compressing achieved the minimum ratio (value was stored
-                 compressed)"/>
-    <variant name="Uncompressed"
-        summary="Compressing did not achieve the minimum ratio (value was
-                 stored uncompressed)"/>
-  </token>
 </histogram>
 
 <histogram name="IndexedDB.SQLite.SpecificEvent.{Mode}"
@@ -1365,6 +1366,35 @@ chromium-metrics-reviews@google.com.
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     A Clear-Site-Data response header was seen with the given values.
+  </summary>
+</histogram>
+
+<histogram
+    name="Storage.DomStorage.Compression.PrecompressionValueSize.{CompressionState}"
+    units="bytes" expires_after="2027-03-24">
+  <owner>fergal@chromium.org</owner>
+  <owner>leimy@chromium.org</owner>
+  <owner>rahsin@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    The size of the input value, before compression, when writing a key-value
+    pair in the DomStorage SQLite backend. Split by whether the value was
+    compressible enough to be stored compressed. Only logged for values at or
+    above the minimum compression threshold.
+  </summary>
+</histogram>
+
+<histogram name="Storage.DomStorage.Compression.Ratio" units="%"
+    expires_after="2027-03-24">
+  <owner>fergal@chromium.org</owner>
+  <owner>leimy@chromium.org</owner>
+  <owner>rahsin@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    The compression ratio achieved when writing a value in the DomStorage SQLite
+    backend. Calculated as [compressed size] / [original size] * 100. Depending
+    on this ratio, the value may or may not be stored in its compressed form.
+    Only logged for values at or above the minimum compression threshold.
   </summary>
 </histogram>
 
@@ -2974,21 +3004,38 @@ chromium-metrics-reviews@google.com.
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     Records the duration of {Operation} operations in {DomStorageType} using
-    {DomStorageBackingStoreLifetime} database. This helps compare latency
-    between the LevelDB and SQLite backends.
+    {DomStorageBackingStoreLifetime} database. Measured on the DB sequence
+    around the actual database call, which excludes task-queue delays. This
+    helps compare latency between the LevelDB and SQLite backends.
   </summary>
   <token key="Operation">
-    <variant name="GetAll"
-        summary="reading all key-value pairs for a storage area via the async
-                 ReadMapKeyValues round-trip"/>
-    <variant name="InitiateCommit"
-        summary="the end-to-end async commit round-trip from collecting
-                 pending map updates through the single UpdateMaps call to
-                 receiving the result callback"/>
-    <variant name="OpenDatabase"
-        summary="the end-to-end async open round-trip from initiating the
-                 DomStorageDatabase::Open call to receiving the result
-                 callback"/>
+    <variant name="CleanUpStaleData"
+        summary="removing all traces of deleted data from the backing storage"/>
+    <variant name="CloneMap"
+        summary="deep-copying a map's key-value pairs from one session to
+                 another"/>
+    <variant name="DeleteSessions"
+        summary="deleting metadata and optionally map data for one or more
+                 sessions"/>
+    <variant name="DeleteStorageKeysFromSession"
+        summary="deleting metadata and optionally map data for specific
+                 storage keys in a session"/>
+    <variant name="OpenDatabase2"
+        summary="opening the database via DomStorageDatabase::Open"/>
+    <variant name="PurgeOrigins"
+        summary="purging origins marked for cleanup on shutdown"/>
+    <variant name="PutMetadata"
+        summary="writing map metadata such as access timestamps or
+                 session-to-map associations"/>
+    <variant name="ReadAllMetadata"
+        summary="reading all map locators. For local storage this includes
+                 size and usage metadata, for session storage this includes
+                 the next map id"/>
+    <variant name="ReadMapKeyValues"
+        summary="reading all key-value pairs for a storage area via
+                 ReadMapKeyValues"/>
+    <variant name="UpdateMaps"
+        summary="committing pending map updates via UpdateMaps"/>
   </token>
 </histogram>
 

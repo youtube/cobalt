@@ -33,6 +33,7 @@
 #include "third_party/blink/renderer/core/script/script_element_base.h"
 #include "third_party/blink/renderer/core/script/script_loader.h"
 #include "third_party/blink/renderer/platform/bindings/parkable_string.h"
+#include "third_party/blink/renderer/platform/bindings/union_base.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 
 namespace blink {
@@ -47,6 +48,10 @@ class CORE_EXPORT HTMLScriptElement final : public HTMLElement,
   static bool supports(const AtomicString&);
 
   HTMLScriptElement(Document&, const CreateElementFlags);
+
+  HTMLElementType GetHTMLElementType() const final {
+    return HTMLElementType::kHTMLScriptElement;
+  }
 
   // Returns attributes that should be checked against Trusted Types
   const AttrNameToTrustedType& GetCheckedAttributeTypes() const override;
@@ -64,7 +69,8 @@ class CORE_EXPORT HTMLScriptElement final : public HTMLElement,
   String src();
 
   void setText(V8UnionStringOrTrustedScript*, ExceptionState&);
-  V8UnionStringOrTrustedScript* text();
+  bindings::OptimizedReturnProxy<V8UnionStringOrTrustedScript> text(
+      ScriptState*);
   void setTextWithoutTrustedTypes(const String&);
 
   void setScriptTextContentForBinding(const V8UnionStringOrTrustedScript*,

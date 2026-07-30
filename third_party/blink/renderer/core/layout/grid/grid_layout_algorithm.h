@@ -81,6 +81,27 @@ class CORE_EXPORT GridLayoutAlgorithm
 
   LogicalSize GetGridAvailableSize() const { return grid_available_size_; }
 
+  // Initializes the track sizes of a grid sizing subtree.
+  void InitializeTrackSizes(
+      const GridSizingSubtree& sizing_subtree,
+      const SubgriddedItemData& opt_subgrid_data,
+      const std::optional<GridTrackSizingDirection>& opt_track_direction) const;
+
+  // Computes and caches the used track sizes of a grid sizing subtree.
+  void CompleteTrackSizingAlgorithm(const GridSizingSubtree& sizing_subtree,
+                                    const SubgriddedItemData& opt_subgrid_data,
+                                    GridTrackSizingDirection track_direction,
+                                    SizingConstraint sizing_constraint,
+                                    bool* opt_needs_additional_pass) const;
+
+  // Performs the final baseline alignment pass of a grid sizing subtree.
+  void ComputeBaselineAlignment(
+      const GridLayoutTree* layout_tree,
+      const GridSizingSubtree& sizing_subtree,
+      const SubgriddedItemData& opt_subgrid_data,
+      const std::optional<GridTrackSizingDirection>& opt_track_direction,
+      SizingConstraint sizing_constraint) const;
+
  private:
   friend class GridLayoutAlgorithmTest;
 
@@ -119,12 +140,6 @@ class CORE_EXPORT GridLayoutAlgorithm
                                 SizingConstraint sizing_constraint,
                                 bool is_track_sizing) const;
 
-  // Initializes the track sizes of a grid sizing subtree.
-  void InitializeTrackSizes(
-      const GridSizingSubtree& sizing_subtree,
-      const SubgriddedItemData& opt_subgrid_data,
-      const std::optional<GridTrackSizingDirection>& opt_track_direction) const;
-
   // Helper that calls the method above for the entire grid sizing tree.
   void InitializeTrackSizes(GridSizingTree* sizing_tree,
                             const std::optional<GridTrackSizingDirection>&
@@ -136,27 +151,12 @@ class CORE_EXPORT GridLayoutAlgorithm
                              GridTrackSizingDirection track_direction,
                              SizingConstraint sizing_constraint) const;
 
-  // Computes and caches the used track sizes of a grid sizing subtree.
-  void CompleteTrackSizingAlgorithm(const GridSizingSubtree& sizing_subtree,
-                                    const SubgriddedItemData& opt_subgrid_data,
-                                    GridTrackSizingDirection track_direction,
-                                    SizingConstraint sizing_constraint,
-                                    bool* opt_needs_additional_pass) const;
-
   // Helper that calls the method above for the entire grid sizing tree.
   void CompleteTrackSizingAlgorithm(
       GridTrackSizingDirection track_direction,
       SizingConstraint sizing_constraint,
       GridSizingTree* sizing_tree,
       bool* opt_needs_additional_pass = nullptr) const;
-
-  // Performs the final baseline alignment pass of a grid sizing subtree.
-  void ComputeBaselineAlignment(
-      const GridLayoutTree* layout_tree,
-      const GridSizingSubtree& sizing_subtree,
-      const SubgriddedItemData& opt_subgrid_data,
-      const std::optional<GridTrackSizingDirection>& opt_track_direction,
-      SizingConstraint sizing_constraint) const;
 
   // Helper that calls the method above for the entire grid sizing tree.
   void CompleteFinalBaselineAlignment(GridSizingTree* sizing_tree) const;

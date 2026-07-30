@@ -16,6 +16,7 @@ import {GlowAnimationState} from 'chrome://resources/cr_components/search/consta
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {PageRemote as SearchboxPageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import {WindowOpenDisposition} from 'chrome://resources/mojo/ui/base/mojom/window_open_disposition.mojom-webui.js';
 import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {MockInputState} from 'chrome://webui-test/cr_components/searchbox/searchbox_test_utils.js';
 import {MockTimer} from 'chrome://webui-test/mock_timer.js';
@@ -121,7 +122,6 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
     await customElements.whenDefined('contextual-tasks-app');
     document.body.appendChild(contextualTasksApp);
 
-    await customElements.whenDefined('contextual-tasks-app');
     await contextualTasksApp.updateComplete;
     await microtasksFinished();
 
@@ -258,8 +258,6 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
         assertTrue(
             !!firstMatch.$.textContainer,
             'First suggestion match should exist');
-
-        await microtasksFinished();
 
         assertStyle(
             firstMatch.$.textContainer, 'animation-duration', '2s',
@@ -415,9 +413,9 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
         contextualComposebox.$.contextualTasksSuggestionsContainer;
     assertTrue(!!suggestionsContainer, 'Suggestions container should exist');
 
-    // Initial state: No matches yet, so show-dropdown_ should be false.
+    // Initial state: No matches yet, so show-dropdown should be false.
     assertFalse(
-        composebox.hasAttribute('show-dropdown_'),
+        composebox.hasAttribute('show-dropdown'),
         'Dropdown should not be shown initially');
     assertEquals(
         'none', getComputedStyle(suggestionsContainer).display,
@@ -434,10 +432,10 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
     await contextualComposebox.updateComplete;
     await composebox.updateComplete;
 
-    // show-dropdown_ should be true now because we have ZPS matches and no
+    // show-dropdown should be true now because we have ZPS matches and no
     // input.
     assertTrue(
-        composebox.hasAttribute('show-dropdown_'),
+        composebox.hasAttribute('show-dropdown'),
         'Dropdown should be shown with ZPS matches after adding a file');
 
     // The suggestions container should be visible.
@@ -446,7 +444,7 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
         'Suggestions should be visible when dropdown is shown');
 
     // Simulate typing.
-    const inputElement = composebox.$.input;
+    const inputElement = composebox.getInputElement().$.input;
     simulateUserInput(inputElement, 'test');
 
     // Provide typed matches.
@@ -455,10 +453,10 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
     await contextualComposebox.updateComplete;
     await composebox.updateComplete;
 
-    // show-dropdown_ should be false because we have a file and
+    // show-dropdown should be false because we have a file and
     // composeboxShowTypedSuggestWithContext is false.
     assertFalse(
-        composebox.hasAttribute('show-dropdown_'),
+        composebox.hasAttribute('show-dropdown'),
         'Dropdown should hide when typing with' +
             ' a file and showTypedSuggestWithContext is false');
 
@@ -699,8 +697,6 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
         await composebox.updateComplete;
         await microtasksFinished();
 
-        await microtasksFinished();
-        await composebox.updateComplete;
         const submitContainer: HTMLElement|null =
             getSubmitContainer(composebox);
         assertTrue(!!submitContainer, 'Submit container button should exist');
@@ -770,9 +766,7 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
       assertFalse(!!composebox.input, 'Input value should be cleared');
       assertTrue(
           composebox.fileUploadsComplete, 'File uploads should be complete');
-      assertFalse(
-          !!composebox.getResultForTesting(),
-          'Autocomplete result should be cleared');
+      assertFalse(!!composebox.result, 'Autocomplete result should be cleared');
     });
   });
 
@@ -789,7 +783,9 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
     await contextualComposebox.updateComplete;
     await innerComposebox.updateComplete;
 
-    assertEquals('Ask about these', innerComposebox.$.input.placeholder);
+    assertEquals(
+        'Ask about these',
+        innerComposebox.getInputElement().$.input.placeholder);
   });
 
   test('Single tab file updates zero state placeholder', async () => {
@@ -802,7 +798,9 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
     await contextualComposebox.updateComplete;
     await innerComposebox.updateComplete;
 
-    assertEquals('Ask about this tab', innerComposebox.$.input.placeholder);
+    assertEquals(
+        'Ask about this tab',
+        innerComposebox.getInputElement().$.input.placeholder);
   });
 
   test('Single image file updates zero state placeholder', async () => {
@@ -815,7 +813,9 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
     await contextualComposebox.updateComplete;
     await innerComposebox.updateComplete;
 
-    assertEquals('Ask about this image', innerComposebox.$.input.placeholder);
+    assertEquals(
+        'Ask about this image',
+        innerComposebox.getInputElement().$.input.placeholder);
   });
 
   test('Single pdf file updates zero state placeholder', async () => {
@@ -828,7 +828,9 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
     await contextualComposebox.updateComplete;
     await innerComposebox.updateComplete;
 
-    assertEquals('Ask about this doc', innerComposebox.$.input.placeholder);
+    assertEquals(
+        'Ask about this doc',
+        innerComposebox.getInputElement().$.input.placeholder);
   });
 
   test('Single unknown file updates zero state placeholder', async () => {
@@ -841,7 +843,8 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
     await contextualComposebox.updateComplete;
     await innerComposebox.updateComplete;
 
-    assertFalse(innerComposebox.$.input.placeholder.includes('Ask about'));
+    assertFalse(innerComposebox.getInputElement().$.input.placeholder.includes(
+        'Ask about'));
   });
 
   test('Overlay hint text overridden by file hint', async () => {
@@ -860,7 +863,9 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
     await innerComposebox.updateComplete;
 
     // File hint should take precedence over overlay hint.
-    assertEquals('Ask about this image', innerComposebox.$.input.placeholder);
+    assertEquals(
+        'Ask about this image',
+        innerComposebox.getInputElement().$.input.placeholder);
   });
 
   test('Arrow in zero state is ignored in full tab', async () => {
@@ -886,7 +891,7 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
         composebox.input, '',
         'Input should not change since arrow down does not select suggestion');
     assertEquals(
-        composebox.selectedMatchIndex_, -1,
+        composebox.selectedMatchIndex, -1,
         'No suggestion should be selected on arrow down in zero state full tab');
     const event2 = new KeyboardEvent('keydown', {
       key: 'ArrowUp',
@@ -902,7 +907,7 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
         composebox.input, '',
         'Input should not change since arrow up does not select suggestion');
     assertEquals(
-        composebox.selectedMatchIndex_, -1,
+        composebox.selectedMatchIndex, -1,
         'No suggestion should be selected on arrow up in zero state full tab');
   });
 
@@ -929,7 +934,7 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
         composebox.input, '',
         'Input should not change since arrow down does not select suggestion');
     assertEquals(
-        composebox.selectedMatchIndex_, -1,
+        composebox.selectedMatchIndex, -1,
         'No suggestion should be selected on arrow down in zero state full tab');
     const event2 = new KeyboardEvent('keydown', {
       key: 'ArrowUp',
@@ -945,8 +950,41 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
         composebox.input, '',
         'Input should not change since arrow up does not select suggestion');
     assertEquals(
-        composebox.selectedMatchIndex_, -1,
+        composebox.selectedMatchIndex, -1,
         'No suggestion should be selected on arrow up in zero state full tab');
+  });
+
+  test('clicking activity link calls openUrl', async () => {
+    loadTimeData.overrideValues({
+      suggestionActivityLink:
+          'Learn more about <a href="https://google.com/">activity</a>',
+    });
+
+    testProxy.callbackRouterRemote.onZeroStateChange(true);
+    testProxy.callbackRouterRemote.onSidePanelStateChanged();
+
+    await testProxy.callbackRouterRemote.$.flushForTesting();
+    await microtasksFinished();
+
+    const contextualComposebox = contextualTasksApp.$.composebox;
+    // Manual trigger since it depends on results.
+    contextualComposebox.$.composebox.dispatchEvent(
+        new CustomEvent('show-suggestion-activity-link', {detail: true}));
+    await contextualComposebox.updateComplete;
+
+    const activityLink =
+        contextualComposebox.shadowRoot.querySelector('localized-link');
+    assertTrue(!!activityLink, 'Activity link should be present');
+
+    const anchor = activityLink.shadowRoot.querySelector('a');
+    assertTrue(!!anchor, 'Anchor tag should be present');
+
+    anchor.click();
+    await microtasksFinished();
+
+    const [url, disposition] = await testProxy.handler.whenCalled('openUrl');
+    assertEquals('https://google.com/', url);
+    assertEquals(WindowOpenDisposition.NEW_FOREGROUND_TAB, disposition);
   });
 
 });

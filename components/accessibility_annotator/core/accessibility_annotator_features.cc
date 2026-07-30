@@ -7,12 +7,6 @@
 namespace accessibility_annotator {
 
 BASE_FEATURE(kContentAnnotator, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kAccessibilityAnnotator, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kAccessibilityAnnotatorFirstRun,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kAccessibilityAnnotatorGetEntities,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE_PARAM(int,
                    kContentAnnotatorMaxPendingUrls,
                    &kContentAnnotator,
@@ -79,13 +73,35 @@ BASE_FEATURE_PARAM(std::string,
                    "content_annotator_extracted_data_validation_schema",
                    "");
 
-BASE_FEATURE(kAccessibilityAnnotationReducerOnePResolver,
+BASE_FEATURE(kAccessibilityAnnotator, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kAccessibilityAnnotationTTL,
+                   &kAccessibilityAnnotator,
+                   "accessibility_annotation_ttl",
+                   base::Days(7));
+
+BASE_FEATURE(kAccessibilityAnnotatorFirstRun,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAccessibilityAnnotatorGetEntities,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAccessibilityAnnotatorLiveTabContext,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAccessibilityAnnotationReducerOnePResolver,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(std::string,
                    kAccessibilityAnnotatorOnePServiceUrl,
                    &kAccessibilityAnnotationReducerOnePResolver,
                    "one_p_service_url",
                    "");
+
+// TODO(crbug.com/484049558): Remove this feature once the SQLite database
+// storage is ready with the initial schema as default storage.
+// Enables the accessibility annotator database storage. This will allow the
+// accessibility annotator backend to create the SQLite database.
+BASE_FEATURE(kAccessibilityAnnotatorDatabaseStorage,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace accessibility_annotator

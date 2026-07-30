@@ -17,7 +17,8 @@
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/mock_navigation_handle.h"
 #include "content/public/test/navigation_simulator.h"
-#include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
+#include "extensions/browser/mime_handler/stream_container.h"
+#include "extensions/browser/mime_handler/stream_info.h"
 #include "pdf/pdf_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -865,6 +866,55 @@ TEST_F(PdfViewerStreamManagerTest,
   // The new, correct PDF content navigation should update the stream state.
   manager->DidFinishNavigation(&navigation_handle2);
   EXPECT_TRUE(manager->DidPdfContentNavigate(embedder_host));
+}
+
+// Verify `PdfViewerStreamManager::PluginCanSave()` defaults to false
+// and `PdfViewerStreamManager::SetPluginCanSave()` updates the value.
+TEST_F(PdfViewerStreamManagerTest, PluginCanSave) {
+  auto* embedder_host = NavigateAndCommit(main_rfh(), GURL(kOriginalUrl1));
+
+  PdfViewerStreamManager* manager = pdf_viewer_stream_manager();
+  manager->AddStreamContainer(embedder_host->GetFrameTreeNodeId(),
+                              "internal_id",
+                              pdf_test_util::GenerateSampleStreamContainer(1));
+  manager->ClaimStreamInfoForTesting(embedder_host);
+  ASSERT_TRUE(manager->GetStreamContainer(embedder_host));
+
+  // `PdfViewerStreamManager::PluginCanSave()` defaults to false.
+  EXPECT_FALSE(manager->PluginCanSave(embedder_host));
+
+  // Set to true.
+  manager->SetPluginCanSave(embedder_host, true);
+  EXPECT_TRUE(manager->PluginCanSave(embedder_host));
+
+  // Set back to false.
+  manager->SetPluginCanSave(embedder_host, false);
+  EXPECT_FALSE(manager->PluginCanSave(embedder_host));
+}
+
+// Verify `PdfViewerStreamManager::PluginCanSave()` returns false for an
+// unknown embedder host, and `PdfViewerStreamManager::SetPluginCanSave()` on an
+// unknown host is a no-op.
+TEST_F(PdfViewerStreamManagerTest, PluginCanSaveUnknownHost) {
+  auto* embedder_host = NavigateAndCommit(main_rfh(), GURL(kOriginalUrl1));
+  auto* other_host = CreateChildRenderFrameHost(embedder_host, "other host");
+  other_host = NavigateAndCommit(other_host, GURL(kOriginalUrl2));
+
+  PdfViewerStreamManager* manager = pdf_viewer_stream_manager();
+  manager->AddStreamContainer(embedder_host->GetFrameTreeNodeId(),
+                              "internal_id",
+                              pdf_test_util::GenerateSampleStreamContainer(1));
+  manager->ClaimStreamInfoForTesting(embedder_host);
+  ASSERT_TRUE(manager->GetStreamContainer(embedder_host));
+
+  // Unknown host should return false (no claimed stream info).
+  EXPECT_FALSE(manager->PluginCanSave(other_host));
+
+  // `PdfViewerStreamManager::SetPluginCanSave()` on unknown host is a
+  // no-op -- no crash, and the real host is unaffected.
+  manager->SetPluginCanSave(other_host, true);
+  EXPECT_FALSE(manager->PluginCanSave(other_host));
+  EXPECT_FALSE(manager->PluginCanSave(embedder_host));
 }
 
 }  // namespace pdf

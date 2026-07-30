@@ -33,9 +33,9 @@
 #include "chrome/browser/ui/views/bookmarks/saved_tab_groups/saved_tab_group_tabs_menu_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+#include "chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_view.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_close_button.h"
-#include "chrome/browser/ui/views/tabs/tab_group_editor_bubble_view.h"
 #include "chrome/browser/ui/views/tabs/tab_group_header.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/test/tab_strip_interactive_test_mixin.h"
@@ -217,16 +217,18 @@ class SavedTabGroupInteractiveTest
   void SetUp() override {
     if (GetParam()) {
       scoped_feature_list_.InitWithFeatures(
-          {features::kTabGroupMenuImprovements,
-           features::kTabGroupMenuMoreEntryPoints,
+          {features::kTabGroupMenuMoreEntryPoints,
+           features::kBookmarkTabGroupConversion,
            data_sharing::features::kDataSharingFeature},
-          {data_sharing::features::kDataSharingJoinOnly});
+          {data_sharing::features::kDataSharingJoinOnly,
+           tab_groups::kProjectsPanel, tabs::kHorizontalTabStripComboButton});
     } else {
       scoped_feature_list_.InitWithFeatures(
-          {features::kTabGroupMenuImprovements,
-           features::kTabGroupMenuMoreEntryPoints},
+          {features::kTabGroupMenuMoreEntryPoints,
+           features::kBookmarkTabGroupConversion},
           {data_sharing::features::kDataSharingFeature,
-           data_sharing::features::kDataSharingJoinOnly});
+           data_sharing::features::kDataSharingJoinOnly,
+           tab_groups::kProjectsPanel, tabs::kHorizontalTabStripComboButton});
     }
 
     SavedTabGroupInteractiveTestBase::SetUp();
@@ -341,7 +343,6 @@ class SavedTabGroupInteractiveTest
               tab_groups::TabGroupSyncServiceFactory::GetForProfile(
                   browser()->profile()));
       service_impl->GetModel()->AddedFromSync(std::move(group));
-
     });
   }
 
@@ -404,7 +405,7 @@ class SavedTabGroupInteractiveTest
       // tabs: Open, move, unpin, delete, [convert to bookmark], and the tabs
       // title
       int num_non_tab_items_in_menu = 5;
-      if (features::IsTabGroupMenuImprovementsEnabled()) {
+      if (features::IsBookmarkTabGroupConversionEnabled()) {
         num_non_tab_items_in_menu++;
       }
       const int total_items = submenu->GetMenuItems().size();
@@ -882,8 +883,6 @@ IN_PROC_BROWSER_TEST_P(SavedTabGroupInteractiveTest,
       FinishTabstripAnimations(), CheckIfSavedGroupIsClosed(&saved_guid),
       // Reopen the tab group and expect the saved group is linked again.
       PressButton(kSavedTabGroupButtonElementId),
-      EnsurePresent(STGTabsMenuModel::kOpenGroup),
-      SelectMenuItem(STGTabsMenuModel::kOpenGroup),
       WaitForShow(kTabGroupHeaderElementId),
       CheckIfSavedGroupIsOpen(&saved_guid),
       // Verify the first tab in the group is the active tab.
@@ -1167,43 +1166,13 @@ IN_PROC_BROWSER_TEST_P(SavedTabGroupInteractiveTest,
       EnsureNotPresent(STGEverythingMenu::kTabGroup));
 }
 
-class SavedTabGroupContextMenuFeatureInteractiveTest
-    : public SavedTabGroupInteractiveTestBase {
- public:
-  SavedTabGroupContextMenuFeatureInteractiveTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        features::kTabGroupMenuImprovements);
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(SavedTabGroupContextMenuFeatureInteractiveTest,
-                       CheckContextMenuShowsOnLeftClick) {
-  browser()->tab_strip_model()->AddToNewGroup({0});
-
-  RunTestSequence(
-      // Show the bookmarks bar where the buttons will be displayed.
-      FinishTabstripAnimations(), ShowBookmarksBar(),
-      // Ensure the group was saved when created.
-      EnsurePresent(kSavedTabGroupButtonElementId), FinishTabstripAnimations(),
-      PressButton(kSavedTabGroupButtonElementId),
-      EnsurePresent(STGTabsMenuModel::kOpenGroup),
-      EnsurePresent(STGTabsMenuModel::kDeleteGroupMenuItem),
-      EnsurePresent(STGTabsMenuModel::kMoveGroupToNewWindowMenuItem),
-      EnsurePresent(STGTabsMenuModel::kToggleGroupPinStateMenuItem),
-      EnsurePresent(STGTabsMenuModel::kConvertToBookmarkMenuItem),
-      EnsurePresent(STGTabsMenuModel::kTabsTitleItem),
-      EnsurePresent(STGTabsMenuModel::kTab));
-}
-
 class SavedTabGroupEverythingMenuMoreEntryPointsFeature
     : public SavedTabGroupInteractiveTestBase {
  public:
   SavedTabGroupEverythingMenuMoreEntryPointsFeature() {
-    scoped_feature_list_.InitAndEnableFeature(
-        features::kTabGroupMenuMoreEntryPoints);
+    scoped_feature_list_.InitWithFeatures(
+        {features::kTabGroupMenuMoreEntryPoints},
+        {tab_groups::kProjectsPanel, tabs::kHorizontalTabStripComboButton});
   }
 
  private:
@@ -1234,8 +1203,9 @@ class SavedTabGroupsCreateNewTabGroupAppMenu
     : public SavedTabGroupInteractiveTestBase {
  public:
   SavedTabGroupsCreateNewTabGroupAppMenu() {
-    scoped_feature_list_.InitAndEnableFeature(
-        features::kCreateNewTabGroupAppMenuTopLevel);
+    scoped_feature_list_.InitWithFeatures(
+        {features::kCreateNewTabGroupAppMenuTopLevel},
+        {tab_groups::kProjectsPanel, tabs::kHorizontalTabStripComboButton});
   }
 
  private:
@@ -1279,8 +1249,8 @@ class TabGroupShortcutsInteractiveTest
     : public SavedTabGroupInteractiveTestBase {
  public:
   TabGroupShortcutsInteractiveTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        features::kTabGroupMenuImprovements);
+    scoped_feature_list_.InitWithFeatures(
+        {}, {tab_groups::kProjectsPanel, tabs::kHorizontalTabStripComboButton});
   }
   ~TabGroupShortcutsInteractiveTest() override = default;
 
@@ -1533,7 +1503,8 @@ class SavedTabGroupFocusInteractiveTestNonSubmenu
     scoped_feature_list_.InitWithFeaturesAndParameters(
         {{features::kTabGroupsFocusing,
           {{"tab_groups_focusing_default_to_focused", "true"}}}},
-        {features::kTabGroupMenuMoreEntryPoints});
+        {features::kTabGroupMenuMoreEntryPoints, tab_groups::kProjectsPanel,
+         tabs::kHorizontalTabStripComboButton});
     SavedTabGroupInteractiveTestBase::SetUp();
   }
 
@@ -1549,7 +1520,7 @@ class SavedTabGroupFocusInteractiveTestSubmenu
         {{features::kTabGroupsFocusing,
           {{"tab_groups_focusing_default_to_focused", "true"}}},
          {features::kTabGroupMenuMoreEntryPoints, {}}},
-        {});
+        {tab_groups::kProjectsPanel, tabs::kHorizontalTabStripComboButton});
     SavedTabGroupInteractiveTestBase::SetUp();
   }
 

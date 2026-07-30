@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import android.animation.Animator;
 import android.content.Context;
 import android.os.Handler;
 import android.view.ContextThemeWrapper;
@@ -1255,7 +1256,7 @@ public class AutocompleteMediatorUnitTest {
             var session = createSession(PAGE_URL, PAGE_TITLE, pageClass.getNumber());
             mMediator.beginInput(session);
             // Force an update as "" -> "" is not an observable change.
-            mMediator.onTextChanged("", /* isOnFocusContext= */ true);
+            mMediator.onInputChanged(/* isOnFocusContext= */ true);
             verify(mMockCachedZeroSuggestionsManager, never()).saveToCache(anyInt(), any());
             clearInvocations(mMockCachedZeroSuggestionsManager);
         }
@@ -1502,7 +1503,7 @@ public class AutocompleteMediatorUnitTest {
         // When not on an Incognito NTP, cached suggestions should be shown.
         doReturn(false).when(ntpDelegate).isIncognitoNewTabPageCurrentlyVisible();
         // Force an update as "" -> "" is not an observable change.
-        mMediator.onTextChanged("", /* isOnFocusContext= */ true);
+        mMediator.onInputChanged(/* isOnFocusContext= */ true);
         RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         verify(mMockCachedZeroSuggestionsManager, times(1)).readFromCache(anyInt());
 
@@ -1673,5 +1674,18 @@ public class AutocompleteMediatorUnitTest {
 
         assertNull(session.getAutocompleteInput().getSiteSearchData());
         verify(mAutocompleteDelegate).setOmniboxEditingText("new text");
+    }
+
+    @Test
+    @SmallTest
+    public void testExternallyDrivenFadeAnimation() {
+        doReturn(true).when(mEmbedder).isTablet();
+        var session = createEmptySession();
+        mMediator.beginInput(session);
+        mFuseboxStateSupplier.set(FuseboxState.COMPACT);
+        @Nullable Animator result = mMediator.setupSuggestionsListShowAnimation();
+        UnsyncedSuggestionsListAnimationDriver animationDriver =
+                (UnsyncedSuggestionsListAnimationDriver) mMediator.getAnimationDriverForTesting();
+        assertFalse(animationDriver.isRunning());
     }
 }

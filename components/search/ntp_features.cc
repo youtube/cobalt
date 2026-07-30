@@ -52,12 +52,6 @@ BASE_FEATURE(kRealboxCr23Theming,
              "NtpRealboxCr23Theming",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, the real search box ("realbox") on the New Tab page will show a
-// Google (g) icon instead of the typical magnifying glass (aka loupe).
-BASE_FEATURE(kRealboxUseGoogleGIcon,
-             "NtpRealboxUseGoogleGIcon",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // If enabled, alpha NTP backgrounds will show in Customize Chrome.
 // This is a development switch. Keep indefinitely.
 BASE_FEATURE(kNtpAlphaBackgroundCollections, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -164,9 +158,6 @@ BASE_FEATURE(kNtpPhotosModuleSplitSvgOptInArtWork,
 
 // If enabled, Following Feed module will be shown.
 BASE_FEATURE(kNtpFeedModule, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// If enabled, SafeBrowsing module will be shown to a target user.
-BASE_FEATURE(kNtpSafeBrowsingModule, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, sharepoint module will be shown.
 BASE_FEATURE(kNtpSharepointModule, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -297,10 +288,6 @@ const char kNtpPhotosModuleDataParam[] = "NtpPhotosModuleDataParam";
 const char kNtpPhotosModuleOptInTitleParam[] = "NtpPhotosModuleOptInTitleParam";
 const char kNtpPhotosModuleOptInArtWorkParam[] =
     "NtpPhotosModuleOptInArtWorkParam";
-const char kNtpSafeBrowsingModuleCooldownPeriodDaysParam[] =
-    "NtpSafeBrowsingModuleCooldownPeriodDaysParam";
-const char kNtpSafeBrowsingModuleCountMaxParam[] =
-    "NtpSafeBrowsingModuleCountMaxParam";
 const char kNtpMostRelevantTabResumptionModuleDataParam[] =
     "NtpMostRelevantTabResumptionModuleDataParam";
 const char kNtpMostRelevantTabResumptionModuleMaxVisitsParam[] =
@@ -336,11 +323,6 @@ const base::FeatureParam<bool> kNtpNextShowDeepDiveSuggestionsParam(
     &ntp_features::kNtpNextFeatures,
     "NtpNextShowDeepDiveSuggestionsParam",
     false);
-const base::FeatureParam<bool>
-    kNtpNextSuggestionsFromNewSearchSuggestionsEndpointParam(
-        &ntp_features::kNtpNextFeatures,
-        "NtpNextSuggestionsFromNewSearchSuggestionsEndpointParam",
-        false);
 const base::FeatureParam<bool> kNtpNextShowStaticRecentTabChipParam(
     &ntp_features::kNtpNextFeatures,
     "NtpNextShowStaticRecentTabChipParam",
@@ -360,7 +342,7 @@ const base::FeatureParam<bool> kNtpNextShowDismissalUIParam(
 const base::FeatureParam<bool> kNtpNextDisablementContextMenuParam(
     &ntp_features::kNtpNextFeatures,
     "NtpNextDisablementContextMenuParam",
-    true);
+    false);
 const base::FeatureParam<int> kMaxTilesBeforeShowMore{
     &ntp_features::kNtpNextFeatures, "max_tiles_before_show_more", 5};
 const base::FeatureParam<bool> kAddTabUploadDelayOnActionChipClick(

@@ -368,6 +368,11 @@ base::expected<void, std::string> UpdatePropertyTreeNode(
     return base::unexpected(
         "Invalid closest_ancestor_with_shared_element_id for effect node");
   }
+  if (!IsOptionalPropertyTreeIndexValid(trees.effect_tree(),
+                                        wire.view_transition_target_id)) {
+    return base::unexpected(
+        "Invalid view_transition_target_id for effect node");
+  }
   node.transform_id = wire.transform_id;
   node.clip_id = wire.clip_id;
   node.element_id = wire.element_id;
@@ -525,6 +530,17 @@ DeserializeStickyPositionData(
       return base::unexpected("Invalid scroll ancestor ID");
     }
 
+    if (!IsOptionalPropertyTreeIndexValid(
+            trees.transform_tree(), wire->nearest_node_shifting_sticky_box)) {
+      return base::unexpected("Invalid nearest_node_shifting_sticky_box");
+    }
+
+    if (!IsOptionalPropertyTreeIndexValid(
+            trees.transform_tree(),
+            wire->nearest_node_shifting_containing_block)) {
+      return base::unexpected("Invalid nearest_node_shifting_containing_block");
+    }
+
     cc::StickyPositionNodeData& data = sticky_position_node_data.emplace_back();
     data.x_scroll_ancestor = wire->x_scroll_ancestor;
     data.y_scroll_ancestor = wire->y_scroll_ancestor;
@@ -621,9 +637,15 @@ base::expected<bool, std::string> UpdateScrollTreeProperties(
   return elastic_overscroll_changed;
 }
 
-void UpdateMirrorLayerExtra(const mojom::MirrorLayerExtraPtr& extra,
-                            cc::MirrorLayerImpl& layer) {
+base::expected<void, std::string> UpdateMirrorLayerExtra(
+    const mojom::MirrorLayerExtraPtr& extra,
+    cc::MirrorLayerImpl& layer) {
+  if (extra->mirrored_layer_id != 0 &&
+      !layer.layer_tree_impl()->LayerById(extra->mirrored_layer_id)) {
+    return base::unexpected("Invalid mirrored_layer_id");
+  }
   layer.SetMirroredLayerId(extra->mirrored_layer_id);
+  return base::ok();
 }
 
 base::expected<void, std::string> UpdateNinePatchLayerExtra(
@@ -873,8 +895,9 @@ base::expected<void, std::string> UpdateLayer(const mojom::Layer& wire,
         RETURN_IF_FALSE(
             general.layer_extra && general.layer_extra->is_mirror_layer_extra(),
             "Invalid layer_extra type for MirrorLayerImpl");
-        UpdateMirrorLayerExtra(general.layer_extra->get_mirror_layer_extra(),
-                               static_cast<cc::MirrorLayerImpl&>(layer));
+        RETURN_IF_ERROR(UpdateMirrorLayerExtra(
+            general.layer_extra->get_mirror_layer_extra(),
+            static_cast<cc::MirrorLayerImpl&>(layer)));
         break;
       case cc::mojom::LayerType::kNinePatch:
         RETURN_IF_FALSE(general.layer_extra &&

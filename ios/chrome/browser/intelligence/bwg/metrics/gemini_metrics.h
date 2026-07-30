@@ -19,6 +19,7 @@ enum class EntryPoint;
 enum class FloatyUpdateSource;
 enum class ImageActionButtonType;
 enum class InputPlateAttachmentOption;
+enum class FREState;
 // Encapsulates a set of ineligibility reasons computed during a single Gemini
 // eligibility check.
 struct IneligibilityReasons {
@@ -42,6 +43,9 @@ enum class GeminiViewState;
 
 // UMA histogram key for IOS.Gemini.Eligibility.
 extern const char kEligibilityHistogram[];
+
+// UMA histogram key for IOS.Gemini.FRE.State.
+extern const char kGeminiFREStateHistogram[];
 
 // UMA histogram key for IOS.Gemini.EntryPoint.
 extern const char kEntryPointHistogram[];
@@ -79,6 +83,9 @@ extern const char kFloatyHiddenFromSourceHistogram[];
 // UMA histogram key for IOS.Gemini.Floaty.DismissedState.
 extern const char kFloatyDismissedStateHistogram[];
 
+// UMA histogram key for IOS.Gemini.PageAvailability.
+extern const char kGeminiPageAvailabilityHistogram[];
+
 // Enum for the IOS.Gemini.FRE.PromoAction and IOS.Gemini.FRE.ConsentAction
 // histograms.
 // LINT.IfChange(IOSGeminiFREAction)
@@ -95,6 +102,18 @@ void RecordFREPromoAction(IOSGeminiFREAction action);
 
 // Records the user action on the FRE Consent Screen.
 void RecordFREConsentAction(IOSGeminiFREAction action);
+
+// LINT.IfChange(IOSGeminiPageAvailability)
+enum class IOSGeminiPageAvailability {
+  kUnavailable = 0,
+  kAvailable = 1,
+  kSearchResultPage = 2,
+  kMaxValue = kSearchResultPage,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiPageAvailability)
+
+// Records the reason why Gemini is available or unavailable for a given page.
+void RecordGeminiPageAvailability(IOSGeminiPageAvailability reason);
 
 // Enum for tracking Gemini ineligibility reasons.
 // LINT.IfChange(IOSGeminiIneligibilityReason)
@@ -464,6 +483,9 @@ void RecordFloatyMinimizedTime(base::TimeTicks elapsed_minimized_floaty_time);
 
 // Records whether a Gemini eligibility check was successful.
 void RecordGeminiEligibility(bool eligible);
+
+// Records the FRE state for Gemini.
+void RecordGeminiFREState(gemini::FREState state);
 
 // Records all of the Gemini ineligibility reasons. One record will be sent at
 // most per associated value of IOSGeminiIneligibilityReason.

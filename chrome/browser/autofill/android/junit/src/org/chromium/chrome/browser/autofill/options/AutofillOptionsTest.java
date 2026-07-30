@@ -441,6 +441,17 @@ public class AutofillOptionsTest {
 
     @Test
     @SmallTest
+    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
+    public void testOptInDescriptionWithAutofillAiEnabled() {
+        AutofillOptionsCoordinator.createFor(mFragment, this::assertModalNotUsed, Assert::fail);
+
+        assertEquals(
+                getRadioButtonComponent().getOptInButton().getDescriptionText(),
+                getString(R.string.autofill_third_party_filling_opt_in_description_v2));
+    }
+
+    @Test
+    @SmallTest
     public void injectedHelpTriggersAutofillHelp() {
         Menu helpMenu = mock(Menu.class);
         MenuItem helpItem = mock(MenuItem.class);
@@ -897,6 +908,23 @@ public class AutofillOptionsTest {
         View thingsToConsider = holder.findViewById(R.id.autofill_ai_things_to_consider);
         assertEquals(
                 View.GONE, thingsToConsider.findViewById(R.id.info_item_summary_2).getVisibility());
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
+    public void testAutofillAiToggleDisabledWhenUsingThirdPartyProvider() {
+        doReturn(true).when(mMockEntityDataManager).isEligibleToAutofillAi();
+        doReturn(true).when(mMockEntityDataManager).getAutofillAiOptInStatus();
+        doReturn(true).when(mPrefs).getBoolean(Pref.AUTOFILL_USING_PLATFORM_AUTOFILL);
+
+        new AutofillOptionsCoordinator(mFragment, this::assertModalNotUsed, Assert::fail)
+                .initializeNow();
+
+        // Even if the user is opted in and is eligible, the AutofillAi toggle is at off state and
+        // disabled IF they are using a third party provider.
+        assertFalse(mFragment.getAutofillAiSwitch().isEnabled());
+        assertFalse(mFragment.getAutofillAiSwitch().isChecked());
     }
 
     private ModalDialogManager assertModalNotUsed() {

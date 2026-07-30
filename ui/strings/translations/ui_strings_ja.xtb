@@ -1,7 +1,6 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="ja">
-<translation id="1028699632127661925"><ph name="DEVICE_NAME" /> に送信しています...</translation>
 <translation id="111910763555783249">通知設定</translation>
 <translation id="1127811143501539442">{DAYS,plural, =1{1 日前}other{# 日前}}</translation>
 <translation id="1156623771253174079">{SECONDS,plural, =1{1 分前}other{# 分前}}</translation>
@@ -70,7 +69,6 @@
 <translation id="2586657967955657006">クリップボード</translation>
 <translation id="2653844658857826081">新規</translation>
 <translation id="2666092431469916601">上部</translation>
-<translation id="2701330563083355633"><ph name="DEVICE_NAME" /> から共有されました</translation>
 <translation id="2824719307700604149">{YEARS,plural, =1{1 年前}other{# 年前}}</translation>
 <translation id="2878511608894704031">すべて削除</translation>
 <translation id="2907671656515444832">{DAYS,plural, =1{1日}other{#日}}</translation>
@@ -110,6 +108,7 @@
 <translation id="4031910098617850788">F5</translation>
 <translation id="40579289237549812">{UNREAD_NOTIFICATIONS,plural, =1{未読のお知らせ 1 件}other{未読のお知らせ # 件}}</translation>
 <translation id="41501027364808384">{COUNT,plural, =1{シークレット モードで次の拡張機能をオンにしてください。}other{シークレット モードで次の拡張機能をオンにしてください。}}</translation>
+<translation id="4230098358142093034">Home</translation>
 <translation id="4266252015790371705">{MONTHS,plural, =1{1 か月前}other{# か月前}}</translation>
 <translation id="4277033906326892359">「<ph name="COLUMN_NAME" />」列を昇順で並べ替えました</translation>
 <translation id="4289300219472526559">読み上げを開始</translation>

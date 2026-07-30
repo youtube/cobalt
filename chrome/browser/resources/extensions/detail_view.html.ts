@@ -5,6 +5,7 @@
 import {html} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {ExtensionsDetailViewElement} from './detail_view.js';
+import type {ServiceInterface} from './service.js';
 
 export function getHtml(this: ExtensionsDetailViewElement) {
   // clang-format off
@@ -242,7 +243,7 @@ this text can be found by Ctrl + F because it isn't hidden. -->
         </div>
         <div class="section-content">
           <ul id="inspect-views">
-            <li ?hidden="${this.data.views.length}">
+            <li ?hidden="${this.data.views.length > 0}">
               $i18n{noActiveViews}
             </li>
             ${this.sortedViews_.map((item, index) => html`
@@ -291,17 +292,19 @@ this text can be found by Ctrl + F because it isn't hidden. -->
           </span>
           ${this.showFreeformRuntimeHostPermissions_() ? html`
             <extensions-runtime-host-permissions
-                .permissions="${this.data.permissions.runtimeHostPermissions}"
+                .permissions="${this.data.permissions.runtimeHostPermissions!}"
                 ?enable-enhanced-site-controls="${this
                     .enableEnhancedSiteControls}"
-                .delegate="${this.delegate}" item-id="${this.data.id}">
+                .delegate="${this.delegate as ServiceInterface}"
+                item-id="${this.data.id}">
             </extensions-runtime-host-permissions>` : ''}
           ${this.showHostPermissionsToggleList_() ? html`
             <extensions-host-permissions-toggle-list
-                .permissions="${this.data.permissions.runtimeHostPermissions}"
+                .permissions="${this.data.permissions.runtimeHostPermissions!}"
                 ?enable-enhanced-site-controls="${this.
                     enableEnhancedSiteControls}"
-                .delegate="${this.delegate}" item-id="${this.data.id}">
+                .delegate="${this.delegate as ServiceInterface}"
+                item-id="${this.data.id}">
             </extensions-host-permissions-toggle-list>` : ''}
           ${this.showEnableAccessRequestsToggle_() ? html`
             <extensions-toggle-row id="show-access-requests-toggle"
@@ -346,7 +349,7 @@ this text can be found by Ctrl + F because it isn't hidden. -->
       <div id="options-section">
         ${this.canPinToToolbar_() ? html`
           <extensions-toggle-row id="pin-to-toolbar"
-              ?checked="${this.data.pinnedToToolbar}" class="hr"
+              ?checked="${this.data.pinnedToToolbar!}" class="hr"
               @change="${this.onPinnedToToolbarChange_}">
             <span>$i18n{itemPinToToolbar}</span>
           </extensions-toggle-row>` : ''}

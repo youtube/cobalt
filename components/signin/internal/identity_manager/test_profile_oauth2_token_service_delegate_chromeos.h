@@ -10,7 +10,6 @@
 #include "components/signin/internal/identity_manager/profile_oauth2_token_service_delegate.h"
 #include "components/signin/internal/identity_manager/profile_oauth2_token_service_delegate_chromeos.h"
 #include "components/signin/internal/identity_manager/profile_oauth2_token_service_observer.h"
-#include "services/network/test/test_network_connection_tracker.h"
 
 class AccountTrackerService;
 class SigninClient;
@@ -78,14 +77,11 @@ class TestProfileOAuth2TokenServiceDelegateChromeOS
   void UpdateCredentialsInternal(
       const CoreAccountId& account_id,
       const std::string& refresh_token,
-      const std::vector<uint8_t>& wrapped_binding_key) override;
+      const signin::TokenBindingInfo& token_binding_info) override;
   void RevokeCredentialsInternal(const CoreAccountId& account_id) override;
   void RevokeAllCredentialsInternal(
       signin_metrics::SourceForRefreshTokenOperation source) override;
 
-  // Owning pointer to TestNetworkConnectionTracker. Set only if it wasn't
-  // created before initialization of this class.
-  std::unique_ptr<network::TestNetworkConnectionTracker> owned_tracker_;
   std::unique_ptr<ProfileOAuth2TokenServiceDelegateChromeOS> delegate_;
   base::ScopedObservation<ProfileOAuth2TokenServiceDelegateChromeOS,
                           ProfileOAuth2TokenServiceObserver>

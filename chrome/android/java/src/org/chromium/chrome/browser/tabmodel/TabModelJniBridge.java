@@ -407,7 +407,7 @@ public abstract class TabModelJniBridge implements TabModelInternal {
         LoadUrlParams loadParams = new LoadUrlParams(url);
         @TabLaunchType int launchType = TabLaunchType.FROM_CHROME_UI;
         if (!newWindow
-                || MultiWindowUtils.getInstanceCountWithFallback(PersistedInstanceType.ACTIVE)
+                || MultiWindowUtils.getInstanceCount(PersistedInstanceType.ACTIVE)
                         >= MultiWindowUtils.getMaxInstances()) {
             return assumeNonNull(
                     getTabCreator(/* isIncognito= */ false)
@@ -571,15 +571,18 @@ public abstract class TabModelJniBridge implements TabModelInternal {
     @CalledByNative
     protected abstract @JniType("std::vector<base::Token>") List<Token> listTabGroups();
 
+    @Override
     @CalledByNative
-    protected abstract @JniType("std::u16string") String getTabGroupTitle(
+    public abstract @JniType("std::u16string") String getTabGroupTitle(
             @JniType("base::Token") Token tabGroupId);
 
+    @Override
     @CalledByNative
-    protected abstract int getTabGroupColor(@JniType("base::Token") Token tabGroupId);
+    public abstract int getTabGroupColor(@JniType("base::Token") Token tabGroupId);
 
+    @Override
     @CalledByNative
-    protected abstract boolean getTabGroupCollapsed(@JniType("base::Token") Token tabGroupId);
+    public abstract boolean getTabGroupCollapsed(@JniType("base::Token") Token tabGroupId);
 
     /**
      * Returns two integers representing a range of tab indices. The range is non-inclusive and
@@ -605,8 +608,6 @@ public abstract class TabModelJniBridge implements TabModelInternal {
     protected abstract @JniType("std::optional<base::Token>") @Nullable Token addTabsToGroup(
             @JniType("std::optional<base::Token>") @Nullable Token tabGroupId,
             @JniType("std::vector<TabAndroid*>") List<Tab> tabs);
-
-    protected abstract TabUngrouper getTabUngrouper();
 
     @CalledByNative
     protected void ungroup(@JniType("std::vector<TabAndroid*>") List<Tab> tabs) {
@@ -638,6 +639,8 @@ public abstract class TabModelJniBridge implements TabModelInternal {
         moveTabToWindow(tab, activity, newIndex);
     }
 
+    // TODO(https://crbug.com/495795228): add `bringToFront` parameter to indicate
+    // if the destination activity should be activated. See MultiInstanceOrchestrator.
     protected abstract void moveTabToWindow(
             @JniType("TabAndroid*") Tab tab, Activity activity, int newIndex);
 
@@ -648,6 +651,8 @@ public abstract class TabModelJniBridge implements TabModelInternal {
         moveTabGroupToWindow(tabGroupId, activity, newIndex);
     }
 
+    // TODO(https://crbug.com/495795228): add `bringToFront` parameter to indicate
+    // if the destination activity should be activated. See MultiInstanceOrchestrator.
     protected abstract void moveTabGroupToWindow(
             @JniType("base::Token") Token tabGroupId, Activity activity, int newIndex);
 

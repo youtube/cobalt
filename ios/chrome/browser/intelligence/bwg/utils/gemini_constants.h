@@ -31,7 +31,9 @@ enum class EntryPoint {
   ImageRemixIPH = 7,
   // Gemini was opened via the edit menu to explain the selection.
   EditMenu = 8,
-  kMaxValue = EditMenu,
+  // Gemini was opened directly from the omnibox badge, skipping the AI Hub.
+  DirectOmniboxBadge = 9,
+  kMaxValue = DirectOmniboxBadge,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiEntryPoint)
 
@@ -56,7 +58,8 @@ enum class FloatyUpdateSource {
   Banner = 12,
   Keyboard = 13,
   GestureIph = 14,
-  kMaxValue = GestureIph,
+  SearchRelatedPage = 15,
+  kMaxValue = SearchRelatedPage,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiFloatyUpdateSource)
 
@@ -102,7 +105,28 @@ enum class GenAiDefaultSettingsPolicy {
   // Do not allow GenAI features.
   kNotAllowed = 2,
 };
+
+// Current state of the Gemini FRE.
+// LINT.IfChange(FREState)
+enum class FREState {
+  // Initial state, when the flow was never started by the user.
+  kPending = 0,
+  // The FRE flow was shown to the user but they did not proceed til the end and
+  // give their explicit consent to Gemini usage.
+  kStarted = 1,
+  // The user completed the FRE flow and gave their consent to Gemini usage.
+  kCompleted = 2,
+  kMaxValue = kCompleted
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiFREState)
+
 }  // namespace gemini
+
+// Types of Gemini First Run Experience (FRE).
+enum class GeminiFREType {
+  kNewUser,
+  kLive,
+};
 
 // Set of parameters for starting a Gemini session.
 @interface GeminiStartupState : NSObject

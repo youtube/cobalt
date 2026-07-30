@@ -47,6 +47,8 @@
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
+#include "chrome/browser/user_education/user_education_service.h"
+#include "chrome/browser/user_education/user_education_service_factory.h"
 #include "chrome/browser/webauthn/passkey_unlock_manager.h"
 #include "chrome/browser/webauthn/passkey_unlock_manager_factory.h"
 #include "chrome/grit/branded_strings.h"
@@ -583,9 +585,17 @@ void AvatarToolbarButton::MaybeShowSupervisedUserSignInIPH() {
 }
 
 void AvatarToolbarButton::MaybeShowSignInBenefitsIPH() {
-  if (!syncer::IsReplaceSyncPromosWithSignInPromosEnabled() ||
-      !base::FeatureList::IsEnabled(
-          feature_engagement::kIPHSignInBenefitsFeature)) {
+  const bool show_new_signin =
+      base::FeatureList::IsEnabled(
+          syncer::kReplaceSyncPromosWithSigninPromosNewSignin) &&
+      base::FeatureList::IsEnabled(
+          feature_engagement::kIPHSignInBenefitsNewSigninFeature);
+  const bool show_legacy = base::FeatureList::IsEnabled(
+                               syncer::kReplaceSyncPromosWithSignInPromos) &&
+                           base::FeatureList::IsEnabled(
+                               feature_engagement::kIPHSignInBenefitsFeature);
+
+  if (!show_new_signin && !show_legacy) {
     return;
   }
 
@@ -623,8 +633,26 @@ void AvatarToolbarButton::MaybeShowSignInBenefitsIPH() {
     return;
   }
 
+  if (show_new_signin && !show_legacy) {
+    auto* const edu_service =
+        UserEducationServiceFactory::GetForBrowserContext(profile);
+    if (edu_service) {
+      auto data = edu_service->user_education_storage_service().ReadPromoData(
+          feature_engagement::kIPHSignInBenefitsFeature);
+      if (data && data->show_count > 0) {
+        return;
+      }
+    }
+  }
+
+  // It should not matter in practice, but if both features are enabled, show
+  // the legacy IPH.
+  const base::Feature& feature_to_show =
+      show_legacy ? feature_engagement::kIPHSignInBenefitsFeature
+                  : feature_engagement::kIPHSignInBenefitsNewSigninFeature;
+
   BrowserUserEducationInterface::From(browser_)->MaybeShowStartupFeaturePromo(
-      feature_engagement::kIPHSignInBenefitsFeature);
+      feature_to_show);
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 

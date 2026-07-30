@@ -10,7 +10,6 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/observer_list.h"
 #include "base/one_shot_event.h"
 #include "base/strings/string_util.h"
@@ -154,6 +153,7 @@ void ReloadExtension(const std::string& extension_id,
   }
 
   if (g_browser_process->IsShuttingDown() ||
+      !g_browser_process->profile_manager() ||
       !g_browser_process->profile_manager()->IsValidProfile(profile.get())) {
     return;
   }
@@ -203,6 +203,8 @@ const net::BackoffEntry::Policy kExtensionReloadBackoffPolicy = {
 };
 
 int BackgroundContentsService::restart_delay_in_ms_ = 3000;  // 3 seconds.
+// Used to simulate browser shutdown without destroying the real browser
+// process in browser tests.
 
 BackgroundContentsService::BackgroundContentsService(Profile* profile)
     : profile_(profile) {
@@ -416,9 +418,6 @@ void BackgroundContentsService::RestartForceInstalledExtensionOnCrash(
   // TODO(devlin): This would be unnecessary if we listened to the
   // OnExtensionUnloaded() notification and checked the unload reason.
   DCHECK_GT(restart_delay, 0);
-  if (zero_restart_delay_for_test_) {
-    restart_delay = 0;
-  }
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&ReloadExtension, extension->id(), profile_->GetWeakPtr()),

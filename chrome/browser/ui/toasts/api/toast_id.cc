@@ -71,6 +71,10 @@ std::string_view GetToastName(ToastId toast_id) {
       return "AutoSignIn";
     case ToastId::kMultistepFilterSuggestion:
       return "MultistepFilterSuggestion";
+    case ToastId::kMultistepFilterSuggestionRecent:
+      return "MultistepFilterSuggestionRecent";
+    case ToastId::kSkillSavedWithoutInvokeButton:
+      return "SkillSavedWithoutInvokeButton";
   }
 
   NOTREACHED();

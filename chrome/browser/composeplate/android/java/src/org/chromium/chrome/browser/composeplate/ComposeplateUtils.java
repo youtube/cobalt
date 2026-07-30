@@ -21,7 +21,6 @@ import org.jni_zero.NativeMethods;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
@@ -35,17 +34,12 @@ public class ComposeplateUtils {
     /**
      * Returns whether the composeplate can be enabled.
      *
-     * @param isTablet Whether the device is a tablet.
      * @param profile The current profile.
      */
-    public static boolean isComposeplateEnabled(boolean isTablet, Profile profile) {
+    public static boolean isComposeplateEnabled(Profile profile) {
         if (sIsEnabledForTesting) return true;
-        if (!ComposeplateUtilsJni.get().isAimEntrypointEligible(profile)) return false;
 
-        if (!isTablet) return true;
-
-        return ChromeFeatureList.sAndroidComposeplateLFF.isEnabled()
-                && ComposeplateUtilsJni.get().isAimEntrypointLFFEligible(profile);
+        return ComposeplateUtilsJni.get().isAimEntrypointEligible(profile);
     }
 
     /**
@@ -58,14 +52,14 @@ public class ComposeplateUtils {
     }
 
     /**
-     * Applies a white color with shadow to the default background drawable and set it as the new
-     * background of the view if apply equals to true; otherwise resets to the default background.
+     * Applies a white color to the default background drawable and set it as the new background of
+     * the view if apply equals to true; otherwise resets to the default background.
      *
      * @param context Used to get resources.
      * @param view The view instance to update.
      * @param apply Whether to apply or reset to the default background.
      */
-    public static void applyWhiteBackgroundAndShadow(Context context, View view, boolean apply) {
+    public static void applyWhiteBackground(Context context, View view, boolean apply) {
         Drawable background = context.getDrawable(R.drawable.home_surface_search_box_background);
         if (apply) {
             if (background == null) return;
@@ -74,16 +68,11 @@ public class ComposeplateUtils {
             GradientDrawable newBackground = (GradientDrawable) background.mutate();
             newBackground.setColor(Color.WHITE);
             view.setBackground(newBackground);
-            view.setElevation(
-                    context.getResources().getDimensionPixelSize(R.dimen.ntp_search_box_elevation));
-            view.setClipToOutline(true);
             return;
         }
 
         // Rests to the default background drawable.
         view.setBackground(background);
-        view.setElevation(0f);
-        view.setClipToOutline(false);
     }
 
     public static void setIsEnabledForTesting(boolean isEnabledForTesting) {
@@ -125,8 +114,6 @@ public class ComposeplateUtils {
     @VisibleForTesting
     public interface Natives {
         boolean isAimEntrypointEligible(@JniType("Profile*") Profile profile);
-
-        boolean isAimEntrypointLFFEligible(@JniType("Profile*") Profile profile);
 
         boolean isEnabledByPolicy(@JniType("Profile*") Profile profile);
     }

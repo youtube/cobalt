@@ -52,6 +52,7 @@ source_set("profiles") {
 
   public_deps = [
     ":profile",
+    ":profile_manager",
     "//build:chromeos_buildflags",
     "//components/leveldb_proto",
   ]
@@ -108,6 +109,86 @@ source_set("profile") {
   }
   if (is_android) {
     deps += [ "//chrome/browser/profiles/android:jni_headers" ]
+  }
+}
+
+source_set("profile_manager") {
+  sources = [
+    "profile_destroyer.h",
+    "profile_manager.h",
+    "profile_metrics.h",
+    "profile_shortcut_manager.h",
+  ]
+
+  deps = [
+    ":profile",
+    "//base",
+    "//build:chromeos_buildflags",
+    "//chrome/common:buildflags",
+    "//components/profile_metrics",
+    "//content/public/browser",
+  ]
+}
+
+source_set("profile_manager_impl") {
+  sources = [
+    "profile_destroyer.cc",
+    "profile_manager.cc",
+    "profile_metrics.cc",
+    "profile_shortcut_manager.cc",
+  ]
+
+  deps = [
+    ":profile",
+    ":profile_manager",
+    ":profile_util",
+    "//base",
+    "//chrome/browser:browser_features",
+    "//chrome/browser:browser_process",
+    "//chrome/browser:buildflags",
+    "//chrome/browser/navigation_predictor",
+    "//chrome/browser/prefs",
+    "//chrome/browser/profiles/keep_alive",
+    "//chrome/browser/signin",
+    "//chrome/browser/ui:ui_features",
+    "//chrome/browser/unified_consent",
+    "//chrome/common:buildflags",
+    "//chrome/common:constants",
+    "//components/crash/core/common",
+    "//components/profile_metrics",
+    "//components/signin/core/browser",
+    "//components/signin/public/base:signin_buildflags",
+    "//components/supervised_user/core/browser",
+    "//components/supervised_user/core/common",
+    "//components/sync/base",
+    "//components/user_manager",
+    "//content/public/browser",
+    "//extensions/buildflags",
+    "//google_apis",
+  ]
+
+  if (enable_extensions) {
+    deps += [ "//chrome/browser/extensions" ]
+  }
+
+  if (!is_android) {
+    deps += [
+      "//chrome/browser/ui:browser_list",
+      "//chrome/browser/ui/browser_window",
+      "//components/live_caption",
+    ]
+  }
+
+  if (is_chromeos) {
+    deps += [
+      "//chrome/browser/ash/account_manager",
+      "//chrome/browser/ash/arc/policy",
+      "//chrome/browser/ash/profiles",
+      "//chrome/browser/chromeos/extensions/contact_center_insights",
+      "//chrome/browser/chromeos/extensions/desk_api",
+      "//chromeos/ash/components/browser_context_helper",
+      "//chromeos/ash/experiences/arc/session:arc_base_enums",
+    ]
   }
 }
 
@@ -192,6 +273,7 @@ source_set("profile_util_impl") {
 
   deps = [
     ":profile",
+    ":profile_manager",
     ":profile_util",
     "//base",
     "//base:i18n",
@@ -273,12 +355,14 @@ source_set("profiles_extra_parts_impl") {
   sources = [ "chrome_browser_main_extra_parts_profiles.cc" ]
 
   deps = [
+    ":profile_manager",
     ":profile_util",
     ":profiles_extra_parts",
     "//base",
     "//chrome/browser:browser_process",
     "//chrome/browser:font_pref",
     "//chrome/browser/accessibility_annotator",
+    "//chrome/browser/accessibility_annotator/first_run",
     "//chrome/browser/account_settings",
     "//chrome/browser/affiliations",
     "//chrome/browser/ai",
@@ -311,6 +395,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/dom_distiller",
     "//chrome/browser/domain_reliability",
     "//chrome/browser/engagement",
+    "//chrome/browser/enterprise/connectors/reporting",
     "//chrome/browser/favicon",
     "//chrome/browser/feature_engagement",
     "//chrome/browser/file_system_access",
@@ -342,6 +427,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/passage_embeddings",
     "//chrome/browser/password_manager/actor_login:actor_login_permission_service_factory",
     "//chrome/browser/password_manager/factories",
+    "//chrome/browser/payments",
     "//chrome/browser/payments/browser_binding:browser_bound_key_deleter",
     "//chrome/browser/permissions",
     "//chrome/browser/persisted_state_db",
@@ -350,6 +436,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/prefs",
     "//chrome/browser/preloading",
     "//chrome/browser/preloading/prefetch/no_state_prefetch",
+    "//chrome/browser/preloading/prefetch/search_prefetch",
     "//chrome/browser/preloading/prerender",
     "//chrome/browser/preloading/search_preload",
     "//chrome/browser/privacy",
@@ -442,9 +529,11 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/devtools",
       "//chrome/browser/feedback",
       "//chrome/browser/hid",
+      "//chrome/browser/indigo",
       "//chrome/browser/media/router/discovery/access_code:access_code_sink_service",
       "//chrome/browser/metrics/critical_user_journeys",
       "//chrome/browser/private_ai",
+      "//chrome/browser/profile_resetter",
       "//chrome/browser/record_replay",
       "//chrome/browser/screen_ai:screen_ai_service_router_factory",
       "//chrome/browser/search",
@@ -488,6 +577,7 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/chromeos/extensions/telemetry/api:keyed_service_factory",
       "//chrome/browser/chromeos/policy/dlp",
       "//chrome/browser/policy:onc",
+      "//chrome/browser/push_notification",
       "//chrome/browser/smart_card",
     ]
   }
@@ -588,6 +678,7 @@ source_set("unit_tests") {
   ]
   deps = [
     ":profile_downloader",
+    ":profile_manager",
     ":profile_util",
     "//base",
     "//base/test:test_support",

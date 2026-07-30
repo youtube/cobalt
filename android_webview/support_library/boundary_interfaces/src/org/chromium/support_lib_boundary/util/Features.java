@@ -304,6 +304,7 @@ public class Features {
     public static final String PREFETCH_WITH_CALLBACK_RESULT_V1 =
             "PREFETCH_WITH_CALLBACK_RESULT_V1";
 
+    // Profile.getMaxPrerenders
     // Profile.setMaxPrerenders
     public static final String SET_MAX_PRERENDERS = "SET_MAX_PRERENDERS_V1";
 
@@ -475,4 +476,10 @@ public class Features {
     // Navigation.getWebResourceError
     public static final String NAVIGATION_GET_WEB_RESOURCE_ERROR =
             "NAVIGATION_GET_WEB_RESOURCE_ERROR";
+
+    // WebViewSettings.setIgnoreDuplicateNavEnabled
+    // WebViewSettings.getIgnoreDuplicateNavEnabled
+    // WebViewSettings.setIgnoreDuplicateNavThreshold
+    // WebViewSettings.getIgnoreDuplicateNavThreshold
+    public static final String IGNORE_DUPLICATE_NAV = "IGNORE_DUPLICATE_NAV";
 }

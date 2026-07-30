@@ -6,6 +6,8 @@ import argparse
 import json
 import os
 import sys
+import tempfile
+import contextlib
 
 import utils.command_util as command
 import utils.constants as const
@@ -106,7 +108,29 @@ def FindTestTargets(target_cache: TargetCache,
         '--all',
         '--relation=source',
         '--relation=input',
-    ] + paths
+    ]
+
+    response_file = None
+    if len(paths) > 100:
+      cm = tempfile.NamedTemporaryFile(mode='w', delete=False)
+    else:
+      cm = contextlib.nullcontext()
+      cmd.extend(paths)
+
+    with cm as tmp_file:
+      if tmp_file:
+        tmp_file.write('\n'.join(paths))
+        cmd.append(f'@{tmp_file.name}')
+
+      targets: list[str] = _ParseRefsOutput(command.RunCommand(cmd))
+      test_targets = _TestTargetsFromGnRefs(targets)
+
+      # If no targets were identified as tests by looking at their names, ask GN
+      # if any are executables.
+      if not test_targets and targets:
+        test_targets = _ParseRefsOutput(
+            command.RunCommand(cmd + ['--type=executable']))
+
     targets: list[str] = _ParseRefsOutput(command.RunCommand(cmd))
     test_targets = _TestTargetsFromGnRefs(targets)
 
@@ -131,7 +155,11 @@ def FindTestTargets(target_cache: TargetCache,
       print(f'Warning, found {len(test_targets)} test targets.',
             file=sys.stderr)
       if len(test_targets) > 10:
-        command.ExitWithMessage('Your query likely involves non-test sources.')
+        if len(test_targets) < 50:
+          print('Targets found:', '\n'.join(test_targets), file=sys.stderr)
+        command.ExitWithMessage(
+            'Your query may involve non-test sources. Use --target to choose'
+            ' one explicitly.')
       print('Trying to run all of them!', file=sys.stderr)
     elif target_index is not None and 0 <= target_index < len(test_targets):
       test_targets = [test_targets[target_index]]

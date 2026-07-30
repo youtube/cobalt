@@ -8,11 +8,10 @@ import ctypes
 import os
 import re
 import subprocess
-import sys
 import typing
 
 
-import setup_modules
+import setup_modules  # pylint: disable=unused-import
 
 # Import the shared codegen library for its hashing function, which is the
 # same hashing function as used for flag names.
@@ -89,11 +88,13 @@ def main():
       "also providing `outdir`, as nothing needs to be built.")
   args = parser.parse_args()
 
-  entries = get_entries_from_feature_string(args.feature) \
-    if args.feature else get_entries_from_unit_test(args.outdir)
+  if args.feature:
+    entries = get_entries_from_feature_string(args.feature)
+  else:
+    entries = get_entries_from_unit_test(args.outdir)
 
   if not entries:
-    print("No missing enum entries found.")
+    print('No missing enum entries found.')
     return
 
   xml_dir = path_utils.ScriptDir()

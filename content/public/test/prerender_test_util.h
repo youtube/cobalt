@@ -116,7 +116,6 @@ class PrerenderHostCreationWaiter {
 class ScopedPrerenderFeatureList {
  public:
   ScopedPrerenderFeatureList();
-  explicit ScopedPrerenderFeatureList(bool force_disable_prerender2_fallback);
   ScopedPrerenderFeatureList(const ScopedPrerenderFeatureList&) = delete;
   ScopedPrerenderFeatureList& operator=(const ScopedPrerenderFeatureList&) =
       delete;
@@ -129,8 +128,6 @@ class ScopedPrerenderFeatureList {
 class PrerenderTestHelper {
  public:
   explicit PrerenderTestHelper(const WebContents::Getter& fn);
-  explicit PrerenderTestHelper(const WebContents::Getter& fn,
-                               bool force_disable_prerender2_fallback);
   ~PrerenderTestHelper();
   PrerenderTestHelper(const PrerenderTestHelper&) = delete;
   PrerenderTestHelper& operator=(const PrerenderTestHelper&) = delete;
@@ -278,7 +275,8 @@ class PrerenderTestHelper {
   // This is intended for activating a prerendered page initiated for a new
   // window.
   static void OpenNewWindowWithoutOpener(WebContents& web_contents,
-                                         const GURL& url);
+                                         const GURL& url,
+                                         bool is_form_submission = false);
 
   // Confirms that, internally, appropriate subframes report that they are
   // prerendering (and that each frame tree type is kPrerender).

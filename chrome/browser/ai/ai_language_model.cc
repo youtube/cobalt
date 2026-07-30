@@ -306,6 +306,8 @@ class AILanguageModel::PromptState
 
  private:
   void OnDisconnect(uint32_t custom_reason, const std::string& description) {
+    VLOG(1) << "LanguageModel ModelStreamingResponder disconnect; reason: "
+            << custom_reason << ", description: " << description;
     auto error = blink::mojom::ModelStreamingResponseStatus::kErrorUnknown;
     switch (static_cast<on_device_model::mojom::GenerateError>(custom_reason)) {
       case on_device_model::mojom::GenerateError::kUnknown:
@@ -442,8 +444,8 @@ class AILanguageModel::PromptState
       optimization_guide::SafetyChecker::Result safety_result) {
     // If output hit the token limit, it was truncated, so send an error.
     if (summary->output_token_count >= max_output_tokens_) {
-      // TODO(crbug.com/421983874): Use a more specific error in this case?
-      OnError(blink::mojom::ModelStreamingResponseStatus::kErrorGenericFailure);
+      OnError(blink::mojom::ModelStreamingResponseStatus::
+                  kErrorResponseExceedsMaxTokens);
       return;
     }
     if (HandleSafetyError(std::move(safety_result))) {
@@ -470,7 +472,8 @@ class AILanguageModel::PromptState
   bool HandleSafetyError(
       optimization_guide::SafetyChecker::Result safety_result) {
     if (safety_result.failed_to_run) {
-      OnError(blink::mojom::ModelStreamingResponseStatus::kErrorGenericFailure);
+      OnError(
+          blink::mojom::ModelStreamingResponseStatus::kErrorFailedToRunSafety);
       return true;
     }
     if (safety_result.is_unsafe) {
@@ -895,29 +898,58 @@ void AILanguageModel::InitializeSafetyChecksComplete(
     mojo::PendingRemote<blink::mojom::AIManagerCreateLanguageModelClient>
         create_client,
     optimization_guide::SafetyChecker::Result safety_result) {
-  mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient> client(
-      std::move(create_client));
   // TODO(crbug.com/415808003): Add more fine grained errors on safety check
   // failure.
   if (safety_result.failed_to_run || safety_result.is_unsafe ||
       safety_result.is_unsupported_language) {
+    mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient> client(
+        std::move(create_client));
     on_device_ai::SendClientRemoteError(
         client,
         blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
     return;
   }
+
+  create_client_.Bind(std::move(create_client));
+  create_client_.set_disconnect_handler(
+      base::BindOnce(&AILanguageModel::OnCreateClientDisconnected,
+                     weak_ptr_factory_.GetWeakPtr()));
   if (input) {
     initial_input_ = input.Clone();
-    // No ContextClient is passed here since this operation should never be
-    // cancelled unless the session is destroyed.
     initial_session_->Append(
         MakeAppendOptions(std::move(input),
                           on_device_model::mojom::InputSource::kUserInput),
-        {});
+        initial_append_receiver_.BindNewPipeAndPassRemote());
+    initial_append_receiver_.set_disconnect_handler(
+        base::BindOnce(&AILanguageModel::OnInitialAppendDisconnected,
+                       weak_ptr_factory_.GetWeakPtr()));
+  } else {
+    // Proceed with session creation, leaving `initial_input_` null.
+    OnComplete(/*tokens_processed=*/0);
   }
-  initial_session_->Clone(current_session_.BindNewPipeAndPassReceiver());
+}
 
-  client->OnResult(BindRemote(), GetLanguageModelInstanceInfo());
+void AILanguageModel::OnComplete(uint32_t tokens_processed) {
+  initial_session_->Clone(current_session_.BindNewPipeAndPassReceiver());
+  if (create_client_) {
+    create_client_->OnResult(BindRemote(), GetLanguageModelInstanceInfo());
+    create_client_.reset();
+  }
+  initial_append_receiver_.reset();
+}
+
+void AILanguageModel::OnCreateClientDisconnected() {
+  RemoveFromSet();
+}
+
+void AILanguageModel::OnInitialAppendDisconnected() {
+  if (create_client_) {
+    on_device_ai::SendClientRemoteError(
+        create_client_,
+        blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
+    create_client_.reset();
+  }
+  RemoveFromSet();
 }
 
 void AILanguageModel::ForkInternal(
@@ -991,10 +1023,14 @@ void AILanguageModel::PromptGetInputSizeComplete(
   if (!prompt_state_ || !prompt_state_->IsValid()) {
     return;
   }
-
+  if (!initial_session_ || !current_session_) {
+    prompt_state_->OnError(
+        blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed);
+    return;
+  }
   if (!token_count) {
     prompt_state_->OnError(
-        blink::mojom::ModelStreamingResponseStatus::kErrorGenericFailure);
+        blink::mojom::ModelStreamingResponseStatus::kErrorFailedToCountTokens);
     return;
   }
 
@@ -1051,10 +1087,9 @@ void AILanguageModel::OnPromptOutputComplete() {
   auto responder = prompt_state_->TakeResponder();
   auto result = context_->AddContextItem(std::move(item));
   if (result == Context::SpaceReservationResult::kInsufficientSpace) {
-    // TODO(crbug.com/421983874): Use a more specific error in this case?
     on_device_ai::SendStreamingStatus(
-        responder,
-        blink::mojom::ModelStreamingResponseStatus::kErrorGenericFailure);
+        responder, blink::mojom::ModelStreamingResponseStatus::
+                       kErrorResponseExceedsRemainingContext);
     return;
   }
 

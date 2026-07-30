@@ -14,7 +14,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_toolbar_bubble_controller.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_toolbar_bubble_view.h"
-#include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_controller.h"
+#include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/page_context.h"
@@ -73,7 +73,8 @@ void SendTabToSelfToolbarIconController::StorePendingEntry(
       new_entry_pending_notification->GetSharedTime(),
       new_entry_pending_notification->GetDeviceName(),
       new_entry_pending_notification->GetTargetDeviceSyncCacheGuid(),
-      new_entry_pending_notification->GetPageContext());
+      new_entry_pending_notification->GetPageContext(),
+      new_entry_pending_notification->GetNavigationHistory());
   // Prevent adding the observer several times. This might happen when the
   // window is inactive and this method is called more than once (i.e. the
   // server sends multiple entry batches).
@@ -114,8 +115,8 @@ void SendTabToSelfToolbarIconController::ShowToolbarButton(
     const SendTabToSelfEntry& entry,
     BrowserWindowInterface* browser) {
   CHECK(browser);
-  PinnedToolbarActionsController* controller =
-      browser->GetFeatures().pinned_toolbar_actions_controller();
+  PinnedToolbarActions* controller =
+      browser->GetFeatures().pinned_toolbar_actions();
   CHECK(controller);
 
   controller->ShowActionEphemerallyInToolbar(kActionSendTabToSelf, true);

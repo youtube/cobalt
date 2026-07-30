@@ -15,7 +15,7 @@ import os.path
 import re
 import sys
 
-import setup_modules
+import setup_modules  # pylint: disable=unused-import
 
 import chromium_src.tools.metrics.common.path_util as path_util
 import chromium_src.tools.metrics.histograms.update_histogram_enum as update_histogram_enum
@@ -24,6 +24,7 @@ NET_ERROR_LIST_PATH = 'net/base/net_error_list.h'
 
 POSITIVE_ERROR_REGEX = re.compile(r'^NET_ERROR\(([\w]+), -([0-9]+)\)')
 NEGATIVE_ERROR_REGEX = re.compile(r'^NET_ERROR\(([\w]+), (-[0-9]+)\)')
+
 
 def ReadNetErrorCodes(filename, error_regex):
   """Reads in values from net_error_list.h, returning a dictionary mapping

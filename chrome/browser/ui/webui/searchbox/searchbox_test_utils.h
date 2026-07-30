@@ -30,6 +30,7 @@ class MockTabContextualizationController
       tabs::TabInterface* tab_interface);
   ~MockTabContextualizationController() override;
 
+  MOCK_METHOD(bool, GetInitialPageContextEligibility, (), (override));
   MOCK_METHOD(void,
               GetPageContext,
               (GetPageContextCallback callback),
@@ -92,9 +93,8 @@ class MockSearchboxPage : public searchbox::mojom::Page {
               UpdateAutoSuggestedTabContext,
               (searchbox::mojom::TabInfoPtr));
   MOCK_METHOD(void, UpdateLensSearchEligibility, (bool eligible), (override));
-  MOCK_METHOD(void, UpdateAimEligibility, (bool eligible), (override));
+  MOCK_METHOD(void, UpdateAimPopupEligibility, (bool eligible), (override));
   MOCK_METHOD(void, UpdateContentSharingPolicy, (bool enabled), (override));
-  MOCK_METHOD(void, OnShowAiModePrefChanged, (bool canShow), (override));
 };
 
 class MockOmniboxPopupPage : public omnibox_popup::mojom::Page {

@@ -63,6 +63,7 @@ source_set("browser_sources") {
     "blob_handle.h",
     "bluetooth_chooser.cc",
     "bluetooth_chooser.h",
+    "bluetooth_delegate.cc",
     "bluetooth_delegate.h",
     "bluetooth_scanning_prompt.cc",
     "bluetooth_scanning_prompt.h",
@@ -595,6 +596,7 @@ source_set("browser_sources") {
     "//services/video_capture/public/mojom",
     "//services/viz/public/mojom",
     "//services/webnn/public/cpp",
+    "//services/webnn/public/mojom:webnn_service_introspection",
 
     # We expose skia headers in the public API.
     "//skia",

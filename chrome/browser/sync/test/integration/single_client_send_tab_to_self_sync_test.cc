@@ -13,7 +13,9 @@
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "chrome/browser/history/history_service_factory.h"
-#include "chrome/browser/send_tab_to_self/desktop_notification_handler.h"
+#include "chrome/browser/send_tab_to_self/send_tab_to_self_client_service.h"
+#include "chrome/browser/send_tab_to_self/send_tab_to_self_client_service_factory.h"
+#include "chrome/browser/send_tab_to_self/send_tab_to_self_scroll_observer.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
 #include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
 #include "chrome/browser/sync/test/integration/secondary_account_helper.h"
@@ -23,9 +25,15 @@
 #include "chrome/browser/sync/test/integration/sync_test.h"
 #include "chrome/browser/sync/test/integration/user_events_helper.h"
 #include "chrome/browser/sync/user_event_service_factory.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_toolbar_icon_controller.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_bubble_controller.h"
+#include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_toolbar_bubble_controller.h"
+#include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/keyed_service/core/service_access_type.h"
 #include "components/send_tab_to_self/features.h"
@@ -228,7 +236,7 @@ IN_PROC_BROWSER_TEST_P(SingleClientSendTabToSelfSyncTest,
     EXPECT_THAT(
         send_tab_to_self::ExtractFormFieldsFromWebContentsForTesting(
             web_contents, os)
-            .form_field_info.fields,
+            .fields,
         UnorderedElementsAre(
             AllOf(Field(&send_tab_to_self::PageContext::FormField::id_attribute,
                         Eq(u"NAME_FIRST")),
@@ -243,11 +251,13 @@ IN_PROC_BROWSER_TEST_P(SingleClientSendTabToSelfSyncTest,
 
   // Trigger sending.
   const std::string target_guid = "target_guid";
+  send_tab_to_self::PageContext context;
+  context.form_field_info =
+      send_tab_to_self::ExtractFormFieldsFromWebContents(web_contents);
   SendTabToSelfSyncServiceFactory::GetForProfile(GetProfile(0))
       ->GetSendTabToSelfModel()
-      ->AddEntry(
-          kUrl, "example", target_guid,
-          send_tab_to_self::ExtractFormFieldsFromWebContents(web_contents));
+      ->AddEntry(kUrl, "example", target_guid, context,
+                 send_tab_to_self::NavigationHistory());
 
   // Wait for the entry to be committed to the server.
   ASSERT_TRUE(
@@ -361,7 +371,8 @@ IN_PROC_BROWSER_TEST_P(SingleClientSendTabToSelfSyncTest,
           ->GetSendTabToSelfModel();
 
   ASSERT_TRUE(model->AddEntry(kUrl, kTitle, kTargetDeviceSyncCacheGuid,
-                              send_tab_to_self::PageContext()));
+                              send_tab_to_self::PageContext(),
+                              send_tab_to_self::NavigationHistory()));
 
   secondary_account_helper::SignOut(GetProfile(0), &test_url_loader_factory_);
 
@@ -393,7 +404,8 @@ IN_PROC_BROWSER_TEST_P(SingleClientSendTabToSelfSyncTest,
           ->GetSendTabToSelfModel();
 
   ASSERT_FALSE(model->AddEntry(kUrl, kTitle, kTargetDeviceSyncCacheGuid,
-                               send_tab_to_self::PageContext()));
+                               send_tab_to_self::PageContext(),
+                               send_tab_to_self::NavigationHistory()));
 
   EXPECT_FALSE(send_tab_to_self::ShouldDisplayEntryPoint(
       GetBrowser(0)->tab_strip_model()->GetActiveWebContents()));
@@ -440,6 +452,26 @@ INSTANTIATE_TEST_SUITE_P(,
                          GetSyncTestModes(),
                          testing::PrintToStringParamName());
 
+void SimulateOpeningReceivedTab(
+    Browser* browser,
+    const send_tab_to_self::SendTabToSelfEntry& entry) {
+  send_tab_to_self::SendTabToSelfToolbarBubbleController* controller =
+      browser->browser_window_features()
+          ->send_tab_to_self_toolbar_bubble_controller();
+
+  if (!controller->IsBubbleShowing()) {
+    PinnedToolbarActions* pinned_controller =
+        browser->browser_window_features()->pinned_toolbar_actions();
+    pinned_controller->ShowActionEphemerallyInToolbar(kActionSendTabToSelf,
+                                                      true);
+    auto anchor = pinned_controller->GetBubbleAnchor(kActionSendTabToSelf);
+    controller->ShowBubble(entry, anchor);
+  }
+
+  ASSERT_TRUE(controller->IsBubbleShowing());
+  controller->bubble()->OpenInNewTab();
+}
+
 IN_PROC_BROWSER_TEST_P(SingleClientSendTabToSelfTextFragmentSyncTest,
                        ReceiveTextFragment) {
   const GURL kUrl =
@@ -482,14 +514,9 @@ IN_PROC_BROWSER_TEST_P(SingleClientSendTabToSelfTextFragmentSyncTest,
       entry->GetPageContext().scroll_position.text_fragment;
   EXPECT_EQ(kTextStart, received_fragment.text_start);
 
-  // Mimic the user opening the received tab via the DesktopNotificationHandler.
-  send_tab_to_self::DesktopNotificationHandler handler(GetProfile(0));
-
   content::WebContentsAddedObserver web_contents_added_observer;
 
-  handler.OnClick(GetProfile(0), kUrl, kGuid,
-                  /*action_index=*/std::nullopt,
-                  /*reply=*/std::nullopt, base::DoNothing());
+  SimulateOpeningReceivedTab(GetBrowser(0), *entry);
 
   // Wait until the entry is marked opened in the model.
   ASSERT_TRUE(
@@ -562,7 +589,8 @@ IN_PROC_BROWSER_TEST_P(SingleClientSendTabToSelfTextFragmentSyncTest,
   const sync_pb::TextFragmentData& tf =
       specifics.page_context().scroll_position().text_fragment();
   EXPECT_THAT(tf.text_start(), testing::AnyOf(testing::HasSubstr("fox"),
-                                              testing::HasSubstr("jumps")));
+                                              testing::HasSubstr("jumps"),
+                                              testing::HasSubstr("dog")));
 }
 
 IN_PROC_BROWSER_TEST_P(SingleClientSendTabToSelfTextFragmentSyncTest,

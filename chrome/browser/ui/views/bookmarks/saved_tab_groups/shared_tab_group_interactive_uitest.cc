@@ -20,7 +20,7 @@
 #include "chrome/browser/ui/views/bookmarks/saved_tab_groups/saved_tab_group_everything_menu.h"
 #include "chrome/browser/ui/views/bookmarks/saved_tab_groups/saved_tab_group_tabs_menu_model.h"
 #include "chrome/browser/ui/views/data_sharing/data_sharing_bubble_controller.h"
-#include "chrome/browser/ui/views/tabs/recent_activity_bubble_dialog_view.h"
+#include "chrome/browser/ui/views/tabs/groups/recent_activity_bubble_dialog_view.h"
 #include "chrome/browser/ui/views/tabs/tab_group_header.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/test/tab_strip_interactive_test_mixin.h"
@@ -64,11 +64,13 @@ class SharedTabGroupInteractiveUiTest
   void SetUp() override {
     std::vector<base::test::FeatureRefAndParams> enabled_features = {
         {data_sharing::features::kDataSharingFeature, {}},
-        {features::kTabGroupMenuImprovements, {}},
-        {features::kTabGroupMenuMoreEntryPoints, {}},
-    };
+        {features::kTabGroupMenuMoreEntryPoints, {}}};
 
-    scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features, {});
+    std::vector<base::test::FeatureRef> disabled_features = {
+        tab_groups::kProjectsPanel, tabs::kHorizontalTabStripComboButton};
+
+    scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features,
+                                                       disabled_features);
     InProcessBrowserTest::SetUp();
   }
 
@@ -317,14 +319,12 @@ IN_PROC_BROWSER_TEST_F(SharedTabGroupInteractiveUiTest,
   RunTestSequence(FinishTabstripAnimations(), ShowBookmarksBar(),
                   EnsurePresent(kSavedTabGroupButtonElementId),
                   PressButton(kSavedTabGroupButtonElementId),
-                  WaitForShow(STGTabsMenuModel::kOpenGroup),
-                  SelectMenuItem(STGTabsMenuModel::kOpenGroup),
                   WaitForShow(kTabGroupHeaderElementId));
 
   histogram_tester.ExpectUniqueSample(
       kRecallHistogram,
       saved_tab_groups::metrics::SharedTabGroupRecallTypeDesktop::
-          kOpenedFromSubmenuFromBookmarksBar,
+          kOpenedFromBookmarksBar,
       1);
 }
 

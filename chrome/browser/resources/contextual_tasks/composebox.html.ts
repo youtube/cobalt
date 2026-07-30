@@ -35,7 +35,8 @@ export function getHtml(this: ContextualTasksComposeboxElement) {
       ${this.showSuggestionsActivityLink_ && this.showSuggestions_ ? html`
         <div id="suggestionActivity">
           <localized-link
-            localized-string="${this.i18nAdvanced('suggestionActivityLink')}">
+              .localizedString="${this.i18nAdvanced('suggestionActivityLink')}"
+              @link-clicked="${this.onSuggestionActivityLinkClicked_}">
           </localized-link>
         </div>
       `: ''}
@@ -61,6 +62,7 @@ export function getHtml(this: ContextualTasksComposeboxElement) {
           .enableCarouselScrolling="${true}"
           .isFollowupQuery="${!this.isZeroState}"
           .enableFileHint="${this.enableFileHint_}"
+          .isCanvasQuerySubmitted="${this.isCanvasQuerySubmitted}"
           @result-changed="${this.onSuggestionsResultChanged_}"
           @open-image-upload="${this.onOpenImageUpload_}"
           @open-file-upload="${this.onOpenFileUpload_}"
@@ -84,7 +86,8 @@ export function getHtml(this: ContextualTasksComposeboxElement) {
       ${this.showSuggestionsActivityLink_ && this.showSuggestions_ ? html`
         <div id="suggestionActivity">
           <localized-link
-            localized-string="${this.i18nAdvanced('suggestionActivityLink')}">
+              .localizedString="${this.i18nAdvanced('suggestionActivityLink')}"
+              @link-clicked="${this.onSuggestionActivityLinkClicked_}">
           </localized-link>
         </div>
       `: ''}

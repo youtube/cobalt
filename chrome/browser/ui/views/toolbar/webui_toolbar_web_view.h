@@ -74,12 +74,15 @@ class WebUIToolbarWebView
   GetToolbarUIServiceDelegate() override;
   std::unique_ptr<toolbar_ui_api::NavigationControlsStateFetcher>
   GetNavigationControlsStateFetcher() override;
+  CommandUpdater* GetCommandUpdater() override;
 
   // ToolbarUIService::ToolbarUIServiceDelegate:
   void HandleContextMenu(toolbar_ui_api::mojom::ContextMenuType menu_type,
                          const gfx::RectF& bounds_in_css_pixels,
                          ui::mojom::MenuSourceType source) override;
   void OnPageInitialized() override;
+  void InvokePinnedToolbarAction(
+      toolbar_ui_api::mojom::PinnedToolbarAction action_id) override;
 
   // BrowserControlsService::BrowserControlsServiceDelegate:
   void PermitLaunchUrl() override;
@@ -106,6 +109,12 @@ class WebUIToolbarWebView
   }
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewPixelBrowserTest,
+                           CheckReloadButtonColor);
+  FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewPixelBrowserTest,
+                           CheckBackButtonColor);
+  FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewPixelBrowserTest,
+                           CheckForwardButtonColor);
   FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewPixelBrowserTest,
                            CheckSplitTabsButtonColor);
   FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewPixelBrowserTest,
@@ -160,6 +169,8 @@ class WebUIToolbarWebView
       toolbar_ui_api::mojom::HomeControlStatePtr state);
   void OnOmniboxViewStateChanged(
       toolbar_ui_api::mojom::OmniboxViewStatePtr state);
+  void OnPinnedToolbarActionsStateChanged(
+      std::vector<toolbar_ui_api::mojom::PinnedToolbarActionStatePtr> state);
 
   void OnTouchUiChanged();
   void PostPushNavigationState();

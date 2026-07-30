@@ -53,17 +53,30 @@ chrome.tabs.create(() => {
 API, as described in the sections below.
 
 ### test.runTests()
+
+```js
+chrome.test.runTests(tests): Promise<void>
+```
+
 `chrome.test.runTests()` is used to run a sequence of individual, smaller JS
 tests, and then passes the result to the browser by **automatically** calling
 `chrome.test.notifyPass()` or `chrome.test.notifyFail()`.  `notifyPass()` will
 be called if and only if all individual tests pass; `notifyFail()` will be
-called if any test fails.  A test may fail if an assertion fails, if there is
-an unexpected runtime error, or if `chrome.test.fail()` is called explicitly.
+called if any test fails.  A test may fail if an assertion fails, if there is an
+unexpected runtime error, or if `chrome.test.fail()` is called explicitly.
+`runTests()` returns a Promise that resolves when all tests pass, or rejects if
+any test fails.
 
 `chrome.test.runTests()` takes an array of functions, and runs them serially.
 This means that these functions may be independent, or may implicitly rely on
 one another.  The output of running these individual tests is printed through
 `console.log()`s, which enables tracing how far a test suite progresses.
+
+**Important Note:** `chrome.test.runTests()` modifies global test suite state
+and cannot be run concurrently. Calling `runTests()` while another `runTests()`
+execution is actively running in the same script context will throw an error.
+You must either `await` the Promise of an existing `runTests()` call or place
+all tests into a single array.
 
 Each individual test function passed to `runTests()` will execute, and then
 wait for that specific function to pass or fail.  Passing is indicated by
@@ -123,15 +136,23 @@ for value checking. This means that `checkDeepEq(undefined, null) === true`.
 ### Assertions
 The `chrome.test API` provides a number of basic assertion methods.
 
-#### assertTrue(condition, message?)
-Asserts that the given condition is true, printing out the optional error
-message if it is not.
+#### assertTrue/assertFalse(condition, message?)
 
-#### assertFalse(condition, message?)
-Asserts that the given condition is false, printing out the optional error
-message if it is not.
+```js
+chrome.test.assertTrue(/* boolean */ condition, /* optional string */ message );
+chrome.test.assertFalse(/* boolean */ condition, /* optional string */ message );
+```
+
+Asserts that the given condition strictly evaluates to the boolean `true` (or
+`false`), printing out the optional error message if it is not.
 
 #### assertEq/assertNe(expected, actual, message?)
+
+```js
+chrome.test.assertEq(expected, actual, /*optional*/ message);
+chrome.test.assertNe(expected, actual, /*optional*/ message);
+```
+
 Asserts that the provided value matches (or doesn't match) the expected value
 via `checkDeepEq(expected, actual)`. If the expected value does not match (or
 unexpectedly matches) the actual value, this will print out the expected and/or

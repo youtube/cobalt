@@ -18,6 +18,7 @@
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/test/scoped_feature_list.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/test_data_util.h"
 #include "media/ffmpeg/ffmpeg_common.h"
@@ -34,6 +35,7 @@
 #include "third_party/libgav1/src/src/utils/constants.h"
 #include "third_party/libgav1/src/src/utils/types.h"
 #include "third_party/skia/include/core/SkData.h"
+#include "ui/gfx/switches.h"
 
 using ::testing::_;
 using ::testing::DoAll;
@@ -270,11 +272,9 @@ std::vector<scoped_refptr<DecoderBuffer>> AV1DecoderTest::ReadIVF(
 
   std::vector<scoped_refptr<DecoderBuffer>> buffers;
   IvfFrameHeader ivf_frame_header{};
-  const uint8_t* data;
-  while (ivf_parser.ParseNextFrame(&ivf_frame_header, &data)) {
-    buffers.push_back(DecoderBuffer::CopyFrom(
-        // TODO(crbug.com/40284755): `ParseNextFrame` should return a span.
-        UNSAFE_TODO(base::span(data, ivf_frame_header.frame_size))));
+  for (auto bytes = ivf_parser.ParseNextFrame(&ivf_frame_header);
+       !bytes.empty(); bytes = ivf_parser.ParseNextFrame(&ivf_frame_header)) {
+    buffers.push_back(DecoderBuffer::CopyFrom(bytes));
   }
   return buffers;
 }
@@ -1011,6 +1011,7 @@ TEST_F(AV1DecoderTest, DecodeWithFrameSizeChange) {
 }
 
 TEST_F(AV1DecoderTest, DecodeStreamWithAgtmMetadata) {
+  base::test::ScopedFeatureList scoped_feature_list(features::kHdrAgtm);
   constexpr gfx::Size kFrameSize(320, 240);
   constexpr gfx::Size kRenderSize(320, 240);
   constexpr auto kProfile = libgav1::BitstreamProfile::kProfile0;
@@ -1045,8 +1046,8 @@ TEST_F(AV1DecoderTest, DecodeStreamWithAgtmMetadata) {
   }
   EXPECT_EQ(results, expected);
   const gfx::HDRMetadata hdr_metadata = decoder_->GetHDRMetadata();
-  ASSERT_TRUE(hdr_metadata.getSerializedAgtm());
-  EXPECT_EQ(hdr_metadata.getSerializedAgtm()->size(), 101u);
+  ASSERT_TRUE(hdr_metadata.HasAgtm());
+  EXPECT_EQ(hdr_metadata.GetAgtm().fHdrReferenceWhite, 203.0101f);
 }
 
 // TODO(hiroh): Add more tests: reference frame tracking, render size change,

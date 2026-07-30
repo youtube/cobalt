@@ -102,8 +102,22 @@ using CategorizationResult =
   [self removeApplicationObservers];
   if (_downloadRecordService && _observerBridge) {
     _downloadRecordService->RemoveObserver(_observerBridge.get());
+    // Nullify the delegate before destroying the bridge. This is safe to do
+    // even when `disconnect` is called from within an `ObserverList::Notify`
+    // iteration (e.g. inside `OnDownloadAdded`):
+    //
+    //   1. ClearDelegate() makes any remaining in-flight callback a no-op, so
+    //      the ObjC consumer is never called after `disconnect` returns.
+    //   2. RemoveObserver() above either erases the entry immediately (when no
+    //      iteration is in progress) or calls MarkForRemoval(), which sets the
+    //      adapter's internal WeakPtr to null. Because WasInvalidated() is
+    //      defined as `ptr_ && !ref_.IsValid()`, a null ptr_ always returns
+    //      false — so resetting the bridge synchronously here is safe: the
+    //      iterator's EnsureValidIndex / IsMarkedForRemoval path will not
+    //      trigger CHECK(!weak_ptr_.WasInvalidated()).
+    _observerBridge->ClearDelegate();
+    _observerBridge.reset();
   }
-  _observerBridge.reset();
   _downloadRecordService = nullptr;
   _isReady = NO;
 }
@@ -482,9 +496,9 @@ using CategorizationResult =
     return YES;
   }
 
-  // Search in original URL.
-  std::u16string originalUrl = base::UTF8ToUTF16(record.original_url);
-  if (query_search.Search(originalUrl, /*match_index=*/nullptr,
+  // Search in originating host.
+  std::u16string originatingHost = base::UTF8ToUTF16(record.originating_host);
+  if (query_search.Search(originatingHost, /*match_index=*/nullptr,
                           /*match_length=*/nullptr)) {
     return YES;
   }

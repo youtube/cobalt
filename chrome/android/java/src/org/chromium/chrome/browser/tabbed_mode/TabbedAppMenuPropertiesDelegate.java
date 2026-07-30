@@ -245,9 +245,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
             iconModels.add(buildForwardActionModel(currentTab));
             iconModels.add(buildBookmarkActionModel(currentTab));
             iconModels.add(buildDownloadActionModel(currentTab));
-            if (ChromeFeatureList.sGlic.isEnabled()) {
-                iconModels.add(buildGlicActionModel(currentTab));
-            } else if (!ChromeFeatureList.sThreeDotMenuBackButton.isEnabled()) {
+            if (!ChromeFeatureList.sThreeDotMenuBackButton.isEnabled()) {
                 iconModels.add(buildPageInfoModel(currentTab));
             }
 
@@ -294,11 +292,6 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         // Divider
         maybeAddDividerLine(modelList, R.id.divider_line_id);
 
-        // Page info
-        if (shouldShowPageInfoItem()) {
-            modelList.add(buildPageInfoItem(currentTab));
-        }
-
         // History parent
         if (shouldShowHistoryParentItem()) {
             modelList.add(buildHistoryParentItem());
@@ -310,11 +303,21 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
             modelList.add(buildHistoryItem());
         }
 
+        boolean isPageInfoItemShown = shouldShowPageInfoItem();
+
         // Quick Delete
         if (!ChromeFeatureList.isEnabled(ChromeFeatureList.SUBMENUS_IN_APP_MENU)
                 && shouldShowQuickDeleteItem()) {
             modelList.add(buildQuickDeleteItem());
-            maybeAddDividerLine(modelList, R.id.quick_delete_divider_line_id);
+            if (!isPageInfoItemShown) {
+                maybeAddDividerLine(modelList, R.id.quick_delete_divider_line_id);
+            }
+        }
+
+        // Page info
+        if (isPageInfoItemShown) {
+            modelList.add(buildPageInfoItem(currentTab));
+            maybeAddDividerLine(modelList, R.id.page_info_divider_line_id);
         }
 
         // Downloads
@@ -697,7 +700,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                         AppMenuHandler.AppMenuItemType.STANDARD,
                         buildModelForStandardMenuItem(
                                 R.id.info_menu_id,
-                                R.string.menu_page_info,
+                                R.string.menu_site_controls,
                                 shouldShowIconBeforeItem() ? R.drawable.ic_settings_tune_24dp : 0));
         item.model.set(AppMenuItemProperties.ENABLED, currentTab != null);
         return item;
@@ -1437,7 +1440,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
 
         if (isMultiInstanceEnabled()) {
             // Hide the menu if we already have the maximum number of windows.
-            if (MultiWindowUtils.getInstanceCountWithFallback(PersistedInstanceType.ACTIVE)
+            if (MultiWindowUtils.getInstanceCount(PersistedInstanceType.ACTIVE)
                     >= MultiWindowUtils.getMaxInstances()) return false;
 
             // On phones, show the menu only when in split-screen, with a single instance

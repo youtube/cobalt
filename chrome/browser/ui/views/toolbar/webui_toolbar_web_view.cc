@@ -23,6 +23,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/layout_constants.h"
@@ -229,6 +230,10 @@ void WebUIToolbarWebView::AddedToWidget() {
     home_control_.Init();
   }
 
+  if (features::IsWebUIPinnedToolbarActionsEnabled()) {
+    pinned_toolbar_actions_.Init();
+  }
+
   // Do NOT call GetWebUIToolbarUI() here as it may be null.
   // The reload_control_ will be initialized once the WebUI is ready.
 }
@@ -316,6 +321,11 @@ void WebUIToolbarWebView::OnPageInitialized() {
   InitialWebUIManager::From(browser_)->OnWebUIToolbarLoaded();
 }
 
+void WebUIToolbarWebView::InvokePinnedToolbarAction(
+    toolbar_ui_api::mojom::PinnedToolbarAction action_id) {
+  pinned_toolbar_actions_.Invoke(action_id);
+}
+
 ReloadControl* WebUIToolbarWebView::GetReloadControl() {
   return &reload_control_;
 }
@@ -335,6 +345,10 @@ WebUIToolbarWebView::GetNavigationControlsStateFetcher() {
   return std::make_unique<toolbar_ui_api::NavigationControlsStateFetcherImpl>(
       base::BindRepeating(&WebUIToolbarWebView::GetNavigationControlsState,
                           base::Unretained(this)));
+}
+
+CommandUpdater* WebUIToolbarWebView::GetCommandUpdater() {
+  return browser_->GetFeatures().browser_command_controller();
 }
 
 toolbar_ui_api::mojom::NavigationControlsStatePtr
@@ -357,6 +371,14 @@ void WebUIToolbarWebView::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
   if (!navigation_handle->IsInPrimaryMainFrame() ||
       !navigation_handle->HasCommitted()) {
+    return;
+  }
+
+  // Explicitly do another fetch to check if browser is in a shutdown state.
+  auto* bwi = webui::GetBrowserWindowInterface(web_view_->GetWebContents());
+  auto shutting_down = bwi == nullptr;
+  if (shutting_down) {
+    LOG(WARNING) << "browser is shutting down, aborting Init()";
     return;
   }
   auto* ui = GetWebUIToolbarUI();
@@ -539,12 +561,27 @@ void WebUIToolbarWebView::OnOmniboxViewStateChanged(
   }
 }
 
+void WebUIToolbarWebView::OnPinnedToolbarActionsStateChanged(
+    std::vector<toolbar_ui_api::mojom::PinnedToolbarActionStatePtr> state) {
+  if (!mojo::Equals(state, last_queued_state_.pinned_toolbar_actions_state)) {
+    last_queued_state_.pinned_toolbar_actions_state = std::move(state);
+    PostPushNavigationState();
+  }
+}
+
 void WebUIToolbarWebView::OnTouchUiChanged() {
   ++last_queued_state_.layout_constants_version;
   PostPushNavigationState();
 }
 
 void WebUIToolbarWebView::PostPushNavigationState() {
+  // The toolbar is implemented by many individual elements that all update
+  // their state separately. To avoid significant visual flicker caused by
+  // repeated state pushes that only update individual elements, we delay
+  // the actual push until later by posting it here in the hopes that other
+  // controls will complete their state changes before we do the actual push.
+  // This way the eventual push updates all controls synchronously without
+  // inter-element flicker.
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&WebUIToolbarWebView::PushNavigationState,
                                 weak_ptr_factory_.GetWeakPtr(),
@@ -552,6 +589,15 @@ void WebUIToolbarWebView::PostPushNavigationState() {
 }
 
 void WebUIToolbarWebView::PushNavigationState(uint64_t state_generation) {
+  // As the comment above in PostPushNavigationState() elaborates on, we
+  // want to delay the actual monolithic state push until all controls
+  // have had a chance to update their state. We do this by ignoring
+  // intermediate state pushes here, and wait until the last posted
+  // invocation of this method. It is not enough just to pass along the
+  // latest queued state here. If the state has been modified since this
+  // task was posted, there is a fair chance that there may still be other
+  // pending tasks to further update the state, so wait until all pending
+  // PushNavigationState() tasks have been run before performing any update.
   if (state_generation == current_state_generation_) {
     if (WebUIToolbarUI* web_ui = GetWebUIToolbarUI()) {
       web_ui->OnNavigationControlsStateChanged(last_queued_state_.Clone());

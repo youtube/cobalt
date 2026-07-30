@@ -26,6 +26,7 @@ CPP_TYPE_BY_JAVA_TYPE = {
     'java/lang/Throwable': 'jthrowable',
 }
 
+# Replaced with CPP_TYPE_BY_JAVA_TYPE based on --use-std-primitive-types.
 CPP_UNDERLYING_TYPE_BY_JAVA_TYPE = {
     'boolean': 'bool',  # underlying type of jboolean
     'byte': 'int8_t',  # underlying type of jbyte
@@ -37,6 +38,7 @@ CPP_UNDERLYING_TYPE_BY_JAVA_TYPE = {
     'short': 'int16_t',  # underlying type of jshort
     'void': 'void',
     'java/lang/Class': 'jclass',
+    'java/lang/Object': 'jobject',
     'java/lang/String': 'jstring',
     'java/lang/Throwable': 'jthrowable',
 }
@@ -299,7 +301,13 @@ class JavaType:
 
   def to_mirror_cpp(self):
     if self.enable_mirror():
-      return self.java_class.to_mirror_cpp()
+      dim = self.array_dimensions
+      if self.java_class:
+        ret = self.java_class.to_mirror_cpp()
+      else:
+        ret = CPP_UNDERLYING_TYPE_BY_JAVA_TYPE.get(
+            self.non_array_full_name_with_slashes, 'jobject')
+      return ('JArray<' * dim) + ret + ('>' * dim)
     return self.to_cpp()
 
   def to_cpp_default_value(self):
@@ -314,8 +322,8 @@ class JavaType:
 
   def enable_mirror(self):
     """Whether to use a jobject subclass e.g. JMyClass."""
-    return (self.java_class and self.java_class.enable_mirror()
-            and not self.converted_type and self.array_dimensions == 0)
+    return (((self.java_class and self.java_class.enable_mirror())
+             or self.array_dimensions > 0) and not self.converted_type)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -409,10 +417,12 @@ class TypeResolver:
 
   def __init__(self,
                java_class,
+               parent_resolver=None,
                null_marked=False,
                package_prefix=None,
                package_prefix_filter=None):
     self.java_class = java_class
+    self.parent_resolver = parent_resolver
     self.null_marked = null_marked
     self.imports = []
     self.nested_classes = []
@@ -431,8 +441,14 @@ class TypeResolver:
   def add_import(self, java_class):
     self.imports.append(self._maybe_prefix(java_class))
 
-  def add_nested_class(self, java_class):
-    self.nested_classes.append(self._maybe_prefix(java_class))
+  def add_child(self, *, java_class):
+    java_class = self._maybe_prefix(java_class)
+    self.nested_classes.append(java_class)
+    return TypeResolver(java_class,
+                        parent_resolver=self,
+                        null_marked=self.null_marked,
+                        package_prefix=self.package_prefix,
+                        package_prefix_filter=self.package_prefix_filter)
 
   def contextualize(self, java_class):
     """Return the shortest string that resolves to the given class."""
@@ -480,6 +496,9 @@ class TypeResolver:
         if clazz.name == outer:
           return clazz.make_nested(inner)
       name = name.replace('.', '$')
+
+    if self.parent_resolver:
+      return self.parent_resolver.resolve(name)
 
     # java.lang classes always take priority over types from the same package.
     # To use a type from the same package that has the same name as a java.lang

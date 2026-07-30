@@ -31,6 +31,10 @@ class GoogleGroupsManager;
 class GURL;
 class PrefService;
 
+namespace consent_auditor {
+class ConsentAuditor;
+}
+
 namespace device_reauth {
 class DeviceAuthenticator;
 }
@@ -241,8 +245,29 @@ class AutofillClient {
     bool show_tabbed_popup = false;
   };
 
+  // Details about the UI that was shown to the user in an entity import bubble.
+  struct EntityImportUIContext {
+    EntityImportUIContext();
+    EntityImportUIContext(std::vector<int> ui_string_ids,
+                          std::optional<int> clicked_button_string_id);
+    EntityImportUIContext(const EntityImportUIContext&);
+    EntityImportUIContext(EntityImportUIContext&&);
+    EntityImportUIContext& operator=(const EntityImportUIContext&);
+    EntityImportUIContext& operator=(EntityImportUIContext&&);
+    ~EntityImportUIContext();
+
+    // String IDs of all the static UI elements, like the bubble title and
+    // footer. Does not include attribute values of the entity.
+    // Empty if the bubble was never shown (for example, because another bubble
+    // is already displayed).
+    std::vector<int> ui_string_ids;
+    // The string ID of the button that the user clicked, in case the user
+    // accepted or declined the bubble.
+    std::optional<int> clicked_button_string_id;
+  };
   using EntityImportPromptResultCallback =
-      base::OnceCallback<void(AutofillAiBubbleResult result)>;
+      base::OnceCallback<void(AutofillAiBubbleResult result,
+                              const EntityImportUIContext& ui_context)>;
 
   // The types of prompts that AutofillAi can show to the user after a form
   // submission. The values are ordered by decreasing priority of being shown
@@ -388,6 +413,9 @@ class AutofillClient {
   // Returns the per-profile `AutofillAiModelExecutor`. Returns `nullptr` if the
   // `kAutofillAiServerModel` is not enabled or the profile is OTR.
   virtual AutofillAiModelExecutor* GetAutofillAiModelExecutor();
+
+  // Returns the per-profile ConsentAuditor.
+  virtual consent_auditor::ConsentAuditor* GetConsentAuditor();
 
   // Returns the per-profile `RemoteModelExecutor`.
   virtual optimization_guide::RemoteModelExecutor* GetRemoteModelExecutor();

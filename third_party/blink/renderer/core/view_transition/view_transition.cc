@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/auto_reset.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cc/trees/layer_tree_host.h"
@@ -295,9 +296,6 @@ void ViewTransition::SkipTransition(PromiseResponse response) {
     delegate_->OnTransitionFinished(this);
   }
 
-  // TODO(khushalsagar): Figure out the promise handling when this is on the
-  // old Document for a cross-document navigation.
-
   // Cleanup logic which is tied to ViewTransition objects created using the
   // script API. script_delegate_ is cleared when the Document is being torn
   // down and script specific callbacks don't need to be dispatched in that
@@ -319,8 +317,8 @@ bool ViewTransition::AdvanceTo(State state) {
   CHECK(!blocked_on_ || state == State::kAborted)
       << "Blocked on DOM callback for skipped transition. Attempted to advance "
       << "from " << StateToString(state_) << " to " << StateToString(state);
-  DCHECK(CanAdvanceTo(state)) << "Current state " << static_cast<int>(state_)
-                              << " new state " << static_cast<int>(state);
+  DCHECK(CanAdvanceTo(state)) << "Current state " << StateToString(state_)
+                              << " new state " << StateToString(state);
 
   if (state == State::kCapturing || state_ == State::kCapturing) {
     DCHECK(style_tracker_);
@@ -465,6 +463,8 @@ void ViewTransition::ProcessCurrentState() {
     switch (state_) {
       // Initial state: nothing to do, just advance the state
       case State::kInitial:
+        initial_state_processing_time_ = base::TimeTicks::Now();
+
         // We require a new effect node to be generated for the LayoutView when
         // a transition is not in terminal state. Dirty paint to ensure
         // generation of this effect node.
@@ -482,6 +482,13 @@ void ViewTransition::ProcessCurrentState() {
         DCHECK(in_main_lifecycle_update_);
         DCHECK_GE(document_->Lifecycle().GetState(),
                   DocumentLifecycle::kCompositingInputsClean);
+
+        if (creation_type_ == CreationType::kForSnapshot) {
+          UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+              "Blink.ViewTransitions.InitialFrameDelay",
+              base::TimeTicks::Now() - initial_state_processing_time_,
+              base::Microseconds(1), base::Milliseconds(20), 100);
+        }
 
         if (UnsupportedCapture()) {
           SkipTransition(PromiseResponse::kRejectInvalidState);
@@ -1020,6 +1027,24 @@ gfx::Vector2d ViewTransition::GetFrameToSnapshotRootOffset() const {
 bool ViewTransition::HasActiveAnimations() const {
   return (state_ == State::kAnimating) && style_tracker_ &&
          style_tracker_->HasActiveAnimations();
+}
+
+bool ViewTransition::HasIncompatibleStyle() const {
+  // Display: contents is not supported on the view-transition scope element.
+  // Not only does it produce no layout box, but it changes the layout
+  // hierarchy.
+  // Note that we can have a valid view-transition from or to display: none.
+  // These correspond to a fade in or fade out transition.
+  const Element* source = scope_ ? Scope() : document_->documentElement();
+  if (const ComputedStyle* style = source->GetComputedStyle()) {
+    if (style && style->Display() == EDisplay::kContents) {
+      return true;
+    }
+  }
+
+  // Further pruning based on the type of layout object can be found in
+  // ViewTransitionStyleTracker::RunPostPrePaintSteps().
+  return false;
 }
 
 void ViewTransition::PauseRendering() {

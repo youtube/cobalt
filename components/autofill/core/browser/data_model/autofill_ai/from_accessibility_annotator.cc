@@ -38,8 +38,8 @@ constexpr std::optional<EntityType> FromAccessibilityAnnotator(
       case Src::kOrder:
         return Tgt::kOrder;
       case Src::kShipment:
-        // TODO(b/484094746): Map to `EntityTypeName::kShipment` once Autofill
-        // supports it.
+        // TODO(crbug.com/484094746): Map to `EntityTypeName::kShipment` once
+        // crrev.com/c/7573639 is submitted.
         return std::nullopt;
       case Src::kDriversLicense:
         return Tgt::kDriversLicense;
@@ -202,8 +202,8 @@ std::optional<EntityInstance> FromAccessibilityAnnotator(
           },
 
           [](const aa::Shipment& src) {
-            // TODO(b/484094746): Map to `EntityTypeName::kShipment` once
-            // Autofill supports it.
+            // TODO(crbug.com/484094746): Map to `EntityTypeName::kShipment`
+            // once crrev.com/c/7573639 is submitted.
           },
 
           [&](const aa::Passport& src) {
@@ -317,6 +317,17 @@ aa::QueryIntentType AttributeTypeToEntryType(AttributeType type) {
     ATTRIBUTE_TO_ENTRY(kVehicleMake);
     ATTRIBUTE_TO_ENTRY(kVehicleModel);
     ATTRIBUTE_TO_ENTRY(kVehicleYear);
+    // TODO(b/484094746): Add the shipment entities to AA.
+    case AttributeTypeName::kShipmentCarrierName:
+    case AttributeTypeName::kShipmentCarrierDomain:
+    case AttributeTypeName::kShipmentTrackingNumber:
+    case AttributeTypeName::kShipmentDeliveryZipCode:
+    case AttributeTypeName::kShipmentOrderIds:
+    case AttributeTypeName::kShipmentOrderDates:
+    case AttributeTypeName::kShipmentMerchantName:
+    case AttributeTypeName::kShipmentProductNames:
+    case AttributeTypeName::kShipmentEstimatedDeliveryDate:
+      return aa::QueryIntentType::kUnknown;
   }
 #undef ATTRIBUTE_TO_ENTRY
   return aa::QueryIntentType::kUnknown;
@@ -325,6 +336,15 @@ aa::QueryIntentType AttributeTypeToEntryType(AttributeType type) {
 std::u16string GetEntryTypeNameForI18n(aa::QueryIntentType type) {
   switch (type) {
     case aa::QueryIntentType::kUnknown:
+    // TODO(crbug.com/484094746): Map Shipment entities to Autofill once
+    // crrev.com/c/7573639 is submitted.
+    case aa::QueryIntentType::kShipmentFull:
+    case aa::QueryIntentType::kShipmentTrackingNumber:
+    case aa::QueryIntentType::kShipmentAssociatedOrderId:
+    case aa::QueryIntentType::kShipmentDeliveryAddress:
+    case aa::QueryIntentType::kShipmentCarrierName:
+    case aa::QueryIntentType::kShipmentCarrierDomain:
+    case aa::QueryIntentType::kShipmentEstimatedDeliveryDate:
       return u"";
     // Field types:
     // TODO(crbug.com/481979475): Use internationalization for these strings.
@@ -386,6 +406,7 @@ std::u16string GetEntryTypeNameForI18n(aa::QueryIntentType type) {
     case aa::QueryIntentType::kFlightReservationDepartureAirport:
     case aa::QueryIntentType::kFlightReservationArrivalAirport:
     case aa::QueryIntentType::kFlightReservationDepartureDate:
+    case aa::QueryIntentType::kFlightReservationArrivalDate:
     case aa::QueryIntentType::kNationalIdCardName:
     case aa::QueryIntentType::kNationalIdCardCountry:
     case aa::QueryIntentType::kNationalIdCardNumber:

@@ -70,7 +70,7 @@ DOMFileSystem* DOMFileSystem::CreateIsolatedFileSystem(
     return nullptr;
 
   StringBuilder filesystem_name;
-  filesystem_name.Append(String::FromUTF8(storage::GetIdentifierFromOrigin(
+  filesystem_name.Append(String::FromUtf8(storage::GetIdentifierFromOrigin(
       context->GetSecurityOrigin()->ToUrlOrigin())));
   filesystem_name.Append(":Isolated_");
   filesystem_name.Append(filesystem_id);
@@ -88,7 +88,7 @@ DOMFileSystem* DOMFileSystem::CreateIsolatedFileSystem(
 
   return MakeGarbageCollected<DOMFileSystem>(
       context, filesystem_name.ToString(),
-      mojom::blink::FileSystemType::kIsolated, KURL(root_url.ToString()));
+      mojom::blink::FileSystemType::kIsolated, KURL(root_url));
 }
 
 DOMFileSystem::DOMFileSystem(ExecutionContext* context,

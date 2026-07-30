@@ -64,8 +64,15 @@ class CC_EXPORT Tile {
   bool IsReadyToDraw() const { return draw_info().IsReadyToDraw(); }
 
   std::optional<viz::ResourceId> GetResourceId() const {
-    if (draw_info().mode() == TileDrawInfo::RESOURCE_MODE) {
+    if (IsReadyToDraw() && draw_info().mode() == TileDrawInfo::RESOURCE_MODE) {
       return draw_info().resource_id_for_export();
+    }
+    return std::nullopt;
+  }
+
+  std::optional<gfx::Size> GetResourceSize() const {
+    if (IsReadyToDraw() && draw_info().mode() == TileDrawInfo::RESOURCE_MODE) {
+      return draw_info().resource_size();
     }
     return std::nullopt;
   }

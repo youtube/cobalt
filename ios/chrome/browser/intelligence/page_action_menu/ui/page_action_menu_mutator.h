@@ -8,6 +8,7 @@
 #import <UIKit/UIKit.h>
 
 @class PageActionMenuFeature;
+@class PageActionMenuContentEntryPoint;
 
 // Page Menu Action Feature types.
 typedef NS_ENUM(NSInteger, PageActionMenuFeatureType);
@@ -15,17 +16,18 @@ typedef NS_ENUM(NSInteger, PageActionMenuFeatureType);
 // The mutator for the page action menu.
 @protocol PageActionMenuMutator
 
-// Returns whether the Lens overlay is currently available.
-- (BOOL)isLensAvailableForTraitCollection:(UITraitCollection*)traitCollection;
-
-// Returns whether the Gemini floaty is currently available.
-- (BOOL)isGeminiAvailable;
-
-// Returns whether Reader mode is currently available.
-- (BOOL)isReaderModeAvailable;
-
 // Returns whether Reader mode is currently active.
 - (BOOL)isReaderModeActive;
+
+// Returns Gemini floaty entry point configuration item.
+- (PageActionMenuContentEntryPoint*)geminiEntryPoint;
+
+// Returns Lens overlay entry point configuration item.
+- (PageActionMenuContentEntryPoint*)lensEntryPointForTraitCollection:
+    (UITraitCollection*)traitCollection;
+
+// Returns Reader mode entry point configuration item.
+- (PageActionMenuContentEntryPoint*)readerModeEntryPoint;
 
 // Returns whether a page action menu feature is currently available.
 - (BOOL)isFeatureAvailable:(PageActionMenuFeatureType)featureType;
@@ -60,6 +62,9 @@ typedef NS_ENUM(NSInteger, PageActionMenuFeatureType);
 
 // Returns whether the AI entry points should be shown.
 - (BOOL)shouldShowFeatureEntryPoints;
+
+// Returns YES if the user is signed in.
+- (BOOL)isUserSignedIn;
 
 @end
 

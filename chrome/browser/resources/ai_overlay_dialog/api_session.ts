@@ -2,13 +2,39 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from '//resources/js/assert.js';
-
 const kLogWebSocketMessages = false;
 
 /**
  * API session WebSocket protocol types.
  */
+
+export interface FunctionDeclaration {
+  name: string;
+  description?: string;
+  parameters?: any;
+}
+
+export interface Tool {
+  functionDeclarations?: FunctionDeclaration[];
+}
+
+export interface FunctionCall {
+  id: string;
+  name: string;
+  args: any;
+}
+
+export interface ToolCall {
+  functionCalls: FunctionCall[];
+}
+
+export interface FunctionResponse {
+  id: string;
+  name: string;
+  response: any;
+  scheduling?: string;
+}
+
 interface SetupMessage {
   setup: {
     model: string,
@@ -25,15 +51,18 @@ interface SetupMessage {
     systemInstruction?: {
       parts: Array<{text: string}>,
     },
+    tools?: Tool[],
+    inputAudioTranscription?: {},
+    outputAudioTranscription?: {},
   };
 }
 
 interface RealtimeInputMessage {
   realtimeInput: {
-    mediaChunks: Array<{
+    audio: {
       data: string,
       mimeType: string,
-    }>,
+    },
   };
 }
 
@@ -50,59 +79,77 @@ interface ServerContentMessage {
     },
     interrupted?: boolean,
     turnComplete?: boolean,
+    inputTranscription?: {
+      text?: string,
+    },
+    outputTranscription?: {
+      text?: string,
+    },
   };
   setupComplete?: {};
+  toolCall?: ToolCall;
 }
 
-interface ApiConfig {
-  endpoint_url: string;
+export interface ApiConfig {
+  endpointUrl: string;
   model: string;
+  apiKey: string;
 }
 
 export interface ApiSessionDelegate {
   onResponse(audioData: string): void;
+  onTranscription(text: string, isInput: boolean): void;
+  onTurnComplete(): void;
   interrupt(): void;
   onConnectionChanged(connected: boolean): void;
+  onToolCall(toolCall: ToolCall): void;
+}
+
+function log(msg: string, ...args: any[]) {
+  console.info(
+      `[${performance.now().toFixed(2)}] [ApiSession] ${msg}`, ...args);
 }
 
 /**
  * Manages the connection and communication with the server.
  */
 export class ApiSession {
-  private readonly apiKey: string;
   private readonly systemInstruction: string;
+  private readonly config: ApiConfig;
+  private readonly toolDefinitions: Tool[];
 
   private ws: WebSocket|null = null;
-  private config_: ApiConfig|null = null;
+
+  // Buffers audio messages that are sent while the WebSocket is still in the
+  // CONNECTING state. These are flushed as soon as the connection opens.
+  private audioQueue: RealtimeInputMessage[] = [];
 
   private delegate: ApiSessionDelegate;
 
   constructor(
-      apiKey: string, systemInstruction: string, delegate: ApiSessionDelegate) {
-    this.apiKey = apiKey;
+      systemInstruction: string, config: ApiConfig, toolDefinitions: Tool[],
+      delegate: ApiSessionDelegate) {
     this.systemInstruction = systemInstruction;
+    this.config = config;
+    this.toolDefinitions = toolDefinitions;
     this.delegate = delegate;
   }
 
-  async connect() {
-    if (!this.config_) {
-      try {
-        const response = await fetch('api_config.json');
-        this.config_ = await response.json();
-      } catch (e) {
-        console.error('ApiSession failed to load api_config.json', e);
-        this.stop();
-        return;
-      }
-    }
-
-    assert(this.config_);
-    const url = `${this.config_.endpoint_url}?key=${this.apiKey}`;
+  connect() {
+    const url = `${this.config.endpointUrl}?key=${this.config.apiKey}`;
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {
-      console.info('WebSocket Opened');
+      log('WebSocket Opened');
       this.sendSetup();
+
+      if (this.audioQueue.length > 0) {
+        log(`Flushing ${this.audioQueue.length} queued audio chunks`);
+        for (const msg of this.audioQueue) {
+          this.ws?.send(JSON.stringify(msg));
+        }
+        this.audioQueue = [];
+      }
     };
 
     this.ws.onmessage = async (event) => {
@@ -136,29 +183,30 @@ export class ApiSession {
     };
 
     this.ws.onclose = (e) => {
-      console.info('WebSocket Closed: ', e);
+      log(`WebSocket Closed: code=${e.code}, reason=${e.reason}, wasClean=${
+          e.wasClean}`);
       this.delegate.onConnectionChanged(false);
       this.stop();
     };
 
     this.ws.onerror = (error) => {
-      console.error('WebSocket Error:', error);
+      console.error('[ApiSession] WebSocket Error:', error);
       this.delegate.onConnectionChanged(false);
       this.stop();
     };
   }
 
   stop() {
-    console.info('ApiSession: stop');
+    log('stop()');
     this.ws?.close();
     this.ws = null;
+    this.audioQueue = [];
   }
 
   private sendSetup() {
-    assert(this.config_);
     const setup: SetupMessage = {
       setup: {
-        model: this.config_.model,
+        model: this.config.model,
         generationConfig: {
           responseModalities: ['AUDIO'],
           speechConfig: {
@@ -170,33 +218,82 @@ export class ApiSession {
             text: this.systemInstruction,
           }],
         },
+        tools: this.toolDefinitions,
+        inputAudioTranscription: {},
+        outputAudioTranscription: {},
       },
     };
+    log('Sending Setup Message', setup);
     this.ws?.send(JSON.stringify(setup));
   }
 
   sendAudio(sampleRate: number, base64Data: string) {
     const msg: RealtimeInputMessage = {
       realtimeInput: {
-        mediaChunks: [{
+        audio: {
           data: base64Data,
           mimeType: `audio/pcm;rate=${sampleRate}`,
-        }],
+        },
       },
     };
-    this.ws?.send(JSON.stringify(msg));
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(msg));
+    } else if (this.ws?.readyState === WebSocket.CONNECTING) {
+      this.audioQueue.push(msg);
+    }
+  }
+
+  sendToolResponse(responses: FunctionResponse[]) {
+    const msg = {
+      toolResponse: {
+        functionResponses: responses.map(response => ({
+                                           id: response.id,
+                                           name: response.name,
+                                           response: response.response,
+                                           scheduling: response.scheduling,
+                                         })),
+      },
+    };
+    log('Sending Tool Response', msg);
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(msg));
+    } else {
+      console.warn(
+          '[ApiSession] Dropping tool response because WebSocket is not OPEN');
+    }
   }
 
   private handleMessage(msg: ServerContentMessage) {
+    // The top-level BidiGenerateContentServerMessage acts as a union and will
+    // only contain exactly one of setupComplete, toolCall, or serverContent.
     if (msg.setupComplete) {
-      console.info('ApiSession SetupComplete');
+      log('SetupComplete received from server.');
       this.delegate.onConnectionChanged(true);
+      return;
+    }
+
+    if (msg.toolCall) {
+      log('Received toolCall', msg.toolCall);
+      this.delegate.onToolCall(msg.toolCall);
       return;
     }
 
     const content = msg.serverContent;
     if (!content) {
       return;
+    }
+
+    // Inside serverContent, multiple fields (like modelTurn and turnComplete)
+    // can be present simultaneously, so we process each independently without
+    // if/else chains.
+    if (content.inputTranscription?.text) {
+      log('Input transcription:', content.inputTranscription.text);
+      this.delegate.onTranscription(content.inputTranscription.text, true);
+    }
+
+    if (content.outputTranscription?.text) {
+      log('Output transcription:', content.outputTranscription.text);
+      this.delegate.onTranscription(content.outputTranscription.text, false);
     }
 
     if (content.modelTurn?.parts) {
@@ -207,7 +304,13 @@ export class ApiSession {
       }
     }
 
+    if (content.turnComplete) {
+      log('TurnComplete');
+      this.delegate.onTurnComplete();
+    }
+
     if (content.interrupted) {
+      log('Interrupted');
       this.delegate.interrupt();
     }
   }

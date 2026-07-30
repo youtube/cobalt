@@ -103,17 +103,15 @@ class CC_EXPORT PictureLayerImpl
 
   float GetMaximumContentsScaleForUseInAppendQuads() const override;
 
-  void UpdateRasterSource(scoped_refptr<RasterSource> raster_source,
-                          Region* new_invalidation);
+  void StageNewRasterSourceForCommit(scoped_refptr<RasterSource> raster_source,
+                                     Region new_invalidation);
+  void CommitPendingRasterSource();
   void SetRasterSourceForTesting(scoped_refptr<RasterSource> raster_source,
                                  const Region& invalidation = Region());
   void RegenerateDiscardableImageMap();
   bool UpdateTiles();
 
   // Mask-related functions.
-  void GetContentsResourceId(viz::ResourceId* resource_id,
-                             gfx::Size* resource_size,
-                             gfx::SizeF* resource_uv_size) const override;
 
   size_t GPUMemoryUsageInBytes() const override;
 
@@ -249,7 +247,7 @@ class CC_EXPORT PictureLayerImpl
 
   void UpdateRasterSourceInternal(
       scoped_refptr<RasterSource> raster_source,
-      Region* new_invalidation,
+      Region new_invalidation,
       const PictureLayerTilingSet* pending_set,
       const PaintWorkletRecordMap* pending_paint_worklet_records,
       const DiscardableImageMap* pending_discardable_image_map);
@@ -314,6 +312,11 @@ class CC_EXPORT PictureLayerImpl
   scoped_refptr<RasterSource> raster_source_;
   Region invalidation_;
   scoped_refptr<const DiscardableImageMap> discardable_image_map_;
+
+  // This values are taken from the PictureLayer during tree sync and applied
+  // during commit.
+  scoped_refptr<RasterSource> pending_raster_source_;
+  Region pending_invalidation_;
 
   // Ideal scales are calcuated from the transforms applied to the layer. They
   // represent the best known scale from the layer to the final output.
@@ -415,7 +418,7 @@ class CC_EXPORT PictureLayerImpl
   TilingSetCoverageIterator<PictureLayerTiling> Cover(
       const gfx::Rect& coverage_rect,
       float coverage_scale,
-      float ideal_contents_scale) override;
+      float ideal_contents_scale) const override;
   void WillProcessReadyToDrawTile(
       const TilingSetCoverageIterator<PictureLayerTiling>& iter) override;
   bool ShouldUpdateApproximatedVisibleContentArea(

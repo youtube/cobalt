@@ -74,7 +74,7 @@
 #include "chrome/browser/ui/webui/new_tab_page/untrusted_source.h"
 #include "chrome/browser/ui/webui/page_not_available_for_guest/page_not_available_for_guest_ui.h"
 #include "chrome/browser/ui/webui/plural_string_handler.h"
-#include "chrome/browser/ui/webui/sanitized_image_source.h"
+#include "chrome/browser/ui/webui/sanitized_image/sanitized_image_source.h"
 #include "chrome/browser/ui/webui/searchbox/realbox_handler.h"
 #include "chrome/browser/ui/webui/theme_source.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
@@ -360,6 +360,7 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
       // code (here and elsewhere) into the searchbox directories or a new
       // component.
       {"audioError", IDS_NEW_TAB_VOICE_AUDIO_ERROR},
+      {"close", IDS_NTP_CLOSE},
       {"languageError", IDS_NEW_TAB_VOICE_LANGUAGE_ERROR},
       {"learnMore", IDS_LEARN_MORE},
       {"learnMoreA11yLabel", IDS_NEW_TAB_VOICE_LEARN_MORE_ACCESSIBILITY_LABEL},
@@ -594,10 +595,6 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
       "fileSuggestionDismissHours",
       base::NumberToString(DriveService::kDismissDuration.InHours()));
   source->AddString(
-      "setupListModuleDismissDays",
-      base::NumberToString(
-          user_education::features::GetNtpSetupListSnoozeTime().InDays()));
-  source->AddString(
       "tabGroupsModuleDismissHours",
       base::NumberToString(
           ntp_features::kNtpTabGroupsModuleWindowEndDeltaParam.Get()
@@ -661,10 +658,8 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
                                IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_MD);
   }
 
-  source->AddBoolean("composeboxNoFlickerSuggestionsFix", false);
   source->AddBoolean("composeboxShowContextMenu",
                      ntp_composebox::kShowContextMenu.Get());
-  source->AddBoolean("composeboxShowLensSearchChip", false);
   source->AddBoolean("composeboxShowContextMenuTabPreviews",
                      ntp_composebox::kShowContextMenuTabPreviews.Get());
   source->AddBoolean("composeboxContextMenuEnableMultiTabSelection",
@@ -676,14 +671,10 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
                      ntp_composebox::kShowComposeboxTypedSuggest.Get());
   source->AddBoolean("composeboxShowImageSuggest",
                      ntp_composebox::kShowComposeboxImageSuggestions.Get());
-  source->AddBoolean("composeboxShowTypedSuggestWithContext", false);
 
   source->AddBoolean("composeboxShowContextMenuDescription", false);
 
   source->AddBoolean("composeboxCloseByEscape", false);
-  // TODO(b/477969358): Remove "close by click outside" boolean.
-  source->AddBoolean("composeboxCloseByClickOutside", true);
-
   source->AddBoolean("composeboxSmartComposeEnabled",
                      ntp_composebox::kShowSmartCompose.Get());
   const auto* aim_eligibility_service =

@@ -387,11 +387,22 @@ LayoutUnit MenuListIntrinsicBlockSize(const HTMLSelectElement& select,
                                       const LayoutBox& box) {
   if (!box.StyleRef().HasEffectiveAppearance())
     return kIndefiniteSize;
-  const SimpleFontData* font_data = box.StyleRef().GetFont()->PrimaryFont();
+  const ComputedStyle& style = box.StyleRef();
+  const SimpleFontData* font_data = style.GetFont()->PrimaryFont();
   DCHECK(font_data);
   const LayoutBox* inner_box = select.InnerElement().GetLayoutBox();
+  LayoutUnit inner_block_size;
+  if (inner_box) {
+    inner_block_size = inner_box->BorderAndPaddingBlockSize();
+  } else {
+    // content-visibility:hidden skips layout for the inner element, but the
+    // menulist intrinsic height still includes its themed block padding.
+    LayoutTheme& theme = LayoutTheme::GetTheme();
+    inner_block_size = LayoutUnit(theme.PopupInternalPaddingTop(style)) +
+                       LayoutUnit(theme.PopupInternalPaddingBottom(style));
+  }
   return (font_data ? font_data->GetFontMetrics().Height() : 0) +
-         (inner_box ? inner_box->BorderAndPaddingBlockSize() : LayoutUnit());
+         inner_block_size;
 }
 
 #if DCHECK_IS_ON()
@@ -1465,8 +1476,9 @@ PhysicalRect LayoutBox::PhysicalBackgroundRect(
        cur = cur->Next()) {
     EFillBox current_clip = cur->Clip();
     if (rect_type == kBackgroundKnownOpaqueRect) {
-      if (current_clip == EFillBox::kText)
+      if (IsSpecialClipFillBox(current_clip)) {
         continue;
+      }
 
       if (cur->GetBlendMode() != BlendMode::kNormal ||
           cur->Composite() != kCompositeSourceOver)
@@ -1520,7 +1532,7 @@ PhysicalRect LayoutBox::PhysicalBackgroundRect(
   if (!background_box)
     return PhysicalRect();
 
-  if (*background_box == EFillBox::kText) {
+  if (IsSpecialClipFillBox(*background_box)) {
     DCHECK_NE(rect_type, kBackgroundKnownOpaqueRect);
     *background_box = EFillBox::kBorder;
   }
@@ -4298,7 +4310,7 @@ bool LayoutBox::ComputeCanCompositeBackgroundAttachmentFixed() const {
   }
   // The fixed attachment background must be the only background layer.
   if (StyleRef().BackgroundLayers().Next() ||
-      StyleRef().BackgroundLayers().Clip() == EFillBox::kText) {
+      IsSpecialClipFillBox(StyleRef().BackgroundLayers().Clip())) {
     return false;
   }
   // To support box shadow, we'll need to paint the outset and inset box

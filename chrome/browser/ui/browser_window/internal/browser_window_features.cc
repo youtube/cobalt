@@ -17,6 +17,8 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/collaboration/collaboration_service_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
+#include "chrome/browser/contextual_cueing/contextual_cueing_controller.h"
+#include "chrome/browser/contextual_cueing/features.h"
 #include "chrome/browser/contextual_tasks/active_task_context_provider_impl.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
@@ -95,6 +97,8 @@
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_utils.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/tab_search_toolbar_button_controller.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/animations/side_panel_animations.h"
+#include "chrome/browser/ui/views/animations/tab_strip_animations.h"
 #include "chrome/browser/ui/views/color_provider_browser_helper.h"
 #include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_close_button_controller.h"
 #include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_ephemeral_button_controller.h"
@@ -105,6 +109,7 @@
 #include "chrome/browser/ui/views/frame/find_bar_owner_views.h"
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
+#include "chrome/browser/ui/views/frame/immersive_mode_controller_stub.h"
 #include "chrome/browser/ui/views/frame/scrim_view_controller.h"
 #include "chrome/browser/ui/views/fullscreen_control/fullscreen_control_host.h"
 #include "chrome/browser/ui/views/incognito_clear_browsing_data_dialog_coordinator.h"
@@ -126,11 +131,11 @@
 #include "chrome/browser/ui/views/side_panel/history_clusters/history_clusters_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/reading_list/reading_list_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
+#include "chrome/browser/ui/views/tabs/groups/recent_activity_bubble_dialog_view.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_utils.h"
-#include "chrome/browser/ui/views/tabs/recent_activity_bubble_dialog_view.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_action_container.h"
 #include "chrome/browser/ui/views/toolbar/chrome_labs/chrome_labs_coordinator.h"
-#include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_controller.h"
+#include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/views/translate/translate_bubble_controller.h"
 #include "chrome/browser/ui/views/upgrade_notification_controller.h"
@@ -356,6 +361,12 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
           GetUserDataFactory().CreateInstance<AiOverlayDialogController>(
               *browser, browser);
     }
+
+    if (base::FeatureList::IsEnabled(contextual_cueing::kContextualCueingV2)) {
+      contextual_cueing_controller_ =
+          std::make_unique<contextual_cueing::ContextualCueingController>(
+              browser, tab_list_bridge_.get());
+    }
   }
 
   // The LensOverlayEntryPointController is constructed for all browser types
@@ -403,8 +414,8 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       GetUserDataFactory().CreateInstance<SidePanelRegistry>(*browser, browser);
 
   reading_list_side_panel_coordinator_ =
-      std::make_unique<ReadingListSidePanelCoordinator>(
-          profile, browser->GetTabStripModel());
+      GetUserDataFactory().CreateInstance<ReadingListSidePanelCoordinator>(
+          *browser, browser, profile, browser->GetTabStripModel());
 
   bookmarks_side_panel_coordinator_ =
       std::make_unique<BookmarksSidePanelCoordinator>();
@@ -551,15 +562,10 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
         send_tab_to_self::SendTabToSelfToolbarBubbleController>(browser);
 
     if (browser_view) {
-      // The controller should only be created if the
-      // PinnedToolbarActions exists for the browser, this might not be
-      // the case for browsers with a custom tab toolbar.
-      if (auto* pinned_toolbar_actions = browser_view->toolbar_button_provider()
-                                             ->GetPinnedToolbarActions()) {
-        pinned_toolbar_actions_controller_ =
-            std::make_unique<PinnedToolbarActionsController>(
-                pinned_toolbar_actions);
-      }
+      // Get the PinnedToolbarActions for the browser; it might not exist for
+      // browsers with a custom tab toolbar.
+      pinned_toolbar_actions_ =
+          browser_view->toolbar_button_provider()->GetPinnedToolbarActions();
     }
 
     // TODO(crbug.com/350508658): Ideally, we don't pass in a reference to
@@ -698,6 +704,12 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
 
     find_bar_owner_ =
         std::make_unique<FindBarOwnerWebUIBrowser>(webui_browser_window);
+
+    // Provide a stub immersive mode controller so things that use it don't
+    // crash. This will need to be changed to use a proper one on platforms
+    // that support it.
+    immersive_mode_controller_ =
+        std::make_unique<ImmersiveModeControllerStub>(browser);
   }
 
   // Focus manager can be null in tests.
@@ -734,6 +746,10 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
   // Set the window for the animation controller. Add animation providers here
   // as well.
   browser_animation_controller_->set_browser_view(browser_view);
+  browser_animation_controller_->AddAnimationProvider(
+      std::make_unique<SidePanelAnimations>());
+  browser_animation_controller_->AddAnimationProvider(
+      std::make_unique<TabStripAnimations>());
 
   // TODO(crbug.com/346148093): Move SidePanelCoordinator construction to
   // Init.
@@ -1014,9 +1030,7 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   // Destroy fullscreen control host before exclusive access manager.
   fullscreen_control_host_.reset();
 
-  if (pinned_toolbar_actions_controller_) {
-    pinned_toolbar_actions_controller_->TearDown();
-  }
+  pinned_toolbar_actions_ = nullptr;
 
   // TODO(crbug.com/423956131): Update reset order once FindBarController is
   // deterministically constructed.
