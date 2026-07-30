@@ -88,6 +88,12 @@ VideoCaptureSystemImpl::~VideoCaptureSystemImpl() = default;
 void VideoCaptureSystemImpl::GetDeviceInfosAsync(
     DeviceInfoCallback result_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
+#if BUILDFLAG(IS_COBALT)
+  if (!factory_) {
+    std::move(result_callback).Run(std::vector<VideoCaptureDeviceInfo>());
+    return;
+  }
+#endif
   device_enum_request_queue_.push_back(base::BindOnce(
       &DeviceInfosCallbackTrampoline, std::move(result_callback),
       ScopedCaptureTrace::CreateIfEnabled("GetDeviceInfosAsync")));
@@ -104,6 +110,12 @@ VideoCaptureErrorOrDevice VideoCaptureSystemImpl::CreateDevice(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("video_and_image_capture"),
                "VideoCaptureSystemImpl::CreateDevice");
   DCHECK(thread_checker_.CalledOnValidThread());
+#if BUILDFLAG(IS_COBALT)
+  if (!factory_) {
+    return VideoCaptureErrorOrDevice(
+        VideoCaptureError::kVideoCaptureSystemDeviceIdNotFound);
+  }
+#endif
   const VideoCaptureDeviceInfo* device_info = LookupDeviceInfoFromId(device_id);
   if (!device_info) {
     return VideoCaptureErrorOrDevice(

@@ -25,13 +25,13 @@
 #include "base/numerics/safe_math.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "third_party/lss/lss.h"
 #endif
 
 namespace {
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 void* CallMmap(void* addr,
                size_t len,
                int prot,

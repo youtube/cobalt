@@ -10,6 +10,13 @@
 #include "base/byte_count.h"
 #include "build/build_config.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/command_line.h"
+#include "base/features.h"
+#include "base/strings/string_number_conversions.h"
+#include "cc/base/switches.h"
+#endif
+
 #if !BUILDFLAG(IS_ANDROID)
 #include "base/system/sys_info.h"
 #endif
@@ -19,6 +26,22 @@ namespace cc {
 // static
 size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
     bool for_renderer) {
+#if BUILDFLAG(IS_COBALT)
+  static const base::ByteCount cobalt_decoded_image_working_set_budget = []() {
+    base::ByteCount budget = base::MiB(128);
+    auto* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kDecodedImageWorkingSetBudgetBytes)) {
+      std::string value = command_line->GetSwitchValueASCII(
+          switches::kDecodedImageWorkingSetBudgetBytes);
+      int64_t parsed_value;
+      if (base::StringToInt64(value, &parsed_value) && parsed_value >= 0) {
+        budget = base::ByteCount(parsed_value);
+      }
+    }
+    return budget;
+  }();
+  return cobalt_decoded_image_working_set_budget.InBytesUnsigned();
+#else
   base::ByteCount decoded_image_working_set_budget = base::MiB(128);
 #if !BUILDFLAG(IS_ANDROID)
   if (for_renderer) {
@@ -35,7 +58,72 @@ size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
   return decoded_image_working_set_budget.InBytesUnsigned();
+#endif
 }
+
+#if BUILDFLAG(IS_COBALT)
+// static
+size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetCount() {
+  static const size_t cobalt_decoded_image_persistent_cache_budget_count =
+      []() {
+        auto* command_line = base::CommandLine::ForCurrentProcess();
+        if (command_line->HasSwitch(switches::kCCImageCacheLimitItems)) {
+          std::string value = command_line->GetSwitchValueASCII(
+              switches::kCCImageCacheLimitItems);
+          int parsed_value;
+          if (base::StringToInt(value, &parsed_value) && parsed_value >= 0) {
+            return static_cast<size_t>(parsed_value);
+          }
+        }
+        if (base::FeatureList::IsEnabled(
+                base::features::kCobaltCCImageCacheLimitItems)) {
+          int items = base::features::kCobaltCCImageCacheLimitItemsCount.Get();
+          if (items >= 0) {
+            return static_cast<size_t>(items);
+          }
+        }
+#if BUILDFLAG(IS_STARBOARD)
+        // Cache 15 decoded images. Scroll FPS doubles once 13 are cached;
+        // 15 adds margin and costs ~1 MB of GPU memory. See b/562624433.
+        return static_cast<size_t>(15);
+#elif BUILDFLAG(IS_ANDROIDTV)
+        // Cache 100 decoded images on Android TV. Full production Finch
+        // telemetry confirms exact UI latency and watch time parity with
+        // -26% faster seeks and crash reductions. See b/562624433.
+        return static_cast<size_t>(100);
+#else
+        return static_cast<size_t>(
+            2000);  // kNormalMaxItemsInCacheForGpu default
+#endif
+      }();
+  return cobalt_decoded_image_persistent_cache_budget_count;
+}
+
+// static
+size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetBytes() {
+  static const size_t cobalt_decoded_image_persistent_cache_budget_bytes = []() {
+    size_t budget = std::numeric_limits<size_t>::max();
+    auto* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kCCImageCacheLimitMbs)) {
+      std::string value = command_line->GetSwitchValueASCII(
+          switches::kCCImageCacheLimitMbs);
+      int parsed_value;
+      if (base::StringToInt(value, &parsed_value) && parsed_value >= 0) {
+        return static_cast<size_t>(parsed_value) * 1024 * 1024;
+      }
+    }
+    if (base::FeatureList::IsEnabled(
+            base::features::kCobaltCCImageCacheLimitItems)) {
+      int mbs = base::features::kCobaltCCImageCacheLimitItemsMbs.Get();
+      if (mbs >= 0) {
+        return static_cast<size_t>(mbs) * 1024 * 1024;
+      }
+    }
+    return budget;
+  }();
+  return cobalt_decoded_image_persistent_cache_budget_bytes;
+}
+#endif
 
 }  // namespace cc
 

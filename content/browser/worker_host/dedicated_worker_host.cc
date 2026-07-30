@@ -758,6 +758,7 @@ void DedicatedWorkerHost::CreateDirectSocketsService(
 }
 #endif
 
+#if !BUILDFLAG(IS_COBALT)
 void DedicatedWorkerHost::CreateWebUsbService(
     mojo::PendingReceiver<blink::mojom::WebUsbService> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -771,6 +772,7 @@ void DedicatedWorkerHost::CreateWebUsbService(
 
   ancestor_render_frame_host->CreateWebUsbService(std::move(receiver));
 }
+#endif
 
 void DedicatedWorkerHost::CreateWebSocketConnector(
     mojo::PendingReceiver<blink::mojom::WebSocketConnector> receiver) {
@@ -929,6 +931,7 @@ void DedicatedWorkerHost::CreateCodeCacheHost(
                                  GetWorkerStorageKey(), std::move(receiver));
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void DedicatedWorkerHost::BindSerialService(
     mojo::PendingReceiver<blink::mojom::SerialService> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -942,8 +945,9 @@ void DedicatedWorkerHost::BindSerialService(
 
   ancestor_render_frame_host->BindSerialService(std::move(receiver));
 }
+#endif
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 void DedicatedWorkerHost::BindHidService(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);

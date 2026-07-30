@@ -37,6 +37,10 @@
 
 namespace blink {
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+class ExceptionState;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 class WebSourceBufferClient;
 
 // Interface for actuating the media engine implementation of Media Source
@@ -81,8 +85,18 @@ class WebSourceBuffer {
   // one RunSegmentParserLoop() call will be necessary to actually parse the new
   // bytes. Note, for zero-length appendBuffers, the caller can skip this call
   // and just run the segment parser loop asynchronously once.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // `data` is borrowed by the underlying stream parser, which may retain the
+  // span rather than copying it, and must remain valid until `release_runner`
+  // is destroyed. A null `release_runner` means `data` is not retained for the
+  // parser, which must therefore copy it.
+  [[nodiscard]] virtual bool AppendToParseBuffer(
+      base::span<const unsigned char> data,
+      base::ScopedClosureRunner release_runner) = 0;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] virtual bool AppendToParseBuffer(
       base::span<const unsigned char> data) = 0;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Intended to be called potentially asynchronously after
   // SourceBuffer.appendBuffer() and potentially repeatedly, runs the segment
@@ -114,6 +128,12 @@ class WebSourceBuffer {
   virtual void ResetParserState() = 0;
   virtual void Remove(double start, double end) = 0;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Special Starboard versions of CanChangeType and ChangeType that accept the
+  // raw mime_type string passed from the webapp.
+  virtual bool CanChangeType(const WebString& mime_type) = 0;
+  virtual void ChangeType(const WebString& mime_type) = 0;
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Returns true iff this SourceBuffer supports changing bytestream and codecs
   // to |content_type| and |codecs|.  |content_type| is the ContentType string
   // of the bytestream's MIME type, and |codecs| contains the "codecs" parameter
@@ -128,6 +148,7 @@ class WebSourceBuffer {
   // |content_type| and |codecs| parameters.
   virtual void ChangeType(const WebString& content_type,
                           const WebString& codecs) = 0;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   virtual bool SetTimestampOffset(double) = 0;
 
@@ -140,6 +161,11 @@ class WebSourceBuffer {
   // After this method is called, this WebSourceBuffer should never use the
   // client pointer passed to SetClient().
   virtual void RemovedFromMediaSource() = 0;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Return the highest presentation timestamp written to the Renderer.
+  virtual double GetWriteHead(ExceptionState& exception_state) const = 0;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace blink

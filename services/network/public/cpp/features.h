@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "build/buildflag.h"
 #include "base/component_export.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
@@ -430,6 +431,7 @@ BASE_DECLARE_FEATURE(kNetworkContextDirectReceiver);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 bool ShouldBindNetworkContextDirectReceiver();
 
+<<<<<<< HEAD
 // Delays the initial DoH probe. When enabled, the delay is determined by
 // kDelayInitialDohProbeTimeoutParam. When disabled, the probe is activated
 // immediately.
@@ -437,6 +439,25 @@ COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kDelayInitialDohProbeTimeout);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kDelayInitialDohProbeTimeoutParam);
+=======
+#if BUILDFLAG(IS_COBALT)
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kCobaltDynamicMojoPipeSizing);
+
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingSubresourceSize);
+
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingMediaSize);
+
+// When enabled, the response body Mojo data pipe is shrunk to the response's
+// Content-Length whenever that is smaller than the capacity that would
+// otherwise be used. The capacity is never increased. Responses whose body
+// length is not known upfront keep the default capacity.
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kCobaltContentLengthAwareMojoPipeSizing);
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> parent of 3cfa4226e43 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace network::features
 

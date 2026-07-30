@@ -29,6 +29,23 @@
 #include "components/services/storage/privileged/mojom/indexed_db_control.mojom.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
+<<<<<<< HEAD
+=======
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#include "content/browser/attribution_reporting/aggregatable_result.mojom.h"  // nogncheck
+#include "content/browser/attribution_reporting/attribution_debug_report.h"
+#include "content/browser/attribution_reporting/attribution_manager.h"
+#include "content/browser/attribution_reporting/attribution_observer.h"
+#include "content/browser/attribution_reporting/attribution_report.h"
+#include "content/browser/attribution_reporting/attribution_trigger.h"
+#include "content/browser/attribution_reporting/common_source_info.h"
+#include "content/browser/attribution_reporting/create_report_result.h"
+#include "content/browser/attribution_reporting/event_level_result.mojom.h"  // nogncheck
+#include "content/browser/attribution_reporting/send_result.h"
+#include "content/browser/attribution_reporting/storable_source.h"
+#include "content/browser/attribution_reporting/store_source_result.mojom.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+>>>>>>> parent of 3cfa4226e43 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "content/browser/devtools/dedicated_worker_devtools_agent_host.h"
 #include "content/browser/devtools/devtools_agent_host_impl.h"
 #include "content/browser/devtools/protocol/browser_handler.h"
@@ -38,7 +55,9 @@
 #include "content/browser/devtools/protocol/storage.h"
 #include "content/browser/devtools/service_worker_devtools_agent_host.h"
 #include "content/browser/devtools/shared_worker_devtools_agent_host.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/interest_group/interest_group_manager_impl.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/browser_context.h"
@@ -418,12 +437,14 @@ void StorageHandler::SetRenderer(int process_host_id,
   RenderProcessHost* process = RenderProcessHost::FromID(process_host_id);
   StoragePartition* new_storage_partition =
       process ? process->GetStoragePartition() : nullptr;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (interest_group_tracking_enabled_) {
     // Transfer observer registration from old frame's StoragePartition to new;
     // SetInterestGroupTrackingInternal() will handle any nulls.
     SetInterestGroupTrackingInternal(storage_partition_, false);
     SetInterestGroupTrackingInternal(new_storage_partition, true);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   storage_partition_ = new_storage_partition;
   frame_host_ = frame_host;
 }
@@ -432,9 +453,17 @@ Response StorageHandler::Disable() {
   cache_storage_observer_.reset();
   indexed_db_observer_.reset();
   quota_override_handle_.reset();
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   SetInterestGroupTracking(false);
   SetSharedStorageTracking(false);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   quota_manager_observer_.reset();
+<<<<<<< HEAD
+=======
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+  ResetAttributionReporting();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+>>>>>>> parent of 3cfa4226e43 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return Response::Success();
 }
 
@@ -895,6 +924,7 @@ StorageHandler::IndexedDBObserver* StorageHandler::GetIndexedDBObserver() {
   return indexed_db_observer_.get();
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 SharedStorageRuntimeManager* StorageHandler::GetSharedStorageRuntimeManager() {
   if (!storage_partition_) {
     return nullptr;
@@ -915,6 +945,7 @@ StorageHandler::GetSharedStorageManager() {
   }
   return Response::ServerError("Shared storage is disabled");
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 storage::QuotaManagerProxy* StorageHandler::GetQuotaManagerProxy() {
   DCHECK(storage_partition_);
@@ -1055,6 +1086,7 @@ void StorageHandler::ClearTrustTokens(
       base::BindOnce(&SendClearTrustTokensStatus, std::move(callback)));
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 void StorageHandler::OnInterestGroupAccessed(
     base::optional_ref<const std::string> auction_id,
     base::Time access_time,
@@ -1120,13 +1152,32 @@ void StorageHandler::GetInterestGroupDetails(
   // frontend usage is gone.
   callback->sendSuccess(std::make_unique<base::DictValue>());
 }
+#else
+void StorageHandler::GetInterestGroupDetails(
+    const std::string& owner_origin_string,
+    const std::string& name,
+    std::unique_ptr<GetInterestGroupDetailsCallback> callback) {
+  callback->sendFailure(
+      Response::ServerError("Interest group storage is disabled."));
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 Response StorageHandler::SetInterestGroupTracking(bool enable) {
+<<<<<<< HEAD
   // TODO(crbug.com/496189510): Remove this completely once the DevTools
   // frontend usage is gone.
   return Response::Success();
+=======
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+  interest_group_tracking_enabled_ = enable;
+  return SetInterestGroupTrackingInternal(storage_partition_, enable);
+#else
+  return Response::ServerError("Interest group storage is disabled.");
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+>>>>>>> parent of 3cfa4226e43 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 Response StorageHandler::SetInterestGroupTrackingInternal(
     StoragePartition* storage_partition,
     bool enable) {
@@ -1134,12 +1185,18 @@ Response StorageHandler::SetInterestGroupTrackingInternal(
   // frontend usage is gone.
   return Response::Success();
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 Response StorageHandler::SetInterestGroupAuctionTracking(bool enable) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   interest_group_auction_tracking_enabled_ = enable;
   return Response::Success();
+#else
+  return Response::ServerError("Interest group storage is disabled.");
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 namespace {
 
 void SendSharedStorageMetadata(
@@ -1267,7 +1324,20 @@ void StorageHandler::GetSharedStorageEntries(
       owner_origin,
       base::BindOnce(&RetrieveSharedStorageEntries, std::move(callback)));
 }
+#else
+void StorageHandler::GetSharedStorageMetadata(
+    const std::string& owner_origin_string,
+    std::unique_ptr<GetSharedStorageMetadataCallback> callback) {
+  callback->sendFailure(Response::ServerError("Shared storage is disabled."));
+}
+void StorageHandler::GetSharedStorageEntries(
+    const std::string& owner_origin_string,
+    std::unique_ptr<GetSharedStorageEntriesCallback> callback) {
+  callback->sendFailure(Response::ServerError("Shared storage is disabled."));
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 namespace {
 
 void DispatchSharedStorageSetCallback(
@@ -1363,7 +1433,24 @@ void StorageHandler::DeleteSharedStorageEntry(
           &DispatchSharedStorageCallback<DeleteSharedStorageEntryCallback>,
           std::move(callback)));
 }
+#else
+void StorageHandler::SetSharedStorageEntry(
+    const std::string& owner_origin_string,
+    const std::string& key,
+    const std::string& value,
+    std::optional<bool> ignore_if_present,
+    std::unique_ptr<SetSharedStorageEntryCallback> callback) {
+  callback->sendFailure(Response::ServerError("Shared storage is disabled."));
+}
+void StorageHandler::DeleteSharedStorageEntry(
+    const std::string& owner_origin_string,
+    const std::string& key,
+    std::unique_ptr<DeleteSharedStorageEntryCallback> callback) {
+  callback->sendFailure(Response::ServerError("Shared storage is disabled."));
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 void StorageHandler::ClearSharedStorageEntries(
     const std::string& owner_origin_string,
     std::unique_ptr<ClearSharedStorageEntriesCallback> callback) {
@@ -1391,8 +1478,16 @@ void StorageHandler::ClearSharedStorageEntries(
           &DispatchSharedStorageCallback<ClearSharedStorageEntriesCallback>,
           std::move(callback)));
 }
+#else
+void StorageHandler::ClearSharedStorageEntries(
+    const std::string& owner_origin_string,
+    std::unique_ptr<ClearSharedStorageEntriesCallback> callback) {
+  callback->sendFailure(Response::ServerError("Shared storage is disabled."));
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 Response StorageHandler::SetSharedStorageTracking(bool enable) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   // FIXME: this should remember the state and restore it
   // once the StorageRunTimeManager or the storage partition is available.
   if (enable) {
@@ -1410,8 +1505,12 @@ Response StorageHandler::SetSharedStorageTracking(bool enable) {
     shared_storage_observation_.Reset();
   }
   return Response::Success();
+#else
+  return Response::ServerError("Shared storage is disabled.");
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 void StorageHandler::ResetSharedStorageBudget(
     const std::string& owner_origin_string,
     std::unique_ptr<ResetSharedStorageBudgetCallback> callback) {
@@ -1439,7 +1538,15 @@ void StorageHandler::ResetSharedStorageBudget(
           &DispatchSharedStorageCallback<ResetSharedStorageBudgetCallback>,
           std::move(callback)));
 }
+#else
+void StorageHandler::ResetSharedStorageBudget(
+    const std::string& owner_origin_string,
+    std::unique_ptr<ResetSharedStorageBudgetCallback> callback) {
+  callback->sendFailure(Response::ServerError("Shared storage is disabled."));
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 GlobalRenderFrameHostId StorageHandler::AssociatedFrameHostId() const {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return frame_host_ ? frame_host_->GetGlobalId() : GlobalRenderFrameHostId();
@@ -1663,6 +1770,7 @@ void StorageHandler::OnSharedStorageWorkletOperationExecutionFinished(
       base::NumberToString(operation_id), worklet_devtools_token.ToString(),
       GetFrameTokenFromGlobalRenderFrameHostId(main_frame_id), owner_origin);
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 DispatchResponse StorageHandler::SetStorageBucketTracking(
     const std::string& serialized_storage_key,
@@ -1717,6 +1825,769 @@ void StorageHandler::NotifyDeleteBucket(
       base::NumberToString(bucket_locator.id.value()));
 }
 
+<<<<<<< HEAD
+=======
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+AttributionManager* StorageHandler::GetAttributionManager() {
+  if (!storage_partition_) {
+    return nullptr;
+  }
+  return static_cast<StoragePartitionImpl*>(storage_partition_)
+      ->GetAttributionManager();
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+void StorageHandler::SetAttributionReportingLocalTestingMode(
+    bool enabled,
+    std::unique_ptr<SetAttributionReportingLocalTestingModeCallback> callback) {
+  auto* manager = GetAttributionManager();
+  if (!manager) {
+    callback->sendFailure(Response::InternalError());
+    return;
+  }
+
+  manager->SetDebugMode(
+      enabled,
+      base::BindOnce(
+          &SetAttributionReportingLocalTestingModeCallback::sendSuccess,
+          std::move(callback)));
+}
+#else
+void StorageHandler::SetAttributionReportingLocalTestingMode(
+    bool enabled,
+    std::unique_ptr<SetAttributionReportingLocalTestingModeCallback> callback) {
+  callback->sendFailure(
+      Response::ServerError("Attribution Reporting is disabled."));
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+void StorageHandler::SendPendingAttributionReports(
+    std::unique_ptr<SendPendingAttributionReportsCallback> callback) {
+  auto* manager = GetAttributionManager();
+  if (!manager) {
+    callback->sendFailure(Response::InternalError());
+    return;
+  }
+  manager->GetPendingReportsForInternalUse(
+      /*limit=*/-1,
+      base::BindOnce(
+          [](base::WeakPtr<StorageHandler> storage_handler,
+             std::unique_ptr<SendPendingAttributionReportsCallback> callback,
+             std::vector<AttributionReport> reports) {
+            if (!storage_handler) {
+              callback->sendFailure(Response::InternalError());
+              return;
+            }
+            auto* manager = storage_handler->GetAttributionManager();
+            if (!manager) {
+              callback->sendFailure(Response::InternalError());
+              return;
+            }
+            auto barrier = base::BarrierClosure(
+                reports.size(),
+                base::BindOnce(
+                    &SendPendingAttributionReportsCallback::sendSuccess,
+                    std::move(callback), reports.size()));
+            for (const auto& report : reports) {
+              manager->SendReportForWebUI(report.id(), barrier);
+            }
+          },
+          weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+}
+#else
+void StorageHandler::SendPendingAttributionReports(
+    std::unique_ptr<SendPendingAttributionReportsCallback> callback) {
+  callback->sendFailure(
+      Response::ServerError("Attribution Reporting is disabled."));
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+void StorageHandler::ResetAttributionReporting() {
+  attribution_observation_.Reset();
+
+  auto* manager = GetAttributionManager();
+  if (!manager) {
+    return;
+  }
+
+  manager->SetDebugMode(/*enabled=*/std::nullopt, base::DoNothing());
+}
+
+namespace {
+
+using ::attribution_reporting::mojom::AggregatableResult;
+using ::attribution_reporting::mojom::EventLevelResult;
+using ::attribution_reporting::mojom::StoreSourceResult;
+
+Storage::AttributionReportingSourceRegistrationResult
+ToSourceRegistrationResult(StoreSourceResult result) {
+  switch (result) {
+    case StoreSourceResult::kSuccess:
+      return Storage::AttributionReportingSourceRegistrationResultEnum::Success;
+    case StoreSourceResult::kInternalError:
+      return Storage::AttributionReportingSourceRegistrationResultEnum::
+          InternalError;
+    case StoreSourceResult::kInsufficientSourceCapacity:
+      return Storage::AttributionReportingSourceRegistrationResultEnum::
+          InsufficientSourceCapacity;
+    case StoreSourceResult::kInsufficientUniqueDestinationCapacity:
+      return Storage::AttributionReportingSourceRegistrationResultEnum::
+          InsufficientUniqueDestinationCapacity;
+    case StoreSourceResult::kExcessiveReportingOrigins:
+      return Storage::AttributionReportingSourceRegistrationResultEnum::
+          ExcessiveReportingOrigins;
+    case StoreSourceResult::kProhibitedByBrowserPolicy:
+      return Storage::AttributionReportingSourceRegistrationResultEnum::
+          ProhibitedByBrowserPolicy;
+    case StoreSourceResult::kSuccessNoised:
+      return Storage::AttributionReportingSourceRegistrationResultEnum::
+          SuccessNoised;
+    case StoreSourceResult::kDestinationReportingLimitReached:
+      return Storage::AttributionReportingSourceRegistrationResultEnum::
+          DestinationReportingLimitReached;
+    case StoreSourceResult::kDestinationGlobalLimitReached:
+      return Storage::AttributionReportingSourceRegistrationResultEnum::
+          DestinationGlobalLimitReached;
+    case StoreSourceResult::kDestinationBothLimitsReached:
+      return Storage::AttributionReportingSourceRegistrationResultEnum::
+          DestinationBothLimitsReached;
+    case StoreSourceResult::kReportingOriginsPerSiteLimitReached:
+      return Storage::AttributionReportingSourceRegistrationResultEnum::
+          ReportingOriginsPerSiteLimitReached;
+    case StoreSourceResult::kExceedsMaxChannelCapacity:
+      return Storage::AttributionReportingSourceRegistrationResultEnum::
+          ExceedsMaxChannelCapacity;
+    case StoreSourceResult::kExceedsMaxScopesChannelCapacity:
+      return Storage::AttributionReportingSourceRegistrationResultEnum::
+          ExceedsMaxScopesChannelCapacity;
+    case StoreSourceResult::kExceedsMaxTriggerStateCardinality:
+      return Storage::AttributionReportingSourceRegistrationResultEnum::
+          ExceedsMaxTriggerStateCardinality;
+    case StoreSourceResult::kExceedsMaxEventStatesLimit:
+      return Storage::AttributionReportingSourceRegistrationResultEnum::
+          ExceedsMaxEventStatesLimit;
+    case StoreSourceResult::kDestinationPerDayReportingLimitReached:
+      return Storage::AttributionReportingSourceRegistrationResultEnum::
+          DestinationPerDayReportingLimitReached;
+  }
+}
+
+Storage::AttributionReportingEventLevelResult ToEventLevelResult(
+    EventLevelResult result) {
+  switch (result) {
+    case EventLevelResult::kSuccess:
+      return Storage::AttributionReportingEventLevelResultEnum::Success;
+    case EventLevelResult::kSuccessDroppedLowerPriority:
+      return Storage::AttributionReportingEventLevelResultEnum::
+          SuccessDroppedLowerPriority;
+    case EventLevelResult::kInternalError:
+      return Storage::AttributionReportingEventLevelResultEnum::InternalError;
+    case EventLevelResult::kNoCapacityForConversionDestination:
+      return Storage::AttributionReportingEventLevelResultEnum::
+          NoCapacityForAttributionDestination;
+    case EventLevelResult::kNoMatchingImpressions:
+      return Storage::AttributionReportingEventLevelResultEnum::
+          NoMatchingSources;
+    case EventLevelResult::kDeduplicated:
+      return Storage::AttributionReportingEventLevelResultEnum::Deduplicated;
+    case EventLevelResult::kExcessiveAttributions:
+      return Storage::AttributionReportingEventLevelResultEnum::
+          ExcessiveAttributions;
+    case EventLevelResult::kPriorityTooLow:
+      return Storage::AttributionReportingEventLevelResultEnum::PriorityTooLow;
+    case EventLevelResult::kNeverAttributedSource:
+      return Storage::AttributionReportingEventLevelResultEnum::
+          NeverAttributedSource;
+    case EventLevelResult::kExcessiveReportingOrigins:
+      return Storage::AttributionReportingEventLevelResultEnum::
+          ExcessiveReportingOrigins;
+    case EventLevelResult::kNoMatchingSourceFilterData:
+      return Storage::AttributionReportingEventLevelResultEnum::
+          NoMatchingSourceFilterData;
+    case EventLevelResult::kProhibitedByBrowserPolicy:
+      return Storage::AttributionReportingEventLevelResultEnum::
+          ProhibitedByBrowserPolicy;
+    case EventLevelResult::kNoMatchingConfigurations:
+      return Storage::AttributionReportingEventLevelResultEnum::
+          NoMatchingConfigurations;
+    case EventLevelResult::kExcessiveReports:
+      return Storage::AttributionReportingEventLevelResultEnum::
+          ExcessiveReports;
+    case EventLevelResult::kFalselyAttributedSource:
+      return Storage::AttributionReportingEventLevelResultEnum::
+          FalselyAttributedSource;
+    case EventLevelResult::kReportWindowPassed:
+      return Storage::AttributionReportingEventLevelResultEnum::
+          ReportWindowPassed;
+    case EventLevelResult::kNotRegistered:
+      return Storage::AttributionReportingEventLevelResultEnum::NotRegistered;
+    case EventLevelResult::kReportWindowNotStarted:
+      return Storage::AttributionReportingEventLevelResultEnum::
+          ReportWindowNotStarted;
+    case EventLevelResult::kNoMatchingTriggerData:
+      return Storage::AttributionReportingEventLevelResultEnum::
+          NoMatchingTriggerData;
+  }
+}
+
+Storage::AttributionReportingAggregatableResult ToAggregatableResult(
+    AggregatableResult result) {
+  switch (result) {
+    case AggregatableResult::kSuccess:
+      return Storage::AttributionReportingAggregatableResultEnum::Success;
+    case AggregatableResult::kInternalError:
+      return Storage::AttributionReportingAggregatableResultEnum::InternalError;
+    case AggregatableResult::kNoCapacityForConversionDestination:
+      return Storage::AttributionReportingAggregatableResultEnum::
+          NoCapacityForAttributionDestination;
+    case AggregatableResult::kNoMatchingImpressions:
+      return Storage::AttributionReportingAggregatableResultEnum::
+          NoMatchingSources;
+    case AggregatableResult::kExcessiveAttributions:
+      return Storage::AttributionReportingAggregatableResultEnum::
+          ExcessiveAttributions;
+    case AggregatableResult::kExcessiveReportingOrigins:
+      return Storage::AttributionReportingAggregatableResultEnum::
+          ExcessiveReportingOrigins;
+    case AggregatableResult::kNoHistograms:
+      return Storage::AttributionReportingAggregatableResultEnum::NoHistograms;
+    case AggregatableResult::kInsufficientBudget:
+      return Storage::AttributionReportingAggregatableResultEnum::
+          InsufficientBudget;
+    case AggregatableResult::kInsufficientNamedBudget:
+      return Storage::AttributionReportingAggregatableResultEnum::
+          InsufficientNamedBudget;
+    case AggregatableResult::kNoMatchingSourceFilterData:
+      return Storage::AttributionReportingAggregatableResultEnum::
+          NoMatchingSourceFilterData;
+    case AggregatableResult::kNotRegistered:
+      return Storage::AttributionReportingAggregatableResultEnum::NotRegistered;
+    case AggregatableResult::kProhibitedByBrowserPolicy:
+      return Storage::AttributionReportingAggregatableResultEnum::
+          ProhibitedByBrowserPolicy;
+    case AggregatableResult::kDeduplicated:
+      return Storage::AttributionReportingAggregatableResultEnum::Deduplicated;
+    case AggregatableResult::kReportWindowPassed:
+      return Storage::AttributionReportingAggregatableResultEnum::
+          ReportWindowPassed;
+    case AggregatableResult::kExcessiveReports:
+      return Storage::AttributionReportingAggregatableResultEnum::
+          ExcessiveReports;
+  }
+}
+
+std::unique_ptr<Array<Storage::AttributionReportingFilterDataEntry>>
+ToFilterDataEntries(const attribution_reporting::FilterData& filter_data) {
+  auto out =
+      std::make_unique<Array<Storage::AttributionReportingFilterDataEntry>>();
+
+  for (const auto& [key, values] : filter_data.filter_values()) {
+    out->emplace_back(Storage::AttributionReportingFilterDataEntry::Create()
+                          .SetKey(key)
+                          .SetValues(std::make_unique<Array<String>>(values))
+                          .Build());
+  }
+
+  return out;
+}
+
+std::unique_ptr<Array<Storage::AttributionReportingFilterConfig>>
+ToFilterConfigs(
+    const std::vector<attribution_reporting::FilterConfig>& filter_configs) {
+  auto out =
+      std::make_unique<Array<Storage::AttributionReportingFilterConfig>>();
+
+  for (const auto& config : filter_configs) {
+    auto filter_data =
+        std::make_unique<Array<Storage::AttributionReportingFilterDataEntry>>();
+    for (const auto& [key, values] : config.filter_values()) {
+      filter_data->emplace_back(
+          Storage::AttributionReportingFilterDataEntry::Create()
+              .SetKey(key)
+              .SetValues(std::make_unique<Array<String>>(values))
+              .Build());
+    }
+
+    auto config_entry = Storage::AttributionReportingFilterConfig::Create()
+                            .SetFilterValues(std::move(filter_data))
+                            .Build();
+    if (auto lookback_window = config.lookback_window();
+        lookback_window.has_value()) {
+      config_entry->SetLookbackWindow(lookback_window->InSeconds());
+    }
+
+    out->emplace_back(std::move(config_entry));
+  }
+
+  return out;
+}
+
+std::unique_ptr<Storage::AttributionReportingFilterPair> ToFilterPair(
+    const attribution_reporting::FilterPair& filters) {
+  return Storage::AttributionReportingFilterPair::Create()
+      .SetFilters(ToFilterConfigs(filters.positive))
+      .SetNotFilters(ToFilterConfigs(filters.negative))
+      .Build();
+}
+
+std::unique_ptr<Array<Storage::AttributionReportingAggregationKeysEntry>>
+ToAggregationKeysEntries(const attribution_reporting::AggregationKeys& keys) {
+  auto out = std::make_unique<
+      Array<Storage::AttributionReportingAggregationKeysEntry>>();
+
+  for (const auto& [key, value] : keys.keys()) {
+    out->emplace_back(
+        Storage::AttributionReportingAggregationKeysEntry::Create()
+            .SetKey(key)
+            .SetValue(attribution_reporting::HexEncodeAggregationKey(value))
+            .Build());
+  }
+
+  return out;
+}
+
+std::unique_ptr<Storage::AttributionReportingEventReportWindows>
+ToEventReportWindows(const attribution_reporting::EventReportWindows& windows) {
+  auto end_times = std::make_unique<Array<int>>();
+  for (base::TimeDelta end_time : windows.end_times()) {
+    end_times->emplace_back(end_time.InSeconds());
+  }
+  return Storage::AttributionReportingEventReportWindows::Create()
+      .SetStart(windows.start_time().InSeconds())
+      .SetEnds(std::move(end_times))
+      .Build();
+}
+
+std::unique_ptr<Array<double>> ToTriggerData(
+    const attribution_reporting::TriggerDataSet::TriggerData& trigger_data) {
+  return std::make_unique<Array<double>>(trigger_data.begin(),
+                                         trigger_data.end());
+}
+
+Storage::AttributionReportingTriggerDataMatching ToTriggerDataMatching(
+    attribution_reporting::mojom::TriggerDataMatching value) {
+  switch (value) {
+    case attribution_reporting::mojom::TriggerDataMatching::kExact:
+      return Storage::AttributionReportingTriggerDataMatchingEnum::Exact;
+    case attribution_reporting::mojom::TriggerDataMatching::kModulus:
+      return Storage::AttributionReportingTriggerDataMatchingEnum::Modulus;
+  }
+}
+
+std::unique_ptr<Array<Storage::AttributionReportingAggregatableDedupKey>>
+ToAggregatableDedupKeys(
+    const std::vector<attribution_reporting::AggregatableDedupKey>&
+        dedup_keys) {
+  auto out = std::make_unique<
+      Array<Storage::AttributionReportingAggregatableDedupKey>>();
+  for (const auto& dedup_key : dedup_keys) {
+    auto dedup_key_entry =
+        Storage::AttributionReportingAggregatableDedupKey::Create()
+            .SetFilters(ToFilterPair(dedup_key.filters))
+            .Build();
+    if (dedup_key.dedup_key.has_value()) {
+      dedup_key_entry->SetDedupKey(base::NumberToString(*dedup_key.dedup_key));
+    }
+    out->push_back(std::move(dedup_key_entry));
+  }
+
+  return out;
+}
+
+std::unique_ptr<Array<Storage::AttributionReportingEventTriggerData>>
+ToEventTriggerData(const std::vector<attribution_reporting::EventTriggerData>&
+                       event_triggers) {
+  auto out =
+      std::make_unique<Array<Storage::AttributionReportingEventTriggerData>>();
+  for (const auto& event_trigger : event_triggers) {
+    auto event_trigger_entry =
+        Storage::AttributionReportingEventTriggerData::Create()
+            .SetData(base::NumberToString(event_trigger.data))
+            .SetPriority(base::NumberToString(event_trigger.priority))
+            .SetFilters(ToFilterPair(event_trigger.filters))
+            .Build();
+    if (event_trigger.dedup_key.has_value()) {
+      event_trigger_entry->SetDedupKey(
+          base::NumberToString(*event_trigger.dedup_key));
+    }
+    out->push_back(std::move(event_trigger_entry));
+  }
+
+  return out;
+}
+
+std::unique_ptr<Array<Storage::AttributionReportingAggregatableTriggerData>>
+ToAggregatableTriggerData(
+    const std::vector<attribution_reporting::AggregatableTriggerData>&
+        aggregatable_triggers) {
+  auto out = std::make_unique<
+      Array<Storage::AttributionReportingAggregatableTriggerData>>();
+  for (const auto& aggregatable_trigger : aggregatable_triggers) {
+    out->emplace_back(
+        Storage::AttributionReportingAggregatableTriggerData::Create()
+            .SetKeyPiece(attribution_reporting::HexEncodeAggregationKey(
+                aggregatable_trigger.key_piece()))
+            .SetSourceKeys(std::make_unique<Array<String>>(
+                aggregatable_trigger.source_keys().begin(),
+                aggregatable_trigger.source_keys().end()))
+            .SetFilters(ToFilterPair(aggregatable_trigger.filters()))
+            .Build());
+  }
+
+  return out;
+}
+
+std::unique_ptr<Array<Storage::AttributionReportingAggregatableValueDictEntry>>
+ToAggregatableValueDictEntries(
+    const attribution_reporting::AggregatableValues::Values&
+        aggregatable_value) {
+  auto out = std::make_unique<
+      Array<Storage::AttributionReportingAggregatableValueDictEntry>>();
+  out->reserve(aggregatable_value.size());
+  for (const auto& [key, value] : aggregatable_value) {
+    out->emplace_back(
+        Storage::AttributionReportingAggregatableValueDictEntry::Create()
+            .SetKey(key)
+            .SetValue(value.value())
+            .SetFilteringId(base::NumberToString(value.filtering_id()))
+            .Build());
+  }
+
+  return out;
+}
+
+std::unique_ptr<Array<Storage::AttributionReportingAggregatableValueEntry>>
+ToAggregatableValueEntries(
+    const std::vector<attribution_reporting::AggregatableValues>&
+        aggregatable_values) {
+  auto out = std::make_unique<
+      Array<Storage::AttributionReportingAggregatableValueEntry>>();
+  out->reserve(aggregatable_values.size());
+  for (const auto& aggregatable_value : aggregatable_values) {
+    out->emplace_back(
+        Storage::AttributionReportingAggregatableValueEntry::Create()
+            .SetValues(
+                ToAggregatableValueDictEntries(aggregatable_value.values()))
+            .SetFilters(ToFilterPair(aggregatable_value.filters()))
+            .Build());
+  }
+
+  return out;
+}
+
+Storage::AttributionReportingSourceRegistrationTimeConfig
+ToSourceRegistrationTimeConfig(
+    attribution_reporting::mojom::SourceRegistrationTimeConfig
+        source_registration_time_config) {
+  switch (source_registration_time_config) {
+    case attribution_reporting::mojom::SourceRegistrationTimeConfig::kInclude:
+      return Storage::AttributionReportingSourceRegistrationTimeConfigEnum::
+          Include;
+    case attribution_reporting::mojom::SourceRegistrationTimeConfig::kExclude:
+      return Storage::AttributionReportingSourceRegistrationTimeConfigEnum::
+          Exclude;
+  }
+}
+
+std::unique_ptr<
+    Array<Storage::AttributionReportingAggregatableDebugReportingData>>
+ToAggregatableDebugReportingDataArray(
+    const attribution_reporting::AggregatableDebugReportingConfig::DebugData&
+        data) {
+  auto out = std::make_unique<
+      Array<Storage::AttributionReportingAggregatableDebugReportingData>>();
+  for (const auto& [type, contribution] : data) {
+    auto types = std::make_unique<Array<String>>();
+    types->emplace_back(attribution_reporting::SerializeDebugDataType(type));
+    out->emplace_back(
+        Storage::AttributionReportingAggregatableDebugReportingData::Create()
+            .SetKeyPiece(attribution_reporting::HexEncodeAggregationKey(
+                contribution.key_piece()))
+            .SetValue(contribution.value())
+            .SetTypes(std::move(types))
+            .Build());
+  }
+  return out;
+}
+
+std::unique_ptr<Storage::AttributionReportingAggregatableDebugReportingConfig>
+ToAggregatableDebugReportingConfig(
+    std::optional<double> budget,
+    const attribution_reporting::AggregatableDebugReportingConfig& config) {
+  auto out_config =
+      Storage::AttributionReportingAggregatableDebugReportingConfig::Create()
+          .SetKeyPiece(
+              attribution_reporting::HexEncodeAggregationKey(config.key_piece))
+          .SetDebugData(
+              ToAggregatableDebugReportingDataArray(config.debug_data))
+          .Build();
+  if (budget.has_value()) {
+    out_config->SetBudget(*budget);
+  }
+  if (config.aggregation_coordinator_origin.has_value()) {
+    out_config->SetAggregationCoordinatorOrigin(
+        config.aggregation_coordinator_origin->Serialize());
+  }
+  return out_config;
+}
+
+std::unique_ptr<Array<Storage::AttributionReportingNamedBudgetDef>>
+ToNamedBudgetDefs(
+    const attribution_reporting::AggregatableNamedBudgetDefs& budgets) {
+  auto out =
+      std::make_unique<Array<Storage::AttributionReportingNamedBudgetDef>>();
+  for (const auto& [name, budget] : budgets.budgets()) {
+    out->emplace_back(Storage::AttributionReportingNamedBudgetDef::Create()
+                          .SetName(name)
+                          .SetBudget(budget)
+                          .Build());
+  }
+  return out;
+}
+
+std::unique_ptr<Array<Storage::AttributionReportingNamedBudgetCandidate>>
+ToNamedBudgetCandidates(
+    const std::vector<attribution_reporting::AggregatableNamedBudgetCandidate>&
+        candidates) {
+  auto out = std::make_unique<
+      Array<Storage::AttributionReportingNamedBudgetCandidate>>();
+  for (const auto& candidate : candidates) {
+    auto& out_candidate = out->emplace_back(
+        Storage::AttributionReportingNamedBudgetCandidate::Create()
+            .SetFilters(ToFilterPair(candidate.filters()))
+            .Build());
+
+    if (const std::optional<std::string>& name = candidate.name()) {
+      out_candidate->SetName(*name);
+    }
+  }
+  return out;
+}
+
+}  // namespace
+
+void StorageHandler::OnSourceHandled(
+    const StorableSource& source,
+    base::Time source_time,
+    std::optional<uint64_t> cleared_debug_key,
+    attribution_reporting::mojom::StoreSourceResult result) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  const auto& registration = source.registration();
+
+  auto destination_sites = std::make_unique<Array<String>>();
+  for (const auto& site : registration.destination_set.destinations()) {
+    destination_sites->emplace_back(site.Serialize());
+  }
+
+  const auto& common_info = source.common_info();
+  const auto& aggregatable_debug_reporting_config =
+      registration.aggregatable_debug_reporting_config;
+  auto out_source =
+      Storage::AttributionReportingSourceRegistration::Create()
+          .SetTime(source_time.InSecondsFSinceUnixEpoch())
+          .SetType(
+              attribution_reporting::SourceTypeName(common_info.source_type()))
+          .SetSourceOrigin(common_info.source_origin()->Serialize())
+          .SetReportingOrigin(common_info.reporting_origin()->Serialize())
+          .SetDestinationSites(std::move(destination_sites))
+          .SetEventId(base::NumberToString(registration.source_event_id))
+          .SetPriority(base::NumberToString(registration.priority))
+          .SetFilterData(ToFilterDataEntries(registration.filter_data))
+          .SetAggregationKeys(
+              ToAggregationKeysEntries(registration.aggregation_keys))
+          .SetExpiry(registration.expiry.InSeconds())
+          .SetTriggerData(
+              ToTriggerData(registration.trigger_data.trigger_data()))
+          .SetEventReportWindows(
+              ToEventReportWindows(registration.event_report_windows))
+          .SetAggregatableReportWindow(
+              registration.aggregatable_report_window.InSeconds())
+          .SetTriggerDataMatching(
+              ToTriggerDataMatching(registration.trigger_data_matching))
+          .SetDestinationLimitPriority(
+              base::NumberToString(registration.destination_limit_priority))
+          .SetAggregatableDebugReportingConfig(
+              ToAggregatableDebugReportingConfig(
+                  aggregatable_debug_reporting_config.budget(),
+                  aggregatable_debug_reporting_config.config()))
+          .SetMaxEventLevelReports(registration.max_event_level_reports)
+          .SetNamedBudgets(
+              ToNamedBudgetDefs(registration.aggregatable_named_budget_defs))
+          .SetDebugReporting(registration.debug_reporting)
+          .SetEventLevelEpsilon(registration.event_level_epsilon)
+          .Build();
+
+  if (registration.debug_key.has_value()) {
+    out_source->SetDebugKey(base::NumberToString(*registration.debug_key));
+  }
+
+  if (const std::optional<attribution_reporting::AttributionScopesData>&
+          attribution_scopes_data = registration.attribution_scopes_data) {
+    out_source->SetScopesData(
+        Storage::AttributionScopesData::Create()
+            .SetValues(std::make_unique<Array<String>>(
+                attribution_scopes_data->attribution_scopes_set()
+                    .scopes()
+                    .begin(),
+                attribution_scopes_data->attribution_scopes_set()
+                    .scopes()
+                    .end()))
+            .SetLimit(attribution_scopes_data->attribution_scope_limit())
+            .SetMaxEventStates(attribution_scopes_data->max_event_states())
+            .Build());
+  }
+
+  frontend_->AttributionReportingSourceRegistered(
+      std::move(out_source), ToSourceRegistrationResult(result));
+}
+
+void StorageHandler::OnTriggerHandled(std::optional<uint64_t> cleared_debug_key,
+                                      const CreateReportResult& result) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  const auto& registration = result.trigger().registration();
+
+  auto out_trigger =
+      Storage::AttributionReportingTriggerRegistration::Create()
+          .SetFilters(ToFilterPair(registration.filters))
+          .SetAggregatableDedupKeys(
+              ToAggregatableDedupKeys(registration.aggregatable_dedup_keys))
+          .SetEventTriggerData(ToEventTriggerData(registration.event_triggers))
+          .SetAggregatableTriggerData(
+              ToAggregatableTriggerData(registration.aggregatable_trigger_data))
+          .SetAggregatableValues(
+              ToAggregatableValueEntries(registration.aggregatable_values))
+          .SetAggregatableFilteringIdMaxBytes(
+              registration.aggregatable_trigger_config
+                  .aggregatable_filtering_id_max_bytes()
+                  .value())
+          .SetDebugReporting(registration.debug_reporting)
+          .SetSourceRegistrationTimeConfig(ToSourceRegistrationTimeConfig(
+              registration.aggregatable_trigger_config
+                  .source_registration_time_config()))
+          .SetAggregatableDebugReportingConfig(
+              ToAggregatableDebugReportingConfig(
+                  /*budget=*/std::nullopt,
+                  registration.aggregatable_debug_reporting_config))
+          .SetScopes(std::make_unique<Array<String>>(
+              registration.attribution_scopes.scopes().begin(),
+              registration.attribution_scopes.scopes().end()))
+          .SetNamedBudgets(ToNamedBudgetCandidates(
+              registration.aggregatable_named_budget_candidates))
+          .Build();
+
+  if (registration.debug_key.has_value()) {
+    out_trigger->SetDebugKey(base::NumberToString(*registration.debug_key));
+  }
+  if (registration.aggregation_coordinator_origin.has_value()) {
+    out_trigger->SetAggregationCoordinatorOrigin(
+        registration.aggregation_coordinator_origin->Serialize());
+  }
+  if (registration.aggregatable_trigger_config.trigger_context_id()
+          .has_value()) {
+    out_trigger->SetTriggerContextId(
+        *registration.aggregatable_trigger_config.trigger_context_id());
+  }
+
+  frontend_->AttributionReportingTriggerRegistered(
+      std::move(out_trigger), ToEventLevelResult(result.event_level_status()),
+      ToAggregatableResult(result.aggregatable_status()));
+}
+
+void StorageHandler::OnReportSent(const AttributionReport& report,
+                                  bool is_debug_report,
+                                  const SendResult& result) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  std::optional<int> net_error;
+  std::optional<std::string> net_error_name;
+  std::optional<int> http_status_code;
+  Storage::AttributionReportingReportResult out_result = std::visit(
+      absl::Overload{
+          [&](SendResult::Sent result) {
+            if (result.status > 0) {
+              http_status_code = result.status;
+            } else {
+              net_error = result.status;
+              net_error_name = net::ErrorToShortString(result.status);
+            }
+            return Storage::AttributionReportingReportResultEnum::Sent;
+          },
+          [](SendResult::Dropped) {
+            return Storage::AttributionReportingReportResultEnum::Prohibited;
+          },
+          [](SendResult::Expired) {
+            return Storage::AttributionReportingReportResultEnum::Expired;
+          },
+          [](SendResult::AssemblyFailure) {
+            return Storage::AttributionReportingReportResultEnum::
+                FailedToAssemble;
+          },
+      },
+      result.result);
+
+  frontend_->AttributionReportingReportSent(
+      report.ReportURL(is_debug_report).spec(),
+      std::make_unique<base::DictValue>(report.ReportBody()), out_result,
+      net_error, std::move(net_error_name), http_status_code);
+}
+
+void StorageHandler::OnDebugReportSent(const AttributionDebugReport& report,
+                                       int status,
+                                       base::Time time) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  std::optional<int> net_error;
+  std::optional<std::string> net_error_name;
+  std::optional<int> http_status_code;
+
+  if (status > 0) {
+    http_status_code = status;
+  } else {
+    net_error = status;
+    net_error_name = net::ErrorToShortString(status);
+  }
+
+  auto body = std::make_unique<Array<base::DictValue>>();
+  for (const auto& item : report.ReportBody()) {
+    const auto* as_dict = item.GetIfDict();
+    CHECK(as_dict);
+    body->push_back(std::make_unique<base::DictValue>(as_dict->Clone()));
+  }
+
+  frontend_->AttributionReportingVerboseDebugReportSent(
+      report.ReportUrl().spec(), std::move(body), net_error,
+      std::move(net_error_name), http_status_code);
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+
+Response StorageHandler::SetAttributionReportingTracking(bool enable) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+  if (enable) {
+    auto* manager = GetAttributionManager();
+    if (!manager) {
+      return Response::ServerError("Attribution Reporting is disabled.");
+    }
+    // Prevent `DCHECK` crashes in `base::ScopedObservation::Observe()` when we
+    // are already observing.
+    if (!attribution_observation_.IsObserving()) {
+      attribution_observation_.Observe(manager);
+    }
+  } else {
+    attribution_observation_.Reset();
+  }
+  return Response::Success();
+#else
+  return Response::ServerError("Attribution Reporting is disabled.");
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+}
+
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+>>>>>>> parent of 3cfa4226e43 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void StorageHandler::NotifyInterestGroupAuctionEventOccurred(
     base::Time event_time,
     content::InterestGroupAuctionEventType type,
@@ -1772,11 +2643,13 @@ void StorageHandler::NotifyInterestGroupAuctionNetworkRequestCreated(
       type_enum, request_id,
       std::make_unique<std::vector<std::string>>(devtools_auction_ids));
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 Response StorageHandler::SetProtectedAudienceKAnonymity(
     const std::string& in_owner_origin,
     const std::string& in_group_name,
     std::unique_ptr<std::vector<Binary>> in_hashes) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   url::Origin owner_origin = url::Origin::Create(GURL(in_owner_origin));
 
   // Ensure we are in "test" mode.
@@ -1801,6 +2674,9 @@ Response StorageHandler::SetProtectedAudienceKAnonymity(
       /*update_time=*/base::Time::Now(),
       /*replace_existing_values=*/true);
   return Response::Success();
+#else
+  return Response::ServerError("Protected Audience not enabled");
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
 }  // namespace protocol

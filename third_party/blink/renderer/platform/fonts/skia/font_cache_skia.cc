@@ -226,6 +226,19 @@ const SimpleFontData* FontCache::GetLastResortFallbackFont(
     ++last_resort_fallback_attempt;
   }
 #endif
+#if BUILDFLAG(IS_COBALT)
+  if (!font_platform_data) {
+    // Fall back to the font manager's default family (empty family name maps
+    // to nullptr in CreateTypeface, which returns default_families_[0] in
+    // SkFontMgr_Cobalt) when the requested generic family (e.g. "monospace" or
+    // "serif" on platforms using the limited/minimal font package) and desktop
+    // fallbacks ("Sans", "Arial") are not present in fonts.xml.
+    DEFINE_THREAD_SAFE_STATIC_LOCAL(const FontFaceCreationParams,
+                                    default_creation_params, (g_empty_atom));
+    font_platform_data = GetFontPlatformData(
+        description, default_creation_params, AlternateFontName::kLastResort);
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN)
   if (!font_platform_data) {
