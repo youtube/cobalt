@@ -335,6 +335,7 @@ void CreateReportingServiceProxyForDedicatedWorker(
       std::move(receiver));
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 void CreateReportingServiceProxyForSharedStorageWorklet(
     SharedStorageWorkletHost* shared_storage_worklet_host,
     mojo::PendingReceiver<blink::mojom::ReportingServiceProxy> receiver) {
@@ -354,5 +355,6 @@ void CreateReportingServiceProxyForSharedStorageWorklet(
               network_isolation_key)),
       std::move(receiver));
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 
 }  // namespace content

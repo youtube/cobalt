@@ -24,6 +24,12 @@
 #include "components/update_client/utils.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/notreached.h"
+
+// TODO(b/448186580): Replace LOG with D(V)LOG
+#endif
+
 namespace update_client {
 
 namespace {
@@ -83,6 +89,9 @@ base::OnceClosure RequestSender::Send(
     bool use_signing,
     RequestSenderCallback request_sender_callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  LOG(INFO) << "RequestSender::Send";
+#endif
 
   urls_ = urls;
   request_extra_headers_ = request_extra_headers;
@@ -139,6 +148,15 @@ void RequestSender::SendInternal() {
       base::DoNothing(),
       base::BindOnce(&RequestSender::OnNetworkFetcherComplete, this, url));
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+void RequestSender::Cancel() {
+  LOG(INFO) << "RequestSender::Cancel";
+  if (network_fetcher_.get()) {
+    network_fetcher_->Cancel();
+  }
+}
+#endif
 
 void RequestSender::SendInternalComplete(
     int error,
@@ -199,6 +217,9 @@ void RequestSender::OnNetworkFetcherComplete(
     const std::string& header_set_cookie,
     int64_t xheader_retry_after_sec) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  LOG(INFO) << "RequestSender::OnNetworkFetcherComplete";
+#endif
 
   VLOG(1) << "Request completed from url: " << original_url.spec();
 
@@ -246,12 +267,14 @@ GURL RequestSender::BuildUpdateUrl(const GURL& url,
   return url.ReplaceComponents(replacements);
 }
 
+#if !BUILDFLAG(IS_STARBOARD)
 void RequestSender::Cancel() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   HandleSendError(static_cast<int>(ServiceError::CANCELLED), 0);
   network_fetcher_.reset();
   fetcher_factory_.reset();
 }
+#endif
 
 RequestSender::RequestSenderCallback
 RequestSender::TakeRequestSenderCallback() {

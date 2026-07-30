@@ -10,6 +10,7 @@ import("//build/config/coverage/coverage.gni")
 import("//build/config/gclient_args.gni")
 import("//build/config/python.gni")
 import("//build_overrides/build.gni")
+import("//starboard/build/config/android_toolchain.gni")
 
 if (build_with_chromium) {
   import("//base/allocator/partition_allocator/partition_alloc.gni")
@@ -223,7 +224,7 @@ group("test_runner_device_support") {
 
   # Other //build users let devil library fetch these from Google Storage.
   if (build_with_chromium) {
-    if (!is_component_build) {
+    if (!is_component_build && !is_starboard) {
       data_deps += [ "//tools/android/forwarder2" ]
     }
     data += [ "//tools/android/avd/proto/" ]
@@ -277,9 +278,9 @@ group("stack_tools") {
   }
 }
 
-# GN evaluates each .gn file once per toolchain, so restricting to default
+# GN evaluates each .gn file once per toolchain, so restricting to the android
 # toolchain will ensure write_file() is called only once.
-assert(current_toolchain == default_toolchain)
+assert(current_toolchain == android_toolchain)
 
 # NOTE: If other platforms would benefit from exporting variables, we should
 # move this to a more top-level place.

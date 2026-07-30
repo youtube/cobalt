@@ -148,8 +148,11 @@ void MediaDevicesDispatcherHost::EnumerateDevices(
   MediaDevicesManager::BoolDeviceTypes devices_to_enumerate;
   devices_to_enumerate[static_cast<size_t>(MediaDeviceType::kMediaAudioInput)] =
       request_audio_input;
+// Starboard doesn't support video input.
+#if !BUILDFLAG(IS_STARBOARD)
   devices_to_enumerate[static_cast<size_t>(MediaDeviceType::kMediaVideoInput)] =
       request_video_input;
+#endif
   devices_to_enumerate[static_cast<size_t>(MediaDeviceType::kMediaAudioOutput)] =
       request_audio_output;
 
@@ -313,7 +316,6 @@ void MediaDevicesDispatcherHost::SetCaptureHandleConfig(
           render_frame_host_id_, std::move(config)));
 }
 
-#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 void MediaDevicesDispatcherHost::CloseFocusWindowOfOpportunity(
     const std::string& label) {
   media_stream_manager_->SetCapturedDisplaySurfaceFocus(
@@ -325,7 +327,12 @@ void MediaDevicesDispatcherHost::CloseFocusWindowOfOpportunity(
 void MediaDevicesDispatcherHost::ProduceSubCaptureTargetId(
     media::mojom::SubCaptureTargetType type,
     ProduceSubCaptureTargetIdCallback callback) {
+<<<<<<< HEAD
   CHECK_CURRENTLY_ON(BrowserThread::IO, base::NotFatalUntil::M152);
+=======
+#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
+  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+>>>>>>> parent of d4d21cea468 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
@@ -348,8 +355,10 @@ void MediaDevicesDispatcherHost::ProduceSubCaptureTargetId(
           },
           render_frame_host_id_, type),
       std::move(callback));
-}
+#else
+  std::move(callback).Run(std::string());
 #endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
+}
 
 void MediaDevicesDispatcherHost::SetPreferredSinkId(
     const std::string& hashed_sink_id,
