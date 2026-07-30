@@ -34,6 +34,7 @@ class AndroidTabStripModelAdapter : public TabStripModelAdapter {
   types::TabStates GetTabStates(tabs::TabHandle) const override;
   const ui::ColorProvider& GetColorProvider() const override;
   void CloseTab(size_t tab_index) override;
+  void CloseTabGroup(const tab_groups::TabGroupId& group_id) override;
   std::optional<int> GetIndexForHandle(
       tabs::TabHandle tab_handle) const override;
   void ActivateTab(size_t index) override;
@@ -66,8 +67,11 @@ class AndroidTabStripModelAdapter : public TabStripModelAdapter {
   std::string GetWindowId() const override;
 
  private:
+  friend class AndroidTabStripApiBrowserTest;
+  static base::PassKey<AndroidTabStripModelAdapter> GetPassKey();
+
   raw_ref<TabModel> model_;
-  std::unique_ptr<tabs::TabCollection> fake_root_;
+  raw_ptr<tabs::TabStripCollection> root_;
 };
 
 }  // namespace tabs_api

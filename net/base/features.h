@@ -193,6 +193,10 @@ NET_EXPORT BASE_DECLARE_FEATURE(kSplitCodeCacheByNetworkIsolationKey);
 // See https://github.com/MattMenke2/Explainer---Partition-Network-State.
 NET_EXPORT BASE_DECLARE_FEATURE(kPartitionConnectionsByNetworkIsolationKey);
 
+// Splits HostCache and DNS resolution requests by the request's
+// NetworkAnonymizationKey if one is available.
+NET_EXPORT BASE_DECLARE_FEATURE(kSplitHostCacheByNetworkAnonymizationKey);
+
 // Changes the interval between two search engine preconnect attempts.
 NET_EXPORT BASE_DECLARE_FEATURE(kSearchEnginePreconnectInterval);
 
@@ -767,6 +771,15 @@ NET_EXPORT BASE_DECLARE_FEATURE(kTryQuicByDefault);
 // value represented in ASCII equivalent e.g. EXMP). To set multiple features,
 // separate the values with a comma (e.g. "ABCD,EFGH").
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string, kQuicOptions);
+
+// When enabled, allows the browser to ignore IP matching and rely on
+// the hostname being present in the existing session's certificate when
+// connection coalescing.
+NET_EXPORT BASE_DECLARE_FEATURE(kIgnoreIpMatching);
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string, kNoIPQuicOption);
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kIgnoreIpMatchingWhenFindingExistingSessions);
 
 NET_EXPORT BASE_DECLARE_FEATURE(kDnsResponseDiscardPartialQuestions);
 

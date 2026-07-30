@@ -56,6 +56,7 @@
 <translation id="1639380494700489405">Per chiedere in AI Mode informazioni sulla tua scheda senza uscire dalla pagina, accedi a Chromium. Potrai anche usare le password e altri dati su tutti i tuoi dispositivi.</translation>
 <translation id="1640672724030957280">Download in corso...</translation>
 <translation id="1680687534629375545">Chiedi alla Ricerca immagini informazioni su questa pagina</translation>
+<translation id="1708414395296835197">Puoi usare Chromium ogni volta che fai clic sui link in messaggi, documenti e altre app. Verrà anche fissato sulla barra delle app.</translation>
 <translation id="1709772298389099340">Fornisce privilegi elevati per <ph name="BROWSER_NAME" />.</translation>
 <translation id="1715127912119967311">Per contribuire a migliorare queste funzionalità, Chromium invia le tue interazioni a Google. Questi dati potrebbero essere letti, elaborati e annotati da revisori.</translation>
 <translation id="1722488837206509557">In questo modo potrai selezionare i dispositivi disponibili su cui visualizzare i contenuti.</translation>
@@ -226,7 +227,6 @@
 <translation id="3313189106987092621">Chromium ti avvisa prima di caricare qualsiasi sito che utilizza una connessione non sicura</translation>
 <translation id="3316771292331273802">Quando chiudi tutte le finestre di Chromium, uscirai dalla maggior parte dei siti, ma se hai eseguito l'accesso a Chromium non uscirai dal tuo Account Google. Per consentire ai siti di memorizzare le tue informazioni, <ph name="SETTINGS_LINK" />.</translation>
 <translation id="3322413454779348750">Il motore di ricerca predefinito è stato modificato dall'esterno di Chromium. Per proteggerti, Chromium l'ha reimpostato.</translation>
-<translation id="3331557257666250900">Accedi a Chromium per trovare le password, i preferiti e altri dati su tutti i tuoi dispositivi</translation>
 <translation id="3352986031709923790">angolo in alto a destra dell'area di ricerca: destra <ph name="RIGHT" />%, in alto <ph name="TOP" />%</translation>
 <translation id="3366305173356742781">Dati di Chromium nel tuo account</translation>
 <translation id="3369405342922656244">Cerca in questa pagina con la Ricerca immagini</translation>
@@ -437,6 +437,7 @@
 <translation id="5895138241574237353">Riavvia</translation>
 <translation id="5903106910045431592"><ph name="PAGE_TITLE" /> - Accesso rete</translation>
 <translation id="5924017743176219022">Connessione a Internet in corso…</translation>
+<translation id="5939553720811388432">Preparati a usare Chromium</translation>
 <translation id="5941711191222866238">Riduci a icona</translation>
 <translation id="5949225980829865667">Accedi a Chromium per trovare questo preferito e altro su tutti i tuoi dispositivi</translation>
 <translation id="5953657885167112863">Rendi Chromium personale</translation>

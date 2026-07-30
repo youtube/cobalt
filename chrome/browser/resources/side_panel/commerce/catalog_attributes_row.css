@@ -1,0 +1,43 @@
+/* Copyright 2026 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+/* #css_wrapper_metadata_start
+ * #type=style-lit
+ * #import=chrome://resources/cr_elements/cr_hidden_style_lit.css.js
+ * #import=chrome://resources/cr_elements/cr_icons_lit.css.js
+ * #import=chrome://resources/cr_elements/cr_shared_vars.css.js
+ * #include=cr-icons-lit cr-hidden-style-lit
+ * #css_wrapper_metadata_end */
+
+  :host {
+    display: flex;
+  }
+
+  #attributesRow {
+    flex-direction: row;
+    display: flex;
+    max-width: 100%;
+  }
+
+  .attributes {
+    overflow: hidden;
+    margin-right: 4px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .link {
+    color: var(--cr-link-color);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  cr-icon {
+    --icon-size: 14px;
+    fill: var(--cr-link-color);
+    border-radius: 0;
+    margin-left: 4px;
+    height: var(--icon-size);
+    width: var(--icon-size);
+  }

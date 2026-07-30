@@ -413,22 +413,6 @@ Per ulteriori informazioni sui contesti sicuri, visita il sito Secure Contexts: 
 <translation id="1317158052518324525">Non consentire la compilazione automatica avanzata.</translation>
 <translation id="1317658068839330898">Non consentire l'utilizzo di <ph name="ASSISTANT_PRODUCT_NAME" /> sul Web</translation>
 <translation id="1318233005302276244">Consente agli utenti di tracciare i propri pacchi su Chrome.</translation>
-<translation id="1321747583289636863">La configurazione della policy consente di specificare il numero massimo di connessioni contemporanee al server proxy per le richieste WebSocket.
-
-Per modificare i limiti delle richieste non WebSocket, consulta <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" />.
-
-Se la policy non viene configurata, viene utilizzato il valore predefinito 32.
-
-Alcune app web sono note per richiedere molte connessioni con Hanging-GET, pertanto impostare un valore inferiore a 32 potrebbe causare interruzioni di rete del browser se sono aperte troppe app web di questo tipo.
-Alcuni server proxy non riescono a gestire un numero elevato di connessioni contemporanee per client, ma è sufficiente impostare la policy su un numero inferiore per risolvere questo problema.
-
-Il valore deve essere uguale o superiore a 6.
-Se imposti un valore inferiore a questo limite, verrà utilizzato 6.
-È sconsigliato utilizzare un valore inferiore a quello predefinito (32).
-
-Il valore deve essere uguale o inferiore a 256.
-Se imposti un valore superiore a questo limite, verrà utilizzato 256.
-È sconsigliato utilizzare un valore superiore a quello predefinito (32).</translation>
 <translation id="1323501563951768821">Le impostazioni di F12 usano la scorciatoia che contiene il tasto di modifica Maiusc</translation>
 <translation id="1325547947664414578">Quando un utente passa da un dispositivo <ph name="PRODUCT_OS_NAME" /> a un altro dello stesso tipo, il servizio <ph name="PRODUCT_NAME" /> avvia le finestre del browser e delle app del dispositivo precedente su quello nuovo.
 Se la policy viene attivata, le finestre del browser e delle app verranno avviate automaticamente al momento dell'accesso dall'ultimo dispositivo <ph name="PRODUCT_OS_NAME" /> utilizzato dall'utente corrente.
@@ -4973,7 +4957,6 @@ Se la policy viene attivata o se non viene configurata, gli utenti con password 
 Se la policy viene disattivata, i dati del gestore delle password degli utenti rimangono invariati, ma la funzionalità del gestore delle password non funziona.
 
 Se la policy viene configurata, gli utenti non possono modificarla in <ph name="PRODUCT_NAME" />.</translation>
-<translation id="4321788213579606602">Numero massimo di connessioni contemporanee al server proxy per richieste non WebSocket</translation>
 <translation id="4322842393287974810">Consenti all'app kiosk avviata automaticamente senza ritardo di controllare la versione di <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="4323412353642577604">Attiva l'attestazione da remoto per la protezione dei contenuti</translation>
 <translation id="4325690621216251241">Aggiungi un pulsante di disconnessione all'area di notifica</translation>
@@ -6461,6 +6444,7 @@ Questa policy supporta l'aggiornamento dinamico.
 Si tratta di una misura temporanea e verrà rimossa nelle future versioni di <ph name="PRODUCT_NAME" />.</translation>
 <translation id="5212810195096589189">Specifica l'autorizzazione per l'interfaccia a riga di comando delle macchine virtuali</translation>
 <translation id="5213038356678567351">Siti web che non devono mai attivare il cambio di browser.</translation>
+<translation id="5216710229085956333">Attiva la cancellazione del rumore di Krisp</translation>
 <translation id="5216815237712190041">Configura l'immagine di sfondo a livello di dispositivo da mostrare nella schermata di accesso se ancora nessun utente ha effettuato l'accesso al dispositivo. La policy viene impostata specificando l'URL da cui il dispositivo ChromeOS può scaricare l'immagine di sfondo e un hash crittografico utilizzato per verificare l'integrità del download. L'immagine deve essere in formato JPEG e avere dimensioni non superiori a 16 MB. L'URL deve essere accessibile senza autenticazione. L'immagine di sfondo viene scaricata e memorizzata nella cache. Verrà scaricata nuovamente ogni volta che l'URL o l'hash cambiano.
 
       Se la policy dello sfondo del dispositivo viene configurata, il dispositivo ChromeOS scarica e utilizza l'immagine di sfondo nella schermata di accesso se ancora nessun utente ha effettuato l'accesso al dispositivo. Quando un utente esegue l'accesso, si attiva la policy dello sfondo dell'utente.
@@ -6586,6 +6570,22 @@ Se non viene configurata, il valore predefinito è 0 e gli utenti sono liberi di
 <translation id="5293285950307241933">Cancella tutti i dati utente locali</translation>
 <translation id="5293619885162445352">Consenti a <ph name="PEPPER_NAME" /> di usare il nuovo decodificatore video.</translation>
 <translation id="529457411593078576">Attiva i TdS alla prima esecuzione di CCT</translation>
+<translation id="529718811410033393">La configurazione della policy consente di specificare il numero massimo di connessioni contemporanee per server proxy per le richieste non WebSocket.
+
+Per modificare i limiti delle richieste WebSocket, consulta <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />.
+
+Se la policy non viene configurata, viene utilizzato il valore predefinito 32.
+
+Alcune app web sono note per richiedere molte connessioni con Hanging-GET, pertanto impostare un valore inferiore a 32 potrebbe causare interruzioni di rete del browser se sono aperte troppe app web di questo tipo.
+Alcuni server proxy non riescono a gestire un numero elevato di connessioni contemporanee per client, ma è sufficiente impostare la policy su un numero inferiore per risolvere questo problema.
+
+Il valore deve essere uguale o superiore a 6.
+Se imposti un valore inferiore a questo limite, verrà utilizzato 6.
+È sconsigliato utilizzare un valore inferiore a quello predefinito (32).
+
+Il valore deve essere uguale o inferiore a 256 (99 in <ph name="PRODUCT_NAME" /> 147 e versioni precedenti).
+Se imposti un valore superiore a questo limite, verrà utilizzato 256 (99 in <ph name="PRODUCT_NAME" /> 147 e versioni precedenti).
+È sconsigliato utilizzare un valore superiore a quello predefinito (32).</translation>
 <translation id="5297873769621042075">Questa policy consente di specificare un elenco di nomi host o pattern di nomi host (ad esempio "[*.]example.com") che non verranno aggiornati a HTTPS e non mostreranno un interstitial di errore se viene attivata la modalità HTTPS-First. Le organizzazioni possono utilizzare questa policy per mantenere l'accesso ai server che non supportano HTTPS, senza dover disattivare gli upgrade a HTTPS e/o la modalità HTTPS-First.
 
 I nomi host indicati devono essere canonicalizzati: ogni IDN deve essere convertito nel relativo formato A-label e tutte le lettere ASCII devono essere minuscole.
@@ -6870,6 +6870,7 @@ le scorciatoie basate sul tasto Ricerca saranno quelle predefinite.</translation
 <translation id="5479841110985196412">Attiva tastiera virtuale di accessibilità</translation>
 <translation id="5480380613778757009">Se questa policy viene disattivata o se non viene configurata, tutte le impostazioni di visualizzazione configurate nella sessione Ospite gestita verranno reimpostate al termine della sessione. Se questa policy viene impostata su True, le proprietà di visualizzazione verranno memorizzate dopo la chiusura della sessione Ospite gestita.</translation>
 <translation id="548137908954174608">Attiva Sottotitoli in tempo reale</translation>
+<translation id="5481873128882951841">Disattiva la cancellazione del rumore di Krisp</translation>
 <translation id="5483012943408894695">Origini o pattern di nomi host a cui non dovrebbero essere applicate limitazioni previste per le origini non sicure.</translation>
 <translation id="5483065054530244863">Consenti i certificati SHA-1 firmati emessi dai trust anchor locali</translation>
 <translation id="5485491014653571963">Questa impostazione consente le integrazioni delle app Gemini.
@@ -7322,6 +7323,7 @@ Se questa policy viene disattivata o se non viene configurata, i Glanceables non
       I Vital Product Data (VPD) sono una raccolta di dati informativi e di configurazione (come numeri di serie o di componenti) associati al dispositivo.</translation>
 <translation id="5760861224093391268">Disattiva l'autenticazione proprietaria quando invii segnalazioni di indicatori di sicurezza dell'utente</translation>
 <translation id="5762969307102447459">Disattiva la compilazione automatica per gli indirizzi</translation>
+<translation id="5763723496957591166">Numero massimo di connessioni contemporanee per server proxy per le richieste WebSocket</translation>
 <translation id="5765780083710877561">Descrizione:</translation>
 <translation id="5766438888216077649">Non impostare <ph name="WINDOW_OPENER_PROPERTY" /> per i link indirizzati alla pagina <ph name="BLANK_PAGE_NAME" /></translation>
 <translation id="5767776869128458023">Disattiva pagine di errore sostitutive</translation>
@@ -7769,7 +7771,6 @@ Se il valore viene impostato su false, non potranno accedere alla funzionalità.
 <translation id="6075316301208933536">Se la policy <ph name="DEVICE_BATTERY_CHARGE_MODE_POLICY_NAME" /> viene impostata su <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_MODE_NAME" />, la configurazione di <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" /> consente di personalizzare quando viene interrotta la ricarica della batteria, in base alla percentuale di carica. Il valore della policy <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_START_CHARGING_POLICY_NAME" /> deve essere inferiore di almeno 5 punti percentuali rispetto a quello della policy <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" />.
 
       Se la policy non viene configurata, viene applicata la modalità di ricarica della batteria di <ph name="DEVICE_BATTERY_CHARGE_STANDARD_MODE_NAME" />.</translation>
-<translation id="6080808146443476891">Numero massimo di connessioni contemporanee al server proxy per le richieste WebSocket</translation>
 <translation id="6082161804984853051">L'impostazione della policy determina l'utilizzo da parte di <ph name="PRODUCT_NAME" /> della directory che fornisci per l'archiviazione dei file memorizzati nella cache sul disco, indipendentemente dalla specificazione del flag --disk-cache-dir da parte degli utenti.
 
       Se la policy non viene impostata, <ph name="PRODUCT_NAME" /> utilizza la directory della cache predefinita, ma gli utenti possono modificare l'impostazione tramite il flag della riga di comando --disk-cache-dir.
@@ -9750,6 +9751,7 @@ Il supporto di questa impostazione delle policy terminerà con <ph name="PRODUCT
 
       Se questa norma non viene impostata o viene lasciata vuota, l'utente potrà impostare qualsiasi Account Google come account principale del browser in <ph name="PRODUCT_NAME" />.</translation>
 <translation id="723103540848640830">Imposta la lunghezza minima del PIN per la schermata di blocco</translation>
+<translation id="7231449913899026849">Numero massimo di connessioni contemporanee per server proxy per richieste non WebSocket</translation>
 <translation id="7234280155140786597">Nomi degli host di messaggi nativi vietati (o * per indicarli tutti)</translation>
 <translation id="723621412149834592">Se la policy viene impostata su <ph name="BLOCK_WINDOW_PLACEMENT_POLICY_NAME" /> (valore 2), per impostazione predefinita viene automaticamente negata ai siti l'autorizzazione per il posizionamento delle finestre. Ciò limiterà la capacità dei siti di vedere le informazioni relative alle schermate del dispositivo e di utilizzare quelle informazioni per aprire e posizionare finestre oppure per richiedere lo schermo intero su schermate specifiche.
 
@@ -10213,6 +10215,22 @@ Se la policy viene lasciata vuota, non sono consentite eccezioni a <ph name="FLO
 
       Se il dispositivo dell'utente non è gestito, la disponibilità di questa funzionalità dipende anche dal fatto che l'utente sia o meno il proprietario del dispositivo.</translation>
 <translation id="7570291542739287032">Solo Google Cloud</translation>
+<translation id="7571158727244273239">La configurazione della policy consente di specificare il numero massimo di connessioni contemporanee per server proxy per le richieste WebSocket.
+
+Per modificare i limiti delle richieste non WebSocket, consulta <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" />.
+
+Se la policy non viene configurata, viene utilizzato il valore predefinito 32.
+
+Alcune app web sono note per richiedere molte connessioni con Hanging-GET, pertanto impostare un valore inferiore a 32 potrebbe causare interruzioni di rete del browser se sono aperte troppe app web di questo tipo.
+Alcuni server proxy non riescono a gestire un numero elevato di connessioni contemporanee per client, ma è sufficiente impostare la policy su un numero inferiore per risolvere questo problema.
+
+Il valore deve essere uguale o superiore a 6.
+Se imposti un valore inferiore a questo limite, verrà utilizzato 6.
+È sconsigliato utilizzare un valore inferiore a quello predefinito (32).
+
+Il valore deve essere uguale o inferiore a 256.
+Se imposti un valore superiore a questo limite, verrà utilizzato 256.
+È sconsigliato utilizzare un valore superiore a quello predefinito (32).</translation>
 <translation id="7572641760104970905">Nessuna complessità</translation>
 <translation id="757395965347379751">Quando questa impostazione è attivata, <ph name="PRODUCT_NAME" /> consente l'utilizzo dei certificati SHA-1 firmati che sono convalidati e concatenati a certificati CA installati localmente.
 
@@ -10745,6 +10763,12 @@ Questa policy non avrà alcun effetto se la policy <ph name="SCREENSAVER_LOCK_SC
 
       Per impostazione predefinita, un'estensione o un'app per Android non può utilizzare una chiave destinata all'uso aziendale, il che equivale a impostare la policy allowCorporateKeyUsage su False per questa estensione. Solo se la policy allowCorporateKeyUsage viene impostata su True per un'estensione o un'app per Android può utilizzare qualsiasi platform key contrassegnata per uso aziendale per firmare dati arbitrari. L'autorizzazione viene concessa solo se l'estensione o l'app per Android viene considerata protetta dall'accesso alla chiave di potenziali attaccanti.</translation>
 <translation id="7928412788382651939">Consenti il raggruppamento delle finestre in sovraimpressione con AI generativa e migliora i modelli di AI.</translation>
+<translation id="7929417323335013269">Questa policy consente di controllare la tecnologia di cancellazione del rumore AI di Krisp sul dispositivo.
+È integrata come libreria locale di terze parti separata in <ph name="PRODUCT_OS_NAME" /> ed è disponibile solo per gli utenti gestiti.
+
+Se la policy viene impostata su Attivata, viene attivata l'elaborazione audio con cancellazione del rumore AI di Krisp e gli utenti non possono disattivarla.
+
+Se la policy viene impostata su Disattivata o se non viene configurata, l'elaborazione audio con cancellazione del rumore AI di Krisp viene disattivata.</translation>
 <translation id="7930383470029339167">ThrottleDisplayNoneAndVisibilityHiddenCrossOriginIframes è una funzionalità di Chrome progettata per rendere uniforme il comportamento di rendering degli iframe multiorigine tra più processi e nello stesso processo. Per ulteriori informazioni sulla limitazione relativa a più processi e allo stesso processo, visita la pagina https://chromestatus.com/feature/5175574929080320.
 
 Questa policy aziendale consente agli amministratori di stabilire se gli utenti possono attivare o meno la limitazione aggiuntiva. Se la policy viene impostata su disabled, non è possibile attivare la limitazione. Se la policy viene impostata su enabled o se non viene configurata, l'utente può attivare la limitazione oppure quest'ultima potrebbe essere attivata tramite varianti di Chrome.</translation>
@@ -11232,22 +11256,6 @@ La funzionalità sarà disponibile soltanto sul canale Canary.
 
 Se la policy viene attivata o se non viene configurata, la pagina sarà accessibile.
 Se la policy viene disattivata, la pagina verrà bloccata.</translation>
-<translation id="8264002158987842436">La configurazione della policy consente di specificare il numero massimo di connessioni simultanee al server proxy per le richieste non WebSocket.
-
-Per modificare i limiti delle richieste WebSocket, consulta <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />.
-
-Se la policy non viene configurata, viene utilizzato il valore predefinito 32.
-
-Alcune app web sono note per richiedere molte connessioni con Hanging-GET, pertanto impostare un valore inferiore a 32 potrebbe causare interruzioni di rete del browser se sono aperte troppe app web di questo tipo.
-Alcuni server proxy non riescono a gestire un numero elevato di connessioni contemporanee per client, ma è sufficiente impostare la policy su un numero inferiore per risolvere questo problema.
-
-Il valore deve essere uguale o superiore a 6.
-Se imposti un valore inferiore a questo limite, verrà utilizzato 6.
-È sconsigliato utilizzare un valore inferiore a quello predefinito (32).
-
-Il valore deve essere uguale o inferiore a 256 (99 in <ph name="PRODUCT_NAME" /> 147 e versioni precedenti).
-Se imposti un valore superiore a questo limite, verrà utilizzato 256 (99 in <ph name="PRODUCT_NAME" /> 147 e versioni precedenti).
-È sconsigliato utilizzare un valore superiore a quello predefinito (32).</translation>
 <translation id="8266778278542911985">Se la policy viene impostata su 3, i siti web possono chiedere l'accesso alle porte seriali. Se la policy viene impostata su 2, l'accesso alle porte seriali viene negato.
 
       Se non viene configurata, i siti web possono richiedere l'accesso, ma gli utenti possono modificare l'impostazione.</translation>

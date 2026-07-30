@@ -69,6 +69,14 @@ OpenXrExtensionHandlerFactory::CreateUnboundedSpaceProvider() const {
   return nullptr;
 }
 
+std::unique_ptr<OpenXrMeshManager>
+OpenXrExtensionHandlerFactory::CreateMeshManager(
+    const OpenXrExtensionHelper& extension_helper,
+    XrSession session,
+    XrSpace mojo_space) const {
+  return nullptr;
+}
+
 bool OpenXrExtensionHandlerFactory::AreAllRequestedExtensionsSupported(
     const OpenXrExtensionEnumeration* extension_enum) const {
   return std::ranges::all_of(

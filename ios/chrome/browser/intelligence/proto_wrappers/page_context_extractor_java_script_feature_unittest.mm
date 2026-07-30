@@ -10,11 +10,13 @@
 #import "base/strings/string_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
+#import "base/test/scoped_feature_list.h"
 #import "base/test/test_future.h"
 #import "base/test/values_test_util.h"
 #import "base/time/time.h"
 #import "base/values.h"
 #import "components/optimization_guide/proto/features/common_quality_data.pb.h"
+#import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/testing/embedded_test_server_handlers.h"
 #import "ios/web/public/js_messaging/java_script_feature_util.h"
@@ -45,14 +47,22 @@ const char kIframe2Html[] =
     "<html><head><title>Child 2</title></head><body><p>Child frame 2 "
     "text</p></body></html>";
 
+// The IPC extraction method used to fetch the page context data.
+enum class IPCExtractionMethod { kNative, kJSON };
+
 }  // namespace
 
-class PageContextExtractorJavaScriptFeatureTest : public PlatformTest {
+class PageContextExtractorJavaScriptFeatureTest
+    : public PlatformTest,
+      public ::testing::WithParamInterface<IPCExtractionMethod> {
  protected:
   PageContextExtractorJavaScriptFeatureTest()
       : web_client_(std::make_unique<web::FakeWebClient>()) {}
 
   void SetUp() override {
+    if (GetParam() == IPCExtractionMethod::kJSON) {
+      scoped_feature_list_.InitAndEnableFeature(kPageContextIPCOptimization);
+    }
     PlatformTest::SetUp();
 
     browser_state_ = TestProfileIOS::Builder().Build();
@@ -86,15 +96,50 @@ class PageContextExtractorJavaScriptFeatureTest : public PlatformTest {
     return PageContextExtractorJavaScriptFeature::GetInstance();
   }
 
+  // Run the extraction according to the test parameter.
+  // TODO(crbug.com/495446456): Clean up once the JSON experiment is done.
+  std::optional<base::Value> RunExtraction(
+      web::WebFrame* frame,
+      bool include_cross_origin_frame_content,
+      bool use_rich_extraction,
+      bool use_rich_extraction_with_actionable,
+      bool extract_paid_content,
+      bool attempt_paid_content_json_fixing,
+      const std::string& nonce,
+      base::TimeDelta timeout) {
+    base::test::TestFuture<std::optional<base::Value>> future;
+    if (GetParam() == IPCExtractionMethod::kNative) {
+      feature()->ExtractPageContext(
+          frame, include_cross_origin_frame_content, use_rich_extraction,
+          use_rich_extraction_with_actionable, extract_paid_content,
+          attempt_paid_content_json_fixing, nonce, timeout,
+          base::BindOnce(
+              [](base::OnceCallback<void(std::optional<base::Value>)> callback,
+                 const base::Value* value) {
+                std::move(callback).Run(
+                    value ? std::make_optional(value->Clone()) : std::nullopt);
+              },
+              future.GetCallback()));
+    } else {
+      feature()->ExtractPageContextJSON(
+          frame, include_cross_origin_frame_content, use_rich_extraction,
+          use_rich_extraction_with_actionable, extract_paid_content,
+          attempt_paid_content_json_fixing, nonce, timeout,
+          future.GetCallback());
+    }
+    return future.Take();
+  }
+
   web::ScopedTestingWebClient web_client_;
   web::WebTaskEnvironment task_environment_;
   std::unique_ptr<TestProfileIOS> browser_state_;
   std::unique_ptr<web::WebState> web_state_;
   net::EmbeddedTestServer test_server_;
   net::EmbeddedTestServer xorigin_test_server_;
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-TEST_F(PageContextExtractorJavaScriptFeatureTest,
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
        ExtractPageContextWithCrossOriginFrames) {
   const std::string main_html =
       base::StrCat({"<html><head><title>Main</title></head><body><p>Main frame "
@@ -105,35 +150,28 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
                       test_server_.GetURL(kMainPagePath), web_state());
 
-  base::Value result_value;
-
-  base::RunLoop run_loop;
-  feature()->ExtractPageContext(
+  std::optional<base::Value> result_value = RunExtraction(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/true,
       /*use_rich_extraction=*/false,
       /*use_rich_extraction_with_actionable=*/false,
       /*extract_paid_content=*/false,
       /*attempt_paid_content_json_fixing=*/false, "nonce",
-      base::Milliseconds(100),
-      base::BindOnce(
-          [](base::RunLoop* r, base::Value* result_value,
-             const base::Value* value) {
-            *result_value = value->Clone();
-            r->Quit();
-          },
-          &run_loop, &result_value));
-  run_loop.Run();
+      base::Milliseconds(100));
+
+  ASSERT_TRUE(result_value);
+  ASSERT_TRUE(result_value->is_dict());
 
   // We expect the child to have a remoteToken.
-  const base::ListValue* children = result_value.GetDict().FindList("children");
+  const base::ListValue* children =
+      result_value->GetDict().FindList("children");
   ASSERT_TRUE(children);
   ASSERT_EQ(1u, children->size());
   const base::Value& child = (*children)[0];
   EXPECT_TRUE(child.GetDict().FindString("remoteToken"));
 }
 
-TEST_F(PageContextExtractorJavaScriptFeatureTest, ExtractPageContext) {
+TEST_P(PageContextExtractorJavaScriptFeatureTest, ExtractPageContext) {
   const std::string main_html =
       base::StrCat({"<html><head><title>Main</title></head><body><p>Main frame "
                     "text</p><iframe "
@@ -143,25 +181,17 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest, ExtractPageContext) {
   web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
                       test_server_.GetURL(kMainPagePath), web_state());
 
-  base::Value result_value;
-
-  base::RunLoop run_loop;
-  feature()->ExtractPageContext(
+  std::optional<base::Value> result_value = RunExtraction(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/false,
       /*use_rich_extraction_with_actionable=*/false,
       /*extract_paid_content=*/false,
       /*attempt_paid_content_json_fixing=*/false, "nonce",
-      base::Milliseconds(100),
-      base::BindOnce(
-          [](base::RunLoop* r, base::Value* result_value,
-             const base::Value* value) {
-            *result_value = value->Clone();
-            r->Quit();
-          },
-          &run_loop, &result_value));
-  run_loop.Run();
+      base::Milliseconds(100));
+
+  ASSERT_TRUE(result_value);
+  ASSERT_TRUE(result_value->is_dict());
 
   base::Value expected_value(
       base::DictValue()
@@ -182,10 +212,10 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest, ExtractPageContext) {
                               .Set("sourceUrl",
                                    test_server_.GetURL(kIframe2Path).spec()))));
 
-  EXPECT_THAT(result_value, base::test::IsSupersetOfValue(expected_value));
+  EXPECT_THAT(*result_value, base::test::IsSupersetOfValue(expected_value));
 }
 
-TEST_F(PageContextExtractorJavaScriptFeatureTest,
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
        ExtractPageContextWithAnchors) {
   const std::string main_html =
       "<html><head><title>Main</title></head><body><a "
@@ -193,25 +223,17 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
                       test_server_.GetURL(kMainPagePath), web_state());
 
-  base::Value result_value;
-
-  base::RunLoop run_loop;
-  feature()->ExtractPageContext(
+  std::optional<base::Value> result_value = RunExtraction(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/false,
       /*use_rich_extraction_with_actionable=*/false,
       /*extract_paid_content=*/false,
       /*attempt_paid_content_json_fixing=*/false, "nonce",
-      base::Milliseconds(100),
-      base::BindOnce(
-          [](base::RunLoop* r, base::Value* result_value,
-             const base::Value* value) {
-            *result_value = value->Clone();
-            r->Quit();
-          },
-          &run_loop, &result_value));
-  run_loop.Run();
+      base::Milliseconds(100));
+
+  ASSERT_TRUE(result_value);
+  ASSERT_TRUE(result_value->is_dict());
 
   base::Value expected_value(
       base::DictValue()
@@ -223,10 +245,10 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
                                             .Set("href", "http://foo.com/")
                                             .Set("linkText", "foo"))));
 
-  EXPECT_THAT(result_value, base::test::IsSupersetOfValue(expected_value));
+  EXPECT_THAT(*result_value, base::test::IsSupersetOfValue(expected_value));
 }
 
-TEST_F(PageContextExtractorJavaScriptFeatureTest,
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
        ExtractPageContextWithForceDetach) {
   const std::string main_html = "<html><body><p>Hello</p></body></html>";
   web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
@@ -241,33 +263,26 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   ASSERT_TRUE(web::test::ExecuteJavaScriptForFeatureAndReturnResult(
       web_state(), base::SysUTF8ToNSString(kForceDetachScript), feature()));
 
-  base::Value result_value;
-  base::RunLoop run_loop;
-  feature()->ExtractPageContext(
+  std::optional<base::Value> result_value = RunExtraction(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/false,
       /*use_rich_extraction_with_actionable=*/false,
       /*extract_paid_content=*/false,
       /*attempt_paid_content_json_fixing=*/false, "nonce",
-      base::Milliseconds(100),
-      base::BindOnce(
-          [](base::RunLoop* r, base::Value* result_value,
-             const base::Value* value) {
-            *result_value = value->Clone();
-            r->Quit();
-          },
-          &run_loop, &result_value));
-  run_loop.Run();
+      base::Milliseconds(100));
+
+  ASSERT_TRUE(result_value);
+  ASSERT_TRUE(result_value->is_dict());
 
   base::Value expected_value(
       base::DictValue().Set("shouldDetachPageContext", true));
 
-  EXPECT_THAT(result_value, base::test::IsSupersetOfValue(expected_value));
+  EXPECT_THAT(*result_value, base::test::IsSupersetOfValue(expected_value));
 }
 
 // Test the extraction of the page context with RichExtraction.
-TEST_F(PageContextExtractorJavaScriptFeatureTest,
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
        ExtractPageContext_RichExtraction) {
   const std::string html =
       "<html><head><title>TreeWalker "
@@ -276,25 +291,16 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   web::test::LoadHtml(base::SysUTF8ToNSString(html),
                       test_server_.GetURL(kMainPagePath), web_state());
 
-  base::Value result_value;
-  base::RunLoop run_loop;
-  feature()->ExtractPageContext(
+  std::optional<base::Value> result_value = RunExtraction(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/true,
       /*use_rich_extraction_with_actionable=*/false,
       /*extract_paid_content=*/false,
-      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1),
-      base::BindOnce(
-          [](base::RunLoop* r, base::Value* result_value,
-             const base::Value* value) {
-            *result_value = value->Clone();
-            r->Quit();
-          },
-          &run_loop, &result_value));
-  run_loop.Run();
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1));
 
-  const base::DictValue& dict = result_value.GetDict();
+  ASSERT_TRUE(result_value);
+  const base::DictValue& dict = result_value->GetDict();
   const base::DictValue* root_node = dict.FindDict("rootNode");
   ASSERT_TRUE(root_node);
 
@@ -333,32 +339,24 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   EXPECT_EQ(*title, "TreeWalker Test");
 }
 
-TEST_F(PageContextExtractorJavaScriptFeatureTest,
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
        ExtractPageContext_RichExtractionWithActionable) {
   const std::string html =
       "<html><body><button>Click me</button></body></html>";
   web::test::LoadHtml(base::SysUTF8ToNSString(html),
                       test_server_.GetURL(kMainPagePath), web_state());
 
-  base::Value result_value;
-  base::RunLoop run_loop;
-  feature()->ExtractPageContext(
+  std::optional<base::Value> result_value = RunExtraction(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/true,
       /*use_rich_extraction_with_actionable=*/true,
       /*extract_paid_content=*/false,
-      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1),
-      base::BindOnce(
-          [](base::RunLoop* r, base::Value* result_value,
-             const base::Value* value) {
-            *result_value = value->Clone();
-            r->Quit();
-          },
-          &run_loop, &result_value));
-  run_loop.Run();
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1));
 
-  const base::DictValue& dict = result_value.GetDict();
+  ASSERT_TRUE(result_value);
+
+  const base::DictValue& dict = result_value->GetDict();
   const base::DictValue* root_node = dict.FindDict("rootNode");
   ASSERT_TRUE(root_node);
   const base::ListValue* children = root_node->FindList("childrenNodes");
@@ -373,7 +371,7 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
 }
 
 // Test the extraction of the text size.
-TEST_F(PageContextExtractorJavaScriptFeatureTest,
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
        ExtractPageContext_RichExtraction_Text_Size) {
   const std::string html =
       "<html><body style=\"font-size: 16px\">"
@@ -386,25 +384,17 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   web::test::LoadHtml(base::SysUTF8ToNSString(html),
                       test_server_.GetURL(kMainPagePath), web_state());
 
-  base::Value result_value;
-  base::RunLoop run_loop;
-  feature()->ExtractPageContext(
+  std::optional<base::Value> result_value = RunExtraction(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/true,
       /*use_rich_extraction_with_actionable=*/false,
       /*extract_paid_content=*/false,
-      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1),
-      base::BindOnce(
-          [](base::RunLoop* r, base::Value* result_value,
-             const base::Value* value) {
-            *result_value = value->Clone();
-            r->Quit();
-          },
-          &run_loop, &result_value));
-  run_loop.Run();
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1));
 
-  const base::DictValue& dict = result_value.GetDict();
+  ASSERT_TRUE(result_value);
+
+  const base::DictValue& dict = result_value->GetDict();
   const base::DictValue* root_node = dict.FindDict("rootNode");
   ASSERT_TRUE(root_node);
   const base::ListValue* children = root_node->FindList("childrenNodes");
@@ -436,33 +426,26 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
 }
 
 // Test the extraction of the text color.
-TEST_F(PageContextExtractorJavaScriptFeatureTest,
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
        ExtractPageContext_RichExtraction_Text_Color) {
   const std::string html = "<html><body><p style=\"color: rgb(0, 255, "
                            "0)\">Green Text</p></body></html>";
   web::test::LoadHtml(base::SysUTF8ToNSString(html),
                       test_server_.GetURL(kMainPagePath), web_state());
 
-  base::test::TestFuture<base::Value> future;
-  feature()->ExtractPageContext(
+  std::optional<base::Value> result_value = RunExtraction(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/true,
       /*use_rich_extraction_with_actionable=*/false,
       /*extract_paid_content=*/false,
-      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1),
-      base::BindOnce(
-          [](base::OnceCallback<void(base::Value)> callback,
-             const base::Value* value) {
-            std::move(callback).Run(value ? value->Clone() : base::Value());
-          },
-          future.GetCallback()));
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1));
 
-  base::Value result_value = future.Take();
-  ASSERT_TRUE(result_value.is_dict())
-      << "Result is not a dictionary. Type: " << result_value.type();
+  ASSERT_TRUE(result_value) << "Extraction result is empty";
+  ASSERT_TRUE(result_value->is_dict())
+      << "Result is not a dictionary. Type: " << result_value->type();
 
-  const base::DictValue& dict = result_value.GetDict();
+  const base::DictValue& dict = result_value->GetDict();
   const base::DictValue* root_node = dict.FindDict("rootNode");
   ASSERT_TRUE(root_node);
 
@@ -491,7 +474,7 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
 }
 
 // Test the extraction of the table caption.
-TEST_F(PageContextExtractorJavaScriptFeatureTest,
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
        ExtractPageContext_RichExtraction_Table_Caption) {
   const std::string html =
       "<html><body>"
@@ -504,23 +487,16 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   web::test::LoadHtml(base::SysUTF8ToNSString(html),
                       test_server_.GetURL(kMainPagePath), web_state());
 
-  base::test::TestFuture<base::Value> future;
-  feature()->ExtractPageContext(
+  std::optional<base::Value> result_value = RunExtraction(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/true,
       /*use_rich_extraction_with_actionable=*/false,
       /*extract_paid_content=*/false,
-      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1),
-      base::BindOnce(
-          [](base::OnceCallback<void(base::Value)> callback,
-             const base::Value* value) {
-            std::move(callback).Run(value ? value->Clone() : base::Value());
-          },
-          future.GetCallback()));
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1));
 
-  base::Value result_value = future.Take();
-  const base::DictValue& dict = result_value.GetDict();
+  ASSERT_TRUE(result_value);
+  const base::DictValue& dict = result_value->GetDict();
   const base::DictValue* root_node = dict.FindDict("rootNode");
   ASSERT_TRUE(root_node);
   const base::ListValue* children = root_node->FindList("childrenNodes");
@@ -543,7 +519,7 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
 
 // Test the extraction of the table caption when the text is nested inside
 // other tags.
-TEST_F(PageContextExtractorJavaScriptFeatureTest,
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
        ExtractPageContext_RichExtraction_Table_Caption_Nested) {
   const std::string html =
       "<html><body>"
@@ -558,23 +534,16 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   web::test::LoadHtml(base::SysUTF8ToNSString(html),
                       test_server_.GetURL(kMainPagePath), web_state());
 
-  base::test::TestFuture<base::Value> future;
-  feature()->ExtractPageContext(
+  std::optional<base::Value> result_value = RunExtraction(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/true,
       /*use_rich_extraction_with_actionable=*/false,
       /*extract_paid_content=*/false,
-      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1),
-      base::BindOnce(
-          [](base::OnceCallback<void(base::Value)> callback,
-             const base::Value* value) {
-            std::move(callback).Run(value ? value->Clone() : base::Value());
-          },
-          future.GetCallback()));
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1));
 
-  base::Value result_value = future.Take();
-  const base::DictValue& dict = result_value.GetDict();
+  ASSERT_TRUE(result_value);
+  const base::DictValue& dict = result_value->GetDict();
   const base::DictValue* root_node = dict.FindDict("rootNode");
   ASSERT_TRUE(root_node);
   const base::ListValue* children = root_node->FindList("childrenNodes");
@@ -601,7 +570,7 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
 // Verifies that internal SVG structural and metadata elements (like <title>,
 // <defs>, and <script>) are strictly excluded from extraction to prevent
 // non-visible technical strings from polluting the output.
-TEST_F(PageContextExtractorJavaScriptFeatureTest,
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
        ExtractPageContext_RichExtraction_Svg) {
   const std::string html = "<html><body><svg width=\"100\" height=\"100\">"
                            "<title>SVG Title</title>"
@@ -612,25 +581,18 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   web::test::LoadHtml(base::SysUTF8ToNSString(html),
                       test_server_.GetURL(kMainPagePath), web_state());
 
-  base::test::TestFuture<base::Value> future;
-  feature()->ExtractPageContext(
+  std::optional<base::Value> result_value = RunExtraction(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/true,
       /*use_rich_extraction_with_actionable=*/false,
       /*extract_paid_content=*/false,
-      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1),
-      base::BindOnce(
-          [](base::OnceCallback<void(base::Value)> callback,
-             const base::Value* value) {
-            std::move(callback).Run(value ? value->Clone() : base::Value());
-          },
-          future.GetCallback()));
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1));
 
-  base::Value result_value = future.Take();
-  ASSERT_TRUE(result_value.is_dict());
+  ASSERT_TRUE(result_value);
+  ASSERT_TRUE(result_value->is_dict());
 
-  const base::DictValue& dict = result_value.GetDict();
+  const base::DictValue& dict = result_value->GetDict();
   const base::DictValue* root_node = dict.FindDict("rootNode");
   ASSERT_TRUE(root_node);
 
@@ -670,7 +632,7 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
 
 // Verifies that SVG elements rendered invisible via CSS (display/visibility)
 // are excluded.
-TEST_F(PageContextExtractorJavaScriptFeatureTest,
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
        ExtractPageContext_RichExtraction_Svg_Visibility) {
   const std::string html =
       "<html><body><svg width=\"200\" height=\"200\">"
@@ -682,25 +644,18 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   web::test::LoadHtml(base::SysUTF8ToNSString(html),
                       test_server_.GetURL(kMainPagePath), web_state());
 
-  base::test::TestFuture<base::Value> future;
-  feature()->ExtractPageContext(
+  std::optional<base::Value> result_value = RunExtraction(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/true,
       /*use_rich_extraction_with_actionable=*/false,
       /*extract_paid_content=*/false,
-      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1),
-      base::BindOnce(
-          [](base::OnceCallback<void(base::Value)> callback,
-             const base::Value* value) {
-            std::move(callback).Run(value ? value->Clone() : base::Value());
-          },
-          future.GetCallback()));
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1));
 
-  base::Value result_value = future.Take();
-  ASSERT_TRUE(result_value.is_dict());
+  ASSERT_TRUE(result_value);
+  ASSERT_TRUE(result_value->is_dict());
 
-  const base::DictValue& dict = result_value.GetDict();
+  const base::DictValue& dict = result_value->GetDict();
   const base::DictValue* root_node = dict.FindDict("rootNode");
   ASSERT_TRUE(root_node);
 
@@ -721,7 +676,7 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
 }
 
 // Test the extraction of the ARIA label and aria-labelledby.
-TEST_F(PageContextExtractorJavaScriptFeatureTest,
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
        ExtractPageContext_RichExtraction_BothSourcesOfAriaLabels) {
   const std::string html =
       "<html><body>"
@@ -734,23 +689,16 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   web::test::LoadHtml(base::SysUTF8ToNSString(html),
                       test_server_.GetURL(kMainPagePath), web_state());
 
-  base::test::TestFuture<base::Value> future;
-  feature()->ExtractPageContext(
+  std::optional<base::Value> result_value = RunExtraction(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/true,
       /*use_rich_extraction_with_actionable=*/true,
       /*extract_paid_content=*/false,
-      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(4),
-      base::BindOnce(
-          [](base::OnceCallback<void(base::Value)> callback,
-             const base::Value* value) {
-            std::move(callback).Run(value ? value->Clone() : base::Value());
-          },
-          future.GetCallback()));
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(4));
 
-  base::Value result_value = future.Take();
-  const base::DictValue& dict = result_value.GetDict();
+  ASSERT_TRUE(result_value);
+  const base::DictValue& dict = result_value->GetDict();
   const base::DictValue* root_node = dict.FindDict("rootNode");
   ASSERT_TRUE(root_node);
   const base::ListValue* children = root_node->FindList("childrenNodes");
@@ -766,7 +714,7 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
 }
 
 // Test the extraction of the ARIA label when only aria-label is present.
-TEST_F(PageContextExtractorJavaScriptFeatureTest,
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
        ExtractPageContext_RichExtraction_AriaLabelOnly) {
   const std::string html =
       "<html><body>"
@@ -775,23 +723,16 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   web::test::LoadHtml(base::SysUTF8ToNSString(html),
                       test_server_.GetURL(kMainPagePath), web_state());
 
-  base::test::TestFuture<base::Value> future;
-  feature()->ExtractPageContext(
+  std::optional<base::Value> result_value = RunExtraction(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/true,
       /*use_rich_extraction_with_actionable=*/true,
       /*extract_paid_content=*/false,
-      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(4),
-      base::BindOnce(
-          [](base::OnceCallback<void(base::Value)> callback,
-             const base::Value* value) {
-            std::move(callback).Run(value ? value->Clone() : base::Value());
-          },
-          future.GetCallback()));
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(4));
 
-  base::Value result_value = future.Take();
-  const base::DictValue& dict = result_value.GetDict();
+  ASSERT_TRUE(result_value);
+  const base::DictValue& dict = result_value->GetDict();
   const base::DictValue* root_node = dict.FindDict("rootNode");
   ASSERT_TRUE(root_node);
   const base::ListValue* children = root_node->FindList("childrenNodes");
@@ -805,3 +746,349 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   ASSERT_TRUE(label);
   EXPECT_EQ(*label, "Direct Label");
 }
+
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
+       ExtractPageContext_AriaRoles) {
+  const std::string html =
+      "<html><body>"
+      "  <header role=\"banner\">Header</header>"
+      "  <nav role=\"navigation\">Nav</nav>"
+      "  <div role=\"search\">Search</div>"
+      "  <main role=\"main\">Main</main>"
+      "  <article role=\"article\">Article</article>"
+      "  <section role=\"region\">Section</section>"
+      "  <aside role=\"complementary\">Aside</aside>"
+      "  <footer role=\"contentinfo\">Footer</footer>"
+      "  <div style=\"content-visibility: hidden;\">Hidden</div>"
+      "  <div role=\"unknown search\">Fallback</div>"
+      "  <footer role=\"banner\">Multi</footer>"
+      "</body></html>";
+
+  web::test::LoadHtml(base::SysUTF8ToNSString(html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  std::optional<base::Value> result_value = RunExtraction(
+      web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/false,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(4));
+
+  ASSERT_TRUE(result_value->is_dict());
+  const base::DictValue& dict = result_value->GetDict();
+  const base::DictValue* root_node = dict.FindDict("rootNode");
+  ASSERT_TRUE(root_node);
+  const base::ListValue* children = root_node->FindList("childrenNodes");
+  ASSERT_TRUE(children);
+  ASSERT_EQ(children->size(), 11u);
+
+  const std::vector<std::vector<int>> expected_roles = {
+      {static_cast<int>(optimization_guide::proto::ANNOTATED_ROLE_HEADER)},
+      {static_cast<int>(optimization_guide::proto::ANNOTATED_ROLE_NAV)},
+      {static_cast<int>(optimization_guide::proto::ANNOTATED_ROLE_SEARCH)},
+      {static_cast<int>(optimization_guide::proto::ANNOTATED_ROLE_MAIN)},
+      {static_cast<int>(optimization_guide::proto::ANNOTATED_ROLE_ARTICLE)},
+      {static_cast<int>(optimization_guide::proto::ANNOTATED_ROLE_SECTION)},
+      {static_cast<int>(optimization_guide::proto::ANNOTATED_ROLE_ASIDE)},
+      {static_cast<int>(optimization_guide::proto::ANNOTATED_ROLE_FOOTER)},
+      {static_cast<int>(
+          optimization_guide::proto::ANNOTATED_ROLE_CONTENT_HIDDEN)},
+      // Skips "unknown", maps "search"
+      {static_cast<int>(optimization_guide::proto::ANNOTATED_ROLE_SEARCH)},
+      // Gets FOOTER from tag, and HEADER from aria
+      {static_cast<int>(optimization_guide::proto::ANNOTATED_ROLE_FOOTER),
+       static_cast<int>(optimization_guide::proto::ANNOTATED_ROLE_HEADER)},
+  };
+
+  for (size_t i = 0; i < expected_roles.size(); ++i) {
+    const base::DictValue& node = (*children)[i].GetDict();
+    const base::ListValue* annotated_roles =
+        node.FindListByDottedPath("contentAttributes.annotatedRoles");
+    ASSERT_TRUE(annotated_roles);
+    ASSERT_EQ(annotated_roles->size(), expected_roles[i].size());
+
+    for (size_t j = 0; j < expected_roles[i].size(); ++j) {
+      EXPECT_EQ(static_cast<int>((*annotated_roles)[j].GetDouble()),
+                expected_roles[i][j])
+          << "mismatch for child " << i << " at role index " << j;
+    }
+  }
+}
+
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
+       ExtractPageContext_AXRole_WithActionable) {
+  const std::string html =
+      "<html><body>"
+      "  <div role=\"button\">Button</div>"
+      "  <div role=\"random_unknown_role\" tabindex=\"0\">Unknown</div>"
+      "  <div tabindex=\"0\">No Role</div>"
+      "</body></html>";
+  web::test::LoadHtml(base::SysUTF8ToNSString(html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  std::optional<base::Value> result_value = RunExtraction(
+      web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/true,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(4));
+
+  ASSERT_TRUE(result_value->is_dict());
+  const base::DictValue& dict = result_value->GetDict();
+  const base::DictValue* root_node = dict.FindDict("rootNode");
+  ASSERT_TRUE(root_node);
+  const base::ListValue* children = root_node->FindList("childrenNodes");
+  ASSERT_TRUE(children);
+
+  ASSERT_EQ(children->size(), 3u);
+
+  // Check the button node structure.
+  const base::DictValue& button_node = (*children)[0].GetDict();
+  std::optional<double> button_role =
+      button_node.FindDoubleByDottedPath("contentAttributes.ariaRole");
+  ASSERT_TRUE(button_role.has_value());
+  EXPECT_EQ(static_cast<int>(button_role.value()), 9);  // AX_ROLE_BUTTON
+
+  const base::ListValue* button_content_children =
+      button_node.FindList("childrenNodes");
+  ASSERT_TRUE(button_content_children);
+  ASSERT_EQ(button_content_children->size(), 1u);
+  const base::DictValue& button_text_node =
+      (*button_content_children)[0].GetDict();
+  const std::string* button_text = button_text_node.FindStringByDottedPath(
+      "contentAttributes.textInfo.textContent");
+  ASSERT_TRUE(button_text);
+  EXPECT_EQ(*button_text, "Button");
+
+  // Check the unknown role node structure.
+  const base::DictValue& unknown_node = (*children)[1].GetDict();
+  std::optional<double> unknown_role =
+      unknown_node.FindDoubleByDottedPath("contentAttributes.ariaRole");
+  ASSERT_TRUE(unknown_role.has_value());
+  EXPECT_EQ(static_cast<int>(unknown_role.value()), 181);  // AX_ROLE_UNKNOWN
+
+  const base::ListValue* unknown_content_children =
+      unknown_node.FindList("childrenNodes");
+  ASSERT_TRUE(unknown_content_children);
+  ASSERT_EQ(unknown_content_children->size(), 1u);
+  const base::DictValue& unknown_text_node =
+      (*unknown_content_children)[0].GetDict();
+  const std::string* unknown_text = unknown_text_node.FindStringByDottedPath(
+      "contentAttributes.textInfo.textContent");
+  ASSERT_TRUE(unknown_text);
+  EXPECT_EQ(*unknown_text, "Unknown");
+
+  // Check the node with NO role (Preserved due to tabindex)
+  const base::DictValue& no_role_node = (*children)[2].GetDict();
+  std::optional<double> missing_role =
+      no_role_node.FindDoubleByDottedPath("contentAttributes.ariaRole");
+  ASSERT_TRUE(missing_role.has_value());
+  EXPECT_EQ(static_cast<int>(missing_role.value()), 181);  // AX_ROLE_UNKNOWN
+}
+
+// Test the extraction of label elements and their associated control IDs.
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
+       ExtractPageContext_RichExtraction_LabelForDomNodeId) {
+  const std::string html = "<html><body><label for=\"myInput\"><span>My "
+                           "<strong>Label</strong></span></label><input "
+                           "id=\"myInput\" type=\"text\"></body></html>";
+  web::test::LoadHtml(base::SysUTF8ToNSString(html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  std::optional<base::Value> result_value = RunExtraction(
+      web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/true,  // Required to trigger
+                                                     // label control resolution
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1));
+
+  ASSERT_TRUE(result_value);
+  ASSERT_TRUE(result_value->is_dict());
+
+  const base::DictValue& dict = result_value->GetDict();
+  const base::DictValue* root_node = dict.FindDict("rootNode");
+  ASSERT_TRUE(root_node);
+
+  const base::ListValue* children = root_node->FindList("childrenNodes");
+  ASSERT_TRUE(children);
+  ASSERT_EQ(children->size(), 2u);
+
+  const base::DictValue* label_node = &(*children)[0].GetDict();
+  const base::DictValue* input_node = &(*children)[1].GetDict();
+
+  std::optional<double> label_attribute_type =
+      label_node->FindDoubleByDottedPath("contentAttributes.attributeType");
+  ASSERT_EQ(label_attribute_type,
+            static_cast<double>(
+                optimization_guide::proto::CONTENT_ATTRIBUTE_CONTAINER));
+
+  std::optional<double> input_attribute_type =
+      input_node->FindDoubleByDottedPath("contentAttributes.attributeType");
+  ASSERT_EQ(input_attribute_type,
+            static_cast<double>(
+                optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL));
+
+  std::optional<double> input_dom_node_id =
+      input_node->FindDoubleByDottedPath("contentAttributes.domNodeId");
+  ASSERT_TRUE(input_dom_node_id.has_value());
+
+  std::optional<double> label_for_dom_node_id =
+      label_node->FindDoubleByDottedPath("contentAttributes.labelForDomNodeId");
+  ASSERT_TRUE(label_for_dom_node_id.has_value());
+  EXPECT_EQ(*label_for_dom_node_id, *input_dom_node_id);
+}
+
+// Test the Scroller Info extraction.
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
+       ExtractPageContext_RichExtraction_ScrollerInfo) {
+  const std::string html =
+      "<html><body>"
+      "  <div id=\"scroller\" style=\"width: 100px; height: 100px; overflow: "
+      "auto;\">"
+      "    <div style=\"width: 200px; height: 300px;\"></div>"
+      "  </div>"
+      "  <script>"
+      "    let el = document.getElementById('scroller');"
+      "    el.scrollLeft = 50;"
+      "    el.scrollTop = 70;"
+      "  </script>"
+      "</body></html>";
+  web::test::LoadHtml(base::SysUTF8ToNSString(html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  std::optional<base::Value> result_value = RunExtraction(
+      web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/false,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1));
+
+  ASSERT_TRUE(result_value);
+  ASSERT_TRUE(result_value->is_dict());
+
+  const base::DictValue& dict = result_value->GetDict();
+  const base::DictValue* root_node = dict.FindDict("rootNode");
+  ASSERT_TRUE(root_node);
+
+  const base::ListValue* children = root_node->FindList("childrenNodes");
+  ASSERT_TRUE(children);
+  ASSERT_GE(children->size(), 1u);
+
+  const base::DictValue& div_node = (*children)[0].GetDict();
+  const base::DictValue* interaction_info =
+      div_node.FindDictByDottedPath("contentAttributes.nodeInteractionInfo");
+  ASSERT_TRUE(interaction_info);
+
+  const base::DictValue* scroller_info =
+      interaction_info->FindDict("scrollerInfo");
+  ASSERT_TRUE(scroller_info);
+
+  const base::DictValue* scrolling_bounds =
+      scroller_info->FindDict("scrollingBounds");
+  ASSERT_TRUE(scrolling_bounds);
+
+  std::optional<double> width = scrolling_bounds->FindDouble("width");
+  ASSERT_TRUE(width.has_value());
+  EXPECT_EQ(static_cast<int>(width.value()), 200);
+
+  std::optional<double> height = scrolling_bounds->FindDouble("height");
+  ASSERT_TRUE(height.has_value());
+  EXPECT_EQ(static_cast<int>(height.value()), 300);
+
+  const base::DictValue* visible_area = scroller_info->FindDict("visibleArea");
+  ASSERT_TRUE(visible_area);
+
+  std::optional<double> visible_x = visible_area->FindDouble("x");
+  ASSERT_TRUE(visible_x.has_value());
+  EXPECT_EQ(static_cast<int>(visible_x.value()), 50);
+
+  std::optional<double> visible_y = visible_area->FindDouble("y");
+  ASSERT_TRUE(visible_y.has_value());
+  EXPECT_EQ(static_cast<int>(visible_y.value()), 70);
+
+  std::optional<double> visible_w = visible_area->FindDouble("width");
+  ASSERT_TRUE(visible_w.has_value());
+  EXPECT_EQ(static_cast<int>(visible_w.value()), 100);
+
+  std::optional<double> visible_h = visible_area->FindDouble("height");
+  ASSERT_TRUE(visible_h.has_value());
+  EXPECT_EQ(static_cast<int>(visible_h.value()), 100);
+
+  std::optional<double> visible_t = visible_area->FindDouble("top");
+  ASSERT_TRUE(visible_t.has_value());
+  EXPECT_EQ(static_cast<int>(visible_t.value()), 70);
+
+  std::optional<double> visible_l = visible_area->FindDouble("left");
+  ASSERT_TRUE(visible_l.has_value());
+  EXPECT_EQ(static_cast<int>(visible_l.value()), 50);
+
+  std::optional<double> visible_b = visible_area->FindDouble("bottom");
+  ASSERT_TRUE(visible_b.has_value());
+  EXPECT_EQ(static_cast<int>(visible_b.value()), 170);
+
+  std::optional<double> visible_r = visible_area->FindDouble("right");
+  ASSERT_TRUE(visible_r.has_value());
+  EXPECT_EQ(static_cast<int>(visible_r.value()), 150);
+
+  std::optional<bool> user_scrollable_horizontal =
+      scroller_info->FindBool("userScrollableHorizontal");
+  ASSERT_TRUE(user_scrollable_horizontal.has_value());
+  EXPECT_TRUE(user_scrollable_horizontal.value());
+
+  std::optional<bool> user_scrollable_vertical =
+      scroller_info->FindBool("userScrollableVertical");
+  ASSERT_TRUE(user_scrollable_vertical.has_value());
+  EXPECT_TRUE(user_scrollable_vertical.value());
+}
+
+// Verifies that ExtractPageContext payload is a string when IPC optimization
+// is enabled and a dictionary otherwise.
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
+       VerifiesRawJavascriptExtractionResultType) {
+  const std::string html = "<html><body><p>Test</p></body></html>";
+  web::test::LoadHtml(base::SysUTF8ToNSString(html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  base::test::TestFuture<base::Value> future;
+
+  base::ListValue parameters;
+  parameters.Append("nonce");
+  parameters.Append(false);  // include_cross_origin_frame_content
+  parameters.Append(false);  // use_rich_extraction
+  parameters.Append(false);  // use_rich_extraction_with_actionable
+  parameters.Append(false);  // extract_paid_content
+  parameters.Append(false);  // attempt_paid_content_json_fixing
+
+  feature()
+      ->GetWebFramesManager(web_state())
+      ->GetMainWebFrame()
+      ->CallJavaScriptFunction(
+          "pageContextExtractor.extractPageContext", parameters,
+          base::BindOnce(
+              [](base::OnceCallback<void(base::Value)> callback,
+                 const base::Value* value) {
+                std::move(callback).Run(value ? value->Clone() : base::Value());
+              },
+              future.GetCallback()),
+          base::Seconds(1));
+
+  base::Value raw_result = future.Take();
+
+  if (GetParam() == IPCExtractionMethod::kJSON) {
+    EXPECT_TRUE(raw_result.is_string())
+        << "Expected a string payload when IPC optimization is enabled.";
+  } else {
+    EXPECT_TRUE(raw_result.is_dict())
+        << "Expected a dictionary payload when native extraction is used.";
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         PageContextExtractorJavaScriptFeatureTest,
+                         ::testing::Values(IPCExtractionMethod::kNative,
+                                           IPCExtractionMethod::kJSON));

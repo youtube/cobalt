@@ -1931,7 +1931,7 @@ void ReplaceSelectionCommand::AddSpacesForSmartReplace(
   if (needs_trailing_space && end_node) {
     bool collapse_white_space =
         !end_node->GetLayoutObject() ||
-        end_node->GetLayoutObject()->Style()->ShouldCollapseWhiteSpaces();
+        end_node->GetLayoutObject()->StyleRef().ShouldCollapseWhiteSpaces();
     end_text_node = DynamicTo<Text>(end_node);
     if (end_text_node) {
       InsertTextIntoNode(end_text_node, end_offset,
@@ -1973,7 +1973,7 @@ void ReplaceSelectionCommand::AddSpacesForSmartReplace(
   if (needs_leading_space && start_node) {
     bool collapse_white_space =
         !start_node->GetLayoutObject() ||
-        start_node->GetLayoutObject()->Style()->ShouldCollapseWhiteSpaces();
+        start_node->GetLayoutObject()->StyleRef().ShouldCollapseWhiteSpaces();
     if (auto* start_text_node = DynamicTo<Text>(start_node)) {
       InsertTextIntoNode(start_text_node, start_offset,
                          collapse_white_space ? NonBreakingSpaceString() : " ",
@@ -2189,21 +2189,11 @@ bool ReplaceSelectionCommand::ShouldNormalizeNbspInInsertedContent(
 // non-whitespace on both sides.
 void ReplaceSelectionCommand::NormalizeNbspInInsertedContent(
     EditingState* editing_state) {
-  if (start_of_inserted_range_.IsNull() || end_of_inserted_range_.IsNull()) {
-    return;
-  }
-
-  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
-
-  if (!start_of_inserted_range_.IsValidFor(GetDocument()) ||
-      !end_of_inserted_range_.IsValidFor(GetDocument())) {
-    return;
-  }
-
   const EphemeralRange inserted_range = InsertedRange();
   if (inserted_range.IsNull()) {
     return;
   }
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
 
   const Position range_start = inserted_range.StartPosition();
   const Position range_end = inserted_range.EndPosition();
@@ -2443,6 +2433,16 @@ bool ReplaceSelectionCommand::IsReplaceSelectionCommand() const {
 }
 
 EphemeralRange ReplaceSelectionCommand::InsertedRange() const {
+  if (start_of_inserted_range_.IsNull() || end_of_inserted_range_.IsNull()) {
+    return EphemeralRange();
+  }
+  if (!start_of_inserted_range_.IsValidFor(GetDocument()) ||
+      !end_of_inserted_range_.IsValidFor(GetDocument())) {
+    return EphemeralRange();
+  }
+  if (start_of_inserted_range_ > end_of_inserted_range_) {
+    return EphemeralRange();
+  }
   return EphemeralRange(start_of_inserted_range_, end_of_inserted_range_);
 }
 

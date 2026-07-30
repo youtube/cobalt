@@ -56,6 +56,7 @@ class CustomCornersBackground : public views::Background, public CustomCorners {
   // Specifies whether outline strokes should be drawn.
   struct Outline {
     ui::ColorId color = ui::kColorSeparator;
+    double opacity = 1.0;
     bool top = false;
     bool leading = false;
     bool bottom = false;
@@ -96,6 +97,7 @@ class CustomCornersBackground : public views::Background, public CustomCorners {
 
   // views::Background:
   void Paint(gfx::Canvas* canvas, views::View* view) const override;
+  void OnViewThemeChanged(views::View* view) override;
   std::optional<gfx::RoundedCornersF> GetRoundedCornerRadii() const override;
 
   // CustomCorners:

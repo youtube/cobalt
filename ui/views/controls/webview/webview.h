@@ -16,6 +16,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -130,14 +131,27 @@ class WEBVIEW_EXPORT WebView : public View,
   void EnableSizingFromWebContents(const gfx::Size& min_size,
                                    const gfx::Size& max_size);
 
-  // If provided, this View will be shown in place of the web contents
-  // when the web contents is in a crashed state. This is cleared automatically
-  // if the web contents is changed. The passed-in overlay view must be owned by
-  // the client; this method never takes ownership of it.
-  //
-  // TODO(crbug.com/40278361): This method should take ownership of
-  // `crashed_overlay_view`.
-  void SetCrashedOverlayView(View* crashed_overlay_view);
+  // A scoped object that disconnects the webview from the accessibility tree.
+  // When destroyed, it restores the previous accessibility state.
+  class WEBVIEW_EXPORT ScopedAxDisconnectLock {
+   public:
+    ScopedAxDisconnectLock(const ScopedAxDisconnectLock&) = delete;
+    ScopedAxDisconnectLock& operator=(const ScopedAxDisconnectLock&) = delete;
+    ~ScopedAxDisconnectLock();
+
+   private:
+    friend class WebView;
+    explicit ScopedAxDisconnectLock(base::WeakPtr<WebView> web_view);
+
+    base::WeakPtr<WebView> web_view_;
+  };
+
+  // Temporarily prevents the webview from generating its own AX tree or being
+  // exposed to screen readers, in favor of another WebContents, e.g. in the
+  // Immersive Reading Mode view.  Returns a scoped object that will restore the
+  // previous state when destroyed.
+  [[nodiscard]] std::unique_ptr<ScopedAxDisconnectLock>
+  DisconnectWebContentsAccessibility();
 
   // Takes ownership of `crashed_overlay_view` and shows it when the web
   // contents is in a crashed state. If the web_contents is cleared, the view
@@ -193,6 +207,7 @@ class WEBVIEW_EXPORT WebView : public View,
   void set_allow_accelerators(bool allow_accelerators) {
     allow_accelerators_ = allow_accelerators;
   }
+  bool allow_accelerators() const { return allow_accelerators_; }
 
   // When `lock = true` changes in web contents will not reset the override.
   // Default is false.
@@ -222,6 +237,9 @@ class WEBVIEW_EXPORT WebView : public View,
 
     ~ScopedWebContentsCreatorForTesting();
   };
+
+  // View:
+  FocusBehavior GetFocusBehavior() const override;
 
  protected:
   // Called when letterboxing (scaling the native view to preserve aspect
@@ -280,6 +298,7 @@ class WEBVIEW_EXPORT WebView : public View,
   void UpdateCrashedOverlayView();
   void UpdateNativeViewHostAccessibleParent();
   void NotifyAccessibilityWebContentsChanged();
+  void UpdateAccessibilityDisconnectState(bool disconnect);
   void HandleWidgetAXManagerEnablement();
 
   // Called when the main frame in the renderer becomes present.
@@ -301,6 +320,11 @@ class WEBVIEW_EXPORT WebView : public View,
       content::BrowserContext* browser_context,
       const GURL& url,
       base::Location creator_location);
+
+  // Number of active ScopedAxDisconnectLocks. This must be declared before
+  // |holder_| as |holder_|'s initialization calls |GetFocusBehavior()|, which
+  // reads this value.
+  int ax_disconnect_count_ = 0;
 
   const raw_ptr<NativeViewHost> holder_ =
       AddChildView(std::make_unique<NativeViewHost>());
@@ -338,6 +362,8 @@ class WEBVIEW_EXPORT WebView : public View,
 
   // List of subscriptions listening for attached WebContents being focused.
   base::RepeatingCallbackList<void(WebView*)> web_contents_focused_callbacks_;
+
+  base::WeakPtrFactory<WebView> weak_ptr_factory_{this};
 };
 
 BEGIN_VIEW_BUILDER(WEBVIEW_EXPORT, WebView, View)
@@ -347,7 +373,6 @@ VIEW_BUILDER_PROPERTY(bool, FastResize)
 VIEW_BUILDER_METHOD(EnableSizingFromWebContents,
                     const gfx::Size&,
                     const gfx::Size&)
-VIEW_BUILDER_PROPERTY(View*, CrashedOverlayView)
 VIEW_BUILDER_METHOD(set_is_primary_web_contents_for_window, bool)
 VIEW_BUILDER_METHOD(set_allow_accelerators, bool)
 END_VIEW_BUILDER

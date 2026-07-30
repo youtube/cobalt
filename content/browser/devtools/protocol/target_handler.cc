@@ -498,6 +498,9 @@ class TargetHandler::Session : public DevToolsAgentHostClient {
   }
 
   std::string GetTypeForMetrics() override { return "DevTools"; }
+  std::optional<url::Origin> GetNavigationInitiatorOrigin() override {
+    return GetRootClient()->GetNavigationInitiatorOrigin();
+  }
 
   void Detach(bool host_closed) {
     handler_->frontend_->DetachedFromTarget(id_, agent_host_->GetId());
@@ -963,7 +966,7 @@ void TargetHandler::TargetInfoChanged(DevToolsAgentHost* host) {
 
 void TargetHandler::AutoAttacherDestroyed(TargetAutoAttacher* auto_attacher) {
   auto throttles = throttles_;
-  for (Throttle* throttle : throttles_) {
+  for (Throttle* throttle : throttles) {
     if (throttle->auto_attacher() == auto_attacher) {
       throttle->Clear();
     }

@@ -30,6 +30,8 @@ class RectF;
 }
 
 namespace gpu {
+class ContextSupport;
+class RasterScopedAccess;
 struct Capabilities;
 
 namespace gles2 {
@@ -132,13 +134,15 @@ class MEDIA_EXPORT PaintCanvasVideoRenderer {
       viz::RasterContextProvider* raster_context_provider,
       viz::SharedImageFormat::ChannelFormat channel_format);
 
-  // Copy the contents of |video_frame| to |texture| of |destination_gl|.
+  // Copy the contents of |video_frame| to |texture| of |destination_gl| using
+  // an intermediate SharedImage.
   //
   // The format of |video_frame| must be VideoFrame::NATIVE_TEXTURE.
-  bool CopyVideoFrameTexturesToGLTexture(
+  bool CopyVideoFrameTexturesToGLTextureViaIntermediateSI(
       viz::RasterContextProvider* raster_context_provider,
       gpu::gles2::GLES2Interface* destination_gl,
       scoped_refptr<VideoFrame> video_frame,
+      VideoFrameSharedImageCache* rgb_si_cache,
       unsigned int target,
       unsigned int texture,
       unsigned int internal_format,
@@ -147,6 +151,8 @@ class MEDIA_EXPORT PaintCanvasVideoRenderer {
       int level,
       SkAlphaType dst_alpha_type,
       GrSurfaceOrigin dst_origin);
+
+  VideoFrameSharedImageCache* GetRGBSharedImageCache();
 
   // Copy the CPU-side YUV contents of |video_frame| to texture |texture| in
   // context |destination_gl|.
@@ -208,6 +214,13 @@ class MEDIA_EXPORT PaintCanvasVideoRenderer {
                             GrSurfaceOrigin dst_origin,
                             SkAlphaType dst_alpha_type);
 
+  // Ensures that the GPU has finished reading the video frame.
+  static void SynchronizeVideoFrameRead(
+      scoped_refptr<VideoFrame> video_frame,
+      gpu::gles2::GLES2Interface* gl,
+      gpu::ContextSupport* context_support,
+      std::unique_ptr<gpu::RasterScopedAccess> ri_access = nullptr);
+
   // Copies VideoFrame contents to the `destination` shared image. if
   // `use_visible_rect` is set to true, only `VideoFrame::visible_rect()`
   // portion is copied, otherwise copies all underlying buffer.
@@ -241,7 +254,7 @@ class MEDIA_EXPORT PaintCanvasVideoRenderer {
   // not keep a reference to the VideoFrame so necessary data is extracted out
   // of it.
   struct Cache {
-    explicit Cache(VideoFrame::ID frame_id);
+    Cache(VideoFrame::ID frame_id, base::RepeatingClosure on_expire);
     ~Cache();
 
     // VideoFrame::unique_id() of the videoframe used to generate the cache.
@@ -263,6 +276,8 @@ class MEDIA_EXPORT PaintCanvasVideoRenderer {
     // no external users have access to this resource via SkImage. Returns true
     // if the existing resource can be recycled.
     bool Recycle();
+
+    base::RetainingOneShotTimer timer;
   };
 
   // Update the cache holding the most-recently-painted frame. Returns false
@@ -270,10 +285,10 @@ class MEDIA_EXPORT PaintCanvasVideoRenderer {
   bool UpdateLastImage(scoped_refptr<VideoFrame> video_frame,
                        viz::RasterContextProvider* raster_context_provider);
 
+  void OnCacheExpired();
+
   std::optional<Cache> cache_;
 
-  // If |cache_| is not used for a while, it's deleted to save memory.
-  base::DelayTimer cache_deleting_timer_;
   // Stable paint image id to provide to draw image calls.
   cc::PaintImage::Id renderer_stable_id_;
 

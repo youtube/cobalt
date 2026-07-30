@@ -62,8 +62,9 @@ TEST(FromAccessibilityAnnotatorTest,
   EXPECT_THAT(kAllEntityTypesSharedWithAccessibilityAnnotator,
               UnorderedElementsAre(
                   aa::EntityType::kFlightReservation, aa::EntityType::kOrder,
-                  aa::EntityType::kDriversLicense, aa::EntityType::kPassport,
-                  aa::EntityType::kNationalId, aa::EntityType::kVehicle))
+                  aa::EntityType::kShipment, aa::EntityType::kDriversLicense,
+                  aa::EntityType::kPassport, aa::EntityType::kNationalId,
+                  aa::EntityType::kVehicle))
       << "When a new EntityType is added to Accessibility Annotator and this "
          "EntityType is supported by Autofill, it must be here.";
 }
@@ -83,6 +84,7 @@ TEST(FromAccessibilityAnnotatorTest, EntityTypeEnumSet) {
       FromAccessibilityAnnotator(aa::EntityTypeEnumSet::All()),
       UnorderedElementsAre(EntityType(EntityTypeName::kFlightReservation),
                            EntityType(EntityTypeName::kOrder),
+                           EntityType(EntityTypeName::kShipment),
                            EntityType(EntityTypeName::kDriversLicense),
                            EntityType(EntityTypeName::kNationalIdCard),
                            EntityType(EntityTypeName::kPassport),
@@ -188,8 +190,8 @@ TEST(FromAccessibilityAnnotatorTest, EntityConversion_Order) {
               IsAttribute(AttributeType(kOrderMerchantName), u"Tante Emma"),
               IsAttribute(AttributeType(kOrderMerchantDomain),
                           u"https://foo.com/"),
-              IsAttribute(AttributeType(kOrderProductNames), u"Apple, Orange"),
-              IsAttribute(AttributeType(kOrderGrandTotal), u"$123,456")))));
+              IsAttribute(AttributeType(kOrderProductNames),
+                          u"Apple, Orange")))));
 }
 
 // Tests conversion of a shipment from Accessibility Annotator to Autofill AI.
@@ -207,7 +209,20 @@ TEST(FromAccessibilityAnnotatorTest, EntityConversion_Shipment) {
   entity.entity_id = "test-id";
   entity.specifics = s;
 
-  EXPECT_EQ(FromAccessibilityAnnotator(entity), std::nullopt);
+  EXPECT_THAT(
+      FromAccessibilityAnnotator(entity),
+      Optional(IsEntity(
+          EntityType(EntityTypeName::kShipment),
+          EntityInstance::EntityId("test-id"),
+          AttributesAre(
+              IsAttribute(AttributeType(kShipmentTrackingNumber),
+                          u"238947234597"),
+              IsAttribute(AttributeType(kShipmentOrderIds), u"#shonet34234"),
+              IsAttribute(AttributeType(kShipmentCarrierName), u"Bar"),
+              IsAttribute(AttributeType(kShipmentCarrierDomain),
+                          u"https://bar.com/"),
+              IsAttribute(AttributeType(kShipmentEstimatedDeliveryDate),
+                          u"2030-07-31")))));
 }
 
 // Tests conversion of a drivers license from Accessibility Annotator to

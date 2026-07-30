@@ -602,7 +602,6 @@ LayerTreeHostImpl::LayerTreeHostImpl(
     compositor_frame_reporting_controller_->set_event_latency_tracker(this);
 
 #if BUILDFLAG(IS_CHROMEOS)
-    frame_sorter_.EnableReportForUI();
     frame_trackers_.UpdateSmoothThreadHistory(
         FrameInfo::SmoothEffectDrivingThread::kMain, /*modifier-*/ 1);
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -847,7 +846,14 @@ void LayerTreeHostImpl::CommitComplete() {
   // With that, when CC finishes animating an input property, the value of that
   // property stays at finish state until a commit kicks in, which is consistent
   // with current composited animations.
-  paint_worklet_tracker_.ClearUnusedInputProperties();
+  base::flat_set<PaintWorkletInput::PropertyKey> used_properties;
+  for (auto* layer : sync_tree()->picture_layers_with_paint_worklets()) {
+    for (const auto& map_entry : layer->GetPaintWorkletRecords()) {
+      const auto& property_keys = map_entry.first->GetPropertyKeys();
+      used_properties.insert(property_keys.begin(), property_keys.end());
+    }
+  }
+  paint_worklet_tracker_.ClearUnusedInputProperties(std::move(used_properties));
 
   // Start animations before UpdateDrawProperties and PrepareTiles, as they can
   // change the results. When doing commit to the active tree, this must happen
@@ -932,8 +938,8 @@ void LayerTreeHostImpl::UpdateSyncTreeAfterCommitOrImplSideInvalidation() {
 
   CHECK(!settings_.trees_in_viz_in_viz_process);
   CHECK(image_animation_controller_);
-  const auto& animated_images =
-      image_animation_controller_->AnimateForSyncTree(CurrentBeginFrameArgs());
+  const auto& animated_images = image_animation_controller_->AnimateForSyncTree(
+      CurrentBeginFrameArgs(), GatherImageAnimationState());
   images_to_invalidate.insert(animated_images.begin(), animated_images.end());
 
   // Invalidate cached PaintRecords for worklets whose input properties were
@@ -946,7 +952,23 @@ void LayerTreeHostImpl::UpdateSyncTreeAfterCommitOrImplSideInvalidation() {
   // trees created by impl-side invalidations). But we ensure here that we
   // request another invalidation if an input property was mutated on the active
   // tree.
-  if (paint_worklet_tracker_.InvalidatePaintWorkletsOnPendingTree()) {
+  bool worklets_invalidated = false;
+  auto animated_properties =
+      paint_worklet_tracker_.TakeAndResetAnimatedProperties();
+  for (auto* layer : sync_tree()->picture_layers_with_paint_worklets()) {
+    for (const auto& map_entry : layer->GetPaintWorkletRecords()) {
+      for (const auto& property_key : map_entry.first->GetPropertyKeys()) {
+        const auto& it = animated_properties.find(property_key);
+        if (it != animated_properties.end()) {
+          worklets_invalidated = true;
+          layer->InvalidatePaintWorklets(property_key, it->second.first,
+                                         it->second.second);
+        }
+      }
+    }
+  }
+
+  if (worklets_invalidated) {
     client_->SetNeedsImplSideInvalidation(
         true /* needs_first_draw_on_activation */);
     if (sync_tree()->property_change_forces_commit_criteria() ==
@@ -994,6 +1016,19 @@ void LayerTreeHostImpl::UpdateSyncTreeAfterCommitOrImplSideInvalidation() {
       &LayerTreeHostImpl::OnPaintWorkletResultsReady, base::Unretained(this));
   paint_worklet_painter_->DispatchWorklets(std::move(dirty_paint_worklets),
                                            std::move(done_callback));
+}
+
+base::flat_map<PaintImage::Id, bool>
+LayerTreeHostImpl::GatherImageAnimationState() const {
+  base::flat_map<PaintImage::Id, bool> animation_state;
+  active_tree()->AnnotateAnimatedImages(animation_state);
+  if (pending_tree()) {
+    pending_tree()->AnnotateAnimatedImages(animation_state);
+  }
+  if (recycle_tree()) {
+    recycle_tree()->AnnotateAnimatedImages(animation_state);
+  }
+  return animation_state;
 }
 
 PaintWorkletJobMap LayerTreeHostImpl::GatherDirtyPaintWorklets(
@@ -2645,7 +2680,8 @@ void LayerTreeHostImpl::OnCanDrawStateChangedForTree() {
   client_->OnCanDrawStateChanged(CanDraw());
 }
 
-viz::TrackedElementRects LayerTreeHostImpl::CollectTrackedElementRects() {
+viz::TrackedElementRects LayerTreeHostImpl::CollectTrackedElementRects(
+    bool is_for_compositor_frame_metadata) {
   viz::TrackedElementRects rects;
   // Get the drawable content rect of the root surface. This will be used to
   // determine if a clip_rect is effectively the full viewport and can be
@@ -2659,6 +2695,14 @@ viz::TrackedElementRects LayerTreeHostImpl::CollectTrackedElementRects() {
     for (const auto& [feature, tracked_element_list] :
          *layer->tracked_element_rects()) {
       for (const auto& rect_data : tracked_element_list) {
+        // Elements that are flagged to be added to the compositor frame
+        // metadata will only be added to the compositor frame metadata.
+        // Otherwise, they will only be added to the render frame metadata.
+        if (rect_data.should_add_to_compositor_frame_metadata !=
+            is_for_compositor_frame_metadata) {
+          continue;
+        }
+
         viz::TrackedElementRect transformed_rect = rect_data;
         gfx::Rect visible_layer_rect =
             layer->draw_properties().visible_layer_rect;
@@ -2851,6 +2895,8 @@ viz::CompositorFrameMetadata LayerTreeHostImpl::MakeCompositorFrameMetadata() {
   }
 
   metadata.capture_bounds = CollectRegionCaptureBounds();
+  metadata.tracked_element_rects = CollectTrackedElementRects(
+      /*is_for_compositor_frame_metadata=*/true);
 
   if (!screenshot_destination_.is_empty()) {
     metadata.screenshot_destination =
@@ -2913,7 +2959,8 @@ RenderFrameMetadata LayerTreeHostImpl::MakeRenderFrameMetadata(
   bool allocate_new_local_surface_id = false;
 
   if (frame->has_layers_with_tracked_element) {
-    metadata.tracked_element_rects = CollectTrackedElementRects();
+    metadata.tracked_element_rects = CollectTrackedElementRects(
+        /*is_for_compositor_frame_metadata=*/false);
   }
 
   if (last_draw_render_frame_metadata_) {

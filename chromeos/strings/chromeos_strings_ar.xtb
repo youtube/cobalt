@@ -578,6 +578,7 @@
 <translation id="3577473026931028326">حدث خطأ. يُرجى إعادة المحاولة.</translation>
 <translation id="357889014807611375">‏شبكة Wi-Fi تفرض تكلفة استخدام</translation>
 <translation id="3583278742022654445">‏قوة الإشارة ضعيفة. يُرجى الاقتراب من مصدر إشارة شبكة Wi-Fi.</translation>
+<translation id="3586931643579894722">إخفاء التفاصيل</translation>
 <translation id="3588034708467091142">يُرجى التأكّد من اتصالك بالإنترنت وإعادة المحاولة.</translation>
 <translation id="3594280220611906414">‫"<ph name="USER_FRIENDLY_APN_NAME" />" هو اسم سهل الاستخدام لـ "<ph name="APN_NAME" />".</translation>
 <translation id="3595596368722241419">البطارية ممتلئة</translation>
@@ -1106,7 +1107,7 @@
 <translation id="5908813850962688338">سيستغرق تثبيت هذا التحديث بضع دقائق. يُرجى إبقاء الجهاز متصلاً بمقبس الكهرباء وقيد التشغيل أثناء تنزيل التحديث. وقد تتم إعادة تشغيل جهازك عدة مرات أو قد تظهر شاشة سوداء أثناء هذه العملية. سُيطلب منك إعادة تشغيل جهازك لإكمال عملية التثبيت.</translation>
 <translation id="5915794087373112615">سيطّلع مُعلّمك على شاشتك بعد <ph name="NUM_SECONDS" /> من الثواني</translation>
 <translation id="5916084858004523819">محظورة</translation>
-<translation id="5916664084637901428">مفعّل</translation>
+<translation id="5916664084637901428">الإعداد مفعّل</translation>
 <translation id="5921506667911082617">{COUNT,plural, =1{تم بنجاح مسح الملف ضوئيًا وحفظه في <ph name="LINK_BEGIN" /><ph name="FOLDER_NAME" /><ph name="LINK_END" />.}zero{تم بنجاح مسح الملفات ضوئيًا وحفظها في <ph name="LINK_BEGIN" /><ph name="FOLDER_NAME" /><ph name="LINK_END" />.}two{تم بنجاح مسح الملفين ضوئيًا وحفظهما في <ph name="LINK_BEGIN" /><ph name="FOLDER_NAME" /><ph name="LINK_END" />.}few{تم بنجاح مسح الملفات ضوئيًا وحفظها في <ph name="LINK_BEGIN" /><ph name="FOLDER_NAME" /><ph name="LINK_END" />.}many{تم بنجاح مسح الملفات ضوئيًا وحفظها في <ph name="LINK_BEGIN" /><ph name="FOLDER_NAME" /><ph name="LINK_END" />.}other{تم بنجاح مسح الملفات ضوئيًا وحفظها في <ph name="LINK_BEGIN" /><ph name="FOLDER_NAME" /><ph name="LINK_END" />.}}</translation>
 <translation id="5928411637936685857">زر حذف <ph name="ACCELERATOR_INFO" /></translation>
 <translation id="5930669310554144537">منظر خيالي</translation>
@@ -1161,6 +1162,7 @@
 <translation id="6136285399872347291">مسافة للخلف</translation>
 <translation id="6137614725462089991">الخيال العلمي المستقبلي</translation>
 <translation id="6137767437444130246">شهادة المستخدم</translation>
+<translation id="6140948187512243695">عرض التفاصيل</translation>
 <translation id="6146993107019042706">يُرجى إدخال كلمة مرور جديدة لإنهاء الإجراء.</translation>
 <translation id="6147514244879357420">PNG</translation>
 <translation id="6149015141270619212">يتعذّر الاتصال بالإنترنت.</translation>

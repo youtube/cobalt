@@ -59,6 +59,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="1639380494700489405">Səhifədən çıxmadan tab haqqında Sİ rejimindən soruşmaq üçün Chromium-a daxil olun. Bütün cihazlarınızda parollarınızı və daha çoxunu da əldə edəcəksiniz.</translation>
 <translation id="1640672724030957280">Endirilir...</translation>
 <translation id="1680687534629375545">Bu səhifə haqqında Şəkil Axtarışından soruşun</translation>
+<translation id="1708414395296835197">İstənilən vaxt mesaj, sənəd və digər tətbiqlərdəki keçidlərə kliklədikdə Chromium-dan istifadə edə bilərsiniz. Tapşırıq panelinə də bərkidiləcək.</translation>
 <translation id="1709772298389099340"><ph name="BROWSER_NAME" /> üçün artırılmış imtiyazlar təmin edir.</translation>
 <translation id="1715127912119967311">Bu funksiyaları təkmilləşdirmək üçün Chromium interaksiyaları Google-a göndərir. Bu datanı insan redaktorlar oxuya, emal edə və ona annotasiya əlavə edə bilər.</translation>
 <translation id="1722488837206509557">Bu, əlçatan cihazlardan seçim etmək və oradakı kontenti göstərmək imkanı verəcək.</translation>
@@ -227,7 +228,6 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="3313189106987092621">Chromium təhlükəli bağlantı ilə sayt yükləməzdən əvvəl xəbərdarlıq edəcək</translation>
 <translation id="3316771292331273802">Chromium-a daxil olsanız, Google Hesabı istisna olmaqla bütün Chromium pəncərələrini bağladıqda əksər saytlardan çıxacaqsınız. Saytların sizi xatırlaması üçün <ph name="SETTINGS_LINK" />.</translation>
 <translation id="3322413454779348750">Defolt axtarış mühərrikiniz Chromium-dan kənarda dəyişdirildi. Sizi qorumaq üçün Chromium onu sıfırladı.</translation>
-<translation id="3331557257666250900">Parolları, əlfəcinləri və daha çoxunu bütün cihazlarda əldə etmək üçün Chromium-a daxil olun</translation>
 <translation id="3352986031709923790">axtarış sahəsinin yuxarı sağ küncü: <ph name="RIGHT" />% sağ, <ph name="TOP" />% yuxarı</translation>
 <translation id="3366305173356742781">Hesabdakı Chromium datası</translation>
 <translation id="3369405342922656244">Bu səhifəni Şəkil Axtarışı ilə axtarın</translation>
@@ -438,6 +438,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="5895138241574237353">Yenidən başladın</translation>
 <translation id="5903106910045431592"><ph name="PAGE_TITLE" /> - Şəbəkəyə Giriş</translation>
 <translation id="5924017743176219022">İnternetə qoşulur...</translation>
+<translation id="5939553720811388432">Chromium-u hazırlayaq</translation>
 <translation id="5941711191222866238">Minimallaşdırın</translation>
 <translation id="5949225980829865667">Bu əlfəcini və digərlərini bütün cihazlarınızda əldə etmək üçün Chromium-a daxil olun</translation>
 <translation id="5953657885167112863">Chromium-u özünüzə uyğunlaşdırın</translation>

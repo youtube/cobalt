@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <set>
 
+#include "base/check.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
 #include "services/webnn/public/cpp/webnn_errors.h"
@@ -385,7 +386,19 @@ std::vector<uint32_t> CalculateStrides(base::span<const uint32_t> dimensions) {
     strides[i] = stride.ValueOrDie();
     stride *= dimensions[i];
   }
+  CHECK(stride.IsValid());
   return strides;
+}
+
+webnn::Pool2dKind FromMojoPool2dType(mojom::Pool2d::Kind kind) {
+  switch (kind) {
+    case mojom::Pool2d::Kind::kAveragePool2d:
+      return webnn::Pool2dKind::kAverage;
+    case mojom::Pool2d::Kind::kL2Pool2d:
+      return webnn::Pool2dKind::kL2;
+    case mojom::Pool2d::Kind::kMaxPool2d:
+      return webnn::Pool2dKind::kMax;
+  }
 }
 
 }  // namespace webnn

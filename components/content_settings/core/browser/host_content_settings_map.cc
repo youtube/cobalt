@@ -900,13 +900,14 @@ void HostContentSettingsMap::UpdateLastUsedTime(const GURL& primary_url,
   }
 }
 
-void HostContentSettingsMap::ResetLastVisitedTime(
+void HostContentSettingsMap::SetAutorevocationBypassedByUser(
     const ContentSettingsPattern& primary_pattern,
     const ContentSettingsPattern& secondary_pattern,
     ContentSettingsType type) {
   for (content_settings::UserModifiableProvider* provider :
        user_modifiable_providers_) {
-    provider->ResetLastVisitTime(primary_pattern, secondary_pattern, type);
+    provider->SetAutorevocationBypassedByUser(primary_pattern,
+                                              secondary_pattern, type);
   }
 }
 

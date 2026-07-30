@@ -813,7 +813,8 @@ BASE_FEATURE(kAutofillNewSuggestionGeneration,
 // When enabled, cache form updates will happen in place instead of creating a
 // new form and moving it back to the cache, which reduces the number of members
 // that are copied.
-BASE_FEATURE(kAutofillOptimizeCacheUpdates, base::FEATURE_DISABLED_BY_DEFAULT);
+// TODO(crbug.com/456719060): Remove once launched.
+BASE_FEATURE(kAutofillOptimizeCacheUpdates, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, `IsNormalizedNameVariantOf()` uses a linear-time greedy
 // algorithm instead of an exponential one that generates all name variants.
@@ -1139,5 +1140,10 @@ BASE_FEATURE(kYourSavedInfoPolicyAndExtentionToggleIndicators,
 // Defines if the "Your Saved Info" page is eligible to be shown in Chrome
 // settings.
 BASE_FEATURE(kYourSavedInfoSettingsPage, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Defines if the shipping and order data is included in the "Your Saved Info"
+// settings page.
+BASE_FEATURE(kYourSavedInfoSettingsPageShoppingIntegration,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace autofill::features

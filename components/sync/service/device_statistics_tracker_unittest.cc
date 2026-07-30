@@ -76,8 +76,8 @@ class DeviceStatisticsTrackerTest : public testing::Test {
 
   std::vector<sync_pb::SyncEntity> CreateDeviceInfosWithHistoryOptIns(
       const std::vector<bool>& history_opt_ins) {
-    std::vector<sync_pb::SyncEnums_OsType> platforms(
-        history_opt_ins.size(), sync_pb::SyncEnums_OsType_OS_TYPE_WINDOWS);
+    std::vector<sync_pb::SyncEnums_OsType> platforms(history_opt_ins.size(),
+                                                     GetOtherOsType());
     return CreateDeviceInfos(platforms, history_opt_ins);
   }
 
@@ -149,7 +149,7 @@ TEST_F(DeviceStatisticsTrackerTest, RecordsOutcomeWhenNoAccounts) {
   histogram_tester.ExpectTotalCount(
       "Sync.DeviceStatistics.RequestsCompletedSuccess", 0);
   histogram_tester.ExpectUniqueSample(
-      "Sync.DeviceStatistics.Outcome.Overall",
+      "Sync.DeviceStatistics.Outcome.Overall2",
       /*sample=*/
       DeviceStatisticsTracker::AccountsHaveOtherDevicesSummary::kNoAccounts,
       /*expected_bucket_count=*/1);
@@ -186,7 +186,7 @@ TEST_F(DeviceStatisticsTrackerTest,
           kPrimarySucceededButNonPrimaryFailed,
       /*expected_bucket_count=*/1);
   histogram_tester.ExpectUniqueSample(
-      "Sync.DeviceStatistics.Outcome.Overall",
+      "Sync.DeviceStatistics.Outcome.Overall2",
       /*sample=*/
       DeviceStatisticsTracker::AccountsHaveOtherDevicesSummary::
           kPrimaryNoNonPrimaryNo,
@@ -223,7 +223,8 @@ TEST_F(DeviceStatisticsTrackerTest,
       DeviceStatisticsTracker::RequestsCompletedSuccess::
           kPrimaryFailedButNonPrimarySucceeded,
       /*expected_bucket_count=*/1);
-  histogram_tester.ExpectTotalCount("Sync.DeviceStatistics.Outcome.Overall", 0);
+  histogram_tester.ExpectTotalCount("Sync.DeviceStatistics.Outcome.Overall2",
+                                    0);
 }
 
 TEST_F(DeviceStatisticsTrackerTest, RecordsNoOutcomeWhenAllRequestsFail) {
@@ -253,7 +254,8 @@ TEST_F(DeviceStatisticsTrackerTest, RecordsNoOutcomeWhenAllRequestsFail) {
       "Sync.DeviceStatistics.RequestsCompletedSuccess",
       /*sample=*/DeviceStatisticsTracker::RequestsCompletedSuccess::kAllFailed,
       /*expected_bucket_count=*/1);
-  histogram_tester.ExpectTotalCount("Sync.DeviceStatistics.Outcome.Overall", 0);
+  histogram_tester.ExpectTotalCount("Sync.DeviceStatistics.Outcome.Overall2",
+                                    0);
 }
 
 // On ChromeOS, the primary account cannot change.
@@ -292,7 +294,8 @@ TEST_F(DeviceStatisticsTrackerTest, RecordsNoOutcomeWhenPrimaryAccountChanges) {
       DeviceStatisticsTracker::RequestsCompletedSuccess::
           kPrimaryAccountChangedOrRemoved,
       /*expected_bucket_count=*/1);
-  histogram_tester.ExpectTotalCount("Sync.DeviceStatistics.Outcome.Overall", 0);
+  histogram_tester.ExpectTotalCount("Sync.DeviceStatistics.Outcome.Overall2",
+                                    0);
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
@@ -323,7 +326,7 @@ TEST_F(DeviceStatisticsTrackerTest, RecordsOutcomeWhenPrimaryHasOtherDevices) {
       DeviceStatisticsTracker::RequestsCompletedSuccess::kAllSucceeded,
       /*expected_bucket_count=*/1);
   histogram_tester.ExpectUniqueSample(
-      "Sync.DeviceStatistics.Outcome.Overall",
+      "Sync.DeviceStatistics.Outcome.Overall2",
       /*sample=*/
       DeviceStatisticsTracker::AccountsHaveOtherDevicesSummary::
           kPrimaryYesNonPrimaryNA,
@@ -357,10 +360,20 @@ TEST_F(DeviceStatisticsTrackerTest,
       DeviceStatisticsTracker::RequestsCompletedSuccess::kAllSucceeded,
       /*expected_bucket_count=*/1);
   histogram_tester.ExpectUniqueSample(
-      "Sync.DeviceStatistics.Outcome.Overall",
+      "Sync.DeviceStatistics.Outcome.Overall2",
       /*sample=*/
       DeviceStatisticsTracker::AccountsHaveOtherDevicesSummary::
           kPrimaryNoNonPrimaryNA,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiDeviceReadiness2",
+      /*sample=*/
+      DeviceStatisticsTracker::MultiDeviceReadiness::kSingleDevice,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiPlatformReadiness2",
+      /*sample=*/
+      DeviceStatisticsTracker::MultiPlatformReadiness::kSinglePlatform,
       /*expected_bucket_count=*/1);
 }
 
@@ -396,7 +409,7 @@ TEST_F(DeviceStatisticsTrackerTest,
       DeviceStatisticsTracker::RequestsCompletedSuccess::kAllSucceeded,
       /*expected_bucket_count=*/1);
   histogram_tester.ExpectUniqueSample(
-      "Sync.DeviceStatistics.Outcome.Overall",
+      "Sync.DeviceStatistics.Outcome.Overall2",
       /*sample=*/
       DeviceStatisticsTracker::AccountsHaveOtherDevicesSummary::
           kPrimaryYesNonPrimaryYes,
@@ -434,7 +447,7 @@ TEST_F(DeviceStatisticsTrackerTest,
       DeviceStatisticsTracker::RequestsCompletedSuccess::kAllSucceeded,
       /*expected_bucket_count=*/1);
   histogram_tester.ExpectUniqueSample(
-      "Sync.DeviceStatistics.Outcome.Overall",
+      "Sync.DeviceStatistics.Outcome.Overall2",
       /*sample=*/
       DeviceStatisticsTracker::AccountsHaveOtherDevicesSummary::
           kPrimaryYesNonPrimaryNo,
@@ -472,7 +485,7 @@ TEST_F(DeviceStatisticsTrackerTest,
       DeviceStatisticsTracker::RequestsCompletedSuccess::kAllSucceeded,
       /*expected_bucket_count=*/1);
   histogram_tester.ExpectUniqueSample(
-      "Sync.DeviceStatistics.Outcome.Overall",
+      "Sync.DeviceStatistics.Outcome.Overall2",
       /*sample=*/
       DeviceStatisticsTracker::AccountsHaveOtherDevicesSummary::
           kPrimaryNoNonPrimaryYes,
@@ -508,7 +521,7 @@ TEST_F(DeviceStatisticsTrackerTest, RecordsOutcomeWhenNobodyHasOtherDevices) {
       DeviceStatisticsTracker::RequestsCompletedSuccess::kAllSucceeded,
       /*expected_bucket_count=*/1);
   histogram_tester.ExpectUniqueSample(
-      "Sync.DeviceStatistics.Outcome.Overall",
+      "Sync.DeviceStatistics.Outcome.Overall2",
       /*sample=*/
       DeviceStatisticsTracker::AccountsHaveOtherDevicesSummary::
           kPrimaryNoNonPrimaryNo,
@@ -542,10 +555,20 @@ TEST_F(DeviceStatisticsTrackerTest,
       DeviceStatisticsTracker::RequestsCompletedSuccess::kAllSucceeded,
       /*expected_bucket_count=*/1);
   histogram_tester.ExpectUniqueSample(
-      "Sync.DeviceStatistics.Outcome.Overall",
+      "Sync.DeviceStatistics.Outcome.Overall2",
       /*sample=*/
       DeviceStatisticsTracker::AccountsHaveOtherDevicesSummary::
           kPrimaryNANonPrimaryNo,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiDeviceReadiness2",
+      /*sample=*/
+      DeviceStatisticsTracker::MultiDeviceReadiness::kSignedOut,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiPlatformReadiness2",
+      /*sample=*/
+      DeviceStatisticsTracker::MultiPlatformReadiness::kSignedOut,
       /*expected_bucket_count=*/1);
 }
 
@@ -580,10 +603,20 @@ TEST_F(DeviceStatisticsTrackerTest,
           kPrimaryNAAndSomeNonPrimaryFailed,
       /*expected_bucket_count=*/1);
   histogram_tester.ExpectUniqueSample(
-      "Sync.DeviceStatistics.Outcome.Overall",
+      "Sync.DeviceStatistics.Outcome.Overall2",
       /*sample=*/
       DeviceStatisticsTracker::AccountsHaveOtherDevicesSummary::
           kPrimaryNANonPrimaryNo,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiDeviceReadiness2",
+      /*sample=*/
+      DeviceStatisticsTracker::MultiDeviceReadiness::kSignedOut,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiPlatformReadiness2",
+      /*sample=*/
+      DeviceStatisticsTracker::MultiPlatformReadiness::kSignedOut,
       /*expected_bucket_count=*/1);
 }
 
@@ -622,7 +655,7 @@ TEST_F(DeviceStatisticsTrackerTest, ExcludesCurrentDevice) {
   EXPECT_TRUE(future.Wait());
 
   histogram_tester.ExpectUniqueSample(
-      "Sync.DeviceStatistics.Outcome.Overall",
+      "Sync.DeviceStatistics.Outcome.Overall2",
       /*sample=*/
       DeviceStatisticsTracker::AccountsHaveOtherDevicesSummary::
           kPrimaryNoNonPrimaryYes,
@@ -631,12 +664,12 @@ TEST_F(DeviceStatisticsTrackerTest, ExcludesCurrentDevice) {
   // For both primary and non-primary account, the current device was not
   // counted.
   histogram_tester.ExpectBucketCount(
-      "Sync.DeviceStatistics.Outcome.PrimaryAccount.NumberOfAdditionalClients",
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.NumberOfAdditionalClients2",
       /*sample=*/0,
       /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.NonPrimaryAccount."
-      "NumberOfAdditionalClients",
+      "NumberOfAdditionalClients2",
       /*sample=*/1,
       /*expected_count=*/1);
 }
@@ -668,7 +701,7 @@ TEST_F(DeviceStatisticsTrackerTest, RecordsOtherPlatformsMetrics) {
   EXPECT_TRUE(future.Wait());
 
   histogram_tester.ExpectBucketCount(
-      "Sync.DeviceStatistics.Outcome.PrimaryAccount.NumberOfAdditionalClients",
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.NumberOfAdditionalClients2",
       /*sample=*/3,
       /*expected_count=*/1);
 
@@ -678,21 +711,32 @@ TEST_F(DeviceStatisticsTrackerTest, RecordsOtherPlatformsMetrics) {
 #endif
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.PrimaryAccount."
-      "NumberOfAdditionalPlatforms",
+      "NumberOfAdditionalPlatforms2",
       /*sample=*/primary_expected_platforms,
       /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(
-      "Sync.DeviceStatistics.Outcome.PrimaryAccount.PlatformOfAdditionalClient",
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount."
+      "PlatformOfAdditionalClient2",
       DeviceStatisticsTracker::Platform::kWindows,
       /*expected_count=*/2);
   histogram_tester.ExpectBucketCount(
-      "Sync.DeviceStatistics.Outcome.PrimaryAccount.PlatformOfAdditionalClient",
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount."
+      "PlatformOfAdditionalClient2",
       DeviceStatisticsTracker::Platform::kMac,
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiDeviceReadiness2",
+      DeviceStatisticsTracker::MultiDeviceReadiness::kMultiDeviceWithoutHistory,
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiPlatformReadiness2",
+      DeviceStatisticsTracker::MultiPlatformReadiness::
+          kMultiPlatformWithoutHistory,
       /*expected_count=*/1);
 
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.NonPrimaryAccount."
-      "NumberOfAdditionalClients",
+      "NumberOfAdditionalClients2",
       /*sample=*/2,
       /*expected_count=*/1);
 
@@ -702,17 +746,17 @@ TEST_F(DeviceStatisticsTrackerTest, RecordsOtherPlatformsMetrics) {
 #endif
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.NonPrimaryAccount."
-      "NumberOfAdditionalPlatforms",
+      "NumberOfAdditionalPlatforms2",
       /*sample=*/non_primary_expected_platforms,
       /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.NonPrimaryAccount."
-      "PlatformOfAdditionalClient",
+      "PlatformOfAdditionalClient2",
       DeviceStatisticsTracker::Platform::kIOS,
       /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.NonPrimaryAccount."
-      "PlatformOfAdditionalClient",
+      "PlatformOfAdditionalClient2",
       DeviceStatisticsTracker::Platform::kLinux,
       /*expected_count=*/1);
 }
@@ -756,19 +800,28 @@ TEST_F(DeviceStatisticsTrackerTest, RecordsMultiPlatformHistoryOptInMetrics) {
 
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.PrimaryAccount."
-      "NumberOfAdditionalPlatforms",
+      "NumberOfAdditionalPlatforms2",
       /*sample=*/expected_other_platforms,
       /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.PrimaryAccount."
-      "NumberOfAdditionalPlatformsWithHistoryOptIn",
+      "NumberOfAdditionalPlatformsWithHistoryOptIn2",
       /*sample=*/expected_other_platforms,
       /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.PrimaryAccount."
-      "HistoryOptInMultiPlatform",
+      "HistoryOptInMultiPlatform2",
       DeviceStatisticsTracker::HistoryOptInPlatformsSummary::
           kThisPlatformYesOtherPlatformsYes,
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiDeviceReadiness2",
+      DeviceStatisticsTracker::MultiDeviceReadiness::kMultiDeviceWithHistory,
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiPlatformReadiness2",
+      DeviceStatisticsTracker::MultiPlatformReadiness::
+          kMultiPlatformWithHistory,
       /*expected_count=*/1);
 }
 
@@ -788,8 +841,8 @@ TEST_F(DeviceStatisticsTrackerTest,
 
   std::vector<sync_pb::SyncEntity> device_infos =
       CreateDeviceInfosWithHistoryOptIns({true, false, true});
-  device_infos.push_back(CreateDeviceInfo(
-      kThisDeviceCacheGuid, sync_pb::SyncEnums_OsType_OS_TYPE_MAC, true));
+  device_infos.push_back(
+      CreateDeviceInfo(kThisDeviceCacheGuid, GetLocalOsType(), true));
 
   ASSERT_EQ(fake_requests_.size(), 1u);
   fake_requests_[primary.gaia]->SimulateSuccess(device_infos);
@@ -797,18 +850,27 @@ TEST_F(DeviceStatisticsTrackerTest,
 
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.PrimaryAccount."
-      "NumberOfAdditionalClients",
+      "NumberOfAdditionalClients2",
       /*sample=*/3,
       /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.PrimaryAccount."
-      "NumberOfAdditionalClientsWithHistoryOptIn",
+      "NumberOfAdditionalClientsWithHistoryOptIn2",
       /*sample=*/2,
       /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(
-      "Sync.DeviceStatistics.Outcome.PrimaryAccount.HistoryOptIn",
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.HistoryOptIn2",
       DeviceStatisticsTracker::HistoryOptInDevicesSummary::
           kThisDeviceYesOtherDevicesYes,
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiDeviceReadiness2",
+      DeviceStatisticsTracker::MultiDeviceReadiness::kMultiDeviceWithHistory,
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiPlatformReadiness2",
+      DeviceStatisticsTracker::MultiPlatformReadiness::
+          kMultiPlatformWithHistory,
       /*expected_count=*/1);
 }
 
@@ -847,38 +909,38 @@ TEST_F(DeviceStatisticsTrackerTest,
 
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.PrimaryAccount."
-      "NumberOfAdditionalClients",
+      "NumberOfAdditionalClients2",
       /*sample=*/2,
       /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.PrimaryAccount."
-      "NumberOfAdditionalClientsWithHistoryOptIn",
+      "NumberOfAdditionalClientsWithHistoryOptIn2",
       /*sample=*/1,
       /*expected_count=*/1);
 
   // For DEVICES summary: The current device is NOT opted in, but another device
   // IS.
   histogram_tester.ExpectBucketCount(
-      "Sync.DeviceStatistics.Outcome.PrimaryAccount.HistoryOptIn",
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.HistoryOptIn2",
       DeviceStatisticsTracker::HistoryOptInDevicesSummary::
           kThisDeviceNoOtherDevicesYes,
       /*expected_count=*/1);
 
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.PrimaryAccount."
-      "NumberOfAdditionalPlatforms",
+      "NumberOfAdditionalPlatforms2",
       /*sample=*/1,
       /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.PrimaryAccount."
-      "NumberOfAdditionalPlatformsWithHistoryOptIn",
+      "NumberOfAdditionalPlatformsWithHistoryOptIn2",
       /*sample=*/0,
       /*expected_count=*/1);
 
   // For PLATFORMS summary: A device on the local platform IS opted in, but no
   // other platform is opted in.
   histogram_tester.ExpectBucketCount(
-      "Sync.DeviceStatistics.Outcome.PrimaryAccount.HistoryOptInMultiPlatform",
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.HistoryOptInMultiPlatform2",
       DeviceStatisticsTracker::HistoryOptInPlatformsSummary::
           kThisPlatformYesOtherPlatformsNo,
       /*expected_count=*/1);
@@ -901,8 +963,8 @@ TEST_F(DeviceStatisticsTrackerTest,
 
   std::vector<sync_pb::SyncEntity> device_infos =
       CreateDeviceInfosWithHistoryOptIns({true, false, true});
-  device_infos.push_back(CreateDeviceInfo(
-      kThisDeviceCacheGuid, sync_pb::SyncEnums_OsType_OS_TYPE_MAC, false));
+  device_infos.push_back(
+      CreateDeviceInfo(kThisDeviceCacheGuid, GetLocalOsType(), false));
 
   ASSERT_EQ(fake_requests_.size(), 1u);
   fake_requests_[primary.gaia]->SimulateSuccess(device_infos);
@@ -910,18 +972,27 @@ TEST_F(DeviceStatisticsTrackerTest,
 
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.PrimaryAccount."
-      "NumberOfAdditionalClients",
+      "NumberOfAdditionalClients2",
       /*sample=*/3,
       /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.PrimaryAccount."
-      "NumberOfAdditionalClientsWithHistoryOptIn",
+      "NumberOfAdditionalClientsWithHistoryOptIn2",
       /*sample=*/2,
       /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(
-      "Sync.DeviceStatistics.Outcome.PrimaryAccount.HistoryOptIn",
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.HistoryOptIn2",
       DeviceStatisticsTracker::HistoryOptInDevicesSummary::
           kThisDeviceNoOtherDevicesYes,
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiDeviceReadiness2",
+      DeviceStatisticsTracker::MultiDeviceReadiness::kMultiDeviceWithoutHistory,
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiPlatformReadiness2",
+      DeviceStatisticsTracker::MultiPlatformReadiness::
+          kMultiPlatformWithoutHistory,
       /*expected_count=*/1);
 }
 
@@ -940,8 +1011,8 @@ TEST_F(DeviceStatisticsTrackerTest, RecordsHistoryMetricsWhenNoDevicesOptedIn) {
 
   std::vector<sync_pb::SyncEntity> device_infos =
       CreateDeviceInfosWithHistoryOptIns({false, false});
-  device_infos.push_back(CreateDeviceInfo(
-      kThisDeviceCacheGuid, sync_pb::SyncEnums_OsType_OS_TYPE_MAC, false));
+  device_infos.push_back(
+      CreateDeviceInfo(kThisDeviceCacheGuid, GetLocalOsType(), false));
 
   ASSERT_EQ(fake_requests_.size(), 1u);
   fake_requests_[primary.gaia]->SimulateSuccess(device_infos);
@@ -949,18 +1020,27 @@ TEST_F(DeviceStatisticsTrackerTest, RecordsHistoryMetricsWhenNoDevicesOptedIn) {
 
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.PrimaryAccount."
-      "NumberOfAdditionalClients",
+      "NumberOfAdditionalClients2",
       /*sample=*/2,
       /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(
       "Sync.DeviceStatistics.Outcome.PrimaryAccount."
-      "NumberOfAdditionalClientsWithHistoryOptIn",
+      "NumberOfAdditionalClientsWithHistoryOptIn2",
       /*sample=*/0,
       /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(
-      "Sync.DeviceStatistics.Outcome.PrimaryAccount.HistoryOptIn",
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.HistoryOptIn2",
       DeviceStatisticsTracker::HistoryOptInDevicesSummary::
           kThisDeviceNoOtherDevicesNo,
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiDeviceReadiness2",
+      DeviceStatisticsTracker::MultiDeviceReadiness::kMultiDeviceWithoutHistory,
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.MultiPlatformReadiness2",
+      DeviceStatisticsTracker::MultiPlatformReadiness::
+          kMultiPlatformWithoutHistory,
       /*expected_count=*/1);
 }
 
@@ -998,7 +1078,44 @@ TEST_F(DeviceStatisticsTrackerTest, DedupesByActivityTimeRange) {
   // Since the activity time ranges were non-overlapping, the three DeviceInfos
   // should have been deduped into a single device.
   histogram_tester.ExpectBucketCount(
-      "Sync.DeviceStatistics.Outcome.PrimaryAccount.PlatformOfAdditionalClient",
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount."
+      "PlatformOfAdditionalClient2",
+      DeviceStatisticsTracker::Platform::kWindows,
+      /*expected_count=*/1);
+}
+
+TEST_F(DeviceStatisticsTrackerTest, ExcludesIGSADevices) {
+  AccountInfo primary = identity_test_env_.MakePrimaryAccountAvailable(
+      "test@example.com", signin::ConsentLevel::kSignin);
+
+  base::HistogramTester histogram_tester;
+
+  DeviceStatisticsTracker tracker(identity_test_env_.identity_manager(),
+                                  GURL("https://example.com/"),
+                                  CreateRequestFactory(), {"test_guid"});
+
+  base::test::TestFuture<void> future;
+  tracker.Start(future.GetCallback());
+
+  ASSERT_EQ(fake_requests_.size(), 1u);
+  std::vector<sync_pb::SyncEntity> entities =
+      CreateDeviceInfosWithPlatforms({sync_pb::SyncEnums_OsType_OS_TYPE_WINDOWS,
+                                      sync_pb::SyncEnums_OsType_OS_TYPE_IOS});
+  // One device has an "iGSA" user agent.
+  entities[1].mutable_specifics()->mutable_device_info()->set_sync_user_agent(
+      "iGSA IOS-PHONE 145.0.7632.153 (007368903b9211f2773672f5072b67f9b2afc409-"
+      "refs/branch-heads/7632@{#3240}) channel(stable)");
+  fake_requests_[primary.gaia]->SimulateSuccess(entities);
+  EXPECT_TRUE(future.Wait());
+
+  // Only the first device should have been counted.
+  histogram_tester.ExpectBucketCount(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.NumberOfAdditionalClients2",
+      /*sample=*/1,
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount."
+      "PlatformOfAdditionalClient2",
       DeviceStatisticsTracker::Platform::kWindows,
       /*expected_count=*/1);
 }

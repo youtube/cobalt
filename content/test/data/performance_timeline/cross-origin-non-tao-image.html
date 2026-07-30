@@ -5,19 +5,14 @@
 
 <body>
   <script>
-    const getStartTime = async (type) => {
+    const getStartTime = async (type, name) => {
       return await new Promise(resolve => {
         new PerformanceObserver((entryList, observer) => {
-          if (type == 'paint') {
-            resolve(entryList.getEntriesByName('first-contentful-paint')[0].startTime);
-          } else {
-            resolve(entryList.getEntries()[0].startTime);
-          }
+          resolve(entryList.getEntriesByName(name)[0].startTime);
           observer.disconnect();
         }).observe({ type: type, buffered: true });
       });
-    }
-
+    };
   </script>
 
   <img src='/cross-site/b.com/single_face.jpg' id='image_id' />

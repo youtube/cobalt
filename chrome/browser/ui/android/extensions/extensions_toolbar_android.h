@@ -9,6 +9,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
+#include "chrome/browser/ui/android/extensions/extension_keybinding_registry_android.h"
 #include "chrome/browser/ui/extensions/extensions_toolbar_view_model.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -34,12 +35,15 @@ class ExtensionsToolbarAndroid : public ExtensionsToolbarViewModel::Delegate,
   // Shows the context menu for the given action ID.
   void ShowContextMenu(const ToolbarActionsModel::ActionId& action_id);
 
+  // Returns whether there is an active popup.
+  bool HasActivePopup();
+
   // ExtensionsToolbarViewModel::Delegate:
   std::unique_ptr<ExtensionActionViewModel> CreateActionViewModel(
       const ToolbarActionsModel::ActionId& action_id,
       ExtensionsContainer* extensions_container) override;
   void HideActivePopup() override;
-  bool CloseOverflowMenuIfOpen() override;
+  void CloseExtensionsMenuIfOpen() override;
   bool CanShowToolbarActionPopupForAPICall(
       const ToolbarActionsModel::ActionId& action_id) override;
   void ToggleExtensionsMenu() override;
@@ -76,10 +80,13 @@ class ExtensionsToolbarAndroid : public ExtensionsToolbarViewModel::Delegate,
   std::vector<ToolbarActionsModel::ActionId> GetPinnedActionIds(JNIEnv* env);
   int GetExtensionsMenuButtonState(JNIEnv* env,
                                    content::WebContents* web_contents);
+  bool HandleKeyDownEvent(JNIEnv* env, const ui::KeyEventAndroid& key_event);
   bool IsActionDraggable(JNIEnv* env,
                          const ToolbarActionsModel::ActionId& action_id);
   void ExecuteUserAction(const ToolbarActionsModel::ActionId& action_id,
                          ToolbarActionViewModel::InvocationSource source);
+  void OnRequestAccessButtonClicked(JNIEnv* env,
+                                    content::WebContents* web_contents);
   void MovePinnedAction(const ToolbarActionsModel::ActionId& action_id,
                         int target_index);
 
@@ -88,6 +95,10 @@ class ExtensionsToolbarAndroid : public ExtensionsToolbarViewModel::Delegate,
       const ToolbarActionsModel::ActionId& action_id);
 
   void OnActionIconUpdated(const ToolbarActionsModel::ActionId& action_id);
+
+  // TODO(crbug.com/499007513): Move this logic to ExtensionsToolbarViewModel.
+  void GrantSiteAccess(content::WebContents* web_contents,
+                       const std::vector<std::string>& extension_ids);
 
   const raw_ptr<BrowserWindowInterface> browser_;
 
@@ -109,6 +120,11 @@ class ExtensionsToolbarAndroid : public ExtensionsToolbarViewModel::Delegate,
                           ExtensionsToolbarViewModel::Observer>
       toolbar_view_model_observation_{this};
 
+  // The registry for keybindings.
+  const std::unique_ptr<ExtensionKeybindingRegistryAndroid>
+      keybinding_registry_;
+
+  // Java counterpart that `this` is owned by.
   const base::android::ScopedJavaGlobalRef<jobject> java_object_;
 };
 

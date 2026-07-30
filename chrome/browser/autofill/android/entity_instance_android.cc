@@ -17,11 +17,13 @@ namespace autofill {
 base::android::ScopedJavaLocalRef<jobject> EntityInstanceAndroid::Create(
     JNIEnv* env,
     const EntityInstanceAndroid& entity_instance,
-    bool requires_reauth_to_see) {
+    bool requires_reauth_to_see,
+    bool is_masked_server_entity) {
   return Java_EntityInstance_Constructor(
       env, entity_instance.guid, static_cast<int>(entity_instance.record_type),
       entity_instance.entity_type, entity_instance.attribute_instances,
-      entity_instance.metadata, requires_reauth_to_see);
+      entity_instance.metadata, requires_reauth_to_see,
+      is_masked_server_entity);
 }
 
 EntityInstanceAndroid EntityInstanceAndroid::FromJavaEntityInstance(
@@ -44,21 +46,29 @@ EntityInstanceAndroid EntityInstanceAndroid::FromJavaEntityInstance(
   bool requires_reauth_to_see =
       Java_EntityInstance_requiresReauthToSee(env, j_entity_instance);
 
+  bool is_masked_server_entity =
+      Java_EntityInstance_isMaskedServerEntity(env, j_entity_instance);
+
   return EntityInstanceAndroid(std::move(entity_type), std::move(guid),
                                record_type, std::move(attributes),
-                               std::move(metadata), requires_reauth_to_see);
+                               std::move(metadata), requires_reauth_to_see,
+                               is_masked_server_entity);
 }
 
 EntityInstanceAndroid::EntityInstanceAndroid(
     const EntityInstance& entity_instance,
     bool is_enabled,
+    bool is_eligible_for_wallet_storage,
     bool requires_reauth_to_see)
-    : entity_type(entity_instance.type(), is_enabled),
+    : entity_type(entity_instance.type(),
+                  is_enabled,
+                  is_eligible_for_wallet_storage),
       guid(*entity_instance.guid()),
       record_type(entity_instance.record_type()),
       metadata(entity_instance.date_modified(),
                static_cast<int>(entity_instance.use_count())),
-      requires_reauth_to_see(requires_reauth_to_see) {
+      requires_reauth_to_see(requires_reauth_to_see),
+      is_masked_server_entity(entity_instance.IsMaskedServerEntity()) {
   for (const auto& attr : entity_instance.attributes()) {
     attribute_instances.emplace_back(attr);
   }
@@ -70,13 +80,15 @@ EntityInstanceAndroid::EntityInstanceAndroid(
     EntityInstance::RecordType record_type,
     std::vector<AttributeInstanceAndroid> attribute_instances,
     EntityMetadataAndroid metadata,
-    bool requires_reauth_to_see)
+    bool requires_reauth_to_see,
+    bool is_masked_server_entity)
     : entity_type(std::move(entity_type)),
       guid(std::move(guid)),
       record_type(record_type),
       attribute_instances(std::move(attribute_instances)),
       metadata(std::move(metadata)),
-      requires_reauth_to_see(requires_reauth_to_see) {}
+      requires_reauth_to_see(requires_reauth_to_see),
+      is_masked_server_entity(is_masked_server_entity) {}
 
 EntityInstanceAndroid::EntityInstanceAndroid(const EntityInstanceAndroid&) =
     default;

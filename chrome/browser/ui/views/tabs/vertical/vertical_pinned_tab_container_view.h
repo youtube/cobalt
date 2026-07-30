@@ -56,7 +56,8 @@ class VerticalPinnedTabContainerView
   void UpdateTargetLayoutForDrag(
       const std::vector<const views::View*>& views_to_snap) override;
   const views::ProposedLayout& GetLayoutForDrag() const override;
-  void HandleTabDragInContainer(const gfx::Rect& dragged_tab_bounds) override;
+  const TabCollectionNode* GetCollectionNodeFromView(
+      const views::View& view) const override;
 
   // While collapsed, only the y-coordinate is used to determine the drop
   // index, similar to the unpinned container.
@@ -68,7 +69,6 @@ class VerticalPinnedTabContainerView
   std::optional<BrowserRootView::DropIndex> GetLinkDropIndexForExpanded(
       const gfx::Point& loc_in_container);
 
-  bool IsTabStripCollapsed() const;
   void ResetCollectionNode();
 
   raw_ptr<TabCollectionNode> collection_node_;

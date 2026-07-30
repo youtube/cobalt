@@ -422,7 +422,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.Canvas.MaximumInflightResources"
-    units="canvas resources" expires_after="2026-07-26">
+    units="canvas resources" expires_after="2026-09-27">
   <owner>aaronhk@chromium.org</owner>
   <owner>fserb@chromium.org</owner>
   <summary>
@@ -1390,7 +1390,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.FedCm.AccountLabel.NumMatchingAccounts"
-    enum="FedCmNumAccounts" expires_after="2026-06-28">
+    enum="FedCmNumAccounts" expires_after="2026-09-27">
   <owner>cbiesinger@chromium.org</owner>
   <owner>web-identity-eng@google.com</owner>
   <summary>
@@ -1434,6 +1434,29 @@ chromium-metrics-reviews@google.com.
     Records the size of the accounts received from the IdP after applying the
     filters. Records one sample per accounts fetch if there's at least one
     account left after filtering.
+  </summary>
+</histogram>
+
+<histogram name="Blink.FedCm.Ambient.ClickSource" enum="FedCmAmbientClick"
+    expires_after="2026-09-30">
+  <owner>goto@chromium.org</owner>
+  <owner>web-identity-eng@google.com</owner>
+  <summary>
+    Records the click source of the FedCM ambient UI. Recorded when the user
+    clicks on the omnibox icon, chip or the anchored message's button or close
+    button (but not when the user clicks on the avatar or strings). Multiple
+    clicks can happen per API call.
+  </summary>
+</histogram>
+
+<histogram name="Blink.FedCm.Ambient.Impression" enum="FedCmAmbientImpression"
+    expires_after="2026-09-30">
+  <owner>goto@chromium.org</owner>
+  <owner>web-identity-eng@google.com</owner>
+  <summary>
+    Records when the FedCM ambient UI is shown. Recorded when the omnibox icon,
+    chip and anchored message is displayed to the user (can happen more than
+    once per API call).
   </summary>
 </histogram>
 
@@ -1590,7 +1613,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.FedCm.Button.LoadingDialogResult"
-    enum="FedCmLoadingDialogResult" expires_after="2026-07-26">
+    enum="FedCmLoadingDialogResult" expires_after="2026-09-27">
   <owner>yigu@chromium.org</owner>
   <owner>web-identity-eng@google.com</owner>
   <summary>
@@ -2623,18 +2646,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Blink.FencedFrame.SharedStorageGetInFencedFrameOutcome"
-    enum="SharedStorageGetInFencedFrameOutcome" expires_after="2026-09-12">
-  <owner>lbrady@google.com</owner>
-  <owner>shivanisha@chromium.org</owner>
-  <summary>
-    Records the outcome from calling sharedStorage.get() in a fenced frame,
-    whether successful or not. Note that this only logs for get() calls from
-    within a fenced frame; calls outside of fenced frames (which will fail) are
-    not logged.
-  </summary>
-</histogram>
-
 <histogram name="Blink.Fetch.RequestResourceTime2{SchemeOrPreload}"
     units="microseconds" expires_after="2026-09-20">
   <owner>cduvall@chromium.org</owner>
@@ -2716,7 +2727,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.Fonts.FontServiceThread.OpenStreamTime"
-    units="microseconds" expires_after="2026-07-26">
+    units="microseconds" expires_after="2026-09-27">
   <owner>nidhijaju@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -4398,7 +4409,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.Network.ParseDataURLTime{Type}{CharacterCount}"
-    units="microseconds" expires_after="2026-07-26">
+    units="microseconds" expires_after="2026-09-27">
   <owner>nidhijaju@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -4653,13 +4664,16 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.ResourceRequest.CompletionDelay3" units="ms"
-    expires_after="2025-11-16">
+    expires_after="2026-10-01">
   <owner>horo@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <summary>
     Measures the time from when a resource request completes to when the
     renderer is notified. Logged for every resource request if the request has
     never been frozen.
+
+    Warning: this histogram was expired from 2025-11-16 to 2026-04-02; data may
+    be missing.
   </summary>
 </histogram>
 
@@ -4687,13 +4701,16 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.ResourceRequest.RedirectDelay2" units="ms"
-    expires_after="2025-09-14">
+    expires_after="2026-10-01">
   <owner>horo@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <summary>
     Measures the time from when a redirect from a resource request happens to
     when the renderer is notified. Logged for every resource request if the
     request has never been frozen.
+
+    Warning: this histogram was expired from 2025-09-14 to 2026-04-02; data may
+    be missing.
   </summary>
 </histogram>
 
@@ -4709,13 +4726,16 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.ResourceRequest.StartDelay2" units="ms"
-    expires_after="2026-01-18">
+    expires_after="2026-10-01">
   <owner>horo@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <summary>
     Measures the time from when the renderer starts a resource request to when
     it is actually started on the network. Logged for every resource request if
     the request has never been frozen.
+
+    Warning: this histogram was expired from 2026-01-18 to 2026-04-02; data may
+    be missing.
   </summary>
 </histogram>
 
@@ -5160,6 +5180,29 @@ chromium-metrics-reviews@google.com.
   <summary>
     The total number of async scripts associated with a document at the time
     parsing has finished.
+  </summary>
+</histogram>
+
+<histogram name="Blink.Script.InlineScriptCache.FetchResult"
+    enum="InlineScriptCacheFetchResult" expires_after="2027-03-25">
+  <owner>tnak@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
+  <summary>
+    The result of inline script cache fetch attempts. This is recorded for each
+    inline script only if the inline script caching is enabled and cache fetch
+    is not skipped (e.g., for small scripts).
+  </summary>
+</histogram>
+
+<histogram name="Blink.Script.InlineScriptCache.FetchTime" units="ms"
+    expires_after="2027-03-25">
+  <owner>tnak@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Time spent fetching an inline script cache from a worker thread. This is
+    recorded for each inline script only if the inline script caching is
+    enabled.
   </summary>
 </histogram>
 
@@ -5761,7 +5804,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.UseCounter.PermissionsPolicy.Allow2"
-    enum="FeaturePolicyFeature" expires_after="2026-07-26">
+    enum="FeaturePolicyFeature" expires_after="2026-09-27">
   <owner>iclelland@chromium.org</owner>
   <owner>feature-control@chromium.org</owner>
   <summary>

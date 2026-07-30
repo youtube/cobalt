@@ -187,6 +187,7 @@ public class FirstRunActivity extends FirstRunActivityBase implements FirstRunPa
     private static final String KEY_LAST_PAGER_INDEX = "LAST_PAGER_INDEX";
     private static final String KEY_PROMO_DIALOG_TRIGGERED =
             "DEFAULT_BROWSER_ROLE_MANAGER_DIALOG_TRIGGERED";
+    private static final String KEY_HISTORY_SYNC_STEP_COMPLETED = "HISTORY_SYNC_STEP_COMPLETED";
 
     private static final int TRANSITION_DELAY_MS = 450;
 
@@ -238,17 +239,22 @@ public class FirstRunActivity extends FirstRunActivityBase implements FirstRunPa
     /** Tracks if the role manager dialog has been shown in default browser promo. */
     private boolean mPromoRoleManagerDialogTriggered;
 
+    /** Tracks whether the History Sync page has been completed (either opted in or not). */
+    private boolean mHistorySyncStepCompleted;
+
     private boolean isFlowKnown() {
         return mFreProperties != null;
     }
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
-        if (ChromeFeatureList.sDefaultBrowserPromoFre.isEnabled()) {
+        if (FeatureList.isNativeInitialized()
+                && ChromeFeatureList.isEnabled(ChromeFeatureList.DEFAULT_BROWSER_PROMO_FRE)) {
             // Called by Android right before the First Run Activity is destroyed (toggle dark mode,
             // etc.). Before activity recreation, store which page the user was looking at.
             outState.putInt(KEY_LAST_PAGER_INDEX, mPager.getCurrentItem());
             outState.putBoolean(KEY_PROMO_DIALOG_TRIGGERED, mPromoRoleManagerDialogTriggered);
+            outState.putBoolean(KEY_HISTORY_SYNC_STEP_COMPLETED, mHistorySyncStepCompleted);
         }
 
         super.onSaveInstanceState(outState);
@@ -262,6 +268,16 @@ public class FirstRunActivity extends FirstRunActivityBase implements FirstRunPa
     @Override
     public void setPromoRoleManagerDialogTriggered(boolean val) {
         mPromoRoleManagerDialogTriggered = val;
+    }
+
+    @Override
+    public boolean getHistorySyncStepCompleted() {
+        return mHistorySyncStepCompleted;
+    }
+
+    @Override
+    public void setHistorySyncStepCompleted(boolean val) {
+        mHistorySyncStepCompleted = val;
     }
 
     /** Creates first page and sets up adapter. Should result UI being shown on the screen. */
@@ -312,7 +328,15 @@ public class FirstRunActivity extends FirstRunActivityBase implements FirstRunPa
 
         // An optional history sync opt-in page, the visibility of this page will be decided on the
         // fly according to the situation.
-        BooleanSupplier showHistorySync = () -> mFreProperties.getBoolean(SHOW_HISTORY_SYNC_PAGE);
+        BooleanSupplier showHistorySync =
+                () -> {
+                    if (ChromeFeatureList.isEnabled(ChromeFeatureList.DEFAULT_BROWSER_PROMO_FRE)) {
+                        return mFreProperties.getBoolean(SHOW_HISTORY_SYNC_PAGE)
+                                && !mHistorySyncStepCompleted;
+                    } else {
+                        return mFreProperties.getBoolean(SHOW_HISTORY_SYNC_PAGE);
+                    }
+                };
         if (!showHistorySync.getAsBoolean()) {
             HistorySyncHelper historySyncHelper = HistorySyncHelper.getForProfile(originalProfile);
             historySyncHelper.recordHistorySyncNotShown(SigninAccessPoint.START_PAGE);
@@ -320,8 +344,7 @@ public class FirstRunActivity extends FirstRunActivityBase implements FirstRunPa
         mPages.add(new FirstRunPage<>(HistorySyncFirstRunFragment.class, showHistorySync));
         mFreProgressStates.add(MobileFreProgress.HISTORY_SYNC_OPT_IN_SHOWN);
 
-        // TODO(crbug.com/486749302): Confirm if cached feature flags are reliable in FRE.
-        if (ChromeFeatureList.sDefaultBrowserPromoFre.isEnabled()) {
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.DEFAULT_BROWSER_PROMO_FRE)) {
             int promoIndex = mPages.size();
             BooleanSupplier showDefaultBrowserPromo =
                     () -> {
@@ -746,7 +769,8 @@ public class FirstRunActivity extends FirstRunActivityBase implements FirstRunPa
 
     /** Initialize local state from launch intent and from saved instance state. */
     private void initializeStateFromLaunchData() {
-        if (ChromeFeatureList.sDefaultBrowserPromoFre.isEnabled()) {
+        if (FeatureList.isNativeInitialized()
+                && ChromeFeatureList.isEnabled(ChromeFeatureList.DEFAULT_BROWSER_PROMO_FRE)) {
             // When a configuration change (like a theme toggle) occurs, the FirstRunActivity
             // instance is destroyed and recreated. We restore the saved state from the previous
             // instance's Bundle to ensure the user's progress in the FRE flow is preserved.
@@ -755,6 +779,8 @@ public class FirstRunActivity extends FirstRunActivityBase implements FirstRunPa
             if (savedState != null) {
                 mPromoRoleManagerDialogTriggered =
                         savedState.getBoolean(KEY_PROMO_DIALOG_TRIGGERED, false);
+                mHistorySyncStepCompleted =
+                        savedState.getBoolean(KEY_HISTORY_SYNC_STEP_COMPLETED, false);
             }
         }
 
@@ -838,7 +864,9 @@ public class FirstRunActivity extends FirstRunActivityBase implements FirstRunPa
                         @Override
                         public void onAnimationEnd(Animator animation) {
                             mPager.endFakeDrag();
-                            if (ChromeFeatureList.sDefaultBrowserPromoFre.isEnabled()
+                            if (FeatureList.isNativeInitialized()
+                                    && ChromeFeatureList.isEnabled(
+                                            ChromeFeatureList.DEFAULT_BROWSER_PROMO_FRE)
                                     && mPager.getCurrentItem() != position) {
                                 // When the user stays signed out, we jump from index 0 (sign-in
                                 // page) to index 2 (promo page) and skip index 1 (History sync).

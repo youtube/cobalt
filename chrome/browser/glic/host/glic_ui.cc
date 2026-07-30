@@ -92,7 +92,7 @@ class GlicPreloadHandler : public glic::mojom::GlicPreloadHandler {
 
   void PrepareForClient(
       mojom::GlicPreloadHandler::PrepareForClientCallback callback) override {
-    TRACE_EVENT_INSTANT("browser",
+    TRACE_EVENT_INSTANT("glic",
                         "GlicPreloadHandler::PrepareForClient - Request",
                         perfetto::Flow::FromPointer(this));
 
@@ -102,7 +102,7 @@ class GlicPreloadHandler : public glic::mojom::GlicPreloadHandler {
            mojom::PrepareForClientResult result) {
           if (origin_this) {
             TRACE_EVENT_INSTANT(
-                "browser", "GlicPreloadHandler::PrepareForClient - Response",
+                "glic", "GlicPreloadHandler::PrepareForClient - Response",
                 perfetto::TerminatingFlow::FromPointer(origin_this.get()));
           }
           std::move(callback).Run(std::move(result));
@@ -173,6 +173,7 @@ GlicUI::GlicUI(content::WebUI* web_ui)
       {"offlineNoticeAction", IDS_GLIC_OFFLINE_NOTICE_ACTION},
       {"offlineNoticeActionButton", IDS_GLIC_OFFLINE_NOTICE_ACTION_BUTTON},
       {"offlineNoticeHeader", IDS_GLIC_OFFLINE_NOTICE_HEADER},
+      {"zoomLabel", IDS_TOOLTIP_ZOOM},
       {"signInNotice", IDS_GLIC_SIGN_IN_NOTICE},
       {"signInNoticeActionButton", IDS_GLIC_SIGN_IN_NOTICE_ACTION_BUTTON},
       {"signInNoticeHeader", IDS_GLIC_SIGN_IN_NOTICE_HEADER},
@@ -307,8 +308,6 @@ GlicUI::GlicUI(content::WebUI* web_ui)
                     admin_blocked_redirect_patterns);
 
   source->AddString("glicFreURL", GetFreURL(profile).spec());
-  source->AddBoolean("isUnifiedFre",
-                     GlicEnabling::IsUnifiedFreEnabled(profile));
   source->AddBoolean(
       "shouldShowFre",
       !GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(profile) &&

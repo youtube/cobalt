@@ -168,6 +168,15 @@
     pointer-events: auto;
     z-index: 5;
     cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: var(--post-selection-cutout-corner-radius);
+    background: linear-gradient(to right, #C6E6FF, #E0E7FF) border-box;
+    -webkit-mask:
+      linear-gradient(#fff 0 0) padding-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: destination-out;
+    mask-composite: exclude;
+    box-sizing: border-box;
   }
 
   .static-region-cutout {
@@ -196,6 +205,23 @@
     z-index: 10;
     pointer-events: auto;
   }
+
+  #activeRegionShadow {
+    display: none;
+  }
+
+  :host([multi-region-selection-enabled]) #activeRegionShadow {
+    display: block;
+    border-radius: var(--post-selection-cutout-corner-radius);
+    box-shadow: 0 0 var(--region-selected-glow-blur-radius, 20px) 2px #9DD2FF;
+    height: var(--selection-height);
+    left: var(--selection-left);
+    pointer-events: none;
+    position: absolute;
+    top: var(--selection-top);
+    width: var(--selection-width);
+    z-index: 2;
+  }
 </style>
 <div id="postSelectionScrim" style$="[[getScrimStyleProperties(height, width)]]"></div>
 <template is="dom-if" if="[[multiRegionSelectionEnabled]]">
@@ -217,6 +243,9 @@
   </template>
 </template>
 <div hidden$="[[!hasSelection(height, width)]]">
+  <div id="activeRegionShadow"
+    style$="[[getPostSelectionStyles(height, width, selectionOverlayRect)]]">
+  </div>
   <canvas
     id="backgroundImageCanvas"
     height="[[canvasPhysicalHeight]]"

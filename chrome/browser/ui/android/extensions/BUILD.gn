@@ -26,6 +26,7 @@ android_library("java") {
     "//chrome/browser/ui/android/theme:java",
     "//chrome/browser/ui/browser_window/public/android:java",
     "//components/browser_ui/widget/android:java",
+    "//content/public/android:content_java",
     "//third_party/android_deps:material_design_java",
     "//ui/android:ui_full_java",
   ]
@@ -107,6 +108,7 @@ android_library("test_support_java") {
     "//base:base_java",
     "//base:base_java_test_support",
     "//chrome/browser/profiles/android:java",
+    "//content/public/android:content_java",
     "//third_party/junit",
     "//ui/android:ui_no_recycler_view_java",
   ]
@@ -142,6 +144,7 @@ static_library("test_support") {
     ]
     deps += [
       "//base",
+      "//chrome/browser/extensions",
       "//chrome/browser/extensions:test_support",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/ui/android/extensions:test_support_jni_headers",
@@ -165,7 +168,6 @@ if (enable_extensions_core) {
     sources = [
       "javatests/src/org/chromium/chrome/browser/ui/extensions/ExtensionDeveloperPrivateBridgeTest.java",
       "javatests/src/org/chromium/chrome/browser/ui/extensions/ExtensionInstallDialogBridgeTest.java",
-      "javatests/src/org/chromium/chrome/browser/ui/extensions/FakeExtensionActionsBridgeTest.java",
     ]
 
     deps = [
@@ -209,12 +211,14 @@ android_resources("java_resources") {
     "java/res/layout/extension_action_button.xml",
     "java/res/layout/extension_install_dialog.xml",
     "java/res/layout/extension_install_dialog_permission_item.xml",
-    "java/res/layout/extension_toolbar_container.xml",
     "java/res/layout/extensions_menu.xml",
     "java/res/layout/extensions_menu_footer.xml",
     "java/res/layout/extensions_menu_header.xml",
     "java/res/layout/extensions_menu_item.xml",
+    "java/res/layout/extensions_menu_site_permissions_page.xml",
+    "java/res/layout/extensions_menu_site_permissions_page_header.xml",
     "java/res/layout/extensions_request_access_item.xml",
+    "java/res/layout/extensions_toolbar_container.xml",
     "java/res/values-night/colors.xml",
     "java/res/values/colors.xml",
     "java/res/values/dimens.xml",
@@ -228,5 +232,6 @@ android_resources("java_resources") {
     "//chrome/browser/ui/android/theme:java_resources",
     "//components/browser_ui/modaldialog/android:java_resources",
     "//components/browser_ui/styles/android:java_resources",
+    "//ui/android:ui_java_resources",
   ]
 }

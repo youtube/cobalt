@@ -96,6 +96,7 @@ import org.chromium.chrome.browser.settings.SettingsActivity;
 import org.chromium.chrome.browser.settings.SettingsActivityTestRule;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.R;
 import org.chromium.components.autofill.AutofillProfile;
@@ -1320,7 +1321,10 @@ public class AutofillProfilesFragmentTest {
     @Feature({"Preferences"})
     public void testAutofillAiEntities_notRenderedIfDisabledAndEmpty() throws Exception {
         EntityType disabledType =
-                TestUtils.getVehicleEntityType(/* isReadOnly= */ false, /* isEnabled= */ false);
+                TestUtils.getVehicleEntityType(
+                        /* isReadOnly= */ false,
+                        /* isEnabled= */ false,
+                        /* isEligibleForWalletStorage= */ false);
 
         LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
                 new LinkedHashMap<>();
@@ -1351,7 +1355,10 @@ public class AutofillProfilesFragmentTest {
     @Feature({"Preferences"})
     public void testAutofillAiEntities_notRenderedIfReadOnlyAndEmpty() throws Exception {
         EntityType readOnlyType =
-                TestUtils.getPassportEntityType(/* isReadOnly= */ true, /* isEnabled= */ true);
+                TestUtils.getPassportEntityType(
+                        /* isReadOnly= */ true,
+                        /* isEnabled= */ true,
+                        /* isEligibleForWalletStorage= */ false);
 
         LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
                 new LinkedHashMap<>();
@@ -1382,7 +1389,10 @@ public class AutofillProfilesFragmentTest {
     @Feature({"Preferences"})
     public void testAutofillAiEntities_renderedIfDisabledButNotEmpty() throws Exception {
         EntityType disabledType =
-                TestUtils.getVehicleEntityType(/* isReadOnly= */ false, /* isEnabled= */ false);
+                TestUtils.getVehicleEntityType(
+                        /* isReadOnly= */ false,
+                        /* isEnabled= */ false,
+                        /* isEligibleForWalletStorage= */ false);
 
         EntityInstanceWithLabels entity =
                 new EntityInstanceWithLabels(
@@ -1517,6 +1527,38 @@ public class AutofillProfilesFragmentTest {
         ThreadUtils.runOnUiThreadBlocking(addVehicle::performClick);
 
         onView(withText("Add Vehicle")).check(matches(isDisplayed()));
+
+        // Click the "Done" button and trigger the local save fallback snackbar. Verify that the
+        // snackbar is displayed.
+        onView(withText("Done")).perform(click());
+        ArgumentCaptor<Runnable> localSaveFallbackCaptor = ArgumentCaptor.forClass(Runnable.class);
+        verify(sEntityDataManager)
+                .addOrUpdateEntityInstance(any(), localSaveFallbackCaptor.capture());
+
+        ThreadUtils.runOnUiThreadBlocking(() -> localSaveFallbackCaptor.getValue().run());
+
+        String snackbarMessage =
+                sSettingsActivityTestRule
+                        .getActivity()
+                        .getString(
+                                R.string
+                                        .autofill_ai_save_or_update_entity_failed_wallet_save_dialog_title);
+        waitForSnackbar(snackbarMessage);
+    }
+
+    /** Wait for the snackbar to show on the main activity post deletion. */
+    private void waitForSnackbar(String expectedSnackbarMessage) {
+        SettingsActivity activity = sSettingsActivityTestRule.getActivity();
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    SnackbarManager snackbarManager = activity.getSnackbarManager();
+                    Criteria.checkThat(snackbarManager.isShowing(), Matchers.is(true));
+                    TextView snackbarMessage = activity.findViewById(R.id.snackbar_message);
+                    Criteria.checkThat(snackbarMessage, Matchers.notNullValue());
+                    Criteria.checkThat(
+                            snackbarMessage.getText().toString(),
+                            Matchers.is(expectedSnackbarMessage));
+                });
     }
 
     @Test
@@ -1562,6 +1604,98 @@ public class AutofillProfilesFragmentTest {
         ThreadUtils.runOnUiThreadBlocking(vehicleEntity::performClick);
 
         onView(withText("Edit Vehicle")).check(matches(isDisplayed()));
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_AVAILABLE_BY_DEFAULT)
+    public void testAutofillAiEntities_opensEditorOnAddClick_eligibleForWalletFalse()
+            throws Exception {
+        EntityType vehicleType =
+                TestUtils.getVehicleEntityType(
+                        /* isReadOnly= */ false,
+                        /* isEnabled= */ true,
+                        /* isEligibleForWalletStorage= */ false);
+
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(vehicleType, Collections.emptyList());
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(sEntityDataManager.isEligibleToAutofillAi()).thenReturn(true);
+        when(sEntityDataManager.canEnableOrDisableAutofillAi()).thenReturn(true);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        // Trigger a rebuild of the profile list to pick up the new mock entities.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        Preference addVehicle =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            PreferenceCategory category =
+                                    sSettingsActivityTestRule
+                                            .getFragment()
+                                            .findPreference("Vehicle");
+                            return category.findPreference("Vehicle" + " Add");
+                        });
+        assertNotNull(addVehicle);
+        ThreadUtils.runOnUiThreadBlocking(addVehicle::performClick);
+
+        onView(withText("Add Vehicle")).check(matches(isDisplayed()));
+
+        Context context = sSettingsActivityTestRule.getFragment().getContext();
+        String expectedNoticeText =
+                context.getString(R.string.autofill_ai_local_entity_editor_source_notice);
+        onView(withText(expectedNoticeText)).check(matches(isDisplayed()));
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_AVAILABLE_BY_DEFAULT)
+    public void testAutofillAiEntities_opensEditorOnAddClick_eligibleForWalletTrue()
+            throws Exception {
+        setUpMockPrimaryAccount(TestAccounts.ACCOUNT1);
+        EntityType vehicleType =
+                TestUtils.getVehicleEntityType(
+                        /* isReadOnly= */ false,
+                        /* isEnabled= */ true,
+                        /* isEligibleForWalletStorage= */ true);
+
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(vehicleType, Collections.emptyList());
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(sEntityDataManager.isEligibleToAutofillAi()).thenReturn(true);
+        when(sEntityDataManager.canEnableOrDisableAutofillAi()).thenReturn(true);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        // Trigger a rebuild of the profile list to pick up the new mock entities.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        Preference addVehicle =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            PreferenceCategory category =
+                                    sSettingsActivityTestRule
+                                            .getFragment()
+                                            .findPreference("Vehicle");
+                            return category.findPreference("Vehicle" + " Add");
+                        });
+        assertNotNull(addVehicle);
+        ThreadUtils.runOnUiThreadBlocking(addVehicle::performClick);
+
+        onView(withText("Add Vehicle")).check(matches(isDisplayed()));
+
+        Context context = sSettingsActivityTestRule.getFragment().getContext();
+        String expectedNoticeText =
+                context.getString(R.string.autofill_ai_wallet_entity_editor_source_notice)
+                        .replace("$1", TestAccounts.ACCOUNT1.getEmail());
+        onView(withText(expectedNoticeText)).check(matches(isDisplayed()));
     }
 
     @Test

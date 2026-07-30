@@ -7,10 +7,14 @@ package org.chromium.chrome.browser.ui.app_rating;
 import android.app.Activity;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.segmentation_platform.SegmentationPlatformServiceFactory;
+import org.chromium.components.feature_engagement.FeatureConstants;
+import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.segmentation_platform.ClassificationResult;
 import org.chromium.components.segmentation_platform.InputContext;
 import org.chromium.components.segmentation_platform.PredictionOptions;
@@ -30,28 +34,51 @@ import java.lang.ref.WeakReference;
 public class AppRatingPromoController {
     private final Profile mProfile;
     private final WeakReference<Activity> mActivityRef;
+    private @Nullable Tracker mTracker;
 
-    public AppRatingPromoController(Profile profile, Activity activity) {
+    private AppRatingPromoController(Profile profile, Activity activity) {
         mProfile = profile;
         mActivityRef = new WeakReference<>(activity);
     }
 
-    /** Entry point to potentially trigger the app rating prompt. */
-    public void maybeShowPromo() {
+    /**
+     * Entry point to potentially trigger the app rating prompt.
+     *
+     * @param profile The current user profile.
+     * @param activity The current activity.
+     * @return Whether we launched an asynchronous process to check the segmentation result and show
+     *     the promo if the user is eligible.
+     */
+    public static boolean maybeShowPromo(Profile profile, Activity activity) {
         if (!ChromeFeatureList.sAndroidAppRatingPrompt.isEnabled()
-                || !UserPrefs.areNativePrefsLoaded(mProfile)) {
-            return;
+                || !UserPrefs.areNativePrefsLoaded(profile)) {
+            return false;
+        }
+
+        // Bypasses all eligibility checks (Segmentation, prefs, etc.) for manual QA.
+        if (ChromeFeatureList.sAndroidAppRatingPromptBypassChecks.getValue()) {
+            if (activity != null && !activity.isFinishing() && !activity.isDestroyed()) {
+                triggerAppRatingReviewFlow(activity, profile, null);
+            }
+            return true;
         }
 
         // Ensure the prompt is only shown once
-        if (UserPrefs.get(mProfile).getBoolean(Pref.APP_RATING_PROMPT_SHOWN)) {
-            return;
+        if (UserPrefs.get(profile).getBoolean(Pref.APP_RATING_PROMPT_SHOWN)) {
+            return false;
         }
 
-        // TODO(crbug.com/493342419): Implement a 72-hour Clank-wide cooldown check to ensure
-        // that no other promotional UI has been shown recently.
+        Tracker tracker = TrackerFactory.getTrackerForProfile(profile);
+        // Check if the 72-hour cooldown has passed (without actually claiming the UI yet).
+        // This fails fast to avoid waking up the Segmentation Service unnecessarily.
+        if (!tracker.wouldTriggerHelpUi(FeatureConstants.APP_RATING_PROMPT_FEATURE)) {
+            return false;
+        }
 
-        checkSegmentationResult();
+        AppRatingPromoController controller = new AppRatingPromoController(profile, activity);
+        controller.mTracker = tracker;
+        controller.checkSegmentationResult();
+        return true;
     }
 
     /** Queries the Segmentation Platform for the user's engagement level. */
@@ -87,22 +114,35 @@ public class AppRatingPromoController {
             return;
         }
 
-        triggerAppRatingReviewFlow(activity);
+        // Double-check eligibility and officially claim the UI state.
+        // This is necessary because another promo might have been triggered while we were waiting
+        // for the async segmentation result.
+        if (mTracker != null
+                && !mTracker.shouldTriggerHelpUi(FeatureConstants.APP_RATING_PROMPT_FEATURE)) {
+            return;
+        }
+
+        triggerAppRatingReviewFlow(activity, mProfile, mTracker);
     }
 
-    private void triggerAppRatingReviewFlow(Activity activity) {
+    private static void triggerAppRatingReviewFlow(
+            Activity activity, Profile profile, @Nullable Tracker tracker) {
         // The Play Store In-App Review API is a black box that fails silently if the user has
         // already rated the app or seen the prompt too recently.
         // It does not inform us if the UI was actually shown.
         // To strictly avoid spamming users, we record the attempt as a success.
-        UserPrefs.get(mProfile).setBoolean(Pref.APP_RATING_PROMPT_SHOWN, true);
+        UserPrefs.get(profile).setBoolean(Pref.APP_RATING_PROMPT_SHOWN, true);
+        AppRatingPromoMetrics.recordShowAttempted();
         AppRatingManager manager = AppRatingManagerFactory.create();
         manager.requestAndShowReviewFlow(
                 activity,
                 () -> {
                     // This callback only indicates that the API flow has finished (or failed
                     // silently). It does NOT mean the user saw the dialog or provided a rating.
-                    // TODO(crbug.com/493340627): Log or update metrics */
+                    if (tracker != null) {
+                        // Tell the tracker we're done so it releases the UI lock.
+                        tracker.dismissed(FeatureConstants.APP_RATING_PROMPT_FEATURE);
+                    }
                 });
     }
 }

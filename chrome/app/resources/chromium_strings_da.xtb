@@ -57,6 +57,7 @@
 <translation id="1639380494700489405">Hvis du vil spørge AI-tilstand om din fane uden at forlade siden, skal du logge ind i Chromium. Du kan også se dine adgangskoder m.m. på alle dine enheder.</translation>
 <translation id="1640672724030957280">Downloader...</translation>
 <translation id="1680687534629375545">Stil Billedsøgning spørgsmål om denne side</translation>
+<translation id="1708414395296835197">Du kan bruge Chromium, hver gang du klikker på links i beskeder, dokumenter og andre apps. Den fastgøres også til proceslinjen.</translation>
 <translation id="1709772298389099340">Giver udvidede adgangsrettigheder til <ph name="BROWSER_NAME" />.</translation>
 <translation id="1715127912119967311">Chromium sender dine interaktioner med disse funktioner til Google for at hjælpe med at forbedre dem. Disse data læses, behandles og annoteres muligvis af menneskelige kontrollanter.</translation>
 <translation id="1722488837206509557">Dette giver dig mulighed for at vælge mellem tilgængelige enheder og vise indhold på dem.</translation>
@@ -227,7 +228,6 @@
 <translation id="3313189106987092621">Chromium advarer dig, inden et website indlæses via en usikker forbindelse</translation>
 <translation id="3316771292331273802">Du logges ud af de fleste websites, når du lukker alle Chromium-vinduer, med undtagelse af din Google-konto, hvis du er logget ind i Chromium. <ph name="SETTINGS_LINK" /> for at give websites tilladelse til at huske dig.</translation>
 <translation id="3322413454779348750">Din standardsøgemaskine blev ændret uden for Chromium. Chromium har nulstillet den for at beskytte dig.</translation>
-<translation id="3331557257666250900">Log ind i Chromium for at se dine adgangskoder, bogmærker m.m. på alle dine enheder</translation>
 <translation id="3352986031709923790">øverste højre hjørne af søgeområdet: højre <ph name="RIGHT" /> %, øverste <ph name="TOP" /> %</translation>
 <translation id="3366305173356742781">Chromium-data på din konto</translation>
 <translation id="3369405342922656244">Søg på denne side med Billedsøgning</translation>
@@ -438,6 +438,7 @@
 <translation id="5895138241574237353">Genstart</translation>
 <translation id="5903106910045431592"><ph name="PAGE_TITLE" /> – Login på netværk</translation>
 <translation id="5924017743176219022">Opretter forbindelse til internettet…</translation>
+<translation id="5939553720811388432">Lad os konfigurere Chromium</translation>
 <translation id="5941711191222866238">Minimer</translation>
 <translation id="5949225980829865667">For at få dette bogmærke og meget mere på alle dine enheder skal du logge ind på Chromium</translation>
 <translation id="5953657885167112863">Sæt dit personlige præg på Chromium</translation>

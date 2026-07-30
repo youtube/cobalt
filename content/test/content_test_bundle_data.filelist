@@ -8419,8 +8419,8 @@ data/payments/payment_app.js
 data/payments/payment_app_invocation.html
 data/payments/payment_app_window.html
 data/performance_timeline/cross-origin-non-tao-image.html
+data/performance_timeline/text-lcp-start-time.html
 data/performance_timeline/event_timing.html
-data/performance_timeline/lcp-start-time-precision.html
 data/performance_timeline/long_animation_frame_style_duration.html
 data/performance_timeline/prefetch.html
 data/performance_timeline/resource-timing-not-for-file-protocol.html
@@ -8596,6 +8596,7 @@ data/result_queue.js
 data/rgb.svg
 data/rgb.svg.mock-http-headers
 data/run_async_code_on_worker.html
+data/rust_mojo_test.html
 data/rwh_simple.html
 data/rwhv_compositing_animation.html
 data/sandbox_main_frame_csp.html

@@ -107,6 +107,7 @@
 <translation id="1369286077209859800">Табын бүлэг дэх бүх табыг харуулах</translation>
 <translation id="136942498637440594">Та зургууд болон харж буй зүйлээ хайх боломжтой.</translation>
 <translation id="1373120905936431262">Nano Banana-р ремикс хийхийн тулд зураг байршуулаарай</translation>
+<translation id="1377321085342047638">Картын дугаар</translation>
 <translation id="1377508275003315939">Нууц үг</translation>
 <translation id="1381022135873211423">{count,plural, =1{{count}-н {position}-р хаяг}other{{count}-н {position}-р хаяг}}</translation>
 <translation id="1383876407941801731">Хайлт</translation>
@@ -151,7 +152,6 @@
 <translation id="1517166097004694782">"Энэ табаар үргэлжлүүлэх"-ийг нуух</translation>
 <translation id="1520027731907768768">Мөшгөдөг бүтээгдэхүүнүүдийнхээ үнэ буурсан талаарх дохиог хүлээн авна уу.</translation>
 <translation id="1521366073263497277">Табын хүснэгт рүүгээ очно уу</translation>
-<translation id="1521774566618522728">Өнөөдөр идэвхтэй</translation>
 <translation id="1523567067736644845">Нууц үгийг харуулахын тулд түгжээг тайлна уу</translation>
 <translation id="1524563461097350801">Үгүй, баярлалаа</translation>
 <translation id="1531038290222364269">Табуудыг харуулах</translation>
@@ -376,6 +376,7 @@
 <translation id="2299218006564889602">Таны нууц үгнүүдийг Google-н Нууц үгний менежерт хадгалахаас нь өмнө төхөөрөмж дээр тань шифрлэдэг.</translation>
 <translation id="2306265833370324042"><ph name="SEARCH_ENGINE_NAME" />-н дэлгэрэнгүйг харуулах</translation>
 <translation id="2309265394777270359">Табыг хаах</translation>
+<translation id="2310789833878085574">Хадгалж, автоматаар бөглөх</translation>
 <translation id="2311077293164383652">Бэхэлсэн табыг хаах</translation>
 <translation id="2316129865977710310">Үгүй ээ, баярлалаа</translation>
 <translation id="2320166752086256636">Компьютерийн гарыг нуух</translation>
@@ -1099,7 +1100,6 @@
 <translation id="4944543191714094452">Хуудаснаас олох…</translation>
 <translation id="4945756290001680296">Нууц үгний тохиргооны хэсэгт хандах</translation>
 <translation id="4949302115427722371">Тохиргоог удирдах…</translation>
-<translation id="4952050521954075618">Камераар авсан цомгийн зургуудыг таны төхөөрөмжүүд дээр синк хийхгүй</translation>
 <translation id="4958444002117714549">Жагсаалтыг өргөжүүлэх</translation>
 <translation id="496392417432935267">Өөр газар нээсэн</translation>
 <translation id="4970724460420203313">Chrome-г удирдлагатай бүртгэлээрээ ашиглах нь байгууллагатайгаа холбоотой үзсэн зүйлсийг (таб, түүх, нууц үг гэх мэт) үзсэн бусад зүйлээсээ тусдаа байлгахад тусална</translation>
@@ -1148,7 +1148,6 @@
 <translation id="5119329531859909472">Бүтээгдэхүүнийг хянахын тулд Хянах дээр товшино уу</translation>
 <translation id="5121618895923301719">Та энэ бүтээгдэхүүнийг аль хэдийн хянаж байна. Энэ хуудсыг <ph name="BEGIN_LINK" />Мобайл хавчуургад<ph name="END_LINK" /> хадгалсан.</translation>
 <translation id="512533434554095351">Танд нууц үгний хэд хэдэн асуудал байна.</translation>
-<translation id="5127538504377457572"><ph name="DAYS" /> хоногийн өмнө идэвхтэй байсан</translation>
 <translation id="5128788795241319992">Шинэ цэсийг судлах</translation>
 <translation id="5132942445612118989">Нууц үг, түүх болон бусад зүйлээ бүх төхөөрөмждөө синк хийгээрэй</translation>
 <translation id="5141363746588976328">Таны таб дээрх үнийн бууралтын картыг нуух</translation>
@@ -1266,6 +1265,7 @@ Handoff-ыг Тохиргооны ерөнхий хэсэгт идэвхижүү
 <translation id="5556459405103347317">Дахин ачаал</translation>
 <translation id="555749644339804659">Нууц үгийг шалгаж байна…</translation>
 <translation id="5559567453458728487">Вебээс олдсон хэмжилтийн нэгжүүдийг хөрвүүлнэ</translation>
+<translation id="5560088892362098740">Дуусах огноо</translation>
 <translation id="556042886152191864">Товч</translation>
 <translation id="5565871407246142825">Зээлийн картууд</translation>
 <translation id="5566623128829375608">Таны төхөөрөмжид хадгална.</translation>
@@ -1353,6 +1353,7 @@ Handoff-ыг Тохиргооны ерөнхий хэсэгт идэвхижүү
 <translation id="5819208479324046259"><ph name="MANAGER" /> удирддаг. <ph name="BEGIN_LINK" />Нэмэлт мэдээлэл авах<ph name="END_LINK" /></translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5829649908290113115">Синк хийж байна…</translation>
+<translation id="5831217499016131155">Google Wallet</translation>
 <translation id="583281660410589416">Үл мэдэгдэх</translation>
 <translation id="5838430324585198889">Google аппаар өөрийн iPad-д зориулж илүү олон онцлогийн түгжээг тайлаарай</translation>
 <translation id="583923961930319521">Бүх төхөөрөмж дээрээ нууц үгээ ашиглах</translation>
@@ -1650,6 +1651,7 @@ Handoff-ыг Тохиргооны ерөнхий хэсэгт идэвхижүү
 <translation id="6806550742467879742">Хуудасны хэрэгсэл</translation>
 <translation id="6807287147325542056">Бусад апп дахь нууц үг</translation>
 <translation id="681368974849482173">Үүссэн зүйл</translation>
+<translation id="6820686453637990663">CVC</translation>
 <translation id="6825078212112407882">{count,plural, =1{Хавчуургыг таны {email} Google Бүртгэлд хадгалсан}other{{count} хавчуургыг таны {email} Google Бүртгэлд хадгалсан}}</translation>
 <translation id="6826004672264649705">Одоогоор энэ бүтээгдэхүүнийг хянаж байна. Үнийн түүхийг харахын тулд нээнэ үү</translation>
 <translation id="6830728435402077660">Аюултай</translation>
@@ -1963,7 +1965,6 @@ Handoff-ыг Тохиргооны ерөнхий хэсэгт идэвхижүү
 <translation id="7952670906562503188">Та {passkey_count} нэвтрэх түлхүүр болон нэвтрэх мэдээлэл хэзээ ч хадгалахгүй байхаар сонгосон сайт, аппын жагсаалтыг устгах гэж байна. Таны сайт, аппад зориулж үүсгэсэн аливаа бүртгэлийг устгахгүй.</translation>
 <translation id="7958575506592576831">Хуудасны аюулгүй байдлын мэдээлэл</translation>
 <translation id="7961015016161918242">Хэзээ ч</translation>
-<translation id="7971136598759319605">1 өдрийн өмнө идэвхтэй</translation>
 <translation id="7972837668077967426">Зотон</translation>
 <translation id="7975036700432177008">Туршиж үзэх</translation>
 <translation id="797588153137233716">Цэс → Түүх → Интернэтээр үзсэн өгөгдлийг устгах</translation>

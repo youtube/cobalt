@@ -80,6 +80,7 @@
 <translation id="1285320974508926690">ಈ ಸೈಟ್ ಅನ್ನು ಎಂದಿಗೂ ಭಾಷಾಂತರಿಸದಿರಿ</translation>
 <translation id="1287229685519872919">Google Workspace ಡೇಟಾ</translation>
 <translation id="1291506870746876680">ನೀವು ಈ ಸೈಟ್ ಅನ್ನು ತೊರೆದಾಗ <ph name="BEGIN_BOLD" />"<ph name="SITE_NAME" />"<ph name="END_BOLD" /> ಅನುಮತಿಗಳನ್ನು ಆಫ್‌ಗೆ ರೀಸೆಟ್ ಮಾಡಲಾಗುತ್ತದೆ.</translation>
+<translation id="1293491796138057740">ನಿಮ್ಮ ಮಾಹಿತಿಯು <ph name="USER_EMAIL" /> ಗೆ ಸಂಬಂಧಿಸಿದ Google Wallet ನಲ್ಲಿ ಸೇವ್ ಆಗುತ್ತದೆ. ಫಾರ್ಮ್‌ಗಳನ್ನು ವೇಗವಾಗಿ ಭರ್ತಿ ಮಾಡುವುದಕ್ಕಾಗಿ ನೀವು ಅದನ್ನು Google ಉತ್ಪನ್ನಗಳಾದ್ಯಂತ ಬಳಸಬಹುದು.</translation>
 <translation id="1293556467332435079">Files</translation>
 <translation id="129553762522093515">ಇತ್ತೀಚೆಗೆ ಮುಚ್ಚಲಾಗಿರುವುದು</translation>
 <translation id="1296581780163690620">ಫೈಲ್ ಅನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಬೇಕೆ? (<ph name="FILE_SIZE" />)</translation>
@@ -107,6 +108,7 @@
 <translation id="1369286077209859800">ಟ್ಯಾಬ್‌ ಗುಂಪಿನಲ್ಲಿ ಎಲ್ಲಾ ಟ್ಯಾಬ್‌ಗಳನ್ನು ತೋರಿಸಿ</translation>
 <translation id="136942498637440594">ನೀವು ಚಿತ್ರಗಳನ್ನು ಮತ್ತು ನೀವು ನೋಡುವುದನ್ನು ಹುಡುಕಬಹುದು.</translation>
 <translation id="1373120905936431262">Nano Banana ಮೂಲಕ ರೀಮಿಕ್ಸ್ ಮಾಡಲು ಚಿತ್ರವನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ</translation>
+<translation id="1377321085342047638">ಕಾರ್ಡ್ ಸಂಖ್ಯೆ</translation>
 <translation id="1377508275003315939">ಪಾಸ್‌ವರ್ಡ್‌ಗಳು</translation>
 <translation id="1381022135873211423">{count,plural, =1{{count} ರಲ್ಲಿ {position} ವಿಳಾಸ}one{{count} ರಲ್ಲಿ {position} ವಿಳಾಸಗಳು}other{{count} ರಲ್ಲಿ {position} ವಿಳಾಸಗಳು}}</translation>
 <translation id="1383876407941801731">ಹುಡುಕಿ</translation>
@@ -151,7 +153,6 @@
 <translation id="1517166097004694782">"ಈ ಟ್ಯಾಬ್‌ನೊಂದಿಗೆ ಮುಂದುವರಿಸಿ" ಎಂಬುದನ್ನು ಮರೆಮಾಡಿ</translation>
 <translation id="1520027731907768768">ನೀವು ಟ್ರ್ಯಾಕ್ ಮಾಡುವ ಉತ್ಪನ್ನಗಳ ಬೆಲೆ ಕುಸಿತದ ಎಚ್ಚರಿಕೆಗಳನ್ನು ಸ್ವೀಕರಿಸಿ.</translation>
 <translation id="1521366073263497277">ನಿಮ್ಮ ಟ್ಯಾಬ್ ಗ್ರಿಡ್‌ಗೆ ಹೋಗಿ</translation>
-<translation id="1521774566618522728">ಇಂದು ಸಕ್ರಿಯ</translation>
 <translation id="1523567067736644845">ಪಾಸ್‌ವರ್ಡ್ ತೋರಿಸಲು ಅನ್‌ಲಾಕ್ ಮಾಡಿ</translation>
 <translation id="1524563461097350801">ಬೇಡ</translation>
 <translation id="1531038290222364269">ಟ್ಯಾಬ್‌ಗಳನ್ನು ತೋರಿಸಿ</translation>
@@ -376,6 +377,7 @@
 <translation id="2299218006564889602">ನಿಮ್ಮ ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು Google ಪಾಸ್‌ವರ್ಡ್ ನಿರ್ವಾಹಕದಲ್ಲಿ ಉಳಿಸುವ ಮೊದಲು ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಎನ್‌ಕ್ರಿಪ್ಟ್ ಮಾಡಲಾಗುತ್ತದೆ</translation>
 <translation id="2306265833370324042"><ph name="SEARCH_ENGINE_NAME" /> ವಿವರಗಳನ್ನು ತೋರಿಸಿ</translation>
 <translation id="2309265394777270359">ಟ್ಯಾಬ್ ಅನ್ನು ಮುಚ್ಚಿರಿ</translation>
+<translation id="2310789833878085574">ಸೇವ್ ಮಾಡಿ ಮತ್ತು ಆಟೋಫಿಲ್ ಮಾಡಿ</translation>
 <translation id="2311077293164383652">ಪಿನ್ ಮಾಡಿದ ಟ್ಯಾಬ್ ಅನ್ನು ಮುಚ್ಚಿರಿ</translation>
 <translation id="2316129865977710310">ಬೇಡ, ಧನ್ಯವಾದಗಳು</translation>
 <translation id="2320166752086256636">ಕೀಬೋರ್ಡ್ ಮರೆಮಾಡಿ</translation>
@@ -1099,7 +1101,6 @@
 <translation id="4944543191714094452">ಪುಟದಲ್ಲಿ ಹುಡುಕಿ…</translation>
 <translation id="4945756290001680296">ಪಾಸ್‌ವರ್ಡ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಪ್ರವೇಶಿಸಿ</translation>
 <translation id="4949302115427722371">ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ನಿರ್ವಹಿಸಿ…</translation>
-<translation id="4952050521954075618">ಕ್ಯಾಮರಾ ರೋಲ್‌ನಿಂದ ಫೋಟೋಗಳು ನಿಮ್ಮ ಸಾಧನಗಳಾದ್ಯಂತ ಸಿಂಕ್‌ ಆಗುವುದಿಲ್ಲ</translation>
 <translation id="4958444002117714549">ಪಟ್ಟಿಯನ್ನು ವಿಸ್ತರಿಸಿ</translation>
 <translation id="496392417432935267">ಬೇರೆಡೆ ತೆರೆಯಲಾಗಿದೆ</translation>
 <translation id="4970724460420203313">ನಿಮ್ಮ ನಿರ್ವಹಿಸಲಾದ ಖಾತೆಯೊಂದಿಗೆ Chrome ಅನ್ನು ಬಳಸುವುದರಿಂದ ನಿಮ್ಮ ಸಂಸ್ಥೆಗೆ ಸಂಬಂಧಿಸಿದ ಬ್ರೌಸಿಂಗ್ (ಟ್ಯಾಬ್‌ಗಳು, ಇತಿಹಾಸ ಮತ್ತು ಪಾಸ್‌ವರ್ಡ್‌ಗಳು ಸೇರಿದಂತೆ) ಅನ್ನು ನಿಮ್ಮ ಇತರ ಬ್ರೌಸಿಂಗ್‌ಗಿಂತ ಪ್ರತ್ಯೇಕವಾಗಿಡಲು ಸಹಾಯ ಮಾಡುತ್ತದೆ</translation>
@@ -1148,7 +1149,6 @@
 <translation id="5119329531859909472">ಉತ್ಪನ್ನವನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡಲು, ಟ್ರ್ಯಾಕ್ ಮಾಡಿ ಎಂಬುದನ್ನು ಟ್ಯಾಪ್ ಮಾಡಿ</translation>
 <translation id="5121618895923301719">ನೀವು ಈ ಉತ್ಪನ್ನವನ್ನು ಈಗಾಗಲೇ ಟ್ರ್ಯಾಕ್ ಮಾಡುತ್ತಿದ್ದೀರಿ. ಈ ಪುಟವನ್ನು <ph name="BEGIN_LINK" />ಮೊಬೈಲ್ Bookmarks<ph name="END_LINK" /> ನಲ್ಲಿ ಸೇವ್ ಮಾಡಲಾಗಿದೆ.</translation>
 <translation id="512533434554095351">ನೀವು ಹಲವಾರು ಪಾಸ್‌ವರ್ಡ್ ಸಮಸ್ಯೆಗಳನ್ನು ಹೊಂದಿದ್ದೀರಿ.</translation>
-<translation id="5127538504377457572"><ph name="DAYS" /> ದಿನಗಳ ಹಿಂದೆ ಸಕ್ರಿಯವಾಗಿದೆ</translation>
 <translation id="5128788795241319992">ಹೊಸ ಮೆನುವನ್ನು ಎಕ್ಸ್‌ಪ್ಲೋರ್‌ ಮಾಡಿ</translation>
 <translation id="5132942445612118989">ಎಲ್ಲಾ ಸಾಧನಗಳಲ್ಲೂ ನಿಮ್ಮ ಪಾಸ್‌ವರ್ಡ್‌ಗಳು, ಇತಿಹಾಸ ಹಾಗೂ ಇನ್ನೂ ಹೆಚ್ಚಿನವುಗಳನ್ನು ಸಿಂಕ್ ಮಾಡಿ</translation>
 <translation id="5141363746588976328">ನಿಮ್ಮ ಟ್ಯಾಬ್‌ಗಳ ಕಾರ್ಡ್‌ನಲ್ಲಿ ದರ ಇಳಿಕೆಯನ್ನು ಮರೆಮಾಡಿ</translation>
@@ -1266,6 +1266,7 @@
 <translation id="5556459405103347317">ಮರುಲೋಡ್‌</translation>
 <translation id="555749644339804659">ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…</translation>
 <translation id="5559567453458728487">ವೆಬ್‌ನಲ್ಲಿ ಕಂಡುಬರುವ ಮಾಪನ ಯೂನಿಟ್‌ಗಳನ್ನು ಪರಿವರ್ತಿಸಿ</translation>
+<translation id="5560088892362098740">ಅವಧಿ ಮುಗಿಯುವ ದಿನಾಂಕ</translation>
 <translation id="556042886152191864">ಬಟನ್</translation>
 <translation id="5565871407246142825">ಕ್ರೆಡಿಟ್ ಕಾರ್ಡ್‌ಗಳು</translation>
 <translation id="5566623128829375608">ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಸೇವ್ ಮಾಡುತ್ತದೆ.</translation>
@@ -1353,6 +1354,7 @@
 <translation id="5819208479324046259"><ph name="MANAGER" /> ಮೂಲಕ ನಿರ್ವಹಿಸಲಾಗುತ್ತಿದೆ. <ph name="BEGIN_LINK" />ಇನ್ನಷ್ಟು ತಿಳಿಯಿರಿ<ph name="END_LINK" /></translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5829649908290113115">ಸಿಂಕ್ ಆಗುತ್ತಿದೆ…</translation>
+<translation id="5831217499016131155">Google Wallet</translation>
 <translation id="583281660410589416">ಅಪರಿಚಿತ</translation>
 <translation id="5838430324585198889">Google ಆ್ಯಪ್‌ಗಳೊಂದಿಗೆ ನಿಮ್ಮ iPad ಗಾಗಿ ಹೆಚ್ಚಿನ ಫೀಚರ್‌ಗಳನ್ನು ಅನ್‌ಲಾಕ್ ಮಾಡಿ</translation>
 <translation id="583923961930319521">ನಿಮ್ಮ ಎಲ್ಲಾ ಸಾಧನಗಳಲ್ಲಿ ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ಬಳಸಿ</translation>
@@ -1650,6 +1652,7 @@
 <translation id="6806550742467879742">ಪುಟದ ಟೂಲ್‌ಗಳು</translation>
 <translation id="6807287147325542056">ಇತರ ಆ್ಯಪ್‌ಗಳಲ್ಲಿನ ಪಾಸ್‌ವರ್ಡ್‌ಗಳು</translation>
 <translation id="681368974849482173">ಐಟಂ ರಚಿಸಲಾಗಿದೆ</translation>
+<translation id="6820686453637990663">CVC</translation>
 <translation id="6825078212112407882">{count,plural, =1{ಬುಕ್‌ಮಾರ್ಕ್ ಅನ್ನು ನಿಮ್ಮ Google ಖಾತೆ {email} ನಲ್ಲಿ ಸೇವ್ ಮಾಡಲಾಗಿದೆ}one{{count} ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳನ್ನು ನಿಮ್ಮ Google ಖಾತೆ {email} ನಲ್ಲಿ ಸೇವ್‌ ಮಾಡಲಾಗಿದೆ}other{{count} ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳನ್ನು ನಿಮ್ಮ Google ಖಾತೆ {email} ನಲ್ಲಿ ಸೇವ್‌ ಮಾಡಲಾಗಿದೆ}}</translation>
 <translation id="6826004672264649705">ಪ್ರಸ್ತುತ ಈ ಉತ್ಪನ್ನವನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡಲಾಗುತ್ತಿದೆ. ಬೆಲೆ ಇತಿಹಾಸವನ್ನು ನೋಡಲು ತೆರೆಯಿರಿ</translation>
 <translation id="6830728435402077660">ಸುರಕ್ಷಿತವಾಗಿಲ್ಲ</translation>
@@ -1963,7 +1966,6 @@
 <translation id="7952670906562503188">ನೀವು {passkey_count} ಪಾಸ್‌ಕೀಗಳು ಮತ್ತು ಸೈನ್-ಇನ್ ಮಾಹಿತಿಯನ್ನು ಎಂದಿಗೂ ಸೇವ್ ಮಾಡದಿರಲು ಆಯ್ಕೆ ಮಾಡಿಕೊಂಡಿರುವ ಆ್ಯಪ್‌ಗಳು ಮತ್ತು ಸೈಟ್‌ಗಳ ಪಟ್ಟಿಯನ್ನು ಅಳಿಸಲಿದ್ದೀರಿ. ಸೈಟ್‌ಗಳು ಅಥವಾ ಆ್ಯಪ್‌ಗಳಿಗಾಗಿ ನೀವು ರಚಿಸಿದ ಯಾವುದೇ ಖಾತೆಯನ್ನು ಅಳಿಸಲಾಗುವುದಿಲ್ಲ.</translation>
 <translation id="7958575506592576831">ಪುಟ ಭದ್ರತೆಯ ಮಾಹಿತಿ</translation>
 <translation id="7961015016161918242">ಎಂದಿಗೂ ಇಲ್ಲ</translation>
-<translation id="7971136598759319605">1 ದಿನದ ಹಿಂದೆ ಸಕ್ರಿಯ</translation>
 <translation id="7972837668077967426">ಕ್ಯಾನ್ವಸ್</translation>
 <translation id="7975036700432177008">ಪ್ರಯತ್ನಿಸು</translation>
 <translation id="797588153137233716">ಮೆನು → ಇತಿಹಾಸ → ಬ್ರೌಸಿಂಗ್ ಡೇಟಾವನ್ನು ಅಳಿಸಿ</translation>

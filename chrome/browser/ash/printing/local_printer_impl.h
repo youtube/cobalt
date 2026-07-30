@@ -9,14 +9,19 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/scoped_refptr.h"
 #include "chrome/browser/ash/printing/local_printer.h"
+
+class Profile;
+
+namespace chromeos {
+class PpdProvider;
+}
 
 namespace ash {
 
 class LocalPrinterImpl : public LocalPrinter {
  public:
-  static void Initialize();
-
   LocalPrinterImpl();
   LocalPrinterImpl(const LocalPrinterImpl&) = delete;
   LocalPrinterImpl& operator=(const LocalPrinterImpl&) = delete;
@@ -26,12 +31,25 @@ class LocalPrinterImpl : public LocalPrinter {
   // Guest users are not supported for all functions.
   void GetPrinters(const AccountId& accountId,
                    GetPrintersCallback callback) override;
+  std::optional<chromeos::Printer> GetPrinter(
+      const AccountId& accountId,
+      const std::string& printer_id) override;
   void GetCapability(const AccountId& accountId,
                      const std::string& printer_id,
                      GetCapabilityCallback callback) override;
   void GetStatus(const AccountId& accountId,
                  const std::string& printer_id,
                  GetStatusCallback callback) override;
+  void GetEulaUrl(const AccountId& accountId,
+                  const std::string& printer_id,
+                  GetEulaUrlCallback callback) override;
+  void GetOAuthAccessToken(const AccountId& accountId,
+                           const std::string& printer_id,
+                           GetOAuthAccessTokenCallback callback) override;
+
+ protected:
+  virtual scoped_refptr<chromeos::PpdProvider> CreatePpdProvider(
+      Profile* profile);
 };
 
 }  // namespace ash

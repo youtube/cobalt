@@ -1420,10 +1420,6 @@ bool PaintLayerScrollableArea::HasVerticalOverflow() const {
 }
 
 bool PaintLayerScrollableArea::CanPropagateScroll() const {
-  if (!base::FeatureList::IsEnabled(
-          ::features::kOverscrollBehaviorRespectedOnAllScrollContainers)) {
-    return true;
-  }
   auto* box = GetLayoutBox();
   // TODO(crbug.com/425353152): Remove the visibility check.
   if (!box || !box->IsScrollContainer() ||
@@ -3540,7 +3536,7 @@ Node* PaintLayerScrollableArea::GetSnapTargetAlongAxis(
   if (!GetLayoutBox() || !GetLayoutBox()->Style()) {
     return nullptr;
   }
-  bool horiz = GetLayoutBox()->Style()->GetWritingDirection().IsHorizontal();
+  bool horiz = GetLayoutBox()->StyleRef().GetWritingDirection().IsHorizontal();
   if (ids.y && (axis == kY || (axis == kBlock && horiz) ||
                 (axis == kInline && !horiz))) {
     return DOMNodeIds::NodeForId(DOMNodeIdFromCompositorElementId(ids.y));

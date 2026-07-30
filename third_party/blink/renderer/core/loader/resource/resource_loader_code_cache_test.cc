@@ -8,6 +8,7 @@
 #include "third_party/blink/public/mojom/loader/code_cache.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
 #include "third_party/blink/renderer/core/loader/resource/script_resource.h"
+#include "third_party/blink/renderer/platform/bindings/parkable_string.h"
 #include "third_party/blink/renderer/platform/exported/wrapped_resource_response.h"
 #include "third_party/blink/renderer/platform/loader/fetch/cached_metadata.h"
 #include "third_party/blink/renderer/platform/loader/fetch/code_cache_host.h"
@@ -122,12 +123,10 @@ class ResourceLoaderCodeCacheTest : public testing::Test {
     outer_header->marker =
         CachedMetadataHandler::kSingleEntryWithHashAndPadding;
     if (source_text.has_value()) {
-      std::unique_ptr<ParkableStringImpl::SecureDigest> hash =
+      std::unique_ptr<SecureStringDigest> hash =
           ParkableStringImpl::HashString(source_text->Impl());
-      CHECK_EQ(hash->size(),
-               ScriptCachedMetadataHandlerWithHashing::kSha256Bytes);
-      UNSAFE_TODO(memcpy(outer_header->hash, hash->data(),
-                         ScriptCachedMetadataHandlerWithHashing::kSha256Bytes));
+      CHECK_EQ(hash->size(), kSha256Bytes);
+      UNSAFE_TODO(memcpy(outer_header->hash, hash->data(), kSha256Bytes));
     }
     CachedMetadataHeader* inner_header =
         reinterpret_cast<CachedMetadataHeader*>(

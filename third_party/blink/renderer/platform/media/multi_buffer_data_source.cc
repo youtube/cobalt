@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "base/containers/adapters.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/memory/raw_span.h"
 #include "base/numerics/safe_conversions.h"
@@ -273,7 +274,7 @@ void MultiBufferDataSource::SetPreload(media::DataSource::Preload preload) {
   UpdateBufferSizes();
 }
 
-bool MultiBufferDataSource::HasSingleOrigin() {
+bool MultiBufferDataSource::HasSingleOrigin() const {
   DCHECK(render_task_runner_->BelongsToCurrentThread());
   // Before initialization completes there is no risk of leaking data. Callers
   // are required to order checks such that this isn't a race.
@@ -288,7 +289,7 @@ bool MultiBufferDataSource::PassedTimingAllowOriginCheck() {
   return url_data_->passed_timing_allow_origin_check();
 }
 
-bool MultiBufferDataSource::WouldTaintOrigin() {
+bool MultiBufferDataSource::WouldTaintOrigin() const {
   // When the resource is redirected to another origin we think of it as
   // tainted. This is actually not specified, and is under discussion.
   // See https://github.com/whatwg/fetch/issues/737.
@@ -452,7 +453,7 @@ bool MultiBufferDataSource::GetSize(int64_t* size_out) {
   return false;
 }
 
-bool MultiBufferDataSource::IsStreaming() {
+bool MultiBufferDataSource::IsStreaming() const {
   return streaming_;
 }
 
@@ -779,6 +780,51 @@ void MultiBufferDataSource::UpdateBufferSizes() {
     preload >>= kMetadataShift;
   }
   reader_->SetPreload(preload_high, preload);
+}
+
+MultiBufferDataSource::Factory::~Factory() = default;
+
+MultiBufferDataSource::Factory::Factory(
+    media::MediaLog* media_log,
+    UrlDataCb get_url_data,
+    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
+    const base::TickClock* tick_clock)
+    : media_log_(media_log->Clone()),
+      get_url_data_(get_url_data),
+      main_task_runner_(std::move(main_task_runner)) {
+  buffered_data_source_host_ = std::make_unique<BufferedDataSourceHostImpl>(
+      base::DoNothing(), tick_clock);
+}
+
+void MultiBufferDataSource::Factory::Create(const GURL& uri,
+                                            bool ignore_cache,
+                                            DataSourceCb cb) {
+  DCHECK(main_task_runner_->BelongsToCurrentThread());
+  auto download_cb =
+#if DCHECK_IS_ON()
+      BindRepeating(
+          [](const std::string url, bool is_downloading) {
+            DVLOG(1) << __func__ << "(" << url << ", " << is_downloading << ")";
+          },
+          uri.spec());
+#else
+      base::DoNothing();
+#endif
+
+  get_url_data_.Run(
+      uri, ignore_cache,
+      blink::BindOnce(&Factory::OnUrlData, weak_factory_.GetWeakPtr(),
+                      std::move(cb), std::move(download_cb)));
+}
+
+void MultiBufferDataSource::Factory::OnUrlData(
+    DataSourceCb cb,
+    base::RepeatingCallback<void(bool)> download_cb,
+    scoped_refptr<UrlData> data) {
+  DCHECK(main_task_runner_->BelongsToCurrentThread());
+  std::move(cb).Run(std::make_unique<MultiBufferDataSource>(
+      main_task_runner_, std::move(data), media_log_.get(),
+      buffered_data_source_host_.get(), std::move(download_cb)));
 }
 
 }  // namespace blink

@@ -9,10 +9,15 @@
 #import "base/memory/raw_ptr.h"
 #import "base/types/pass_key.h"
 #import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/scoped_fullscreen_disabler.h"
+#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
+#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent_observer_bridge.h"
+#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent_observing.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer_bridge.h"
 #import "ios/chrome/browser/web/model/web_view_proxy/web_view_proxy_tab_helper.h"
 #import "ios/chrome/browser/web/model/web_view_proxy/web_view_proxy_tab_helper_observer_bridge.h"
+#import "ios/web/public/navigation/navigation_context.h"
 #import "ios/web/public/ui/crw_web_view_proxy.h"
 #import "ios/web/public/ui/crw_web_view_scroll_view_proxy.h"
 #import "ios/web/public/web_state.h"
@@ -32,10 +37,14 @@ namespace {
 inline base::PassKey<FullscreenMediatorPassKeyProvider> PassKey() {
   return FullscreenMediatorPassKeyProvider::passkey();
 }
+
+// The threshold for direction-based snapping.
+const CGFloat kFullscreenSnapThreshold = 10.0;
 }  // namespace
 
 @interface FullscreenMediator () <CRWWebStateObserver,
                                   CRWWebViewScrollViewProxyObserver,
+                                  OmniboxPositionBrowserAgentObserving,
                                   WebStateListObserving,
                                   WebViewProxyTabHelperObserving>
 
@@ -53,16 +62,28 @@ inline base::PassKey<FullscreenMediatorPassKeyProvider> PassKey() {
   std::unique_ptr<WebStateListObserverBridge> _webStateListObserver;
   std::unique_ptr<web::WebStateObserverBridge> _webStateObserver;
   std::unique_ptr<WebViewProxyTabHelperObserverBridge> _webViewProxyObserver;
+  std::unique_ptr<OmniboxPositionBrowserAgentObserverBridge>
+      _omniboxPositionObserver;
+  std::unique_ptr<ScopedFullscreenDisabler> _voiceOverDisabler;
   CGFloat _lastContentOffset;
+  BOOL _isBottomOmnibox;
+  // Indicates whether the inset ranges have been initialized on startup.
+  BOOL _hasInitializedInsets;
+  // Scroll distance since the start of the drag, or since the scroll direction
+  // changed.
+  CGFloat _scrollTotal;
 }
 
 #pragma mark - Public
 
 - (instancetype)initWithBrowserAgent:(FullscreenBrowserAgent*)browserAgent
-                        webStateList:(WebStateList*)webStateList {
+                        webStateList:(WebStateList*)webStateList
+         omniboxPositionBrowserAgent:
+             (OmniboxPositionBrowserAgent*)omniboxPositionBrowserAgent {
   if ((self = [super init])) {
     CHECK(browserAgent);
     CHECK(webStateList);
+    CHECK(omniboxPositionBrowserAgent);
     _browserAgent = browserAgent;
     _webStateList = webStateList;
     _webStateListObserver = std::make_unique<WebStateListObserverBridge>(self);
@@ -70,6 +91,11 @@ inline base::PassKey<FullscreenMediatorPassKeyProvider> PassKey() {
     _webStateObserver = std::make_unique<web::WebStateObserverBridge>(self);
     _webViewProxyObserver =
         std::make_unique<WebViewProxyTabHelperObserverBridge>(self);
+    _omniboxPositionObserver =
+        std::make_unique<OmniboxPositionBrowserAgentObserverBridge>(
+            self, omniboxPositionBrowserAgent);
+    _isBottomOmnibox =
+        omniboxPositionBrowserAgent->IsCurrentLayoutBottomOmnibox();
     self.webState = _webStateList->GetActiveWebState();
 
     NSNotificationCenter* defaultCenter = [NSNotificationCenter defaultCenter];
@@ -78,6 +104,10 @@ inline base::PassKey<FullscreenMediatorPassKeyProvider> PassKey() {
            selector:@selector(voiceOverStatusDidChange)
                name:UIAccessibilityVoiceOverStatusDidChangeNotification
              object:nil];
+    [defaultCenter addObserver:self
+                      selector:@selector(orientationDidChange)
+                          name:UIDeviceOrientationDidChangeNotification
+                        object:nil];
     [defaultCenter addObserver:self
                       selector:@selector(applicationDidEnterBackground)
                           name:UIApplicationDidEnterBackgroundNotification
@@ -92,12 +122,15 @@ inline base::PassKey<FullscreenMediatorPassKeyProvider> PassKey() {
 
 - (void)disconnect {
   _browserAgent = nullptr;
-  _webStateList->RemoveObserver(_webStateListObserver.get());
-  _webStateListObserver = nullptr;
-  _webStateList = nullptr;
+  if (_webStateList) {
+    _webStateList->RemoveObserver(_webStateListObserver.get());
+    _webStateListObserver = nullptr;
+    _webStateList = nullptr;
+  }
   self.webState = nullptr;
   _webStateObserver = nullptr;
   _webViewProxyObserver = nullptr;
+  _omniboxPositionObserver = nullptr;
   [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
@@ -143,12 +176,33 @@ inline base::PassKey<FullscreenMediatorPassKeyProvider> PassKey() {
   }
 }
 
+#pragma mark - OmniboxPositionBrowserAgentObserving
+
+- (void)omniboxPositionBrowserAgent:(OmniboxPositionBrowserAgent*)browser_agent
+                  didUpdatePosition:(BOOL)isCurrentLayoutBottomOmnibox {
+  if (_isBottomOmnibox == isCurrentLayoutBottomOmnibox) {
+    return;
+  }
+  _isBottomOmnibox = isCurrentLayoutBottomOmnibox;
+  _browserAgent->InvalidateInsetRange(PassKey());
+}
+
 #pragma mark - CRWWebStateObserver
 
 - (void)webStateWasShown:(web::WebState*)webState {
   // TODO(crbug.com/496229929): Call InvalidateInsetRange() from the correct
   // event(s).
-  _browserAgent->InvalidateInsetRange(PassKey());
+  if (!_hasInitializedInsets) {
+    _browserAgent->InvalidateInsetRange(PassKey());
+    _hasInitializedInsets = YES;
+  }
+}
+
+- (void)webState:(web::WebState*)webState
+    didFinishNavigation:(web::NavigationContext*)navigationContext {
+  if (!navigationContext->IsSameDocument()) {
+    _browserAgent->ExitFullscreen(PassKey(), /*animated=*/true);
+  }
 }
 
 - (void)webStateDestroyed:(web::WebState*)webState {
@@ -181,6 +235,15 @@ inline base::PassKey<FullscreenMediatorPassKeyProvider> PassKey() {
   CGFloat delta = currentContentOffset - _lastContentOffset;
   _lastContentOffset = currentContentOffset;
 
+  if (delta != 0) {
+    // If the direction changed, reset the _scrollTotal.
+    if ((delta > 0 && _scrollTotal < 0) || (delta < 0 && _scrollTotal > 0)) {
+      _scrollTotal = delta;
+    } else {
+      _scrollTotal += delta;
+    }
+  }
+
   _browserAgent->IncrementalScroll(
       delta, FullscreenMediatorPassKeyProvider::passkey());
 }
@@ -188,24 +251,20 @@ inline base::PassKey<FullscreenMediatorPassKeyProvider> PassKey() {
 - (void)webViewScrollViewWillBeginDragging:
     (CRWWebViewScrollViewProxy*)webViewScrollViewProxy {
   _lastContentOffset = webViewScrollViewProxy.contentOffset.y;
-}
-
-- (void)webViewScrollViewWillEndDragging:
-            (CRWWebViewScrollViewProxy*)webViewScrollViewProxy
-                            withVelocity:(CGPoint)velocity
-                     targetContentOffset:(inout CGPoint*)targetContentOffset {
-  // TODO(crbug.com/491845727): Implement snapping animations.
+  _scrollTotal = 0;
 }
 
 - (void)webViewScrollViewDidEndDragging:
             (CRWWebViewScrollViewProxy*)webViewScrollViewProxy
                          willDecelerate:(BOOL)decelerate {
-  // TODO(crbug.com/491845727): Implement snapping animations.
+  if (!decelerate) {
+    [self snap];
+  }
 }
 
 - (void)webViewScrollViewDidEndDecelerating:
     (CRWWebViewScrollViewProxy*)webViewScrollViewProxy {
-  // TODO(crbug.com/491845727): Implement snapping animations.
+  [self snap];
 }
 
 - (void)webViewScrollViewWillBeginZooming:
@@ -229,8 +288,8 @@ inline base::PassKey<FullscreenMediatorPassKeyProvider> PassKey() {
   _browserAgent->ExitFullscreen(PassKey(), animated);
 }
 
-- (void)disableFullscreen {
-  _browserAgent->IncrementDisabledCounter(PassKey());
+- (void)disableFullscreenAnimated:(BOOL)animated {
+  _browserAgent->IncrementDisabledCounter(PassKey(), animated);
 }
 
 - (void)reenableFullscreen {
@@ -240,8 +299,13 @@ inline base::PassKey<FullscreenMediatorPassKeyProvider> PassKey() {
 #pragma mark - System Notifications
 
 - (void)voiceOverStatusDidChange {
-  // TODO(crbug.com/493903024): Toggle fullscreen disabled with
-  // ScopedFullscreenDisabler.
+  _voiceOverDisabler = UIAccessibilityIsVoiceOverRunning()
+                           ? std::make_unique<ScopedFullscreenDisabler>(self)
+                           : nullptr;
+}
+
+- (void)orientationDidChange {
+  _browserAgent->InvalidateInsetRange(PassKey());
 }
 
 - (void)applicationDidEnterBackground {
@@ -250,6 +314,40 @@ inline base::PassKey<FullscreenMediatorPassKeyProvider> PassKey() {
 
 - (void)applicationWillEnterForeground {
   [self exitFullscreenWithAnimation:NO];
+}
+
+#pragma mark - Private
+
+// Snaps the fullscreen progress to 0.0 or 1.0.
+- (void)snap {
+  CGFloat topProgress = _browserAgent->top_progress();
+  CGFloat bottomProgress = _browserAgent->bottom_progress();
+  if ((topProgress == 0.0 && bottomProgress == 0.0) ||
+      (topProgress == 1.0 && bottomProgress == 1.0)) {
+    return;
+  }
+
+  // The type of snap to be executed.
+  enum class SnapType { kExit, kEnter };
+  SnapType snapType = SnapType::kExit;
+
+  if (_scrollTotal > kFullscreenSnapThreshold) {
+    snapType = SnapType::kEnter;
+  } else if (_scrollTotal < -kFullscreenSnapThreshold) {
+    snapType = SnapType::kExit;
+  } else {
+    CGFloat progress = topProgress;
+    if (_browserAgent->min_insets().top == _browserAgent->max_insets().top) {
+      progress = bottomProgress;
+    }
+    snapType = progress >= 0.5 ? SnapType::kExit : SnapType::kEnter;
+  }
+
+  if (snapType == SnapType::kExit) {
+    _browserAgent->ExitFullscreen(PassKey(), /*animated=*/true);
+  } else {
+    _browserAgent->EnterFullscreen(PassKey(), /*animated=*/true);
+  }
 }
 
 @end

@@ -37,23 +37,27 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//ui/webui/resources/cr_components/search/constants.ts:ComposeboxContextAddedMethod) -->
 
-<!-- LINT.IfChange(ContextualSearchAimTool) -->
+<!-- LINT.IfChange(ContextualSearchAimInputType) -->
 
-<enum name="ContextualSearchAimTool">
+<enum name="ContextualSearchAimInputType">
   <int value="0" label="Unspecified"/>
-  <int value="1" label="DeepSearch"/>
-  <int value="2" label="Canvas"/>
-  <int value="3" label="GeminiPro"/>
-  <int value="4" label="ImageGen"/>
-  <int value="5" label="DeepBrowse"/>
-  <int value="6" label="ImageGenSelfie"/>
-  <int value="7" label="ImageGenUpload"/>
-  <int value="8" label="DisableSuggest"/>
-  <int value="9" label="Aim"/>
-  <int value="10" label="AimGenPrompt"/>
+  <int value="1" label="LensImage"/>
+  <int value="2" label="LensFile"/>
+  <int value="3" label="BrowserTab"/>
 </enum>
 
-<!-- LINT.ThenChange(//components/omnibox/composebox/composebox_query.mojom:ToolMode) -->
+<!-- LINT.ThenChange(//components/omnibox/composebox/composebox_query.mojom:InputType) -->
+
+<!-- LINT.IfChange(ContextualSearchContextState) -->
+
+<enum name="ContextualSearchContextState">
+  <int value="0" label="WithoutContext"/>
+  <int value="1" label="WithTabContext"/>
+  <int value="2" label="WithNonTabContext"/>
+  <int value="3" label="WithContextNoText"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/contextual_search/contextual_search_metrics_recorder.h:ContextualSearchContextState,//ui/webui/resources/cr_components/searchbox/searchbox.ts:ContextualSearchContextState) -->
 
 <!-- LINT.IfChange(ContextualSearchErrorPage) -->
 
@@ -73,7 +77,17 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="File size is too large"/>
 </enum>
 
-<!-- LINT.ThenChange(//ui/webui/resources/cr_components/composebox/contextual_entrypoint_and_carousel.ts:FileValidationError) -->
+<!-- LINT.ThenChange(//ui/webui/resources/cr_components/composebox/common.ts:FileValidationError) -->
+
+<!-- LINT.IfChange(ContextualSearchInputStateDeletionType) -->
+
+<enum name="ContextualSearchInputStateDeletionType">
+  <int value="0" label="File"/>
+  <int value="1" label="Tab"/>
+  <int value="2" label="Tool"/>
+</enum>
+
+<!-- LINT.ThenChange(//ui/webui/resources/cr_components/composebox/common.ts:ContextualSearchInputStateDeletionType) -->
 
 <enum name="ContextualSearchMultimodalState">
   <int value="0" label="Text Only"/>

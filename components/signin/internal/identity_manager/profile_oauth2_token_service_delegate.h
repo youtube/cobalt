@@ -112,7 +112,8 @@ class ProfileOAuth2TokenServiceDelegate {
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   // Returns true iff (a) a refresh token exists for `account_id`, and (b) the
   // refresh token is bound to a device.
-  virtual bool IsRefreshTokenBound(const CoreAccountId& account_id) const = 0;
+  virtual bool IsRefreshTokenBoundToKey(
+      const CoreAccountId& account_id) const = 0;
 
   // Returns the wrapped binding key of a refresh token associated with
   // `account_id`, if any.
@@ -338,9 +339,8 @@ class ProfileOAuth2TokenServiceDelegate {
  private:
   FRIEND_TEST_ALL_PREFIXES(ProfileOAuth2TokenServiceDelegateTest,
                            FireRefreshTokenRevoked);
-  FRIEND_TEST_ALL_PREFIXES(
-      MutableProfileOAuth2TokenServiceDelegateAccessTokenFetchTest,
-      RetryBackoff);
+  FRIEND_TEST_ALL_PREFIXES(MutableProfileOAuth2TokenServiceDelegateTest,
+                           RetryBackoff);
   FRIEND_TEST_ALL_PREFIXES(ProfileOAuth2TokenServiceDelegateChromeOSTest,
                            BackOffIsTriggerredForTransientErrors);
   FRIEND_TEST_ALL_PREFIXES(ProfileOAuth2TokenServiceDelegateTest,

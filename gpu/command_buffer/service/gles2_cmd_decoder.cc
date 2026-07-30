@@ -3661,8 +3661,15 @@ bool GLES2DecoderImpl::InitializeShaderTranslator() {
     driver_bug_workarounds.validatePerStageMaxUniformBlocks = true;
   }
 
-  // Initialize uninitialized locals by default
+  // Initialize uninitialized locals and shared variables by default
   driver_bug_workarounds.initializeUninitializedLocals = true;
+  driver_bug_workarounds.initSharedVariables = true;
+
+  // Harden against excessive expressions and undefined behavior
+  driver_bug_workarounds.rejectWebglShadersWithLargeVariables = true;
+  driver_bug_workarounds.rejectWebglShadersWithUndefinedBehavior = true;
+  driver_bug_workarounds.limitCallStackDepth = true;
+  driver_bug_workarounds.limitExpressionComplexity = true;
 
   vertex_translator_ = shader_translator_cache()->GetTranslator(
       GL_VERTEX_SHADER, shader_spec, &resources, SH_ESSL_OUTPUT,
@@ -12193,7 +12200,7 @@ bool GLES2DecoderImpl::ClearCompressedTextureLevel3D(Texture* texture,
 
   GLsizei bytes_required = 0;
   if (!GetCompressedTexSizeInBytes("ClearCompressedTextureLevel3D", width,
-                                   height, 1, format, &bytes_required,
+                                   height, depth, format, &bytes_required,
                                    error_state_.get())) {
     return false;
   }
@@ -12511,8 +12518,8 @@ base::HeapArray<uint8_t> DecompressTextureData(const ContextState& state,
   auto* api = state.api();
   uint32_t output_pixel_size = GLES2Util::ComputeImageGroupSize(
       info.decompressed_format, info.decompressed_type);
-  auto decompressed_data =
-      base::HeapArray<uint8_t>::Uninit(output_pixel_size * width * height);
+  auto decompressed_data = base::HeapArray<uint8_t>::Uninit(
+      output_pixel_size * width * height * depth);
 
   // If a PBO is bound, map it to decompress the data.
   const void* input_data = data;

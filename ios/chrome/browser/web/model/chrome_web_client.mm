@@ -48,6 +48,7 @@
 #import "ios/chrome/browser/https_upgrades/model/https_upgrade_service_factory.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/action_target_java_script_feature.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/click_tool_java_script_feature.h"
+#import "ios/chrome/browser/intelligence/actor/tools/model/scroll_tool_java_script_feature.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/type_tool_java_script_feature.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_extractor_java_script_feature.h"
@@ -67,6 +68,7 @@
 #import "ios/chrome/browser/safe_browsing/model/safe_browsing_blocking_page.h"
 #import "ios/chrome/browser/search_engines/model/search_engine_java_script_feature.h"
 #import "ios/chrome/browser/search_engines/model/search_engine_tab_helper_factory.h"
+#import "ios/chrome/browser/send_tab_to_self/model/send_tab_to_self_text_fragment_selector_generator.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -113,6 +115,7 @@
 #import "ios/components/ui_util/dynamic_type_util.h"
 #import "ios/components/webui/web_ui_url_constants.h"
 #import "ios/net/protocol_handler_util.h"
+#import "ios/public/provider/chrome/browser/cobalt/cobalt_api.h"
 #import "ios/public/provider/chrome/browser/fullscreen/fullscreen_api.h"
 #import "ios/public/provider/chrome/browser/url_rewriters/url_rewriters_api.h"
 #import "ios/web/common/features.h"
@@ -149,23 +152,6 @@ NSString* GetSafeBrowsingErrorPageHTML(web::WebState* web_state,
   switch (static_cast<SafeBrowsingErrorCode>(error_code)) {
     case SafeBrowsingErrorCode::kUnsafeResource: {
       page = SafeBrowsingBlockingPage::Create(*resource);
-      ProfileIOS* profile =
-          ProfileIOS::FromBrowserState(web_state->GetBrowserState());
-      PrefService* prefs = profile->GetPrefs();
-      enterprise_connectors::ReportingEventRouter* router =
-          enterprise_connectors::IOSReportingEventRouterFactory::GetForProfile(
-              profile);
-      if (router) {
-        google::protobuf::RepeatedPtrField<safe_browsing::ReferrerChainEntry>
-            referrer_chain;
-        router->OnSecurityInterstitialShown(
-            resource->url,
-            safe_browsing::GetThreatTypeStringForInterstitial(
-                resource->threat_type),
-            /*net_error_code=*/0,
-            prefs->GetBoolean(prefs::kSafeBrowsingProceedAnywayDisabled),
-            referrer_chain);
-      }
       break;
     }
     case SafeBrowsingErrorCode::kEnterpriseBlock:
@@ -433,6 +419,7 @@ std::vector<web::JavaScriptFeature*> ChromeWebClient::GetJavaScriptFeatures(
   }
 
   features.push_back(LinkToTextJavaScriptFeature::GetInstance());
+  features.push_back(SendTabToSelfTextFragmentSelectorGenerator::GetInstance());
   features.push_back(WebSelectionJavaScriptFeature::GetInstance());
 
   SearchEngineJavaScriptFeature::GetInstance()->SetDelegate(
@@ -449,9 +436,10 @@ std::vector<web::JavaScriptFeature*> ChromeWebClient::GetJavaScriptFeatures(
   features.push_back(PageContextExtractorJavaScriptFeature::GetInstance());
 
   if (base::FeatureList::IsEnabled(kActorTools)) {
-    features.push_back(ActionTargetJavaScriptFeature::GetInstance());
-    features.push_back(ClickToolJavaScriptFeature::GetInstance());
-    features.push_back(TypeToolJavaScriptFeature::GetInstance());
+    features.push_back(actor::ActionTargetJavaScriptFeature::GetInstance());
+    features.push_back(actor::ClickToolJavaScriptFeature::GetInstance());
+    features.push_back(actor::ScrollToolJavaScriptFeature::GetInstance());
+    features.push_back(actor::TypeToolJavaScriptFeature::GetInstance());
   }
 
   features.push_back(
@@ -469,6 +457,13 @@ std::vector<web::JavaScriptFeature*> ChromeWebClient::GetJavaScriptFeatures(
     }
     if (MediaAPIUsageJavaScriptFeature::ShouldOverrideAPI()) {
       features.push_back(MediaAPIUsageJavaScriptFeature::GetInstance());
+    }
+  }
+  if (web::features::IsCobaltEnabled()) {
+    web::JavaScriptFeature* cobalt_feature =
+        ios::provider::GetCobaltJavascriptFeatureForProfile(profile);
+    if (cobalt_feature) {
+      features.push_back(cobalt_feature);
     }
   }
 

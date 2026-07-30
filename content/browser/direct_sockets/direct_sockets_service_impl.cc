@@ -174,8 +174,10 @@ bool IsMulticastAllowed(const Context& context) {
 bool RequiresPrivateNetworkAccess(const net::AddressList& addresses) {
   return std::ranges::any_of(
       addresses.endpoints(), [](const net::IPEndPoint& ip_endpoint) {
+        // All multicast endpoints require PNA.
         return network::IPAddressToIPAddressSpace(ip_endpoint.address()) ==
-               network::mojom::IPAddressSpace::kLocal;
+                   network::mojom::IPAddressSpace::kLocal ||
+               ip_endpoint.address().IsMulticast();
       });
 }
 
@@ -292,7 +294,10 @@ void RequestPrivateNetworkAccess(
                   /*access_allowed=*/shared_worker &&
                   ArePermissionTypesAllowedForWorker(
                       shared_worker->GetProcessHost(),
-                      shared_worker->instance().storage_key().origin(),
+                      // Use the worker's own origin for permission checks. This
+                      // ensures that data: URL workers, which have opaque
+                      // origins, are denied sensitive permissions.
+                      shared_worker->instance().worker_storage_key().origin(),
                       std::move(required_permissions)));
             } else {
               std::move(callback)

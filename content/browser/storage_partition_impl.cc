@@ -711,10 +711,14 @@ class SSLErrorDelegate : public SSLErrorHandler::Delegate {
       : response_(std::move(response)) {}
   ~SSLErrorDelegate() override = default;
   void CancelSSLRequest(int error, const net::SSLInfo* ssl_info) override {
+    base::UmaHistogramTimes("Content.SslError.CallbackDuration",
+                            base::TimeTicks::Now() - startTime_);
     std::move(response_).Run(error);
     delete this;
   }
   void ContinueSSLRequest() override {
+    base::UmaHistogramTimes("Content.SslError.CallbackDuration",
+                            base::TimeTicks::Now() - startTime_);
     std::move(response_).Run(net::OK);
     delete this;
   }
@@ -723,6 +727,7 @@ class SSLErrorDelegate : public SSLErrorHandler::Delegate {
   }
 
  private:
+  base::TimeTicks startTime_ = base::TimeTicks::Now();
   network::mojom::URLLoaderNetworkServiceObserver::OnSSLCertificateErrorCallback
       response_;
   base::WeakPtrFactory<SSLErrorDelegate> weak_factory_{this};
@@ -3615,6 +3620,7 @@ void StoragePartitionImpl::InitNetworkContext() {
   context_params->cors_exempt_header_list.push_back(blink::kPurposeHeaderName);
   context_params->cors_exempt_header_list.push_back(
       GetCorsExemptRequestedWithHeaderName());
+  context_params->cors_exempt_header_list.push_back("Last-Event-ID");
   variations::UpdateCorsExemptHeaderForVariations(context_params.get());
   variations::UpdateCorsExemptHeaderForOmniboxAutofocus(context_params.get());
   cors_exempt_header_list_ = context_params->cors_exempt_header_list;

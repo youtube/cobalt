@@ -137,6 +137,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &autofill::features::kAutofillEnableSupportForHomeAndWork,
     &autofill::features::kAutofillEnableVirtualCardJavaPaymentsDataManager,
     &autofill::features::kAutofillEnableWalletBranding,
+    &autofill::features::kAutofillEnableWalletBrandingV2,
     &autofill::features::kAutofillRetryImageFetchOnFailure,
     &autofill::features::kAutofillSyncEwalletAccounts,
     &autofill::features::kAutofillThirdPartyModeContentProvider,
@@ -358,7 +359,9 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kEnableEscapeHandlingForSecondaryActivities,
     &kEnableSwipeToSwitchPane,
     &kEnableToolbarPositioningInResizeMode,
+    &kEnableToolbarSwipeOnNonDesktopLff,
     &kEnableXAxisActivityTransition,
+    &kEnforceIncognitoIsolation,
     &kEscCancelDrag,
     &kExperimentsForAgsa,
     &kForceTranslucentNotificationTrampoline,
@@ -382,6 +385,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kLockBackPressHandlerAtStart,
     &kLockTopControlsOnLargeTablets,
     &kLockTopControlsOnLargeTabletsV2,
+    &kLogoViewRefactor,
     &kMayLaunchUrlUsesSeparateStoragePartition,
     &kMediaIndicatorsAndroid,
     &kMostVisitedTilesCustomization,
@@ -592,10 +596,10 @@ BASE_FEATURE(kAndroidThemeModule, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidThemeResourceProvider, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidToolbarScrollAblation, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidUseAdminsForEnterpriseInfo, base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kAndroidWindowPopupCustomTabUi, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kAndroidWindowPopupLargeScreen, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kAndroidWindowPopupPredictFinalBounds, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kAndroidWindowPopupResizeAfterSpawn, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidWindowPopupCustomTabUi, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidWindowPopupLargeScreen, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidWindowPopupPredictFinalBounds, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidWindowPopupResizeAfterSpawn, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidXRUsesSurfaceControl, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidXrImmersivePlayer, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAnimatedGifRefactor, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -701,11 +705,13 @@ BASE_FEATURE(kEmptyTabListAnimationKillSwitch, base::FEATURE_ENABLED_BY_DEFAULT)
 BASE_FEATURE(kEnableAndroidSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableAndroidSidePanelDevFeature, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableBrowserWindowInterfaceForCustomTabActivity, base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kEnableContextMenuForPreviewTab, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kEnableContextMenuForPreviewTab, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableEscapeHandlingForSecondaryActivities, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableSwipeToSwitchPane, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableToolbarPositioningInResizeMode, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kEnableToolbarSwipeOnNonDesktopLff, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableXAxisActivityTransition, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEnforceIncognitoIsolation, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEscCancelDrag, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kExperimentsForAgsa, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kForceTranslucentNotificationTrampoline, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -729,6 +735,7 @@ BASE_FEATURE(kLoadNativeEarly, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kLockBackPressHandlerAtStart, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kLockTopControlsOnLargeTablets, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kLockTopControlsOnLargeTabletsV2, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kLogoViewRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables an experimental feature which forces mayLaunchUrl to use a different
 // storage partition. This may reduce performance. This should not be enabled by
 // default.
@@ -737,7 +744,7 @@ BASE_FEATURE(kMediaIndicatorsAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kMostVisitedTilesCustomization, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kMostVisitedTilesReselect, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kMoveToFrontInLaunchIntentDispatcher, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kMultiInstanceSharedPrefsMigration, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kMultiInstanceSharedPrefsMigration, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kMvcUpdateViewWhenModelChanged, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kNavBarColorAnimation, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kNewTabPageCustomizationForMvt, base::FEATURE_ENABLED_BY_DEFAULT);

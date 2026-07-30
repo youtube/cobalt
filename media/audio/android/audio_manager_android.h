@@ -177,13 +177,24 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
   // output devices.
   static AudioParameters::Format GetHdmiOutputEncodingFormats();
 
+  // Called by an `AAudioInputStream` before it is about to start.
+  void OnPrepareToStartAAudioInputStream(AAudioInputStream* stream);
+  // Called by an `AAudioInputStream` after it failed to start.
+  void OnFailedToStartAAudioInputStream(AAudioInputStream* stream);
+
   // Called by an `AAudioInputStream` when it is started, i.e. it begins
   // providing audio data.
   void OnStartAAudioInputStream(AAudioInputStream* stream);
 
+  // Called by an `AAudioInputStream` when its underlying audio device is
+  // changed, i.e. it stops and restarts providing audio data.
+  void OnAAudioInputStreamDeviceChanged(AAudioInputStream* stream);
+
   // Called by an `AAudioInputStream` when it is stopped, i.e. it stops
   // providing audio data.
   void OnStopAAudioInputStream(AAudioInputStream* stream);
+
+  bool IsUsingBluetoothSco(AAudioInputStream* stream);
 
   void SetJniDelegateForTesting(std::unique_ptr<JniDelegate> jni_delegate);
 

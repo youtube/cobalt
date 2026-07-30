@@ -4,9 +4,15 @@
 
 #include "third_party/blink/renderer/platform/loader/fetch/script_cached_metadata_handler.h"
 
+#include <stdint.h>
+
 #include "base/compiler_specific.h"
 #include "base/metrics/histogram_macros.h"
+#include "third_party/blink/public/mojom/loader/code_cache.mojom-blink.h"
+#include "third_party/blink/renderer/platform/bindings/parkable_string.h"
 #include "third_party/blink/renderer/platform/crypto.h"
+#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/loader/fetch/code_cache_host.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
@@ -116,25 +122,12 @@ ScriptCachedMetadataHandlerWithHashing::ScriptCachedMetadataHandlerWithHashing(
 void ScriptCachedMetadataHandlerWithHashing::Check(
     CodeCacheHost* code_cache_host,
     const ParkableString& source_text) {
-  std::unique_ptr<ParkableStringImpl::SecureDigest> digest_holder;
-  const ParkableStringImpl::SecureDigest* digest;
-  // ParkableStrings have usually already computed the digest unless they're
-  // quite short (see ParkableStringManager::ShouldPark), so usually we can just
-  // use the pre-existing digest.
-  ParkableStringImpl* impl = source_text.Impl();
-  if (impl && impl->may_be_parked()) {
-    digest = impl->digest();
-  } else {
-    const String& unparked = source_text.ToString();
-    digest_holder = ParkableStringImpl::HashString(unparked.Impl());
-    digest = digest_holder.get();
-  }
-
-  CHECK_EQ(digest->size(), kSha256Bytes);
+  const ParkableString::DigestHolder digest_holder = source_text.Digest();
+  const SecureStringDigest& digest = digest_holder.Get();
 
   if (hash_state_ != kUninitialized) {
     // Compare the hash of the new source text with the one previously loaded.
-    if (base::span(*digest) != hash_) {
+    if (base::span(digest) != hash_) {
       // If this handler was previously checked and is now being checked again
       // with a different hash value, then something bad happened. We expect the
       // handler to only be used with one script source text.
@@ -147,7 +140,7 @@ void ScriptCachedMetadataHandlerWithHashing::Check(
 
   // Remember the computed hash so that it can be used when saving data to
   // persistent storage.
-  base::span(hash_).copy_from(*digest);
+  base::span(hash_).copy_from(digest);
   hash_state_ = kChecked;
 }
 
@@ -231,6 +224,79 @@ ScriptCachedMetadataHandlerWithHashing::GetSerializedCachedMetadata() const {
 void ScriptCachedMetadataHandlerWithHashing::ResetForTesting() {
   if (hash_state_ == kChecked)
     hash_state_ = kDeserialized;
+}
+
+SourceKeyedCachedMetadataHandler::SourceKeyedCachedMetadataHandler(
+    const TextEncoding& encoding,
+    const ParkableString& source_text)
+    : encoding_(encoding), source_hash_(source_text.Digest().Get()) {}
+
+SourceKeyedCachedMetadataHandler::~SourceKeyedCachedMetadataHandler() = default;
+
+void SourceKeyedCachedMetadataHandler::Trace(Visitor* visitor) const {
+  CachedMetadataHandler::Trace(visitor);
+}
+
+void SourceKeyedCachedMetadataHandler::SetCachedMetadata(
+    CodeCacheHost* code_cache_host,
+    uint32_t data_type_id,
+    base::span<const uint8_t> data) {
+  CHECK(code_cache_host);
+  CHECK(!cached_metadata_);
+  cached_metadata_ = CachedMetadata::Create(data_type_id, data);
+  code_cache_host->get()->DidGenerateSourceKeyedCacheableMetadata(
+      blink::Vector<uint8_t>(source_hash_), cached_metadata_->SerializedData());
+}
+
+void SourceKeyedCachedMetadataHandler::SetSerializedCachedMetadata(
+    mojo_base::BigBuffer data) {
+  // We only expect to receive cached metadata from the platform once. If this
+  // triggers, it indicates an efficiency problem which is most likely
+  // unexpected in code designed to improve performance.
+  DCHECK(!cached_metadata_);
+  cached_metadata_ = CachedMetadata::CreateFromSerializedData(data);
+}
+
+void SourceKeyedCachedMetadataHandler::ClearCachedMetadata(
+    CodeCacheHost* code_cache_host,
+    ClearCacheType cache_type) {
+  cached_metadata_ = nullptr;
+}
+
+scoped_refptr<CachedMetadata>
+SourceKeyedCachedMetadataHandler::GetCachedMetadata(
+    uint32_t data_type_id,
+    GetCachedMetadataBehavior behavior) const {
+  if (!cached_metadata_ || cached_metadata_->DataTypeID() != data_type_id) {
+    return nullptr;
+  }
+  return cached_metadata_;
+}
+
+String SourceKeyedCachedMetadataHandler::Encoding() const {
+  return encoding_.GetName();
+}
+
+CachedMetadataHandler::ServingSource
+SourceKeyedCachedMetadataHandler::GetServingSource() const {
+  return ServingSource::kOther;
+}
+
+void SourceKeyedCachedMetadataHandler::OnMemoryDump(
+    WebProcessMemoryDump* pmd,
+    const String& dump_prefix) const {
+  if (!cached_metadata_) {
+    return;
+  }
+  const String dump_name = StrCat({dump_prefix, "/inline_script"});
+  auto* dump = pmd->CreateMemoryAllocatorDump(dump_name);
+  dump->AddScalar("size", "bytes", GetCodeCacheSize());
+  pmd->AddSuballocation(dump->Guid(),
+                        String(Partitions::kAllocatedObjectPoolName));
+}
+
+size_t SourceKeyedCachedMetadataHandler::GetCodeCacheSize() const {
+  return cached_metadata_ ? cached_metadata_->SerializedData().size() : 0;
 }
 
 }  // namespace blink

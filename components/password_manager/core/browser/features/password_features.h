@@ -18,19 +18,25 @@ namespace password_manager::features {
 
 #if !BUILDFLAG(IS_IOS)
 BASE_DECLARE_FEATURE(kActorLogin);
+// Killswitch for the conflicting permission cleanup. Conflicting permissions
+// are the ones granted for 2 different accounts on the same website.
+BASE_DECLARE_FEATURE(kActorLoginConflictingPermissionCleanup);
 // Enables a click using the actor framework for federated logins without
 // heuristics.
 BASE_DECLARE_FEATURE(kActorLoginFederatedClickFromActor);
 // Enables Actor Login form finding with async check
 BASE_DECLARE_FEATURE(kActorLoginFieldVisibilityCheck);
-// Ensures that `GetCredentials` differentiates between no saved credentials
-// and no signin form found on the page.
-BASE_DECLARE_FEATURE(kActorLoginGetCredentialsNoLoginForm);
 BASE_DECLARE_FEATURE(kActorLoginLocalClassificationModel);
 // Enables the usage of temporary permissions across affiliated origins for
 // Actor Login.
 BASE_DECLARE_FEATURE(kActorLoginPermissionsUseStrongAffiliations);
 BASE_DECLARE_FEATURE(kActorLoginReauthTaskRefocus);
+#endif  // !BUILDFLAG(IS_IOS)
+
+// Enables syncing password permissions.
+BASE_DECLARE_FEATURE(kActorLoginSyncsPasswordPermissions);
+
+#if !BUILDFLAG(IS_IOS)
 // Enables logging quality for actor login.
 BASE_DECLARE_FEATURE(kActorLoginQualityLogs);
 // Enables finding and filling forms in same-site iframes for actor login.

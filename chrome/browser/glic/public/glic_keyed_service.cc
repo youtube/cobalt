@@ -40,6 +40,7 @@
 #include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/context/glic_tab_data_observer.h"
+#include "chrome/browser/glic/host/context/glic_tab_favicon_observer.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/host/glic_web_contents_warming_pool.h"
@@ -90,7 +91,6 @@
 #include "chrome/browser/glic/host/glic_region_capture_controller.h"
 #include "chrome/browser/glic/media/glic_media_integration.h"
 #include "chrome/browser/glic/widget/glic_widget.h"
-#include "chrome/browser/glic/widget/glic_window_controller_impl.h"
 
 #endif
 
@@ -113,7 +113,7 @@ base::TimeDelta GetWarmingDelay() {
   return delay_start;
 }
 
-std::unique_ptr<GlicWindowController> CreateWindowController(
+std::unique_ptr<GlicInstanceCoordinator> CreateWindowController(
     Profile* profile,
     signin::IdentityManager* identity_manager,
     GlicKeyedService* glic_service,
@@ -126,7 +126,7 @@ std::unique_ptr<GlicWindowController> CreateWindowController(
 
 std::unique_ptr<GlicSharingManager> CreateSharingManager(
     Profile* profile,
-    GlicWindowController* window_controller,
+    GlicInstanceCoordinator* window_controller,
     GlicMetrics* metrics,
     GlicEnabling* glic_enabling) {
   return std::make_unique<GlicActiveInstanceSharingManager>(
@@ -181,7 +181,7 @@ GlicKeyedService::GlicKeyedService(
                                                 enabling_.get(),
                                                 contextual_cueing_service)),
       sharing_manager_(CreateSharingManager(profile,
-                                            &window_controller(),
+                                            &instance_coordinator(),
                                             metrics_.get(),
                                             enabling_.get())),
 #if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: CaptureRegion
@@ -202,6 +202,7 @@ GlicKeyedService::GlicKeyedService(
               : nullptr),
 #endif
       tab_data_observer_(std::make_unique<GlicTabDataObserver>()),
+      tab_favicon_observer_(std::make_unique<GlicTabFaviconObserver>()),
       web_contents_warming_pool_(
           std::make_unique<GlicWebContentsWarmingPool>(profile)),
       contextual_cueing_service_(contextual_cueing_service) {
@@ -262,7 +263,7 @@ void GlicKeyedService::InitializeAfterConstruction() {
 }
 
 GlicKeyedService::~GlicKeyedService() {
-  metrics_->SetControllers(nullptr, nullptr);
+  metrics_->ClearControllers();
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -277,7 +278,7 @@ GlicKeyedService* GlicKeyedService::Get(content::BrowserContext* context) {
 }
 
 void GlicKeyedService::Shutdown() {
-  window_controller().Shutdown();
+  instance_coordinator().Shutdown();
   fre_controller_->Shutdown();
   web_contents_warming_pool_->Clear();
 
@@ -325,25 +326,12 @@ void GlicKeyedService::ToggleUIInternal(
   // Show the FRE if not yet completed, and if we have a browser to use.
   if (fre_controller_->ShouldShowFreDialog()) {
     fre_controller_->MarkFreStartAttempt();
-#if !BUILDFLAG(IS_ANDROID)  // Single instance only
-    if (!GlicEnabling::IsUnifiedFreEnabled(profile_)) {
-      if (!fre_controller_->CanShowFreDialog(bwi)) {
-        // If the FRE is blocked because it is already showing, we should
-        // instead dismiss it. This allows the glic button to be used to toggle
-        // the presence of the FRE.
-        fre_controller_->DismissFreIfOpenOnActiveTab(bwi);
-        return;
-      }
-      fre_controller_->ShowFreDialog(bwi, source);
-      return;
-    }
-#endif
     fre_controller_->MarkSidepanelFreShown();
   }
 
-  window_controller().Toggle(bwi ? bwi : GetActiveGlicEligibleBrowser(profile_),
-                             prevent_close, source, prompt_suggestion,
-                             auto_send, conversation_id);
+  instance_coordinator().Toggle(
+      bwi ? bwi : GetActiveGlicEligibleBrowser(profile_), prevent_close, source,
+      prompt_suggestion, auto_send, conversation_id);
 }
 
 bool GlicKeyedService::MaybeInvoke(
@@ -387,7 +375,7 @@ void GlicKeyedService::InvokeWithAutoSubmit(
     glic_profile_manager->SetActiveGlic(this);
   }
 
-  static_cast<GlicInstanceCoordinatorImpl&>(window_controller())
+  static_cast<GlicInstanceCoordinatorImpl&>(instance_coordinator())
       .InvokeWithAutoSubmit(auto_submit_passkey, tab, std::move(options));
 }
 
@@ -400,7 +388,7 @@ void GlicKeyedService::Invoke(tabs::TabInterface* tab,
     glic_profile_manager->SetActiveGlic(this);
   }
 
-  static_cast<GlicInstanceCoordinatorImpl&>(window_controller())
+  static_cast<GlicInstanceCoordinatorImpl&>(instance_coordinator())
       .Invoke(tab, std::move(options));
 }
 
@@ -424,50 +412,17 @@ void GlicKeyedService::OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
 
 void GlicKeyedService::CloseAndShutdown(
     content::RenderFrameHost* render_frame_host) {
-  window_controller().CloseAndShutdownInstanceWithFrame(render_frame_host);
+  instance_coordinator().CloseAndShutdownInstanceWithFrame(render_frame_host);
 }
 
 void GlicKeyedService::CloseFloatingPanel() {
-  window_controller().Close({});
+  instance_coordinator().Close({});
 }
 
-#if !BUILDFLAG(IS_ANDROID)  // Single instance only
-void GlicKeyedService::PrepareForOpen() {
-  fre_controller().MaybePreconnect();
-
-  auto* active_web_contents =
-      sharing_manager_->GetFocusedTabData().focus()
-          ? sharing_manager_->GetFocusedTabData().focus()->GetContents()
-          : nullptr;
-  if (contextual_cueing_service_ && active_web_contents) {
-    contextual_cueing_service_
-        ->PrepareToFetchContextualGlicZeroStateSuggestions(active_web_contents);
-  }
-}
-#endif
-
-#if !BUILDFLAG(IS_ANDROID)  // Single instance only
-glic::GlicInstanceMetrics* GlicKeyedService::instance_metrics() {
-  return nullptr;
-}
-
-glic::GlicInstanceMetricsBackwardsCompatibility&
-GlicKeyedService::instance_metrics_backwards_compatibility() {
-  return *metrics_;
-}
-#endif
-
-GlicWindowController& GlicKeyedService::window_controller() const {
+GlicInstanceCoordinator& GlicKeyedService::instance_coordinator() const {
   CHECK(window_controller_);
   return *window_controller_.get();
 }
-
-#if !BUILDFLAG(IS_ANDROID)  // Single instance only
-GlicWindowControllerInterface&
-GlicKeyedService::GetSingleInstanceWindowController() const {
-  NOTREACHED();  // deprecated
-}
-#endif
 
 GlicFreController& GlicKeyedService::fre_controller() {
   CHECK(fre_controller_);
@@ -480,7 +435,7 @@ GlicSharingManager& GlicKeyedService::sharing_manager() {
 
 bool GlicKeyedService::IsTabPinnedToAnyInstance(
     const tabs::TabHandle& tab_handle) const {
-  auto instances = window_controller().GetInstances();
+  auto instances = instance_coordinator().GetInstances();
   return std::ranges::any_of(instances, [&](GlicInstance* instance) {
     return instance->host().sharing_manager().IsTabPinned(tab_handle);
   });
@@ -489,85 +444,17 @@ bool GlicKeyedService::IsTabPinnedToAnyInstance(
 void GlicKeyedService::UnpinTabsFromAllInstances(
     base::span<const tabs::TabHandle> tab_handles,
     GlicUnpinTrigger trigger) {
-  for (GlicInstance* instance : window_controller().GetInstances()) {
+  for (GlicInstance* instance : instance_coordinator().GetInstances()) {
     instance->host().sharing_manager().UnpinTabs(tab_handles, trigger);
   }
 }
-
-#if !BUILDFLAG(IS_ANDROID)
-void GlicKeyedService::OnZeroStateSuggestionsFetched(
-    mojom::ZeroStateSuggestionsPtr suggestions,
-    mojom::WebClientHandler::GetZeroStateSuggestionsForFocusedTabCallback
-        callback,
-    std::vector<std::string> returned_suggestions) {
-  std::vector<mojom::SuggestionContentPtr> output_suggestions;
-  for (const std::string& suggestion_string : returned_suggestions) {
-    output_suggestions.push_back(
-        mojom::SuggestionContent::New(suggestion_string));
-  }
-  suggestions->suggestions = std::move(output_suggestions);
-
-  std::move(callback).Run(std::move(suggestions));
-}
-
-void GlicKeyedService::FetchZeroStateSuggestions(
-    bool is_first_run,
-    std::optional<std::vector<std::string>> supported_tools,
-    mojom::WebClientHandler::GetZeroStateSuggestionsForFocusedTabCallback
-        callback) {
-  auto* active_web_contents =
-      sharing_manager_->GetFocusedTabData().focus()
-          ? sharing_manager_->GetFocusedTabData().focus()->GetContents()
-          : nullptr;
-
-  if (contextual_cueing_service_ && active_web_contents && IsWindowShowing()) {
-    auto suggestions = mojom::ZeroStateSuggestions::New();
-    suggestions->tab_id = GetTabId(active_web_contents);
-    suggestions->tab_url = active_web_contents->GetLastCommittedURL();
-    contextual_cueing_service_
-        ->GetContextualGlicZeroStateSuggestionsForFocusedTab(
-            active_web_contents, is_first_run, supported_tools,
-            mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-                base::BindOnce(&GlicKeyedService::OnZeroStateSuggestionsFetched,
-                               GetWeakPtr(), std::move(suggestions),
-                               std::move(callback)),
-                std::vector<std::string>({})));
-
-  } else {
-    std::move(callback).Run(nullptr);
-  }
-}
-
-void GlicKeyedService::RegisterConversation(
-    glic::mojom::ConversationInfoPtr info,
-    mojom::WebClientHandler::RegisterConversationCallback callback) {
-  NOTIMPLEMENTED();
-  std::move(callback).Run(mojom::RegisterConversationErrorReason::kUnknown);
-}
-
-void GlicKeyedService::GetZeroStateSuggestionsAndSubscribe(
-    bool has_active_subscription,
-    const mojom::ZeroStateSuggestionsOptions& options,
-    mojom::WebClientHandler::GetZeroStateSuggestionsAndSubscribeCallback
-        callback) {
-  if (!zero_state_suggestions_manager()) {
-    NOTIMPLEMENTED()
-        << "Zero state suggestions not implemented for multi-instance.";
-    std::move(callback).Run(nullptr);
-    return;
-  }
-  zero_state_suggestions_manager()->ObserveZeroStateSuggestions(
-      has_active_subscription, options.is_first_run, options.supported_tools,
-      std::move(callback));
-}
-#endif
 
 void GlicKeyedService::GuestAdded(content::WebContents* guest_contents) {
   host_manager().GuestAdded(guest_contents);
 }
 
 bool GlicKeyedService::IsWindowShowing() const {
-  for (const auto* instance : window_controller().GetInstances()) {
+  for (const auto* instance : instance_coordinator().GetInstances()) {
     if (instance && instance->IsShowing()) {
       return true;
     }
@@ -577,11 +464,11 @@ bool GlicKeyedService::IsWindowShowing() const {
 
 bool GlicKeyedService::IsPanelShowingForBrowser(
     const BrowserWindowInterface& bwi) const {
-  return window_controller().IsPanelShowingForBrowser(bwi);
+  return instance_coordinator().IsPanelShowingForBrowser(bwi);
 }
 
 bool GlicKeyedService::IsWindowDetached() const {
-  return window_controller().IsDetached();
+  return instance_coordinator().IsDetached();
 }
 
 bool GlicKeyedService::IsWindowOrFreShowing() const {
@@ -675,104 +562,6 @@ void GlicKeyedService::SetContextAccessIndicator(bool show) {
   context_access_indicator_callback_list_.Notify(show);
 }
 
-#if !BUILDFLAG(IS_ANDROID)  // Single instance only
-void GlicKeyedService::CreateTask(
-    base::WeakPtr<actor::ActorTaskDelegate> delegate,
-    actor::webui::mojom::TaskOptionsPtr options,
-    mojom::WebClientHandler::CreateTaskCallback callback) {
-  if (actor_task_manager_) {
-    // No conversation id but this code path is going away so it's ok.
-    actor_task_manager_->CreateTask(weak_ptr_factory_.GetWeakPtr(),
-                                    /*conversation_id=*/"", std::move(options),
-                                    std::move(callback));
-  } else {
-    std::move(callback).Run(
-        base::unexpected(mojom::CreateTaskErrorReason::kTaskSystemUnavailable));
-  }
-}
-
-void GlicKeyedService::PerformActions(
-    const std::vector<uint8_t>& actions_proto,
-    mojom::WebClientHandler::PerformActionsCallback callback) {
-  if (actor_task_manager_) {
-    actor_task_manager_->PerformActions(actions_proto, std::move(callback));
-  } else {
-    std::move(callback).Run(
-        base::unexpected(mojom::PerformActionsErrorReason::kUnknown));
-  }
-}
-
-void GlicKeyedService::CancelActions(
-    actor::TaskId task_id,
-    mojom::WebClientHandler::CancelActionsCallback callback) {
-  if (actor_task_manager_) {
-    actor_task_manager_->CancelActions(task_id, std::move(callback));
-  } else {
-    std::move(callback).Run(mojom::CancelActionsResult::kUnknown);
-  }
-}
-
-void GlicKeyedService::StopActorTask(actor::TaskId task_id,
-                                     mojom::ActorTaskStopReason stop_reason) {
-  if (actor_task_manager_) {
-    actor_task_manager_->StopActorTask(task_id, stop_reason);
-  }
-}
-
-void GlicKeyedService::PauseActorTask(actor::TaskId task_id,
-                                      mojom::ActorTaskPauseReason pause_reason,
-                                      tabs::TabInterface::Handle tab_handle) {
-  if (actor_task_manager_) {
-    actor_task_manager_->PauseActorTask(task_id, pause_reason, tab_handle);
-  }
-}
-
-void GlicKeyedService::ResumeActorTask(
-    actor::TaskId task_id,
-    const mojom::GetTabContextOptions& context_options,
-    glic::mojom::WebClientHandler::ResumeActorTaskCallback callback) {
-  if (actor_task_manager_) {
-    actor_task_manager_->ResumeActorTask(task_id, context_options,
-                                         std::move(callback));
-  } else {
-    std::move(callback).Run(mojom::GetContextResultWithActionResultCode::New(
-        mojom::GetContextResult::NewErrorReason("Actor not enabled"),
-        std::nullopt));
-  }
-}
-
-void GlicKeyedService::InterruptActorTask(actor::TaskId task_id) {
-  if (actor_task_manager_) {
-    actor_task_manager_->InterruptActorTask(task_id);
-  }
-}
-
-void GlicKeyedService::UninterruptActorTask(actor::TaskId task_id) {
-  if (actor_task_manager_) {
-    actor_task_manager_->UninterruptActorTask(task_id);
-  }
-}
-
-void GlicKeyedService::CreateActorTab(
-    actor::TaskId task_id,
-    bool open_in_background,
-    const std::optional<int32_t>& initiator_tab_id,
-    const std::optional<int32_t>& initiator_window_id,
-    glic::mojom::WebClientHandler::CreateActorTabCallback callback) {
-  if (actor_task_manager_) {
-    actor_task_manager_->CreateActorTab(task_id, open_in_background,
-                                        initiator_tab_id, initiator_window_id,
-                                        std::move(callback));
-  } else {
-    std::move(callback).Run(nullptr);
-  }
-}
-
-void GlicKeyedService::OnTabAddedToTask(
-    actor::TaskId task_id,
-    const tabs::TabInterface::Handle& tab_handle) {}
-#endif
-
 void GlicKeyedService::OnUserInputSubmitted(glic::mojom::WebClientMode mode) {
   user_input_submitted_callback_list_.Notify();
 }
@@ -783,6 +572,10 @@ base::CallbackListSubscription GlicKeyedService::AddUserInputSubmittedCallback(
 }
 
 #if !BUILDFLAG(IS_ANDROID)  // Single instance only
+void GlicKeyedService::OnTabAddedToTask(
+    actor::TaskId task_id,
+    const tabs::TabInterface::Handle& tab_handle) {}
+
 void GlicKeyedService::CaptureRegion(
     tabs::TabInterface* tab,
     mojo::PendingRemote<mojom::CaptureRegionObserver> observer) {
@@ -855,7 +648,7 @@ void GlicKeyedService::Reload(content::RenderFrameHost* render_frame_host) {
       }
     }
   }
-  window_controller().Reload(render_frame_host);
+  instance_coordinator().Reload(render_frame_host);
 }
 
 void GlicKeyedService::OnMemoryPressure(base::MemoryPressureLevel level) {
@@ -892,7 +685,7 @@ void GlicKeyedService::FinishPreload(GlicPrewarmingChecksResult result) {
   if (base::FeatureList::IsEnabled(features::kGlicWebContentsWarming)) {
     web_contents_warming_pool_->EnsurePreload();
   } else {
-    window_controller().Preload();
+    instance_coordinator().Preload();
   }
 }
 
@@ -912,63 +705,42 @@ bool GlicKeyedService::IsGlicWebUi(content::WebContents* web_contents) {
 }
 
 HostManager& GlicKeyedService::host_manager() {
-  return window_controller().host_manager();
+  return instance_coordinator().host_manager();
 }
 
 GlicInstance* GlicKeyedService::GetInstanceForTab(tabs::TabInterface* tab) {
-  return window_controller().GetInstanceForTab(tab);
+  return instance_coordinator().GetInstanceForTab(tab);
 }
 
 GlicInstance* GlicKeyedService::GetInstanceForActiveTab(
     BrowserWindowInterface* bwi) {
   if (!bwi) {
-    return window_controller().GetInstanceForTab(nullptr);
+    return instance_coordinator().GetInstanceForTab(nullptr);
   }
   auto* tab_list = TabListInterface::From(bwi);
   if (!tab_list) {
     return nullptr;
   }
-  return window_controller().GetInstanceForTab(tab_list->GetActiveTab());
+  return instance_coordinator().GetInstanceForTab(tab_list->GetActiveTab());
 }
 
 void GlicKeyedService::SendAdditionalContext(
     tabs::TabHandle tab_handle,
     mojom::AdditionalContextPtr context) {
   auto* tab = tab_handle.Get();
-  auto* host = &window_controller().GetInstanceForTab(tab)->host();
+  auto* host = &instance_coordinator().GetInstanceForTab(tab)->host();
   host->NotifyAdditionalContext(std::move(context));
 }
 
 void GlicKeyedService::Close(
     content::RenderFrameHost* outermost_render_frame_host) {
-  window_controller().CloseInstanceWithFrame(outermost_render_frame_host);
+  instance_coordinator().CloseInstanceWithFrame(outermost_render_frame_host);
 }
 
 void GlicKeyedService::Archive(
     content::RenderFrameHost* outermost_render_frame_host) {
-  window_controller().ArchiveInstanceWithFrame(outermost_render_frame_host);
+  instance_coordinator().ArchiveInstanceWithFrame(outermost_render_frame_host);
 }
-
-#if !BUILDFLAG(IS_ANDROID)  // Single instance only
-void GlicKeyedService::OnWebClientCleared() {
-  if (actor_task_manager_) {
-    actor_task_manager_->CancelTask();
-  }
-}
-
-void GlicKeyedService::OnInteractionModeChange(mojom::WebClientMode new_mode) {
-  // Unused in single instance mode.
-}
-
-bool GlicKeyedService::IsActive() {
-  // The `browser_is_active` signal was changed to `instance_is_active`. This
-  // the logic that originally backed `browser_is_active` for single-instance.
-  // This function will only be called from `GlicPageHandler` when in
-  // single-instance, and should be deleted when single-instance is deleted and
-  // GKS no longer implements `Host::InstanceDelegate`.
-  return sharing_manager().GetFocusedBrowser();
-}
-#endif
 
 #if !BUILDFLAG(IS_ANDROID)  // Single instance only
 void GlicKeyedService::RequestToShowCredentialSelectionDialog(

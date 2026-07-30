@@ -12,8 +12,9 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/accessibility/accessibility_labels_service_factory.h"
 #include "chrome/browser/accessibility/page_colors_controller_factory.h"
-#include "chrome/browser/accessibility_annotator/accessibility_annotation_service_factory.h"
 #include "chrome/browser/accessibility_annotator/accessibility_annotator_backend_factory.h"
+#include "chrome/browser/accessibility_annotator/accessibility_annotator_enablement_service_factory.h"
+#include "chrome/browser/accessibility_annotator/accessibility_annotator_service_factory.h"
 #include "chrome/browser/accessibility_annotator/accessibility_query_service_factory.h"
 #include "chrome/browser/accessibility_annotator/first_run/accessibility_annotator_first_run_service_factory.h"
 #include "chrome/browser/account_settings/account_setting_service_factory.h"
@@ -64,6 +65,7 @@
 #include "chrome/browser/content_index/content_index_provider_factory.h"
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/contextual_cueing/contextual_cueing_service_factory.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
@@ -149,14 +151,15 @@
 #include "chrome/browser/page_info/merchant_trust_service_factory.h"
 #include "chrome/browser/page_load_metrics/observers/https_engagement_metrics/https_engagement_service_factory.h"
 #include "chrome/browser/passage_embeddings/passage_embedder_model_observer_factory.h"
-#include "chrome/browser/password_manager/account_password_store_factory.h"
+#include "chrome/browser/password_manager/actor_login/actor_login_permission_cleaning_service_factory.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_permission_service_factory.h"
+#include "chrome/browser/password_manager/factories/account_password_store_factory.h"
 #include "chrome/browser/password_manager/factories/field_info_manager_factory.h"
+#include "chrome/browser/password_manager/factories/password_manager_settings_service_factory.h"
 #include "chrome/browser/password_manager/factories/password_reuse_manager_factory.h"
+#include "chrome/browser/password_manager/factories/profile_password_store_factory.h"
 #include "chrome/browser/password_manager/password_change_service_factory.h"
 #include "chrome/browser/password_manager/password_field_classification_model_handler_factory.h"
-#include "chrome/browser/password_manager/password_manager_settings_service_factory.h"
-#include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/payments/browser_binding/browser_bound_key_deleter_service_factory.h"
 #include "chrome/browser/performance_manager/persistence/site_data/site_data_cache_facade_factory.h"
 #include "chrome/browser/permissions/notifications_engagement_service_factory.h"
@@ -456,7 +459,7 @@
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/password_manager/startup_passwords_import_service_factory.h"  // nogncheck (Desktop only)
+#include "chrome/browser/password_manager/factories/startup_passwords_import_service_factory.h"  // nogncheck (Desktop only)
 #include "chrome/browser/webauthn/passkey_unlock_manager_factory.h"
 #include "device/fido/public/features.h"
 #endif
@@ -551,6 +554,11 @@
 #include "chrome/browser/sessions/exit_type_service_factory.h"
 #include "chrome/browser/sessions/session_service_factory.h"
 #endif
+
+#if BUILDFLAG(IS_LINUX)
+#include "chrome/browser/gapis/gapis_service_factory.h"
+#include "components/gapis/features.h"
+#endif  // BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(ENABLE_SPELLCHECK)
 #include "chrome/browser/spellchecker/spellcheck_factory.h"
@@ -668,13 +676,14 @@ void ChromeBrowserMainExtraPartsProfiles::
   AboutThisSiteServiceFactory::GetInstance();
   AcceptLanguagesServiceFactory::GetInstance();
   AccessibilityAnnotatorBackendFactory::GetInstance();
-  AccessibilityAnnotationServiceFactory::GetInstance();
+  AccessibilityAnnotatorServiceFactory::GetInstance();
+  accessibility_annotator::AccessibilityAnnotatorEnablementServiceFactory::
+      GetInstance();
   accessibility_annotator::AccessibilityAnnotatorFirstRunServiceFactory::
       GetInstance();
   AccessibilityLabelsServiceFactory::GetInstance();
 #if !BUILDFLAG(IS_ANDROID)
-  accessibility_annotator::AccessibilityQueryServiceFactory::GetInstance();
-  accessibility_annotator::ContentAnnotatorServiceFactory::GetInstance();
+  AccessibilityQueryServiceFactory::GetInstance();
 #endif
   AccountBookmarkSyncServiceFactory::GetInstance();
   AccountConsistencyModeManagerFactory::GetInstance();
@@ -694,6 +703,7 @@ void ChromeBrowserMainExtraPartsProfiles::
   AndroidSessionDurationsServiceFactory::GetInstance();
 #endif
   AffiliationServiceFactory::GetInstance();
+  actor_login::ActorLoginPermissionCleaningServiceFactory::GetInstance();
   actor_login::ActorLoginPermissionServiceFactory::GetInstance();
   chrome_finds_internals::ChromeFindsAgentFactory::GetInstance();
   AiDataKeyedServiceFactory::GetInstance();
@@ -851,6 +861,12 @@ void ChromeBrowserMainExtraPartsProfiles::
   commerce::ShoppingServiceFactory::GetInstance();
   ConsentAuditorFactory::GetInstance();
 
+#if !BUILDFLAG(IS_ANDROID)
+  ContentAnnotatorServiceFactory::GetInstance();
+#endif
+
+  contextual_cueing::ContextualCueingServiceFactory::GetInstance();
+
   contextual_tasks::ContextualTasksContextServiceFactory::GetInstance();
   contextual_tasks::ContextualTasksServiceFactory::GetInstance();
   contextual_tasks::ContextualTasksUiServiceFactory::GetInstance();
@@ -990,6 +1006,11 @@ void ChromeBrowserMainExtraPartsProfiles::
 #if BUILDFLAG(IS_CHROMEOS)
   GalleryWatchManager::EnsureFactoryBuilt();
 #endif
+#if BUILDFLAG(IS_LINUX)
+  if (base::FeatureList::IsEnabled(gapis::kEnableGapis)) {
+    GapisServiceFactory::GetInstance();
+  }
+#endif  // BUILDFLAG(IS_LINUX)
   glic::GlicKeyedServiceFactory::GetInstance();
 #if !BUILDFLAG(IS_ANDROID)
   tabs::GlicActorTaskIconManagerFactory::GetInstance();

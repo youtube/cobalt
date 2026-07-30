@@ -28,16 +28,17 @@ class MEDIA_EXPORT DataSourceInfo {
 
   // DataSource implementations that might make requests must ensure the value
   // is accurate for cross origin resources.
-  virtual bool WouldTaintOrigin() = 0;
+  virtual bool WouldTaintOrigin() const = 0;
 
   // Returns true if we are performing streaming. In this case seeking is
   // not possible.
-  virtual bool IsStreaming() = 0;
+  virtual bool IsStreaming() const = 0;
 };
 
 class MEDIA_EXPORT DataSource : public DataSourceInfo {
  public:
   using ReadCB = base::OnceCallback<void(int)>;
+  using DataSourceCb = base::OnceCallback<void(std::unique_ptr<DataSource>)>;
 
   enum { kReadError = -1, kAborted = -2 };
 
@@ -52,6 +53,14 @@ class MEDIA_EXPORT DataSource : public DataSourceInfo {
     NONE,
     METADATA,
     AUTO,
+  };
+
+  class MEDIA_EXPORT Factory {
+   public:
+    virtual ~Factory();
+    virtual void Create(const GURL& uri,
+                        bool ignore_cache,
+                        DataSourceCb cb) = 0;
   };
 
   DataSource();

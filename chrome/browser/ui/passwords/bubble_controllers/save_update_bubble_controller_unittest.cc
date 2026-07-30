@@ -16,13 +16,14 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/simple_test_clock.h"
-#include "chrome/browser/password_manager/profile_password_store_factory.h"
+#include "chrome/browser/password_manager/factories/profile_password_store_factory.h"
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
 #include "chrome/browser/signin/test_signin_client_builder.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/passwords/passwords_model_delegate_mock.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/metrics/profile_metrics_service.h"
 #include "components/password_manager/core/browser/features/password_manager_features_util.h"
 #include "components/password_manager/core/browser/mock_password_feature_manager.h"
 #include "components/password_manager/core/browser/password_form.h"
@@ -503,12 +504,13 @@ TEST_P(SaveUpdateBubbleControllerUKMTest, RecordUKMs) {
                << ", interaction = " << static_cast<int64_t>(interaction)
                << ", credential management api =" << credential_management_api);
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
+  metrics::ProfileMetricsService profile_metrics_service;
   {
     // Setup metrics recorder
     auto recorder =
         base::MakeRefCounted<password_manager::PasswordFormMetricsRecorder>(
             true /*is_main_frame_secure*/, kTestSourceId,
-            /*pref_service=*/nullptr);
+            /*pref_service=*/nullptr, &profile_metrics_service);
 
     // Exercise bubble.
     ON_CALL(*delegate(), GetPasswordFormMetricsRecorder())

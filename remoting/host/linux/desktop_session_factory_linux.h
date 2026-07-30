@@ -18,7 +18,7 @@
 #include "base/thread_annotations.h"
 #include "base/timer/timer.h"
 #include "base/types/expected.h"
-#include "remoting/host/base/loggable.h"
+#include "remoting/base/loggable.h"
 #include "remoting/host/daemon_process.h"
 #include "remoting/host/desktop_session.h"
 #include "remoting/host/linux/remote_display_session_manager.h"
@@ -59,6 +59,10 @@ class DesktopSessionFactoryLinux final
 
   // Terminates all active desktop sessions.
   void TerminateAllSessions(Callback callback);
+
+  // Finds a DesktopSession with the matching UID. With modern GDM, each user
+  // can only have one graphical session. Returns nullptr if not found.
+  DesktopSession* GetSessionByUid(uid_t uid);
 
  private:
   class DesktopSessionLinux;

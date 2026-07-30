@@ -236,6 +236,7 @@ gpu.ci.mac_builder(
         ],
     ),
     targets = targets.bundle(),
+    gardener_rotations = args.ignore_default(None),
     console_view_entry = consoles.console_view_entry(
         category = "Mac|Builder",
         short_name = "rel",
@@ -314,10 +315,6 @@ gpu.ci.mac_builder(
         ],
     ),
     targets = targets.bundle(),
-    # TODO(crbug.com/491905300): Make tree-closing and gardened once confirmed
-    # to be stable.
-    gardener_rotations = args.ignore_default(None),
-    tree_closing = False,
     console_view_entry = consoles.console_view_entry(
         category = "Mac arm64|Builder",
         short_name = "rel",
@@ -585,6 +582,7 @@ ci.thin_tester(
         browser_config = targets.browser_config.RELEASE,
         os_type = targets.os_type.MAC,
     ),
+    gardener_rotations = args.ignore_default(None),
     console_view_entry = consoles.console_view_entry(
         category = "Mac|Intel",
         short_name = "rel",
@@ -678,6 +676,7 @@ ci.thin_tester(
         browser_config = targets.browser_config.RELEASE,
         os_type = targets.os_type.MAC,
     ),
+    gardener_rotations = args.ignore_default(None),
     console_view_entry = consoles.console_view_entry(
         category = "Mac|AMD",
         short_name = "rel",
@@ -705,7 +704,6 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.MAC,
         ),
-        run_tests_serially = True,
     ),
     targets = targets.bundle(
         targets = [
@@ -721,10 +719,6 @@ ci.thin_tester(
         browser_config = targets.browser_config.RELEASE,
         os_type = targets.os_type.MAC,
     ),
-    # TODO(crbug.com/491905300): Make tree-closing and gardened once confirmed
-    # to be stable.
-    gardener_rotations = args.ignore_default(None),
-    tree_closing = False,
     console_view_entry = consoles.console_view_entry(
         category = "Mac arm64|Apple|m2",
         short_name = "rel",

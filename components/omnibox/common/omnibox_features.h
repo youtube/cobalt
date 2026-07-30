@@ -103,6 +103,7 @@ BASE_DECLARE_FEATURE(kUseFusedLocationProvider);
 BASE_DECLARE_FEATURE(kOmniboxMobileParityUpdate);
 BASE_DECLARE_FEATURE(kOmniboxMobileParityUpdateV2);
 BASE_DECLARE_FEATURE(kOmniboxXGeoPermissionGranularity);
+BASE_DECLARE_FEATURE(kOmniboxItemDecoration);
 
 // Omnibox suggestions tuning
 BASE_DECLARE_FEATURE(kNumNtpZpsRecentSearches);
@@ -143,6 +144,10 @@ inline constexpr base::FeatureParam<std::string> kComposeboxClientOverride{
 
 // Controls whether or not contextual composebox should display suggestions.
 BASE_DECLARE_FEATURE(kComposeboxAttachmentsTypedState);
+
+// Whether the composebox should show a verbatim match for context in
+// zero-suggest.
+BASE_DECLARE_FEATURE(kComposeboxVerbatimMatchZeroSuggest);
 
 // A flag that allows params from experiment configs to be passed through to
 // the AIM eligibility service to control aspects of URL interception.

@@ -65,9 +65,15 @@ BASE_DECLARE_FEATURE(kApiUserScriptsMultipleWorlds);
 // Controls the availability of the odfsConfigPrivate API.
 BASE_DECLARE_FEATURE(kApiOdfsConfigPrivate);
 
+// Controls the availability of the glicPrivate API.
+BASE_DECLARE_FEATURE(kApiGlicPrivate);
+
 // Controls the availability of the
 // `enterprise.reportingPrivate.onDataMaskingRulesTriggered` API.
 BASE_DECLARE_FEATURE(kApiEnterpriseReportingPrivateOnDataMaskingRulesTriggered);
+
+// Controls the availability of Glic access from Google webpages.
+BASE_DECLARE_FEATURE(kApiGlicAccessFromGoogleWebpage);
 
 // Controls the availability of the new `proxyOverrideRulesPrivate` API.
 BASE_DECLARE_FEATURE(kApiProxyOverrideRulesPrivate);
@@ -241,7 +247,6 @@ BASE_DECLARE_FEATURE(kDeclarativeNetRequestHeaderSubstitution);
 // Disables loading extensions via the `--disable-extensions-except` command
 // line switch.
 BASE_DECLARE_FEATURE(kDisableDisableExtensionsExceptCommandLineSwitch);
-
 
 // Disables the `--extensions-on-chrome-urls` flag's functionality on
 // `chrome://` URLs. Extension can still run on extension URLs using the new

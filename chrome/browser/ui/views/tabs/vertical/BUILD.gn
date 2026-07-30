@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/ui.gni")
 import("//chrome/common/features.gni")
 
 source_set("vertical") {
@@ -15,7 +16,7 @@ source_set("vertical") {
     "vertical_pinned_tab_container_view.h",
     "vertical_split_tab_view.h",
     "vertical_tab_strip_bottom_container.h",
-    "vertical_tab_strip_metrics.h",
+    "vertical_tab_strip_expand_on_hover_lock.h",
     "vertical_tab_strip_scroll_bar.h",
     "vertical_tab_strip_top_container.h",
     "vertical_tab_strip_utils.h",
@@ -58,7 +59,7 @@ source_set("impl") {
     "vertical_tab_link_drop_handler.cc",
     "vertical_tab_link_drop_handler.h",
     "vertical_tab_strip_bottom_container.cc",
-    "vertical_tab_strip_metrics.cc",
+    "vertical_tab_strip_expand_on_hover_lock.cc",
     "vertical_tab_strip_scroll_bar.cc",
     "vertical_tab_strip_top_container.cc",
     "vertical_tab_strip_utils.cc",
@@ -135,6 +136,10 @@ source_set("browser_tests") {
     "//testing/gmock",
     "//ui/events:test_support",
   ]
+
+  if (use_ozone) {
+    deps += [ "//ui/ozone" ]
+  }
 }
 
 source_set("unit_tests") {
@@ -142,6 +147,7 @@ source_set("unit_tests") {
   sources = [
     "tab_collection_animating_layout_manager_unittest.cc",
     "vertical_tab_group_header_view_unittest.cc",
+    "vertical_tab_strip_expand_on_hover_lock_unittest.cc",
     "vertical_tab_strip_top_container_unittest.cc",
   ]
   deps = [

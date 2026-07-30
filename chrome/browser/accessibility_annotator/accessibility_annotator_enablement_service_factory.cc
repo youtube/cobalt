@@ -4,8 +4,12 @@
 
 #include "chrome/browser/accessibility_annotator/accessibility_annotator_enablement_service_factory.h"
 
+#include "chrome/browser/account_settings/account_setting_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "components/accessibility_annotator/core/accessibility_annotator_enablement_service_impl.h"
+#include "components/accessibility_annotator/core/accessibility_annotator_features.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
 
 namespace accessibility_annotator {
 
@@ -31,7 +35,10 @@ AccessibilityAnnotatorEnablementServiceFactory::
           "AccessibilityAnnotatorEnablementService",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              .Build()) {}
+              .Build()) {
+  DependsOn(AccountSettingServiceFactory::GetInstance());
+  DependsOn(IdentityManagerFactory::GetInstance());
+}
 
 AccessibilityAnnotatorEnablementServiceFactory::
     ~AccessibilityAnnotatorEnablementServiceFactory() = default;
@@ -39,7 +46,20 @@ AccessibilityAnnotatorEnablementServiceFactory::
 std::unique_ptr<KeyedService> AccessibilityAnnotatorEnablementServiceFactory::
     BuildServiceInstanceForBrowserContext(
         content::BrowserContext* context) const {
-  return std::make_unique<AccessibilityAnnotatorEnablementServiceImpl>();
+  if (!base::FeatureList::IsEnabled(
+          accessibility_annotator::features::kAccessibilityAnnotator)) {
+    return nullptr;
+  }
+
+  Profile* profile = Profile::FromBrowserContext(context);
+
+  account_settings::AccountSettingService* account_settings_service =
+      AccountSettingServiceFactory::GetForProfile(
+          profile->GetOriginalProfile());
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile->GetOriginalProfile());
+  return std::make_unique<AccessibilityAnnotatorEnablementServiceImpl>(
+      account_settings_service, identity_manager);
 }
 
 }  // namespace accessibility_annotator

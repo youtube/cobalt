@@ -28,6 +28,7 @@
 #import "components/commerce/core/shopping_service.h"
 #import "components/feature_engagement/public/event_constants.h"
 #import "components/feature_engagement/public/tracker.h"
+#import "components/google/core/common/google_util.h"
 #import "components/infobars/core/infobar.h"
 #import "components/infobars/core/infobar_manager.h"
 #import "components/password_manager/core/browser/ui/credential_ui_entry.h"
@@ -143,9 +144,9 @@
 #import "ios/chrome/browser/intelligence/bwg/coordinator/bwg_coordinator.h"
 #import "ios/chrome/browser/intelligence/bwg/coordinator/gemini_first_run_coordinator.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
-#import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_browser_agent.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/enhanced_calendar/coordinator/enhanced_calendar_coordinator.h"
 #import "ios/chrome/browser/intelligence/enhanced_calendar/model/enhanced_calendar_configuration.h"
@@ -1309,6 +1310,16 @@ const char kChromeAppStoreUrl[] =
   _urlLoadingNotifierBrowserAgent =
       UrlLoadingNotifierBrowserAgent::FromBrowser(browser);
 
+  // The FullscreenCoordinator needs to be started before child coordinators so
+  // that the FullscreenCommands dispatcher is correctly registered in time for
+  // them to use it (e.g., BubblePresenterCoordinator and SideSwipeCoordinator).
+  if (IsFullscreenRefactoringEnabled()) {
+    _fullscreenCoordinator = [[FullscreenCoordinator alloc]
+        initWithBaseViewController:self.viewController
+                           browser:browser];
+    [_fullscreenCoordinator start];
+  }
+
   _bubblePresenterCoordinator =
       [[BubblePresenterCoordinator alloc] initWithBrowser:browser];
   _bubblePresenterCoordinator.bubblePresenterDelegate = self;
@@ -1480,6 +1491,9 @@ const char kChromeAppStoreUrl[] =
   [_sideSwipeCoordinator stop];
   _sideSwipeCoordinator = nil;
 
+  [_fullscreenCoordinator stop];
+  _fullscreenCoordinator = nil;
+
   [_toolbarCoordinator stop];
   _toolbarCoordinator = nil;
   _omniboxCommandsHandler = nil;
@@ -1538,13 +1552,6 @@ const char kChromeAppStoreUrl[] =
   // Dispatcher should be instantiated so that it can be passed to child
   // coordinators.
   DCHECK(self.dispatcher);
-
-  if (IsFullscreenRefactoringEnabled()) {
-    _fullscreenCoordinator = [[FullscreenCoordinator alloc]
-        initWithBaseViewController:self.viewController
-                           browser:self.browser];
-    [_fullscreenCoordinator start];
-  }
 
   self.ARQuickLookCoordinator = [[ARQuickLookCoordinator alloc]
       initWithBaseViewController:self.viewController
@@ -1857,8 +1864,6 @@ const char kChromeAppStoreUrl[] =
   [self dismissDockingPromo];
   [self hideWelcomeBackPromo];
   [self hideComposeboxImmediately:YES completion:nil];
-  [_fullscreenCoordinator stop];
-  _fullscreenCoordinator = nil;
 }
 
 // Starts independent mediators owned by this coordinator.
@@ -2124,8 +2129,7 @@ const char kChromeAppStoreUrl[] =
 
 #pragma mark - AutoDeletionCommands
 
-- (void)presentAutoDeletionActionSheetWithDownloadTask:
-    (web::DownloadTask*)task {
+- (void)presentAutoDeletionActionSheet {
   // Do not present the action sheet if it is already being presented or the
   // DownloadManagerCoordinator is null.
   if (_autoDeletionCoordinator || !self.downloadManagerCoordinator) {
@@ -2134,8 +2138,7 @@ const char kChromeAppStoreUrl[] =
 
   _autoDeletionCoordinator = [[AutoDeletionCoordinator alloc]
       initWithBaseViewController:self.downloadManagerCoordinator.viewController
-                         browser:self.browser
-                    downloadTask:task];
+                         browser:self.browser];
   [_autoDeletionCoordinator start];
 }
 
@@ -2458,6 +2461,24 @@ const char kChromeAppStoreUrl[] =
 - (void)dismissPasskeyIncognitoInterstitial {
   [_passkeyIncognitoCoordinator stop];
   _passkeyIncognitoCoordinator = nil;
+}
+
+- (void)cancelPasskeyRequest:
+    (webauthn::IOSPasskeyClient::RequestInfo)requestInfo {
+  if ([_passkeyCreationBottomSheetCoordinator hasPendingRequest:requestInfo]) {
+    [self dismissPasskeyCreation];
+    return;
+  }
+
+  if ([self.credentialSuggestionBottomSheetCoordinator
+          hasPendingRequest:requestInfo]) {
+    [self dismissPasswordSuggestions];
+    return;
+  }
+
+  if (_passkeyIncognitoCoordinator) {
+    [self dismissPasskeyIncognitoInterstitial];
+  }
 }
 
 #pragma mark - BrowserCoordinatorCommands
@@ -3579,7 +3600,7 @@ const char kChromeAppStoreUrl[] =
 }
 
 - (void)showBWGPromoIfPageIsEligible {
-  BwgService* geminiService = BwgServiceFactory::GetForProfile(self.profile);
+  BwgService* geminiService = GeminiServiceFactory::GetForProfile(self.profile);
   BwgTabHelper* geminiTabHelper =
       BwgTabHelper::FromWebState(self.activeWebState);
   if (geminiTabHelper && geminiTabHelper->IsGeminiAvailableForWebState() &&
@@ -3641,7 +3662,7 @@ const char kChromeAppStoreUrl[] =
 
   GeminiBrowserAgent* geminiBrowserAgent =
       GeminiBrowserAgent::FromBrowser(self.browser);
-  BwgService* geminiService = BwgServiceFactory::GetForProfile(self.profile);
+  BwgService* geminiService = GeminiServiceFactory::GetForProfile(self.profile);
   BwgTabHelper* geminiTabHelper =
       BwgTabHelper::FromWebState(self.activeWebState);
   if (!IsGeminiCopresenceEnabled() || !geminiBrowserAgent || !geminiTabHelper ||
@@ -3668,8 +3689,9 @@ const char kChromeAppStoreUrl[] =
     geminiTabHelper->UpdatePresentedSource(source, /*is_presented=*/false);
     gemini::FloatyUpdateSource hideSource =
         gemini::FloatyUpdateSource::IneligibleSite;
-    if (geminiTabHelper->IsAimRelatedUrl(
-            self.activeWebState->GetVisibleURL())) {
+    const GURL& url = self.activeWebState->GetVisibleURL();
+    if (google_util::IsGoogleSearchUrl(url) &&
+        IsGeminiCopresenceSRPCheckEnabled()) {
       hideSource = gemini::FloatyUpdateSource::SearchRelatedPage;
     }
     geminiBrowserAgent->HideFloatyIfInvoked(animated, hideSource);

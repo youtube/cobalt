@@ -10,7 +10,9 @@
 #import "base/strings/stringprintf.h"
 #import "base/types/expected.h"
 #import "components/optimization_guide/proto/features/actions_data.pb.h"
+#import "ios/chrome/browser/intelligence/actor/model/actor_task.h"
 #import "ios/chrome/browser/intelligence/actor/model/aggregated_journal.h"
+#import "ios/chrome/browser/intelligence/actor/public/actor_task_ui_delegate.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool_error.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool_factory.h"
@@ -18,7 +20,7 @@
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 
-using ActorCallback = ActorTool::ActorCallback;
+namespace actor {
 
 ActorService::ActorService(ProfileIOS* profile)
     : ActorService(profile, std::make_unique<ActorToolFactory>()) {}
@@ -37,7 +39,7 @@ void ActorService::Shutdown() {}
 
 void ActorService::ExecuteAction(
     const optimization_guide::proto::Action& action,
-    ActorCallback callback) {
+    ActorTool::ToolExecutionCallback callback) {
   CHECK(IsActorEnabled());
 
   if (action.action_case() ==
@@ -58,7 +60,7 @@ void ActorService::ExecuteAction(
 
   // Log immediate attempt to create tool.
   journal_->Log(
-      GURL(), TaskId{0},
+      GURL(), ActorTaskId(),
       base::StringPrintf("Attempting to create tool: %s", tool_name.c_str()),
       {});
 
@@ -68,7 +70,7 @@ void ActorService::ExecuteAction(
   if (!create_tool_result.has_value()) {
     // Log immediate failure to create tool.
     journal_->Log(
-        GURL(), TaskId{0},
+        GURL(), ActorTaskId(),
         base::StringPrintf("Failed to create tool: %s", tool_name.c_str()),
         {{"error", base::NumberToString(
                        static_cast<int>(create_tool_result.error().code))}});
@@ -84,13 +86,14 @@ void ActorService::ExecuteAction(
   // Start a Begin log when the Execute call starts.
   std::unique_ptr<AggregatedJournal::PendingAsyncEntry> entry =
       journal_->CreatePendingAsyncEntry(
-          GURL(), TaskId{0}, 0,
+          GURL(), ActorTaskId(), 0,
           base::StringPrintf("Execute Tool: %s", tool_name.c_str()), {});
 
-  ActorCallback wrapped_callback = base::BindOnce(
+  ActorTool::ToolExecutionCallback wrapped_callback = base::BindOnce(
       [](std::unique_ptr<ActorTool> tool,
          std::unique_ptr<AggregatedJournal::PendingAsyncEntry> entry,
-         ActorCallback callback, ActorTool::ActorResult result) {
+         ActorTool::ToolExecutionCallback callback,
+         ActorTool::ToolExecutionResult result) {
         std::vector<JournalDetails> details;
         if (!result.has_value()) {
           // Log if an error happens between Begin and End.
@@ -111,3 +114,40 @@ void ActorService::ExecuteAction(
 
   tool_ptr->Execute(std::move(wrapped_callback));
 }
+
+ActorTaskId ActorService::CreateTask(const std::string& title,
+                                     id<ActorTaskUIDelegate> delegate,
+                                     bool allow_incognito_web_states) {
+  ActorTaskId task_id(base::Token::CreateRandom());
+  while (active_tasks_.find(task_id) != active_tasks_.end()) {
+    task_id = ActorTaskId(base::Token::CreateRandom());
+  }
+  active_tasks_[task_id] =
+      std::make_unique<ActorTask>(task_id, title, delegate);
+  return task_id;
+}
+
+void ActorService::ExecuteTools(ActorTaskId task_id,
+                                std::vector<std::unique_ptr<ActorTool>> tools,
+                                const std::string& task_update,
+                                ExecuteToolsCallback callback) {
+  // TODO(crbug.com/496163986): Implement and test.
+  std::move(callback).Run(ActorTaskStoppedReason::kStoppedByUser);
+}
+
+void ActorService::PauseTask(ActorTaskId task_id, bool from_actor) {
+  // TODO(crbug.com/496163986): Implement and test.
+}
+
+void ActorService::StopTask(ActorTaskId task_id,
+                            ActorTaskStoppedReason reason) {
+  // TODO(crbug.com/496163986): Implement and test.
+  active_tasks_.erase(task_id);
+}
+
+std::vector<optimization_guide::proto::Action::ActionCase>
+ActorService::GetSupportedCapabilities() const {
+  return tool_factory_->GetSupportedCapabilities();
+}
+
+}  // namespace actor

@@ -1126,10 +1126,13 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
             SetupListManager.getInstance().maybePrimeCompletionStatus(profile.getOriginalProfile());
         }
 
-        if (mHomeModulesCoordinator == null) {
+        if (!NtpCustomizationUtils.isNtpSimplificationEnabledOnDesktop()
+                && mHomeModulesCoordinator == null) {
             initializeHomeModulesImpl();
         }
-        mHomeModulesCoordinator.show(this::onHomeModulesShown);
+        if (mHomeModulesCoordinator != null) {
+            mHomeModulesCoordinator.show(this::onHomeModulesShown);
+        }
     }
 
     /**
@@ -1254,6 +1257,8 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
 
     @SuppressWarnings("NullAway")
     public void destroy() {
+        mMostRecentTabSupplier.set(null);
+
         if (mSearchBoxHintTextObserver != null) {
             mSearchEngineUtils.removeSearchBoxHintTextObserver(mSearchBoxHintTextObserver);
             mSearchBoxHintTextObserver = null;
@@ -1282,6 +1287,10 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
             mHomeModulesCoordinator = null;
         }
 
+        if (mHomeModulesContainer != null) {
+            mHomeModulesContainer = null;
+        }
+
         if (mComposeplateCoordinator != null) {
             mComposeplateCoordinator.destroy();
             mComposeplateCoordinator = null;
@@ -1302,6 +1311,10 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
             mLogoCoordinator = null;
         }
 
+        if (mOnLogoAvailableCallback != null) {
+            mOnLogoAvailableCallback = null;
+        }
+
         if (mIsTablet) {
             if (mUiConfig != null) {
                 mUiConfig.removeObserver(mDisplayStyleObserver);
@@ -1314,6 +1327,7 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
 
         mSearchBoxScrollListener = null;
         mComposeplateUrlSupplier = null;
+        mScrollDelegate = null;
 
         if (mCallbackController != null) {
             mCallbackController.destroy();
@@ -1335,6 +1349,8 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
         if (mComposeplateCoordinator != null) {
             mComposeplateCoordinator.setLayoutWidth(searchBoxWidth);
         }
+
+        mContextMenuStartPosition = null;
     }
 
     LogoCoordinator getLogoCoordinatorForTesting() {

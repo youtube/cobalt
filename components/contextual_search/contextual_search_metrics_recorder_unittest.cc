@@ -71,6 +71,8 @@ const char kContextualSearchToolModeOnSubmission[] =
     "ContextualSearch.Tools.ModeOnSubmission.Unknown";
 const char kContextualSearchModelModeOnSubmission[] =
     "ContextualSearch.Models.ModeOnSubmission.Unknown";
+const char kContextualSearchInputsTypeOnSubmission[] =
+    "ContextualSearch.Inputs.TypeOnSubmission.Unknown";
 const char kContextualSearchTabContextAdded[] =
     "ContextualSearch.TabContextAdded.V2.Unknown";
 const char kContextualSearchTabContextAddedFromSuggestionChip[] =
@@ -99,6 +101,8 @@ const char kContextualSearchEntrypointNavigated[] =
 const char kContextualSearchEntrypointAbandoned[] =
     "ContextualSearch.Entrypoint.Abandoned";
 
+const char kContextualSearchSubmitQuery[] =
+    "ContextualSearch.UserAction.SubmitQueryV2.Unknown";
 const char kContextualSearchSubmitQueryV2WithoutContext[] =
     "ContextualSearch.UserAction.SubmitQueryV2.WithoutContext.Unknown";
 const char kContextualSearchSubmitQueryV2WithTabContext[] =
@@ -166,7 +170,8 @@ TEST_F(ContextualSearchMetricsRecorderTest, SubmitQueryWithoutContext) {
                 kContextualSearchSubmitQueryV2WithoutContext),
             1);
   histogram_tester().ExpectUniqueSample(
-      kContextualSearchSubmitQueryV2WithoutContext, true, 1);
+      kContextualSearchSubmitQuery,
+      static_cast<int>(ContextualSearchContextState::kWithoutContext), 1);
 }
 
 TEST_F(ContextualSearchMetricsRecorderTest, SubmitQueryWithTabContext) {
@@ -179,29 +184,34 @@ TEST_F(ContextualSearchMetricsRecorderTest, SubmitQueryWithTabContext) {
   EXPECT_EQ(user_action_tester().GetActionCount(
                 kContextualSearchSubmitQueryV2WithTabContext),
             1);
-  histogram_tester().ExpectUniqueSample(
-      kContextualSearchSubmitQueryV2WithTabContext, true, 1);
+  histogram_tester().ExpectBucketCount(
+      kContextualSearchSubmitQuery,
+      static_cast<int>(ContextualSearchContextState::kWithTabContext), 1);
+  histogram_tester().ExpectBucketCount(
+      kContextualSearchSubmitQuery,
+      static_cast<int>(ContextualSearchContextState::kWithContextNoText), 1);
 }
 
 TEST_F(ContextualSearchMetricsRecorderTest, SubmitQueryWithNonTabContext) {
   metrics().NotifySessionStateChanged(SessionState::kSessionStarted);
   metrics().NotifyQuerySubmitted(/*has_tab_context=*/false,
                                  /*has_non_tab_context=*/true,
-                                 /*query_text_length=*/0,
+                                 /*query_text_length=*/10,
                                  /*file_count=*/1);
 
   EXPECT_EQ(user_action_tester().GetActionCount(
                 kContextualSearchSubmitQueryV2WithNonTabContext),
             1);
   histogram_tester().ExpectUniqueSample(
-      kContextualSearchSubmitQueryV2WithNonTabContext, true, 1);
+      kContextualSearchSubmitQuery,
+      static_cast<int>(ContextualSearchContextState::kWithNonTabContext), 1);
 }
 
 TEST_F(ContextualSearchMetricsRecorderTest, SubmitQueryWithBothContext) {
   metrics().NotifySessionStateChanged(SessionState::kSessionStarted);
   metrics().NotifyQuerySubmitted(/*has_tab_context=*/true,
                                  /*has_non_tab_context=*/true,
-                                 /*query_text_length=*/0,
+                                 /*query_text_length=*/10,
                                  /*file_count=*/2);
 
   // Tab context should take precedence.
@@ -209,10 +219,8 @@ TEST_F(ContextualSearchMetricsRecorderTest, SubmitQueryWithBothContext) {
                 kContextualSearchSubmitQueryV2WithTabContext),
             1);
   histogram_tester().ExpectUniqueSample(
-      kContextualSearchSubmitQueryV2WithTabContext, true, 1);
-  EXPECT_EQ(user_action_tester().GetActionCount(
-                kContextualSearchSubmitQueryV2WithNonTabContext),
-            0);
+      kContextualSearchSubmitQuery,
+      static_cast<int>(ContextualSearchContextState::kWithTabContext), 1);
 }
 
 TEST_F(ContextualSearchMetricsRecorderTest, SessionAbandoned) {
@@ -337,11 +345,12 @@ TEST_F(ContextualSearchMetricsRecorderTest, FileOnlyQuerySubmissionSession) {
   EXPECT_EQ(user_action_tester().GetActionCount(
                 kContextualSearchSubmitQueryV2WithContextNoText),
             1);
-
-  histogram_tester().ExpectUniqueSample(
-      kContextualSearchSubmitQueryV2WithTabContext, true, 1);
-  histogram_tester().ExpectUniqueSample(
-      kContextualSearchSubmitQueryV2WithContextNoText, true, 1);
+  histogram_tester().ExpectBucketCount(
+      kContextualSearchSubmitQuery,
+      static_cast<int>(ContextualSearchContextState::kWithTabContext), 1);
+  histogram_tester().ExpectBucketCount(
+      kContextualSearchSubmitQuery,
+      static_cast<int>(ContextualSearchContextState::kWithContextNoText), 1);
 }
 
 TEST_F(ContextualSearchMetricsRecorderTest, MultimodalQuerySubmissionSession) {
@@ -382,7 +391,10 @@ TEST_F(ContextualSearchMetricsRecorderTest, ModelMode) {
 TEST_F(ContextualSearchMetricsRecorderTest, ModesOnSubmission) {
   metrics().NotifySessionStateChanged(SessionState::kSessionStarted);
   metrics().RecordModesOnSubmission(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN,
-                                    omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+                                    omnibox::ModelMode::MODEL_MODE_GEMINI_PRO,
+                                    {omnibox::InputType::INPUT_TYPE_LENS_IMAGE,
+                                     omnibox::InputType::INPUT_TYPE_LENS_IMAGE,
+                                     omnibox::InputType::INPUT_TYPE_LENS_FILE});
   DestructMetricsRecorder();
   histogram_tester().ExpectUniqueSample(kContextualSearchToolModeOnSubmission,
                                         omnibox::ToolMode::TOOL_MODE_IMAGE_GEN,
@@ -390,6 +402,14 @@ TEST_F(ContextualSearchMetricsRecorderTest, ModesOnSubmission) {
   histogram_tester().ExpectUniqueSample(
       kContextualSearchModelModeOnSubmission,
       omnibox::ModelMode::MODEL_MODE_GEMINI_PRO, 1);
+  histogram_tester().ExpectBucketCount(
+      kContextualSearchInputsTypeOnSubmission,
+      omnibox::InputType::INPUT_TYPE_LENS_IMAGE, 1);
+  histogram_tester().ExpectBucketCount(kContextualSearchInputsTypeOnSubmission,
+                                       omnibox::InputType::INPUT_TYPE_LENS_FILE,
+                                       1);
+  histogram_tester().ExpectTotalCount(kContextualSearchInputsTypeOnSubmission,
+                                      2);
 }
 
 TEST_F(ContextualSearchMetricsRecorderTest, TabContextAdded) {

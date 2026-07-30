@@ -51,9 +51,11 @@ class CanaryDomainServiceTest : public ::testing::TestWithParam<bool>,
   bool synchronous_mode() const { return GetParam(); }
 
   void SetUp() override {
-    feature_list_.InitAndEnableFeatureWithParameters(
-        features::kProbeSecureDnsCanaryDomain,
-        {{features::kSecureDnsCanaryDomainHost.name, kHost}});
+    feature_list_.InitWithFeaturesAndParameters(
+        {{features::kProbeSecureDnsCanaryDomain,
+          {{features::kSecureDnsCanaryDomainHost.name, kHost}}},
+         {features::kForceSecureDnsDohFallback, {}}},
+        {});
 
     // Set up a session with AUTOMATIC mode and fallback upgrade enabled.
     DnsConfig config;
@@ -63,6 +65,7 @@ class CanaryDomainServiceTest : public ::testing::TestWithParam<bool>,
         config, base::BindRepeating([](int, int) -> int { return 0; }),
         /*net_log=*/nullptr);
     resolve_context_.InvalidateCachesAndPerSessionData(session_.get(), false);
+    resolve_context_.set_doh_fallback_upgrade_allowed(true);
 
     // Must be created after enabling the feature.
     canary_domain_service_ = std::make_unique<CanaryDomainService>(
@@ -267,7 +270,6 @@ TEST_F(CanaryDomainServiceDisabledTest, NoProbeWhenConfigDisallows) {
   // Set up a session with mode SECURE (not AUTOMATIC).
   DnsConfig config;
   config.secure_dns_mode = SecureDnsMode::kSecure;
-  config.should_perform_doh_fallback_upgrade = true;
   session_ = base::MakeRefCounted<DnsSession>(
       config, base::BindRepeating([](int min, int max) -> int { return 0; }),
       /*net_log=*/nullptr);
@@ -288,6 +290,78 @@ TEST_F(CanaryDomainServiceDisabledTest, NoProbeWhenConfigDisallows) {
   canary_domain_service->OnDohServerUnavailable(/*network_change=*/false);
   EXPECT_TRUE(probe_complete_future.Wait());
 
+  EXPECT_EQ(resolve_context_.doh_fallback_canary_domain_check_status(),
+            CanaryDomainCheckStatus::kNotStarted);
+  EXPECT_EQ(host_resolver_.num_resolve(), 0u);
+}
+
+TEST_F(CanaryDomainServiceDisabledTest, ProbeAllowanceChange) {
+  feature_list_.InitWithFeaturesAndParameters(
+      {{features::kProbeSecureDnsCanaryDomain,
+        {{features::kSecureDnsCanaryDomainHost.name, "test.test"}}},
+       {features::kForceSecureDnsDohFallback, {}}},
+      {});
+
+  // Initially disallowed.
+  resolve_context_.set_doh_fallback_upgrade_allowed(false);
+
+  std::unique_ptr<CanaryDomainService> canary_domain_service =
+      host_resolver_.CreateCanaryDomainService();
+  ASSERT_TRUE(canary_domain_service);
+
+  host_resolver_.rules()->AddRule("test.test", "1.2.3.4");
+
+  // Start doesn't trigger probe.
+  canary_domain_service->Start();
+  EXPECT_EQ(resolve_context_.doh_fallback_canary_domain_check_status(),
+            CanaryDomainCheckStatus::kNotStarted);
+
+  // Event doesn't trigger probe.
+  {
+    base::test::TestFuture<void> probe_complete_future;
+    canary_domain_service->SetOnProbeCompleteCallbackForTesting(
+        probe_complete_future.GetCallback());
+    canary_domain_service->OnDohServerUnavailable(/*network_change=*/false);
+    EXPECT_TRUE(probe_complete_future.Wait());
+  }
+  EXPECT_EQ(resolve_context_.doh_fallback_canary_domain_check_status(),
+            CanaryDomainCheckStatus::kNotStarted);
+  EXPECT_EQ(host_resolver_.num_resolve(), 0u);
+
+  // Allow and trigger.
+  resolve_context_.set_doh_fallback_upgrade_allowed(true);
+  {
+    base::test::TestFuture<void> probe_complete_future;
+    canary_domain_service->SetOnProbeCompleteCallbackForTesting(
+        probe_complete_future.GetCallback());
+    canary_domain_service->OnDohServerUnavailable(/*network_change=*/false);
+    EXPECT_TRUE(probe_complete_future.Wait());
+  }
+
+  EXPECT_EQ(resolve_context_.doh_fallback_canary_domain_check_status(),
+            CanaryDomainCheckStatus::kPositive);
+  EXPECT_EQ(host_resolver_.num_resolve(), 1u);
+}
+
+TEST_F(CanaryDomainServiceDisabledTest, NoProbeWhenFallbackFeatureDisabled) {
+  feature_list_.InitWithFeaturesAndParameters(
+      {{features::kProbeSecureDnsCanaryDomain,
+        {{features::kSecureDnsCanaryDomainHost.name, "test.test"}}},
+       {features::kAddAutomaticWithDohFallbackMode, {}}},
+      {features::kForceSecureDnsDohFallback});
+
+  // Allowed in config.
+  resolve_context_.set_doh_fallback_upgrade_allowed(true);
+
+  std::unique_ptr<CanaryDomainService> canary_domain_service =
+      host_resolver_.CreateCanaryDomainService();
+  ASSERT_TRUE(canary_domain_service);
+
+  host_resolver_.rules()->AddRule("test.test", "1.2.3.4");
+
+  // Start sets status to kNotStarted, but doesn't trigger probe because
+  // feature is disabled.
+  canary_domain_service->Start();
   EXPECT_EQ(resolve_context_.doh_fallback_canary_domain_check_status(),
             CanaryDomainCheckStatus::kNotStarted);
   EXPECT_EQ(host_resolver_.num_resolve(), 0u);

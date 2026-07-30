@@ -1118,9 +1118,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kMetricsReportingEnabled,
     metrics::prefs::kMetricsReportingEnabled,
     base::Value::Type::BOOLEAN },
-  { key::kMetricsReportingLevel,
-    metrics::prefs::kMetricsReportingLevel,
-    base::Value::Type::INTEGER },
   { key::kVariationsRestrictParameter,
     variations::prefs::kVariationsRestrictParameter,
     base::Value::Type::STRING },
@@ -1128,7 +1125,7 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
 
 #if BUILDFLAG(IS_CHROMEOS)
   { key::kKerberosEnabled,
-    prefs::kKerberosEnabled,
+    ash::prefs::kKerberosEnabled,
     base::Value::Type::BOOLEAN },
   { key::kReportWebsiteActivityAllowlist,
     ::reporting::kReportWebsiteActivityAllowlist,
@@ -1252,10 +1249,10 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     ash::prefs::kManagedGuestSessionPrivacyWarningsEnabled,
     base::Value::Type::BOOLEAN },
   { key::kSessionLengthLimit,
-    prefs::kSessionLengthLimit,
+    ash::prefs::kSessionLengthLimit,
     base::Value::Type::INTEGER },
   { key::kWaitForInitialUserActivity,
-    prefs::kSessionWaitForInitialUserActivity,
+    ash::prefs::kSessionWaitForInitialUserActivity,
     base::Value::Type::BOOLEAN },
   { key::kPowerManagementUsesAudioActivity,
     ash::prefs::kPowerUseAudioActivity,
@@ -1598,19 +1595,19 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     ash::prefs::kUsbPowerShareEnabled,
     base::Value::Type::BOOLEAN },
   { key::kKerberosRememberPasswordEnabled,
-    prefs::kKerberosRememberPasswordEnabled,
+    ash::prefs::kKerberosRememberPasswordEnabled,
     base::Value::Type::BOOLEAN },
   { key::kKerberosAddAccountsAllowed,
-    prefs::kKerberosAddAccountsAllowed,
+    ash::prefs::kKerberosAddAccountsAllowed,
     base::Value::Type::BOOLEAN },
   { key::kKerberosDomainAutocomplete,
-    prefs::kKerberosDomainAutocomplete,
+    ash::prefs::kKerberosDomainAutocomplete,
     base::Value::Type::STRING },
   { key::kKerberosUseCustomPrefilledConfig,
-    prefs::kKerberosUseCustomPrefilledConfig,
+    ash::prefs::kKerberosUseCustomPrefilledConfig,
     base::Value::Type::BOOLEAN },
   { key::kKerberosCustomPrefilledConfig,
-    prefs::kKerberosCustomPrefilledConfig,
+    ash::prefs::kKerberosCustomPrefilledConfig,
     base::Value::Type::STRING },
   { key::kStartupBrowserWindowLaunchSuppressed,
     prefs::kStartupBrowserWindowLaunchSuppressed,
@@ -1621,9 +1618,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kDeviceMetricsReportingEnabled,
     metrics::prefs::kMetricsReportingEnabled,
     base::Value::Type::BOOLEAN },
-  { key::kDeviceMetricsReportingLevel,
-    metrics::prefs::kMetricsReportingLevel,
-    base::Value::Type::INTEGER },
   { key::kSystemTimezoneAutomaticDetection,
     ash::prefs::kSystemTimezoneAutomaticDetectionPolicy,
     base::Value::Type::INTEGER },
@@ -2315,6 +2309,11 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     prefs::kRestrictCoreSharingOnRenderer,
     base::Value::Type::BOOLEAN },
 #endif  // BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_ANDROID)
+    { key::kAndroidEntraSsoEnabled,
+    prefs::kAndroidEntraSSOEnabled,
+    base::Value::Type::INTEGER },
+#endif
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
   { key::kOutOfProcessSystemDnsResolutionEnabled,
     prefs::kOutOfProcessSystemDnsResolutionEnabled,
@@ -2378,6 +2377,11 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kAutofillPredictionSettings,
     optimization_guide::prefs::kAutofillPredictionImprovementsEnterprisePolicyAllowed,
     base::Value::Type::INTEGER},
+#if BUILDFLAG(IS_ANDROID)
+  { key::kFindsSettings,
+    optimization_guide::prefs::kFindsEnterprisePolicyAllowed,
+    base::Value::Type::INTEGER},
+#endif
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
   { key::kChromeForTestingAllowed,
     prefs::kChromeForTestingAllowed,
@@ -3285,7 +3289,7 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       SimpleSchemaValidatingPolicyHandler::RECOMMENDED_PROHIBITED,
       SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED));
   handlers->AddHandler(std::make_unique<SimpleSchemaValidatingPolicyHandler>(
-      key::kKerberosAccounts, prefs::kKerberosAccounts, chrome_schema,
+      key::kKerberosAccounts, ash::prefs::kKerberosAccounts, chrome_schema,
       SCHEMA_ALLOW_UNKNOWN,
       SimpleSchemaValidatingPolicyHandler::RECOMMENDED_PROHIBITED,
       SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED));
@@ -3515,6 +3519,11 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       key::kGenAIInlineImageSettings,
       ash::prefs::kLobsterEnterprisePolicySettings);
 #endif  // BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_ANDROID)
+  gen_ai_default_policies.emplace_back(
+      key::kFindsSettings,
+      optimization_guide::prefs::kFindsEnterprisePolicyAllowed);
+#endif  // BUILDFLAG(IS_ANDROID)
 #if !BUILDFLAG(IS_ANDROID)
   gen_ai_default_policies.emplace_back(
       key::kLensOverlaySettings, lens::prefs::kLensOverlaySettings,

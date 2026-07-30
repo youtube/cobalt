@@ -896,25 +896,50 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
 #endif
 }
 
-void AudioManagerAndroid::OnStartAAudioInputStream(AAudioInputStream* stream) {
-  // Enable Bluetooth SCO for Bluetooth SCO input streams when per-stream device
-  // selection is enabled. This should be done both in the case where a
-  // Bluetooth device was explicitly requested, and in the case where a
-  // Bluetooth device was implicitly chosen for a default stream.
+// Manages the Bluetooth SCO state when a Bluetooth SCO input device is
+// explicitly requested. The Android framework strictly requires the SCO state
+// to be set via the framework API prior to the stream starting (see
+// b/459531858). `state` should be true before starting the stream, and false
+// if the start fails.
+void AudioManagerAndroid::OnPrepareToStartAAudioInputStream(
+    AAudioInputStream* stream) {
+  DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
+  if (!stream->IsExplicitlyRequestingBluetoothSco()) {
+    return;
+  }
+
+  input_streams_requiring_sco_.insert(stream);
+  GetJniDelegate().MaybeSetBluetoothScoState(true);
+}
+
+void AudioManagerAndroid::OnFailedToStartAAudioInputStream(
+    AAudioInputStream* stream) {
+  DCHECK(GetTaskRunner()->BelongsToCurrentThread());
+
+  if (input_streams_requiring_sco_.erase(stream) == 0) {
+    return;
+  }
+  if (!input_streams_requiring_sco_.empty()) {
+    return;
+  }
+  GetJniDelegate().MaybeSetBluetoothScoState(false);
+}
+
+bool AudioManagerAndroid::IsUsingBluetoothSco(AAudioInputStream* stream) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
   if (!UseAAudioPerStreamDeviceSelection()) {
     // With per-stream device selection disabled, SCO is instead managed via the
     // Java `CommunicationDeviceSelector`.
-    return;
+    return false;
   }
 
   std::optional<AudioDeviceId> actual_device_id = stream->GetActualDeviceId();
   if (!actual_device_id.has_value()) {
     // It is not possible to determine whether the stream requires SCO without
     // the actual device ID.
-    return;
+    return false;
   }
 
   auto devices = GetDeviceCache(AudioDeviceDirection::kInput);
@@ -932,11 +957,25 @@ void AudioManagerAndroid::OnStartAAudioInputStream(AAudioInputStream* stream) {
       // It is not possible to determine whether the stream requires SCO without
       // the device metadata. Furthermore, this situation likely means that the
       // device assigned to this stream has since been disconnected.
-      return;
+      return false;
     }
   }
-  if (actual_device->second.GetType() != AudioDeviceType::kBluetoothSco) {
-    // SCO is not required.
+
+  return actual_device->second.GetType() == AudioDeviceType::kBluetoothSco;
+}
+
+void AudioManagerAndroid::OnStartAAudioInputStream(AAudioInputStream* stream) {
+  // Enable Bluetooth SCO for Bluetooth SCO input streams when per-stream device
+  // selection is enabled. This should be done both in the case where a
+  // Bluetooth device was explicitly requested, and in the case where a
+  // Bluetooth device was implicitly chosen for a default stream.
+
+  DCHECK(GetTaskRunner()->BelongsToCurrentThread());
+
+  // OnPrepareToStartAAudioInputStream might already inserted the stream when
+  // it explicitly requests SCO.
+  if (input_streams_requiring_sco_.contains(stream) ||
+      !IsUsingBluetoothSco(stream)) {
     return;
   }
 
@@ -944,6 +983,31 @@ void AudioManagerAndroid::OnStartAAudioInputStream(AAudioInputStream* stream) {
 
   // SCO can safely be re-enabled even if it is already on.
   GetJniDelegate().MaybeSetBluetoothScoState(true);
+}
+
+void AudioManagerAndroid::OnAAudioInputStreamDeviceChanged(
+    AAudioInputStream* stream) {
+  DCHECK(GetTaskRunner()->BelongsToCurrentThread());
+
+  // If BT SCO is explicitly requested on this tream, fine to ignore the
+  // device changed callback from system.
+  if (stream->IsExplicitlyRequestingBluetoothSco()) {
+    return;
+  }
+
+  const bool was_requiring_sco = input_streams_requiring_sco_.contains(stream);
+  const bool is_requiring_sco = IsUsingBluetoothSco(stream);
+
+  if (was_requiring_sco) {
+    // Always stop to handle BT-to-BT cycle and BT-to-Speaker transitions
+    // correctly.
+    OnStopAAudioInputStream(stream);
+  }
+
+  if (is_requiring_sco) {
+    // Start will re-evaluate and re-enable SCO if necessary.
+    OnStartAAudioInputStream(stream);
+  }
 }
 
 void AudioManagerAndroid::OnStopAAudioInputStream(AAudioInputStream* stream) {

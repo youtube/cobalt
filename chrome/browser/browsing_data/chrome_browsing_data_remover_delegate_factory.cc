@@ -12,8 +12,8 @@
 #include "chrome/browser/domain_reliability/service_factory.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/history/web_history_service_factory.h"
-#include "chrome/browser/password_manager/account_password_store_factory.h"
-#include "chrome/browser/password_manager/profile_password_store_factory.h"
+#include "chrome/browser/password_manager/factories/account_password_store_factory.h"
+#include "chrome/browser/password_manager/factories/profile_password_store_factory.h"
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/no_state_prefetch_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -22,7 +22,7 @@
 #include "content/public/browser/browser_context.h"
 #include "extensions/buildflags/buildflags.h"
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "chrome/browser/extensions/activity_log/activity_log.h"
 #include "extensions/browser/extension_prefs_factory.h"
 #endif
@@ -77,7 +77,7 @@ ChromeBrowsingDataRemoverDelegateFactory::
   DependsOn(WebDataServiceFactory::GetInstance());
   DependsOn(WebHistoryServiceFactory::GetInstance());
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   DependsOn(extensions::ActivityLog::GetFactoryInstance());
   DependsOn(extensions::ExtensionPrefsFactory::GetInstance());
 #endif

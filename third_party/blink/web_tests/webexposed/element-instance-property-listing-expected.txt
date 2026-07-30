@@ -569,6 +569,7 @@ html element button
     property value
     property willValidate
 html element canvas
+    property captureElementImage
     property captureStream
     property configureHighDynamicRange
     property getContext
@@ -1290,6 +1291,7 @@ html element ul
     property compact
     property type
 html element usermedia
+    property error
     property initialPermissionStatus
     property invalidReason
     property isValid

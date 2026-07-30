@@ -80,6 +80,7 @@
 #include "net/cookies/cookie_setting_override.h"
 #include "net/device_bound_sessions/session_service.h"
 #include "net/disk_cache/disk_cache.h"
+#include "net/dns/context_host_resolver.h"
 #include "net/dns/host_cache.h"
 #include "net/dns/mapped_host_resolver.h"
 #include "net/extras/sqlite/cookie_crypto_delegate.h"
@@ -851,6 +852,8 @@ NetworkContext::NetworkContext(
 
   SetBlockTrustTokens(params_->block_trust_tokens);
 
+  SetDohFallbackUpgradeAllowed(params_->doh_fallback_upgrade_allowed);
+
   if (params_ && params_->http_cache_file_operations_factory) {
     http_cache_file_operations_factory_ =
         base::MakeRefCounted<MojoBackendFileOperationsFactory>(
@@ -1276,6 +1279,13 @@ void NetworkContext::SetBlockTrustTokens(bool block) {
   block_trust_tokens_ = block;
 }
 
+void NetworkContext::SetDohFallbackUpgradeAllowed(bool allowed) {
+  if (url_request_context_->host_resolver()) {
+    url_request_context_->host_resolver()->SetDohFallbackUpgradeAllowed(
+        allowed);
+  }
+}
+
 void NetworkContext::OnProxyLookupComplete(
     ProxyLookupRequest* proxy_lookup_request) {
   auto it = proxy_lookup_requests_.find(proxy_lookup_request);
@@ -1663,7 +1673,8 @@ void NetworkContext::QueueReportInternal(
   // Reporting is disallowed if network access is disabled for the nonce.
   if (network_anonymization_key.GetNonce().has_value() &&
       !IsNetworkForNonceAndUrlAllowed(
-          network_anonymization_key.GetNonce().value(), url)) {
+          network_anonymization_key.GetNonce().value(), url,
+          network_anonymization_key)) {
     return;
   }
 
@@ -1677,6 +1688,23 @@ void NetworkContext::QueueReportInternal(
       url, reporting_source, network_anonymization_key, reported_user_agent,
       group, type, std::move(body), 0 /* depth */, target_type);
 #endif  // BUILDFLAG(ENABLE_REPORTING)
+}
+
+void NetworkContext::QueueConnectionAllowlistReport(
+    const GURL& context,
+    const GURL& resource,
+    const net::NetworkAnonymizationKey& key,
+    const std::string& group,
+    bool enforced) {
+  base::DictValue body;
+  // Strip username, password, and ref fragments from the blocked resource URL.
+  body.Set("connection", resource.GetAsReferrer().spec());
+  body.Set("disposition", enforced ? "enforce" : "report");
+
+  // TODO(crbug.com/482728970): We need a reporting source, which we'll need
+  // to thread through like the NAK.
+  QueueReport("connection-allowlist", group, context,
+              /*reporting_source=*/std::nullopt, key, std::move(body));
 }
 
 void NetworkContext::QueueSignedExchangeReport(
@@ -1696,7 +1724,8 @@ void NetworkContext::QueueSignedExchangeReport(
   // Reporting is disallowed if network access is disabled for the nonce.
   if (network_anonymization_key.GetNonce().has_value() &&
       !IsNetworkForNonceAndUrlAllowed(
-          network_anonymization_key.GetNonce().value(), report->outer_url)) {
+          network_anonymization_key.GetNonce().value(), report->outer_url,
+          network_anonymization_key)) {
     return;
   }
 
@@ -2055,7 +2084,7 @@ void NetworkContext::CreateWebTransport(
         url_loader_network_observer,
     mojom::ClientSecurityStatePtr client_security_state) {
   if (!IsNetworkForNonceAndUrlAllowed(
-          key.GetNonce().value_or(base::UnguessableToken::Null()), url)) {
+          key.GetNonce().value_or(base::UnguessableToken::Null()), url, key)) {
     mojo::Remote<mojom::WebTransportHandshakeClient> remote_handshake_client(
         std::move(pending_handshake_client));
     remote_handshake_client->OnHandshakeFailed(
@@ -2093,12 +2122,14 @@ void NetworkContext::ResolveHost(
   bool is_network_disallowed_for_nonce =
       network_anonymization_key.GetNonce().has_value() &&
       !IsNetworkForNonceAndUrlAllowed(
-          network_anonymization_key.GetNonce().value(), url);
+          network_anonymization_key.GetNonce().value(), url,
+          network_anonymization_key);
   bool is_network_disallowed_for_restrictions_id =
       (optional_parameters &&
        optional_parameters->network_restrictions_id.has_value() &&
        !IsHostResolutionForNonceAndHostAllowed(
-           optional_parameters->network_restrictions_id.value(), *host));
+           optional_parameters->network_restrictions_id.value(), *host,
+           network_anonymization_key));
   if (is_network_disallowed_for_nonce ||
       is_network_disallowed_for_restrictions_id) {
     mojo::Remote<mojom::ResolveHostClient> remote_response_client(
@@ -2440,11 +2471,13 @@ void NetworkContext::PreconnectSockets(
   // Preconnect is disallowed if network access is disabled for the nonce.
   if (network_anonymization_key.GetNonce().has_value() &&
       !IsNetworkForNonceAndUrlAllowed(
-          network_anonymization_key.GetNonce().value(), url)) {
+          network_anonymization_key.GetNonce().value(), url,
+          network_anonymization_key)) {
     return;
   }
   if (network_restrictions_id.has_value() &&
-      !IsNetworkForNonceAndUrlAllowed(*network_restrictions_id, url)) {
+      !IsNetworkForNonceAndUrlAllowed(*network_restrictions_id, url,
+                                      network_anonymization_key)) {
     return;
   }
 
@@ -3572,7 +3605,8 @@ void NetworkContext::RevokeNetworkForNonces(
   auto parse_allowlist =
       [](std::optional<ConnectionAllowlist>& source,
          std::optional<std::string>& dest_endpoint,
-         std::set<std::unique_ptr<url_pattern::SimpleUrlPatternMatcher>>&
+         std::optional<
+             std::set<std::unique_ptr<url_pattern::SimpleUrlPatternMatcher>>>&
              dest_patterns,
          ConnectionAllowlist::RedirectBehavior& dest_redirect_behavior) {
         if (!source) {
@@ -3580,6 +3614,8 @@ void NetworkContext::RevokeNetworkForNonces(
         }
         dest_endpoint = std::move(source->reporting_endpoint);
         dest_redirect_behavior = source->redirect_behavior;
+        std::set<std::unique_ptr<url_pattern::SimpleUrlPatternMatcher>>
+            patterns;
         for (const std::string& pattern : source->allowlist) {
           // TODO(crbug.com/447954811): We can safely DCHECK here, as we've done
           // pattern validation already while validating the header's syntax.
@@ -3590,8 +3626,9 @@ void NetworkContext::RevokeNetworkForNonces(
               pattern, /*base_url=*/nullptr);
 
           DCHECK(matcher.has_value());
-          dest_patterns.insert(std::move(matcher.value()));
+          patterns.insert(std::move(matcher.value()));
         }
+        dest_patterns = std::move(patterns);
       };
 
   for (auto& entry : nonces_to_patterns) {
@@ -3602,6 +3639,7 @@ void NetworkContext::RevokeNetworkForNonces(
     // important, as an empty `entry->allowlists.enforced->allowlist` represents
     // complete network revocation.
     NetworkRestriction& restriction = network_revocation_nonces_[nonce];
+    restriction.response_url = entry->allowlists.response_url;
 
     parse_allowlist(entry->allowlists.enforced,
                     restriction.enforced_reporting_endpoint,
@@ -3727,22 +3765,42 @@ void NetworkContext::AddQuicHints(
 bool NetworkContext::IsNetworkForNonceAndUrlAllowed(
     const base::UnguessableToken& nonce,
     const GURL& url,
-    bool is_redirect) const {
+    const net::NetworkAnonymizationKey& network_anonymization_key,
+    bool is_redirect) {
   // If network hasn't been revoked for the nonce, it's allowed.
   if (!network_revocation_nonces_.contains(nonce)) {
     return true;
   }
 
+  // Note: network_revocation_exemptions_ is only used for fenced frames and the
+  // disableUntrustedNetwork API for testing scenarios.
+  if (auto it = network_revocation_exemptions_.find(nonce);
+      it != network_revocation_exemptions_.end() &&
+      it->second.contains(url.GetWithoutFilename())) {
+    return true;
+  }
+
+  const NetworkRestriction& restriction =
+    network_revocation_nonces_.find(nonce)->second;
+
+  // Temporary disgusting hack: if we have a NetworkRestriction but we've not
+  // actually specified anything to be restricted, then this restriction must
+  // be for a fenced frame. Given that there were no fenced frames exemptions
+  // detected above, we can just return false here. The fenced frame portion of
+  // this function is slated for removal, so this will be cleaned up within
+  // 1-2 milestones. TODO(crbug.com/499191497): Remove this check.
+  if (!restriction.enforced_allowlisted_patterns.has_value() &&
+      !restriction.report_only_allowlisted_patterns.has_value()) {
+    return false;
+  }
+
   // For connection allowlist feature, network_revocation_nonces_ map contains
   // the allowed URL Patterns.
-  // Note that the network_revocation_exemptions_ check below which was added
+  // Note that the network_revocation_exemptions_ check above which was added
   // to enable fenced frames testing is orthogonal to this feature.
   // If there are no allowlisted URLs then it is assumed that all network URLs
   // are restricted (unless exempted for FF testing).
   if (base::FeatureList::IsEnabled(network::features::kConnectionAllowlists)) {
-    const NetworkRestriction& restriction =
-        network_revocation_nonces_.find(nonce)->second;
-
     // TODO(crbug.com/492439215): Implement reporting via
     // restriction.report_only_redirect_behavior.
     if (is_redirect) {
@@ -3750,28 +3808,54 @@ bool NetworkContext::IsNetworkForNonceAndUrlAllowed(
              ConnectionAllowlist::RedirectBehavior::kAllow;
     }
 
-    for (const std::unique_ptr<url_pattern::SimpleUrlPatternMatcher>& pattern :
-         restriction.enforced_allowlisted_patterns) {
-      if (pattern->Match(url)) {
-        return true;
-      }
+    auto url_matches_patterns = [&url](auto& patterns) {
+      // If a Connection-Allowlist(-Report-Only) header was not provided, this
+      // optional will not have a value, so we don't need to examine it. If the
+      // header is provided but the list of patterns is empty, we will execute
+      // the second half of this statement, which will fail to find a pattern
+      // match.
+      return !patterns.has_value() ||
+             std::ranges::any_of(
+                 *patterns,
+                 [&url](const std::unique_ptr<
+                        url_pattern::SimpleUrlPatternMatcher>& matcher) {
+                   return matcher->Match(url);
+                 });
+    };
+
+    // First, check against the report-only allowlist, reporting violations:
+    if (restriction.report_only_reporting_endpoint.has_value() &&
+        !url_matches_patterns(restriction.report_only_allowlisted_patterns)) {
+      QueueConnectionAllowlistReport(
+          restriction.response_url, url, network_anonymization_key,
+          *restriction.report_only_reporting_endpoint,
+          /*enforced=*/false);
     }
+
+    // Then, match against the enforced allowlist, and return `false` to cancel
+    // the request if a violation is found:
+    if (!url_matches_patterns(restriction.enforced_allowlisted_patterns)) {
+      if (restriction.enforced_reporting_endpoint.has_value()) {
+        QueueConnectionAllowlistReport(restriction.response_url, url,
+                                       network_anonymization_key,
+                                       *restriction.enforced_reporting_endpoint,
+                                       /*enforced=*/true);
+      }
+      return false;
+    }
+
+    // If we didn't block the request via the enforcement check directly above,
+    // then non-redirect responses should be allowed:
+    return !is_redirect;
   }
 
-  // If network has been revoked for the nonce, but the url is exempted, it's
-  // allowed.
-  if (auto it = network_revocation_exemptions_.find(nonce);
-      it != network_revocation_exemptions_.end() &&
-      it->second.contains(url.GetWithoutFilename())) {
-    return true;
-  }
-  // The nonce was revoked and the url isn't exempted.
   return false;
 }
 
 bool NetworkContext::IsHostResolutionForNonceAndHostAllowed(
     const base::UnguessableToken& nonce,
-    const mojom::HostResolverHost& host) const {
+    const mojom::HostResolverHost& host,
+    const net::NetworkAnonymizationKey& network_anonymization_key) {
   if (!base::FeatureList::IsEnabled(network::features::kConnectionAllowlists)) {
     return true;
   }
@@ -3781,6 +3865,10 @@ bool NetworkContext::IsHostResolutionForNonceAndHostAllowed(
     return true;
   }
 
+  // Per the spec we need to match a URL synthesized from the relevant host
+  // against a host-only variant of each URLPattern:
+  //
+  // https://wicg.github.io/connection-allowlists/#abstract-opdef-match-a-host-to-a-connection-allowlist
   std::string host_fragment = host.is_host_port_pair()
                                   ? host.get_host_port_pair().host()
                                   : host.get_scheme_host_port().host();
@@ -3790,19 +3878,43 @@ bool NetworkContext::IsHostResolutionForNonceAndHostAllowed(
     return false;
   }
 
-  // Per
-  // https://wicg.github.io/connection-allowlists/#abstract-opdef-match-a-host-to-a-connection-allowlist,
-  // we need to match `synthetic_url` against a host-only variant against each
-  // URLPattern corresponding to `nonce`.
   const NetworkRestriction& restriction = it->second;
-  for (const std::unique_ptr<url_pattern::SimpleUrlPatternMatcher>& pattern :
-       restriction.enforced_allowlisted_patterns) {
-    if (pattern->HostOnlyMatch(synthetic_url)) {
-      return true;
-    }
+
+  auto host_matches_patterns = [&synthetic_url](auto& patterns) {
+    return !patterns.has_value() ||
+           std::ranges::any_of(
+               *patterns,
+               [&synthetic_url](
+                   const std::unique_ptr<url_pattern::SimpleUrlPatternMatcher>&
+                       matcher) {
+                 return matcher->HostOnlyMatch(synthetic_url);
+               });
+  };
+
+  // First, check against the report-only allowlist, reporting violations:
+  if (restriction.report_only_reporting_endpoint.has_value() &&
+      !host_matches_patterns(restriction.report_only_allowlisted_patterns)) {
+    QueueConnectionAllowlistReport(restriction.response_url, synthetic_url,
+                                   network_anonymization_key,
+                                   *restriction.report_only_reporting_endpoint,
+                                   /*enforced=*/false);
   }
 
-  return false;
+  // Then, checkagainst the enforced allowlist, and return `false` to cancel
+  // the request if a violation is found:
+  if (!host_matches_patterns(restriction.enforced_allowlisted_patterns)) {
+    if (restriction.enforced_reporting_endpoint.has_value()) {
+      QueueConnectionAllowlistReport(restriction.response_url, synthetic_url,
+                                     network_anonymization_key,
+                                     *restriction.enforced_reporting_endpoint,
+                                     /*enforced=*/true);
+    }
+    return false;
+  }
+
+  // If we didn't block the request via the enforcement check directly above,
+  // it should be allowed:
+  return true;
 }
 
 void NetworkContext::InitializePrefetchURLLoaderFactory() {
@@ -3810,6 +3922,15 @@ void NetworkContext::InitializePrefetchURLLoaderFactory() {
       prefetch_url_loader_factory_remote_.BindNewPipeAndPassReceiver();
   CreateURLLoaderFactory(std::move(pending_receiver),
                          CreateURLLoaderFactoryParamsForPrefetch());
+}
+
+GURL NetworkContext::GetNetworkRestrictionResponseUrlForTesting(
+    const base::UnguessableToken& nonce) const {
+  auto it = network_revocation_nonces_.find(nonce);
+  if (it == network_revocation_nonces_.end()) {
+    return GURL();
+  }
+  return it->second.response_url;
 }
 
 }  // namespace network

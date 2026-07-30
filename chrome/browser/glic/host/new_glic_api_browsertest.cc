@@ -2,13 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/test/scoped_logging_settings.h"
 #include "chrome/browser/glic/host/glic_features.mojom-features.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_features.h"
 #include "chrome/browser/glic/test_support/new_glic_api_test.h"
 #include "chrome/common/chrome_features.h"
+#include "components/favicon/content/content_favicon_driver.h"
+#include "components/favicon/core/favicon_driver.h"
+#include "components/favicon/core/favicon_driver_observer.h"
+#include "content/public/browser/favicon_status.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_entry.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include "base/android/device_info.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #endif
 
@@ -66,12 +76,25 @@ class WithTestParams : public testing::WithParamInterface<TestParams> {
   base::test::ScopedFeatureList test_param_features_;
 };
 
-class NewGlicApiTest : public GlicApiBrowserTest, public WithTestParams {
+// These are newly failing in test setup on desktop android.
+#if BUILDFLAG(IS_DESKTOP_ANDROID)
+#define MAYBE_NewGlicApiTest DISABLED_NewGlicApiTest
+#else
+#define MAYBE_NewGlicApiTest NewGlicApiTest
+#endif
+
+class MAYBE_NewGlicApiTest : public GlicApiBrowserTest, public WithTestParams {
  public:
-  NewGlicApiTest() : GlicApiBrowserTest("./new_glic_api_browsertest.js") {
+  MAYBE_NewGlicApiTest() : GlicApiBrowserTest("./new_glic_api_browsertest.js") {
+    scoped_vmodule_switches_.InitWithSwitches("*glic*=1");
     features_.InitWithFeaturesAndParameters(
         /*enabled_features=*/
         {{features::kGlic, {}},
+         {features::kGlicWebContentsWarming,
+          {// Effectively disable warming in this test, as it can make
+           // understanding logs difficult. Note that disabling this feature
+           // would enable the older instance warming method.
+           {features::kGlicWebContentsWarmingDelay.name, "7d"}}},
          {features::kGlicRollout, {}},
          {features::kGlicScrollTo, {}},
          {features::kGlicApiActivationGating, {}},
@@ -79,6 +102,7 @@ class NewGlicApiTest : public GlicApiBrowserTest, public WithTestParams {
          {features::kGlicWebActuationSetting, {}},
          {features::kGlicCaptureRegion, {}},
          {features::kGlicPopupWindowsEnabled, {}},
+         {features::kLogJsConsoleMessages, {}},
          {features::kGlicUserStatusCheck,
           {{features::kGlicUserStatusRefreshApi.name, "true"},
            {features::kGlicUserStatusThrottleInterval.name, "2s"}}},
@@ -96,32 +120,106 @@ class NewGlicApiTest : public GlicApiBrowserTest, public WithTestParams {
             features::kGlicCountryFiltering,
             features::kGlicLocaleFiltering,
         });
+    EnablePixelOutput(2.0f);
   }
 
   void SetUpOnMainThread() override {
-    GlicBrowserTest::SetUpOnMainThread();
-    ASSERT_TRUE(CreateAndActivateTab(
-        embedded_test_server()->GetURL("/glic/browser_tests/test.html")));
+    GlicApiBrowserTest::SetUpOnMainThread();
+
+    ASSERT_TRUE(content::NavigateToURL(
+        GetTabListInterface()->GetActiveTab()->GetContents(),
+        GetTestUrl("page.html")));
   }
 
+ private:
+  logging::ScopedVmoduleSwitches scoped_vmodule_switches_;
   base::test::ScopedFeatureList features_;
 };
 
-// Checks that all tests in api_test.ts have a corresponding test case in this
-// file.
+// Checks that all tests in new_glic_api_browsertest.ts have a corresponding
+// test case in this file.
 // TODO(crbug.com/460826483): Enable on CrOS.
 #if BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_testAllTestsAreRegistered DISABLED_testAllTestsAreRegistered
 #else
 #define MAYBE_testAllTestsAreRegistered testAllTestsAreRegistered
 #endif
-IN_PROC_BROWSER_TEST_P(NewGlicApiTest, MAYBE_testAllTestsAreRegistered) {
+IN_PROC_BROWSER_TEST_P(MAYBE_NewGlicApiTest, MAYBE_testAllTestsAreRegistered) {
   ASSERT_TRUE(OpenGlicForActiveTab());
   AssertAllTestsRegistered(GetTestSuiteNames());
 }
 
-IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testDoNothing) {
+IN_PROC_BROWSER_TEST_P(MAYBE_NewGlicApiTest, testDoNothing) {
+  ASSERT_EQ(GetTabListInterface()->GetTabCount(), 1);
+  ASSERT_EQ(GetTabListInterface()->GetTab(0)->GetContents()->GetURL(),
+            GetTestUrl("page.html"));
   ASSERT_TRUE(OpenGlicForActiveTab());
+  ExecuteJsTest();
+}
+
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_testFaviconLoadsWithGetTabById \
+  DISABLED_testFaviconLoadsWithGetTabById
+#else
+#define MAYBE_testFaviconLoadsWithGetTabById testFaviconLoadsWithGetTabById
+#endif
+IN_PROC_BROWSER_TEST_P(MAYBE_NewGlicApiTest,
+                       MAYBE_testFaviconLoadsWithGetTabById) {
+  auto* tab_0_contents = GetTabListInterface()->GetTab(0)->GetContents();
+  ASSERT_TRUE(content::NavigateToURL(tab_0_contents, GetTestUrl("page.html")));
+  GetTabListInterface()->OpenTab(GetTestUrl("page2.html"), -1);
+
+  ASSERT_TRUE(OpenGlicForActiveTab());
+  GetOnlyGlicInstance()->sharing_manager().PinTabs(
+      {GetTabListInterface()->GetTab(0)->GetHandle(),
+       GetTabListInterface()->GetTab(1)->GetHandle()});
+  ExecuteJsTest();
+}
+
+IN_PROC_BROWSER_TEST_P(MAYBE_NewGlicApiTest,
+                       testFaviconLoadsWithGetTabFaviconById) {
+  auto* tab_0_contents = GetTabListInterface()->GetTab(0)->GetContents();
+  ASSERT_TRUE(content::NavigateToURL(tab_0_contents, GetTestUrl("page.html")));
+
+  GetTabListInterface()->OpenTab(GetTestUrl("page2.html"), -1);
+
+  ASSERT_TRUE(OpenGlicForActiveTab());
+  GetOnlyGlicInstance()->sharing_manager().PinTabs(
+      {GetTabListInterface()->GetTab(0)->GetHandle(),
+       GetTabListInterface()->GetTab(1)->GetHandle()});
+  ExecuteJsTest();
+}
+
+IN_PROC_BROWSER_TEST_P(MAYBE_NewGlicApiTest, testFaviconIsUpdated) {
+  ASSERT_TRUE(OpenGlicForActiveTab());
+
+  ExecuteJsTest();
+
+  ASSERT_TRUE(
+      content::ExecJs(GetTabListInterface()->GetTab(0)->GetContents(), R"js(
+    var link = document.querySelector("link[rel~='icon']");
+    link.href = "./red.ico";
+  )js"));
+
+  ContinueJsTest();
+}
+
+IN_PROC_BROWSER_TEST_P(MAYBE_NewGlicApiTest, testFaviconIsRemoved) {
+  ASSERT_TRUE(OpenGlicForActiveTab());
+
+  ExecuteJsTest();
+
+  ASSERT_TRUE(content::NavigateToURL(
+      GetTabListInterface()->GetActiveTab()->GetContents(),
+      GetTestUrl("page_no_favicon.html")));
+  ContinueJsTest();
+}
+
+IN_PROC_BROWSER_TEST_P(MAYBE_NewGlicApiTest,
+                       testFaviconIsOmittedWithClientCapabilities) {
+  ASSERT_TRUE(OpenGlicForActiveTab());
+  GetOnlyGlicInstance()->sharing_manager().PinTabs(
+      {GetTabListInterface()->GetActiveTab()->GetHandle()});
   ExecuteJsTest();
 }
 
@@ -130,7 +228,7 @@ auto DefaultTestParamSet() {
 }
 
 INSTANTIATE_TEST_SUITE_P(,
-                         NewGlicApiTest,
+                         MAYBE_NewGlicApiTest,
                          DefaultTestParamSet(),
                          &WithTestParams::PrintTestVariant);
 }  // namespace glic

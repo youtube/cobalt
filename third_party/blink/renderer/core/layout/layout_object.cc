@@ -2824,7 +2824,7 @@ StyleDifference LayoutObject::AdjustStyleDifference(
   // TODO(1088373): Pixel_WebGLHighToLowPower fails without this. This isn't the
   // right way to ensure GPU switching. Investigate and do it in the right way.
   if (!diff.NeedsNormalPaintInvalidation() && IsLayoutView() && Style() &&
-      !Style()->GetFont()->IsFallbackValid()) {
+      !StyleRef().GetFont()->IsFallbackValid()) {
     diff.SetNeedsNormalPaintInvalidation();
   }
 
@@ -3311,16 +3311,6 @@ static void ClearAncestorScrollAnchors(LayoutObject* layout_object) {
   }
 }
 
-bool LayoutObject::BelongsToElementChangingOverflowBehaviour() const {
-  NOT_DESTROYED();
-  auto* element = DynamicTo<Element>(GetNode());
-  if (!element)
-    return false;
-
-  return IsA<HTMLVideoElement>(element) || IsA<HTMLCanvasElement>(element) ||
-         IsA<HTMLImageElement>(element);
-}
-
 void LayoutObject::UpdateAfterReinsert(const ComputedStyle& old_style) {
   NOT_DESTROYED();
   DCHECK(RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled());
@@ -3370,40 +3360,6 @@ void LayoutObject::StyleDidChange(
     }
     UseCounter::Count(GetDocument(),
                       WebFeature::kCSSContainStrictWithoutContentVisibility);
-  }
-
-  // See the discussion at
-  // https://github.com/w3c/csswg-drafts/issues/7144#issuecomment-1090933632
-  // for more information.
-  //
-  // For a replaced element that isn't SVG or a embedded content, such as iframe
-  // or object, we want to count the number of pages that have an explicit
-  // overflow: visible (that remains visible after style adjuster). Separately,
-  // we also want to count out of those cases how many have an object-fit none
-  // or cover or non-default object-position, all of which may cause overflow.
-  //
-  // Note that SVG already supports overflow: visible, meaning we won't be
-  // changing the behavior regardless of the counts. Likewise, embedded content
-  // will remain clipped regardless of the overflow: visible behvaior change.
-  // Note for this reason we exclude SVG and embedded content from the counts.
-  if (BelongsToElementChangingOverflowBehaviour()) {
-    if ((StyleRef().HasExplicitOverflowXVisible() &&
-         StyleRef().OverflowX() == EOverflow::kVisible) ||
-        (StyleRef().HasExplicitOverflowYVisible() &&
-         StyleRef().OverflowY() == EOverflow::kVisible)) {
-      UseCounter::Count(GetDocument(),
-                        WebFeature::kExplicitOverflowVisibleOnReplacedElement);
-
-      Deprecation::CountDeprecation(
-          GetDocument().GetExecutionContext(),
-          WebFeature::kExplicitOverflowVisibleOnReplacedElement);
-      if (!StyleRef().ObjectPropertiesPreventReplacedOverflow()) {
-        UseCounter::Count(
-            GetDocument(),
-            WebFeature::
-                kExplicitOverflowVisibleOnReplacedElementWithObjectProp);
-      }
-    }
   }
 
   // First assume the outline will be affected. It may be updated when we know
@@ -4642,14 +4598,7 @@ void LayoutObject::ImageNotifyFinished(ImageResourceContent* image) {
     if (const std::optional<AdProvenance>& ad_provenance =
             image->GetAdProvenance()) {
       if (auto* element = DynamicTo<Element>(GetNode())) {
-        // Skip setting the ad status for `HTMLFrameOwnerElement`, as frame
-        // owners manage their ad status separately (i.e., requires content
-        // frame notifications and allows untagging).
-        //
-        // TODO(yaoxia): Determine if this can be replaced with a DCHECK.
-        if (!IsA<HTMLFrameOwnerElement>(element)) {
-          element->SetIsAdRelated(*ad_provenance);
-        }
+        element->SetIsAdRelated(*ad_provenance);
       }
     }
   }

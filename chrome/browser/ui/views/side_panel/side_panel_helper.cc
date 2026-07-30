@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/views/side_panel/history/history_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/history_clusters/history_clusters_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/reading_list/reading_list_side_panel_coordinator.h"
+#include "chrome/browser/ui/views/side_panel/tabs_from_other_devices/tabs_from_other_devices_side_panel_coordinator.h"
 #include "chrome/browser/ui/webui_browser/webui_browser.h"
 #include "components/history_clusters/core/features.h"
 #include "components/history_clusters/core/history_clusters_service.h"
@@ -31,14 +32,20 @@ void SidePanelHelper::PopulateGlobalEntries(
       window_registry);
 
   // Add bookmarks.
-  browser->browser_window_features()
-      ->bookmarks_side_panel_coordinator()
-      ->CreateAndRegisterEntry(window_registry);
+  BookmarksSidePanelCoordinator::From(browser)->CreateAndRegisterEntry(
+      window_registry);
 
   if (webui_browser::IsWebUIBrowserEnabled()) {
     // TODO(webium): Consider supporting additional side panels beyond reading
     // list and bookmarks.
     return;
+  }
+
+  // Add tabs from other devices.
+  if (TabsFromOtherDevicesSidePanelCoordinator::IsSupported()) {
+    browser->browser_window_features()
+        ->tabs_from_other_devices_side_panel_coordinator()
+        ->CreateAndRegisterEntry(window_registry);
   }
 
   // Add history clusters.
@@ -51,16 +58,14 @@ void SidePanelHelper::PopulateGlobalEntries(
 
   // Add history.
   if (HistorySidePanelCoordinator::IsSupported()) {
-    browser->browser_window_features()
-        ->history_side_panel_coordinator()
-        ->CreateAndRegisterEntry(window_registry);
+    HistorySidePanelCoordinator::From(browser)->CreateAndRegisterEntry(
+        window_registry);
   }
 
   // Add comments.
   if (CommentsSidePanelCoordinator::IsSupported()) {
-    browser->browser_window_features()
-        ->comments_side_panel_coordinator()
-        ->CreateAndRegisterEntry(window_registry);
+    CommentsSidePanelCoordinator::From(browser)->CreateAndRegisterEntry(
+        window_registry);
   }
 }
 

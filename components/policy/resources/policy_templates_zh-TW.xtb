@@ -398,20 +398,6 @@
 <translation id="1317158052518324525">不允許使用強化版自動填入功能。</translation>
 <translation id="1317658068839330898">不允許在網站上使用 <ph name="ASSISTANT_PRODUCT_NAME" /></translation>
 <translation id="1318233005302276244">允許使用者在 Chrome 上追蹤包裹。</translation>
-<translation id="1321747583289636863">你可以透過這項政策，指定 Proxy 伺服器 WebSocket 要求的同時連線數量上限。如要修改非 WebSocket 要求的限制，請參閱 <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" />。
-
-如果未設定這項政策，預設值為 32。
-
-已知部分網頁應用程式會耗用許多連線處理停滯的 GET 動作，因此如果設定的值低於 32，開啟太多這類網頁應用程式，可能會導致瀏覽器網路當機。
-部分 Proxy 伺服器無法處理單一用戶端的大量並行連線，調降這項政策的值即可解決這個問題。
-
-最小值為 6。
-如果設定的值低於該限制，系統會使用 6。
-請自行承擔低於預設值 (32) 的風險。
-
-值應小於或等於 256。
-如果設定的值超過該上限，系統會使用 256。
-請自行承擔高於預設值 (32) 的風險。</translation>
 <translation id="1323501563951768821">F12 設定採用含有 Shift 輔助鍵的快速鍵</translation>
 <translation id="1325547947664414578">使用者切換 <ph name="PRODUCT_OS_NAME" /> 裝置時，<ph name="PRODUCT_NAME" />服務會在新裝置啟動舊裝置上的瀏覽器和應用程式視窗。
 如果將這項政策設為啟用，當使用者登入時，系統就會為目前使用者自動啟動上次使用的 <ph name="PRODUCT_OS_NAME" /> 裝置上的瀏覽器和應用程式視窗。
@@ -4777,7 +4763,6 @@ ServiceWorkerAutoPreload 功能會在開始執行 ServiceWorker 啟動程序時�
 如果將這項政策設為停用，使用者在密碼管理工具中的資料將保持不變，但密碼管理工具會無法正常運作。
 
 這項政策一經設定，使用者就無法在 <ph name="PRODUCT_NAME" /> 中變更。</translation>
-<translation id="4321788213579606602">Proxy 伺服器非 WebSocket 要求的並行連線數量上限</translation>
 <translation id="4322842393287974810">允許使用無延遲資訊站應用程式的自動啟動功能來控制 <ph name="PRODUCT_OS_NAME" /> 版本</translation>
 <translation id="4323412353642577604">啟用內容保護的遠端認證機制</translation>
 <translation id="4325690621216251241">在系統列顯示登出按鈕</translation>
@@ -6201,6 +6186,7 @@ Protected Audience API 已淘汰，因此這項政策也已在 <ph name="PRODUCT
 這項政策為臨時措施，將在日後的 <ph name="PRODUCT_NAME" /> 版本中移除。</translation>
 <translation id="5212810195096589189">指定 VM CLI 的權限</translation>
 <translation id="5213038356678567351">完全不該觸發瀏覽器切換的網站。</translation>
+<translation id="5216710229085956333">啟用 Krisp 降噪</translation>
 <translation id="5216815237712190041">設定在沒有任何使用者登入裝置時，登入畫面顯示的裝置層級桌布圖片。如要設定這項政策，請指定可供 Chrome OS 裝置下載桌布圖片的網址，以及用於驗證下載內容完整性的加密編譯雜湊值。圖片必須為 JPEG 格式，且大小不得超過 16 MB。網址必須未設定任何驗證機制，可直接存取。系統會下載並快取桌布圖片。只要網址或雜湊值有任何變更，系統就會重新下載。
 
       設定這項裝置桌布政策後，在沒有任何使用者登入裝置時，Chrome OS 裝置會下載桌布圖片並顯示在登入畫面上。只要有使用者登入裝置，系統就會改用使用者的桌布政策。
@@ -6326,6 +6312,22 @@ Protected Audience API 已淘汰，因此這項政策也已在 <ph name="PRODUCT
 <translation id="5293285950307241933">清除所有本機使用者資料</translation>
 <translation id="5293619885162445352">允許 <ph name="PEPPER_NAME" /> 使用新版影片解碼器。</translation>
 <translation id="529457411593078576">在第一次執行 CCT 時啟用《服務條款》</translation>
+<translation id="529718811410033393">你可以透過這項政策，指定每個 Proxy 伺服器非 WebSocket 要求的同時連線數量上限。
+
+如要修改 WebSocket 要求的限制，請參閱 <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />。
+
+如果未設定這項政策，預設值為 32。
+
+已知部分網頁應用程式會耗用許多連線處理停滯的 GET 動作，因此如果設定的值低於 32，開啟太多這類網頁應用程式，可能會導致瀏覽器網路當機。
+部分 Proxy 伺服器無法處理單一用戶端的大量並行連線，調降這項政策的值即可解決這個問題。
+
+最小值為 6。
+如果設定的值低於該限制，系統會使用 6。
+請自行承擔低於預設值 (32) 的風險。
+
+最大值為 256 (<ph name="PRODUCT_NAME" /> 147 版和更早版本為 99)。
+如果設定的值超過上限，系統會使用 256 (<ph name="PRODUCT_NAME" /> 147 版和更早版本為 99)。
+請自行承擔高於預設值 (32) 的風險。</translation>
 <translation id="5297873769621042075">你可以透過這項政策建立清單，指定哪些主機名稱或主機名稱模式 (例如「[*.]example.com」) 不會在 HTTPS-First 模式啟用時升級到 HTTPS 及顯示插頁式錯誤訊息。啟用這項政策後，機構可以繼續存取不支援 HTTPS 的伺服器，不必停用 HTTPS 升級和/或 HTTPS-First 模式。
 
 請務必提供標準化的主機名稱：所有 IDN 都必須轉換為單一標籤格式，而且所有 ASCII 字母都必須為小寫。請勿使用主機綜合萬用字元 (即「*」或「[*]」)，而且必須透過特定政策明確停用 HTTPS-First 模式和 HTTPS 升級。
@@ -6602,6 +6604,7 @@ Protected Audience API 已淘汰，因此這項政策也已在 <ph name="PRODUCT
 <translation id="5479841110985196412">啟用無障礙虛擬鍵盤</translation>
 <translation id="5480380613778757009">如果停用或不設定這項政策，當受管理訪客工作階段結束後，系統就會立即重設在此期間配置的所有顯示設定。如果將這項政策設為 True，系統就會在受管理的訪客工作階段結束後保留顯示屬性。</translation>
 <translation id="548137908954174608">啟用即時字幕</translation>
+<translation id="5481873128882951841">停用 Krisp 降噪</translation>
 <translation id="5483012943408894695">不適用不安全來源相關限制的來源或主機名稱模式</translation>
 <translation id="5483065054530244863">允許本機信任錨點核發的 SHA-1 簽署憑證</translation>
 <translation id="5485491014653571963">你可以透過這項設定允許整合 Gemini 應用程式。
@@ -7039,6 +7042,7 @@ Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想�
       重要產品資料 (VPD) 是與裝置相關聯的一組設定和說明資料 (例如零件和序號)。</translation>
 <translation id="5760861224093391268">回報使用者安全信號時，停用第一方驗證</translation>
 <translation id="5762969307102447459">停用地址的自動填入功能</translation>
+<translation id="5763723496957591166">每個 Proxy 伺服器 WebSocket 要求的並行連線數量上限</translation>
 <translation id="5765780083710877561">說明：</translation>
 <translation id="5766438888216077649">不要為目標是 <ph name="BLANK_PAGE_NAME" /> 的連結設定 <ph name="WINDOW_OPENER_PROPERTY" /></translation>
 <translation id="5767776869128458023">停用替代的錯誤網頁</translation>
@@ -7475,7 +7479,6 @@ IP 位址空間覆寫有兩種形式：
 <translation id="6075316301208933536">如果將 <ph name="DEVICE_BATTERY_CHARGE_MODE_POLICY_NAME" /> 設為<ph name="DEVICE_BATTERY_CHARGE_CUSTOM_MODE_NAME" />，則你可以透過 <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" /> 自訂停止充電的時機 (根據電量百分比進行設定)。<ph name="DEVICE_BATTERY_CHARGE_CUSTOM_START_CHARGING_POLICY_NAME" /> 的值必須至少比 <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" /> 的值低 5 個百分點。
 
       如果不設定這項政策，系統會套用<ph name="DEVICE_BATTERY_CHARGE_STANDARD_MODE_NAME" />充電模式。</translation>
-<translation id="6080808146443476891">Proxy 伺服器 WebSocket 要求的並行連線數量上限</translation>
 <translation id="6082161804984853051">設定這項政策後，無論使用者是否指定 --disk-cache-dir 旗標，<ph name="PRODUCT_NAME" /> 都會使用你提供的目錄將快取檔案儲存在磁碟上。
 
       如果未設定，<ph name="PRODUCT_NAME" /> 會使用預設的快取目錄，但使用者可透過 --disk-cache-dir 指令列旗標來變更這項設定。
@@ -9340,6 +9343,7 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 
       如未設定這項政策或將其留空，則使用者可以將任何 Google 帳戶設定為 <ph name="PRODUCT_NAME" /> 中的瀏覽器主要帳戶。</translation>
 <translation id="723103540848640830">設定螢幕鎖定 PIN 碼的長度下限</translation>
+<translation id="7231449913899026849">每個 Proxy 伺服器非 WebSocket 要求的並行連線數量上限</translation>
 <translation id="7234280155140786597">禁止的內建訊息傳遞主機名稱 (指定 * 表示涵蓋所有內建訊息傳遞主機)。</translation>
 <translation id="723621412149834592">如果將這項政策設為 <ph name="BLOCK_WINDOW_PLACEMENT_POLICY_NAME" /> (值 2)，根據預設，系統會自動拒絕對網站授予視窗放置權限。這會限制網站執行以下操作：查看裝置畫面相關資訊、使用該資訊開啟及放置視窗，或在特定畫面上要求進入全螢幕模式。
 
@@ -9791,6 +9795,22 @@ Gemini 啟動功能僅支援部分國家/地區和語言。設定這項政策無
 
       如果是未受到管理的使用者裝置，這項功能的可用性會根據使用者是否為裝置擁有者而定。</translation>
 <translation id="7570291542739287032">僅限雲端</translation>
+<translation id="7571158727244273239">你可以透過這項政策，指定每個 Proxy 伺服器 WebSocket 要求的同時連線數量上限。
+
+如要修改非 WebSocket 要求的限制，請參閱 <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" />。
+
+如果未設定這項政策，預設值為 32。
+
+已知部分網頁應用程式會耗用許多連線處理停滯的 GET 動作，因此如果設定的值低於 32，開啟太多這類網頁應用程式，可能會導致瀏覽器網路當機。
+部分 Proxy 伺服器無法處理單一用戶端的大量並行連線，調降這項政策的值即可解決這個問題。
+
+最小值為 6。
+如果設定的值低於該限制，系統會使用 6。
+請自行承擔低於預設值 (32) 的風險。
+
+值應小於或等於 256。
+如果設定的值超過該上限，系統會使用 256。
+請自行承擔高於預設值 (32) 的風險。</translation>
 <translation id="7572641760104970905">無複雜度要求</translation>
 <translation id="757395965347379751">啟用這項設定時，只要 SHA-1 簽署憑證成功通過驗證並鏈結至本機安裝的 CA 憑證，即可在 <ph name="PRODUCT_NAME" /> 中使用。
 
@@ -10298,6 +10318,12 @@ Gemini 啟動功能僅支援部分國家/地區和語言。設定這項政策無
 
       根據預設，擴充功能或 Android 應用程式無法使用企業專用的金鑰 (等同於將 allowCorporateKeyUsage 設為 False)。擴充功能或 Android 應用程式只有在 allowCorporateKeyUsage 設為 True 時，才能使用企業專用的平台金鑰簽署任意資料。為了確保攻擊者無法獲得金鑰存取權，這項權限只應授予信任的擴充功能或 Android 應用程式。</translation>
 <translation id="7928412788382651939">允許使用生成式 AI 總覽視窗分組功能並協助改善 AI 模型。</translation>
+<translation id="7929417323335013269">這項政策可控管裝置上的 Krisp AI 降噪技術。
+這項功能會以獨立的本機第三方程式庫形式整合到 <ph name="PRODUCT_OS_NAME" />，僅供受管理使用者存取。
+
+如果將這項政策設為啟用，系統會開啟 Krisp AI 降噪音訊處理功能，並禁止使用者停用。
+
+如果將這項政策設為停用或不設定，系統會關閉 Krisp AI 降噪音訊處理功能。</translation>
 <translation id="7930383470029339167">ThrottleDisplayNoneAndVisibilityHiddenCrossOriginIframes 是 Chrome 的功能，旨在讓不同程序和相同程序的不同來源 iframe 算繪行為保持一致。如要進一步瞭解不同程序和相同程序的節流功能，請前往 https://chromestatus.com/feature/5175574929080320。
 
 這項企業政策可讓系統管理員控管使用者是否能開啟額外的節流功能。如果將這項政策設為停用，系統將禁止啟用節流功能。如果將這項政策設為啟用或未設定，使用者就可以選擇使用節流功能，也或許可以透過其他 Chrome 版本啟用。</translation>
@@ -10310,7 +10336,7 @@ Gemini 啟動功能僅支援部分國家/地區和語言。設定這項政策無
 <translation id="7933141401888114454">啟用建立受監管使用者的功能</translation>
 <translation id="793473937901685727">設定 ARC 應用程式的憑證可用性</translation>
 <translation id="7936302526928951356">User-Agent 字串不會凍結主要版本。</translation>
-<translation id="7936632434238618620">你可以透過這項政策建立網址模式清單，用於指定 Chrome 可自動選取用戶端憑證的網站。政策的值是字串化的 JSON 條目陣列，每個條目的格式都是 <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_EXAMPLE" />，其中 <ph name="URL_PATTERN_PLACEHOLDER" /> 是內容設定格式。<ph name="FILTER_PLACEHOLDER" /> 會限制瀏覽器可自動選取的用戶端憑證。無論是否設定篩選器，瀏覽器都只會選取符合伺服器憑證要求的憑證。在 Android 和 iOS 上，只能選取自行佈建的用戶端憑證，無法存取安裝於作業系統層級的憑證。
+<translation id="7936632434238618620">你可以透過這項政策建立網址模式清單，用於指定 Chrome 可自動選取用戶端憑證的網站。政策的值是字串化的 JSON 條目陣列，每個條目的格式都是 <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_EXAMPLE" />，其中 <ph name="URL_PATTERN_PLACEHOLDER" /> 是內容設定格式。<ph name="FILTER_PLACEHOLDER" /> 會限制瀏覽器可自動選取的用戶端憑證。無論是否設定篩選器，瀏覽器都只會選取符合伺服器憑證要求的憑證。在 Android 和 iOS 上，Chrome 只能選取自行佈建的用戶端憑證，無法存取安裝於作業系統層級的憑證。
 
       <ph name="FILTER_PLACEHOLDER" /> 區段的實際應用範例：
 
@@ -10770,22 +10796,6 @@ Gemini 啟動功能僅支援部分國家/地區和語言。設定這項政策無
 <translation id="826163650738550159">這項政策會提供政策測試頁面的存取權，在此頁面測試政策時，系統會忽略所有其他政策。
 這項功能只能在 Canary 版中使用。啟用或不設定這項政策時，可以存取這個頁面。
 如果停用這項政策，這個頁面會遭到封鎖。</translation>
-<translation id="8264002158987842436">你可以透過這項政策，指定 Proxy 伺服器非 WebSocket 要求的同時連線數量上限。
-
-如要修改 WebSocket 要求的限制，請參閱 <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />。
-
-如果未設定這項政策，預設值為 32。
-
-已知部分網頁應用程式會耗用許多連線處理停滯的 GET 動作，因此如果設定的值低於 32，開啟太多這類網頁應用程式，可能會導致瀏覽器網路當機。
-部分 Proxy 伺服器無法處理單一用戶端的大量並行連線，調降這項政策的值即可解決這個問題。
-
-最小值為 6。
-如果設定的值低於該限制，系統會使用 6。
-請自行承擔低於預設值 (32) 的風險。
-
-最大值為 256 (<ph name="PRODUCT_NAME" /> 147 版和更早版本為 99)。
-如果設定的值超過上限，系統會使用 256 (<ph name="PRODUCT_NAME" /> 147 版和更早版本為 99)。
-請自行承擔高於預設值 (32) 的風險。</translation>
 <translation id="8266778278542911985">如果將這項政策設為 3，網站將可要求存取序列埠。如果將這項政策設為 2，網站將無法存取序列埠。
 
       如果不設定，網站可要求存取序列埠，但使用者可以變更這項設定。</translation>

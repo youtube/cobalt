@@ -113,15 +113,17 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest,
                        SeparatorVisibilityChangesWithCollapsedState) {
   auto* tabs_separator = region_view()->tabs_separator_for_testing();
 
-  state_controller()->SetCollapsed(true);
-  EXPECT_TRUE(state_controller()->IsCollapsed());
+  state_controller()->RequestCollapse(true);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return state_controller()->IsCollapsed(); }));
   ui_test_utils::ViewVisibilityWaiter(tabs_separator, false).Wait();
 
   AppendPinnedTab();
   ui_test_utils::ViewVisibilityWaiter(tabs_separator, true).Wait();
 
-  state_controller()->SetCollapsed(false);
-  EXPECT_FALSE(state_controller()->IsCollapsed());
+  state_controller()->RequestCollapse(false);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return !state_controller()->IsCollapsed(); }));
   ui_test_utils::ViewVisibilityWaiter(tabs_separator, false).Wait();
 }
 
@@ -225,7 +227,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, MAYBE_ResizeViewBigger) {
   const int initial_width = VerticalTabStripRegionView::kCollapsedWidth;
 
   // Start this test from the collapsed state.
-  state_controller()->SetCollapsed(true);
+  state_controller()->RequestCollapse(true);
   ASSERT_TRUE(base::test::RunUntil([&]() { return !IsAnimatingSize(); }));
   WaitForBoundsToMatchPreferredWidth();
 
@@ -1014,4 +1016,31 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest,
   // It should shift to the left side of the tab strip.
   EXPECT_EQ(direction, DropArrow::Direction::kRight);
   EXPECT_EQ(bounds.x(), region_view()->GetBoundsInScreen().x());
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, LockPrecedence) {
+  // Set up collapsed vertical tab strip with expand on hover enabled.
+  VerticalTabStripRegionView* view = region_view();
+  state_controller()->SetExpandOnHoverEnabled(true);
+  state_controller()->RequestCollapse(true);
+
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return state_controller()->IsCollapsed(); }));
+
+  // Request focus so that the tab strip initiates expand on hover.
+  view->RequestFocus();
+
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return view->is_expanded_on_hover(); }));
+
+  // Verify that the tab strip stays expanded when given a `kKeepExpanded` lock.
+  auto keep_expanded_lock =
+      view->GetExpandOnHoverLock(ExpandOnHoverLockType::kKeepExpanded);
+  EXPECT_TRUE(view->is_expanded_on_hover());
+
+  // Verify that the tab strip disables the expand on hover state when given a
+  // `kForceCollapse` lock.
+  auto force_collapse_lock =
+      view->GetExpandOnHoverLock(ExpandOnHoverLockType::kForceCollapse);
+  EXPECT_FALSE(view->is_expanded_on_hover());
 }

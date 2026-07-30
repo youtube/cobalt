@@ -6,106 +6,15 @@
 
 #include <algorithm>
 
-#include "base/metrics/histogram_functions.h"
-#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "chrome/browser/enterprise/connectors/analysis/content_analysis_info.h"
 #include "chrome/browser/enterprise/connectors/common.h"
 #include "chrome/browser/enterprise/connectors/reporting/reporting_event_router_factory.h"
-#include "components/crash/core/common/crash_key.h"
 #include "components/enterprise/connectors/core/reporting_constants.h"
 
 namespace safe_browsing {
 
 namespace {
-
-constexpr int kMinBytesPerSecond = 1;
-constexpr int kMaxBytesPerSecond = 100 * 1024 * 1024;  // 100 MB/s
-
-crash_reporter::CrashKeyString<7>* GetScanCrashKey(ScanningCrashKey key) {
-  static crash_reporter::CrashKeyString<7> pending_file_uploads(
-      "pending-file-upload-scans");
-  static crash_reporter::CrashKeyString<7> pending_text_uploads(
-      "pending-text-upload-scans");
-  static crash_reporter::CrashKeyString<7> pending_file_downloads(
-      "pending-file-download-scans");
-  static crash_reporter::CrashKeyString<7> pending_prints(
-      "pending-print-scans");
-  static crash_reporter::CrashKeyString<7> total_file_uploads(
-      "total-file-upload-scans");
-  static crash_reporter::CrashKeyString<7> total_text_uploads(
-      "total-text-upload-scans");
-  static crash_reporter::CrashKeyString<7> total_file_downloads(
-      "total-file-download-scans");
-  static crash_reporter::CrashKeyString<7> total_prints("total-print-scans");
-  switch (key) {
-    case ScanningCrashKey::PENDING_FILE_UPLOADS:
-      return &pending_file_uploads;
-    case ScanningCrashKey::PENDING_TEXT_UPLOADS:
-      return &pending_text_uploads;
-    case ScanningCrashKey::PENDING_FILE_DOWNLOADS:
-      return &pending_file_downloads;
-    case ScanningCrashKey::PENDING_PRINTS:
-      return &pending_prints;
-    case ScanningCrashKey::TOTAL_FILE_UPLOADS:
-      return &total_file_uploads;
-    case ScanningCrashKey::TOTAL_TEXT_UPLOADS:
-      return &total_text_uploads;
-    case ScanningCrashKey::TOTAL_FILE_DOWNLOADS:
-      return &total_file_downloads;
-    case ScanningCrashKey::TOTAL_PRINTS:
-      return &total_prints;
-  }
-}
-
-int* GetScanCrashKeyCount(ScanningCrashKey key) {
-  static int pending_file_uploads = 0;
-  static int pending_text_uploads = 0;
-  static int pending_file_downloads = 0;
-  static int pending_prints = 0;
-  static int total_file_uploads = 0;
-  static int total_text_uploads = 0;
-  static int total_file_downloads = 0;
-  static int total_prints = 0;
-  switch (key) {
-    case ScanningCrashKey::PENDING_FILE_UPLOADS:
-      return &pending_file_uploads;
-    case ScanningCrashKey::PENDING_TEXT_UPLOADS:
-      return &pending_text_uploads;
-    case ScanningCrashKey::PENDING_FILE_DOWNLOADS:
-      return &pending_file_downloads;
-    case ScanningCrashKey::PENDING_PRINTS:
-      return &pending_prints;
-    case ScanningCrashKey::TOTAL_FILE_UPLOADS:
-      return &total_file_uploads;
-    case ScanningCrashKey::TOTAL_TEXT_UPLOADS:
-      return &total_text_uploads;
-    case ScanningCrashKey::TOTAL_FILE_DOWNLOADS:
-      return &total_file_downloads;
-    case ScanningCrashKey::TOTAL_PRINTS:
-      return &total_prints;
-  }
-}
-
-void ModifyKey(ScanningCrashKey key, int delta) {
-  int* key_value = GetScanCrashKeyCount(key);
-
-  // Since the crash key string length is determined at compile time, ensure the
-  // given number is restricted to 6 digits (char 7 is for null terminating the
-  // string).
-  int new_value = (*key_value) + delta;
-  new_value = std::max(0, new_value);
-  new_value = std::min(999999, new_value);
-
-  *key_value = new_value;
-  crash_reporter::CrashKeyString<7>* crash_key = GetScanCrashKey(key);
-  DCHECK(crash_key);
-
-  if (new_value == 0)
-    crash_key->Clear();
-  else
-    crash_key->Set(base::NumberToString(new_value));
-}
 
 void AddCustomMessageRule(
     enterprise_connectors::ContentAnalysisResponse::Result::TriggeredRule&
@@ -147,78 +56,6 @@ enterprise_connectors::DeepScanAccessPoint AccessPointFromRequest(
   }
 }
 
-void RecordDeepScanMetrics(
-    bool is_cloud,
-    enterprise_connectors::DeepScanAccessPoint access_point,
-    base::TimeDelta duration,
-    int64_t total_bytes,
-    const enterprise_connectors::ScanRequestUploadResult& result,
-    const enterprise_connectors::ContentAnalysisResponse& response) {
-  // Don't record UMA metrics for this result.
-  if (result == enterprise_connectors::ScanRequestUploadResult::kUnauthorized) {
-    return;
-  }
-  bool dlp_verdict_success = true;
-  bool malware_verdict_success = true;
-  for (const auto& response_result : response.results()) {
-    if (response_result.tag() == "dlp" &&
-        response_result.status() !=
-            enterprise_connectors::ContentAnalysisResponse::Result::SUCCESS) {
-      dlp_verdict_success = false;
-    }
-    if (response_result.tag() == "malware" &&
-        response_result.status() !=
-            enterprise_connectors::ContentAnalysisResponse::Result::SUCCESS) {
-      malware_verdict_success = false;
-    }
-  }
-
-  bool success = dlp_verdict_success && malware_verdict_success;
-  std::string result_value = BinaryUploadServiceResultToString(result, success);
-
-  // Update |success| so non-SUCCESS results don't log the bytes/sec metric.
-  success &=
-      (result == enterprise_connectors::ScanRequestUploadResult::kSuccess);
-
-  RecordDeepScanMetrics(is_cloud, access_point, duration, total_bytes,
-                        result_value, success);
-}
-
-void RecordDeepScanMetrics(
-    bool is_cloud,
-    enterprise_connectors::DeepScanAccessPoint access_point,
-    base::TimeDelta duration,
-    int64_t total_bytes,
-    const std::string& result,
-    bool success) {
-  // Don't record metrics if the duration is unusable.
-  if (duration.InMilliseconds() == 0)
-    return;
-
-  const char* prefix =
-      is_cloud ? "SafeBrowsing.DeepScan." : "SafeBrowsing.LocalDeepScan.";
-
-  std::string access_point_string = DeepScanAccessPointToString(access_point);
-  if (success) {
-    base::UmaHistogramCustomCounts(
-        prefix + access_point_string + ".BytesPerSeconds",
-        (1000 * total_bytes) / duration.InMilliseconds(),
-        /*min=*/kMinBytesPerSecond,
-        /*max=*/kMaxBytesPerSecond,
-        /*buckets=*/50);
-  }
-
-  // The scanning timeout is 5 minutes, so the bucket maximum time is 30 minutes
-  // in order to be lenient and avoid having lots of data in the overflow
-  // bucket.
-  base::UmaHistogramCustomTimes(
-      prefix + access_point_string + "." + result + ".Duration", duration,
-      base::Milliseconds(1), base::Minutes(30), 50);
-  base::UmaHistogramCustomTimes(prefix + access_point_string + ".Duration",
-                                duration, base::Milliseconds(1),
-                                base::Minutes(30), 50);
-}
-
 enterprise_connectors::ContentAnalysisResponse
 SimpleContentAnalysisResponseForTesting(std::optional<bool> dlp_success,
                                         std::optional<bool> malware_success,
@@ -256,46 +93,6 @@ SimpleContentAnalysisResponseForTesting(std::optional<bool> dlp_success,
   }
 
   return response;
-}
-
-std::string BinaryUploadServiceResultToString(
-    const enterprise_connectors::ScanRequestUploadResult& result,
-    bool success) {
-  switch (result) {
-    case enterprise_connectors::ScanRequestUploadResult::kSuccess:
-      if (success)
-        return "Success";
-      else
-        return "FailedToGetVerdict";
-    case enterprise_connectors::ScanRequestUploadResult::kUploadFailure:
-      return "UploadFailure";
-    case enterprise_connectors::ScanRequestUploadResult::kTimeout:
-      return "Timeout";
-    case enterprise_connectors::ScanRequestUploadResult::kFileTooLarge:
-      return "FileTooLarge";
-    case enterprise_connectors::ScanRequestUploadResult::kFailedToGetToken:
-      return "FailedToGetToken";
-    case enterprise_connectors::ScanRequestUploadResult::kUnknown:
-      return "Unknown";
-    case enterprise_connectors::ScanRequestUploadResult::kUnauthorized:
-      return "";
-    case enterprise_connectors::ScanRequestUploadResult::kFileEncrypted:
-      return "FileEncrypted";
-    case enterprise_connectors::ScanRequestUploadResult::kTooManyRequests:
-      return "TooManyRequests";
-    case enterprise_connectors::ScanRequestUploadResult::kIncompleteResponse:
-      return "IncompleteResponse";
-  }
-}
-
-void IncrementCrashKey(ScanningCrashKey key, int delta) {
-  DCHECK_GE(delta, 0);
-  ModifyKey(key, delta);
-}
-
-void DecrementCrashKey(ScanningCrashKey key, int delta) {
-  DCHECK_GE(delta, 0);
-  ModifyKey(key, -delta);
 }
 
 }  // namespace safe_browsing

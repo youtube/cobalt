@@ -2304,6 +2304,9 @@ TEST_F(AIPageContentAgentTest, ContentVisibilityHiddenIframeActionable) {
   // when display locks block layout/prepaint on children.
   EXPECT_TRUE(iframe_node.children_nodes.empty());
   ASSERT_TRUE(iframe_node.content_attributes->geometry);
+  ASSERT_TRUE(iframe_node.content_attributes->iframe_data->content);
+  EXPECT_TRUE(iframe_node.content_attributes->iframe_data->content
+                  ->is_local_frame_data());
 
   const auto& visible_text_node = *root.children_nodes[1];
   CheckTextNode(visible_text_node, "  visible text");
@@ -2775,9 +2778,8 @@ TEST_F(AIPageContentAgentTest, FormWithTextInput) {
             "LI");
   EXPECT_EQ(text_input1.content_attributes->form_control_data->field_value,
             "Lorem");
-  EXPECT_EQ(
-      text_input1.content_attributes->form_control_data->redaction_decision,
-      mojom::AIPageContentRedactionDecision::kNoRedactionNecessary);
+  EXPECT_EQ(text_input1.content_attributes->redaction_decision,
+            mojom::AIPageContentRedactionDecision::kNoRedactionNecessary);
   EXPECT_FALSE(text_input1.content_attributes->form_control_data->is_required);
   EXPECT_EQ(text_input1.children_nodes.size(), 1u);
   CheckContainerNode(*text_input1.children_nodes[0]);
@@ -2792,9 +2794,8 @@ TEST_F(AIPageContentAgentTest, FormWithTextInput) {
             "ID");
   EXPECT_EQ(text_input2.content_attributes->form_control_data->field_value,
             "Ipsum");
-  EXPECT_EQ(
-      text_input2.content_attributes->form_control_data->redaction_decision,
-      mojom::AIPageContentRedactionDecision::kNoRedactionNecessary);
+  EXPECT_EQ(text_input2.content_attributes->redaction_decision,
+            mojom::AIPageContentRedactionDecision::kNoRedactionNecessary);
   EXPECT_TRUE(text_input2.content_attributes->form_control_data->is_required);
   EXPECT_EQ(text_input2.children_nodes.size(), 1u);
   CheckContainerNode(*text_input2.children_nodes[0]);
@@ -2973,7 +2974,7 @@ TEST_F(AIPageContentAgentTest, FormWithSelect) {
 
   const auto& select = *form.children_nodes[0];
   CheckFormControlNode(select, mojom::blink::FormControlType::kSelectOne);
-  EXPECT_EQ(select.content_attributes->form_control_data->redaction_decision,
+  EXPECT_EQ(select.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kNoRedactionNecessary);
 
   const auto& select_options =
@@ -3080,7 +3081,7 @@ TEST_F(AIPageContentAgentTest, FormWithRadio) {
   EXPECT_EQ(radio1.content_attributes->form_control_data->field_name,
             "vehicle1");
   EXPECT_EQ(radio1.content_attributes->form_control_data->field_value, "Bike");
-  EXPECT_EQ(radio1.content_attributes->form_control_data->redaction_decision,
+  EXPECT_EQ(radio1.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kNoRedactionNecessary);
   EXPECT_FALSE(radio1.content_attributes->form_control_data->is_checked);
   EXPECT_EQ(radio1.children_nodes.size(), 0u);
@@ -3129,7 +3130,7 @@ TEST_F(AIPageContentAgentTest, FormWithPassword) {
             "Enter password");
   EXPECT_EQ(password.content_attributes->form_control_data->field_value,
             nullptr);
-  EXPECT_EQ(password.content_attributes->form_control_data->redaction_decision,
+  EXPECT_EQ(password.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kRedacted_HasBeenPassword);
   EXPECT_EQ(password.children_nodes.size(), 0u);
 
@@ -3165,8 +3166,7 @@ TEST_F(AIPageContentAgentTest, FormWithPassword) {
   EXPECT_EQ(
       revealed_password.content_attributes->form_control_data->field_value,
       nullptr);
-  EXPECT_EQ(revealed_password.content_attributes->form_control_data
-                ->redaction_decision,
+  EXPECT_EQ(revealed_password.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kRedacted_HasBeenPassword);
   EXPECT_EQ(revealed_password.children_nodes.size(), 0u);
 
@@ -3193,9 +3193,8 @@ TEST_F(AIPageContentAgentTest, FormWithPassword) {
             "Enter password");
   EXPECT_EQ(empty_password.content_attributes->form_control_data->field_value,
             "");
-  EXPECT_EQ(
-      empty_password.content_attributes->form_control_data->redaction_decision,
-      mojom::AIPageContentRedactionDecision::kUnredacted_EmptyPassword);
+  EXPECT_EQ(empty_password.content_attributes->redaction_decision,
+            mojom::AIPageContentRedactionDecision::kUnredacted_EmptyPassword);
   EXPECT_EQ(empty_password.children_nodes.size(), 1u);
 }
 
@@ -3231,7 +3230,7 @@ TEST_F(AIPageContentAgentTest, FormWithWebkitTextSecurityRedactsAndPersists) {
             "Enter secret");
   EXPECT_EQ(field.content_attributes->form_control_data->field_value, nullptr);
   EXPECT_EQ(
-      field.content_attributes->form_control_data->redaction_decision,
+      field.content_attributes->redaction_decision,
       mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_CSS);
 
   // Now remove the masking style (simulating a "show password" eye icon).
@@ -3257,7 +3256,7 @@ TEST_F(AIPageContentAgentTest, FormWithWebkitTextSecurityRedactsAndPersists) {
   CheckFormControlNode(field2, mojom::blink::FormControlType::kInputText);
   EXPECT_EQ(field2.content_attributes->form_control_data->field_value, nullptr);
   EXPECT_EQ(
-      field2.content_attributes->form_control_data->redaction_decision,
+      field2.content_attributes->redaction_decision,
       mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_CSS);
 }
 
@@ -3290,7 +3289,7 @@ TEST_F(AIPageContentAgentTest, FormWithMaskedValuePatternRedactsAndPersists) {
   const auto& field = *form.children_nodes[0];
   CheckFormControlNode(field, mojom::blink::FormControlType::kInputText);
   EXPECT_EQ(field.content_attributes->form_control_data->field_value, nullptr);
-  EXPECT_EQ(field.content_attributes->form_control_data->redaction_decision,
+  EXPECT_EQ(field.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_JS);
 
   // Now set an unmasked value; the field should remain redacted since it was
@@ -3311,7 +3310,7 @@ TEST_F(AIPageContentAgentTest, FormWithMaskedValuePatternRedactsAndPersists) {
   const auto& field2 = *form2.children_nodes[0];
   CheckFormControlNode(field2, mojom::blink::FormControlType::kInputText);
   EXPECT_EQ(field2.content_attributes->form_control_data->field_value, nullptr);
-  EXPECT_EQ(field2.content_attributes->form_control_data->redaction_decision,
+  EXPECT_EQ(field2.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_JS);
 }
 
@@ -3338,7 +3337,7 @@ TEST_F(AIPageContentAgentTest, FormWithAllMaskCharactersRedacts) {
   const auto& field = *form.children_nodes[0];
   CheckFormControlNode(field, mojom::blink::FormControlType::kInputText);
   EXPECT_EQ(field.content_attributes->form_control_data->field_value, nullptr);
-  EXPECT_EQ(field.content_attributes->form_control_data->redaction_decision,
+  EXPECT_EQ(field.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_JS);
 }
 
@@ -3365,7 +3364,7 @@ TEST_F(AIPageContentAgentTest, FormWithMaskedValuePatternWithSpaceNotRedacted) {
   const auto& field = *form.children_nodes[0];
   CheckFormControlNode(field, mojom::blink::FormControlType::kInputText);
   EXPECT_NE(field.content_attributes->form_control_data->field_value, nullptr);
-  EXPECT_EQ(field.content_attributes->form_control_data->redaction_decision,
+  EXPECT_EQ(field.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kNoRedactionNecessary);
 }
 
@@ -3392,7 +3391,7 @@ TEST_F(AIPageContentAgentTest, FormWithEarlyJSMaskedValueRedacts) {
   const auto& field = *form.children_nodes[0];
   CheckFormControlNode(field, mojom::blink::FormControlType::kInputText);
   EXPECT_EQ(field.content_attributes->form_control_data->field_value, nullptr);
-  EXPECT_EQ(field.content_attributes->form_control_data->redaction_decision,
+  EXPECT_EQ(field.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_JS);
 }
 
@@ -3418,7 +3417,7 @@ TEST_F(AIPageContentAgentTest, CustomPasswordJSBecomesEmptyThenRedactsAgain) {
   const auto& field = *form.children_nodes[0];
   CheckFormControlNode(field, mojom::blink::FormControlType::kInputText);
   EXPECT_EQ(field.content_attributes->form_control_data->field_value, nullptr);
-  EXPECT_EQ(field.content_attributes->form_control_data->redaction_decision,
+  EXPECT_EQ(field.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_JS);
 
   Document* document = helper_.LocalMainFrame()->GetFrame()->GetDocument();
@@ -3437,7 +3436,7 @@ TEST_F(AIPageContentAgentTest, CustomPasswordJSBecomesEmptyThenRedactsAgain) {
   CheckFormControlNode(field2, mojom::blink::FormControlType::kInputText);
   EXPECT_EQ(field2.content_attributes->form_control_data->field_value, "");
   EXPECT_EQ(
-      field2.content_attributes->form_control_data->redaction_decision,
+      field2.content_attributes->redaction_decision,
       mojom::AIPageContentRedactionDecision::kUnredacted_EmptyCustomPassword);
 
   input_element->SetValue("notmaskedanymore");
@@ -3451,7 +3450,7 @@ TEST_F(AIPageContentAgentTest, CustomPasswordJSBecomesEmptyThenRedactsAgain) {
   const auto& field3 = *form3.children_nodes[0];
   CheckFormControlNode(field3, mojom::blink::FormControlType::kInputText);
   EXPECT_EQ(field3.content_attributes->form_control_data->field_value, nullptr);
-  EXPECT_EQ(field3.content_attributes->form_control_data->redaction_decision,
+  EXPECT_EQ(field3.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_JS);
 }
 
@@ -3487,7 +3486,7 @@ TEST_F(AIPageContentAgentTest, CustomPasswordJSPlainTextThenMaskedAgain) {
   const auto& field2 = *form2.children_nodes[0];
   CheckFormControlNode(field2, mojom::blink::FormControlType::kInputText);
   EXPECT_EQ(field2.content_attributes->form_control_data->field_value, nullptr);
-  EXPECT_EQ(field2.content_attributes->form_control_data->redaction_decision,
+  EXPECT_EQ(field2.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_JS);
 
   input_element->SetValue(String::FromUtf8("••••z"));
@@ -3501,7 +3500,7 @@ TEST_F(AIPageContentAgentTest, CustomPasswordJSPlainTextThenMaskedAgain) {
   const auto& field3 = *form3.children_nodes[0];
   CheckFormControlNode(field3, mojom::blink::FormControlType::kInputText);
   EXPECT_EQ(field3.content_attributes->form_control_data->field_value, nullptr);
-  EXPECT_EQ(field3.content_attributes->form_control_data->redaction_decision,
+  EXPECT_EQ(field3.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_JS);
 }
 
@@ -3528,7 +3527,7 @@ TEST_F(AIPageContentAgentTest, CustomPasswordCSSBecomesEmptyThenRedactsAgain) {
   CheckFormControlNode(field, mojom::blink::FormControlType::kInputText);
   EXPECT_EQ(field.content_attributes->form_control_data->field_value, nullptr);
   EXPECT_EQ(
-      field.content_attributes->form_control_data->redaction_decision,
+      field.content_attributes->redaction_decision,
       mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_CSS);
 
   Document* document = helper_.LocalMainFrame()->GetFrame()->GetDocument();
@@ -3547,7 +3546,7 @@ TEST_F(AIPageContentAgentTest, CustomPasswordCSSBecomesEmptyThenRedactsAgain) {
   CheckFormControlNode(field2, mojom::blink::FormControlType::kInputText);
   EXPECT_EQ(field2.content_attributes->form_control_data->field_value, "");
   EXPECT_EQ(
-      field2.content_attributes->form_control_data->redaction_decision,
+      field2.content_attributes->redaction_decision,
       mojom::AIPageContentRedactionDecision::kUnredacted_EmptyCustomPassword);
 
   input_element->setAttribute(html_names::kStyleAttr,
@@ -3564,7 +3563,7 @@ TEST_F(AIPageContentAgentTest, CustomPasswordCSSBecomesEmptyThenRedactsAgain) {
   CheckFormControlNode(field3, mojom::blink::FormControlType::kInputText);
   EXPECT_EQ(field3.content_attributes->form_control_data->field_value, nullptr);
   EXPECT_EQ(
-      field3.content_attributes->form_control_data->redaction_decision,
+      field3.content_attributes->redaction_decision,
       mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_CSS);
 }
 
@@ -3603,7 +3602,7 @@ TEST_F(AIPageContentAgentTest, CustomPasswordCSSPlainTextThenMaskedAgain) {
   CheckFormControlNode(field2, mojom::blink::FormControlType::kInputText);
   EXPECT_EQ(field2.content_attributes->form_control_data->field_value, nullptr);
   EXPECT_EQ(
-      field2.content_attributes->form_control_data->redaction_decision,
+      field2.content_attributes->redaction_decision,
       mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_CSS);
 
   input_element->setAttribute(html_names::kStyleAttr,
@@ -3620,7 +3619,7 @@ TEST_F(AIPageContentAgentTest, CustomPasswordCSSPlainTextThenMaskedAgain) {
   CheckFormControlNode(field3, mojom::blink::FormControlType::kInputText);
   EXPECT_EQ(field3.content_attributes->form_control_data->field_value, nullptr);
   EXPECT_EQ(
-      field3.content_attributes->form_control_data->redaction_decision,
+      field3.content_attributes->redaction_decision,
       mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_CSS);
 }
 
@@ -3709,7 +3708,7 @@ TEST_F(AIPageContentAgentTest, InteractiveElementsTextArea) {
 
   const auto& text_area = *root.children_nodes[0];
   CheckFormControlNode(text_area, mojom::blink::FormControlType::kTextArea);
-  EXPECT_EQ(text_area.content_attributes->form_control_data->redaction_decision,
+  EXPECT_EQ(text_area.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kNoRedactionNecessary);
   CheckHitTestableAndInteractive(text_area,
                                  {ClickabilityReason::kClickableControl});
@@ -3741,7 +3740,7 @@ TEST_F(AIPageContentAgentTest, InteractiveElementsButton) {
 
   const auto& button = *root.children_nodes[0];
   CheckFormControlNode(button, mojom::blink::FormControlType::kButtonSubmit);
-  EXPECT_EQ(button.content_attributes->form_control_data->redaction_decision,
+  EXPECT_EQ(button.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kNoRedactionNecessary);
   CheckHitTestableAndInteractive(button,
                                  {ClickabilityReason::kClickableControl});
@@ -5220,7 +5219,7 @@ TEST_F(AIPageContentAgentTest, LabelWithForSibling) {
   ASSERT_TRUE(input.content_attributes->node_interaction_info);
   CheckHitTestableAndInteractive(input,
                                  {ClickabilityReason::kClickableControl});
-  EXPECT_EQ(input.content_attributes->form_control_data->redaction_decision,
+  EXPECT_EQ(input.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kNoRedactionNecessary);
 
   const auto& label = *root.children_nodes[1];
@@ -5261,7 +5260,7 @@ TEST_F(AIPageContentAgentTest, LabelGeometry) {
   ASSERT_TRUE(input.content_attributes->node_interaction_info);
   CheckHitTestableAndInteractive(input,
                                  {ClickabilityReason::kClickableControl});
-  EXPECT_EQ(input.content_attributes->form_control_data->redaction_decision,
+  EXPECT_EQ(input.content_attributes->redaction_decision,
             mojom::AIPageContentRedactionDecision::kNoRedactionNecessary);
 
   EXPECT_EQ(label.content_attributes->label_for_dom_node_id,
@@ -8048,6 +8047,218 @@ TEST_F(AIPageContentAgentTestTextEncoding, FlagDisabled) {
 
   // The last character should be 0xD83D.
   EXPECT_EQ(text_attributes.text_info->text_content.Span16().back(), 0xD83D);
+}
+
+TEST_F(AIPageContentAgentTest, DivWithWebkitTextSecurityRedactsAndPersists) {
+  ScopedAIPageContentElementCSSRedactionForTest scoped_feature(
+      /*enabled=*/true);
+
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(),
+      "<body>"
+      "  <div id='masked' style='-webkit-text-security: disc;'>secret</div>"
+      "</body>",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  GetAIPageContent();
+
+  const auto& root = ContentRootNode();
+  EXPECT_EQ(root.children_nodes.size(), 0u);
+
+  // Now remove the masking style (simulating a "show password" eye icon).
+  Document* document = helper_.LocalMainFrame()->GetFrame()->GetDocument();
+  auto* div_element =
+      To<HTMLDivElement>(document->getElementById(AtomicString("masked")));
+  ASSERT_TRUE(div_element);
+  div_element->setAttribute(html_names::kStyleAttr,
+                            AtomicString("-webkit-text-security: none;"));
+
+  // Ensure the DOM is updated.
+  document->UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+
+  // Extract again: the field should remain redacted since it was previously
+  // classified as password-like.
+  GetAIPageContent();
+
+  const auto& root2 = ContentRootNode();
+  EXPECT_EQ(root2.children_nodes.size(), 0u);
+}
+
+TEST_F(AIPageContentAgentTest,
+       FormWithWebkitTextSecuritySelectRedactsAndPersists) {
+  ScopedAIPageContentElementCSSRedactionForTest scoped_feature(
+      /*enabled=*/true);
+
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(),
+      "<body>"
+      "  <form>"
+      "    <select id='masked' style='-webkit-text-security: disc;'>"
+      "      <option value='Lorem'>Lorem Text</option>"
+      "      <option value='Ipsum'>Ipsum Text</option>"
+      "    </select>"
+      "  </form>"
+      "</body>",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  GetAIPageContent();
+
+  const auto& root = ContentRootNode();
+  ASSERT_EQ(root.children_nodes.size(), 1u);
+  const auto& form = *root.children_nodes[0];
+  ASSERT_EQ(form.children_nodes.size(), 1u);
+
+  const auto& select = *form.children_nodes[0];
+  CheckFormControlNode(select, mojom::blink::FormControlType::kSelectOne);
+  EXPECT_EQ(
+      select.content_attributes->redaction_decision,
+      mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_CSS);
+  EXPECT_TRUE(
+      select.content_attributes->form_control_data->select_options.empty());
+
+  // Now remove the masking style.
+  Document* document = helper_.LocalMainFrame()->GetFrame()->GetDocument();
+  auto* select_element =
+      To<HTMLSelectElement>(document->getElementById(AtomicString("masked")));
+  ASSERT_TRUE(select_element);
+  select_element->setAttribute(html_names::kStyleAttr,
+                               AtomicString("-webkit-text-security: none;"));
+
+  // Ensure the DOM is updated.
+  document->UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+
+  // Extract again: the field should remain redacted.
+  GetAIPageContent();
+
+  const auto& root2 = ContentRootNode();
+  const auto& form2 = *root2.children_nodes[0];
+  const auto& select2 = *form2.children_nodes[0];
+  CheckFormControlNode(select2, mojom::blink::FormControlType::kSelectOne);
+  EXPECT_EQ(
+      select2.content_attributes->redaction_decision,
+      mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_CSS);
+  EXPECT_TRUE(
+      select2.content_attributes->form_control_data->select_options.empty());
+}
+
+class AIPageContentAgentTestElementCSSRedactionDisabled
+    : public AIPageContentAgentTest {
+ private:
+  ScopedAIPageContentElementCSSRedactionForTest scoped_feature{false};
+};
+
+TEST_F(AIPageContentAgentTestElementCSSRedactionDisabled,
+       DivWithWebkitTextSecurityNotRedacted) {
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(),
+      "<body>"
+      "  <div id='masked' style='-webkit-text-security: disc;'>secret</div>"
+      "</body>",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  GetAIPageContent();
+
+  const auto& root = ContentRootNode();
+  // Since the feature is disabled, the div is flattened (it's generic)
+  // and the text node is extracted without redaction.
+  // Note: the text is still masked by the layout engine (bullets),
+  // but it's not explicitly redacted by our logic.
+  ASSERT_EQ(root.children_nodes.size(), 1u);
+  const auto& text_node = *root.children_nodes[0];
+  EXPECT_EQ(text_node.content_attributes->attribute_type,
+            mojom::blink::AIPageContentAttributeType::kText);
+  ASSERT_TRUE(text_node.content_attributes->text_info);
+  // The text should be masked (bullets), but NOT redacted.
+  // We check that it's not the original text and has the same length.
+  EXPECT_NE(text_node.content_attributes->text_info->text_content, "secret");
+  EXPECT_EQ(text_node.content_attributes->text_info->text_content.length(), 6u);
+  EXPECT_EQ(text_node.content_attributes->redaction_decision,
+            mojom::AIPageContentRedactionDecision::kNoRedactionNecessary);
+}
+
+TEST_F(AIPageContentAgentTestElementCSSRedactionDisabled,
+       FormWithWebkitTextSecuritySelectNotRedacted) {
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(),
+      "<body>"
+      "  <select id='masked' style='-webkit-text-security: disc;'>"
+      "    <option value='Lorem'>Lorem Text</option>"
+      "  </select>"
+      "</body>",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  GetAIPageContent();
+
+  const auto& root = ContentRootNode();
+  // root -> <select>
+  ASSERT_EQ(root.children_nodes.size(), 1u);
+  const auto& select = *root.children_nodes[0];
+  CheckFormControlNode(select, mojom::blink::FormControlType::kSelectOne);
+  EXPECT_EQ(select.content_attributes->redaction_decision,
+            mojom::AIPageContentRedactionDecision::kNoRedactionNecessary);
+  // Options should be present.
+  EXPECT_FALSE(
+      select.content_attributes->form_control_data->select_options.empty());
+  EXPECT_EQ(select.content_attributes->form_control_data->select_options.size(),
+            1u);
+  EXPECT_EQ(
+      select.content_attributes->form_control_data->select_options[0]->text,
+      "Lorem Text");
+}
+
+TEST_F(AIPageContentAgentTestElementCSSRedactionDisabled,
+       FormWithWebkitTextSecurityInputStillRedacted) {
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(),
+      "<body>"
+      "  <form>"
+      "    <input id='masked' type='text' name='Enter secret' "
+      "style='-webkit-text-security: disc;' value='supersecret'>"
+      "  </form>"
+      "</body>",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  GetAIPageContent();
+
+  const auto& root = ContentRootNode();
+  ASSERT_EQ(root.children_nodes.size(), 1u);
+  const auto& form = *root.children_nodes[0];
+  ASSERT_EQ(form.children_nodes.size(), 1u);
+
+  const auto& field = *form.children_nodes[0];
+  CheckFormControlNode(field, mojom::blink::FormControlType::kInputText);
+  EXPECT_EQ(field.content_attributes->form_control_data->field_name,
+            "Enter secret");
+  EXPECT_EQ(field.content_attributes->form_control_data->field_value, nullptr);
+  EXPECT_EQ(
+      field.content_attributes->redaction_decision,
+      mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_CSS);
+
+  // Now remove the masking style (simulating a "show password" eye icon).
+  Document* document = helper_.LocalMainFrame()->GetFrame()->GetDocument();
+  auto* input_element =
+      To<HTMLInputElement>(document->getElementById(AtomicString("masked")));
+  ASSERT_TRUE(input_element);
+  input_element->setAttribute(html_names::kStyleAttr,
+                              AtomicString("-webkit-text-security: none;"));
+
+  // Ensure the DOM is updated.
+  document->UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+
+  // Extract again: the field should remain redacted since it was previously
+  // classified as password-like.
+  GetAIPageContent();
+
+  const auto& root2 = ContentRootNode();
+  ASSERT_EQ(root2.children_nodes.size(), 1u);
+  const auto& form2 = *root2.children_nodes[0];
+  ASSERT_EQ(form2.children_nodes.size(), 1u);
+  const auto& field2 = *form2.children_nodes[0];
+  CheckFormControlNode(field2, mojom::blink::FormControlType::kInputText);
+  EXPECT_EQ(field2.content_attributes->form_control_data->field_value, nullptr);
+  EXPECT_EQ(
+      field2.content_attributes->redaction_decision,
+      mojom::AIPageContentRedactionDecision::kRedacted_CustomPassword_CSS);
 }
 
 }  // namespace

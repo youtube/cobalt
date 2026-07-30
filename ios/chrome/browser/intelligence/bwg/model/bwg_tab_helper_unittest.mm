@@ -26,7 +26,7 @@
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
-#import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
@@ -91,8 +91,8 @@ class BwgTabHelperTest : public PlatformTest {
         IdentityManagerFactory::GetInstance(),
         base::BindRepeating(IdentityTestEnvironmentBrowserStateAdaptor::
                                 BuildIdentityManagerForTests));
-    builder.AddTestingFactory(BwgServiceFactory::GetInstance(),
-                              BwgServiceFactory::GetDefaultFactory());
+    builder.AddTestingFactory(GeminiServiceFactory::GetInstance(),
+                              GeminiServiceFactory::GetDefaultFactory());
     profile_ = std::move(builder).Build();
 
     // Set up a signed in user with the capability to enable Gemini.
@@ -798,4 +798,58 @@ TEST_F(BwgTabHelperTest,
   BwgTabHelper::CreateForWebState(web_state_.get());
   tab_helper_ = BwgTabHelper::FromWebState(web_state_.get());
   EXPECT_TRUE(tab_helper_->IsGeminiAvailableForWebState());
+}
+
+// Tests that `IsUrlEligibleForGemini` correctly identifies eligible and
+// ineligible URLs based on scheme and specific URL patterns.
+TEST_F(BwgTabHelperTest, IsUrlEligibleForGemini) {
+  // Valid HTTPS URL
+  GURL valid_https_url("https://www.example.com");
+  EXPECT_TRUE(tab_helper_->IsUrlEligibleForGemini(valid_https_url));
+
+  // Valid HTTP URL
+  GURL valid_http_url("http://www.example.com");
+  EXPECT_TRUE(tab_helper_->IsUrlEligibleForGemini(valid_http_url));
+
+  // Invalid scheme (chrome)
+  GURL invalid_chrome_url("chrome://settings");
+  EXPECT_FALSE(tab_helper_->IsUrlEligibleForGemini(invalid_chrome_url));
+
+  // Invalid scheme (about)
+  GURL invalid_about_url("about:blank");
+  EXPECT_FALSE(tab_helper_->IsUrlEligibleForGemini(invalid_about_url));
+
+  // AIM URL
+  GURL aim_url("https://www.google.com/search?q=test&udm=50");
+  EXPECT_FALSE(tab_helper_->IsUrlEligibleForGemini(aim_url));
+
+  // Google Home Page
+  GURL google_home_url("https://www.google.com");
+  EXPECT_FALSE(tab_helper_->IsUrlEligibleForGemini(google_home_url));
+}
+
+// Tests that Google Search URLs are ineligible for Gemini when the
+// `GeminiCopresenceSRPCheck` parameter is enabled.
+TEST_F(BwgTabHelperTest, IsUrlEligibleForGemini_SRPCheck_Enabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      {{kGeminiCopresence, {{"GeminiCopresenceSRPCheck", "true"}}},
+       {kPageActionMenu, {}}},
+      {});
+
+  GURL srp_url("https://www.google.com/search?q=test");
+  EXPECT_FALSE(tab_helper_->IsUrlEligibleForGemini(srp_url));
+}
+
+// Tests that Google Search URLs are eligible for Gemini when the
+// `GeminiCopresenceSRPCheck` parameter is disabled.
+TEST_F(BwgTabHelperTest, IsUrlEligibleForGemini_SRPCheck_Disabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      {{kGeminiCopresence, {{"GeminiCopresenceSRPCheck", "false"}}},
+       {kPageActionMenu, {}}},
+      {});
+
+  GURL srp_url("https://www.google.com/search?q=test");
+  EXPECT_TRUE(tab_helper_->IsUrlEligibleForGemini(srp_url));
 }

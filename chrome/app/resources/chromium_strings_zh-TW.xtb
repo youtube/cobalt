@@ -56,6 +56,7 @@
 <translation id="1639380494700489405">登入 Chromium 後，不必離開頁面就能用 AI 模式查詢分頁，並在所有裝置上同步密碼與其他資料。</translation>
 <translation id="1640672724030957280">下載中…</translation>
 <translation id="1680687534629375545">向「圖片搜尋」詢問這個頁面的相關問題</translation>
+<translation id="1708414395296835197">在訊息、文件和其他應用程式中點選連結後，都會使用 Chromium 開啟。Chromium 也會釘選到工作列。</translation>
 <translation id="1709772298389099340">為 <ph name="BROWSER_NAME" /> 提供進階權限。</translation>
 <translation id="1715127912119967311">為協助改善這些功能，Chromium 會將你和功能的互動資料傳送給 Google。人工審查員可能會讀取、處理這些資料，並加上註解。</translation>
 <translation id="1722488837206509557">這樣你就能選取可用裝置，並在這些裝置上顯示內容。</translation>
@@ -226,7 +227,6 @@
 <translation id="3313189106987092621">在使用不安全的連線載入任何網站前，Chromium 會發出警告</translation>
 <translation id="3316771292331273802">關閉所有 Chromium 視窗後，系統會將你登出大部分網站，但如果你已登入 Chromium，Google 帳戶就會維持登入狀態。如要允許網站記住你的資訊，請<ph name="SETTINGS_LINK" />。</translation>
 <translation id="3322413454779348750">預設搜尋引擎被 Chromium 以外的程式變更。Chromium 已重設這項設定，保護你的安全。</translation>
-<translation id="3331557257666250900">登入 Chromium，即可在所有裝置上使用你的密碼、書籤和其他資料</translation>
 <translation id="3352986031709923790">搜尋區域的右上角：右側 <ph name="RIGHT" />%，頂端 <ph name="TOP" />%</translation>
 <translation id="3366305173356742781">帳戶中的 Chromium 資料</translation>
 <translation id="3369405342922656244">使用「圖片搜尋」搜尋這個頁面</translation>
@@ -437,6 +437,7 @@
 <translation id="5895138241574237353">重新啟動</translation>
 <translation id="5903106910045431592"><ph name="PAGE_TITLE" /> - 網路登入</translation>
 <translation id="5924017743176219022">正在連線至網際網路...</translation>
+<translation id="5939553720811388432">開始設定 Chromium</translation>
 <translation id="5941711191222866238">最小化</translation>
 <translation id="5949225980829865667">如要在所有裝置上使用這個書籤和其他資料，請登入 Chromium</translation>
 <translation id="5953657885167112863">打造專屬 Chromium</translation>

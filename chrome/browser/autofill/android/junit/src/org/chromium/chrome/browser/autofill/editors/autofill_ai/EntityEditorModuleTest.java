@@ -10,6 +10,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -50,6 +52,7 @@ import org.mockito.quality.Strictness;
 import org.robolectric.Robolectric;
 import org.robolectric.annotation.Config;
 
+import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.HistogramWatcher;
@@ -62,6 +65,8 @@ import org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorCoor
 import org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.EditorItem;
 import org.chromium.chrome.browser.autofill.editors.common.EditorDialogToolbar;
 import org.chromium.chrome.browser.autofill.editors.common.date_field.DateFieldView;
+import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncher;
+import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherFactory;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.components.autofill.DropdownKeyValue;
@@ -125,6 +130,7 @@ public class EntityEditorModuleTest {
                     /* typeName= */ EntityTypeName.PASSPORT,
                     /* isReadOnly= */ false,
                     /* isEnabled= */ true,
+                    /* isEligibleForWalletStorage= */ false,
                     /* typeNameAsString= */ "Passport",
                     /* typeNameAsMetricsString= */ "Passport",
                     /* addEntityTypeString= */ "Add passport",
@@ -190,6 +196,7 @@ public class EntityEditorModuleTest {
     @Mock private Delegate mDelegate;
     @Mock private Profile mProfile;
     @Mock private IdentityManager mIdentityManager;
+    @Mock private HelpAndFeedbackLauncher mHelpAndFeedbackLauncher;
 
     @Mock private PersonalDataManager mPersonalDataManager;
     @Mock private AutofillProfileBridge.Natives mAutofillProfileBridgeJni;
@@ -202,13 +209,28 @@ public class EntityEditorModuleTest {
 
     @Before
     public void setUp() {
-
         IdentityServicesProvider.setIdentityManagerForTesting(mIdentityManager);
         when(mAutofillProfileBridgeJni.getSupportedCountries()).thenReturn(mSupportedCountries);
         AutofillProfileBridgeJni.setInstanceForTesting(mAutofillProfileBridgeJni);
         PersonalDataManagerFactory.setInstanceForTesting(mPersonalDataManager);
+        HelpAndFeedbackLauncherFactory.setInstanceForTesting(mHelpAndFeedbackLauncher);
 
         mActivity = Robolectric.setupActivity(TestActivity.class);
+    }
+
+    @Test
+    @SmallTest
+    public void testOpenHelpAndFeedback() {
+        showEditorDialog(LOCAL_PASSPORT);
+
+        PropertyModel model = mCoordinator.getEditorModelForTest();
+        Callback<Activity> callback = model.get(EntityEditorProperties.OPEN_HELP_CALLBACK);
+        callback.onResult(mActivity);
+        verify(mHelpAndFeedbackLauncher)
+                .show(
+                        eq(mActivity),
+                        eq(mActivity.getString(R.string.help_context_autofill)),
+                        isNull());
     }
 
     @Test
@@ -313,6 +335,22 @@ public class EntityEditorModuleTest {
     @SmallTest
     public void testDeleteWalletEntity() {
         showEditorDialog(WALLET_PASSPORT);
+
+        PropertyModel model = mCoordinator.getEditorModelForTest();
+        assertFalse(model.get(EntityEditorProperties.ALLOW_DELETE));
+    }
+
+    @Test
+    @SmallTest
+    public void testDeleteNewEntity() {
+        EntityInstance newPassport =
+                new EntityInstance.Builder(PASSPORT_TYPE)
+                        .setGUID("")
+                        .setRecordType(RecordType.LOCAL)
+                        .setModifiedDate(LocalDate.of(2026, 2, 15))
+                        .setUseCount(0)
+                        .build();
+        showEditorDialog(newPassport);
 
         PropertyModel model = mCoordinator.getEditorModelForTest();
         assertFalse(model.get(EntityEditorProperties.ALLOW_DELETE));

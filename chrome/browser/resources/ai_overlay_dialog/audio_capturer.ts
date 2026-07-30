@@ -4,11 +4,9 @@
 
 import {AudioPlayer} from './audio_player.js';
 import {encodeFloat32ToPcmBase64} from './audio_utils.js';
+import {log} from './logging.js';
 
-function log(msg: string, ...args: any[]) {
-  console.info(
-      `[${performance.now().toFixed(2)}] [AudioCapturer] ${msg}`, ...args);
-}
+const FILE = 'AudioCapturer';
 
 /**
  * Interface for audio capture.
@@ -17,6 +15,7 @@ export interface AudioCapturer {
   start(onAudioCallback: (data: string) => void): Promise<boolean>;
   stop(): void;
   getSampleRate(): number;
+  getEnergy(): number;
 }
 
 /**
@@ -24,6 +23,7 @@ export interface AudioCapturer {
  */
 export class MicrophoneAudioCapturer implements AudioCapturer {
   private audioContext: AudioContext|null = null;
+  private analyser: AnalyserNode|null = null;
   private stream: MediaStream;
   private processor: AudioWorkletNode|null = null;
   private onAudioCallback: ((data: string) => void)|null = null;
@@ -34,14 +34,31 @@ export class MicrophoneAudioCapturer implements AudioCapturer {
     this.stream = stream;
   }
 
+  getEnergy(): number {
+    if (!this.analyser) {
+      return 0;
+    }
+    const dataArray = new Float32Array(this.analyser.fftSize);
+    this.analyser.getFloatTimeDomainData(dataArray);
+    let sumSquares = 0.0;
+    for (let i = 0; i < dataArray.length; i++) {
+      const val = dataArray[i]!;
+      sumSquares += val * val;
+    }
+    return Math.sqrt(sumSquares / dataArray.length);
+  }
+
   async start(onAudioCallback: (data: string) => void): Promise<boolean> {
     this.onAudioCallback = onAudioCallback;
     this.audioContext = new AudioContext({sampleRate: this.sampleRate});
+    this.analyser = this.audioContext.createAnalyser();
+    this.analyser.fftSize = 256;
 
     await this.audioContext.audioWorklet.addModule('audio_processor.js');
 
     const source = this.audioContext.createMediaStreamSource(this.stream);
     this.processor = new AudioWorkletNode(this.audioContext, 'audio-processor');
+    source.connect(this.analyser);
 
     this.processor.port.onmessage = (event) => {
       if (event.data.type === 'audio') {
@@ -60,6 +77,7 @@ export class MicrophoneAudioCapturer implements AudioCapturer {
     this.stream.getTracks().forEach(track => track.stop());
     this.audioContext?.close();
     this.processor = null;
+    this.analyser = null;
     this.audioContext = null;
     this.onAudioCallback = null;
   }
@@ -114,7 +132,7 @@ export class BlobAudioCapturer implements AudioCapturer {
     const silentChunk = new Float32Array(chunkSize);
     const silentBase64 = encodeFloat32ToPcmBase64(silentChunk);
 
-    log(`Started mock silence heartbeat (${chunkMs}ms)`);
+    log(FILE, `Started mock silence heartbeat (${chunkMs}ms)`);
     let nextTick = performance.now();
 
     while (!this.isStopped) {
@@ -126,7 +144,7 @@ export class BlobAudioCapturer implements AudioCapturer {
       const delay = Math.max(0, nextTick - performance.now());
       await new Promise(resolve => setTimeout(resolve, delay));
     }
-    log('Stopped mock silence heartbeat');
+    log(FILE, 'Stopped mock silence heartbeat');
   }
 
   stop() {
@@ -136,35 +154,42 @@ export class BlobAudioCapturer implements AudioCapturer {
     this.isInjecting = false;
   }
 
+  getEnergy(): number {
+    return this.audioPlayer.getEnergy();
+  }
+
   getSampleRate() {
     return BlobAudioCapturer.SAMPLE_RATE;
   }
 
   /* Sends the audio data to the callback. */
-  async send(blob: Blob): Promise<void> {
+  send(blob: Blob, onSpeechDone?: () => void): Promise<void> {
     // Chain the send operation to the previous one to prevent interleaving.
-    this.sendPromise = this.sendPromise.then(() => this.sendInternal(blob));
+    this.sendPromise =
+        this.sendPromise.then(() => this.sendInternal(blob, onSpeechDone));
     return this.sendPromise;
   }
 
-  private async sendInternal(blob: Blob): Promise<void> {
+  private async sendInternal(blob: Blob, onSpeechDone?: () => void):
+      Promise<void> {
     if (!this.onAudioCallback || !this.audioContext) {
-      log('BlobAudioCapturer not ready');
+      log(FILE, 'BlobAudioCapturer not ready');
       return;
     }
 
     const arrayBuffer = await blob.arrayBuffer();
-    log(`Decoding audio data of size ${arrayBuffer.byteLength}`);
+    log(FILE, `Decoding audio data of size ${arrayBuffer.byteLength}`);
     let audioBuffer: AudioBuffer;
     try {
       audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
     } catch (e) {
-      log('Failed to decode audio data', e);
+      log(FILE, 'Failed to decode audio data', e);
       return;
     }
 
-    log(`Injecting mock prompt: ${audioBuffer.duration.toFixed(2)}s, rate ${
-        audioBuffer.sampleRate}Hz`);
+    log(FILE,
+        `Injecting mock prompt: ${audioBuffer.duration.toFixed(2)}s, rate ${
+            audioBuffer.sampleRate}Hz`);
     this.isInjecting = true;
 
     // Play back the audio so we can hear what's sent.
@@ -179,7 +204,7 @@ export class BlobAudioCapturer implements AudioCapturer {
 
     for (let i = 0; i < float32Data.length; i += chunkSize) {
       if (this.isStopped) {
-        log('Mock audio injection stopped early');
+        log(FILE, 'Mock audio injection stopped early');
         break;
       }
 
@@ -190,6 +215,13 @@ export class BlobAudioCapturer implements AudioCapturer {
       nextTick += chunkMs;
       const delay = Math.max(0, nextTick - performance.now());
       await new Promise(resolve => setTimeout(resolve, delay));
+    }
+
+    // Notify the caller that the actual speech audio has finished playing.
+    // Note that the Promise for this method won't resolve until the trailing
+    // silence (below) has also finished injecting.
+    if (onSpeechDone) {
+      onSpeechDone();
     }
 
     // Send 500ms of silence to ensure the server detects the end of speech,
@@ -209,8 +241,9 @@ export class BlobAudioCapturer implements AudioCapturer {
       await new Promise(resolve => setTimeout(resolve, delay));
     }
 
-    log(`Finished injecting mock prompt, sent ${
-        chunksSent} chunks. Resuming silence.`);
+    log(FILE,
+        `Finished injecting mock prompt, sent ${
+            chunksSent} chunks. Resuming silence.`);
     this.isInjecting = false;
   }
 }

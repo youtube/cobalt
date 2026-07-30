@@ -2451,7 +2451,7 @@ int Element::OffsetLeft() {
       this, DocumentUpdateReason::kJavaScript);
   if (const auto* layout_object = GetLayoutBoxModelObject()) {
     return AdjustForAbsoluteZoom::AdjustLayoutUnit(
-               layout_object->OffsetLeft(OffsetParent()),
+               layout_object->OffsetPoint(OffsetParent()).left,
                layout_object->StyleRef())
         .Round();
   }
@@ -2463,7 +2463,7 @@ int Element::OffsetTop() {
       this, DocumentUpdateReason::kJavaScript);
   if (const auto* layout_object = GetLayoutBoxModelObject()) {
     return AdjustForAbsoluteZoom::AdjustLayoutUnit(
-               layout_object->OffsetTop(OffsetParent()),
+               layout_object->OffsetPoint(OffsetParent()).top,
                layout_object->StyleRef())
         .Round();
   }
@@ -2818,7 +2818,7 @@ void Element::setScrollLeft(double new_left) {
       }
     }
 
-    ScrollOffset end_offset(new_left * box->Style()->EffectiveZoom(),
+    ScrollOffset end_offset(new_left * box->StyleRef().EffectiveZoom(),
                             scrollable_area->GetScrollOffset().y());
     std::unique_ptr<cc::SnapSelectionStrategy> strategy =
         cc::SnapSelectionStrategy::CreateForEndPosition(
@@ -2876,7 +2876,7 @@ void Element::setScrollTop(double new_top) {
     }
 
     ScrollOffset end_offset(scrollable_area->GetScrollOffset().x(),
-                            new_top * box->Style()->EffectiveZoom());
+                            new_top * box->StyleRef().EffectiveZoom());
     std::unique_ptr<cc::SnapSelectionStrategy> strategy =
         cc::SnapSelectionStrategy::CreateForEndPosition(
             scrollable_area->ScrollOffsetToPosition(end_offset), false, true);
@@ -3075,7 +3075,7 @@ bool Element::ScrollLayoutBoxBy(
 
   gfx::PointF current_position(scrollable_area->ScrollPosition().x(),
                                scrollable_area->ScrollPosition().y());
-  displacement.Scale(box->Style()->EffectiveZoom());
+  displacement.Scale(box->StyleRef().EffectiveZoom());
   gfx::PointF new_position = current_position + displacement;
 
   std::unique_ptr<cc::SnapSelectionStrategy> strategy =
@@ -3136,12 +3136,12 @@ bool Element::ScrollLayoutBoxTo(
   if (scroll_to_options->hasLeft()) {
     new_offset.set_x(
         ScrollableArea::NormalizeNonFiniteScroll(scroll_to_options->left()) *
-        box->Style()->EffectiveZoom());
+        box->StyleRef().EffectiveZoom());
   }
   if (scroll_to_options->hasTop()) {
     new_offset.set_y(
         ScrollableArea::NormalizeNonFiniteScroll(scroll_to_options->top()) *
-        box->Style()->EffectiveZoom());
+        box->StyleRef().EffectiveZoom());
   }
 
   new_offset = SnapScrollOffsetToPhysicalPixels(new_offset);
@@ -3263,7 +3263,7 @@ bool Element::HandleScrollByPageCommand(CommandEventType command) {
   }
 
   ScrollDirectionPhysical physical_direction =
-      GetPhysicalDirectionForCommand(command, *box->Style());
+      GetPhysicalDirectionForCommand(command, box->StyleRef());
 
   return scrollable_area->ScrollByPageWithSnap(physical_direction);
 }
@@ -4461,7 +4461,7 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
 
     if (DisplayAdElementMonitor* ad_monitor =
             data->GetDisplayAdElementMonitor()) {
-      ad_monitor->OnElementRemovedOrUntagged();
+      ad_monitor->OnElementRemoved();
     }
   }
 
@@ -8829,7 +8829,7 @@ void Element::SetHasFocusWithinUpToAncestor(bool has_focus_within,
     // focus even if its own HasFocusWithin state has not changed.
     if (element != this && need_snap_container_search) {
       if (const LayoutBox* box = element->GetLayoutBoxForScrolling()) {
-        if (box->Style() && !box->Style()->GetScrollSnapType().is_none) {
+        if (box->Style() && !box->StyleRef().GetScrollSnapType().is_none) {
           // TODO(crbug.com/340983092): We should be able to just call
           // LocalFrameView::AddPendingSnapUpdate, but that results in a snap
           // which cancels ongoing scroll animations.
@@ -8898,8 +8898,6 @@ bool Element::ActivateDisplayLockIfNeeded(DisplayLockActivationReason reason) {
 }
 
 void Element::SetIsAdRelated(AdProvenance ad_provenance) {
-  DCHECK(!IsA<HTMLFrameOwnerElement>(this));
-
   UnpackAndRefresh(EnsureRareData().EnsureDisplayAdElementMonitor(
       this, std::move(ad_provenance)));
 }
@@ -8940,6 +8938,21 @@ bool Element::HasUndoStack() const {
 
 void Element::SetHasUndoStack(bool value) {
   EnsureRareData().SetHasUndoStack(value);
+}
+
+void Element::SetHasBeenHeuristicCustomPasswordCSS() {
+  if (HasBeenHeuristicCustomPasswordCSS()) {
+    return;
+  }
+
+  EnsureRareData().SetHasBeenHeuristicCustomPasswordCSS();
+}
+
+bool Element::HasBeenHeuristicCustomPasswordCSS() const {
+  if (const ElementRareDataVector* data = RareData()) {
+    return data->HasBeenHeuristicCustomPasswordCSS();
+  }
+  return false;
 }
 
 void Element::SetPseudoElementStylesChangeCounters(bool value) {
@@ -11249,7 +11262,54 @@ void Element::SetIsInTopLayer(bool in_top_layer) {
   if (IsInTopLayer() == in_top_layer) {
     return;
   }
+
+  bool user_action_stops_at_top_layer =
+      RuntimeEnabledFeatures::UserActionPseudosStopAtTopLayerEnabled();
+  bool update_focus_within = user_action_stops_at_top_layer && HasFocusWithin();
+  bool update_hover = user_action_stops_at_top_layer && IsHovered();
+  bool update_active = user_action_stops_at_top_layer && IsActive();
+
+  Element* hover_element = nullptr;
+  Element* active_element = nullptr;
+  if (update_hover) {
+    hover_element = GetDocument().HoverElement();
+    GetDocument().UpdateHoverState(nullptr);
+  }
+  if (update_active) {
+    active_element = GetDocument().GetActiveElement();
+    GetDocument().UpdateActiveState(/*is_active=*/false,
+                                    /*update_active_chain=*/false, nullptr);
+  }
+  if (update_focus_within) {
+    // UserActionElementTraversal::Next is roughly a
+    // FlatTreeTraversal::ParentElement traversal, except that it stops at top
+    // layer elements.
+    if (Element* parent = UserActionElementTraversal::Next(*this)) {
+      CHECK(in_top_layer);
+      parent->SetHasFocusWithinUpToAncestor(
+          /*has_focus_within=*/false, /*ancestor=*/nullptr,
+          /*need_snap_container_search=*/false);
+    }
+  }
+
   SetElementFlag(ElementFlags::kIsInTopLayer, in_top_layer);
+
+  if (update_focus_within) {
+    if (Element* parent = UserActionElementTraversal::Next(*this)) {
+      CHECK(!in_top_layer);
+      parent->SetHasFocusWithinUpToAncestor(
+          /*has_focus_within=*/true, /*ancestor=*/nullptr,
+          /*need_snap_container_search=*/false);
+    }
+  }
+  if (update_active) {
+    GetDocument().UpdateActiveState(
+        /*is_active=*/true, /*update_active_chain=*/true, active_element);
+  }
+  if (update_hover) {
+    GetDocument().UpdateHoverState(hover_element);
+  }
+
   if (!isConnected()) {
     return;
   }

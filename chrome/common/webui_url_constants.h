@@ -98,6 +98,10 @@ inline constexpr char kChromeUIContentAnnotatorInternalsURL[] =
 inline constexpr char kChromeUIContextualTasksHost[] = "contextual-tasks";
 inline constexpr char kChromeUIContextualTasksURL[] =
     "chrome://contextual-tasks/";
+#if BUILDFLAG(IS_ANDROID)
+inline constexpr char kChromeUINativeContextualTasksHost[] =
+    "contextual-tasks-page";
+#endif
 inline constexpr char kChromeUIContentSettingsURL[] =
     "chrome://settings/content";
 inline constexpr char16_t kChromeUIContentSettingsURL16[] =
@@ -412,6 +416,10 @@ inline constexpr char kChromeUISearchSettingsPath[] = "/search";
 inline constexpr char kChromeUITabSearchHost[] = "tab-search.top-chrome";
 inline constexpr char kChromeUITabSearchURL[] =
     "chrome://tab-search.top-chrome/";
+inline constexpr char kChromeUITabsFromOtherDevicesSidePanelHost[] =
+    "tabs-from-other-devices.top-chrome";
+inline constexpr char kChromeUITabsFromOtherDevicesSidePanelURL[] =
+    "chrome://tabs-from-other-devices.top-chrome/";
 inline constexpr char kChromeUIUntrustedFeedURL[] = "chrome-untrusted://feed/";
 inline constexpr char kChromeUIUntrustedReadAnythingSidePanelHost[] =
     "read-anything-side-panel.top-chrome";

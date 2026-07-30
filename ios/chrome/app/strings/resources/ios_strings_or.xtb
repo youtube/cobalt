@@ -80,6 +80,7 @@
 <translation id="1285320974508926690">ଏହି ସାଇଟ୍‍କୁ କଦାପି ଅନୁବାଦ କରନ୍ତୁ ନାହିଁ</translation>
 <translation id="1287229685519872919">Google Workspace ଡାଟା</translation>
 <translation id="1291506870746876680">ଆପଣ ଏହି ସାଇଟକୁ ଛାଡ଼ିବା ସମୟରେ <ph name="BEGIN_BOLD" />"<ph name="SITE_NAME" />"<ph name="END_BOLD" /> ଅନୁମତିଗୁଡ଼ିକ ବନ୍ଦରେ ରିସେଟ ହେବ।</translation>
+<translation id="1293491796138057740">ଆପଣଙ୍କ ସୂଚନାକୁ <ph name="USER_EMAIL" /> ପାଇଁ Google Walletରେ ସେଭ କରାଯାଇଛି। ଫର୍ମଗୁଡ଼ିକୁ ଶୀଘ୍ର ପୂରଣ କରିବା ପାଇଁ ଆପଣ ଏହାକୁ ସମଗ୍ର Google ପ୍ରଡକ୍ଟରେ ବ୍ୟବହାର କରିପାରିବେ।</translation>
 <translation id="1293556467332435079">Files</translation>
 <translation id="129553762522093515">ବର୍ତ୍ତମାନ ବନ୍ଦ ହୋଇଛି</translation>
 <translation id="1296581780163690620">ଫାଇଲ ଡାଉନଲୋଡ କରିବେ? (<ph name="FILE_SIZE" />)</translation>
@@ -107,6 +108,7 @@
 <translation id="1369286077209859800">ଟାବ ଗ୍ରୁପରେ ସମସ୍ତ ଟାବ ଦେଖାନ୍ତୁ</translation>
 <translation id="136942498637440594">ଆପଣ ଇମେଜ ଏବଂ ଯାହା ଦେଖୁଛନ୍ତି ତାହା ସର୍ଚ୍ଚ କରିପାରିବେ।</translation>
 <translation id="1373120905936431262">Nano Banana ସହ ରିମିକ୍ସ କରିବାକୁ ଏକ ଇମେଜ ଅପଲୋଡ କରନ୍ତୁ</translation>
+<translation id="1377321085342047638">କାର୍ଡ ନମ୍ଵର୍‌</translation>
 <translation id="1377508275003315939">ପାସୱାର୍ଡଗୁଡ଼ିକ</translation>
 <translation id="1381022135873211423">{count,plural, =1{{count} ମଧ୍ୟରୁ {position} ନମ୍ବର ଠିକଣା}other{{count} ମଧ୍ୟରୁ {position} ନମ୍ବର ଠିକଣା}}</translation>
 <translation id="1383876407941801731">ସର୍ଚ୍ଚ</translation>
@@ -151,7 +153,6 @@
 <translation id="1517166097004694782">"ଏହି ଟାବ ମାଧ୍ୟମରେ ଜାରି ରଖନ୍ତୁ"କୁ ଲୁଚାନ୍ତୁ</translation>
 <translation id="1520027731907768768">ଆପଣ ଟ୍ରାକ କରୁଥିବା ପ୍ରଡକ୍ଟଗୁଡ଼ିକ ପାଇଁ ମୂଲ୍ୟ ହ୍ରାସର ଆଲର୍ଟ ପାଆନ୍ତୁ।</translation>
 <translation id="1521366073263497277">ଆପଣଙ୍କର ଟାବ ଗ୍ରିଡକୁ ଯାଆନ୍ତୁ</translation>
-<translation id="1521774566618522728">ଆଜି ସକ୍ରିୟ ଅଛି</translation>
 <translation id="1523567067736644845">ପାସୱାର୍ଡ ଦେଖାଇବାକୁ ଅନଲକ କରନ୍ତୁ</translation>
 <translation id="1524563461097350801">ନା, ଧନ୍ୟବାଦ</translation>
 <translation id="1531038290222364269">ଟାବ ଦେଖାନ୍ତୁ</translation>
@@ -376,6 +377,7 @@
 <translation id="2299218006564889602">ଆପଣଙ୍କ ପାସୱାର୍ଡଗୁଡ଼ିକ Google ପାସୱାର୍ଡ ମ୍ୟାନେଜରରେ ସେଭ ହେବା ପୂର୍ବରୁ ସେଗୁଡ଼ିକୁ ଆପଣଙ୍କ ଡିଭାଇସରେ ଏନକ୍ରିପ୍ଟ କରାଯାଏ।</translation>
 <translation id="2306265833370324042"><ph name="SEARCH_ENGINE_NAME" />ର ବିବରଣୀ ଦେଖାନ୍ତୁ</translation>
 <translation id="2309265394777270359">ଟାବ ବନ୍ଦ କରନ୍ତୁ</translation>
+<translation id="2310789833878085574">ସେଭ ଓ ଅଟୋଫିଲ କରନ୍ତୁ</translation>
 <translation id="2311077293164383652">ପିନ ହୋଇଥିବା ଟାବକୁ ବନ୍ଦ କରନ୍ତୁ</translation>
 <translation id="2316129865977710310">ନା, କରିବି ନାହିଁ</translation>
 <translation id="2320166752086256636">କୀବୋର୍ଡ୍ ଲୁଚାନ୍ତୁ</translation>
@@ -906,6 +908,7 @@
 <translation id="4287172530684295552">"ପଢ଼ାଯାଇଛି" ଭାବେ ମାର୍କ କରନ୍ତୁ</translation>
 <translation id="428768789042547925">ନୂଆ କଣ ଅଛି</translation>
 <translation id="429074084062258019">{count,plural, =1{ଗୋଷ୍ଠୀକୁ ଟାବ୍ ଯୋଗ କରନ୍ତୁ}other{ଗୋଷ୍ଠୀକୁ ଟାବଗୁଡ଼ିକ ଯୋଗ କରନ୍ତୁ}}</translation>
+<translation id="4300830875340617674">କାର୍ଡ ସ୍କାନ କରି ଅଟୋଫିଲ କରନ୍ତୁ</translation>
 <translation id="4302061870579014542">ସ୍ଥିତି ସେଟ କରନ୍ତୁ</translation>
 <translation id="4304713468139749426">ପାସୱାର୍ଡ ମ୍ୟାନେଜର</translation>
 <translation id="4306349443295056740">OCSP ସାଇନିଂ</translation>
@@ -1098,7 +1101,6 @@
 <translation id="4944543191714094452">ପୃଷ୍ଠାରେ ଖୋଜନ୍ତୁ…</translation>
 <translation id="4945756290001680296">ପାସ୍‌ୱାର୍ଡ ସେଟିଂସ୍ ଆକ୍ସେସ୍ କରନ୍ତୁ</translation>
 <translation id="4949302115427722371">ସେଟିଂସ ପରିଚାଳନା କରନ୍ତୁ…</translation>
-<translation id="4952050521954075618">କେମେରା ରୋଲରୁ ଫଟୋଗୁଡ଼ିକ ଆପଣଙ୍କ ସମଗ୍ର ଡିଭାଇସରେ ସିଙ୍କ ହେବ ନାହିଁ</translation>
 <translation id="4958444002117714549">ତାଲିକାକୁ ପ୍ରସାରିତ କରନ୍ତୁ</translation>
 <translation id="496392417432935267">ଅନ୍ୟ କୌଣସି ସ୍ଥାନରେ ଖୋଲାଯାଇଛି</translation>
 <translation id="4970724460420203313">ଆପଣଙ୍କ ପରିଚାଳିତ ଆକାଉଣ୍ଟ ମାଧ୍ୟମରେ Chrome ବ୍ୟବହାର କରିବା ଫଳରେ ଏହା ଆପଣଙ୍କୁ ଆପଣଙ୍କ ସଂସ୍ଥା ସହ ସମ୍ବନ୍ଧିତ ବ୍ରାଉଜିଂ (ଟାବ, ଇତିହାସ ଏବଂ ପାସୱାର୍ଡ ସମେତ)କୁ ଆପଣଙ୍କର ଅନ୍ୟ ବ୍ରାଉଜିଂଠାରୁ ଅଲଗା ରଖିବାରେ ସାହାଯ୍ୟ କରେ</translation>
@@ -1147,7 +1149,6 @@
 <translation id="5119329531859909472">ପ୍ରଡକ୍ଟକୁ ଟ୍ରାକ କରିବା ପାଇଁ Trackରେ ଟାପ କରନ୍ତୁ</translation>
 <translation id="5121618895923301719">ଆପଣ ପୂର୍ବରୁ ଏହି ପ୍ରଡକ୍ଟକୁ ଟ୍ରାକ କରୁଛନ୍ତି। ଏହି ପୃଷ୍ଠାକୁ <ph name="BEGIN_LINK" />ମୋବାଇଲ ବୁକମାର୍କ<ph name="END_LINK" />ରେ ସେଭ କରାଯାଏ।</translation>
 <translation id="512533434554095351">ଆପଣଙ୍କର ଅନେକ ପାସୱାର୍ଡ ସମସ୍ୟା ଅଛି।</translation>
-<translation id="5127538504377457572"><ph name="DAYS" /> ଦିନ ପୂର୍ବେ ସକ୍ରିୟ ଥିଲା</translation>
 <translation id="5128788795241319992">ନୂଆ ମେନୁକୁ ଏକ୍ସପ୍ଲୋର କରନ୍ତୁ</translation>
 <translation id="5132942445612118989">ସମସ୍ତ ଡିଭାଇସ୍‌ଗୁଡ଼ିକରେ ଆପଣଙ୍କର ପାସ୍‌ୱାର୍ଡ, ଇତିବୃତ୍ତି ଏବଂ ଆହୁରି ଅନେକ କିଛି ସିଙ୍କ୍‌ କରନ୍ତୁ</translation>
 <translation id="5141363746588976328">ଆପଣଙ୍କ ଟାବରେ ମୂଲ୍ୟ ହ୍ରାସ କାର୍ଡକୁ ଲୁଚାନ୍ତୁ</translation>
@@ -1182,6 +1183,7 @@
 <translation id="5225388483876575107">A</translation>
 <translation id="5225463052809312700">କ୍ୟାମେରା ଚାଲୁ କରନ୍ତୁ</translation>
 <translation id="5229315183665181733">ସାଇଟକୁ ଏଡିଟ କରନ୍ତୁ</translation>
+<translation id="5233111790346066304">ଆପଣଙ୍କ Google Driveରେ ଫାଇଲଗୁଡ଼ିକୁ ସେଭ କରି ଯେ କୌଣସି ସମୟରେ ସେଗୁଡ଼ିକୁ ଆକ୍ସେସ କରନ୍ତୁ।</translation>
 <translation id="5233638681132016545">ନୂଆ ଟାବ</translation>
 <translation id="5234094073825090254">{count,plural, =1{ଆପଣଙ୍କ Google ଆକାଉଣ୍ଟ {email}ରେ ବୁକମାର୍କ ସେଭ କରାଯାଇଛି।}other{ଆପଣଙ୍କ Google ଆକାଉଣ୍ଟ {email}ରେ ବୁକମାର୍କଗୁଡ଼ିକୁ ସେଭ କରାଯାଇଛି।}}</translation>
 <translation id="5234764350956374838">ଖାରଜ କରନ୍ତୁ</translation>
@@ -1264,6 +1266,7 @@ Handoff, ନିଶ୍ଚିତ ରୂପେ ସେଟିଂସ୍‍ର ସା�
 <translation id="5556459405103347317">ପୁନଃ ଲୋଡ୍ କରନ୍ତୁ</translation>
 <translation id="555749644339804659">ପାସୱାର୍ଡ ଯାଞ୍ଚ କରାଯାଉଛି…</translation>
 <translation id="5559567453458728487">ୱେବରେ ମିଳୁଥିବା ପରିମାପ ୟୁନିଟଗୁଡ଼ିକୁ କନଭର୍ଟ କରନ୍ତୁ</translation>
+<translation id="5560088892362098740">ମିଆଦ ଶେଷ ହେଉଥିବା ତାରିଖ</translation>
 <translation id="556042886152191864">ବଟନ୍</translation>
 <translation id="5565871407246142825">କ୍ରେଡିଟ କାର୍ଡଗୁଡ଼ିକ</translation>
 <translation id="5566623128829375608">ଆପଣଙ୍କ ଡିଭାଇସରେ ସେଭ କରେ।</translation>
@@ -1351,6 +1354,7 @@ Handoff, ନିଶ୍ଚିତ ରୂପେ ସେଟିଂସ୍‍ର ସା�
 <translation id="5819208479324046259"><ph name="MANAGER" /> ଦ୍ୱାରା ପରିଚାଳିତ। <ph name="BEGIN_LINK" />ଅଧିକ ଜାଣନ୍ତୁ<ph name="END_LINK" /></translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5829649908290113115">ସିଙ୍କ ହେଉଛି…</translation>
+<translation id="5831217499016131155">Google Wallet</translation>
 <translation id="583281660410589416">ଅଜ୍ଞାତ</translation>
 <translation id="5838430324585198889">Google ଆପ୍ସ ମାଧ୍ୟମରେ ଆପଣଙ୍କ iPad ପାଇଁ ଅଧିକ ଫିଚର ଅନଲକ କରନ୍ତୁ</translation>
 <translation id="583923961930319521">ଆପଣଙ୍କ ସମସ୍ତ ଡିଭାଇସରେ ପାସୱାର୍ଡଗୁଡ଼ିକୁ ବ୍ୟବହାର କରନ୍ତୁ</translation>
@@ -1648,6 +1652,7 @@ Handoff, ନିଶ୍ଚିତ ରୂପେ ସେଟିଂସ୍‍ର ସା�
 <translation id="6806550742467879742">ପୃଷ୍ଠା ଟୁଲ</translation>
 <translation id="6807287147325542056">ଅନ୍ୟ ଆପ୍ସରେ ପାସୱାର୍ଡ</translation>
 <translation id="681368974849482173">ଆଇଟମ୍ ତିଆରି ହୋଇଛି</translation>
+<translation id="6820686453637990663">CVC</translation>
 <translation id="6825078212112407882">{count,plural, =1{ଆପଣଙ୍କ Google ଆକାଉଣ୍ଟ, {email}ରେ ବୁକମାର୍କ ସେଭ କରାଯାଇଛି}other{ଆପଣଙ୍କ Google ଆକାଉଣ୍ଟ {email}ରେ {count} ବୁକମାର୍କ ସେଭ କରାଯାଇଛି}}</translation>
 <translation id="6826004672264649705">ବର୍ତ୍ତମାନ ଏହି ପ୍ରଡକ୍ଟକୁ ଟ୍ରାକ କରାଯାଉଛି। ମୂଲ୍ୟ ଇତିହାସ ଦେଖିବାକୁ ଖୋଲନ୍ତୁ</translation>
 <translation id="6830728435402077660">ସୁରକ୍ଷିତ ନୁହେଁ</translation>
@@ -1961,7 +1966,6 @@ Handoff, ନିଶ୍ଚିତ ରୂପେ ସେଟିଂସ୍‍ର ସା�
 <translation id="7952670906562503188">ଆପଣ {passkey_count} ପାସକୀ ଏବଂ ସାଇନ-ଇନ କେବେ ବି ସେଭ ନକରିବାକୁ ବାଛିଥିବା ସାଇଟ ଏବଂ ଆପ୍ସର ତାଲିକାକୁ ଡିଲିଟ କରିବାକୁ ଯାଉଛନ୍ତି। ଆପଣ ସାଇଟ କିମ୍ବା ଆପ ପାଇଁ ତିଆରି କରିଥିବା ଯେ କୌଣସି ଆକାଉଣ୍ଟ ଡିଲିଟ ହେବ ନାହିଁ।</translation>
 <translation id="7958575506592576831">ପୃଷ୍ଠା ସୁରକ୍ଷା ସୂଚନା</translation>
 <translation id="7961015016161918242">ଆଦୌ ନୁହେଁ</translation>
-<translation id="7971136598759319605">1 ଦିନ ପୂର୍ବେ ସକ୍ରିୟ ଥିଲା</translation>
 <translation id="7972837668077967426">କାନଭାସ</translation>
 <translation id="7975036700432177008">ଚେଷ୍ଟା କରନ୍ତୁ</translation>
 <translation id="797588153137233716">ମେନୁ → ଇତିହାସ → ବ୍ରାଉଜିଂ ଡାଟା ଡିଲିଟ କରନ୍ତୁ</translation>

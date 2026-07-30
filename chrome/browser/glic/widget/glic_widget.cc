@@ -37,6 +37,7 @@
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/views/window/client_view.h"
 #include "ui/views/window/frame_view.h"
+#include "ui/views/window/native_frame_view.h"
 
 #if BUILDFLAG(IS_OZONE)
 #include "ui/ozone/public/ozone_platform.h"
@@ -51,11 +52,11 @@
 #include "ui/base/win/shell.h"
 #include "ui/display/win/screen_win.h"
 #include "ui/views/win/hwnd_util.h"
-#include "ui/views/window/native_frame_view.h"
 #endif
 
 #if BUILDFLAG(IS_LINUX)
 #include "chrome/browser/shell_integration_linux.h"
+#include "chrome/browser/ui/views/frame/opaque_browser_frame_view_layout.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -108,27 +109,32 @@ class GlicClientView : public views::ClientView {
   GlicView* glic_view() { return static_cast<GlicView*>(contents_view()); }
 };
 
-#if BUILDFLAG(IS_WIN)
-class GlicFrameViewWin : public views::NativeFrameView {
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+class GlicFrameView : public views::NativeFrameView {
  public:
-  explicit GlicFrameViewWin(views::Widget* widget)
+  explicit GlicFrameView(views::Widget* widget)
       : views::NativeFrameView(widget) {}
 
-  GlicFrameViewWin(const GlicFrameViewWin&) = delete;
-  GlicFrameViewWin& operator=(const GlicFrameViewWin&) = delete;
+  GlicFrameView(const GlicFrameView&) = delete;
+  GlicFrameView& operator=(const GlicFrameView&) = delete;
 
-  ~GlicFrameViewWin() override = default;
+  ~GlicFrameView() override = default;
 
   int NonClientHitTest(const gfx::Point& point) override {
     if (!bounds().Contains(point)) {
       return HTNOWHERE;
     }
 
-    const int resize_border =
+#if BUILDFLAG(IS_WIN)
+    int resize_border = resize_border =
         display::win::GetScreenWin()->GetSystemMetricsInDIP(SM_CXSIZEFRAME);
+#elif BUILDFLAG(IS_LINUX)
+    int resize_border = OpaqueBrowserFrameViewLayout::kFrameBorderThickness;
+#endif
     const bool can_resize = GetWidget()->widget_delegate()->CanResize();
 
-    // Same value as used in `BrowserFrameViewWin::NonClientHitTest()`.
+    // Same value as used in `BrowserFrameViewWin::NonClientHitTest()` and `
+    // OpaqueBrowserFrameView::NonClientHitTest`.
     constexpr int kResizeAreaCornerSize = 16;
     const int frame_component = GetHTComponentForFrame(
         point, gfx::Insets(resize_border),
@@ -142,7 +148,7 @@ class GlicFrameViewWin : public views::NativeFrameView {
   }
 };
 
-#endif  // BUILDFLAG(IS_WIN)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 
 class GlicWidgetDelegate : public views::WidgetDelegate {
  public:
@@ -157,7 +163,6 @@ class GlicWidgetDelegate : public views::WidgetDelegate {
   bool ShouldDescendIntoChildForEventHandling(
       gfx::NativeView child,
       const gfx::Point& location) override {
-    if (base::FeatureList::IsEnabled(features::kGlicHandleDraggingNatively)) {
       // GlicWidget should claim mouse events that fall within the draggable
       // region.
       if (glic_view()->IsPointWithinDraggableRegion(location)) {
@@ -170,17 +175,10 @@ class GlicWidgetDelegate : public views::WidgetDelegate {
       // GlicWidget bounds.
       const int hit_test = GetWidget()->GetNonClientComponent(location);
       return hit_test == HTCLIENT || hit_test == HTNOWHERE;
-    }
-
-    return true;
   }
 #endif  // defined(USE_AURA)
 
   void OnWidgetInitialized() override {
-    if (!base::FeatureList::IsEnabled(features::kGlicUseNonClient)) {
-      return;
-    }
-
     GetWidget()
         ->non_client_view()
         ->frame_view()
@@ -191,10 +189,8 @@ class GlicWidgetDelegate : public views::WidgetDelegate {
  private:
   // Additional hit test handling to support draggable regions.
   std::optional<int> NonClientHitTest(const gfx::Point& point) const {
-    if (base::FeatureList::IsEnabled(features::kGlicHandleDraggingNatively)) {
-      if (glic_view()->IsPointWithinDraggableRegion(point)) {
-        return HTCAPTION;
-      }
+    if (glic_view()->IsPointWithinDraggableRegion(point)) {
+      return HTCAPTION;
     }
 
     return std::nullopt;
@@ -204,10 +200,6 @@ class GlicWidgetDelegate : public views::WidgetDelegate {
     return static_cast<GlicView*>(GetWidget()->GetClientContentsView());
   }
 };
-
-bool ShouldCreateNonClientView() {
-  return base::FeatureList::IsEnabled(features::kGlicUseNonClient);
-}
 
 display::Display GetDisplayForOpeningDetached() {
   // Get the Display for the most recently active browser. If there was no
@@ -346,14 +338,12 @@ std::unique_ptr<views::WidgetDelegate> GlicWidget::CreateWidgetDelegate(
         return std::make_unique<GlicClientView>(widget, contents_view);
       }));
 
-#if BUILDFLAG(IS_WIN)
-  if (base::FeatureList::IsEnabled(features::kGlicHandleDraggingNatively)) {
-    delegate->SetFrameViewFactory(base::BindRepeating(
-        [](views::Widget* widget) -> std::unique_ptr<views::FrameView> {
-          return std::make_unique<GlicFrameViewWin>(widget);
-        }));
-  }
-#endif  // BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+  delegate->SetFrameViewFactory(base::BindRepeating(
+      [](views::Widget* widget) -> std::unique_ptr<views::FrameView> {
+        return std::make_unique<GlicFrameView>(widget);
+      }));
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_CHROMEOS)
   // TODO(b:458115863): Move ChromeOS specific code to platform specific
@@ -385,9 +375,7 @@ std::unique_ptr<GlicWidget> GlicWidget::Create(views::WidgetDelegate* delegate,
                                                bool user_resizable) {
   views::Widget::InitParams params(
       views::Widget::InitParams::CLIENT_OWNS_WIDGET,
-      ShouldCreateNonClientView()
-          ? views::Widget::InitParams::TYPE_WINDOW
-          : views::Widget::InitParams::TYPE_WINDOW_FRAMELESS);
+      views::Widget::InitParams::TYPE_WINDOW);
 
   // -------------- Non Platform-Specific Parameters.
   params.bounds = initial_bounds;
@@ -403,9 +391,7 @@ std::unique_ptr<GlicWidget> GlicWidget::Create(views::WidgetDelegate* delegate,
   // the window's actual corner radius. e.g. on win10 resizable windows
   // do have rounded corners. (Except for ChromeOS)
   params.rounded_corners = gfx::RoundedCornersF(kGlicWidgetCornerRadius);
-  if (ShouldCreateNonClientView()) {
-    params.remove_standard_frame = true;
-  }
+  params.remove_standard_frame = true;
 
   params.delegate = delegate;
   params.z_order = ui::ZOrderLevel::kFloatingWindow;
@@ -425,9 +411,6 @@ std::unique_ptr<GlicWidget> GlicWidget::Create(views::WidgetDelegate* delegate,
   // alt tab list.
   if (!base::FeatureList::IsEnabled(features::kGlicZOrderChanges)) {
     params.dont_show_in_taskbar = true;
-  }
-  if (!ShouldCreateNonClientView()) {
-    params.force_system_menu_for_frameless = true;
   }
 #endif  // BUILDFLAG(IS_WIN)
 #if BUILDFLAG(IS_MAC)

@@ -34,10 +34,15 @@ bool IsWalletPublicPassStorageEnabled(ProfileIOS* profile) {
   account_settings::AccountSettingService* setting_service =
       IOSAccountSettingServiceFactory::GetForProfile(profile);
   return setting_service &&
-         setting_service->IsWalletPrivacyContextualSurfacingEnabled();
+         setting_service
+             ->GetBoolean(account_settings::kWalletPrivacyContextualSurfacing)
+             .value_or(false);
 }
 
-bool CanPerformAutofillAiAction(ProfileIOS* profile, AutofillAiAction action) {
+bool CanPerformAutofillAiAction(
+    ProfileIOS* profile,
+    AutofillAiAction action,
+    std::optional<autofill::EntityType> entity_type) {
   EntityDataManager* entity_data_manager =
       IOSAutofillEntityDataManagerFactory::GetForProfile(profile);
   if (!entity_data_manager) {
@@ -68,7 +73,7 @@ bool CanPerformAutofillAiAction(ProfileIOS* profile, AutofillAiAction action) {
       IdentityManagerFactory::GetForProfile(profile->GetOriginalProfile()),
       SyncServiceFactory::GetForProfile(profile),
       IsWalletPublicPassStorageEnabled(profile), profile->IsOffTheRecord(),
-      GeoIpCountryCode(GetCountryCodeFromVariations()), action);
+      GeoIpCountryCode(GetCountryCodeFromVariations()), action, entity_type);
 }
 
 bool IsEnhancedAutofillEnabled(ProfileIOS* profile) {

@@ -934,20 +934,6 @@ class CONTENT_EXPORT ContentBrowserClient {
       const GURL& scope,
       BrowserContext* browser_context);
 
-  // Allows the embedder to enable process-wide blink features before starting a
-  // service worker. This is similar to
-  // `blink.mojom.CommitNavigationParams.force_enabled_origin_trials` but for
-  // RuntimeFeatures instead of Origin Trials.
-  //
-  // This method is only called when the process that will run the Service
-  // Worker is isolated. These features can be highly privileged, so the
-  // renderer process with such features enabled shouldn't be used for other
-  // sites.
-  virtual void UpdateEnabledBlinkRuntimeFeaturesInIsolatedWorker(
-      BrowserContext* context,
-      const GURL& script_url,
-      std::vector<std::string>& out_forced_enabled_runtime_features);
-
   // Allow the embedder to control if a Shared Worker can be connected from a
   // given tab.
   // This is called on the UI thread.
@@ -1215,14 +1201,6 @@ class CONTENT_EXPORT ContentBrowserClient {
       const url::Origin& accessing_origin,
       std::string* out_debug_message,
       bool* out_block_is_site_setting_specific);
-
-  // Allows the embedder to control if fenced storage read can happen in a given
-  // context.
-  virtual bool IsFencedStorageReadAllowed(
-      content::BrowserContext* browser_context,
-      content::RenderFrameHost* rfh,
-      const url::Origin& top_frame_origin,
-      const url::Origin& accessing_origin);
 
   // Allows the embedder to control if Private Aggregation API operations can
   // happen in a given context.

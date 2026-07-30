@@ -49,7 +49,7 @@ class ExtensionActionDelegate {
   virtual void HidePopup() = 0;
 
   // Returns the native view for the popup, if one is active.
-  virtual gfx::NativeView GetPopupNativeView() = 0;
+  virtual gfx::NativeView GetPopupNativeViewForTesting() = 0;
 
   // Begins the process of showing the popup for the extension action on the
   // current web contents. |by_user| is true if popup is being triggered by a
@@ -65,9 +65,8 @@ class ExtensionActionDelegate {
   // action.
   virtual void ShowContextMenuAsFallback() = 0;
 
-  // Closes the overflow menu, if it was open. Returns whether or not the
-  // overflow menu was closed.
-  virtual bool CloseOverflowMenuIfOpen() = 0;
+  // Closes the extensions menu if it was open.
+  virtual void CloseExtensionsMenuIfOpen() = 0;
 };
 
 #endif  // CHROME_BROWSER_UI_EXTENSIONS_EXTENSION_ACTION_DELEGATE_H_

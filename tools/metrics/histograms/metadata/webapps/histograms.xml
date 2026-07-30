@@ -100,7 +100,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AppBanners.DisplayEvent" enum="AppBannersDisplayEvent"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>pjmclachlan@google.com</owner>
   <owner>pcovell@google.com</owner>
   <summary>
@@ -231,7 +231,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Launch.WebAppDisplayMode" enum="WebAppDisplayMode"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>peter@chromium.org</owner>
   <owner>yfriedman@chromium.org</owner>
   <summary>
@@ -2581,7 +2581,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.ProtocolHandlerPicker.Action"
-    enum="ProtocolHandlerPickerAction" expires_after="2026-05-01">
+    enum="ProtocolHandlerPickerAction" expires_after="2027-05-01">
   <owner>greengrape@google.com</owner>
   <owner>iwa-team@google.com</owner>
   <summary>
@@ -2593,7 +2593,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.ProtocolHandlerPicker.DialogClosedReason"
-    enum="ProtocolHandlerPickerDialogClosedReason" expires_after="2026-05-01">
+    enum="ProtocolHandlerPickerDialogClosedReason" expires_after="2027-05-01">
   <owner>greengrape@google.com</owner>
   <owner>iwa-team@google.com</owner>
   <summary>
@@ -2604,7 +2604,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.ProtocolHandlerPicker.RememberSelection" enum="Boolean"
-    expires_after="2026-05-01">
+    expires_after="2027-05-01">
   <owner>greengrape@google.com</owner>
   <owner>iwa-team@google.com</owner>
   <summary>
@@ -2615,7 +2615,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.ProtocolHandlerPicker.TabClosed" enum="Boolean"
-    expires_after="2026-05-01">
+    expires_after="2027-05-01">
   <owner>greengrape@google.com</owner>
   <owner>iwa-team@google.com</owner>
   <summary>
@@ -2718,7 +2718,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Shortcuts.Creation.Result"
-    enum="ShortcutsCreationResult" expires_after="2026-07-26">
+    enum="ShortcutsCreationResult" expires_after="2026-09-27">
   <owner>phillis@chromium.org</owner>
   <owner>dmurph@chromium.org</owner>
   <summary>Records the result of shortcut creation for PWA.</summary>
@@ -2739,7 +2739,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Shortcuts.Update.Result" enum="BooleanSuccess"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>camdenking@google.com</owner>
   <owner>pwa-team@google.com</owner>
   <summary>

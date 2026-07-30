@@ -42,6 +42,7 @@ class BrowserSyncedWindowDelegate;
 class BrowserUserEducationInterface;
 class BrowserView;
 class BrowserWindowInterface;
+class BrowserWindowThemeObserver;
 class CallToActionLock;
 class ChromeLabsCoordinator;
 class ColorProviderBrowserHelper;
@@ -85,10 +86,10 @@ class SigninViewController;
 class SplitViewIphController;
 class TabMenuModelDelegate;
 class TabSearchToolbarButtonController;
+class TabsFromOtherDevicesSidePanelCoordinator;
 class TabListBridge;
 class TabStripModel;
 class TabStripServiceFeature;
-class AiOverlayDialogController;
 class ToastController;
 class ToastService;
 class TranslateBubbleController;
@@ -219,6 +220,10 @@ namespace skills {
 class SkillsUiWindowController;
 }  // namespace skills
 
+namespace ttc {
+class AiOverlayDialogController;
+}  // namespace ttc
+
 // This class owns the core controllers for features that are scoped to a given
 // browser window on desktop.
 //
@@ -275,18 +280,6 @@ class BrowserWindowFeatures {
 
   media_router::CastBrowserController* cast_browser_controller() {
     return cast_browser_controller_.get();
-  }
-
-  HistorySidePanelCoordinator* history_side_panel_coordinator() {
-    return history_side_panel_coordinator_.get();
-  }
-
-  BookmarksSidePanelCoordinator* bookmarks_side_panel_coordinator() {
-    return bookmarks_side_panel_coordinator_.get();
-  }
-
-  CommentsSidePanelCoordinator* comments_side_panel_coordinator() {
-    return comments_side_panel_coordinator_.get();
   }
 
   ExtensionInstalledWatcher* extension_installed_watcher() {
@@ -407,6 +400,11 @@ class BrowserWindowFeatures {
   // an owned member of BrowserWindowFeatures.
   LocationBar* location_bar();
   const LocationBar* location_bar() const;
+
+  TabsFromOtherDevicesSidePanelCoordinator*
+  tabs_from_other_devices_side_panel_coordinator() {
+    return tabs_from_other_devices_side_panel_coordinator_.get();
+  }
 
   new_tab_footer::NewTabFooterController* new_tab_footer_controller() {
     return new_tab_footer_controller_.get();
@@ -579,7 +577,6 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<CommentsSidePanelCoordinator>
       comments_side_panel_coordinator_;
-
   raw_ptr<PinnedToolbarActions> pinned_toolbar_actions_ = nullptr;
 
   std::unique_ptr<ExtensionInstalledWatcher> extension_installed_watcher_;
@@ -602,7 +599,7 @@ class BrowserWindowFeatures {
   std::unique_ptr<tab_groups::SessionServiceTabGroupSyncObserver>
       session_service_tab_group_sync_observer_;
 
-  std::unique_ptr<AiOverlayDialogController> ai_overlay_dialog_controller_;
+  std::unique_ptr<ttc::AiOverlayDialogController> ai_overlay_dialog_controller_;
 
   std::unique_ptr<ToastService> toast_service_;
 
@@ -709,6 +706,9 @@ class BrowserWindowFeatures {
   std::unique_ptr<ReadingListSidePanelCoordinator>
       reading_list_side_panel_coordinator_;
 
+  std::unique_ptr<TabsFromOtherDevicesSidePanelCoordinator>
+      tabs_from_other_devices_side_panel_coordinator_;
+
   std::unique_ptr<ProfileMenuCoordinator> profile_menu_coordinator_;
 
   std::unique_ptr<IncognitoClearBrowsingDataDialogCoordinator>
@@ -807,6 +807,8 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<contextual_cueing::ContextualCueingController>
       contextual_cueing_controller_;
+
+  std::unique_ptr<BrowserWindowThemeObserver> browser_window_theme_observer_;
 
   // Keep this member last to ensure embedder features are torn down first, in
   // reverse order of initialization.

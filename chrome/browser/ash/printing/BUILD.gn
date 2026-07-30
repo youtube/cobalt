@@ -35,6 +35,8 @@ static_library("printing") {
     "cups_printers_manager_proxy.h",
     "fake_cups_print_job_manager.cc",
     "fake_cups_print_job_manager.h",
+    "fake_local_printer.cc",
+    "fake_local_printer.h",
     "ipp_client_info_calculator.cc",
     "ipp_client_info_calculator.h",
     "local_printer.cc",
@@ -122,6 +124,7 @@ static_library("printing") {
     "//chrome/browser/ash/printing/print_management",
     "//chrome/browser/ash/profiles",
     "//chrome/browser/notifications",
+    "//chrome/browser/printing",
     "//chrome/browser/sync:factories",
     "//chrome/common",
     "//chromeos/ash/components/browser_context_helper",
@@ -161,6 +164,7 @@ static_library("printing") {
     "//chrome/browser/ash/printing/enterprise",
     "//chrome/browser/ash/printing/history",
     "//chrome/browser/ash/printing/print_management",
+    "//chrome/browser/printing",
   ]
 
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
@@ -230,6 +234,7 @@ source_set("unit_tests") {
     "//chrome/browser/ash/printing/oauth2:test_support",
     "//chrome/browser/ash/settings",
     "//chrome/browser/ash/settings:test_support",
+    "//chrome/browser/printing",
     "//chrome/test:test_support",
     "//chromeos/ash/components/dbus/debug_daemon",
     "//chromeos/ash/components/dbus/dlcservice",

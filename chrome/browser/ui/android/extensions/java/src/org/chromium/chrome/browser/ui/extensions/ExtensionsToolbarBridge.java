@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.ui.extensions;
 
 import android.graphics.Bitmap;
+import android.view.KeyEvent;
 
 import androidx.annotation.IntDef;
 
@@ -84,7 +85,7 @@ public class ExtensionsToolbarBridge implements Destroyable {
     public ExtensionAction getAction(String actionId, @Nullable WebContents webContents) {
         if (mProfile.shutdownStarted()) {
             // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
-            // ExtensionToolbarCoordinatorImpl} should ideally be destroyed following {@code
+            // ExtensionsToolbarCoordinatorImpl} should ideally be destroyed following {@code
             // ChromeAndroidTask}'s destruction, and it is currently being worked on.
             return null;
         }
@@ -101,7 +102,7 @@ public class ExtensionsToolbarBridge implements Destroyable {
             float scaleFactor) {
         if (mProfile.shutdownStarted()) {
             // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
-            // ExtensionToolbarCoordinatorImpl} should ideally be destroyed following {@code
+            // ExtensionsToolbarCoordinatorImpl} should ideally be destroyed following {@code
             // ChromeAndroidTask}'s destruction, and it is currently being worked on.
             return null;
         }
@@ -118,7 +119,7 @@ public class ExtensionsToolbarBridge implements Destroyable {
     public String[] getAllActionIds() {
         if (mProfile.shutdownStarted()) {
             // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
-            // ExtensionToolbarCoordinatorImpl} should ideally be destroyed following {@code
+            // ExtensionsToolbarCoordinatorImpl} should ideally be destroyed following {@code
             // ChromeAndroidTask}'s destruction, and it is currently being worked on.
             return new String[0];
         }
@@ -128,7 +129,7 @@ public class ExtensionsToolbarBridge implements Destroyable {
     public String[] getPinnedActionIds() {
         if (mProfile.shutdownStarted()) {
             // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
-            // ExtensionToolbarCoordinatorImpl} should ideally be destroyed following {@code
+            // ExtensionsToolbarCoordinatorImpl} should ideally be destroyed following {@code
             // ChromeAndroidTask}'s destruction, and it is currently being worked on.
             return new String[0];
         }
@@ -138,7 +139,7 @@ public class ExtensionsToolbarBridge implements Destroyable {
     public boolean isActionDraggable(String actionId) {
         if (mProfile.shutdownStarted()) {
             // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
-            // ExtensionToolbarCoordinatorImpl} should ideally be destroyed following {@code
+            // ExtensionsToolbarCoordinatorImpl} should ideally be destroyed following {@code
             // ChromeAndroidTask}'s destruction, and it is currently being worked on.
             return false;
         }
@@ -149,7 +150,7 @@ public class ExtensionsToolbarBridge implements Destroyable {
     public void executeUserAction(String actionId, @InvocationSource int source) {
         if (mProfile.shutdownStarted()) {
             // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
-            // ExtensionToolbarCoordinatorImpl} should ideally be destroyed following {@code
+            // ExtensionsToolbarCoordinatorImpl} should ideally be destroyed following {@code
             // ChromeAndroidTask}'s destruction, and it is currently being worked on.
             return;
         }
@@ -160,7 +161,7 @@ public class ExtensionsToolbarBridge implements Destroyable {
     public void movePinnedAction(String actionId, int targetIndex) {
         if (mProfile.shutdownStarted()) {
             // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
-            // ExtensionToolbarCoordinatorImpl} should ideally be destroyed following {@code
+            // ExtensionsToolbarCoordinatorImpl} should ideally be destroyed following {@code
             // ChromeAndroidTask}'s destruction, and it is currently being worked on.
             return;
         }
@@ -174,6 +175,14 @@ public class ExtensionsToolbarBridge implements Destroyable {
                 .getExtensionsMenuButtonState(mNativeExtensionsToolbarAndroid, webContents);
     }
 
+    public void onRequestAccessButtonClicked(WebContents webContents) {
+        if (mProfile.shutdownStarted()) {
+            return;
+        }
+        ExtensionsToolbarBridgeJni.get()
+                .onRequestAccessButtonClicked(mNativeExtensionsToolbarAndroid, webContents);
+    }
+
     public RequestAccessButtonParams getRequestAccessButtonParams(WebContents webContents) {
         assert mNativeExtensionsToolbarAndroid != 0;
         RequestAccessButtonParams params =
@@ -181,6 +190,12 @@ public class ExtensionsToolbarBridge implements Destroyable {
                         .getRequestAccessButtonParams(mNativeExtensionsToolbarAndroid, webContents);
         assert params != null;
         return params;
+    }
+
+    /** Handles the key down event and returns the result. */
+    public boolean handleKeyDownEvent(KeyEvent event) {
+        return ExtensionsToolbarBridgeJni.get()
+                .handleKeyDownEvent(mNativeExtensionsToolbarAndroid, event);
     }
 
     @CalledByNative
@@ -227,6 +242,14 @@ public class ExtensionsToolbarBridge implements Destroyable {
         assert mDelegate != null;
 
         mDelegate.hideActivePopup();
+    }
+
+    @CalledByNative
+    public boolean hasActivePopup() {
+        // {@link mDelegate} should be set in {@code ExtensionActionListMediator}'s constructor.
+        assert mDelegate != null;
+
+        return mDelegate.hasActivePopup();
     }
 
     @CalledByNative
@@ -309,6 +332,9 @@ public class ExtensionsToolbarBridge implements Destroyable {
 
         // Called when active popup should be hidden.
         void hideActivePopup();
+
+        // Returns whether there is an active popup.
+        boolean hasActivePopup();
     }
 
     @NativeMethods
@@ -349,6 +375,10 @@ public class ExtensionsToolbarBridge implements Destroyable {
                 @JniType("std::string") String actionId,
                 int targetIndex);
 
+        void onRequestAccessButtonClicked(
+                long nativeExtensionsToolbarAndroid,
+                @JniType("content::WebContents*") WebContents webContents);
+
         RequestAccessButtonParams getRequestAccessButtonParams(
                 long nativeExtensionsToolbarAndroid,
                 @JniType("content::WebContents*") WebContents webContents);
@@ -356,5 +386,9 @@ public class ExtensionsToolbarBridge implements Destroyable {
         int getExtensionsMenuButtonState(
                 long nativeExtensionsToolbarAndroid,
                 @JniType("content::WebContents*") WebContents webContents);
+
+        boolean handleKeyDownEvent(
+                long nativeExtensionsToolbarAndroid,
+                @JniType("ui::KeyEventAndroid") KeyEvent keyEvent);
     }
 }

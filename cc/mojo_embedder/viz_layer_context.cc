@@ -16,6 +16,7 @@
 #include "base/check.h"
 #include "base/check_deref.h"
 #include "base/containers/span.h"
+#include "base/logging.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/time/time.h"
@@ -1579,6 +1580,24 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
   if (base::FeatureList::IsEnabled(features::kTreeAnimationsInViz)) {
     SerializeAnimationUpdates(tree, *update);
   }
+
+#if DCHECK_IS_ON()
+  // Validate that any effect node referencing a backdrop mask actually points
+  // to a layer that exists in the active tree we are about to serialize.
+  for (const auto& effect_node : update->effect_nodes) {
+    if (effect_node->backdrop_mask_element_id) {
+      bool layer_exists_in_tree =
+          tree.LayerByElementId(effect_node->backdrop_mask_element_id) !=
+          nullptr;
+
+      DUMP_WILL_BE_CHECK(layer_exists_in_tree)
+          << "Sending LayerTreeUpdate with invalid backdrop_mask_element_id ("
+          << effect_node->backdrop_mask_element_id.GetInternalValue()
+          << ") on effect node " << effect_node->id
+          << ". Total layers in tree: " << tree.NumLayers();
+    }
+  }
+#endif
 
   base::TimeTicks time_sent_to_service = base::TimeTicks::Now();
   {

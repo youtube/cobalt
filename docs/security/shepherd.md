@@ -90,6 +90,10 @@ time spent triaging those reports in detail is time not spent triaging bugs
 which _are_ valid. As a rule:
 
 * If the bug is **not probably valid**, WontFix
+* If the bug is a duplicate of an existing bug (the bug tracker will surface
+  some candidates for you), mark it as a duplicate. Do **not** CC the reporter
+  into the canonical bug unless the canonical bug is already public. If
+  reporters ask to be CCed, tell them to email product-security@chromium.org.
 * If the bug is probably valid but doesn't have security consequences,
   change it to type Bug and remove visibility restrictions
 * If the bug is probably valid but you're missing something critical
@@ -104,9 +108,9 @@ which _are_ valid. As a rule:
 
 * **If the bug is an in-the-wild report**:
     * Start a thread in the Shepherding chat immediately
-* If the bug looks eligible for a [delegated triage
-  rotation](delegated-triage.md):
-    * Move it to that rotation's component
+* Is the bug eligible for [delegated triage](delegated-triage.md)?:
+    * If it's a GPU bug, put it in [https://b.corp.google.com/hotlists/8198490][hotlist 8198490]
+    * TODO: add more here :)
     * You are now done triaging this bug, congratulations!
 * If the bug is a v8 bug (including wasm):
     * Do not attempt to reproduce!

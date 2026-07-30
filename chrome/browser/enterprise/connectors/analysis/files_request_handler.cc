@@ -156,7 +156,7 @@ void FilesRequestHandler::ReportWarningBypass(
     ReportAnalysisConnectorWarningBypass(
         ReportingEventRouterFactory::GetForBrowserContext(profile_),
         content_analysis_info_.get(), source_, destination_,
-        paths_[index].AsUTF8Unsafe(), file_info_[index].sha256,
+        paths_[index].AsUTF8Unsafe(), file_info_[index].sha256_or_cb,
         file_info_[index].mime_type, AccessPointToTriggerString(access_point_),
         content_transfer_method_, file_info_[index].size, warning.second,
         user_justification);
@@ -174,12 +174,10 @@ void FilesRequestHandler::FileRequestCallbackForTesting(
 }
 
 bool FilesRequestHandler::UploadDataImpl() {
-  safe_browsing::IncrementCrashKey(
-      safe_browsing::ScanningCrashKey::PENDING_FILE_UPLOADS, paths_.size());
+  IncrementCrashKey(ScanningCrashKey::PENDING_FILE_UPLOADS, paths_.size());
 
   if (!paths_.empty()) {
-    safe_browsing::IncrementCrashKey(
-        safe_browsing::ScanningCrashKey::TOTAL_FILE_UPLOADS, paths_.size());
+    IncrementCrashKey(ScanningCrashKey::TOTAL_FILE_UPLOADS, paths_.size());
 
     std::vector<safe_browsing::FileOpeningJob::FileOpeningTask> tasks(
         paths_.size());
@@ -218,7 +216,9 @@ FilesRequestHandler::PrepareFileRequest(size_t index) {
       base::BindOnce(&FilesRequestHandler::FileRequestCallback,
                      weak_ptr_factory_.GetWeakPtr(), index),
       base::BindOnce(&FilesRequestHandler::FileRequestStartCallback,
-                     weak_ptr_factory_.GetWeakPtr(), index));
+                     weak_ptr_factory_.GetWeakPtr(), index),
+      /* is_obfuscated */ false,
+      /* force_sync_hash_computation */ false);
   enterprise_connectors::FileAnalysisRequestBase* request_raw = request.get();
   content_analysis_info_->InitializeRequest(
       request_raw, /*include_enterprise_only_fields=*/true);
@@ -241,7 +241,15 @@ void FilesRequestHandler::OnGotFileInfo(
   DCHECK_LT(index, paths_.size());
   DCHECK_EQ(paths_.size(), file_info_.size());
 
-  file_info_[index].sha256 = data.hash;
+  file_info_[index].sha256_or_cb = data.hash;
+  if (data.hash.empty() && request->register_on_got_hash_callback_) {
+    request->register_on_got_hash_callback_.Run(
+        /* call_last= */ false,
+        base::BindOnce(&FilesRequestHandler::OnGotHash,
+                       weak_ptr_factory_.GetWeakPtr(), index));
+    file_info_[index].sha256_or_cb = base::BindRepeating(
+        request->register_on_got_hash_callback_, /* call_last= */ false);
+  }
   file_info_[index].size = data.size;
   file_info_[index].mime_type = data.mime_type;
 
@@ -274,6 +282,12 @@ void FilesRequestHandler::OnGotFileInfo(
   }
 
   UploadFileForDeepScanning(result, paths_[index], std::move(request));
+}
+
+void FilesRequestHandler::OnGotHash(size_t index, std::string hash) {
+  // The FileAnalysisRequest will soon be destroyed, so overwrite the callback
+  // to that object with the actual hash.
+  file_info_[index].sha256_or_cb = hash;
 }
 
 void FilesRequestHandler::FinishRequestEarly(
@@ -345,7 +359,7 @@ void FilesRequestHandler::FileRequestCallback(
                                    : upload_start_time_;
 
   const auto& analysis_settings = content_analysis_info_->settings();
-  safe_browsing::RecordDeepScanMetrics(
+  RecordDeepScanMetrics(
       analysis_settings.cloud_or_local_settings.is_cloud_analysis(),
       access_point_, base::TimeTicks::Now() - start_timestamp,
       file_info_[index].size, upload_result, response);
@@ -364,15 +378,14 @@ void FilesRequestHandler::FileRequestCallback(
   MaybeReportDeepScanningVerdict(
       ReportingEventRouterFactory::GetForBrowserContext(profile_),
       content_analysis_info_.get(), source_, destination_, path.AsUTF8Unsafe(),
-      file_info_[index].sha256, file_info_[index].mime_type,
+      file_info_[index].sha256_or_cb, file_info_[index].mime_type,
       AccessPointToTriggerString(access_point_), content_transfer_method_,
       content_analysis_info_->GetContentAreaAccountEmail(),
       file_info_[index].size, upload_result, response,
       CalculateEventResult(analysis_settings, request_handler_result.complies,
                            result_is_warning));
 
-  safe_browsing::DecrementCrashKey(
-      safe_browsing::ScanningCrashKey::PENDING_FILE_UPLOADS);
+  DecrementCrashKey(ScanningCrashKey::PENDING_FILE_UPLOADS);
 
   MaybeCompleteScanRequest();
 }

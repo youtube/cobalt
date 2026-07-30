@@ -1164,8 +1164,7 @@ AutofillPrivateAddOrUpdateEntityInstanceFunction::Run() {
                                entity_instance->record_type())) {
     // If the request is successfully started, the callback will handle the
     // response.
-    if (TrySavePrivatePassWithWalletAPI(*entity_instance,
-                                        parameters->ui_context)) {
+    if (TrySavePrivatePassWithWalletAPI(*entity_instance)) {
       return RespondLater();
     }
 
@@ -1186,9 +1185,7 @@ AutofillPrivateAddOrUpdateEntityInstanceFunction::Run() {
 }
 
 bool AutofillPrivateAddOrUpdateEntityInstanceFunction::
-    TrySavePrivatePassWithWalletAPI(
-        const EntityInstance& entity_instance,
-        const api::autofill_private::EntityUiContext& ui_context) {
+    TrySavePrivatePassWithWalletAPI(const EntityInstance& entity_instance) {
   if (!base::FeatureList::IsEnabled(
           autofill::features::kAutofillAiWalletPrivatePasses)) {
     return false;
@@ -1200,14 +1197,17 @@ bool AutofillPrivateAddOrUpdateEntityInstanceFunction::
 
   if (autofill::WalletPassAccessManager* pass_manager =
           autofill_client()->GetWalletPassAccessManager()) {
+    // When WalletApiPrivatePassesConsent is disabled,
+    // `SaveWalletEntityInstance()` doesn't require a valid `session_id`.
     consent_auditor::ConsentAuditor::SessionId session_id;
-    // When the feature flag is disabled, `SaveWalletEntityInstance()`
-    // doesn't require a valid `session_id`.
     if (base::FeatureList::IsEnabled(
             wallet::features::kWalletApiPrivatePassesConsent)) {
+      // Sadly, the string IDs are hardcoded here, because the TypeScript code
+      // only has access to the strings themselves, not their IDs.
       session_id = RecordWalletPrivatePassConsent(
-          ui_context.ui_string_ids, ui_context.clicked_button_string_id,
-          *autofill_client());
+          /*consent_string_id=*/
+          IDS_AUTOFILL_AI_SAVE_ENTITY_TO_WALLET_SETTINGS_SUBTITLE,
+          /*clicked_button_string_id=*/IDS_SAVE, *autofill_client());
     }
     pass_manager->SaveWalletEntityInstance(
         entity_instance, session_id,

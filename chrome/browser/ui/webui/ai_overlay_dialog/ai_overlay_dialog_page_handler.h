@@ -6,33 +6,22 @@
 #define CHROME_BROWSER_UI_WEBUI_AI_OVERLAY_DIALOG_AI_OVERLAY_DIALOG_PAGE_HANDLER_H_
 
 #include <memory>
+#include <optional>
+#include <string>
 
 #include "base/memory/raw_ptr.h"
-#include "base/types/expected.h"
-#include "base/values.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/ai_overlay_dialog/ai_overlay_dialog.mojom.h"
-#include "content/public/browser/render_frame_host.h"
-#include "content/public/browser/weak_document_ptr.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "third_party/blink/public/mojom/annotation/annotation.mojom.h"
 #include "url/gurl.h"
 
 class BrowserWindowInterface;
 
-struct ToolResponse {
-  base::DictValue data;
-  bool is_silent = false;
+namespace actions {
+class ActionItem;
+}
 
-  static ToolResponse Silent() {
-    ToolResponse response;
-    response.is_silent = true;
-    return response;
-  }
-};
-
-using ToolResult = base::expected<ToolResponse, std::string>;
+namespace ttc {
 
 class AiOverlayDialogPageHandler
     : public ai_overlay_dialog::mojom::PageHandler {
@@ -45,10 +34,7 @@ class AiOverlayDialogPageHandler
 
   // overlay_dialog::mojom::PageHandler interface
   void GetMockAudioData(GetMockAudioDataCallback callback) override;
-  void GetToolDefinitions(GetToolDefinitionsCallback callback) override;
-  void ExecuteTool(const std::string& name,
-                   const std::string& json_args,
-                   ExecuteToolCallback callback) override;
+  void UpdateAudioEnergy(float energy) override;
 
   void DidChangePage(const GURL& url,
                      const std::optional<std::u16string>& title,
@@ -56,79 +42,13 @@ class AiOverlayDialogPageHandler
   void UpdateCurrentPageContext(const std::u16string& title,
                                 const std::string& content);
 
-  // --- TOOLS START ---
-  // Open a URL.
-  void OpenUrl(const std::string& url,
-               bool new_tab,
-               base::OnceCallback<void(ToolResult)> callback);
-  // Search using the default search engine.
-  void PerformSearch(const std::string& query,
-                     bool new_tab,
-                     base::OnceCallback<void(ToolResult)> callback);
-  // Switch to another open tab by fuzzy matching name or URL.
-  void SwitchTab(const std::string& query,
-                 base::OnceCallback<void(ToolResult)> callback);
-  // Close the current browser tab.
-  void CloseCurrentTab(base::OnceCallback<void(ToolResult)> callback);
-  // Go back to the previous page in history.
-  void GoBack(base::OnceCallback<void(ToolResult)> callback);
-  // Go forward to the next page in history.
-  void GoForward(base::OnceCallback<void(ToolResult)> callback);
-  // Refresh the current page.
-  void ReloadPage(base::OnceCallback<void(ToolResult)> callback);
-  // --- General DOM Tools ---
-
-  // Highlight and scroll to specific text on the page.
-  void FindAndHighlight(const std::string& query,
-                        base::OnceCallback<void(ToolResult)> callback);
-
-  // Scroll the viewport in a specific direction.
-  void Scroll(const std::string& direction,
-              double magnitude,
-              base::OnceCallback<void(ToolResult)> callback);
-
-  // --- Media Tools (YouTube) ---
-
-  // Resume video playback.
-  void PlayVideo(base::OnceCallback<void(ToolResult)> callback);
-
-  // Pause video playback.
-  void PauseVideo(base::OnceCallback<void(ToolResult)> callback);
-
-  // Jump the video to a specific timecode (e.g. '1:45').
-  void SeekToTimestamp(const std::string& timecode,
-                       base::OnceCallback<void(ToolResult)> callback);
-  // --- TOOLS END ---
-
  private:
-  class AnnotationTask : public blink::mojom::AnnotationAgentHost {
-   public:
-    AnnotationTask(
-        mojo::PendingReceiver<blink::mojom::AnnotationAgentHost> host_receiver,
-        mojo::Remote<blink::mojom::AnnotationAgent> agent_remote,
-        base::OnceCallback<void(ToolResult)> callback);
-    AnnotationTask(const AnnotationTask&) = delete;
-    AnnotationTask& operator=(const AnnotationTask&) = delete;
-    ~AnnotationTask() override;
-
-    void DidFinishAttachment(
-        const gfx::Rect& document_relative_rect,
-        blink::mojom::AttachmentResult attachment_result) override;
-
-   private:
-    mojo::Receiver<blink::mojom::AnnotationAgentHost> receiver_;
-    mojo::Remote<blink::mojom::AnnotationAgent> agent_remote_;
-    base::OnceCallback<void(ToolResult)> callback_;
-  };
-
-  void OnAnnotationAgentDisconnected();
-
   mojo::Receiver<ai_overlay_dialog::mojom::PageHandler> receiver_;
-  std::unique_ptr<AnnotationTask> annotation_task_;
-  content::WeakDocumentPtr annotation_document_;
-  mojo::Remote<blink::mojom::AnnotationAgentContainer> annotation_container_;
   mojo::Remote<ai_overlay_dialog::mojom::Page> page_;
   raw_ptr<BrowserWindowInterface> browser_;
+  raw_ptr<actions::ActionItem> overlay_action_item_ = nullptr;
 };
+
+}  // namespace ttc
 
 #endif  // CHROME_BROWSER_UI_WEBUI_AI_OVERLAY_DIALOG_AI_OVERLAY_DIALOG_PAGE_HANDLER_H_

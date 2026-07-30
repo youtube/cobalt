@@ -157,6 +157,13 @@ class KeyboardAccessoryProperties {
         }
 
         /**
+         * Updates the state of this item when a suggestion is selected.
+         *
+         * @param clickedSuggestion The suggestion that was clicked, or null if none.
+         */
+        void updateStateOnItemSelection(@Nullable AutofillSuggestion clickedSuggestion) {}
+
+        /**
          * If this {@link BarItem} is a instance of {@link ActionBarItem}, returns itself in a list.
          * Otherwise, returns a list of {@link ActionBarItem} contained in this group.
          */
@@ -176,6 +183,13 @@ class KeyboardAccessoryProperties {
         }
 
         @Override
+        void updateStateOnItemSelection(@Nullable AutofillSuggestion clickedSuggestion) {
+            for (ActionBarItem item : mActionBarItems) {
+                item.updateStateOnItemSelection(clickedSuggestion);
+            }
+        }
+
+        @Override
         List<ActionBarItem> getActionBarItems() {
             return Collections.unmodifiableList(mActionBarItems);
         }
@@ -186,8 +200,17 @@ class KeyboardAccessoryProperties {
      * hold an {@link Action}s that defines a callback and a recording type.
      */
     static class ActionBarItem extends BarItem {
+        @IntDef({ViewState.ENABLED, ViewState.LOADING, ViewState.DEACTIVATED})
+        @Retention(RetentionPolicy.SOURCE)
+        @interface ViewState {
+            int ENABLED = 0;
+            int LOADING = 1;
+            int DEACTIVATED = 2;
+        }
+
         private final @Nullable Action mAction;
         private final @StringRes int mCaptionId;
+        private @ViewState int mViewState = ViewState.ENABLED;
 
         /**
          * Creates a new item. An action item must have a type and can have an action.
@@ -200,6 +223,22 @@ class KeyboardAccessoryProperties {
             super(type);
             mAction = action;
             mCaptionId = captionId;
+        }
+
+        @Override
+        void updateStateOnItemSelection(@Nullable AutofillSuggestion clickedSuggestion) {
+            setViewState(ViewState.DEACTIVATED);
+        }
+
+        /** Sets the transient interactive state of the view. */
+        void setViewState(@ViewState int viewState) {
+            mViewState = viewState;
+        }
+
+        /** Returns the transient interactive state of the view. */
+        @ViewState
+        int getViewState() {
+            return mViewState;
         }
 
         @Override
@@ -269,6 +308,12 @@ class KeyboardAccessoryProperties {
         AutofillBarItem(AutofillSuggestion suggestion, Action action, Profile profile) {
             super(getBarItemType(suggestion, profile), action, 0);
             mSuggestion = suggestion;
+        }
+
+        @Override
+        void updateStateOnItemSelection(@Nullable AutofillSuggestion clickedSuggestion) {
+            boolean isClicked = clickedSuggestion != null && mSuggestion.equals(clickedSuggestion);
+            setViewState(isClicked ? ViewState.LOADING : ViewState.DEACTIVATED);
         }
 
         AutofillSuggestion getSuggestion() {

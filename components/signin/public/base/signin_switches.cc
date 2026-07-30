@@ -289,6 +289,13 @@ BASE_FEATURE(kEnableFakeCapabilityForTesting,
 #endif
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
+// Enables mTLS token binding in the identity stack. This allows binding tokens
+// to an mTLS certificate upon receiving the `mtl_token_binding` indicator in
+// the Dice sigin header.
+BASE_FEATURE(kEnableMtlsTokenBinding, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
 // Enables binding the OAuthMultilogin cookies to a device with DBSC prototype.
 //
 // If `kEnableOAuthMultiloginStandardCookiesBinding` is enabled, DBSC standard
@@ -368,6 +375,11 @@ constexpr base::FeatureParam<SeamlessSigninStringType>
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 BASE_FEATURE(kEnableSearchAIModeSigninPromo, base::FEATURE_DISABLED_BY_DEFAULT);
+// The delay we allow for the AIM search result to load before we display the
+// sign-in promo bubble.
+const base::FeatureParam<base::TimeDelta> kSearchAIModePromoPageLoadDelay{
+    &kEnableSearchAIModeSigninPromo, "SearchAIModePromoPageLoadDelay",
+    base::Seconds(4)};
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if BUILDFLAG(IS_IOS)
@@ -448,6 +460,11 @@ BASE_FEATURE(kHandleMdmErrorsForDasherAccounts,
 
 #if BUILDFLAG(IS_IOS)
 BASE_FEATURE(kIdentityInAuthErrorFollowUps, base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
+
+#if BUILDFLAG(IS_IOS)
+// Feature flag to ignore invalid grant errors in AuthenticationService.
+BASE_FEATURE(kIgnoreInvalidGrantError, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(IS_ANDROID)

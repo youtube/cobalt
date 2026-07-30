@@ -521,7 +521,7 @@ class PasswordAutofillAgentTest : public ChromeRenderViewTest {
     // Autofill uses the system font to render suggestion previews. On Windows
     // an extra step is required to ensure that the system font is configured.
     blink::WebFontRendering::SetMenuFontMetrics(
-        blink::WebString::FromASCII("Arial"), 12);
+        blink::WebString::FromAscii("Arial"), 12);
 #endif
 
     // TODO(crbug.com/41401202): Remove workaround preventing non-test classes
@@ -1242,7 +1242,7 @@ TEST_F(PasswordAutofillAgentTest, NoInitialAutocompleteForReadOnlyPassword) {
 // matches.
 TEST_F(PasswordAutofillAgentTest,
        AutocompletePasswordForReadonlyUsernameMatched) {
-  username_element_.SetValue(WebString::FromUTF16(username3_));
+  username_element_.SetValue(WebString::FromUtf16(username3_));
   SetElementReadOnly(username_element_, true);
 
   // Filled even though username is not the preferred match.
@@ -1259,7 +1259,7 @@ TEST_F(PasswordAutofillAgentTest,
 TEST_F(PasswordAutofillAgentTest, AutocompleteForPrefilledUsernameValue) {
   // Set the username element to a value from the prefilled values list.
   // Comparison should be insensitive to leading and trailing whitespaces.
-  username_element_.SetValue(WebString::FromUTF16(u" User Name "));
+  username_element_.SetValue(WebString::FromUtf16(u" User Name "));
 
   // Simulate the browser sending back the login info, it triggers the
   // autocomplete.
@@ -1282,7 +1282,7 @@ TEST_F(PasswordAutofillAgentTest, AutocompleteForPrefilledUsernameValue) {
 TEST_F(PasswordAutofillAgentTest, MetricsOnlyLoggedOnce) {
   // Set the username element to a value from the prefilled values list.
   // Comparison should be insensitive to leading and trailing whitespaces.
-  username_element_.SetValue(WebString::FromUTF16(u" User Name "));
+  username_element_.SetValue(WebString::FromUtf16(u" User Name "));
 
   // Simulate the browser sending back the login info multiple times.
   // This triggers the autocomplete.
@@ -1297,7 +1297,7 @@ TEST_F(PasswordAutofillAgentTest, MetricsOnlyLoggedOnce) {
 TEST_F(PasswordAutofillAgentTest,
        AutocompletePasswordForReadonlyUsernamePrefixMatched) {
   std::u16string username_at = username3_ + u"@example.com";
-  username_element_.SetValue(WebString::FromUTF16(username_at));
+  username_element_.SetValue(WebString::FromUtf16(username_at));
   SetElementReadOnly(username_element_, true);
 
   // Filled even though the username in the form is only a proper prefix of the
@@ -1337,7 +1337,7 @@ TEST_F(PasswordAutofillAgentTest, NoFillingOnSignupForm_NoMetrics) {
 TEST_F(PasswordAutofillAgentTest,
        DontAutocompletePasswordForReadonlyUsernamePrefixMatched) {
   std::u16string prefilled_username = username3_ + u"example.com";
-  username_element_.SetValue(WebString::FromUTF16(prefilled_username));
+  username_element_.SetValue(WebString::FromUtf16(prefilled_username));
   SetElementReadOnly(username_element_, true);
 
   // Filled even though the username in the form is only a proper prefix of the
@@ -1356,7 +1356,7 @@ TEST_F(
     PasswordAutofillAgentTest,
     DontAutocompletePasswordForNotReadonlyUsernameFieldEvenWhenPrefixMatched) {
   std::u16string prefilled_username = username3_ + u"@example.com";
-  username_element_.SetValue(WebString::FromUTF16(prefilled_username));
+  username_element_.SetValue(WebString::FromUtf16(prefilled_username));
 
   // Filled even though the username in the form is only a proper prefix of the
   // stored username.
@@ -1409,7 +1409,7 @@ TEST_F(PasswordAutofillAgentTest, NoPartialMatchForPrefilledUsername) {
 
 // Tests that having a matching username precludes the autofill.
 TEST_F(PasswordAutofillAgentTest, InitialAutocompleteForMatchingFilledField) {
-  username_element_.SetValue(WebString::FromUTF16(kAliceUsername16));
+  username_element_.SetValue(WebString::FromUtf16(kAliceUsername16));
 
   // Simulate the browser sending back the login info, it triggers the
   // autofill.
@@ -4231,7 +4231,7 @@ TEST_F(PasswordAutofillAgentTest, SuggestPasswordWhenUsernameFieldDisabled) {
 
   // Simulate that the username was pre-filled by website and the username field
   // is readonly.
-  username_element_.SetValue(WebString::FromUTF16(username1_));
+  username_element_.SetValue(WebString::FromUtf16(username1_));
   SetElementReadOnly(username_element_, true);
   // Simulate the browser sending back the login info.
   SimulateOnFillPasswordForm(fill_data_);
@@ -4341,13 +4341,13 @@ TEST_F(PasswordAutofillAgentTest, ShowAutofillSignaturesFlag) {
     LoadHTML(dom_with_dom_subtree_modified_listener.c_str());
     WebDocument document = GetMainFrame()->GetDocument();
     WebFormElement form_element =
-        document.GetElementById(WebString::FromASCII("LoginTestForm"))
+        document.GetElementById(WebString::FromAscii("LoginTestForm"))
             .To<WebFormElement>();
     ASSERT_TRUE(form_element);
 
     // Check only form signature attribute. The full test is in
     // "PasswordGenerationAgentTestForHtmlAnnotation.*".
-    WebString form_signature_attribute = WebString::FromASCII("form_signature");
+    WebString form_signature_attribute = WebString::FromAscii("form_signature");
     EXPECT_EQ(form_element.HasAttribute(form_signature_attribute),
               show_signatures);
   }

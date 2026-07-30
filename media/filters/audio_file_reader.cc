@@ -87,6 +87,17 @@ bool AudioFileReader::OpenDecoder() {
         nullptr, &media_log_, FFmpegAudioDecoder::ExecutionMode::kSynchronous);
   }
 
+  // When demuxing opus from an Ogg container, ffmpeg somehow ends up generating
+  // the skip information twice. Once as discard adding and once as internally
+  // handled pre-skip. Setting the flag below forces FFmpegAudioDecoder to tell
+  // ffmpeg to disable any manual trimming of the stream. Trimming is instead
+  // handled by the AudioDiscardHelper within FFmpegAudioDecoder.
+  if (config.codec() == AudioCodec::kOpus &&
+      glue_->container() ==
+          container_names::MediaContainerName::kContainerOgg) {
+    config.disable_discard_decoder_delay();
+  }
+
   std::optional<bool> initialize_status;
   decoder_->Initialize(
       config, nullptr,
@@ -182,30 +193,19 @@ size_t AudioFileReader::Read(
     CHECK(flush_status.has_value());
   }
 
+  if (pending_output_buffer_) {
+    FinalizeDecodedBuffer(
+        std::move(pending_output_buffer_),
+        /*is_final_output=*/decode_success && !on_output_error_);
+  }
+
   return std::accumulate(
       decoded_audio_packets->begin(), decoded_audio_packets->end(), 0,
       [](size_t total, const auto& bus) { return total + bus->frames(); });
 }
 
-void AudioFileReader::OnOutput(scoped_refptr<AudioBuffer> buffer) {
-  // Ensure that there are no unsupported midstream configuration changes.
-  if (buffer->sample_rate() != config_->samples_per_second() ||
-      buffer->channel_count() != config_->channels() ||
-      buffer->channel_layout() != config_->channel_layout()) {
-    DLOG(ERROR) << "Unsupported midstream configuration change! sample_rate="
-                << buffer->sample_rate() << " (expected "
-                << config_->samples_per_second()
-                << "), channel_layout=" << buffer->channel_layout()
-                << " (expected " << config_->channel_layout()
-                << "), channels=" << buffer->channel_count() << " (expected "
-                << config_->channels() << "\")";
-
-    // This is an unrecoverable error, so bail out.  We'll return
-    // whatever we've decoded up to this point.
-    on_output_error_ = true;
-    return;
-  }
-
+void AudioFileReader::FinalizeDecodedBuffer(scoped_refptr<AudioBuffer> buffer,
+                                            bool is_final_output) {
   // Drop buffers that are entirely before the zero start time.
   if (buffer->timestamp() + buffer->duration() < base::TimeDelta()) {
     return;
@@ -230,7 +230,7 @@ void AudioFileReader::OnOutput(scoped_refptr<AudioBuffer> buffer) {
   // silence from being output. In the case where we are also discarding some
   // portion of the packet (as indicated by a negative pts), we further want to
   // adjust the duration downward by however much exists before zero.
-  if (config_->codec() == AudioCodec::kAAC &&
+  if (is_final_output && config_->codec() == AudioCodec::kAAC &&
       last_packet_duration_ > base::TimeDelta()) {
     int frames_read = buffer->frame_count();
 
@@ -258,6 +258,37 @@ void AudioFileReader::OnOutput(scoped_refptr<AudioBuffer> buffer) {
     decoded_audio_packets_->push_back(
         AudioBuffer::WrapOrCopyToAudioBus(std::move(buffer)));
   }
+}
+
+void AudioFileReader::OnOutput(scoped_refptr<AudioBuffer> buffer) {
+  if (on_output_error_) {
+    return;
+  }
+
+  // Ensure that there are no unsupported midstream configuration changes.
+  if (buffer->sample_rate() != config_->samples_per_second() ||
+      buffer->channel_count() != config_->channels() ||
+      buffer->channel_layout() != config_->channel_layout()) {
+    DLOG(ERROR) << "Unsupported midstream configuration change! sample_rate="
+                << buffer->sample_rate() << " (expected "
+                << config_->samples_per_second()
+                << "), channel_layout=" << buffer->channel_layout()
+                << " (expected " << config_->channel_layout()
+                << "), channels=" << buffer->channel_count() << " (expected "
+                << config_->channels() << "\")";
+
+    // This is an unrecoverable error, so bail out.  We'll return
+    // whatever we've decoded up to this point.
+    on_output_error_ = true;
+    return;
+  }
+
+  if (pending_output_buffer_) {
+    FinalizeDecodedBuffer(std::move(pending_output_buffer_),
+                          /*is_final_output=*/false);
+  }
+
+  pending_output_buffer_ = std::move(buffer);
 }
 
 base::TimeDelta AudioFileReader::GetDuration() const {
