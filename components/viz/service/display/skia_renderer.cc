@@ -108,6 +108,10 @@
 #include "components/viz/service/display/overlay_processor_surface_control.h"
 #endif
 
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "gpu/command_buffer/service/scheduler_sequence.h"
+#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace viz {
 
 namespace {
@@ -1034,6 +1038,24 @@ void SkiaRenderer::FinishDrawingFrame() {
   ScheduleOverlays();
   debug_tint_modulate_count_++;
 }
+
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+void SkiaRenderer::DestroyPrimaryPlaneBuffers() {
+  gpu::ScopedAllowScheduleGpuTask allow_schedule_gpu_task;
+  buffer_queue_->DestroyBuffers();
+  for (auto it = render_pass_backings_.begin();
+       it != render_pass_backings_.end(); ++it) {
+    if (!it->second.is_root) {
+      continue;
+    }
+    AggregatedRenderPassId root_id = it->first;
+    render_pass_backings_.erase(it);
+    skia_output_surface_->RemoveRenderPassResource({root_id});
+    break;
+  }
+  FlushOutputSurface();
+}
+#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(ENABLE_VULKAN) && \
     BUILDFLAG(USE_V4L2_CODEC)

@@ -1,0 +1,42 @@
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef COBALT_TESTING_BROWSER_TESTS_RENDERER_SHELL_CONTENT_RENDERER_TEST_CLIENT_H_
+#define COBALT_TESTING_BROWSER_TESTS_RENDERER_SHELL_CONTENT_RENDERER_TEST_CLIENT_H_
+
+#include "cobalt/shell/renderer/shell_content_renderer_client.h"
+#include "media/media_buildflags.h"
+
+namespace content {
+
+class ShellContentRendererTestClient : public ShellContentRendererClient {
+ public:
+  ShellContentRendererTestClient();
+  ~ShellContentRendererTestClient() override;
+
+  void ExposeInterfacesToBrowser(mojo::BinderMap* binders) override;
+  void RenderFrameCreated(RenderFrame* render_frame) override;
+  void RenderThreadStarted() override;
+  void DidInitializeWorkerContextOnWorkerThread(
+      v8::Local<v8::Context> context) override;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void GetStarboardRendererFactoryTraits(
+      media::RendererFactoryTraits* renderer_factory_traits) override;
+#endif
+};
+
+}  // namespace content
+
+#endif  // COBALT_TESTING_BROWSER_TESTS_RENDERER_SHELL_CONTENT_RENDERER_TEST_CLIENT_H_

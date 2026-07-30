@@ -64,6 +64,10 @@ extern const char kPackageName[];
 extern const char kPackageVersionName[];
 #endif
 
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT)
+extern const char kUseCustomAndroidFontsXml[];
+#endif
+
 #if BUILDFLAG(IS_CHROMEOS)
 extern const char kSchedulerBoostUrgent[];
 #endif

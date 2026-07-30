@@ -7,6 +7,11 @@
 
 #include <stddef.h>
 
+<<<<<<< HEAD
+=======
+#include "base/memory/memory_pressure_level.h"
+#include "build/build_config.h"
+>>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "cc/cc_export.h"
 
 namespace cc {
@@ -16,6 +21,11 @@ class CC_EXPORT ImageDecodeCacheUtils {
   // Returns budget bytes for decoded images that may be different depending
   // whether it's for renderer or for the ui compositor.
   static size_t GetWorkingSetBytesForImageDecode(bool for_renderer);
+
+#if BUILDFLAG(IS_COBALT)
+  static size_t GetPersistentCacheBudgetCount();
+  static size_t GetPersistentCacheBudgetBytes();
+#endif
 };
 
 }  // namespace cc

@@ -13,6 +13,7 @@
 #include "src/core/SkDescriptor.h"
 #include "src/core/SkStrikeSpec.h"
 #include "src/core/SkTHash.h"
+#include "src/gpu/AtlasTypes.h"
 
 #include <cstddef>
 #include <cstdint>

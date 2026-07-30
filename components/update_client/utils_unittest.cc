@@ -37,6 +37,7 @@
 
 namespace update_client {
 
+<<<<<<< HEAD
 namespace {
 constexpr base::FilePath::CharType kTestDirPrefix[] =
     FILE_PATH_LITERAL("_utils_unittest_");
@@ -47,6 +48,38 @@ constexpr base::FilePath::CharType kTestDownloadFilename[] =
 constexpr char kTestDownloadContent[] = "Hello, World!";
 }  // namespace
 
+=======
+#if defined(IN_MEMORY_UPDATES)
+TEST(UpdateClientUtils, VerifyHash256) {
+  std::string content;
+  EXPECT_TRUE(base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &content));
+  EXPECT_TRUE(VerifyHash256(
+      &content,
+      std::string(
+          "7ab32f071cd9b5ef8e0d7913be161f532d98b3e9fa284a7cd8059c3409ce0498")));
+
+  std::string empty_content;
+  EXPECT_TRUE(base::ReadFileToString(GetTestFilePath("empty_file"), &empty_content));
+  EXPECT_TRUE(VerifyHash256(
+      &empty_content,
+      std::string(
+          "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")));
+
+  EXPECT_FALSE(
+      VerifyHash256(&content,
+                        std::string("")));
+
+  EXPECT_FALSE(
+      VerifyHash256(&content,
+                        std::string("abcd")));
+
+  EXPECT_FALSE(VerifyHash256(
+      &content,
+      std::string(
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")));
+}
+#else
+>>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 TEST(UpdateClientUtils, VerifyFileHash256) {
   EXPECT_TRUE(VerifyFileHash256(
       GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
@@ -71,6 +104,7 @@ TEST(UpdateClientUtils, VerifyFileHash256) {
       std::string(
           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")));
 }
+#endif
 
 // Tests that the brand matches ^[a-zA-Z]{4}?$
 TEST(UpdateClientUtils, IsValidBrand) {

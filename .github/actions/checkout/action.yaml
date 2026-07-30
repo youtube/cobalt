@@ -1,0 +1,76 @@
+name: Cached Checkout
+description: Generic git checkout with bare repository cache support.
+inputs:
+  repository:
+    description: The url of the repo to checkout. Defaults to Cobalt.
+    default: ${{ github.server_url }}/${{ github.repository }}
+  ref:
+    description: Git ref to checkout.
+    required: true
+  path:
+    description: Destination path.
+    required: true
+  fetch_depth:
+    description: Number of commits to fetch.
+    default: '1'
+  use_cache:
+    description: Whether to attempt using /runner-cache.
+    default: 'true'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Clone Repo
+      env:
+        REPO_URL: ${{ inputs.repository }}
+        REF: ${{ inputs.ref }}
+        DEST_PATH: ${{ inputs.path }}
+        FETCH_DEPTH: ${{ inputs.fetch_depth }}
+      shell: bash
+      run: |
+        set -ex
+
+        depth_arg=()
+        if [ "${FETCH_DEPTH}" -ne 0 ]; then
+          depth_arg+=(--depth "${FETCH_DEPTH}")
+        fi
+
+        if [ ! -d "${DEST_PATH}/.git" ]; then
+          for attempt in 1 2 3; do
+            if git clone \
+              --filter=blob:none \
+              "${depth_arg[@]}" \
+              "${REPO_URL}" \
+              "${DEST_PATH}"; then
+              break
+            fi
+            if [[ -n "${DEST_PATH}" && "${DEST_PATH}" != "." && "${DEST_PATH}" != "/" ]]; then
+              rm -rf "${DEST_PATH}"
+            else
+              rm -rf "${DEST_PATH}/.git"
+            fi
+            if [ "${attempt}" -eq 3 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 2))
+          done
+        else
+          echo "Repository already exists at ${DEST_PATH}. Skipping clone."
+        fi
+
+        git config --global --add safe.directory "$(cd "${DEST_PATH}" && pwd)"
+
+        if [[ "${REF}" =~ ^[0-9a-fA-F]{40}$ ]] && git -C "${DEST_PATH}" cat-file -e "${REF}^{commit}" 2>/dev/null; then
+          echo "Commit ${REF} already exists in ${DEST_PATH}. Skipping fetch."
+        else
+          for attempt in 1 2 3; do
+            if git -C "${DEST_PATH}" fetch "${depth_arg[@]}" origin "${REF}"; then
+              break
+            fi
+            if [ "${attempt}" -eq 3 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 2))
+          done
+        fi
+        git -C "${DEST_PATH}" checkout "${REF}"

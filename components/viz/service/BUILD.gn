@@ -11,6 +11,10 @@ import("//skia/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/jni_zero/jni_zero.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 config("viz_service_implementation") {
 }
 
@@ -423,6 +427,26 @@ viz_component("service") {
     ]
   }
 
+  if (is_cobalt) {
+    if (use_starboard_media) {
+      sources += [
+        "display/starboard/video_geometry_setter.cc",
+        "display/starboard/video_geometry_setter.h",
+      ]
+
+      # tvOS does not use overlay strategies, so the files below are not
+      # needed.
+      if (!is_ios) {
+        sources += [
+          "display/starboard/overlay_strategy_underlay_starboard.cc",
+          "display/starboard/overlay_strategy_underlay_starboard.h",
+        ]
+      }
+
+      deps += [ "//cobalt/media/service/mojom" ]
+    }
+  }
+
   if (enable_cast_overlay_strategy) {
     sources += [
       "display/overlay_strategy_underlay_cast.cc",
@@ -758,6 +782,11 @@ viz_source_set("unit_tests") {
       "//gpu/vulkan:test_support",
       "//gpu/vulkan/init",
     ]
+  }
+
+  if (is_cobalt) {
+    sources += [ "display/cobalt_frame_timing_details_mojom_unittest.cc" ]
+    deps += [ "//mojo/public/cpp/test_support:test_utils" ]
   }
 }
 
