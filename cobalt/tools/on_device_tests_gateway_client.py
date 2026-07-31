@@ -255,11 +255,17 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
           print(f'Skipping {target_name} due to test filter.')
           continue
       dir_on_device = _DIR_ON_DEV_MAP.get(args.device_family, '')
-      command_line_args = ' '.join([
+      cmd_args = [
           f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
           f'--gtest_filter={gtest_filter}',
           '--single-process-tests',
-      ])
+      ]
+      if 'cobalt_browsertests' in target_name:
+        cmd_args.extend([
+            '--gtest_total_shards=4',
+            '--gtest_shard_index=0',
+        ])
+      command_line_args = ' '.join(cmd_args)
       test_cmd_args = [f'command_line_args={command_line_args}']
       files = _unit_test_files(args, target_name)
       params = _unit_test_params(args, target_name, dir_on_device)

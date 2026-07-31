@@ -16,20 +16,35 @@
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
+from typing import Optional
 
-# Path prefixes that contain files we don't need to run tests.
+# Path prefixes and extensions that contain files we don't need to run tests on
+# devices.
 _EXCLUDE_DIRS_DEFAULT = [
     './exe.unstripped/', './lib.unstripped/', 'obj/', 'lib.java/',
-    '../../third_party/jdk/'
+    '../../third_party/jdk/', '../../net/tools/testserver/',
+    '../../third_party/pywebsocket3/'
 ]
 
 _EXCLUDE_DIRS_JUNIT = [
     './exe.unstripped/',
     './lib.unstripped/',
 ]
+
+_EXCLUDE_EXTENSIONS = ('.map',)
+
+
+def _find_strip_tool(source_dir: str) -> Optional[str]:
+  """Locates llvm-strip or system strip tool."""
+  llvm_strip = os.path.join(
+      source_dir, 'third_party/llvm-build/Release+Asserts/bin/llvm-strip')
+  if os.path.exists(llvm_strip):
+    return llvm_strip
+  return shutil.which('llvm-strip') or shutil.which('strip')
 
 
 def _make_tar(archive_path: str, compression: str, compression_level: int,
@@ -141,9 +156,17 @@ def create_archive(
     compression: str,
     compression_level: int,
     flatten_deps: bool,
+    strip_binaries: bool = False,
 ):
   """Main logic. Collects runtime dependencies for each target."""
   os.makedirs(destination_dir, exist_ok=True)
+  strip_tool = _find_strip_tool(source_dir) if strip_binaries else None
+  if strip_binaries:
+    if strip_tool:
+      print(f'Stripping test binaries using: {strip_tool}')
+    else:
+      print('Warning: --strip requested but no strip tool found.')
+
   combined_deps = set()
   for target in targets:
     # TODO(b/483460300): Unify unittest and browsertest packaging
@@ -208,19 +231,62 @@ def create_archive(
       if is_junit_test:
         exclude_dirs = _EXCLUDE_DIRS_JUNIT
 
-      for line in runtime_deps_file:
+      raw_lines = [line.strip() for line in runtime_deps_file if line.strip()]
+      has_uncompressed_so = any(l.endswith('.so') for l in raw_lines)
+
+      for line in raw_lines:
         if any(line.startswith(path) for path in exclude_dirs):
           continue
 
+        if line.endswith(_EXCLUDE_EXTENSIONS):
+          continue
+
+        # Skip redundant compressed libraries if uncompressed .so is included.
+        if has_uncompressed_so and (line.endswith('.lz4') or
+                                    line.endswith('.zst')):
+          continue
+
         if flatten_deps and line.startswith('../../'):
-          target_src_root_deps.add(line.strip()[6:])
+          target_src_root_deps.add(line[6:])
         else:
           # Rebase all files to be relative to their respective root (source or
           # out dir) to be able to flatten them below. Chromium test runners
           # have access to the source directory in '../..' which ours (ODTs
           # especially) do not.
-          rel_path = os.path.relpath(os.path.join(tar_root, line.strip()))
+          rel_path = os.path.relpath(os.path.join(tar_root, line))
           target_deps.add(rel_path)
+
+      # Optionally strip binaries before archiving
+      strip_temp_dir = None
+      staged_out_dir = out_dir
+      if strip_tool:
+        # pylint: disable=consider-using-with
+        strip_temp_dir = tempfile.TemporaryDirectory(prefix='stripped_deps_')
+        staged_out_dir = strip_temp_dir.name
+        # Copy and strip .so / binary files into staged directory
+        for dep in list(target_deps):
+          src_file = os.path.join(out_dir, dep)
+          if os.path.isfile(src_file) and (dep.endswith('.so') or
+                                           os.access(src_file, os.X_OK)):
+            dest_file = os.path.join(staged_out_dir, dep)
+            os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+            try:
+              subprocess.run(
+                  [strip_tool, '--strip-unneeded', '-o', dest_file, src_file],
+                  check=True,
+                  capture_output=True)
+            except subprocess.CalledProcessError:
+              # Fallback to copy original file if strip fails (e.g. scripts).
+              shutil.copy2(src_file, dest_file)
+          else:
+            dest_file = os.path.join(staged_out_dir, dep)
+            if os.path.exists(src_file):
+              os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+              if os.path.isdir(src_file):
+                shutil.copytree(src_file, dest_file, dirs_exist_ok=True)
+              else:
+                shutil.copy2(src_file, dest_file)
+
       combined_deps |= target_deps
 
       if archive_per_target:
@@ -231,10 +297,14 @@ def create_archive(
               output_path,
               compression,
               compression_level,
-              [(target_deps, out_dir), (target_src_root_deps, source_dir)],
+              [(target_deps, staged_out_dir),
+               (target_src_root_deps, source_dir)],
           )
         else:
           raise ValueError('Unsupported configuration.')
+      if strip_temp_dir:
+        strip_temp_dir.cleanup()
+
   # Linux tests and deps are all bundled into a single tar file.
   if not archive_per_target:
     output_path = os.path.join(destination_dir,
@@ -279,6 +349,10 @@ def main():
       action='store_true',
       help='Look for .runtime_deps files in the Android-specific path.')
   parser.add_argument(
+      '--strip',
+      action='store_true',
+      help='Strip shared libraries and executables before packaging.')
+  parser.add_argument(
       '--compression',
       choices=['xz', 'gz', 'zstd'],
       default='zstd',
@@ -307,7 +381,8 @@ def main():
       use_android_deps_path=args.use_android_deps_path,
       compression=args.compression,
       compression_level=args.compression_level,
-      flatten_deps=args.flatten_deps)
+      flatten_deps=args.flatten_deps,
+      strip_binaries=args.strip)
 
 
 if __name__ == '__main__':
