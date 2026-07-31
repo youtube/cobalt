@@ -308,6 +308,10 @@ public class ContentViewRenderView extends FrameLayout {
          */
         private Integer mPendingSurfaceFormat;
 
+        /**
+         * Simple data holder representing the surface configuration parameters.
+         * Instances are short-lived, immutable, and thread-safe.
+         */
         private static class SurfaceConfig {
             public final int format;
             public final int width;
@@ -320,9 +324,16 @@ public class ContentViewRenderView extends FrameLayout {
             }
         }
 
-        private boolean mPendingSurfaceCreated;
-        private SurfaceConfig mPendingSurfaceConfig;
-        private boolean mIsObserverRegistered;
+        private enum StartupState {
+            NOT_REGISTERED,
+            OBSERVER_REGISTERED,
+            NATIVE_STARTED,
+        }
+
+        private final java.util.List<Runnable> mPendingTasks = new java.util.ArrayList<>();
+        private boolean mIsSurfaceCreatedDispatched;
+        // Startup state is a one-way transition across native startup (do not reset in disconnect()).
+        private StartupState mStartupState = StartupState.NOT_REGISTERED;
 
         private static Window getWindow(WindowAndroid windowAndroid) {
             if (windowAndroid == null || windowAndroid.getActivity() == null) {
@@ -330,6 +341,36 @@ public class ContentViewRenderView extends FrameLayout {
             }
             Activity activity = windowAndroid.getActivity().get();
             return activity != null ? activity.getWindow() : null;
+        }
+
+        private void registerStartupListener() {
+            // Fast-path: if native is already started, don't wait or register.
+            if (BrowserStartupController.getInstance().isNativeStarted()) {
+                mStartupState = StartupState.NATIVE_STARTED;
+                return;
+            }
+
+            // BrowserStartupController is a singleton that fires startup completion only once,
+            // so we only need to register the observer once.
+            if (mStartupState != StartupState.NOT_REGISTERED) {
+                return;
+            }
+            mStartupState = StartupState.OBSERVER_REGISTERED;
+
+            BrowserStartupController.getInstance().addStartupCompletedObserver(
+                    new BrowserStartupController.StartupCallback() {
+                        @Override
+                        public void onSuccess() {
+                            Log.i(TAG, "ContentViewRenderView: Startup complete");
+                            while (!mPendingTasks.isEmpty()) {
+                                mPendingTasks.remove(0).run();
+                            }
+                            mStartupState = StartupState.NATIVE_STARTED;
+                        }
+
+                        @Override
+                        public void onFailure() {}
+                    });
         }
 
         @Override
@@ -344,24 +385,42 @@ public class ContentViewRenderView extends FrameLayout {
                 return;
             }
 
+            // Native browser startup (Mojo initialization) may still be in progress during Activity creation
+            // on slower devices. Listen for startup completion to safely drain surface events (b/539880857).
+            registerStartupListener();
+
             mWindow.takeSurface(new SurfaceHolder.Callback2() {
                 @Override
                 public void surfaceCreated(SurfaceHolder holder) {
                     mWindowSurfaceHolder = holder;
-                    mPendingSurfaceCreated = true;
+                    if (mStartupState != StartupState.NATIVE_STARTED) {
+                        mPendingTasks.add(() -> handleSurfaceCreated(holder));
+                        return;
+                    }
+                    handleSurfaceCreated(holder);
                 }
 
                 @Override
                 public void surfaceChanged(
                         SurfaceHolder holder, int format, int width, int height) {
-                    dispatchOrDeferSurfaceEvents(holder, new SurfaceConfig(format, width, height));
+                    mWindowSurfaceHolder = holder;
+                    SurfaceConfig config = new SurfaceConfig(format, width, height);
+                    if (mStartupState != StartupState.NATIVE_STARTED) {
+                        mPendingTasks.add(() -> handleSurfaceChanged(holder, config));
+                        return;
+                    }
+                    handleSurfaceChanged(holder, config);
                 }
 
                 @Override
                 public void surfaceDestroyed(SurfaceHolder holder) {
                     mWindowSurfaceHolder = null;
-                    mPendingSurfaceCreated = false;
-                    mPendingSurfaceConfig = null;
+                    mPendingTasks.clear();
+
+                    if (!mIsSurfaceCreatedDispatched) {
+                        return;
+                    }
+                    mIsSurfaceCreatedDispatched = false;
                     surfaceCallback.surfaceDestroyed(holder);
                 }
 
@@ -373,54 +432,16 @@ public class ContentViewRenderView extends FrameLayout {
                     ((SurfaceHolder.Callback2) surfaceCallback).surfaceRedrawNeeded(holder);
                 }
 
-                private void dispatchOrDeferSurfaceEvents(SurfaceHolder holder, SurfaceConfig config) {
-                    mWindowSurfaceHolder = holder;
-                    mPendingSurfaceConfig = config;
-
-                    if (BrowserStartupController.getInstance().isNativeStarted()) {
-                        dispatchPendingSurfaceEvents();
-                        return;
-                    }
-
-                    if (mIsObserverRegistered) {
-                        Log.i(TAG, "ContentViewRenderView: Startup observer already registered; updated pending config");
-                        return;
-                    }
-                    mIsObserverRegistered = true;
-
-                    Log.i(TAG, "ContentViewRenderView: Deferring surface events until native startup completes");
-                    // Native browser startup (Mojo initialization) is asynchronous and may still be in progress
-                    // during Activity creation, especially on slower devices. For details, see b/539880857.
-                    BrowserStartupController.getInstance().addStartupCompletedObserver(
-                            new BrowserStartupController.StartupCallback() {
-                                @Override
-                                public void onSuccess() {
-                                    dispatchPendingSurfaceEvents();
-                                }
-
-                                @Override
-                                public void onFailure() {}
-                            });
+                private void handleSurfaceCreated(SurfaceHolder holder) {
+                    Log.i(TAG, "ContentViewRenderView: Surface created");
+                    applyPendingSurfaceFormat();
+                    surfaceCallback.surfaceCreated(holder);
+                    mIsSurfaceCreatedDispatched = true;
                 }
 
-                private void dispatchPendingSurfaceEvents() {
-                    if (mPendingSurfaceConfig == null || mWindowSurfaceHolder == null) {
-                        return;
-                    }
-
-                    if (mPendingSurfaceCreated) {
-                        mPendingSurfaceCreated = false;
-                        Log.i(TAG, "ContentViewRenderView: Native startup finished, dispatching surface events");
-                        applyPendingSurfaceFormat();
-                        surfaceCallback.surfaceCreated(mWindowSurfaceHolder);
-                    }
-
+                private void handleSurfaceChanged(SurfaceHolder holder, SurfaceConfig config) {
                     surfaceCallback.surfaceChanged(
-                            mWindowSurfaceHolder,
-                            mPendingSurfaceConfig.format,
-                            mPendingSurfaceConfig.width,
-                            mPendingSurfaceConfig.height);
-                    mPendingSurfaceConfig = null;
+                            holder, config.format, config.width, config.height);
                 }
             });
         }
@@ -435,13 +456,19 @@ public class ContentViewRenderView extends FrameLayout {
             mWindow = null;
             mWindowSurfaceHolder = null;
             mPendingSurfaceFormat = null;
-            mPendingSurfaceConfig = null;
-            mPendingSurfaceCreated = false;
+            mPendingTasks.clear();
+            mIsSurfaceCreatedDispatched = false;
         }
 
         @Override
         protected SurfaceView getSurfaceView() {
             return null;
+        }
+
+        @Override
+        protected void setFormat(int format) {
+            mPendingSurfaceFormat = format;
+            applyPendingSurfaceFormat();
         }
 
         private void applyPendingSurfaceFormat() {
@@ -455,12 +482,6 @@ public class ContentViewRenderView extends FrameLayout {
             Log.i(TAG, "ContentViewRenderView: Applying pending format");
             mWindowSurfaceHolder.setFormat(mPendingSurfaceFormat);
             mPendingSurfaceFormat = null;
-        }
-
-        @Override
-        protected void setFormat(int format) {
-            mPendingSurfaceFormat = format;
-            applyPendingSurfaceFormat();
         }
     }
 
