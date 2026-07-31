@@ -212,6 +212,7 @@ void AddDefaultDevice(AudioDeviceNames* device_names) {
   device_names->push_front(AudioDeviceName::CreateDefault());
 }
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 std::string GetFallbackDeviceNameForType(AudioDeviceType type) {
   switch (type) {
     case AudioDeviceType::kBuiltinEarpiece:
@@ -258,6 +259,7 @@ std::string GetFallbackDeviceNameForType(AudioDeviceType type) {
       return GetLocalizedStringUTF8(MessageId::GENERIC_AUDIO_DEVICE_NAME);
   }
 }
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 bool UseAAudioOutput() {
   if (!__builtin_available(android AAUDIO_MIN_API, *)) {
@@ -438,17 +440,11 @@ void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
   DCHECK(device_names->empty());
   AddDefaultDevice(device_names);
 
-<<<<<<< HEAD
-  std::vector<JniAudioDevice> j_devices;
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // simplfified flow - just return, device_names is set to default.
   return;
 #else
-  // Get list of available audio devices.
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobjectArray> j_device_array;
->>>>>>> parent of 2f36891edfc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  std::vector<JniAudioDevice> j_devices;
   switch (direction) {
     case AudioDeviceDirection::kInput:
     case AudioDeviceDirection::kOutput:
@@ -990,66 +986,12 @@ bool AudioManagerAndroid::HasNoAudioInputStreams() {
 
 AudioManagerAndroid::JniDelegate& AudioManagerAndroid::GetJniDelegate() {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
-<<<<<<< HEAD
   if (!jni_delegate_) {
     // Create the JNI delegate on the audio thread; prepare the list of audio
     // devices and register receivers for device notifications.
     jni_delegate_ = std::make_unique<JniDelegateImpl>(this);
   }
   return *jni_delegate_;
-=======
-  if (j_audio_manager_.is_null()) {
-    // Create the Android audio manager on the audio thread.
-    DVLOG(2) << "Creating Java part of the audio manager";
-    j_audio_manager_.Reset(Java_AudioManagerAndroid_createAudioManagerAndroid(
-        base::android::AttachCurrentThread(),
-        reinterpret_cast<intptr_t>(this)));
-
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
-    // Prepare the list of audio devices and register receivers for device
-    // notifications.
-    Java_AudioManagerAndroid_init(base::android::AttachCurrentThread(),
-                                  j_audio_manager_);
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
-  }
-  return j_audio_manager_;
-}
-
-void AudioManagerAndroid::SetCommunicationAudioModeOn(bool on) {
-  DVLOG(1) << __FUNCTION__ << ": " << on;
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
-  Java_AudioManagerAndroid_setCommunicationAudioModeOn(
-      base::android::AttachCurrentThread(), GetJavaAudioManager(), on);
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
-}
-
-bool AudioManagerAndroid::SetCommunicationDevice(const std::string& device_id) {
-  DVLOG(1) << __FUNCTION__ << ": " << device_id;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  return true;
-#else
-  DCHECK(GetTaskRunner()->BelongsToCurrentThread());
-
-  // Send the unique device ID to the Java audio manager and make the
-  // device switch. Provide an empty string to the Java audio manager
-  // if the default device is selected.
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jstring> j_device_id = ConvertUTF8ToJavaString(
-      env, device_id == AudioDeviceDescription::kDefaultDeviceId ? std::string()
-                                                                 : device_id);
-  return Java_AudioManagerAndroid_setCommunicationDevice(
-      env, GetJavaAudioManager(), j_device_id);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-}
-
-bool AudioManagerAndroid::IsBluetoothScoOn() {
-  return Java_AudioManagerAndroid_isBluetoothScoOn(
-      base::android::AttachCurrentThread(), GetJavaAudioManager());
-}
-
-void AudioManagerAndroid::MaybeSetBluetoothScoState(bool state) {
-  return Java_AudioManagerAndroid_maybeSetBluetoothScoState(
-      base::android::AttachCurrentThread(), GetJavaAudioManager(), state);
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -1116,22 +1058,6 @@ void AudioManagerAndroid::PreStartStream(
 AudioManagerAndroid::PreStartedEntry::PreStartedEntry() = default;
 AudioManagerAndroid::PreStartedEntry::~PreStartedEntry() = default;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-int AudioManagerAndroid::GetNativeOutputSampleRate() {
-  return Java_AudioManagerAndroid_getNativeOutputSampleRate(
-      base::android::AttachCurrentThread(), GetJavaAudioManager());
-}
-
-bool AudioManagerAndroid::IsAudioLowLatencySupported() {
-  return Java_AudioManagerAndroid_isAudioLowLatencySupported(
-      base::android::AttachCurrentThread(), GetJavaAudioManager());
-}
-
-int AudioManagerAndroid::GetAudioLowLatencyOutputFrameSize() {
-  return Java_AudioManagerAndroid_getAudioLowLatencyOutputFrameSize(
-      base::android::AttachCurrentThread(), GetJavaAudioManager());
->>>>>>> parent of 2f36891edfc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}
 
 int AudioManagerAndroid::GetOptimalOutputFrameSize(int sample_rate,
                                                    int channels) {
