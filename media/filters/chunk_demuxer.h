@@ -93,6 +93,8 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   // Returns the latest presentation timestamp of the buffers queued in the
   // stream.
   base::TimeDelta GetWriteHead() const;
+
+  // Set the |mime_type_| string to a different mime_type.
   void SetMimeType(std::string_view mime_type);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -309,8 +311,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // the |mime_type| from the web app.
   [[nodiscard]] Status AddId(const std::string& id,
                              const std::string& mime_type);
-  bool CanChangeType(const std::string& id, const std::string& new_mime);
-  void ChangeType(const std::string& id, const std::string& new_mime);
+  bool CanChangeType(const std::string& id, const std::string& new_mime_type);
+  void ChangeType(const std::string& id, const std::string& new_mime_type);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Notifies a caller via `tracks_updated_cb` that the set of media tracks

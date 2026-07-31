@@ -110,13 +110,12 @@ std::string AudioDecoderConfig::AsHumanReadableString() const {
     << base::ToString(should_discard_decoder_delay())
     << ", target_output_channel_layout: "
     << ChannelLayoutToString(target_output_channel_layout())
-    << ", target_output_sample_format: "
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    << SampleFormatToString(target_output_sample_format())
-    << ", is_change_type_transition: " << base::ToString(is_change_type_transition());
-#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
+    << ", is_change_type_transition: "
+    << base::ToString(is_change_type_transition())
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+    << ", target_output_sample_format: "
     << SampleFormatToString(target_output_sample_format());
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   return s.str();
 }
 

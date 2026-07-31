@@ -120,9 +120,7 @@ void MojoDemuxerStreamAdapter::OnBufferReady(
 
   if (status == kConfigChanged) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (mime_type.has_value()) {
-      mime_type_ = mime_type.value();
-    }
+    mime_type_ = mime_type.value();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     UpdateConfig(std::move(audio_config), std::move(video_config));
     std::move(read_cb_).Run(kConfigChanged, {});

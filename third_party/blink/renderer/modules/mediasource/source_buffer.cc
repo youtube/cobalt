@@ -1072,6 +1072,7 @@ void SourceBuffer::ChangeType_Locked(
   DCHECK(source_);
   DCHECK(!updating_);
   source_->AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
+
   // 4. If type contains a MIME type that is not supported or contains a MIME
   //    type that is not supported with the types specified (currently or
   //    previously) of SourceBuffer objects in the sourceBuffers attribute of

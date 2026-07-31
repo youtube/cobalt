@@ -858,9 +858,9 @@ void StarboardRenderer::OnDemuxerStreamRead(
     }
   } else if (status == DemuxerStream::kConfigChanged) {
     if (stream == audio_stream_) {
-      const AudioDecoderConfig& config = stream->audio_decoder_config();
+      AudioDecoderConfig config = stream->audio_decoder_config();
       if (config.is_change_type_transition()) {
-        pending_audio_config_ = config;
+        pending_audio_config_ = std::move(config);
         LOG(INFO)
             << "Pending Audio config change stored due to a changeType call.";
       } else {
@@ -870,9 +870,9 @@ void StarboardRenderer::OnDemuxerStreamRead(
       }
     } else {
       DCHECK_EQ(stream, video_stream_);
-      const VideoDecoderConfig& config = stream->video_decoder_config();
+      VideoDecoderConfig config = stream->video_decoder_config();
       if (config.is_change_type_transition()) {
-        pending_video_config_ = config;
+        pending_video_config_ = std::move(config);
         LOG(INFO)
             << "Pending Video config change stored due to a changeType call.";
       } else {

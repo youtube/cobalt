@@ -217,7 +217,7 @@ void WebSourceBufferImpl::ChangeType(const WebString& mime_type) {
 
   demuxer_->ChangeType(id_, mime_type.Utf8());
 }
-#else
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
 bool WebSourceBufferImpl::CanChangeType(const WebString& content_type,
                                         const WebString& codecs) {
   return demuxer_->CanChangeType(id_, content_type.Utf8(), codecs.Utf8());
