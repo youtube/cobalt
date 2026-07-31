@@ -15,6 +15,7 @@
 """Creates test artifacts tar with runtime dependencies."""
 
 import argparse
+import contextlib
 import os
 import shutil
 import subprocess
@@ -45,6 +46,27 @@ def _find_strip_tool(source_dir: str) -> Optional[str]:
   if os.path.exists(llvm_strip):
     return llvm_strip
   return shutil.which('llvm-strip') or shutil.which('strip')
+
+
+def _copy_or_strip(deps: set[str], src_dir: str, dest_dir: str,
+                   strip_tool: str):
+  """Copies and strips dependencies from src_dir into dest_dir."""
+  for dep in deps:
+    src = os.path.join(src_dir, dep)
+    if not os.path.exists(src):
+      continue
+    dest = os.path.join(dest_dir, dep)
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    is_bin = os.path.isfile(src) and (src.endswith('.so') or
+                                      os.access(src, os.X_OK))
+    if os.path.isdir(src):
+      shutil.copytree(src, dest, dirs_exist_ok=True)
+    elif is_bin and subprocess.run(
+        [strip_tool, '--strip-unneeded', '-o', dest, src],
+        check=False).returncode == 0:
+      continue
+    else:
+      shutil.copy2(src, dest)
 
 
 def _make_tar(archive_path: str, compression: str, compression_level: int,
@@ -256,54 +278,27 @@ def create_archive(
           rel_path = os.path.relpath(os.path.join(tar_root, line))
           target_deps.add(rel_path)
 
-      # Optionally strip binaries before archiving
-      strip_temp_dir = None
-      staged_out_dir = out_dir
-      if strip_tool:
-        # pylint: disable=consider-using-with
-        strip_temp_dir = tempfile.TemporaryDirectory(prefix='stripped_deps_')
-        staged_out_dir = strip_temp_dir.name
-        # Copy and strip .so / binary files into staged directory
-        for dep in list(target_deps):
-          src_file = os.path.join(out_dir, dep)
-          if os.path.isfile(src_file) and (dep.endswith('.so') or
-                                           os.access(src_file, os.X_OK)):
-            dest_file = os.path.join(staged_out_dir, dep)
-            os.makedirs(os.path.dirname(dest_file), exist_ok=True)
-            try:
-              subprocess.run(
-                  [strip_tool, '--strip-unneeded', '-o', dest_file, src_file],
-                  check=True,
-                  capture_output=True)
-            except subprocess.CalledProcessError:
-              # Fallback to copy original file if strip fails (e.g. scripts).
-              shutil.copy2(src_file, dest_file)
+      # Optionally strip binaries into staged temp directory before archiving.
+      with (tempfile.TemporaryDirectory(prefix='stripped_deps_') if strip_tool
+            else contextlib.nullcontext(out_dir)) as staged_out_dir:
+        if strip_tool:
+          _copy_or_strip(target_deps, out_dir, staged_out_dir, strip_tool)
+
+        combined_deps |= target_deps
+
+        if archive_per_target:
+          output_path = os.path.join(destination_dir,
+                                     f'{target_name}_deps.tar.{compression}')
+          if flatten_deps:
+            _make_tar(
+                output_path,
+                compression,
+                compression_level,
+                [(target_deps, staged_out_dir),
+                 (target_src_root_deps, source_dir)],
+            )
           else:
-            dest_file = os.path.join(staged_out_dir, dep)
-            if os.path.exists(src_file):
-              os.makedirs(os.path.dirname(dest_file), exist_ok=True)
-              if os.path.isdir(src_file):
-                shutil.copytree(src_file, dest_file, dirs_exist_ok=True)
-              else:
-                shutil.copy2(src_file, dest_file)
-
-      combined_deps |= target_deps
-
-      if archive_per_target:
-        output_path = os.path.join(destination_dir,
-                                   f'{target_name}_deps.tar.{compression}')
-        if flatten_deps:
-          _make_tar(
-              output_path,
-              compression,
-              compression_level,
-              [(target_deps, staged_out_dir),
-               (target_src_root_deps, source_dir)],
-          )
-        else:
-          raise ValueError('Unsupported configuration.')
-      if strip_temp_dir:
-        strip_temp_dir.cleanup()
+            raise ValueError('Unsupported configuration.')
 
   # Linux tests and deps are all bundled into a single tar file.
   if not archive_per_target:

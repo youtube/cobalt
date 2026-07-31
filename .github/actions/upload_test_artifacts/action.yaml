@@ -70,10 +70,10 @@ runs:
         host_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and (.test_type == "gtest" or .test_type == "junit")) | .target] | join(",")' "${json_file}")
         echo "host_targets=${host_targets}" >> $GITHUB_OUTPUT
 
-        device_gtest_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gtest") | .target] | join(",")' "${json_file}")
+        device_gtest_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gtest" and (.target | contains("browsertests") | not)) | .target] | join(",")' "${json_file}")
         echo "device_gtest_targets=${device_gtest_targets}" >> $GITHUB_OUTPUT
 
-        browser_web_targets=$(jq -cr '[.[] | select(.target != null and (.test_type == "browsertest" or .test_type == "webtest")) | .target] | join(",")' "${json_file}")
+        browser_web_targets=$(jq -cr '[.[] | select(.target != null and (.test_type == "browsertest" or .test_type == "webtest" or (.target | contains("browsertests")))) | .target] | join(",")' "${json_file}")
         echo "browser_web_targets=${browser_web_targets}" >> $GITHUB_OUTPUT
       shell: bash
 

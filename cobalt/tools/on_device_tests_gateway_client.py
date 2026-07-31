@@ -262,8 +262,8 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       ]
       if 'cobalt_browsertests' in target_name:
         cmd_args.extend([
-            '--gtest_total_shards=4',
-            '--gtest_shard_index=0',
+            '--test-launcher-total-shards=4',
+            '--test-launcher-shard-index=0',
         ])
       command_line_args = ' '.join(cmd_args)
       test_cmd_args = [f'command_line_args={command_line_args}']
