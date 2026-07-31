@@ -4,6 +4,8 @@
 
 package dev.cobalt.shell;
 
+import static dev.cobalt.shell.Shell.TAG;
+
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.PixelFormat;
@@ -32,7 +34,6 @@ import org.jni_zero.NativeMethods;
  */
 @JNINamespace("cobalt")
 public class ContentViewRenderView extends FrameLayout {
-    private static final String TAG = "cobalt";
 
     // The native side of this object.
     private long mNativeContentViewRenderView;
