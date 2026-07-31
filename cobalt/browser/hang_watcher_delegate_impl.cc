@@ -19,6 +19,7 @@
 #include <variant>
 
 #include "base/feature_list.h"
+#include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "cobalt/browser/features.h"

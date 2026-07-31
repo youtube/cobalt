@@ -4,6 +4,7 @@
 
 #include "base/process/launch.h"
 
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 
 namespace base {

@@ -17,6 +17,7 @@
     "FilePathWatcherWithChangeInfoTest.DeletedFileInDirectory/3",
     "FileTest.GetInfoForCreationTime",
     "FileTest.TouchGetInfo",
+    "HangWatcherTest.HistogramsLoggedWithoutHangs",
     "LapTimer.ThreadTicksUsageExample",
     "LibunwindstackUnwinderAndroidTest.*",
     "ModuleCacheTest.CheckAgainstProcMaps",
