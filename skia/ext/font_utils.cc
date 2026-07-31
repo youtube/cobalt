@@ -71,6 +71,7 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
   return SkFontMgr_New_Cobalt();
 #else
 #if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_COBALT)
   // When Cobalt optimized font loading is enabled, configure Skia to use hermetic custom
   // XML font fallbacks (`cobalt_android_fonts.xml`) extracted into the app data directory.
   if (base::CommandLine::ForCurrentProcess()->HasSwitch("enable-optimized-font-loading")) {
@@ -89,7 +90,7 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
         return SkFontMgr_New_Android(&custom_fonts);
       }
     }
-  }
+#endif // BUILDFLAG (IS_COBALT)
   if (base::FeatureList::IsEnabled(skia::kFontationsAndroidSystemFonts)) {
     return SkFontMgr_New_Android(nullptr, SkFontScanner_Make_Fontations());
   } else {
