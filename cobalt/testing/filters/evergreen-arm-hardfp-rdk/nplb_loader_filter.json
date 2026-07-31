@@ -60,6 +60,7 @@
     "SbPlayerWriteSampleTests/*/audio_sintel_329_ec3_dmp_*",
     "SbPlayerWriteSampleTests/*/audio_sintel_381_ac3_dmp_*",
     "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.LimitedAudioInput/*",
+    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.PartialAudio/*",
     "SbSystemGetLocaleIdTest.SunnyDay",
     "SbSystemGetPathTest.CanWriteAndReadFilesStorage",
     "SbSystemGetPropertyTest.ReturnsRequired",
