@@ -398,7 +398,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // Checks whether sched_getcpu is available.
 #ifdef ABSL_HAVE_SCHED_GETCPU
 #error ABSL_HAVE_SCHED_GETCPU cannot be directly set
-#elif defined(__linux__) && !defined(STARBOARD)
+#elif defined(__linux__)
 #define ABSL_HAVE_SCHED_GETCPU 1
 #endif
 

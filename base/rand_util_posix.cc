@@ -29,7 +29,7 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_NACL)
 #include "third_party/lss/linux_syscall_support.h"
 #elif BUILDFLAG(IS_MAC)
 // TODO(crbug.com/40641285): Waiting for this header to appear in the iOS SDK.
@@ -72,7 +72,7 @@ class URandomFd {
 
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
      BUILDFLAG(IS_ANDROID)) &&                        \
-    !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
+    !BUILDFLAG(IS_NACL)
 
 bool KernelSupportsGetRandom() {
   return base::SysInfo::KernelVersionNumber::Current() >=
@@ -95,7 +95,7 @@ bool GetRandomSyscall(void* output, size_t output_length) {
   return false;
 }
 #endif  // (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
-        // BUILDFLAG(IS_ANDROID)) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
+        // BUILDFLAG(IS_ANDROID)) && !BUILDFLAG(IS_NACL)
 
 }  // namespace
 
@@ -139,7 +139,7 @@ void RandBytesInternal(span<uint8_t> output, bool avoid_allocation) {
 #endif
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
      BUILDFLAG(IS_ANDROID)) &&                        \
-    !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
+    !BUILDFLAG(IS_NACL)
   // On Android it is mandatory to check that the kernel _version_ has the
   // support for a syscall before calling. The same check is made on Linux and
   // ChromeOS to avoid making a syscall that predictably returns ENOSYS.

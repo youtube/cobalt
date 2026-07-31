@@ -111,7 +111,6 @@ class TraceCopyTask : public base::MessagePumpEpoll::FdWatcher {
 
   // base::MessagePumpEpoll::FdWatcher:
   void OnFileCanReadWithoutBlocking(int fd) override { NOTREACHED(); }
-  
   void OnFileCanWriteWithoutBlocking(int fd) override {
     DCHECK_EQ(out_fd_.get(), fd);
     CopyTraceData();

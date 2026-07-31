@@ -9,10 +9,6 @@
 
 #include "base/command_line.h"
 #include "base/logging.h"
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-#include "base/strings/string_split.h"
-#include "base/strings/string_number_conversions.h"
-#endif
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "third_party/khronos/EGL/egl.h"
@@ -122,39 +118,12 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
     }
   }
 
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-  // Get EGL version
-  const char* version_str =
-      eglQueryString(gl_display_->GetDisplay(), EGL_VERSION);
-  int egl_major = 0;
-  int egl_minor = 0;
-  if (version_str) {
-    std::vector<std::string> parts = base::SplitString(
-        version_str, ".", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-
-    if (parts.size() == 2) {
-      base::StringToInt(parts[0], &egl_major);
-      base::StringToInt(parts[1], &egl_minor);
-    } else {
-      DVLOG(1) << "EGL version string format unexpected: " << version_str;
-    }
-  }
-#endif
-
   std::vector<EGLint> context_attributes;
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-  if (egl_major > 1 || (egl_major == 1 && egl_minor > 4)) {
-#endif
-    if (attribs.can_skip_validation &&
-        GetGLImplementation() == kGLImplementationEGLANGLE) {
-      context_attributes.push_back(EGL_CONTEXT_OPENGL_NO_ERROR_KHR);
-      context_attributes.push_back(EGL_TRUE);
-    }
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-  } else {
-    DVLOG(1) << "EGL_CONTEXT_OPENGL_NO_ERROR_KHR NOT supported.";
+  if (attribs.can_skip_validation &&
+      GetGLImplementation() == kGLImplementationEGLANGLE) {
+    context_attributes.push_back(EGL_CONTEXT_OPENGL_NO_ERROR_KHR);
+    context_attributes.push_back(EGL_TRUE);
   }
-#endif
 
   if (attribs.passthrough_shaders &&
       gl_display_->ext->b_EGL_ANGLE_create_context_passthrough_shaders) {
@@ -228,10 +197,7 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
     context_attributes.push_back(attribs.bind_generates_resource ? EGL_TRUE
                                                                  : EGL_FALSE);
   } else {
-    // TODO: b/486053854 - Cobalt: Reset unsupported attribs to EGL defaults
-  #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     DCHECK(attribs.bind_generates_resource);
-  #endif
   }
 
   if (gl_display_->ext->b_EGL_ANGLE_create_context_webgl_compatibility) {
@@ -239,10 +205,7 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
     context_attributes.push_back(
         attribs.webgl_compatibility_context ? EGL_TRUE : EGL_FALSE);
   } else {
-    // TODO: b/486053854 - Cobalt: Reset unsupported attribs to EGL defaults
-  #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     DCHECK(!attribs.webgl_compatibility_context);
-  #endif
   }
 
   if (gl_display_->IsEGLContextPrioritySupported()) {
@@ -265,10 +228,7 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
     context_attributes.push_back(global_texture_share_group_ ? EGL_TRUE
                                                              : EGL_FALSE);
   } else {
-    // TODO: b/486053854 - Cobalt: Reset unsupported attribs to EGL defaults
-  #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     DCHECK(!global_texture_share_group_);
-  #endif
   }
 
   if (gl_display_->ext->b_EGL_ANGLE_display_semaphore_share_group) {
@@ -276,10 +236,7 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
     context_attributes.push_back(
         attribs.global_semaphore_share_group ? EGL_TRUE : EGL_FALSE);
   } else {
-    // TODO: b/486053854 - Cobalt: Reset unsupported attribs to EGL defaults
-  #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     DCHECK(!attribs.global_semaphore_share_group);
-  #endif
   }
 
   if (gl_display_->ext->b_EGL_ANGLE_create_context_client_arrays) {
@@ -290,11 +247,7 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
     // Client arrays are allowed by default without
     // ANGLE_create_context_client_arrays to control it. Verify that's the
     // requested behavior.
-
-    // TODO: b/486053854 - Cobalt: Reset unsupported attribs to EGL defaults
-  #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     DCHECK(attribs.allow_client_arrays);
-  #endif
   }
 
   if (gl_display_->ext->b_EGL_ANGLE_robust_resource_initialization ||
@@ -304,10 +257,7 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
         (attribs.robust_resource_initialization || is_swangle) ? EGL_TRUE
                                                                : EGL_FALSE);
   } else {
-    // TODO: b/486053854 - Cobalt: Reset unsupported attribs to EGL defaults
-  #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     DCHECK(!attribs.robust_resource_initialization);
-  #endif
   }
 
   if (gl_display_->ext->b_EGL_ANGLE_create_context_backwards_compatible) {

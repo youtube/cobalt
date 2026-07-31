@@ -181,7 +181,6 @@ TEST(PickleTest, EstimatePickleSizeMultipleValues) {
       EstimatePickleSize(i) + EstimatePickleSize(s) + EstimatePickleSize(b));
 }
 
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 // Fuzz test. To cover all the cases, we need to include these types:
 // * int (for kCopyAsBytes codepath)
 // * std::string (for IsConstructableFromCharLikeIteratorPair path)
@@ -204,7 +203,6 @@ void FuzzRoundTrip(const FuzzType& value) {
 }
 
 FUZZ_TEST(PickleTest, FuzzRoundTrip);
-#endif
 
 // Tests for user-defined serialization.
 
