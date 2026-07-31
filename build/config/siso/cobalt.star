@@ -417,6 +417,11 @@ def __step_config(ctx, step_config):
                     rule["inputs"] = []
                 rule["inputs"].extend(["third_party/musl:musl_all_headers",])
 
+    # Cobalt RBE instance does not support remote Rust execution.
+    for rule in step_config["rules"]:
+        if rule.get("name", "").startswith("rust") or "rust" in rule.get("action", ""):
+            rule["remote"] = False
+
     return step_config
 
 cobalt = module(

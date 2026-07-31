@@ -5,6 +5,7 @@ on:
     types: [opened, reopened, synchronize, labeled]
     branches:
       - staging
+      - autoroll-chromium/main-to-staging
   push:
     branches:
       - staging

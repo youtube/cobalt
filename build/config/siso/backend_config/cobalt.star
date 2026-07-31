@@ -19,6 +19,11 @@ def __platform_properties(ctx):
             "container-image": container_image,
             "label:action_default": "1",
         },
+        "large": {
+            "OSFamily": "Linux",
+            "container-image": container_image,
+            "label:action_default": "1",
+        },
     }
 
 backend = module(

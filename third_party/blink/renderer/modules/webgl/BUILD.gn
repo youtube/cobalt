@@ -205,17 +205,13 @@ blink_modules_sources("webgl") {
     "//third_party/blink/renderer/modules/xr:xr",
     "//ui/gl:gl",
   ]
-<<<<<<< HEAD
   if (use_static_angle) {
     deps += [ "//third_party/angle:libGLESv2_thin_static" ]
   }
-=======
 
   if (is_cobalt) {
     deps -= [ "//third_party/blink/renderer/modules/xr:xr" ]
   }
-
->>>>>>> parent of 2f36891edfc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   allow_circular_includes_from = deps
 
   if (is_cobalt && use_starboard_media) {
