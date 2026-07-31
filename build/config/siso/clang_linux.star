@@ -18,12 +18,12 @@ def __filegroups(ctx):
     fg = {
         "third_party/android_toolchain/ndk/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include:include": {
             "type": "glob",
-            "includes": ["*/*/*/*", "*/*/*", "*/*", "*"],
+            "includes": ["*"],
             # can't use "*.h", because c++ headers have no extension.
         },
         "third_party/android_toolchain/ndk/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/local/include:include": {
             "type": "glob",
-            "includes": ["*/*/*/*", "*/*/*", "*/*", "*"],
+            "includes": ["*"],
         },
         "third_party/llvm-build/Release+Asserts/bin:llddeps": {
             "type": "glob",
@@ -52,7 +52,7 @@ def __filegroups(ctx):
             # for precomputed subtrees
             "build/linux/debian_bullseye_%s-sysroot/usr/include:include" % cpu: {
                 "type": "glob",
-                "includes": ["*/*/*/*", "*/*/*", "*/*", "*"],
+                "includes": ["*"],
                 # need bits/stab.def, c++/*
             },
             "build/linux/debian_bullseye_%s-sysroot/usr/lib:headers" % cpu: {
