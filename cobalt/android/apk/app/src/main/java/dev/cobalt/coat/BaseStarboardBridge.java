@@ -208,9 +208,10 @@ public class BaseStarboardBridge {
     if (mApplicationStopped) {
       // We can't restart the starboard app, so kill the process for a clean start next time.
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
+      BaseStarboardBridgeJni.get().closeNativeStarboard(mNativeApp);
       mTtsHelper.shutdown();
       mAdvertisingId.shutdown();
-      BaseStarboardBridgeJni.get().closeNativeStarboard(mNativeApp);
+      System.exit(0);
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
     }
@@ -287,6 +288,7 @@ public class BaseStarboardBridge {
   }
 
   /* Immediate shutdown, used at least by StandalonePlayerActivity. */
+  @CalledByNative
   public void requestStop(int errorLevel) {
     applicationStopping();
     Activity activity = mActivityHolder.get();

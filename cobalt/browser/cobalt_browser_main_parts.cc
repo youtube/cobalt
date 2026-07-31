@@ -27,6 +27,7 @@
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/switches.h"
@@ -234,33 +235,17 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   CHECK(client) << "CobaltContentBrowserClient::Get() returned NULL in "
                 << "PreMainMessageLoopRun!";
   client->SetUserAgentCrashAnnotation();
-
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 #if BUILDFLAG(USE_EVERGREEN)
-  // TODO: b/528362453 - This startup extension query is for debugging and to
-  // serve as an example of how to invoke the NativeStability extension.
-  // Remove this block once the NativeStabilityManager singleton is added to
-  // the browser to query the extension to respond to web app requests.
-  auto native_stability_extension =
-      static_cast<const StarboardExtensionNativeStabilityApi*>(
-          SbSystemGetExtension(kStarboardExtensionNativeStabilityName));
-  if (native_stability_extension && native_stability_extension->version >= 1 &&
-      native_stability_extension->ReadReports) {
-    constexpr int max_num_reports = 16;  // A somewhat arbitrary, large number
-    SbNativeStabilityReport reports[max_num_reports];
-    int count =
-        native_stability_extension->ReadReports(reports, max_num_reports);
-    LOG(INFO) << "=== NativeStability extension query at startup returned "
-              << count << " reports ===";
-    for (int i = 0; i < count; ++i) {
-      LOG(INFO) << "Report [" << i
-                << "]: event_uuid=" << reports[i].native_stability_event_uuid
-                << ", event_time_s=" << reports[i].event_time_s
-                << ", type=" << static_cast<int>(reports[i].report_type);
-    }
-  }
-#endif
+  // It would probably be harmless but confusing to add this annotation on
+  // platforms that do not support native stability tracking.
+
+  // TODO: b/528362453 - Consider moving this to an earlier startup stage (e.g.
+  // PreEarlyInitialization) to ensure early startup crashes are also tagged.
+  h5vcc_native_stability::NativeStabilityManager::GetInstance()
+      ->ArmCrashUuidAnnotation();
+#endif  // BUILDFLAG(USE_EVERGREEN)
 
   int result = ShellBrowserMainParts::PreMainMessageLoopRun();
 

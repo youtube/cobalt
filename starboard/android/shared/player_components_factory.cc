@@ -31,6 +31,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
@@ -59,6 +60,29 @@ using features::FeatureList;
 using jni_zero::AttachCurrentThread;
 
 constexpr int kAndroidApiLevelU = 34;
+
+bool IsFeatureEnabledOrDefaultOnAndroidU(
+    const SbFeature& feature,
+    const ExperimentalFeatures& experimental_features,
+    const ExperimentalFeatureKey<bool>& experimental_feature_key) {
+  return android_get_device_api_level() >= kAndroidApiLevelU ||
+         FeatureList::IsEnabled(feature) ||
+         experimental_features.GetBool(experimental_feature_key);
+}
+
+bool ShouldEnableFlushDuringSeek(
+    const ExperimentalFeatures& experimental_features) {
+  return IsFeatureEnabledOrDefaultOnAndroidU(
+      features::kForceFlushDecoderDuringReset, experimental_features,
+      kMediaEnableFlushDuringSeek);
+}
+
+bool ShouldEnableResetAudioDecoder(
+    const ExperimentalFeatures& experimental_features) {
+  return IsFeatureEnabledOrDefaultOnAndroidU(features::kForceResetAudioDecoder,
+                                             experimental_features,
+                                             kMediaEnableResetAudioDecoder);
+}
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
@@ -328,11 +352,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       }
     }
 
-    bool enable_flush_during_seek =
-        android_get_device_api_level() >= kAndroidApiLevelU ||
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.experimental_features().GetBool(
-            kMediaEnableFlushDuringSeek);
+    bool enable_flush_during_seek = ShouldEnableFlushDuringSeek(
+        creation_parameters.experimental_features());
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       auto video_mime_type = MimeType::Create(creation_parameters.video_mime());
@@ -466,9 +487,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     const auto& experimental_features =
         creation_parameters.experimental_features();
     bool enable_reset_audio_decoder =
-        android_get_device_api_level() >= kAndroidApiLevelU ||
-        FeatureList::IsEnabled(features::kForceResetAudioDecoder) ||
-        experimental_features.GetBool(kMediaEnableResetAudioDecoder) ||
+        ShouldEnableResetAudioDecoder(experimental_features) ||
         (video_mime_type &&
          video_mime_type->GetParamBoolValue("enableresetaudiodecoder", false));
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
@@ -481,9 +500,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << ".";
 
     bool enable_flush_during_seek =
-        android_get_device_api_level() >= kAndroidApiLevelU ||
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
-        experimental_features.GetBool(kMediaEnableFlushDuringSeek) ||
+        ShouldEnableFlushDuringSeek(experimental_features) ||
         (video_mime_type &&
          video_mime_type->GetParamBoolValue("enableflushduringseek", false));
     SB_LOG_IF(INFO, enable_flush_during_seek)
@@ -599,9 +616,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
-        android_get_device_api_level() >= kAndroidApiLevelU ||
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
-        experimental_features.GetBool(kMediaEnableFlushDuringSeek);
+        ShouldEnableFlushDuringSeek(experimental_features);
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
 
