@@ -23,6 +23,8 @@ declare_args() {
 config("global_defines_shared") {
   defines = [
     "CHROMIUM_MILESTONE=$chromium_milestone",
+
+    # TODO(b/541359793): Change these macros to target an accurate milestone.
     "CHROMIUM_MILESTONE_LE_138=true",
   ]
   if (enable_privacy_sandbox_apis) {

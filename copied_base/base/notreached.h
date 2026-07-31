@@ -9,6 +9,7 @@
 #include "base/check.h"
 #include "base/dcheck_is_on.h"
 #include "base/logging_buildflags.h"
+#include "base/notimplemented.h"
 
 namespace logging {
 
@@ -50,8 +51,6 @@ namespace logging {
 #define NOTREACHED_NORETURN() \
   (true) ? ::logging::NotReachedFailure() : EAT_CHECK_STREAM_PARAMS()
 #endif
-
-#include "base/notimplemented.h"
 
 }  // namespace logging
 
