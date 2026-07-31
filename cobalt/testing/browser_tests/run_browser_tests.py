@@ -31,13 +31,13 @@ import subprocess
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 
 class CobaltTestRunner:
   """Manages listing, sharding, executing, and reporting browser tests."""
 
-  def __init__(self, args: argparse.Namespace, unknown_args: List[str]):
+  def __init__(self, args: argparse.Namespace, unknown_args: list[str]):
     """Initializes the test runner.
 
     Args:
@@ -226,7 +226,7 @@ class CobaltTestRunner:
       logging.error("Failed to list tests: Binary not found at %s", self.binary)
       sys.exit(1)
 
-  def _get_sort_key(self, test_name: str) -> Tuple[str, int]:
+  def _get_sort_key(self, test_name: str) -> tuple[str, int]:
     """Generates a key for sorting tests, prioritizing PRE_ tests."""
     parts = test_name.split(".", 1)
     if len(parts) != 2:
@@ -246,7 +246,7 @@ class CobaltTestRunner:
     """
     return bool(re.match(r"^[A-Za-z0-9_/.,=()<>]+$", name))
 
-  def parse_and_sort_tests(self, gtest_list_output: str) -> List[str]:
+  def parse_and_sort_tests(self, gtest_list_output: str) -> list[str]:
     """Parses the output of --gtest_list_tests and sorts test names."""
     tests = []
     current_suite = None
@@ -277,7 +277,7 @@ class CobaltTestRunner:
     tests.sort(key=self._get_sort_key)
     return tests
 
-  def filter_tests_for_shard(self, tests: List[str]) -> List[str]:
+  def filter_tests_for_shard(self, tests: list[str]) -> list[str]:
     """Filters the list of tests based on the current shard index."""
     return [
         test for i, test in enumerate(tests)
@@ -305,7 +305,7 @@ class CobaltTestRunner:
       logging.error("Error initializing XML file %s: %s", self.xml_output_file,
                     e)
 
-  def _run_command_and_tee(self, cmd: List[str], env: Dict[str, str],
+  def _run_command_and_tee(self, cmd: list[str], env: dict[str, str],
                            log_file_path: str) -> int:
     """Runs a command and tees its stdout/stderr to console and a log file."""
     env_copy = env.copy()
@@ -329,7 +329,7 @@ class CobaltTestRunner:
         return proc.returncode
 
   def _run_single_test(self, test_name: str,
-                       test_idx: int) -> Tuple[int, Optional[str]]:
+                       test_idx: int) -> tuple[int, Optional[str]]:
     """Executes a single test case."""
     cmd = [
         self.binary,
@@ -435,39 +435,17 @@ class CobaltTestRunner:
     except Exception as e:
       logging.error("Error writing final XML: %s", e)
 
-  def _write_milestone(self, filename: str, content: str = ""):
-    """Writes a milestone file into the XML output directory so MH pulls it."""
-    out_dir = (
-        os.path.dirname(self.xml_output_file)
-        if self.xml_output_file else "/data/test/results")
-    try:
-      os.makedirs(out_dir, exist_ok=True)
-      with open(os.path.join(out_dir, filename), "w", encoding="utf-8") as f:
-        f.write(content)
-    except Exception as e:  # pylint: disable=broad-exception-caught
-      logging.warning("Could not write milestone %s: %s", filename, e)
-
   def run(self) -> int:
     """Runs the test execution process.
 
     Returns:
         The number of failed tests.
     """
-    self._write_milestone(
-        "01_runner_started.txt",
-        f"Binary: {self.binary}\nFilter: {self.args.gtest_filter}\n",
-    )
     self._initialize_xml()
 
     gtest_list_output = self.list_tests()
     all_tests = self.parse_and_sort_tests(gtest_list_output)
     tests_to_run = self.filter_tests_for_shard(all_tests)
-
-    self._write_milestone(
-        "02_list_tests_done.txt",
-        f"Total: {len(all_tests)}, To Run: {len(tests_to_run)}\n\n"
-        f"{gtest_list_output}\n",
-    )
 
     logging.info(
         "Shard %d/%d: Running %d tests.",
@@ -480,7 +458,6 @@ class CobaltTestRunner:
     failed_count = 0
 
     for i, test in enumerate(tests_to_run):
-      self._write_milestone(f"03_running_test_{i + 1}.txt", f"Test: {test}\n")
       logging.info("[%d/%d] RUNNING: %s", i + 1, len(tests_to_run), test)
       retcode, temp_xml_path = self._run_single_test(test, i)
 
@@ -490,11 +467,6 @@ class CobaltTestRunner:
       else:
         logging.error("[FAILED] %s (Exit Code: %d)", test, retcode)
         failed_count += 1
-
-      self._write_milestone(
-          f"04_finished_test_{i + 1}.txt",
-          f"Test: {test}, Exit Code: {retcode}\n",
-      )
 
       if self.xml_output_file:
         self._merge_test_xml(test, temp_xml_path)
@@ -509,7 +481,7 @@ class CobaltTestRunner:
     return failed_count
 
 
-def parse_args() -> Tuple[argparse.Namespace, List[str]]:
+def parse_args() -> tuple[argparse.Namespace, list[str]]:
   """Parses command line arguments."""
   parser = argparse.ArgumentParser(
       description="Cobalt Browser Test Runner Helper", add_help=False)

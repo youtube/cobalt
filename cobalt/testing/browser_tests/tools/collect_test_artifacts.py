@@ -46,7 +46,8 @@ def find_runtime_deps(build_dir):
     return Path(exact_deps_file)
 
   # Check for _loader variant
-  loader_deps_file = os.path.join(build_dir, 'cobalt_browsertests_loader.runtime_deps')
+  loader_deps_file = os.path.join(build_dir,
+                                  'cobalt_browsertests_loader.runtime_deps')
   if os.path.isfile(loader_deps_file):
     return Path(loader_deps_file)
 
