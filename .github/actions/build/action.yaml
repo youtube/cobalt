@@ -128,13 +128,7 @@ runs:
           set -ex
           cd cobalt/src
           test_targets=$(echo '${{ steps.calculate-test-targets.outputs.test_targets_json }}' | jq -cr 'join(" ")')
-          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets} || {
-            echo "=== siso_failed_commands.sh ==="
-            cat out/${{ matrix.platform }}_${{ matrix.config }}/siso_failed_commands.sh || true
-            echo "=== siso_output ==="
-            cat out/${{ matrix.platform }}_${{ matrix.config }}/siso_output || true
-            exit 1
-          }
+          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
         shell: bash
       - name: Ninja build
         env:
@@ -144,13 +138,7 @@ runs:
           set -ex
           cd cobalt/src
           TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
-          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS} || {
-            echo "=== siso_failed_commands.sh ==="
-            cat out/${{ matrix.platform }}_${{ matrix.config }}/siso_failed_commands.sh || true
-            echo "=== siso_output ==="
-            cat out/${{ matrix.platform }}_${{ matrix.config }}/siso_output || true
-            exit 1
-          }
+          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
           if [[ $USE_SCCACHE == "true" ]]; then
             sccache --show-stats
           fi
