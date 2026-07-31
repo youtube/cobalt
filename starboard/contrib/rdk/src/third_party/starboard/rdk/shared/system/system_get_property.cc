@@ -61,7 +61,7 @@ bool CopyStringAndTestIfSuccess(char* out_value,
   return true;
 }
 
-bool TryReadFromPropertiesFile(const char* prefix, size_t prefix_len, char* out_value, size_t value_length) {
+bool TryReadFromPropertiesFile(const char* prefix, size_t prefix_len, char* out_value, size_t value_length, bool upper_case = true) {
   FILE* properties = fopen("/etc/device.properties", "r");
   if (!properties) {
     return false;
@@ -77,12 +77,17 @@ bool TryReadFromPropertiesFile(const char* prefix, size_t prefix_len, char* out_
       size_t remainder_length = strlen(remainder);
       if (remainder_length > 1 && remainder_length < value_length) {
         // trim the newline character
-        for(int i = remainder_length - 1; i >= 0 && !std::isalnum(remainder[i]); --i)
+        for(int i = remainder_length - 1; i >= 0 && !std::isalnum(remainder[i]); --i) {
           remainder[i] = '\0';
-        std::transform(
-          remainder, remainder + remainder_length - 1, remainder,
-          [](unsigned char c) -> unsigned char { return toupper(c); } );
-        starboard::strlcpy<char>(out_value, remainder, remainder_length);
+          remainder_length--;
+        }
+        if (upper_case) {
+          std::transform(
+            // remainder_length ensures any line is correct, including last line without newline
+            remainder, remainder + remainder_length, remainder,
+            [](unsigned char c) -> unsigned char { return std::toupper(c); } );
+        }
+        starboard::strlcpy<char>(out_value, remainder, value_length);
         result = true;
         break;
       }
@@ -211,6 +216,12 @@ bool GetFirmwareVersion(char* out_value, int value_length) {
 }
 
 bool GetCertificationScope(char* out_value, int value_length) {
+  const char kPrefixStr[] = "CERT_SCOPE=";
+  const size_t kPrefixStrLength = SB_ARRAY_SIZE(kPrefixStr) - 1;
+  if (TryReadFromPropertiesFile(kPrefixStr, kPrefixStrLength, out_value, value_length, false) && out_value[0] != '\0') {
+    return true;
+  }
+
   const char *cert_scope_file_name = std::getenv("COBALT_CERT_SCOPE_FILE_NAME");
   if ( cert_scope_file_name == nullptr )
     cert_scope_file_name = "/opt/drm/0681000006810001.bin";
