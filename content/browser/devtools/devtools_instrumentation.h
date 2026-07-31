@@ -214,7 +214,6 @@ void OnAuctionWorkletNetworkRequestComplete(
     const std::string& request_id,
     const network::URLLoaderCompletionStatus& status);
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 bool NeedInterestGroupAuctionEvents(FrameTreeNodeId frame_tree_node_id);
 
 void OnInterestGroupAuctionEventOccurred(
@@ -229,7 +228,6 @@ void OnInterestGroupAuctionNetworkRequestCreated(
     InterestGroupAuctionFetchType type,
     const std::string& request_id,
     const std::vector<std::string>& devtools_auction_ids);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 bool ShouldBypassCSP(const NavigationRequest& nav_request);
 bool ShouldBypassCertificateErrors();

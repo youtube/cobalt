@@ -19,6 +19,10 @@
 #include <semaphore.h>
 #endif
 
+#if V8_OS_STARBOARD
+#include "starboard/common/semaphore.h"
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -59,6 +63,8 @@ class V8_BASE_EXPORT Semaphore {
   using NativeHandle = sem_t;
 #elif V8_OS_WIN
   using NativeHandle = HANDLE;
+#elif V8_OS_STARBOARD
+  using NativeHandle = starboard::Semaphore;
 #endif
 
   NativeHandle& native_handle() {

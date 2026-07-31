@@ -93,10 +93,6 @@ struct ProcessMemoryInfo {
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_COBALT)
-  uint64_t vm_size_bytes = 0;
-#endif  // BUILDFLAG(IS_COBALT)
-
 #if BUILDFLAG(IS_WIN)
   uint64_t private_bytes = 0;
 #endif  // BUILDFLAG(IS_WIN)
