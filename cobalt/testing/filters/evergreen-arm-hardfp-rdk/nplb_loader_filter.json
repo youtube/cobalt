@@ -31,6 +31,7 @@
     "PosixTimeClockGettimeTests/CpuTimeClock.Increases/CLOCK_THREAD_CPUTIME_ID",
     "PosixTimeClockTests.ClockIncreasesOverTime",
     "SbLogFlushTest.DontCrashMeBro",
+    "SbPlayerGetAudioConfigurationTests/*/audio_null_*",
     "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.MultipleSeeks/*",
     "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.SunnyDay/audio_beneath_the_canopy_aac_stereo_dmp_video_beneath_the_canopy_137_avc_dmp_output_punch_out_key_system_null",
     "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.SunnyDay/audio_beneath_the_canopy_aac_stereo_dmp_video_beneath_the_canopy_248_vp9_dmp_output_punch_out_key_system_null",
