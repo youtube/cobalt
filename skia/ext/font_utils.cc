@@ -90,6 +90,7 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
         return SkFontMgr_New_Android(&custom_fonts);
       }
     }
+  }
 #endif // BUILDFLAG (IS_COBALT)
   if (base::FeatureList::IsEnabled(skia::kFontationsAndroidSystemFonts)) {
     return SkFontMgr_New_Android(nullptr, SkFontScanner_Make_Fontations());
