@@ -168,9 +168,9 @@ class CONTENT_EXPORT StoragePartition {
   virtual ZoomLevelDelegate* GetZoomLevelDelegate() = 0;
   virtual PlatformNotificationContext* GetPlatformNotificationContext() = 0;
   virtual InterestGroupManager* GetInterestGroupManager() = 0;
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   virtual BrowsingTopicsSiteDataManager* GetBrowsingTopicsSiteDataManager() = 0;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   virtual AttributionDataModel* GetAttributionDataModel() = 0;
   virtual PrivateAggregationDataModel* GetPrivateAggregationDataModel() = 0;
   virtual CookieDeprecationLabelManager* GetCookieDeprecationLabelManager() = 0;
