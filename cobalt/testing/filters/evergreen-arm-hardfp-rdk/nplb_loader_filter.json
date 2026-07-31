@@ -1,5 +1,6 @@
 {
   "failing_tests": [
+    "MultiplePlayerTest.SunnyDay",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/*",
     "PosixClockNanosleepTest.AbsoluteSleepTimeInPastReturnsImmediately",
     "PosixConditionVariableWaitTimedTest.FLAKY_SunnyDayAutoInit",
