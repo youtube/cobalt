@@ -140,16 +140,6 @@
     <family pages="0">
         <font weight="400" style="normal">Roboto-Regular.ttf</font>
     </family>
-    <!-- Alias generic families to sans-serif to prevent missing OS font lookups -->
-    <alias name="serif" to="sans-serif" />
-    <alias name="fantasy" to="sans-serif" />
-    <alias name="monospace" to="sans-serif" />
-    <alias name="sans-serif-monospace" to="sans-serif" />
-    <alias name="serif-monospace" to="sans-serif" />
-    <alias name="casual" to="sans-serif" />
-    <alias name="cursive" to="sans-serif" />
-    <alias name="sans-serif-smallcaps" to="sans-serif" />
-
     <!-- fallback fonts -->
     <!-- "Noto Naskh Arabic UI" is given a fallback priority so that, in spite
          of having a name, it will still be included as a fallback font.
