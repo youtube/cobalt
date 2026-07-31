@@ -19,6 +19,7 @@
 #include <string_view>
 
 #include "base/feature_list.h"
+#include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
 #include "base/sequence_checker.h"

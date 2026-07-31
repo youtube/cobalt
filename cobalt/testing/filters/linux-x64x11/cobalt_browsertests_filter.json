@@ -16,6 +16,7 @@
     "NavigationBaseBrowserTest.AddRequestHeaderModifyOnRedirect",
     "NavigationBaseBrowserTest.AddRequestHeaderOnRedirect",
     "NavigationBaseBrowserTest.ReplacingDocumentLoaderFiresLoadEvent",
+    "NavigationBaseBrowserTest.SrcDocCSPInheritedAfterCrossSiteHistoryNavigation",
     "NavigationBaseBrowserTest.SrcDocCSPInheritedAfterSameSiteHistoryNavigation",
     "NavigationBrowserTest*",
     "NavigationCookiesBrowserTest*",

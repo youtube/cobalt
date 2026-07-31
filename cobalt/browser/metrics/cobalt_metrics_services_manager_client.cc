@@ -17,6 +17,7 @@
 #include <memory>
 
 #include "base/command_line.h"
+#include "base/notimplemented.h"
 #include "base/path_service.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"

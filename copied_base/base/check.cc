@@ -183,6 +183,12 @@ CheckError CheckError::NotImplemented(const char* file,
   return CheckError(log_message);
 }
 
+CheckError CheckError::NotImplemented(const char* function) {
+  auto* const log_message = new LogMessage(__FILE__, __LINE__, LOGGING_ERROR);
+  log_message->stream() << "Not implemented reached in " << function;
+  return CheckError(log_message);
+}
+
 std::ostream& CheckError::stream() {
   return log_message_->stream();
 }
