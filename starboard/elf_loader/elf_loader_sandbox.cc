@@ -30,6 +30,9 @@
 #include "starboard/event.h"
 
 #if BUILDFLAG(IS_ANDROID)
+// gn check does not honour the #if; the config that permits this internal
+// header is Android-only, see starboard/elf_loader/BUILD.gn.
+#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"  // nogncheck
 #include "starboard/shared/starboard/features_test_util.h"
 #endif
 
@@ -151,6 +154,9 @@ int main(int argc, char** argv) {
   // The evergreen inner library's static initializers query Starboard
   // features, so seed the FeatureList with defaults before it is loaded.
   starboard::features::InitializeStarboardFeatureListWithDefaults();
+  // TODO(b/532068409): move this to SbRunStarboardMain(), like X11, Darwin and
+  // RDK, to keep the loader free of audio initialization.
+  starboard::SbAudioSinkImpl::Initialize();
 #endif  // BUILDFLAG(IS_ANDROID)
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }

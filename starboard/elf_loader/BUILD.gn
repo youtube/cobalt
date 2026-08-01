@@ -88,6 +88,10 @@ if (current_toolchain == starboard_toolchain) {
 
     if (is_android) {
       deps += [ "//starboard/android/shared:test_support" ]
+
+      # Lets elf_loader_sandbox.cc include the internal audio_sink header to
+      # create the platform audio sink.
+      extra_configs += [ "//starboard/build/config:starboard_implementation" ]
     } else {
       data_deps = [ "//starboard/content/fonts:copy_font_data" ]
     }

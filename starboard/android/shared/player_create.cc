@@ -16,6 +16,7 @@
 #include "starboard/player.h"
 // clang-format on
 
+#include <mutex>
 #include <string>
 #include <utility>
 
@@ -27,6 +28,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
@@ -44,6 +46,20 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
   // Lazy initialization of media specific event tracing.  See comment in
   // EnsureMediaTracingIsInitialized() for limitations.
   EnsureMediaTracingIsInitialized();
+
+  // Lazily initialize the platform audio sink. On Android TV the sink is
+  // brought up from Java at startup (initializePlatformAudioSink), but the AOSP
+  // app does not, which left AudioTrackAudioSinkType uninitialized and
+  // SbAudioSinkGetMinBufferSizeInFrames aborting during player creation
+  //
+  // TODO(b/532068409): create it in SbRunStarboardMain() instead, like X11,
+  // Darwin and RDK.
+  static std::once_flag audio_sink_once_flag;
+  std::call_once(audio_sink_once_flag, [] {
+    if (!starboard::SbAudioSinkImpl::GetPrimaryType()) {
+      starboard::SbAudioSinkImpl::Initialize();
+    }
+  });
 
   if (!player_error_func) {
     SB_LOG(ERROR) << "|player_error_func| cannot be null.";
