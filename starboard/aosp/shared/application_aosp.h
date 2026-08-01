@@ -74,6 +74,10 @@ class ApplicationAOSP : public QueueApplication {
                       int meta_state);
 
  protected:
+  // Creates the platform audio sink. Android TV does it from the
+  // CobaltActivity, which AOSP doesn't have.
+  void Initialize() override;
+
   // AOSP has no native event queue for the to poll, Android delivers
   // key events to the Activity and MainActivity forwards them over JNI
   // to Inject()

@@ -24,6 +24,7 @@
 #include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/window.h"
 
 namespace starboard {
@@ -48,6 +49,10 @@ unsigned int MetaStateToSbKeyModifiers(int meta_state) {
 }
 
 }  // namespace
+
+void ApplicationAOSP::Initialize() {
+  SbAudioSinkImpl::Initialize();
+}
 
 SbWindow ApplicationAOSP::CreateWindow(const SbWindowOptions* /*options*/) {
   ANativeWindow* native_window = android::shared::AcquireWindowSurface();
