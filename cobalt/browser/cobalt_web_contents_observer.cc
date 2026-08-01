@@ -16,12 +16,15 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
 #include "cobalt/build/configs/buildflags.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
@@ -139,6 +142,9 @@ void CobaltWebContentsObserver::DidStartNavigation(
     return;
   }
 
+  // Cancel any pending memory reclaim timer when a new navigation starts.
+  memory_reclaim_timer_.Stop();
+
   latest_navigation_id_ = handle->GetNavigationId();
 
   // Start a navigation timer with a timeout callback to raise a
@@ -184,7 +190,41 @@ void CobaltWebContentsObserver::DidFinishNavigation(
 #if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_STARBOARD)
     platform_error_raised_count_ = 0;
 #endif
+    // Schedule a debounced one-shot memory reclaim task 10 seconds after a
+    // successful primary main frame navigation settles. This catches SPA view
+    // transitions (e.g., Browse->Watch) after initial player buffering completes.
+    memory_reclaim_timer_.Start(
+        FROM_HERE, base::Seconds(10),
+        base::BindOnce(&CobaltWebContentsObserver::TriggerMemoryReclaim,
+                       weak_factory_.GetWeakPtr()));
   }
+}
+
+void CobaltWebContentsObserver::DocumentOnLoadCompletedInPrimaryMainFrame() {
+  // After primary main frame onload completes (all startup subresources,
+  // scripts, and images are loaded), schedule or debounce a memory reclaim task
+  // 10 seconds out to purge startup initialization and GraphQL Wave-2 garbage.
+  memory_reclaim_timer_.Start(
+      FROM_HERE, base::Seconds(10),
+      base::BindOnce(&CobaltWebContentsObserver::TriggerMemoryReclaim,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void CobaltWebContentsObserver::TriggerMemoryReclaim() {
+  const base::TimeTicks now = base::TimeTicks::Now();
+  if (!last_reclaim_time_.is_null() &&
+      (now - last_reclaim_time_) < base::Seconds(15)) {
+    LOG(INFO) << "Delaying memory reclaim to respect 15s cooldown period.";
+    memory_reclaim_timer_.Start(
+        FROM_HERE, base::Seconds(15) - (now - last_reclaim_time_),
+        base::BindOnce(&CobaltWebContentsObserver::TriggerMemoryReclaim,
+                       weak_factory_.GetWeakPtr()));
+    return;
+  }
+  last_reclaim_time_ = now;
+  LOG(INFO) << "Triggering recurring memory reclaim after navigation/onload.";
+  base::MemoryPressureListener::NotifyMemoryPressure(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
 }
 
 void CobaltWebContentsObserver::OnVisibilityChanged(
