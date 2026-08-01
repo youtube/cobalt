@@ -3771,6 +3771,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   EXPECT_EQ(named_frame_url, foo_root->current_url());
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 class SitePerProcessFencedFrameTest : public SitePerProcessBrowserTestBase {
  public:
   SitePerProcessFencedFrameTest() {
@@ -3855,6 +3856,7 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessFencedFrameTest,
                    ->browsing_context_state()
                    ->GetRenderFrameProxyHost(embedder_site_instance->group()));
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 // Similar to DiscoverNamedFrameFromAncestorOfOpener, but check that if a
 // window is created without a name and acquires window.name later, it will
