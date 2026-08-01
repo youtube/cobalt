@@ -41,8 +41,27 @@ PERFETTO_DEFINE_CATEGORIES(perfetto::Category("starboard"));
 // I would limit the scope to media for now, and expand its scope when needed.
 inline void EnsureMediaTracingIsInitialized() {
   static std::once_flag s_once_flag;
-  std::call_once(s_once_flag,
-                 []() { starboard_tracing::TrackEvent::Register(); });
+  std::call_once(s_once_flag, []() {
+    // Ensure that the module that registers the data source initializes the
+    // client library. Cobalt initializes it in
+    // PerfettoTracedProcess::SetupClientLibrary(), but this doesn't help the
+    // evergreen native loader or the nplb sandbox. For those targets the
+    // client library wasn't initialized and until
+    // perfetto::Tracing::Initialize() is called, TracingMuxer is still a
+    // TracingMuxerFake; TracingMuxerFake calls FailUninitialized() on its
+    // methods, which logs and traps, crashing nplb/the loader.
+    // TODO(b/532068409): This fixes this crash but for evergreen two
+    // muxers/tracing sessions will be active, meaning that native media events
+    // won't show up in chromium traces. This needs a follow-up for the
+    // underlying issue: the perfetto client is statically linked for each
+    // target that uses it and the initialization state isn't shared.
+    if (!perfetto::Tracing::IsInitialized()) {
+      perfetto::TracingInitArgs args;
+      args.backends = perfetto::kInProcessBackend;
+      perfetto::Tracing::Initialize(args);
+    }
+    starboard_tracing::TrackEvent::Register();
+  });
 }
 
 class MediaEventTracer {
