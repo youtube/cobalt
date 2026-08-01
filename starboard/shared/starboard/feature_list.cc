@@ -54,7 +54,7 @@ void FeatureList::InitializeFeatureList(const SbFeature* features,
   SB_CHECK(instance)
       << "Starboard FeatureList Instance has not been initialized.";
 
-  std::lock_guard lock(instance->mutex_);
+  std::unique_lock lock(instance->mutex_);
 
   // Store the updated features inside of our instance's feature map.
   for (size_t i = 0; i < number_of_features; i++) {
@@ -115,6 +115,38 @@ void FeatureList::InitializeFeatureList(const SbFeature* features,
         std::make_pair(param.type, value);
   }
   instance->is_initialized_ = true;
+
+  // The callbacks may read features, so run them with mutex_ released.
+  lock.unlock();
+  instance->CallFeaturesInitializedCallbacks();
+}
+
+// static
+void FeatureList::RegisterFeaturesInitializedCallback(
+    FeaturesInitializedCallback callback) {
+  FeatureList* instance = GetInstance();
+  {
+    std::lock_guard lock(instance->mutex_);
+    if (!instance->IsInitialized()) {
+      std::lock_guard callbacks_lock(instance->callbacks_mutex_);
+      instance->features_initialized_callbacks_.push_back(callback);
+      return;
+    }
+  }
+  callback();
+}
+
+void FeatureList::CallFeaturesInitializedCallbacks() {
+  // Move the callbacks out so that each one runs at most once and
+  // callbacks_mutex_ is not held while they run.
+  std::vector<FeaturesInitializedCallback> callbacks;
+  {
+    std::lock_guard lock(callbacks_mutex_);
+    callbacks.swap(features_initialized_callbacks_);
+  }
+  for (size_t i = 0; i < callbacks.size(); ++i) {
+    callbacks[i]();
+  }
 }
 
 void FeatureList::ValidateParam(const std::string& feature_name,

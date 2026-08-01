@@ -93,6 +93,23 @@ const SbFeatureParam kParams[] = {
     CreateTimeParam("ParamTime", 123456789),
 };
 
+int g_callback_before_init_count = 0;
+void CallbackBeforeInit() {
+  ++g_callback_before_init_count;
+}
+
+struct RegisterBeforeInit {
+  RegisterBeforeInit() {
+    FeatureList::RegisterFeaturesInitializedCallback(&CallbackBeforeInit);
+  }
+};
+const RegisterBeforeInit g_register_before_init;
+
+int g_callback_after_init_count = 0;
+void CallbackAfterInit() {
+  ++g_callback_after_init_count;
+}
+
 }  // namespace
 
 class StarboardFeatureListTest : public ::testing::Test {
@@ -102,6 +119,26 @@ class StarboardFeatureListTest : public ::testing::Test {
                                        std::size(kParams));
   }
 };
+
+TEST_F(StarboardFeatureListTest, CallbackRegisteredBeforeInitializationIsRun) {
+  EXPECT_EQ(g_callback_before_init_count, 1);
+}
+
+TEST_F(StarboardFeatureListTest, CallbackRegisteredAfterInitializationRunsNow) {
+  const int count_before = g_callback_after_init_count;
+  FeatureList::RegisterFeaturesInitializedCallback(&CallbackAfterInit);
+  // The features are already initialized, so the callback must have run
+  // synchronously on this thread.
+  EXPECT_EQ(g_callback_after_init_count, count_before + 1);
+}
+
+TEST_F(StarboardFeatureListTest, CallbackCanReadFeatures) {
+  // Callbacks run with mutex_ released, so reading a feature from one must
+  // not deadlock.
+  FeatureList::RegisterFeaturesInitializedCallback([] {
+    EXPECT_TRUE(FeatureList::IsEnabled(kStarboardFeatureTestEnabled));
+  });
+}
 
 TEST_F(StarboardFeatureListTest, CanAccessFeatures) {
   EXPECT_TRUE(FeatureList::IsEnabled(kStarboardFeatureTestEnabled));

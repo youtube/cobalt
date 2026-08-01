@@ -22,6 +22,7 @@
 #include <unordered_map>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "starboard/extension/features.h"
 
@@ -35,6 +36,8 @@ class FeatureList {
   typedef std::pair<SbFeatureParamType, ParamValue> ParamTypeAndValue;
 
  public:
+  typedef void (*FeaturesInitializedCallback)(void);
+
   // Initialize the FeatureList instance with the received features and
   // parameters from the Cobalt side. When this function is completed,
   // |is_initialized_| will be set to true.
@@ -42,6 +45,12 @@ class FeatureList {
                                     size_t number_of_features,
                                     const SbFeatureParam* params,
                                     size_t number_of_params);
+
+  // Registers a callback that will be called once the features and
+  // parameters have been initialized. If they already are, the callback is
+  // called immediately. Each callback runs at most once.
+  static void RegisterFeaturesInitializedCallback(
+      FeaturesInitializedCallback callback);
 
   // Check to see if the given SbFeature is enabled or not.
   static bool IsEnabled(const SbFeature& feature);
@@ -104,10 +113,21 @@ class FeatureList {
   // FeatureList is accessed before it is initialized, the app will crash.
   bool IsInitialized() { return is_initialized_; }
 
+  // Calls, and then forgets, every callback registered with
+  // RegisterFeaturesInitializedCallback().
+  void CallFeaturesInitializedCallbacks();
+
   // Mutex to ensure that in the rare chance that the FeatureList is
   // being accessed while it is initializing, we can let the instance
   // fully initialize before being accessed.
   std::mutex mutex_;
+
+  // Protects features_initialized_callbacks_. Kept separate from mutex_ so
+  // the callbacks can run without the FeatureList locked.
+  std::mutex callbacks_mutex_;
+
+  std::vector<FeaturesInitializedCallback>
+      features_initialized_callbacks_;  // Guarded by |callbacks_mutex_|.
 
   // Starboard features will be stored in an std::unordered_map, where the keys
   // are the string representations of the features, and the values are the

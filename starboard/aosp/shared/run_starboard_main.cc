@@ -15,6 +15,21 @@
 #include <stdint.h>
 
 #include "starboard/event.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/feature_list.h"
+
+namespace {
+
+// Creates the platform audio sink. Deferred until the Starboard FeatureList is
+// populated because the sink's min-required-frames probe reads
+// kReleaseVideoFramesAfterAudioStarts.
+void OnStarboardFeaturesInitialized() {
+  if (!starboard::SbAudioSinkImpl::GetPrimaryType()) {
+    starboard::SbAudioSinkImpl::Initialize();
+  }
+}
+
+}  // namespace
 
 extern "C" void SbEventCancel(SbEventId /*event_id*/) {}
 
@@ -27,6 +42,9 @@ extern "C" SbEventId SbEventSchedule(SbEventCallback /*callback*/,
 extern "C" SB_EXPORT int SbRunStarboardMain(int argc,
                                             char** argv,
                                             SbEventHandleCallback callback) {
+  starboard::features::FeatureList::RegisterFeaturesInitializedCallback(
+      &OnStarboardFeaturesInitialized);
+
   SbEventStartData start_data = {};
   start_data.argument_values = argv;
   start_data.argument_count = argc;
