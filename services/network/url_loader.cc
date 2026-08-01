@@ -640,7 +640,7 @@ void URLLoader::ProcessOutboundTrustTokenInterceptor(
   // If no Trust Token parameters are specified, proceed to the next
   // interceptor.
   if (!request.trust_token_params) {
-    ProcessOutboundSharedStorageInterceptor();
+    ScheduleStart();
     return;
   }
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)

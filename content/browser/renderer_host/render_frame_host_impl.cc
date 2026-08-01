@@ -701,7 +701,6 @@ DetermineWhetherToForbidTrustTokenOperation(
           fenced_frame_properties->effective_enabled_permissions());
     }
   } else {
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
     // For main frame loads, the frame's permissions policy is determined
     // entirely by response headers, which are provided by the renderer.
     if (!frame->GetParent())
@@ -715,9 +714,7 @@ DetermineWhetherToForbidTrustTokenOperation(
 
     subframe_policy = network::PermissionsPolicy::CreateFromParentPolicy(
         parent_policy, /*header_policy=*/{}, container_policy, subframe_origin);
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   switch (operation) {
     case network::mojom::TrustTokenOperationType::kRedemption:
@@ -739,6 +736,9 @@ DetermineWhetherToForbidTrustTokenOperation(
       return network::mojom::TrustTokenOperationPolicyVerdict::kForbid;
   }
   return network::mojom::TrustTokenOperationPolicyVerdict::kForbid;
+#else
+  return network::mojom::TrustTokenOperationPolicyVerdict::kForbid;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 // When a frame creates its initial subresource loaders, it needs to know

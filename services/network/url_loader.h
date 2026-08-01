@@ -81,8 +81,6 @@ struct RedirectInfo;
 }  // namespace net
 
 namespace network {
-// class TrustTokenRequestHelper;
-// class TrustTokenRequestHelperFactory;
 
 namespace cors {
 class OriginAccessList;
