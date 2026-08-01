@@ -1151,29 +1151,39 @@ void NetworkContext::GetStoredTrustTokenCounts(
         };
     trust_token_store_->ExecuteOrEnqueue(
         base::BindOnce(get_trust_token_counts_from_store, std::move(callback)));
-    return;
+  } else {
+    // The Trust Tokens feature is disabled, return immediately with an empty
+    // vector.
+    std::move(callback).Run({});
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#else
   std::move(callback).Run({});
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void NetworkContext::GetPrivateStateTokenRedemptionRecords(
     GetPrivateStateTokenRedemptionRecordsCallback callback) {
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  if (trust_token_store_) {
-    auto get_redemption_records_from_store =
-        [](NetworkContext::GetPrivateStateTokenRedemptionRecordsCallback callback,
-           TrustTokenStore* trust_token_store) {
-          std::move(callback).Run(trust_token_store->GetRedemptionRecords());
-        };
-    trust_token_store_->ExecuteOrEnqueue(
-        base::BindOnce(get_redemption_records_from_store, std::move(callback)));
+  // The Trust Tokens feature is disabled, return immediately with an empty
+  // map.
+  if (!trust_token_store_) {
+    base::flat_map<url::Origin, std::vector<mojom::ToplevelRedemptionRecordPtr>>
+        empty_result;
+    std::move(callback).Run(std::move(empty_result));
     return;
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+  auto get_redemption_records_from_store =
+      [](NetworkContext::GetPrivateStateTokenRedemptionRecordsCallback callback,
+         TrustTokenStore* trust_token_store) {
+        std::move(callback).Run(trust_token_store->GetRedemptionRecords());
+      };
+  trust_token_store_->ExecuteOrEnqueue(
+      base::BindOnce(get_redemption_records_from_store, std::move(callback)));
+#else
   base::flat_map<url::Origin, std::vector<mojom::ToplevelRedemptionRecordPtr>>
       empty_result;
   std::move(callback).Run(std::move(empty_result));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void NetworkContext::DeleteStoredTrustTokens(
@@ -1302,45 +1312,48 @@ bool NetworkContext::SkipReportingPermissionCheck() const {
 void NetworkContext::ClearTrustTokenData(mojom::ClearDataFilterPtr filter,
                                          base::OnceClosure done) {
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  if (trust_token_store_) {
-    trust_token_store_->ExecuteOrEnqueue(base::BindOnce(
-        [](mojom::ClearDataFilterPtr filter, base::OnceClosure done,
-           TrustTokenStore* store) {
-          std::ignore = store->ClearDataForFilter(std::move(filter));
-          std::move(done).Run();
-        },
-        std::move(filter), std::move(done)));
+  if (!trust_token_store_) {
+    std::move(done).Run();
     return;
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+  trust_token_store_->ExecuteOrEnqueue(base::BindOnce(
+      [](mojom::ClearDataFilterPtr filter, base::OnceClosure done,
+         TrustTokenStore* store) {
+        std::ignore = store->ClearDataForFilter(std::move(filter));
+        std::move(done).Run();
+      },
+      std::move(filter), std::move(done)));
+#else
   std::move(done).Run();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void NetworkContext::ClearTrustTokenSessionOnlyData(
     ClearTrustTokenSessionOnlyDataCallback callback) {
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  if (trust_token_store_) {
-    DCHECK(cookie_manager_);
+  // Only called when Private State Tokens is enabled, i.e.,
+  // `trust_token_store_` is non-null.
+  DCHECK(trust_token_store_);
+  DCHECK(cookie_manager_);
 
-    DeleteCookiePredicate cookie_predicate =
-        cookie_manager_->cookie_settings().CreateDeleteCookieOnExitPredicate();
+  DeleteCookiePredicate cookie_predicate =
+      cookie_manager_->cookie_settings().CreateDeleteCookieOnExitPredicate();
 
-    auto store_predicate = base::BindRepeating(
-        [](DeleteCookiePredicate predicate, const std::string& origin) {
-          return predicate.Run(origin, net::CookieSourceScheme::kSecure);
-        },
-        std::move(cookie_predicate));
-    trust_token_store_->ExecuteOrEnqueue(base::BindOnce(
-        [](base::RepeatingCallback<bool(const std::string&)> pred,
-           ClearTrustTokenSessionOnlyDataCallback cb, TrustTokenStore* store) {
-          bool any_data_deleted = store->ClearDataForPredicate(std::move(pred));
-          std::move(cb).Run(any_data_deleted);
-        },
-        std::move(store_predicate), std::move(callback)));
-    return;
-  }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+  auto store_predicate = base::BindRepeating(
+      [](DeleteCookiePredicate predicate, const std::string& origin) {
+        return predicate.Run(origin, net::CookieSourceScheme::kSecure);
+      },
+      std::move(cookie_predicate));
+  trust_token_store_->ExecuteOrEnqueue(base::BindOnce(
+      [](base::RepeatingCallback<bool(const std::string&)> pred,
+         ClearTrustTokenSessionOnlyDataCallback cb, TrustTokenStore* store) {
+        bool any_data_deleted = store->ClearDataForPredicate(std::move(pred));
+        std::move(cb).Run(any_data_deleted);
+      },
+      std::move(store_predicate), std::move(callback)));
+#else
   std::move(callback).Run(false);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void NetworkContext::ClearNetworkingHistoryBetween(

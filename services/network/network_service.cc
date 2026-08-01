@@ -906,9 +906,7 @@ void NetworkService::SetTrustTokenKeyCommitments(
     const std::string& raw_commitments,
     base::OnceClosure done) {
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  if (trust_token_key_commitments_) {
-    trust_token_key_commitments_->ParseAndSet(raw_commitments);
-  }
+  trust_token_key_commitments_->ParseAndSet(raw_commitments);
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   std::move(done).Run();
 }
