@@ -356,7 +356,6 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
-    "//cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager_unittest.cc",
   ]
 
   # The symbolizer pipeline test requires launching external Python and

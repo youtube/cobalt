@@ -1160,21 +1160,6 @@ void Shell::OnVisibilityChanged(Visibility visibility) {
     // Retry the pending focus now that the window is visible in Aura.
     Focus();
   }
-
-#if BUILDFLAG(IS_ANDROID)
-  // When the Android OS backgrounds the app (e.g., user presses the Home button
-  // resulting in Visibility::HIDDEN state), tearing down the PiP session from
-  // here ensures the VideoPictureInPictureWindowController pauses the
-  // video and destroys the UI overlay window.
-  // See: b/532272209
-  if (base::FeatureList::IsEnabled(cobalt::features::kPictureInPicture) &&
-      visibility == content::Visibility::HIDDEN &&
-      web_contents()->HasPictureInPictureVideo()) {
-    content::PictureInPictureWindowController::
-        GetOrCreateVideoPictureInPictureController(web_contents())
-            ->Close(/*should_pause_video=*/true);
-  }
-#endif
 }
 
 void Shell::LoadProgressChanged(double progress) {
