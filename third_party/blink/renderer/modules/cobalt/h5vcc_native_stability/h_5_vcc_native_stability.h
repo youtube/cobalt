@@ -22,6 +22,7 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 
 namespace blink {
@@ -29,6 +30,7 @@ namespace blink {
 class ExecutionContext;
 class LocalDOMWindow;
 class ScriptState;
+class ScriptPromiseResolverBase;
 template <typename T>
 class ScriptPromiseResolver;
 
@@ -49,15 +51,25 @@ class MODULES_EXPORT H5vccNativeStability final
       ScriptState*,
       ExceptionState&);
 
+  ScriptPromise<IDLUndefined> acknowledgeReports(
+      ScriptState*,
+      const Vector<String>& native_stability_event_uuids,
+      ExceptionState&);
+
   void Trace(Visitor*) const override;
 
  private:
   void EnsureReceiverIsBound();
+  void OnConnectionError();
 
   void OnGetPendingReports(
       ScriptPromiseResolver<IDLSequence<V8NativeStabilityReport>>* resolver,
       Vector<h5vcc_native_stability::mojom::blink::NativeStabilityReportPtr>
           mojo_reports);
+
+  void OnAcknowledgeReports(ScriptPromiseResolver<IDLUndefined>* resolver);
+
+  HeapHashSet<Member<ScriptPromiseResolverBase>> ongoing_requests_;
 
   HeapMojoRemote<h5vcc_native_stability::mojom::blink::H5vccNativeStability>
       remote_native_stability_;

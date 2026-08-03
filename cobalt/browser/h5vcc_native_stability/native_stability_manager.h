@@ -34,7 +34,9 @@ namespace h5vcc_native_stability {
 //
 // Threading Model:
 // Calls must originate on the UI sequence. Offloads blocking disk I/O to a
-// background task runner and posts response callbacks back to the UI sequence.
+// background SequencedTaskRunner and posts response callbacks back to the UI
+// sequence. Using a SequencedTaskRunner guarantees that disk operations execute
+// sequentially, preventing concurrent reads and writes.
 class NativeStabilityManager {
  public:
   static NativeStabilityManager* GetInstance();
@@ -47,7 +49,8 @@ class NativeStabilityManager {
   // with it.
   void ArmCrashUuidAnnotation();
 
-  // Asynchronously reads and summarizes stability reports stored on disk.
+  // Asynchronously reads and summarizes stability reports stored on disk that
+  // have not previously been acknowledged.
   //
   // Because reading files from disk is a blocking operation, the disk I/O is
   // offloaded to a background ThreadPool task runner to prevent blocking the
@@ -57,11 +60,25 @@ class NativeStabilityManager {
       base::OnceCallback<void(std::vector<mojom::NativeStabilityReportPtr>)>
           callback);
 
+  // Asynchronously acknowledges stability reports to exclude them from future
+  // calls to GetPendingReports().
+  //
+  // The provided UUIDs are persisted to disk so that their acknowledged status
+  // persists across application lifecycles.
+  //
+  // As with GetPendingReports(), disk I/O is offloaded to a background
+  // ThreadPool task runner and callbacks are posted back to the UI sequence.
+  void AcknowledgeReports(std::vector<std::string> native_stability_event_uuids,
+                          base::OnceClosure callback);
+
   using GetExtensionCallback =
       base::RepeatingCallback<const void*(const char*)>;
 
-  // Inject a custom Starboard extension getter callback for testing.
+  // Injects a custom Starboard extension getter callback for testing.
   void SetGetExtensionForTesting(GetExtensionCallback get_extension_callback);
+
+  // Injects a custom path for acked_event_uuids.json for testing.
+  void SetAckedUuidsFilePathForTesting(base::FilePath file_path);
 
   // Resets internal state for unit testing between test cases.
   void ResetForTesting();
@@ -77,11 +94,18 @@ class NativeStabilityManager {
       base::OnceCallback<void(std::vector<mojom::NativeStabilityReportPtr>)>
           callback);
 
+  void AcknowledgeReportsOnTaskRunner(
+      std::vector<std::string> native_stability_event_uuids,
+      base::OnceClosure callback);
+
+  base::FilePath GetAckedUuidsFilePath();
+
   const void* GetExtension(const char* name);
 
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   GetExtensionCallback get_extension_callback_for_testing_;
+  base::FilePath acked_uuids_file_path_for_testing_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };
