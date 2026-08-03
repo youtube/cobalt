@@ -40,11 +40,15 @@ typedef (NativeCrashReport or HangReport) NativeStabilityReport;
 ]
 interface H5vccNativeStability {
 
-  // Returns summary reports of native stability events that have been recorded
-  // by the native application or platform and persisted to disk.
+  // Returns summary reports of unacknowledged native stability events that
+  // have been recorded by the native application or platform and persisted
+  // to disk.
   [CallWith=ScriptState, RaisesException]
   Promise<sequence<NativeStabilityReport>> getPendingReports();
 
-  // TODO(b/528362453): Add |acknowledgeReports| API and update the comment for
-  // |getPendingReports| accordingly.
+  // Acknowledges native stability reports so that they will not be returned by
+  // future calls to getPendingReports().
+  [CallWith=ScriptState, RaisesException]
+  Promise<undefined> acknowledgeReports(
+      sequence<DOMString> nativeStabilityEventUuids);
 };

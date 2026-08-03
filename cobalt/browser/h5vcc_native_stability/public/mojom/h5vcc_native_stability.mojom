@@ -40,7 +40,12 @@ union NativeStabilityReport {
 // The browser process must provide an implementation of this interface in order
 // to enable web clients to retrieve pending native stability reports.
 interface H5vccNativeStability {
-  // Returns summary reports of native stability events that have been recorded
-  // by the native application or platform and persisted to disk.
+  // Returns summary reports of unacknowledged native stability events that have
+  // been recorded by the native application or platform and persisted to disk.
   GetPendingReports() => (array<NativeStabilityReport> reports);
+
+  // Acknowledges that the specified native stability event UUIDs have been
+  // processed by the web application. Acknowledged reports will not be
+  // returned in subsequent calls to GetPendingReports.
+  AcknowledgeReports(array<string> native_stability_event_uuids) => ();
 };
