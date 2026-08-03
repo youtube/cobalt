@@ -28,8 +28,8 @@ MEDIA_EXPORT size_t GetDemuxerMemoryLimit(DemuxerType demuxer_type);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 MEDIA_EXPORT void Set720pVideoBufferSizeClamp(int size_mb);
-MEDIA_EXPORT size_t GetVideoBufferSizeClamp();
-MEDIA_EXPORT void SetVideoBufferSizeClamp(int size_mb);
+MEDIA_EXPORT size_t Get4KHDRVideoBufferSizeClamp();
+MEDIA_EXPORT void Set4KHDRVideoBufferSizeClamp(int size_mb);
 #endif
 
 namespace internal {
