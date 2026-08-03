@@ -84,7 +84,7 @@ class StarboardBridge {
   jni_zero::ScopedJavaLocalRef<jobject> GetAudioPermissionRequester(
       JNIEnv* env);
 
-  void ResetVideoSurface(JNIEnv* env);
+  void RecreateVideoSurface(JNIEnv* env);
   void SetVideoSurfaceBounds(JNIEnv* env, int x, int y, int width, int height);
 
   jni_zero::ScopedJavaLocalRef<jobject> GetAudioOutputManager(JNIEnv* env);

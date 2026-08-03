@@ -599,10 +599,10 @@ public class BaseStarboardBridge {
 
   @SuppressWarnings("unused")
   @CalledByNative
-  public void resetVideoSurface() {
+  public void recreateVideoSurface() {
     Activity activity = mActivityHolder.get();
     if (activity instanceof BaseCobaltActivity) {
-      ((BaseCobaltActivity) activity).resetVideoSurface();
+      ((BaseCobaltActivity) activity).recreateVideoSurface();
     }
   }
 

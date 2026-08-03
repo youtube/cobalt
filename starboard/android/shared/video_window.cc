@@ -212,8 +212,8 @@ void VideoSurfaceHolder::CleanUpVideoWindow(
     return;
   }
 
-  StarboardBridge::GetInstance()->ResetVideoSurface(env);
-  SB_LOG(INFO) << "Video surface has been reset (default behavior).";
+  StarboardBridge::GetInstance()->RecreateVideoSurface(env);
+  SB_LOG(INFO) << "Video surface has been recreated (default behavior).";
 }
 
 }  // namespace starboard

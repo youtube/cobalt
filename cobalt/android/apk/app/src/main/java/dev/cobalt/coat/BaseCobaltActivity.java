@@ -223,7 +223,7 @@ public abstract class BaseCobaltActivity extends Activity {
    * TODO(https://crbug.com/495203133): move the implementation from CobaltActivity here when
    * bringing up Cobalt on AOSP.
    */
-  public void resetVideoSurface() {}
+  public void recreateVideoSurface() {}
 
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {}
 

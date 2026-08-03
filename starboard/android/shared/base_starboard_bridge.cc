@@ -371,9 +371,10 @@ ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioPermissionRequester(
       env, j_starboard_bridge_);
 }
 
-void StarboardBridge::ResetVideoSurface(JNIEnv* env) {
+void StarboardBridge::RecreateVideoSurface(JNIEnv* env) {
   SB_DCHECK(env);
-  return Java_BaseStarboardBridge_resetVideoSurface(env, j_starboard_bridge_);
+  return Java_BaseStarboardBridge_recreateVideoSurface(env,
+                                                       j_starboard_bridge_);
 }
 
 void StarboardBridge::SetVideoSurfaceBounds(JNIEnv* env,

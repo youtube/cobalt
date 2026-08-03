@@ -542,7 +542,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       Log.i(TAG, "Use AndroidOverlay for Video SurfaceView.");
     } else if (mForceCreateNewVideoSurfaceView) {
       Log.w(TAG, "Force to create a new video surface.");
-      createNewSurfaceView();
+      recreateSurfaceView();
     }
 
     AudioOutputManager.addAudioDeviceListener(this);
@@ -804,7 +804,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     getStarboardBridge().onRequestPermissionsResult(requestCode, permissions, grantResults);
   }
 
-  public void resetVideoSurface() {
+  @Override
+  public void recreateVideoSurface() {
     if (mIsCobaltUsingAndroidOverlay) {
       return;
     }
@@ -812,7 +813,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
         new Runnable() {
           @Override
           public void run() {
-            createNewSurfaceView();
+            recreateSurfaceView();
           }
         });
   }
@@ -852,7 +853,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
         });
   }
 
-  private void createNewSurfaceView() {
+  private void recreateSurfaceView() {
     if (mIsCobaltUsingAndroidOverlay) {
       return;
     }
