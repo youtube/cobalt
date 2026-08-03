@@ -278,7 +278,9 @@ def verify_chromium_commit(sha):
   try:
     expected_tree = fetch_chromium_tree(upstream_sha)
   except Exception as e:  # pylint: disable=broad-except
-    log(f'ERROR: Failed to query Gitiles for Chromium commit {upstream_sha}: {e}')
+    log(
+        f'ERROR: Failed to query Gitiles for Chromium commit {upstream_sha}: {e}'
+    )
     return False
 
   current_tree = get_out(['git', 'rev-parse', 'HEAD^{tree}']).strip()
@@ -344,10 +346,10 @@ def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
   log('Cherry picking Chromium...')
   run(['git', 'cherry-pick', sha])
 
-  assert verify_chromium_commit(sha), (
   if not verify_chromium_commit(sha):
     raise RuntimeError(
-        f'Verification failed: Rolled-in tree for {sha} does not match Chromium {sha}'
+        f'Verification failed: Rolled-in tree for {sha} does not match '
+        f'Chromium {sha}'
     )
 
   replace_submodules_with_dirs()
