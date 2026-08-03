@@ -188,7 +188,7 @@ def rebase_and_push(target, pr, env):
     git('checkout')
 
     log('Rebasing...')
-    git('rebase', f'origin/{target}', check=False)
+    git('rebase', f'origin/{target}', check=True)
 
     log(f'Pushing {target}...')
     git('-c',
