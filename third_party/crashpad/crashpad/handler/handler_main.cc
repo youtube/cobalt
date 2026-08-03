@@ -584,7 +584,7 @@ int HandlerMain(int argc,
                 const UserStreamDataSources* user_stream_sources) {
   InitCrashpadLogging();
 #if BUILDFLAG(IS_COBALT)
-  LOG(INFO) << "Freeze detection: Crashpad logging initialized in HandlerMain.";
+  LOG(INFO) << "Crashpad logging initialized in HandlerMain.";
 #endif
 
   InstallCrashHandler();

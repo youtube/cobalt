@@ -47,7 +47,9 @@ template <typename T>
 class ExperimentalFeatureKey {
  public:
   using ValueType = T;
-  constexpr explicit ExperimentalFeatureKey(std::string_view key) : key_(key) {}
+  template <size_t N>
+  constexpr explicit ExperimentalFeatureKey(const char (&key)[N])
+      : key_(key, N - 1) {}
   constexpr std::string_view key() const { return key_; }
 
  private:
@@ -165,9 +167,6 @@ inline constexpr ExperimentalFeatureKey<bool>
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableFlushDuringSeek(
     "Media.EnableFlushDuringSeek");
 
-inline constexpr ExperimentalFeatureKey<bool> kMediaEnableLowLatency(
-    "Media.EnableLowLatency");
-
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableResetAudioDecoder(
     "Media.EnableResetAudioDecoder");
 
@@ -181,6 +180,11 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaEnableTrivialOptimizations(
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableVideoRendererVspAdjustment(
         "Media.EnableVideoRendererVspAdjustment");
+
+// To check the regression of the fix for the bug that pending frame grows
+// 2000+. For details, see http://b/517914191.
+inline constexpr ExperimentalFeatureKey<bool>
+    kMediaFixNeedMoreInputBackpressure("Media.FixNeedMoreInputBackpressure");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaFlushAudioTrackDuringSeek(
     "Media.FlushAudioTrackDuringSeek");

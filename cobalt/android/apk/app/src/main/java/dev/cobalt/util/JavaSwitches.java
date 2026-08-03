@@ -26,6 +26,11 @@ public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
+
+  /** flag to enable auto-retrying URL load on network recovery before splash screen is hidden. */
+  public static final String ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY =
+      "EnableAutoRetryOnNetworkRecovery";
+
   public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
   public static final String ENABLE_OPTIMIZED_V8_CODE_CACHE = "EnableOptimizedV8CodeCache";
 
@@ -51,9 +56,6 @@ public class JavaSwitches {
 
   /** flag to disable GPU memory buffer compositor resources. */
   public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES = "DisableGpuMemoryBufferCompositorResources";
-
-  /** flag to enable concurrent marking for v8 garbage collection */
-  public static final String ENABLE_V8_CONCURRENT_MARKING = "EnableV8ConcurrentMarking";
 
   /** flag to limit GPU image cache items */
   public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
@@ -90,6 +92,9 @@ public class JavaSwitches {
   public static final String COBALT_BYPASS_BUFFERING_BYTES_CONSUMER =
       "CobaltBypassBufferingBytesConsumer";
 
+  /** flag to aggressively flush v8 bytecode after a configurable old time. */
+  public static final String V8_SET_BYTECODE_OLD_TIME = "V8SetBytecodeOldTime";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -106,13 +111,18 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--disable-quic");
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_V8_CONCURRENT_MARKING)) {
-      jsFlags.add("--concurrent-marking");
-    }
-
     if (javaSwitches.containsKey(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC)) {
       jsFlags.add("--minor-ms");
       jsFlags.add("--minor-ms-min-new-space-capacity-for-concurrent-marking-mb=0");
+    }
+
+    String oldTimeStr = javaSwitches.get(JavaSwitches.V8_SET_BYTECODE_OLD_TIME);
+    if (oldTimeStr != null) {
+      String oldTime = oldTimeStr.replaceAll("[^0-9]", "");
+      if (!oldTime.isEmpty()) {
+        jsFlags.add("--flush-bytecode");
+        jsFlags.add("--bytecode-old-time=" + oldTime);
+      }
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {

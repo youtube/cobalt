@@ -33,6 +33,10 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include <optional>
+#endif
+
 namespace base {
 class WatchHangsInScope;
 namespace internal {
@@ -106,17 +110,6 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] WatchHangsInScope {
 // within a single process. This instance must outlive all monitored threads.
 class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
  public:
-#if BUILDFLAG(IS_COBALT)
-  // Delegate interface to allow embedders to control HangWatcher behavior.
-  class BASE_EXPORT Delegate {
-   public:
-    virtual ~Delegate() = default;
-    // Returns true if hang reporting should be enabled
-    // potentially overriding default settings.
-    virtual bool IsHangReportingEnabled() = 0;
-  };
-#endif
-
   // Describes the type of a process for logging purposes.
   enum class ProcessType {
     kUnknownProcess = 0,
@@ -141,6 +134,30 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
     kMax = kCompositorThread
 #endif
   };
+
+#if BUILDFLAG(IS_COBALT)
+  // Re-polls the delegate to update the cached configuration values (e.g.
+  // timeout, thread scopes).
+  static void UpdateConfiguration();
+
+  // Delegate interface to allow embedders to control HangWatcher behavior.
+  class BASE_EXPORT Delegate {
+   public:
+    virtual ~Delegate() = default;
+    // Returns true if hang reporting should be enabled
+    // potentially overriding default settings.
+    virtual bool IsHangReportingEnabled() = 0;
+    // Returns a custom timeout for hang watching, or std::nullopt to use
+    // default.
+    virtual std::optional<base::TimeDelta> GetHangWatchTime() = 0;
+    // Returns a custom monitoring period, or std::nullopt to use default.
+    virtual std::optional<base::TimeDelta> GetHangWatchMonitoringPeriod() = 0;
+    // Returns whether crash dumps are enabled for a specific thread type.
+    // Returns std::nullopt if the embedder has no specific override.
+    virtual std::optional<bool> IsThreadDumpingEnabled(
+        ThreadType thread_type) = 0;
+  };
+#endif
 
   // Notes on lifetime:
   //   1) The first invocation of the constructor will set the global instance

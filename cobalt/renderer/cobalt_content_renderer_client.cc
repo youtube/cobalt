@@ -30,9 +30,11 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/media_log.h"
+#include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/base/starboard/experimental_features.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
+#include "media/starboard/starboard_media_external_memory_allocator.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -217,7 +219,6 @@ void CobaltContentRendererClient::RenderThreadStarted() {
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
-  CHECK(content::RenderThread::IsMainThread());
   ::media::SupportedCodecs codecs = GetStarboardEmeSupportedCodecs();
 
   using Robustness = cdm::WidevineKeySystemInfo::Robustness;
@@ -260,7 +261,6 @@ std::unique_ptr<::media::KeySystemSupportRegistration>
 CobaltContentRendererClient::GetSupportedKeySystems(
     content::RenderFrame* render_frame,
     ::media::GetSupportedKeySystemsCB cb) {
-  CHECK(content::RenderThread::IsMainThread());
   ::media::KeySystemInfos key_systems;
   AddStarboardCmaKeySystems(&key_systems);
   std::move(cb).Run(std::move(key_systems));
@@ -269,7 +269,6 @@ CobaltContentRendererClient::GetSupportedKeySystems(
 
 bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
     const ::media::AudioType& type) {
-  CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromAudioType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
@@ -283,7 +282,6 @@ bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
 
 bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
     const ::media::VideoType& type) {
-  CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromVideoType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
@@ -293,6 +291,13 @@ bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
   LOG(INFO) << __func__ << "(" << type.codec << ") -> "
             << (result ? "true" : "false");
   return result;
+}
+
+::media::ExternalMemoryAllocator*
+CobaltContentRendererClient::GetMediaAllocator() {
+  base::AutoLock scoped_lock(media_allocator_lock_);
+  return is_external_memory_pool_enabled_ ? media_memory_allocator_.get()
+                                          : nullptr;
 }
 
 void CobaltContentRendererClient::RunScriptsAtDocumentStart(
@@ -330,6 +335,24 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     experimental_features = ParseH5vccSettings(std::move(settings));
   }
   renderer_factory_traits->experimental_features = experimental_features;
+
+  // For experimental purposes, we check both command-line feature flags and
+  // H5vcc settings here so web apps can toggle external memory pooling
+  // dynamically. Once this feature is finalized and enabled by default, this
+  // initialization should be moved back to
+  // CobaltContentRendererClient::RenderThreadStarted().
+  const bool enable_external_pool =
+      base::FeatureList::IsEnabled(
+          ::media::kCobaltUseExternalMediaMemoryPool) ||
+      experimental_features.GetBool(::media::kMediaUseExternalMediaMemoryPool);
+  {
+    base::AutoLock scoped_lock(media_allocator_lock_);
+    is_external_memory_pool_enabled_ = enable_external_pool;
+    if (is_external_memory_pool_enabled_ && !media_memory_allocator_) {
+      media_memory_allocator_ =
+          std::make_unique<::media::StarboardMediaExternalMemoryAllocator>();
+    }
+  }
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {

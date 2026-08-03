@@ -67,6 +67,7 @@ group("gn_all") {
       ":cobalt_loader",
       "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
       "//starboard/loader_app:loader_app($starboard_toolchain)",
+      "//starboard/tools/zstd_compress:zstd_compress_unittest($host_toolchain)",
     ]
   }
   if (is_starboard && build_updater_sandbox) {
@@ -134,6 +135,8 @@ if (is_ios && target_platform == "tvos") {
 
     configs -= [ "//build/config/compiler:thin_archive" ]
 
+    sources = [ "app/tvos/main.mm" ]
+
     deps = [
       ":common",
       "//base",
@@ -143,6 +146,18 @@ if (is_ios && target_platform == "tvos") {
       "//content/public/app",
       "//starboard:starboard_group",
     ]
+  }
+
+  action("merge_rlibs_tvos_archive") {
+    script = "//cobalt/build/tvos/merge_rlibs_tvos_archive.sh"
+
+    deps = [ ":cobalt_archive" ]
+
+    inputs = [ "$target_out_dir/libcobalt_archive.a" ]
+
+    outputs = [ "$root_out_dir/cobalt.a" ]
+
+    args = [ rebase_path(root_out_dir, root_build_dir) ]
   }
 
   foreach(locale, cobalt_locales) {
@@ -166,7 +181,7 @@ if (is_ios && target_platform == "tvos") {
 
     outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
   }
-} else if (!is_android) {
+} else if (!is_androidtv) {
   if (is_cobalt_hermetic_build) {
     cobalt_target_type = "modular_executable"
   } else {
@@ -311,6 +326,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/experiments/experiment_config_manager_unittest.cc",
     "//cobalt/browser/global_features_unittest.cc",
     "//cobalt/browser/h5vcc_metrics/histogram_fetcher_test.cc",
+    "//cobalt/browser/h5vcc_native_stability/native_stability_manager_unittest.cc",
     "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
     "//cobalt/browser/metrics/cobalt_detailed_metrics_delegate_unittest.cc",
     "//cobalt/browser/metrics/cobalt_enabled_state_provider_test.cc",
@@ -328,6 +344,10 @@ test("cobalt_unittests") {
     sources += [
       "//cobalt/tools/performance/memory/symbolize_in_process_heap_unittest.cc",
     ]
+  }
+
+  if (is_starboard || is_androidtv) {
+    sources += [ "//cobalt/browser/hang_watcher_delegate_impl_unittest.cc" ]
   }
 
   if (is_starboard) {
@@ -348,6 +368,13 @@ test("cobalt_unittests") {
     ]
   }
 
+  if (enable_in_app_dial) {
+    sources += [
+      "//cobalt/browser/dial/dial_http_server_unittest.cc",
+      "//cobalt/browser/dial/dial_udp_server_unittest.cc",
+    ]
+  }
+
   public_deps = [ "//third_party/zlib/google:compression_utils" ]
 
   deps = [
@@ -361,6 +388,8 @@ test("cobalt_unittests") {
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/browser/h5vcc_native_stability",
+    "//cobalt/browser/h5vcc_native_stability/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/user_agent",
@@ -418,5 +447,12 @@ test("cobalt_unittests") {
 
   if (use_ozone) {
     deps += [ "//ui/ozone:ozone_switches" ]
+  }
+
+  if (enable_in_app_dial) {
+    deps += [
+      "//cobalt/browser/dial",
+      "//net:test_support",
+    ]
   }
 }

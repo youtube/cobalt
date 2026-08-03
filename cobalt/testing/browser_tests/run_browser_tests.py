@@ -29,13 +29,13 @@ import subprocess
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
-from typing import List, Tuple, Optional
+from typing import Optional
 
 
 class CobaltTestRunner:
   """Manages listing, sharding, executing, and reporting browser tests."""
 
-  def __init__(self, args: argparse.Namespace, unknown_args: List[str]):
+  def __init__(self, args: argparse.Namespace, unknown_args: list[str]):
     """Initializes the test runner.
 
     Args:
@@ -63,6 +63,20 @@ class CobaltTestRunner:
                    self.user_data_dir)
     else:
       logging.info("Using user data directory: %s", self.user_data_dir)
+
+    gen_dir = os.environ.get("MH_GEN_FILE_DIR")
+    if gen_dir:
+      self.log_file_path = os.path.join(gen_dir, "test_results.txt")
+    else:
+      # For local runs, create a temporary file to keep log_file_path valid
+      # and log its location to console.
+      temp_dir = tempfile.gettempdir()
+      self.log_file_path = os.path.join(temp_dir,
+                                        "cobalt_browser_tests_local.log")
+      logging.info(
+          "MH_GEN_FILE_DIR is not set. Local run log will be saved to: %s",
+          self.log_file_path,
+      )
 
   def __enter__(self):
     """Enter the runtime context."""
@@ -209,7 +223,7 @@ class CobaltTestRunner:
       logging.error("Failed to list tests: Binary not found at %s", self.binary)
       sys.exit(1)
 
-  def _get_sort_key(self, test_name: str) -> Tuple[str, int]:
+  def _get_sort_key(self, test_name: str) -> tuple[str, int]:
     """Generates a key for sorting tests, prioritizing PRE_ tests."""
     parts = test_name.split(".", 1)
     if len(parts) != 2:
@@ -229,7 +243,7 @@ class CobaltTestRunner:
     """
     return bool(re.match(r"^[A-Za-z0-9_/.,=()<>]+$", name))
 
-  def parse_and_sort_tests(self, gtest_list_output: str) -> List[str]:
+  def parse_and_sort_tests(self, gtest_list_output: str) -> list[str]:
     """Parses the output of --gtest_list_tests and sorts test names."""
     tests = []
     current_suite = None
@@ -260,7 +274,7 @@ class CobaltTestRunner:
     tests.sort(key=self._get_sort_key)
     return tests
 
-  def filter_tests_for_shard(self, tests: List[str]) -> List[str]:
+  def filter_tests_for_shard(self, tests: list[str]) -> list[str]:
     """Filters the list of tests based on the current shard index."""
     return [
         test for i, test in enumerate(tests)
@@ -288,8 +302,27 @@ class CobaltTestRunner:
       logging.error("Error initializing XML file %s: %s", self.xml_output_file,
                     e)
 
+  def _run_command_and_tee(self, cmd: list[str], env: dict[str, str],
+                           log_file_path: str) -> int:
+    """Runs a command and tees its stdout/stderr to console and a log file."""
+    with open(log_file_path, "a", encoding="utf-8") as f_log:
+      with subprocess.Popen(
+          cmd,
+          stdout=subprocess.PIPE,
+          stderr=subprocess.STDOUT,
+          text=True,
+          env=env,
+      ) as proc:
+        if proc.stdout:
+          for line in proc.stdout:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+            f_log.write(line)
+        proc.wait()
+        return proc.returncode
+
   def _run_single_test(self, test_name: str,
-                       test_idx: int) -> Tuple[int, Optional[str]]:
+                       test_idx: int) -> tuple[int, Optional[str]]:
     """Executes a single test case."""
     cmd = [
         self.binary,
@@ -318,7 +351,7 @@ class CobaltTestRunner:
     env["GTEST_SHARD_INDEX"] = "0"
 
     try:
-      retcode = subprocess.call(cmd, env=env)
+      retcode = self._run_command_and_tee(cmd, env, self.log_file_path)
     # pylint: disable=broad-exception-caught
     except Exception as e:
       logging.error("Error executing test %s: %s", test_name, e)
@@ -437,7 +470,7 @@ class CobaltTestRunner:
     return failed_count
 
 
-def parse_args() -> Tuple[argparse.Namespace, List[str]]:
+def parse_args() -> tuple[argparse.Namespace, list[str]]:
   """Parses command line arguments."""
   parser = argparse.ArgumentParser(
       description="Cobalt Browser Test Runner Helper", add_help=False)
@@ -475,7 +508,22 @@ def parse_args() -> Tuple[argparse.Namespace, List[str]]:
 
 def main():
   """Main entry point for the script."""
-  logging.basicConfig(level=logging.DEBUG, format="%(message)s")
+  log_file_path = None
+  gen_dir = os.environ.get("MH_GEN_FILE_DIR")
+  if gen_dir:
+    log_file_path = os.path.join(gen_dir, "test_results.txt")
+
+  handlers = [logging.StreamHandler(sys.stdout)]
+  if log_file_path:
+    try:
+      os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+      handlers.append(
+          logging.FileHandler(log_file_path, mode="w", encoding="utf-8"))
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      sys.stderr.write(f"Failed to initialize log file: {e}\n")
+
+  logging.basicConfig(
+      level=logging.DEBUG, format="%(message)s", handlers=handlers)
   args, unknown_args = parse_args()
   if args.help:
     # Re-parse with help enabled to show standard help message

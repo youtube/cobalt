@@ -25,12 +25,7 @@
 // elimination.
 #define PAGE_ALLOCATOR_CONSTANTS_DECLARE_CONSTEXPR __attribute__((const))
 
-// 32-bit Android userspace can run on 64-bit Android 11 GKI kernels configured
-// with 16KB/64KB pages. Hardcoding 4KB for 32-bit ARM causes SIGTRAP crashes
-// when decommitting memory with MAP_FIXED (b/527944046). Enable dynamic page
-// size lookup for all Android architectures to support these hybrid GKI TV
-// environments safely.
-#elif PA_BUILDFLAG(IS_ANDROID) || \
+#elif (PA_BUILDFLAG(IS_ANDROID) && PA_BUILDFLAG(PA_ARCH_CPU_64_BITS)) || \
     (PA_BUILDFLAG(IS_LINUX) && PA_BUILDFLAG(PA_ARCH_CPU_ARM64)) ||       \
     (PA_BUILDFLAG(IS_LINUX) && PA_BUILDFLAG(PA_ARCH_CPU_PPC64))
 // This should work for all POSIX (if needed), but currently all other

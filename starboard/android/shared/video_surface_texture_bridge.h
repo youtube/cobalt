@@ -57,8 +57,6 @@ class VideoSurfaceTextureBridge {
   static jni_zero::ScopedJavaGlobalRef<jobject> CreateSurface(
       JNIEnv* env,
       const jni_zero::JavaRef<jobject>& surface_texture);
-  static jni_zero::ScopedJavaGlobalRef<jobject> CreateSurfaceForTesting(
-      JNIEnv* env);
 
   static void UpdateTexImage(JNIEnv* env,
                              const jni_zero::JavaRef<jobject>& surface_texture);

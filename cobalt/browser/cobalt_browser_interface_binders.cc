@@ -23,6 +23,8 @@
 #include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom.h"
 #include "cobalt/browser/h5vcc_metrics/h5vcc_metrics_impl.h"
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
+#include "cobalt/browser/h5vcc_native_stability/h5vcc_native_stability_impl.h"
+#include "cobalt/browser/h5vcc_native_stability/public/mojom/h5vcc_native_stability.mojom.h"
 #include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
 #include "cobalt/browser/h5vcc_settings/h5vcc_settings_impl.h"
@@ -61,6 +63,11 @@
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/message.h"
 #endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+
+#if BUILDFLAG(ENABLE_IN_APP_DIAL)
+#include "cobalt/browser/dial/dial_server_impl.h"
+#include "cobalt/browser/dial/public/mojom/in_app_dial.mojom.h"
+#endif  // BUILDFLAG(ENABLE_IN_APP_DIAL)
 
 #include "cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.h"
 #include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
@@ -167,8 +174,16 @@ void PopulateCobaltFrameBinders(
           }));
 #endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
 
+#if BUILDFLAG(ENABLE_IN_APP_DIAL)
+  binder_map->Add<in_app_dial::mojom::DialServer>(
+      base::BindRepeating(&in_app_dial::DialServerImpl::Create));
+#endif  // BUILDFLAG(ENABLE_IN_APP_DIAL)
+
   binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
+  binder_map->Add<h5vcc_native_stability::mojom::H5vccNativeStability>(
+      base::BindRepeating(
+          &h5vcc_native_stability::H5vccNativeStabilityImpl::Create));
   binder_map->Add<media::mojom::PlatformWindowProvider>(
       base::BindRepeating(&BindPlatformWindowProvider));
   binder_map->Add<h5vcc_platform_service::mojom::H5vccPlatformServiceManager>(

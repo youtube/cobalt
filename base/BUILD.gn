@@ -4788,6 +4788,11 @@ if (is_android) {
     ]
   }
 
+  if (is_cobalt && is_partner_toolchain) {
+    java_group("base_java") {
+      public_deps = [ "//copied_base/base:base_java" ]
+    }
+  } else {
   android_library("base_java") {
     srcjar_deps = [
       ":base_android_java_enums_srcjar",
@@ -4900,6 +4905,7 @@ if (is_android) {
         "android/proguard/remove_logging.flags",
       ]
     }
+  }
   }
 
   generate_jni("metrics_jni") {
