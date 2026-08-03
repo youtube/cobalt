@@ -17,7 +17,7 @@
 
 #include <cstdint>
 #include <optional>
-#include <string>
+#include <string_view>
 #include <vector>
 
 namespace cobalt {
@@ -27,34 +27,40 @@ struct MemoryBreakdownMetric {
   uint64_t value_bytes;
 };
 
-// Helper class for extracting live Cobalt/Chromium memory breakdown metrics
-// from base::StatisticsRecorder. Aligns with go/kimono-memory-metrics.
-class CobaltMemoryMetricsHelper {
- public:
-  // Standard memory breakdown metrics tracked in PLX / Kimono telemetry
-  // configs.
-  static constexpr const char* kMemoryBreakdownMetricNames[] = {
-      "Memory.Browser.ResidentSet",
-      "Memory.Browser.PrivateMemoryFootprint",
-      "Memory.Experimental.Browser2.Malloc",
-      "Memory.Experimental.Browser2.PartitionAlloc",
-      "Memory.Experimental.Browser2.V8",
-      "Memory.Experimental.Browser2.BlinkGC",
-      "Memory.Experimental.Browser2.Skia",
-      "Memory.Browser.LibChrobaltRss",
-      "Memory.Experimental.Browser2.CodeOther",
-      "Memory.Experimental.Browser2.Fonts",
-      "Memory.Experimental.Browser2.Stacks",
-      "Memory.GPU.PeakMemoryUsage2.PageLoad"};
+// Helper functions for extracting live Cobalt/Chromium memory breakdown metrics
+// from base::StatisticsRecorder. Aligns with go/kimono-memory-metrics and
+// mirrors the field p50 (median) metric calculation in
+// interpret_uma_histogram.py. Used by Blink CDP Performance domain
+// (InspectorPerformanceAgent::getMetrics) and DevTools memory breakdown
+// inspection.
+//
+// Threading Model:
+// These non-member functions are thread-safe and can be called from any thread
+// or TaskRunner, as they rely on the thread-safe base::StatisticsRecorder.
 
-  // Query a single metric by histogram name. Returns value in bytes if found.
-  static std::optional<uint64_t> GetMetricValueBytes(
-      const std::string& metric_name);
+// Standard memory breakdown metrics tracked in PLX / Kimono telemetry
+// configs.
+constexpr const char* kMemoryBreakdownMetricNames[] = {
+    "Memory.Browser.ResidentSet",
+    "Memory.Browser.PrivateMemoryFootprint",
+    "Memory.Experimental.Browser2.Malloc",
+    "Memory.Experimental.Browser2.PartitionAlloc",
+    "Memory.Experimental.Browser2.V8",
+    "Memory.Experimental.Browser2.BlinkGC",
+    "Memory.Experimental.Browser2.Skia",
+    "Memory.Browser.LibChrobaltRss",
+    "Memory.Experimental.Browser2.CodeOther",
+    "Memory.Experimental.Browser2.Fonts",
+    "Memory.Experimental.Browser2.Stacks",
+    "Memory.Experimental.Browser2.JavaHeap",
+    "Memory.GPU.PeakMemoryUsage2.PageLoad"};
 
-  // Queries all target memory breakdown metrics currently present in
-  // StatisticsRecorder.
-  static std::vector<MemoryBreakdownMetric> GetMemoryBreakdown();
-};
+// Query a single metric by histogram name. Returns value in bytes if found.
+std::optional<uint64_t> GetMetricValueBytes(std::string_view metric_name);
+
+// Queries all target memory breakdown metrics currently present in
+// StatisticsRecorder. Returns std::nullopt if no metrics are recorded.
+std::optional<std::vector<MemoryBreakdownMetric>> GetMemoryBreakdown();
 
 }  // namespace cobalt
 

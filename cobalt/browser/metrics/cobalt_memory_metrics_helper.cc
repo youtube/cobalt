@@ -16,21 +16,29 @@
 
 #include <iterator>
 #include <memory>
+#include <optional>
+#include <string_view>
+#include <vector>
 
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_samples.h"
 #include "base/metrics/statistics_recorder.h"
+#include "base/strings/string_util.h"
 
 namespace cobalt {
 
 namespace {
 
-// UMA Memory.Experimental.Browser2.* histograms record values in KiB
-// (Kilobytes). Convert KiB to bytes for consistent DevTools byte reporting.
-constexpr uint64_t kBytesPerKiB = 1024;
+// All Cobalt memory breakdown histograms (emitted in
+// cobalt_memory_metrics_emitter.cc and peak_gpu_memory_callback.cc via
+// base::UmaHistogramMemoryLargeMB) store values in MiB (Mebibytes). We convert
+// MiB to bytes (1 MiB = 1,048,576 bytes) for consistent DevTools byte
+// reporting.
+constexpr uint64_t kBytesPerMiB = 1024 * 1024;
 
-bool IsKiBHistogram(const std::string& metric_name) {
-  return metric_name.rfind("Memory.Experimental.Browser2.", 0) == 0 ||
+bool IsMiBHistogram(std::string_view metric_name) {
+  return base::StartsWith(metric_name, "Memory.Experimental.Browser2.",
+                          base::CompareCase::SENSITIVE) ||
          metric_name == "Memory.Browser.ResidentSet" ||
          metric_name == "Memory.Browser.PrivateMemoryFootprint" ||
          metric_name == "Memory.Browser.LibChrobaltRss" ||
@@ -39,13 +47,7 @@ bool IsKiBHistogram(const std::string& metric_name) {
 
 }  // namespace
 
-constexpr const char* CobaltMemoryMetricsHelper::kMemoryBreakdownMetricNames[];
-
-std::optional<uint64_t> CobaltMemoryMetricsHelper::GetMetricValueBytes(
-    const std::string& metric_name) {
-#if defined(OFFICIAL_BUILD)
-  return std::nullopt;
-#else
+std::optional<uint64_t> GetMetricValueBytes(std::string_view metric_name) {
   base::HistogramBase* histogram =
       base::StatisticsRecorder::FindHistogram(metric_name);
   if (!histogram) {
@@ -54,23 +56,41 @@ std::optional<uint64_t> CobaltMemoryMetricsHelper::GetMetricValueBytes(
 
   std::unique_ptr<base::HistogramSamples> samples =
       histogram->SnapshotSamples();
-  if (!samples || samples->TotalCount() == 0) {
+  int64_t total_count = samples ? samples->TotalCount() : 0;
+  if (!samples || total_count <= 0) {
     return std::nullopt;
   }
 
-  uint64_t raw_sum = static_cast<uint64_t>(samples->sum());
-  if (IsKiBHistogram(metric_name)) {
-    return raw_sum * kBytesPerKiB;
+  int64_t target_count = (total_count + 1) / 2;
+  int64_t accumulated_count = 0;
+  uint64_t p50_value = 0;
+
+  // Compute p50 (median) sample from accumulated bucket samples, mirroring
+  // the field percentile calculation in
+  // cobalt/tools/uma/interpret_uma_histogram.py (which uses the bucket upper
+  // bound max/high).
+  for (std::unique_ptr<base::SampleCountIterator> it = samples->Iterator();
+       !it->Done(); it->Next()) {
+    base::HistogramBase::Sample32 min;
+    int64_t max;
+    base::HistogramBase::Count32 count;
+    it->Get(&min, &max, &count);
+    accumulated_count += count;
+    if (accumulated_count >= target_count) {
+      p50_value = static_cast<uint64_t>(max);
+      break;
+    }
   }
 
-  return raw_sum;
-#endif
+  if (IsMiBHistogram(metric_name)) {
+    return p50_value * kBytesPerMiB;
+  }
+
+  return p50_value;
 }
 
-std::vector<MemoryBreakdownMetric>
-CobaltMemoryMetricsHelper::GetMemoryBreakdown() {
+std::optional<std::vector<MemoryBreakdownMetric>> GetMemoryBreakdown() {
   std::vector<MemoryBreakdownMetric> breakdown;
-#if !defined(OFFICIAL_BUILD)
   breakdown.reserve(std::size(kMemoryBreakdownMetricNames));
 
   for (const char* metric_name : kMemoryBreakdownMetricNames) {
@@ -79,7 +99,11 @@ CobaltMemoryMetricsHelper::GetMemoryBreakdown() {
       breakdown.push_back({metric_name, value.value()});
     }
   }
-#endif
+
+  if (breakdown.empty()) {
+    return std::nullopt;
+  }
+
   return breakdown;
 }
 

@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "base/metrics/histogram.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/statistics_recorder.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -26,44 +27,44 @@ namespace cobalt {
 class CobaltMemoryMetricsHelperTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    // No special initialization required for StatisticsRecorder.
+    statistics_recorder_ =
+        base::StatisticsRecorder::CreateTemporaryForTesting();
   }
+
+  std::unique_ptr<base::StatisticsRecorder> statistics_recorder_;
 };
 
 TEST_F(CobaltMemoryMetricsHelperTest, HandlesUnrecordedHistogram) {
-  auto result = CobaltMemoryMetricsHelper::GetMetricValueBytes(
-      "Memory.Experimental.Browser2.NonExistentTestMetric");
+  auto result =
+      GetMetricValueBytes("Memory.Experimental.Browser2.NonExistentTestMetric");
   EXPECT_FALSE(result.has_value());
 }
 
 TEST_F(CobaltMemoryMetricsHelperTest, RetrievesRecordedHistogramInBytes) {
   const char* test_histogram_name = "Memory.Experimental.Browser2.Malloc";
 
-  base::HistogramBase* histogram = base::Histogram::FactoryGet(
-      test_histogram_name, 1, 1000000, 50, base::HistogramBase::kNoFlags);
-  histogram->Add(1024);  // 1024 KiB = 1 MB
+  base::UmaHistogramMemoryLargeMB(test_histogram_name, 16);  // 16 MiB
 
-  auto result =
-      CobaltMemoryMetricsHelper::GetMetricValueBytes(test_histogram_name);
+  auto result = GetMetricValueBytes(test_histogram_name);
   ASSERT_TRUE(result.has_value());
-  EXPECT_EQ(result.value(), 1024u * 1024u);  // 1,048,576 Bytes
+  EXPECT_GE(result.value(), 10u * 1024u * 1024u);
+  EXPECT_LE(result.value(), 20u * 1024u * 1024u);
 }
 
 TEST_F(CobaltMemoryMetricsHelperTest,
        GetMemoryBreakdownReturnsRecordedMetrics) {
   const char* metric_name = "Memory.Browser.ResidentSet";
-  base::HistogramBase* histogram = base::Histogram::FactoryGet(
-      metric_name, 1, 1000000, 50, base::HistogramBase::kNoFlags);
-  histogram->Add(2048);  // 2048 KiB
+  base::UmaHistogramMemoryLargeMB(metric_name, 32);  // 32 MiB
 
-  std::vector<MemoryBreakdownMetric> breakdown =
-      CobaltMemoryMetricsHelper::GetMemoryBreakdown();
+  auto breakdown = GetMemoryBreakdown();
+  ASSERT_TRUE(breakdown.has_value());
 
   bool found_resident_set = false;
-  for (const auto& entry : breakdown) {
+  for (const auto& entry : breakdown.value()) {
     if (std::string(entry.name) == metric_name) {
       found_resident_set = true;
-      EXPECT_GE(entry.value_bytes, 2048u * 1024u);
+      EXPECT_GE(entry.value_bytes, 20u * 1024u * 1024u);
+      EXPECT_LE(entry.value_bytes, 45u * 1024u * 1024u);
     }
   }
   EXPECT_TRUE(found_resident_set);
