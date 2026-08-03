@@ -260,11 +260,6 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
           f'--gtest_filter={gtest_filter}',
           '--single-process-tests',
       ]
-      if 'cobalt_browsertests' in target_name:
-        cmd_args.extend([
-            '--test-launcher-total-shards=4',
-            '--test-launcher-shard-index=0',
-        ])
       command_line_args = ' '.join(cmd_args)
       test_cmd_args = [f'command_line_args={command_line_args}']
       files = _unit_test_files(args, target_name)
