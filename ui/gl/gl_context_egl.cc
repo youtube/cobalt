@@ -364,6 +364,67 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
     return true;
   }
 
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  // If context creation failed, it might indicate that an unsupported ES
+  // version or extension attribute was requested. Try falling back to a lower
+  // ES version (e.g. 2.0) and minimal EGL 1.4 context attributes.
+  GLint error = eglGetError();
+  if (error == EGL_BAD_MATCH || error == EGL_BAD_ATTRIBUTE) {
+    // 1. Try falling back to lower ES versions: 3.0 -> 2.0
+    std::vector<std::pair<EGLint, EGLint>> candidate_versions;
+    if (context_client_major_version == 3 &&
+        context_client_minor_version == 1) {
+      candidate_versions.emplace_back(3, 0);
+      candidate_versions.emplace_back(2, 0);
+    } else if (context_client_major_version == 3 &&
+               context_client_minor_version == 0) {
+      candidate_versions.emplace_back(2, 0);
+    }
+
+    for (const auto& version : candidate_versions) {
+      std::vector<EGLint> fallback_attributes = context_attributes;
+      bool changed = false;
+      if (gl_display_->ext->b_EGL_KHR_create_context) {
+        changed = ChangeContextAttributes(fallback_attributes,
+                                         EGL_CONTEXT_MAJOR_VERSION,
+                                         version.first) &&
+                  ChangeContextAttributes(fallback_attributes,
+                                         EGL_CONTEXT_MINOR_VERSION,
+                                         version.second);
+      } else {
+        changed = ChangeContextAttributes(fallback_attributes,
+                                         EGL_CONTEXT_CLIENT_VERSION,
+                                         version.first);
+      }
+
+      if (changed) {
+        context_ =
+            eglCreateContext(gl_display_->GetDisplay(), config_,
+                             share_group() ? share_group()->GetHandle() : nullptr,
+                             fallback_attributes.data());
+        if (context_) {
+          context_client_major_version = version.first;
+          context_client_minor_version = version.second;
+          return true;
+        }
+        error = eglGetError();
+      }
+    }
+
+    // 2. Fall back to minimal EGL 1.4 context attributes: {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE}
+    const EGLint minimal_attributes[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
+    context_ = eglCreateContext(
+        gl_display_->GetDisplay(), config_,
+        share_group() ? share_group()->GetHandle() : nullptr,
+        minimal_attributes);
+    if (context_) {
+      context_client_major_version = 2;
+      context_client_minor_version = 0;
+      return true;
+    }
+    error = eglGetError();
+  }
+#else
   // If EGL_KHR_no_config_context is in use and context creation failed,
   // it might indicate that an unsupported ES version was requested. Try
   // falling back to a lower version.
@@ -401,6 +462,7 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
       }
     }
   }
+#endif
 
   LOG(ERROR) << "eglCreateContext failed with error "
              << GetEGLErrorString(error);

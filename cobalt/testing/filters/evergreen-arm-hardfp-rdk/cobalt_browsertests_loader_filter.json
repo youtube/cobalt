@@ -9,8 +9,6 @@
     "All/NavigationBrowserTestReferrerPolicy.*",
     "All/NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest.*",
     "All/NavigationBrowserTestPaintHoldingSubframe.*",
-    "H5vccSchemeURLLoaderFactoryCacheBrowserTest.*",
-    "H5vccSchemeURLLoaderFactoryBrowserTest.*",
     "H5vccRuntimeBrowserTest.*",
     "H5vccSystemBrowserTest.*",
     "CobaltMetricsBrowserTest.*",
