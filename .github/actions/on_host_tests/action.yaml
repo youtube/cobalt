@@ -27,10 +27,6 @@ runs:
       uses: ./.github/actions/depot_tools
       with:
         run_sync: 'false'
-    - name: Download Artifacts
-      uses: actions/download-artifact@v5
-      with:
-        name: ${{ inputs.test_artifacts_key }}
     - name: Checkout JUnit Dependencies
       if: inputs.test_type == 'junit'
       shell: bash
@@ -38,6 +34,10 @@ runs:
         git config --global --add safe.directory "${GITHUB_WORKSPACE}"
         git sparse-checkout add --skip-checks testing build third_party/catapult third_party/logdog
         git submodule update --init third_party/catapult
+    - name: Download Artifacts
+      uses: actions/download-artifact@v5
+      with:
+        name: ${{ inputs.test_artifacts_key }}
     - name: Extract Artifacts
       shell: bash
       run: |

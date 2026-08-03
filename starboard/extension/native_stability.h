@@ -26,6 +26,12 @@ extern "C" {
 #define kStarboardExtensionNativeStabilityName \
   "dev.starboard.extension.NativeStability"
 
+// Crash reports in local storage are expected to have this annotation.
+#define kNativeStabilityCrashUuidKey "native_stability_crash_uuid"
+
+// Hang reports in local storage are expected to have this annotation.
+#define kNativeStabilityHangUuidKey "native_stability_hang_uuid"
+
 typedef enum SbNativeStabilityReportType {
   kSbNativeStabilityReportUnknown = 0,
   kSbNativeStabilityReportCrash = 1,

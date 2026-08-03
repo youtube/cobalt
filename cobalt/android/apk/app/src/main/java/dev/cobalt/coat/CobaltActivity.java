@@ -152,7 +152,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     boolean enableSplashScreen = metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
     if (!enableSplashScreen) {
-      args.add("--disable-splash-screen");
+      args.add("--enable-features=DisableSplashScreen");
     }
 
     String enableFeatures = metaData.getString(META_DATA_ENABLE_FEATURES);
@@ -249,9 +249,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     // Set up the animation placeholder to be the SurfaceView. This disables the
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
-        mShellManager.getContentViewRenderView().getSurfaceView());
+        mShellManager.getContentViewRenderView().getAnchorView());
     mA11yHelper =
-        new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getSurfaceView());
+        new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getAnchorView());
 
     maybeRegisterNetworkRecoveryObserver();
 

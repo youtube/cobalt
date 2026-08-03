@@ -60,7 +60,7 @@ public class Shell {
         void onWebContentsReady();
     }
 
-    private static final String TAG = "cobalt";
+    public static final String TAG = "cobalt";
     private static final long COMPLETED_PROGRESS_TIMEOUT_MS = 200;
 
     // Stylus handwriting: Setting this ime option instructs stylus writing service to restrict

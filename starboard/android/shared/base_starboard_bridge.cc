@@ -315,6 +315,11 @@ SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
   return Java_BaseStarboardBridge_closeApp(env, j_starboard_bridge_);
 }
 
+void StarboardBridge::RequestStop(JNIEnv* env, jint error_level) {
+  SB_CHECK(env);
+  Java_BaseStarboardBridge_requestStop(env, j_starboard_bridge_, error_level);
+}
+
 std::string StarboardBridge::GetTimeZoneId(JNIEnv* env) {
   SB_DCHECK(env);
   ScopedJavaLocalRef<jstring> timezone_id_java =
