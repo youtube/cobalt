@@ -165,7 +165,7 @@ class TestMergeAutorollLts(unittest.TestCase):
     mock_run.assert_any_call(['git', 'sparse-checkout', 'set', '.github'],
                              check=True)
     mock_run.assert_any_call(['git', 'checkout'], check=True)
-    mock_run.assert_any_call(['git', 'rebase', 'origin/27.lts'], check=False)
+    mock_run.assert_any_call(['git', 'rebase', 'origin/27.lts'], check=True)
     mock_run.assert_any_call([
         'git', '-c', 'credential.helper=', '-c',
         'credential.helper=!gh auth git-credential', 'push',
