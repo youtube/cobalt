@@ -147,25 +147,71 @@ class TestAutorollLts(unittest.TestCase):
       with self.assertRaises(subprocess.CalledProcessError):
         autoroll_lts.cherry_pick('sha', '123', 'title')
 
-  @patch('autoroll_lts.get_out')
-  def test_verify_chromium_commit_success(self, mock_get_out):
-    """Test verify_chromium_commit returns True when trees match."""
-    mock_get_out.side_effect = ['tree_sha_1\n', 'tree_sha_1\n']
-    with patch('sys.stderr'):
-      result = autoroll_lts.verify_chromium_commit('chromium_sha_123')
-    self.assertTrue(result)
-    self.assertEqual(mock_get_out.call_count, 2)
+  @patch('urllib.request.urlopen')
+  def test_fetch_chromium_tree(self, mock_urlopen):
+    """Test fetch_chromium_tree strips XSSI prefix and parses JSON."""
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = (
+        b")]}\'\n{\"commit\": \"sha123\", \"tree\": \"tree_sha_gitiles\"}"
+    )
+    mock_resp.__enter__.return_value = mock_resp
+    mock_urlopen.return_value = mock_resp
+
+    tree = autoroll_lts.fetch_chromium_tree('sha123')
+    self.assertEqual(tree, 'tree_sha_gitiles')
 
   @patch('autoroll_lts.get_out')
-  def test_verify_chromium_commit_failure(self, mock_get_out):
+  def test_get_upstream_chromium_sha(self, mock_get_out):
+    """Test get_upstream_chromium_sha extracts SHA from commit body."""
+    mock_get_out.return_value = (
+        'Update to m139 branch point.\n\n'
+        'Update to commit f600d0656fd5b5fe4a82981f533d31ed6939e2e4.\n'
+    )
+    sha = autoroll_lts.get_upstream_chromium_sha('cobalt_sha')
+    self.assertEqual(sha, 'f600d0656fd5b5fe4a82981f533d31ed6939e2e4')
+
+  @patch('autoroll_lts.fetch_chromium_tree', return_value='tree_sha_match')
+  @patch('autoroll_lts.get_upstream_chromium_sha', return_value='upstream_sha_123')
+  @patch('autoroll_lts.get_out')
+  def test_verify_chromium_commit_with_upstream_success(
+      self, mock_get_out, mock_upstream, mock_fetch):
+    """Test verify_chromium_commit succeeds when tree matches Chromium."""
+    mock_get_out.return_value = 'tree_sha_match\n'
+    with patch('sys.stderr'):
+      result = autoroll_lts.verify_chromium_commit('cobalt_sha')
+    self.assertTrue(result)
+
+  @patch('autoroll_lts.get_upstream_chromium_sha', return_value=None)
+  def test_verify_chromium_commit_missing_upstream_sha_fails(
+      self, mock_upstream):
+    """Test verify_chromium_commit returns False if no upstream SHA is found."""
+    with patch('sys.stderr'):
+      result = autoroll_lts.verify_chromium_commit('cobalt_sha')
+    self.assertFalse(result)
+
+  @patch(
+      'autoroll_lts.fetch_chromium_tree',
+      side_effect=RuntimeError('Network error'))
+  @patch('autoroll_lts.get_upstream_chromium_sha', return_value='upstream_sha_123')
+  def test_verify_chromium_commit_gitiles_error_fails(
+      self, mock_upstream, mock_fetch):
+    """Test verify_chromium_commit returns False if Gitiles query fails."""
+    with patch('sys.stderr'):
+      result = autoroll_lts.verify_chromium_commit('cobalt_sha')
+    self.assertFalse(result)
+
+  @patch('autoroll_lts.fetch_chromium_tree', return_value='tree_sha_expected')
+  @patch('autoroll_lts.get_upstream_chromium_sha', return_value='upstream_sha_123')
+  @patch('autoroll_lts.get_out')
+  def test_verify_chromium_commit_failure(
+      self, mock_get_out, mock_upstream, mock_fetch):
     """Test verify_chromium_commit returns False when trees differ."""
     mock_get_out.side_effect = [
-        'tree_sha_expected\n', 'tree_sha_actual\n', 'M path/to/file.cc\n'
+        'tree_sha_different\n', 'M path/to/file.cc\n'
     ]
     with patch('sys.stderr'):
-      result = autoroll_lts.verify_chromium_commit('chromium_sha_123')
+      result = autoroll_lts.verify_chromium_commit('cobalt_sha')
     self.assertFalse(result)
-    self.assertEqual(mock_get_out.call_count, 3)
 
   @patch('autoroll_lts.verify_chromium_commit', return_value=False)
   @patch('autoroll_lts.replace_submodules_with_dirs')
