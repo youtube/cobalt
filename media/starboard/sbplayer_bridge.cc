@@ -808,17 +808,11 @@ void SbPlayerBridge::CreatePlayer() {
         &extension_features);
   }
 
-  const bool should_get_decode_target_graphics_context_provider =
-      output_mode_ == kSbPlayerOutputModeDecodeToTexture ||
-      experimental_features_.GetBool(kMediaForceClearSurfaceView);
-
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::PlayerErrorCB, this,
-      should_get_decode_target_graphics_context_provider
-          ? get_decode_target_graphics_context_provider_func_.Run()
-          : nullptr);
+      get_decode_target_graphics_context_provider_func_.Run());
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)

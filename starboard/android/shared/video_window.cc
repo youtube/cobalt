@@ -187,7 +187,7 @@ void VideoSurfaceHolder::ReleaseVideoSurface() {
 }
 
 void VideoSurfaceHolder::CleanUpVideoWindow(
-    bool force_clear,
+    bool force_reset,
     SbDecodeTargetGraphicsContextProvider* gpu_provider) {
   // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
   // during painting.
@@ -204,16 +204,16 @@ void VideoSurfaceHolder::CleanUpVideoWindow(
     return;
   }
 
-  if (force_clear) {
-    SB_CHECK(gpu_provider);
-    gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
-                                      g_native_video_window);
-    SB_LOG(INFO) << "Video surface has been cleared.";
+  if (force_reset) {
+    StarboardBridge::GetInstance()->ResetVideoSurface(env);
+    SB_LOG(INFO) << "Video surface has been reset.";
     return;
   }
 
-  StarboardBridge::GetInstance()->ResetVideoSurface(env);
-  SB_LOG(INFO) << "Video surface has been reset (default behavior).";
+  SB_CHECK(gpu_provider);
+  gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
+                                    g_native_video_window);
+  SB_LOG(INFO) << "Video surface has been cleared.";
 }
 
 }  // namespace starboard
