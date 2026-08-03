@@ -221,6 +221,30 @@ def replace_submodules_with_dirs():
     ])
 
 
+def verify_chromium_commit(expected_sha):
+  """Verifies that the current Git tree matches the expected Chromium commit tree.
+
+  Args:
+    expected_sha: The SHA of the Chromium commit being rolled in.
+
+  Returns:
+    bool: True if the current tree matches the expected Chromium commit tree,
+      False otherwise.
+  """
+  expected_tree = get_out(['git', 'rev-parse', f'{expected_sha}^{{tree}}']).strip()
+  current_tree = get_out(['git', 'rev-parse', 'HEAD^{tree}']).strip()
+
+  if current_tree == expected_tree:
+    log(f'Verification passed: Tree {current_tree} matches Chromium {expected_sha}.')
+    return True
+
+  diff_output = get_out(
+      ['git', 'diff', '--name-status', expected_sha, 'HEAD']).strip()
+  log(f'ERROR: Rolled-in tree ({current_tree}) differs from Chromium {expected_sha} ({expected_tree})!')
+  log(f'Offending files:\n{diff_output}')
+  return False
+
+
 def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
                          autoroll_file):
   """Temporarily reverts Cobalt changes to apply a Chromium cherry-pick.
@@ -266,6 +290,10 @@ def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
 
   log('Cherry picking Chromium...')
   run(['git', 'cherry-pick', sha])
+
+  assert verify_chromium_commit(sha), (
+      f'Verification failed: Rolled-in tree for {sha} does not match Chromium {sha}'
+  )
 
   replace_submodules_with_dirs()
 

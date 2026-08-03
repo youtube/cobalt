@@ -147,6 +147,39 @@ class TestAutorollLts(unittest.TestCase):
       with self.assertRaises(subprocess.CalledProcessError):
         autoroll_lts.cherry_pick('sha', '123', 'title')
 
+  @patch('autoroll_lts.get_out')
+  def test_verify_chromium_commit_success(self, mock_get_out):
+    """Test verify_chromium_commit returns True when trees match."""
+    mock_get_out.side_effect = ['tree_sha_1\n', 'tree_sha_1\n']
+    with patch('sys.stderr'):
+      result = autoroll_lts.verify_chromium_commit('chromium_sha_123')
+    self.assertTrue(result)
+    self.assertEqual(mock_get_out.call_count, 2)
+
+  @patch('autoroll_lts.get_out')
+  def test_verify_chromium_commit_failure(self, mock_get_out):
+    """Test verify_chromium_commit returns False when trees differ."""
+    mock_get_out.side_effect = [
+        'tree_sha_expected\n', 'tree_sha_actual\n', 'M path/to/file.cc\n'
+    ]
+    with patch('sys.stderr'):
+      result = autoroll_lts.verify_chromium_commit('chromium_sha_123')
+    self.assertFalse(result)
+    self.assertEqual(mock_get_out.call_count, 3)
+
+  @patch('autoroll_lts.verify_chromium_commit', return_value=False)
+  @patch('autoroll_lts.replace_submodules_with_dirs')
+  @patch('autoroll_lts.remove_local_checkout')
+  @patch('autoroll_lts.run')
+  @patch('autoroll_lts.get_out', return_value='fake_sha\n')
+  def test_chromium_cherry_pick_assertion_error(
+      self, mock_get_out, mock_run, mock_remove, mock_replace, mock_verify):
+    """Test chromium_cherry_pick raises AssertionError if verification fails."""
+    with patch('sys.stderr'):
+      with self.assertRaises(AssertionError):
+        autoroll_lts.chromium_cherry_pick('prev_sha', 'sha123', ('d', 'a', 'm'),
+                                          True, '.github/AUTOROLL_CHROMIUM')
+
 
 class TestAutorollLtsMain(unittest.TestCase):
   """Test cases for main() function argument parsing and defaults."""
