@@ -442,6 +442,7 @@ test("cobalt_browsertests") {
       "//starboard:starboard_headers_only",
     ]
     data_deps += [ ":cobalt_browsertests_runner_script" ]
+    data += [ "//content/test/data/title1.html" ]
 
     # Modular build does not call generate_wrapper().
     if (!use_custom_libc) {
