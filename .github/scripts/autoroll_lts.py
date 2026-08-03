@@ -226,7 +226,7 @@ def replace_submodules_with_dirs():
 
 
 def fetch_chromium_tree(chromium_sha):
-  """Fetches the expected root tree hash directly from Chromium's Gitiles API."""
+  """Fetches the root tree hash directly from Chromium's Gitiles API."""
   url = (
       f'https://chromium.googlesource.com/chromium/src/+/{chromium_sha}'
       '?format=JSON'
@@ -238,7 +238,9 @@ def fetch_chromium_tree(chromium_sha):
     with urllib.request.urlopen(req, context=ctx) as resp:
       text = resp.read().decode('utf-8')
   except (ssl.SSLCertVerificationError, urllib.error.URLError):
+    # pylint: disable=protected-access
     unverified_ctx = ssl._create_unverified_context()
+    # pylint: enable=protected-access
     with urllib.request.urlopen(req, context=unverified_ctx) as resp:
       text = resp.read().decode('utf-8')
 
@@ -258,7 +260,7 @@ def get_upstream_chromium_sha(cobalt_sha):
 
 
 def verify_chromium_commit(sha):
-  """Verifies that the current Git tree matches the expected Chromium commit tree.
+  """Verifies that current Git tree matches expected Chromium commit tree.
 
   Args:
     sha: The SHA of the commit in Cobalt being rolled in.
@@ -272,15 +274,13 @@ def verify_chromium_commit(sha):
     log(f'ERROR: No upstream Chromium commit SHA found in message of {sha}.')
     return False
 
-  log(
-      f'Verifying against upstream Chromium commit {upstream_sha} via Gitiles...'
-  )
+  log(f'Verifying against upstream Chromium commit {upstream_sha} via '
+      'Gitiles...')
   try:
     expected_tree = fetch_chromium_tree(upstream_sha)
   except Exception as e:  # pylint: disable=broad-except
-    log(
-        f'ERROR: Failed to query Gitiles for Chromium commit {upstream_sha}: {e}'
-    )
+    log(f'ERROR: Failed to query Gitiles for Chromium commit '
+        f'{upstream_sha}: {e}')
     return False
 
   current_tree = get_out(['git', 'rev-parse', 'HEAD^{tree}']).strip()
