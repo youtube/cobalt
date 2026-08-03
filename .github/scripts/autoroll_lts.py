@@ -345,9 +345,10 @@ def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
   run(['git', 'cherry-pick', sha])
 
   assert verify_chromium_commit(sha), (
-      f'Verification failed: Rolled-in tree for {sha} does not match Chromium '
-      f'{sha}'
-  )
+  if not verify_chromium_commit(sha):
+    raise RuntimeError(
+        f'Verification failed: Rolled-in tree for {sha} does not match Chromium {sha}'
+    )
 
   replace_submodules_with_dirs()
 
