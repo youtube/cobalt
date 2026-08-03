@@ -28,4 +28,5 @@ interface H5vcc {
     readonly attribute H5vccStorage storage;
     readonly attribute H5vccSettings settings;
     readonly attribute H5vccUpdater updater;
+    readonly attribute H5vccNativeStability nativeStability;
 };

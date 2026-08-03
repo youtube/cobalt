@@ -1,5 +1,7 @@
 package dev.cobalt.shell;
 
+import static dev.cobalt.shell.Shell.TAG;
+
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -30,7 +32,6 @@ public class StartupGuard {
         private static final StartupGuard INSTANCE = new StartupGuard();
     }
 
-    private static final String TAG = "cobalt";
 
     // Private constructor prevents direct instantiation from other classes
     private StartupGuard() {
