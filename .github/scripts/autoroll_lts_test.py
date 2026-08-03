@@ -222,7 +222,7 @@ class TestAutorollLts(unittest.TestCase):
       self, mock_get_out, mock_run, mock_remove, mock_replace, mock_verify):
     """Test chromium_cherry_pick raises AssertionError if verification fails."""
     with patch('sys.stderr'):
-      with self.assertRaises(AssertionError):
+      with self.assertRaises(RuntimeError):
         autoroll_lts.chromium_cherry_pick('prev_sha', 'sha123', ('d', 'a', 'm'),
                                           True, '.github/AUTOROLL_CHROMIUM')
 
