@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/metrics/cobalt_memory_metrics_helper.h"
+#include "third_party/blink/renderer/core/inspector/cobalt_memory_metrics_helper.h"
 
 #include <iterator>
 #include <memory>
@@ -25,7 +25,7 @@
 #include "base/metrics/statistics_recorder.h"
 #include "base/strings/string_util.h"
 
-namespace cobalt {
+namespace blink {
 
 namespace {
 
@@ -107,4 +107,4 @@ std::optional<std::vector<MemoryBreakdownMetric>> GetMemoryBreakdown() {
   return breakdown;
 }
 
-}  // namespace cobalt
+}  // namespace blink

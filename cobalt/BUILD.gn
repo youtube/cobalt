@@ -358,11 +358,6 @@ test("cobalt_unittests") {
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
   ]
 
-  if (!is_official_build) {
-    sources +=
-        [ "//cobalt/browser/metrics/cobalt_memory_metrics_helper_unittest.cc" ]
-  }
-
   # The symbolizer pipeline test requires launching external Python and
   # llvm-symbolizer processes, which is not supported on Starboard and
   # modular/Evergreen platforms due to subprocess spawning restrictions.
