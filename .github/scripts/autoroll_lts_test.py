@@ -123,7 +123,8 @@ class TestAutorollLts(unittest.TestCase):
     mock_run.side_effect = side_effect
 
     with patch('sys.stderr'):
-      result = autoroll_lts.cherry_pick('sha', '123', 'title')
+      result = autoroll_lts.cherry_pick('sha', ('date', 'author', 'title'),
+                                        True, '.github/AUTOROLL')
 
     self.assertTrue(result)
 
@@ -145,15 +146,15 @@ class TestAutorollLts(unittest.TestCase):
 
     with patch('sys.stderr'):
       with self.assertRaises(subprocess.CalledProcessError):
-        autoroll_lts.cherry_pick('sha', '123', 'title')
+        autoroll_lts.cherry_pick('sha', ('date', 'author', 'title'), True,
+                                 '.github/AUTOROLL')
 
   @patch('urllib.request.urlopen')
   def test_fetch_chromium_tree(self, mock_urlopen):
     """Test fetch_chromium_tree strips XSSI prefix and parses JSON."""
     mock_resp = MagicMock()
     mock_resp.read.return_value = (
-        b")]}\'\n{\"commit\": \"sha123\", \"tree\": \"tree_sha_gitiles\"}"
-    )
+        b")]}\'\n{\"commit\": \"sha123\", \"tree\": \"tree_sha_gitiles\"}")
     mock_resp.__enter__.return_value = mock_resp
     mock_urlopen.return_value = mock_resp
 
@@ -165,8 +166,7 @@ class TestAutorollLts(unittest.TestCase):
     """Test get_upstream_chromium_sha extracts SHA from commit body."""
     mock_get_out.return_value = (
         'Update to m139 branch point.\n\n'
-        'Update to commit f600d0656fd5b5fe4a82981f533d31ed6939e2e4.\n'
-    )
+        'Update to commit f600d0656fd5b5fe4a82981f533d31ed6939e2e4.\n')
     sha = autoroll_lts.get_upstream_chromium_sha('cobalt_sha')
     self.assertEqual(sha, 'f600d0656fd5b5fe4a82981f533d31ed6939e2e4')
 
@@ -349,7 +349,7 @@ class TestAutorollLtsGetPrSetAndCommits(unittest.TestCase):
   @patch('autoroll_lts.get_out')
   def test_get_commits_with_start(self, mock_get_out):
     mock_get_out.return_value = 'sha1 Commit 1\nsha2 Commit 2\n'
-    commits = autoroll_lts.get_commits('main', '27.lts', 'start_sha')
+    commits = autoroll_lts.get_commits('main', 'start_sha')
     mock_get_out.assert_called_once_with([
         'git', 'rev-list', '--oneline', '--reverse', 'main', '^27.lts',
         'start_sha^..main'
@@ -359,7 +359,7 @@ class TestAutorollLtsGetPrSetAndCommits(unittest.TestCase):
   @patch('autoroll_lts.get_out')
   def test_get_commits_without_start(self, mock_get_out):
     mock_get_out.return_value = 'sha1 Commit 1\n'
-    commits = autoroll_lts.get_commits('main', '27.lts', '')
+    commits = autoroll_lts.get_commits('main', '')
     mock_get_out.assert_called_once_with(
         ['git', 'rev-list', '--oneline', '--reverse', 'main', '^27.lts'])
     self.assertEqual(commits, ['sha1 Commit 1'])

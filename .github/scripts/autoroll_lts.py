@@ -227,10 +227,8 @@ def replace_submodules_with_dirs():
 
 def fetch_chromium_tree(chromium_sha):
   """Fetches the root tree hash directly from Chromium's Gitiles API."""
-  url = (
-      f'https://chromium.googlesource.com/chromium/src/+/{chromium_sha}'
-      '?format=JSON'
-  )
+  url = (f'https://chromium.googlesource.com/chromium/src/+/{chromium_sha}'
+         '?format=JSON')
   req = urllib.request.Request(url, headers={'User-Agent': 'cobalt-autoroller'})
 
   ctx = ssl.create_default_context()
@@ -291,10 +289,8 @@ def verify_chromium_commit(sha):
     return True
 
   diff_output = get_out(['git', 'diff', '--name-status', sha, 'HEAD']).strip()
-  log(
-      f'ERROR: Rolled-in tree ({current_tree}) differs from Chromium '
-      f'{upstream_sha} ({expected_tree})!'
-  )
+  log(f'ERROR: Rolled-in tree ({current_tree}) differs from Chromium '
+      f'{upstream_sha} ({expected_tree})!')
   if diff_output:
     log(f'Offending files:\n{diff_output}')
   return False
@@ -349,8 +345,7 @@ def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
   if not verify_chromium_commit(sha):
     raise RuntimeError(
         f'Verification failed: Rolled-in tree for {sha} does not match '
-        f'Chromium {sha}'
-    )
+        f'Chromium {sha}')
 
   replace_submodules_with_dirs()
 
