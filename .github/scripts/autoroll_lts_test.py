@@ -170,22 +170,35 @@ class TestAutorollLts(unittest.TestCase):
     sha = autoroll_lts.get_upstream_chromium_sha('cobalt_sha')
     self.assertEqual(sha, 'f600d0656fd5b5fe4a82981f533d31ed6939e2e4')
 
-  @patch('autoroll_lts.fetch_chromium_tree', return_value='tree_sha_match')
+  @patch(
+      'autoroll_lts.fetch_chromium_tree',
+      return_value='tree_sha_match',
+  )
   @patch(
       'autoroll_lts.get_upstream_chromium_sha',
-      return_value='upstream_sha_123')
+      return_value='upstream_sha_123',
+  )
   @patch('autoroll_lts.get_out')
   def test_verify_chromium_commit_with_upstream_success(
-      self, mock_get_out, unused_mock_upstream, unused_mock_fetch):
+      self,
+      mock_get_out,
+      unused_mock_upstream,
+      unused_mock_fetch,
+  ):
     """Test verify_chromium_commit succeeds when tree matches Chromium."""
     mock_get_out.return_value = 'tree_sha_match\n'
     with patch('sys.stderr'):
       result = autoroll_lts.verify_chromium_commit('cobalt_sha')
     self.assertTrue(result)
 
-  @patch('autoroll_lts.get_upstream_chromium_sha', return_value=None)
+  @patch(
+      'autoroll_lts.get_upstream_chromium_sha',
+      return_value=None,
+  )
   def test_verify_chromium_commit_missing_upstream_sha_fails(
-      self, unused_mock_upstream):
+      self,
+      unused_mock_upstream,
+  ):
     """Test verify_chromium_commit returns False if no upstream SHA is found."""
     with patch('sys.stderr'):
       result = autoroll_lts.verify_chromium_commit('cobalt_sha')
@@ -193,45 +206,75 @@ class TestAutorollLts(unittest.TestCase):
 
   @patch(
       'autoroll_lts.fetch_chromium_tree',
-      side_effect=RuntimeError('Network error'))
+      side_effect=RuntimeError('Network error'),
+  )
   @patch(
       'autoroll_lts.get_upstream_chromium_sha',
-      return_value='upstream_sha_123')
+      return_value='upstream_sha_123',
+  )
   def test_verify_chromium_commit_gitiles_error_fails(
-      self, unused_mock_upstream, unused_mock_fetch):
+      self,
+      unused_mock_upstream,
+      unused_mock_fetch,
+  ):
     """Test verify_chromium_commit returns False if Gitiles query fails."""
     with patch('sys.stderr'):
       result = autoroll_lts.verify_chromium_commit('cobalt_sha')
     self.assertFalse(result)
 
-  @patch('autoroll_lts.fetch_chromium_tree', return_value='tree_sha_expected')
+  @patch(
+      'autoroll_lts.fetch_chromium_tree',
+      return_value='tree_sha_expected',
+  )
   @patch(
       'autoroll_lts.get_upstream_chromium_sha',
-      return_value='upstream_sha_123')
+      return_value='upstream_sha_123',
+  )
   @patch('autoroll_lts.get_out')
   def test_verify_chromium_commit_failure(
-      self, mock_get_out, unused_mock_upstream, unused_mock_fetch):
+      self,
+      mock_get_out,
+      unused_mock_upstream,
+      unused_mock_fetch,
+  ):
     """Test verify_chromium_commit returns False when trees differ."""
     mock_get_out.side_effect = [
-        'tree_sha_different\n', 'M path/to/file.cc\n'
+        'tree_sha_different\n',
+        'M path/to/file.cc\n',
     ]
     with patch('sys.stderr'):
       result = autoroll_lts.verify_chromium_commit('cobalt_sha')
     self.assertFalse(result)
 
-  @patch('autoroll_lts.verify_chromium_commit', return_value=False)
+  @patch(
+      'autoroll_lts.verify_chromium_commit',
+      return_value=False,
+  )
   @patch('autoroll_lts.replace_submodules_with_dirs')
   @patch('autoroll_lts.remove_local_checkout')
   @patch('autoroll_lts.run')
-  @patch('autoroll_lts.get_out', return_value='fake_sha\n')
+  @patch(
+      'autoroll_lts.get_out',
+      return_value='fake_sha\n',
+  )
   def test_chromium_cherry_pick_assertion_error(
-      self, unused_mock_get_out, unused_mock_run, unused_mock_remove,
-      unused_mock_replace, unused_mock_verify):
+      self,
+      unused_mock_get_out,
+      unused_mock_run,
+      unused_mock_remove,
+      unused_mock_replace,
+      unused_mock_verify,
+  ):
     """Test chromium_cherry_pick raises AssertionError if verification fails."""
     with patch('sys.stderr'):
       with self.assertRaises(RuntimeError):
-        autoroll_lts.chromium_cherry_pick('prev_sha', 'sha123', ('d', 'a', 'm'),
-                                          True, '.github/AUTOROLL_CHROMIUM')
+        autoroll_lts.chromium_cherry_pick(
+            'prev_sha',
+            'sha123',
+            ('d', 'a', 'm'),
+            True,
+            '.github/AUTOROLL_CHROMIUM',
+        )
 
 
 class TestAutorollLtsMain(unittest.TestCase):
