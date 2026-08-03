@@ -14,6 +14,11 @@
 
 #include "starboard/egl.h"
 
+#include <stdio.h>
+
+#include <string>
+
+#include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
@@ -26,10 +31,7 @@ namespace {
 TEST(SbEglInterfaceTest, HasValidEglInterface) {
   const SbEglInterface* const egl_interface = SbGetEglInterface();
 
-  if (!egl_interface) {
-    return;
-  }
-
+  ASSERT_NE(nullptr, egl_interface);
   EXPECT_NE(nullptr, egl_interface->eglChooseConfig);
   EXPECT_NE(nullptr, egl_interface->eglCopyBuffers);
   EXPECT_NE(nullptr, egl_interface->eglCreateContext);
@@ -64,6 +66,39 @@ TEST(SbEglInterfaceTest, HasValidEglInterface) {
   EXPECT_NE(nullptr, egl_interface->eglReleaseThread);
   EXPECT_NE(nullptr, egl_interface->eglWaitClient);
   EXPECT_NE(nullptr, egl_interface->eglGetCurrentContext);
+}
+
+// Verifies that the target device supports EGL 1.5 or higher graphics API.
+TEST(SbEglTest, SupportsEgl15OrHigher) {
+  const SbEglInterface* const egl_interface = SbGetEglInterface();
+  ASSERT_NE(nullptr, egl_interface);
+
+  starboard::FakeGraphicsContextProvider fake_graphics_context_provider;
+  SbEglDisplay display = SB_EGL_NO_DISPLAY;
+  std::string version_string;
+
+  fake_graphics_context_provider.RunOnGlesContextThread([&]() {
+    display = egl_interface->eglGetCurrentDisplay();
+    if (display != SB_EGL_NO_DISPLAY) {
+      const char* str = egl_interface->eglQueryString(display, SB_EGL_VERSION);
+      if (str) {
+        version_string = str;
+      }
+    }
+  });
+
+  ASSERT_NE(SB_EGL_NO_DISPLAY, display);
+  ASSERT_FALSE(version_string.empty());
+
+  int major = 0;
+  int minor = 0;
+  ASSERT_EQ(2, sscanf(version_string.c_str(), "%d.%d", &major, &minor))
+      << "Failed to parse EGL version string: " << version_string;
+
+  // The target device MUST support EGL 1.5 or higher graphics API.
+  EXPECT_TRUE(major > 1 || (major == 1 && minor >= 5))
+      << "Expected EGL 1.5 or higher, but found EGL " << major << "." << minor
+      << " (version string: " << version_string << ")";
 }
 
 }  // namespace

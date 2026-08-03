@@ -301,7 +301,7 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     if (channel_mixer_) {
       decoded_audio = channel_mixer_->Mix(decoded_audio);
     }
-    decoded_audios_.push(decoded_audio);
+    decoded_audios_.push(std::move(decoded_audio));
     Schedule(output_cb_);
   }
 }

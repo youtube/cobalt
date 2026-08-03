@@ -148,6 +148,7 @@ source_set("common_test") {
     "player_test.cc",
     "queue_test.cc",
     "rect_test.cc",
+    "ref_counted_test.cc",
     "result_test.cc",
     "semaphore_test.cc",
     "size_test.cc",

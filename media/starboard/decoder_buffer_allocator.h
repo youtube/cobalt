@@ -15,14 +15,17 @@
 #ifndef MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
 #define MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
 
+#include <atomic>
 #include <memory>
 #include <sstream>
+#include <string>
 
 #include "base/compiler_specific.h"
 #include "base/functional/callback.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
+#include "base/types/expected.h"
 #include "build/build_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/starboard/decoder_buffer_memory_info.h"
@@ -80,17 +83,23 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   void UpdateAllocatorStrategy(StrategyCreateCB create_cb);
 
+  // Utility function for h5vcc settings.
+  // TODO(b/460292554): To be deprecated with h5vcc settings.
+  static base::expected<void, std::string> SetSetting(const std::string& name,
+                                                      int value);
+
+ private:
   // Utility functions for h5vcc settings.
   // TODO(b/460292554): To be deprecated with h5vcc settings.
   static void EnableConfigurableDecommitStrategy(
       int block_size,
       int retain_blocks,
       int conservative_decommit_blocks,
-      bool aggressive_decommit_on_suspend);
+      bool aggressive_decommit_on_suspend,
+      bool allocate_with_page_alignment);
   static void EnableMediaBufferPoolStrategy();
   static void EnableReleaseIdleMemory();
 
- private:
   void EnsureStrategyIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
@@ -118,6 +127,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   int pending_allocation_operations_count_ GUARDED_BY(mutex_) = 0;
   int allocation_operation_index_ GUARDED_BY(mutex_) = 0;
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  std::atomic<bool> decommit_on_suspend_enabled_{false};
 };
 
 }  // namespace media

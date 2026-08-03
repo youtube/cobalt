@@ -110,3 +110,44 @@ To get a logically sound accounting of Cobalt's memory footprint, we categorize 
 
 ## Related Tools
 For low-level OS mapping analysis, see the `smaps/` directory in the parent folder.
+
+---
+
+## 5. Native C++ Heap Allocation Visualizer (`convert_heaps_v2_to_html.py`)
+
+This directory also contains `convert_heaps_v2_to_html.py` and `symbolize_in_process_heap.py` for parsing and visualizing in-process periodic `heaps_v2` traces emitted by Chromium MemoryInfra (`base::PoissonAllocationSampler`).
+
+### Usage Workflow
+
+```bash
+# 1. Capture trace via ADB startup flag
+adb shell am start -n dev.cobalt.coat/dev.cobalt.app.MainActivity \
+  --esa commandLineArgs "--trace-startup=disabled-by-default-memory-infra,--trace-startup-duration=600,--trace-startup-file=/sdcard/Download/trace_event.json,--enable-heap-profiling,--memlog=all"
+
+# 2. Pull & convert trace
+adb pull /sdcard/Download/trace_event.json /tmp/cobalt_raw.json
+./third_party/perfetto/tools/traceconv json /tmp/cobalt_raw.json /tmp/cobalt_trace.json
+
+# 3. Symbolize & export interactive HTML Flamegraph
+python3 cobalt/tools/performance/memory/symbolize_in_process_heap.py \
+    /tmp/cobalt_trace.json \
+    -l out/android-arm_devel/lib.unstripped/libchrobalt.so \
+    --export_html /tmp/cobalt_memory_flamegraph.html
+```
+
+### Flamegraph Subsystem Attribution & Color Legend
+
+Function callstack frames are automatically categorized by analyzing both **C++ namespace prefixes and source code directory paths**:
+
+* 🔵 **Cobalt Blue (`hsl(215, 100%, 34%)`):** `cobalt::`, `starboard::`, `cobalt/`, `starboard/`
+* 🩵 **Electric Deep Teal (`hsl(180, 100%, 32%)`):** `blink::`, `WTF::`, `third_party/blink/`
+* 🟣 **Electric Violet (`hsl(275, 85%, 52%)`):** `v8::`, `v8/src/`, `JSArrayBuffer`
+* 🟠 **Coral Fire Orange (`hsl(25, 95%, 48%)`):** `skia`, `SkPath::`, `third_party/skia/`, `gpu/`
+* 🟡 **Goldenrod Gold (`hsl(50, 100%, 42%)`):** `media::`, `media/`, `SbPlayer`, `starboard/player`
+* 🩷 **Hot Magenta Pink (`hsl(325, 85%, 48%)`):** `net::`, `net/`, `mojo::`, `ipcz/`, `spdy`
+* 🔘 **Light Electric Sky Blue (`hsl(205, 75%, 58%)`):** `base::`, `base/`, `content::`, `content/`
+* ⚪ **Neutral Silver Gray (`hsl(0, 0%, 50%)`):** Standard C++ Library (`std::`), `third_party/`, & Uncategorized Symbols
+
+#### Snapshot Diff Comparison Colors (When Diff Mode is Enabled)
+* 🔴 **Vibrant Red (`hsl(350, 85%, 45%)`):** Net positive memory growth relative to baseline (`+MB`).
+* 🟢 **Vibrant Green (`hsl(135, 75%, 38%)`):** Net freed / deallocated memory relative to baseline (`-MB`).

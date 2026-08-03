@@ -34,8 +34,13 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
     TrackId track_id) {
   if (auto* media_client = GetMediaClient()) {
     if (auto* alloc = media_client->GetMediaAllocator()) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      return StreamParserBuffer::FromExternalMemory(
+          alloc->CopyFrom(data, type), is_key_frame, type, track_id);
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
       return StreamParserBuffer::FromExternalMemory(
           alloc->CopyFrom(data), is_key_frame, type, track_id);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     }
   }
   return base::MakeRefCounted<StreamParserBuffer>(

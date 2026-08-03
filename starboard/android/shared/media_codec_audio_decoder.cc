@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/media_codec_audio_decoder.h"
 
+#include <utility>
+
 #include "starboard/android/shared/media_codec.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
@@ -172,7 +174,7 @@ scoped_refptr<DecodedAudio> MediaCodecAudioDecoder::Read(
     std::lock_guard lock(decoded_audios_mutex_);
     SB_DCHECK(!decoded_audios_.empty());
     if (!decoded_audios_.empty()) {
-      result = decoded_audios_.front();
+      result = std::move(decoded_audios_.front());
       VERBOSE_MEDIA_LOG() << "T3: timestamp " << result->timestamp();
       decoded_audios_.pop();
     }
@@ -233,7 +235,9 @@ Result<void> MediaCodecAudioDecoder::InitializeCodec() {
 
 void MediaCodecAudioDecoder::ProcessOutputBuffer(
     MediaCodec* media_codec_bridge,
-    const DequeueOutputResult& dequeue_output_result) {
+    const DequeueOutputResult& dequeue_output_result,
+    int number_of_pending_inputs) {
+  SB_UNREFERENCED_PARAMETER(number_of_pending_inputs);
   SB_DCHECK(media_codec_bridge);
   SB_DCHECK(output_cb_);
   SB_DCHECK_GE(dequeue_output_result.index, 0);
@@ -275,7 +279,7 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
 
     {
       std::lock_guard lock(decoded_audios_mutex_);
-      decoded_audios_.push(decoded_audio);
+      decoded_audios_.push(std::move(decoded_audio));
       VERBOSE_MEDIA_LOG() << "T2: timestamp "
                           << decoded_audios_.front()->timestamp();
     }

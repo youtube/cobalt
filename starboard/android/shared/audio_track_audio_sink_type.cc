@@ -261,10 +261,10 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
   SB_LOG(INFO) << "AudioTrackAudioSink thread started.";
 
-  int accumulated_written_frames = 0;
+  int64_t accumulated_written_frames = 0;
   int64_t last_playback_head_event_at = -1;  // microseconds
 
-  int last_playback_head_position = 0;
+  int64_t last_playback_head_position = 0;
 
   bool release_frames_after_audio_starts = features::FeatureList::IsEnabled(
       features::kReleaseVideoFramesAfterAudioStarts);
@@ -279,11 +279,12 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       // flush. This avoids using a stale value from before the reset, which
       // could lead to incorrect frame consumption calculations.
       last_playback_head_position = -1;
+      is_flushed_ = true;
       flush_requested_ = false;
       continue;
     }
 
-    int playback_head_position = 0;
+    int64_t playback_head_position = 0;
     int64_t frames_consumed_at = 0;
     if (audio_track_->GetAndResetHasAudioDeviceChanged()) {
       SB_LOG(INFO) << "Audio device changed, raising a capability changed "
@@ -301,9 +302,14 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     // player updates playback head positions when |audio_track_| doesn't stop.
     audio_track_play_state = audio_track_->GetPlayState();
 
+    if (audio_track_play_state == AudioTrack::PlayState::kPlaying) {
+      is_flushed_ = false;
+    }
+
     bool should_update_media_time =
         (audio_track_play_state == AudioTrack::PlayState::kPlaying ||
-         audio_track_play_state == AudioTrack::PlayState::kPaused);
+         (audio_track_play_state == AudioTrack::PlayState::kPaused &&
+          !is_flushed_));
     if (should_update_media_time) {
       playback_head_position =
           audio_track_->GetAudioTimestamp(&frames_consumed_at);
@@ -509,7 +515,7 @@ void AudioTrackAudioSink::ReportError(bool capability_changed,
   }
 }
 
-int64_t AudioTrackAudioSink::GetFramesDurationUs(int frames) const {
+int64_t AudioTrackAudioSink::GetFramesDurationUs(int64_t frames) const {
   return frames * 1'000'000LL / sampling_frequency_hz_;
 }
 

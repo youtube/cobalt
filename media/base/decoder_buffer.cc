@@ -103,7 +103,7 @@ DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
 }
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
-    : DecoderBuffer(DemuxerStream::UNKNOWN, external_memory->Span()) {}
+    : external_memory_(std::move(external_memory)) {}
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type, size_t size)
     : allocator_data_([&]() -> std::optional<AllocatorData> {

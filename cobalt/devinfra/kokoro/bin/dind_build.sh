@@ -13,7 +13,7 @@
 #     │   │       └── dind_build.sh                             <= THIS SCRIPT
 #     │   └── run_package_release_pipeline (common.sh)
 #     └── dind_runner.sh
-#         ├── main_pull_image_and_run.py
+#         ├── main_build_image_and_run.py
 #         │   └── Specific Cobalt Image
 #         │       └── dind_build.sh                             <= THIS SCRIPT
 #         └── run_package_release_pipeline (common.sh)

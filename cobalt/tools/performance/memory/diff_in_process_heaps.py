@@ -34,6 +34,33 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("diff_in_process_heaps")
 
 
+def clean_method_signature(symbol: str) -> str:
+  """Strips C++ parameters and templates for refactoring-immune callstacks.
+
+  Args:
+    symbol: The raw demangled C++ symbol or callstack frame string.
+
+  Returns:
+    The normalized symbol string with parameters and template arguments
+    removed.
+  """
+  if not symbol:
+    return ""
+  if symbol.startswith("[") or symbol.startswith("pc:"):
+    return symbol
+  sym = symbol.split(" (")[0]
+  paren_idx = sym.find("(")
+  if paren_idx != -1:
+    sym = sym[:paren_idx]
+  first_lt = sym.find("<")
+  last_gt = sym.rfind(">")
+  if first_lt != -1 and last_gt != -1 and first_lt < last_gt:
+    sym = sym[:first_lt] + sym[last_gt + 1:]
+  elif first_lt != -1:
+    sym = sym[:first_lt]
+  return re.sub(r"0x[0-9a-fA-F]+", "0x*", sym.strip())
+
+
 class AllocationRecord:
   """Represents a normalized allocation group from a heap snapshot.
 
@@ -77,10 +104,88 @@ class AllocationRecord:
     for frame in self.callstack[:7]:
       if len(cleaned) >= 2 and is_boilerplate_or_scheduling_frame(frame):
         break
-      clean_frame = frame.split(" (")[0]
-      s = re.sub(r"0x[0-9a-fA-F]+", "0x*", clean_frame)
-      cleaned.append(s)
+      cleaned.append(clean_method_signature(frame))
     return " -> ".join(cleaned)
+
+  @property
+  def core_class_key(self) -> str:
+    """Dynamically extracts core C++ class name without hardcoded symbols."""
+    symbol = self.leaf_symbol or ""
+    if (not symbol or symbol.startswith("[") or symbol.startswith("pc:") or
+        symbol == "unknown_leaf"):
+      symbol = self.container_symbol or ""
+    if (not symbol or symbol.startswith("[") or symbol.startswith("pc:") or
+        symbol == "Unknown Container"):
+      if self.callstack and self.callstack[0]:
+        symbol = self.callstack[0]
+      else:
+        symbol = ""
+
+    if not symbol:
+      return "Unknown Class"
+
+    if "[T = " in symbol:
+      m = re.search(r"\[T = ([^\]]+)\]", symbol)
+      if m:
+        t_nm = m.group(1).split(" ")[-1].replace("*", "").replace("&", "")
+        if "::" in t_nm:
+          parts = t_nm.split("::")
+          if len(parts) >= 2:
+            return f"{parts[0]}::{parts[-1]}"
+        return t_nm
+
+    if ":" in symbol and not any(
+        symbol.startswith(p) for p in ["std::", "v8::", "blink::", "media::"]):
+      parts = symbol.split(":", 1)
+      if parts[0] in [
+          "malloc",
+          "partition_alloc",
+          "BlinkGC",
+          "v8",
+          "Skia",
+          "JavaHeap",
+          "Unknown",
+      ]:
+        symbol = parts[1].strip()
+
+    paren_idx = symbol.find("(")
+    clean_sym = symbol[:paren_idx] if paren_idx != -1 else symbol
+    if " " in clean_sym:
+      clean_sym = clean_sym.split(" ")[-1]
+
+    first_lt = clean_sym.find("<")
+    last_gt = clean_sym.rfind(">")
+    if first_lt != -1 and last_gt != -1 and first_lt < last_gt:
+      clean_sym = clean_sym[:first_lt] + clean_sym[last_gt + 1:]
+    elif first_lt != -1:
+      clean_sym = clean_sym[:first_lt]
+
+    if "::" in clean_sym:
+      tokens = [
+          t for t in clean_sym.split("::") if t and t != "(anonymous namespace)"
+      ]
+      if len(tokens) >= 3 and tokens[0] in [
+          "blink",
+          "v8",
+          "content",
+          "media",
+          "net",
+          "device",
+          "ipcz",
+          "mojo",
+          "skia",
+          "cc",
+          "viz",
+          "storage",
+          "starboard",
+          "base",
+      ]:
+        return f"{tokens[0]}::{tokens[-2]}"
+      if len(tokens) >= 2:
+        return "::".join(tokens[:-1])
+      return tokens[0]
+
+    return clean_sym.strip() or "Unknown Class"
 
 
 def format_bytes(size_bytes: float) -> str:
@@ -818,8 +923,41 @@ def generate_single_profile_report(
     lines.append(f"| **{sub}** | {format_bytes(size)} | {pct:.2f}% |")
   lines.append("")
 
-  # 3. Top Hotspots
-  lines.append("## 3. Top 30 Allocation Hotspots")
+  # 3. Top Core Classes / Components
+  lines.append("## 3. Top 20 Class & Domain Component Hotspots")
+  lines.append(
+      "Shows the top C++ classes and modules responsible for the largest "
+      "memory footprint, grouping method overloads together.")
+  lines.append("")
+  lines.append("| Rank | Subsystem | Core Component / Class | Allocated Size | "
+               "Percentage |")
+  lines.append("| :--- | :--- | :--- | :--- | :--- |")
+
+  def _get_cls_single_key(r: AllocationRecord) -> str:
+    return f"{r.subsystem} __INFO_SEP__ {r.core_class_key}"
+
+  cls_agg = aggregate_by_key(
+      [
+          r for r in target_records
+          if r.subsystem != "Tracing & Heap Profiler Overhead"
+      ],
+      _get_cls_single_key,
+  )
+  rank_cls = 1
+  for key, (size, _) in sorted(
+      cls_agg.items(), key=lambda x: x[1][0], reverse=True)[:20]:
+    parts = key.split(" __INFO_SEP__ ", 1)
+    subsys = parts[0]
+    cls_nm = parts[1] if len(parts) > 1 else "Unknown"
+    pct = (size / target_total * 100.0) if target_total > 0 else 0.0
+    lines.append(
+        f"| {rank_cls} | {subsys} | `{cls_nm}` | {format_bytes(size)} | "
+        f"{pct:.2f}% |")
+    rank_cls += 1
+  lines.append("")
+
+  # 4. Top Hotspots
+  lines.append("## 4. Top 30 Allocation Hotspots & Callstacks")
   lines.append(
       "These are the individual C++ callstacks responsible for the largest "
       "memory allocations.")
@@ -831,9 +969,10 @@ def generate_single_profile_report(
   lines.append("| :--- | :--- | :--- | :--- | :--- | :--- |")
 
   def _get_t3_key(r: AllocationRecord) -> str:
-    leaf = r.leaf_symbol.split(" (")[0]
+    leaf = clean_method_signature(r.leaf_symbol)
+    container = clean_method_signature(r.container_symbol)
     return (f"{r.subsystem} __INFO_SEP__ {r.allocator} __INFO_SEP__ "
-            f"{r.container_symbol} __INFO_SEP__ {leaf} __INFO_SEP__ "
+            f"{container} __INFO_SEP__ {leaf} __INFO_SEP__ "
             f"{r.normalized_stack_key}")
 
   stack_agg = aggregate_by_key(
@@ -944,8 +1083,92 @@ def generate_report(
     pct = item["pct_change"]
     lines.append(f"| **{key}** | {base_sz} | {target_sz} | **{diff_sz}** | "
                  f"{pct:+.2f}% |")
-  # 4. Top Differential Hotspots & Callstacks (Unified Table)
-  lines.append("## 4. Top Differential Allocation Hotspots & Callstacks")
+  # 4. Top Core Class / Component Deltas
+  lines.append("## 4. Top Class & Domain Component Footprint Deltas"
+               " (Refactoring-Immune View)")
+  lines.append("")
+  lines.append(
+      "Aggregates allocations across method overloads and C++ signature"
+      " refactorings (`base::span`, `SharedBuffer` vs `SegmentedBuffer`)"
+      " to reveal true class-level footprint changes.")
+  lines.append("")
+  lines.append("**Trend / Status Guide:**")
+  lines.append(
+      "- `🔴 New Class Bloat`: Class had `0 B` in Base but allocated memory in"
+      " Target (new component or feature).")
+  lines.append(
+      "- `🔴 Net Growth (+X%)`: Class existed in both versions, but total memory"
+      " increased in Target.")
+  lines.append(
+      "- `🟢 Net Reduction (-X%)`: Class memory footprint decreased in Target"
+      " (optimization or less pooling).")
+  lines.append(
+      "- `🟢 Removed / Zeroed`: Class allocated memory in Base but dropped to"
+      " `0 B` in Target.")
+  lines.append(
+      "- `⚪ Stable (0 B)`: Net footprint stayed exact same despite internal"
+      " method/parameter refactoring (`base::span`).")
+  lines.append("")
+  header_cls = (
+      "| Rank | Subsystem | Core Component / Class | Base Size | Target"
+      " Size | Net Diff (+/-) | Trend / Status |")
+  lines.append(header_cls)
+  lines.append("| :--- | :--- | :--- | :--- | :--- | :--- | :--- |")
+
+  def _get_cls_key(r: AllocationRecord) -> str:
+    return r.core_class_key
+
+  # Map class key to most specific non-Other subsystem
+  subsys_map = {}
+  for r in base_records + target_records:
+    k = r.core_class_key
+    if k not in subsys_map or (r.subsystem not in [
+        "PartitionAlloc (Core/Other)", "Malloc (Unclassified C++)"
+    ]):
+      subsys_map[k] = r.subsystem
+
+  cls_base_agg = aggregate_by_key(
+      [
+          r for r in base_records
+          if r.subsystem != "Tracing & Heap Profiler Overhead"
+      ],
+      _get_cls_key,
+  )
+  cls_target_agg = aggregate_by_key(
+      [
+          r for r in target_records
+          if r.subsystem != "Tracing & Heap Profiler Overhead"
+      ],
+      _get_cls_key,
+  )
+  cls_diffs = compare_aggregates(cls_base_agg, cls_target_agg, threshold_bytes)
+
+  rank_cls = 1
+  for item in cls_diffs[:20]:
+    cls_nm = item["key"]
+    subsys = subsys_map.get(cls_nm, "Other")
+    base_sz = format_bytes(item["base_size"])
+    target_sz = format_bytes(item["target_size"])
+    diff_sz = format_bytes(item["diff_size"])
+    pct = item["pct_change"]
+    if item["base_size"] == 0 and item["target_size"] > 0:
+      trend = "🔴 New Class Bloat"
+    elif item["target_size"] == 0 and item["base_size"] > 0:
+      trend = "🟢 Removed / Zeroed"
+    elif item["diff_size"] > 0:
+      trend = f"🔴 Net Growth ({pct:+.1f}%)"
+    elif item["diff_size"] < 0:
+      trend = f"🟢 Net Reduction ({pct:+.1f}%)"
+    else:
+      trend = "⚪ Stable (0 B)"
+    lines.append(
+        f"| {rank_cls} | {subsys} | `{cls_nm}` | {base_sz} | {target_sz} |"
+        f" **{diff_sz}** | {trend} |")
+    rank_cls += 1
+  lines.append("")
+
+  # 5. Top Differential Hotspots & Callstacks (Unified Table)
+  lines.append("## 5. Top Differential Allocation Hotspots & Callstacks")
   lines.append("")
   thresh_str = format_bytes(threshold_bytes)
   lines.append(
@@ -960,12 +1183,23 @@ def generate_report(
   lines.append("| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |")
 
   def _get_t4_key(r: AllocationRecord) -> str:
-    leaf = r.leaf_symbol.split(" (")[0]
-    return (f"{r.subsystem} __INFO_SEP__ {r.allocator} __INFO_SEP__ "
-            f"{r.container_symbol} __INFO_SEP__ {leaf} __INFO_SEP__ "
-            f"{r.normalized_stack_key}")
+    leaf = clean_method_signature(r.leaf_symbol)
+    container = clean_method_signature(r.container_symbol)
+    return (f"{r.allocator} __INFO_SEP__ {container} __INFO_SEP__ {leaf}"
+            f" __INFO_SEP__ {r.normalized_stack_key}")
 
-  # Group by (subsystem, allocator, container, clean_leaf, stack_key)
+  stack_subsys_map = {}
+  stack_cls_map = {}
+  for r in base_records + target_records:
+    if r.subsystem == "Tracing & Heap Profiler Overhead":
+      continue
+    k = _get_t4_key(r)
+    stack_cls_map[k] = r.core_class_key
+    if k not in stack_subsys_map or (r.subsystem not in [
+        "PartitionAlloc (Core/Other)", "Malloc (Unclassified C++)"
+    ]):
+      stack_subsys_map[k] = r.subsystem
+
   stack_base_agg = {}
   for r in base_records:
     if r.subsystem == "Tracing & Heap Profiler Overhead":
@@ -985,17 +1219,25 @@ def generate_report(
   stack_diffs = compare_aggregates(stack_base_agg, stack_target_agg,
                                    threshold_bytes)
 
+  cls_net_map = {
+      item["key"]: abs(item["diff_size"])
+      for item in compare_aggregates(cls_base_agg, cls_target_agg, 0)
+  }
+
   count_shown = 0
   for item in stack_diffs[:30]:
     if item["diff_size"] == 0:
       continue
+    cls_nm = stack_cls_map.get(item["key"], "Unknown Class")
+    if cls_net_map.get(cls_nm, 0) < threshold_bytes:
+      continue
     count_shown += 1
-    parts = item["key"].split(" __INFO_SEP__ ", 4)
-    subsys = parts[0]
-    allocator = parts[1] if len(parts) > 1 else "Unknown"
-    container = (parts[2] if len(parts) > 2 else "Unknown").replace("|", "\\|")
-    leaf_esc = (parts[3] if len(parts) > 3 else "Unknown").replace("|", "\\|")
-    callstack_str = parts[4] if len(parts) > 4 else item["key"]
+    parts = item["key"].split(" __INFO_SEP__ ", 3)
+    allocator = parts[0]
+    container = (parts[1] if len(parts) > 1 else "Unknown").replace("|", "\\|")
+    leaf_esc = (parts[2] if len(parts) > 2 else "Unknown").replace("|", "\\|")
+    callstack_str = parts[3] if len(parts) > 3 else item["key"]
+    subsys = stack_subsys_map.get(item["key"], "Other")
     callstack_compact = callstack_str.replace(" -> ", "<br>↳ ")
     base_sz = format_bytes(item["base_size"])
     target_sz = format_bytes(item["target_size"])
@@ -1065,6 +1307,33 @@ def print_console_summary(markdown_report: str, output_path: str) -> None:
           pct_val = parts[2] if is_single else parts[4]
           print(f"  {sub_count}. {sub_name:<32} {size_val:>12} ({pct_val})")
 
+  print("\n\033[1;35m📦 Top 5 Core Class / Component Hotspots / Deltas:\033[0m")
+  in_cls_table = False
+  cls_count = 0
+  for line in lines:
+    if ("Class & Domain Component Hotspots" in line or
+        "Class & Domain Component Footprint Deltas" in line):
+      in_cls_table = True
+      continue
+    if line.startswith("## 4.") or line.startswith("## 5."):
+      in_cls_table = False
+      break
+    if (in_cls_table and line.startswith("| ") and
+        not line.startswith("| Rank") and not line.startswith("| :---")):
+      cls_count += 1
+      if cls_count <= 5:
+        parts = [p.strip() for p in line.split("|")[1:-1]]
+        if len(parts) >= 5:
+          cls_nm = parts[2].replace("`", "")
+          if is_single:
+            size_val = parts[3]
+            pct_val = parts[4]
+            print(f"  {cls_count}. {cls_nm:<34} {size_val:>12} ({pct_val})")
+          else:
+            diff_val = parts[5].replace("**", "")
+            trend_val = parts[6]
+            print(f"  {cls_count}. {cls_nm:<34} {diff_val:>12}  {trend_val}")
+
   print("-" * 80)
   msg_saved = (
       "\033[1;32m🎉 Full diagnostic report (all 30+ hotspots & callstack "
@@ -1072,6 +1341,145 @@ def print_console_summary(markdown_report: str, output_path: str) -> None:
   print(msg_saved)
   print(f"   {output_path}")
   print("=" * 80 + "\n")
+
+
+def extract_timeline_events(path: str, label: str,
+                            keyword: str) -> Tuple[List[float], int]:
+  """Extracts memory footprint timeline across snapshots for a keyword.
+
+  Args:
+    path: Absolute path to the JSON heap profiling trace file.
+    label: Display label for the trace (e.g. 'Base' or 'Target').
+    keyword: Substring or class name keyword to search for in allocations.
+
+  Returns:
+    A tuple of (match_mb_list, best_idx), where match_mb_list is the list of
+    footprints in MB for the keyword across all snapshots, and best_idx is
+    the index of the peak steady-state snapshot (-1 if inspection failed).
+  """
+  print(f"{label} Trace ({path}):")
+  if not os.path.exists(path):
+    print(f"  ❌ Error: File not found ({path})")
+    return [], -1
+  try:
+    with open(path, "r", encoding="utf-8") as f:
+      d = json.load(f)
+  except (json.JSONDecodeError, OSError) as e:
+    print(f"  ❌ Error reading trace file: {e}")
+    return [], -1
+
+  if isinstance(d, dict):
+    events = d.get("traceEvents", [])
+  elif isinstance(d, list):
+    events = d
+  else:
+    events = []
+
+  snapshots = []
+  for e in events:
+    if e.get("name") not in ["periodic_interval", "memory_dump"]:
+      continue
+    dumps = e.get("args", {}).get("dumps", {})
+    if isinstance(dumps, str):
+      try:
+        dumps = json.loads(dumps)
+      except json.JSONDecodeError:
+        continue
+    if isinstance(dumps, dict) and "heaps_v2" in dumps:
+      ts = e.get("ts", 0)
+      snapshots.append((dumps["heaps_v2"], ts))
+
+  if not snapshots:
+    print("  No heaps_v2 snapshots found.")
+    return [], -1
+
+  best_idx = -1
+  best_size = -1
+  all_recs_list = []
+  for i, (heaps_obj, _) in enumerate(snapshots):
+    recs = extract_allocations(heaps_obj)
+    all_recs_list.append(recs)
+    tot = sum(r.size_bytes for r in recs)
+    if tot > best_size:
+      best_size = tot
+      best_idx = i
+
+  kw_lower = keyword.lower()
+  match_mb_list = []
+  for i, ((_, ts), recs) in enumerate(zip(snapshots, all_recs_list)):
+    tot_mb = sum(r.size_bytes for r in recs) / (1024 * 1024)
+    matching = [
+        r for r in recs if kw_lower in r.leaf_symbol.lower() or
+        kw_lower in r.core_class_key.lower() or any(
+            kw_lower in f.lower() for f in r.callstack)
+    ]
+    match_mb = sum(r.size_bytes for r in matching) / (1024 * 1024)
+    match_mb_list.append(match_mb)
+    marker = "👉 " if i == best_idx else "   "
+    peak_note = " <-- Selected Peak" if i == best_idx else ""
+    print(f"{marker}Snapshot {i + 1:>2} (ts={ts / 1e6:>7.2f}s): "
+          f"Total Heap: {tot_mb:>6.2f} MB | "
+          f"{keyword}: {match_mb:>6.2f} MB{peak_note}")
+  return match_mb_list, best_idx
+
+
+def run_timeline_diagnosis(base_path: Optional[str], target_path: str,
+                           keyword: str) -> int:
+  """Runs multi-snapshot timeline diagnosis across trace files for a keyword.
+
+  Args:
+    base_path: Optional path to the base trace file.
+    target_path: Required path to the target trace file.
+    keyword: Class or symbol substring to analyze across all snapshots.
+
+  Returns:
+    Exit code (0 on success, 1 on error).
+  """
+  print("\n" + "=" * 80)
+  print(f"🔍 COBALT HEAP TIMELINE DIAGNOSIS FOR KEYWORD: [{keyword}]")
+  print("=" * 80)
+
+  base_mb = []
+  if base_path:
+    base_mb, base_peak_idx = extract_timeline_events(base_path, "Base", keyword)
+    if base_peak_idx == -1:
+      print("❌ Error: Failed to extract timeline from Base trace.")
+      return 1
+    print("-" * 80)
+  target_mb, target_peak_idx = extract_timeline_events(target_path, "Target",
+                                                       keyword)
+  if target_peak_idx == -1:
+    print("❌ Error: Failed to extract timeline from Target trace.")
+    return 1
+  print("=" * 80)
+
+  verdicts = []
+  if base_mb and max(base_mb) - min(base_mb) > 0.5:
+    verdicts.append(
+        f"Workload Fluctuation in Base (`{keyword}` varied "
+        f"{min(base_mb):.2f} MB -> {max(base_mb):.2f} MB across snapshots).")
+  if target_mb and max(target_mb) - min(target_mb) > 0.5:
+    verdicts.append(
+        f"Workload Fluctuation in Target (`{keyword}` varied "
+        f"{min(target_mb):.2f} MB -> {max(target_mb):.2f} MB across snapshots)."
+    )
+  if (base_mb and target_mb and max(base_mb) < 0.1 and min(target_mb) > 0.5):
+    verdicts.append(
+        f"True Architectural Regression (`{keyword}` consistently > "
+        f"{min(target_mb):.2f} MB across all Target snapshots while ~0 in"
+        " Base).")
+  elif (base_mb and target_mb and min(base_mb) > 0.5 and max(target_mb) < 0.1):
+    verdicts.append(f"True Architectural Optimization/Reduction (`{keyword}` "
+                    "consistently ~0 in Target while high in Base).")
+
+  if verdicts:
+    for v in verdicts:
+      print(f"💡 Verdict: {v}")
+  else:
+    print(f"💡 Verdict: `{keyword}` memory footprint is relatively stable"
+          " across snapshots.")
+  print("=" * 80 + "\n")
+  return 0
 
 
 def main():
@@ -1122,6 +1530,14 @@ def main():
       default=-1,
       help="Snapshot index from target trace (-1 for steady state)",
   )
+  parser.add_argument(
+      "--timeline",
+      "-l",
+      dest="timeline_keyword",
+      type=str,
+      default=None,
+      help="Inspect footprint across all snapshots over time for keyword",
+  )
 
   args = parser.parse_args()
 
@@ -1147,6 +1563,12 @@ def main():
         "Example: python3 diff_in_process_heaps.py /tmp/c26.json /tmp/c27.json")
 
   target_path = os.path.abspath(target_path)
+  if base_path:
+    base_path = os.path.abspath(base_path)
+
+  if args.timeline_keyword:
+    return run_timeline_diagnosis(base_path, target_path, args.timeline_keyword)
+
   threshold_bytes = int(args.threshold_kb * 1024)
 
   logger.info("🔍 Loading Target Trace: %s", target_path)

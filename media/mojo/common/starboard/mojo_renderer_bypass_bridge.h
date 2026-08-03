@@ -16,6 +16,7 @@
 #define MEDIA_MOJO_COMMON_STARBOARD_MOJO_RENDERER_BYPASS_BRIDGE_H_
 
 #include <map>
+#include <string>
 
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
@@ -24,6 +25,7 @@
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/pipeline_status.h"
 
@@ -52,7 +54,7 @@ namespace media {
 //   destroyed while a Read() is in progress.
 // - Callbacks to the client (PostTimeUpdate(), PostStatisticsUpdate()) are
 //   marshalled to the client's task runner (typically the Media thread) and
-//   executed safely using a WeakPtr to the MojoRenderer.
+//   executed safely using a WeakPtr to the StarboardRendererClient.
 class MojoRendererBypassBridge
     : public base::RefCountedThreadSafe<MojoRendererBypassBridge> {
  public:
@@ -71,12 +73,10 @@ class MojoRendererBypassBridge
 
   void Invalidate();
   void SetStreams(DemuxerStream* audio, DemuxerStream* video);
-
   void PostTimeUpdate(base::TimeDelta time,
                       base::TimeDelta max_time,
                       base::TimeTicks capture_time);
   void PostStatisticsUpdate(const PipelineStatistics& stats);
-
   bool Read(DemuxerStream::Type type,
             uint32_t count,
             DemuxerStream::ReadCB read_cb);
@@ -86,6 +86,8 @@ class MojoRendererBypassBridge
   VideoDecoderConfig GetVideoConfig() const;
   bool SupportsConfigChanges(DemuxerStream::Type type) const;
   StreamLiveness GetLiveness(DemuxerStream::Type type) const;
+  std::string GetMimeType(DemuxerStream::Type type) const;
+  void EnableBitstreamConverter(DemuxerStream::Type type);
 
  private:
   friend class base::RefCountedThreadSafe<MojoRendererBypassBridge>;
@@ -100,6 +102,8 @@ class MojoRendererBypassBridge
                   DemuxerStream::Status status,
                   DemuxerStream::DecoderBufferVector buffers);
   void DecrementInFlightReads();
+  DemuxerStream* GetStreamLocked(DemuxerStream::Type type) const
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   const scoped_refptr<base::SequencedTaskRunner> client_task_runner_;
   const TimeUpdateCB time_update_cb_;

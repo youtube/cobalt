@@ -21,6 +21,7 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/demuxer_stream.h"
 #include "media/starboard/decoder_buffer_allocator.h"
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -43,6 +44,13 @@ class MEDIA_EXPORT ExternalMemoryAllocator {
   virtual ~ExternalMemoryAllocator() = default;
   virtual std::unique_ptr<DecoderBuffer::ExternalMemory> CopyFrom(
       base::span<const uint8_t> span) = 0;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual std::unique_ptr<DecoderBuffer::ExternalMemory> CopyFrom(
+      base::span<const uint8_t> span,
+      DemuxerStream::Type type) {
+    return CopyFrom(span);
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 // A client interface for embedders (e.g. content/renderer) to provide

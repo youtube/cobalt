@@ -20,6 +20,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/android/shared/drm_system.h"
@@ -54,7 +55,8 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   class Host {
    public:
     virtual void ProcessOutputBuffer(MediaCodec* media_codec,
-                                     const DequeueOutputResult& output) = 0;
+                                     const DequeueOutputResult& output,
+                                     int number_of_pending_inputs) = 0;
     virtual void OnEndOfStreamWritten(MediaCodec* media_codec) = 0;
     virtual void RefreshOutputFormat(MediaCodec* media_codec) = 0;
     // This function gets called frequently on the decoding thread to give the
@@ -98,7 +100,6 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
       std::optional<int> tunnel_mode_audio_session_id,
       bool enable_frame_renderer_listener,
-      bool enable_low_latency,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
@@ -134,7 +135,6 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
       std::optional<int> tunnel_mode_audio_session_id,
       bool enable_frame_renderer_listener,
-      bool enable_low_latency,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
@@ -177,8 +177,8 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
         : type(kWriteCodecConfig), codec_config(codec_config) {
       SB_DCHECK(!this->codec_config.empty());
     }
-    explicit PendingInput(const scoped_refptr<InputBuffer>& input_buffer)
-        : type(kWriteInputBuffer), input_buffer(input_buffer) {}
+    explicit PendingInput(scoped_refptr<InputBuffer> input_buffer)
+        : type(kWriteInputBuffer), input_buffer(std::move(input_buffer)) {}
 
     Type type;
     scoped_refptr<InputBuffer> input_buffer;
@@ -194,7 +194,8 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   };
 
   class DecoderThread;
-  void DecoderThreadFunc();
+  void AudioDecoderThreadFunc();
+  void VideoDecoderThreadFunc();
 
   // TODO(b/329686979): Consider turning MediaDecoder into a class hierarchy to
   // simplify the handling of threading, including the difference of a/v

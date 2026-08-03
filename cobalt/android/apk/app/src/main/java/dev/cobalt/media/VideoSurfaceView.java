@@ -18,14 +18,11 @@ import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.os.Build;
 import android.util.AttributeSet;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import dev.cobalt.util.Log;
-import java.util.HashSet;
-import java.util.Set;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
@@ -38,21 +35,9 @@ public class VideoSurfaceView extends SurfaceView {
   @NativeMethods
   interface Natives {
     void onVideoSurfaceChanged(Surface surface);
-    void setNeedResetSurface();
   }
 
   private static Surface sCurrentSurface = null;
-
-  private static final Set<String> sNeedResetSurfaceList = new HashSet<>();
-
-  static {
-    sNeedResetSurfaceList.add("Nexus Player");
-
-    // Reset video surface on nexus player to avoid b/159073388.
-    if (sNeedResetSurfaceList.contains(Build.MODEL)) {
-      // VideoSurfaceViewJni.get().setNeedResetSurface();
-    }
-  }
 
   public VideoSurfaceView(Context context) {
     super(context);

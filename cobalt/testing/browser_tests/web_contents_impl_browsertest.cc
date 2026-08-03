@@ -6327,6 +6327,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsPrerenderBrowserTest,
   close_observer.Wait();
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 class WebContentsFencedFrameBrowserTest : public WebContentsImplBrowserTest {
  public:
   WebContentsFencedFrameBrowserTest() = default;
@@ -6522,6 +6523,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsFencedFrameBrowserTest,
     test_recorder_.ExpectEntryMetric(entry, UkmEntry::kIsTopFrameName, false);
   }
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 #if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && BUILDFLAG(USE_STARSCAN)
 
