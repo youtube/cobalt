@@ -308,32 +308,9 @@ public class ContentViewRenderView extends FrameLayout {
          */
         private Integer mPendingSurfaceFormat;
 
-        /**
-         * Simple data holder representing the surface configuration parameters.
-         * Instances are short-lived, immutable, and thread-safe.
-         */
-        private static class SurfaceConfig {
-            public final int format;
-            public final int width;
-            public final int height;
-
-            public SurfaceConfig(int format, int width, int height) {
-                this.format = format;
-                this.width = width;
-                this.height = height;
-            }
-        }
-
-        private enum StartupState {
-            NOT_REGISTERED,
-            OBSERVER_REGISTERED,
-            NATIVE_STARTED,
-        }
-
         private final java.util.List<Runnable> mPendingTasks = new java.util.ArrayList<>();
+        private boolean mIsNativeStarted;
         private boolean mIsSurfaceCreatedDispatched;
-        // Startup state is a one-way transition across native startup (do not reset in disconnect()).
-        private StartupState mStartupState = StartupState.NOT_REGISTERED;
 
         private static Window getWindow(WindowAndroid windowAndroid) {
             if (windowAndroid == null || windowAndroid.getActivity() == null) {
@@ -346,16 +323,9 @@ public class ContentViewRenderView extends FrameLayout {
         private void registerStartupListener() {
             // Fast-path: if native is already started, don't wait or register.
             if (BrowserStartupController.getInstance().isNativeStarted()) {
-                mStartupState = StartupState.NATIVE_STARTED;
+                mIsNativeStarted = true;
                 return;
             }
-
-            // BrowserStartupController is a singleton that fires startup completion only once,
-            // so we only need to register the observer once.
-            if (mStartupState != StartupState.NOT_REGISTERED) {
-                return;
-            }
-            mStartupState = StartupState.OBSERVER_REGISTERED;
 
             BrowserStartupController.getInstance().addStartupCompletedObserver(
                     new BrowserStartupController.StartupCallback() {
@@ -365,11 +335,14 @@ public class ContentViewRenderView extends FrameLayout {
                             while (!mPendingTasks.isEmpty()) {
                                 mPendingTasks.remove(0).run();
                             }
-                            mStartupState = StartupState.NATIVE_STARTED;
+                            mIsNativeStarted = true;
                         }
 
                         @Override
-                        public void onFailure() {}
+                        public void onFailure() {
+                            Log.e(TAG, "ContentViewRenderView: Native startup failed; clearing pending tasks");
+                            mPendingTasks.clear();
+                        }
                     });
         }
 
@@ -393,7 +366,7 @@ public class ContentViewRenderView extends FrameLayout {
                 @Override
                 public void surfaceCreated(SurfaceHolder holder) {
                     mWindowSurfaceHolder = holder;
-                    if (mStartupState != StartupState.NATIVE_STARTED) {
+                    if (!mIsNativeStarted) {
                         mPendingTasks.add(() -> handleSurfaceCreated(holder));
                         return;
                     }
@@ -404,12 +377,12 @@ public class ContentViewRenderView extends FrameLayout {
                 public void surfaceChanged(
                         SurfaceHolder holder, int format, int width, int height) {
                     mWindowSurfaceHolder = holder;
-                    SurfaceConfig config = new SurfaceConfig(format, width, height);
-                    if (mStartupState != StartupState.NATIVE_STARTED) {
-                        mPendingTasks.add(() -> handleSurfaceChanged(holder, config));
+                    if (!mIsNativeStarted) {
+                        mPendingTasks.add(
+                                () -> surfaceCallback.surfaceChanged(holder, format, width, height));
                         return;
                     }
-                    handleSurfaceChanged(holder, config);
+                    surfaceCallback.surfaceChanged(holder, format, width, height);
                 }
 
                 @Override
@@ -437,11 +410,6 @@ public class ContentViewRenderView extends FrameLayout {
                     applyPendingSurfaceFormat();
                     surfaceCallback.surfaceCreated(holder);
                     mIsSurfaceCreatedDispatched = true;
-                }
-
-                private void handleSurfaceChanged(SurfaceHolder holder, SurfaceConfig config) {
-                    surfaceCallback.surfaceChanged(
-                            holder, config.format, config.width, config.height);
                 }
             });
         }
