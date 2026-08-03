@@ -36,7 +36,7 @@ import org.jni_zero.NativeMethods;
 @NullMarked
 public class ShellManager {
     private static final String TAG = "cobalt";
-    private WindowAndroid mWindow;
+    private @Nullable WindowAndroid mWindow;
     private @Nullable Shell mActiveShell;
 
     private Shell.@Nullable OnWebContentsReadyListener mNextWebContentsReadyListener;
@@ -44,9 +44,10 @@ public class ShellManager {
     // The target for all content rendering.
     private @Nullable ContentViewRenderView mContentViewRenderView;
 
-    private Context mContext;
+    private @Nullable Context mContext;
 
     private boolean mIsActivityVisible;
+    private boolean mDestroyed;
 
     /**
      * Constructor for inflating via XML.
@@ -66,7 +67,7 @@ public class ShellManager {
         }
     }
 
-    public Context getContext() {
+    public @Nullable Context getContext() {
         return mContext;
     }
 
@@ -84,7 +85,7 @@ public class ShellManager {
     /**
      * @return The window used to generate all shells.
      */
-    public WindowAndroid getWindow() {
+    public @Nullable WindowAndroid getWindow() {
         return mWindow;
     }
 
@@ -129,11 +130,11 @@ public class ShellManager {
     private Object createShell(long nativeShellPtr) {
         if (mContentViewRenderView == null) {
             mContentViewRenderView = new ContentViewRenderView(getContext());
-            mContentViewRenderView.onNativeLibraryLoaded(mWindow);
+            mContentViewRenderView.onNativeLibraryLoaded(getWindow());
         }
 
         Shell shellView = new Shell(getContext());
-        shellView.initialize(nativeShellPtr, mWindow);
+        shellView.initialize(nativeShellPtr, getWindow());
         shellView.onActivityVisible(mIsActivityVisible);
         shellView.setWebContentsReadyListener(mNextWebContentsReadyListener);
         mNextWebContentsReadyListener = null;
@@ -174,14 +175,23 @@ public class ShellManager {
      */
     @CalledByNative
     public void destroy() {
+        if (mDestroyed) return;
+        mDestroyed = true;
+
         // Remove active shell (Currently single shell support only available).
         if (mActiveShell != null) {
-            removeShell(mActiveShell);
+            Shell activeShell = mActiveShell;
+            removeShell(activeShell);
+            activeShell.close();
         }
         if (mContentViewRenderView != null) {
             mContentViewRenderView.destroy();
             mContentViewRenderView = null;
         }
+        sNatives.destroy(this);
+        mNextWebContentsReadyListener = null;
+        mWindow = null;
+        mContext = null;
     }
 
     private static Natives sNatives;
@@ -206,6 +216,10 @@ public class ShellManager {
          * @param deepLinkUrl The topic URL from the DeepLink URL.
          */
         void launchShell(String url, String deepLinkUrl);
+        /**
+         * Releases the native global reference to this ShellManager.
+         */
+        void destroy(Object shellManagerInstance);
         /**
          * Appends the migration status parameter to the given URL.
          * @param url The URL to append the migration status to.

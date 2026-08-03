@@ -577,6 +577,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @Override
   protected void onStop() {
     unregisterDisplayListener();
+    DisplayUtil.removeDisplayListener(this);
+    AudioOutputManager.removeAudioDeviceListener(this);
     super.onStop();
 
     // visibility:hidden event
