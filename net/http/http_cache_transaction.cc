@@ -17,6 +17,7 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "base/auto_reset.h"
 #include "base/check.h"
@@ -34,6 +35,7 @@
 #include "base/memory/stack_allocated.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
 #include "base/pickle.h"
 #include "base/strings/string_util.h"  // For EqualsCaseInsensitiveASCII.
 #include "base/task/single_thread_task_runner.h"
@@ -3991,25 +3993,66 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
   }
 
 #if BUILDFLAG(IS_COBALT)
-  // Only allow HTML and JS/ECMAScript in Cobalt's HTTP cache by default.
-  // When --enable-css-and-wasm-for-http-cache is passed, also allow CSS and WASM.
   std::string mime_type;
-  if (headers.GetMimeType(&mime_type)) {
-    bool is_html = (mime_type == "text/html");
-    bool is_js = base::EndsWith(mime_type, "javascript", base::CompareCase::SENSITIVE)
-        || base::EndsWith(mime_type, "ecmascript", base::CompareCase::SENSITIVE);
-    static const bool enable_css_and_wasm =
-        base::CommandLine::ForCurrentProcess()->HasSwitch(
-            "enable-css-and-wasm-for-http-cache");
-    bool is_css_or_wasm =
-        enable_css_and_wasm &&
-        (mime_type == "text/css" || mime_type == "application/wasm");
-    if (!is_html && !is_js && !is_css_or_wasm) {
-      return true; // Do not write to cache / doom existing entry
+  if (!headers.GetMimeType(&mime_type)) {
+    return true;  // Reject unknown MIME types.
+  }
+
+  // Cache command line evaluations statically once per process runtime to avoid
+  // redundant map lookups and string comparisons on every transaction.
+  static const bool enable_css_and_wasm_caching =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "enable-css-and-wasm-for-http-cache");
+  static const bool enable_cache_tuning =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "enable-http-and-v8-cache-tuning");
+
+  // Maintain a consolidated list of accepted asset MIME types (exact or suffix).
+  static const base::NoDestructor<std::vector<std::string_view>> accepted_asset_types([] {
+    std::vector<std::string_view> types = {
+        "text/html",
+        "javascript",
+        "ecmascript",
+    };
+    if (enable_css_and_wasm_caching) {
+      types.push_back("text/css");
+      types.push_back("application/wasm");
     }
-  } else {
-    // If we cannot determine the MIME type, err on the side of caution and do not cache.
-    return true;
+    return types;
+  }());
+
+  bool is_accepted_mime_type = false;
+  for (std::string_view type : *accepted_asset_types) {
+    if (mime_type == type ||
+        base::EndsWith(mime_type, type, base::CompareCase::SENSITIVE)) {
+      is_accepted_mime_type = true;
+      break;
+    }
+  }
+
+  if (!is_accepted_mime_type) {
+    return true;  // Do not write to cache / doom existing entry
+  }
+
+  if (enable_cache_tuning) {
+    // Exclude Ad Impression Pings & Telemetry reporting endpoints.
+    for (std::string_view excluded :
+         {"/api/stats/ads", "/pagead/", "/ptracking", "eligibility_check"}) {
+      if (request_->url.spec().find(excluded) != std::string::npos) {
+        return true;
+      }
+    }
+
+    // Exclude HTTP error status codes (< 200 or >= 400) and Captive Portals.
+    if (headers.response_code() < 200 || headers.response_code() >= 400) {
+      return true;
+    }
+
+    // Exclude micro-resources (< 512B) where socket read beats eMMC IO overhead.
+    int64_t len = headers.GetContentLength();
+    if (len >= 0 && len < 512) {
+      return true;
+    }
   }
 #endif
 
