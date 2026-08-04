@@ -30,6 +30,49 @@ SbMediaSupportType DefaultSbMediaInterface::CanPlayMimeAndKeySystem(
   return SbMediaCanPlayMimeAndKeySystem(mime, key_system);
 }
 
+bool DefaultSbMediaInterface::CanChangeType(const char* current_mime,
+                                            const char* new_mime) {
+  return SbMediaCanChangeType(current_mime, new_mime);
+}
+
+int DefaultSbMediaInterface::GetAudioOutputCount() {
+  return SbMediaGetAudioOutputCount();
+}
+
+bool DefaultSbMediaInterface::GetAudioConfiguration(
+    int output_index,
+    SbMediaAudioConfiguration* out_configuration) {
+  return SbMediaGetAudioConfiguration(output_index, out_configuration);
+}
+
+int DefaultSbMediaInterface::GetBufferAllocationUnit() {
+  return SbMediaGetBufferAllocationUnit();
+}
+
+int DefaultSbMediaInterface::GetAudioBufferBudget() {
+  return SbMediaGetAudioBufferBudget();
+}
+
+int64_t DefaultSbMediaInterface::GetBufferGarbageCollectionDurationThreshold() {
+  return SbMediaGetBufferGarbageCollectionDurationThreshold();
+}
+
+int DefaultSbMediaInterface::GetInitialBufferCapacity() {
+  return SbMediaGetInitialBufferCapacity();
+}
+
+bool DefaultSbMediaInterface::IsBufferPoolAllocateOnDemand() {
+  return SbMediaIsBufferPoolAllocateOnDemand();
+}
+
+int DefaultSbMediaInterface::GetVideoBufferBudget(SbMediaVideoCodec codec,
+                                                  int resolution_width,
+                                                  int resolution_height,
+                                                  int bits_per_pixel) {
+  return SbMediaGetVideoBufferBudget(codec, resolution_width, resolution_height,
+                                     bits_per_pixel);
+}
+
 SbMediaInterface* GetSbMediaInterface() {
   SbMediaInterface* testing_interface =
       g_sbmedia_interface_for_testing.load(std::memory_order_acquire);

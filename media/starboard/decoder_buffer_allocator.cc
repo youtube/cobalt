@@ -25,6 +25,7 @@
 #include "media/base/video_codecs.h"
 #include "media/starboard/bidirectional_fit_decoder_buffer_allocator_strategy.h"
 #include "media/starboard/media_buffer_pool_decoder_buffer_allocator_strategy.h"
+#include "media/starboard/sbmedia_interface.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/allocator.h"
 #include "starboard/common/embedded_metadata_reuse_allocator_base.h"
@@ -64,9 +65,10 @@ base::expected<void, std::string> ProcessEnableOnlySetting(
 }  // namespace
 
 DecoderBufferAllocator::DecoderBufferAllocator()
-    : DecoderBufferAllocator(SbMediaIsBufferPoolAllocateOnDemand(),
-                             SbMediaGetInitialBufferCapacity(),
-                             SbMediaGetBufferAllocationUnit()) {}
+    : DecoderBufferAllocator(
+          GetSbMediaInterface()->IsBufferPoolAllocateOnDemand(),
+          GetSbMediaInterface()->GetInitialBufferCapacity(),
+          GetSbMediaInterface()->GetBufferAllocationUnit()) {}
 
 DecoderBufferAllocator::DecoderBufferAllocator(
     bool is_memory_pool_allocated_on_demand,
@@ -212,7 +214,7 @@ void DecoderBufferAllocator::Write(Handle handle,
 base::TimeDelta
 DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold() const {
   return base::Microseconds(
-      SbMediaGetBufferGarbageCollectionDurationThreshold());
+      GetSbMediaInterface()->GetBufferGarbageCollectionDurationThreshold());
 }
 
 size_t DecoderBufferAllocator::GetAllocatedMemory() const {
