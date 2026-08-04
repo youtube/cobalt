@@ -57,20 +57,20 @@
 #include "components/services/storage/shared_storage/shared_storage_manager.h"
 #include "components/services/storage/shared_storage/shared_storage_options.h"
 #include "components/services/storage/storage_service_impl.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/aggregation_service/aggregation_service_test_utils.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/attribution_reporting/test/mock_attribution_manager.h"
 #include "content/browser/code_cache/generated_code_cache.h"
 #include "content/browser/code_cache/generated_code_cache_context.h"
 #include "content/browser/gpu/gpu_disk_cache_factory.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/interest_group/interest_group_manager_impl.h"
 #include "content/browser/interest_group/interest_group_permissions_cache.h"
 #include "content/browser/interest_group/interest_group_permissions_checker.h"
 #include "content/browser/private_aggregation/private_aggregation_manager.h"
 #include "content/browser/private_aggregation/private_aggregation_test_utils.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/renderer_host/navigation_request.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -219,7 +219,7 @@ class RemoveCookieTester {
   raw_ptr<StoragePartition> storage_partition_;
 };
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 class RemoveInterestGroupTester {
  public:
   explicit RemoveInterestGroupTester(StoragePartitionImpl* storage_partition)
@@ -328,7 +328,7 @@ class RemoveInterestGroupTester {
   std::string k_anon_key;
   raw_ptr<StoragePartitionImpl> storage_partition_;
 };
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 class RemoveLocalStorageTester {
  public:
@@ -778,7 +778,7 @@ bool FilterURL(const GURL& filter_url, const GURL& url) {
   return url == filter_url;
 }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 void ClearInterestGroups(content::StoragePartition* partition,
                          const base::Time delete_begin,
                          const base::Time delete_end,
@@ -833,7 +833,7 @@ void ClearInterestGroupPermissionsCache(content::StoragePartition* partition,
       StoragePartition::QUOTA_MANAGED_STORAGE_MASK_ALL, blink::StorageKey(),
       delete_begin, delete_end, run_loop->QuitClosure());
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 bool FilterMatchesCookie(const CookieDeletionFilterPtr& filter,
                          const net::CanonicalCookie& cookie) {
@@ -1268,7 +1268,7 @@ TEST_F(StoragePartitionImplTest, RemoveCookieWithDeleteInfo) {
   EXPECT_FALSE(tester.ContainsCookie(kOrigin));
 }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 TEST_F(StoragePartitionImplTest, RemoveInterestGroupForever) {
   const url::Origin kOrigin = url::Origin::Create(GURL("https://host1:1/"));
 
@@ -1398,7 +1398,7 @@ TEST_F(StoragePartitionImplTest, RemoveInterestGroupPermissionsCacheForever) {
   EXPECT_FALSE(permissions_cache.GetPermissions(
       kFrameOrigin, kInterestGroupOrigin, kNetworkIsolationKey));
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 TEST_F(StoragePartitionImplTest, RemoveUnprotectedLocalStorageForever) {
   const url::Origin kOrigin1 = url::Origin::Create(GURL("http://host1:1/"));
@@ -2043,7 +2043,7 @@ TEST_F(StoragePartitionImplTest, DataRemovalObserver) {
       kBeginTime, kEndTime, base::DoNothing());
 }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 TEST_F(StoragePartitionImplTest, RemoveAggregationServiceData) {
   StoragePartitionImpl* partition = static_cast<StoragePartitionImpl*>(
       browser_context()->GetDefaultStoragePartition());
@@ -2291,7 +2291,7 @@ TEST_F(StoragePartitionImplTest, RemovePrivateAggregationData) {
     run_loop.Run();
   }
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 // https://crbug.com/1221382
 // Make sure StorageServiceImpl can be stored in a SequenceLocalStorageSlot and
@@ -2364,7 +2364,7 @@ TEST_F(StoragePartitionImplTest, RemoveDeviceBoundSessions) {
 }
 #endif
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 class StoragePartitionImplSharedStorageTest : public StoragePartitionImplTest {
  public:
   StoragePartitionImplSharedStorageTest()
@@ -2587,7 +2587,7 @@ TEST_F(StoragePartitionImplSharedStorageTest, RemoveSharedStorageRecent) {
   EXPECT_TRUE(SharedStorageExistsForOrigin(kOrigin2));
   EXPECT_FALSE(SharedStorageExistsForOrigin(kOrigin3));
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 TEST_F(StoragePartitionImplTest, PrivateNetworkAccessPermission) {
   base::test::ScopedFeatureList features;
