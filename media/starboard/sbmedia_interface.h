@@ -22,6 +22,16 @@
 
 namespace media {
 
+// SbMediaInterface abstracts the Starboard media C APIs to facilitate testing
+// and mocking of media features.
+//
+// Lifetime and ownership:
+// The production instance is a global singleton that is created on demand and
+// lives for the lifetime of the process. Custom test implementations can be
+// injected via SetSbMediaInterfaceForTesting().
+//
+// Threading model:
+// Implementations must be thread-safe and callable from any thread.
 class MEDIA_EXPORT SbMediaInterface {
  public:
   virtual ~SbMediaInterface() = default;
@@ -46,6 +56,14 @@ class MEDIA_EXPORT SbMediaInterface {
                                    int bits_per_pixel) = 0;
 };
 
+// DefaultSbMediaInterface is the production implementation of SbMediaInterface
+// that forwards all calls directly to the corresponding Starboard C functions.
+//
+// Lifetime and ownership:
+// Created as a leaked static singleton in GetSbMediaInterface().
+//
+// Threading model:
+// Thread-safe as it delegates to thread-safe Starboard C APIs.
 class MEDIA_EXPORT DefaultSbMediaInterface final : public SbMediaInterface {
  public:
   SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
