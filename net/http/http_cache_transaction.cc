@@ -35,6 +35,7 @@
 #include "base/memory/stack_allocated.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
 #include "base/pickle.h"
 #include "base/strings/string_util.h"  // For EqualsCaseInsensitiveASCII.
 #include "base/task/single_thread_task_runner.h"
@@ -4007,7 +4008,7 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
           "enable-http-and-v8-cache-tuning");
 
   // Maintain a consolidated list of accepted asset MIME types (exact or suffix).
-  static const std::vector<std::string_view> accepted_asset_types = [] {
+  static const base::NoDestructor<std::vector<std::string_view>> accepted_asset_types([] {
     std::vector<std::string_view> types = {
         "text/html",
         "javascript",
@@ -4018,10 +4019,10 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
       types.push_back("application/wasm");
     }
     return types;
-  }();
+  }());
 
   bool is_accepted_mime_type = false;
-  for (std::string_view type : accepted_asset_types) {
+  for (std::string_view type : *accepted_asset_types) {
     if (mime_type == type ||
         base::EndsWith(mime_type, type, base::CompareCase::SENSITIVE)) {
       is_accepted_mime_type = true;
