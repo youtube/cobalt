@@ -21,6 +21,7 @@
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "media/starboard/sbmedia_interface.h"
 #include "starboard/media.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -73,13 +74,22 @@ InterceptedData* GetInterceptedData() {
 
 std::atomic<InterceptedData*> g_intercepted_data{nullptr};
 
-SbMediaSupportType InterceptCanPlay(const char* mime, const char* key_system) {
-  InterceptedData* data = g_intercepted_data.load(std::memory_order_acquire);
-  if (data) {
-    data->Add(mime, key_system);
-    return data->mock_support_type.load();
+class TestSbMediaInterface : public ::media::SbMediaInterface {
+ public:
+  SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
+                                             const char* key_system) override {
+    InterceptedData* data = g_intercepted_data.load(std::memory_order_acquire);
+    if (data) {
+      data->Add(mime, key_system);
+      return data->mock_support_type.load();
+    }
+    return kSbMediaSupportTypeNotSupported;
   }
-  return kSbMediaSupportTypeNotSupported;
+};
+
+TestSbMediaInterface* GetTestSbMediaInterface() {
+  static auto* test_interface = new TestSbMediaInterface();
+  return test_interface;
 }
 
 }  // namespace
@@ -98,7 +108,7 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
   void SetUpOnMainThread() override {
     content::ContentBrowserTest::SetUpOnMainThread();
     g_intercepted_data.store(GetInterceptedData(), std::memory_order_release);
-    SbMediaSetCanPlayMimeAndKeySystemFuncForTesting(&InterceptCanPlay);
+    ::media::SetSbMediaInterfaceForTesting(GetTestSbMediaInterface());
 
     ASSERT_TRUE(embedded_test_server()->Start());
     GURL url = embedded_test_server()->GetURL("/title1.html");
@@ -106,7 +116,7 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
   }
 
   void TearDownOnMainThread() override {
-    SbMediaSetCanPlayMimeAndKeySystemFuncForTesting(nullptr);
+    ::media::SetSbMediaInterfaceForTesting(nullptr);
     g_intercepted_data.store(nullptr, std::memory_order_release);
     content::ContentBrowserTest::TearDownOnMainThread();
   }

@@ -130,6 +130,7 @@
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/strings/string_util.h"
+#include "media/starboard/sbmedia_interface.h"  // nogncheck
 #include "starboard/media.h"  // nogncheck
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -307,7 +308,8 @@ bool CanLoadURL(const KURL& url, const String& content_type_str) {
       content_type_codecs.empty()) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     SbMediaSupportType support_type =
-        SbMediaCanPlayMimeAndKeySystem(content_type_str.Ascii().c_str(), "");
+        ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+            content_type_str.Ascii().c_str(), "");
     MIMETypeRegistry::SupportsType result;
     switch (support_type) {
       case kSbMediaSupportTypeNotSupported:
@@ -421,7 +423,8 @@ MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
     result = MIMETypeRegistry::kNotSupported;
   } else {
     const SbMediaSupportType support_type =
-        SbMediaCanPlayMimeAndKeySystem(content_type.Raw().Ascii().c_str(), "");
+        ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+            content_type.Raw().Ascii().c_str(), "");
     switch (support_type) {
       case kSbMediaSupportTypeNotSupported:
         result = MIMETypeRegistry::kNotSupported;
