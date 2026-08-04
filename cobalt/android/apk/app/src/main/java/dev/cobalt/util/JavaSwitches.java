@@ -95,6 +95,9 @@ public class JavaSwitches {
   /** flag to aggressively flush v8 bytecode after a configurable old time. */
   public static final String V8_SET_BYTECODE_OLD_TIME = "V8SetBytecodeOldTime";
 
+  /** Flag for enable go/cobalt-direct-window-rendering */
+  public static final String DIRECT_WINDOW_RENDERING = "DirectWindowRendering";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -214,6 +217,11 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER)) {
       extraCommandLineArgs.add(
           "--enable-features=" + JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER);
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DIRECT_WINDOW_RENDERING)) {
+      extraCommandLineArgs.add("--use-window-surface-for-ui");
+      extraCommandLineArgs.add("--enable-h5vcc-settings=Media.ForceClearSurfaceView=1");
     }
 
     return extraCommandLineArgs;
