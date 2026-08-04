@@ -35,7 +35,7 @@ public class JavaSwitches {
   public static final String ENABLE_OPTIMIZED_V8_CODE_CACHE = "EnableOptimizedV8CodeCache";
 
   /** flag to allow caching CSS and WebAssembly resources in the HTTP disk cache. */
-  public static final String ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE = "EnableWasmAndCssForHttpCache";
+  public static final String ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE = "EnableCssAndWasmForHttpCache";
 
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
