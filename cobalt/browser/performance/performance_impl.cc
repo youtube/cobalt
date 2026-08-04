@@ -113,13 +113,6 @@ void PerformanceImpl::MeasureReservedVirtualMemory(
 
 void PerformanceImpl::GetAppStartupTimeStamp(
     GetAppStartupTimeStampCallback callback) {
-#if BUILDFLAG(IS_ANDROIDTV)
-  if (!app_startup_timestamp_.has_value()) {
-    JNIEnv* env = base::android::AttachCurrentThread();
-    app_startup_timestamp_ =
-        StarboardBridge::GetInstance()->GetAppStartTimestamp(env);
-  }
-#endif
   std::move(callback).Run(app_startup_timestamp_.value_or(0));
 }
 

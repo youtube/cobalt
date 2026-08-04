@@ -795,6 +795,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   /** Overridden by Kimono to provide specific Java switch configurations. */
   protected Map<String, String> getJavaSwitches() {
+    if (CommandLine.isInitialized()
+        && CommandLine.getInstance().hasSwitch(JavaSwitches.USE_STARBOARD_LIFECYCLE_SWITCH)) {
+      mJavaSwitches.put(JavaSwitches.USE_STARBOARD_LIFECYCLE, "");
+    }
     return this.mJavaSwitches;
   }
 
