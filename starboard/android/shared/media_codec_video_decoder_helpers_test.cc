@@ -17,7 +17,6 @@
 #include <array>
 #include <optional>
 
-#include "starboard/android/shared/media_common.h"
 #include "starboard/shared/starboard/media/resolutions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
