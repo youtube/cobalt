@@ -1979,6 +1979,10 @@ component("platform") {
     configs += [ "//build/config/compiler:optimize_max" ]
   }
 
+  if (is_cobalt) {
+    deps += [ "//cobalt/shell:buildflags" ]
+  }
+
   configs -= [ "//build/config/compiler:default_symbols" ]
   configs += blink_symbols_config
 

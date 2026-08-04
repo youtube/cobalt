@@ -125,6 +125,7 @@ testing::AssertionResult HadDOMExceptionInModulesTest(const StringView& name,
 }
 
 #if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+
 static const char kEcdsaPrivateKey[] =
     "-----BEGIN PRIVATE KEY-----\n"
     "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQghHwQ1xYtCoEhFk7r\n"

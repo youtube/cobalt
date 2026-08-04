@@ -30,6 +30,7 @@
 #include <utility>
 
 #include "base/synchronization/lock.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/platform/graphics/image_decoder_wrapper.h"
 #include "third_party/blink/renderer/platform/graphics/image_decoding_store.h"
@@ -113,6 +114,9 @@ bool ImageFrameGenerator::DecodeAndScale(
   if (decode_failed_.load()) {
     return false;
   }
+
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kGraphics);
   {
     base::AutoLock lock(generator_lock_);
     RecordWhetherMultiDecoded(client_id);

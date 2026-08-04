@@ -15,6 +15,7 @@
 #include "base/feature_list.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram_functions.h"
@@ -359,6 +360,8 @@ HttpNetworkTransaction::~HttpNetworkTransaction() {
 int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
                                   CompletionOnceCallback callback,
                                   const NetLogWithSource& net_log) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
   TRACE_EVENT("net", "HttpNetworkTransaction::Start",
               NetLogWithSourceToFlow(net_log), "url", request_info->url);
 
@@ -611,6 +614,8 @@ bool HttpNetworkTransaction::IsReadyToRestartForAuth() {
 int HttpNetworkTransaction::Read(IOBuffer* buf,
                                  int buf_len,
                                  CompletionOnceCallback callback) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
   DCHECK(buf);
   DCHECK_LT(0, buf_len);
 
@@ -997,6 +1002,8 @@ void HttpNetworkTransaction::OnIOComplete(int result) {
 }
 
 int HttpNetworkTransaction::DoLoop(int result) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
   DCHECK(next_state_ != STATE_NONE);
 
   int rv = result;

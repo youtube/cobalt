@@ -355,6 +355,10 @@ viz_component("service") {
     "//ui/latency",
   ]
 
+  if (is_cobalt) {
+    deps += [ "//cobalt/shell:buildflags" ]
+  }
+
   if (is_chromeos) {
     sources += [
       "display_embedder/output_surface_unified.cc",

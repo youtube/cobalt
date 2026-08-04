@@ -4,6 +4,8 @@
 
 #include "src/heap/sweeper.h"
 
+#include "src/base/memory-context.h"
+
 #include <algorithm>
 #include <atomic>
 #include <memory>
@@ -129,6 +131,7 @@ class Sweeper::MajorSweeperJob final : public JobTask {
   MajorSweeperJob& operator=(const MajorSweeperJob&) = delete;
 
   void Run(JobDelegate* delegate) final {
+    ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
     DCHECK_IMPLIES(
         delegate->IsJoiningThread(),
         sweeper_->heap_->IsMainThread() ||
@@ -200,6 +203,7 @@ class Sweeper::MinorSweeperJob final : public JobTask {
   MinorSweeperJob& operator=(const MinorSweeperJob&) = delete;
 
   void Run(JobDelegate* delegate) final {
+    ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
     DCHECK_IMPLIES(
         delegate->IsJoiningThread(),
         sweeper_->heap_->IsMainThread() ||

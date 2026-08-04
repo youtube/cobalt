@@ -130,7 +130,8 @@ void FfmpegAudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
 
 void FfmpegAudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
                                             const ConsumedCB& consumed_cb) {
-  SB_CHECK(BelongsToCurrentThread());
+  SB_DCHECK(BelongsToCurrentThread());
+
   SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(output_cb_);

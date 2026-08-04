@@ -22,6 +22,8 @@
 #include "third_party/inspector_protocol/crdtp/dispatch.h"
 #include "third_party/inspector_protocol/crdtp/json.h"
 
+#include "base/memory/cobalt_memory_context.h"
+
 namespace content {
 namespace {
 // Keep in sync with WebDevToolsAgent::ShouldInterruptForMethod.
@@ -254,6 +256,8 @@ void DevToolsSession::MojoConnectionDestroyed() {
 // to handlers / agents that the session is connected with.
 void DevToolsSession::DispatchProtocolMessage(
     base::span<const uint8_t> message) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kPlatformDevTools);
   if (client_->UsesBinaryProtocol()) {
     crdtp::Status status =
         crdtp::cbor::CheckCBORMessage(crdtp::SpanFrom(message));

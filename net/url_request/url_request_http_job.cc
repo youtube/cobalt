@@ -15,12 +15,8 @@
 #include "base/base_switches.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
-#include "base/compiler_specific.h"
-#include "base/feature_list.h"
-#include "base/file_version_info.h"
-#include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/location.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram_functions.h"
@@ -489,6 +485,8 @@ bool ShouldBlockAllCookies(PrivacyMode privacy_mode) {
 void URLRequestHttpJob::OnGotFirstPartySetMetadata(
     FirstPartySetMetadata first_party_set_metadata,
     FirstPartySetsCacheFilter::MatchInfo match_info) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
   first_party_set_metadata_ = std::move(first_party_set_metadata);
   request_info_.fps_cache_filter = match_info.clear_at_run_id;
   request_info_.browser_run_id = match_info.browser_run_id;
@@ -695,6 +693,8 @@ void URLRequestHttpJob::MaybeStartTransactionInternal(int result) {
 }
 
 void URLRequestHttpJob::StartTransactionInternal() {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
   DCHECK(!override_response_headers_);
 
   // NOTE: This method assumes that request_info_ is already setup properly.
@@ -823,6 +823,8 @@ void URLRequestHttpJob::SetCookieHeaderAndStart(
     const CookieOptions& options,
     const CookieAccessResultList& cookies_with_access_result_list,
     const CookieAccessResultList& excluded_list) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
   DCHECK(request_->maybe_sent_cookies().empty());
 
   CookieAccessResultList maybe_included_cookies =
@@ -1145,6 +1147,8 @@ void URLRequestHttpJob::OnSetCookieResult(const CookieOptions& options,
                                           std::optional<CanonicalCookie> cookie,
                                           std::string cookie_string,
                                           CookieAccessResult access_result) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
   if (request_->net_log().IsCapturing()) {
     request_->net_log().AddEvent(
         NetLogEventType::COOKIE_INCLUSION_STATUS,
@@ -1250,6 +1254,8 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
 }
 
 void URLRequestHttpJob::OnStartCompleted(int result) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
   TRACE_EVENT0(NetTracingCategory(), "URLRequestHttpJob::OnStartCompleted");
   RecordTimer();
 
@@ -1354,6 +1360,8 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
 }
 
 void URLRequestHttpJob::OnHeadersReceivedCallback(int result) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
   // The request should not have been cancelled or have already completed.
   DCHECK(!is_done());
 
@@ -1363,6 +1371,8 @@ void URLRequestHttpJob::OnHeadersReceivedCallback(int result) {
 }
 
 void URLRequestHttpJob::OnReadCompleted(int result) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
   TRACE_EVENT0(NetTracingCategory(), "URLRequestHttpJob::OnReadCompleted");
   read_in_progress_ = false;
 
@@ -1760,6 +1770,8 @@ bool URLRequestHttpJob::ShouldFixMismatchedContentLength(int rv) const {
 }
 
 int URLRequestHttpJob::ReadRawData(IOBuffer* buf, int buf_size) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
   DCHECK_NE(buf_size, 0);
   DCHECK(!read_in_progress_);
 

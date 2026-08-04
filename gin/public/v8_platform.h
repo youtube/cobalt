@@ -64,6 +64,8 @@ class GIN_EXPORT V8Platform : public v8::Platform {
   StackTracePrinter GetStackTracePrinter() override;
   v8::TracingController* GetTracingController() override;
   void DumpWithoutCrashing() override;
+  void SetMemoryContext(v8::MemoryContext context) override;
+  v8::MemoryContext GetMemoryContext() override;
 
  private:
   friend struct base::LazyInstanceTraitsBase<V8Platform>;

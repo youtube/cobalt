@@ -11,6 +11,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"
@@ -669,6 +670,8 @@ void Scheduler::ExecuteSequence(const SequenceId sequence_id) {
 
     order_data->BeginProcessingOrderNumber(order_num);
 
+    ::base::memory::ScopedMemoryContext scoped_context(
+        ::base::memory::MemoryContext::kGraphics);
     std::move(task_closure).Run();
 
     if (order_data->IsProcessingOrderNumber()) {

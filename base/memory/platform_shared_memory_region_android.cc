@@ -4,6 +4,10 @@
 
 #include "base/memory/platform_shared_memory_region.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 #include <sys/mman.h>
 
 #include "base/bits.h"
@@ -129,6 +133,10 @@ bool PlatformSharedMemoryRegion::ConvertToUnsafe() {
 // static
 PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Create(Mode mode,
                                                               size_t size) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kPlatformIPC);
+#endif
   if (size == 0) {
     return {};
   }

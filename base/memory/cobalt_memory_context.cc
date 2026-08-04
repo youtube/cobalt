@@ -12,21 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "copied_base/base/memory/cobalt_memory_context.h"
+#include "base/memory/cobalt_memory_context.h"
 
-#include <pthread.h>
 #include <stdint.h>
+#include <pthread.h>
 #include <atomic>
+
+#if defined(OS_LINUX) || defined(OS_ANDROID)
+#include <sys/prctl.h>
+#endif
+#include <string_view>
 
 namespace base {
 namespace memory {
 
 
-// Weak symbol to allow the linker to merge this TLS getter across base and copied_base.
-#if defined(__GNUC__)
-__attribute__((weak))
-#endif
-pthread_key_t GetSharedMemoryContextKey() {
+
+MAYBE_COBALT_WEAK pthread_key_t GetSharedMemoryContextKey() {
   // Use a static atomic to ensure lazy initialization happens safely.
   // Because this function is weak, the linker will merge all copies into a single instance,
   // meaning `g_key` will be identical across both `base` and `copied_base`.
@@ -36,7 +38,9 @@ pthread_key_t GetSharedMemoryContextKey() {
     pthread_key_t new_key;
     pthread_key_create(&new_key, nullptr);
     intptr_t expected = -1;
-    if (g_key.compare_exchange_strong(expected, static_cast<intptr_t>(new_key), std::memory_order_release)) {
+    if (g_key.compare_exchange_strong(expected,
+                                      static_cast<intptr_t>(new_key),
+                                      std::memory_order_acq_rel)) {
       key = static_cast<intptr_t>(new_key);
     } else {
       pthread_key_delete(new_key);
@@ -46,32 +50,58 @@ pthread_key_t GetSharedMemoryContextKey() {
   return static_cast<pthread_key_t>(key);
 }
 
-MemoryContext GetCurrentMemoryContext() {
-  void* ptr = pthread_getspecific(GetSharedMemoryContextKey());
-  return static_cast<MemoryContext>(reinterpret_cast<intptr_t>(ptr));
+MAYBE_COBALT_WEAK MemoryContext GetCurrentMemoryContext() {
+  uintptr_t val = reinterpret_cast<uintptr_t>(pthread_getspecific(GetSharedMemoryContextKey()));
+  uintptr_t context_val = val & 0xFFFF;
+  uintptr_t checks = val >> 16;
+  if (context_val == 0) {
+    MemoryContext context = MemoryContext::kUnknown;
+#if defined(OS_LINUX) || defined(OS_ANDROID)
+    char thread_name[17] = {0};
+    if (prctl(PR_GET_NAME, thread_name) == 0) {
+      thread_name[16] = '\0';
+      std::string_view name(thread_name);
+      if (name.find("Media") != std::string_view::npos || name.find("Audio") != std::string_view::npos || name.find("Video") != std::string_view::npos || name.find("FFmpeg") != std::string_view::npos || name.find("Decoder") != std::string_view::npos || name.find("Vpx") != std::string_view::npos) {
+        context = MemoryContext::kMedia;
+      } else if (name.find("Network") != std::string_view::npos || name.find("IOThread") != std::string_view::npos || name.find("Socket") != std::string_view::npos) {
+        context = MemoryContext::kNetwork;
+      } else if (name.find("Script") != std::string_view::npos || name.find("V8") != std::string_view::npos || name.find("JS") != std::string_view::npos || name.find("GC") != std::string_view::npos || name.find("Scavenger") != std::string_view::npos) {
+        context = MemoryContext::kScript;
+      } else if (name.find("Graphics") != std::string_view::npos || name.find("Compositor") != std::string_view::npos || name.find("Skia") != std::string_view::npos || name.find("Ganesh") != std::string_view::npos || name.find("Raster") != std::string_view::npos || name.find("Gpu") != std::string_view::npos) {
+        context = MemoryContext::kGraphics;
+      } else if (name.find("Browser") != std::string_view::npos || name.find("CrBrowserMain") != std::string_view::npos || name.find("CrRendererMain") != std::string_view::npos || name == "cobalt") {
+        context = MemoryContext::kBrowserMain;
+      } else if (name.find("IPC") != std::string_view::npos || name.find("Mojo") != std::string_view::npos || name.find("MessagePump") != std::string_view::npos) {
+        context = MemoryContext::kPlatformIPC;
+      }
+    }
+#endif
+    if (context != MemoryContext::kUnknown) {
+      val = static_cast<uintptr_t>(context) + 1;
+      pthread_setspecific(GetSharedMemoryContextKey(), reinterpret_cast<void*>(val));
+      return context;
+    } else {
+      if (checks < 60000) {
+        checks++;
+        val = (checks << 16) | 0; // context_val remains 0
+        pthread_setspecific(GetSharedMemoryContextKey(), reinterpret_cast<void*>(val));
+        return MemoryContext::kUnknown;
+      } else {
+        val = static_cast<uintptr_t>(MemoryContext::kUnknown) + 1;
+        pthread_setspecific(GetSharedMemoryContextKey(), reinterpret_cast<void*>(val));
+        return MemoryContext::kUnknown;
+      }
+    }
+  }
+  return static_cast<MemoryContext>(context_val - 1);
 }
 
-void SetCurrentMemoryContext(MemoryContext context) {
+MAYBE_COBALT_WEAK void SetCurrentMemoryContext(MemoryContext context) {
   pthread_setspecific(GetSharedMemoryContextKey(),
-                      reinterpret_cast<void*>(static_cast<intptr_t>(context)));
+                      reinterpret_cast<void*>(static_cast<uintptr_t>(context) + 1));
 }
 
-ScopedMemoryContext::ScopedMemoryContext(MemoryContext context) {
-  prev_context_ = GetCurrentMemoryContext();
-  SetCurrentMemoryContext(context);
-}
-
-ScopedMemoryContext::~ScopedMemoryContext() {
-  SetCurrentMemoryContext(prev_context_);
-}
-
-extern "C" {
-void CobaltSetMemoryContext(uint8_t context) {
-  SetCurrentMemoryContext(static_cast<MemoryContext>(context));
-}
-}
-
-std::string_view ContextToString(MemoryContext context) {
+MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context) {
   switch (context) {
     case MemoryContext::kUnknown:
       return "Unknown";
@@ -126,3 +156,27 @@ std::string_view ContextToString(MemoryContext context) {
 
 }  // namespace memory
 }  // namespace base
+
+extern "C" __attribute__((visibility("default"))) MAYBE_COBALT_WEAK void CobaltSetMemoryContextForThread(const char* name) {
+  if (!name) return;
+  std::string_view name_view(name);
+  base::memory::MemoryContext context = base::memory::MemoryContext::kUnknown;
+  
+  if (name_view.find("Media") != std::string_view::npos || name_view.find("Audio") != std::string_view::npos || name_view.find("Video") != std::string_view::npos || name_view.find("FFmpeg") != std::string_view::npos || name_view.find("Decoder") != std::string_view::npos || name_view.find("Vpx") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kMedia;
+  } else if (name_view.find("Network") != std::string_view::npos || name_view.find("IOThread") != std::string_view::npos || name_view.find("Socket") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kNetwork;
+  } else if (name_view.find("Script") != std::string_view::npos || name_view.find("V8") != std::string_view::npos || name_view.find("JS") != std::string_view::npos || name_view.find("GC") != std::string_view::npos || name_view.find("Scavenger") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kScript;
+  } else if (name_view.find("Graphics") != std::string_view::npos || name_view.find("Compositor") != std::string_view::npos || name_view.find("Skia") != std::string_view::npos || name_view.find("Ganesh") != std::string_view::npos || name_view.find("Raster") != std::string_view::npos || name_view.find("Gpu") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kGraphics;
+  } else if (name_view.find("Browser") != std::string_view::npos || name_view.find("CrBrowserMain") != std::string_view::npos || name_view.find("CrRendererMain") != std::string_view::npos || name_view == "cobalt") {
+    context = base::memory::MemoryContext::kBrowserMain;
+  } else if (name_view.find("IPC") != std::string_view::npos || name_view.find("Mojo") != std::string_view::npos || name_view.find("MessagePump") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kPlatformIPC;
+  }
+
+  if (context != base::memory::MemoryContext::kUnknown) {
+    base::memory::SetCurrentMemoryContext(context);
+  }
+}

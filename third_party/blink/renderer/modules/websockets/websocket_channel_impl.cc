@@ -37,6 +37,8 @@
 #include <limits>
 #include <memory>
 
+#include "base/memory/cobalt_memory_context.h"
+
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
@@ -404,6 +406,7 @@ bool WebSocketChannelImpl::Connect(const KURL& url, const String& protocol) {
 WebSocketChannel::SendResult WebSocketChannelImpl::Send(
     const std::string& message,
     base::OnceClosure completion_callback) {
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetwork);
   DVLOG(1) << this << " Send(" << message << ") (std::string argument)";
   probe::DidSendWebSocketMessage(execution_context_, identifier_,
                                  WebSocketOpCode::kOpCodeText, true, message);
@@ -439,6 +442,7 @@ WebSocketChannel::SendResult WebSocketChannelImpl::Send(
 
 void WebSocketChannelImpl::Send(
     scoped_refptr<BlobDataHandle> blob_data_handle) {
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetwork);
   DVLOG(1) << this << " Send(" << blob_data_handle->Uuid() << ", "
            << blob_data_handle->GetType() << ", " << blob_data_handle->size()
            << ") "
@@ -461,6 +465,7 @@ WebSocketChannel::SendResult WebSocketChannelImpl::Send(
     size_t byte_offset,
     size_t byte_length,
     base::OnceClosure completion_callback) {
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetwork);
   DVLOG(1) << this << " Send(" << buffer.Data() << ", " << byte_offset << ", "
            << byte_length << ") "
            << "(DOMArrayBuffer argument)";
@@ -662,6 +667,7 @@ void WebSocketChannelImpl::OnDataFrame(
     bool fin,
     network::mojom::blink::WebSocketMessageType type,
     uint64_t data_length) {
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetwork);
   DCHECK_EQ(GetState(), State::kOpen);
   DVLOG(1) << this << " OnDataFrame(" << fin << ", " << type << ", "
            << "(data_length = " << data_length << "))";

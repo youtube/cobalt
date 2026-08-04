@@ -24,6 +24,7 @@
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/containers/fixed_flat_set.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/format_macros.h"
@@ -176,6 +177,8 @@ const NetLogWithSource& HttpCache::Transaction::net_log() const {
 int HttpCache::Transaction::Start(const HttpRequestInfo* request,
                                   CompletionOnceCallback callback,
                                   const NetLogWithSource& net_log) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
   DCHECK(request);
   DCHECK(request->IsConsistent());
   DCHECK(!callback.is_null());
@@ -283,10 +286,13 @@ bool HttpCache::Transaction::IsReadyToRestartForAuth() {
   }
   return network_trans_->IsReadyToRestartForAuth();
 }
-
 int HttpCache::Transaction::Read(IOBuffer* buf,
                                  int buf_len,
                                  CompletionOnceCallback callback) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
+  DCHECK(buf);
+
   TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("net"), "Read",
                       track_for_state_change_, "buf_len", buf_len);
 
@@ -803,7 +809,10 @@ void HttpCache::Transaction::AddDiskCacheWriteTime(base::TimeDelta elapsed) {
 //   Like examples 2-4, only CacheToggleUnusedSincePrefetch* is inserted between
 //   CacheReadResponse* and CacheDispatchValidation.
 int HttpCache::Transaction::DoLoop(int result) {
-  DCHECK_NE(STATE_UNSET, next_state_);
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
+  DCHECK_NE(STATE_NONE, next_state_);
+
   DCHECK_NE(STATE_NONE, next_state_);
   DCHECK(!in_do_loop_);
 

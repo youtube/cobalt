@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "base/threading/simple_thread.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "base/trace_event/heap_profiler.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
@@ -96,6 +97,8 @@ bool SynchronousTaskGraphRunner::RunTask() {
 
   const uint16_t category = found->first;
   auto prioritized_task = work_queue_.GetNextTaskToRun(category);
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kGraphics);
   prioritized_task.task->RunOnWorkerThread();
 
   TRACE_EVENT("toplevel", "cc::SynchronousTaskGraphRunner::RunTask",

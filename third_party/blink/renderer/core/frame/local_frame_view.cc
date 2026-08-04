@@ -31,6 +31,7 @@
 #include <utility>
 
 #include "base/auto_reset.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "base/feature_list.h"
 #include "base/functional/callback.h"
 #include "base/functional/function_ref.h"
@@ -203,6 +204,8 @@
       return false;                 \
     }                               \
   } while (false)
+
+#include "base/memory/cobalt_memory_context.h"
 
 namespace blink {
 namespace {
@@ -664,6 +667,7 @@ bool LocalFrameView::LayoutFromRootObject(LayoutObject& root) {
   "blink,benchmark,rail," TRACE_DISABLED_BY_DEFAULT("blink.debug.layout")
 
 void LocalFrameView::PerformLayout() {
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kLayout);
   ScriptForbiddenScope forbid_script;
 
   has_pending_layout_ = false;
@@ -807,6 +811,9 @@ void LocalFrameView::UpdateLayout() {
   DCHECK(frame_);
   DCHECK_EQ(frame_->View(), this);
   DCHECK(frame_->GetPage());
+
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kLayout);
 
   Lifecycle().EnsureStateAtMost(DocumentLifecycle::kStyleClean);
 
@@ -2075,6 +2082,8 @@ void LocalFrameView::PrepareForLifecycleUpdateRecursive() {
 bool LocalFrameView::UpdateLifecyclePhases(
     DocumentLifecycle::LifecycleState target_state,
     DocumentUpdateReason reason) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kBlinkDOM);
   // If the lifecycle is postponed, which can happen if the inspector requests
   // it, then we shouldn't update any lifecycle phases.
   if (frame_->GetDocument() &&
@@ -2658,6 +2667,10 @@ bool LocalFrameView::AnyFrameIsPrintingOrPaintingPreview() {
 void LocalFrameView::RunPaintLifecyclePhase(PaintBenchmarkMode benchmark_mode) {
   DCHECK(ScriptForbiddenScope::WillBeScriptForbidden());
   DCHECK(LocalFrameTreeAllowsThrottling());
+
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kGraphics);
+
   TRACE_EVENT0("blink,benchmark", "LocalFrameView::RunPaintLifecyclePhase");
   // While printing or capturing a paint preview of a document, the paint walk
   // is done into a special canvas. There is no point doing a normal paint step
