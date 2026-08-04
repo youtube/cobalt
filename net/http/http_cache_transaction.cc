@@ -4046,7 +4046,7 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
 
     // Exclude micro-resources (< 512B) where socket read beats eMMC IO overhead.
     int64_t len = headers.GetContentLength();
-    if (len > 0 && len < 512) {
+    if (len >= 0 && len < 512) {
       return true;
     }
   }
