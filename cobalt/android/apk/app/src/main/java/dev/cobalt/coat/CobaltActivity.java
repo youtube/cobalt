@@ -276,30 +276,41 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     StartupGuard.getInstance().setStartupMilestone(8);
     // TODO(b/377025559): Bring back WebTests launch capability
-    BrowserStartupController.getInstance()
-        .startBrowserProcessesAsync(
-            LibraryProcessType.PROCESS_BROWSER,
-            false, // Do not start a separate GPU process
-            // TODO(b/377025565): Figure out what this means
-            false, // Do not start in "minimal" or paused mode
-            new BrowserStartupController.StartupCallback() {
-              @Override
-              public void onSuccess() {
-                // NOTE: This log message is hard-coded in smoke tests to detect browser startup
-                // success.
-                // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test suite.
-                Log.i(TAG, "Browser process init succeeded");
+    if (useStarboardLifeCycle()) {
+      AppEventBridge.handleStartEvent(
+          getStarboardBridge().getArgs(), mStartDeepLink, mTimeInNanoseconds / 1000L);
+      // NOTE: This log message is hard-coded in smoke tests to detect browser startup success.
+      // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test suite.
+      Log.i(TAG, "Browser process init succeeded");
 
-                finishInitialization(savedInstanceState);
-                getStarboardBridge().measureAppStartTimestamp();
-              }
+      finishInitialization(savedInstanceState);
+    } else {
+      BrowserStartupController.getInstance()
+          .startBrowserProcessesAsync(
+              LibraryProcessType.PROCESS_BROWSER,
+              false, // Do not start a separate GPU process
+              // TODO(b/377025565): Figure out what this means
+              false, // Do not start in "minimal" or paused mode
+              new BrowserStartupController.StartupCallback() {
+                @Override
+                public void onSuccess() {
+                  // NOTE: This log message is hard-coded in smoke tests to detect browser startup
+                  // success.
+                  // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test
+                  // suite.
+                  Log.i(TAG, "Browser process init succeeded");
 
-              @Override
-              public void onFailure() {
-                Log.e(TAG, "Browser process init failed");
-                initializationFailed();
-              }
-            });
+                  finishInitialization(savedInstanceState);
+                  getStarboardBridge().measureAppStartTimestamp();
+                }
+
+                @Override
+                public void onFailure() {
+                  Log.e(TAG, "Browser process init failed");
+                  initializationFailed();
+                }
+              });
+    }
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -553,15 +564,20 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       mHandler.removeCallbacks(mFreezeRunnable);
       mFreezeRunnable = null;
     }
-    WebContents webContents = getActiveWebContents();
-    if (webContents != null
-        && (getJavaSwitches().containsKey(JavaSwitches.DELAY_FREEZE_ON_BACKGROUND)
-            || getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
-      // document.onresume event
-      webContents.onResume();
+
+    if (useStarboardLifeCycle()) {
+      AppEventBridge.handleRevealEvent(System.nanoTime() / 1000L);
+    } else {
+      WebContents webContents = getActiveWebContents();
+      if (webContents != null
+          && (getJavaSwitches().containsKey(JavaSwitches.DELAY_FREEZE_ON_BACKGROUND)
+              || getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
+        // document.onresume event
+        webContents.onResume();
+      }
+      // visibility:visible event
+      updateShellActivityVisible(mWasDisplayOn);
     }
-    // visibility:visible event
-    updateShellActivityVisible(mWasDisplayOn);
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
 
     StartupGuard.getInstance().setStartupMilestone(11);
@@ -570,20 +586,23 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @Override
   protected void onPause() {
     mPhysicalBackKeyPressed = false;
-    CobaltContentBrowserClient.dispatchBlur();
+    if (useStarboardLifeCycle()) {
+      AppEventBridge.handleBlurEvent(System.nanoTime() / 1000L);
+    } else {
+      CobaltContentBrowserClient.dispatchBlur();
+    }
     super.onPause();
   }
 
   @Override
   protected void onStop() {
+    long stopTimestamp = System.nanoTime() / 1000L;
     unregisterDisplayListener();
     super.onStop();
 
-    // visibility:hidden event
-    updateShellActivityVisible(false);
-    WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
+    if (useStarboardLifeCycle()) {
       if (getJavaSwitches().containsKey(JavaSwitches.DELAY_FREEZE_ON_BACKGROUND)) {
+        AppEventBridge.handleConcealEvent(stopTimestamp);
         if (mFreezeRunnable != null) {
           mHandler.removeCallbacks(mFreezeRunnable);
         }
@@ -591,17 +610,42 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
             new Runnable() {
               @Override
               public void run() {
-                WebContents currentWebContents = getActiveWebContents();
-                if (currentWebContents != null) {
-                  currentWebContents.onFreeze();
-                }
+                AppEventBridge.handleFreezeEvent(System.nanoTime() / 1000L);
                 mFreezeRunnable = null;
               }
             };
         mHandler.postDelayed(mFreezeRunnable, 1500);
       } else if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
         // If ENABLE_FREEZE is specified, fire freeze event immediately
-        webContents.onFreeze();
+        AppEventBridge.handleFreezeEvent(stopTimestamp);
+      } else {
+        AppEventBridge.handleConcealEvent(stopTimestamp);
+      }
+    } else {
+      // visibility:hidden event
+      updateShellActivityVisible(false);
+      WebContents webContents = getActiveWebContents();
+      if (webContents != null) {
+        if (getJavaSwitches().containsKey(JavaSwitches.DELAY_FREEZE_ON_BACKGROUND)) {
+          if (mFreezeRunnable != null) {
+            mHandler.removeCallbacks(mFreezeRunnable);
+          }
+          mFreezeRunnable =
+              new Runnable() {
+                @Override
+                public void run() {
+                  WebContents currentWebContents = getActiveWebContents();
+                  if (currentWebContents != null) {
+                    currentWebContents.onFreeze();
+                  }
+                  mFreezeRunnable = null;
+                }
+              };
+          mHandler.postDelayed(mFreezeRunnable, 1500);
+        } else if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
+          // If ENABLE_FREEZE is specified, fire freeze event immediately
+          webContents.onFreeze();
+        }
       }
     }
 
@@ -625,7 +669,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       rootView.requestFocus();
       Log.i(TAG, "Request focus on the root view on resume.");
     }
-    CobaltContentBrowserClient.dispatchFocus();
+    if (useStarboardLifeCycle()) {
+      AppEventBridge.handleFocusEvent(System.nanoTime() / 1000L);
+    } else {
+      CobaltContentBrowserClient.dispatchFocus();
+    }
     StartupGuard.getInstance().setStartupMilestone(13);
   }
 
@@ -795,11 +843,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   /** Overridden by Kimono to provide specific Java switch configurations. */
   protected Map<String, String> getJavaSwitches() {
-    if (CommandLine.isInitialized()
-        && CommandLine.getInstance().hasSwitch(JavaSwitches.USE_STARBOARD_LIFECYCLE_SWITCH)) {
-      mJavaSwitches.put(JavaSwitches.USE_STARBOARD_LIFECYCLE, "");
-    }
+    mJavaSwitches.put(JavaSwitches.ENABLE_FREEZE, "");
     return this.mJavaSwitches;
+  }
+
+  @Override
+  public boolean useStarboardLifeCycle() {
+    return getJavaSwitches().containsKey(JavaSwitches.USE_STARBOARD_LIFECYCLE);
   }
 
   @Override
@@ -937,7 +987,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (isDisplayOn != mWasDisplayOn) {
       mWasDisplayOn = isDisplayOn;
       Log.i(TAG, "Display state changed: isDisplayOn = " + isDisplayOn);
-      updateShellActivityVisible(isDisplayOn);
+      if (!useStarboardLifeCycle()) {
+        updateShellActivityVisible(isDisplayOn);
+      }
     }
   }
 

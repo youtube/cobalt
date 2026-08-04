@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/performance/performance_impl.h"
 
+#include "base/command_line.h"
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
 #include "base/system/sys_info.h"
@@ -22,6 +23,7 @@
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/starboard_bridge.h"
 
 using ::starboard::StarboardBridge;
@@ -113,6 +115,15 @@ void PerformanceImpl::MeasureReservedVirtualMemory(
 
 void PerformanceImpl::GetAppStartupTimeStamp(
     GetAppStartupTimeStampCallback callback) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "use-starboard-lifecycle") &&
+      !app_startup_timestamp_.has_value()) {
+    JNIEnv* env = base::android::AttachCurrentThread();
+    app_startup_timestamp_ =
+        StarboardBridge::GetInstance()->GetAppStartTimestamp(env);
+  }
+#endif
   std::move(callback).Run(app_startup_timestamp_.value_or(0));
 }
 

@@ -18,12 +18,14 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/time/time.h"
-#include "cobalt/android/browser_jni_headers/AppEventBridge_jni.h"
+#include "cobalt/android/jni_headers/AppEventBridge_jni.h"
 #include "starboard/common/time.h"
 #include "starboard/event.h"
 
-// Forward declaration of the platform lifecycle event handler.
-void SbEventHandle(const SbEvent* event);
+// Default weak implementation of the platform lifecycle event handler so test
+// targets link cleanly when omitting Cobalt's concrete event handler.
+SB_EXPORT_PLATFORM __attribute__((weak)) void SbEventHandle(
+    const SbEvent* /*event*/) {}
 
 namespace {
 

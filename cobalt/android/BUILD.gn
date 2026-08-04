@@ -24,6 +24,7 @@ java_cpp_features("java_features_srcjar") {
 
 generate_jni("jni_headers") {
   sources = [
+    "apk/app/src/main/java/dev/cobalt/coat/AppEventBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
     "apk/app/src/main/java/dev/cobalt/coat/BaseStarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
@@ -60,24 +61,22 @@ generate_jni("jni_headers") {
 generate_jni("browser_jni_headers") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/browser/CobaltContentBrowserClient.java",
-    "apk/app/src/main/java/dev/cobalt/coat/AppEventBridge.java",
   ]
 }
 
 source_set("app_event_bridge") {
   sources = [ "app_event_bridge.cc" ]
   deps = [
-    ":browser_jni_headers",
+    ":jni_headers",
     "//base",
-    "//cobalt:sb_event_handle",
-    "//starboard:starboard_group",
+    "//starboard:starboard_headers_only",
+    "//starboard/common",
   ]
 }
 
 android_library("cobalt_browser_java") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/browser/CobaltContentBrowserClient.java",
-    "apk/app/src/main/java/dev/cobalt/coat/AppEventBridge.java",
   ]
   srcjar_deps = [ ":browser_jni_headers" ]
   deps = [ "//third_party/jni_zero:jni_zero_java" ]
@@ -86,7 +85,6 @@ android_library("cobalt_browser_java") {
 android_library("cobalt_main_java") {
   resources_package = "dev.cobalt.coat"
   deps = [
-    ":cobalt_browser_java",
     "//base:base_java",
     "//build/android:build_java",
     "//cobalt/shell/android:cobalt_shell_java_resources",
@@ -118,6 +116,7 @@ android_library("cobalt_main_java") {
 
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
+    "apk/app/src/main/java/dev/cobalt/coat/AppEventBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
     "apk/app/src/main/java/dev/cobalt/coat/BaseCobaltActivity.java",
     "apk/app/src/main/java/dev/cobalt/coat/BaseStarboardBridge.java",

@@ -722,9 +722,20 @@ public class BaseStarboardBridge {
     mAppStartTimestamp = cppTimestamp - appStartDuration;
   }
 
-  // Returns the saved app start timestamp.
+  // Returns the app start timestamp in microseconds.
   @CalledByNative
   protected long getAppStartTimestamp() {
+    Activity activity = mActivityHolder.get();
+    if (activity instanceof BaseCobaltActivity) {
+      BaseCobaltActivity baseActivity = (BaseCobaltActivity) activity;
+      if (baseActivity.useStarboardLifeCycle()) {
+        return baseActivity.getAppStartTimestamp() / 1000L;
+      }
+      if (mAppStartTimestamp != 0) {
+        return mAppStartTimestamp;
+      }
+      return baseActivity.getAppStartTimestamp() / 1000L;
+    }
     return mAppStartTimestamp;
   }
 
