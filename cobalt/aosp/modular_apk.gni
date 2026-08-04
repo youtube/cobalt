@@ -14,6 +14,8 @@
 
 import("//build/config/android/rules.gni")
 import("//cobalt/android/manifest.gni")
+import("//starboard/content/fonts/variables.gni")
+import("//starboard/content/ssl/certs.gni")
 
 template("modular_apk") {
   _name = invoker.module_name
@@ -30,23 +32,65 @@ template("modular_apk") {
     forward_variables_from(invoker, [ "testonly" ])
     disable_compression = true
 
-    renaming_sources = [
-      "$root_build_dir/app/${_name}/content/fonts/fonts.xml",
-      "$root_build_dir/app/${_name}/lib/${_lib_name}.lz4",
-    ]
-    renaming_destinations = [
-      "app/cobalt/content/fonts/fonts.xml",
-      "app/cobalt/lib/${_lib_name}.lz4",
-    ]
+    renaming_sources = [ "$root_build_dir/app/${_name}/lib/${_lib_name}.lz4" ]
+    renaming_destinations = [ "app/cobalt/lib/${_lib_name}.lz4" ]
 
-    deps = [
-      ":copy_${_name}_empty_fonts($default_toolchain)",
-      ":copy_${_name}_lib($default_toolchain)",
-    ]
+    deps = [ ":copy_${_name}_lib($default_toolchain)" ]
+
+    # CA certificates, packaged under the content directory. The inner library's
+    # TLS trust store (net::TrustStoreInMemoryStarboard) reads
+    # base::DIR_EXE/ssl/certs; base::DIR_EXE resolves to
+    # SbSystemGetPath(kSbSystemPathContentDirectory), i.e. the Evergreen content
+    # path (/cobalt/assets/app/cobalt/content) — see the content-dir fix in
+    # system_get_path.cc — so package the certs at <content>/ssl/certs to match.
+    foreach(_cert, network_certs) {
+      _cert_file = get_path_info(_cert, "file")
+      renaming_sources += [ "$root_build_dir/ssl/certs/$_cert_file" ]
+      renaming_destinations += [ "app/cobalt/content/ssl/certs/$_cert_file" ]
+    }
+    deps += [ "//starboard/content/ssl:copy_ssl_certificates_evergreen($default_toolchain)" ]
 
     if (_name == "cobalt") {
-      sources = [ "$root_build_dir/cobalt_shell.pak" ]
+      # Bundle a real, self-contained font set with the cobalt app so
+      # SkFontMgr_Cobalt has actual families
+      _fonts_root = "//starboard/content/fonts"
+      _font_config = "$_fonts_root/$source_font_config_dir/fonts.xml"
+      _font_files_dir = "$_fonts_root/$source_font_files_dir"
+
+      # Reuse the filtered fonts.xml produced by the shared fonts_xml action
+      renaming_sources += [ "$root_build_dir/fonts/fonts.xml" ]
+      renaming_destinations += [ "app/cobalt/content/fonts/fonts.xml" ]
+      deps += [ "$_fonts_root:fonts_xml($default_toolchain)" ]
+
+      # Enumerate the font files the package selects so each maps into the APK's
+      # content dir (the woff2 files themselves are checked-in sources).
+      _font_files = exec_script("$_fonts_root/scripts/filter_fonts.py",
+                                [
+                                      "-i",
+                                      rebase_path(_font_config, root_build_dir),
+                                      "-f",
+                                      _font_files_dir,
+                                    ] + package_categories,
+                                "trim list lines",
+                                [ _font_config ])
+      foreach(_font, _font_files) {
+        _font_file = get_path_info(_font, "file")
+        renaming_sources += [ "$_font_files_dir/$_font_file" ]
+        renaming_destinations += [ "app/cobalt/content/fonts/$_font_file" ]
+      }
+
+      # Package the resource pak under the content directory (like fonts), so
+      # cobalt can find it via base::DIR_ASSETS
+      renaming_sources += [ "$root_build_dir/cobalt_shell.pak" ]
+      renaming_destinations += [ "app/cobalt/content/cobalt_shell.pak" ]
+
       deps += [ "//cobalt/shell:pak($default_toolchain)" ]
+    } else {
+      # nplb and other non-rendering modules keep the empty placeholder fonts.xml.
+      renaming_sources +=
+          [ "$root_build_dir/app/${_name}/content/fonts/fonts.xml" ]
+      renaming_destinations += [ "app/cobalt/content/fonts/fonts.xml" ]
+      deps += [ ":copy_${_name}_empty_fonts($default_toolchain)" ]
     }
 
     if (_name == "nplb") {

@@ -18,6 +18,13 @@
 #include "cobalt/app/app_event_delegate.h"
 #include "starboard/event.h"
 
+namespace {
+// Probe callback for the SbEventSchedule capability check in SbEventHandle().
+// It is never actually invoked: the scheduled event is cancelled before the
+// Starboard loop gets a chance to dispatch it.
+void NoopScheduledEvent(void* /*context*/) {}
+}  // namespace
+
 void SbEventHandle(const SbEvent* event) {
   // This object's lifetime extends beyond the function's lifetime, until the
   // function is called with kSbEventTypeStop at some time in the future.
@@ -31,6 +38,33 @@ void SbEventHandle(const SbEvent* event) {
     LOG(WARNING) << "Received spurious SbEventHandle(type = " << event->type
                  << ") call after kSbEventTypeStop, ignoring.";
     return;
+  }
+
+  if (event->type == kSbEventTypeStart) {
+    // Most Starboard platforms run their own application event loop and pump
+    // Chromium via SbEventSchedule, so this callback must return for that loop
+    // to keep running. Some platforms (e.g. AOSP/Evergreen-on-Android) have no
+    // Starboard event loop and stub out SbEventSchedule; there, RunProcess()
+    // initializes the browser but nothing ever pumps it, leaving the app stuck
+    // in the started state without rendering. Detect that case by probing
+    // SbEventSchedule: when scheduling is unavailable, run the Chromium UI
+    // message loop here, in the started state. MessagePumpUIStarboard::Run() is
+    // self-contained (DoWork + wakeup_event_) and needs no SbEventSchedule.
+    // This blocks until the app stops.
+    SbEventId probe =
+        SbEventSchedule(&NoopScheduledEvent, nullptr, /*delay_usec=*/0);
+    if (probe == kSbEventIdInvalid) {
+      // No Starboard event loop drives this callback, so initialize the browser
+      // here before pumping: HandleEvent() -> OnStart() -> RunProcess() both sets
+      // up this thread's task environment (which base::RunLoop requires) and posts
+      // the initial browser work for the loop below to run.
+      s_lifecycle_delegate->HandleEvent(event);
+      base::RunLoop run_loop;
+      run_loop.Run();
+      return;
+    }
+    // The platform drives its own loop; drop the probe event and return.
+    SbEventCancel(probe);
   }
 
   if (event->type == kSbEventTypeStop) {

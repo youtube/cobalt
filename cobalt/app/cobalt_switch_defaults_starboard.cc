@@ -77,6 +77,10 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       ::switches::kDisableAcceleratedVideoEncode,
       // Force to use dark mode.
       ::switches::kForceDarkMode,
+#if BUILDFLAG(IS_ANDROID)
+      // Force full-frame redraws until buffer preservation is wired up.
+      ::switches::kUIDisablePartialSwap,
+#endif
       // Hide scrollbars to avoid memory allocation.
       ::switches::kHideScrollbars,
   };
