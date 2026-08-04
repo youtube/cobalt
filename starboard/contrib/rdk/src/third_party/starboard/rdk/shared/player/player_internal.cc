@@ -2182,6 +2182,15 @@ void PlayerImpl::WriteSample(SbMediaType sample_type,
 
   RecordTimestamp(sample_type, timestamp);
 
+  // ChangePipelineState refuses to resume until the written samples cover the
+  // seek position, and the first attempt after a seek is normally rejected
+  // because the app writes its way there from the preceding keyframe. Re-arm
+  // the update when the samples that unblock it arrive.
+  if (min_sample_timestamp_ >= seek_position_ && (rate_ || pending_rate_) &&
+      GST_STATE(pipeline_) != GST_STATE_PLAYING) {
+    SchedulePlayingStateUpdate();
+  }
+
   if (sample_infos[0].drm_info) {
     GST_LOG_OBJECT(pipeline_, "Encounterd encrypted %s sample",
             sample_type == kSbMediaTypeVideo ? "video" : "audio");
@@ -2413,7 +2422,9 @@ void PlayerImpl::HandleInititialSeek() {
     else {
       DispatchOnWorkerThread(new PlayerStatusTask(player_status_func_, player_, ticket_,
                                                   context_, kSbPlayerStatePrerolling));
-      AddBufferingProbe(position, ticket_);
+      // Count the buffering target from the start of the stream, not from the
+      // seek position, so that it stays reachable while the pipeline is paused.
+      AddBufferingProbe(0, ticket_);
       GST_INFO_OBJECT(pipeline_, "Successfully changed initial segment, position: %" GST_TIME_FORMAT ", ticket: %d", GST_TIME_ARGS(position), ticket_);
       return;
     }
@@ -2495,7 +2506,9 @@ void PlayerImpl::Seek(int64_t seek_to_timestamp, int ticket) {
     DispatchOnWorkerThread(new FunctionTask([this]() {
       state_ = State::kPrerollAfterSeek;
     }, "Preroll after seek"));
-    AddBufferingProbe(seek_to_time_ns, ticket);
+    // Count the buffering target from the start of the stream, not from the
+    // seek position, so that it stays reachable while the pipeline is paused.
+    AddBufferingProbe(0, ticket);
   }
 }
 
