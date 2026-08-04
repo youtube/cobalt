@@ -31,7 +31,6 @@
 //content/test/data/accessibility/accname/desc-from-content-of-describedby-element-expected-android.txt
 //content/test/data/accessibility/accname/desc-from-content-of-describedby-element-expected-auralinux.txt
 //content/test/data/accessibility/accname/desc-from-content-of-describedby-element-expected-blink.txt
-//content/test/data/accessibility/accname/desc-from-content-of-describedby-element-expected-mac-before-11.txt
 //content/test/data/accessibility/accname/desc-from-content-of-describedby-element-expected-mac.txt
 //content/test/data/accessibility/accname/desc-from-content-of-describedby-element-expected-win.txt
 //content/test/data/accessibility/accname/desc-from-content-of-describedby-element-recursive-expected-blink.txt
@@ -670,7 +669,6 @@
 //content/test/data/accessibility/aria/aria-describedby-expected-android.txt
 //content/test/data/accessibility/aria/aria-describedby-expected-auralinux.txt
 //content/test/data/accessibility/aria/aria-describedby-expected-blink.txt
-//content/test/data/accessibility/aria/aria-describedby-expected-mac-before-11.txt
 //content/test/data/accessibility/aria/aria-describedby-expected-mac.txt
 //content/test/data/accessibility/aria/aria-describedby-expected-uia-win.txt
 //content/test/data/accessibility/aria/aria-describedby-expected-win.txt
@@ -1756,7 +1754,6 @@
 //content/test/data/accessibility/aria/aria-tooltip-expected-android.txt
 //content/test/data/accessibility/aria/aria-tooltip-expected-auralinux.txt
 //content/test/data/accessibility/aria/aria-tooltip-expected-blink.txt
-//content/test/data/accessibility/aria/aria-tooltip-expected-mac-before-11.txt
 //content/test/data/accessibility/aria/aria-tooltip-expected-mac.txt
 //content/test/data/accessibility/aria/aria-tooltip-expected-win.txt
 //content/test/data/accessibility/aria/aria-tooltip.html
@@ -1895,7 +1892,6 @@
 //content/test/data/accessibility/aria/input-text-aria-placeholder-expected-android-external.txt
 //content/test/data/accessibility/aria/input-text-aria-placeholder-expected-android.txt
 //content/test/data/accessibility/aria/input-text-aria-placeholder-expected-blink.txt
-//content/test/data/accessibility/aria/input-text-aria-placeholder-expected-mac-before-11.txt
 //content/test/data/accessibility/aria/input-text-aria-placeholder-expected-mac.txt
 //content/test/data/accessibility/aria/input-text-aria-placeholder-expected-win.txt
 //content/test/data/accessibility/aria/input-text-aria-placeholder.html
@@ -3310,7 +3306,6 @@
 //content/test/data/accessibility/html/button-name-calc-expected-auralinux.txt
 //content/test/data/accessibility/html/button-name-calc-expected-blink.txt
 //content/test/data/accessibility/html/button-name-calc-expected-fuchsia.txt
-//content/test/data/accessibility/html/button-name-calc-expected-mac-before-11.txt
 //content/test/data/accessibility/html/button-name-calc-expected-mac.txt
 //content/test/data/accessibility/html/button-name-calc-expected-uia-win.txt
 //content/test/data/accessibility/html/button-name-calc-expected-win.txt
@@ -3353,7 +3348,6 @@
 //content/test/data/accessibility/html/canvas-fallback-expected-auralinux.txt
 //content/test/data/accessibility/html/canvas-fallback-expected-blink.txt
 //content/test/data/accessibility/html/canvas-fallback-expected-fuchsia.txt
-//content/test/data/accessibility/html/canvas-fallback-expected-mac-before-11.txt
 //content/test/data/accessibility/html/canvas-fallback-expected-mac.txt
 //content/test/data/accessibility/html/canvas-fallback-expected-uia-win.txt
 //content/test/data/accessibility/html/canvas-fallback-expected-win.txt
@@ -3390,7 +3384,6 @@
 //content/test/data/accessibility/html/checkbox-name-calc-expected-auralinux.txt
 //content/test/data/accessibility/html/checkbox-name-calc-expected-blink.txt
 //content/test/data/accessibility/html/checkbox-name-calc-expected-fuchsia.txt
-//content/test/data/accessibility/html/checkbox-name-calc-expected-mac-before-11.txt
 //content/test/data/accessibility/html/checkbox-name-calc-expected-mac.txt
 //content/test/data/accessibility/html/checkbox-name-calc-expected-uia-win.txt
 //content/test/data/accessibility/html/checkbox-name-calc-expected-win.txt
@@ -3548,7 +3541,6 @@
 //content/test/data/accessibility/html/contenteditable-with-no-descendants-expected-auralinux.txt
 //content/test/data/accessibility/html/contenteditable-with-no-descendants-expected-blink.txt
 //content/test/data/accessibility/html/contenteditable-with-no-descendants-expected-fuchsia.txt
-//content/test/data/accessibility/html/contenteditable-with-no-descendants-expected-mac-before-11.txt
 //content/test/data/accessibility/html/contenteditable-with-no-descendants-expected-mac.txt
 //content/test/data/accessibility/html/contenteditable-with-no-descendants-expected-uia-win.txt
 //content/test/data/accessibility/html/contenteditable-with-no-descendants-expected-win.txt
@@ -5936,7 +5928,6 @@
 //content/test/data/accessibility/mac/methods/accessibility-column-index-range.html
 //content/test/data/accessibility/mac/methods/accessibility-columns-expected.txt
 //content/test/data/accessibility/mac/methods/accessibility-columns.html
-//content/test/data/accessibility/mac/methods/accessibility-custom-content-expected-mac-before-11.txt
 //content/test/data/accessibility/mac/methods/accessibility-custom-content-expected.txt
 //content/test/data/accessibility/mac/methods/accessibility-custom-content.html
 //content/test/data/accessibility/mac/methods/accessibility-disclosed-by-row-expected.txt
@@ -8046,8 +8037,6 @@
 //content/test/data/prerender/prerender-no-crash.html
 //content/test/data/prerender/prerender_with_opt_in_header.html
 //content/test/data/prerender/prerender_with_opt_in_header.html.mock-http-headers
-//content/test/data/prerender/purpose_prefetch_header.html
-//content/test/data/prerender/purpose_prefetch_header_iframe.html
 //content/test/data/prerender/restriction-gamepad.html
 //content/test/data/prerender/restriction_file_system.html
 //content/test/data/prerender/session_storage.html
