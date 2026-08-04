@@ -4,6 +4,7 @@
 
 #include "content/app/android/library_loader_hooks.h"
 
+#include "base/command_line.h"
 #include "base/i18n/icu_util.h"
 #include "base/logging.h"
 #include "base/process/current_process.h"
@@ -56,8 +57,8 @@ bool LibraryLoaded(base::android::LibraryProcessType library_process_type) {
   // running ContentMain.
 #if BUILDFLAG(IS_COBALT)
   // For Cobalt Android: We disable this early eager call to prevent a Catch-22 crash
-  // where it reaches for GetContentClient() before the AppEventRunner creates the
-  // delegate. It will instead be safely called later by ContentMainRunnerImpl::Initialize().
+  // where it reaches for GetContentClient() before ContentMain initializes the delegate.
+  // It will instead be safely called later by ContentMainRunnerImpl::Initialize().
 #else
   RegisterContentSchemes();
 #endif

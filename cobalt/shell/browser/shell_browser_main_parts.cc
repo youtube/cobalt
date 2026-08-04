@@ -49,6 +49,7 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "components/crash/content/browser/child_exit_observer_android.h"
 #include "components/crash/content/browser/child_process_crash_observer_android.h"
+#include "net/android/network_change_notifier_factory_android.h"
 #endif
 
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
@@ -157,7 +158,13 @@ int ShellBrowserMainParts::PreEarlyInitialization() {
 #if defined(USE_AURA) && (BUILDFLAG(IS_LINUX))
   ui::InitializeInputMethodForTesting();
 #endif
-#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
+  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "use-starboard-lifecycle")) {
+    net::NetworkChangeNotifier::SetFactory(
+        new net::NetworkChangeNotifierFactoryAndroid());
+  }
+#elif BUILDFLAG(IS_STARBOARD)
   net::NetworkChangeNotifier::SetFactory(
       new NetworkChangeNotifierFactoryStarboard());
 #endif

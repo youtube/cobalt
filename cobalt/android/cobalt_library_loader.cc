@@ -26,5 +26,6 @@ JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   if (!content::android::OnJNIOnLoadInit()) {
     return -1;
   }
+  content::SetContentMainDelegate(new cobalt::CobaltMainDelegate());
   return JNI_VERSION_1_4;
 }
