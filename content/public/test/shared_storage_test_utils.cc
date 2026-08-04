@@ -284,7 +284,7 @@ GetPrivateAggregationHostPipeApiDisabledValue() {
   return PrivateAggregationHost::PipeResult::kApiDisabledInSettings;
 }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 base::WeakPtr<TestSharedStorageHeaderObserver>
 CreateAndOverrideSharedStorageHeaderObserver(StoragePartition* partition) {
   auto observer = std::make_unique<TestSharedStorageHeaderObserver>(partition);
