@@ -35,7 +35,6 @@ import org.jni_zero.NativeMethods;
 @JNINamespace("content")
 @NullMarked
 public class ShellManager {
-    private static final String TAG = "cobalt";
     private @Nullable WindowAndroid mWindow;
     private @Nullable Shell mActiveShell;
 

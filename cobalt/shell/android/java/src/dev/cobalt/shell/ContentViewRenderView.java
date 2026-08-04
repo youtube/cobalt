@@ -4,6 +4,8 @@
 
 package dev.cobalt.shell;
 
+import static dev.cobalt.shell.Shell.TAG;
+
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.PixelFormat;
@@ -17,6 +19,7 @@ import android.widget.FrameLayout;
 
 import org.chromium.base.CommandLine;
 import org.chromium.base.Log;
+import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.EventForwarder;
 import org.chromium.ui.base.WindowAndroid;
@@ -32,7 +35,6 @@ import org.jni_zero.NativeMethods;
  */
 @JNINamespace("cobalt")
 public class ContentViewRenderView extends FrameLayout {
-    private static final String TAG = "cobalt";
 
     // The native side of this object.
     private long mNativeContentViewRenderView;
@@ -301,11 +303,15 @@ public class ContentViewRenderView extends FrameLayout {
         private SurfaceHolder mWindowSurfaceHolder;
 
         /**
-         * The last requested PixelFormat (e.g. TRANSLUCENT for overlay video mode, OPAQUE for normal).
-         * Preserved across surface destruction and recreation so newly created SurfaceHolders
-         * automatically inherit the desired format.
+         * The pending PixelFormat (e.g. TRANSLUCENT for overlay video mode, OPAQUE for normal).
+         * Buffered when setFormat() is called before the surface is ready, and consumed once
+         * the SurfaceHolder becomes available.
          */
-        private Integer mRequestedSurfaceFormat;
+        private Integer mPendingSurfaceFormat;
+
+        private final java.util.List<Runnable> mPendingTasks = new java.util.ArrayList<>();
+        private boolean mIsNativeStarted;
+        private boolean mIsSurfaceCreatedDispatched;
 
         private static Window getWindow(WindowAndroid windowAndroid) {
             if (windowAndroid == null || windowAndroid.getActivity() == null) {
@@ -313,6 +319,32 @@ public class ContentViewRenderView extends FrameLayout {
             }
             Activity activity = windowAndroid.getActivity().get();
             return activity != null ? activity.getWindow() : null;
+        }
+
+        private void registerStartupListener() {
+            // Fast-path: if native is already started, don't wait or register.
+            if (BrowserStartupController.getInstance().isNativeStarted()) {
+                mIsNativeStarted = true;
+                return;
+            }
+
+            BrowserStartupController.getInstance().addStartupCompletedObserver(
+                    new BrowserStartupController.StartupCallback() {
+                        @Override
+                        public void onSuccess() {
+                            Log.i(TAG, "ContentViewRenderView: Startup complete");
+                            while (!mPendingTasks.isEmpty()) {
+                                mPendingTasks.remove(0).run();
+                            }
+                            mIsNativeStarted = true;
+                        }
+
+                        @Override
+                        public void onFailure() {
+                            Log.e(TAG, "ContentViewRenderView: Native startup failed; clearing pending tasks");
+                            mPendingTasks.clear();
+                        }
+                    });
         }
 
         @Override
@@ -327,27 +359,42 @@ public class ContentViewRenderView extends FrameLayout {
                 return;
             }
 
+            // Native browser startup (Mojo initialization) may still be in progress during Activity creation
+            // on slower devices. Listen for startup completion to safely drain surface events (b/539880857).
+            registerStartupListener();
+
             mWindow.takeSurface(new SurfaceHolder.Callback2() {
                 @Override
                 public void surfaceCreated(SurfaceHolder holder) {
                     mWindowSurfaceHolder = holder;
-                    if (mRequestedSurfaceFormat != null) {
-                        Log.i(TAG, "ContentViewRenderView: Applying pending format");
-                        mWindowSurfaceHolder.setFormat(mRequestedSurfaceFormat);
+                    if (!mIsNativeStarted) {
+                        mPendingTasks.add(() -> handleSurfaceCreated(holder));
+                        return;
                     }
-                    surfaceCallback.surfaceCreated(holder);
+                    handleSurfaceCreated(holder);
                 }
 
                 @Override
                 public void surfaceChanged(
                         SurfaceHolder holder, int format, int width, int height) {
                     mWindowSurfaceHolder = holder;
+                    if (!mIsNativeStarted) {
+                        mPendingTasks.add(
+                                () -> surfaceCallback.surfaceChanged(holder, format, width, height));
+                        return;
+                    }
                     surfaceCallback.surfaceChanged(holder, format, width, height);
                 }
 
                 @Override
                 public void surfaceDestroyed(SurfaceHolder holder) {
                     mWindowSurfaceHolder = null;
+                    mPendingTasks.clear();
+
+                    if (!mIsSurfaceCreatedDispatched) {
+                        return;
+                    }
+                    mIsSurfaceCreatedDispatched = false;
                     surfaceCallback.surfaceDestroyed(holder);
                 }
 
@@ -357,6 +404,13 @@ public class ContentViewRenderView extends FrameLayout {
                         return;
                     }
                     ((SurfaceHolder.Callback2) surfaceCallback).surfaceRedrawNeeded(holder);
+                }
+
+                private void handleSurfaceCreated(SurfaceHolder holder) {
+                    Log.i(TAG, "ContentViewRenderView: Surface created");
+                    applyPendingSurfaceFormat();
+                    surfaceCallback.surfaceCreated(holder);
+                    mIsSurfaceCreatedDispatched = true;
                 }
             });
         }
@@ -370,7 +424,9 @@ public class ContentViewRenderView extends FrameLayout {
             }
             mWindow = null;
             mWindowSurfaceHolder = null;
-            mRequestedSurfaceFormat = null;
+            mPendingSurfaceFormat = null;
+            mPendingTasks.clear();
+            mIsSurfaceCreatedDispatched = false;
         }
 
         @Override
@@ -380,12 +436,21 @@ public class ContentViewRenderView extends FrameLayout {
 
         @Override
         protected void setFormat(int format) {
-            mRequestedSurfaceFormat = format;
+            mPendingSurfaceFormat = format;
+            applyPendingSurfaceFormat();
+        }
+
+        private void applyPendingSurfaceFormat() {
+            if (mPendingSurfaceFormat == null) {
+                return;
+            }
             if (mWindowSurfaceHolder == null) {
                 Log.i(TAG, "ContentViewRenderView: surface is not ready yet. Will apply format later");
                 return;
             }
-            mWindowSurfaceHolder.setFormat(format);
+            Log.i(TAG, "ContentViewRenderView: Applying pending format");
+            mWindowSurfaceHolder.setFormat(mPendingSurfaceFormat);
+            mPendingSurfaceFormat = null;
         }
     }
 

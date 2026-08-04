@@ -77,7 +77,7 @@ jobs:
         run: |
           # Get the first commit SHA of the existing PR.
           # If the PR doesn't exist, it returns an empty string.
-          FIRST_SHA=$(gh pr list --head "autoroll-${{ matrix.branch.source }}-to-${{ matrix.branch.target }}" --state open --json commits --jq '.[0].commits[0].oid // ""' -r 2>/dev/null || echo "")
+          FIRST_SHA=$(gh pr list --head "autoroll-${{ matrix.branch.source }}-to-${{ matrix.branch.target }}" --state open --json commits --jq '.[0].commits[0].oid // ""')
           echo "first_sha=$FIRST_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Set Up Depot Tools
