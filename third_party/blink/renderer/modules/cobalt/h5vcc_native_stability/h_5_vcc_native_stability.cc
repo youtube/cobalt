@@ -136,7 +136,6 @@ void H5vccNativeStability::OnConnectionError() {
   for (auto& resolver : pending_promises) {
     resolver->Reject("Mojo connection error.");
   }
-  ongoing_requests_.clear();
 }
 
 void H5vccNativeStability::Trace(Visitor* visitor) const {
