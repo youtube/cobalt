@@ -34,6 +34,9 @@ dictionary HangReport : BaseNativeStabilityReport {
 
 typedef (NativeCrashReport or HangReport) NativeStabilityReport;
 
+// Interface for querying and acknowledging native stability reports.
+// On platforms that do not support native stability reporting, calling these
+// APIs will result in promises rejected with "Mojo connection error".
 [
   Exposed=Window,
   SecureContext
