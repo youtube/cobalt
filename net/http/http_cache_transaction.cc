@@ -3998,11 +3998,12 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
     bool is_html = (mime_type == "text/html");
     bool is_js = base::EndsWith(mime_type, "javascript", base::CompareCase::SENSITIVE)
         || base::EndsWith(mime_type, "ecmascript", base::CompareCase::SENSITIVE);
-    bool is_expanded_type = false;
-    if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-            "enable-expanded-http-cache-types")) {
-      is_expanded_type = (mime_type == "text/css" || mime_type == "application/wasm");
-    }
+    static const bool enable_expanded_types =
+        base::CommandLine::ForCurrentProcess()->HasSwitch(
+            "enable-expanded-http-cache-types");
+    bool is_expanded_type =
+        enable_expanded_types &&
+        (mime_type == "text/css" || mime_type == "application/wasm");
     if (!is_html && !is_js && !is_expanded_type) {
       return true; // Do not write to cache / doom existing entry
     }
