@@ -115,6 +115,16 @@ runs:
         REF: ${{ github.sha }}
       run: |
         cd cobalt/src
+
+        # Remove after all workers have migrated to new siso directory
+        if [ -d "../.cipd" ]; then
+          if grep -r "infra/build/siso" "../.cipd" > /dev/null 2>&1; then
+            echo "Deleting conflicting siso package."
+            rm -rf "third_party/siso/cipd"
+            rm -rf "../.cipd"
+          fi
+        fi
+
         # Identify and delete dirty sub-repositories
         git -c core.quotepath=false status --porcelain -unormal | while IFS= read -r line; do
           path="${line:3}"
