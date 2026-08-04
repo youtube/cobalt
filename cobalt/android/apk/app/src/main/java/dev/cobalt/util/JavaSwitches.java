@@ -33,6 +33,9 @@ public class JavaSwitches {
 
   public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
   public static final String ENABLE_OPTIMIZED_V8_CODE_CACHE = "EnableOptimizedV8CodeCache";
+  
+  /** flag to allow caching CSS and WebAssembly resources in the HTTP disk cache. */
+  public static final String ENABLE_EXPANDED_HTTP_CACHE_TYPES = "EnableExpandedHttpCacheTypes";
 
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
@@ -193,6 +196,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_V8_CODE_CACHE)) {
       extraCommandLineArgs.add("--enable-optimized-v8-code-cache");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_EXPANDED_HTTP_CACHE_TYPES)) {
+      extraCommandLineArgs.add("--enable-expanded-http-cache-types");
     }
 
     if (jsFlags.length() > 0) {

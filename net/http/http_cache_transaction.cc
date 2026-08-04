@@ -3991,13 +3991,19 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
   }
 
 #if BUILDFLAG(IS_COBALT)
-  // Only allow HTML and JS/ECMAScript in Cobalt's HTTP cache.
+  // Only allow HTML and JS/ECMAScript in Cobalt's HTTP cache by default.
+  // When --enable-expanded-http-cache-types is passed, also allow CSS and WASM.
   std::string mime_type;
   if (headers.GetMimeType(&mime_type)) {
     bool is_html = (mime_type == "text/html");
     bool is_js = base::EndsWith(mime_type, "javascript", base::CompareCase::SENSITIVE)
         || base::EndsWith(mime_type, "ecmascript", base::CompareCase::SENSITIVE);
-    if (!is_html && !is_js) {
+    bool is_expanded_type = false;
+    if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+            "enable-expanded-http-cache-types")) {
+      is_expanded_type = (mime_type == "text/css" || mime_type == "application/wasm");
+    }
+    if (!is_html && !is_js && !is_expanded_type) {
       return true; // Do not write to cache / doom existing entry
     }
   } else {
