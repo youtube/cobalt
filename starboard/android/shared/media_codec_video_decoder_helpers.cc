@@ -129,15 +129,6 @@ bool Equal(const SbMediaMasteringMetadata& lhs,
   return std::memcmp(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
 }
 
-bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
-  const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
-  return color_metadata.primaries == kSbMediaPrimaryIdBt709 &&
-         color_metadata.transfer == kSbMediaTransferIdBt709 &&
-         color_metadata.matrix == kSbMediaMatrixIdBt709 &&
-         color_metadata.range == kSbMediaRangeIdLimited &&
-         Equal(color_metadata.mastering_metadata, kEmptyMasteringMetadata);
-}
-
 DecodeTargetGeometry GetDecodeTargetGeometryFromMatrix(
     const std::array<float, 16>& matrix4x4,
     const Size& display_size) {
