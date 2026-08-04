@@ -28,8 +28,6 @@ jobs:
       fail-fast: false
       matrix:
         branch: [
-          {source: main, target: 27.lts, autoroll: .github/AUTOROLL},
-          {source: main, target: staging, autoroll: .github/AUTOROLL},
           {source: chromium/main, target: staging, autoroll: .github/AUTOROLL_CHROMIUM},
         ]
     steps:
@@ -37,7 +35,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: src
-          ref: main
+          ref: ${{ github.ref }}
           fetch-depth: 1000
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
 
@@ -55,16 +53,16 @@ jobs:
         run: |
           set -x
 
-          # Copy script from main branch.
-          git show main:.github/scripts/autoroll_lts.py > "${RUNNER_TEMP}/autoroll_lts.py"
+          # Copy script from local branch.
+          cp .github/scripts/autoroll_lts.py "${RUNNER_TEMP}/autoroll_lts.py"
 
           git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
 
           # Use existing branch from remote if it exists, otherwise start from target branch.
-          if git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"; then
-            git checkout --no-recurse-submodules -B "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" FETCH_HEAD
+          if git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "experimental-autoroll-test-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"; then
+            git checkout --no-recurse-submodules -B "experimental-autoroll-test-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" FETCH_HEAD
           else
-            git checkout --no-recurse-submodules -B "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" "${TARGET_BRANCH}" --no-track
+            git checkout --no-recurse-submodules -B "experimental-autoroll-test-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" "${TARGET_BRANCH}" --no-track
           fi
 
           # Fetch enough history for source branch.
@@ -77,7 +75,7 @@ jobs:
         run: |
           # Get the first commit SHA of the existing PR.
           # If the PR doesn't exist, it returns an empty string.
-          FIRST_SHA=$(gh pr list --head "autoroll-${{ matrix.branch.source }}-to-${{ matrix.branch.target }}" --state open --json commits --jq '.[0].commits[0].oid // ""' -r 2>/dev/null || echo "")
+          FIRST_SHA=$(gh pr list --head "experimental-autoroll-test-${{ matrix.branch.source }}-to-${{ matrix.branch.target }}" --state open --json commits --jq '.[0].commits[0].oid // ""' -r 2>/dev/null || echo "")
           echo "first_sha=$FIRST_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Set Up Depot Tools
@@ -86,6 +84,7 @@ jobs:
           DEPOT_TOOLS_TEMP="${RUNNER_TEMP}/depot_tools"
           git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$DEPOT_TOOLS_TEMP"
           echo "$DEPOT_TOOLS_TEMP" >> $GITHUB_PATH
+          source "${DEPOT_TOOLS_TEMP}/bootstrap_python3" && bootstrap_python3
 
       - name: Cherry Pick Merged PRs
         id: autoroll
@@ -123,9 +122,9 @@ jobs:
         run: |
           set -x
 
-          git push origin "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
+          git push origin "experimental-autoroll-test-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
 
-          PR_TITLE="Autoroll from ${SOURCE_BRANCH} to ${TARGET_BRANCH}"
+          PR_TITLE="[Experimental Test] Autoroll from ${SOURCE_BRANCH} to ${TARGET_BRANCH}"
 
           PR_BODY_FILE=$(mktemp)
           {
@@ -151,16 +150,16 @@ jobs:
               echo "# Replace CONFLICTED in title with RESOLVED"
               echo "git commit -c <conflicted_sha>"
               echo ""
-              echo "git push origin autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
+              echo "git push origin experimental-autoroll-test-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
               echo '```'
             } >> "${PR_BODY_FILE}"
           fi
 
-          PR_STATE=$(gh pr view "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --json state --template '{{.state}}' 2>/dev/null || echo "NOT_FOUND")
+          PR_STATE=$(gh pr view "experimental-autoroll-test-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --json state --template '{{.state}}' 2>/dev/null || echo "NOT_FOUND")
 
           if [[ "${PR_STATE}" == "OPEN" ]]; then
-            PR_NUMBER=$(gh pr view "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --json number --jq .number)
+            PR_NUMBER=$(gh pr view "experimental-autoroll-test-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --json number --jq .number)
             gh api -X PATCH "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" -f title="${PR_TITLE}" -f body="$(cat "${PR_BODY_FILE}")" --jq .html_url
           else
-            gh pr create --base "${TARGET_BRANCH}" --head "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}" --reviewer linxinan-yt,oxve,briantting
+            gh pr create --base "${TARGET_BRANCH}" --head "experimental-autoroll-test-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}" --reviewer linxinan-yt,oxve,briantting
           fi
