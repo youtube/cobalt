@@ -168,7 +168,7 @@ GetStarboardExtensionExperimentalFeatures(
 SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
 SbPlayerBridge::SbPlayerBridge(
     SbPlayerInterface* interface,
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
@@ -214,7 +214,7 @@ SbPlayerBridge::SbPlayerBridge(
                                        weak_factory_.GetWeakPtr()));
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 }
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 SbPlayerBridge::SbPlayerBridge(
     SbPlayerInterface* interface,
@@ -266,10 +266,10 @@ SbPlayerBridge::SbPlayerBridge(
       ,
       surface_view_(surface_view)
 #endif  // BUILDFLAG(IS_ANDROID)
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
       ,
       is_url_based_(false)
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
       ,
       cval_stats_(&interface->cval_stats_),
@@ -373,9 +373,9 @@ void SbPlayerBridge::WriteBuffers(
     DemuxerStream::Type type,
     const std::vector<scoped_refptr<DecoderBuffer>>& buffers) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   DCHECK(!is_url_based_);
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   if (allow_resume_after_suspend_) {
@@ -512,7 +512,7 @@ SbPlayerBridge::GetAudioConfigurations() {
   return configurations;
 }
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
 void SbPlayerBridge::GetUrlPlayerBufferedTimeRanges(
     TimeDelta* buffer_start_time,
     TimeDelta* buffer_length_time) {
@@ -600,7 +600,7 @@ void SbPlayerBridge::SetDrmSystem(SbDrmSystem drm_system) {
   drm_system_ = drm_system;
   sbplayer_interface_->SetUrlPlayerDrmSystem(player_, drm_system);
 }
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 void SbPlayerBridge::Suspend() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -646,7 +646,7 @@ void SbPlayerBridge::Resume(SbWindow window) {
   decoder_buffer_cache_.StartResuming();
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   if (is_url_based_) {
     CreateUrlPlayer(url_);
     if (SbDrmSystemIsValid(drm_system_)) {
@@ -655,9 +655,9 @@ void SbPlayerBridge::Resume(SbWindow window) {
   } else {
     CreatePlayer();
   }
-#else   // SB_HAS(PLAYER_WITH_URL)
+#else   // BUILDFLAG(IS_IOS_TVOS)
   CreatePlayer();
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   if (SbPlayerIsValid(player_)) {
     state_ = kResuming;
@@ -665,7 +665,7 @@ void SbPlayerBridge::Resume(SbWindow window) {
   }
 }
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
 // static
 void SbPlayerBridge::EncryptedMediaInitDataEncounteredCB(
     SbPlayer player,
@@ -715,7 +715,7 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
 
   UpdateBounds();
 }
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 void SbPlayerBridge::CreatePlayer() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -842,9 +842,9 @@ void SbPlayerBridge::CreatePlayer() {
 void SbPlayerBridge::WriteNextBuffersFromCache(DemuxerStream::Type type,
                                                int max_buffers_per_write) {
   DCHECK(state_ != kSuspended);
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   DCHECK(!is_url_based_);
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   DCHECK(SbPlayerIsValid(player_));
 
@@ -875,9 +875,9 @@ void SbPlayerBridge::WriteBuffersInternal(
     const SbMediaAudioStreamInfo* audio_stream_info,
     const SbMediaVideoStreamInfo* video_stream_info) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   DCHECK(!is_url_based_);
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   auto sample_type = DemuxerStreamTypeToSbMediaType(type);
   if (buffers.size() == 1 && buffers[0]->end_of_stream()) {
@@ -1112,9 +1112,9 @@ void SbPlayerBridge::OnDecoderStatus(SbPlayer player,
                                      SbMediaType type,
                                      SbPlayerDecoderState state,
                                      int ticket) {
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   DCHECK(!is_url_based_);
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (player_ != player || ticket != ticket_) {
@@ -1230,9 +1230,9 @@ void SbPlayerBridge::OnPlayerError(SbPlayer player,
 }
 
 void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   DCHECK(!is_url_based_);
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (enable_batched_buffer_deallocation_) {
@@ -1447,7 +1447,7 @@ void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
           sample_buffer));
 }
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
 SbPlayerOutputMode SbPlayerBridge::ComputeSbUrlPlayerOutputMode(
     SbPlayerOutputMode default_output_mode) {
   // Try to choose the output mode according to the passed in value of
@@ -1468,7 +1468,7 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbUrlPlayerOutputMode(
 
   return output_mode;
 }
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
     SbPlayerOutputMode default_output_mode) const {
