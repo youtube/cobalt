@@ -271,6 +271,9 @@ if (is_cobalt) {
     "*peer_connection*",
     "*explicit_congestion_notification*",
     "*v8_union_mediastreamtrack_string*",
+    "*blob_event*",
+    "*v8_media_recorder.*",
+    "*v8_recording_state*",
   ]
     
   cobalt_hardware_exclude_patterns = [
