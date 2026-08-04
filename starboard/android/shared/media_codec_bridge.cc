@@ -204,6 +204,12 @@ MediaCodecBridge::CreateVideoMediaCodec(
 
   std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
       new MediaCodecBridge(handler));
+  if (j_surface) {
+    native_media_codec_bridge->j_surface_.Reset(env, j_surface.obj());
+  }
+  native_media_codec_bridge->set_output_surface_on_flush_ =
+      platform_options.set_output_surface_on_flush;
+
   Java_MediaCodecBridge_createVideoMediaCodecBridge(
       env, reinterpret_cast<jlong>(native_media_codec_bridge.get()),
       ConvertUTF8ToJavaString(env, mime),
@@ -370,7 +376,33 @@ bool MediaCodecBridge::Restart() {
 
 jint MediaCodecBridge::Flush() {
   JNIEnv* env = AttachCurrentThread();
-  return Java_MediaCodecBridge_flush(env, j_media_codec_bridge_);
+  jint status = Java_MediaCodecBridge_flush(env, j_media_codec_bridge_);
+  // On some chipsets, output frames that were already sent to the display via
+  // ReleaseOutputBufferAtTimestamp remain trapped in hwcomposer's composition
+  // pipeline even after MediaCodec.flush(). Re-binding the output surface
+  // forces ANativeWindow and hwcomposer to disconnect/reconnect and purge all
+  // in-flight pre-seek overlay buffers, restoring trapped buffer slots to the
+  // free pool.
+  if (status == MEDIA_CODEC_OK && set_output_surface_on_flush_ && j_surface_) {
+    SetOutputSurface(j_surface_);
+  }
+  return status;
+}
+
+bool MediaCodecBridge::SetOutputSurface(
+    const jni_zero::JavaRef<jobject>& j_surface) {
+  if (!j_surface) {
+    return false;
+  }
+  JNIEnv* env = AttachCurrentThread();
+  if (!Java_MediaCodecBridge_setSurface(env, j_media_codec_bridge_,
+                                        j_surface)) {
+    return false;
+  }
+  if (j_surface_.obj() != j_surface.obj()) {
+    j_surface_.Reset(env, j_surface.obj());
+  }
+  return true;
 }
 
 std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {
