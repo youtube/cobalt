@@ -63,11 +63,21 @@ void SetupStubExtension(
 
 class NativeStabilityManagerTest : public ::testing::Test {
  protected:
+  void SetUp() override {
+    // Overriding the acked UUIDs file path with a unique temporary directory
+    // for every test 1) isolates test storage and 2) ensures actual platform
+    // directories (e.g. kSbSystemPathCacheDirectory) are not used.
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+    NativeStabilityManager::GetInstance()->SetAckedUuidsFilePathForTesting(
+        temp_dir_.GetPath().Append("acked_event_uuids.json"));
+  }
+
   void TearDown() override {
     NativeStabilityManager::GetInstance()->ResetForTesting();
   }
 
   base::test::TaskEnvironment task_environment_;
+  base::ScopedTempDir temp_dir_;
 };
 
 TEST_F(NativeStabilityManagerTest, GetInstanceReturnsSingleton) {
@@ -266,12 +276,7 @@ TEST_F(NativeStabilityManagerTest, GetPendingReportsIgnoresUnknownReportType) {
 
 TEST_F(NativeStabilityManagerTest,
        AcknowledgedReportsFilteredByGetPendingReports) {
-  base::ScopedTempDir temp_dir;
-  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-
   auto* manager = NativeStabilityManager::GetInstance();
-  manager->SetAckedUuidsFilePathForTesting(
-      temp_dir.GetPath().Append("acked_event_uuids.json"));
 
   SbNativeStabilityReport report1 = {};
   report1.report_type = kSbNativeStabilityReportCrash;
