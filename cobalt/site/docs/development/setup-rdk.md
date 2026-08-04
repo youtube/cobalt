@@ -104,7 +104,7 @@ python3 build/linux/sysroot_scripts/install-sysroot.py --arch=arm
 
 Generate the build files and compile Cobalt for RDK hardware:
 
-#### Option A: Compiling Cobalt Core & RDK Loader from Source
+#### Option A: Compiling Cobalt Core & RDK Loader from Source (For Core Debugging)
 
 1. **Ensure environment variables are set**:
 
@@ -128,11 +128,20 @@ Generate the build files and compile Cobalt for RDK hardware:
 > [!NOTE]
 > `cobalt lz4_compress` directly builds the uncompressed shared library (`app/cobalt/lib/libcobalt.so`) and host compression tool. The compile target name contains `_plugin` (`loader_app_rdk_plugin`) because it compiles both the standalone executable (`loader_app`) and the WPE plugin library (`libloader_app.so`).
 
-#### Option B: Deploying Official Google Prebuilt CRX Packages for RDK
+#### Option B: Deploying Official Google Prebuilt CRX Packages for RDK (Recommended for Partners)
 
 In production and certification, SoC partners and OEMs do not compile Cobalt Core (`libcobalt.so`) from source. Instead, partners build `loader_app_rdk_plugin` and deploy official Google-built prebuilt `.crx` packages onto the device.
 
-1. **Download Official Prebuilt CRX Package**:
+1. **Define environment variables and generate build directory**:
+
+   ```bash
+   export PATH="$HOME/depot_tools:$PATH"
+   export RDK_HOME=$HOME/rdk/toolchain
+
+   cobalt/build/gn.py -p evergreen-arm-hardfp-rdk -c qa --no-rbe
+   ```
+
+2. **Download Official Prebuilt CRX Package**:
 
    ```bash
    export LOCAL_CRX_DIR=/tmp/cobalt_dl
@@ -142,19 +151,17 @@ In production and certification, SoC partners and OEMs do not compile Cobalt Cor
    wget $COBALT_CRX_URL -O $LOCAL_CRX_DIR/cobalt_prebuilt.crx
    ```
 
-2. **Unpack the CRX Package**:
+3. **Unpack the CRX Package**:
 
    ```bash
    unzip $LOCAL_CRX_DIR/cobalt_prebuilt.crx -d $LOCAL_CRX_DIR/cobalt_prebuilt
    ```
 
-3. **Stage Unpacked Files into 27.lts Slot 0 (`app/cobalt/`) Layout**:
+4. **Stage Unpacked Files into 27.lts Slot 0 (`app/cobalt/`) Layout**:
 
    > [!IMPORTANT]
    > **Cobalt 27.lts Slot 0 Path Change vs. 25.lts:**
    > Unlike Cobalt 25.lts (which placed CRX contents directly in `$EVERGREEN_DIR/` or `$EVERGREEN_DIR/install/lib/`), Cobalt 27.lts strictly requires all Slot 0 factory artifacts to be located under `<target_root>/app/cobalt/`.
-
-   *Staging in local build output directory (`$EVERGREEN_DIR`):*
 
    ```bash
    export EVERGREEN_DIR=out/evergreen-arm-hardfp-rdk_qa
@@ -165,15 +172,14 @@ In production and certification, SoC partners and OEMs do not compile Cobalt Cor
    cp -rf $LOCAL_CRX_DIR/cobalt_prebuilt/content/* $EVERGREEN_DIR/app/cobalt/content/
    ```
 
-   *Direct deployment to RDK device target root (e.g. `/usr/share/content/data/`):*
+5. **Build the RDK Loader Plugin Target**:
 
    ```bash
-   ssh root@{RDK IP address} "mkdir -p /usr/share/content/data/app/cobalt/lib /usr/share/content/data/app/cobalt/content"
-
-   scp $LOCAL_CRX_DIR/cobalt_prebuilt/manifest.json root@{RDK IP address}:/usr/share/content/data/app/cobalt/
-   scp -r $LOCAL_CRX_DIR/cobalt_prebuilt/lib/* root@{RDK IP address}:/usr/share/content/data/app/cobalt/lib/
-   scp -r $LOCAL_CRX_DIR/cobalt_prebuilt/content/* root@{RDK IP address}:/usr/share/content/data/app/cobalt/content/
+   autoninja -C out/evergreen-arm-hardfp-rdk_qa loader_app_rdk_plugin
    ```
+
+> [!NOTE]
+> Staging prebuilt CRX files into `out/evergreen-arm-hardfp-rdk_qa/app/cobalt/` prior to archiving ensures that your Yocto image build or deployment archive includes the complete factory Slot 0 package.
 
 ### Generate Archive
 

@@ -143,11 +143,17 @@ To use this feature, build and run one of these configurations and monitor the t
 
 Because Evergreen support is required for certification, you can also run Cobalt in Evergreen mode on Linux.
 
-### Option A: Compiling Custom Cobalt Core & Loader from Source
+> [!NOTE]
+> **Recommended Workflow for Partners & OEMs:**
+> For standard testing and production certification, partners should deploy official Google prebuilt `.crx` packages (**Option B**). Compiling Cobalt Core from source (**Option A**) is intended primarily for core engine debugging and custom C++ modifications.
 
-1. Initialize an Evergreen build directory for `evergreen-x64`:
+### Option A: Compiling Custom Cobalt Core & Loader from Source (For Core Debugging)
+
+1. **Ensure environment variables are set and initialize an Evergreen build directory**:
 
    ```bash
+   export PATH="$HOME/depot_tools:$PATH"
+
    cobalt/build/gn.py -p evergreen-x64 -c qa --no-rbe
    ```
 
@@ -171,11 +177,19 @@ Because Evergreen support is required for certification, you can also run Cobalt
    out/evergreen-x64_qa/cobalt_loader.py [--url=<url>]
    ```
 
-### Option B: Deploying Official Google Prebuilt CRX Packages
+### Option B: Deploying Official Google Prebuilt CRX Packages (Recommended for Partners)
 
 In production integration, partners can test with official Google prebuilt `.crx` packages instead of compiling Cobalt Core from source.
 
-1. **Download the Official Prebuilt CRX File**:
+1. **Ensure environment variables are set and initialize an Evergreen build directory**:
+
+   ```bash
+   export PATH="$HOME/depot_tools:$PATH"
+
+   cobalt/build/gn.py -p evergreen-x64 -c qa --no-rbe
+   ```
+
+2. **Download the Official Prebuilt CRX File**:
 
    ```bash
    export LOCAL_CRX_DIR=/tmp/cobalt_dl
@@ -185,13 +199,13 @@ In production integration, partners can test with official Google prebuilt `.crx
    wget $COBALT_CRX_URL -O $LOCAL_CRX_DIR/cobalt_prebuilt.crx
    ```
 
-2. **Unpack the CRX Package**:
+3. **Unpack the CRX Package**:
 
    ```bash
    unzip $LOCAL_CRX_DIR/cobalt_prebuilt.crx -d $LOCAL_CRX_DIR/cobalt_prebuilt
    ```
 
-3. **Stage Unpacked Files into Slot 0 (`app/cobalt/`) Layout**:
+4. **Stage Unpacked Files into Slot 0 (`app/cobalt/`) Layout**:
 
    > [!IMPORTANT]
    > In Cobalt 27.lts, all Slot 0 factory binaries must be located strictly under `<target_root>/app/cobalt/`.
@@ -203,6 +217,18 @@ In production integration, partners can test with official Google prebuilt `.crx
    cp -f $LOCAL_CRX_DIR/cobalt_prebuilt/manifest.json $EVERGREEN_DIR/app/cobalt/
    cp -rf $LOCAL_CRX_DIR/cobalt_prebuilt/lib/* $EVERGREEN_DIR/app/cobalt/lib/
    cp -rf $LOCAL_CRX_DIR/cobalt_prebuilt/content/* $EVERGREEN_DIR/app/cobalt/content/
+   ```
+
+5. **Build the Loader Executable**:
+
+   ```bash
+   autoninja -C out/evergreen-x64_qa loader_app
+   ```
+
+6. **Launch Cobalt in Evergreen Mode**:
+
+   ```bash
+   out/evergreen-x64_qa/cobalt_loader.py [--url=<url>]
    ```
 
 ## Running Tests
