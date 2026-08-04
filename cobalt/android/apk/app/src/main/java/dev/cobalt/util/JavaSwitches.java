@@ -33,7 +33,7 @@ public class JavaSwitches {
 
   public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
   public static final String ENABLE_OPTIMIZED_V8_CODE_CACHE = "EnableOptimizedV8CodeCache";
-  
+
   /** flag to allow caching CSS and WebAssembly resources in the HTTP disk cache. */
   public static final String ENABLE_EXPANDED_HTTP_CACHE_TYPES = "EnableExpandedHttpCacheTypes";
 
