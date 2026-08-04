@@ -37,6 +37,9 @@ public class JavaSwitches {
   /** flag to allow caching CSS and WebAssembly resources in the HTTP disk cache. */
   public static final String ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE = "EnableCssAndWasmForHttpCache";
 
+  /** flag to enable aggressive HTTP disk cache and V8 generated code cache tuning exclusions. */
+  public static final String ENABLE_HTTP_AND_V8_CACHE_TUNING = "EnableHttpAndV8CacheTuning";
+
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
 
@@ -203,6 +206,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE)) {
       extraCommandLineArgs.add("--enable-css-and-wasm-for-http-cache");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_HTTP_AND_V8_CACHE_TUNING)) {
+      extraCommandLineArgs.add("--enable-http-and-v8-cache-tuning");
     }
 
     if (jsFlags.length() > 0) {
