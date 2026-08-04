@@ -4,7 +4,10 @@
 
 #include "third_party/blink/renderer/modules/payments/payment_request.h"
 
+#include <memory>
+
 #include "build/buildflag.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_tester.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
