@@ -86,6 +86,7 @@ jobs:
           DEPOT_TOOLS_TEMP="${RUNNER_TEMP}/depot_tools"
           git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$DEPOT_TOOLS_TEMP"
           echo "$DEPOT_TOOLS_TEMP" >> $GITHUB_PATH
+          source "${DEPOT_TOOLS_TEMP}/bootstrap_python3" && bootstrap_python3
 
       - name: Cherry Pick Merged PRs
         id: autoroll
