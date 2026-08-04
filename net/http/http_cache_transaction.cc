@@ -4007,15 +4007,18 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
           "enable-http-and-v8-cache-tuning");
 
   // Maintain a consolidated list of accepted asset MIME types (exact or suffix).
-  std::vector<std::string_view> accepted_asset_types = {
-      "text/html",
-      "javascript",
-      "ecmascript",
-  };
-  if (enable_css_and_wasm_caching) {
-    accepted_asset_types.push_back("text/css");
-    accepted_asset_types.push_back("application/wasm");
-  }
+  static const std::vector<std::string_view> accepted_asset_types = [] {
+    std::vector<std::string_view> types = {
+        "text/html",
+        "javascript",
+        "ecmascript",
+    };
+    if (enable_css_and_wasm_caching) {
+      types.push_back("text/css");
+      types.push_back("application/wasm");
+    }
+    return types;
+  }();
 
   bool is_accepted_mime_type = false;
   for (std::string_view type : accepted_asset_types) {
