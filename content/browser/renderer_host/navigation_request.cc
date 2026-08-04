@@ -2061,9 +2061,7 @@ NavigationRequest::NavigationRequest(
       headers.SetHeader(kBrowsingTopicsRequestHeaderKey,
                         *topics_header_value_result.header_value);
     }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_142
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_142
     if (has_ad_auction_headers_attribute_ &&
         IsAdAuctionHeadersEligibleForNavigation(
             *frame_tree_node_, url::Origin::Create(common_params_->url))) {
@@ -5802,9 +5800,7 @@ void NavigationRequest::OnRedirectChecksComplete(
     modified_headers.SetHeader(kBrowsingTopicsRequestHeaderKey,
                                *topics_header_value_result.header_value);
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_142
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_142
   if (ad_auction_headers_eligible_) {
     // Redirects are ineligible for ad auction headers.
     ad_auction_headers_eligible_ = false;
@@ -6438,9 +6434,7 @@ void NavigationRequest::CommitNavigation() {
           browsing_topics::ApiCallerSource::kIframeAttribute);
     }
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_142
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_142
   if (ad_auction_headers_eligible_) {
     ProcessAdAuctionResponseHeaders(origin_to_commit, *GetRenderFrameHost(),
                                     response() ? response()->headers : nullptr);
