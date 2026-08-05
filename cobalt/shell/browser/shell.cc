@@ -1045,7 +1045,8 @@ bool Shell::ShouldAllowRunningInsecureContent(WebContents* web_contents,
 }
 
 PictureInPictureResult Shell::EnterPictureInPicture(WebContents* web_contents) {
-  if (!base::FeatureList::IsEnabled(cobalt::features::kPictureInPicture)) {
+  if (!base::FeatureList::IsEnabled(
+          cobalt::features::kEnablePictureInPicture)) {
     return PictureInPictureResult::kNotSupported;
   }
   return PictureInPictureWindowManager::GetInstance()
@@ -1053,7 +1054,8 @@ PictureInPictureResult Shell::EnterPictureInPicture(WebContents* web_contents) {
 }
 
 void Shell::ExitPictureInPicture() {
-  if (!base::FeatureList::IsEnabled(cobalt::features::kPictureInPicture)) {
+  if (!base::FeatureList::IsEnabled(
+          cobalt::features::kEnablePictureInPicture)) {
     return;
   }
   PictureInPictureWindowManager::GetInstance().ExitPictureInPicture();
