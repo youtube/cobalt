@@ -135,6 +135,9 @@ public final class CommandLineOverrideHelper {
         // For details, see http://b/478022126#comment6.
         paramOverrides.add("UseAAudioInput");
 
+        // Disable FontSrcLocalMatching lookup table.
+        paramOverrides.add("FontSrcLocalMatching");
+
         return paramOverrides;
     }
 
