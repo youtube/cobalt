@@ -244,20 +244,18 @@ void StarboardRendererClient::UpdateStarboardRenderingMode(
       // The video frame is handled by Sbplayer, and render to its
       // surface directly.
       if (is_playing_) {
+        LOG(INFO) << "Stopping active video rendering sink on mode switch to "
+                     "kPunchOut.";
         StopVideoRendererSink();
-      } else {
-        LOG(WARNING) << "StarboardRendererClient doesn't stop video rendering "
-                        "sink, since the video is not playing.";
       }
       break;
     case StarboardRenderingMode::kDecodeToTexture:
       // StarboardRenderingMode::kDecodeToTexture needs to update
       // video frame via VideoRendererSink::RenderCallback::Render().
       if (is_playing_) {
+        LOG(INFO) << "Starting active video rendering sink on mode switch to "
+                     "kDecodeToTexture.";
         StartVideoRendererSink();
-      } else {
-        LOG(WARNING) << "StarboardRendererClient doesn't start video rendering "
-                        "sink, since StartPlayingFrom() is not called.";
       }
       break;
     case StarboardRenderingMode::kInvalid:
