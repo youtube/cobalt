@@ -1,3 +1,8 @@
+# Disable dangerous-triggers rule because this workflow uses pull_request_target
+# strictly to edit PR labels (pull-requests: write) without checking out or executing
+# untrusted code from PR branches.
+# actionlint: disable dangerous-triggers
+# zizmor: ignore[dangerous-triggers]
 name: Auto Label Kokoro
 
 on:
