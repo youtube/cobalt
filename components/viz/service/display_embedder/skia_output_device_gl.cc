@@ -120,10 +120,7 @@ SkiaOutputDeviceGL::SkiaOutputDeviceGL(
   // only update this for Android.
   // This output device is never offscreen.
   capabilities_.supports_surfaceless = gl_surface_->IsSurfaceless();
-#elif BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Cobalt Ozone on Linux supports surfaceless surface.
-  capabilities_.supports_surfaceless = true;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   // If Chrome OS is run on Linux for development purposes, we need to
