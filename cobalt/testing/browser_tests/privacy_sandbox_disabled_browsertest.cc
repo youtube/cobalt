@@ -66,14 +66,6 @@ IN_PROC_BROWSER_TEST_F(PrivacySandboxDisabledBrowserTest,
   EXPECT_EQ(false,
             content::EvalJs(shell()->web_contents(),
                             "'privateToken' in HTMLIFrameElement.prototype"));
-
-  // 5. Verify FedCM / Credential Management APIs are not exposed.
-  EXPECT_EQ(false, content::EvalJs(shell()->web_contents(),
-                                   "'IdentityCredential' in window"));
-  EXPECT_EQ(false, content::EvalJs(shell()->web_contents(),
-                                   "'identity' in navigator"));
-  EXPECT_EQ(false, content::EvalJs(shell()->web_contents(),
-                                   "'credentials' in navigator"));
 }
 
 // Verifies that FedCM (Federated Credential Management) and related
