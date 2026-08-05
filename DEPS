@@ -277,9 +277,12 @@ vars = {
   'screen_ai_windows_386': 'version:138.01',
 
   # siso CIPD package version.
-  # Cobalt: Only need for M138. Need a newer siso for building
-  # cobalt with gcloud credentials.
-  'siso_version': 'git_revision:080102c196eef824a444b70272cb6d645b6abe09',
+  # Cobalt: Update siso_version to milestone 141.0.7390.0, to support gcloud
+  # credentials. Remove after rebasing to 141.0.7390.0 or newer. Cobalt
+  # modifications to build/config/siso/configure_siso.py can also be removed
+  # in favor of setting the '--reapi_backend_config_path' argument to
+  # 'cobalt.star'
+  'siso_version': 'git_revision:8863265a67843154872be2be1fc0c37339691405',
 
   # download libaom test data
   'download_libaom_testdata': False,
