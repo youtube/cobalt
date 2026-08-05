@@ -103,6 +103,7 @@ public class JavaSwitches {
 
   /** Flag for enable go/cobalt-direct-window-rendering */
   public static final String DIRECT_WINDOW_RENDERING = "DirectWindowRendering";
+  public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
@@ -132,6 +133,13 @@ public class JavaSwitches {
         jsFlags.add("--flush-bytecode");
         jsFlags.add("--bytecode-old-time=" + oldTime);
       }
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE)) {
+      jsFlags.add("--initial-old-space-size="
+          + javaSwitches.get(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    } else {
+      jsFlags.add("--initial-old-space-size=64");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
