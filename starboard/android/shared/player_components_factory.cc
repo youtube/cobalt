@@ -335,7 +335,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_LOG(INFO) << "`enable_av1_startup_optimization` is set to true.";
     }
     if (experimental_features.GetBool(kMediaNdkAudioTrack)) {
-      AudioTrack::SetNdkAudioEnabled(true);
+      AudioTrack::SetNdkAudioTrackEnabled(true);
       SB_LOG(INFO) << "`ndk_audio_track` is set to true.";
     }
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&

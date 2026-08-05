@@ -52,7 +52,7 @@ class AudioTrack {
   // The same as Android AudioTrack.ERROR_DEAD_OBJECT.
   static constexpr int kAudioTrackErrorDeadObject = -6;
 
-  static void SetNdkAudioEnabled(bool enabled);
+  static void SetNdkAudioTrackEnabled(bool enabled);
 
   static std::unique_ptr<AudioTrack> Create(
       SbMediaAudioCodingType coding_type,

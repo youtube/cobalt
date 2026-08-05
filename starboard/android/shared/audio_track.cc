@@ -28,12 +28,12 @@
 namespace starboard {
 namespace {
 
-std::atomic<bool> g_ndk_audio_enabled = false;
+std::atomic<bool> g_ndk_audio_track_enabled = false;
 
 bool CanUseNdkAudioTrack(SbMediaAudioCodingType coding_type,
                          std::optional<SbMediaAudioSampleType> sample_type,
                          std::optional<int> tunnel_mode_audio_session_id) {
-  if (!g_ndk_audio_enabled.load(std::memory_order_relaxed)) {
+  if (!g_ndk_audio_track_enabled.load(std::memory_order_relaxed)) {
     return false;
   }
 
@@ -61,8 +61,8 @@ bool CanUseNdkAudioTrack(SbMediaAudioCodingType coding_type,
 }  // namespace
 
 // static
-void AudioTrack::SetNdkAudioEnabled(bool enabled) {
-  g_ndk_audio_enabled.store(enabled, std::memory_order_relaxed);
+void AudioTrack::SetNdkAudioTrackEnabled(bool enabled) {
+  g_ndk_audio_track_enabled.store(enabled, std::memory_order_relaxed);
 }
 
 // static
