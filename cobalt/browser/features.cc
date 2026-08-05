@@ -69,7 +69,7 @@ BASE_FEATURE(kForceVideoSplashScreen,
              "ForceVideoSplashScreen",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kPictureInPicture,
+BASE_FEATURE(kEnablePictureInPicture,
              "PictureInPicture",
 #if BUILDFLAG(IS_ANDROID)
              base::FEATURE_ENABLED_BY_DEFAULT

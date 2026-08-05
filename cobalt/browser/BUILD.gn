@@ -130,9 +130,7 @@ source_set("browser") {
       "//cobalt/android:jni_headers",
       "//components/variations:variations_associated_data",
     ]
-  }
-
-  if (!is_android) {
+  } else {
     deps += [ "//cobalt/browser/crash_annotator" ]
   }
 

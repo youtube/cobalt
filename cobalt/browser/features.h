@@ -66,7 +66,7 @@ extern const base::Feature kDisableSplashScreen;
 extern const base::Feature kForceVideoSplashScreen;
 
 // Enables video Picture-in-Picture support.
-extern const base::Feature kPictureInPicture;
+extern const base::Feature kEnablePictureInPicture;
 
 }  // namespace features
 }  // namespace cobalt

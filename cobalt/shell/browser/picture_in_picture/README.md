@@ -1,51 +1,61 @@
-# Picture in Picture function in Chromium versus in Cobalt
+# Comparison of Picture-in-Picture functionality on Chromium vs on Cobalt
 
-This document explains the architectural differences in the Picture-in-Picture (PiP) implementation between upstream Chromium and Cobalt.
-
-**Note:** Currently, Cobalt only supports Video Picture-in-Picture specifically tailored for **Android TV**.
+This document explains the architectural differences in the Picture-in-Picture (PiP) implementation between upstream Chromium and Cobalt. Currently, Cobalt only supports Video PiP for **Android TV**.
 
 ## Architectural Flow Diagrams
 
-Below are the detailed flow diagrams illustrating how the PiP initialization and window management pipelines differ between Cobalt and Chromium.
+*   **Nodes** represent Architectural Components, Classes, or Entities.
+*   **Edges** represent function calls, data passing, or lifecycle relationships.
 
-*   **Nodes (Boxes)** represent Architectural Components, Classes, or Entities.
-*   **Edges (Arrows)** represent function calls, data passing, or lifecycle relationships.
-
-### Figure 1: Chromium Architecture
+### Figure 1: PiP on Chromium for ATV
 
 ```mermaid
-graph TD
+flowchart TD
     %% ==================== TOP ENTRY ====================
-    Webpage[Webpage Render] --> VideoPipControllerImpl["VideoPipWindowControllerImpl<br>(engine)"]
+    Webpage["`Webpage Render`"] --> VideoPipControllerImpl["`VideoPipWindow
+ControllerImpl
+(engine)`"]
 
     %% ==================== MIDDLE BRANCHES (Strictly Left to Right) ====================
     %% Left Branch: WebContents & Window Manager
-    VideoPipControllerImpl --> WebContentsImpl["WebContentsImpl<br>(engine)"]
-    WebContentsImpl -- "Delegates to" --> WebContentsDelegate["WebContentsDelegate<br>(public)"]
-    WebContentsDelegate -- "Passes WebContents" --> TabWebContentsDelegateAndroid[TabWebContentsDelegateAndroid]
-    TabWebContentsDelegateAndroid -."Calls GetInstance()" .- PipWindowManager["PipWindowManager<br>(browser)"]
+    VideoPipControllerImpl --> WebContentsImpl["`WebContentsImpl
+(engine)`"]
+    WebContentsImpl -- "Delegates to" --> WebContentsDelegate["`WebContentsDelegate
+(public)`"]
+    WebContentsDelegate -- "Passes WebContents" --> TabWebContentsDelegateAndroid["`TabWebContentsDelegate
+Android`"]
+    TabWebContentsDelegateAndroid -."Calls GetInstance()" .- PipWindowManager["`PipWindowManager
+(browser)`"]
     PipWindowManager -- "Tracks Controller" ---> VideoPipControllerImpl
 
     %% Middle Branch: Browser Clients
-    VideoPipControllerImpl -. "Requests Window Creation" .-> ContentBrowserClient["ContentBrowserClient<br>(public)"]
-    ContentBrowserClient --> ChromeContentBrowserClient["ChromeContentBrowserClient<br>(browser)"]
-    ChromeContentBrowserClient -. "Calls Create()" .-> VideoOverlayWindow["VideoOverlayWindow<br>(public)"]
+    VideoPipControllerImpl -. "Requests Window Creation" .-> ContentBrowserClient["`ContentBrowserClient
+(public)`"]
+    ContentBrowserClient --> ChromeContentBrowserClient["`ChromeContent
+BrowserClient
+(browser)`"]
+    ChromeContentBrowserClient -. "Calls Create()" .-> VideoOverlayWindow["`VideoOverlayWindow
+(public)`"]
 
     %% Right Branch: Windows & IPC
     VideoPipControllerImpl -- "Calls setSurfaceId(viz)" --> VideoOverlayWindow
     VideoPipControllerImpl -- "Holds Reference to" --> VideoOverlayWindow
 
     %% ==================== BOTTOM LAYER (Android / JNI) ====================
-    VideoOverlayWindow ---> OverlayWindowAndroid["OverlayWindowAndroid<br>(browser)"]
-    OverlayWindowAndroid --> PictureInPictureOverlayWindowAndroid["PictureInPicture<br>OverlayWindowAndroid<br>(browser)"]
+    VideoOverlayWindow ---> OverlayWindowAndroid["`OverlayWindowAndroid
+(browser)`"]
+    OverlayWindowAndroid --> PictureInPictureOverlayWindowAndroid["`PictureInPicture
+OverlayWindowAndroid
+(browser)`"]
 
-    %% The Observer Pattern (Unique to Chromium)
-    OverlayWindowAndroid -- "Adds Observer" --> WindowAndroid[WindowAndroid]
-    WindowAndroid -- "Notifies" --> OnAttachCompositor[WindowAndroidObserver]
-    OnAttachCompositor -- "Calls AddChildFrameSink" --> HardwareCompositor[Hardware Compositor]
+    %% The Observer Pattern
+    OverlayWindowAndroid -- "Adds Observer" --> WindowAndroid["`WindowAndroid`"]
+    WindowAndroid -- "Notifies" --> OnAttachCompositor["`WindowAndroidObserver`"]
+    OnAttachCompositor -- "Calls AddChildFrameSink" --> HardwareCompositor["`Hardware Compositor`"]
 
     %% Java Activity Launching
-    PictureInPictureOverlayWindowAndroid -- "Overrides CreateJavaActivity()<br>Launches via Intent" --> ChromePipActivity["ChromePipActivity<br>(Java)"]
+    PictureInPictureOverlayWindowAndroid -- "Overrides CreateJavaActivity()<br>Launches via Intent" --> ChromePipActivity["`ChromePipActivity
+(Java)`"]
 
     %% JNI Callbacks back to Base Class
     ChromePipActivity -- "Passes WindowAndroid (JNI)" ---> OverlayWindowAndroid
@@ -54,27 +64,39 @@ graph TD
     OverlayWindowAndroid -- "Calls SetRootLayer()" --> HardwareCompositor
 ```
 
-### Figure 2: Cobalt Architecture (Android TV)
+### Figure 2: PiP on cobalt for ATV
 
 ```mermaid
-graph TD
+flowchart TD
     %% --- TOP ENTRY ---
-    Webpage[Webpage Render] --> VideoPipControllerImpl["VideoPipWindowControllerImpl<br>(engine)"]
+    Webpage["`Webpage Render`"] --> VideoPipControllerImpl["`VideoPipWindow
+ControllerImpl
+(engine)`"]
 
     %% --- MIDDLE BRANCHES (Delegation) ---
-    VideoPipControllerImpl --> WebContentsImpl["WebContentsImpl<br>(engine)"]
-    WebContentsImpl -- "Delegates to" --> WebContentsDelegate["WebContentsDelegate<br>(public)"]
-    WebContentsDelegate -- "Passes WebContents" --> Shell[Shell]:::Style
-    Shell -."Calls GetInstance()" .- PipWindowManager["PipWindowManager<br>(browser)"]:::Style
+    VideoPipControllerImpl --> WebContentsImpl["`WebContentsImpl
+(engine)`"]
+    WebContentsImpl -- "Delegates to" --> WebContentsDelegate["`WebContentsDelegate
+(public)`"]
+    WebContentsDelegate -- "Passes WebContents" --> Shell["`Shell`"]:::Style
+    Shell -."Calls GetInstance()" .- PipWindowManager["`PipWindowManager
+(browser)`"]:::Style
     PipWindowManager -- "Tracks Controller" ---> VideoPipControllerImpl
 
     %% --- THE BROWSER CLIENT (Interception) ---
-    VideoPipControllerImpl -- "Requests Window Creation" --> ContentBrowserClient["ContentBrowserClient<br>(public)"]
-    ContentBrowserClient --> ShellContentBrowserClient[ShellContentBrowserClient]
-    ShellContentBrowserClient --> CobaltContentBrowserClient["CobaltContentBrowserClient<br>(browser)"]:::Style
-    CobaltContentBrowserClient -. "Calls Create()" .- VideoOverlayWindow["VideoOverlayWindow<br>(public)"]
+    VideoPipControllerImpl -- "Requests Window Creation" --> ContentBrowserClient["`ContentBrowserClient
+(public)`"]
+    ContentBrowserClient --> ShellContentBrowserClient["`ShellContent
+BrowserClient`"]
+    ShellContentBrowserClient --> CobaltContentBrowserClient["`CobaltContent
+BrowserClient
+(browser)`"]:::Style
+    CobaltContentBrowserClient -. "Calls Create()" .- VideoOverlayWindow["`VideoOverlayWindow
+(public)`"]
 
-    VideoOverlayWindow --> CobaltVideoOverlayWindow["CobaltVideoOverlayWindow<br>(browser)"]:::Style
+    VideoOverlayWindow --> CobaltVideoOverlayWindow["`CobaltVideo
+OverlayWindow
+(browser)`"]:::Style
     CobaltVideoOverlayWindow -- "Returns Window Instance" ---> VideoPipControllerImpl
 
     %% --- THE ASYNC RACE CONDITION ---
@@ -82,12 +104,13 @@ graph TD
     VideoPipControllerImpl -- "Calls setSurfaceId(viz)" --> CobaltVideoOverlayWindow
 
     %% Pipeline B: The Android UI
-    CobaltVideoOverlayWindow -- "Launches via Intent<br>(Triggers OS Lifecycle)" --> CobaltPipActivity["CobaltPipActivity<br>(Java)"]:::Style
+    CobaltVideoOverlayWindow -- "Launches via Intent<br>(Triggers OS Lifecycle)" --> CobaltPipActivity["`CobaltPipActivity
+(Java)`"]:::Style
     CobaltPipActivity -- "Passes WindowAndroid (JNI)" ---> CobaltVideoOverlayWindow
     CobaltPipActivity -- "Provides CompositorView" ---> CobaltVideoOverlayWindow
 
     %% --- THE BRIDGE ---
-    CobaltVideoOverlayWindow -- "Calls SetRootLayer()" --> AndroidOS[AndroidOS Compositor]
+    CobaltVideoOverlayWindow -- "Calls SetRootLayer()" --> AndroidOS["`AndroidOS Compositor`"]
 
     classDef Style fill:#F7F4A8,stroke:#333,stroke-width:2px,color:black
 ```
@@ -96,17 +119,13 @@ graph TD
 
 ## Core Architectural Differences
 
-In a modern browser architecture, PiP must coordinate between the web engine (content), the browser UI layer, and the native operating system's window manager. While Chromium builds a universal, highly decoupled PiP engine that supports everything from Desktop PCs to Mobile phones, Cobalt implements a streamlined, tightly integrated version optimized strictly for Android TV.
-
-There are three main architectural differences between the two implementations, which are visually highlighted in the diagrams above:
-
 ### 1. `PictureInPictureWindowManager`: Full-Featured vs. Minimal Stub
 *   **Chromium**: The `PictureInPictureWindowManager` is a massive, highly complex singleton. It manages both Video PiP and Document PiP, tracks multiple concurrent `WebContents`, observes window destruction events, calculates complex bounding boxes and aspect ratios, and bridges the gap between the web page and the native OS window manager across Windows, Mac, Linux, and Android.
-*   **Cobalt**: The `PictureInPictureWindowManager` has significantly less implementation. Because Cobalt only supports Android TV (where the OS strictly controls the single PiP window via the Activity lifecycle), Cobalt's manager is heavily stripped down. It acts mostly as a basic pass-through delegator to the `VideoPictureInPictureWindowController`, omitting all the complex multi-window, resizing, and Document PiP logic found in Chromium.
+*   **Cobalt**: The `PictureInPictureWindowManager` has significantly less implementation. Because Cobalt only supports Android TV for now(where the OS strictly controls the single PiP window via the Activity lifecycle), Cobalt's manager is heavily stripped down. It acts mostly as a basic pass-through delegator to the `VideoPictureInPictureWindowController`, omitting all the complex multi-window, resizing, and Document PiP logic found in Chromium.
 
-### 2. Simplified Window Management and Graphics Compositing
-*   **Chromium**: The `OverlayWindowAndroid` implementation is built for complex, multi-tasking environments. First, it is packed with phone and tablet logic (touch gestures for dragging, pinch-to-zoom, tap-to-expand). Second, for graphics compositing, it utilizes an asynchronous **Observer Pattern** (`WindowAndroidObserver`). Because a mobile OS frequently suspends apps, resizes windows, or detaches hardware compositors during multitasking, Chromium must carefully wait for `OnAttachCompositor` before calling `AddChildFrameSink()` to safely route the video.
-*   **Cobalt**: `CobaltVideoOverlayWindow` is drastically simplified for the TV form factor. First, it drops all phone/tablet touch logic in favor of TV remote controls. Second, it completely drops the `WindowAndroidObserver` pattern. Because TVs run a single foreground app without complex background multi-tasking, Cobalt can rely on the compositor being stable. It fetches the `WindowAndroid` via JNI and synchronously calls `AddChildFrameSink()` and `SetRootLayer()` directly, bypassing the complex observer lifecycle management.
+### 2. Graphics Compositing and Window Lifecycle
+*   **Chromium**: The `OverlayWindowAndroid` implementation is built for complex, multi-tasking mobile environments. It is packed with phone/tablet gesture controls (dragging, pinch-to-zoom) and utilizes the `WindowAndroidObserver` pattern to dynamically handle compositor attachment/detachment, ensuring safe graphics routing (`AddChildFrameSink`) during frequent OS-level lifecycle events.
+*   **Cobalt**: `CobaltVideoOverlayWindow` also implements the `WindowAndroidObserver` pattern to safely manage the compositor lifecycle (adding/removing the child frame sink on attach/detach), ensuring robust video routing. However, it is simplified by omitting all mobile-specific touch gestures and complex multi-window layout calculations, as it is optimized strictly for TV remote interaction.
 
 ### 3. Consolidation of Overlay Window Classes
 *   **Chromium**: Chromium utilizes an inheritance-based architecture to handle overlays:

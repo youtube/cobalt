@@ -290,9 +290,9 @@ CobaltContentBrowserClient::CreateWindowForVideoPictureInPicture(
   // Create() allocates a dummy object that leaks memory, so we return nullptr.
 #if BUILDFLAG(IS_ANDROID)
   return content::VideoOverlayWindow::Create(controller);
-#else
+#else   // BUILDFLAG(IS_ANDROID)
   return nullptr;
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 std::unique_ptr<content::BrowserMainParts>

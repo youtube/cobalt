@@ -44,6 +44,11 @@ import org.jni_zero.NativeMethods;
  */
 @JNINamespace("cobalt")
 public class CobaltPictureInPictureActivity extends Activity {
+  protected static final String EXTRA_NATIVE_POINTER = "native_pointer";
+
+  private static Natives sNatives;
+  private static CompositorView sCompositorViewForTesting;
+
   private long mNativeCobaltVideoOverlayWindow = 0;
   private CompositorView mCompositorView;
   private ActivityWindowAndroid mWindowAndroid;
@@ -71,7 +76,7 @@ public class CobaltPictureInPictureActivity extends Activity {
     Context context = (activity != null) ? activity : ContextUtils.getApplicationContext();
 
     Intent intent = new Intent(context, CobaltPictureInPictureActivity.class);
-    intent.putExtra("native_pointer", nativePointer);
+    intent.putExtra(EXTRA_NATIVE_POINTER, nativePointer);
     if (activity == null) {
       intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
     }
@@ -87,7 +92,7 @@ public class CobaltPictureInPictureActivity extends Activity {
       finish();
       return;
     }
-    mNativeCobaltVideoOverlayWindow = intent.getLongExtra("native_pointer", 0);
+    mNativeCobaltVideoOverlayWindow = intent.getLongExtra(EXTRA_NATIVE_POINTER, 0);
     if (mNativeCobaltVideoOverlayWindow == 0) {
       finish();
       return;
@@ -215,8 +220,6 @@ public class CobaltPictureInPictureActivity extends Activity {
     super.onDestroy();
   }
 
-  private static Natives sNatives;
-
   public static void setNativesForTesting(Natives natives) {
     sNatives = natives;
   }
@@ -227,8 +230,6 @@ public class CobaltPictureInPictureActivity extends Activity {
     }
     return CobaltPictureInPictureActivityJni.get();
   }
-
-  private static CompositorView sCompositorViewForTesting;
 
   public static void setCompositorViewForTesting(CompositorView compositorView) {
     sCompositorViewForTesting = compositorView;
