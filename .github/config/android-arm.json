@@ -6,7 +6,15 @@
   "test_on_device": true,
   "test_device_family": "android",
   "test_e2e": true,
+<<<<<<< HEAD
   "test_yts": false,
+=======
+  "test_yts": true,
+  "test_yts_playback": true,
+  "comment_test_browser": "test_browser controls desktop browser tests on host. Set to false for Android because browser tests run on physical devices via test_on_device.",
+  "test_browser": false,
+  "test_yts_wpt": true,
+>>>>>>> d3a189807c (Enable WPT tests now that the tests are working out of the box. (#11712))
   "test_root_target": "//cobalt/android:cobalt_apk",
   "test_attempts": "3",
   "e2e_test_targets": [
@@ -81,6 +89,27 @@
       "test_attempts": "6"
     }
   ],
+<<<<<<< HEAD
+=======
+  "yts_playback_test_targets": [
+    {
+      "target": "testing/maneki/cobalt/kimono_tests:ATV_KIMONO_YTS_PLAYBACK_TESTS_ARM_DEVICES",
+      "test_attempts": "3"
+    }
+  ],
+  "browser_test_targets": [
+    {
+      "target": "cobalt/testing/browser_tests:cobalt_browsertests",
+      "test_attempts": "3"
+    }
+  ],
+  "yts_wpt_test_targets": [
+    {
+      "target": "testing/container/wpt:yts_wpt_test_android_arm_devices",
+      "test_attempts": "2"
+    }
+  ],
+>>>>>>> d3a189807c (Enable WPT tests now that the tests are working out of the box. (#11712))
   "test_dimensions": {
     "device_type": "arm_devices",
     "device_pool": "maneki"
