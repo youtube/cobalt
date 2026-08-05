@@ -38,12 +38,6 @@ extern const char kCrashpadUserAgentStringKey[];
 // The key name used in Crashpad for the cert_scope annotation.
 extern const char kCrashpadCertScopeKey[];
 
-// The key name used in Crashpad for the native stability crash UUID.
-extern const char kNativeStabilityCrashUuidKey[];
-
-// The key name used in Crashpad for the native stability hang UUID.
-extern const char kNativeStabilityHangUuidKey[];
-
 // Installs a signal handler to handle a crash. The signal handler will launch a
 // Crashpad handler process in response to a crash.
 // |ca_certificates_path| is the absolute path to a directory containing

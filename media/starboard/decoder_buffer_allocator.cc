@@ -19,6 +19,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/types/expected.h"
 #include "build/build_config.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
@@ -46,6 +47,18 @@ using starboard::experimental::MediaBufferPool;
 
 const char* ToString(bool value) {
   return value ? "enabled" : "disabled";
+}
+
+template <typename Callback>
+base::expected<void, std::string> ProcessEnableOnlySetting(
+    const std::string& name,
+    int value,
+    Callback on_enable) {
+  if (value == 0) {
+    return base::unexpected(name + " cannot be disabled.");
+  }
+  on_enable();
+  return base::ok();
 }
 
 }  // namespace
@@ -107,6 +120,9 @@ void DecoderBufferAllocator::ReleaseIdleMemory() {
 }
 
 void DecoderBufferAllocator::DecommitAllDecommitableBlocks() {
+  if (!decommit_on_suspend_enabled_.load(std::memory_order_relaxed)) {
+    return;
+  }
   base::AutoLock scoped_lock(mutex_);
   if (strategy_) {
     strategy_->DecommitAllDecommitableBlocks();
@@ -234,17 +250,93 @@ void DecoderBufferAllocator::UpdateAllocatorStrategy(
 }
 
 // static
+base::expected<void, std::string> DecoderBufferAllocator::SetSetting(
+    const std::string& name,
+    int value) {
+  if (name == "DecoderBuffer.EnableConfigurableDecommitStrategy") {
+    if (value <= 0) {
+      // Explicitly allow non-positive values as placebo.
+      return base::ok();
+    }
+
+    // The value is a 32-bit integer encoding four parts:
+    // flags (8 bits), block_size (in MB), retain_blocks (count), and
+    // conservative_decommit_blocks (count). For example,
+    // 0x01040402 sets aggressive_decommit_on_suspend to true, 4 MB block size,
+    // 4 retain blocks, and 2 conservative decommit blocks respectively.
+    // Passing multiple parameters encoded within a single integer is not
+    // ideal, but it simplifies experiment setup in the current framework.
+    //
+    // - flags (8 bits):
+    //   - aggressive_decommit_on_suspend (bit 24): When set (LSB is non-zero),
+    //     enables aggressive MADV_DONTNEED decommit on all idle blocks when
+    //     app suspends/hides.
+    //   - allocate_with_page_alignment (bit 25): When set (second bit is
+    //     non-zero), forces new OS block allocations to be page-aligned and
+    //     rounded up to page sizes. Default is true.
+    // - block_size (8 bits): Specifies both the initial pool capacity and the
+    //   fallback allocation increment.
+    // - retain_blocks (8 bits): Specifies the first `retain_blocks` blocks of
+    //   the pool are kept fully committed.
+    // - conservative_decommit_blocks (8 bits): Specifies the next
+    //   `conservative_decommit_blocks` blocks are conservatively decommitted
+    //   (e.g. using MADV_FREE).
+    // Any remaining memory beyond these two windows is aggressively decommitted
+    // (e.g. MADV_DONTNEED).
+    // For example, if 128 MB is allocated for the memory pool, and
+    // retain_blocks is set to 4 with conservative_decommit_blocks set to 2
+    // (with 4 MB block size):
+    //   - The first 16 MB (4 blocks) will be retained during an idle flush.
+    //   - The next 8 MB (2 blocks) will be conservatively decommitted (the OS
+    //     may reclaim it if under memory pressure, but it is not freed
+    //     immediately).
+    //   - The remaining 104 MB (26 blocks) will be aggressively decommitted
+    //   (returned
+    //     to the OS immediately, with virtual memory address range retained).
+    //
+    // Note: A value of 0 or less will not enable this feature (handled as a
+    // placebo).
+    uint32_t unsigned_value = static_cast<uint32_t>(value);
+    bool aggressive_decommit_on_suspend = ((unsigned_value >> 24) & 0x01) != 0;
+    bool allocate_with_page_alignment = ((unsigned_value >> 24) & 0x02) != 0;
+    int block_size_mb = (unsigned_value >> 16) & 0xFF;
+    int retain_blocks = (unsigned_value >> 8) & 0xFF;
+    int conservative_decommit_blocks = unsigned_value & 0xFF;
+    EnableConfigurableDecommitStrategy(
+        block_size_mb * 1024 * 1024, retain_blocks,
+        conservative_decommit_blocks, aggressive_decommit_on_suspend,
+        allocate_with_page_alignment);
+    return base::ok();
+  }
+  if (name == "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy") {
+    return ProcessEnableOnlySetting(name, value,
+                                    [] { EnableMediaBufferPoolStrategy(); });
+  }
+  if (name == "DecoderBuffer.ReleaseMemoryOnBackground") {
+    return ProcessEnableOnlySetting(name, value,
+                                    [] { EnableReleaseIdleMemory(); });
+  }
+  return base::unexpected(name + " isn't a supported setting.");
+}
+
+// static
 void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
     int block_size,
     int retain_blocks,
     int conservative_decommit_blocks,
-    bool aggressive_decommit_on_suspend) {
+    bool aggressive_decommit_on_suspend,
+    bool allocate_with_page_alignment) {
   auto* allocator = Get();
   CHECK(allocator);
+  if (aggressive_decommit_on_suspend) {
+    // This optimization is enable only, and isn't expected to be disabled.
+    allocator->decommit_on_suspend_enabled_.store(true,
+                                                  std::memory_order_relaxed);
+  }
   allocator->UpdateAllocatorStrategy(base::BindRepeating(
       [](int block_size, int retain_blocks, int conservative_decommit_blocks,
-         bool aggressive_decommit_on_suspend, int initial_capacity,
-         int allocation_unit)
+         bool aggressive_decommit_on_suspend, bool allocate_with_page_alignment,
+         int initial_capacity, int allocation_unit)
           -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
         LOG(INFO)
             << "DecoderBufferAllocator is using "
@@ -256,15 +348,17 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
             << "retain_blocks: " << retain_blocks << ", "
             << "conservative_decommit_blocks: " << conservative_decommit_blocks
             << ", aggressive_decommit_on_suspend: "
-            << ToString(aggressive_decommit_on_suspend);
+            << ToString(aggressive_decommit_on_suspend)
+            << ", allocate_with_page_alignment: "
+            << ToString(allocate_with_page_alignment);
 
         return std::make_unique<DefaultReuseAllocatorStrategy>(
             block_size, block_size, /*enable_decommit_on_idle=*/true,
             retain_blocks, conservative_decommit_blocks,
-            aggressive_decommit_on_suspend);
+            aggressive_decommit_on_suspend, allocate_with_page_alignment);
       },
       block_size, retain_blocks, conservative_decommit_blocks,
-      aggressive_decommit_on_suspend));
+      aggressive_decommit_on_suspend, allocate_with_page_alignment));
 }
 
 // static
