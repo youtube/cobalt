@@ -105,6 +105,9 @@ public class JavaSwitches {
   public static final String DIRECT_WINDOW_RENDERING = "DirectWindowRendering";
   public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
 
+  /** flag to enable area based buffer budget experiment. */
+  public static final String AREA_BASED_VIDEO_BUFFER_BUDGET = "AreaBasedVideoBufferBudget";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -244,6 +247,10 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(JavaSwitches.DIRECT_WINDOW_RENDERING)) {
       extraCommandLineArgs.add("--use-window-surface-for-ui");
       extraCommandLineArgs.add("--enable-h5vcc-settings=Media.ForceClearSurfaceView=1");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
+      extraCommandLineArgs.add("--enable-features=AreaBasedVideoBufferBudget");
     }
 
     return extraCommandLineArgs;
