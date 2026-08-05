@@ -1301,6 +1301,7 @@ if (is_cobalt) {
             "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments/h_5_vcc_experiments.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics/h_5_vcc_metrics.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics/metrics_event.idl",
+            "//third_party/blink/renderer/modules/cobalt/h5vcc_native_stability/h_5_vcc_native_stability.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_platform_service/h_5_vcc_platform_service.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deep_link_event.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime/h_5_vcc_runtime.idl",
@@ -1336,6 +1337,12 @@ if (is_cobalt) {
             ],
             "abspath")
   }
+
+  static_idl_files_in_modules -= [
+    "//third_party/blink/renderer/modules/mediarecorder/blob_event.idl",
+    "//third_party/blink/renderer/modules/mediarecorder/blob_event_init.idl",
+    "//third_party/blink/renderer/modules/mediarecorder/media_recorder.idl",
+  ]
 
   if (enable_in_app_dial) {
     static_idl_files_in_modules += get_path_info(

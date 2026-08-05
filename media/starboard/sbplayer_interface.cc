@@ -154,7 +154,7 @@ SbDecodeTarget DefaultSbPlayerInterface::GetCurrentFrame(SbPlayer player) {
   return current_frame;
 }
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
 SbPlayer DefaultSbPlayerInterface::CreateUrlPlayer(
     const char* url,
     SbWindow window,
@@ -188,7 +188,7 @@ void DefaultSbPlayerInterface::GetUrlPlayerExtraInfo(
     SbUrlPlayerExtraInfo* out_url_player_info) {
   SbUrlPlayerGetExtraInfo(player, out_url_player_info);
 }
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 bool DefaultSbPlayerInterface::GetAudioConfiguration(
     SbPlayer player,

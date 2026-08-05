@@ -195,5 +195,20 @@ TEST_F(MojoRendererBypassBridgeTest, UnknownStreamType) {
   bridge_->Invalidate();
 }
 
+TEST_F(MojoRendererBypassBridgeTest, PostTimeUpdateAndStatistics) {
+  const base::TimeDelta kTime = base::Seconds(10);
+  const base::TimeDelta kMaxTime = base::Seconds(10);
+  const base::TimeTicks kCaptureTime = base::TimeTicks::Now();
+  EXPECT_CALL(time_update_cb_, Run(kTime, kMaxTime, kCaptureTime));
+  bridge_->PostTimeUpdate(kTime, kMaxTime, kCaptureTime);
+
+  PipelineStatistics stats;
+  stats.audio_bytes_decoded = 1024;
+  EXPECT_CALL(statistics_update_cb_, Run(_));
+  bridge_->PostStatisticsUpdate(stats);
+
+  task_environment_.RunUntilIdle();
+}
+
 }  // namespace
 }  // namespace media

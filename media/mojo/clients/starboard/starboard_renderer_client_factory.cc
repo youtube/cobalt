@@ -125,7 +125,8 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
       ,
       std::move(request_overlay_info_cb)
 #endif  // BUILDFLAG(IS_ANDROID)
-  );
+          ,
+      config.experimental_features.GetBool(kMediaBypassMojoForMedia));
 }
 
 }  // namespace media

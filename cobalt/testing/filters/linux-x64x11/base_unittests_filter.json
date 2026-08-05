@@ -117,11 +117,6 @@
     "TraceEventTestFixture.DataCapturedManyThreads",
     "TraceEventTestFixture.SetCurrentThreadBlocksMessageLoopAfterTracing",
     "TransliteratorTest.*",
-    "TransliteratorTest.HiraganaKatakanaCorrect",
-    "TransliteratorTest.KatakanaHiraganaCorrect",
-    "TransliteratorTest.LatinASCIICorrect",
-    "TransliteratorTest.LowerCorrect",
-    "TransliteratorTest.LowerLatinASCIICorrect",
     "ValuesUtilTest.FilePath"
   ]
 }

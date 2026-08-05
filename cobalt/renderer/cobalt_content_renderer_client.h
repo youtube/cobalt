@@ -58,11 +58,16 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   // ContentRendererClient implementation.
   void RenderFrameCreated(content::RenderFrame* render_frame) override;
   void RenderThreadStarted() override;
+
+  // Thread safety: The following media capability query methods can be called
+  // from any thread (main thread or worker threads, e.g., when MSE is used in
+  // worker).
   virtual std::unique_ptr<::media::KeySystemSupportRegistration>
   GetSupportedKeySystems(content::RenderFrame* render_frame,
                          ::media::GetSupportedKeySystemsCB cb) override;
   bool IsDecoderSupportedAudioType(const ::media::AudioType& type) override;
   bool IsDecoderSupportedVideoType(const ::media::VideoType& type) override;
+
   ::media::ExternalMemoryAllocator* GetMediaAllocator() override;
   // JS Injection hook
   void RunScriptsAtDocumentStart(content::RenderFrame* render_frame) override;

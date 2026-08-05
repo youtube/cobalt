@@ -27,6 +27,7 @@
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/switches.h"
@@ -38,6 +39,12 @@
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
+
+#if BUILDFLAG(USE_EVERGREEN)
+#include "starboard/extension/native_stability.h"
+#include "starboard/system.h"
+#endif
+
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/client_process_impl.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
@@ -228,8 +235,17 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   CHECK(client) << "CobaltContentBrowserClient::Get() returned NULL in "
                 << "PreMainMessageLoopRun!";
   client->SetUserAgentCrashAnnotation();
-
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
+
+#if BUILDFLAG(USE_EVERGREEN)
+  // It would probably be harmless but confusing to add this annotation on
+  // platforms that do not support native stability tracking.
+
+  // TODO: b/528362453 - Consider moving this to an earlier startup stage (e.g.
+  // PreEarlyInitialization) to ensure early startup crashes are also tagged.
+  h5vcc_native_stability::NativeStabilityManager::GetInstance()
+      ->ArmCrashUuidAnnotation();
+#endif  // BUILDFLAG(USE_EVERGREEN)
 
   int result = ShellBrowserMainParts::PreMainMessageLoopRun();
 
