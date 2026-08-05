@@ -17,6 +17,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/check_op.h"
@@ -58,6 +59,18 @@ starboard::ResponseToClientInfo FromJniType<starboard::ResponseToClientInfo>(
     JNIEnv* env,
     const JavaRef<jobject>& j_response) {
   starboard::ResponseToClientInfo info;
+  if (base::android::HasException(env)) {
+    jthrowable raw_throwable =
+        static_cast<jthrowable>(env->ExceptionOccurred());
+    auto throwable =
+        jni_zero::ScopedJavaLocalRef<jthrowable>::Adopt(env, raw_throwable);
+    base::android::ClearException(env);
+    std::string exception_info =
+        base::android::GetJavaExceptionInfo(env, throwable);
+    info.data.assign(exception_info.begin(), exception_info.end());
+    info.invalid_state = true;
+    return info;
+  }
   if (!j_response) {
     info.invalid_state = true;
     return info;
@@ -156,10 +169,6 @@ void* Send(CobaltExtensionPlatformService service,
   *invalid_state = response_info.invalid_state;
   *output_length = response_info.data.size();
 
-  if (response_info.invalid_state) {
-    *output_length = 0;
-    return nullptr;
-  }
   if (response_info.data.empty()) {
     *output_length = 0;
     return nullptr;
