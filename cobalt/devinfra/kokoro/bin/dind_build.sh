@@ -117,7 +117,7 @@ pipeline () {
   fi
 
   # Copy libchrobalt.so to Kokoro Artifacts Directory for Android builds.
-  if [[ "${TARGET_PLATFORM}" =~ android ]] && [[ -n "${KOKORO_ARTIFACTS_DIR}" ]]; then
+  if [[ "${TARGET_PLATFORM}" =~ android ]] && [[ -n "${KOKORO_ARTIFACTS_DIR:-}" ]]; then
     local build_out_dir="out/${TARGET_PLATFORM}_${CONFIG}"
     if [[ -d "${build_out_dir}" ]]; then
       echo "Copying libchrobalt.so to Kokoro Artifacts Directory..."
