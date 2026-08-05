@@ -88,9 +88,6 @@ public class JavaSwitches {
   public static final String COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE =
       "CobaltDynamicMojoPipeMediaSize";
 
-  /** flag to disable FontSrcLocalMatching lookup table. */
-  public static final String DISABLE_FONT_SRC_LOCAL_MATCHING = "DisableFontSrcLocalMatching";
-
   /** Avoid reuse resource. */
   public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
 
@@ -201,10 +198,6 @@ public class JavaSwitches {
     if (featureParams.length() > 0) {
       extraCommandLineArgs.add(
           "--enable-features=SmallerInterestArea:" + featureParams.toString());
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_FONT_SRC_LOCAL_MATCHING)) {
-      extraCommandLineArgs.add("--disable-features=FontSrcLocalMatching");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
