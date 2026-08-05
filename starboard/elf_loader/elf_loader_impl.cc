@@ -18,6 +18,7 @@
 #include <string>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/elf.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
@@ -30,17 +31,6 @@
 #include "starboard/system.h"
 
 namespace elf_loader {
-
-namespace {
-
-bool EndsWith(const std::string& s, const std::string& suffix) {
-  if (s.size() < suffix.size()) {
-    return false;
-  }
-  return strcmp(s.c_str() + (s.size() - suffix.size()), suffix.c_str()) == 0;
-}
-
-}  // namespace
 
 ElfLoaderImpl::ElfLoaderImpl() {
   SB_CHECK(kSbCanMapExecutableMemory)
@@ -57,11 +47,12 @@ bool ElfLoaderImpl::Load(const char* name,
   }
 
   std::unique_ptr<File> elf_file;
-  if (compression_type == CompressionType::kLz4 && EndsWith(name, kLz4Suffix)) {
+  if (compression_type == CompressionType::kLz4 &&
+      starboard::EndsWith(name, kLz4Suffix)) {
     elf_file.reset(new LZ4FileImpl());
     SB_LOG(INFO) << "Loading " << name << " using LZ4 decompression";
   } else if (compression_type == CompressionType::kZstd &&
-             EndsWith(name, kZstdSuffix)) {
+             starboard::EndsWith(name, kZstdSuffix)) {
     elf_file.reset(new ZstdFileImpl());
     SB_LOG(INFO) << "Loading " << name << " using Zstd decompression";
   } else {

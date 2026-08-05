@@ -169,7 +169,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
 
   void ReportError(bool capability_changed, const std::string& error_message);
 
-  int64_t GetFramesDurationUs(int frames) const;
+  int64_t GetFramesDurationUs(int64_t frames) const;
 
   const raw_ptr<Type> type_;
   const int channels_;
@@ -189,6 +189,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
 
   volatile bool quit_ = false;
   std::atomic_bool flush_requested_{false};
+  std::atomic_bool is_flushed_{false};
   // Guaranteed to be non-null.
   const std::unique_ptr<Thread> audio_out_thread_;
 

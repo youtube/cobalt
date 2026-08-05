@@ -18,6 +18,11 @@
 #include <string>
 
 #include "starboard/elf_loader/evergreen_info.h"  // nogncheck
+#include "starboard/extension/native_stability.h"
+
+namespace base {
+class FilePath;
+}  // namespace base
 
 namespace crashpad {
 
@@ -50,6 +55,16 @@ bool InsertCrashpadAnnotation(const char* key, const char* value);
 
 // Captures CPU context and triggers a non-crashing dump report.
 void DumpWithoutCrashingWrapper();
+
+// Reads up to |max_num_reports| stability reports (crashes and hangs)
+// currently stored in the local Crashpad database (both pending and completed).
+// Returns the number of reports read, or -1 on failure.
+int ReadReports(SbNativeStabilityReport* reports, int max_num_reports);
+
+namespace internal {
+// Sets the global database path override for testing.
+void SetDatabasePathForTesting(const base::FilePath& path);
+}  // namespace internal
 
 }  // namespace crashpad
 

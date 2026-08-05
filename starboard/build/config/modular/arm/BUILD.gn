@@ -26,4 +26,9 @@ config("arm") {
     # Force char to be signed.
     "-fsigned-char",
   ]
+
+  # Force ARM 32-bit mode (-marm) instead of Thumb-2 mode for non-official builds.
+  if (!is_official_build) {
+    cflags += [ "-marm" ]
+  }
 }

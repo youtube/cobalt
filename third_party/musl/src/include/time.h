@@ -6,7 +6,7 @@
 #if defined(STARBOARD)
 hidden static inline int __clock_gettime(clockid_t clockid,
                                          struct timespec* tp) {
-  clock_gettime(clockid, tp);
+  return clock_gettime(clockid, tp);
 }
 #else
 hidden int __clock_gettime(clockid_t, struct timespec *);

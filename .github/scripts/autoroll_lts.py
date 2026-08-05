@@ -3,27 +3,46 @@
 import argparse
 from collections import defaultdict
 import enum
+import json
+import os
 import re
 import shutil
+import ssl
 import subprocess
 import sys
+import urllib.error
+import urllib.request
+
+_COBALT_SUBMODULE_DIRS = [
+    'net/third_party/quiche/src',
+    'third_party/angle',
+    'third_party/boringssl/src',
+    'third_party/cpuinfo/src',
+    'third_party/googletest/src',
+    'third_party/icu',
+    'third_party/libc++/src',
+    'third_party/perfetto',
+    'third_party/skia',
+    'third_party/webrtc',
+    'v8',
+]
 
 
 @enum.unique
-class CherryPickStatus(enum.Enum):
-  """Represents the outcome of a cherry-pick attempt."""
-  SUCCESS = 'success'  # Successfully cherry-picked and committed.
-  CONFLICTED = 'conflicted'  # Cherry-picked and committed with conflicts.
+class CommitStatus(enum.Enum):
+  """Represents the outcome of a commit attempt."""
+  SUCCESS = 'success'  # Successfully committed.
+  CONFLICTED = 'conflicted'  # Committed with conflicts.
   SKIPPED = 'skipped'  # The commit was already present or no action was needed.
-  FAILED = 'failed'  # The cherry-pick failed due to conflicts or other errors.
+  FAILED = 'failed'  # The commit failed due to conflicts or other errors.
 
 
 def log(msg):
   print(msg, file=sys.stderr)
 
 
-def run(cmd):
-  subprocess.run(cmd, check=True, stdout=sys.stderr)
+def run(cmd, cwd=None):
+  subprocess.run(cmd, check=True, stdout=sys.stderr, cwd=cwd)
 
 
 def get_out(cmd):
@@ -175,28 +194,196 @@ def get_cherry_pick_metadata(sha, title, pr_num):
   return date, author, msg
 
 
-def cherry_pick(sha, title, pr_num, first_cherry_pick, autoroll_file):
-  """Attempts to cherry-pick a single commit.
+def get_submodule_root_dirs():
+  paths = get_out(
+      ['git', 'config', '--file', '.gitmodules', '--get-regexp', 'path'])
+
+  return sorted(
+      {line.split(' ', 1)[1].split('/')[0] for line in paths.splitlines()})
+
+
+def remove_local_checkout():
+  log('Removing local checkout...')
+  roots = get_submodule_root_dirs()
+  if roots:
+    run(['rm', '-rf', '--'] + roots)
+  run(['git', 'rm', '-qrf', '--', '.'])
+  run(['git', 'clean', '-qffdx'])
+
+
+def replace_submodules_with_dirs():
+  log('Running gclient sync...')
+  repo_url = get_out(['git', 'remote', 'get-url', 'origin']).strip()
+  run(['gclient', 'config', '--name=src', '--unmanaged', repo_url], cwd='..')
+  run(['gclient', 'sync', '--no-history'], cwd='..')
+  run(['rm', '-f', '--', os.path.join('..', '.gclient')])
+  log('Removing Chromium submodules for Cobalt directories...')
+  for submodule_dir in _COBALT_SUBMODULE_DIRS:
+    run(['rm', '-rf', '--', os.path.join(submodule_dir, '.git')])
+    run([
+        'git', 'rm', '-qrf', '--cached', '--ignore-unmatch', '--', submodule_dir
+    ])
+
+
+def fetch_chromium_tree(chromium_sha):
+  """Fetches the root tree hash directly from Chromium's Gitiles API."""
+  url = (f'https://chromium.googlesource.com/chromium/src/+/{chromium_sha}'
+         '?format=JSON')
+  req = urllib.request.Request(url, headers={'User-Agent': 'cobalt-autoroller'})
+
+  ctx = ssl.create_default_context()
+  try:
+    with urllib.request.urlopen(req, context=ctx) as resp:
+      text = resp.read().decode('utf-8')
+  except (ssl.SSLCertVerificationError, urllib.error.URLError):
+    # pylint: disable=protected-access
+    unverified_ctx = ssl._create_unverified_context()
+    # pylint: enable=protected-access
+    with urllib.request.urlopen(req, context=unverified_ctx) as resp:
+      text = resp.read().decode('utf-8')
+
+  # Gitiles JSON API responses prepend a 4-char anti-XSSI security prefix: )]}'
+  if text.startswith(")]}'"):
+    text = text[4:].lstrip()
+
+  data = json.loads(text)
+  return data['tree']
+
+
+def get_upstream_chromium_sha(cobalt_sha):
+  """Extracts the upstream Chromium commit SHA from the commit message body."""
+  body = get_out(['git', 'log', '-1', '--format=%B', cobalt_sha])
+  match = re.search(r'Update to commit ([0-9a-fA-F]{40})', body)
+  return match.group(1) if match else None
+
+
+def verify_chromium_commit(sha):
+  """Verifies that current Git tree matches expected Chromium commit tree.
+
+  Args:
+    sha: The SHA of the commit in Cobalt being rolled in.
 
   Returns:
-    CherryPickStatus: Enum indicating the outcome of the operation.
-      - SUCCESS: Successfully cherry-picked and committed.
-      - CONFLICTED: Cherry-picked and committed with conflicts.
+    bool: True if the current tree matches the expected Chromium commit tree,
+      False otherwise.
+  """
+  upstream_sha = get_upstream_chromium_sha(sha)
+  if not upstream_sha:
+    log(f'ERROR: No upstream Chromium commit SHA found in message of {sha}.')
+    return False
+
+  log(f'Verifying against upstream Chromium commit {upstream_sha} via '
+      'Gitiles...')
+  try:
+    expected_tree = fetch_chromium_tree(upstream_sha)
+  except Exception as e:  # pylint: disable=broad-except
+    log(f'ERROR: Failed to query Gitiles for Chromium commit '
+        f'{upstream_sha}: {e}')
+    return False
+
+  current_tree = get_out(['git', 'rev-parse', 'HEAD^{tree}']).strip()
+
+  if current_tree == expected_tree:
+    log(f'Verification passed: Tree {current_tree} matches Chromium '
+        f'{upstream_sha}.')
+    return True
+
+  diff_output = get_out(['git', 'diff', '--name-status', sha, 'HEAD']).strip()
+  log(f'ERROR: Rolled-in tree ({current_tree}) differs from Chromium '
+      f'{upstream_sha} ({expected_tree})!')
+  if diff_output:
+    log(f'Offending files:\n{diff_output}')
+  return False
+
+
+def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
+                         autoroll_file):
+  """Temporarily reverts Cobalt changes to apply a Chromium cherry-pick.
+
+  This function performs a "clean slate" cherry-pick by wiping the current
+  working directory, checking out the pure Chromium state at `previous_sha`,
+  and committing that as a temporary revert. It then applies the desired
+  Chromium `sha` and re-applies Cobalt's modifications over the result.
+
+  Args:
+    previous_sha: The SHA of the clean Chromium base before Cobalt changes were
+      applied.
+    sha: The SHA of the Chromium commit to be cherry-picked.
+    metadata: Metadata associated with the cherry-pick, passed to the final
+      conflicting revert call.
+    first_commit: boolean flag indicating if it's the first commit in the PR.
+    autoroll_file: Path to the file that tracks autoroll progress.
+
+  Returns:
+    CommitStatus and unmerged_files.
+  """
+  log(f'Checking out clean Chromium state: {previous_sha}')
+  remove_local_checkout()
+  run(['git', 'checkout', previous_sha, '--', '.'])
+
+  replace_submodules_with_dirs()
+
+  log('Committing Cobalt revert...')
+  run(['git', 'add', '--', '.'])
+  run([
+      'git', 'commit', '--no-verify', '-qm',
+      'CONFLICTED Chromium Cherry pick: Revert Cobalt.'
+  ])
+  revert_cobalt_sha = get_out(['git', 'rev-parse', 'HEAD']).strip()
+
+  log(f'Checking out clean Chromium state: {previous_sha}')
+  remove_local_checkout()
+  run(['git', 'checkout', '-f', previous_sha, '--', '.'])
+
+  log('Committing submodules restore...')
+  run(['git', 'add', '--', '.'])
+  run(['git', 'commit', '--no-verify', '-qm', 'Restore submodules.'])
+
+  log('Cherry picking Chromium...')
+  run(['git', 'cherry-pick', sha])
+
+  if not verify_chromium_commit(sha):
+    raise RuntimeError(
+        f'Verification failed: Rolled-in tree for {sha} does not match '
+        f'Chromium {sha}')
+
+  replace_submodules_with_dirs()
+
+  log('Committing submodules replace...')
+  run(['git', 'add', '--', '.'])
+  run(['git', 'commit', '--no-verify', '-qm', 'Remove submodules.'])
+
+  log('Reverting Cobalt revert...')
+  return revert(revert_cobalt_sha, metadata, first_commit, autoroll_file)
+
+
+def cherry_pick(sha, metadata, first_commit, autoroll_file):
+  return apply_and_commit('cherry-pick', sha, metadata, first_commit,
+                          autoroll_file)
+
+
+def revert(sha, metadata, first_commit, autoroll_file):
+  return apply_and_commit('revert', sha, metadata, first_commit, autoroll_file)
+
+
+def apply_and_commit(action, sha, metadata, first_commit, autoroll_file):
+  """Attempts to apply a single commit.
+
+  Returns:
+    CommitStatus: Enum indicating the outcome of the operation.
+      - SUCCESS: Successfully committed.
+      - CONFLICTED: Committed with conflicts.
       - SKIPPED: The commit was already present or no action was needed.
-      - FAILED: The cherry-pick failed due to conflicts or other errors.
+      - FAILED: The commit failed due to conflicts or other errors.
     unmerged_files: List of files with conflicts.
   """
-  date, author, msg = get_cherry_pick_metadata(sha, title, pr_num)
-
-  result = CherryPickStatus.SUCCESS
+  date, author, msg = metadata
+  result = CommitStatus.SUCCESS
   unmerged_files = None
 
-  cmd = ['git', 'cherry-pick', '--no-commit']
-  if len(get_out(['git', 'show', '-s', '--format=%P', sha]).split()) > 1:
-    cmd.append('--mainline=1')
-
+  # Apply
   try:
-    run(cmd + [sha])
+    run(['git', action, '--no-commit', sha])
   except subprocess.CalledProcessError:
     unmerged_files = get_unmerged_files()
     if resolve_conflicts(unmerged_files):
@@ -204,29 +391,30 @@ def cherry_pick(sha, title, pr_num, first_cherry_pick, autoroll_file):
     else:
       unmerged_files = list(unmerged_files)
 
-      if not first_cherry_pick:
+      if not first_commit:
         run(['git', 'reset', '--hard', 'HEAD'])
-        return CherryPickStatus.FAILED, unmerged_files
+        return CommitStatus.FAILED, unmerged_files
 
       run(['git', 'add', '--'] + unmerged_files)
       msg = f'CONFLICTED {msg}'
-      result = CherryPickStatus.CONFLICTED
+      result = CommitStatus.CONFLICTED
 
   # Check if there are changes to commit
   if not get_out(['git', 'diff', '--cached', '--name-only']).strip():
-    log('Cherry pick skipped.')
-    return CherryPickStatus.SKIPPED, unmerged_files
+    log('Commit skipped.')
+    return CommitStatus.SKIPPED, unmerged_files
 
   # Update autoroll file
   with open(autoroll_file, 'w', encoding='utf-8') as f:
-    if result == CherryPickStatus.CONFLICTED:
+    if result == CommitStatus.CONFLICTED:
       f.write(f'CONFLICTED:{sha}\n')
     else:
       f.write(f'{sha}\n')
   run(['git', 'add', '--', autoroll_file])
 
+  # Commit
   run([
-      'git', 'commit', '--no-verify', f'--author={author}', f'--date={date}',
+      'git', 'commit', '--no-verify', f'--date={date}', f'--author={author}',
       '-m', msg
   ])
   return result, unmerged_files
@@ -238,14 +426,24 @@ def main():
   p.add_argument('--target-branch', required=True)
   p.add_argument('--autoroll-file', required=True)
   p.add_argument('--max-commits', type=int, required=True)
+  p.add_argument('--existing-pr-sha', required=True)
   args = p.parse_args()
 
   target_start = get_start_sha(args.target_branch, args.autoroll_file)
   autoroll_start = get_start_sha('HEAD', args.autoroll_file)
 
   if autoroll_start is None:
-    log('Autoroll branch has an unresolved CONFLICTED cherry pick.')
+    log('Autoroll branch has an unresolved CONFLICTED commit.')
     return
+
+  if args.existing_pr_sha:
+    run(['git', 'fetch', 'origin', args.existing_pr_sha])
+    commit_title = get_out(
+        ['git', 'log', '-1', args.existing_pr_sha, '--format=%s']).strip()
+    if commit_title.startswith('CONFLICTED'):
+      log('Autoroll branch has a resolved CONFLICTED commit. '
+          'Squash and merge before autoroll will continue.')
+      return
 
   # Commits in source but not in target
   commits_to_target = get_commits(args.source_branch, target_start)
@@ -255,6 +453,7 @@ def main():
   shas_to_autoroll = {sha for sha, _, _ in commits_to_autoroll}
 
   commits_added = []
+  previous_sha = target_start
 
   for sha, title, pr_num in commits_to_target:
     if len(commits_added) >= args.max_commits:
@@ -266,25 +465,35 @@ def main():
     # Skip if already in autoroll
     if sha not in shas_to_autoroll:
       commits_added.append(identifier)
+      previous_sha = sha
       continue
 
-    # Cherry pick PR
-    first_cherry_pick = not commits_added
-    result, unmerged_files = cherry_pick(sha, title, pr_num, first_cherry_pick,
-                                         args.autoroll_file)
+    # Commit PR
+    metadata = get_cherry_pick_metadata(sha, title, pr_num)
+    first_commit = not commits_added
 
-    if result in (CherryPickStatus.SUCCESS, CherryPickStatus.CONFLICTED):
+    if args.source_branch.startswith('chromium/'):
+      result, unmerged_files = chromium_cherry_pick(previous_sha, sha, metadata,
+                                                    first_commit,
+                                                    args.autoroll_file)
+    else:
+      result, unmerged_files = cherry_pick(sha, metadata, first_commit,
+                                           args.autoroll_file)
+
+    if result in (CommitStatus.SUCCESS, CommitStatus.CONFLICTED):
       commits_added.append(identifier)
-      if result == CherryPickStatus.CONFLICTED:
+      if result == CommitStatus.CONFLICTED:
         commits_added.append('')
         commits_added.append('CONFLICTED files:')
         commits_added.append('```')
         commits_added.extend(unmerged_files)
         commits_added.append('```')
 
-    if result in (CherryPickStatus.FAILED, CherryPickStatus.CONFLICTED):
-      log(f'Reached CONFLICTED cherry pick ({sha}).')
+    if result in (CommitStatus.FAILED, CommitStatus.CONFLICTED):
+      log(f'Reached CONFLICTED commit ({sha}).')
       break
+
+    previous_sha = sha
 
   if commits_added:
     print('\n'.join(commits_added))

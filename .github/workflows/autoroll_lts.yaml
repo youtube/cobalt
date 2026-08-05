@@ -8,7 +8,7 @@ on:
       max_commits:
         description: 'Max number of commits to include on a single PR'
         type: number
-        default: 25
+        default: 10
 
 permissions:
   contents: read
@@ -16,9 +16,14 @@ permissions:
 jobs:
   autoroll:
     runs-on: ubuntu-latest
+    env:
+      DEPOT_TOOLS_METRICS: 0
     permissions:
       contents: write
       pull-requests: write
+    defaults:
+      run:
+        working-directory: src
     strategy:
       fail-fast: false
       matrix:
@@ -31,6 +36,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          path: src
           ref: main
           fetch-depth: 1000
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
@@ -64,10 +70,28 @@ jobs:
           # Fetch enough history for source branch.
           git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${SOURCE_BRANCH}:${SOURCE_BRANCH}"
 
+      - name: Get Existing PR Info
+        id: pr_info
+        env:
+          GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
+        run: |
+          # Get the first commit SHA of the existing PR.
+          # If the PR doesn't exist, it returns an empty string.
+          FIRST_SHA=$(gh pr list --head "autoroll-${{ matrix.branch.source }}-to-${{ matrix.branch.target }}" --state open --json commits --jq '.[0].commits[0].oid // ""')
+          echo "first_sha=$FIRST_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Set Up Depot Tools
+        if: startsWith(matrix.branch.source, 'chromium/')
+        run: |
+          DEPOT_TOOLS_TEMP="${RUNNER_TEMP}/depot_tools"
+          git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$DEPOT_TOOLS_TEMP"
+          echo "$DEPOT_TOOLS_TEMP" >> $GITHUB_PATH
+          source "${DEPOT_TOOLS_TEMP}/bootstrap_python3" && bootstrap_python3
+
       - name: Cherry Pick Merged PRs
         id: autoroll
         env:
-          MAX_COMMITS: ${{ inputs.max_commits || 25 }}
+          MAX_COMMITS: ${{ inputs.max_commits || 10 }}
         run: |
           set -x
 
@@ -76,7 +100,8 @@ jobs:
             --source-branch "${{ matrix.branch.source }}" \
             --target-branch "${{ matrix.branch.target }}" \
             --autoroll-file "${{ matrix.branch.autoroll }}" \
-            --max-commits "${{ env.MAX_COMMITS }}")
+            --max-commits "${{ env.MAX_COMMITS }}" \
+            --existing-pr-sha "${{ steps.pr_info.outputs.first_sha }}")
 
           if [[ -n "${PR_LINKS}" ]]; then
             echo "cherry_picked=true" >> "$GITHUB_OUTPUT"

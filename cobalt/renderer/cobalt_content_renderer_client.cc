@@ -219,7 +219,6 @@ void CobaltContentRendererClient::RenderThreadStarted() {
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
-  CHECK(content::RenderThread::IsMainThread());
   ::media::SupportedCodecs codecs = GetStarboardEmeSupportedCodecs();
 
   using Robustness = cdm::WidevineKeySystemInfo::Robustness;
@@ -262,7 +261,6 @@ std::unique_ptr<::media::KeySystemSupportRegistration>
 CobaltContentRendererClient::GetSupportedKeySystems(
     content::RenderFrame* render_frame,
     ::media::GetSupportedKeySystemsCB cb) {
-  CHECK(content::RenderThread::IsMainThread());
   ::media::KeySystemInfos key_systems;
   AddStarboardCmaKeySystems(&key_systems);
   std::move(cb).Run(std::move(key_systems));
@@ -271,7 +269,6 @@ CobaltContentRendererClient::GetSupportedKeySystems(
 
 bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
     const ::media::AudioType& type) {
-  CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromAudioType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
@@ -285,7 +282,6 @@ bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
 
 bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
     const ::media::VideoType& type) {
-  CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromVideoType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {

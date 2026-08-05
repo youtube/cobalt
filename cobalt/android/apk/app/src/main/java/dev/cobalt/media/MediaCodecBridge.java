@@ -61,6 +61,7 @@ class MediaCodecBridge {
   @GuardedBy("mNativeBridgeLock")
   private long mNativeMediaCodecBridge;
 
+  private final String mCodecName;
   private final SynchronizedHolder<MediaCodec, IllegalStateException> mMediaCodec =
       new SynchronizedHolder<>(() -> new IllegalStateException("MediaCodec was destroyed"));
 
@@ -276,6 +277,7 @@ class MediaCodecBridge {
   public MediaCodecBridge(
       long nativeMediaCodecBridge,
       MediaCodec mediaCodec,
+      String codecName,
       int tunnelModeAudioSessionId,
       boolean enableFrameRendererListener,
       boolean enableIgnoreCallbacksDuringFlushing) {
@@ -284,6 +286,7 @@ class MediaCodecBridge {
     }
     mNativeMediaCodecBridge = nativeMediaCodecBridge;
     mMediaCodec.set(mediaCodec);
+    mCodecName = codecName != null ? codecName : "unknown";
     mIsTunnelingPlayback = tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE;
     mEnableFrameRendererListener = enableFrameRendererListener;
     mEnableIgnoreCallbacksDuringFlushing = enableIgnoreCallbacksDuringFlushing;
@@ -309,7 +312,7 @@ class MediaCodecBridge {
           @Override
           public void onInputBufferAvailable(MediaCodec codec, int index) {
             synchronized (mNativeBridgeLock) {
-              if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
+              if (mNativeMediaCodecBridge == 0) {
                 return;
               }
               MediaCodecBridgeJni.get()
@@ -343,7 +346,7 @@ class MediaCodecBridge {
           @Override
           public void onOutputFormatChanged(MediaCodec codec, MediaFormat format) {
             synchronized (mNativeBridgeLock) {
-              if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
+              if (mNativeMediaCodecBridge == 0) {
                 return;
               }
               mActiveFormat = new MediaFormatWrapper(format);
@@ -367,7 +370,7 @@ class MediaCodecBridge {
             @Override
             public void onFrameRendered(MediaCodec codec, long presentationTimeUs, long nanoTime) {
               synchronized (mNativeBridgeLock) {
-                if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
+                if (mNativeMediaCodecBridge == 0) {
                   return;
                 }
                 MediaCodecBridgeJni.get()
@@ -418,7 +421,6 @@ class MediaCodecBridge {
       boolean enableFrameRendererListener,
       boolean skipVideoFramesOver60Fps,
       boolean ignoreCodecCallbacksDuringFlushing,
-      boolean enableLowLatency,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     MediaCodec mediaCodec = null;
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
@@ -471,6 +473,7 @@ class MediaCodecBridge {
         new MediaCodecBridge(
             nativeMediaCodecBridge,
             mediaCodec,
+            decoderName,
             tunnelModeAudioSessionId,
             enableFrameRendererListener,
             ignoreCodecCallbacksDuringFlushing);
@@ -478,18 +481,6 @@ class MediaCodecBridge {
     MediaCodecOutputTracker.get().register(bridge);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
-
-    if (enableLowLatency) {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        Log.i(TAG, "Enabling low-latency playback.");
-        mediaFormat.setInteger(MediaFormat.KEY_LOW_LATENCY, 1);
-      } else {
-        Log.i(
-            TAG,
-            "Low-latency playback requested but not supported on API level "
-                + Build.VERSION.SDK_INT);
-      }
-    }
 
     boolean shouldConfigureHdr =
         colorInfo != null && MediaCodecUtil.isHdrCapableVideoDecoder(mime, codecCapabilities);
@@ -751,30 +742,32 @@ class MediaCodecBridge {
       // We skip calling stop() on Android 11, as this version has a race condition
       // if an error occurs during stop(). See b/369372033 for details.
       if (android.os.Build.VERSION.SDK_INT == android.os.Build.VERSION_CODES.R) {
-        Log.w(TAG, "Skipping stop() during destruction to avoid Android 11 framework bug");
+        Log.i(
+            TAG,
+            "Skipping stop() during destruction to avoid Android 11 framework bug: codec="
+                + mCodecName);
       } else {
         try {
           mMediaCodec.get().stop();
         } catch (Exception e) {
-          Log.w(TAG, "Failed to stop MediaCodec. Proceeding with release", e);
+          Log.w(TAG, "Failed to stop MediaCodec: codec=" + mCodecName, e);
         }
       }
 
       try {
-        String codecName = mMediaCodec.get().getName();
-        Log.w(TAG, "Calling MediaCodec.release() on " + codecName);
+        Log.i(TAG, "Calling MediaCodec.release(): codec=" + mCodecName);
         mMediaCodec.get().release();
       } catch (Exception e) {
         // The MediaCodec is stuck in a wrong state, possibly due to losing
         // the surface.
-        Log.w(TAG, "Failed to release MediaCodec", e);
+        Log.w(TAG, "Failed to release MediaCodec: codec=" + mCodecName, e);
       }
       mMediaCodec.set(null);
     } catch (Throwable t) {
       // Catch Throwable (both Exception and Error) to prevent JNI crashes if the JVM
       // throws linkage errors (e.g., NoClassDefFoundError) during ClassLoader unloading
       // in teardown. See b/455621481.
-      Log.e(TAG, "Exception or Error during MediaCodecBridge release()", t);
+      Log.e(TAG, "Exception or Error during MediaCodecBridge release(): codec=" + mCodecName, t);
     }
   }
 
@@ -1091,7 +1084,7 @@ class MediaCodecBridge {
             @Override
             public void onFirstTunnelFrameReady(MediaCodec codec) {
               synchronized (mNativeBridgeLock) {
-                if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
+                if (mNativeMediaCodecBridge == 0) {
                   return;
                 }
                 MediaCodecBridgeJni.get()

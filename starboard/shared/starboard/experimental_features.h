@@ -167,9 +167,6 @@ inline constexpr ExperimentalFeatureKey<bool>
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableFlushDuringSeek(
     "Media.EnableFlushDuringSeek");
 
-inline constexpr ExperimentalFeatureKey<bool> kMediaEnableLowLatency(
-    "Media.EnableLowLatency");
-
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableResetAudioDecoder(
     "Media.EnableResetAudioDecoder");
 
@@ -184,11 +181,19 @@ inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableVideoRendererVspAdjustment(
         "Media.EnableVideoRendererVspAdjustment");
 
+// To check the regression of the fix for the bug that pending frame grows
+// 2000+. For details, see http://b/517914191.
+inline constexpr ExperimentalFeatureKey<bool>
+    kMediaFixNeedMoreInputBackpressure("Media.FixNeedMoreInputBackpressure");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaFlushAudioTrackDuringSeek(
     "Media.FlushAudioTrackDuringSeek");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaForceClearSurfaceView(
     "Media.ForceClearSurfaceView");
+
+inline constexpr ExperimentalFeatureKey<bool> kMediaForceDualThreads(
+    "Media.ForceDualThreads");
 
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreMediaCodecCallbacksDuringFlushing(

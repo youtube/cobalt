@@ -317,7 +317,7 @@ bool GetHandlerTrampoline(std::string* handler_trampoline,
   if (base::android::BuildInfo::GetInstance()->sdk_int() <
       base::android::SDK_VERSION_Q) {
 #if BUILDFLAG(IS_COBALT)
-    LOG(INFO) << "Freeze detection: SDK version below Q: No linker support.";
+    LOG(INFO) << "SDK version below Q: No linker support.";
 #endif
     return false;
   }
@@ -360,7 +360,7 @@ bool GetHandlerTrampoline(std::string* handler_trampoline,
 #endif
 
 #if BUILDFLAG(IS_COBALT)
-  LOG(INFO) << "Freeze detection: trampoline = " << local_handler_trampoline;
+  LOG(INFO) << "trampoline = " << local_handler_trampoline;
 #endif
 
   handler_trampoline->swap(local_handler_trampoline);
@@ -507,7 +507,7 @@ bool GetHandlerPath(base::FilePath* exe_dir, base::FilePath* handler_path) {
   }
   *handler_path = exe_dir->Append("libchrome_crashpad_handler.so");
 #if BUILDFLAG(IS_COBALT)
-  LOG(INFO) << "Freeze detection: GetHandlerPath: " << *handler_path;
+  LOG(INFO) << "GetHandlerPath: " << *handler_path;
 #endif
   return true;
 }
@@ -677,7 +677,7 @@ class HandlerStarter {
       // Reporting is not supported on these versions due to engineering cost
       // and low traffic.
       if (use_java_handler_) {
-        LOG(INFO) << "Freeze detection: Skipping Java handler for client on Cobalt ATV.";
+        LOG(INFO) << "Skipping Java handler for client on Cobalt ATV.";
         return false;
       }
 #endif
@@ -687,7 +687,9 @@ class HandlerStarter {
       }
 
 #if BUILDFLAG(IS_COBALT)
-      LOG(INFO) << "Freeze detection: Launching handler " << (use_java_handler_ ? "with Java" : "with Linker") << " for client.";
+      LOG(INFO) << "Launching handler "
+                << (use_java_handler_ ? "with Java" : "with Linker")
+                << " for client.";
 #endif
       bool result =
           use_java_handler_
@@ -706,7 +708,7 @@ class HandlerStarter {
     }
 
 #if BUILDFLAG(IS_COBALT)
-    LOG(INFO) << "Freeze detection: Launching standard handler for client.";
+    LOG(INFO) << "Launching standard handler for client.";
 #endif
     return GetCrashpadClient().StartHandlerForClient(
         handler_path, database_path, metrics_path, url, process_annotations,
