@@ -16,8 +16,6 @@
 
 #include <dlfcn.h>
 
-#include <memory>
-
 #include "starboard/common/log.h"
 
 namespace starboard {

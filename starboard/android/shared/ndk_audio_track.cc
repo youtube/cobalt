@@ -36,7 +36,7 @@ namespace {
 constexpr int64_t kStateChangeTimeoutNs = 100'000'000;  // 100 ms
 
 void ScaleSamples(Span<const float> samples,
-                  double volume,
+                  float volume,
                   std::vector<float>* scaled_samples) {
   scaled_samples->resize(samples.size());
   for (size_t i = 0; i < samples.size(); ++i) {
@@ -163,31 +163,27 @@ void NdkAudioTrack::PauseAndFlush() {
   while (current_state == AAUDIO_STREAM_STATE_STARTED ||
          current_state == AAUDIO_STREAM_STATE_STARTING ||
          current_state == AAUDIO_STREAM_STATE_PAUSING) {
-    if (aaudio_result_t result = AAudio::Stream_WaitForStateChange(
-            stream_.get(), current_state, &next_state, kStateChangeTimeoutNs);
-        result != AAUDIO_OK || current_state == next_state) {
-      break;  // Timeout or error occurred
+    aaudio_result_t result = AAudio::Stream_WaitForStateChange(
+        stream_.get(), current_state, &next_state, kStateChangeTimeoutNs);
+    if (current_state == next_state) {
+      break;
     }
     current_state = next_state;
-  }
-
-  if (current_state != AAUDIO_STREAM_STATE_PAUSED) {
-    SB_LOG(ERROR) << "Skipping flush, since state is not ready: state="
-                  << ToString(current_state);
-    return;
+    if (result != AAUDIO_OK) {
+      SB_LOG(WARNING)
+          << "Stream_WaitForStateChange failed, attempting flush anyway: error="
+          << AAudio::ConvertResultToText(result)
+          << ", state=" << ToString(current_state);
+      break;
+    }
   }
 
   if (auto result = AAudio::Stream_RequestFlush(stream_.get());
       result != AAUDIO_OK) {
-    SB_LOG(ERROR) << "stream_requestFlush failed: "
-                  << AAudio::ConvertResultToText(result);
+    SB_LOG(ERROR) << "stream_requestFlush failed: error="
+                  << AAudio::ConvertResultToText(result)
+                  << ", state=" << ToString(current_state);
   }
-}
-
-bool NdkAudioTrack::IsStreamActive() const {
-  aaudio_stream_state_t state = AAudio::Stream_GetState(stream_.get());
-  return state == AAUDIO_STREAM_STATE_STARTING ||
-         state == AAUDIO_STREAM_STATE_STARTED;
 }
 
 int NdkAudioTrack::WriteSample(Span<const float> samples) {
@@ -195,8 +191,8 @@ int NdkAudioTrack::WriteSample(Span<const float> samples) {
   SB_CHECK_EQ(samples.size() % channels_, 0u);
 
   Span<const float> samples_to_write = samples;
-  double volume = volume_.load(std::memory_order_relaxed);
-  if (volume != 1.0) {
+  float volume = volume_.load(std::memory_order_relaxed);
+  if (volume != 1.0f) {
     ScaleSamples(samples, volume, &scaled_samples_float_);
     samples_to_write =
         MakeSpan(scaled_samples_float_.data(), scaled_samples_float_.size());
@@ -237,7 +233,7 @@ void NdkAudioTrack::SetPlaybackRate(double playback_rate) {
 }
 
 void NdkAudioTrack::SetVolume(double volume) {
-  volume_.store(volume, std::memory_order_relaxed);
+  volume_.store(static_cast<float>(volume), std::memory_order_relaxed);
 }
 
 int64_t NdkAudioTrack::GetAudioTimestamp(int64_t* updated_at) {
@@ -299,6 +295,12 @@ AudioTrack::PlayState NdkAudioTrack::GetPlayState() {
     default:
       return AudioTrack::PlayState::kStopped;
   }
+}
+
+bool NdkAudioTrack::IsStreamActive() const {
+  aaudio_stream_state_t state = AAudio::Stream_GetState(stream_.get());
+  return state == AAUDIO_STREAM_STATE_STARTING ||
+         state == AAUDIO_STREAM_STATE_STARTED;
 }
 
 }  // namespace starboard

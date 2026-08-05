@@ -95,7 +95,7 @@ class NdkAudioTrack final : public AudioTrack {
   std::unique_ptr<AAudioStream, AAudioStreamDeleter> stream_;
   const int channels_;
   const SbMediaAudioSampleType sample_type_;
-  std::atomic<double> volume_{1.0};
+  std::atomic<float> volume_{1.0f};
   std::vector<float> scaled_samples_float_;
   bool has_reported_device_changed_ = false;
 };
