@@ -1217,6 +1217,7 @@ class PlayerImpl : public Player {
 
   bool ChangePipelineState(GstState state);
   guint DispatchOnWorkerThread(Task* task) const;
+  void InvokeOnWorkerThreadAndWait(Task* task);
   GstClockTime GetPosition();
   bool WriteSample(SbMediaType sample_type,
                    GstBuffer* buffer,
@@ -1524,6 +1525,8 @@ PlayerImpl::PlayerImpl(SbPlayer player,
   if (playback_thread_.joinable()) {
     while(!g_main_loop_is_running(main_loop_))
       g_usleep(1);
+  } else {
+     SB_NOTREACHED();
   }
   GetPlayerRegistry()->Add(this);
 }
@@ -1812,6 +1815,43 @@ guint PlayerImpl::DispatchOnWorkerThread(Task* task) const {
   return id;
 }
 
+void PlayerImpl::InvokeOnWorkerThreadAndWait(Task* task) {
+  struct InvokeContext {
+    std::mutex mutex;
+    std::condition_variable cv;
+    Task* task;
+    bool done;
+  } ctx;
+
+  ctx.task = task;
+  ctx.done = false;
+
+  g_main_context_invoke_full(
+    main_loop_context_,
+    G_PRIORITY_HIGH,
+    [](gpointer data) -> gboolean {
+      auto* ctx = static_cast<InvokeContext*>(data);
+      GST_TRACE("%d", gettid());
+      ctx->task->PrintInfo();
+      ctx->task->Do();
+      {
+        std::lock_guard lock(ctx->mutex);
+        ctx->done = true;
+        ctx->cv.notify_one();
+      }
+      return G_SOURCE_REMOVE;
+    },
+    &ctx,
+    nullptr);
+
+  // Wait for completion
+  std::unique_lock<std::mutex> lock(ctx.mutex);
+  while (!ctx.done)
+      ctx.cv.wait(lock, [&ctx] { return ctx.done; } );
+
+  delete task;
+}
+
 // static
 gboolean PlayerImpl::FinishSourceSetup(gpointer user_data) {
   PlayerImpl* self = static_cast<PlayerImpl*>(user_data);
@@ -1913,7 +1953,7 @@ void PlayerImpl::SetupSource(GstElement* pipeline,
   if (self->source_)
     return;
   self->source_ = source;
-  static constexpr int kAsyncSourceFinishTimeMs = 50;
+  static constexpr int kAsyncSourceFinishTimeMs = 0;
   GSource* src = g_timeout_source_new(kAsyncSourceFinishTimeMs);
   g_source_set_callback(src, &PlayerImpl::FinishSourceSetup, self, nullptr);
   self->source_setup_id_ = g_source_attach(src, self->main_loop_context_);
@@ -1956,6 +1996,8 @@ void PlayerImpl::SetupElement(GstElement* pipeline,
     if (g_str_has_prefix(GST_ELEMENT_NAME(element), "brcmaudiosink")) {
       g_object_set(G_OBJECT(element), "async", TRUE, nullptr);
     }
+
+    gst_base_sink_set_last_sample_enabled(GST_BASE_SINK(element), FALSE);
   }
 
   if (GST_IS_BASE_PARSE(element)) {
@@ -2368,19 +2410,22 @@ void PlayerImpl::HandleInititialSeek() {
   if (state_ == State::kInitial) {
     // This is the initial seek to 0 which will trigger data pumping.
     SB_DCHECK(seek_position_ == .0);
-    AddBufferingProbe(0, ticket_);
     state_ = State::kInitialPreroll;
-    DispatchOnWorkerThread(
-      new PlayerStatusTask(player_status_func_, player_,
-                           ticket_, context_,
-                           kSbPlayerStatePrerolling));
     seek_position_ = GST_CLOCK_TIME_NONE;
     if (GST_STATE(pipeline_) < GST_STATE_PAUSED &&
         GST_STATE_PENDING(pipeline_) < GST_STATE_PAUSED) {
       mutex_.unlock();
-      ChangePipelineState(GST_STATE_PAUSED);
+      // Trigger initial state change to pause on worker thread to serialize source setup
+      InvokeOnWorkerThreadAndWait(new FunctionTask([this]{
+        ChangePipelineState(GST_STATE_PAUSED);
+      }, __func__));
       mutex_.lock();
     }
+    // Notify player state change
+    DispatchOnWorkerThread(
+      new PlayerStatusTask(player_status_func_, player_,
+                           ticket_, context_,
+                           kSbPlayerStatePrerolling));
     return;
   }
 
