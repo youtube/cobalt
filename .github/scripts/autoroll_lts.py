@@ -3,11 +3,15 @@
 import argparse
 from collections import defaultdict
 import enum
+import json
 import os
 import re
 import shutil
+import ssl
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 
 _COBALT_SUBMODULE_DIRS = [
     'net/third_party/quiche/src',
@@ -221,6 +225,77 @@ def replace_submodules_with_dirs():
     ])
 
 
+def fetch_chromium_tree(chromium_sha):
+  """Fetches the root tree hash directly from Chromium's Gitiles API."""
+  url = (f'https://chromium.googlesource.com/chromium/src/+/{chromium_sha}'
+         '?format=JSON')
+  req = urllib.request.Request(url, headers={'User-Agent': 'cobalt-autoroller'})
+
+  ctx = ssl.create_default_context()
+  try:
+    with urllib.request.urlopen(req, context=ctx) as resp:
+      text = resp.read().decode('utf-8')
+  except (ssl.SSLCertVerificationError, urllib.error.URLError):
+    # pylint: disable=protected-access
+    unverified_ctx = ssl._create_unverified_context()
+    # pylint: enable=protected-access
+    with urllib.request.urlopen(req, context=unverified_ctx) as resp:
+      text = resp.read().decode('utf-8')
+
+  # Gitiles JSON API responses prepend a 4-char anti-XSSI security prefix: )]}'
+  if text.startswith(")]}'"):
+    text = text[4:].lstrip()
+
+  data = json.loads(text)
+  return data['tree']
+
+
+def get_upstream_chromium_sha(cobalt_sha):
+  """Extracts the upstream Chromium commit SHA from the commit message body."""
+  body = get_out(['git', 'log', '-1', '--format=%B', cobalt_sha])
+  match = re.search(r'Update to commit ([0-9a-fA-F]{40})', body)
+  return match.group(1) if match else None
+
+
+def verify_chromium_commit(sha):
+  """Verifies that current Git tree matches expected Chromium commit tree.
+
+  Args:
+    sha: The SHA of the commit in Cobalt being rolled in.
+
+  Returns:
+    bool: True if the current tree matches the expected Chromium commit tree,
+      False otherwise.
+  """
+  upstream_sha = get_upstream_chromium_sha(sha)
+  if not upstream_sha:
+    log(f'ERROR: No upstream Chromium commit SHA found in message of {sha}.')
+    return False
+
+  log(f'Verifying against upstream Chromium commit {upstream_sha} via '
+      'Gitiles...')
+  try:
+    expected_tree = fetch_chromium_tree(upstream_sha)
+  except Exception as e:  # pylint: disable=broad-except
+    log(f'ERROR: Failed to query Gitiles for Chromium commit '
+        f'{upstream_sha}: {e}')
+    return False
+
+  current_tree = get_out(['git', 'rev-parse', 'HEAD^{tree}']).strip()
+
+  if current_tree == expected_tree:
+    log(f'Verification passed: Tree {current_tree} matches Chromium '
+        f'{upstream_sha}.')
+    return True
+
+  diff_output = get_out(['git', 'diff', '--name-status', sha, 'HEAD']).strip()
+  log(f'ERROR: Rolled-in tree ({current_tree}) differs from Chromium '
+      f'{upstream_sha} ({expected_tree})!')
+  if diff_output:
+    log(f'Offending files:\n{diff_output}')
+  return False
+
+
 def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
                          autoroll_file):
   """Temporarily reverts Cobalt changes to apply a Chromium cherry-pick.
@@ -266,6 +341,11 @@ def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
 
   log('Cherry picking Chromium...')
   run(['git', 'cherry-pick', sha])
+
+  if not verify_chromium_commit(sha):
+    raise RuntimeError(
+        f'Verification failed: Rolled-in tree for {sha} does not match '
+        f'Chromium {sha}')
 
   replace_submodules_with_dirs()
 
