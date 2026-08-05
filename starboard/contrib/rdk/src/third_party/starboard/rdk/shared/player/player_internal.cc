@@ -2512,6 +2512,14 @@ bool PlayerImpl::SetRate(double rate) {
   rate_ = rate;
   pending_rate_ = .0;
 
+  if (state_ == State::kInitial) {
+    mutex_.unlock();
+    SB_DCHECK(rate == .0);
+    SB_DCHECK(GST_STATE(pipeline_) < GST_STATE_PAUSED);
+    GST_DEBUG_OBJECT(pipeline_, "Ignore SetRate(%f) before initial seek", rate);
+    return true;
+  }
+
   if (rate == .0) {
     mutex_.unlock();
     ChangePipelineState(GST_STATE_PAUSED);
