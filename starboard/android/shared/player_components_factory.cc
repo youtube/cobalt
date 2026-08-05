@@ -97,6 +97,31 @@ bool UseLibopusDecoder(SbMediaAudioCodec codec,
          !force_platform_opus_decoder;
 }
 
+bool ShouldUseDualThreads(SbMediaAudioCodec audio_codec,
+                          SbDrmSystem drm_system,
+                          const ExperimentalFeatures& features,
+                          bool force_platform_opus_decoder) {
+  // If there is no audio codec, default to using dual threads.
+  if (audio_codec == kSbMediaAudioCodecNone) {
+    return true;
+  }
+
+  // The experimental feature flag overrides all other conditions.
+  if (features.GetBool(kMediaForceDualThreads)) {
+    return true;
+  }
+
+  // `use_dual_threads` should be disabled if the libopus audio
+  // decoder isn't used, as we want to limit the initial behavior to
+  // playbacks with software based audio where their threading behavior is
+  // more straightforward.
+  //
+  // TODO(b/329686979): Make this work better with AdaptiveAudioDecoder,
+  // where technically the stream can start with aac then transit into opus.
+  return UseLibopusDecoder(audio_codec, drm_system,
+                           force_platform_opus_decoder);
+}
+
 bool IsTunnelModeVideoDecoderSupported(const std::string& mime,
                                        bool is_encrypted) {
   return MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
@@ -650,20 +675,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
-    bool use_dual_threads = true;
-    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
-      // `use_dual_threads` should be disabled if the libopus audio
-      // decoder isn't used, as we want to limit the initial behavior to
-      // playbacks with software based audio where their threading behavior is
-      // more straightforward.
-      // TODO(b/329686979): Make this work better with AdaptiveAudioDecoder,
-      // where technically the stream can start with aac then transit into opus.
-      if (!UseLibopusDecoder(creation_parameters.audio_codec(),
-                             creation_parameters.drm_system(),
-                             force_platform_opus_decoder_)) {
-        use_dual_threads = false;
-      }
-    }
+    bool use_dual_threads = ShouldUseDualThreads(
+        creation_parameters.audio_codec(), creation_parameters.drm_system(),
+        experimental_features, force_platform_opus_decoder_);
 
     return MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
