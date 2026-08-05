@@ -2431,7 +2431,7 @@ void PlayerImpl::HandleInititialSeek() {
 
   // Ask for data.
   if (state_ == State::kInitialPreroll) {
-    MediaType need_data = GetBothMediaTypeTakingCodecsIntoAccount();
+    MediaType need_data = static_cast<MediaType>(static_cast<int>(GetBothMediaTypeTakingCodecsIntoAccount()) & (~has_enough_data_));
     DecoderNeedsData(need_data);
   }
 
