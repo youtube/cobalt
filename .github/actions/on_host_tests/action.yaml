@@ -13,7 +13,7 @@ inputs:
   num_gtest_shards:
     description: "Total number of shards used to run the steps in this file."
     required: true
-  test_executables_json:
+  test_objects_json:
     description: "JSON array of test executables to run."
     required: true
   test_type:
@@ -78,16 +78,17 @@ runs:
         XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
         GTEST_SHARD_INDEX: ${{ matrix.shard }}
         GTEST_TOTAL_SHARDS: ${{ inputs.num_gtest_shards }}
-        TEST_EXECUTABLES_JSON: ${{ inputs.test_executables_json }}
+        TEST_OBJECTS_JSON: ${{ inputs.test_objects_json }}
       run: |
         set -x
 
         failed_suites=""
 
-        # Parse the JSON array into a space-separated string using jq.
-        test_executables=$(jq -nr --arg json "${TEST_EXECUTABLES_JSON:-[]}" '$json | fromjson | join(" ")')
-
-        for test_executable_path in ${test_executables}; do
+        num_tests=$(jq -ncr --arg json "${TEST_OBJECTS_JSON:-[]}" '$json | fromjson | length')
+        for ((i=0; i<$num_tests; i++)); do
+          test_object=$(jq -ncr --arg json "${TEST_OBJECTS_JSON:-[]}" --argjson i $i '$json | fromjson | .[$i]')
+          test_executable_path=$(echo "$test_object" | jq -r '.executable')
+          required_passing=$(echo "$test_object" | jq -r 'if has("required_passing") then .required_passing else true end')
           filename=$(basename "${test_executable_path}")
           test_executable="${filename%%.*}"
 
@@ -124,7 +125,11 @@ runs:
                 --gtest_total_shards="${GTEST_TOTAL_SHARDS}" \
                 --gtest_output="xml:${xml_path}" \
                 --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
-              failed_suites="${failed_suites} ${test_executable}"
+              if [[ "$required_passing" == "true" ]]; then
+                failed_suites="${failed_suites} ${test_executable}"
+              else
+                echo "Test suite failed but has required_passing=false. Ignoring."
+              fi
             }
 
             if [[ ! -f ${xml_path} ]]; then
@@ -146,16 +151,18 @@ runs:
       id: run-junit-suites
       shell: bash
       env:
-        TEST_EXECUTABLES_JSON: ${{ inputs.test_executables_json }}
+        TEST_OBJECTS_JSON: ${{ inputs.test_objects_json }}
       run: |
         set -x
 
         failed_suites=""
 
-        # Parse the JSON array into a space-separated string using jq.
-        test_executables=$(jq -nr --arg json "${TEST_EXECUTABLES_JSON:-[]}" '$json | fromjson | join(" ")')
+        num_tests=$(jq -ncr --arg json "${TEST_OBJECTS_JSON:-[]}" '$json | fromjson | length')
+        for ((i=0; i<$num_tests; i++)); do
+          test_object=$(jq -ncr --arg json "${TEST_OBJECTS_JSON:-[]}" --argjson i $i '$json | fromjson | .[$i]')
+          test_executable_path=$(echo "$test_object" | jq -r '.executable')
+          required_passing=$(echo "$test_object" | jq -r 'if has("required_passing") then .required_passing else true end')
 
-        for test_executable_path in ${test_executables}; do
           test_executable=$(basename "${test_executable_path}")
 
           # JUnit tests are executed by their wrapper script "out/PLATFORM_CONFIG/bin/run_NAME".
@@ -178,7 +185,11 @@ runs:
           # test result format in our testing workflow.
           json_path="${test_output}/${test_executable_name}_result.json"
           stdbuf -i0 -o0 -e0 ./${test_executable_path} --json-results-file="${json_path}" 2>&1 | tee ${log_path} || {
-            failed_suites="${failed_suites} ${test_executable_name}"
+            if [[ "$required_passing" == "true" ]]; then
+              failed_suites="${failed_suites} ${test_executable_name}"
+            else
+              echo "Test suite failed but has required_passing=false. Ignoring."
+            fi
           }
           if [[ -f ${json_path} ]]; then
             python3 ${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py "${json_path}" "${xml_path}"

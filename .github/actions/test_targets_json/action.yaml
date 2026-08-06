@@ -46,11 +46,17 @@ runs:
 
         test_executables_json="$(jq -ncr --argjson data "${filtered_json}" '[$data[] | select(.executable != null) | .executable]')"
         printf "test_executables_json=%s\n" "${test_executables_json}" >> "$GITHUB_OUTPUT"
+
+        test_objects_json="$(jq -ncr --argjson data "${filtered_json}" '[$data[] | select(.target != null)]')"
+        printf "test_objects_json=%s\n" "${test_objects_json}" >> "$GITHUB_OUTPUT"
       shell: bash
 outputs:
   test_targets_count:
     description: The number of matched test targets.
     value: ${{ steps.parse-json.outputs.test_targets_count }}
+  test_objects_json:
+    description: The matched test targets in a JSON array of objects.
+    value: '${{ steps.parse-json.outputs.test_objects_json }}'
   test_targets_json:
     description: The matched test targets in a JSON array.
     value: '${{ steps.parse-json.outputs.test_targets_json }}'

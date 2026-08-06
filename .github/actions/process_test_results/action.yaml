@@ -16,6 +16,10 @@ inputs:
   num_gtest_shards:
     description: Number of gtest shards run.
     required: true
+  required_passing:
+    description: "Whether passing this test is required."
+    required: false
+    default: 'true'
 runs:
   using: "composite"
   steps:
@@ -43,6 +47,7 @@ runs:
         LOG_GLOB: ${{ inputs.log_glob }}
         TARGET_NAME: ${{ inputs.target_name }}
         GTEST_SHARDS: ${{ inputs.num_gtest_shards }}
+        REQUIRED_PASSING: ${{ inputs.required_passing }}
       run: |
         # Check test status.
         if [ "$RUNNER_DEBUG" == "1" ]; then
@@ -85,8 +90,12 @@ runs:
 
           python3 cobalt/tools/junit_mini_parser.py ${RESULTS_GLOB}
 
-          echo "::error::${TARGET_NAME} has ${TESTS_FAILED} failed test(s)."
-          exit_code=1
+          if [ "${REQUIRED_PASSING}" == "false" ]; then
+             echo "::warning::${TARGET_NAME} has ${TESTS_FAILED} failed test(s), but is not required to pass."
+          else
+             echo "::error::${TARGET_NAME} has ${TESTS_FAILED} failed test(s)."
+             exit_code=1
+          fi
         fi
 
         echo "${TESTS_PASSED} of ${TESTS_TOTAL} tests passed (${TESTS_SKIPPED} skipped)."
