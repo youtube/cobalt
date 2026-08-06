@@ -44,6 +44,10 @@ source_set("renderer") {
   if (use_starboard_media) {
     deps += [ "//media/mojo/clients" ]
   }
+
+  if (use_starboard_media && is_ios && is_internal_build) {
+    deps += [ "//cobalt/internal/cobalt/components/cdm/renderer/starboard:platform_drm_key_system_info" ]
+  }
 }
 
 test("cobalt_renderer_unittests") {
