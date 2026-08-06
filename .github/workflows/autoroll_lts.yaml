@@ -18,6 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DEPOT_TOOLS_METRICS: 0
+      GIT_AUTHOR_NAME: "cobalt-github-releaser-bot"
+      GIT_AUTHOR_EMAIL: "95661244+cobalt-github-releaser-bot@users.noreply.github.com"
+      GIT_COMMITTER_NAME: "cobalt-github-releaser-bot"
+      GIT_COMMITTER_EMAIL: "95661244+cobalt-github-releaser-bot@users.noreply.github.com"
     permissions:
       contents: write
       pull-requests: write
@@ -41,12 +45,6 @@ jobs:
           fetch-depth: 1000
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
 
-      - name: Setup Git user
-        run: |
-          git config --global user.name "GitHub Release Automation"
-          git config --global user.email "github@google.com"
-          git config --global submodule.recurse false
-
       - name: Prepare Cherry Pick Branch
         env:
           SOURCE_BRANCH: ${{ matrix.branch.source }}
@@ -54,6 +52,8 @@ jobs:
           FETCH_DEPTH: 1000
         run: |
           set -x
+
+          git config --global submodule.recurse false
 
           # Copy script from main branch.
           git show main:.github/scripts/autoroll_lts.py > "${RUNNER_TEMP}/autoroll_lts.py"
