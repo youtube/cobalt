@@ -4103,9 +4103,6 @@ test("base_unittests") {
     }
   }
 
-<<<<<<< HEAD
-  sources += [ "test/test_trace_processor_example_unittest.cc" ]
-=======
   if (is_starboard) {
     sources -= [
       "debug/stack_trace_unittest.cc",
@@ -4144,10 +4141,9 @@ test("base_unittests") {
     ]
   }
 
-  if (enable_base_tracing && !is_cobalt_hermetic_build) {
+  if (!is_cobalt_hermetic_build) {
     sources += [ "test/test_trace_processor_example_unittest.cc" ]
   }
->>>>>>> parent of d584bc1b896 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   if (is_posix) {
     sources += [

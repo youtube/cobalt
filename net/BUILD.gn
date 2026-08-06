@@ -1792,14 +1792,15 @@ component("net") {
     deps += [ "//mojo/public/cpp/bindings:default_construct_tag" ]
   }
 
-<<<<<<< HEAD
   if (enable_disk_cache_sql_backend) {
     sources += [
       "disk_cache/sql/cache_entry_key.cc",
       "disk_cache/sql/cache_entry_key.h",
       "disk_cache/sql/sql_backend_impl.cc",
       "disk_cache/sql/sql_backend_impl.h",
-=======
+    ]
+  }
+
   if (is_cobalt && is_linux && !use_nss_certs) {
     sources += [ "cert/test_root_certs_builtin.cc" ]
   }
@@ -1821,7 +1822,6 @@ component("net") {
     sources += [
       "base/network_interfaces_starboard.cc",
       "base/platform_mime_util_starboard.cc",
->>>>>>> parent of d584bc1b896 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     ]
   }
 }
