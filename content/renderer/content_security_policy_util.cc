@@ -42,13 +42,7 @@ network::mojom::CSPSourceListPtr BuildCSPSourceList(
       source_list.allow_inline_speculation_rules, source_list.allow_eval,
       source_list.allow_wasm_eval, source_list.allow_wasm_unsafe_eval,
       source_list.allow_dynamic, source_list.allow_unsafe_hashes,
-#if BUILDFLAG(IS_COBALT)
-      source_list.report_sample, source_list.report_hash_algorithm,
-      source_list.cobalt_insecure_local_network,
-      source_list.cobalt_insecure_private_range);
-#else
       source_list.report_sample, source_list.report_hash_algorithm);
-#endif // BUILDFLAG(IS_COBALT)
 }
 
 std::vector<blink::WebString> ToVectorOfWebStrings(
@@ -90,13 +84,7 @@ blink::WebCSPSourceList ToWebCSPSourceList(
       source_list->allow_dynamic,
       source_list->allow_unsafe_hashes,
       source_list->report_sample,
-#if BUILDFLAG(IS_COBALT)
-      source_list->report_hash_algorithm,
-      source_list->cobalt_insecure_local_network,
-      source_list->cobalt_insecure_private_range};
-#else
       source_list->report_hash_algorithm};
-#endif
 }
 
 std::optional<blink::WebCSPTrustedTypes> ToOptionalWebCSPTrustedTypes(

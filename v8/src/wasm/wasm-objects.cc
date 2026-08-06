@@ -1302,8 +1302,7 @@ DirectHandle<JSArrayBuffer> WasmMemoryObject::ToResizableBuffer(
 
 MaybeDirectHandle<WasmMemoryMapDescriptor>
 WasmMemoryMapDescriptor::NewFromAnonymous(Isolate* isolate, size_t length) {
-// This method is used by experimental_wasm_memory_control and is not enabled by default.
-#if V8_TARGET_OS_LINUX && !BUILDFLAG(IS_STARBOARD)
+#if V8_TARGET_OS_LINUX
   CHECK(v8_flags.experimental_wasm_memory_control);
   DirectHandle<JSFunction> descriptor_ctor(
       isolate->native_context()->wasm_memory_map_descriptor_constructor(),

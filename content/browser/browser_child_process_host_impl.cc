@@ -405,7 +405,7 @@ ChildProcessTerminationInfo BrowserChildProcessHostImpl::GetTerminationInfo(
     // If the delegate doesn't use Launch() helper.
     ChildProcessTerminationInfo info;
     // TODO(crbug.com/40255458): iOS is single process mode for now.
-#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if !BUILDFLAG(IS_IOS)
     info.status = base::GetTerminationStatus(data_.GetProcess().Handle(),
                                              &info.exit_code);
 #endif

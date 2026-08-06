@@ -34,6 +34,7 @@ struct ParamTraits<media::AudioParameters::HardwareCapabilities> {
                    param_type* r);
   static void Log(const param_type& p, std::string* l);
 };
+
 }  // namespace IPC
 
 #endif  // MEDIA_BASE_IPC_MEDIA_PARAM_TRAITS_H_
