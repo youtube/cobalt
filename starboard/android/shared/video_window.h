@@ -44,11 +44,12 @@ class VideoSurfaceHolder {
   // Release the surface to make the surface available for other holder.
   void ReleaseVideoSurface();
 
-  // Cleans up the video surface. If |force_reset| is enabled, we will destroy
-  // the video window. Otherwise, we will clear the video window, posting the
-  // task to |gpu_provider|.
-  void CleanUpVideoWindow(bool force_reset,
-                          SbDecodeTargetGraphicsContextProvider* gpu_provider);
+  // Cleans up the video surface, posts the task to |gpu_provider|.
+  void CleanUpVideoSurface(SbDecodeTargetGraphicsContextProvider* gpu_provider);
+
+  // Reset the video surface by destroying the current one. Android will then
+  // make another new one for use.
+  void ResetVideoSurface();
 };
 
 }  // namespace starboard
