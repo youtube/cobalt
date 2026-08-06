@@ -609,9 +609,9 @@ void StarboardRenderer::CreatePlayerBridge() {
                     : invalid_video_config;
 
   const std::string audio_mime_type =
-      audio_stream_ ? audio_stream_->mime_type() : "";
+      audio_stream_ ? audio_stream_->audio_decoder_config().mime_type() : "";
   const std::string video_mime_type =
-      video_stream_ ? video_stream_->mime_type() : "";
+      video_stream_ ? video_stream_->video_decoder_config().mime_type() : "";
 
   std::string error_message;
 
@@ -725,12 +725,14 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
 
   if (stream->type() == DemuxerStream::AUDIO) {
     const AudioDecoderConfig& decoder_config = stream->audio_decoder_config();
-    player_bridge_->UpdateAudioConfig(decoder_config, stream->mime_type());
+    player_bridge_->UpdateAudioConfig(decoder_config,
+                                      decoder_config.mime_type());
   } else {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
 
-    player_bridge_->UpdateVideoConfig(decoder_config, stream->mime_type());
+    player_bridge_->UpdateVideoConfig(decoder_config,
+                                      decoder_config.mime_type());
 
     // TODO(b/375275033): Refine natural size change handling.
 #if 0
@@ -748,38 +750,6 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
     paint_video_hole_frame_cb_.Run(
         stream->video_decoder_config().visible_rect().size());
   }
-}
-
-void StarboardRenderer::ApplyPendingAudioConfig() {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  DCHECK(pending_audio_config_.has_value());
-  DCHECK(audio_stream_);
-
-  LOG(INFO)
-      << "Applying pending Audio config change from changeType transition.";
-
-  client_->OnAudioConfigChange(*pending_audio_config_);
-
-  UpdateDecoderConfig(audio_stream_);
-
-  pending_audio_config_.reset();
-}
-
-void StarboardRenderer::ApplyPendingVideoConfig() {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  DCHECK(pending_video_config_.has_value());
-  DCHECK(video_stream_);
-
-  LOG(INFO)
-      << "Applying pending Video config change from changeType transition.";
-
-  client_->OnVideoConfigChange(*pending_video_config_);
-  client_->OnVideoNaturalSizeChange(
-      pending_video_config_->visible_rect().size());
-
-  UpdateDecoderConfig(video_stream_);
-
-  pending_video_config_.reset();
 }
 
 void StarboardRenderer::OnDemuxerStreamRead(
@@ -818,9 +788,6 @@ void StarboardRenderer::OnDemuxerStreamRead(
     if (stream == audio_stream_) {
       DCHECK(audio_read_in_progress_);
       audio_read_in_progress_ = false;
-      if (pending_audio_config_.has_value()) {
-        ApplyPendingAudioConfig();
-      }
       for (const auto& buffer : buffers) {
         if (!buffer->end_of_stream()) {
           last_audio_sample_interval_ =
@@ -832,9 +799,6 @@ void StarboardRenderer::OnDemuxerStreamRead(
     } else {
       DCHECK(video_read_in_progress_);
       video_read_in_progress_ = false;
-      if (pending_video_config_.has_value()) {
-        ApplyPendingVideoConfig();
-      }
       for (const auto& buffer : buffers) {
         if (buffer->end_of_stream()) {
           is_video_eos_written_ = true;
@@ -859,31 +823,16 @@ void StarboardRenderer::OnDemuxerStreamRead(
   } else if (status == DemuxerStream::kConfigChanged) {
     if (stream == audio_stream_) {
       AudioDecoderConfig config = stream->audio_decoder_config();
-      if (config.is_change_type_transition()) {
-        pending_audio_config_ = std::move(config);
-        LOG(INFO)
-            << "Pending Audio config change stored due to a changeType call.";
-      } else {
-        pending_audio_config_.reset();
-        client_->OnAudioConfigChange(config);
-        UpdateDecoderConfig(stream);
-      }
+      client_->OnAudioConfigChange(config);
     } else {
       DCHECK_EQ(stream, video_stream_);
       VideoDecoderConfig config = stream->video_decoder_config();
-      if (config.is_change_type_transition()) {
-        pending_video_config_ = std::move(config);
-        LOG(INFO)
-            << "Pending Video config change stored due to a changeType call.";
-      } else {
-        pending_video_config_.reset();
-        client_->OnVideoConfigChange(config);
-        // TODO(b/375275033): Refine calling to OnVideoNaturalSizeChange().
-        client_->OnVideoNaturalSizeChange(config.visible_rect().size());
-        paint_video_hole_frame_cb_.Run(config.visible_rect().size());
-        UpdateDecoderConfig(stream);
-      }
+      client_->OnVideoConfigChange(config);
+      // TODO(b/375275033): Refine calling to OnVideoNaturalSizeChange().
+      client_->OnVideoNaturalSizeChange(config.visible_rect().size());
+      paint_video_hole_frame_cb_.Run(config.visible_rect().size());
     }
+    UpdateDecoderConfig(stream);
     stream->Read(
         max_buffers,
         base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,

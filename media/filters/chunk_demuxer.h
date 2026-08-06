@@ -45,11 +45,6 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
  public:
   using BufferQueue = base::circular_deque<scoped_refptr<StreamParserBuffer>>;
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  ChunkDemuxerStream(const std::string& mime_type,
-                     Type type,
-                     MediaTrack::Id media_track_id);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id);
   ChunkDemuxerStream() = delete;
 
@@ -93,9 +88,6 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   // Returns the latest presentation timestamp of the buffers queued in the
   // stream.
   base::TimeDelta GetWriteHead() const;
-
-  // Set the |mime_type_| string to a different mime_type.
-  void SetMimeType(std::string_view mime_type);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void OnMemoryPressure(
@@ -148,9 +140,6 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   void UnmarkEndOfStream();
 
   // DemuxerStream methods.
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  std::string mime_type() const override;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   void Read(uint32_t count, ReadCB read_cb) override;
   Type type() const override;
   StreamLiveness liveness() const override;
@@ -199,7 +188,6 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   GetPendingBuffers_Locked() EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  std::string mime_type_ GUARDED_BY(lock_);
   base::TimeDelta write_head_ GUARDED_BY(lock_);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

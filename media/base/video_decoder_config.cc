@@ -116,8 +116,7 @@ std::string VideoDecoderConfig::AsHumanReadableString() const {
     << ", rotation: " << VideoRotationToString(video_transformation().rotation)
     << ", flipped: " << video_transformation().mirrored
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    << ", is_change_type_transition: "
-    << base::ToString(is_change_type_transition())
+    << ", mime_type: " << mime_type()
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     << ", color space: " << color_space_info().ToGfxColorSpace().ToString();
 

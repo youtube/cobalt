@@ -111,8 +111,7 @@ std::string AudioDecoderConfig::AsHumanReadableString() const {
     << ", target_output_channel_layout: "
     << ChannelLayoutToString(target_output_channel_layout())
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    << ", is_change_type_transition: "
-    << base::ToString(is_change_type_transition())
+    << ", mime_type: " << mime_type()
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     << ", target_output_sample_format: "
     << SampleFormatToString(target_output_sample_format());

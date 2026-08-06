@@ -103,18 +103,6 @@ bool ParseMimeType(const std::string& mime_type,
 
 namespace media {
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-ChunkDemuxerStream::ChunkDemuxerStream(const std::string& mime_type,
-                                       Type type,
-                                       MediaTrack::Id media_track_id)
-    : mime_type_(mime_type),
-      type_(type),
-      liveness_(StreamLiveness::kUnknown),
-      media_track_id_(media_track_id),
-      state_(UNINITIALIZED),
-      is_enabled_(true) {}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 ChunkDemuxerStream::ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id)
     : type_(type),
       liveness_(StreamLiveness::kUnknown),
@@ -335,19 +323,6 @@ void ChunkDemuxerStream::UnmarkEndOfStream() {
   base::AutoLock auto_lock(lock_);
   stream_->UnmarkEndOfStream();
 }
-
-// DemuxerStream methods.
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-std::string ChunkDemuxerStream::mime_type() const {
-  base::AutoLock auto_lock(lock_);
-  return mime_type_;
-}
-
-void ChunkDemuxerStream::SetMimeType(std::string_view mime_type) {
-  base::AutoLock auto_lock(lock_);
-  mime_type_ = mime_type;
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void ChunkDemuxerStream::Read(uint32_t count, ReadCB read_cb) {
   base::AutoLock auto_lock(lock_);
@@ -877,8 +852,15 @@ ChunkDemuxer::Status ChunkDemuxer::AddIdInternal(
   CHECK(*insert_result.first == id);
   CHECK(insert_result.second);  // Only true if insertion succeeded.
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  const std::string& mime_type = id_to_mime_map_[id];
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   source_state->Init(base::BindOnce(&ChunkDemuxer::OnSourceInitDone,
                                     base::Unretained(this), id),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+                                    mime_type,
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
                      expected_codecs, encrypted_media_init_data_cb_);
 
   // TODO(wolenetz): Change to DCHECKs once less verification in release build
@@ -1700,15 +1682,8 @@ ChunkDemuxerStream* ChunkDemuxer::CreateDemuxerStream(
       NOTREACHED();
   }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  auto iter = id_to_mime_map_.find(source_id);
-  std::string mime_type = iter != id_to_mime_map_.end() ? iter->second : "";
-  std::unique_ptr<ChunkDemuxerStream> stream =
-      std::make_unique<ChunkDemuxerStream>(mime_type, type, media_track_id);
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::unique_ptr<ChunkDemuxerStream> stream =
       std::make_unique<ChunkDemuxerStream>(type, media_track_id);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   DCHECK(track_id_to_demux_stream_map_.find(media_track_id) ==
          track_id_to_demux_stream_map_.end());
   track_id_to_demux_stream_map_[media_track_id] = stream.get();

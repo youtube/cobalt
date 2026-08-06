@@ -153,8 +153,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void CreatePlayerBridge();
   void ApplyPendingBounds();
   void UpdateDecoderConfig(DemuxerStream* stream);
-  void ApplyPendingAudioConfig();
-  void ApplyPendingVideoConfig();
   void OnDemuxerStreamRead(DemuxerStream* stream,
                            int max_buffers,
                            DemuxerStream::Status status,
@@ -293,19 +291,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // understood as a capability changed error. Do not change this message.
   static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
       "MEDIA_ERR_CAPABILITY_CHANGED";
-
-  // Stored audio/video configs to store the new config from a
-  // SourceBuffer.changeType() call. Configs from changeType() are not applied
-  // to StarboardRenderer when DemuxerStream::kConfigChanged occurs, but when
-  // the first sample of the updated player config is applied. It is possible
-  // that when a SourceBuffer.changeType() call is made, we are still reading
-  // buffers from the original mime_type configuration. If we let the config
-  // switch immediately from when StarboardRenderer receives the kConfigChanged
-  // status from the changeType call, the current samples being read will
-  // be incorrectly labelled, potentially causing issues to the SbPlayer
-  // implementation.
-  std::optional<AudioDecoderConfig> pending_audio_config_;
-  std::optional<VideoDecoderConfig> pending_video_config_;
 
   // NOTE: Do not add member variables after weak_factory_
   // It should be the first one destroyed among all members.

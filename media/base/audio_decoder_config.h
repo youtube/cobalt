@@ -123,8 +123,8 @@ class MEDIA_EXPORT AudioDecoderConfig {
   }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void set_is_change_type_transition(bool value) { is_change_type_transition_ = value; }
-  bool is_change_type_transition() const { return is_change_type_transition_; }
+  void set_mime_type(std::string value) { mime_type_ = value; }
+  const std::string& mime_type() const { return mime_type_; }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
@@ -177,9 +177,8 @@ class MEDIA_EXPORT AudioDecoderConfig {
   int channels_ = 0;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Designates whether the received config was caused by a
-  // SourceBuffer.changeType() call.
-  bool is_change_type_transition_ = false;
+  // Full mime string of the audio config.
+  std::string mime_type_;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler
