@@ -13,4 +13,13 @@ config build = common.build {
       value = 'qa'
     },
   ]
+  action = [
+    {
+      define_artifacts = {
+        regex = [
+          'lib_export/**/libchrobalt.so'
+        ]
+      }
+    },
+  ]
 }
