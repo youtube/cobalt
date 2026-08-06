@@ -301,7 +301,6 @@ class MEDIA_EXPORT SourceBufferState {
 
   std::vector<AudioCodec> expected_audio_codecs_;
   std::vector<VideoCodec> expected_video_codecs_;
-
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   std::string mime_type_;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

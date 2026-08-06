@@ -49,7 +49,10 @@ void MojoDemuxerStreamImpl::Initialize(InitializeCallback callback) {
 
   std::move(callback).Run(stream_->type(), std::move(remote_consumer_handle),
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-                          audio_config, video_config, stream_->mime_type());
+                          audio_config, video_config,
+                          stream_->type() == media::DemuxerStream::AUDIO
+                              ? (audio_config ? audio_config->mime_type() : "")
+                              : (video_config ? video_config->mime_type() : ""));
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
                           audio_config, video_config);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

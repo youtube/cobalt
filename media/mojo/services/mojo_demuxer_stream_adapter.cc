@@ -68,12 +68,6 @@ bool MojoDemuxerStreamAdapter::SupportsConfigChanges() {
   return true;
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-std::string MojoDemuxerStreamAdapter::mime_type() const {
-  return mime_type_;
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 // TODO(xhwang): Pass liveness here.
 void MojoDemuxerStreamAdapter::OnStreamReady(
     Type type,
