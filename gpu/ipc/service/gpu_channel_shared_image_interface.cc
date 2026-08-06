@@ -202,8 +202,9 @@ GpuChannelSharedImageInterface::CreateSharedImageForStarboardGLTexture(
              ->shared_image_manager());
   shared_image_stub_->factory()->RegisterBacking(std::move(backing));
 
+  SharedImageInfo info(metadata, /*debug_label=*/"SIForStarboardGLTexture");
   return base::WrapRefCounted<ClientSharedImage>(
-      new ClientSharedImage(mailbox, metadata, GenVerifiedSyncToken(), holder_,
+      new ClientSharedImage(mailbox, info, GenVerifiedSyncToken(), holder_,
                             texture_targets.empty() ? GL_TEXTURE_2D
                                                     : texture_targets[0]));
 }

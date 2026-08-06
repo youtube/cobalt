@@ -65,7 +65,7 @@ class FrameInjectingDemuxer final : public media::Demuxer {
   std::optional<media::container_names::MediaContainerName>
   GetContainerForMetrics() const override;
   void OnTracksChanged(media::DemuxerStream::Type track_type,
-                       std::optional<media::MediaTrack::Id> track_id,
+                       const std::vector<media::MediaTrack::Id>& track_ids,
                        base::TimeDelta curr_time,
                        TrackChangeCB change_completed_cb) override;
   void SetPlaybackRate(double rate) override {}

@@ -391,7 +391,7 @@ class PipelineIntegrationTest : public testing::Test,
   void OnEnabledAudioTracksChanged(
       std::optional<MediaTrack::Id> enabled_track_id) {
     base::RunLoop run_loop;
-    pipeline_->OnEnabledAudioTracksChanged(std::move(enabled_track_id),
+    pipeline_->OnEnabledAudioTracksChanged(enabled_track_id,
                                            run_loop.QuitClosure());
     run_loop.Run();
   }
@@ -743,7 +743,7 @@ TEST_F(PipelineIntegrationTest, PlaybackWithAudioTrackDisabledThenEnabled) {
   ASSERT_EQ(PIPELINE_OK, Start("bear-320x240.webm", kHashed | kNoClockless));
 
   // Disable audio.
-  OnEnabledAudioTracksChanged(std::nullopt);
+  OnEnabledAudioTracksChanged({});
 
   // Seek to flush the pipeline and ensure there's no prerolled audio data.
   ASSERT_TRUE(Seek(base::TimeDelta()));
@@ -757,7 +757,7 @@ TEST_F(PipelineIntegrationTest, PlaybackWithAudioTrackDisabledThenEnabled) {
   EXPECT_AUDIO_HASH(kNullAudioHash);
 
   // Re-enable audio.
-  OnEnabledAudioTracksChanged(MediaTrack::Id("2"));
+  OnEnabledAudioTracksChanged({MediaTrack::Id("2")});
 
   // Restart playback from 500ms position.
   ASSERT_TRUE(Seek(k500ms));
@@ -815,7 +815,7 @@ TEST_F(PipelineIntegrationTest, PlaybackWithVideoTrackDisabledThenEnabled) {
 }
 
 TEST_F(PipelineIntegrationTest, TrackStatusChangesBeforePipelineStarted) {
-  OnEnabledAudioTracksChanged(std::nullopt);
+  OnEnabledAudioTracksChanged({});
   OnSelectedVideoTrackChanged(std::nullopt);
 }
 
@@ -824,9 +824,9 @@ TEST_F(PipelineIntegrationTest, TrackStatusChangesAfterPipelineEnded) {
   Play();
   ASSERT_TRUE(WaitUntilOnEnded());
   // Disable audio track.
-  OnEnabledAudioTracksChanged(std::nullopt);
+  OnEnabledAudioTracksChanged({});
   // Re-enable audio track.
-  OnEnabledAudioTracksChanged(MediaTrack::Id("2"));
+  OnEnabledAudioTracksChanged({MediaTrack::Id("2")});
   // Disable video track.
   OnSelectedVideoTrackChanged(std::nullopt);
   // Re-enable video track.
@@ -853,13 +853,13 @@ TEST_F(PipelineIntegrationTest, MAYBE_TrackStatusChangesWhileSuspended) {
   EXPECT_CALL(*this, OnVideoOpacityChange(true)).Times(AnyNumber());
 
   // Disable audio track.
-  OnEnabledAudioTracksChanged(std::nullopt);
+  OnEnabledAudioTracksChanged({});
   ASSERT_TRUE(Resume(TimestampMs(100)));
   ASSERT_TRUE(WaitUntilCurrentTimeIsAfter(TimestampMs(200)));
   ASSERT_TRUE(Suspend());
 
   // Re-enable audio track.
-  OnEnabledAudioTracksChanged(MediaTrack::Id("2"));
+  OnEnabledAudioTracksChanged({MediaTrack::Id("2")});
   ASSERT_TRUE(Resume(TimestampMs(200)));
   ASSERT_TRUE(WaitUntilCurrentTimeIsAfter(TimestampMs(300)));
   ASSERT_TRUE(Suspend());
@@ -887,14 +887,14 @@ TEST_F(PipelineIntegrationTest, ReinitRenderersWhileAudioTrackIsDisabled) {
   EXPECT_CALL(*this, OnVideoOpacityChange(true)).Times(AnyNumber());
 
   // Disable the audio track.
-  OnEnabledAudioTracksChanged(std::nullopt);
+  OnEnabledAudioTracksChanged({});
   // pipeline.Suspend() releases renderers and pipeline.Resume() recreates and
   // reinitializes renderers while the audio track is disabled.
   ASSERT_TRUE(Suspend());
   ASSERT_TRUE(Resume(TimestampMs(100)));
   // Now re-enable the audio track, playback should continue successfully.
   EXPECT_CALL(*this, OnBufferingStateChange(BUFFERING_HAVE_ENOUGH, _)).Times(1);
-  OnEnabledAudioTracksChanged(MediaTrack::Id("2"));
+  OnEnabledAudioTracksChanged({MediaTrack::Id("2")});
   ASSERT_TRUE(WaitUntilCurrentTimeIsAfter(TimestampMs(200)));
 
   Stop();
@@ -928,10 +928,10 @@ TEST_F(PipelineIntegrationTest, PipelineStoppedWhileAudioRestartPending) {
 
   // Disable audio track first, to re-enable it later and stop the pipeline
   // (which destroys the media renderer) while audio restart is pending.
-  OnEnabledAudioTracksChanged(std::nullopt);
+  OnEnabledAudioTracksChanged({});
 
   // Playback is paused while all audio tracks are disabled.
-  OnEnabledAudioTracksChanged(MediaTrack::Id("2"));
+  OnEnabledAudioTracksChanged({MediaTrack::Id("2")});
   Stop();
 }
 
@@ -954,7 +954,7 @@ TEST_F(PipelineIntegrationTest, SwitchAudioTrackDuringPlayback) {
   ASSERT_TRUE(WaitUntilCurrentTimeIsAfter(TimestampMs(100)));
   // The first audio track (TrackId=4) is enabled by default. This should
   // disable TrackId=4 and enable TrackId=5.
-  OnEnabledAudioTracksChanged(MediaTrack::Id("5"));
+  OnEnabledAudioTracksChanged({MediaTrack::Id("5")});
   ASSERT_TRUE(WaitUntilCurrentTimeIsAfter(TimestampMs(200)));
   Stop();
 }

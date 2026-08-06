@@ -5,27 +5,25 @@
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
 
 #include <cstdint>
+#include <limits>
 #include <ostream>
 
 namespace quic {
 
 QuicAckFrequencyFrame::QuicAckFrequencyFrame(
     QuicControlFrameId control_frame_id, uint64_t sequence_number,
-    uint64_t ack_eliciting_threshold, QuicTime::Delta requested_max_ack_delay,
-    uint64_t reordering_threshold)
+    uint64_t packet_tolerance, QuicTime::Delta max_ack_delay)
     : control_frame_id(control_frame_id),
       sequence_number(sequence_number),
-      ack_eliciting_threshold(ack_eliciting_threshold),
-      requested_max_ack_delay(requested_max_ack_delay),
-      reordering_threshold(reordering_threshold) {}
+      packet_tolerance(packet_tolerance),
+      max_ack_delay(max_ack_delay) {}
 
 std::ostream& operator<<(std::ostream& os, const QuicAckFrequencyFrame& frame) {
   os << "{ control_frame_id: " << frame.control_frame_id
      << ", sequence_number: " << frame.sequence_number
-     << ", ack_eliciting_threshold: " << frame.ack_eliciting_threshold
-     << ", requested_max_ack_delay_ms: "
-     << frame.requested_max_ack_delay.ToMilliseconds()
-     << ", reordering_threshold: " << frame.reordering_threshold << " }\n";
+     << ", packet_tolerance: " << frame.packet_tolerance
+     << ", max_ack_delay_ms: " << frame.max_ack_delay.ToMilliseconds()
+     << ", ignore_order: " << frame.ignore_order << " }\n";
   return os;
 }
 

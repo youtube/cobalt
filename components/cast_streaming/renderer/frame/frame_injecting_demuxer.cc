@@ -498,7 +498,7 @@ FrameInjectingDemuxer::GetContainerForMetrics() const {
 // Not supported.
 void FrameInjectingDemuxer::OnTracksChanged(
     media::DemuxerStream::Type track_type,
-    std::optional<media::MediaTrack::Id> track_id,
+    const std::vector<media::MediaTrack::Id>& track_ids,
     base::TimeDelta curr_time,
     TrackChangeCB change_completed_cb) {
   // TODO(crbug.com/416543891): Demuxers should have a way to report that they

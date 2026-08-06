@@ -59,7 +59,7 @@ class MEDIA_EXPORT DecryptingRenderer : public Renderer {
   void SetVolume(float volume) override;
   base::TimeDelta GetMediaTime() override;
   void OnTracksChanged(DemuxerStream::Type track_type,
-                       DemuxerStream* enabled_track,
+                       std::vector<DemuxerStream*> enabled_tracks,
                        base::OnceClosure change_completed_cb) override;
   RendererType GetRendererType() override;
 

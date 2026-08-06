@@ -271,10 +271,8 @@ CobaltContentBrowserClient::CreateDevToolsManagerDelegate() {
 
 void CobaltContentBrowserClient::CreateThrottlesForNavigation(
     content::NavigationThrottleRegistry& registry) {
-  content::NavigationHandle& navigation_handle = registry.GetNavigationHandle();
   registry.AddThrottle(
-      std::make_unique<content::CobaltSecureNavigationThrottle>(
-          &navigation_handle));
+      std::make_unique<content::CobaltSecureNavigationThrottle>(registry));
 }
 
 content::GeneratedCodeCacheSettings

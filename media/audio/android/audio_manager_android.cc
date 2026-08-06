@@ -4,10 +4,8 @@
 
 #include "media/audio/android/audio_manager_android.h"
 
-#include <algorithm>
 #include <memory>
 #include <optional>
-#include <vector>
 
 #include "base/android/build_info.h"
 #include "base/android/jni_android.h"
@@ -263,45 +261,6 @@ std::string GetFallbackDeviceNameForType(AudioDeviceType type) {
 }
 #endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
-// Utility function used by `GetDeviceNames()` to find an A2DP/SCO device pair,
-// if present, and combine it into a single A2DP device with an associated SCO
-// device.
-void CombineBluetoothClassicDevices(
-    std::vector<std::pair<AudioDeviceId, AudioDevice>>& devices,
-    AudioDeviceNames* device_names) {
-  constexpr auto is_a2dp_predicate = [](const auto& pair) -> bool {
-    return pair.second.GetType() == AudioDeviceType::kBluetoothA2dp;
-  };
-  constexpr auto is_sco_predicate = [](const auto& pair) -> bool {
-    return pair.second.GetType() == AudioDeviceType::kBluetoothSco;
-  };
-
-  // It is assumed that only up to 1 of each of these device types will be
-  // present. If this assumption is invalidated, we can't determine associations
-  // between A2DP and SCO devices, and it is uncertain how to handle them.
-  // Here, we choose to not do any combining in this case.
-  if (std::ranges::count_if(devices, is_a2dp_predicate) > 1 ||
-      std::ranges::count_if(devices, is_sco_predicate) > 1) {
-    LOG(WARNING) << "Found multiple A2DP or SCO output devices";
-    return;
-  }
-
-  auto a2dp_device = std::ranges::find_if(devices, is_a2dp_predicate);
-  if (a2dp_device == devices.end()) {
-    return;
-  }
-  auto sco_device = std::ranges::find_if(devices, is_sco_predicate);
-  if (sco_device == devices.end()) {
-    return;
-  }
-
-  a2dp_device->second.SetAssociatedScoDeviceId(sco_device->second.GetId());
-  device_names->remove_if([sco_device](AudioDeviceName& name) {
-    return AudioDeviceId::Parse(name.unique_id) == sco_device->second.GetId();
-  });
-  devices.erase(sco_device);
-}
-
 bool UseAAudioOutput() {
   if (!__builtin_available(android AAUDIO_MIN_API, *)) {
     return false;
@@ -443,7 +402,7 @@ void AudioManagerAndroid::GetAudioInputDeviceNames(
   // * On Android R-, these devices don't correspond to devices from a list,
   // but each one can be controlled via appropriate Android API calls, e.g.
   // AudioManager#startBluetoothSco() for Bluetooth.
-  GetCommunicationDeviceNames(device_names);
+  GetDeviceNames(device_names, AudioDeviceDirection::kCommunication);
 }
 
 void AudioManagerAndroid::GetAudioOutputDeviceNames(
@@ -476,16 +435,11 @@ void AudioManagerAndroid::GetAudioOutputDeviceNames(
 void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
                                          AudioDeviceDirection direction) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
-  DCHECK(device_names);
 
   // Always add default device parameters as first element.
   DCHECK(device_names->empty());
   AddDefaultDevice(device_names);
 
-<<<<<<< HEAD
-  std::vector<JniAudioDevice> j_devices =
-      GetJniDelegate().GetDevices(direction == AudioDeviceDirection::kInput);
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // simplfified flow - just return, device_names is set to default.
   return;
@@ -507,22 +461,9 @@ void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
       j_devices = std::move(j_devices_optional).value();
       break;
   }
->>>>>>> parent of d584bc1b896 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
-  // This container is later converted to a `base::flat_map`, but it starts out
-  // as an `std::vector` in order to avoid the O(n) insertion time of
-  // `base::flat_map`.
   std::vector<std::pair<AudioDeviceId, AudioDevice>> devices;
-
-  // Populate `devices` and `device_names`.
   for (auto& j_device : j_devices) {
-    std::optional<AudioDeviceId> device_id =
-        AudioDeviceId::NonDefault(j_device.id);
-    if (!device_id.has_value()) {
-      LOG(WARNING) << "Unexpectedly received device with default ID";
-      continue;
-    }
-
     std::optional<AudioDeviceType> device_type =
         IntToAudioDeviceType(j_device.type);
     if (!device_type.has_value()) {
@@ -531,69 +472,40 @@ void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
       device_type = AudioDeviceType::kUnknown;
     }
 
-    std::string device_name = j_device.name.value_or(
-        GetFallbackDeviceNameForType(device_type.value()));
-    std::string device_id_string =
-        base::NumberToString(device_id->ToAAudioDeviceId());
-    device_names->emplace_back(std::move(device_name),
-                               std::move(device_id_string));
+    if (direction == AudioDeviceDirection::kInput ||
+        direction == AudioDeviceDirection::kOutput) {
+      std::optional<AudioDeviceId> device_id =
+          AudioDeviceId::NonDefault(j_device.id);
+      if (!device_id.has_value()) {
+        LOG(WARNING) << "Unexpectedly received device with default ID";
+        continue;
+      }
 
-    AudioDevice device(device_id.value(), device_type.value());
-    devices.emplace_back(std::move(device_id).value(), std::move(device));
-  }
+      AudioDevice device(device_id.value(), device_type.value());
+      devices.emplace_back(std::move(device_id).value(), std::move(device));
+    }
 
-  // If a Bluetooth SCO output device and a Bluetooth A2DP output device are
-  // both present, remove the SCO device from `devices` and `device_names`, and
-  // instead make it "associated" with the A2DP device.
-  if (direction == AudioDeviceDirection::kOutput) {
-    CombineBluetoothClassicDevices(devices, device_names);
-  }
-
-  switch (direction) {
-    case AudioDeviceDirection::kInput:
-      input_device_cache_ = base::flat_map(devices);
-      break;
-    case AudioDeviceDirection::kOutput:
-      output_device_cache_ = base::flat_map(devices);
-      break;
-  }
-}
-
-void AudioManagerAndroid::GetCommunicationDeviceNames(
-    AudioDeviceNames* device_names) {
-  DCHECK(GetTaskRunner()->BelongsToCurrentThread());
-  DCHECK(device_names);
-
-  // Always add default device parameters as first element.
-  DCHECK(device_names->empty());
-  AddDefaultDevice(device_names);
-
-  std::optional<std::vector<JniAudioDevice>> j_devices =
-      GetJniDelegate().GetCommunicationDevices();
-  if (!j_devices) {
-    // Most probable reason for an `std::nullopt` result here is that the
-    // process lacks MODIFY_AUDIO_SETTINGS or RECORD_AUDIO permissions.
-    return;
-  }
-
-  for (auto& j_device : j_devices.value()) {
-    // The device name should always be one of the predefined communication
-    // device names and so it should always be present.
-    CHECK(j_device.name);
+    std::string device_name;
+    if (j_device.name) {
+      device_name = std::move(j_device.name).value();
+    } else {
+      device_name = GetFallbackDeviceNameForType(device_type.value());
+    }
 
     std::string device_id_string = base::NumberToString(j_device.id);
-    device_names->emplace_back(std::move(j_device.name).value(),
+    device_names->emplace_back(std::move(device_name),
                                std::move(device_id_string));
   }
-}
 
-const AudioManagerAndroid::DeviceCache& AudioManagerAndroid::GetDeviceCache(
-    AudioDeviceDirection direction) const {
-  switch (direction) {
-    case AudioDeviceDirection::kInput:
-      return input_device_cache_;
-    case AudioDeviceDirection::kOutput:
-      return output_device_cache_;
+  if (direction == AudioDeviceDirection::kInput) {
+    input_devices_ = base::flat_map(devices);
+  } else if (direction == AudioDeviceDirection::kOutput) {
+    output_devices_ = base::flat_map(devices);
+  }
+
+  for (const AudioDeviceName& d : *device_names) {
+    DVLOG(1) << "device_name: " << d.device_name;
+    DVLOG(1) << "unique_id: " << d.unique_id;
   }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
@@ -611,7 +523,17 @@ std::optional<AudioDevice> AudioManagerAndroid::GetDeviceForAAudioStream(
     return AudioDevice::Default();
   }
 
-  const DeviceCache& devices = GetDeviceCache(direction);
+  Devices devices;
+  switch (direction) {
+    case AudioDeviceDirection::kInput:
+      devices = input_devices_;
+      break;
+    case AudioDeviceDirection::kOutput:
+      devices = output_devices_;
+      break;
+    case AudioDeviceDirection::kCommunication:
+      NOTREACHED();
+  }
   auto device = devices.find(id);
   if (device == devices.end()) {
     return std::nullopt;
@@ -839,16 +761,6 @@ AudioOutputStream* AudioManagerAndroid::MakeLowLatencyOutputStream(
       const aaudio_usage_t usage = communication_mode_is_on_
                                        ? AAUDIO_USAGE_VOICE_COMMUNICATION
                                        : AAUDIO_USAGE_MEDIA;
-
-      if (device->GetAssociatedScoDevice().has_value()) {
-        // TODO(crbug.com/405955144): Implement Bluetooth Classic output
-        // streams.
-
-        // For now, fall back to the default device if a Bluetooth Classic
-        // stream is requested.
-        device = AudioDevice::Default();
-      }
-
       return new AAudioOutputStream(this, params, std::move(device).value(),
                                     usage);
     }

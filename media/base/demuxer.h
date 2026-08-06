@@ -80,7 +80,8 @@ class MEDIA_EXPORT Demuxer : public MediaResource {
       base::RepeatingCallback<void(std::unique_ptr<MediaTracks>)>;
 
   // Called once the demuxer has finished enabling or disabling tracks.
-  using TrackChangeCB = base::OnceCallback<void(DemuxerStream*)>;
+  using TrackChangeCB =
+      base::OnceCallback<void(const std::vector<DemuxerStream*>&)>;
 
   Demuxer();
 
@@ -167,11 +168,19 @@ class MEDIA_EXPORT Demuxer : public MediaResource {
   virtual std::optional<container_names::MediaContainerName>
   GetContainerForMetrics() const = 0;
 
-  // Ask the demuxer to switch the enabled track for the selected stream type.
-  // `change_completed_cb` is fired after the appropriate stream changes are
-  // made.
+  // The |track_ids| vector has either 1 track, or is empty, indicating that
+  // all tracks should be disabled. |change_completed_cb| is fired after the
+  // demuxer streams are disabled, however this callback should then notify
+  // the appropriate renderer in order for tracks to be switched fully.
+
+  // TODO(crbug.com/41393620): No more than one video track may be enabled at
+  // once, per the VideoTrack w3c spec. Due to our renderer implementation, only
+  // one audio track is supported, but this restriction isn't necessarily a
+  // permanent one. We should either decide to always stick with one audio
+  // track and switch `track_ids` to an std::optional container, or to support
+  // multiple audio tracks.
   virtual void OnTracksChanged(DemuxerStream::Type track_type,
-                               std::optional<MediaTrack::Id> track_id,
+                               const std::vector<MediaTrack::Id>& track_ids,
                                base::TimeDelta curr_time,
                                TrackChangeCB change_completed_cb) = 0;
 

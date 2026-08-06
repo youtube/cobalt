@@ -148,7 +148,7 @@ class MEDIA_EXPORT PipelineController {
   PipelineStatistics GetStatistics() const;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb);
   void OnEnabledAudioTracksChanged(
-      std::optional<MediaTrack::Id> enabled_track_ids);
+      std::optional<MediaTrack::Id> enabled_track_id);
   void OnSelectedVideoTrackChanged(
       std::optional<MediaTrack::Id> selected_track_id);
   void OnExternalVideoFrameRequest();

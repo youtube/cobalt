@@ -4599,7 +4599,8 @@ TEST_F(ChunkDemuxerTest,
 }
 
 namespace {
-void QuitLoop(base::OnceClosure quit_closure, DemuxerStream* stream) {
+void QuitLoop(base::OnceClosure quit_closure,
+              const std::vector<DemuxerStream*>& streams) {
   std::move(quit_closure).Run();
 }
 
@@ -4608,28 +4609,32 @@ void DisableAndEnableDemuxerTracks(
     base::test::TaskEnvironment* task_environment) {
   base::WaitableEvent event(base::WaitableEvent::ResetPolicy::AUTOMATIC,
                             base::WaitableEvent::InitialState::NOT_SIGNALED);
+  std::vector<MediaTrack::Id> audio_tracks;
+  std::vector<MediaTrack::Id> video_tracks;
 
   base::RunLoop disable_video;
   demuxer->OnTracksChanged(
-      DemuxerStream::VIDEO, std::nullopt, base::TimeDelta(),
+      DemuxerStream::VIDEO, video_tracks, base::TimeDelta(),
       base::BindOnce(QuitLoop, disable_video.QuitClosure()));
   disable_video.Run();
 
   base::RunLoop disable_audio;
   demuxer->OnTracksChanged(
-      DemuxerStream::AUDIO, std::nullopt, base::TimeDelta(),
+      DemuxerStream::AUDIO, audio_tracks, base::TimeDelta(),
       base::BindOnce(QuitLoop, disable_audio.QuitClosure()));
   disable_audio.Run();
 
   base::RunLoop enable_video;
+  video_tracks.push_back(MediaTrack::Id("1"));
   demuxer->OnTracksChanged(
-      DemuxerStream::VIDEO, MediaTrack::Id("1"), base::TimeDelta(),
+      DemuxerStream::VIDEO, video_tracks, base::TimeDelta(),
       base::BindOnce(QuitLoop, enable_video.QuitClosure()));
   enable_video.Run();
 
   base::RunLoop enable_audio;
+  audio_tracks.push_back(MediaTrack::Id("2"));
   demuxer->OnTracksChanged(
-      DemuxerStream::AUDIO, MediaTrack::Id("2"), base::TimeDelta(),
+      DemuxerStream::AUDIO, audio_tracks, base::TimeDelta(),
       base::BindOnce(QuitLoop, enable_audio.QuitClosure()));
   enable_audio.Run();
 
