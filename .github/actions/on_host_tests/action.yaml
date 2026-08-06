@@ -84,11 +84,12 @@ runs:
 
         failed_suites=""
 
-        num_tests=$(jq -ncr --arg json "${TEST_OBJECTS_JSON:-[]}" '$json | fromjson | length')
+        readarray -t test_executables < <(echo "${TEST_OBJECTS_JSON:-[]}" | jq -r '.[] | .executable')
+        readarray -t required_passings < <(echo "${TEST_OBJECTS_JSON:-[]}" | jq -r '.[] | if has("required_passing") then .required_passing else true end')
+        num_tests=${#test_executables[@]}
         for ((i=0; i<$num_tests; i++)); do
-          test_object=$(jq -ncr --arg json "${TEST_OBJECTS_JSON:-[]}" --argjson i $i '$json | fromjson | .[$i]')
-          test_executable_path=$(echo "$test_object" | jq -r '.executable')
-          required_passing=$(echo "$test_object" | jq -r 'if has("required_passing") then .required_passing else true end')
+          test_executable_path="${test_executables[i]}"
+          required_passing="${required_passings[i]}"
           filename=$(basename "${test_executable_path}")
           test_executable="${filename%%.*}"
 
@@ -157,11 +158,12 @@ runs:
 
         failed_suites=""
 
-        num_tests=$(jq -ncr --arg json "${TEST_OBJECTS_JSON:-[]}" '$json | fromjson | length')
+        readarray -t test_executables < <(echo "${TEST_OBJECTS_JSON:-[]}" | jq -r '.[] | .executable')
+        readarray -t required_passings < <(echo "${TEST_OBJECTS_JSON:-[]}" | jq -r '.[] | if has("required_passing") then .required_passing else true end')
+        num_tests=${#test_executables[@]}
         for ((i=0; i<$num_tests; i++)); do
-          test_object=$(jq -ncr --arg json "${TEST_OBJECTS_JSON:-[]}" --argjson i $i '$json | fromjson | .[$i]')
-          test_executable_path=$(echo "$test_object" | jq -r '.executable')
-          required_passing=$(echo "$test_object" | jq -r 'if has("required_passing") then .required_passing else true end')
+          test_executable_path="${test_executables[i]}"
+          required_passing="${required_passings[i]}"
 
           test_executable=$(basename "${test_executable_path}")
 

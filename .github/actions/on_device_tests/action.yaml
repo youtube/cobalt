@@ -122,11 +122,12 @@ runs:
 
         # Check for missing result xml files.
         exit_code=0
-        num_tests=$(jq -ncr --arg json "${TEST_OBJECTS_JSON:-[]}" '$json | fromjson | length')
+        readarray -t test_targets < <(echo "${TEST_OBJECTS_JSON:-[]}" | jq -r '.[] | .target')
+        readarray -t required_passings < <(echo "${TEST_OBJECTS_JSON:-[]}" | jq -r '.[] | if has("required_passing") then .required_passing else true end')
+        num_tests=${#test_targets[@]}
         for ((i=0; i<$num_tests; i++)); do
-          test_object=$(jq -ncr --arg json "${TEST_OBJECTS_JSON:-[]}" --argjson i $i '$json | fromjson | .[$i]')
-          test_target_with_path=$(echo "$test_object" | jq -r '.target')
-          required_passing=$(echo "$test_object" | jq -r 'if has("required_passing") then .required_passing else true end')
+          test_target_with_path="${test_targets[i]}"
+          required_passing="${required_passings[i]}"
 
           test_target=${test_target_with_path#*:}
           xml_files=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"*.xml)
