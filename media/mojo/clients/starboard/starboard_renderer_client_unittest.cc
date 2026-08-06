@@ -20,6 +20,7 @@
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_command_line.h"
 #include "base/test/task_environment.h"
+#include "build/build_config.h"
 #include "media/base/fake_demuxer_stream.h"
 #include "media/base/media_switches.h"
 #include "media/base/mock_media_log.h"
@@ -96,7 +97,9 @@ class FakeStarboardRendererExtension
 #endif  // BUILDFLAG(IS_ANDROID)
   void OnGpuChannelTokenReady(
       mojom::CommandBufferIdPtr command_buffer_id) override {}
-
+#if BUILDFLAG(IS_IOS_TVOS)
+  void SetSourceUrl(const std::string& source_url) override {}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
  private:
   FakeMojomRendererCallRecord* record_ = nullptr;
 };

@@ -104,6 +104,9 @@ class StarboardRendererWrapper
   void InitializeWithBypassBridge(
       uint32_t bypass_bridge_id,
       InitializeWithBypassBridgeCallback callback) override;
+#if BUILDFLAG(IS_IOS_TVOS)
+  void SetSourceUrl(const std::string& source_url) override;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info) override;
 #endif  // BUILDFLAG(IS_ANDROID)
