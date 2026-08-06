@@ -100,7 +100,7 @@ void JNI_MainActivity_StartLoader(JNIEnv* env) {
   pthread_attr_destroy(&attr);
 }
 
-// The Android graphics SurfaceView hands its Surface to Starboard here
+// MainActivity hands the Activity window's Surface to Starboard here.
 void JNI_MainActivity_NativeOnSurfaceCreated(
     JNIEnv* env,
     const jni_zero::JavaParamRef<jobject>& surface) {

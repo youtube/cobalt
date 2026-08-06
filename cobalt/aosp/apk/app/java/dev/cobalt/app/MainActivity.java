@@ -14,18 +14,23 @@
 
 package dev.cobalt.app;
 
+import static dev.cobalt.util.Log.TAG;
+
 import android.app.Activity;
 import android.app.Service;
+import android.graphics.PixelFormat;
 import android.os.Bundle;
 import android.view.Surface;
 import android.view.SurfaceHolder;
-import android.view.SurfaceView;
+import android.view.Window;
 import dev.cobalt.coat.BaseCobaltActivity;
 import dev.cobalt.coat.BaseStarboardBridge;
 import dev.cobalt.coat.CobaltService;
 import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
+import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
+import dev.cobalt.util.Log;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
@@ -89,34 +94,50 @@ public class MainActivity extends BaseCobaltActivity {
     }
 
     // The NDK uses an ANativeWindow to represent a producer of an image queue - it can send the
-    // produced images to other consumers or it can be displayed on screen.
-    // The SurfaceView creates a drawing surface in the view hierarchy, creating an ANativeWindow
-    // set to act as the rendering surface that we need to render cobalt UI. It's not immediately
-    // available, so we set a callback to wait for the surface, store it and then start the loader.
-    SurfaceView surfaceView = new SurfaceView(this);
-    surfaceView
-        .getHolder()
-        .addCallback(
-            new SurfaceHolder.Callback() {
-              @Override
-              public void surfaceCreated(SurfaceHolder holder) {
-                MainActivityJni.get().nativeOnSurfaceCreated(holder.getSurface());
-                if (coldStart && !mStarboardStarted) {
-                  mStarboardStarted = true;
-                  // Spawn the loader thread.
-                  MainActivityJni.get().startLoader();
-                }
-              }
+    // produced images to other consumers or it can be displayed on screen. The Activity's window
+    // already owns such a surface, so instead of stacking a dedicated SurfaceView on top of the
+    // view hierarchy we take that surface over and render the Cobalt UI into it.
+    Window window = getWindow();
 
-              @Override
-              public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {}
+    // Punch-out video needs SurfaceFlinger to blend this window over the VideoSurfaceView below
+    window.setFormat(PixelFormat.TRANSLUCENT);
 
-              @Override
-              public void surfaceDestroyed(SurfaceHolder holder) {
-                MainActivityJni.get().nativeOnSurfaceDestroyed();
-              }
-            });
-    setContentView(surfaceView);
+    // The surface isn't available immediately, so we wait for the callback, store the surface
+    // and only then start the loader.
+    window.takeSurface(
+        new SurfaceHolder.Callback2() {
+          @Override
+          public void surfaceCreated(SurfaceHolder holder) {
+            // ViewRootImpl resets the window format to the theme default when it installs its
+            // holder, so the translucent PixelFormat needs to be set again
+            holder.setFormat(PixelFormat.TRANSLUCENT);
+            MainActivityJni.get().nativeOnSurfaceCreated(holder.getSurface());
+            if (coldStart && !mStarboardStarted) {
+              mStarboardStarted = true;
+              // Spawn the loader thread.
+              MainActivityJni.get().startLoader();
+            }
+          }
+
+          @Override
+          public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+            Log.i(TAG, "Window surface changed: %dx%d format=%d", width, height, format);
+            // TODO(b/532068409): forward this as kSbEventTypeWindowSizeChanged. Ozone already
+            // consumes it (PlatformEventSourceStarboard::HandleWindowSizeChangedEvent)
+          }
+
+          @Override
+          public void surfaceDestroyed(SurfaceHolder holder) {
+            MainActivityJni.get().nativeOnSurfaceDestroyed();
+          }
+
+          @Override
+          public void surfaceRedrawNeeded(SurfaceHolder holder) {
+            // Starboard renders continuously, so there is nothing to redraw on demand.
+          }
+        });
+
+    setContentView(new VideoSurfaceView(this));
   }
 
   @Override
