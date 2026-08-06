@@ -126,8 +126,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        "--no-decommit-pooled-pages "
        // Enable memory saving mode with little v8 performance tradeoff.
        "--optimize-for-size "
-       // Set initial old space size to 64MB and max old space size to 512MB.
-       "--initial-old-space-size=64 "
+       // Set initial old space size to 16MB and max old space size to 512MB.
+       "--initial-old-space-size=16 "
        "--max-old-space-size=512 "
        // Disable v8 optimizing compilers (turbofan, maglev, sparkplug).
        "--disable-optimizing-compilers "

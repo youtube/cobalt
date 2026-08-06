@@ -500,9 +500,9 @@ TEST_P(SlotManagementTest, CompareEvergreenVersion) {
   ASSERT_EQ(1, CompareEvergreenVersion(v4, v3));
 }
 
-INSTANTIATE_TEST_CASE_P(SlotManagementTests,
-                        SlotManagementTest,
-                        ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(SlotManagementTests,
+                         SlotManagementTest,
+                         ::testing::Bool());
 
 }  // namespace
 }  // namespace loader_app

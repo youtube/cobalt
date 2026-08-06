@@ -22,6 +22,7 @@
 
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
+#include "starboard/android/shared/audio_track.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
@@ -95,6 +96,31 @@ bool UseLibopusDecoder(SbMediaAudioCodec codec,
                        bool force_platform_opus_decoder) {
   return codec == kSbMediaAudioCodecOpus && !SbDrmSystemIsValid(drm_system) &&
          !force_platform_opus_decoder;
+}
+
+bool ShouldUseDualThreads(SbMediaAudioCodec audio_codec,
+                          SbDrmSystem drm_system,
+                          const ExperimentalFeatures& features,
+                          bool force_platform_opus_decoder) {
+  // If there is no audio codec, default to using dual threads.
+  if (audio_codec == kSbMediaAudioCodecNone) {
+    return true;
+  }
+
+  // The experimental feature flag overrides all other conditions.
+  if (features.GetBool(kMediaForceDualThreads)) {
+    return true;
+  }
+
+  // `use_dual_threads` should be disabled if the libopus audio
+  // decoder isn't used, as we want to limit the initial behavior to
+  // playbacks with software based audio where their threading behavior is
+  // more straightforward.
+  //
+  // TODO(b/329686979): Make this work better with AdaptiveAudioDecoder,
+  // where technically the stream can start with aac then transit into opus.
+  return UseLibopusDecoder(audio_codec, drm_system,
+                           force_platform_opus_decoder);
 }
 
 bool IsTunnelModeVideoDecoderSupported(const std::string& mime,
@@ -332,6 +358,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     if (experimental_features.GetBool(kMediaEnableAv1StartupOptimization)) {
       MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(true);
       SB_LOG(INFO) << "`enable_av1_startup_optimization` is set to true.";
+    }
+    if (experimental_features.GetBool(kMediaNdkAudioTrack)) {
+      AudioTrack::SetNdkAudioTrackEnabled(true);
+      SB_LOG(INFO) << "`ndk_audio_track` is set to true.";
     }
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
@@ -650,20 +680,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
-    bool use_dual_threads = true;
-    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
-      // `use_dual_threads` should be disabled if the libopus audio
-      // decoder isn't used, as we want to limit the initial behavior to
-      // playbacks with software based audio where their threading behavior is
-      // more straightforward.
-      // TODO(b/329686979): Make this work better with AdaptiveAudioDecoder,
-      // where technically the stream can start with aac then transit into opus.
-      if (!UseLibopusDecoder(creation_parameters.audio_codec(),
-                             creation_parameters.drm_system(),
-                             force_platform_opus_decoder_)) {
-        use_dual_threads = false;
-      }
-    }
+    bool use_dual_threads = ShouldUseDualThreads(
+        creation_parameters.audio_codec(), creation_parameters.drm_system(),
+        experimental_features, force_platform_opus_decoder_);
 
     return MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
