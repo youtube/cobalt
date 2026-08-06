@@ -20,6 +20,7 @@
 
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -45,6 +46,10 @@
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
 #include "ui/gfx/geometry/size_conversions.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "media/starboard/url_player_demuxer.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace cobalt {
 
@@ -366,6 +371,20 @@ void CobaltContentRendererClient::PostSandboxInitialized() {
     unregister_thread_closure = base::HangWatcher::RegisterThread(
         base::HangWatcher::ThreadType::kRendererThread);
   }
+}
+
+std::unique_ptr<::media::Demuxer>
+CobaltContentRendererClient::OverrideDemuxerForUrl(
+    content::RenderFrame* render_frame,
+    const GURL& url,
+    scoped_refptr<base::SequencedTaskRunner> task_runner) {
+#if BUILDFLAG(IS_IOS_TVOS)
+  if (::media::IsHlsUrl(url)) {
+    return std::make_unique<::media::UrlPlayerDemuxer>(std::move(task_runner),
+                                                       url);
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+  return nullptr;
 }
 
 }  // namespace cobalt

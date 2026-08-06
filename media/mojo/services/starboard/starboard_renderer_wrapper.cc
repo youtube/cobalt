@@ -20,6 +20,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_resource.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
@@ -514,6 +515,13 @@ void StarboardRendererWrapper::InitializeWithBypassBridge(
       std::move(audio_proxy), std::move(video_proxy));
   std::move(callback).Run(true);
 }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+void StarboardRendererWrapper::SetSourceUrl(const std::string& source_url) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  GetRenderer()->SetSourceUrl(source_url);
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 #if BUILDFLAG(IS_ANDROID)
 void StarboardRendererWrapper::OnOverlayInfoChanged(
