@@ -870,8 +870,15 @@ ChunkDemuxer::Status ChunkDemuxer::AddIdInternal(
   CHECK(*insert_result.first == id);
   CHECK(insert_result.second);  // Only true if insertion succeeded.
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  const std::string& mime_type = id_to_mime_map_[id];
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   source_state->Init(base::BindOnce(&ChunkDemuxer::OnSourceInitDone,
                                     base::Unretained(this), id),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+                     mime_type,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
                      expected_codecs, encrypted_media_init_data_cb_);
 
   // TODO(wolenetz): Change to DCHECKs once less verification in release build

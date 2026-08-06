@@ -154,12 +154,18 @@ SourceBufferState::~SourceBufferState() {
 }
 
 void SourceBufferState::Init(StreamParser::InitCB init_cb,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+                             const std::string& mime_type,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
                              std::optional<std::string_view> expected_codecs,
                              const StreamParser::EncryptedMediaInitDataCB&
                                  encrypted_media_init_data_cb) {
   DCHECK_EQ(state_, UNINITIALIZED);
   init_cb_ = std::move(init_cb);
   encrypted_media_init_data_cb_ = encrypted_media_init_data_cb;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  mime_type_ = mime_type;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   state_ = PENDING_PARSER_CONFIG;
   InitializeParser(expected_codecs);
 }
@@ -666,6 +672,9 @@ bool SourceBufferState::OnNewConfigs(std::unique_ptr<MediaTracks> tracks) {
       }
 
       track->set_id(stream->media_track_id());
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      audio_config.set_mime_type(mime_type_);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       frame_processor_->OnPossibleAudioConfigUpdate(audio_config);
       success &= stream->UpdateAudioConfig(audio_config, allow_codec_changes,
                                            media_log_);
@@ -751,6 +760,9 @@ bool SourceBufferState::OnNewConfigs(std::unique_ptr<MediaTracks> tracks) {
       }
 
       track->set_id(stream->media_track_id());
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      video_config.set_mime_type(mime_type_);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       success &= stream->UpdateVideoConfig(video_config, allow_codec_changes,
                                            media_log_);
     } else {

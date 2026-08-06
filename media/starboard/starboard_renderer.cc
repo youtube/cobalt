@@ -706,9 +706,9 @@ void StarboardRenderer::CreatePlayerBridge() {
                     : invalid_video_config;
 
   const std::string audio_mime_type =
-      audio_stream_ ? audio_stream_->mime_type() : "";
+      audio_stream_ ? audio_stream_->audio_decoder_config().mime_type() : "";
   const std::string video_mime_type =
-      video_stream_ ? video_stream_->mime_type() : "";
+      video_stream_ ? video_stream_->video_decoder_config().mime_type() : "";
 
   std::string error_message;
 
@@ -828,12 +828,14 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
 
   if (stream->type() == DemuxerStream::AUDIO) {
     const AudioDecoderConfig& decoder_config = stream->audio_decoder_config();
-    player_bridge_->UpdateAudioConfig(decoder_config, stream->mime_type());
+    player_bridge_->UpdateAudioConfig(decoder_config,
+                                      decoder_config.mime_type());
   } else {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
 
-    player_bridge_->UpdateVideoConfig(decoder_config, stream->mime_type());
+    player_bridge_->UpdateVideoConfig(decoder_config,
+                                      decoder_config.mime_type());
 
     // TODO(b/375275033): Refine natural size change handling.
 #if 0
