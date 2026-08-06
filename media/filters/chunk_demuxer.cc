@@ -872,7 +872,9 @@ ChunkDemuxer::Status ChunkDemuxer::AddIdInternal(
   CHECK(insert_result.second);  // Only true if insertion succeeded.
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  const std::string& mime_type = id_to_mime_map_[id];
+  auto it = id_to_mime_map_.find(id);
+  CHECK(it != id_to_mime_map_.end());
+  const std::string& mime_type = it->second;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   source_state->Init(base::BindOnce(&ChunkDemuxer::OnSourceInitDone,
