@@ -2159,12 +2159,10 @@ TEST_P(PeerConnectionIntegrationTest, MediaContinuesFlowingAfterIceRestart) {
       callee()->pc()->local_description()->candidates(0);
   ASSERT_GT(audio_candidates_caller->count(), 0u);
   ASSERT_GT(audio_candidates_callee->count(), 0u);
-  std::string caller_candidate_pre_restart;
-  ASSERT_TRUE(
-      audio_candidates_caller->at(0)->ToString(&caller_candidate_pre_restart));
-  std::string callee_candidate_pre_restart;
-  ASSERT_TRUE(
-      audio_candidates_callee->at(0)->ToString(&callee_candidate_pre_restart));
+  std::string caller_candidate_pre_restart =
+      audio_candidates_caller->at(0)->ToString();
+  std::string callee_candidate_pre_restart =
+      audio_candidates_callee->at(0)->ToString();
   const SessionDescription* desc =
       caller()->pc()->local_description()->description();
   std::string caller_ufrag_pre_restart =
@@ -2196,12 +2194,10 @@ TEST_P(PeerConnectionIntegrationTest, MediaContinuesFlowingAfterIceRestart) {
   audio_candidates_callee = callee()->pc()->local_description()->candidates(0);
   ASSERT_GT(audio_candidates_caller->count(), 0u);
   ASSERT_GT(audio_candidates_callee->count(), 0u);
-  std::string caller_candidate_post_restart;
-  ASSERT_TRUE(
-      audio_candidates_caller->at(0)->ToString(&caller_candidate_post_restart));
-  std::string callee_candidate_post_restart;
-  ASSERT_TRUE(
-      audio_candidates_callee->at(0)->ToString(&callee_candidate_post_restart));
+  std::string caller_candidate_post_restart =
+      audio_candidates_caller->at(0)->ToString();
+  std::string callee_candidate_post_restart =
+      audio_candidates_callee->at(0)->ToString();
   desc = caller()->pc()->local_description()->description();
   std::string caller_ufrag_post_restart =
       desc->transport_infos()[0].description.ice_ufrag;

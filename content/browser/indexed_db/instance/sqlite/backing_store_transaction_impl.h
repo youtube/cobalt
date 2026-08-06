@@ -41,7 +41,6 @@ class BackingStoreTransactionImpl : public BackingStore::Transaction {
   Status CommitPhaseOne(BlobWriteCallback callback) override;
   Status CommitPhaseTwo() override;
   void Rollback() override;
-  void Reset() override {}
   Status SetDatabaseVersion(int64_t version) override;
   Status CreateObjectStore(int64_t object_store_id,
                            const std::u16string& name,
@@ -82,12 +81,10 @@ class BackingStoreTransactionImpl : public BackingStore::Transaction {
       int64_t object_store_id,
       int64_t index_id,
       const blink::IndexedDBKey& key) override;
-  Status KeyExistsInIndex(
+  StatusOr<blink::IndexedDBKey> KeyExistsInIndex(
       int64_t object_store_id,
       int64_t index_id,
-      const blink::IndexedDBKey& key,
-      std::unique_ptr<blink::IndexedDBKey>* found_primary_key,
-      bool* exists) override;
+      const blink::IndexedDBKey& key) override;
   StatusOr<uint32_t> GetObjectStoreKeyCount(
       int64_t object_store_id,
       blink::IndexedDBKeyRange key_range) override;
@@ -113,6 +110,7 @@ class BackingStoreTransactionImpl : public BackingStore::Transaction {
       int64_t index_id,
       const blink::IndexedDBKeyRange& key_range,
       blink::mojom::IDBCursorDirection) override;
+  blink::mojom::IDBValuePtr BuildMojoValue(IndexedDBValue value) override;
 
  protected:
   base::WeakPtr<DatabaseConnection> db_;

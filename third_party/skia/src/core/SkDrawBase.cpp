@@ -16,6 +16,7 @@
 #include "include/core/SkRRect.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkScalar.h"
+#include "include/core/SkSpan.h"
 #include "include/core/SkStrokeRec.h"
 #include "include/private/base/SkAssert.h"
 #include "include/private/base/SkCPUTypes.h"
@@ -93,9 +94,7 @@ static inline SkPoint compute_stroke_size(const SkPaint& paint, const SkMatrix& 
     SkASSERT(matrix.rectStaysRect());
     SkASSERT(SkPaint::kFill_Style != paint.getStyle());
 
-    SkVector size;
-    SkPoint pt = { paint.getStrokeWidth(), paint.getStrokeWidth() };
-    matrix.mapVectors(&size, &pt, 1);
+    SkVector size = matrix.mapVector({paint.getStrokeWidth(), paint.getStrokeWidth()});
     return SkPoint::Make(SkScalarAbs(size.fX), SkScalarAbs(size.fY));
 }
 
@@ -138,12 +137,12 @@ SkDrawBase::RectType SkDrawBase::ComputeRectType(const SkRect& rect,
     return rtype;
 }
 
-static const SkPoint* rect_points(const SkRect& r) {
-    return reinterpret_cast<const SkPoint*>(&r);
+static SkSpan<const SkPoint> rect_points(const SkRect& r) {
+    return {reinterpret_cast<const SkPoint*>(&r), 2};
 }
 
-static SkPoint* rect_points(SkRect& r) {
-    return reinterpret_cast<SkPoint*>(&r);
+static SkSpan<SkPoint> rect_points(SkRect& r) {
+    return {reinterpret_cast<SkPoint*>(&r), 2};
 }
 
 static void draw_rect_as_path(const SkDrawBase& orig,
@@ -186,7 +185,7 @@ void SkDrawBase::drawRect(const SkRect& prePaintRect, const SkPaint& paint,
     SkRect devRect;
     const SkRect& paintRect = paintMatrix ? *postPaintRect : prePaintRect;
     // skip the paintMatrix when transforming the rect by the CTM
-    fCTM->mapPoints(rect_points(devRect), rect_points(paintRect), 2);
+    fCTM->mapPoints(rect_points(devRect), rect_points(paintRect));
     devRect.sort();
 
     // look for the quick exit, before we build a blitter
@@ -273,7 +272,7 @@ bool SkDrawTreatAAStrokeAsHairline(SkScalar strokeWidth, const SkMatrix& matrix,
     SkVector src[2], dst[2];
     src[0].set(strokeWidth, 0);
     src[1].set(0, strokeWidth);
-    matrix.mapVectors(dst, src, 2);
+    matrix.mapVectors(dst, src);
     SkScalar len0 = fast_len(dst[0]);
     SkScalar len1 = fast_len(dst[1]);
     if (len0 <= SK_Scalar1 && len1 <= SK_Scalar1) {
@@ -605,24 +604,22 @@ bool SkDrawBase::DrawToMask(const SkPath& devPath, const SkIRect& clipBounds,
     return true;
 }
 
-void SkDrawBase::drawDevicePoints(SkCanvas::PointMode mode, size_t count,
-                                  const SkPoint pts[], const SkPaint& paint,
-                                  SkDevice* device) const {
+void SkDrawBase::drawDevicePoints(SkCanvas::PointMode mode, SkSpan<const SkPoint> points,
+                                  const SkPaint& paint, SkDevice* device) const {
     // if we're in lines mode, force count to be even
     if (SkCanvas::kLines_PointMode == mode) {
-        count &= ~(size_t)1;
+        points = points.first(points.size() & ~1);   // force it to be even
     }
 
-    SkASSERT(pts != nullptr);
     SkDEBUGCODE(this->validate();)
 
      // nothing to draw
-    if (!count || fRC->isEmpty()) {
+    if (points.empty() || fRC->isEmpty()) {
         return;
     }
 
     // needed?
-    if (!SkIsFinite(&pts[0].fX, count * 2)) {
+    if (!SkIsFinite(&points[0].fX, points.size() * 2)) {
         return;
     }
 
@@ -637,9 +634,9 @@ void SkDrawBase::drawDevicePoints(SkCanvas::PointMode mode, size_t count,
 
             if (newPaint.getStrokeCap() == SkPaint::kRound_Cap) {
                 if (device) {
-                    for (size_t i = 0; i < count; ++i) {
-                        SkRect r = SkRect::MakeLTRB(pts[i].fX - radius, pts[i].fY - radius,
-                                                    pts[i].fX + radius, pts[i].fY + radius);
+                    for (const auto& pt : points) {
+                        SkRect r = SkRect::MakeLTRB(pt.fX - radius, pt.fY - radius,
+                                                    pt.fX + radius, pt.fY + radius);
                         device->drawOval(r, newPaint);
                     }
                 } else {
@@ -647,20 +644,21 @@ void SkDrawBase::drawDevicePoints(SkCanvas::PointMode mode, size_t count,
                     SkMatrix   preMatrix;
 
                     path.addCircle(0, 0, radius);
-                    for (size_t i = 0; i < count; i++) {
-                        preMatrix.setTranslate(pts[i].fX, pts[i].fY);
+                    for (const auto& pt : points) {
+                        preMatrix.setTranslate(pt.fX, pt.fY);
                         // pass true for the last point, since we can modify
                         // then path then
-                        path.setIsVolatile((count-1) == i);
-                        this->drawPath(path, newPaint, &preMatrix, (count-1) == i);
+                        const bool isLast = &pt == &points.back();
+                        path.setIsVolatile(isLast);
+                        this->drawPath(path, newPaint, &preMatrix, isLast);
                     }
                 }
             } else {
                 SkRect  r;
 
-                for (size_t i = 0; i < count; i++) {
-                    r.fLeft = pts[i].fX - radius;
-                    r.fTop = pts[i].fY - radius;
+                for (const auto& pt : points) {
+                    r.fLeft = pt.fX - radius;
+                    r.fTop = pt.fY - radius;
                     r.fRight = r.fLeft + width;
                     r.fBottom = r.fTop + width;
                     if (device) {
@@ -673,13 +671,13 @@ void SkDrawBase::drawDevicePoints(SkCanvas::PointMode mode, size_t count,
             break;
         }
         case SkCanvas::kLines_PointMode:
-            if (2 == count && paint.getPathEffect()) {
+            if (2 == points.size() && paint.getPathEffect()) {
                 // most likely a dashed line - see if it is one of the ones
                 // we can accelerate
                 SkStrokeRec stroke(paint);
                 SkPathEffectBase::PointData pointData;
 
-                SkPath path = SkPath::Line(pts[0], pts[1]);
+                SkPath path = SkPath::Line(points[0], points[1]);
 
                 SkRect cullRect = SkRect::Make(fRC->getBounds());
 
@@ -719,13 +717,11 @@ void SkDrawBase::drawDevicePoints(SkCanvas::PointMode mode, size_t count,
 
                         if (device) {
                             device->drawPoints(SkCanvas::kPoints_PointMode,
-                                               pointData.fNumPoints,
-                                               pointData.fPoints,
+                                               pointData.points(),
                                                newP);
                         } else {
                             this->drawDevicePoints(SkCanvas::kPoints_PointMode,
-                                                   pointData.fNumPoints,
-                                                   pointData.fPoints,
+                                                   pointData.points(),
                                                    newP,
                                                    device);
                         }
@@ -737,11 +733,11 @@ void SkDrawBase::drawDevicePoints(SkCanvas::PointMode mode, size_t count,
 
                         SkRect r;
 
-                        for (int i = 0; i < pointData.fNumPoints; ++i) {
-                            r.setLTRB(pointData.fPoints[i].fX - pointData.fSize.fX,
-                                      pointData.fPoints[i].fY - pointData.fSize.fY,
-                                      pointData.fPoints[i].fX + pointData.fSize.fX,
-                                      pointData.fPoints[i].fY + pointData.fSize.fY);
+                        for (const auto& pt : pointData.points()) {
+                            r.setLTRB(pt.fX - pointData.fSize.fX,
+                                      pt.fY - pointData.fSize.fY,
+                                      pt.fX + pointData.fSize.fX,
+                                      pt.fY + pointData.fSize.fY);
                             if (device) {
                                 device->drawRect(r, newP);
                             } else {
@@ -755,15 +751,15 @@ void SkDrawBase::drawDevicePoints(SkCanvas::PointMode mode, size_t count,
             }
             [[fallthrough]]; // couldn't take fast path
         case SkCanvas::kPolygon_PointMode: {
-            count -= 1;
+            auto count = points.size() - 1;
             SkPath path;
             SkPaint p(paint);
             p.setStyle(SkPaint::kStroke_Style);
             size_t inc = (SkCanvas::kLines_PointMode == mode) ? 2 : 1;
             path.setIsVolatile(true);
             for (size_t i = 0; i < count; i += inc) {
-                path.moveTo(pts[i]);
-                path.lineTo(pts[i+1]);
+                path.moveTo(points[i]);
+                path.lineTo(points[i+1]);
                 if (device) {
                     device->drawPath(path, p, true);
                 } else {

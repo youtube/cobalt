@@ -325,6 +325,10 @@ NET_EXPORT BASE_DECLARE_FEATURE(kTcpPortRandomizationWin);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                       kTcpPortRandomizationWinVersionMinimum);
 
+// Whether or not TCP port reuse timing metrics are recorded.
+// See crbug.com/40744069 for more details.
+NET_EXPORT BASE_DECLARE_FEATURE(kTcpPortReuseMetricsWin);
+
 // Whether to use a TCP socket implementation which uses an IO completion
 // handler to be notified of completed reads and writes, instead of an event.
 NET_EXPORT BASE_DECLARE_FEATURE(kTcpSocketIoCompletionPortWin);
@@ -792,6 +796,12 @@ NET_EXPORT extern const base::FeatureParam<std::string>
 
 // Finch-controlled list of ports that should be blocked on localhost.
 NET_EXPORT BASE_DECLARE_FEATURE(kRestrictAbusePortsOnLocalhost);
+
+// Enables TLS Trust Anchor IDs
+// (https://tlswg.org/tls-trust-anchor-ids/draft-ietf-tls-trust-anchor-ids.html),
+// a TLS extension to help the server serve a certificate that the client will
+// trust.
+NET_EXPORT BASE_DECLARE_FEATURE(kTLSTrustAnchorIDs);
 
 }  // namespace net::features
 

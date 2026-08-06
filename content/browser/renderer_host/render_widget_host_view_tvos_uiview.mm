@@ -140,6 +140,22 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   return self;
 }
 
+<<<<<<< HEAD
+- (void)updateView:(UIScrollView*)view {
+  [view addSubview:self];
+  view.scrollEnabled = NO;
+  // Remove all existing gestureRecognizers since the header might be reused.
+  for (UIGestureRecognizer* recognizer in view.gestureRecognizers) {
+    [view removeGestureRecognizer:recognizer];
+  }
+  [view addObserver:self
+         forKeyPath:NSStringFromSelector(@selector(contentInset))
+            options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionOld
+            context:kObservingContext];
+}
+
+- (void)removeView {
+=======
 // Contrary to iOS, on tvOS the on-screen keyboard takes the entire screen, so
 // instead of showing it when an input element is focused, we require a tap to
 // do it.
@@ -189,12 +205,15 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   [[NSNotificationCenter defaultCenter] removeObserver:self];
 #endif
 
+>>>>>>> parent of d584bc1b896 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   UIScrollView* view = (UIScrollView*)[self superview];
   [view removeObserver:self
             forKeyPath:NSStringFromSelector(@selector(contentInset))];
   [self removeFromSuperview];
 }
 
+<<<<<<< HEAD
+=======
 #pragma mark - Private
 
 - (void)addSwipeAndPanGestureRecognizers {
@@ -494,6 +513,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   return _view->GetTextInputManager()->GetTextInputState();
 }
 
+>>>>>>> parent of d584bc1b896 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #pragma mark - CALayerFrameSinkProvider
 
 - (ui::CALayerFrameSink*)frameSink {
@@ -502,6 +522,8 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 
 #pragma mark - NSObject
 
+<<<<<<< HEAD
+=======
 - (NSArray*)accessibilityElements {
   ui::BrowserAccessibilityManager* manager =
       _view->host()->GetRootBrowserAccessibilityManager();
@@ -515,6 +537,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   return nil;
 }
 
+>>>>>>> parent of d584bc1b896 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 - (void)observeValueForKeyPath:(NSString*)keyPath
                       ofObject:(id)object
                         change:(NSDictionary*)change
@@ -530,6 +553,10 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   }
 }
 
+<<<<<<< HEAD
+#pragma mark - UIView
+
+=======
 #pragma mark - UIAccessibilityElement
 
 - (BOOL)isAccessibilityElement {
@@ -734,6 +761,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   return YES;
 }
 
+>>>>>>> parent of d584bc1b896 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 - (void)layoutSubviews {
   CHECK(_view);
   [super layoutSubviews];

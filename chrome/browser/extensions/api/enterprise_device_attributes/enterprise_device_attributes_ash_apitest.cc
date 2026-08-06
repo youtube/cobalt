@@ -6,11 +6,11 @@
 #include "base/values.h"
 #include "chrome/browser/ash/policy/affiliation/affiliation_mixin.h"
 #include "chrome/browser/ash/policy/affiliation/affiliation_test_helper.h"
-#include "chrome/browser/ash/policy/core/device_policy_builder.h"
 #include "chrome/browser/extensions/api/force_installed_affiliated_extension_apitest.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
+#include "chromeos/ash/components/policy/device_policy/device_policy_builder.h"
 #include "chromeos/ash/components/system/fake_statistics_provider.h"
 #include "chromeos/ash/components/system/statistics_provider.h"
 #include "components/user_manager/user_manager.h"
@@ -102,7 +102,7 @@ IN_PROC_BROWSER_TEST_P(EnterpriseDeviceAttributesTest, Success) {
 
   const Extension* extension =
       ForceInstallExtension(kExtensionPath, kExtensionPemPath);
-  const GURL test_url = extension->GetResourceURL("basic.html");
+  const GURL test_url = extension->ResolveExtensionURL("basic.html");
 
   // Device attributes are available only for affiliated user.
   std::string expected_directory_device_id = is_affiliated ? kDeviceId : "";

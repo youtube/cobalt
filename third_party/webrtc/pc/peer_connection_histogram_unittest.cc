@@ -30,7 +30,6 @@
 #include "pc/test/mock_peer_connection_observers.h"
 #include "pc/usage_pattern.h"
 #include "pc/webrtc_sdp.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/fake_mdns_responder.h"
 #include "rtc_base/fake_network.h"
@@ -71,7 +70,7 @@ typedef PeerConnectionWrapperForUsageHistogramTest* RawWrapperPtr;
 
 class ObserverForUsageHistogramTest : public MockPeerConnectionObserver {
  public:
-  void OnIceCandidate(const IceCandidateInterface* candidate) override;
+  void OnIceCandidate(const IceCandidate* candidate) override;
 
   void OnInterestingUsage(int usage_pattern) override {
     interesting_usage_detected_ = usage_pattern;
@@ -127,10 +126,9 @@ class PeerConnectionWrapperForUsageHistogramTest
     return static_cast<ObserverForUsageHistogramTest*>(observer())
         ->HaveDataChannel();
   }
-  void BufferIceCandidate(const IceCandidateInterface* candidate) {
-    std::string sdp;
-    EXPECT_TRUE(candidate->ToString(&sdp));
-    std::unique_ptr<IceCandidateInterface> candidate_copy(CreateIceCandidate(
+  void BufferIceCandidate(const IceCandidate* candidate) {
+    std::string sdp = candidate->ToString();
+    std::unique_ptr<IceCandidate> candidate_copy(CreateIceCandidate(
         candidate->sdp_mid(), candidate->sdp_mline_index(), sdp, nullptr));
     buffered_candidates_.push_back(std::move(candidate_copy));
   }
@@ -190,12 +188,12 @@ class PeerConnectionWrapperForUsageHistogramTest
 
  private:
   // Candidates that have been sent but not yet configured
-  std::vector<std::unique_ptr<IceCandidateInterface>> buffered_candidates_;
+  std::vector<std::unique_ptr<IceCandidate>> buffered_candidates_;
 };
 
 // Buffers candidates until we add them via AddBufferedIceCandidates.
 void ObserverForUsageHistogramTest::OnIceCandidate(
-    const IceCandidateInterface* candidate) {
+    const IceCandidate* candidate) {
   // If target is not set, ignore. This happens in one-ended unit tests.
   if (candidate_target_) {
     this->candidate_target_->BufferIceCandidate(candidate);
@@ -315,7 +313,7 @@ class PeerConnectionUsageHistogramTest : public ::testing::Test {
   }
 
   SocketAddress NextLocalAddress() {
-    RTC_DCHECK(next_local_address_ < (int)arraysize(kLocalAddrs));
+    RTC_DCHECK_LT(next_local_address_, std::ssize(kLocalAddrs));
     return kLocalAddrs[next_local_address_++];
   }
 

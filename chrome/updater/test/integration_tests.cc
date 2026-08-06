@@ -313,9 +313,9 @@ class IntegrationTest : public ::testing::Test {
     ASSERT_TRUE(WaitForUpdaterExit());
     ASSERT_NO_FATAL_FAILURE(Clean());
     ASSERT_NO_FATAL_FAILURE(ExpectClean());
-    ASSERT_NO_FATAL_FAILURE(EnterTestMode(
-        GURL("http://localhost:1234"), GURL("http://localhost:1235"),
-        GURL("http://localhost:1236"), {}, base::Minutes(5)));
+    ASSERT_NO_FATAL_FAILURE(EnterTestMode(GURL("http://localhost:1234"),
+                                          GURL("http://localhost:1235"), {},
+                                          base::Minutes(5)));
     ASSERT_NO_FATAL_FAILURE(SetMachineManaged(false));
 #if BUILDFLAG(IS_LINUX)
     // On LUCI the XDG_RUNTIME_DIR and DBUS_SESSION_BUS_ADDRESS environment
@@ -419,14 +419,13 @@ class IntegrationTest : public ::testing::Test {
   void EnterTestMode(
       const GURL& update_url,
       const GURL& crash_upload_url,
-      const GURL& device_management_url,
       const GURL& app_logo_url,
       base::TimeDelta idle_timeout,
       base::TimeDelta server_keep_alive_time = base::Seconds(2),
       base::TimeDelta ceca_connection_timeout = base::Seconds(10)) {
-    test_commands_->EnterTestMode(
-        update_url, crash_upload_url, device_management_url, app_logo_url,
-        idle_timeout, server_keep_alive_time, ceca_connection_timeout);
+    test_commands_->EnterTestMode(update_url, crash_upload_url, app_logo_url,
+                                  idle_timeout, server_keep_alive_time,
+                                  ceca_connection_timeout);
   }
 
   void ExitTestMode() { test_commands_->ExitTestMode(); }
@@ -2336,9 +2335,9 @@ TEST_F(IntegrationTest, IdleServerExits) {
     GTEST_SKIP() << "System server startup is complicated on Windows.";
   }
 #endif
-  ASSERT_NO_FATAL_FAILURE(EnterTestMode(
-      GURL("http://localhost:1234"), GURL("http://localhost:1234"),
-      GURL("http://localhost:1234"), {}, base::Seconds(1)));
+  ASSERT_NO_FATAL_FAILURE(EnterTestMode(GURL("http://localhost:1234"),
+                                        GURL("http://localhost:1234"), {},
+                                        base::Seconds(1)));
   ASSERT_NO_FATAL_FAILURE(Install());
   ASSERT_NO_FATAL_FAILURE(ExpectInstalled());
   ASSERT_NO_FATAL_FAILURE(RunServer(kErrorIdle, true));
@@ -4699,7 +4698,6 @@ TEST_F(IntegrationTest, AppLogoUrl) {
   ScopedServer test_logo_server(test_commands_);
   EnterTestMode(test_update_server.update_url(),
                 test_update_server.crash_upload_url(),
-                test_update_server.device_management_url(),
                 test_logo_server.app_logo_url(), base::Minutes(5));
 
   const std::string kAppId("googletest");
@@ -5336,6 +5334,35 @@ TEST_F(IntegrationTestMsi, InstallViaCommandLine) {
   ASSERT_NO_FATAL_FAILURE(Uninstall());
 }
 
+TEST_F(IntegrationTestMsi, InstallViaCommandLineTwice) {
+  const base::FilePath crx_path = GetInstallerPath(kMsiCrx);
+
+  for (int i = 0; i < 2; ++i) {
+    if (!i) {
+      // The updater only sends a ping for the first install.
+      ExpectInstallEvent(*test_server_, kUpdaterAppId);
+    }
+    ExpectAppsUpdateSequence(
+        UpdaterScope::kSystem, test_server_.get(),
+        /*request_attributes=*/{},
+        {
+            AppUpdateExpectation(
+                {}, kMsiAppId,
+                i ? kMsiUpdatedVersion : base::Version(kNullVersion),
+                kMsiUpdatedVersion,
+                /*is_install=*/true,
+                /*should_update=*/true, false, "", "", crx_path),
+        });
+    ASSERT_NO_FATAL_FAILURE(InstallUpdaterAndApp(
+        kMsiAppId, /*is_silent_install=*/true, "usagestats=1"));
+  }
+
+  ExpectAppInstalled(kMsiAppId, kMsiUpdatedVersion);
+
+  ASSERT_NO_FATAL_FAILURE(ExpectUninstallPing(test_server_.get()));
+  ASSERT_NO_FATAL_FAILURE(Uninstall());
+}
+
 TEST_F(IntegrationTestMsi, Upgrade) {
   ExpectInstallEvent(*test_server_, kUpdaterAppId);
   ASSERT_NO_FATAL_FAILURE(Install());
@@ -5433,11 +5460,6 @@ TEST_F(IntegrationTestMsi, RunOfflineMetaInstallTwice) {
       ExpectInstallEvent(*test_server_, kUpdaterAppId);
     }
     ExpectInstallEvent(*test_server_, kMsiAppId);
-    if (i) {
-      // TODO(crbug.com/413081282): offline overinstalls result in an extra app
-      // ping, which needs to be fixed.
-      ExpectInstallEvent(*test_server_, kMsiAppId);
-    }
     ASSERT_NO_FATAL_FAILURE(InstallUpdaterAndApp(
         kMsiAppId, /*is_silent_install=*/true,
         /*tag=*/

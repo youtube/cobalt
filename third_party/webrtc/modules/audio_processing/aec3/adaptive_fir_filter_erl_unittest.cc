@@ -11,15 +11,18 @@
 #include "modules/audio_processing/aec3/adaptive_fir_filter_erl.h"
 
 #include <array>
+#include <cstddef>
 #include <vector>
 
+#include "modules/audio_processing/aec3/aec3_common.h"
 #include "rtc_base/cpu_info.h"
+#include "test/gtest.h"
+
+// Defines WEBRTC_ARCH_X86_FAMILY, used below.
 #include "rtc_base/system/arch.h"
 #if defined(WEBRTC_ARCH_X86_FAMILY)
 #include <emmintrin.h>
 #endif
-
-#include "test/gtest.h"
 
 namespace webrtc {
 namespace aec3 {

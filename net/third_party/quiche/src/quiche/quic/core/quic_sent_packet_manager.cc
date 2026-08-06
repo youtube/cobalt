@@ -218,6 +218,17 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientSentConnectionOption(kRNIB, perspective)) {
     pacing_sender_.set_remove_non_initial_burst();
   }
+  // Path degradation experiments
+  if (config.HasClientRequestedIndependentOption(kPDE2, perspective)) {
+    num_ptos_for_path_degrading_ = 2;
+  }
+  if (config.HasClientRequestedIndependentOption(kPDE3, perspective)) {
+    num_ptos_for_path_degrading_ = 3;
+  }
+  // kPDE4 is the default. We have the experiments with kPDE4.
+  if (config.HasClientRequestedIndependentOption(kPDE5, perspective)) {
+    num_ptos_for_path_degrading_ = 5;
+  }
   send_algorithm_->SetFromConfig(config, perspective);
   loss_algorithm_->SetFromConfig(config, perspective);
 
@@ -637,6 +648,7 @@ bool QuicSentPacketManager::CanSendAckFrequency() const {
   return !peer_min_ack_delay_.IsInfinite() && handshake_finished_;
 }
 
+// TODO(martinduke): Update to include reordering threshold.
 QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
     const {
   QuicAckFrequencyFrame frame;
@@ -647,15 +659,16 @@ QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
   }
 
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 1, 3);
-  frame.packet_tolerance = kMaxRetransmittablePacketsBeforeAck;
+  frame.ack_eliciting_threshold = kMaxRetransmittablePacketsBeforeAck;
   auto rtt = use_smoothed_rtt_in_ack_delay_ ? rtt_stats_.SmoothedOrInitialRtt()
                                             : rtt_stats_.MinOrInitialRtt();
-  frame.max_ack_delay = rtt * kPeerAckDecimationDelay;
-  frame.max_ack_delay = std::max(frame.max_ack_delay, peer_min_ack_delay_);
+  frame.requested_max_ack_delay = rtt * kPeerAckDecimationDelay;
+  frame.requested_max_ack_delay =
+      std::max(frame.requested_max_ack_delay, peer_min_ack_delay_);
   // TODO(haoyuewang) Remove this once kDefaultMinAckDelayTimeMs is updated to
   // 5 ms on the client side.
-  frame.max_ack_delay =
-      std::max(frame.max_ack_delay,
+  frame.requested_max_ack_delay =
+      std::max(frame.requested_max_ack_delay,
                QuicTime::Delta::FromMilliseconds(kDefaultMinAckDelayTimeMs));
   return frame;
 }
@@ -1611,10 +1624,11 @@ QuicTime::Delta QuicSentPacketManager::GetPtoDelay() const {
 
 void QuicSentPacketManager::OnAckFrequencyFrameSent(
     const QuicAckFrequencyFrame& ack_frequency_frame) {
-  in_use_sent_ack_delays_.emplace_back(ack_frequency_frame.max_ack_delay,
-                                       ack_frequency_frame.sequence_number);
-  if (ack_frequency_frame.max_ack_delay > peer_max_ack_delay_) {
-    peer_max_ack_delay_ = ack_frequency_frame.max_ack_delay;
+  in_use_sent_ack_delays_.emplace_back(
+      ack_frequency_frame.requested_max_ack_delay,
+      ack_frequency_frame.sequence_number);
+  if (ack_frequency_frame.requested_max_ack_delay > peer_max_ack_delay_) {
+    peer_max_ack_delay_ = ack_frequency_frame.requested_max_ack_delay;
   }
 }
 

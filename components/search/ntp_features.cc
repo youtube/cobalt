@@ -102,9 +102,15 @@ BASE_FEATURE(kNtpDummyModules,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
-// If enabled, the Compose box entrypoint will be shown on the NTP Search box.
-BASE_FEATURE(kNtpSearchboxShowComposeButton,
-             "NtpSearchboxShowComposeButton",
+// If enabled, the Compose box will appear upon clicking the NTP Compose
+// entrypoint.
+BASE_FEATURE(kNtpSearchboxComposebox,
+             "NtpSearchboxComposebox",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, the Compose entrypoint will appear in the NTP Searchbox.
+BASE_FEATURE(kNtpSearchboxComposeEntrypoint,
+             "NtpSearchboxComposeEntrypoint",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, Google Drive module will be shown.
@@ -179,6 +185,12 @@ BASE_FEATURE(kNtpModulesDragAndDrop,
 // trigger.
 BASE_FEATURE(kNtpModulesLoad,
              "NtpModulesLoad",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, makes browser sign-in requirement per-module, instead of a
+// requirement for all modules.
+BASE_FEATURE(kNtpModuleSignInRequirement,
+             "NtpModuleSignInRequirement",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, OneGoogleBar will be shown.

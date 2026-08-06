@@ -2298,6 +2298,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
   enum class Kind : uint8_t {
     kUint32ToInt32,
     kInt64ToInt32,
+    kInt64ToAdditiveSafeInteger,
     kUint64ToInt32,
     kUint64ToInt64,
     kFloat64ToInt32,
@@ -2320,6 +2321,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kFloat64ToUint32:
         return RepVector<RegisterRepresentation::Word32()>();
       case Kind::kUint64ToInt64:
+      case Kind::kInt64ToAdditiveSafeInteger:
       case Kind::kFloat64ToAdditiveSafeInteger:
       case Kind::kFloat64ToInt64:
         return RepVector<RegisterRepresentation::Word64()>();
@@ -2334,6 +2336,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kUint32ToInt32:
         return MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
       case Kind::kInt64ToInt32:
+      case Kind::kInt64ToAdditiveSafeInteger:
       case Kind::kUint64ToInt32:
       case Kind::kUint64ToInt64:
         return MaybeRepVector<MaybeRegisterRepresentation::Word64()>();
@@ -4915,8 +4918,7 @@ struct ConvertJSPrimitiveToUntaggedOp
     kBit,
     kFloat64,
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-    kFloat64OrUndefined,
-    kFloat64WithSilencedNaNOrUndefined,
+    kHoleyFloat64,
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   };
   enum class InputAssumptions : uint8_t {
@@ -4944,8 +4946,7 @@ struct ConvertJSPrimitiveToUntaggedOp
         return RepVector<RegisterRepresentation::Word64()>();
       case UntaggedKind::kFloat64:
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-      case UntaggedKind::kFloat64OrUndefined:
-      case UntaggedKind::kFloat64WithSilencedNaNOrUndefined:
+      case UntaggedKind::kHoleyFloat64:
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
         return RepVector<RegisterRepresentation::Float64()>();
     }
@@ -4977,6 +4978,9 @@ struct ConvertJSPrimitiveToUntaggedOrDeoptOp
     kAdditiveSafeInteger,
     kInt64,
     kFloat64,
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    kHoleyFloat64,
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     kArrayIndex,
   };
   enum class JSPrimitiveKind : uint8_t {
@@ -5003,6 +5007,9 @@ struct ConvertJSPrimitiveToUntaggedOrDeoptOp
       case UntaggedKind::kInt64:
         return RepVector<RegisterRepresentation::Word64()>();
       case UntaggedKind::kFloat64:
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      case UntaggedKind::kHoleyFloat64:
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
         return RepVector<RegisterRepresentation::Float64()>();
       case UntaggedKind::kArrayIndex:
         return Is64() ? RepVector<RegisterRepresentation::Word64()>()
@@ -7268,6 +7275,10 @@ struct StructAtomicRMWOp : FixedArityOperationT<2, StructAtomicRMWOp> {
 
   void Validate(const Graph& graph) const {
     DCHECK_LT(field_index, type->field_count());
+    DCHECK(type->field(field_index) == wasm::kWasmI32 ||
+           type->field(field_index) == wasm::kWasmI64 ||
+           (type->field(field_index).is_reference() &&
+            bin_op == BinOp::kExchange));
   }
 
   auto options() const {
@@ -7388,7 +7399,8 @@ struct ArrayAtomicRMWOp : FixedArityOperationT<3, ArrayAtomicRMWOp> {
   }
 
   void Validate(const Graph& graph) const {
-    DCHECK(element_type == wasm::kWasmI32 || element_type == wasm::kWasmI64);
+    DCHECK(element_type == wasm::kWasmI32 || element_type == wasm::kWasmI64 ||
+           (element_type.is_reference() && bin_op == BinOp::kExchange));
   }
 
   auto options() const {

@@ -122,7 +122,7 @@ class NullPeerConnectionObserver : public PeerConnectionObserver {
       PeerConnectionInterface::IceConnectionState new_state) override {}
   void OnIceGatheringChange(
       PeerConnectionInterface::IceGatheringState new_state) override {}
-  void OnIceCandidate(const IceCandidateInterface* candidate) override {}
+  void OnIceCandidate(const IceCandidate* candidate) override {}
 };
 
 class MockNetworkManager : public NetworkManager {

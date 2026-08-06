@@ -11,10 +11,13 @@
 #include "modules/audio_processing/agc2/vad_wrapper.h"
 
 #include <array>
+#include <memory>
 #include <utility>
 
+#include "api/audio/audio_view.h"
 #include "common_audio/resampler/include/push_resampler.h"
 #include "modules/audio_processing/agc2/agc2_common.h"
+#include "modules/audio_processing/agc2/cpu_features.h"
 #include "modules/audio_processing/agc2/rnn_vad/common.h"
 #include "modules/audio_processing/agc2/rnn_vad/features_extraction.h"
 #include "modules/audio_processing/agc2/rnn_vad/rnn.h"

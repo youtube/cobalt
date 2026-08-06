@@ -13,10 +13,12 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 
 // TODO(bugs.webrtc.org/8948): Add when the issue is fixed.
 // #include "test/fpe_observer.h"
-#include "rtc_base/gunit.h"
+#include "api/array_view.h"
+#include "test/gtest.h"
 
 namespace webrtc {
 namespace {

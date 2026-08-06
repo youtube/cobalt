@@ -21,6 +21,7 @@
 #include "content/public/browser/back_forward_cache.h"
 #include "content/public/browser/navigation_handle.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
+#include "ui/base/base_window.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/geometry/point.h"
@@ -96,10 +97,13 @@ gfx::Rect GetModalDialogBounds(views::Widget* widget,
   gfx::Point position =
       host_browser_window->GetWebContentsModalDialogHostForWindow()
           ->GetDialogPosition(size);
-  // Align the first row of pixels inside the border. This is the apparent top
-  // of the dialog.
-  position.set_y(position.y() -
-                 widget->non_client_view()->frame_view()->GetInsets().top());
+
+  if (widget->non_client_view()) {
+    // Align the first row of pixels inside the border. This is the apparent top
+    // of the dialog.
+    position.set_y(position.y() -
+                  widget->non_client_view()->frame_view()->GetInsets().top());
+  }
 
   gfx::Rect dialog_bounds(position, size);
 
@@ -287,7 +291,7 @@ void TabDialogManager::ShowDialog(views::Widget* widget,
   browser_window_widget_observer_ =
       std::make_unique<BrowserWindowWidgetObserver>(tab_interface_,
                                                     widget_.get());
-  bool minimized = browser_window_interface->IsMinimized();
+  bool minimized = browser_window_interface->GetWindow()->IsMinimized();
   bool activated = tab_interface_->IsActivated();
   widget_->Show();
   widget_->SetVisible(GetDialogWidgetVisibility(activated, minimized));

@@ -257,9 +257,7 @@ void AwFeatureListCreator::SetUpFieldTrials() {
   variations::UIStringOverrider ui_string_overrider;
   variations_field_trial_creator_ =
       std::make_unique<variations::VariationsFieldTrialCreator>(
-          client_.get(), std::move(seed_store), ui_string_overrider,
-          // Limited entropy field trials are not supported on WebView.
-          /*limited_entropy_synthetic_trial=*/nullptr);
+          client_.get(), std::move(seed_store), ui_string_overrider);
   variations_field_trial_creator_->OverrideVariationsPlatform(
       variations::Study::PLATFORM_ANDROID_WEBVIEW);
 
@@ -272,10 +270,9 @@ void AwFeatureListCreator::SetUpFieldTrials() {
   // able to break seed downloads. See https://crbug.com/801771 for more info.
   variations::SafeSeedManager ignored_safe_seed_manager(local_state_.get());
 
-  base::Time fetchTime =
-      variations_field_trial_creator_->CalculateSeedFreshness();
-  long seedFreshnessMinutes = (base::Time::Now() - fetchTime).InMinutes();
-  CacheSeedFreshness(seedFreshnessMinutes);
+  base::Time fetch_time = variations_field_trial_creator_->GetSeedFetchTime();
+  long seed_freshness_minutes = (base::Time::Now() - fetch_time).InMinutes();
+  CacheSeedFreshness(seed_freshness_minutes);
 
   auto feature_list = std::make_unique<base::FeatureList>();
   std::vector<std::string> variation_ids =

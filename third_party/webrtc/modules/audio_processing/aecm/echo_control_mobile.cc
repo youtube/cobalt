@@ -10,18 +10,20 @@
 
 #include "modules/audio_processing/aecm/echo_control_mobile.h"
 
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #ifdef AEC_DEBUG
-#include <stdio.h>
+#include <cstdio>
 #endif
-#include <stdlib.h>
-#include <string.h>
+
+#include "modules/audio_processing/aecm/aecm_core.h"
 
 extern "C" {
 #include "common_audio/ring_buffer.h"
 #include "common_audio/signal_processing/include/signal_processing_library.h"
 #include "modules/audio_processing/aecm/aecm_defines.h"
 }
-#include "modules/audio_processing/aecm/aecm_core.h"
 
 namespace webrtc {
 

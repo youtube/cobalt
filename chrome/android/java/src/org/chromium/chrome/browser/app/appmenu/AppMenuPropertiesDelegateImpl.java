@@ -270,6 +270,7 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
     @Override
     public final ModelList getMenuItems(AppMenuHandler handler) {
         mReadAloudPos = -1;
+        mHasReadAloudInserted = false;
         mModelList = buildMenuModelList(handler);
         return mModelList;
     }
@@ -1010,8 +1011,10 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
      * @return The price tracking item appropriate for the current conditions (if any).
      */
     @Nullable
-    protected ListItem maybeBuildPriceTrackingListItem(Tab currentTab, boolean showIcon) {
-        if (currentTab.getWebContents() == null) return null;
+    protected ListItem maybeBuildPriceTrackingListItem(@Nullable Tab currentTab, boolean showIcon) {
+        if (currentTab == null || currentTab.getWebContents() == null) {
+            return null;
+        }
 
         Profile profile = currentTab.getProfile();
         ShoppingService service = ShoppingServiceFactory.getForProfile(profile);

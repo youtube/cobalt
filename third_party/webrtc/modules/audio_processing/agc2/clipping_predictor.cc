@@ -11,11 +11,16 @@
 #include "modules/audio_processing/agc2/clipping_predictor.h"
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
+#include <optional>
+#include <vector>
 
+#include "api/audio/audio_processing.h"
 #include "common_audio/include/audio_util.h"
 #include "modules/audio_processing/agc2/clipping_predictor_level_buffer.h"
 #include "modules/audio_processing/agc2/gain_map_internal.h"
+#include "modules/audio_processing/include/audio_frame_view.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_minmax.h"

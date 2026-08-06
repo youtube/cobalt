@@ -221,7 +221,19 @@ std::optional<BailoutReason> GraphBuilder::Run() {
 
   for (BasicBlock* block : *schedule.rpo_order()) {
     Block* target_block = Map(block);
-    if (!__ Bind(target_block)) continue;
+    if (!__ Bind(target_block)) {
+      // If this used to be a backedge, we need to turn the loop header into a
+      // regular block.
+      if (block->control() == BasicBlock::Control::kGoto) {
+        Block* target = Map(block->SuccessorAt(0));
+        if (target->IsLoop() && target->IsBound()) {
+          DCHECK(block->SuccessorAt(0)->IsLoopHeader());
+          DCHECK_GT(block->rpo_number(), block->SuccessorAt(0)->rpo_number());
+          __ FinalizeLoop(target);
+        }
+      }
+      continue;
+    }
 
     // Since we visit blocks in rpo-order, the new block predecessors are sorted
     // in rpo order too. However, the input schedule does not order
@@ -711,16 +723,12 @@ OpIndex GraphBuilder::Process(
       ConvertJSPrimitiveToUntaggedOp* convert_op =
           input_op.TryCast<ConvertJSPrimitiveToUntaggedOp>();
       CHECK_NOT_NULL(convert_op);
-      CHECK_EQ(
-          convert_op->kind,
-          ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64OrUndefined);
+      CHECK_EQ(convert_op->kind,
+               ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kHoleyFloat64);
       CHECK_EQ(
           convert_op->input_assumptions,
           ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball);
       CHECK_EQ(node->InputAt(0)->UseCount(), 1);
-      // Mutate in-place.
-      convert_op->kind = ConvertJSPrimitiveToUntaggedOp::UntaggedKind::
-          kFloat64WithSilencedNaNOrUndefined;
       return input;
     }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
@@ -882,6 +890,9 @@ OpIndex GraphBuilder::Process(
                            CheckParametersOf(op).feedback())
       CHECK_OBJECT_IS_CASE(CheckStringOrStringWrapper, StringOrStringWrapper,
                            HeapObject, NotAStringOrStringWrapper,
+                           CheckParametersOf(op).feedback())
+      CHECK_OBJECT_IS_CASE(CheckStringOrOddball, StringOrOddball, HeapObject,
+                           NotAStringOrOddball,
                            CheckParametersOf(op).feedback())
       CHECK_OBJECT_IS_CASE(CheckSymbol, Symbol, HeapObject, NotASymbol, {})
       CHECK_OBJECT_IS_CASE(CheckBigInt, BigInt, None, NotABigInt,
@@ -1048,7 +1059,7 @@ OpIndex GraphBuilder::Process(
                                        NumberOrOddball)
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToFloat64PreserveUndefined,
-                                       Float64OrUndefined, NumberOrOddball)
+                                       HoleyFloat64, NumberOrOddball)
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 #undef CONVERT_OBJECT_TO_PRIMITIVE_CASE
 
@@ -1113,6 +1124,15 @@ OpIndex GraphBuilder::Process(
       return __ ChangeOrDeopt(Map(node->InputAt(0)), dominating_frame_state,
                               ChangeOrDeoptOp::Kind::kFloat64ToInt32,
                               params.mode(), params.feedback());
+    }
+
+    case IrOpcode::kCheckedInt64ToAdditiveSafeInteger: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckParameters& params = CheckParametersOf(node->op());
+      return __ ChangeOrDeopt(
+          Map(node->InputAt(0)), dominating_frame_state,
+          ChangeOrDeoptOp::Kind::kInt64ToAdditiveSafeInteger,
+          CheckForMinusZeroMode::kDontCheckForMinusZero, params.feedback());
     }
 
     case IrOpcode::kCheckedFloat64ToAdditiveSafeInteger: {
@@ -1936,6 +1956,9 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kStringLessThanOrEqual:
       return __ StringLessThanOrEqual(Map(node->InputAt(0)),
                                       Map(node->InputAt(1)));
+    case IrOpcode::kStringOrOddballStrictEqual:
+      return __ StringOrOddballStrictEqual(Map(node->InputAt(0)),
+                                           Map(node->InputAt(1)));
 
     case IrOpcode::kArgumentsLength:
       return __ ArgumentsLength();

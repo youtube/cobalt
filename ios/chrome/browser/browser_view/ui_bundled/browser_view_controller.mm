@@ -237,6 +237,9 @@ enum HeaderBehaviour {
   // Whether the Lens Overlay is currently active and visible for the browser
   // view.
   BOOL _lensOverlayVisible;
+
+  // Whether the find bar is currently visible.
+  BOOL _findBarVisible;
 }
 
 // Activates/deactivates the object. This will enable/disable the ability for
@@ -334,6 +337,10 @@ enum HeaderBehaviour {
 
 // Provider used to offload SceneStateBrowserAgent usage from BVC.
 @property(nonatomic, strong) SafeAreaProvider* safeAreaProvider;
+
+// Whether the content area is currently blocked by another view.
+@property(nonatomic, readonly, getter=isContentAreaObstructed)
+    BOOL contentAreaObstructed;
 
 @end
 
@@ -444,6 +451,14 @@ enum HeaderBehaviour {
 
 #pragma mark - Private Properties
 
+- (BOOL)isContentAreaObstructed {
+  return _visibilityState ==
+             BrowserViewVisibilityState::kCoveredByOmniboxPopup ||
+         _visibilityState ==
+             BrowserViewVisibilityState::kCoveredByVoiceSearch ||
+         _lensOverlayVisible || _findBarVisible;
+}
+
 - (void)setVisibilityState:(BrowserViewVisibilityState)state {
   if (_visibilityState == state) {
     return;
@@ -454,9 +469,7 @@ enum HeaderBehaviour {
       browserViewDidTransitionToVisibilityState:state
                                       fromState:previousState];
   [self updateBroadcastState];
-  self.contentArea.accessibilityElementsHidden =
-      state == BrowserViewVisibilityState::kCoveredByOmniboxPopup ||
-      state == BrowserViewVisibilityState::kCoveredByVoiceSearch;
+  self.contentArea.accessibilityElementsHidden = self.contentAreaObstructed;
 }
 
 - (void)setBroadcasting:(BOOL)broadcasting {
@@ -2468,27 +2481,10 @@ enum HeaderBehaviour {
                     action:@selector(authenticateIncognitoContent)
           forControlEvents:UIControlEventTouchUpInside];
 
-      DCHECK(self.applicationCommandsHandler);
-      __weak __typeof(self) weakSelf = self;
-      [self.blockingView.tabSwitcherButton
-                 addAction:[UIAction actionWithHandler:^(UIAction* action) {
-                   if (IsIOSSoftLockEnabled()) {
-                     base::UmaHistogramEnumeration(
-                         kIncognitoLockOverlayInteractionHistogram,
-                         IncognitoLockOverlayInteraction::
-                             kSeeOtherTabsButtonClicked);
-                     base::RecordAction(base::UserMetricsAction(
-                         "IOS.IncognitoLock.Overlay.SeeOtherTabs"));
-                   }
-                   [weakSelf.applicationCommandsHandler
-                       displayTabGridInMode:TabGridOpeningMode::kRegular];
-                 }]
-          forControlEvents:UIControlEventTouchUpInside];
-
       if (IsIOSSoftLockEnabled()) {
         base::WeakPtr<WebStateList> webStateList = _webStateList;
         id<IncognitoReauthCommands> reauthHandler = self.reauthHandler;
-        [self.blockingView.exitIncognitoButton
+        [self.blockingView.secondaryButton
                    addAction:[UIAction actionWithHandler:^(UIAction* action) {
                      if (IsIOSSoftLockEnabled()) {
                        base::UmaHistogramEnumeration(
@@ -2503,6 +2499,23 @@ enum HeaderBehaviour {
                                          WebStateList::CLOSE_USER_ACTION);
                      }
                      [reauthHandler manualAuthenticationOverride];
+                   }]
+            forControlEvents:UIControlEventTouchUpInside];
+      } else {
+        DCHECK(self.applicationCommandsHandler);
+        __weak __typeof(self) weakSelf = self;
+        [self.blockingView.secondaryButton
+                   addAction:[UIAction actionWithHandler:^(UIAction* action) {
+                     if (IsIOSSoftLockEnabled()) {
+                       base::UmaHistogramEnumeration(
+                           kIncognitoLockOverlayInteractionHistogram,
+                           IncognitoLockOverlayInteraction::
+                               kSeeOtherTabsButtonClicked);
+                       base::RecordAction(base::UserMetricsAction(
+                           "IOS.IncognitoLock.Overlay.SeeOtherTabs"));
+                     }
+                     [weakSelf.applicationCommandsHandler
+                         displayTabGridInMode:TabGridOpeningMode::kRegular];
                    }]
             forControlEvents:UIControlEventTouchUpInside];
       }
@@ -2705,8 +2718,9 @@ enum HeaderBehaviour {
 
 - (void)findBarDidAppearForFindBarCoordinator:
     (FindBarCoordinator*)findBarCoordinator {
+  _findBarVisible = YES;
   // When the Find bar is presented, hide underlying elements from VoiceOver.
-  self.contentArea.accessibilityElementsHidden = YES;
+  self.contentArea.accessibilityElementsHidden = self.contentAreaObstructed;
   self.toolbarCoordinator.primaryToolbarViewController.view
       .accessibilityElementsHidden = YES;
   self.toolbarCoordinator.secondaryToolbarViewController.view
@@ -2715,8 +2729,9 @@ enum HeaderBehaviour {
 
 - (void)findBarDidDisappearForFindBarCoordinator:
     (FindBarCoordinator*)findBarCoordinator {
+  _findBarVisible = NO;
   // When the Find bar is dismissed, show underlying elements to VoiceOver.
-  self.contentArea.accessibilityElementsHidden = NO;
+  self.contentArea.accessibilityElementsHidden = self.contentAreaObstructed;
   self.toolbarCoordinator.primaryToolbarViewController.view
       .accessibilityElementsHidden = NO;
   self.toolbarCoordinator.secondaryToolbarViewController.view
@@ -2752,11 +2767,13 @@ enum HeaderBehaviour {
 - (void)lensOverlayWillAppear {
   [_sideSwipeCoordinator setEnabled:NO];
   _lensOverlayVisible = YES;
+  self.contentArea.accessibilityElementsHidden = self.contentAreaObstructed;
 }
 
 - (void)lensOverlayWillDisappear {
   [_sideSwipeCoordinator setEnabled:YES];
   _lensOverlayVisible = NO;
+  self.contentArea.accessibilityElementsHidden = self.contentAreaObstructed;
 }
 
 - (NSDirectionalEdgeInsets)presentationInsetsForLensOverlay {

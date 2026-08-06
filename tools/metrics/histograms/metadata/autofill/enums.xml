@@ -2563,6 +2563,7 @@ Called by update_autofill_enums.py.-->
   <int value="0" label="Shown"/>
   <int value="1" label="Not shown, max strikes reached"/>
   <int value="2" label="Not shown, required delay has not passed"/>
+  <int value="3" label="Not shown, CVC missing for possible card update"/>
 </enum>
 
 <enum name="AutofillSavePaymentMethodPromptResultEnum">
@@ -4036,7 +4037,7 @@ Called by update_autofill_enums.py.-->
   <int value="66" label="Identity Credentials"/>
   <int value="67" label="Loyalty card entry"/>
   <int value="68" label="Manage Loyalty Cards information"/>
-  <int value="69" label="Home and Work address suggestion"/>
+  <int value="69" label="(Obsolete) Home and Work address suggestion"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/suggestions/suggestion_type.h:SuggestionType) -->

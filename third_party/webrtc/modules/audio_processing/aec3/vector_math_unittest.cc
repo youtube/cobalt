@@ -10,8 +10,12 @@
 
 #include "modules/audio_processing/aec3/vector_math.h"
 
-#include <math.h>
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstddef>
 
+#include "modules/audio_processing/aec3/aec3_common.h"
 #include "rtc_base/cpu_info.h"
 #include "rtc_base/system/arch.h"
 #include "test/gtest.h"

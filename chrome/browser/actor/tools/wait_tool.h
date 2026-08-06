@@ -6,7 +6,6 @@
 #define CHROME_BROWSER_ACTOR_TOOLS_WAIT_TOOL_H_
 
 #include "base/memory/weak_ptr.h"
-#include "chrome/browser/actor/tools/observation_delay_type.h"
 #include "chrome/browser/actor/tools/tool.h"
 
 namespace actor {
@@ -21,7 +20,9 @@ class WaitTool : public Tool {
   void Validate(ValidateCallback callback) override;
   void Invoke(InvokeCallback callback) override;
   std::string DebugString() const override;
-  ObservationDelayType GetObservationDelayType() const override;
+  std::string JournalEvent() const override;
+  std::unique_ptr<ObservationDelayController> GetObservationDelayer(
+      content::RenderFrameHost& target_frame) const override;
 
   static void SetNoDelayForTesting();
 

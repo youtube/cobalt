@@ -69,8 +69,7 @@ class PeerConnectionClient : public webrtc::PeerConnectionObserver {
   CreateDefaultFactory(Thread* signaling_thread);
 
  private:
-  void AddIceCandidate(
-      std::unique_ptr<webrtc::IceCandidateInterface> candidate);
+  void AddIceCandidate(std::unique_ptr<webrtc::IceCandidate> candidate);
   bool SetRemoteDescription(
       std::unique_ptr<webrtc::SessionDescriptionInterface> desc);
 
@@ -91,7 +90,7 @@ class PeerConnectionClient : public webrtc::PeerConnectionObserver {
       webrtc::PeerConnectionInterface::IceConnectionState new_state) override;
   void OnIceGatheringChange(
       webrtc::PeerConnectionInterface::IceGatheringState new_state) override;
-  void OnIceCandidate(const webrtc::IceCandidateInterface* candidate) override;
+  void OnIceCandidate(const webrtc::IceCandidate* candidate) override;
   void OnIceConnectionReceivingChange(bool receiving) override {
     RTC_LOG(LS_INFO) << __FUNCTION__ << " receiving? " << receiving;
   }

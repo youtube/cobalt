@@ -147,6 +147,7 @@ rtc_library("timing_unittests") {
     "../../../rtc_base:timeutils",
     "../../../system_wrappers:metrics",
     "../../../system_wrappers:system_wrappers",
+    "../../../test:create_test_field_trials",
     "../../../test:scoped_key_value_config",
     "../../../test:test_support",
   ]

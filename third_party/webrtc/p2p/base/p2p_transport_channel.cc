@@ -196,6 +196,7 @@ P2PTransportChannel::P2PTransportChannel(
       field_trials_(field_trials) {
   TRACE_EVENT0("webrtc", "P2PTransportChannel::P2PTransportChannel");
   RTC_DCHECK(allocator_ != nullptr);
+  RTC_DCHECK(!transport_name_.empty());
   // Validate IceConfig even for mostly built-in constant default values in case
   // we change them.
   RTC_DCHECK(config_.IsValid().ok());
@@ -1241,7 +1242,7 @@ void P2PTransportChannel::AddRemoteCandidate(const Candidate& candidate) {
 P2PTransportChannel::CandidateAndResolver::CandidateAndResolver(
     const Candidate& candidate,
     std::unique_ptr<AsyncDnsResolverInterface>&& resolver)
-    : candidate_(candidate), resolver_(std::move(resolver)) {}
+    : candidate(candidate), resolver(std::move(resolver)) {}
 
 P2PTransportChannel::CandidateAndResolver::~CandidateAndResolver() {}
 
@@ -1250,20 +1251,19 @@ void P2PTransportChannel::OnCandidateResolved(
   RTC_DCHECK_RUN_ON(network_thread_);
   auto p =
       absl::c_find_if(resolvers_, [resolver](const CandidateAndResolver& cr) {
-        return cr.resolver_.get() == resolver;
+        return cr.resolver.get() == resolver;
       });
   if (p == resolvers_.end()) {
     RTC_LOG(LS_ERROR) << "Unexpected AsyncDnsResolver return";
     RTC_DCHECK_NOTREACHED();
     return;
   }
-  Candidate candidate = p->candidate_;
+  Candidate candidate = p->candidate;
   AddRemoteCandidateWithResult(candidate, resolver->result());
   // Now we can delete the resolver.
   // TODO(bugs.webrtc.org/12651): Replace the stuff below with
   // resolvers_.erase(p);
-  std::unique_ptr<AsyncDnsResolverInterface> to_delete =
-      std::move(p->resolver_);
+  std::unique_ptr<AsyncDnsResolverInterface> to_delete = std::move(p->resolver);
   // Delay the actual deletion of the resolver until the lambda executes.
   network_thread_->PostTask([to_delete = std::move(to_delete)] {});
   resolvers_.erase(p);

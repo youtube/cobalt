@@ -38,6 +38,7 @@ found in the LICENSE file.
     <item type="id" name="open_recently_closed_tab" />
     <item type="id" name="toggle_bookmark_bar" />
     <item type="id" name="switch_keyboard_focus_row" />
+    <item type="id" name="open_tab_strip_context_menu" />
     <item type="id" name="focus_bookmarks" />
     <item type="id" name="dev_tools" />
     <item type="id" name="task_manager" />
@@ -128,6 +129,7 @@ found in the LICENSE file.
     <item type="id" name="new_tab_menu_id" />
     <item type="id" name="new_incognito_tab_menu_id" />
     <item type="id" name="add_to_group_menu_id" />
+    <item type="id" name="pin_tab_menu_id" />
     <item type="id" name="new_window_menu_id" />
     <item type="id" name="move_to_other_window_menu_id" />
     <item type="id" name="manage_all_windows_menu_id" />

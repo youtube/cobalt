@@ -10,6 +10,7 @@ import androidx.annotation.Nullable;
 
 import org.chromium.base.Callback;
 import org.chromium.chrome.browser.touch_to_fill.common.FillableItemCollectionInfo;
+import org.chromium.components.autofill.LoyaltyCard;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -46,11 +47,14 @@ class TouchToFillPaymentMethodProperties {
         // method available.
         int FILL_BUTTON = 4;
 
+        // A button that redirects the user to the Wallet settings in Chrome.
+        int WALLET_SETTINGS_BUTTON = 5;
+
         // A footer section containing additional actions.
-        int FOOTER = 5;
+        int FOOTER = 6;
 
         // A section with a terms label is present when card benefits are available.
-        int TERMS_LABEL = 6;
+        int TERMS_LABEL = 7;
     }
 
     /** Metadata associated with a card's image. */
@@ -131,7 +135,7 @@ class TouchToFillPaymentMethodProperties {
                 new PropertyModel.ReadableObjectPropertyKey<>("loyalty_card_number");
         static final PropertyModel.ReadableObjectPropertyKey<String> MERCHANT_NAME =
                 new PropertyModel.ReadableObjectPropertyKey<>("merchant_name");
-        static final PropertyModel.ReadableTransformingObjectPropertyKey<GURL, Drawable>
+        static final PropertyModel.ReadableTransformingObjectPropertyKey<LoyaltyCard, Drawable>
                 LOYALTY_CARD_ICON =
                         new PropertyModel.ReadableTransformingObjectPropertyKey<>(
                                 "loyalty_card_icon");
@@ -169,10 +173,27 @@ class TouchToFillPaymentMethodProperties {
                 new PropertyModel.ReadableIntPropertyKey("image_drawable_id");
         static final PropertyModel.ReadableIntPropertyKey TITLE_ID =
                 new PropertyModel.ReadableIntPropertyKey("title_id");
+        static final PropertyModel.ReadableIntPropertyKey SUBTITLE_ID =
+                new PropertyModel.ReadableIntPropertyKey("subtitle_id");
 
-        static final PropertyKey[] ALL_KEYS = {IMAGE_DRAWABLE_ID, TITLE_ID};
+        static final PropertyKey[] ALL_KEYS = {IMAGE_DRAWABLE_ID, TITLE_ID, SUBTITLE_ID};
 
         private HeaderProperties() {}
+    }
+
+    /**
+     * Properties defined here reflect the visible state of a button in the TouchToFill sheet for
+     * payments.
+     */
+    static class ButtonProperties {
+        static final PropertyModel.ReadableIntPropertyKey TEXT_ID =
+                new PropertyModel.ReadableIntPropertyKey("text_id");
+        static final PropertyModel.ReadableObjectPropertyKey<Runnable> ON_CLICK_ACTION =
+                new ReadableObjectPropertyKey<>("open_click_action");
+
+        static final PropertyKey[] ALL_KEYS = {TEXT_ID, ON_CLICK_ACTION};
+
+        private ButtonProperties() {}
     }
 
     /**

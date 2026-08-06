@@ -15,6 +15,7 @@
 
 #include "base/base64.h"
 #include "base/command_line.h"
+#include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -41,7 +42,6 @@
 #include "components/variations/pref_names.h"
 #include "components/variations/proto/variations_seed.pb.h"
 #include "components/variations/seed_response.h"
-#include "components/variations/service/limited_entropy_synthetic_trial.h"
 #include "components/variations/synthetic_trial_registry.h"
 #include "components/variations/variations_safe_seed_store_local_state.h"
 #include "components/variations/variations_seed_simulator.h"
@@ -350,17 +350,13 @@ VariationsService::VariationsService(
       local_state_(local_state),
       synthetic_trial_registry_(synthetic_trial_registry),
       state_manager_(state_manager),
-      limited_entropy_synthetic_trial_(
-          local_state,
-          client_.get()->GetChannelForVariations()),
       policy_pref_service_(local_state),
       resource_request_allowed_notifier_(std::move(notifier)),
       safe_seed_manager_(local_state),
+      // TODO(crbug.com/421912603): Verify whether all callers should pass
+      // `true` here.
       entropy_providers_(state_manager_->CreateEntropyProviders(
-          VariationsFieldTrialCreatorBase::
-              IsLimitedEntropyRandomizationSourceEnabled(
-                  client_->GetChannelForVariations(),
-                  &limited_entropy_synthetic_trial_))),
+          /*enable_limited_entropy_mode=*/true)),
       field_trial_creator_(
           client_.get(),
           std::make_unique<VariationsSeedStore>(
@@ -375,8 +371,7 @@ VariationsService::VariationsService(
               client_.get()->GetChannelForVariations(),
               client_.get()->GetVariationsSeedFileDir(),
               entropy_providers_.get()),
-          ui_string_overrider,
-          &limited_entropy_synthetic_trial_) {
+          ui_string_overrider) {
   DCHECK(client_);
   DCHECK(resource_request_allowed_notifier_);
 
@@ -561,7 +556,6 @@ std::string VariationsService::GetDefaultVariationsServerURLForTesting() {
 void VariationsService::RegisterPrefs(PrefRegistrySimple* registry) {
   SafeSeedManager::RegisterPrefs(registry);
   VariationsSeedStore::RegisterPrefs(registry);
-  LimitedEntropySyntheticTrial::RegisterPrefs(registry);
   RegisterFieldTrialInternalsPrefs(*registry);
 
   registry->RegisterIntegerPref(
@@ -743,7 +737,9 @@ void VariationsService::OnSeedStoreResult(bool is_delta_compressed,
   }
 
   if (store_success) {
-    RecordSuccessfulFetch();
+    // When the new seed is stored, the active seed will be stored as the safe
+    // seed.
+    RecordSuccessfulFetchNewSeed();
 
     // Now, do simulation to determine if there are any kill-switches that were
     // activated by this seed.
@@ -883,15 +879,8 @@ void VariationsService::OnSimpleLoaderComplete(
   }
 
   if (response_code == net::HTTP_NOT_MODIFIED) {
-    RecordSuccessfulFetch();
-
-    // Update the seed date value in local state (used for expiry check on
-    // next start up), since 304 is a successful response. Note that the
-    // serial number included in the request is always that of the latest
-    // seed, even when running in safe mode, so it's appropriate to always
-    // modify the latest seed's date.
-    field_trial_creator_.seed_store()->UpdateSeedDateAndLogDayChange(
-        response_date.value_or(base::Time()));
+    // TODO(crbug.com/420652919): Reject responses without a date.
+    RecordSuccessfulFetchSeedNotModified(response_date.value_or(base::Time()));
     return;
   }
 
@@ -966,13 +955,31 @@ bool VariationsService::CallMaybeRetryOverHTTPForTesting() {
   return MaybeRetryOverHTTP();
 }
 
-void VariationsService::RecordSuccessfulFetch() {
+void VariationsService::RecordSuccessfulFetchSeedNotModified(
+    base::Time response_date) {
+  // Update the client-side fetch time to the current time.
   field_trial_creator_.seed_store()->RecordLastFetchTime(base::Time::Now());
+  safe_seed_manager_.RecordSuccessfulFetch(field_trial_creator_.seed_store());
+
+  // Update the seed date value in local state (used for expiry check on
+  // next start up), since 304 is a successful response. Note that the
+  // serial number included in the request is always that of the latest
+  // seed, even when running in safe mode, so it's appropriate to always
+  // modify the latest seed's date.
+  field_trial_creator_.seed_store()->UpdateSeedDateAndLogDayChange(
+      response_date);
+}
+
+void VariationsService::RecordSuccessfulFetchNewSeed() {
   safe_seed_manager_.RecordSuccessfulFetch(field_trial_creator_.seed_store());
 }
 
 VariationsSeedStore* VariationsService::GetSeedStoreForTesting() {
   return field_trial_creator_.seed_store();
+}
+
+base::Time VariationsService::GetLatestSeedFetchTime() {
+  return field_trial_creator_.seed_store()->GetLatestSeedFetchTime();
 }
 
 std::unique_ptr<ClientFilterableState>

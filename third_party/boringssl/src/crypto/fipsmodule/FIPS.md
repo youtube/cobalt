@@ -15,10 +15,11 @@ BoringCrypto has undergone the following validations:
 1. 2021-01-28: certificate [#4156](https://csrc.nist.gov/Projects/Cryptographic-Module-Validation-Program/Certificate/4156), [security policy](./policydocs/BoringCrypto-Android-Security-Policy-20210319.docx) (in docx format).
 1. 2021-04-29: certificate [#4407](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4407).
 1. 2022-06-13: certificate [#4735](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4735).
+1. 2023-04-28: certificate [#4953](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4953).
 
 ## Update stream
 
-On 2025-01-16, the FedRAMP Board published an [updated policy](https://www.fedramp.gov/updates/docs/cryptographic-module/) on cryptographic modules. That policy suggests that module vendors should “promote the use of update streams over the use of validated module streams”. An _update stream_ “contains the latest patches and updates to be applied to software, regardless of the FIPS-validation status of the changed software”.
+On 2025-01-16, the FedRAMP Board published an [updated policy](https://www.fedramp.gov/rev5/fips/) on cryptographic modules. That policy suggests that module vendors should “promote the use of update streams over the use of validated module streams”. An _update stream_ “contains the latest patches and updates to be applied to software, regardless of the FIPS-validation status of the changed software”.
 
 BoringSSL's `main` branch is the update stream for the module. We intend to perform validations such that all major changes to the module are submitted to the CMVP within six months, as required by FRR7.
 

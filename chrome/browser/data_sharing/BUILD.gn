@@ -50,6 +50,7 @@ if (is_android) {
 
   android_resources("java_resources") {
     sources = [
+      "android/java/res/drawable/ic_person_manage_24dp.xml",
       "android/java/res/drawable/round_image_filled.xml",
       "android/java/res/layout/recent_activity_bottom_sheet.xml",
       "android/java/res/layout/recent_activity_log_item.xml",
@@ -253,6 +254,7 @@ if (is_android) {
       ":java_resources",
       "//base:callback_java",
       "//chrome/browser/ui/android/strings:ui_strings_grd",
+      "//chrome/browser/ui/android/theme:java",
       "//components/browser_ui/styles/android:java",
       "//components/collaboration/public:core_java",
       "//components/data_sharing/public:public_java",

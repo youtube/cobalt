@@ -109,8 +109,9 @@ class Benchmark:
 
         final_args = self.args.copy()
         if extra_browser_args:
+            # No quotes around the space separated arguments is needed.
             final_args.append(
-                f'--extra-browser-args=\"{" ".join(extra_browser_args)}\"')
+                f'--extra-browser-args={" ".join(extra_browser_args)}')
 
         return final_args
 
@@ -568,10 +569,9 @@ def main():
             '--story-tag-filter=motionmark_fixed_2_seconds',
         ]
 
-        if platform == 'desktop':
-            benchmarks.append(
-                Benchmark('motionmark', motionmark_benchmark_args))
-        else:
+        # Android arm32 runs on older phones so these benchmarks should only run
+        # for arm64.
+        if platform == 'mobile' and '64' in args.android_browser:
             # Exercise the Skia Graphite/Dawn/Vulkan path.
             benchmarks.append(
                 Benchmark('motionmark_graphite_dawn_vk',
@@ -593,6 +593,9 @@ def main():
                           disable_features=[
                               'Vulkan', 'SkiaGraphite', 'DefaultANGLEVulkan'
                           ]))
+        else:
+            benchmarks.append(
+                Benchmark('motionmark', motionmark_benchmark_args))
 
     fail_count = run_benchmarks(benchmarks, args)
     if fail_count:

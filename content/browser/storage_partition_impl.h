@@ -423,9 +423,7 @@ class CONTENT_EXPORT StoragePartitionImpl
   }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
-#if BUILDFLAG(IS_MAC)
   bool IsStorageServiceRemoteValid() const;
-#endif  // BUILDFLAG(IS_MAC)
 
   // Can return nullptr while `this` is being destroyed.
   BrowserContext* browser_context() const;

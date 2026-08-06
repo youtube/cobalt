@@ -10,6 +10,8 @@
 
 #include "modules/audio_processing/test/echo_canceller_test_tools.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <vector>
 
 #include "api/array_view.h"

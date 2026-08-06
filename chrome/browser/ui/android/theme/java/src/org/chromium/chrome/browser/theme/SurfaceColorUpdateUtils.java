@@ -10,9 +10,12 @@ import androidx.annotation.ColorInt;
 import androidx.core.content.ContextCompat;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
+import org.chromium.components.tab_groups.TabGroupColorId;
+import org.chromium.components.tab_groups.TabGroupColorPickerUtils;
 import org.chromium.ui.util.ColorUtils;
 
 /** Utility class that provides color values based on feature flags enabled. */
@@ -21,20 +24,21 @@ public class SurfaceColorUpdateUtils {
 
     /** Whether enable the containment on the tab group list pane. */
     public static boolean isTabGroupListContainmentEnabled() {
-        return ThemeModuleUtils.isForceEnableDependencies()
-                || (useNewGtsSurfaceColor()
+        return (useNewGtsSurfaceColor()
                         && ChromeFeatureList.sTabGroupListContainment.getValue());
     }
 
     private static boolean useNewGtsSurfaceColor() {
-        return ThemeModuleUtils.isForceEnableDependencies()
-                || ChromeFeatureList.sGridTabSwitcherSurfaceColorUpdate.isEnabled();
+        return ChromeFeatureList.sGridTabSwitcherSurfaceColorUpdate.isEnabled();
     }
 
     /** Whether new toolbar and omnibox/location bar surface colors are being used. */
     public static boolean useNewToolbarSurfaceColor() {
-        return ThemeModuleUtils.isForceEnableDependencies()
-                || ChromeFeatureList.sAndroidSurfaceColorUpdate.isEnabled();
+        return ChromeFeatureList.sAndroidSurfaceColorUpdate.isEnabled();
+    }
+
+    public static boolean useNewGm3GtsTabGroupColors() {
+        return ChromeFeatureList.sAndroidTabGroupsColorUpdateGm3.isEnabled();
     }
 
     /**
@@ -155,9 +159,15 @@ public class SurfaceColorUpdateUtils {
      * incognito.
      *
      * @param context {@link Context} used to retrieve colors.
+     * @param isIncognito Whether the color is used for incognito mode.
+     * @param colorId Color chosen by user for the TabGroup, null if not a tab group.
      * @return The background color.
      */
-    public static @ColorInt int getCardViewBackgroundColor(Context context, boolean isIncognito) {
+    public static @ColorInt int getCardViewBackgroundColor(
+            Context context, boolean isIncognito, @Nullable @TabGroupColorId Integer colorId) {
+        if (useNewGm3GtsTabGroupColors() && colorId != null) {
+            return TabGroupColorPickerUtils.getTabGroupCardColor(context, colorId, isIncognito);
+        }
         if (useNewGtsSurfaceColor()) {
             // TODO(crbug.com/414404094): Add semantic color for incognito tab card view.
             return isIncognito
@@ -174,6 +184,65 @@ public class SurfaceColorUpdateUtils {
                 ? ContextCompat.getColor(
                         context, R.color.gm3_baseline_surface_container_highest_dark)
                 : defaultBackground;
+    }
+
+    /**
+     * Returns the text color for the card view in grid tab switcher on the enabled flag and
+     * incognito.
+     *
+     * @param context {@link Context} used to retrieve colors.
+     * @param isIncognito Whether the color is used for incognito mode.
+     * @param colorId Color chosen by user for the TabGroup, null if not a tab group.
+     * @return The text appearance for the tab grid card title.
+     */
+    public static @ColorInt int getCardViewTextColor(
+            Context context, boolean isIncognito, @Nullable @TabGroupColorId Integer colorId) {
+        if (useNewGm3GtsTabGroupColors() && colorId != null) {
+            return TabGroupColorPickerUtils.getTabGroupCardTextColor(context, colorId, isIncognito);
+        }
+        return isIncognito
+                ? context.getColor(R.color.incognito_tab_title_color)
+                : SemanticColorUtils.getDefaultTextColor(context);
+    }
+
+    /**
+     * Returns the placeholder color for the card view in grid tab switcher on the enabled flag and
+     * incognito.
+     *
+     * @param context {@link Context} used to retrieve colors.
+     * @param isIncognito Whether the color is used for incognito mode.
+     * @param colorId Color chosen by user for the TabGroup, null if not a tab group.
+     * @return The mini-thumbnail placeholder color.
+     */
+    public static @ColorInt int getCardViewMiniThumbnailPlaceholderColor(
+            Context context, boolean isIncognito, @Nullable @TabGroupColorId Integer colorId) {
+        if (useNewGm3GtsTabGroupColors() && colorId != null) {
+            return TabGroupColorPickerUtils.getTabGroupCardMiniThumbnailPlaceholderColor(
+                    context, colorId, isIncognito);
+        }
+        if (isIncognito) {
+            return context.getColor(R.color.incognito_tab_thumbnail_placeholder_color);
+        }
+        return SemanticColorUtils.getColorSurfaceContainerLow(context);
+    }
+
+    /**
+     * Returns the text color used for the card view in grid tab switcher on the enabled flag and
+     * incognito.
+     *
+     * @param context {@link Context} used to retrieve colors.
+     * @param isIncognito Whether the color is used for incognito mode.
+     * @param colorId Color chosen by user for the TabGroup, null if not a tab group.
+     * @return The text color for the number used on the tab group cards.
+     */
+    public static @ColorInt int getCardViewGroupNumberTextColor(
+            Context context, boolean isIncognito, @Nullable @TabGroupColorId Integer colorId) {
+        if (useNewGm3GtsTabGroupColors() && colorId != null) {
+            return TabGroupColorPickerUtils.getTabGroupCardTextColor(context, colorId, isIncognito);
+        }
+        return isIncognito
+                ? context.getColor(R.color.incognito_tab_tile_number_color)
+                : SemanticColorUtils.getDefaultTextColor(context);
     }
 
     /**

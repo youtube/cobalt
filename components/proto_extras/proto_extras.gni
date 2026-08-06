@@ -1,0 +1,59 @@
+# Copyright 2025 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Generate serializers that turn a protobuf into a base::Value. This
+# does not directly generate the protobuf bindings for any language, so
+# callers must include the build target for C++ bindings in the deps.
+#
+# Caveats:
+# - Integer types in the proto that are not compatible with base::Value are
+#   serialized as strings (e.g. uint64_t).
+#
+# Example:
+#   proto_extras("mylib_to_value") {
+#     sources = [
+#       "mylib.proto",
+#     ]
+#
+#     deps = [
+#       "mylib_proto_target"
+#     ]
+#     # Optional: Set to true to generate C++ stream operators (operator<<)
+#     # for the proto messages, which will print the message using
+#     # base::Value::DebugString().
+#     # Defaults to false.
+#     generate_stream_operators = true
+#   }
+
+import("//third_party/protobuf/proto_library.gni")
+
+template("proto_extras") {
+  _generate_stream_operators = false
+  if (defined(invoker.generate_stream_operators)) {
+    _generate_stream_operators = invoker.generate_stream_operators
+  }
+
+  proto_library("${target_name}") {
+    proto_in_dir = "//"
+
+    sources = invoker.sources
+
+    if (defined(invoker.deps)) {
+      deps = invoker.deps
+    }
+
+    generator_plugin_label = "//components/proto_extras:proto_extras_plugin"
+    generator_plugin_suffix = ".to_value"
+    generate_cc = false
+    generate_python = false
+    link_public_deps = [ "//base" ]
+    link_deps = [
+      "//components/proto_extras:proto_extras_lib",
+    ]
+
+    if (_generate_stream_operators) {
+      generator_plugin_options = "generate_stream_operators"
+    }
+  }
+}

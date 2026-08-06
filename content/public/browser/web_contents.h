@@ -59,7 +59,6 @@
 #include "ui/accessibility/platform/inspect/ax_api_type.h"
 #include "ui/base/cursor/mojom/cursor_type.mojom-shared.h"
 #include "ui/color/color_provider_key.h"
-#include "ui/display/types/display_constants.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
@@ -1627,9 +1626,11 @@ class WebContents : public PageNavigator, public base::SupportsUserData {
   //   request.
   // - `holdback_status_override` is used to override holdback status, if
   //   specified.
-  //  - Returns `PrefetchHandle` to control prefetch resources. This can be
-  //    nullptr when this function can't add `PrefetchContainer` to
-  //    `PrefetchService`.
+  // - `ttl`: TTL; `PrefetchService` holds prefetch in `ttl`. Uses default value
+  // if `std::nullopt`.
+  // - Returns `PrefetchHandle` to control prefetch resources. This can be
+  //   nullptr when this function can't add `PrefetchContainer` to
+  //   `PrefetchService`.
   virtual std::unique_ptr<PrefetchHandle> StartPrefetch(
       const GURL& prefetch_url,
       bool use_prefetch_proxy,
@@ -1639,7 +1640,8 @@ class WebContents : public PageNavigator, public base::SupportsUserData {
       std::optional<net::HttpNoVarySearchData> no_vary_search_hint,
       scoped_refptr<PreloadPipelineInfo> preload_pipeline_info,
       base::WeakPtr<PreloadingAttempt> attempt,
-      std::optional<PreloadingHoldbackStatus> holdback_status_override) = 0;
+      std::optional<PreloadingHoldbackStatus> holdback_status_override,
+      std::optional<base::TimeDelta> ttl) = 0;
 
   // Starts an embedder triggered (browser-initiated) prerendering page and
   // returns the unique_ptr<PrerenderHandle>, which cancels prerendering on its

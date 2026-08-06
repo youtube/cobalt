@@ -237,6 +237,10 @@ enum class CommandEventType {
   kPause,
   kPlay,
   kToggleMuted,
+  // Menu
+  kToggleMenu,
+  kHideMenu,
+  kShowMenu,
 };
 
 typedef HeapVector<Member<Attr>> AttrNodeList;
@@ -487,7 +491,8 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void scrollIntoView(bool align_to_top = true);
   void scrollIntoViewWithOptions(const ScrollIntoViewOptions*);
   void ScrollIntoViewNoVisualUpdate(mojom::blink::ScrollIntoViewParamsPtr,
-                                    const Element* container = nullptr);
+                                    const Element* container = nullptr,
+                                    bool include_self = false);
   void scrollIntoViewIfNeeded(bool center_if_needed = true);
 
   int OffsetLeft();
@@ -1282,9 +1287,6 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
       const AtomicString& view_transition_name = g_null_atom) const;
   LayoutObject* PseudoElementLayoutObject(PseudoId) const;
 
-  // Returns true if this element has ::view-transition-group children.
-  bool HasViewTransitionGroupChildren() const;
-
   // Returns true if this element contains any ::scroll-button or
   // ::scroll-marker-group pseudos.
   bool HasScrollButtonOrMarkerGroupPseudos() const;
@@ -1735,6 +1737,8 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
 
   GCedHeapVector<Member<Element>>* ElementsFromAttributeOrInternals(
       const QualifiedName& attribute) const;
+
+  bool IsClickableControl() { return IsClickableControl(this); }
 
  protected:
   bool HasElementData() const { return static_cast<bool>(element_data_); }
@@ -2228,20 +2232,13 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
                                  Element* target,
                                  InterestState new_state);
   enum class InterestTargetSource {
-    // This element was hovered.
     kHover,
-    // This element was de-hovered.
     kDeHover,
-    // This element was focused.
     kFocus,
-    // This element was blurred.
     kBlur,
-    // (Recursive call only) Inclusive ancestor chain of an element focused.
-    kFocusElementChain,
-    // (Recursive call only) Inclusive ancestor chain of an element blurred.
-    kBlurElementChain,
   };
-  void HandleInterestTargetHoverOrFocus(InterestTargetSource source);
+  void HandleInterestTargetHoverOrFocus(InterestTargetSource source,
+                                        bool recursive_call = false);
 
   // Highlight pseudos inherit all properties from the corresponding highlight
   // in the parent, but virtually all existing content uses universal rules

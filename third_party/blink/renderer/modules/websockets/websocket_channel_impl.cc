@@ -43,6 +43,7 @@
 #include "base/functional/callback.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/strong_alias.h"
 #include "third_party/blink/public/mojom/websockets/websocket_connector.mojom-blink.h"
@@ -470,8 +471,8 @@ void WebSocketChannelImpl::Fail(const String& reason,
   DVLOG(1) << this << " Fail(" << reason << ")";
   probe::DidReceiveWebSocketMessageError(execution_context_, identifier_,
                                          reason);
-  const String message =
-      "WebSocket connection to '" + url_.ElidedString() + "' failed: " + reason;
+  const String message = WTF::StrCat(
+      {"WebSocket connection to '", url_.ElidedString(), "' failed: ", reason});
 
   SourceLocation* captured_location = CaptureSourceLocation();
   if (!captured_location->IsUnknown()) {
@@ -964,8 +965,8 @@ void WebSocketChannelImpl::DidFailLoadingBlob(FileErrorCode error_code) {
     return;
   }
   // FIXME: Generate human-friendly reason message.
-  FailAsError("Failed to load Blob: error code = " +
-              String::Number(static_cast<unsigned>(error_code)));
+  FailAsError(WTF::StrCat({"Failed to load Blob: error code = ",
+                           String::Number(static_cast<unsigned>(error_code))}));
 }
 
 void WebSocketChannelImpl::TearDownFailedConnection() {

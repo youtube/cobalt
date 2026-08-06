@@ -60,7 +60,8 @@ class VisitSegmentDatabase {
       int max_result_count,
       const base::RepeatingCallback<bool(const GURL&)>& url_filter,
       const std::optional<std::string>& recency_factor_name = std::nullopt,
-      std::optional<size_t> recency_window_days = std::nullopt);
+      std::optional<size_t> recency_window_days = std::nullopt,
+      bool visual_deduplication_enabled = false);
 
   // Deletes all segment data older than `older_than`.
   bool DeleteSegmentDataOlderThan(base::Time older_than);
@@ -87,6 +88,9 @@ class VisitSegmentDatabase {
   // `from_segment_id` are updated to `to_segment_id` and `from_segment_id` is
   // deleted. Returns true on success.
   bool MergeSegments(SegmentID from_segment_id, SegmentID to_segment_id);
+  // Tracks if the visual deduplication histogram has been recorded for this
+  // instance.
+  bool histogram_recorded_ = false;
 };
 
 }  // namespace history

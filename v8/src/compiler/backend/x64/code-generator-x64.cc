@@ -2925,13 +2925,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             // F32x8Neg
             YMMRegister dst = i.OutputSimd256Register();
             YMMRegister src = i.InputSimd256Register(0);
-            CpuFeatureScope avx_scope(masm(), AVX2);
+            CpuFeatureScope avx2_scope(masm(), AVX2);
             if (dst == src) {
               __ vpcmpeqd(kScratchSimd256Reg, kScratchSimd256Reg,
                           kScratchSimd256Reg);
               __ vpslld(kScratchSimd256Reg, kScratchSimd256Reg, uint8_t{31});
               __ vpxor(dst, dst, kScratchSimd256Reg);
             } else {
+              CpuFeatureScope avx_scope(masm(), AVX);
               __ vpcmpeqd(dst, dst, dst);
               __ vpslld(dst, dst, uint8_t{31});
               __ vxorps(dst, dst, src);
@@ -2942,13 +2943,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             // F64x4Neg
             YMMRegister dst = i.OutputSimd256Register();
             YMMRegister src = i.InputSimd256Register(0);
-            CpuFeatureScope avx_scope(masm(), AVX2);
+            CpuFeatureScope avx2_scope(masm(), AVX2);
             if (dst == src) {
               __ vpcmpeqq(kScratchSimd256Reg, kScratchSimd256Reg,
                           kScratchSimd256Reg);
               __ vpsllq(kScratchSimd256Reg, kScratchSimd256Reg, uint8_t{63});
               __ vpxor(dst, dst, kScratchSimd256Reg);
             } else {
+              CpuFeatureScope avx_scope(masm(), AVX);
               __ vpcmpeqq(dst, dst, dst);
               __ vpsllq(dst, dst, uint8_t{31});
               __ vxorpd(dst, dst, src);
@@ -6985,6 +6987,46 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicExchangeWord32: {
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ xchgl(i.InputRegister(0), i.MemoryOperand(1));
+      break;
+    }
+    case kAtomicExchangeWithWriteBarrier: {
+      DCHECK_EQ(AtomicWidthField::decode(opcode), COMPRESS_POINTERS_BOOL
+                                                      ? AtomicWidth::kWord32
+                                                      : AtomicWidth::kWord64);
+      // Perform exchange.
+      Register scratch0 = i.TempRegister(0);
+      Register scratch1 = i.TempRegister(1);
+      Register object = i.InputRegister(1);
+      Register written_value = i.TempRegister(2);
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        __ movl(written_value, i.InputRegister(0));
+        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+        __ xchgl(i.InputRegister(0), i.MemoryOperand(1));
+      } else {
+        __ movq(written_value, i.InputRegister(0));
+        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+        __ xchgq(i.InputRegister(0), i.MemoryOperand(1));
+      }
+      // Decompress pointer.
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        __ addq(i.InputRegister(0), kPtrComprCageBaseRegister);
+      }
+      // Emit write barrier.
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, i.MemoryOperand(1), written_value, scratch0, scratch1,
+          RecordWriteMode::kValueIsAny, DetermineStubCallMode());
+      __ JumpIfSmi(written_value, ool->exit());
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+      __ CheckPageFlag(object, scratch0, MemoryChunk::kIncrementalMarking,
+                       not_zero, ool->stub_call());
+      __ CheckMarkBit(object, scratch0, scratch1, carry, ool->entry());
+#else   // !V8_ENABLE_STICKY_MARK_BITS_BOOL
+      static_assert(WriteBarrier::kUninterestingPagesCanBeSkipped);
+      __ CheckPageFlag(object, scratch0,
+                       MemoryChunk::kPointersFromHereAreInterestingMask,
+                       not_zero, ool->entry());
+#endif  // !V8_ENABLE_STICKY_MARK_BITS_BOOL
+      __ bind(ool->exit());
       break;
     }
     case kAtomicCompareExchangeInt8: {

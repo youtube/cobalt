@@ -325,7 +325,7 @@ void populate_subpass_dependencies(const VulkanSharedContext* context,
     // one to every RenderPass which has an input attachment on the main subpass. This is useful
     // because it means that as we perform draw calls, if we encounter a draw that uses a blend
     // operation requiring a dst read, we can avoid having to switch RenderPasses.
-    if (!context->vulkanCaps().isInputAttachmentReadCoherent()) {
+    if (!context->vulkanCaps().supportsRasterizationOrderColorAttachmentAccess()) {
         VkSubpassDependency& selfDependency = deps.push_back();
         selfDependency.srcSubpass = mainSubpassIdx;
         selfDependency.dstSubpass = mainSubpassIdx;
@@ -350,7 +350,8 @@ void populate_subpass_dependencies(const VulkanSharedContext* context,
     }
 }
 
-void populate_subpass_descs(skia_private::TArray<VkSubpassDescription>& descs,
+void populate_subpass_descs(const VulkanCaps& caps,
+                            skia_private::TArray<VkSubpassDescription>& descs,
                             const VkAttachmentReference& colorRef,
                             const VkAttachmentReference& resolveRef,
                             const VkAttachmentReference& resolveLoadInputRef,
@@ -377,6 +378,11 @@ void populate_subpass_descs(skia_private::TArray<VkSubpassDescription>& descs,
     mainSubpassDesc.pColorAttachments = &colorRef;
     mainSubpassDesc.pResolveAttachments = &resolveRef;
     mainSubpassDesc.pDepthStencilAttachment = &depthStencilRef;
+
+    if (caps.supportsRasterizationOrderColorAttachmentAccess()) {
+        mainSubpassDesc.flags =
+                VK_SUBPASS_DESCRIPTION_RASTERIZATION_ORDER_ATTACHMENT_COLOR_ACCESS_BIT_EXT;
+    }
 }
 
 } // anonymous namespace
@@ -403,7 +409,8 @@ sk_sp<VulkanRenderPass> VulkanRenderPass::Make(const VulkanSharedContext* contex
     // subpass dependency (self-dependency for reading the dst texture). If loading MSAA from
     // resolve, that adds another subpass and an additional dependency.
     skia_private::STArray<2, VkSubpassDescription> subpassDescs;
-    populate_subpass_descs(subpassDescs,
+    populate_subpass_descs(context->vulkanCaps(),
+                           subpassDescs,
                            colorRef,
                            resolveRef,
                            resolveLoadInputRef,

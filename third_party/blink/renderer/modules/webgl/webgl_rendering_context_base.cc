@@ -57,6 +57,7 @@
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_htmlcanvaselement_offscreencanvas.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_hit_test_rect.h"
 #include "third_party/blink/renderer/bindings/modules/v8/webgl_any.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/dactyloscoper.h"
@@ -1887,12 +1888,12 @@ WebGLRenderingContextBase::PaintRenderingResultsToResource(
     SourceDrawingBuffer source_buffer,
     FlushReason reason) {
   if (was_dirty) {
-    Host()->GetOrCreateCanvasResourceProvider();
+    Host()->GetOrCreateCanvasResourceProviderForWebGL();
   }
   PaintRenderingResultsToCanvas(source_buffer);
   if (has_dispatcher && was_dirty &&
-      Host()->GetOrCreateCanvasResourceProvider()) {
-    return ResourceProvider()->ProduceCanvasResource(reason);
+      Host()->GetOrCreateCanvasResourceProviderForWebGL()) {
+    return Host()->ResourceProvider()->ProduceCanvasResource(reason);
   }
   return nullptr;
 }
@@ -1926,7 +1927,7 @@ WebGLRenderingContextBase::PaintRenderingResultsToCanvasInternal(
   must_paint_to_canvas_ = false;
 
   CanvasResourceProvider* resource_provider =
-      Host()->GetOrCreateCanvasResourceProvider();
+      Host()->GetOrCreateCanvasResourceProviderForWebGL();
   if (!resource_provider)
     return nullptr;
 
@@ -6764,17 +6765,42 @@ void WebGLRenderingContextBase::texElement2D(GLenum target,
 void WebGLRenderingContextBase::setHitTestRegions(
     VectorOf<CanvasElementHitTestRegion> hit_test_regions,
     ExceptionState& exception_state) {
+  HTMLCanvasElement* canvas_element = canvas();
+  DCHECK(canvas_element);
+  canvas_element->GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
+      DocumentUpdateReason::kCanvasDrawElement);
+
   VectorOf<HTMLCanvasElement::ElementHitTestRegion> result;
   for (const auto& region : hit_test_regions) {
     if (!IsDrawElementEligible(region->element(), GL_TEXTURE_2D,
                                exception_state)) {
       return;
     }
+
+    // TODO(vmpstr): Find a common spot for this (code duplicated in
+    // `CanvasRenderingContext2D`).
+    double width = [&]() -> double {
+      if (region->rect()->hasWidth()) {
+        return *region->rect()->width();
+      }
+      gfx::RectF bounds =
+          region->element()->GetBoundingClientRectNoLifecycleUpdate();
+      return bounds.width();
+    }();
+
+    double height = [&]() -> double {
+      if (region->rect()->hasHeight()) {
+        return *region->rect()->height();
+      }
+      gfx::RectF bounds =
+          region->element()->GetBoundingClientRectNoLifecycleUpdate();
+      return bounds.height();
+    }();
+
     result.push_back(
         MakeGarbageCollected<HTMLCanvasElement::ElementHitTestRegion>(
-            region->element(),
-            gfx::RectF(region->rect()->x(), region->rect()->y(),
-                       region->rect()->width(), region->rect()->height())));
+            region->element(), gfx::RectF(region->rect()->x(),
+                                          region->rect()->y(), width, height)));
   }
 
   canvas()->SetHitTestRegions(std::move(result));

@@ -3441,3 +3441,5 @@ int SSL_set1_requested_trust_anchors(SSL *ssl, const uint8_t *ids,
   ssl->config->requested_trust_anchors = std::move(copy);
   return 1;
 }
+
+int SSL_CTX_get_security_level(const SSL_CTX *ctx) { return 0; }

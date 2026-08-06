@@ -11,7 +11,6 @@
 
 #include <stdint.h>
 
-#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -23,6 +22,7 @@
 #include "api/units/time_delta.h"
 #include "rtc_base/numerics/histogram_percentile_counter.h"
 #include "system_wrappers/include/clock.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -55,8 +55,8 @@ class JitterEstimatorTest : public ::testing::Test {
  protected:
   explicit JitterEstimatorTest(const std::string& field_trials)
       : fake_clock_(0),
-        field_trials_(FieldTrials::CreateNoGlobal(field_trials)),
-        estimator_(&fake_clock_, *field_trials_) {}
+        field_trials_(CreateTestFieldTrials(field_trials)),
+        estimator_(&fake_clock_, field_trials_) {}
   JitterEstimatorTest() : JitterEstimatorTest("") {}
   virtual ~JitterEstimatorTest() {}
 
@@ -70,7 +70,7 @@ class JitterEstimatorTest : public ::testing::Test {
   }
 
   SimulatedClock fake_clock_;
-  std::unique_ptr<FieldTrials> field_trials_;
+  FieldTrials field_trials_;
   JitterEstimator estimator_;
 };
 

@@ -15,6 +15,7 @@
 
 #include "api/array_view.h"
 #include "modules/audio_processing/agc2/biquad_filter.h"
+#include "modules/audio_processing/agc2/cpu_features.h"
 #include "modules/audio_processing/agc2/rnn_vad/common.h"
 #include "modules/audio_processing/agc2/rnn_vad/pitch_search.h"
 #include "modules/audio_processing/agc2/rnn_vad/sequence_buffer.h"

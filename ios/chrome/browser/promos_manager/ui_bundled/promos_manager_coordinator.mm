@@ -17,6 +17,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "components/crash/core/common/crash_key.h"
 #import "components/feature_engagement/public/tracker.h"
+#import "components/prefs/pref_service.h"
 #import "components/sync/service/sync_service.h"
 #import "ios/chrome/app/tests_hook.h"
 #import "ios/chrome/browser/app_store_rating/ui_bundled/app_store_rating_display_handler.h"
@@ -39,6 +40,7 @@
 #import "ios/chrome/browser/first_run/ui_bundled/welcome_back/ui/welcome_back_display_handler.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_promo_display_handler.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
+#import "ios/chrome/browser/passwords/model/features.h"
 #import "ios/chrome/browser/post_restore_signin/ui_bundled/post_restore_signin_provider.h"
 #import "ios/chrome/browser/promos_manager/model/features.h"
 #import "ios/chrome/browser/promos_manager/model/promo_config.h"
@@ -51,7 +53,11 @@
 #import "ios/chrome/browser/promos_manager/ui_bundled/standard_promo_display_handler.h"
 #import "ios/chrome/browser/promos_manager/ui_bundled/standard_promo_view_provider.h"
 #import "ios/chrome/browser/promos_manager/ui_bundled/utils.h"
+#import "ios/chrome/browser/safari_data_import/coordinator/safari_data_import_reminder_promo_display_handler.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/credential_provider_promo_commands.h"
 #import "ios/chrome/browser/shared/public/commands/docking_promo_commands.h"
@@ -96,6 +102,9 @@
   // The currently displayed promo data, if any.
   std::optional<PromoDisplayData> _currentPromoData;
 
+  // The handler for the ApplicationCommands.
+  id<ApplicationCommands> _applicationCommandHandler;
+
   // The handler for the CredentialProviderPromoCommands.
   id<CredentialProviderPromoCommands> _credentialProviderPromoCommandHandler;
 
@@ -124,15 +133,18 @@
 
 #pragma mark - Initialization
 
-- (instancetype)initWithBaseViewController:(UIViewController*)viewController
-                                   browser:(Browser*)browser
-            credentialProviderPromoHandler:(id<CredentialProviderPromoCommands>)
-                                               credentialProviderPromoHandler
-                       dockingPromoHandler:
-                           (id<DockingPromoCommands>)dockingPromoHandler {
+- (instancetype)
+        initWithBaseViewController:(UIViewController*)viewController
+                           browser:(Browser*)browser
+                applicationHandler:(id<ApplicationCommands>)applicationHandler
+    credentialProviderPromoHandler:
+        (id<CredentialProviderPromoCommands>)credentialProviderPromoHandler
+               dockingPromoHandler:
+                   (id<DockingPromoCommands>)dockingPromoHandler {
   DCHECK(ShouldPromoManagerDisplayPromos());
   if ((self = [super initWithBaseViewController:viewController
                                         browser:browser])) {
+    _applicationCommandHandler = applicationHandler;
     _credentialProviderPromoCommandHandler = credentialProviderPromoHandler;
     _dockingPromoCommandHandler = dockingPromoHandler;
 
@@ -623,8 +635,20 @@
 
   // BWG promo handler.
   if (IsPageActionMenuEnabled()) {
-    _displayHandlerPromos[promos_manager::Promo::BWGPromo] =
-        [[BWGPromoDisplayHandler alloc] init];
+    PrefService* prefService = self.profile->GetPrefs();
+    BOOL manualPromoShown = prefService->GetBoolean(prefs::kIOSBWGManualPromo);
+    if (!manualPromoShown) {
+      _displayHandlerPromos[promos_manager::Promo::BWGPromo] =
+          [[BWGPromoDisplayHandler alloc] init];
+    }
+  }
+
+  // Safari Import remind me later handler.
+  if (base::FeatureList::IsEnabled(kImportPasswordsFromSafari)) {
+    _displayHandlerPromos[promos_manager::Promo::SafariImportRemindMeLater] =
+        [[SafariDataImportReminderPromoDisplayHandler alloc]
+            initWithApplicationCommandsHandler:_applicationCommandHandler
+                        promosManagerUIHandler:self];
   }
 }
 

@@ -21,7 +21,6 @@
 #include <utility>
 
 #include "api/jsep.h"
-#include "api/jsep_ice_candidate.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/thread.h"
@@ -44,14 +43,9 @@ class SessionData : public SignalingInterface {
   explicit SessionData(T* stream) : stream_(stream) {}
   void SetStream(T* stream) { stream_ = stream; }
 
-  void SendIceCandidate(const IceCandidateInterface* candidate) override {
+  void SendIceCandidate(const ::webrtc::IceCandidate* candidate) override {
     RTC_LOG(LS_INFO) << "SendIceCandidate";
-    std::string serialized_candidate;
-    if (!candidate->ToString(&serialized_candidate)) {
-      RTC_LOG(LS_ERROR) << "Failed to serialize ICE candidate";
-      return;
-    }
-
+    std::string serialized_candidate = candidate->ToString();
     SignalingMessage message;
     IceCandidate* proto_candidate = message.mutable_candidate();
     proto_candidate->set_description(serialized_candidate);
@@ -85,7 +79,7 @@ class SessionData : public SignalingInterface {
   }
 
   void OnIceCandidate(
-      std::function<void(std::unique_ptr<IceCandidateInterface> candidate)>
+      std::function<void(std::unique_ptr<::webrtc::IceCandidate> candidate)>
           callback) override {
     RTC_LOG(LS_INFO) << "OnIceCandidate";
     ice_candidate_callback_ = callback;
@@ -93,7 +87,7 @@ class SessionData : public SignalingInterface {
 
   T* stream_;
 
-  std::function<void(std::unique_ptr<webrtc::IceCandidateInterface>)>
+  std::function<void(std::unique_ptr<webrtc::IceCandidate>)>
       ice_candidate_callback_;
   std::function<void(std::unique_ptr<webrtc::SessionDescriptionInterface>)>
       remote_description_callback_;

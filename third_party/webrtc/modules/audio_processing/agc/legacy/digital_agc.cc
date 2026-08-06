@@ -10,8 +10,11 @@
 
 #include "modules/audio_processing/agc/legacy/digital_agc.h"
 
-#include <string.h>
+#include <cstdint>
+#include <cstring>
 
+#include "common_audio/signal_processing/include/signal_processing_library.h"
+#include "common_audio/signal_processing/include/spl_inl.h"
 #include "modules/audio_processing/agc/legacy/gain_control.h"
 #include "rtc_base/checks.h"
 

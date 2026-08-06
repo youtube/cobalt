@@ -9,12 +9,13 @@
  */
 #include "modules/audio_processing/test/echo_canceller3_config_json.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
+#include "api/audio/echo_canceller3_config.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/json.h"

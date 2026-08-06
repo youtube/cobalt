@@ -67,6 +67,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "components/user_education/common/tutorial/tutorial_identifier.h"
 #include "components/user_education/common/tutorial/tutorial_service.h"
+#include "ui/base/base_window.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/l10n/time_format.h"
 #include "ui/color/color_provider.h"
@@ -291,6 +292,22 @@ void TabSearchPageHandler::CloseTab(int32_t tab_id) {
   const int index = details->GetIndex();
   // Don't dangle a tabs::TabInterface* in `details`.
   details.reset();
+  tab_strip_model->CloseWebContentsAt(
+      index, TabCloseTypes::CLOSE_CREATE_HISTORICAL_TAB);
+  // Do not add code past this point.
+}
+
+void TabSearchPageHandler::CloseWebUiTab() {
+  // CloseTab() can target the WebContents hosting Tab Search if the Tab Search
+  // WebUI is open in a chrome browser tab rather than its bubble. In this case
+  // CloseWebContentsAt() closes the WebContents hosting this
+  // TabSearchPageHandler object, causing it to be immediately destroyed. Ensure
+  // that no further actions are performed following the call to
+  // CloseWebContentsAt(). See (https://crbug.com/1175507).
+  TabStripModel* const tab_strip_model = browser_->tab_strip_model();
+  CHECK(tab_strip_model);
+  const int index =
+      tab_strip_model->GetIndexOfWebContents(web_ui_->GetWebContents());
   tab_strip_model->CloseWebContentsAt(
       index, TabCloseTypes::CLOSE_CREATE_HISTORICAL_TAB);
   // Do not add code past this point.
@@ -772,7 +789,7 @@ void TabSearchPageHandler::SwitchToTab(
   // Tab search shows tabs from other windows in the profile. So if a user
   // selects a tab in another window, we need to manually activate it so
   // that we can bring that window to the foreground.
-  details->tab->GetBrowserWindowInterface()->ActivateWindow();
+  details->tab->GetBrowserWindowInterface()->GetWindow()->Activate();
   metrics_reporter_->Measure(
       "SwitchToTab",
       base::BindOnce(
@@ -1447,8 +1464,7 @@ tab_search::mojom::TabPtr TabSearchPageHandler::GetTab(
           ? custom_last_active_text
           : GetLastActiveElapsedText(last_active_time_ticks);
 
-  std::vector<tabs::TabAlert> alert_states =
-      GetTabAlertStatesForContents(contents);
+  std::vector<tabs::TabAlert> alert_states = GetTabAlertStatesForTab(tab);
   // Currently, we only report media alert states.
   std::ranges::copy_if(alert_states.begin(), alert_states.end(),
                        std::back_inserter(tab_data->alert_states),

@@ -23,7 +23,6 @@
 #include "partition_alloc/buildflags.h"
 #include "partition_alloc/dangling_raw_ptr_checks.h"
 #include "partition_alloc/in_slot_metadata.h"
-#include "partition_alloc/lightweight_quarantine.h"
 #include "partition_alloc/memory_reclaimer.h"
 #include "partition_alloc/page_allocator_constants.h"
 #include "partition_alloc/partition_address_space.h"
@@ -48,6 +47,7 @@
 #include "partition_alloc/partition_root.h"
 #include "partition_alloc/partition_stats.h"
 #include "partition_alloc/reservation_offset_table.h"
+#include "partition_alloc/scheduler_loop_quarantine_support.h"
 #include "partition_alloc/tagging.h"
 #include "partition_alloc/thread_isolation/thread_isolation.h"
 #include "partition_alloc/use_death_tests.h"
@@ -387,22 +387,14 @@ class PartitionAllocTest
     opts.eventually_zero_freed_memory = PartitionOptions::kEnabled;
     opts.fewer_memory_regions = PartitionOptions::kDisabled;
     opts.scheduler_loop_quarantine_global_config = {
-        .quarantine_config =
-            {
-                .lock_required = true,
-                .branch_capacity_in_bytes = std::numeric_limits<size_t>::max(),
-                .leak_on_destruction = true,
-            },
+        .branch_capacity_in_bytes = std::numeric_limits<size_t>::max(),
+        .leak_on_destruction = true,
         .enable_quarantine = true,
         .enable_zapping = true,
     };
     opts.scheduler_loop_quarantine_thread_local_config = {
-        .quarantine_config =
-            {
-                .lock_required = false,
-                .branch_capacity_in_bytes = std::numeric_limits<size_t>::max(),
-                .leak_on_destruction = false,
-            },
+        .branch_capacity_in_bytes = std::numeric_limits<size_t>::max(),
+        .leak_on_destruction = false,
         .enable_quarantine = true,
         .enable_zapping = true,
     };
@@ -3816,26 +3808,22 @@ TEST_P(PartitionAllocTest, ZeroFill) {
 }
 
 TEST_P(PartitionAllocTest, SchedulerLoopQuarantine) {
-  SchedulerLoopQuarantineBranch& branch =
-      allocator.root()->GetSchedulerLoopQuarantineBranchForTesting();
+  internal::ScopedSchedulerLoopQuarantineBranchAccessorForTesting branch(
+      allocator.root());
 
   for (size_t size : kTestSizes) {
     SCOPED_TRACE(size);
 
-    ASSERT_GT(branch.GetConfigurationForTesting()
-                  .quarantine_config.branch_capacity_in_bytes,
-              size);
+    ASSERT_GT(branch.GetCapacityInBytes(), size);
 
     void* object = allocator.root()->Alloc(size);
     allocator.root()->Free<FreeFlags::kSchedulerLoopQuarantine>(object);
 
     if (size <= BucketIndexLookup::kMaxBucketSize) {
-      ASSERT_TRUE(
-          branch.GetInternalBranchForTesting().IsQuarantinedForTesting(object));
+      ASSERT_TRUE(branch.IsQuarantined(object));
     } else {
       // Direct-mapped allocations should not be quarantined.
-      ASSERT_FALSE(
-          branch.GetInternalBranchForTesting().IsQuarantinedForTesting(object));
+      ASSERT_FALSE(branch.IsQuarantined(object));
     }
   }
 
@@ -3845,7 +3833,7 @@ TEST_P(PartitionAllocTest, SchedulerLoopQuarantine) {
         allocator.root(), 250);
   }
 
-  branch.GetInternalBranchForTesting().Purge();
+  branch.Purge();
 }
 
 // Ensures `Free<kSchedulerLoopQuarantine>` works as `Free<kNone>` if disabled.
@@ -3894,10 +3882,9 @@ TEST_P(PartitionAllocTest, ZapOnFree) {
   EXPECT_EQ(kFreedByte, *(static_cast<unsigned char*>(ptr) + size - 1));
 
   // Make sure the quarantine is empty before the root is reset.
-  allocator.root()
-      ->GetSchedulerLoopQuarantineBranchForTesting()
-      .GetInternalBranchForTesting()
-      .Purge();
+  internal::ScopedSchedulerLoopQuarantineBranchAccessorForTesting branch(
+      allocator.root());
+  branch.Purge();
 }
 
 #if PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_ANDROID) || \
@@ -4581,7 +4568,9 @@ TEST_P(PartitionAllocTest, RefCountBasic) {
   // quarantine.
   in_slot_metadata = TagPtr(in_slot_metadata);
   EXPECT_TRUE(in_slot_metadata->ReleaseFromUnprotectedPtr());
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr1));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr1));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
   uint64_t* ptr3 =
       static_cast<uint64_t*>(allocator.root()->Alloc(alloc_size, type_name));
   PA_EXPECT_PTR_EQ(ptr1, ptr3);
@@ -4627,7 +4616,11 @@ void PartitionAllocTest::RunRefCountReallocSubtest(size_t orig_size,
     EXPECT_TRUE(in_slot_metadata2->IsAliveWithNoKnownRefs());
 
     EXPECT_TRUE(in_slot_metadata1->ReleaseFromUnprotectedPtr());
-    PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr1));
+
+    auto slot_info =
+        partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+            reinterpret_cast<uintptr_t>(ptr1));
+    PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
   }
 
   allocator.root()->Free(ptr2);
@@ -4810,7 +4803,9 @@ TEST_P(UnretainedDanglingRawPtrTest, UnretainedDanglingPtrShouldReport) {
   EXPECT_EQ(g_unretained_dangling_raw_ptr_detected_count, 1);
   EXPECT_TRUE(in_slot_metadata->ReleaseFromUnprotectedPtr());
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
 
 #if !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
@@ -4884,7 +4879,9 @@ TEST_P(PartitionAllocTest, DanglingPtr) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 2);
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
 
 // Allocate memory, and reference it from 3
@@ -4930,7 +4927,9 @@ TEST_P(PartitionAllocTest, DanglingDanglingPtr) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
 
 // When 'free' is called, it remain one raw_ptr<> and one
@@ -4967,7 +4966,9 @@ TEST_P(PartitionAllocTest, DanglingMixedReleaseRawPtrFirst) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 1);
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
 
 // When 'free' is called, it remain one raw_ptr<> and one
@@ -5006,7 +5007,9 @@ TEST_P(PartitionAllocTest, DanglingMixedReleaseDanglingPtrFirst) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 1);
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
 
 // When 'free' is called, it remains one
@@ -5048,7 +5051,9 @@ TEST_P(PartitionAllocTest, DanglingPtrUsedToAcquireNewRawPtr) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
 
 // Same as 'DanglingPtrUsedToAcquireNewRawPtr', but release the
@@ -5089,7 +5094,9 @@ TEST_P(PartitionAllocTest, DanglingPtrUsedToAcquireNewRawPtrVariant) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
 
 // Acquire a raw_ptr<T>, and release it before freeing memory. In the
@@ -5127,19 +5134,21 @@ TEST_P(PartitionAllocTest, RawPtrReleasedBeforeFree) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
 
 // Similar to `PartitionAllocTest.DanglingPtr`, but using
 // `PartitionRoot::Free<FreeFlags::kSchedulerLoopQuarantine>`.
 // 1. `PartitionRoot::Free<kSchedulerLoopQuarantine>`
-//   - The allocation is owned by Scheduler-Loop Quarantine.
-// 2. `InSlotMetadata::Release`
-//   - The allocation is still owned by Scheduler-Loop Quarantine.
+//   - The allocation is owned by BRP Quarantine as there are two dangling
+//   pointers.
+// 2. `InSlotMetadata::Release` x 2
+//   - The allocation is moved to Scheduler-Loop Quarantine.
 // 3. The allocation gets purged from Scheduler-Loop Quarantine.
 //   - Actual free happens here.
-TEST_P(PartitionAllocTest,
-       DanglingPtrReleaseBeforeSchedulerLoopQuarantineExit) {
+TEST_P(PartitionAllocTest, DanglingPtrReleaseToSchedulerLoopQuarantine) {
   if (!UseBRPPool()) {
     return;
   }
@@ -5164,74 +5173,20 @@ TEST_P(PartitionAllocTest,
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
 
-  // Free it. This creates two dangling pointer.
-  allocator.root()->Free<FreeFlags::kSchedulerLoopQuarantine>(ptr);
-  EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
-  EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
-
-  // The dangling raw_ptr stop referencing it.
-  EXPECT_FALSE(ref_count->Release());
-  EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
-  EXPECT_EQ(g_dangling_raw_ptr_released_count, 1);
-
-  // The dangling raw_ptr stop referencing it again.
-  // Allocation should not be reclaimed because it is still held by the
-  // allocator, in the quarantine.
-  EXPECT_FALSE(ref_count->Release());
-  EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
-  EXPECT_EQ(g_dangling_raw_ptr_released_count, 2);
-
-  SchedulerLoopQuarantineBranch& branch =
-      allocator.root()->GetSchedulerLoopQuarantineBranchForTesting();
-  branch.GetInternalBranchForTesting().Purge();
-}
-
-// Similar to `PartitionAllocTest.DanglingPtr`, but using
-// `PartitionRoot::Free<FreeFlags::kSchedulerLoopQuarantine>`.
-// 1. `PartitionRoot::Free<kSchedulerLoopQuarantine>`
-//   - The allocation is owned by Scheduler-Loop Quarantine.
-// 2. The allocation gets purged from Scheduler-Loop Quarantine.
-//   - The allocation is now moved to BRP-quarantine.
-// 3. `InSlotMetadata::Release`
-//   - Actual free happens here.
-TEST_P(PartitionAllocTest, DanglingPtrReleaseAfterSchedulerLoopQuarantineExit) {
-  if (!UseBRPPool()) {
-    return;
-  }
-
-  CountDanglingRawPtr dangling_checks;
-
-  // Allocate memory, and reference it from 3 raw_ptr.
-  uint64_t* ptr = static_cast<uint64_t*>(
-      allocator.root()->Alloc(64 - ExtraAllocSize(allocator), type_name));
-  auto* ref_count =
-      allocator.root()->InSlotMetadataPointerFromObjectForTesting(ptr);
-
-  ref_count->Acquire();
-  ref_count->Acquire();
-  ref_count->Acquire();
-  EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
-  EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
-
-  // The first raw_ptr stops referencing it, before the memory has been
-  // released.
-  EXPECT_FALSE(ref_count->Release());
-  EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
-  EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
+  internal::ScopedSchedulerLoopQuarantineBranchAccessorForTesting branch(
+      allocator.root());
 
   // Free it. This creates two dangling pointer.
   allocator.root()->Free<FreeFlags::kSchedulerLoopQuarantine>(ptr);
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
+  EXPECT_FALSE(branch.IsQuarantined(ptr));
 
   // The dangling raw_ptr stop referencing it.
   EXPECT_FALSE(ref_count->Release());
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 1);
-
-  SchedulerLoopQuarantineBranch& branch =
-      allocator.root()->GetSchedulerLoopQuarantineBranchForTesting();
-  branch.GetInternalBranchForTesting().Purge();
+  EXPECT_FALSE(branch.IsQuarantined(ptr));
 
   // The dangling raw_ptr stop referencing it again.
   // Allocation should not be reclaimed because it is still held by the
@@ -5240,7 +5195,12 @@ TEST_P(PartitionAllocTest, DanglingPtrReleaseAfterSchedulerLoopQuarantineExit) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 2);
 
-  PartitionAllocFreeForRefCounting(allocator.root()->ObjectToSlotStart(ptr));
+  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+      reinterpret_cast<uintptr_t>(ptr));
+  PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
+
+  EXPECT_TRUE(branch.IsQuarantined(ptr));
+  branch.Purge();
 }
 
 #if PA_USE_DEATH_TESTS()
@@ -6062,7 +6022,7 @@ TEST_P(PartitionAllocTest, SmallSlotSpanWaste) {
 TEST_P(PartitionAllocTest, SortActiveSlotSpans) {
   auto run_test = [this](size_t count) {
     PartitionBucket bucket;
-    bucket.Init(16, /*use_small_single_slot_spans=*/false);
+    bucket.Init(16);
     bucket.active_slot_spans_head = nullptr;
 
 #if PA_CONFIG(ENABLE_SHADOW_METADATA)

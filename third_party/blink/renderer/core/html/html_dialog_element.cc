@@ -220,14 +220,16 @@ void HTMLDialogElement::close(const String& return_value,
   }
 }
 
-void HTMLDialogElement::requestClose(const String& return_value,
-                                     ExceptionState& exception_state) {
+void HTMLDialogElement::RequestCloseInternal(const String& return_value,
+                                             Element* invoker,
+                                             ExceptionState& exception_state) {
   if (!IsOpenAndActive()) {
     return;
   }
   CHECK(close_watcher_);
   close_watcher_->setEnabled(true);
   request_close_return_value_ = return_value;
+  request_close_source_element_ = invoker;
   close_watcher_->RequestClose(CloseWatcher::AllowCancel::kAlways);
   SetCloseWatcherEnabledState();
 }
@@ -351,7 +353,7 @@ bool HTMLDialogElement::HandleCommandInternal(HTMLElement& invoker,
 
   // Dialog actions conflict with popovers. We should avoid trying do anything
   // with a dialog that is an open popover.
-  if (HasPopoverAttribute() && popoverOpen()) {
+  if (IsPopover() && popoverOpen()) {
     AddConsoleMessage(mojom::blink::ConsoleMessageSource::kOther,
                       mojom::blink::ConsoleMessageLevel::kError,
                       "Dialog commands are ignored on open popovers.");
@@ -381,7 +383,7 @@ bool HTMLDialogElement::HandleCommandInternal(HTMLElement& invoker,
   } else if (command == CommandEventType::kRequestClose) {
     CHECK(RuntimeEnabledFeatures::HTMLCommandRequestCloseEnabled());
     if (open) {
-      requestClose(return_value, ASSERT_NO_EXCEPTION);
+      RequestCloseInternal(return_value, &invoker, ASSERT_NO_EXCEPTION);
       return true;
     } else {
       AddConsoleMessage(
@@ -534,7 +536,7 @@ void HTMLDialogElement::showModal(ExceptionState& exception_state,
         DOMExceptionCode::kInvalidStateError,
         "The element is not in a Document.");
   }
-  if (HasPopoverAttribute() && popoverOpen()) {
+  if (IsPopover() && popoverOpen()) {
     return exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
         "The dialog is already open as a Popover, and therefore cannot be "
@@ -635,7 +637,8 @@ void HTMLDialogElement::CloseWatcherFiredCancel(Event* close_watcher_event) {
 void HTMLDialogElement::CloseWatcherFiredClose() {
   // https://wicg.github.io/close-watcher/#patch-dialog closeAction
 
-  close(request_close_return_value_);
+  close(request_close_return_value_, request_close_source_element_);
+  request_close_source_element_ = nullptr;
 }
 
 // https://html.spec.whatwg.org#dialog-focusing-steps
@@ -696,8 +699,7 @@ bool HTMLDialogElement::DispatchToggleEvents(bool opening,
     if (IsOpen()) {
       return false;
     }
-    if (asModal &&
-        (!isConnected() || (HasPopoverAttribute() && popoverOpen()))) {
+    if (asModal && (!isConnected() || (IsPopover() && popoverOpen()))) {
       return false;
     }
   }
@@ -724,6 +726,7 @@ void HTMLDialogElement::DispatchPendingToggleEvent() {
 }
 
 void HTMLDialogElement::Trace(Visitor* visitor) const {
+  visitor->Trace(request_close_source_element_);
   visitor->Trace(previously_focused_element_);
   visitor->Trace(close_watcher_);
   visitor->Trace(pending_toggle_event_);

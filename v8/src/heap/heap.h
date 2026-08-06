@@ -213,8 +213,6 @@ class Heap final {
  public:
   enum class HeapGrowingMode { kSlow, kConservative, kMinimal, kDefault };
 
-  enum class PerformHeapLimitCheck { kYes, kNo };
-
   enum HeapState {
     NOT_IN_GC,
     SCAVENGE,
@@ -1004,6 +1002,14 @@ class Heap final {
       LocalHeap* local_heap,
       GarbageCollectionReason gc_reason =
           GarbageCollectionReason::kBackgroundAllocationFailure);
+
+  // Performs a GC through CollectGarbage(). However, if the GC reaches the heap
+  // limit instead of crashing immediately, more and stronger GCs are performed
+  // until eventually CollectAllAvailableGarbage() is invoked as last resort GC.
+  V8_EXPORT_PRIVATE void CollectGarbageWithRetry(
+      AllocationSpace space, GCFlags gc_flags,
+      GarbageCollectionReason gc_reason,
+      const GCCallbackFlags gc_callback_flags);
 
   // Reports and external memory pressure event, either performs a major GC or
   // completes incremental marking in order to free external resources.
@@ -1902,7 +1908,7 @@ class Heap final {
   // some reporting/verification activities when compiled with DEBUG set.
   void GarbageCollectionPrologue(GarbageCollectionReason gc_reason,
                                  const v8::GCCallbackFlags gc_callback_flags);
-  void GarbageCollectionPrologueInSafepoint();
+  void GarbageCollectionPrologueInSafepoint(GarbageCollector collector);
   void GarbageCollectionEpilogue(GarbageCollector collector);
   void GarbageCollectionEpilogueInSafepoint(GarbageCollector collector);
 

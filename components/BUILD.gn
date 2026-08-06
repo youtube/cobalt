@@ -299,6 +299,7 @@ test("components_unittests") {
     "//components/power_metrics:unit_tests",
     "//components/prefs:unit_tests",
     "//components/profile_metrics:unit_tests",
+    "//components/proto_extras:unit_tests",
     "//components/proxy_config:unit_tests",
     "//components/push_notification:unit_tests",
     "//components/qr_code_generator:unit_tests",
@@ -497,6 +498,7 @@ test("components_unittests") {
       "//components/offline_pages:unit_tests",
       "//components/optimization_guide/content/browser:unit_tests",
       "//components/optimization_guide/content/renderer:unit_tests",
+      "//components/origin_matcher:unit_tests",
       "//components/origin_trials:unit_tests",
       "//components/page_content_annotations/core:unit_tests",
       "//components/page_image_annotation/content/renderer:unit_tests",
@@ -675,6 +677,7 @@ test("components_unittests") {
       "//components/paint_preview/browser/android:java",
       "//components/paint_preview/player/android:unit_tests",
       "//components/payments/content/android",
+      "//components/payments/content/android/spc:browser_binding_java",
       "//components/payments/content/android/ui",
       "//components/permissions/android:java",
       "//components/policy/android:native_test_support_java",
@@ -816,7 +819,6 @@ test("components_unittests") {
       "//components/safe_browsing/content/common:file_type_policies_unittest",
       "//components/safe_browsing/content/common:unit_tests",
       "//components/safe_browsing/core/browser:safe_browsing_url_checker_unittest",
-      "//components/safe_browsing/core/common/proto_to_value:unit_tests",
     ]
   }
 

@@ -622,7 +622,7 @@ std::unique_ptr<SkStreamAsset> SkTypeface_Mac::onOpenStream(int* ttcIndex) const
     int numTables = this->countTables();
     SkTDArray<SkFontTableTag> tableTags;
     tableTags.resize(numTables);
-    this->getTableTags(tableTags.begin());
+    this->readTableTags(tableTags);
 
     // CT seems to be unreliable in being able to obtain the type,
     // even if all we want is the first four bytes of the font resource.
@@ -630,7 +630,7 @@ std::unique_ptr<SkStreamAsset> SkTypeface_Mac::onOpenStream(int* ttcIndex) const
     if (fontType == 0) {
         fontType = SkSFNTHeader::fontType_WindowsTrueType::TAG;
 
-        // see https://skbug.com/7630#c7
+        // see https://skbug.com/40038881#c7
         bool couldBeCFF = false;
         constexpr SkFontTableTag CFFTag = SkSetFourByteTag('C', 'F', 'F', ' ');
         constexpr SkFontTableTag CFF2Tag = SkSetFourByteTag('C', 'F', 'F', '2');

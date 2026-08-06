@@ -11,17 +11,22 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#include "modules/audio_processing/aecm/aecm_core.h"
+#include <cstdint>
+#include <cstring>
 
-extern "C" {
-#include "common_audio/ring_buffer.h"
-#include "common_audio/signal_processing/include/real_fft.h"
-}
+#include "common_audio/signal_processing/include/signal_processing_library.h"
+#include "common_audio/signal_processing/include/spl_inl.h"
+#include "modules/audio_processing/aecm/aecm_core.h"
+#include "modules/audio_processing/aecm/aecm_defines.h"
 #include "modules/audio_processing/aecm/echo_control_mobile.h"
 #include "modules/audio_processing/utility/delay_estimator_wrapper.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/sanitizer.h"
+
+extern "C" {
+#include "common_audio/signal_processing/include/real_fft.h"
+}
 
 namespace webrtc {
 

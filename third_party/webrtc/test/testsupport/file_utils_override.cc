@@ -12,11 +12,11 @@
 
 #include <stdio.h>
 
+#include <iterator>
 #include <optional>
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
 
@@ -104,7 +104,7 @@ std::optional<std::string> ProjectRootPath() {
   return std::string(kFuchsiaTestRoot);
 #else
   char buf[PATH_MAX];
-  ssize_t count = ::readlink("/proc/self/exe", buf, arraysize(buf));
+  ssize_t count = ::readlink("/proc/self/exe", buf, std::size(buf));
   if (count <= 0) {
     RTC_DCHECK_NOTREACHED() << "Unable to resolve /proc/self/exe.";
     return std::nullopt;

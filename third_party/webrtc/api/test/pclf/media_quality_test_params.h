@@ -24,6 +24,7 @@
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/fec_controller.h"
+#include "api/field_trials.h"
 #include "api/field_trials_view.h"
 #include "api/ice_transport_interface.h"
 #include "api/neteq/neteq_factory.h"
@@ -69,7 +70,8 @@ struct PeerConnectionFactoryComponents {
   scoped_refptr<webrtc::AudioEncoderFactory> audio_encoder_factory;
   scoped_refptr<webrtc::AudioDecoderFactory> audio_decoder_factory;
 
-  std::unique_ptr<FieldTrialsView> trials;
+  [[deprecated]] std::unique_ptr<FieldTrialsView> trials;
+  std::unique_ptr<FieldTrials> field_trials;
 
   std::unique_ptr<AudioProcessingBuilderInterface> audio_processing;
   scoped_refptr<webrtc::AudioMixer> audio_mixer;
@@ -171,14 +173,18 @@ struct ConfigurableParams {
 // test.
 struct RunParams {
   explicit RunParams(TimeDelta run_duration) : run_duration(run_duration) {}
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  RunParams(const RunParams&) = default;
+  RunParams(RunParams&&) = default;
+#pragma clang diagnostic pop
 
   // Specifies how long the test should be run. This time shows how long
   // the media should flow after connection was established and before
   // it will be shut downed.
   TimeDelta run_duration;
 
-  // If set to true peers will be able to use Flex FEC, otherwise they won't
-  // be able to negotiate it even if it's enabled on per peer level.
+  [[deprecated("Noop flag: Enable FlexFEC per peer.")]]
   bool enable_flex_fec_support = false;
   // If true will set conference mode in SDP media section for all video
   // tracks for all peers.

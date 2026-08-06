@@ -7,12 +7,16 @@
 
 #include "base/containers/flat_map.h"
 #include "base/memory/weak_ptr.h"
+#include "base/timer/timer.h"
 #include "chrome/browser/preloading/search_preload/search_preload_pipeline.h"
 #include "content/public/browser/web_contents_user_data.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "services/network/public/mojom/network_context.mojom-forward.h"
 #include "url/gurl.h"
 
 class AutocompleteResult;
 class Profile;
+class SearchPreloadService;
 class TemplateURLService;
 struct AutocompleteMatch;
 
@@ -49,8 +53,11 @@ class SearchPreloadPipelineManager
   void ClearPreloads();
 
   // Called when autocomplete is updated.
-  void OnAutocompleteResultChanged(Profile& profile,
-                                   const AutocompleteResult& result);
+  void OnAutocompleteResultChanged(
+      Profile& profile,
+      base::WeakPtr<SearchPreloadService> search_preload_service,
+      const AutocompleteResult& result,
+      const std::optional<net::HttpNoVarySearchData>& no_vary_search_hint);
 
   // Called when a user is likely to navigate to the match.
   //
@@ -59,8 +66,10 @@ class SearchPreloadPipelineManager
   // triggered.
   bool OnNavigationLikely(
       Profile& profile,
+      base::WeakPtr<SearchPreloadService> search_preload_service,
       const AutocompleteMatch& match,
-      omnibox::mojom::NavigationPredictor navigation_predictor);
+      omnibox::mojom::NavigationPredictor navigation_predictor,
+      const std::optional<net::HttpNoVarySearchData>& no_vary_search_hint);
 
   // Invalidates a pipeline with `canonical_url`.
   //
@@ -74,13 +83,23 @@ class SearchPreloadPipelineManager
 
   void EraseNotAlivePipelines();
 
+  void MaybePreloadSharedDictionary(Profile& profile,
+                                    const AutocompleteResult& result);
+  void InvalidateSharedDictionary();
+
   void OnAutocompleteResultChangedProcessOne(
       Profile& profile,
+      base::WeakPtr<SearchPreloadService> search_preload_service,
       TemplateURLService& template_url_service,
-      const AutocompleteMatch& match);
+      const AutocompleteMatch& match,
+      const std::optional<net::HttpNoVarySearchData>& no_vary_search_hint);
 
   // Manages pipeline per canonical URL.
   base::flat_map<GURL, std::unique_ptr<SearchPreloadPipeline>> pipelines_;
+
+  mojo::PendingRemote<network::mojom::PreloadedSharedDictionaryInfoHandle>
+      shared_dictionary_handle_;
+  base::OneShotTimer shared_dictionary_expiry_timer_;
 
   base::WeakPtrFactory<SearchPreloadPipelineManager> weak_factory_{this};
 };

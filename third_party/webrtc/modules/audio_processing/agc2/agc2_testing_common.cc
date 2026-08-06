@@ -10,9 +10,9 @@
 
 #include "modules/audio_processing/agc2/agc2_testing_common.h"
 
-#include <math.h>
-
+#include <cmath>
 #include <numbers>
+#include <vector>
 
 #include "rtc_base/checks.h"
 

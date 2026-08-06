@@ -1457,7 +1457,7 @@ class QUICHE_EXPORT QuicConnection
     return last_received_packet_info_.flow_label;
   }
 
-  void EnableBlackholeAvoidanceViaFlowLabel() {
+  virtual void EnableBlackholeAvoidanceViaFlowLabel() {
     GenerateNewOutgoingFlowLabel();
     enable_black_hole_avoidance_via_flow_label_ = true;
     QUIC_CODE_COUNT(quic_black_hole_avoidance_via_flow_label_enabled);
@@ -2533,6 +2533,9 @@ class QUICHE_EXPORT QuicConnection
   std::unique_ptr<QuicPathValidationContext> multi_port_path_context_;
 
   QuicTime::Delta multi_port_probing_interval_;
+
+  // The minimum ack delay time advertised to the peer via transport parameter.
+  QuicTime::Delta local_min_ack_delay_ = QuicTime::Delta::Zero();
 
   std::unique_ptr<MultiPortStats> multi_port_stats_;
 

@@ -8,9 +8,13 @@
 #include <iosfwd>
 #include <memory>
 
+#include "base/types/pass_key.h"
+#include "chrome/browser/actor/task_id.h"
+
 namespace actor {
 
 class ActorCoordinator;
+class ActorKeyedService;
 
 // Represents a task that Chrome is executing on behalf of the user.
 class ActorTask {
@@ -20,6 +24,10 @@ class ActorTask {
   ActorTask(const ActorTask&) = delete;
   ActorTask& operator=(const ActorTask&) = delete;
   ~ActorTask();
+
+  // Can only be called by ActorKeyedService
+  void SetId(base::PassKey<ActorKeyedService>, TaskId id);
+  TaskId id() { return id_; }
 
   // Once state leaves kCreated it should never go back. One state enters
   // kFinished it should never change. We may want to add a kCancelled in the
@@ -35,6 +43,17 @@ class ActorTask {
   State GetState() const;
   void SetState(State state);
 
+  // Sets State to kFinished and cancels any pending actions.
+  void Stop();
+
+  // Pause() is called to indicate that the user is pausing server-driven
+  // actuation. This will cancel any ongoing actuation.
+  void Pause();
+
+  // Resume() indicates the user wants server-driven actuation to resume. The
+  // caller is responsible for sending new state to the server (e.g. APC).
+  void Resume();
+
   bool IsPaused() const;
 
   ActorCoordinator* GetActorCoordinator() const;
@@ -45,6 +64,8 @@ class ActorTask {
   // There are multiple possible execution engines. For now we only support
   // ActorCoordinator.
   std::unique_ptr<ActorCoordinator> actor_coordinator_;
+
+  TaskId id_;
 };
 
 std::ostream& operator<<(std::ostream& os, const ActorTask::State& state);

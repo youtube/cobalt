@@ -38,9 +38,11 @@ namespace {
 class ActorCoordinatorBrowserTest : public InProcessBrowserTest {
  public:
   ActorCoordinatorBrowserTest() {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{features::kGlic, features::kTabstripComboButton,
-                              features::kGlicActor},
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/{{features::kGlic, {}},
+                              {features::kTabstripComboButton, {}},
+                              {features::kGlicActor,
+                               GetDefaultActorParamsForTesting()}},
         /*disabled_features=*/{features::kGlicWarming});
   }
   ActorCoordinatorBrowserTest(const ActorCoordinatorBrowserTest&) = delete;
@@ -53,12 +55,6 @@ class ActorCoordinatorBrowserTest : public InProcessBrowserTest {
     InProcessBrowserTest::SetUpOnMainThread();
     host_resolver()->AddRule("*", "127.0.0.1");
     ASSERT_TRUE(embedded_test_server()->Start());
-
-    // TODO(crbug.com/409564704): Mock the delay so that tests can run at
-    // reasonable speed. Remove once there is a more permanent approach.
-    OverrideActionObservationDelay(base::Milliseconds(10));
-
-    actor_coordinator().StartTaskForTesting(browser()->GetActiveTabInterface());
   }
 
  protected:
@@ -73,7 +69,8 @@ class ActorCoordinatorBrowserTest : public InProcessBrowserTest {
   ActorCoordinator& actor_coordinator() {
     Profile* profile = chrome_test_utils::GetProfile(this);
     auto* glic_service = glic::GlicKeyedService::Get(profile);
-    return glic_service->GetActorCoordinatorForTesting();
+    return glic_service->GetActorCoordinatorForTesting(
+        browser()->GetActiveTabInterface());
   }
 
   void ClickTarget(std::string_view query_selector) {

@@ -17,6 +17,7 @@ class AutocompleteResult;
 @protocol OmniboxAutocompleteControllerDelegate;
 @protocol OmniboxAutocompleteControllerDebuggerDelegate;
 class OmniboxControllerIOS;
+class OmniboxEditModelIOS;
 @class OmniboxTextController;
 
 /// Controller for the omnibox autocomplete system. Handles interactions with
@@ -43,13 +44,13 @@ class OmniboxControllerIOS;
 
 /// Initializes with an OmniboxController.
 - (instancetype)initWithOmniboxController:
-    (OmniboxControllerIOS*)omniboxController NS_DESIGNATED_INITIALIZER;
+                    (OmniboxControllerIOS*)omniboxController
+                         omniboxEditModel:(OmniboxEditModelIOS*)omniboxEditModel
+    NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
 
 /// Removes all C++ references.
 - (void)disconnect;
-
-#pragma mark - OmniboxEditModel event
 
 /// Updates the popup suggestions.
 - (void)updatePopupSuggestions;
@@ -95,11 +96,6 @@ class OmniboxControllerIOS;
 
 /// Notifies thumbnail update.
 - (void)setHasThumbnail:(BOOL)hasThumbnail;
-
-#pragma mark - OmniboxAutocomplete event
-
-/// Updates the omnibox popup with sorted`result`.
-- (void)updateWithSortedResults:(const AutocompleteResult&)results;
 
 @end
 

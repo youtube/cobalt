@@ -10,11 +10,15 @@
 
 #include "modules/audio_processing/audio_buffer.h"
 
-#include <string.h>
-
+#include <algorithm>
+#include <array>
 #include <cstdint>
+#include <cstring>
+#include <memory>
 
+#include "api/audio/audio_processing.h"
 #include "common_audio/channel_buffer.h"
+#include "common_audio/include/audio_util.h"
 #include "common_audio/resampler/push_sinc_resampler.h"
 #include "modules/audio_processing/splitting_filter.h"
 #include "rtc_base/checks.h"

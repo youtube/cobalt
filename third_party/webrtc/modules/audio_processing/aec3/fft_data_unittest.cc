@@ -10,6 +10,11 @@
 
 #include "modules/audio_processing/aec3/fft_data.h"
 
+#include <array>
+#include <cstddef>
+
+#include "modules/audio_processing/aec3/aec3_common.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/cpu_info.h"
 #include "rtc_base/system/arch.h"
 #include "test/gtest.h"

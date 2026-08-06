@@ -34,6 +34,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
@@ -859,9 +860,9 @@ void ServiceWorkerGlobalScope::importScripts(
       DCHECK(installed_scripts_manager_->IsScriptInstalled(Url()));
       exception_state.ThrowDOMException(
           DOMExceptionCode::kNetworkError,
-          "Failed to import '" + completed_url.ElidedString() +
-              "'. importScripts() of new scripts after service worker "
-              "installation is not allowed.");
+          WTF::StrCat({"Failed to import '", completed_url.ElidedString(),
+                       "'. importScripts() of new scripts after service worker "
+                       "installation is not allowed."}));
       return;
     }
   }

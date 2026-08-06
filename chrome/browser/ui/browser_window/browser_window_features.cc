@@ -23,6 +23,7 @@
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_instant_controller.h"
+#include "chrome/browser/ui/browser_location_bar_model_delegate.h"
 #include "chrome/browser/ui/browser_tab_menu_model_delegate.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
@@ -57,6 +58,7 @@
 #include "chrome/browser/ui/views/side_panel/bookmarks/bookmarks_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.h"
 #include "chrome/browser/ui/views/side_panel/history/history_side_panel_coordinator.h"
+#include "chrome/browser/ui/views/side_panel/reading_list/reading_list_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_action_container.h"
 #include "chrome/browser/ui/views/toolbar/chrome_labs/chrome_labs_coordinator.h"
@@ -68,10 +70,13 @@
 #include "components/commerce/core/feature_utils.h"
 #include "components/commerce/core/shopping_service.h"
 #include "components/lens/lens_features.h"
+#include "components/omnibox/browser/location_bar_model.h"
+#include "components/omnibox/browser/location_bar_model_impl.h"
 #include "components/profile_metrics/browser_profile_type.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/search/ntp_features.h"
 #include "components/search/search.h"
+#include "content/public/common/content_constants.h"
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #include "chrome/browser/ui/pdf/infobar/pdf_infobar_controller.h"
@@ -165,9 +170,9 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 #if BUILDFLAG(ENABLE_GLIC)
     if (glic::GlicEnabling::IsProfileEligible(browser->GetProfile())) {
       DCHECK(features::IsTabSearchMoving());
+      glic_iph_controller_ = std::make_unique<glic::GlicIphController>(browser);
       glic_nudge_controller_ =
           std::make_unique<tabs::GlicNudgeController>(browser);
-      glic_iph_controller_ = std::make_unique<glic::GlicIphController>(browser);
     }
 #endif  // BUILDFLAG(ENABLE_GLIC)
   }
@@ -204,6 +209,15 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
   tab_group_deletion_dialog_controller_ =
       std::make_unique<tab_groups::DeletionDialogController>(browser);
 
+  location_bar_model_delegate_ =
+      std::make_unique<BrowserLocationBarModelDelegate>(tab_strip_model_);
+  location_bar_model_ = std::make_unique<LocationBarModelImpl>(
+      location_bar_model_delegate_.get(), content::kMaxURLDisplayChars);
+
+  reading_list_side_panel_coordinator_ =
+      std::make_unique<ReadingListSidePanelCoordinator>(
+          browser->GetProfile(), browser->GetTabStripModel());
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
   if (base::FeatureList::IsEnabled(features::kPdfInfoBar)) {
     pdf_infobar_controller_ =
@@ -215,7 +229,7 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
   desktop_browser_window_capabilities_ =
       std::make_unique<DesktopBrowserWindowCapabilities>(
-          browser->window(), browser->GetUnownedUserDataHost());
+          browser, browser->window(), browser->GetUnownedUserDataHost());
 
   // Features that are only enabled for normal browser windows (e.g. a window
   // with an omnibox and a tab strip). By default most features should be
@@ -326,7 +340,8 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
           browser_view->tab_strip_region_view()->GetTabStripActionContainer(),
           glic_service);
     }
-#endif
+
+#endif  // BUILDFLAG(ENABLE_GLIC)
 
     memory_saver_opt_in_iph_controller_ =
         std::make_unique<MemorySaverOptInIPHController>(
@@ -364,6 +379,7 @@ void BrowserWindowFeatures::TearDownPreBrowserViewDestruction() {
   memory_saver_opt_in_iph_controller_.reset();
   lens_overlay_entry_point_controller_.reset();
   tab_search_toolbar_button_controller_.reset();
+  extension_window_controller_.reset();
 
 #if BUILDFLAG(ENABLE_GLIC)
   glic_button_controller_.reset();

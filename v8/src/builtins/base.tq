@@ -888,6 +888,8 @@ extern macro CodeStubAssembler::AddToDictionary(
 extern macro AllocateOrderedHashSet(): OrderedHashSet;
 extern macro AllocateOrderedHashMap(): OrderedHashMap;
 
+extern macro PerformStackCheck(Context): void;
+
 extern builtin ToObject(Context, JSAny): JSReceiver;
 extern macro ToObject_Inline(Context, JSAny): JSReceiver;
 extern macro IsUndefined(Object): bool;
@@ -1459,6 +1461,10 @@ macro OutOfBounds<T: type, X: type>(index: T, length: X): bool {
       Convert<uintptr>(Convert<intptr>(length)));
 }
 
+const kPrototypeChainValid:
+    constexpr int31 generates 'Map::kPrototypeChainValid';
+
+extern macro IsJSArrayMap(Map): bool;
 extern macro IsPrototypeInitialArrayPrototype(
     implicit context: Context)(Map): bool;
 extern macro IsNoElementsProtectorCellInvalid(): bool;

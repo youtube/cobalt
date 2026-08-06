@@ -13,6 +13,7 @@
 #include "include/core/SkRect.h"
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkScalar.h"
+#include "include/core/SkSpan.h"
 #include "include/core/SkString.h"
 #include "include/core/SkStrokeRec.h"
 #include "include/gpu/ganesh/GrRecordingContext.h"
@@ -313,9 +314,6 @@ int gather_lines_and_quads(const SkPath& path,
     SkPath::Iter iter(path, false);
 
     int totalQuadCount = 0;
-    SkRect bounds;
-    SkIRect ibounds;
-
     bool persp = m.hasPerspective();
 
     // Whenever a degenerate, zero-length contour is encountered, this code will insert a
@@ -325,19 +323,18 @@ int gather_lines_and_quads(const SkPath& path,
     bool seenZeroLengthVerb = false;
     SkPoint zeroVerbPt;
 
+    auto safeIBounds = [](SkSpan<const SkPoint> pts) {
+        return SkRect::BoundsOrEmpty(pts).makeOutset(1, 1).roundOut();
+    };
+
     // Adds a quad that has already been chopped to the list and checks for quads that are close to
     // lines. Also does a bounding box check. It takes points that are in src space and device
     // space. The src points are only required if the view matrix has perspective.
     auto addChoppedQuad = [&](const SkPoint srcPts[3], const SkPoint devPts[4],
                               bool isContourStart) {
-        SkRect bounds;
-        SkIRect ibounds;
-        bounds.setBounds(devPts, 3);
-        bounds.outset(SK_Scalar1, SK_Scalar1);
-        bounds.roundOut(&ibounds);
         // We only need the src space space pts when not in perspective.
         SkASSERT(srcPts || !persp);
-        if (SkIRect::Intersects(devClipBounds, ibounds)) {
+        if (SkIRect::Intersects(devClipBounds, safeIBounds({devPts, 3}))) {
             int subdiv = num_quad_subdivs(devPts);
             SkASSERT(subdiv >= -1);
             if (-1 == subdiv) {
@@ -366,7 +363,7 @@ int gather_lines_and_quads(const SkPath& path,
     // Applies the view matrix to quad src points and calls the above helper.
     auto addSrcChoppedQuad = [&](const SkPoint srcSpaceQuadPts[3], bool isContourStart) {
         SkPoint devPts[3];
-        m.mapPoints(devPts, srcSpaceQuadPts, 3);
+        m.mapPoints(devPts, {srcSpaceQuadPts, 3});
         addChoppedQuad(srcSpaceQuadPts, devPts, isContourStart);
     };
 
@@ -391,11 +388,8 @@ int gather_lines_and_quads(const SkPath& path,
                     for (int i = 0; i < conicCnt; ++i) {
                         SkPoint devPts[4];
                         SkPoint* chopPnts = dst[i].fPts;
-                        m.mapPoints(devPts, chopPnts, 3);
-                        bounds.setBounds(devPts, 3);
-                        bounds.outset(SK_Scalar1, SK_Scalar1);
-                        bounds.roundOut(&ibounds);
-                        if (SkIRect::Intersects(devClipBounds, ibounds)) {
+                        m.mapPoints({devPts, 3}, {chopPnts, 3});
+                        if (SkIRect::Intersects(devClipBounds, safeIBounds({devPts, 3}))) {
                             if (is_degen_quad_or_conic(devPts)) {
                                 SkPoint* pts = lines->push_back_n(4);
                                 pts[0] = devPts[0];
@@ -434,11 +428,8 @@ int gather_lines_and_quads(const SkPath& path,
                 break;
             case SkPath::kLine_Verb: {
                 SkPoint devPts[2];
-                m.mapPoints(devPts, pathPts, 2);
-                bounds.setBounds(devPts, 2);
-                bounds.outset(SK_Scalar1, SK_Scalar1);
-                bounds.roundOut(&ibounds);
-                if (SkIRect::Intersects(devClipBounds, ibounds)) {
+                m.mapPoints(devPts, {pathPts, 2});
+                if (SkIRect::Intersects(devClipBounds, safeIBounds({devPts, 2}))) {
                     SkPoint* pts = lines->push_back_n(2);
                     pts[0] = devPts[0];
                     pts[1] = devPts[1];
@@ -466,11 +457,8 @@ int gather_lines_and_quads(const SkPath& path,
             }
             case SkPath::kCubic_Verb: {
                 SkPoint devPts[4];
-                m.mapPoints(devPts, pathPts, 4);
-                bounds.setBounds(devPts, 4);
-                bounds.outset(SK_Scalar1, SK_Scalar1);
-                bounds.roundOut(&ibounds);
-                if (SkIRect::Intersects(devClipBounds, ibounds)) {
+                m.mapPoints(devPts, {pathPts, 4});
+                if (SkIRect::Intersects(devClipBounds, safeIBounds({devPts, 4}))) {
                     PREALLOC_PTARRAY(32) q;
                     // We convert cubics to quadratics (for now).
                     // In perspective have to do conversion in src space.
@@ -503,12 +491,9 @@ int gather_lines_and_quads(const SkPath& path,
                     } else if (verbsInContour == 0) {
                         // Contour was (moveTo, close). Add a line.
                         SkPoint devPts[2];
-                        m.mapPoints(devPts, pathPts, 1);
+                        m.mapPoints({devPts, 1}, {pathPts, 1});
                         devPts[1] = devPts[0];
-                        bounds.setBounds(devPts, 2);
-                        bounds.outset(SK_Scalar1, SK_Scalar1);
-                        bounds.roundOut(&ibounds);
-                        if (SkIRect::Intersects(devClipBounds, ibounds)) {
+                        if (SkIRect::Intersects(devClipBounds, safeIBounds({devPts, 2}))) {
                             SkPoint* pts = lines->push_back_n(2);
                             pts[0] = SkPoint::Make(devPts[0].fX - capLength, devPts[0].fY);
                             pts[1] = SkPoint::Make(devPts[1].fX + capLength, devPts[1].fY);
@@ -588,9 +573,9 @@ bool bloat_quad(const SkPoint qpts[3],
     SkPoint c = qpts[2];
 
     if (toDevice) {
-        toDevice->mapPoints(&a, 1);
-        toDevice->mapPoints(&b, 1);
-        toDevice->mapPoints(&c, 1);
+        a = toDevice->mapPoint(a);
+        b = toDevice->mapPoint(b);
+        c = toDevice->mapPoint(c);
     }
     // make a new poly where we replace a and c by a 1-pixel wide edges orthog
     // to edges ab and bc:
@@ -687,7 +672,8 @@ void set_conic_coeffs(const SkPoint p[3],
 
     for (int i = 0; i < kQuadNumVertices; ++i) {
         const SkPoint3 pt3 = {verts[i].fPos.x(), verts[i].fPos.y(), 1.f};
-        klm.mapHomogeneousPoints((SkPoint3* ) verts[i].fConic.fKLM, &pt3, 1);
+        klm.mapHomogeneousPoints({(SkPoint3* ) verts[i].fConic.fKLM, 1},
+                                 {&pt3, 1});
     }
 }
 
@@ -1175,7 +1161,7 @@ void AAHairlineOp::onPrePrepareDraws(GrRecordingContext* context,
     SkArenaAlloc* arena = context->priv().recordTimeAllocator();
     const GrCaps* caps = context->priv().caps();
 
-    // http://skbug.com/12201 -- DDL does not yet support DMSAA.
+    // skbug.com/40043298 -- DDL does not yet support DMSAA.
     bool usesMSAASurface = writeView.asRenderTargetProxy()->numSamples() > 1;
 
     // This is equivalent to a GrOpFlushState::detachAppliedClip

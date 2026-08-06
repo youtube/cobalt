@@ -37,7 +37,7 @@
 #include "ui/base/ozone_buildflags.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/gfx/buffer_format_util.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gl/gl_display.h"
 #include "ui/gl/gl_implementation.h"
 #include "ui/gl/gl_switches.h"
@@ -156,11 +156,12 @@ SharedImageFactory::SharedImageFactory(
     const GpuFeatureInfo& gpu_feature_info,
     SharedContextState* context_state,
     SharedImageManager* shared_image_manager,
-    MemoryTracker* memory_tracker,
+    scoped_refptr<gpu::MemoryTracker> memory_tracker,
     bool is_for_display_compositor)
     : shared_image_manager_(shared_image_manager),
       context_state_(context_state),
-      memory_tracker_(std::make_unique<MemoryTypeTracker>(memory_tracker)),
+      memory_type_tracker_(
+          std::make_unique<MemoryTypeTracker>(std::move(memory_tracker))),
       is_for_display_compositor_(is_for_display_compositor),
       gr_context_type_(context_state_ ? context_state_->gr_context_type()
                                       : GrContextType::kNone),
@@ -537,12 +538,6 @@ bool SharedImageFactory::CreateSharedImage(
     // Check if CompoundImageBacking can hold shared memory buffer plus
     // another GPU backing type to satisfy requirements.
     if (CompoundImageBacking::IsValidSharedMemoryBufferFormat(size, format)) {
-      // Set debug_label crash key for CompoundSharedImage with NV12 format
-      // which can have large sizes.
-      SCOPED_CRASH_KEY_STRING32("shared image factory", "debug label",
-                                debug_label);
-      SCOPED_CRASH_KEY_NUMBER("shared image factory", "max texture size",
-                              context_state_->GetMaxTextureSize());
       factory =
           GetFactoryByUsage(CompoundImageBacking::GetGpuSharedImageUsage(
                                 SharedImageUsageSet(usage)),
@@ -920,7 +915,7 @@ bool SharedImageFactory::RegisterBacking(
 
   std::unique_ptr<SharedImageRepresentationFactoryRef> shared_image =
       shared_image_manager_->Register(std::move(backing),
-                                      memory_tracker_.get());
+                                      memory_type_tracker_.get());
 
   if (!shared_image) {
     LOG(ERROR) << "CreateSharedImage: could not register backing.";
@@ -945,7 +940,7 @@ bool SharedImageFactory::AddSecondaryReference(const gpu::Mailbox& mailbox) {
 
   std::unique_ptr<SharedImageRepresentationFactoryRef> shared_image =
       shared_image_manager_->AddSecondaryReference(mailbox,
-                                                   memory_tracker_.get());
+                                                   memory_type_tracker_.get());
 
   if (!shared_image) {
     return false;
@@ -969,30 +964,33 @@ SharedImageRepresentationFactoryRef* SharedImageFactory::GetFactoryRef(
 
 SharedImageRepresentationFactory::SharedImageRepresentationFactory(
     SharedImageManager* manager,
-    MemoryTracker* tracker)
+    scoped_refptr<gpu::MemoryTracker> memory_tracker)
     : manager_(manager),
-      tracker_(std::make_unique<MemoryTypeTracker>(tracker)) {}
+      memory_type_tracker_(
+          std::make_unique<MemoryTypeTracker>(std::move(memory_tracker))) {}
 
 SharedImageRepresentationFactory::~SharedImageRepresentationFactory() {
-  DCHECK_EQ(0u, tracker_->GetMemRepresented());
+  DCHECK_EQ(0u, memory_type_tracker_->GetMemRepresented());
 }
 
 std::unique_ptr<GLTextureImageRepresentation>
 SharedImageRepresentationFactory::ProduceGLTexture(const Mailbox& mailbox) {
-  return manager_->ProduceGLTexture(mailbox, tracker_.get());
+  return manager_->ProduceGLTexture(mailbox, memory_type_tracker_.get());
 }
 
 std::unique_ptr<GLTexturePassthroughImageRepresentation>
 SharedImageRepresentationFactory::ProduceGLTexturePassthrough(
     const Mailbox& mailbox) {
-  return manager_->ProduceGLTexturePassthrough(mailbox, tracker_.get());
+  return manager_->ProduceGLTexturePassthrough(mailbox,
+                                               memory_type_tracker_.get());
 }
 
 std::unique_ptr<SkiaImageRepresentation>
 SharedImageRepresentationFactory::ProduceSkia(
     const Mailbox& mailbox,
     scoped_refptr<SharedContextState> context_state) {
-  return manager_->ProduceSkia(mailbox, tracker_.get(), context_state);
+  return manager_->ProduceSkia(mailbox, memory_type_tracker_.get(),
+                               context_state);
 }
 
 std::unique_ptr<DawnImageRepresentation>
@@ -1002,8 +1000,9 @@ SharedImageRepresentationFactory::ProduceDawn(
     wgpu::BackendType backend_type,
     std::vector<wgpu::TextureFormat> view_formats,
     scoped_refptr<SharedContextState> context_state) {
-  return manager_->ProduceDawn(mailbox, tracker_.get(), device, backend_type,
-                               std::move(view_formats), context_state);
+  return manager_->ProduceDawn(mailbox, memory_type_tracker_.get(), device,
+                               backend_type, std::move(view_formats),
+                               context_state);
 }
 
 std::unique_ptr<DawnBufferRepresentation>
@@ -1011,30 +1010,30 @@ SharedImageRepresentationFactory::ProduceDawnBuffer(
     const Mailbox& mailbox,
     const wgpu::Device& device,
     wgpu::BackendType backend_type) {
-  return manager_->ProduceDawnBuffer(mailbox, tracker_.get(), device,
-                                     backend_type);
+  return manager_->ProduceDawnBuffer(mailbox, memory_type_tracker_.get(),
+                                     device, backend_type);
 }
 
 std::unique_ptr<OverlayImageRepresentation>
 SharedImageRepresentationFactory::ProduceOverlay(const gpu::Mailbox& mailbox) {
-  return manager_->ProduceOverlay(mailbox, tracker_.get());
+  return manager_->ProduceOverlay(mailbox, memory_type_tracker_.get());
 }
 
 std::unique_ptr<MemoryImageRepresentation>
 SharedImageRepresentationFactory::ProduceMemory(const gpu::Mailbox& mailbox) {
-  return manager_->ProduceMemory(mailbox, tracker_.get());
+  return manager_->ProduceMemory(mailbox, memory_type_tracker_.get());
 }
 
 std::unique_ptr<RasterImageRepresentation>
 SharedImageRepresentationFactory::ProduceRaster(const Mailbox& mailbox) {
-  return manager_->ProduceRaster(mailbox, tracker_.get());
+  return manager_->ProduceRaster(mailbox, memory_type_tracker_.get());
 }
 
 #if BUILDFLAG(IS_ANDROID)
 std::unique_ptr<LegacyOverlayImageRepresentation>
 SharedImageRepresentationFactory::ProduceLegacyOverlay(
     const gpu::Mailbox& mailbox) {
-  return manager_->ProduceLegacyOverlay(mailbox, tracker_.get());
+  return manager_->ProduceLegacyOverlay(mailbox, memory_type_tracker_.get());
 }
 #endif
 
@@ -1045,8 +1044,9 @@ SharedImageRepresentationFactory::ProduceVulkan(
     gpu::VulkanDeviceQueue* vulkan_device_queue,
     gpu::VulkanImplementation& vulkan_impl,
     bool needs_detiling) {
-  return manager_->ProduceVulkan(mailbox, tracker_.get(), vulkan_device_queue,
-                                 vulkan_impl, needs_detiling);
+  return manager_->ProduceVulkan(mailbox, memory_type_tracker_.get(),
+                                 vulkan_device_queue, vulkan_impl,
+                                 needs_detiling);
 }
 #endif
 

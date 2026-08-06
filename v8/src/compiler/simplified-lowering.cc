@@ -1833,28 +1833,28 @@ class RepresentationSelector {
     }
 
     if (CanSpeculateAdditiveSafeInteger(node)) {
-      if (!TypeOf(node).IsNone()) {
-        // Only eliminate the node if its typing rule can be satisfied, namely
-        // that a safe integer is produced.
-        if (truncation.IsUnused() &&
-            BothInputsAre(node, type_cache_->kAdditiveSafeIntegerOrMinusZero)) {
-          return VisitUnused<T>(node);
+      if (truncation.IsUnused()) {
+        if (lower<T>() && TypeOf(node).IsNone()) {
+          DeferReplacement(
+              node, InsertUnconditionalDeopt(
+                        node, DeoptimizeReason::kNotAdditiveSafeInteger));
         }
+        return VisitUnused<T>(node);
+      }
 
-        if (truncation.IsUsedAsWord32()) {
-          // This case handles addition where the result might be truncated to
-          // word32. Even if the inputs might be larger than 2^32, we can safely
-          // perform 32-bit addition *here* if the inputs are in the additive
-          // safe range. We *must* propagate the CheckedSafeIntTruncatingWord32
-          // information. This is because we need to ensure that we deoptimize
-          // if either input is not an integer, or not in the range.
-          // => Int32Add/Sub
-          VisitBinop<T>(
-              node, UseInfo::CheckedSafeIntTruncatingWord32(FeedbackSource{}),
-              MachineRepresentation::kWord32);
-          if (lower<T>()) ChangeToPureOp(node, Int32Op(node));
-          return;
-        }
+      if (truncation.IsUsedAsWord32()) {
+        // This case handles addition where the result might be truncated to
+        // word32. Even if the inputs might be larger than 2^32, we can safely
+        // perform 32-bit addition *here* if the inputs are in the additive
+        // safe range. We *must* propagate the CheckedSafeIntTruncatingWord32
+        // information. This is because we need to ensure that we deoptimize
+        // if either input is not an integer, or not in the range.
+        // => Int32Add/Sub
+        VisitBinop<T>(node,
+                      UseInfo::CheckedSafeIntTruncatingWord32(FeedbackSource{}),
+                      MachineRepresentation::kWord32);
+        if (lower<T>()) ChangeToPureOp(node, Int32Op(node));
+        return;
       }
 
       // => AdditiveSafeIntegerAdd/Sub
@@ -2495,10 +2495,11 @@ class RepresentationSelector {
             // If one of the node's inputs produces a None-type, we don't need
             // to lower the node.
             if (TypeOf(input).IsNone()) {
-              DeferReplacement(
-                  node, graph()->NewNode(common()->DeadValue(
-                                             GetInfo(node)->representation()),
-                                         input));
+              DisconnectFromEffectAndControl(node);
+              node->TrimInputCount(node->op()->ValueInputCount());
+              ChangeOp(node,
+                       common()->DeadValue(GetInfo(node)->representation(),
+                                           node->op()->ValueInputCount()));
               return;
             }
           }
@@ -3870,7 +3871,8 @@ class RepresentationSelector {
       }
       case IrOpcode::kStringEqual:
       case IrOpcode::kStringLessThan:
-      case IrOpcode::kStringLessThanOrEqual: {
+      case IrOpcode::kStringLessThanOrEqual:
+      case IrOpcode::kStringOrOddballStrictEqual: {
         return VisitBinop<T>(node, UseInfo::AnyTagged(),
                              MachineRepresentation::kTaggedPointer);
       }
@@ -4038,6 +4040,20 @@ class RepresentationSelector {
       case IrOpcode::kCheckStringOrStringWrapper: {
         const CheckParameters& params = CheckParametersOf(node->op());
         if (InputIs(node, Type::StringOrStringWrapper())) {
+          VisitUnop<T>(node, UseInfo::AnyTagged(),
+                       MachineRepresentation::kTaggedPointer);
+          if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitUnop<T>(
+              node,
+              UseInfo::CheckedHeapObjectAsTaggedPointer(params.feedback()),
+              MachineRepresentation::kTaggedPointer);
+        }
+        return;
+      }
+      case IrOpcode::kCheckStringOrOddball: {
+        const CheckParameters& params = CheckParametersOf(node->op());
+        if (InputIs(node, Type::StringOrOddball())) {
           VisitUnop<T>(node, UseInfo::AnyTagged(),
                        MachineRepresentation::kTaggedPointer);
           if (lower<T>()) DeferReplacement(node, node->InputAt(0));
@@ -5010,6 +5026,19 @@ class RepresentationSelector {
       verifier_->RecordHint(node);
     }
     return node;
+  }
+
+  Node* InsertUnconditionalDeopt(Node* node, DeoptimizeReason reason,
+                                 const FeedbackSource& feedback = {}) {
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* control = NodeProperties::GetControlInput(node);
+    effect =
+        jsgraph_->graph()->NewNode(simplified()->CheckIf(reason, feedback),
+                                   jsgraph_->Int32Constant(0), effect, control);
+    Node* unreachable = effect = jsgraph_->graph()->NewNode(
+        jsgraph_->common()->Unreachable(), effect, control);
+    NodeProperties::ReplaceEffectInput(node, effect);
+    return unreachable;
   }
 
   Node* InsertSemanticsHintForVerifier(const Operator* semantics, Node* node) {

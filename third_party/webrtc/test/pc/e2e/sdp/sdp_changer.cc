@@ -535,10 +535,10 @@ LocalAndRemoteSdp SignalingInterceptor::PatchVp9Answer(
   return LocalAndRemoteSdp(std::move(answer), std::move(answer_for_remote));
 }
 
-std::vector<std::unique_ptr<IceCandidateInterface>>
+std::vector<std::unique_ptr<IceCandidate>>
 SignalingInterceptor::PatchOffererIceCandidates(
-    ArrayView<const IceCandidateInterface* const> candidates) {
-  std::vector<std::unique_ptr<IceCandidateInterface>> out;
+    ArrayView<const IceCandidate* const> candidates) {
+  std::vector<std::unique_ptr<IceCandidate>> out;
   for (auto* candidate : candidates) {
     auto simulcast_info_it =
         context_.simulcast_infos_by_mid.find(candidate->sdp_mid());
@@ -559,10 +559,10 @@ SignalingInterceptor::PatchOffererIceCandidates(
   return out;
 }
 
-std::vector<std::unique_ptr<IceCandidateInterface>>
+std::vector<std::unique_ptr<IceCandidate>>
 SignalingInterceptor::PatchAnswererIceCandidates(
-    ArrayView<const IceCandidateInterface* const> candidates) {
-  std::vector<std::unique_ptr<IceCandidateInterface>> out;
+    ArrayView<const IceCandidate* const> candidates) {
+  std::vector<std::unique_ptr<IceCandidate>> out;
   for (auto* candidate : candidates) {
     auto simulcast_info_it =
         context_.simulcast_infos_by_rid.find(candidate->sdp_mid());

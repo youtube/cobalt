@@ -57,7 +57,7 @@ class ScopedLogIn {
       case user_manager::UserType::kPublicAccount:
         LogInAsPublicAccount();
         break;
-      case user_manager::UserType::kWebKioskApp:
+      case user_manager::UserType::kKioskWebApp:
         LogInWebKioskApp();
         break;
       case user_manager::UserType::kChild:
@@ -88,7 +88,7 @@ class ScopedLogIn {
   }
 
   void LogInWebKioskApp() {
-    fake_user_manager_->AddWebKioskAppUser(account_id_);
+    fake_user_manager_->AddKioskWebAppUser(account_id_);
     fake_user_manager_->LoginUser(account_id_);
   }
 
@@ -221,7 +221,7 @@ TEST_F(ProjectorUtilsTest, IsProjectorAllowedForProfile_DemoAccount) {
 TEST_F(ProjectorUtilsTest, IsProjectorAllowedForProfile_KioskAppAccount) {
   ScopedLogIn login(GetFakeUserManager(),
                     AccountId::FromUserEmail(profile()->GetProfileUserName()),
-                    user_manager::UserType::kWebKioskApp);
+                    user_manager::UserType::kKioskWebApp);
   EXPECT_FALSE(IsProjectorAllowedForProfile(profile()));
 }
 
@@ -264,7 +264,7 @@ TEST_F(ProjectorUtilsTest, IsProjectorAppEnabled_DemoAccount) {
 TEST_F(ProjectorUtilsTest, IsProjectorAppEnabled_KioskAppAccount) {
   ScopedLogIn login(GetFakeUserManager(),
                     AccountId::FromUserEmail(profile()->GetProfileUserName()),
-                    user_manager::UserType::kWebKioskApp);
+                    user_manager::UserType::kKioskWebApp);
   EXPECT_FALSE(IsProjectorAppEnabled(profile()));
 }
 

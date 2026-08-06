@@ -36,7 +36,6 @@ import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.bookmarks.BookmarkUtils;
 import org.chromium.chrome.browser.contextmenu.ChromeContextMenuItem.Item;
-import org.chromium.chrome.browser.contextmenu.ContextMenuCoordinator.ListItemType;
 import org.chromium.chrome.browser.download.DownloadUtils;
 import org.chromium.chrome.browser.enterprise.util.DataProtectionBridge;
 import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
@@ -83,6 +82,7 @@ import org.chromium.content_public.common.ContentUrlConstants;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.DeviceInput;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.listmenu.ListItemType;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -355,8 +355,7 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
 
     @VisibleForTesting
     boolean shouldShowEmptySpaceContextMenu() {
-        return DeviceFormFactor.isDesktop()
-                && DeviceInput.supportsPrecisionPointer()
+        return DeviceInput.supportsPrecisionPointer()
                 && ChromeFeatureList.isEnabled(ChromeFeatureList.CONTEXT_MENU_EMPTY_SPACE);
     }
 
@@ -665,14 +664,14 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
             mItemDelegate.onOpenImageUrl(mParams.getSrcUrl(), mParams.getReferrer());
         } else if (itemId == R.id.contextmenu_open_image_in_new_tab) {
             recordContextMenuSelection(ContextMenuUma.Action.OPEN_IMAGE_IN_NEW_TAB);
-            verifyCopyImageIsAllowedByPolicy(
+            verifyGenericCopyImageActionIsAllowedByPolicy(
                     mParams.getSrcUrl().getSpec(),
                     () ->
                             mItemDelegate.onOpenImageInNewTab(
                                     mParams.getSrcUrl(), mParams.getReferrer()));
         } else if (itemId == R.id.contextmenu_open_image_in_ephemeral_tab) {
             recordContextMenuSelection(ContextMenuUma.Action.OPEN_IMAGE_IN_EPHEMERAL_TAB);
-            verifyCopyImageIsAllowedByPolicy(
+            verifyGenericCopyImageActionIsAllowedByPolicy(
                     mParams.getSrcUrl().getSpec(),
                     () -> {
                         String title = mParams.getTitleText();
@@ -757,11 +756,10 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
             }
         } else if (itemId == R.id.contextmenu_save_page) {
             recordContextMenuSelection(ContextMenuUma.Action.SAVE_PAGE);
-            GURL url = mItemDelegate.getPageUrl();
             if (mIsDownloadRestrictedByPolicy) {
                 showDownloadRestrictedToast();
-            } else if (mItemDelegate.startDownload(url, true)) {
-                mNativeDelegate.startDownload(url, false);
+            } else {
+                mItemDelegate.startDownloadPage(mContext);
             }
         } else if (itemId == R.id.contextmenu_share_page) {
             recordContextMenuSelection(ContextMenuUma.Action.SHARE_PAGE);
@@ -957,8 +955,9 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                                 }));
     }
 
-    private void verifyCopyImageIsAllowedByPolicy(String imageUri, Runnable continueIfCopyAllowed) {
-        DataProtectionBridge.verifyCopyImageIsAllowedByPolicy(
+    private void verifyGenericCopyImageActionIsAllowedByPolicy(
+            String imageUri, Runnable continueIfCopyAllowed) {
+        DataProtectionBridge.verifyGenericCopyImageActionIsAllowedByPolicy(
                 imageUri,
                 mItemDelegate.getWebContents().getMainFrame(),
                 (isAllowed) -> {

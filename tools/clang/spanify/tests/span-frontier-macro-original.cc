@@ -29,3 +29,37 @@ void test_with_macro() {
     ASSIGN(0);  // Sets the integer pointed to by x to 0;
   }
 }
+
+// No function body so that the argument type won't get spanified.
+void take_ptr1(int* arg);
+
+// A macro that expects a pointer as the argument.
+#define TAKE_PTR1(arg) (take_ptr1(arg))
+
+void test_take_ptr1_macro() {
+  int array[3] = {1, 2, 3};
+  // Expected rewrite:
+  // base::span<int> buf = array;
+  int* buf = array;
+  buf[0] = 0;
+  // Expected rewrite:
+  // TAKE_PTR1(buf.data());
+  TAKE_PTR1(buf);
+}
+
+// A macro that expects a pointer as the argument.
+#define TAKE_PTR2(arg) (arg + 1)
+
+void test_take_ptr2_macro() {
+  int array[3] = {1, 2, 3};
+  // Expected rewrite:
+  // base::span<int> buf = array;
+  int* buf = array;
+  buf[0] = 0;
+  // Expected rewrite:
+  // UNSAFE_TODO(TAKE_PTR2(buf.data()));
+  TAKE_PTR2(buf);
+}
+
+// TODO(yukishiino): Support static_cast and C style cast.
+// #define TAKE_PTR3(arg) ((char*)(arg))

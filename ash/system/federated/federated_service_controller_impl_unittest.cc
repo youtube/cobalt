@@ -73,12 +73,12 @@ TEST_F(FederatedServiceControllerImplTestBase, InvalidLoginStatusAndUserType) {
   EXPECT_FALSE(controller_->IsServiceAvailable());
   ClearLogin();
 
-  SimulateKioskMode(user_manager::UserType::kWebKioskApp);
+  SimulateKioskMode(user_manager::UserType::kKioskWebApp);
 
   EXPECT_FALSE(controller_->IsServiceAvailable());
   ClearLogin();
 
-  SimulateKioskMode(user_manager::UserType::kKioskApp);
+  SimulateKioskMode(user_manager::UserType::kKioskChromeApp);
 
   EXPECT_FALSE(controller_->IsServiceAvailable());
   ClearLogin();

@@ -79,8 +79,8 @@ class BackgroundXhrTest : public ExtensionBrowserTest {
     ASSERT_TRUE(extension);
 
     ResultCatcher catcher;
-    GURL test_url = net::AppendQueryParameter(extension->GetResourceURL(path),
-                                              "url", url.spec());
+    GURL test_url = net::AppendQueryParameter(
+        extension->ResolveExtensionURL(path), "url", url.spec());
     ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_url));
     profile()->GetDefaultStoragePartition()->FlushNetworkInterfaceForTesting();
     static constexpr char kSendXHRScript[] = R"(
@@ -133,6 +133,12 @@ class BackgroundFetchPolicyTest : public ExtensionApiTestWithManagementPolicy {
     // needs to come after SetUp has been run in the superclass, but before any
     // subclasses need it in their own SetUpCommandLine functions.
     ASSERT_TRUE(embedded_test_server()->Start());
+    // Treat the test server as public to bypass Local Network Access checks.
+    command_line->AppendSwitchASCII(
+        network::switches::kIpAddressSpaceOverrides,
+        base::StringPrintf(
+            "%s=public",
+            embedded_test_server()->host_port_pair().ToString().c_str()));
   }
 
   void SetUpOnMainThread() override {

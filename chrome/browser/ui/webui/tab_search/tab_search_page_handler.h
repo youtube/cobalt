@@ -93,6 +93,7 @@ class TabSearchPageHandler
 
   // tab_search::mojom::PageHandler:
   void CloseTab(int32_t tab_id) override;
+  void CloseWebUiTab() override;
   void DeclutterTabs(const std::vector<int32_t>& tab_ids,
                      const std::vector<GURL>& urls) override;
   void AcceptTabOrganization(
@@ -326,7 +327,7 @@ class TabSearchPageHandler
   mojo::Receiver<tab_search::mojom::PageHandler> receiver_;
   mojo::Remote<tab_search::mojom::Page> page_;
   const raw_ptr<content::WebUI> web_ui_;
-  const raw_ptr<TopChromeWebUIController, DanglingUntriaged> webui_controller_;
+  const raw_ptr<TopChromeWebUIController> webui_controller_;
   raw_ptr<Browser> browser_;
   const raw_ptr<MetricsReporter> metrics_reporter_;
   BrowserTabStripTracker browser_tab_strip_tracker_{this, this};

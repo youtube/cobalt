@@ -136,7 +136,7 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
         new_state == PeerConnectionInterface::kIceGatheringComplete;
     callback_triggered_ = true;
   }
-  void OnIceCandidate(const IceCandidateInterface* candidate) override {
+  void OnIceCandidate(const IceCandidate* candidate) override {
     RTC_DCHECK(pc_);
     candidates_.push_back(std::make_unique<JsepIceCandidate>(
         candidate->sdp_mid(), candidate->sdp_mline_index(),
@@ -209,7 +209,7 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
     return "";
   }
 
-  IceCandidateInterface* last_candidate() {
+  IceCandidate* last_candidate() {
     if (candidates_.empty()) {
       return nullptr;
     } else {
@@ -217,16 +217,16 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
     }
   }
 
-  std::vector<const IceCandidateInterface*> GetAllCandidates() {
-    std::vector<const IceCandidateInterface*> candidates;
+  std::vector<const IceCandidate*> GetAllCandidates() {
+    std::vector<const IceCandidate*> candidates;
     for (const auto& candidate : candidates_) {
       candidates.push_back(candidate.get());
     }
     return candidates;
   }
 
-  std::vector<IceCandidateInterface*> GetCandidatesByMline(int mline_index) {
-    std::vector<IceCandidateInterface*> candidates;
+  std::vector<IceCandidate*> GetCandidatesByMline(int mline_index) {
+    std::vector<IceCandidate*> candidates;
     for (const auto& candidate : candidates_) {
       if (candidate->sdp_mline_index() == mline_index) {
         candidates.push_back(candidate.get());
@@ -250,7 +250,7 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
 
   scoped_refptr<PeerConnectionInterface> pc_;
   PeerConnectionInterface::SignalingState state_;
-  std::vector<std::unique_ptr<IceCandidateInterface>> candidates_;
+  std::vector<std::unique_ptr<IceCandidate>> candidates_;
   scoped_refptr<DataChannelInterface> last_datachannel_;
   scoped_refptr<StreamCollection> remote_streams_;
   bool renegotiation_needed_ = false;

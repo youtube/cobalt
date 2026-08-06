@@ -51,8 +51,6 @@ void CheckGpuPreferencesEqual(GpuPreferences left, GpuPreferences right) {
             right.enable_gpu_driver_debug_logging);
   EXPECT_EQ(left.disable_gpu_program_cache, right.disable_gpu_program_cache);
   EXPECT_EQ(left.enforce_gl_minimums, right.enforce_gl_minimums);
-  EXPECT_EQ(left.force_gpu_mem_available_bytes,
-            right.force_gpu_mem_available_bytes);
   EXPECT_EQ(left.force_gpu_mem_discardable_limit_bytes,
             right.force_gpu_mem_discardable_limit_bytes);
   EXPECT_EQ(left.gpu_program_cache_size, right.gpu_program_cache_size);
@@ -61,6 +59,10 @@ void CheckGpuPreferencesEqual(GpuPreferences left, GpuPreferences right) {
   EXPECT_EQ(left.enable_threaded_texture_mailboxes,
             right.enable_threaded_texture_mailboxes);
   EXPECT_EQ(left.gl_shader_interm_output, right.gl_shader_interm_output);
+  EXPECT_EQ(left.enable_android_surface_control,
+            right.enable_android_surface_control);
+  EXPECT_EQ(left.perform_graphite_precompilation,
+            right.perform_graphite_precompilation);
   EXPECT_EQ(left.enable_gpu_service_logging, right.enable_gpu_service_logging);
   EXPECT_EQ(left.enable_gpu_service_tracing, right.enable_gpu_service_tracing);
   EXPECT_EQ(left.use_passthrough_cmd_decoder,
@@ -146,13 +148,14 @@ TEST(GpuPreferencesTest, EncodeDecode) {
     GPU_PREFERENCES_FIELD(enable_gpu_driver_debug_logging, true)
     GPU_PREFERENCES_FIELD(disable_gpu_program_cache, true)
     GPU_PREFERENCES_FIELD(enforce_gl_minimums, true)
-    GPU_PREFERENCES_FIELD(force_gpu_mem_available_bytes, 4096)
     GPU_PREFERENCES_FIELD(force_gpu_mem_discardable_limit_bytes, 8092)
     GPU_PREFERENCES_FIELD(gpu_program_cache_size,
                           kDefaultMaxProgramCacheMemoryBytes - 1)
     GPU_PREFERENCES_FIELD(disable_gpu_shader_disk_cache, true)
     GPU_PREFERENCES_FIELD(enable_threaded_texture_mailboxes, true)
     GPU_PREFERENCES_FIELD(gl_shader_interm_output, true)
+    GPU_PREFERENCES_FIELD(enable_android_surface_control, true)
+    GPU_PREFERENCES_FIELD(perform_graphite_precompilation, true)
     GPU_PREFERENCES_FIELD(enable_gpu_service_logging, true)
     GPU_PREFERENCES_FIELD(enable_gpu_service_tracing, true)
     GPU_PREFERENCES_FIELD(use_passthrough_cmd_decoder, true)
@@ -229,12 +232,13 @@ TEST(GpuPreferencesTest, DISABLED_DecodePreferences) {
   PRINT_BOOL(enable_gpu_driver_debug_logging);
   PRINT_BOOL(disable_gpu_program_cache);
   PRINT_BOOL(enforce_gl_minimums);
-  PRINT_INT(force_gpu_mem_available_bytes);
   PRINT_INT(force_gpu_mem_discardable_limit_bytes);
   PRINT_INT(gpu_program_cache_size);
   PRINT_BOOL(disable_gpu_shader_disk_cache);
   PRINT_BOOL(enable_threaded_texture_mailboxes);
   PRINT_BOOL(gl_shader_interm_output);
+  PRINT_BOOL(enable_android_surface_control);
+  PRINT_BOOL(perform_graphite_precompilation);
   PRINT_BOOL(enable_gpu_service_logging);
   PRINT_BOOL(enable_gpu_service_tracing);
   PRINT_BOOL(use_passthrough_cmd_decoder);

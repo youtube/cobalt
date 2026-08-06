@@ -9,20 +9,37 @@
 #include <string>
 
 #include "base/functional/callback_forward.h"
+#include "base/memory/raw_ref.h"
 #include "chrome/common/actor.mojom-forward.h"
+#include "chrome/renderer/actor/journal.h"
+
+namespace content {
+class RenderFrame;
+}
 
 namespace actor {
+
 class ToolBase {
  public:
-  using ToolFinishedCallback = base::OnceCallback<void(mojom::ActionResultPtr)>;
+  ToolBase(content::RenderFrame& frame,
+           Journal::TaskId task_id,
+           Journal& journal)
+      : frame_(frame), task_id_(task_id), journal_(journal) {}
   virtual ~ToolBase() = default;
 
-  // Executes the tool. `callback` is invoked with the tool result.
-  virtual void Execute(ToolFinishedCallback callback) = 0;
+  // Executes the tool and returns the result code.
+  virtual mojom::ActionResultPtr Execute() = 0;
 
   // Returns a human readable string representing this tool and its parameters.
   // Used primarily for logging and debugging.
   virtual std::string DebugString() const = 0;
+
+ protected:
+  // Raw ref since this is owned by ToolExecutor whose lifetime is tied to
+  // RenderFrame.
+  base::raw_ref<content::RenderFrame> frame_;
+  Journal::TaskId task_id_;
+  base::raw_ref<Journal> journal_;
 };
 }  // namespace actor
 

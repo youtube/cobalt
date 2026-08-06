@@ -27,8 +27,8 @@
 #include "base/debug/crash_logging.h"
 #include "base/pickle.h"
 #include "base/strings/strcat.h"
-#include "base/trace_event/base_tracing.h"
 #include "base/trace_event/memory_usage_estimator.h"
+#include "base/trace_event/trace_event.h"
 #include "base/unguessable_token.h"
 #include "url/gurl.h"
 #include "url/scheme_host_port.h"
@@ -253,13 +253,7 @@ bool Origin::CanBeDerivedFrom(const GURL& url) const {
     return true;
 
   // However, when there is precursor present, that must match.
-  if (IsUsingStandardCompliantNonSpecialSchemeURLParsing()) {
-    return SchemeHostPort(url) == tuple_;
-  } else {
-    // Match only the scheme because host and port are unavailable for
-    // non-special URLs when the flag is disabled.
-    return url.scheme() == tuple_.scheme();
-  }
+  return SchemeHostPort(url) == tuple_;
 }
 
 bool Origin::DomainIs(std::string_view canonical_domain) const {

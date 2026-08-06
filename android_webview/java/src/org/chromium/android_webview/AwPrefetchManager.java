@@ -19,6 +19,7 @@ import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.android_webview.AwPrefetchCallback.StatusCode;
+import org.chromium.android_webview.common.AwFeatureMap;
 import org.chromium.android_webview.common.Lifetime;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
@@ -62,6 +63,10 @@ public class AwPrefetchManager {
     @CalledByNative
     private static AwPrefetchManager create(long nativePrefetchManager) {
         return new AwPrefetchManager(nativePrefetchManager);
+    }
+
+    public static boolean isSecPurposeForPrefetch(String secPurposeHeaderValue) {
+        return AwPrefetchManagerJni.get().isSecPurposeForPrefetch(secPurposeHeaderValue);
     }
 
     @Nullable
@@ -266,6 +271,8 @@ public class AwPrefetchManager {
     interface Natives {
 
         int getNoPrefetchKey();
+
+        boolean isSecPurposeForPrefetch(@JniType("std::string") String secPurposeHeaderValue);
 
         // Returns the prefetch key used to cancel the request.
         int startPrefetchRequest(

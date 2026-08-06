@@ -36,6 +36,7 @@
 #include "base/functional/callback.h"
 #include "base/i18n/string_search.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/string_view_util.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/partitions.h"
 #include "third_party/blink/renderer/platform/wtf/dynamic_annotations.h"
 #include "third_party/blink/renderer/platform/wtf/leak_annotations.h"
@@ -276,7 +277,8 @@ StringImpl* StringImpl::CreateStatic(base::span<const char> string) {
 
   StaticStringsTable::const_iterator it = StaticStrings().find(hash);
   if (it != StaticStrings().end()) {
-    DCHECK_EQ(it->value->Span8(), base::as_bytes(string));
+    DCHECK_EQ(base::as_string_view(it->value->Span8()),
+              base::as_string_view(string));
     return it->value;
   }
   const wtf_size_t narrowed_length = static_cast<wtf_size_t>(string.size());

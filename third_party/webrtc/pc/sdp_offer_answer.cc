@@ -2869,8 +2869,7 @@ void SdpOfferAnswerHandler::SetAssociatedRemoteStreams(
   RemoveRemoteStreamsIfEmpty(previous_streams, removed_streams);
 }
 
-bool SdpOfferAnswerHandler::AddIceCandidate(
-    const IceCandidateInterface* ice_candidate) {
+bool SdpOfferAnswerHandler::AddIceCandidate(const IceCandidate* ice_candidate) {
   const AddIceCandidateResult result = AddIceCandidateInternal(ice_candidate);
   NoteAddIceCandidateResult(result);
   // If the return value is kAddIceCandidateFailNotReady, the candidate has
@@ -2880,7 +2879,7 @@ bool SdpOfferAnswerHandler::AddIceCandidate(
 }
 
 AddIceCandidateResult SdpOfferAnswerHandler::AddIceCandidateInternal(
-    const IceCandidateInterface* ice_candidate) {
+    const IceCandidate* ice_candidate) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::AddIceCandidate");
   if (pc_->IsClosed()) {
@@ -2926,7 +2925,7 @@ AddIceCandidateResult SdpOfferAnswerHandler::AddIceCandidateInternal(
 }
 
 void SdpOfferAnswerHandler::AddIceCandidate(
-    std::unique_ptr<IceCandidateInterface> candidate,
+    std::unique_ptr<IceCandidate> candidate,
     std::function<void(RTCError)> callback) {
   TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::AddIceCandidate");
   RTC_DCHECK_RUN_ON(signaling_thread());
@@ -5259,7 +5258,7 @@ bool SdpOfferAnswerHandler::UseCandidatesInRemoteDescription() {
   for (size_t m = 0; m < remote_desc->number_of_mediasections(); ++m) {
     const IceCandidateCollection* candidates = remote_desc->candidates(m);
     for (size_t n = 0; n < candidates->count(); ++n) {
-      const IceCandidateInterface* candidate = candidates->at(n);
+      const IceCandidate* candidate = candidates->at(n);
       bool valid = false;
       if (!ReadyToUseRemoteCandidate(candidate, remote_desc, &valid)) {
         if (valid) {
@@ -5278,8 +5277,7 @@ bool SdpOfferAnswerHandler::UseCandidatesInRemoteDescription() {
   return ret;
 }
 
-bool SdpOfferAnswerHandler::UseCandidate(
-    const IceCandidateInterface* candidate) {
+bool SdpOfferAnswerHandler::UseCandidate(const IceCandidate* candidate) {
   RTC_DCHECK_RUN_ON(signaling_thread());
 
   Thread::ScopedDisallowBlockingCalls no_blocking_calls;
@@ -5307,7 +5305,7 @@ bool SdpOfferAnswerHandler::UseCandidate(
 // Not doing so may trigger the auto generation of transport description and
 // mess up DTLS identity information, ICE credential, etc.
 bool SdpOfferAnswerHandler::ReadyToUseRemoteCandidate(
-    const IceCandidateInterface* candidate,
+    const IceCandidate* candidate,
     const SessionDescriptionInterface* remote_desc,
     bool* valid) {
   RTC_DCHECK_RUN_ON(signaling_thread());
@@ -5371,7 +5369,7 @@ bool SdpOfferAnswerHandler::ReadyToUseRemoteCandidate(
 
 RTCErrorOr<const ContentInfo*> SdpOfferAnswerHandler::FindContentInfo(
     const SessionDescriptionInterface* description,
-    const IceCandidateInterface* candidate) {
+    const IceCandidate* candidate) {
   if (!candidate->sdp_mid().empty()) {
     auto& contents = description->description()->contents();
     auto it =

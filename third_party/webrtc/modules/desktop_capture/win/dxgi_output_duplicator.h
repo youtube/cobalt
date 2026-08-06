@@ -17,7 +17,9 @@
 #include <shellscalingapi.h>
 #include <wrl/client.h>
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -28,7 +30,6 @@
 #include "modules/desktop_capture/win/d3d_device.h"
 #include "modules/desktop_capture/win/dxgi_context.h"
 #include "modules/desktop_capture/win/dxgi_texture.h"
-#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 

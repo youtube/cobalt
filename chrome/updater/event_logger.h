@@ -11,13 +11,17 @@
 #include <string>
 
 #include "base/containers/span.h"
+#include "base/functional/callback_forward.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/threading/sequence_bound.h"
 #include "base/time/time.h"
 #include "chrome/enterprise_companion/telemetry_logger/telemetry_logger.h"
-#include "chrome/updater/configurator.h"
 #include "chrome/updater/persisted_data.h"
+#include "chrome/updater/protos/omaha_usage_stats_event.pb.h"
 #include "chrome/updater/updater_scope.h"
 #include "components/update_client/network.h"
 #include "url/gurl.h"
@@ -32,9 +36,16 @@ class Omaha4Metric;
 class Omaha4UsageStatsMetadata;
 }  // namespace proto
 
-class RemoteLoggingDelegate final
-    : enterprise_companion::telemetry_logger::TelemetryLogger<
-          proto::Omaha4Metric>::Delegate {
+class Configurator;
+
+using UpdaterEventLogger =
+    ::enterprise_companion::telemetry_logger::TelemetryLogger<
+        proto::Omaha4Metric>;
+
+// The TelemetryLogger delegate for the updater. The delegate is created on the
+// main sequence but is accessed / destroyed on a sequence managed by
+// TelemetryLogger.
+class RemoteLoggingDelegate final : public UpdaterEventLogger::Delegate {
  public:
   RemoteLoggingDelegate(UpdaterScope scope,
                         const GURL& event_logging_url,
@@ -44,9 +55,9 @@ class RemoteLoggingDelegate final
 
   ~RemoteLoggingDelegate() override;
 
-  // Overrides for TelemetryLogger.
-  bool StoreNextAllowedAttemptTime(base::Time time) override;
-  std::optional<base::Time> GetNextAllowedAttemptTime() const override;
+  // Overrides for TelemetryLogger::Delegate.
+  void StoreNextAllowedAttemptTime(base::Time time,
+                                   base::OnceClosure callback) override;
   void DoPostRequest(
       const std::string& request_body,
       base::OnceCallback<void(std::optional<int> http_status,
@@ -58,33 +69,16 @@ class RemoteLoggingDelegate final
       base::span<proto::Omaha4Metric> events) const override;
 
  private:
-  void ResponseStart(int status_code, int64_t content_length);
-  void ResponseComplete(
-      base::OnceCallback<void(std::optional<int> http_status,
-                              std::optional<std::string> response_body)>
-          callback,
-      std::optional<std::string> response_body,
-      int net_error,
-      const std::string& header_etag,
-      const std::string& header_x_cup_server_proof,
-      const std::string& header_set_cookie,
-      int64_t xheader_retry_after_sec);
   proto::Omaha4UsageStatsMetadata GetMetadata() const;
 
   SEQUENCE_CHECKER(sequence_checker_);
-  const UpdaterScope scope_;
   const GURL event_logging_url_;
-  const bool is_cloud_managed_;
+  const proto::Omaha4UsageStatsMetadata metadata_;
+  const base::TimeDelta minimum_cooldown_;
   scoped_refptr<Configurator> configurator_;
   std::unique_ptr<base::Clock> clock_;
   const scoped_refptr<PersistedData> persisted_data_;
-
-  // A network fetcher is instantiated for each request. It lives for the
-  // duration of the request.
-  std::unique_ptr<update_client::NetworkFetcher> network_fetcher_;
-  int http_status_code_ = 0;
-
-  base::WeakPtrFactory<RemoteLoggingDelegate> weak_factory_{this};
+  scoped_refptr<base::SequencedTaskRunner> main_sequence_;
 };
 
 // Extracts the value and expiration of the event logging cooke from the value

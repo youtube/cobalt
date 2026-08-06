@@ -49,6 +49,7 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityUtils;
 import org.chromium.chrome.browser.WarmupManager;
 import org.chromium.chrome.browser.app.ChromeActivity;
+import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
 import org.chromium.chrome.browser.content.ContentUtils;
 import org.chromium.chrome.browser.content.WebContentsFactory;
@@ -65,6 +66,9 @@ import org.chromium.chrome.browser.pdf.PdfUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.rlz.RevenueStats;
 import org.chromium.chrome.browser.tab.TabUtils.UseDesktopUserAgentCaller;
+import org.chromium.chrome.browser.tabmodel.TabClosureParams;
+import org.chromium.chrome.browser.tabmodel.TabModel;
+import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.chrome.browser.ui.native_page.FrozenNativePage;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.native_page.NativePage.SmoothTransitionDelegate;
@@ -187,6 +191,7 @@ class TabImpl implements Tab {
     private TabWebContentsDelegateAndroidImpl mWebContentsDelegate;
 
     private boolean mIsClosing;
+    private boolean mDidCloseWhileDetached;
     private boolean mIsShowingErrorPage;
 
     /**
@@ -235,7 +240,7 @@ class TabImpl implements Tab {
      */
     private boolean mIsNativePageCommitPending;
 
-    private TabDelegateFactory mDelegateFactory;
+    private @Nullable TabDelegateFactory mDelegateFactory;
 
     /** Listens for views related to the tab to be attached or detached. */
     private final OnAttachStateChangeListener mAttachStateChangeListener;
@@ -1065,6 +1070,16 @@ class TabImpl implements Tab {
         for (TabObserver observer : mObservers) observer.onClosingStateChanged(this, closing);
     }
 
+    @Override
+    public void setDidCloseWhileDetached() {
+        mDidCloseWhileDetached = true;
+    }
+
+    @Override
+    public boolean didCloseWhileDetached() {
+        return mDidCloseWhileDetached;
+    }
+
     @CalledByNative
     @Override
     public boolean isHidden() {
@@ -1164,14 +1179,14 @@ class TabImpl implements Tab {
      */
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     void initialize(
-            Tab parent,
+            @Nullable Tab parent,
             @Nullable @TabCreationState Integer creationState,
             @Nullable LoadUrlParams loadUrlParams,
             @Nullable String pendingTitle,
-            WebContents webContents,
-            @Nullable TabDelegateFactory delegateFactory,
+            @Nullable WebContents webContents,
+            TabDelegateFactory delegateFactory,
             boolean initiallyHidden,
-            TabState tabState,
+            @Nullable TabState tabState,
             boolean initializeRenderer) {
         try {
             TraceEvent.begin("Tab.initialize");
@@ -2308,6 +2323,7 @@ class TabImpl implements Tab {
     }
 
     @Override
+    @CalledByNative
     public void setTabGroupId(@Nullable Token tabGroupId) {
         assert tabGroupId == null || !tabGroupId.isZero() : "A TabGroupId token must be non-zero.";
         if (Objects.equals(mTabGroupId, tabGroupId) || isDestroyed()) return;
@@ -2588,11 +2604,13 @@ class TabImpl implements Tab {
     }
 
     @Override
+    @CalledByNative
     public boolean getIsPinned() {
         return mIsPinned;
     }
 
     @Override
+    @CalledByNative
     public void setIsPinned(boolean isPinned) {
         if (mIsPinned == isPinned || isDestroyed()) return;
         mIsPinned = isPinned;
@@ -2625,6 +2643,18 @@ class TabImpl implements Tab {
         assert mCurrentTabSupplier == null || mCurrentTabSupplier == currentTabSupplier;
 
         mCurrentTabSupplier = null;
+    }
+
+    @CalledByNative
+    public static void closeTabFromNative(Tab tab) {
+        TabWindowManager manager = TabWindowManagerSingleton.getInstance();
+        TabModel model = manager.getTabModelForTab(tab);
+        if (model == null) return;
+
+        model.getTabRemover()
+                .closeTabs(
+                        TabClosureParams.closeTab(tab).allowUndo(false).build(),
+                        /* allowDialog= */ false);
     }
 
     @NativeMethods

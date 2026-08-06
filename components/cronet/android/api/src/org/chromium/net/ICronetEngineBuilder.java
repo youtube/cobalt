@@ -66,6 +66,11 @@ public abstract class ICronetEngineBuilder {
         return this;
     }
 
+    public ICronetEngineBuilder setProxyOptions(ProxyOptions proxyOptions) {
+        throw new UnsupportedOperationException(
+                "This Cronet implementation does not support ProxyOptions");
+    }
+
     public abstract ICronetEngineBuilder setExperimentalOptions(String options);
 
     public abstract ICronetEngineBuilder setLibraryLoader(

@@ -34,6 +34,7 @@
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/crypto/crypto_options.h"
+#include "api/field_trials.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/test/rtc_error_matchers.h"
@@ -52,17 +53,19 @@
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 #include "test/wait_until.h"
+
+namespace webrtc {
+namespace {
 
 using ::testing::Combine;
 using ::testing::NotNull;
 using ::testing::tuple;
 using ::testing::Values;
 using ::testing::WithParamInterface;
-using ::webrtc::SafeTask;
 
 // Generated using `openssl genrsa -out key.pem 2048`
 static const char kRSA_PRIVATE_KEY_PEM[] =
@@ -468,22 +471,15 @@ class SSLStreamAdapterTestBase : public ::testing::Test,
     // Note: `client_ssl_` and `server_ssl_` may be non-nullptr.
 
     // The field trials are read when the OpenSSLStreamAdapter is initialized.
-    using webrtc::test::ScopedKeyValueConfig;
     {
-      std::unique_ptr<ScopedKeyValueConfig> trial(
-          client_experiment.empty()
-              ? nullptr
-              : new ScopedKeyValueConfig(client_experiment));
+      FieldTrials trial = CreateTestFieldTrials(client_experiment);
       client_ssl_ = webrtc::SSLStreamAdapter::Create(CreateClientStream(),
-                                                     nullptr, trial.get());
+                                                     nullptr, &trial);
     }
     {
-      std::unique_ptr<ScopedKeyValueConfig> trial(
-          server_experiment.empty()
-              ? nullptr
-              : new ScopedKeyValueConfig(server_experiment));
+      FieldTrials trial = CreateTestFieldTrials(server_experiment);
       server_ssl_ = webrtc::SSLStreamAdapter::Create(CreateServerStream(),
-                                                     nullptr, trial.get());
+                                                     nullptr, &trial);
     }
     client_ssl_->SetEventCallback(
         [this](int events, int err) { OnClientEvent(events, err); });
@@ -1631,3 +1627,6 @@ TEST_P(SSLStreamAdapterTestDTLSHandshakeVersion, TestGetSslGroupIdWithPqc) {
   }
 }
 #endif
+
+}  // namespace
+}  // namespace webrtc

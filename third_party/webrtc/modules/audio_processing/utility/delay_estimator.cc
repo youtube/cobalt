@@ -14,6 +14,7 @@
 #include <string.h>
 
 #include <algorithm>
+#include <cstdint>
 
 #include "rtc_base/checks.h"
 

@@ -14,8 +14,8 @@ import type {CrToggleElement} from '//resources/cr_elements/cr_toggle/cr_toggle.
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {BigBuffer} from '//resources/mojo/mojo/public/mojom/base/big_buffer.mojom-webui.js';
 
-import type {Scenario} from './trace_report.mojom-webui.js';
-import {TraceReportBrowserProxy} from './trace_report_browser_proxy.js';
+import {TracesBrowserProxy} from './traces_browser_proxy.js';
+import type {Scenario} from './traces_internals.mojom-webui.js';
 import {getCss} from './tracing_scenarios_config.css.js';
 import {getHtml} from './tracing_scenarios_config.html.js';
 
@@ -40,9 +40,9 @@ export class TracingScenariosConfigElement extends CrLitElement {
 
   static override get properties() {
     return {
+      enabledScenarios_: {type: Object},
       localConfig_: {type: Array},
       fieldConfig_: {type: Array},
-      isEdited_: {type: Boolean},
       isLoading_: {type: Boolean},
       privacyFilterEnabled_: {type: Boolean},
       toastMessage_: {type: String},
@@ -53,12 +53,14 @@ export class TracingScenariosConfigElement extends CrLitElement {
     };
   }
 
-  private traceReportProxy_: TraceReportBrowserProxy =
-      TraceReportBrowserProxy.getInstance();
+  private traceReportProxy_: TracesBrowserProxy =
+      TracesBrowserProxy.getInstance();
 
+  private refreshIntervalId_: number = 0;
+
+  protected accessor enabledScenarios_: {[id: string]: boolean} = {};
   protected accessor localConfig_: Scenario[] = [];
   protected accessor fieldConfig_: Scenario[] = [];
-  protected accessor isEdited_: boolean = false;
   protected accessor isLoading_: boolean = false;
   protected accessor privacyFilterEnabled_: boolean = false;
   protected accessor toastMessage_: string = '';
@@ -70,28 +72,22 @@ export class TracingScenariosConfigElement extends CrLitElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
-    this.loadScenariosConfig_();
+    this.initializeConfig_();
   }
 
-  protected async loadScenariosConfig_(): Promise<void> {
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    clearInterval(this.refreshIntervalId_);
+  }
+
+  protected async initializeConfig_(): Promise<void> {
     this.isLoading_ = true;
-    this.isEdited_ = false;
-    this.localConfig_ = [];
-    this.fieldConfig_ = [];
+
+    await this.loadScenariosConfig_();
+
     this.privacyFilterEnabled_ =
         (await this.traceReportProxy_.handler.getPrivacyFilterEnabled())
             .enabled;
-
-    const {config: scenarios} =
-        await this.traceReportProxy_.handler.getAllScenarios();
-
-    for (const scenario of scenarios) {
-      if (scenario.isLocalScenario) {
-        this.localConfig_.push(scenario);
-      } else {
-        this.fieldConfig_.push(scenario);
-      }
-    }
 
     // <if expr="is_win">
     const {
@@ -110,6 +106,27 @@ export class TracingScenariosConfigElement extends CrLitElement {
     // </if>
 
     this.isLoading_ = false;
+
+    this.refreshIntervalId_ =
+        setInterval(this.loadScenariosConfig_.bind(this), 1000);
+  }
+
+  protected async loadScenariosConfig_(): Promise<void> {
+    const {config: scenarios} =
+        await this.traceReportProxy_.handler.getAllScenarios();
+    this.localConfig_ = [];
+    this.fieldConfig_ = [];
+    for (const scenario of scenarios) {
+      if (scenario.isLocalScenario) {
+        this.localConfig_.push(scenario);
+      } else {
+        this.fieldConfig_.push(scenario);
+      }
+    }
+  }
+
+  protected isScenarioEnabled_(scenario: Scenario) {
+    return this.enabledScenarios_[scenario.scenarioName] ?? scenario.isEnabled;
   }
 
   protected async privacyFilterDidChange_(event: CustomEvent<boolean>):
@@ -123,25 +140,21 @@ export class TracingScenariosConfigElement extends CrLitElement {
   }
 
   protected valueDidChange_(event: CustomEvent<{value: boolean}>): void {
-    const index = Number((event.currentTarget as HTMLElement).dataset['index']);
-    if (this.localConfig_[index] === undefined) {
-      this.toastMessage_ = 'Failed to find selected scenario';
-      this.$.toast.show();
+    const key = (event.currentTarget as HTMLElement).dataset['key'];
+    if (key === undefined) {
       return;
     }
+    this.enabledScenarios_[key] = event.detail.value;
+  }
 
-    if (this.localConfig_[index].isEnabled === event.detail.value) {
-      return;
-    }
-
-    this.localConfig_[index].isEnabled = event.detail.value;
-    this.isEdited_ = true;
+  protected onCancelClick_() {
+    this.enabledScenarios_ = {};
   }
 
   protected async onConfirmClick_(): Promise<void> {
     const enabledScenarios: string[] = [];
     for (const scenario of this.localConfig_) {
-      if (scenario.isEnabled) {
+      if (this.enabledScenarios_[scenario.scenarioName] ?? scenario.isEnabled) {
         enabledScenarios.push(scenario.scenarioName);
       }
     }
@@ -153,6 +166,7 @@ export class TracingScenariosConfigElement extends CrLitElement {
       return;
     }
     await this.loadScenariosConfig_();
+    this.enabledScenarios_ = {};
   }
 
   protected async onAddConfig_(e: Event&
@@ -190,11 +204,6 @@ export class TracingScenariosConfigElement extends CrLitElement {
     }
   }
 
-  protected hasSelectedConfig_(): boolean {
-    return this.localConfig_.some(scenario => scenario.isEnabled) ||
-        this.fieldConfig_.some(scenario => scenario.isEnabled);
-  }
-
   protected async resetAllClick_(): Promise<void> {
     const {success} =
         await this.traceReportProxy_.handler.setEnabledScenarios([]);
@@ -204,6 +213,7 @@ export class TracingScenariosConfigElement extends CrLitElement {
       return;
     }
     await this.loadScenariosConfig_();
+    this.enabledScenarios_ = {};
   }
 
   // <if expr="is_win">

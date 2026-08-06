@@ -51,13 +51,13 @@ class PLATFORM_EXPORT CanvasResourceHost {
   virtual void UpdateMemoryUsage() = 0;
   virtual size_t GetMemoryUsage() const = 0;
   virtual void PageVisibilityChanged() {}
-  virtual CanvasResourceProvider* GetOrCreateCanvasResourceProvider() = 0;
+  virtual CanvasResourceProvider*
+  GetOrCreateCanvasResourceProviderForCanvas2D() = 0;
 
   // Initialize the indicated cc::Layer with the HTMLCanvasElement's CSS
   // properties. This is a no-op if `this` is not an HTMLCanvasElement.
   virtual void InitializeLayerWithCSSProperties(cc::Layer* layer) {}
 
-  bool IsComposited() const;
   gfx::Size Size() const { return size_; }
   virtual void SetSize(gfx::Size size) { size_ = size; }
 
@@ -83,10 +83,6 @@ class PLATFORM_EXPORT CanvasResourceHost {
   bool ShouldTryToUseGpuRaster() const;
   void SetPreferred2DRasterMode(RasterModeHint);
 
-  void AlwaysEnableRasterTimersForTesting() {
-    always_enable_raster_timers_for_testing_ = true;
-  }
-
   // Actual RasterMode used for rendering 2d primitives.
   RasterMode GetRasterMode() const;
 
@@ -99,14 +95,10 @@ class PLATFORM_EXPORT CanvasResourceHost {
   virtual void SetTransferToGPUTextureWasInvoked() {}
   virtual bool TransferToGPUTextureWasInvoked() { return false; }
 
- protected:
-  virtual CanvasResourceProvider* GetOrCreateCanvasResourceProviderImpl() = 0;
-
  private:
   std::unique_ptr<CanvasResourceProvider> resource_provider_;
   RasterModeHint preferred_2d_raster_mode_ = RasterModeHint::kPreferCPU;
   gfx::Size size_;
-  bool always_enable_raster_timers_for_testing_ = false;
 };
 
 }  // namespace blink

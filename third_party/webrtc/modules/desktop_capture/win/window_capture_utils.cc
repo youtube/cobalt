@@ -12,9 +12,16 @@
 
 // Just for the DWMWINDOWATTRIBUTE enums (DWMWA_CLOAKED).
 #include <dwmapi.h>
+#include <shobjidl.h>
 
 #include <algorithm>
+#include <cstddef>
+#include <cstring>
+#include <cwchar>
 
+#include "modules/desktop_capture/desktop_capture_types.h"
+#include "modules/desktop_capture/desktop_capturer.h"
+#include "modules/desktop_capture/desktop_geometry.h"
 #include "modules/desktop_capture/win/scoped_gdi_object.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"

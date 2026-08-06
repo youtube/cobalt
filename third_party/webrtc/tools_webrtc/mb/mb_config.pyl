@@ -391,7 +391,6 @@
     ],
     'libfuzzer_asan_release_bot_x64': [
       'asan',
-      'chromium_base_dependency',
       'h265',
       'libfuzzer',
       'openh264',
@@ -506,10 +505,6 @@
     'asan': {
       'gn_args': 'is_asan=true',
     },
-    # TODO(b/42223878): Remove this code when the dependency on base is gone.
-    'chromium_base_dependency': {
-      'mixins': ['enable_chromium_prelude', 'enable_rust']
-    },
     # is_clang=true by default, this is only to guard from upstream changes.
     'clang': {
       'gn_args': 'is_clang=true',
@@ -553,12 +548,6 @@
     'dummy_audio_file_devices': {
       'gn_args': 'rtc_use_dummy_audio_file_devices=true',
     },
-    'enable_chromium_prelude': {
-      'gn_args': 'enable_chromium_prelude=true',
-    },
-    'enable_rust': {
-      'gn_args': 'enable_rust=true enable_rust_cxx=true',
-    },
     'fuchsia': {
       'gn_args': 'target_os="fuchsia"'
     },
@@ -581,7 +570,7 @@
       'gn_args': 'target_environment="simulator"'
     },
     'libfuzzer': {
-      # use_fuzztest_wrapper adds a dependency to //base.
+      # use_fuzztest_wrapper=false by default, this is only for visibility.
       'gn_args': 'use_libfuzzer=true use_fuzztest_wrapper=false',
     },
     'lsan': {

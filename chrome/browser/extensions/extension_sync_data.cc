@@ -6,7 +6,7 @@
 
 #include "base/containers/flat_set.h"
 #include "base/logging.h"
-#include "base/metrics/histogram_macros.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "components/crx_file/id_util.h"
@@ -35,29 +35,27 @@ std::string GetExtensionSpecificsLogMessage(
       specifics.disable_reasons());
 }
 
-enum BadSyncDataReason {
+enum class BadSyncDataReason {
   // Invalid extension ID.
-  BAD_EXTENSION_ID,
+  kExtensionId,
 
   // Invalid version.
-  BAD_VERSION,
+  kVersion,
 
   // Invalid update URL.
-  BAD_UPDATE_URL,
+  kUpdateUrl,
 
   // No ExtensionSpecifics in the EntitySpecifics.
-  NO_EXTENSION_SPECIFICS,
+  kNoExtensionSpecifics,
 
   // Not used anymore; still here because of UMA.
-  DEPRECATED_BAD_DISABLE_REASONS,
+  kDeprecatedBadDisableReasons,
 
-  // Must be at the end.
-  NUM_BAD_SYNC_DATA_REASONS
+  kMaxValue = kDeprecatedBadDisableReasons,
 };
 
 void RecordBadSyncData(BadSyncDataReason reason) {
-  UMA_HISTOGRAM_ENUMERATION("Extensions.BadSyncDataReason", reason,
-                            NUM_BAD_SYNC_DATA_REASONS);
+  base::UmaHistogramEnumeration("Extensions.BadSyncDataReason", reason);
 }
 
 }  // namespace
@@ -213,7 +211,7 @@ bool ExtensionSyncData::PopulateFromExtensionSpecifics(
   if (!crx_file::id_util::IdIsValid(specifics.id())) {
     LOG(ERROR) << "Attempt to sync bad ExtensionSpecifics (bad ID):\n"
                << GetExtensionSpecificsLogMessage(specifics);
-    RecordBadSyncData(BAD_EXTENSION_ID);
+    RecordBadSyncData(BadSyncDataReason::kExtensionId);
     return false;
   }
 
@@ -221,7 +219,7 @@ bool ExtensionSyncData::PopulateFromExtensionSpecifics(
   if (!specifics_version.IsValid()) {
     LOG(ERROR) << "Attempt to sync bad ExtensionSpecifics (bad version):\n"
                << GetExtensionSpecificsLogMessage(specifics);
-    RecordBadSyncData(BAD_VERSION);
+    RecordBadSyncData(BadSyncDataReason::kVersion);
     return false;
   }
 
@@ -230,7 +228,7 @@ bool ExtensionSyncData::PopulateFromExtensionSpecifics(
   if (!specifics_update_url.is_empty() && !specifics_update_url.is_valid()) {
     LOG(ERROR) << "Attempt to sync bad ExtensionSpecifics (bad update URL):\n"
                << GetExtensionSpecificsLogMessage(specifics);
-    RecordBadSyncData(BAD_UPDATE_URL);
+    RecordBadSyncData(BadSyncDataReason::kUpdateUrl);
     return false;
   }
 
@@ -304,7 +302,7 @@ bool ExtensionSyncData::PopulateFromSyncData(
     return PopulateFromExtensionSpecifics(entity_specifics.extension());
 
   LOG(ERROR) << "Attempt to sync bad EntitySpecifics: no extension data.";
-  RecordBadSyncData(NO_EXTENSION_SPECIFICS);
+  RecordBadSyncData(BadSyncDataReason::kNoExtensionSpecifics);
   return false;
 }
 

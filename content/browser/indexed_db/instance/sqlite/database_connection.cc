@@ -12,6 +12,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/notimplemented.h"
 #include "base/notreached.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/types/expected.h"
@@ -364,7 +365,7 @@ DatabaseConnection::GetRecordIdentifierIfExists(
   std::string encoded_key;
   EncodeSortableIDBKey(key, &encoded_key);
   statement.BindInt64(0, object_store_id);
-  statement.BindBlob(1, encoded_key);
+  statement.BindBlob(1, std::move(encoded_key));
   if (statement.Step()) {
     return BackingStore::RecordIdentifier{statement.ColumnInt64(0)};
   }
@@ -383,7 +384,7 @@ StatusOr<IndexedDBValue> DatabaseConnection::GetValue(
   std::string encoded_key;
   EncodeSortableIDBKey(key, &encoded_key);
   statement.BindInt64(0, object_store_id);
-  statement.BindBlob(1, encoded_key);
+  statement.BindBlob(1, std::move(encoded_key));
   if (statement.Step()) {
     IndexedDBValue value;
     TRANSIENT_CHECK(statement.ColumnBlobAsVector(0, &value.bits));
@@ -405,12 +406,47 @@ StatusOr<BackingStore::RecordIdentifier> DatabaseConnection::PutRecord(
   statement.BindInt64(0, object_store_id);
   std::string encoded_key;
   EncodeSortableIDBKey(key, &encoded_key);
-  // TODO(crbug.com/40253999): `move` these into `statement` when
-  // crbug.com/419806592 is fixed.
-  statement.BindBlob(1, encoded_key);
-  statement.BindBlob(2, value.bits);
+  statement.BindBlob(1, std::move(encoded_key));
+  statement.BindBlob(2, std::move(value.bits));
   TRANSIENT_CHECK(statement.Run());
   return BackingStore::RecordIdentifier{db_->GetLastInsertRowId()};
+}
+
+StatusOr<uint32_t> DatabaseConnection::GetObjectStoreKeyCount(
+    base::PassKey<BackingStoreTransactionImpl>,
+    int64_t object_store_id,
+    blink::IndexedDBKeyRange key_range) {
+  std::vector<std::string_view> query_pieces{
+      "SELECT COUNT() FROM records WHERE object_store_id = ?"};
+  std::string lower_encoded;
+  std::string upper_encoded;
+  if (key_range.lower().IsValid()) {
+    EncodeSortableIDBKey(key_range.lower(), &lower_encoded);
+    query_pieces.insert(
+        query_pieces.end(),
+        {" AND key ", key_range.lower_open() ? ">" : ">=", " ?"});
+  }
+  if (key_range.upper().IsValid()) {
+    EncodeSortableIDBKey(key_range.upper(), &upper_encoded);
+    query_pieces.insert(
+        query_pieces.end(),
+        {" AND key ", key_range.upper_open() ? "<" : "<=", " ?"});
+  }
+
+  // TODO(crbug.com/40253999): Evaluate performance benefit of using
+  // `GetCachedStatement()` instead.
+  sql::Statement statement(
+      db_->GetReadonlyStatement(base::StrCat(query_pieces)));
+  int param_index = 0;
+  statement.BindInt64(param_index++, object_store_id);
+  if (!lower_encoded.empty()) {
+    statement.BindBlob(param_index++, lower_encoded);
+  }
+  if (!upper_encoded.empty()) {
+    statement.BindBlob(param_index++, upper_encoded);
+  }
+  TRANSIENT_CHECK(statement.Step());
+  return statement.ColumnInt(0);
 }
 
 }  // namespace content::indexed_db::sqlite

@@ -133,7 +133,7 @@ _DEVICE_GOLD_DIR = 'skia_gold'
 # A map of Android product models to SDK ints.
 RENDER_TEST_MODEL_SDK_CONFIGS = {
     # Android x86 emulator.
-    'Android SDK built for x86': [26],
+    'Android SDK built for x86': [26, 29],
     # We would like this to be supported, but it is currently too prone to
     # introducing flakiness due to a combination of Gold and Chromium issues.
     # See crbug.com/1233700 and skbug.com/12149 for more information.
@@ -820,12 +820,12 @@ class LocalDeviceInstrumentationTestRun(
     """Create shards of tests to run on devices.
 
     Args:
-      tests: List containing tests or test batches.
+      tests: List containing tests or test groups.
 
     Returns:
-      List of tests or batches.
+      List of tests or groups.
     """
-    # Each test or test batch will be a single shard.
+    # Each test or test group will be a single shard.
     return tests
 
   def _GetTestsFromPickle(self, pickle_extras):
@@ -897,8 +897,6 @@ class LocalDeviceInstrumentationTestRun(
     batched_tests_split = self._SplitBatchesAboveMaxSize(batched_tests)
     all_tests = batched_tests_split + other_tests
 
-    # Sort all tests by hash.
-    # TODO(crbug.com/40200835): Add sorting logic back to _PartitionTests.
     return self._SortTests(all_tests)
 
   def _GroupTestsIntoBatchesAndOthers(self, tests):
@@ -958,17 +956,9 @@ class LocalDeviceInstrumentationTestRun(
     return batched_tests_split
 
   #override
-  def _GroupTestsAfterSharding(self, tests):
-    # pylint: disable=no-self-use
-    batched_tests, other_tests = self._GroupTestsIntoBatchesAndOthers(tests)
-    all_tests = list(batched_tests.values()) + other_tests
-
-    # Sort all tests by hash.
-    # TODO(crbug.com/40200835): Add sorting logic back to _PartitionTests.
-    return self._SortTests(all_tests)
-
-  #override
   def _GetUniqueTestName(self, test):
+    if isinstance(test, list):
+      test = test[-1]
     return instrumentation_test_instance.GetUniqueTestName(test)
 
   #override

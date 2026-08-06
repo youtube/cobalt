@@ -1372,6 +1372,7 @@ void VideoStreamEncoder::ReconfigureEncoder() {
     frame_encode_metadata_writer_.Reset();
     last_encode_info_ms_ = std::nullopt;
     was_encode_called_since_last_initialization_ = false;
+    encoder_fallback_requested_ = false;
   }
 
   // Inform dependents of updated encoder settings.

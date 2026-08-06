@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.omnibox;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.text.TextUtils;
@@ -13,10 +15,12 @@ import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
+import org.chromium.base.ObserverList;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.locale.LocaleManager;
@@ -27,9 +31,7 @@ import org.chromium.chrome.browser.omnibox.suggestions.CachedZeroSuggestionsMana
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileKeyedMap;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
-import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelper;
-import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.browser_ui.util.GlobalDiscardableReferencePool;
 import org.chromium.components.image_fetcher.ImageFetcher;
 import org.chromium.components.image_fetcher.ImageFetcherConfig;
@@ -42,6 +44,7 @@ import org.chromium.url.GURL;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.Objects;
 
 /** Common Default Search Engine functions. */
 @NullMarked
@@ -59,6 +62,10 @@ public class SearchEngineUtils implements Destroyable, TemplateUrlServiceObserve
     private final FaviconHelper mFaviconHelper;
     private final ImageFetcher mImageFetcher;
     private final int mSearchEngineLogoTargetSizePixels;
+    private final ObserverList<SearchBoxHintTextObserver> mSearchBoxHintTextObservers =
+            new ObserverList<>();
+    private final ObserverList<SearchEngineIconObserver> mSearchEngineIconObservers =
+            new ObserverList<>();
     private @Nullable SearchEngineMetadata mDefaultSearchEngineMetadata;
     private @Nullable Boolean mNeedToCheckForSearchEnginePromo;
     private boolean mDoesDefaultSearchEngineHaveLogo;
@@ -91,6 +98,26 @@ public class SearchEngineUtils implements Destroyable, TemplateUrlServiceObserve
         int MAX = 6;
     }
 
+    @FunctionalInterface
+    public interface SearchBoxHintTextObserver {
+        /**
+         * Invoked when the Search Box hint text changes.
+         *
+         * @param newHintText the new hint text to apply
+         */
+        void onSearchBoxHintTextChanged(String newHintText);
+    }
+
+    @FunctionalInterface
+    public interface SearchEngineIconObserver {
+        /**
+         * Invoked when the Search Engine icon changes.
+         *
+         * @param newIcon the new search engine icon to apply
+         */
+        void onSearchEngineIconChanged(@Nullable StatusIconResource newIcon);
+    }
+
     @VisibleForTesting
     SearchEngineUtils(Profile profile, FaviconHelper faviconHelper) {
         mProfile = profile;
@@ -110,8 +137,8 @@ public class SearchEngineUtils implements Destroyable, TemplateUrlServiceObserve
                         .getDimensionPixelSize(R.dimen.omnibox_search_engine_logo_favicon_size);
 
         // Apply safe fallback values.
-        mSearchBoxHintText =
-                OmniboxResourceProvider.getString(mContext, R.string.omnibox_empty_hint);
+        setSearchBoxHintText(
+                OmniboxResourceProvider.getString(mContext, R.string.omnibox_empty_hint));
         resetFavicon();
 
         mTemplateUrlService = TemplateUrlServiceFactory.getForProfile(profile);
@@ -139,27 +166,32 @@ public class SearchEngineUtils implements Destroyable, TemplateUrlServiceObserve
         mTemplateUrlService.removeObserver(this);
         mFaviconHelper.destroy();
         mImageFetcher.destroy();
+        mSearchEngineIconObservers.clear();
+        mSearchBoxHintTextObservers.clear();
     }
 
     @Override
     public void onTemplateURLServiceChanged() {
         mDoesDefaultSearchEngineHaveLogo = mTemplateUrlService.doesDefaultSearchEngineHaveLogo();
-        mSearchBoxHintText =
-                OmniboxResourceProvider.getString(mContext, R.string.omnibox_empty_hint);
 
         var templateUrl = mTemplateUrlService.getDefaultSearchEngineTemplateUrl();
         if (templateUrl == null) {
             recordEvent(Events.FETCH_FAILED_NULL_URL);
+            setSearchBoxHintText(
+                    OmniboxResourceProvider.getString(mContext, R.string.omnibox_empty_hint));
             return;
         }
 
         if (OmniboxFeatures.sOmniboxMobileParityUpdate.isEnabled()
                 && !TextUtils.isEmpty(templateUrl.getShortName())) {
-            mSearchBoxHintText =
+            setSearchBoxHintText(
                     OmniboxResourceProvider.getString(
                             mContext,
                             R.string.omnibox_empty_hint_with_dse_name,
-                            templateUrl.getShortName());
+                            templateUrl.getShortName()));
+        } else {
+            setSearchBoxHintText(
+                    OmniboxResourceProvider.getString(mContext, R.string.omnibox_empty_hint));
         }
 
         if (mDefaultSearchEngineMetadata == null
@@ -173,6 +205,50 @@ public class SearchEngineUtils implements Destroyable, TemplateUrlServiceObserve
         retrieveFavicon(templateUrl);
     }
 
+    /** Add observer to be notified whenever the Omnibox hint text changes. */
+    public void addSearchBoxHintTextObserver(SearchBoxHintTextObserver observer) {
+        mSearchBoxHintTextObservers.addObserver(observer);
+        observer.onSearchBoxHintTextChanged(mSearchBoxHintText);
+    }
+
+    /** Remove previously registered Omnibox hint text observer. */
+    public void removeSearchBoxHintTextObserver(SearchBoxHintTextObserver observer) {
+        mSearchBoxHintTextObservers.removeObserver(observer);
+    }
+
+    @Initializer
+    private void setSearchBoxHintText(String newHint) {
+        // mSearchBoxHintText may be null when this method is invoked from constructor.
+        // This may generate a warning that this field is null. This is fine.
+        if (TextUtils.equals(assumeNonNull(mSearchBoxHintText), newHint)) return;
+
+        mSearchBoxHintText = newHint;
+        for (var observer : mSearchBoxHintTextObservers) {
+            observer.onSearchBoxHintTextChanged(newHint);
+        }
+    }
+
+    /** Add observer to be notified whenever the Search Enigne Icon changes. */
+    public void addIconObserver(SearchEngineIconObserver observer) {
+        mSearchEngineIconObservers.addObserver(observer);
+        observer.onSearchEngineIconChanged(mFavicon);
+    }
+
+    /** Remove previously registered Search Engine Icon observer. */
+    public void removeIconObserver(SearchEngineIconObserver observer) {
+        mSearchEngineIconObservers.removeObserver(observer);
+    }
+
+    @VisibleForTesting
+    public void setSearchEngineIcon(@Nullable StatusIconResource newIcon) {
+        if (Objects.equals(mFavicon, newIcon)) return;
+        mFavicon = newIcon;
+        for (var observer : mSearchEngineIconObservers) {
+            observer.onSearchEngineIconChanged(newIcon);
+            recordEvent(Events.FETCH_SUCCESS_CACHE_HIT);
+        }
+    }
+
     @VisibleForTesting
     void retrieveFavicon(TemplateUrl templateUrl) {
         if (!mTemplateUrlService.isDefaultSearchEngineGoogle()) {
@@ -182,7 +258,7 @@ public class SearchEngineUtils implements Destroyable, TemplateUrlServiceObserve
             return;
         }
 
-        mFavicon = new StatusIconResource(R.drawable.ic_logo_googleg_20dp, 0);
+        setSearchEngineIcon(new StatusIconResource(R.drawable.ic_logo_googleg_20dp, 0));
     }
 
     private void retrieveFaviconFromFaviconUrl(TemplateUrl templateUrl) {
@@ -230,46 +306,17 @@ public class SearchEngineUtils implements Destroyable, TemplateUrlServiceObserve
     }
 
     private void resetFavicon() {
-        mFavicon = null;
+        setSearchEngineIcon(null);
     }
 
     private void onFaviconRetrieveCompleted(GURL faviconUrl, Bitmap bitmap) {
-        mFavicon = new StatusIconResource(faviconUrl.getSpec(), bitmap, 0);
+        setSearchEngineIcon(new StatusIconResource(faviconUrl.getSpec(), bitmap, 0));
         recordEvent(Events.FETCH_SUCCESS);
     }
 
     /** Returns whether the search engine logo should be shown. */
     public boolean shouldShowSearchEngineLogo() {
         return !mIsOffTheRecord;
-    }
-
-    /**
-     * Get the search engine logo favicon. This can return a null bitmap under certain
-     * circumstances, such as: no logo url found, network/cache error, etc.
-     *
-     * @param brandedColorScheme The {@link BrandedColorScheme}, used to tint icons.
-     */
-    public StatusIconResource getSearchEngineLogo(@BrandedColorScheme int brandedColorScheme) {
-        if (needToCheckForSearchEnginePromo() || mFavicon == null) {
-            return getFallbackSearchIcon(brandedColorScheme);
-        }
-        recordEvent(Events.FETCH_SUCCESS_CACHE_HIT);
-        return mFavicon;
-    }
-
-    /** Returns an icon to be shown as a fallback Search icon. */
-    public static StatusIconResource getFallbackSearchIcon(
-            @BrandedColorScheme int brandedColorScheme) {
-        return new StatusIconResource(
-                R.drawable.ic_search, ThemeUtils.getThemedToolbarIconTintRes(brandedColorScheme));
-    }
-
-    /** Returns an icon to be shown as a fallback Navigation icon. */
-    public static StatusIconResource getFallbackNavigationIcon(
-            @BrandedColorScheme int brandedColorScheme) {
-        return new StatusIconResource(
-                R.drawable.ic_globe_24dp,
-                ThemeUtils.getThemedToolbarIconTintRes(brandedColorScheme));
     }
 
     /**
@@ -329,10 +376,5 @@ public class SearchEngineUtils implements Destroyable, TemplateUrlServiceObserve
      */
     public boolean doesDefaultSearchEngineHaveLogo() {
         return mDoesDefaultSearchEngineHaveLogo;
-    }
-
-    /** Returns the standardized Omnibox hint text for the current Search Engine. */
-    public String getSearchBoxHintText() {
-        return mSearchBoxHintText;
     }
 }

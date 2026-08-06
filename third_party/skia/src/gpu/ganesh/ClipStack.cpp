@@ -198,8 +198,7 @@ bool shape_contains_rect(const GrShape& a, const SkMatrix& aToDevice, const SkMa
     }
 
     for (int i = 0; i < 4; ++i) {
-        SkPoint cornerInA = deviceQuad.point(i);
-        deviceToA.mapPoints(&cornerInA, 1);
+        SkPoint cornerInA = deviceToA.mapPoint(deviceQuad.point(i));
         if (!a.conservativeContains(cornerInA)) {
             return false;
         }
@@ -553,7 +552,7 @@ bool ClipStack::RawElement::contains(const RawElement& e) const {
                     == e.fShape.rrect();
         } else if (fShape.isPath() && e.fShape.isPath()) {
             return fShape.path().getGenerationID() == e.fShape.path().getGenerationID() ||
-                   (fShape.path().getPoints(nullptr, 0) <= kMaxPathComparePoints &&
+                   (fShape.path().countPoints() <= kMaxPathComparePoints &&
                     fShape.path() == e.fShape.path());
         } // else fall through to shape_contains_rect
     }

@@ -408,7 +408,7 @@ TEST_F(SdpMungingTest, IceUfragRestrictedAddresses) {
     const std::string candidate = StringFormat(
         tmpl, absl::StrReplaceAll(address_test.first, {{":", " "}}).c_str());
     caller->pc()->AddIceCandidate(
-        std::unique_ptr<IceCandidateInterface>(
+        std::unique_ptr<IceCandidate>(
             CreateIceCandidate("", 0, candidate, nullptr)),
         [&result](RTCError error) { result = error; });
 

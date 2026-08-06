@@ -67,18 +67,19 @@ void CanvasRenderingContextHost::RecordCanvasSizeToUMA() {
 }
 
 scoped_refptr<StaticBitmapImage>
-CanvasRenderingContextHost::CreateTransparentImage(
-    const gfx::Size& size) const {
-  if (!IsValidImageSize(size))
+CanvasRenderingContextHost::CreateTransparentImage() const {
+  if (!IsValidImageSize()) {
     return nullptr;
+  }
   SkImageInfo info = SkImageInfo::Make(
-      gfx::SizeToSkISize(size),
+      gfx::SizeToSkISize(Size()),
       viz::ToClosestSkColorType(GetRenderingContextFormat()),
       kPremul_SkAlphaType, GetRenderingContextColorSpace().ToSkColorSpace());
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(info, info.minRowBytes(), nullptr);
-  if (!surface)
+  if (!surface) {
     return nullptr;
+  }
   return UnacceleratedStaticBitmapImage::Create(surface->makeImageSnapshot());
 }
 
@@ -87,9 +88,32 @@ void CanvasRenderingContextHost::Commit(scoped_refptr<CanvasResource>&&,
   NOTIMPLEMENTED();
 }
 
+bool CanvasRenderingContextHost::IsValidImageSize() const {
+  const gfx::Size size = Size();
+  if (size.IsEmpty()) {
+    return false;
+  }
+  base::CheckedNumeric<int> area = size.GetCheckedArea();
+  // Firefox limits width/height to 32767 pixels, but slows down dramatically
+  // before it reaches that limit. We limit by area instead, giving us larger
+  // maximum dimensions, in exchange for a smaller maximum canvas size.
+  static constexpr int kMaxCanvasArea =
+      32768 * 8192;  // Maximum canvas area in CSS pixels
+  if (!area.IsValid() || area.ValueOrDie() > kMaxCanvasArea) {
+    return false;
+  }
+  // In Skia, we will also limit width/height to 65535.
+  static constexpr int kMaxSkiaDim =
+      65535;  // Maximum width/height in CSS pixels.
+  if (size.width() > kMaxSkiaDim || size.height() > kMaxSkiaDim) {
+    return false;
+  }
+  return true;
+}
+
 bool CanvasRenderingContextHost::IsPaintable() const {
   return (RenderingContext() && RenderingContext()->IsPaintable()) ||
-         IsValidImageSize(Size());
+         IsValidImageSize();
 }
 
 bool CanvasRenderingContextHost::PrintedInCurrentTask() const {
@@ -120,22 +144,53 @@ bool CanvasRenderingContextHost::IsImageBitmapRenderingContext() const {
 }
 
 CanvasResourceProvider*
-CanvasRenderingContextHost::GetOrCreateCanvasResourceProvider() {
-  return GetOrCreateCanvasResourceProviderImpl();
+CanvasRenderingContextHost::GetOrCreateCanvasResourceProviderForCanvas2D() {
+  CHECK(IsRenderingContext2D());
+  auto* provider = ResourceProvider();
+  if (!provider && !did_fail_to_create_resource_provider_) {
+    if (IsValidImageSize()) {
+      provider = CreateCanvasResourceProvider2D();
+    }
+    if (!provider) {
+      did_fail_to_create_resource_provider_ = true;
+    } else if (provider->IsValid()) {
+      base::UmaHistogramBoolean("Blink.Canvas.ResourceProviderIsAccelerated",
+                                provider->IsAccelerated());
+      base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
+                                    provider->GetType());
+    }
+  }
+  return provider;
 }
 
 CanvasResourceProvider*
-CanvasRenderingContextHost::GetOrCreateCanvasResourceProviderImpl() {
+CanvasRenderingContextHost::GetOrCreateCanvasResourceProviderForWebGL() {
+  CHECK(IsWebGL());
   auto* provider = ResourceProvider();
   if (!provider && !did_fail_to_create_resource_provider_) {
-    if (IsValidImageSize(Size())) {
-      if (IsWebGPU()) {
-        provider = CreateCanvasResourceProviderWebGPU();
-      } else if (IsWebGL()) {
-        provider = CreateCanvasResourceProviderWebGL();
-      } else {
-        provider = CreateCanvasResourceProvider2D();
-      }
+    if (IsValidImageSize()) {
+      ReplaceResourceProvider(CreateCanvasResourceProviderWebGL());
+      provider = ResourceProvider();
+    }
+    if (!provider) {
+      did_fail_to_create_resource_provider_ = true;
+    } else if (provider->IsValid()) {
+      base::UmaHistogramBoolean("Blink.Canvas.ResourceProviderIsAccelerated",
+                                provider->IsAccelerated());
+      base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
+                                    provider->GetType());
+    }
+  }
+  return provider;
+}
+
+CanvasResourceProvider*
+CanvasRenderingContextHost::GetOrCreateCanvasResourceProviderForWebGPU() {
+  CHECK(IsWebGPU());
+  auto* provider = ResourceProvider();
+  if (!provider && !did_fail_to_create_resource_provider_) {
+    if (IsValidImageSize()) {
+      provider = CreateCanvasResourceProviderWebGPU();
     }
     if (!provider) {
       did_fail_to_create_resource_provider_ = true;
@@ -162,7 +217,7 @@ CanvasRenderingContextHost::CreateCanvasResourceProviderWebGPU() {
   return raw_provider;
 }
 
-CanvasResourceProvider*
+std::unique_ptr<CanvasResourceProvider>
 CanvasRenderingContextHost::CreateCanvasResourceProviderWebGL() {
   DCHECK(IsWebGL());
 
@@ -244,9 +299,7 @@ CanvasRenderingContextHost::CreateCanvasResourceProviderWebGL() {
         Size(), format, alpha_type, color_space, kShouldInitialize, this);
   }
 
-  auto* raw_provider = provider.get();
-  ReplaceResourceProvider(std::move(provider));
-  return raw_provider;
+  return provider;
 }
 
 CanvasResourceProvider*

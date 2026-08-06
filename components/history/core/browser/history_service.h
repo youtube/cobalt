@@ -18,6 +18,7 @@
 #include "base/check.h"
 #include "base/containers/flat_set.h"
 #include "base/feature_list.h"
+#include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
@@ -51,10 +52,6 @@ class GURL;
 class HistoryQuickProviderTest;
 class InMemoryURLIndexTest;
 class SkBitmap;
-
-namespace base {
-class FilePath;
-}  // namespace base
 
 namespace favicon {
 class FaviconServiceImpl;
@@ -377,7 +374,8 @@ class HistoryService : public KeyedService,
       QueryMostVisitedURLsCallback callback,
       base::CancelableTaskTracker* tracker,
       const std::optional<std::string>& recency_factor_name = std::nullopt,
-      std::optional<size_t> recency_window_days = std::nullopt);
+      std::optional<size_t> recency_window_days = std::nullopt,
+      bool check_visual_deduplication_flag = false);
 
   // Request `result_count` of the most repeated queries for the given keyword.
   // Used by TopSites.

@@ -179,6 +179,10 @@ public class IntentHandler {
     public static final String EXTRA_OPEN_REGULAR_OVERVIEW_MODE =
             "org.chromium.chrome.browser.open_regular_overview_mode";
 
+    /** Extra specifying to exit xr overview mode. */
+    public static final String EXTRA_EXIT_XR_OVERVIEW_MODE =
+            "org.chromium.chrome.browser.exit_xr_overview_mode";
+
     /**
      * For multi-window, passes the id of the window. On Android S, this is synonymous with
      * the id of 'activity instance' among multiple instances that can be chosen on instance
@@ -373,6 +377,7 @@ public class IntentHandler {
         IncognitoCctCallerId.READER_MODE,
         IncognitoCctCallerId.READ_LATER,
         IncognitoCctCallerId.EPHEMERAL_TAB,
+        IncognitoCctCallerId.DOWNLOAD_HOME,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface IncognitoCctCallerId {
@@ -390,8 +395,14 @@ public class IntentHandler {
         // An ephemeral custom tab without incognito branding.
         int EPHEMERAL_TAB = 5;
 
+        // Chrome feature.
+        // The Download Home UI may launch a CCT to display a help page for a download.
+        // If the file was downloaded in an Incognito profile, the CCT for the help page should
+        // likewise be an Incognito tab.
+        int DOWNLOAD_HOME = 6;
+
         // Update {@link IncognitoCctCallerId} in enums.xml when adding new items.
-        int NUM_ENTRIES = 6;
+        int NUM_ENTRIES = 7;
     }
 
     /** Intent extra to open an incognito tab. */
@@ -715,7 +726,7 @@ public class IntentHandler {
                     IntentUtils.safeGetStringExtra(
                             intent, RecognizerResultsIntent.EXTRA_VOICE_SEARCH_RESULT_STRINGS);
             if (testResult != null) {
-                results = new ArrayList<String>();
+                results = new ArrayList<>();
                 results.add(testResult);
             }
         }

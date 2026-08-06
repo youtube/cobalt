@@ -133,9 +133,9 @@ SK_API void SkDebugf_FileLine(const char* file,
 
 #define SK_LEGACY_INITWITHPREV_LAYER_SIZING
 
-#define SK_SKIP_PIXELALIGNED_QUAD_CHECK_GRAPHITE
-
 #define SK_AVOID_SLOW_RASTER_PIPELINE_BLURS
+
+#define SK_SUPPORT_UNSPANNED_APIS
 
 ///////////////////////// Imported from BUILD.gn and skia_common.gypi
 
@@ -156,5 +156,10 @@ SK_API void SkDebugf_FileLine(const char* file,
 
 // glGetError() forces a sync with gpu process on chrome
 #define GR_GL_CHECK_ERROR_START 0
+
+// TODO(https://crbug.com/419011374): Remove this `ifdef` after updating
+// expectations of Chromium-side tests which hardcode the exact expected output
+// of a PNG encoder.
+#define SKIA_FIX_CRBUG_419011374
 
 #endif  // SKIA_CONFIG_SKUSERCONFIG_H_

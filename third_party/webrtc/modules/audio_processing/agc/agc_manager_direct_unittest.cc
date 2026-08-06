@@ -10,17 +10,28 @@
 
 #include "modules/audio_processing/agc/agc_manager_direct.h"
 
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <fstream>
+#include <ios>
 #include <limits>
+#include <memory>
+#include <optional>
+#include <string>
 #include <tuple>
 #include <vector>
 
+#include "api/audio/audio_processing.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
+#include "modules/audio_processing/agc/agc.h"
 #include "modules/audio_processing/agc/gain_control.h"
 #include "modules/audio_processing/agc/mock_agc.h"
-#include "modules/audio_processing/include/mock_audio_processing.h"
+#include "modules/audio_processing/audio_buffer.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_minmax.h"
 #include "rtc_base/strings/string_builder.h"
 #include "test/gmock.h"

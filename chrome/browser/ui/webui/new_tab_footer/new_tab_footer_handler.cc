@@ -14,6 +14,7 @@
 #include "chrome/browser/extensions/settings_api_helpers.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/managed_ui.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer.mojom.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
@@ -90,6 +91,10 @@ void NewTabFooterHandler::OpenExtensionOptionsPageWithFallback() {
   OpenUrlInCurrentTab(options_url);
 }
 
+void NewTabFooterHandler::OpenManagementPage() {
+  OpenUrlInCurrentTab(GURL(chrome::kChromeUIManagementURL));
+}
+
 void NewTabFooterHandler::UpdateManagementNotice() {
   if (!enterprise_util::CanShowEnterpriseBadgingForNTPFooter(profile_)) {
     document_->SetManagementNotice(nullptr);
@@ -100,6 +105,9 @@ void NewTabFooterHandler::UpdateManagementNotice() {
   notice->text = GetManagementNoticeText();
   notice->bitmap_data_url =
       GURL(webui::GetBitmapDataUrl(GetManagementNoticeIconBitmap()));
+  notice->is_custom_logo =
+      policy::ManagementServiceFactory::GetForProfile(profile_)
+          ->GetManagementIconForBrowser() != nullptr;
   document_->SetManagementNotice(std::move(notice));
 }
 
@@ -149,7 +157,7 @@ SkBitmap NewTabFooterHandler::GetManagementNoticeIconBitmap() {
   const gfx::ImageSkia default_management_icon =
       gfx::CreateVectorIcon(gfx::IconDescription(
           vector_icons::kBusinessIcon, 20,
-          web_contents_->GetColorProvider().GetColor(ui::kColorIcon)));
+          web_contents_->GetColorProvider().GetColor(kColorNewTabFooterText)));
   return default_management_icon.GetRepresentation(1.0f).GetBitmap();
 }
 

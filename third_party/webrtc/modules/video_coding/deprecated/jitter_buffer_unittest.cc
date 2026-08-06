@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "absl/memory/memory.h"
+#include "api/field_trials.h"
 #include "api/rtp_headers.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame_type.h"
@@ -30,8 +31,8 @@
 #include "modules/video_coding/deprecated/stream_generator.h"
 #include "modules/video_coding/encoded_frame.h"
 #include "system_wrappers/include/clock.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 
 namespace webrtc {
 
@@ -122,7 +123,7 @@ class TestBasicJitterBuffer : public ::testing::Test {
   uint32_t timestamp_;
   int size_;
   uint8_t data_[1500];
-  test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_ = CreateTestFieldTrials();
   std::unique_ptr<VCMPacket> packet_;
   std::unique_ptr<SimulatedClock> clock_;
   std::unique_ptr<VCMJitterBuffer> jitter_buffer_;
@@ -217,7 +218,7 @@ class TestRunningJitterBuffer : public ::testing::Test {
     return ret;
   }
 
-  test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_ = CreateTestFieldTrials();
   VCMJitterBuffer* jitter_buffer_;
   StreamGenerator* stream_generator_;
   std::unique_ptr<SimulatedClock> clock_;

@@ -10,7 +10,14 @@
 
 #include <immintrin.h>
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <vector>
+
+#include "api/array_view.h"
 #include "modules/audio_processing/aec3/adaptive_fir_filter_erl.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
 
 namespace webrtc {
 

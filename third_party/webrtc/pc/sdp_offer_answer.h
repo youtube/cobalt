@@ -147,8 +147,8 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   PeerConnectionInterface::RTCConfiguration GetConfiguration();
   RTCError SetConfiguration(
       const PeerConnectionInterface::RTCConfiguration& configuration);
-  bool AddIceCandidate(const IceCandidateInterface* candidate);
-  void AddIceCandidate(std::unique_ptr<IceCandidateInterface> candidate,
+  bool AddIceCandidate(const IceCandidate* candidate);
+  void AddIceCandidate(std::unique_ptr<IceCandidate> candidate,
                        std::function<void(RTCError)> callback);
   bool RemoveIceCandidates(const std::vector<Candidate>& candidates);
   // Adds a locally generated candidate to the local description.
@@ -502,18 +502,18 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   // description, the return value will be false.
   bool UseCandidatesInRemoteDescription();
   // Uses `candidate` in this session.
-  bool UseCandidate(const IceCandidateInterface* candidate);
+  bool UseCandidate(const IceCandidate* candidate);
   // Returns true if we are ready to push down the remote candidate.
   // `remote_desc` is the new remote description, or NULL if the current remote
   // description should be used. Output `valid` is true if the candidate media
   // index is valid.
-  bool ReadyToUseRemoteCandidate(const IceCandidateInterface* candidate,
+  bool ReadyToUseRemoteCandidate(const IceCandidate* candidate,
                                  const SessionDescriptionInterface* remote_desc,
                                  bool* valid);
 
   RTCErrorOr<const ContentInfo*> FindContentInfo(
       const SessionDescriptionInterface* description,
-      const IceCandidateInterface* candidate) RTC_RUN_ON(signaling_thread());
+      const IceCandidate* candidate) RTC_RUN_ON(signaling_thread());
 
   // Functions for dealing with transports.
   // Note that cricket code uses the term "channel" for what other code
@@ -557,8 +557,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   // Implements AddIceCandidate without reporting usage, but returns the
   // particular success/error value that should be reported (and can be utilized
   // for other purposes).
-  AddIceCandidateResult AddIceCandidateInternal(
-      const IceCandidateInterface* candidate);
+  AddIceCandidateResult AddIceCandidateInternal(const IceCandidate* candidate);
 
   void ReportInitialSdpMunging(bool had_local_description, SdpType type);
 

@@ -262,7 +262,7 @@ public final class PageViewObserverTest {
 
     @Test
     public void tabAdded_startReported() {
-        PageViewObserver observer = createPageViewObserver();
+        createPageViewObserver();
         doReturn(STARTING_URL).when(mTab2).getUrl();
         doReturn(mTab2).when(mTabSupplier).get();
         changeTab(mTab2);
@@ -272,7 +272,7 @@ public final class PageViewObserverTest {
 
     @Test
     public void tabAdded_notSelected_startNotReported() {
-        PageViewObserver observer = createPageViewObserver();
+        createPageViewObserver();
         doReturn(STARTING_URL).when(mTab).getUrl();
         doReturn(null).when(mTabSupplier).get();
         changeTab(mTab);
@@ -282,7 +282,7 @@ public final class PageViewObserverTest {
 
     @Test
     public void tabAdded_suspendedDomain() {
-        PageViewObserver observer = createPageViewObserver();
+        createPageViewObserver();
         doReturn(STARTING_URL).when(mTab2).getUrl();
         doReturn(mTab2).when(mTabSupplier).get();
         doReturn(true).when(mSuspensionTracker).isWebsiteSuspended(STARTING_FQDN);
@@ -445,7 +445,7 @@ public final class PageViewObserverTest {
     public void customTab_startReportedUponConstruction() {
         doReturn(STARTING_URL).when(mTab).getUrl();
         doReturn(false).when(mTab).isHidden();
-        PageViewObserver observer = createPageViewObserver();
+        createPageViewObserver();
         verify(mEventTracker, times(1)).addWebsiteEvent(argThat(isStartEvent(STARTING_FQDN)));
 
         doReturn(DIFFERENT_URL).when(mTab2).getUrl();
@@ -457,7 +457,7 @@ public final class PageViewObserverTest {
     @Test
     public void construction_nullInitialTab() {
         doReturn(null).when(mTabSupplier).get();
-        PageViewObserver observer = createPageViewObserver();
+        createPageViewObserver();
 
         doReturn(mTab).when(mTabSupplier).get();
         doReturn(STARTING_URL).when(mTab).getUrl();
@@ -530,7 +530,7 @@ public final class PageViewObserverTest {
     }
 
     private ArgumentMatcher<WebsiteEvent> isStartEvent(String fqdn) {
-        return new ArgumentMatcher<WebsiteEvent>() {
+        return new ArgumentMatcher<>() {
             @Override
             public boolean matches(WebsiteEvent event) {
                 return event.getType() == WebsiteEvent.EventType.START
@@ -545,7 +545,7 @@ public final class PageViewObserverTest {
     }
 
     private ArgumentMatcher<WebsiteEvent> isStopEvent(String fqdn) {
-        return new ArgumentMatcher<WebsiteEvent>() {
+        return new ArgumentMatcher<>() {
             @Override
             public boolean matches(WebsiteEvent event) {
                 return event.getType() == WebsiteEvent.EventType.STOP

@@ -10,6 +10,8 @@
 
 #include "modules/audio_processing/test/echo_canceller3_config_json.h"
 
+#include <string>
+
 #include "api/audio/echo_canceller3_config.h"
 #include "test/gtest.h"
 

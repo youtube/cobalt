@@ -11,7 +11,6 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -681,6 +680,14 @@ class CC_EXPORT ScrollTree final : public PropertyTree<ScrollNode> {
   }
   SyncedScrollOffsetMap& synced_scroll_offset_map() {
     return synced_scroll_offset_map_;
+  }
+
+  const base::flat_map<ElementId, gfx::Rect>& scrolling_contents_cull_rects()
+      const {
+    return scrolling_contents_cull_rects_;
+  }
+  base::flat_map<ElementId, gfx::Rect>& scrolling_contents_cull_rects() {
+    return scrolling_contents_cull_rects_;
   }
 
  private:

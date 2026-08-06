@@ -9,7 +9,12 @@
 #include "src/heap/factory.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Instant.d.hpp"
+#include "temporal_rs/Instant.d.hpp"
+#include "temporal_rs/PlainDate.d.hpp"
+#include "temporal_rs/PlainDateTime.d.hpp"
+#include "temporal_rs/PlainMonthDay.d.hpp"
+#include "temporal_rs/PlainTime.d.hpp"
+#include "temporal_rs/PlainYearMonth.d.hpp"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -59,6 +64,16 @@ ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::Instant,
                                         kTemporalInstantTag)
 ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::Duration,
                                         kTemporalDurationTag)
+ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainDate,
+                                        kTemporalPlainDateTag)
+ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainDateTime,
+                                        kTemporalPlainDateTimeTag)
+ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainMonthDay,
+                                        kTemporalPlainMonthDayTag)
+ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainTime,
+                                        kTemporalPlainTimeTag)
+ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainYearMonth,
+                                        kTemporalPlainYearMonthTag)
 class JSTemporalPlainDate;
 class JSTemporalPlainMonthDay;
 class JSTemporalPlainYearMonth;
@@ -287,10 +302,6 @@ class JSTemporalPlainDate
       Isolate* isolate, DirectHandle<JSTemporalPlainDate> plain_date,
       DirectHandle<Object> other, DirectHandle<Object> options);
 
-  // #sec-temporal.plaindate.prototype.getisofields
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> GetISOFields(
-      Isolate* isolate, DirectHandle<JSTemporalPlainDate> plain_date);
-
   // #sec-temporal.plaindate.prototype.toplainyearmonth
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainYearMonth>
   ToPlainYearMonth(Isolate* isolate,
@@ -332,9 +343,7 @@ class JSTemporalPlainDate
 
   DECL_PRINTER(JSTemporalPlainDate)
 
-  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_YEAR_MONTH_DAY()
-
-  DECLARE_TEMPORAL_DATE_INLINE_GETTER_SETTER()
+  DECL_ACCESSORS_FOR_RUST_WRAPPER(date, temporal_rs::PlainDate)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainDate)
 };
@@ -470,13 +479,7 @@ class JSTemporalPlainDateTime
 
   DECL_PRINTER(JSTemporalPlainDateTime)
 
-  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_YEAR_MONTH_DAY()
-  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_HOUR_MINUTE_SECOND()
-  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_SECOND_PARTS()
-
-  DECLARE_TEMPORAL_DATE_INLINE_GETTER_SETTER()
-  DECLARE_TEMPORAL_TIME_INLINE_GETTER_SETTER()
-
+  DECL_ACCESSORS_FOR_RUST_WRAPPER(date_time, temporal_rs::PlainDateTime)
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainDateTime)
 };
 
@@ -533,9 +536,7 @@ class JSTemporalPlainMonthDay
 
   DECL_PRINTER(JSTemporalPlainMonthDay)
 
-  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_YEAR_MONTH_DAY()
-
-  DECLARE_TEMPORAL_DATE_INLINE_GETTER_SETTER()
+  DECL_ACCESSORS_FOR_RUST_WRAPPER(month_day, temporal_rs::PlainMonthDay)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainMonthDay)
 };
@@ -597,16 +598,6 @@ class JSTemporalPlainTime
       Isolate* isolate, DirectHandle<JSTemporalPlainTime> plain_time,
       DirectHandle<Object> round_to);
 
-  // #sec-temporal.plaintime.prototype.getisofields
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> GetISOFields(
-      Isolate* isolate, DirectHandle<JSTemporalPlainTime> plain_time);
-
-  // #sec-temporal.plaintime.prototype.toplaindatetime
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainDateTime>
-  ToPlainDateTime(Isolate* isolate,
-                  DirectHandle<JSTemporalPlainTime> plain_time,
-                  DirectHandle<Object> temporal_date);
-
   // #sec-temporal.plaintime.prototype.with
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainTime> With(
       Isolate* isolate, DirectHandle<JSTemporalPlainTime> plain_time,
@@ -632,11 +623,7 @@ class JSTemporalPlainTime
 
   DECL_PRINTER(JSTemporalPlainTime)
 
-  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_HOUR_MINUTE_SECOND()
-  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_SECOND_PARTS()
-
-  DECLARE_TEMPORAL_TIME_INLINE_GETTER_SETTER()
-
+  DECL_ACCESSORS_FOR_RUST_WRAPPER(time, temporal_rs::PlainTime)
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainTime)
 };
 
@@ -678,10 +665,6 @@ class JSTemporalPlainYearMonth
               DirectHandle<JSTemporalPlainYearMonth> year_month,
               DirectHandle<Object> item);
 
-  // #sec-temporal.plainyearmonth.prototype.getisofields
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> GetISOFields(
-      Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month);
-
   // #sec-temporal.plainyearmonth.prototype.add
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainYearMonth> Add(
       Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
@@ -722,10 +705,7 @@ class JSTemporalPlainYearMonth
 
   DECL_PRINTER(JSTemporalPlainYearMonth)
 
-  DEFINE_TORQUE_GENERATED_JS_TEMPORAL_YEAR_MONTH_DAY()
-
-  DECLARE_TEMPORAL_DATE_INLINE_GETTER_SETTER()
-
+  DECL_ACCESSORS_FOR_RUST_WRAPPER(year_month, temporal_rs::PlainYearMonth)
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainYearMonth)
 };
 
@@ -812,10 +792,6 @@ class JSTemporalZonedDateTime
            DirectHandle<Object> temporal_duration_like,
            DirectHandle<Object> options);
 
-  // #sec-temporal.zoneddatetime.prototype.getisofields
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> GetISOFields(
-      Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time);
-
   // #sec-temporal.zoneddatetime.prototype.toplainyearmonth
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainYearMonth>
   ToPlainYearMonth(Isolate* isolate,
@@ -887,30 +863,6 @@ class JSTemporalZonedDateTime
 };
 
 namespace temporal {
-
-struct DateRecord {
-  int32_t year;
-  int32_t month;
-  int32_t day;
-};
-
-struct TimeRecord {
-  int32_t hour;
-  int32_t minute;
-  int32_t second;
-  int32_t millisecond;
-  int32_t microsecond;
-  int32_t nanosecond;
-};
-
-struct DateTimeRecord {
-  DateRecord date;
-  TimeRecord time;
-};
-
-// #sec-temporal-createtemporaldatetime
-V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSTemporalPlainDateTime>
-CreateTemporalDateTime(Isolate* isolate, const DateTimeRecord& date_time);
 
 // #sec-temporal-createtemporalinstant
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSTemporalInstant>

@@ -671,6 +671,7 @@
 <translation id="385051799172605136">უკან</translation>
 <translation id="3850952228519377137">დაიმალოს „თქვენი ჩანართებიდან ფასებისთვის თვალის მიდევნება“</translation>
 <translation id="3851938967634752633"><ph name="WEBSITE" />-ის, <ph name="SECOND_WEBSITE" />-ისა და <ph name="NUMBER_OF_ACCOUNTS" /> სხვა ვებსაიტის პაროლები წაიშლება. თქვენი ანგარიშები არ წაიშლება.</translation>
+<translation id="3853162385423733133">გააგრძელეთ პაროლების გამოყენება და შენახვა თქვენს Google ანგარიშში <ph name="EMAIL" /></translation>
 <translation id="3858860766373142691">სახელი</translation>
 <translation id="3868495844258915202">სრული URL-ის ჩვენება</translation>
 <translation id="3875783148670536197">ინსტრუქციის ნახვა</translation>
@@ -1002,6 +1003,7 @@
 <translation id="5132942445612118989">მოახდინეთ თქვენი პაროლების, ისტორიისა და სხვა კონტენტის სინქრონიზაცია თქვენს ყველა მოწყობილობაზე</translation>
 <translation id="5141363746588976328">ბარათის „ფასების დაწევის შეტყობინება თქვენს ჩანართებში“ დამალვა</translation>
 <translation id="5145331760738811130">ჩანართების გადამრთველიდან გამოსვლა</translation>
+<translation id="5148717509369231739">Safari-ს იმპორტი</translation>
 <translation id="5157638238828697074">წარმოიქმნა შეფერხება. აპლიკაცია ვერ გაიხსნა.</translation>
 <translation id="5163417375525818870">PDF-ები</translation>
 <translation id="5168414296986405587">შექმნილია iPadOS-ისთვის</translation>
@@ -1113,6 +1115,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="5626245204502895507">ფაილის ჩამოტვირთვა ამჯერად ვერ მოხერხდა.</translation>
 <translation id="562753339521713441">უსაფრთხოების შემოწმების გაშვება</translation>
 <translation id="5628388627414062173">{count,plural, =1{{count} გვერდი თქვენს საკითხავ სიაში}other{{count} გვერდი თქვენს საკითხავ სიაში}}</translation>
+<translation id="5632194969640946913">შეიტყვეთ მეტი იმის დათვალიერებისას და მოძიებისას, რასაც ხედავთ ნებისმიერ გვერდზე და აღმოაჩინეთ პროდუქტები, ადგილები და ტექსტი.</translation>
 <translation id="5632485077360054581">ინსტრუქციის ნახვა</translation>
 <translation id="5633237939819267663">{count,plural, =1{სანიშნე შეინახა „{title}“-ში}other{{count} სანიშნე შეინახა „{title}“-ში}}</translation>
 <translation id="564170563478022912">გსურთ გასვლა? ანგარიშის შეუნახავი მონაცემები წაიშლება.</translation>
@@ -1443,6 +1446,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="6831043979455480757">თარგმნა</translation>
 <translation id="6842136130964845393">იმაში დასარწმუნებლად, რომ ყოველთვის შეძლებთ თქვენს შენახულ პაროლებზე წვდომას, დაადასტურეთ, რომ ეს თქვენ ხართ</translation>
 <translation id="6851516051005285358">დესკტოპის საიტის მოთხოვნა</translation>
+<translation id="6857446173140146664">ფონის წაშლა</translation>
 <translation id="6858718102216837409">ენის დამატება…</translation>
 <translation id="6858855187367714033">სკანირებული</translation>
 <translation id="6859944681507688231">QR კოდის ან საკრედიტო ბარათის სკანირებისთვის ჩართეთ კამერა პარამეტრებიდან.</translation>

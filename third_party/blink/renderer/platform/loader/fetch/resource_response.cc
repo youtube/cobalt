@@ -90,6 +90,7 @@ ResourceResponse::ResourceResponse()
       timing_allow_passed_(false),
       was_fetched_via_spdy_(false),
       was_fetched_via_service_worker_(false),
+      from_synthetic_response_(false),
       did_service_worker_navigation_preload_(false),
       did_use_shared_dictionary_(false),
       async_revalidation_requested_(false),
@@ -273,7 +274,7 @@ void ResourceResponse::AddHttpHeaderField(const AtomicString& name,
 
   HTTPHeaderMap::AddResult result = http_header_fields_.Add(name, value);
   if (!result.is_new_entry) {
-    String new_value = WTF::StrCat({result.stored_value->value, ", ", value});
+    String new_value = StrCat({result.stored_value->value, ", ", value});
     result.stored_value->value = AtomicString(new_value);
   }
 }

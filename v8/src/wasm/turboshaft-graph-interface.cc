@@ -4358,11 +4358,17 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<WordPtr> dst_base = __ WordPtrAdd(dst_mem_start, dst_offset);
 
     // Try to use the largest types first for the transfer.
-    constexpr std::array memory_reps = {
-        MemoryRepresentation::Simd128(), MemoryRepresentation::Uint64(),
-        MemoryRepresentation::Uint32(),  MemoryRepresentation::Uint16(),
-        MemoryRepresentation::Uint8(),
-    };
+    base::SmallVector<MemoryRepresentation, 5> memory_reps;
+    if (CpuFeatures::SupportsWasmSimd128()) {
+      memory_reps = base::SmallVector<MemoryRepresentation, 5>(
+          {MemoryRepresentation::Simd128(), MemoryRepresentation::Uint64(),
+           MemoryRepresentation::Uint32(), MemoryRepresentation::Uint16(),
+           MemoryRepresentation::Uint8()});
+    } else {
+      memory_reps = base::SmallVector<MemoryRepresentation, 5>(
+          {MemoryRepresentation::Uint64(), MemoryRepresentation::Uint32(),
+           MemoryRepresentation::Uint16(), MemoryRepresentation::Uint8()});
+    }
 
     // Load all of the data into registers.
     base::SmallVector<OpIndex, 16> loads;
@@ -4425,7 +4431,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // accesses are supported and only when we have 64-bit support, otherwise
     // the register pressure will likely be too high.
 #ifdef V8_TARGET_ARCH_64_BIT
-    if (v8_flags.wasm_memcpy_inlining) {
+    DCHECK_IMPLIES(!size.op.valid(), __ generating_unreachable_operations());
+    if ((v8_flags.wasm_memcpy_inlining) &&
+        !__ generating_unreachable_operations()) {
       static constexpr uint32_t kMaxInlineBytes = 112;
       if (SupportedOperations::HasFullUnalignedSupport()) {
         auto const_size =
@@ -4785,11 +4793,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           case kExprStructAtomicXor:
             new_value = __ Word32BitwiseXor(old, field_value.op);
             break;
+          case kExprStructAtomicExchange:
+            new_value = field_value.op;
+            break;
           default:
             UNREACHABLE();
         }
-      } else {
-        CHECK_EQ(field_kind, ValueKind::kI64);
+      } else if (field_kind == ValueKind::kI64) {
         V<Word64> old = V<Word64>::Cast(old_value);
         switch (opcode) {
           case kExprStructAtomicAdd:
@@ -4807,9 +4817,16 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           case kExprStructAtomicXor:
             new_value = __ Word64BitwiseXor(old, field_value.op);
             break;
+          case kExprStructAtomicExchange:
+            new_value = field_value.op;
+            break;
           default:
             UNREACHABLE();
         }
+      } else {
+        CHECK(is_reference(field_kind));
+        CHECK_EQ(opcode, kExprStructAtomicExchange);
+        new_value = field_value.op;
       }
       DCHECK(new_value.valid());
       __ StructSet(struct_object.op, new_value, struct_type,
@@ -4831,6 +4848,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           return BinOp::kOr;
         case kExprStructAtomicXor:
           return BinOp::kXor;
+        case kExprStructAtomicExchange:
+          return BinOp::kExchange;
         default:
           UNIMPLEMENTED();
       }
@@ -4931,11 +4950,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           case kExprArrayAtomicXor:
             new_value = __ Word32BitwiseXor(old, value.op);
             break;
+          case kExprArrayAtomicExchange:
+            new_value = value.op;
+            break;
           default:
             UNREACHABLE();
         }
-      } else {
-        CHECK_EQ(element_type, kWasmI64);
+      } else if (element_type == kWasmI64) {
         V<Word64> old = V<Word64>::Cast(old_value);
         switch (opcode) {
           case kExprArrayAtomicAdd:
@@ -4953,9 +4974,16 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           case kExprArrayAtomicXor:
             new_value = __ Word64BitwiseXor(old, value.op);
             break;
+          case kExprArrayAtomicExchange:
+            new_value = value.op;
+            break;
           default:
             UNREACHABLE();
         }
+      } else {
+        CHECK(element_type.is_reference());
+        CHECK_EQ(opcode, kExprArrayAtomicExchange);
+        new_value = value.op;
       }
       DCHECK(new_value.valid());
       __ ArraySet(array_value, index.op, new_value,
@@ -4976,6 +5004,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           return BinOp::kOr;
         case kExprArrayAtomicXor:
           return BinOp::kXor;
+        case kExprArrayAtomicExchange:
+          return BinOp::kExchange;
         default:
           UNIMPLEMENTED();
       }
@@ -8929,8 +8959,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   using InliningIdField = PositionField::Next<uint8_t, kInliningIdFieldSize>;
 
   OpIndex WasmPositionToOpIndex(WasmCodePosition position, int inlining_id) {
-    return OpIndex::FromOffset(PositionField::encode(position) |
-                               InliningIdField::encode(inlining_id));
+    return OpIndex::FromOffset(
+        PositionField::encode(position) | InliningIdField::encode(inlining_id),
+        graph_generation_bit_);
   }
 
   SourcePosition OpIndexToSourcePosition(OpIndex index) {
@@ -9106,6 +9137,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   std::optional<bool> deopts_enabled_;
   OptionalV<FrameState> parent_frame_state_;
+#ifdef DEBUG
+  const int graph_generation_bit_ = __ output_graph().generation_mod2();
+#else
+  const int graph_generation_bit_ = 0;
+#endif
 };
 
 V8_EXPORT_PRIVATE void BuildTSGraph(

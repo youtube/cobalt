@@ -10,7 +10,10 @@
 
 #include "modules/audio_processing/agc2/biquad_filter.h"
 
-#include "rtc_base/arraysize.h"
+#include <cstddef>
+
+#include "api/array_view.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 

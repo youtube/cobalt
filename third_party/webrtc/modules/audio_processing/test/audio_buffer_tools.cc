@@ -10,7 +10,13 @@
 
 #include "modules/audio_processing/test/audio_buffer_tools.h"
 
-#include <string.h>
+#include <cstring>
+#include <vector>
+
+#include "api/array_view.h"
+#include "api/audio/audio_processing.h"
+#include "modules/audio_processing/audio_buffer.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 namespace test {

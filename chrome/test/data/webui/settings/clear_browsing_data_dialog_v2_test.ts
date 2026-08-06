@@ -5,11 +5,12 @@
 // clang-format off
 
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
 import type {ClearBrowsingDataResult, SettingsCheckboxElement, SettingsClearBrowsingDataDialogV2Element, SettingsHistoryDeletionDialogElement} from 'chrome://settings/lazy_load.js';
 import {BrowsingDataType, ClearBrowsingDataBrowserProxyImpl, getDataTypePrefName, getTimePeriodString, TimePeriod} from 'chrome://settings/lazy_load.js';
 import type {SettingsPrefsElement} from 'chrome://settings/settings.js';
-import {CrSettingsPrefs} from 'chrome://settings/settings.js';
+import {CrSettingsPrefs, SignedInState} from 'chrome://settings/settings.js';
 import {assertArrayEquals, assertEquals, assertFalse, assertNotReached, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks, waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 import {eventToPromise, isVisible} from 'chrome://webui-test/test_util.js';
@@ -140,9 +141,20 @@ suite('DeleteBrowsingDataDialog', function() {
     assertFalse(dialog.$.cancelButton.disabled);
     assertFalse(isVisible(dialog.$.spinner));
 
-    // The button should be enabled if a checkbox is selected.
+    // Verify that checkboxes in the expanded and more lists are initially
+    // enabled.
     const historyCheckbox = getCheckboxForDataType(BrowsingDataType.HISTORY);
     assertTrue(!!historyCheckbox);
+    assertFalse(historyCheckbox.$.checkbox.disabled);
+
+    dialog.$.showMoreButton.click();
+    await flushTasks();
+
+    const formDataCheckbox = getCheckboxForDataType(BrowsingDataType.FORM_DATA);
+    assertTrue(!!formDataCheckbox);
+    assertFalse(formDataCheckbox.$.checkbox.disabled);
+
+    // The Delete button should be enabled if a checkbox is selected.
     historyCheckbox.$.checkbox.click();
     await flushTasks();
     assertFalse(dialog.$.deleteButton.disabled);
@@ -151,17 +163,71 @@ suite('DeleteBrowsingDataDialog', function() {
     testClearBrowsingDataBrowserProxy.setClearBrowsingDataPromise(
         promiseResolver.promise);
 
-    // While the deletion is in progress, the Cancel and Delete button should be
-    // disabled and the spinner should be visible.
+    // While the deletion is in progress, the checkboxes, Cancel and Delete
+    // button should be disabled and the spinner should be visible.
     dialog.$.deleteButton.click();
     await testClearBrowsingDataBrowserProxy.whenCalled('clearBrowsingData');
     await flushTasks();
     assertTrue(dialog.$.deleteButton.disabled);
     assertTrue(dialog.$.cancelButton.disabled);
     assertTrue(isVisible(dialog.$.spinner));
+    assertTrue(historyCheckbox.$.checkbox.disabled);
+    assertTrue(formDataCheckbox.$.checkbox.disabled);
 
     promiseResolver.resolve(
         {showHistoryNotice: false, showPasswordsNotice: false});
+  });
+
+  test('DeleteButtonLabel', async function() {
+    // Signed out: Button label should be "delete data from device".
+    webUIListenerCallback('sync-status-changed', {
+      signedInState: SignedInState.SIGNED_OUT,
+      hasError: false,
+    });
+    await flushTasks();
+    assertEquals(
+        loadTimeData.getString('deleteDataFromDevice'),
+        dialog.$.deleteButton.innerText.trim());
+
+    // Signin pending: Button label should be "delete data from device".
+    webUIListenerCallback('sync-status-changed', {
+      signedInState: SignedInState.SIGNED_IN_PAUSED,
+      hasError: false,
+    });
+    await flushTasks();
+    assertEquals(
+        loadTimeData.getString('deleteDataFromDevice'),
+        dialog.$.deleteButton.innerText.trim());
+
+    // Web only signin: Button label should be "delete data from device".
+    webUIListenerCallback('sync-status-changed', {
+      signedInState: SignedInState.WEB_ONLY_SIGNED_IN,
+      hasError: false,
+    });
+    await flushTasks();
+    assertEquals(
+        loadTimeData.getString('deleteDataFromDevice'),
+        dialog.$.deleteButton.innerText.trim());
+
+    // Signed in: Button label should be "delete data".
+    webUIListenerCallback('sync-status-changed', {
+      signedInState: SignedInState.SIGNED_IN,
+      hasError: false,
+    });
+    await flushTasks();
+    assertEquals(
+        loadTimeData.getString('clearData'),
+        dialog.$.deleteButton.innerText.trim());
+
+    // Syncing: Button label should be "delete data".
+    webUIListenerCallback('sync-status-changed', {
+      signedInState: SignedInState.SYNCING,
+      hasError: false,
+    });
+    await flushTasks();
+    assertEquals(
+        loadTimeData.getString('clearData'),
+        dialog.$.deleteButton.innerText.trim());
   });
 
   test('ShowMoreButton', function() {

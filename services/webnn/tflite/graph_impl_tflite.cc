@@ -173,9 +173,20 @@ class GraphImplTflite::ComputeResources {
     TfLiteStatus status = builder(&self->interpreter_);
 
     // If failed to build interpreter with delegates, re-build the interpreter
-    // without delegates.
-    // TODO(crbug.com/421237232): Try again to only apply XNNPack delegate.
+    // with just the XNNPack delegate, then try again with no delegate.
     if (status == kTfLiteDelegateError) {
+      self->delegates_.clear();
+      ::tflite::InterpreterBuilder builder_with_xnnpack(
+          self->model_->GetModel(), op_resolver,
+          ::tflite::DefaultErrorReporter(),
+          /*options=*/nullptr, self->allocation_.get());
+      builder_with_xnnpack.SetNumThreads(num_of_threads);
+      self->SetUpXNNPackDelegate(builder_with_xnnpack, num_of_threads);
+      status = builder_with_xnnpack(&self->interpreter_);
+    }
+
+    if (status == kTfLiteDelegateError) {
+      self->delegates_.clear();
       ::tflite::InterpreterBuilder default_builder(
           self->model_->GetModel(), op_resolver,
           ::tflite::DefaultErrorReporter(),
@@ -395,6 +406,11 @@ class GraphImplTflite::ComputeResources {
 #endif
     }
 
+    SetUpXNNPackDelegate(builder, num_of_threads);
+  }
+
+  void SetUpXNNPackDelegate(::tflite::InterpreterBuilder& builder,
+                            int num_of_threads) {
 #if BUILDFLAG(BUILD_TFLITE_WITH_XNNPACK)
     auto opts = TfLiteXNNPackDelegateOptionsDefault();
     opts.num_threads = num_of_threads;
@@ -408,6 +424,7 @@ class GraphImplTflite::ComputeResources {
 
   flatbuffers::DetachedBuffer model_content_;
   std::vector<uint8_t> model_weights_;
+  std::vector<DelegateInfo> delegates_;
 
   // `model_` depends on `model_content_` outliving it.
   std::unique_ptr<::tflite::FlatBufferModel> model_;
@@ -415,13 +432,13 @@ class GraphImplTflite::ComputeResources {
   // `allocation_` depends on `model_weights_` outliving it.
   std::unique_ptr<::tflite::Allocation> allocation_;
 
-  // `interpreter_` depends on `model_` and `allocation_` outliving it.
+  // `interpreter_` depends on `model_`, `allocation_`, and `delegates_`
+  // outliving it.
   std::unique_ptr<::tflite::Interpreter> interpreter_;
 
 #if BUILDFLAG(WEBNN_ENABLE_TFLITE_PROFILER)
   ::tflite::profiling::BufferedProfiler profiler_{/*max_num_entries=*/1024};
 #endif
-  std::vector<DelegateInfo> delegates_;
 };
 
 // static

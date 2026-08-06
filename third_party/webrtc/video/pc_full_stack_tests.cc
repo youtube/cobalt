@@ -470,7 +470,6 @@ TEST(PCFullStackTest, Pc_Foreman_Cif_Delay_50_0_Plr_5_Flexfec) {
       },
       [](PeerConfigurer* bob) { bob->SetUseFlexFEC(true); });
   RunParams run_params(TimeDelta::Seconds(kTestDurationSec));
-  run_params.enable_flex_fec_support = true;
   fixture->Run(std::move(run_params));
 }
 
@@ -495,7 +494,6 @@ TEST(PCFullStackTest, Pc_Foreman_Cif_500kbps_Delay_50_0_Plr_3_Flexfec) {
       },
       [](PeerConfigurer* bob) { bob->SetUseFlexFEC(true); });
   RunParams run_params(TimeDelta::Seconds(kTestDurationSec));
-  run_params.enable_flex_fec_support = true;
   fixture->Run(std::move(run_params));
 }
 
@@ -649,7 +647,6 @@ TEST(PCFullStackTest, Pc_Foreman_Cif_Delay_50_0_Plr_5_H264_Flexfec) {
         bob->SetUseFlexFEC(true);
       });
   RunParams run_params(TimeDelta::Seconds(kTestDurationSec));
-  run_params.enable_flex_fec_support = true;
   fixture->Run(std::move(run_params));
 }
 

@@ -159,8 +159,9 @@ public:
 
             // Compute the cumulative whitespace advance.
             fAdvanceBuffer.resize(ws_count);
-            fLineRuns.back().fFont.getWidths(fLineGlyphs.data() + fLineGlyphCount - ws_count,
-                                             SkToInt(ws_count), fAdvanceBuffer.data(), nullptr);
+            fLineRuns.back().fFont.getWidths(
+                     {fLineGlyphs.data() + fLineGlyphCount - ws_count, ws_count},
+                     {fAdvanceBuffer.data(), ws_count});
 
             const auto ws_advance = std::accumulate(fAdvanceBuffer.begin(),
                                                     fAdvanceBuffer.end(),
@@ -402,7 +403,7 @@ private:
             // is exactly the same as AE.  E.g. are 'acute' glyphs anchored separately for fonts
             // in which they're distinct?
             fAdvanceBuffer.resize(run.fSize);
-            fFont.getWidths(glyphs, SkToInt(run.fSize), fAdvanceBuffer.data());
+            fFont.getWidths({glyphs, run.fSize}, {fAdvanceBuffer.data(), run.fSize});
         }
 
         // In fragmented mode we immediately push the glyphs to fResult,
@@ -693,8 +694,7 @@ SkRect Shaper::ShapedGlyphs::computeBounds(BoundsType btype) const {
 
         switch (btype) {
         case BoundsType::kConservative: {
-            SkRect run_bounds;
-            run_bounds.setBounds(fGlyphPos.data() + offset, SkToInt(run.fSize));
+            SkRect run_bounds = SkRect::BoundsOrEmpty({fGlyphPos.data() + offset, run.fSize});
             run_bounds.fLeft   += font_bounds.left();
             run_bounds.fTop    += font_bounds.top();
             run_bounds.fRight  += font_bounds.right();
@@ -704,8 +704,7 @@ SkRect Shaper::ShapedGlyphs::computeBounds(BoundsType btype) const {
         } break;
         case BoundsType::kTight: {
             glyphBounds.reset(SkToInt(run.fSize));
-            run.fFont.getBounds(fGlyphIDs.data() + offset,
-                                SkToInt(run.fSize), glyphBounds.data(), nullptr);
+            run.fFont.getBounds({fGlyphIDs.data() + offset, run.fSize}, glyphBounds, nullptr);
 
             for (size_t i = 0; i < run.fSize; ++i) {
                 bounds.join(glyphBounds[SkToInt(i)].makeOffset(fGlyphPos[offset + i]));

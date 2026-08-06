@@ -6,6 +6,7 @@
 
 #include "base/files/file_util.h"
 #include "base/functional/callback_helpers.h"
+#include "base/json/values_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/to_string.h"
 #include "base/task/thread_pool.h"
@@ -30,6 +31,8 @@
 #include "services/on_device_model/ml/performance_class.h"
 #include "services/on_device_model/public/cpp/buildflags.h"
 #include "services/on_device_model/public/cpp/model_assets.h"
+#include "services/preferences/public/cpp/dictionary_value_update.h"
+#include "services/preferences/public/cpp/scoped_pref_update.h"
 
 #if BUILDFLAG(USE_CHROMEOS_MODEL_SERVICE)
 #include "chromeos/ash/components/mojo_service_manager/connection.h"
@@ -40,6 +43,8 @@ namespace on_device_internals {
 
 namespace {
 
+using optimization_guide::model_execution::prefs::localstate::
+    kLastUsageByFeature;
 using optimization_guide::model_execution::prefs::localstate::
     kOnDeviceModelCrashCount;
 
@@ -239,10 +244,25 @@ void PageHandler::OnModelLoaded(
 
 void PageHandler::GetDevicePerformanceInfo(
     GetDevicePerformanceInfoCallback callback) {
+#if BUILDFLAG(USE_CHROMEOS_MODEL_SERVICE)
+  GetService().GetEstimatedPerformanceClass(
+      mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+          base::BindOnce(
+              [](GetDevicePerformanceInfoCallback callback,
+                 on_device_model::mojom::PerformanceClass performance_class) {
+                auto perf_info =
+                    on_device_model::mojom::DevicePerformanceInfo::New();
+                perf_info->performance_class = performance_class;
+                std::move(callback).Run(std::move(perf_info));
+              },
+              std::move(callback)),
+          on_device_model::mojom::PerformanceClass::kError));
+#else
   GetService().GetDevicePerformanceInfo(
       mojo::WrapCallbackWithDefaultInvokeIfNotRun(
           std::move(callback),
           on_device_model::mojom::DevicePerformanceInfo::New()));
+#endif
 }
 
 void PageHandler::OnLogMessageAdded(
@@ -318,6 +338,7 @@ void PageHandler::OnReceivedPerformanceInfoForPageData(
     }
     auto feature_adaptation_info = mojom::FeatureAdaptationInfo::New();
     feature_adaptation_info->feature_name = base::ToString(feature);
+    feature_adaptation_info->feature_key = static_cast<int32_t>(feature);
     feature_adaptation_info->is_recently_used =
         WasOnDeviceEligibleFeatureRecentlyUsed(feature, *local_state);
 
@@ -335,11 +356,24 @@ void PageHandler::OnReceivedPerformanceInfoForPageData(
 }
 
 void PageHandler::GetPageData(PageHandler::GetPageDataCallback callback) {
-  GetService().GetDevicePerformanceInfo(
-      mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-          base::BindOnce(&PageHandler::OnReceivedPerformanceInfoForPageData,
-                         weak_ptr_factory_.GetWeakPtr(), std::move(callback)),
-          on_device_model::mojom::DevicePerformanceInfo::New()));
+  GetDevicePerformanceInfo(
+      base::BindOnce(&PageHandler::OnReceivedPerformanceInfoForPageData,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void PageHandler::SetFeatureRecentlyUsedState(int feature_key,
+                                              bool is_recently_used) {
+  ::prefs::ScopedDictionaryPrefUpdate update(g_browser_process->local_state(),
+                                             kLastUsageByFeature);
+  std::string pref_key = base::NumberToString(
+      static_cast<uint64_t>(optimization_guide::ToModelExecutionFeatureProto(
+          static_cast<optimization_guide::ModelBasedCapabilityKey>(
+              feature_key))));
+  if (is_recently_used) {
+    update->Set(pref_key, base::TimeToValue(base::Time::Now()));
+  } else {
+    update->Remove(pref_key);
+  }
 }
 
 void PageHandler::DecodeBitmap(mojo_base::BigBuffer image_buffer,

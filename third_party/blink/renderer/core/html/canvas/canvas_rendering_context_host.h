@@ -90,6 +90,7 @@ class CORE_EXPORT CanvasRenderingContextHost : public GarbageCollectedMixin,
 
   virtual UkmParameters GetUkmParameters() = 0;
 
+  bool IsValidImageSize() const;
   bool IsPaintable() const;
 
   bool PrintedInCurrentTask() const final;
@@ -100,8 +101,12 @@ class CORE_EXPORT CanvasRenderingContextHost : public GarbageCollectedMixin,
 
   // Partial CanvasResourceHost implementation
   void InitializeForRecording(cc::PaintCanvas*) const final;
-  CanvasResourceProvider* GetOrCreateCanvasResourceProvider() override;
+  CanvasResourceProvider* GetOrCreateCanvasResourceProviderForCanvas2D()
+      override;
   void PageVisibilityChanged() override;
+
+  CanvasResourceProvider* GetOrCreateCanvasResourceProviderForWebGL();
+  CanvasResourceProvider* GetOrCreateCanvasResourceProviderForWebGPU();
 
   bool IsWebGL() const;
   bool IsWebGPU() const;
@@ -132,13 +137,16 @@ class CORE_EXPORT CanvasRenderingContextHost : public GarbageCollectedMixin,
 
   bool IsContextLost() const override;
 
+  // Can be called only when the context is 2D.
+  CanvasResourceProvider* GetResourceProviderForCanvas2D() const {
+    CHECK(IsRenderingContext2D());
+    return ResourceProvider();
+  }
+
  protected:
   ~CanvasRenderingContextHost() override = default;
 
-  scoped_refptr<StaticBitmapImage> CreateTransparentImage(
-      const gfx::Size&) const;
-
-  CanvasResourceProvider* GetOrCreateCanvasResourceProviderImpl() final;
+  scoped_refptr<StaticBitmapImage> CreateTransparentImage() const;
 
   bool ContextHasOpenLayers(const CanvasRenderingContext*) const;
 
@@ -156,7 +164,7 @@ class CORE_EXPORT CanvasRenderingContextHost : public GarbageCollectedMixin,
 
  private:
   CanvasResourceProvider* CreateCanvasResourceProvider2D();
-  CanvasResourceProvider* CreateCanvasResourceProviderWebGL();
+  std::unique_ptr<CanvasResourceProvider> CreateCanvasResourceProviderWebGL();
   CanvasResourceProvider* CreateCanvasResourceProviderWebGPU();
 
   bool did_record_canvas_size_to_uma_ = false;

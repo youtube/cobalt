@@ -26,7 +26,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <iterator>
 
 static inline int is_even(int x) {
     return !(x & 1);
@@ -295,7 +294,7 @@ public:
         pts[2].set(x1 - fNormal.fX, y1 - fNormal.fY);   // lineTo
         pts[3].set(x0 - fNormal.fX, y0 - fNormal.fY);   // lineTo
 
-        path->addPoly(pts, std::size(pts), false);
+        path->addPoly(pts, false);
     }
 
 private:
@@ -340,7 +339,7 @@ bool SkDashPath::InternalFilter(SkPath* dst, const SkPath& src, SkStrokeRec* rec
                     // We have run out of intervals. endPhase "should" never get to this point,
                     // but it could if the subtracts underflowed. Hence we will pin it as if it
                     // perfectly ran through the intervals.
-                    // See crbug.com/875494 (and skbug.com/8274)
+                    // See crbug.com/875494 (and skbug.com/40039544)
                     endPhase = 0;
                     break;
                 }

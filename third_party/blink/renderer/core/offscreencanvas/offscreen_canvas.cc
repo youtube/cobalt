@@ -284,9 +284,9 @@ scoped_refptr<Image> OffscreenCanvas::GetSourceImageForCanvas(
     return nullptr;
   }
   scoped_refptr<StaticBitmapImage> image = context_->GetImage(reason);
-  if (!image)
-    image = CreateTransparentImage(Size());
-
+  if (!image) {
+    image = CreateTransparentImage();
+  }
   *status = image ? kNormalSourceImageStatus : kInvalidSourceImageStatus;
   return image;
 }
@@ -492,7 +492,7 @@ bool OffscreenCanvas::EnableAccelerationForCanvas2D() {
   // Note that `OffscreenCanvas::IsAccelerated` above is not equivalent! This
   // returns false if the canvas resource provider doesn't exist yet, even if it
   // will be an accelerated canvas once it has been created.
-  CanvasResourceProvider* provider = GetOrCreateResourceProvider();
+  CanvasResourceProvider* provider = GetOrCreateResourceProviderForCanvas2D();
   if (!provider) {
     return false;
   }
@@ -533,7 +533,21 @@ CanvasResourceDispatcher* OffscreenCanvas::GetOrCreateResourceDispatcher() {
   return frame_dispatcher_.get();
 }
 
-CanvasResourceProvider* OffscreenCanvas::GetOrCreateResourceProvider() {
+CanvasResourceProvider*
+OffscreenCanvas::GetOrCreateResourceProviderForImageBitmap() {
+  CHECK(IsImageBitmapRenderingContext());
+  return GetOrCreateResourceProviderForCanvas2DOrImageBitmap();
+}
+
+CanvasResourceProvider*
+OffscreenCanvas::GetOrCreateResourceProviderForCanvas2D() {
+  CHECK(IsRenderingContext2D());
+  return GetOrCreateResourceProviderForCanvas2DOrImageBitmap();
+}
+
+CanvasResourceProvider*
+OffscreenCanvas::GetOrCreateResourceProviderForCanvas2DOrImageBitmap() {
+  CHECK(IsRenderingContext2D() || IsImageBitmapRenderingContext());
   if (!context_ ||
       (context_->isContextLost() && !context_->IsContextBeingRestored())) {
     return nullptr;
@@ -556,7 +570,7 @@ CanvasResourceProvider* OffscreenCanvas::GetOrCreateResourceProvider() {
     return provider;
   }
 
-  if (!IsValidImageSize(Size()) && !Size().IsEmpty()) {
+  if (!IsValidImageSize() && !Size().IsEmpty()) {
     context_->LoseContext(CanvasRenderingContext::kInvalidCanvasSize);
     return nullptr;
   }
@@ -565,9 +579,8 @@ CanvasResourceProvider* OffscreenCanvas::GetOrCreateResourceProvider() {
   gfx::Size surface_size(width(), height());
   const bool can_use_gpu =
       SharedGpuContext::IsGpuCompositingEnabled() &&
-      (IsWebGL() || IsWebGPU() || IsImageBitmapRenderingContext() ||
-       (IsRenderingContext2D() &&
-        RuntimeEnabledFeatures::Accelerated2dCanvasEnabled() &&
+      (IsImageBitmapRenderingContext() ||
+       (RuntimeEnabledFeatures::Accelerated2dCanvasEnabled() &&
         !(context_->CreationAttributes().will_read_frequently ==
           CanvasContextCreationAttributesCore::WillReadFrequently::kTrue)));
   const bool use_shared_image =
@@ -576,10 +589,8 @@ CanvasResourceProvider* OffscreenCanvas::GetOrCreateResourceProvider() {
   const bool use_scanout =
       use_shared_image && HasPlaceholderCanvas() &&
       SharedGpuContext::MaySupportImageChromium() &&
-      (IsWebGPU() ||
-       (IsWebGL() && RuntimeEnabledFeatures::WebGLImageChromiumEnabled()) ||
-       (IsRenderingContext2D() &&
-        RuntimeEnabledFeatures::Canvas2dImageChromiumEnabled()));
+      (IsRenderingContext2D() &&
+       RuntimeEnabledFeatures::Canvas2dImageChromiumEnabled());
 
   gpu::SharedImageUsageSet shared_image_usage_flags =
       gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;

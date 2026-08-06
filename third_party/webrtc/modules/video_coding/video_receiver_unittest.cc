@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "api/field_trials.h"
 #include "api/rtp_headers.h"
 #include "api/test/mock_video_decoder.h"
 #include "api/video/video_codec_type.h"
@@ -22,9 +23,9 @@
 #include "modules/video_coding/timing/timing.h"
 #include "modules/video_coding/video_coding_impl.h"
 #include "system_wrappers/include/clock.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 
 using ::testing::_;
 using ::testing::AnyNumber;
@@ -61,7 +62,8 @@ class TestVideoReceiver : public ::testing::Test {
   static const uint16_t kMaxWaitTimeMs = 100;
 
   TestVideoReceiver()
-      : clock_(0),
+      : field_trials_(CreateTestFieldTrials()),
+        clock_(0),
         timing_(&clock_, field_trials_),
         receiver_(&clock_, &timing_, field_trials_) {}
 
@@ -129,7 +131,7 @@ class TestVideoReceiver : public ::testing::Test {
     EXPECT_EQ(0, receiver_.Decode(kMaxWaitTimeMs));
   }
 
-  test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_;
   SimulatedClock clock_;
   NiceMock<MockVideoDecoder> decoder_;
   NiceMock<MockPacketRequestCallback> packet_request_callback_;

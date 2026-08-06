@@ -347,6 +347,14 @@ bool IsAccessibilityManifestV3EnabledForEspeakNGTts() {
       ::features::kAccessibilityManifestV3EspeakNGTts);
 }
 
+BASE_FEATURE(kAccessibilityManifestV3GoogleTts,
+             "AccessibilityManifestV3GoogleTts",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsAccessibilityManifestV3EnabledForGoogleTts() {
+  return base::FeatureList::IsEnabled(
+      ::features::kAccessibilityManifestV3GoogleTts);
+}
+
 BASE_FEATURE(kAccessibilityManifestV3AccessibilityCommon,
              "AccessibilityManifestV3AccessibilityCommon",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -488,6 +496,12 @@ bool IsScreenAITestModeEnabled() {
   return base::FeatureList::IsEnabled(::features::kScreenAITestMode);
 }
 
+#if BUILDFLAG(IS_LINUX)
+BASE_FEATURE(kScreenAIPartitionAllocAdvancedChecksEnabled,
+             "ScreenAIPartitionAllocAdvancedChecksEnabled",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_MAC)
@@ -532,6 +546,16 @@ bool IsWasmTtsComponentUpdaterEnabled() {
   return base::FeatureList::IsEnabled(::features::kReadAnythingReadAloud) &&
          base::FeatureList::IsEnabled(
              ::features::kWasmTtsComponentUpdaterEnabled);
+}
+
+BASE_FEATURE(kWasmTtsComponentUpdaterV3Enabled,
+             "WasmTtsComponentUpdaterV3Enabled",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsWasmTtsComponentUpdaterV3Enabled() {
+  return base::FeatureList::IsEnabled(
+             ::features::kWasmTtsComponentUpdaterEnabled) &&
+         base::FeatureList::IsEnabled(
+             ::features::kWasmTtsComponentUpdaterV3Enabled);
 }
 
 BASE_FEATURE(kWasmTtsEngineAutoInstallDisabled,

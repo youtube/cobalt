@@ -11,15 +11,20 @@
 #include "modules/desktop_capture/win/full_screen_win_application_handler.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cwchar>
 #include <cwctype>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
-#include "modules/desktop_capture/win/screen_capture_utils.h"
-#include "modules/desktop_capture/win/window_capture_utils.h"
+#include "absl/strings/string_view.h"
+#include "modules/desktop_capture/desktop_capturer.h"
+#include "modules/desktop_capture/full_screen_application_handler.h"
 #include "rtc_base/logging.h"  // For RTC_LOG_GLE
 #include "rtc_base/string_utils.h"
 

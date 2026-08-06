@@ -22,6 +22,7 @@
 
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/test/create_frame_generator.h"
 #include "api/test/frame_generator_interface.h"
 #include "api/units/data_size.h"
@@ -41,16 +42,15 @@
 #include "modules/video_coding/codecs/test/encoded_video_frame_producer.h"
 #include "modules/video_coding/include/video_error_codes.h"
 #include "rtc_base/checks.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 #include "test/testsupport/file_utils.h"
 #include "test/testsupport/frame_reader.h"
 
 namespace webrtc {
 namespace {
 
-using test::ScopedKeyValueConfig;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::Field;
@@ -315,12 +315,12 @@ TEST(LibaomAv1EncoderTest, EncoderInfoWithoutResolutionBitrateLimits) {
 }
 
 TEST(LibaomAv1EncoderTest, EncoderInfoWithBitrateLimitsFromFieldTrial) {
-  auto field_trials = std::make_unique<ScopedKeyValueConfig>(
-      "WebRTC-Av1-GetEncoderInfoOverride/"
-      "frame_size_pixels:123|456|789,"
-      "min_start_bitrate_bps:11000|22000|33000,"
-      "min_bitrate_bps:44000|55000|66000,"
-      "max_bitrate_bps:77000|88000|99000/");
+  auto field_trials = std::make_unique<FieldTrials>(
+      CreateTestFieldTrials("WebRTC-Av1-GetEncoderInfoOverride/"
+                            "frame_size_pixels:123|456|789,"
+                            "min_start_bitrate_bps:11000|22000|33000,"
+                            "min_bitrate_bps:44000|55000|66000,"
+                            "max_bitrate_bps:77000|88000|99000/"));
   const Environment env = CreateEnvironment(std::move(field_trials));
   std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder(env);
 

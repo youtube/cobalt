@@ -247,29 +247,15 @@ void HttpStreamPool::AttemptManager::RequestStream(Job* job) {
     alternative_service_disabling_jobs_.emplace(job);
   }
 
-  // HttpStreamPool should check the existing QUIC/SPDY sessions before calling
-  // this method.
+  // HttpStreamPool should check the existing QUIC/SPDY sessions and idle
+  // streams before calling this method.
   DCHECK(!CanUseExistingQuicSession());
   DCHECK(!HasAvailableSpdySession());
+  CHECK_EQ(group_->IdleStreamSocketCount(), 0u);
 
   request_jobs_.Insert(job, job->priority());
 
   MaybeChangeServiceEndpointRequestPriority();
-
-  // Check idle streams. If found, notify the job that an HttpStream is ready.
-  std::unique_ptr<StreamSocket> stream_socket = group_->GetIdleStreamSocket();
-  if (stream_socket) {
-    CHECK(!group_->force_quic());
-    const StreamSocketHandle::SocketReuseType reuse_type =
-        GetReuseTypeFromIdleStreamSocket(*stream_socket);
-    // It's important to create an HttpBasicStream synchronously because we
-    // already took the ownership of the idle stream socket. If we don't create
-    // an HttpBasicStream here, another call of this method might exceed the
-    // per-group limit.
-    CreateTextBasedStreamAndNotify(std::move(stream_socket), reuse_type,
-                                   LoadTimingInfo::ConnectTiming());
-    return;
-  }
 
   if (base_ssl_config_.has_value()) {
     base_ssl_config_->allowed_bad_certs = job->allowed_bad_certs();
@@ -283,15 +269,10 @@ void HttpStreamPool::AttemptManager::RequestStream(Job* job) {
 
 void HttpStreamPool::AttemptManager::Preconnect(Job* job) {
   CHECK(availability_state_ == AvailabilityState::kAvailable);
+  CHECK_LT(group_->ActiveStreamSocketCount(), job->num_streams());
 
   TRACE_EVENT_INSTANT("net.stream", "AttemptManager::Preconnect", track_,
                       NetLogWithSourceToFlow(job->request_net_log()));
-
-  // If `job` is resumed, there could be enough streams at this point.
-  if (group_->ActiveStreamSocketCount() >= job->num_streams()) {
-    NotifyJobOfPreconnectComplete(job, OK);
-    return;
-  }
 
   net_log_.AddEvent(
       NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_PRECONNECT, [&] {
@@ -659,11 +640,6 @@ const NetLogWithSource& HttpStreamPool::AttemptManager::net_log() {
 
 bool HttpStreamPool::AttemptManager::UsingTls() const {
   return GURL::SchemeIsCryptographic(stream_key().destination().scheme());
-}
-
-bool HttpStreamPool::AttemptManager::RequiresHTTP11() {
-  return pool()->RequiresHTTP11(stream_key().destination(),
-                                stream_key().network_anonymization_key());
 }
 
 LoadState HttpStreamPool::AttemptManager::GetLoadState() const {
@@ -1475,13 +1451,8 @@ size_t HttpStreamPool::AttemptManager::CalculateMaxPreconnectCount() const {
 size_t HttpStreamPool::AttemptManager::PendingCountInternal(
     size_t pending_count) const {
   CHECK_GE(tcp_based_attempts_.size(), slow_tcp_based_attempt_count_);
-  // When SPDY throttle delay passed, treat all in-flight attempts as non-slow,
-  // to avoid attempting connections more than requested.
-  // TODO(crbug.com/346835898): This behavior is tricky. Figure out a better
-  // way to handle this situation.
-  size_t slow_count =
-      spdy_throttle_delay_passed_ ? 0 : slow_tcp_based_attempt_count_;
-  size_t non_slow_count = tcp_based_attempts_.size() - slow_count;
+  const size_t non_slow_count =
+      tcp_based_attempts_.size() - slow_tcp_based_attempt_count_;
   // The number of in-flight, non-slow attempts could be larger than the number
   // of jobs (e.g. a job was cancelled in the middle of an attempt).
   if (pending_count <= non_slow_count) {

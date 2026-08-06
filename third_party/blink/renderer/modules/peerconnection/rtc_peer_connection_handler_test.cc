@@ -36,7 +36,6 @@
 #include "third_party/blink/public/web/web_heap.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/testing/sim/sim_test.h"
-#include "third_party/blink/renderer/modules/mediastream/media_stream_audio_processing_layout.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_video_track.h"
 #include "third_party/blink/renderer/modules/mediastream/mock_media_stream_video_source.h"
 #include "third_party/blink/renderer/modules/mediastream/processed_local_audio_source.h"
@@ -69,7 +68,9 @@
 #include "third_party/webrtc/api/rtp_receiver_interface.h"
 #include "third_party/webrtc/stats/test/rtc_test_stats.h"
 
-static const char kDummySdp[] = "dummy sdp";
+static const char kDummySdp[] =
+    "candidate:2214029314 1 udp 2122260223 127.0.0.1 49152 typ host generation "
+    "0";
 static const char kDummySdpType[] = "dummy type";
 
 using testing::_;
@@ -297,11 +298,8 @@ class RTCPeerConnectionHandlerTest : public SimTest {
                           media::AudioParameters::kAudioCDSampleRate,
                           media::ChannelLayoutConfig::Stereo(),
                           media::AudioParameters::kAudioCDSampleRate / 100),
-        false /* disable_local_echo */,
-        MediaStreamAudioProcessingLayout(AudioProcessingProperties(),
-                                         /*available_platform_effects=*/0,
-                                         /*multichannel_processing=*/false),
-        base::DoNothing(),
+        false /* disable_local_echo */, blink::AudioProcessingProperties(),
+        1 /* num_requested_channels */, base::DoNothing(),
         blink::scheduler::GetSingleThreadTaskRunnerForTesting());
     auto* processed_audio_source_ptr = processed_audio_source.get();
     processed_audio_source->SetAllowInvalidRenderFrameIdForTesting(true);

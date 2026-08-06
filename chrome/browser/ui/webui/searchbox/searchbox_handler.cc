@@ -84,6 +84,8 @@ constexpr char kExtensionAppIconResourceName[] =
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 constexpr char kGoogleCalendarIconResourceName[] =
     "//resources/cr_components/searchbox/icons/calendar.svg";
+constexpr char kGoogleAgentspaceIconResourceName[] =
+    "//resources/cr_components/searchbox/icons/google_agentspace_logo.svg";
 const char* kGoogleGIconResourceName =
     "//resources/cr_components/searchbox/icons/google_g.svg";
 constexpr char kGoogleKeepNoteIconResourceName[] =
@@ -285,9 +287,19 @@ std::vector<searchbox::mojom::AutocompleteMatchPtr> CreateAutocompleteMatches(
                                   ? turl_service->GetTemplateURLForKeyword(
                                         match.associated_keyword->keyword)
                                   : nullptr;
-    mojom_match->icon_url =
+    mojom_match->icon_path =
         SearchboxHandler::AutocompleteMatchVectorIconToResourceName(
             match.GetVectorIcon(is_bookmarked, turl));
+    // For enterprise search aggregator people suggestions, use branded icon if
+    // branded build.
+    if (match.enterprise_search_aggregator_type ==
+        AutocompleteMatch::EnterpriseSearchAggregatorType::PEOPLE) {
+      mojom_match->is_enterprise_search_aggregator_people_type = true;
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+      mojom_match->icon_path = kGoogleAgentspaceIconResourceName;
+#endif
+    }
+    mojom_match->icon_url = match.icon_url.spec();
     mojom_match->image_dominant_color = match.image_dominant_color;
     mojom_match->image_url = match.image_url.spec();
     mojom_match->fill_into_edit = match.fill_into_edit;
@@ -328,20 +340,22 @@ std::vector<searchbox::mojom::AutocompleteMatchPtr> CreateAutocompleteMatches(
     mojom_match->is_rich_suggestion =
         !mojom_match->image_url.empty() ||
         match.type == AutocompleteMatchType::CALCULATOR ||
-        match.answer_type != omnibox::ANSWER_TYPE_UNSPECIFIED;
+        match.answer_type != omnibox::ANSWER_TYPE_UNSPECIFIED ||
+        match.enterprise_search_aggregator_type ==
+            AutocompleteMatch::EnterpriseSearchAggregatorType::PEOPLE;
     for (const auto& action : match.actions) {
-      std::string icon_url;
+      std::string icon_path;
       if (action->GetIconImage().IsEmpty()) {
-        icon_url = SearchboxHandler::ActionVectorIconToResourceName(
+        icon_path = SearchboxHandler::ActionVectorIconToResourceName(
             action->GetVectorIcon());
       } else {
-        icon_url = webui::GetBitmapDataUrl(action->GetIconImage().AsBitmap());
+        icon_path = webui::GetBitmapDataUrl(action->GetIconImage().AsBitmap());
       }
       const OmniboxAction::LabelStrings& label_strings =
           action->GetLabelStrings();
       mojom_match->actions.emplace_back(searchbox::mojom::Action::New(
           label_strings.accessibility_hint, label_strings.hint,
-          label_strings.suggestion_contents, icon_url));
+          label_strings.suggestion_contents, icon_path));
     }
     std::u16string header_text =
         edit_model->GetSuggestionGroupHeaderText(match.suggestion_group_id);
@@ -480,9 +494,12 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       base::FeatureList::IsEnabled(ntp_features::kRealboxCr23Theming));
   source->AddBoolean("searchboxCr23SteadyStateShadow",
                      ntp_features::kNtpRealboxCr23SteadyStateShadow.Get());
-  source->AddBoolean("searchboxShowComposeButton",
+  source->AddBoolean("searchboxShowComposeEntrypoint",
                      base::FeatureList::IsEnabled(
-                         ntp_features::kNtpSearchboxShowComposeButton));
+                         ntp_features::kNtpSearchboxComposeEntrypoint));
+  source->AddBoolean(
+      "searchboxShowComposebox",
+      base::FeatureList::IsEnabled(ntp_features::kNtpSearchboxComposebox));
 }
 
 // static
