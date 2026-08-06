@@ -491,6 +491,25 @@ BASE_FEATURE(kConsumeCodeCacheOffThread,
              "ConsumeCodeCacheOffThread",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kHighestPmfReporterConfigurable,
+             "HighestPmfReporterConfigurable",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(std::string,
+                   kHighestPmfReporterIntervals,
+                   &kHighestPmfReporterConfigurable,
+                   "intervals",
+                   "2,4,8,16");
+
+BASE_FEATURE_PARAM(std::string,
+                   kHighestPmfReporterMetricSuffixes,
+                   &kHighestPmfReporterConfigurable,
+                   "metric_suffixes",
+                   "0to2min,2to4min,4to8min,8to16min");
+#endif
+
+
 // Enables the constant streaming in the ContentCapture task.
 BASE_FEATURE(kContentCaptureConstantStreaming,
              "ContentCaptureConstantStreaming",

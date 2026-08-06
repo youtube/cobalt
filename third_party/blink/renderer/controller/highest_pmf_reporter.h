@@ -12,6 +12,13 @@
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
+#if BUILDFLAG(IS_COBALT)
+#include <string>
+#include <vector>
+#endif
+
 namespace base {
 class SingleThreadTaskRunner;
 class TickClock;
@@ -57,6 +64,10 @@ class CONTROLLER_EXPORT HighestPmfReporter
   double peak_resident_bytes_at_current_highest_pmf_ = 0.0;
   unsigned webpage_counts_at_current_highest_pmf_ = 0;
   unsigned report_count_ = 0;
+#if BUILDFLAG(IS_COBALT)
+  std::vector<base::TimeDelta> time_to_report_;
+  std::vector<std::string> metric_names_;
+#endif
 };
 
 }  // namespace blink
