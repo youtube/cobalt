@@ -84,6 +84,17 @@ bool VideoDecoderConfig::IsValidConfig() const {
 }
 
 bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
+  // Note: On Starboard builds (BUILDFLAG(USE_STARBOARD_MEDIA)), `mime_type()`
+  // is intentionally excluded from Matches():
+  // 1. Matches() checks whether underlying hardware decoders require 
+  //    re-initialization based on elementary stream properties (codec,
+  //    profile, resolution, extra_data).
+  // 2. Format transitions (e.g., MediaSource.changeType) are explicitly
+  //    signaled down the pipeline via DemuxerStream::kConfigChanged buffer
+  //    boundaries.
+  // 3. Omitting `mime_type()` prevents redundant hardware decoder teardowns if
+  //    container MIME strings differ while elementary video/audio parameters
+  //    remain identical.
   return codec() == config.codec() && profile() == config.profile() &&
          alpha_mode() == config.alpha_mode() &&
          video_transformation() == config.video_transformation() &&
