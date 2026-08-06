@@ -89,10 +89,11 @@ std::unordered_set<std::string> ReadAckedUuidsFromDisk(
   return acked_uuids;
 }
 
-bool WriteAckedUuidsToDisk(const base::FilePath& file_path,
+void WriteAckedUuidsToDisk(const base::FilePath& file_path,
                            const std::unordered_set<std::string>& acked_uuids) {
   if (file_path.empty()) {
-    return false;
+    LOG(ERROR) << "Failed to write acked UUIDs: file path is empty.";
+    return;
   }
 
   // We typically expect this directory to already exist but it may not, for
@@ -104,7 +105,7 @@ bool WriteAckedUuidsToDisk(const base::FilePath& file_path,
     LOG(ERROR) << "Failed to create " << kNativeStabilityDirName
                << " directory: " << dir_path.value()
                << ", error: " << base::File::ErrorToString(error);
-    return false;
+    return;
   }
 
   base::Value::List list_of_uuids;
@@ -116,16 +117,14 @@ bool WriteAckedUuidsToDisk(const base::FilePath& file_path,
   std::optional<std::string> json = base::WriteJson(list_of_uuids);
   if (!json) {
     LOG(ERROR) << "Failed to serialize acked UUIDs list to JSON.";
-    return false;
+    return;
   }
 
   if (!base::ImportantFileWriter::WriteFileAtomically(file_path, *json)) {
     LOG(ERROR) << "Failed to write acked UUIDs atomically to: "
                << file_path.value();
-    return false;
+    return;
   }
-
-  return true;
 }
 
 }  // namespace
