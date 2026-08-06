@@ -398,6 +398,17 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
         base::FilePath(kSCTAuditingPendingReportsFileName);
   }
 
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "max-http-cache-size")) {
+    std::string size_str =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+            "max-http-cache-size");
+    int parsed_size = 0;
+    if (base::StringToInt(size_str, &parsed_size)) {
+      network_context_params->http_cache_max_size = parsed_size;
+    }
+  }
+
   network_context_params->enable_certificate_reporting = true;
 
   network_context_params->sct_auditing_mode =
