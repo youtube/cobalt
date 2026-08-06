@@ -26,7 +26,9 @@
 #include "starboard/window.h"
 
 struct SbWindowPrivate {
-  SbWindowPrivate(Display* display, const SbWindowOptions* options);
+  SbWindowPrivate(Display* display,
+                  const SbWindowOptions* options,
+                  Window parent = None);
   ~SbWindowPrivate();
 
   Window window;

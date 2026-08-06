@@ -18,11 +18,17 @@
 
 #include "starboard/common/string.h"
 #include "starboard/extension/configuration.h"
+#include "starboard/extension/window_geometry.h"
 #include "starboard/linux/x64x11/skia/configuration.h"
+
+extern "C" const void* GetWindowGeometryApi();
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::GetConfigurationApiLinuxSkia();
+  }
+  if (strcmp(name, kStarboardExtensionWindowGeometryName) == 0) {
+    return GetWindowGeometryApi();
   }
   return NULL;
 }

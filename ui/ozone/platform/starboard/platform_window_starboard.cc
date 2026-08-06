@@ -21,6 +21,8 @@
 #include "base/logging.h"
 #include "build/build_config.h"
 #include "starboard/event.h"
+#include "starboard/extension/window_geometry.h"
+#include "starboard/system.h"
 #include "ui/events/event.h"
 #include "ui/events/event_utils.h"
 #include "ui/events/ozone/events_ozone.h"
@@ -138,6 +140,17 @@ void PlatformWindowStarboard::SetBoundsInPixels(const gfx::Rect& bounds) {
   // changes the bounds.
   bool origin_changed = bounds_.origin() != bounds.origin();
   bounds_ = bounds;
+
+  if (SbWindowIsValid(sb_window_)) {
+    auto* window_geometry =
+        static_cast<const StarboardExtensionWindowGeometryApi*>(
+            SbSystemGetExtension(kStarboardExtensionWindowGeometryName));
+    if (window_geometry && window_geometry->version >= 1) {
+      window_geometry->SetWindowBounds(sb_window_, bounds.x(), bounds.y(),
+                                       bounds.width(), bounds.height());
+    }
+  }
+
   delegate_->OnBoundsChanged({origin_changed});
 }
 
@@ -162,6 +175,16 @@ void PlatformWindowStarboard::Show(bool inactive) {
 
     sb_window_ = SbWindowCreate(&options);
     CHECK(SbWindowIsValid(sb_window_));
+
+    if (bounds_.x() != 0 || bounds_.y() != 0) {
+      auto* window_geometry =
+          static_cast<const StarboardExtensionWindowGeometryApi*>(
+              SbSystemGetExtension(kStarboardExtensionWindowGeometryName));
+      if (window_geometry && window_geometry->version >= 1) {
+        window_geometry->SetWindowBounds(sb_window_, bounds_.x(), bounds_.y(),
+                                         bounds_.width(), bounds_.height());
+      }
+    }
 
     (*g_created_callback).Run(sb_window_);
   }

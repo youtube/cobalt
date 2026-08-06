@@ -69,8 +69,13 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
+#if defined(USE_AURA)
+#include "ui/aura/window.h"
+#include "ui/aura/window_tree_host.h"
+#endif
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/features.h"
@@ -508,35 +513,83 @@ void CobaltContentBrowserClient::DispatchFocus() {
 }
 
 void CobaltContentBrowserClient::AddPendingWindowReceiver(
+    content::RenderFrameHost* rfh,
     mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>
         receiver) {
-  if (cached_sb_window_) {
-    BindPlatformWindowProviderService(cached_sb_window_, std::move(receiver));
-  } else {
+  if (active_sb_windows_.empty()) {
     pending_window_receivers_.push_back(std::move(receiver));
+    return;
+  }
+
+  // Get the AcceleratedWidget (X11 Window ID) from the RFH
+  gfx::AcceleratedWidget widget = gfx::kNullAcceleratedWidget;
+  if (rfh && rfh->GetRenderWidgetHost() &&
+      rfh->GetRenderWidgetHost()->GetView()) {
+#if defined(USE_AURA)
+    content::RenderWidgetHostView* view = rfh->GetRenderWidgetHost()->GetView();
+    gfx::NativeView native_view = view->GetNativeView();
+    if (native_view) {
+      aura::WindowTreeHost* host = native_view->GetHost();
+      if (host) {
+        widget = host->GetAcceleratedWidget();
+      }
+    }
+#endif
+  }
+
+  // Map the widget back to the SbWindow
+  SbWindow target_window = kSbWindowInvalid;
+  for (auto* window : active_sb_windows_) {
+    if (SbWindowGetPlatformHandle(window) == reinterpret_cast<void*>(widget)) {
+      target_window = window;
+      break;
+    }
+  }
+
+  if (target_window != kSbWindowInvalid) {
+    BindPlatformWindowProviderService(reinterpret_cast<uint64_t>(target_window),
+                                      std::move(receiver));
+  } else {
+    // Fallback to primary window if mapping fails
+    uint64_t primary = reinterpret_cast<uint64_t>(active_sb_windows_[0]);
+    BindPlatformWindowProviderService(primary, std::move(receiver));
   }
 }
 
 void CobaltContentBrowserClient::OnSbWindowCreated(SbWindow window) {
-  // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows. This
-  // assumes only single PlatformWindowStarboard() in Cobalt.
-  CHECK(!cached_sb_window_);
-  cached_sb_window_ = reinterpret_cast<uint64_t>(window);
+  active_sb_windows_.push_back(window);
 #if BUILDFLAG(IS_STARBOARD)
-  h5vcc_system::H5vccSystemImpl::SetPrimarySbWindow(window);
-#endif
-  for (auto& receiver : pending_window_receivers_) {
-    BindPlatformWindowProviderService(cached_sb_window_, std::move(receiver));
+  if (active_sb_windows_.size() == 1) {
+    h5vcc_system::H5vccSystemImpl::SetPrimarySbWindow(window);
   }
-  pending_window_receivers_.clear();
+#endif
+  if (active_sb_windows_.size() == 1) {
+    for (auto& receiver : pending_window_receivers_) {
+      BindPlatformWindowProviderService(reinterpret_cast<uint64_t>(window),
+                                        std::move(receiver));
+    }
+    pending_window_receivers_.clear();
+  }
 }
 
 void CobaltContentBrowserClient::OnSbWindowDestroyed(SbWindow window) {
-  DCHECK_EQ(cached_sb_window_, reinterpret_cast<uint64_t>(window));
-  cached_sb_window_ = 0;
+  auto it =
+      std::find(active_sb_windows_.begin(), active_sb_windows_.end(), window);
+  if (it != active_sb_windows_.end()) {
+    active_sb_windows_.erase(it);
+  }
 #if BUILDFLAG(IS_STARBOARD)
-  h5vcc_system::H5vccSystemImpl::SetPrimarySbWindow(kSbWindowInvalid);
+  if (active_sb_windows_.empty()) {
+    h5vcc_system::H5vccSystemImpl::SetPrimarySbWindow(kSbWindowInvalid);
+  }
 #endif
+}
+
+uint64_t CobaltContentBrowserClient::GetSbWindowHandle() const {
+  if (active_sb_windows_.empty()) {
+    return 0;
+  }
+  return reinterpret_cast<uint64_t>(active_sb_windows_[0]);
 }
 
 void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(

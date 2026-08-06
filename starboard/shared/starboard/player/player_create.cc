@@ -34,7 +34,7 @@
 
 using ::starboard::MimeType;
 
-SbPlayer SbPlayerCreate(SbWindow /*window*/,
+SbPlayer SbPlayerCreate(SbWindow window,
                         const SbPlayerCreationParam* creation_param,
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
                         SbPlayerDecoderStatusFunc decoder_status_func,
@@ -215,8 +215,9 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
           creation_param, provider);
 
   auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(
-      audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
-      player_status_func, player_error_func, context, std::move(handler));
+      window, audio_codec, video_codec, sample_deallocate_func,
+      decoder_status_func, player_status_func, player_error_func, context,
+      std::move(handler));
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
   starboard::VideoDmpWriter::OnPlayerCreate(

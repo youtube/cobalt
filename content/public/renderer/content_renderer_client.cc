@@ -353,6 +353,7 @@ ContentRendererClient::CreateLinkPreviewTriggerer() {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void ContentRendererClient::GetStarboardRendererFactoryTraits(
+  RenderFrame* render_frame,
   media::RendererFactoryTraits* renderer_factory_traits) {}
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }  // namespace content

@@ -39,6 +39,7 @@ int64_t CalculateMediaTime(int64_t media_time,
 int SbPlayerPrivateImpl::number_of_players_ = 0;
 
 SbPlayerPrivateImpl::SbPlayerPrivateImpl(
+    SbWindow window,
     SbMediaAudioCodec audio_codec,
     SbMediaVideoCodec video_codec,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
@@ -50,6 +51,7 @@ SbPlayerPrivateImpl::SbPlayerPrivateImpl(
     : sample_deallocate_func_(sample_deallocate_func),
       context_(context),
       media_time_updated_at_(CurrentMonotonicTime()),
+      window_(window),
       worker_(std::make_unique<PlayerWorker>(
           audio_codec,
           video_codec,

@@ -16,6 +16,7 @@
 
 #include "base/command_line.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "content/public/renderer/render_frame.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/system.h"
@@ -29,6 +30,9 @@ CobaltRenderFrameObserver::CobaltRenderFrameObserver(
 CobaltRenderFrameObserver::~CobaltRenderFrameObserver() = default;
 
 void CobaltRenderFrameObserver::OnDestruct() {
+  if (auto* client = CobaltContentRendererClient::Get()) {
+    client->OnFrameDestroyed(render_frame());
+  }
   delete this;
 }
 
