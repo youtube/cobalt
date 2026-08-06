@@ -24,8 +24,8 @@
 #include "common_audio/third_party/ooura/fft_size_128/ooura_fft.h"
 
 #include "common_audio/third_party/ooura/fft_size_128/ooura_fft_tables_common.h"
+#include "rtc_base/cpu_info.h"
 #include "rtc_base/system/arch.h"
-#include "system_wrappers/include/cpu_features_wrapper.h"
 
 namespace webrtc {
 
@@ -323,7 +323,7 @@ OouraFft::OouraFft([[maybe_unused]] bool sse2_available) {
 
 OouraFft::OouraFft() {
 #if defined(WEBRTC_ARCH_X86_FAMILY)
-  use_sse2_ = (GetCPUInfo(kSSE2) != 0);
+  use_sse2_ = cpu_info::Supports(cpu_info::ISA::kSSE2);
 #else
   use_sse2_ = false;
 #endif

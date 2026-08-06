@@ -113,7 +113,7 @@ ssl_credential_st::ssl_credential_st(SSLCredentialType type_arg)
 }
 
 ssl_credential_st::~ssl_credential_st() {
-  CRYPTO_free_ex_data(&g_ex_data_class, this, &ex_data);
+  CRYPTO_free_ex_data(&g_ex_data_class, &ex_data);
 }
 
 static CRYPTO_BUFFER *buffer_up_ref(const CRYPTO_BUFFER *buffer) {

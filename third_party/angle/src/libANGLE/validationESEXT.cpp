@@ -1092,12 +1092,6 @@ bool ValidateGetInteger64vEXT(const Context *context,
                               GLenum pname,
                               const GLint64 *data)
 {
-    if (!context->getExtensions().disjointTimerQueryEXT)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kExtensionNotEnabled);
-        return false;
-    }
-
     GLenum nativeType      = GL_NONE;
     unsigned int numParams = 0;
     if (!ValidateStateQuery(context, entryPoint, pname, &nativeType, &numParams))
@@ -2920,7 +2914,7 @@ bool ValidateCreateShaderProgramvEXT(const Context *context,
                                      angle::EntryPoint entryPoint,
                                      ShaderType typePacked,
                                      GLsizei count,
-                                     const GLchar **strings)
+                                     const GLchar *const *strings)
 {
     return ValidateCreateShaderProgramvBase(context, entryPoint, typePacked, count, strings);
 }

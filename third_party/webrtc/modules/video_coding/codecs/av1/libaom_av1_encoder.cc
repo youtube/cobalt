@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/container/inlined_vector.h"
 #include "api/environment/environment.h"
@@ -524,7 +523,7 @@ void LibaomAv1Encoder::SetSvcRefFrameConfig(
   static constexpr int kAv1NumBuffers = 8;
 
   aom_svc_ref_frame_config_t ref_frame_config = {};
-  RTC_CHECK_LE(layer_frame.Buffers().size(), ABSL_ARRAYSIZE(kPreferedSlotName));
+  RTC_CHECK_LE(layer_frame.Buffers().size(), std::size(kPreferedSlotName));
   for (size_t i = 0; i < layer_frame.Buffers().size(); ++i) {
     const CodecBufferUsage& buffer = layer_frame.Buffers()[i];
     int slot_name = kPreferedSlotName[i];

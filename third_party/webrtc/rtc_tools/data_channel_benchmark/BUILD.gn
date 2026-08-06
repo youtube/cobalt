@@ -25,7 +25,10 @@ rtc_library("grpc_signaling") {
     ":signaling_grpc_proto",
     ":signaling_interface",
     "../../api:libjingle_peerconnection_api",
+    "../../rtc_base:checks",
+    "../../rtc_base:logging",
     "../../rtc_base:threading",
+    "//third_party/abseil-cpp/absl/time",
     "//third_party/grpc:grpc++",
   ]
 

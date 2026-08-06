@@ -257,6 +257,9 @@ bcm_infallible BCM_sha512_256_final(uint8_t out[BCM_SHA512_256_DIGEST_LENGTH],
 // BCM_MLDSA_SEED_BYTES is the number of bytes in an ML-DSA seed value.
 #define BCM_MLDSA_SEED_BYTES 32
 
+// BCM_MLDSA_MU_BYTES is the number of bytes in an ML-DSA mu value.
+#define BCM_MLDSA_MU_BYTES 64
+
 // BCM_MLDSA65_PRIVATE_KEY_BYTES is the number of bytes in an encoded ML-DSA-65
 // private key.
 #define BCM_MLDSA65_PRIVATE_KEY_BYTES 4032
@@ -280,6 +283,13 @@ struct BCM_mldsa65_public_key {
   union {
     uint8_t bytes[32 + 64 + 256 * 4 * 6];
     uint32_t alignment;
+  } opaque;
+};
+
+struct BCM_mldsa65_prehash {
+  union {
+    uint8_t bytes[200 + 4 + 4 + 4 * sizeof(size_t)];
+    uint64_t alignment;
   } opaque;
 };
 
@@ -317,6 +327,24 @@ OPENSSL_EXPORT bcm_status BCM_mldsa65_verify(
     const struct BCM_mldsa65_public_key *public_key,
     const uint8_t signature[BCM_MLDSA65_SIGNATURE_BYTES], const uint8_t *msg,
     size_t msg_len, const uint8_t *context, size_t context_len);
+
+OPENSSL_EXPORT void BCM_mldsa65_prehash_init(
+    struct BCM_mldsa65_prehash *out_prehash_ctx,
+    const struct BCM_mldsa65_public_key *public_key, const uint8_t *context,
+    size_t context_len);
+
+OPENSSL_EXPORT void BCM_mldsa65_prehash_update(
+    struct BCM_mldsa65_prehash *inout_prehash_ctx, const uint8_t *msg,
+    size_t msg_len);
+
+OPENSSL_EXPORT void BCM_mldsa65_prehash_finalize(
+    uint8_t out_msg_rep[BCM_MLDSA_MU_BYTES],
+    struct BCM_mldsa65_prehash *inout_prehash_ctx);
+
+OPENSSL_EXPORT bcm_status BCM_mldsa65_sign_message_representative(
+    uint8_t out_encoded_signature[BCM_MLDSA65_SIGNATURE_BYTES],
+    const struct BCM_mldsa65_private_key *private_key,
+    const uint8_t msg_rep[BCM_MLDSA_MU_BYTES]);
 
 OPENSSL_EXPORT bcm_status BCM_mldsa65_marshal_public_key(
     CBB *out, const struct BCM_mldsa65_public_key *public_key);
@@ -393,6 +421,13 @@ struct BCM_mldsa87_public_key {
   } opaque;
 };
 
+struct BCM_mldsa87_prehash {
+  union {
+    uint8_t bytes[200 + 4 + 4 + 4 * sizeof(size_t)];
+    uint64_t alignment;
+  } opaque;
+};
+
 OPENSSL_EXPORT bcm_status BCM_mldsa87_generate_key(
     uint8_t out_encoded_public_key[BCM_MLDSA87_PUBLIC_KEY_BYTES],
     uint8_t out_seed[BCM_MLDSA_SEED_BYTES],
@@ -427,6 +462,24 @@ OPENSSL_EXPORT bcm_status
 BCM_mldsa87_verify(const struct BCM_mldsa87_public_key *public_key,
                    const uint8_t *signature, const uint8_t *msg, size_t msg_len,
                    const uint8_t *context, size_t context_len);
+
+OPENSSL_EXPORT void BCM_mldsa87_prehash_init(
+    struct BCM_mldsa87_prehash *out_prehash_ctx,
+    const struct BCM_mldsa87_public_key *public_key, const uint8_t *context,
+    size_t context_len);
+
+OPENSSL_EXPORT void BCM_mldsa87_prehash_update(
+    struct BCM_mldsa87_prehash *inout_prehash_ctx, const uint8_t *msg,
+    size_t msg_len);
+
+OPENSSL_EXPORT void BCM_mldsa87_prehash_finalize(
+    uint8_t out_msg_rep[BCM_MLDSA_MU_BYTES],
+    struct BCM_mldsa87_prehash *inout_prehash_ctx);
+
+OPENSSL_EXPORT bcm_status BCM_mldsa87_sign_message_representative(
+    uint8_t out_encoded_signature[BCM_MLDSA87_SIGNATURE_BYTES],
+    const struct BCM_mldsa87_private_key *private_key,
+    const uint8_t msg_rep[BCM_MLDSA_MU_BYTES]);
 
 OPENSSL_EXPORT bcm_status BCM_mldsa87_marshal_public_key(
     CBB *out, const struct BCM_mldsa87_public_key *public_key);

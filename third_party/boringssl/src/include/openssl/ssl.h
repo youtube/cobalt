@@ -24,7 +24,6 @@
 #include <openssl/pem.h>
 #include <openssl/span.h>
 #include <openssl/ssl3.h>
-#include <openssl/thread.h>
 #include <openssl/tls1.h>
 #include <openssl/x509.h>
 

@@ -11,7 +11,7 @@
 #ifndef MODULES_DESKTOP_CAPTURE_FULL_SCREEN_APPLICATION_HANDLER_H_
 #define MODULES_DESKTOP_CAPTURE_FULL_SCREEN_APPLICATION_HANDLER_H_
 
-#include <memory>
+#include <cstdint>
 
 #include "modules/desktop_capture/desktop_capturer.h"
 

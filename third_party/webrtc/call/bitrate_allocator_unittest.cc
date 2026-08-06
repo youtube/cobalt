@@ -18,12 +18,13 @@
 
 #include "absl/strings/string_view.h"
 #include "api/call/bitrate_allocation.h"
+#include "api/field_trials.h"
 #include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/numerics/safe_conversions.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -1060,7 +1061,7 @@ TEST_F(BitrateAllocatorTest, PriorityRateThreeObserversTwoAllocatedToMax) {
 }
 
 TEST_F(BitrateAllocatorTest, ElasticRateAllocationCanBorrowUnsedRate) {
-  test::ExplicitKeyValueConfig field_trials(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-ElasticBitrateAllocation/upper_limit:200bps/");
   ReconfigureAllocator(
       GetElasticRateAllocationFieldTrialParameter(field_trials));
@@ -1085,9 +1086,8 @@ TEST_F(BitrateAllocatorTest, ElasticRateAllocationCanBorrowUnsedRate) {
 }
 
 TEST_F(BitrateAllocatorTest, ElasticRateAllocationDefaultsInactive) {
-  test::ExplicitKeyValueConfig field_trials("");
   ReconfigureAllocator(
-      GetElasticRateAllocationFieldTrialParameter(field_trials));
+      GetElasticRateAllocationFieldTrialParameter(CreateTestFieldTrials()));
   TestBitrateObserver observer_consume;
   TestContributingBitrateObserver observer_contribute;
   AddObserver(&observer_consume, 10, 100, 0, false, 1.0,
@@ -1107,7 +1107,7 @@ TEST_F(BitrateAllocatorTest, ElasticRateAllocationDefaultsInactive) {
 }
 
 TEST_F(BitrateAllocatorTest, ElasticRateAllocationDontExceedMaxBitrate) {
-  test::ExplicitKeyValueConfig field_trials(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-ElasticBitrateAllocation/upper_limit:200bps/");
   ReconfigureAllocator(
       GetElasticRateAllocationFieldTrialParameter(field_trials));
@@ -1134,9 +1134,9 @@ TEST_F(BitrateAllocatorTest, ElasticRateAllocationDontExceedMaxBitrate) {
 
 TEST_F(BitrateAllocatorTest, ElasticRateAllocationStayWithinUpperLimit) {
   uint32_t upper_limit = 70;
-  test::ExplicitKeyValueConfig field_trials(
-      "WebRTC-ElasticBitrateAllocation/upper_limit:" +
-      std::to_string(upper_limit) + "bps/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-ElasticBitrateAllocation/upper_limit:" +
+                            std::to_string(upper_limit) + "bps/");
   ReconfigureAllocator(
       GetElasticRateAllocationFieldTrialParameter(field_trials));
   TestBitrateObserver observer_consume;
@@ -1161,9 +1161,9 @@ TEST_F(BitrateAllocatorTest, ElasticRateAllocationStayWithinUpperLimit) {
 
 TEST_F(BitrateAllocatorTest, ElasticRateAllocationDontReduceAllocation) {
   uint32_t upper_limit = 70;
-  test::ExplicitKeyValueConfig field_trials(
-      "WebRTC-ElasticBitrateAllocation/upper_limit:" +
-      std::to_string(upper_limit) + "bps/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-ElasticBitrateAllocation/upper_limit:" +
+                            std::to_string(upper_limit) + "bps/");
   ReconfigureAllocator(
       GetElasticRateAllocationFieldTrialParameter(field_trials));
   TestBitrateObserver observer_consume;

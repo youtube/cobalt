@@ -10,6 +10,7 @@
 
 #include "modules/rtp_rtcp/source/rtp_sender_video.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -65,7 +66,6 @@
 #include "modules/video_coding/codecs/h264/include/h264_globals.h"
 #include "modules/video_coding/codecs/vp8/include/vp8_globals.h"
 #include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/rate_limiter.h"
 #include "rtc_base/thread.h"
@@ -513,10 +513,10 @@ TEST_F(RtpSenderVideoTest, ConditionalRetransmit) {
   // Fill averaging window to prevent rounding errors.
   constexpr int kNumRepetitions =
       RTPSenderVideo::kTLRateWindowSize / kFrameInterval;
-  constexpr int kPattern[] = {0, 2, 1, 2};
+  constexpr std::array kPattern = {0, 2, 1, 2};
   auto& vp8_header = header.video_type_header.emplace<RTPVideoHeaderVP8>();
-  for (size_t i = 0; i < arraysize(kPattern) * kNumRepetitions; ++i) {
-    vp8_header.temporalIdx = kPattern[i % arraysize(kPattern)];
+  for (size_t i = 0; i < kPattern.size() * kNumRepetitions; ++i) {
+    vp8_header.temporalIdx = kPattern[i % kPattern.size()];
     rtp_sender_video_->AllowRetransmission(header, kSettings, kRtt);
     fake_clock_.AdvanceTime(kFrameInterval);
   }
@@ -564,10 +564,10 @@ TEST_F(RtpSenderVideoTest, ConditionalRetransmitLimit) {
   // Fill averaging window to prevent rounding errors.
   constexpr int kNumRepetitions =
       RTPSenderVideo::kTLRateWindowSize / kFrameInterval;
-  constexpr int kPattern[] = {0, 2, 2, 2};
+  constexpr std::array kPattern = {0, 2, 2, 2};
   auto& vp8_header = header.video_type_header.emplace<RTPVideoHeaderVP8>();
-  for (size_t i = 0; i < arraysize(kPattern) * kNumRepetitions; ++i) {
-    vp8_header.temporalIdx = kPattern[i % arraysize(kPattern)];
+  for (size_t i = 0; i < kPattern.size() * kNumRepetitions; ++i) {
+    vp8_header.temporalIdx = kPattern[i % kPattern.size()];
 
     rtp_sender_video_->AllowRetransmission(header, kSettings, kRtt);
     fake_clock_.AdvanceTime(kFrameInterval);

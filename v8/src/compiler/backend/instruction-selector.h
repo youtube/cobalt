@@ -11,13 +11,15 @@
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction-scheduler.h"
-#include "src/compiler/backend/instruction-selector-adapter.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/operation-matcher.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/compiler/turboshaft/use-map.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/utils/bit-vector.h"
 #include "src/zone/zone-containers.h"
@@ -36,79 +38,12 @@ namespace compiler {
 // Forward declarations.
 class BasicBlock;
 struct CallBufferT;  // TODO(bmeurer): Remove this.
-class InstructionSelectorT;
 class Linkage;
 class OperandGeneratorT;
 class SwitchInfoT;
 struct CaseInfoT;
 class TurbofanStateObjectDeduplicator;
 class TurboshaftStateObjectDeduplicator;
-
-class V8_EXPORT_PRIVATE InstructionSelector final {
- public:
-  enum SourcePositionMode { kCallSourcePositions, kAllSourcePositions };
-  enum EnableScheduling { kDisableScheduling, kEnableScheduling };
-  enum EnableRootsRelativeAddressing {
-    kDisableRootsRelativeAddressing,
-    kEnableRootsRelativeAddressing
-  };
-  enum EnableSwitchJumpTable {
-    kDisableSwitchJumpTable,
-    kEnableSwitchJumpTable
-  };
-  enum EnableTraceTurboJson { kDisableTraceTurboJson, kEnableTraceTurboJson };
-
-  class Features final {
-   public:
-    Features() : bits_(0) {}
-    explicit Features(unsigned bits) : bits_(bits) {}
-    explicit Features(CpuFeature f) : bits_(1u << f) {}
-    Features(CpuFeature f1, CpuFeature f2) : bits_((1u << f1) | (1u << f2)) {}
-
-    bool Contains(CpuFeature f) const { return (bits_ & (1u << f)); }
-
-   private:
-    unsigned bits_;
-  };
-
-  static InstructionSelector ForTurboshaft(
-      Zone* zone, size_t node_count, Linkage* linkage,
-      InstructionSequence* sequence, turboshaft::Graph* schedule, Frame* frame,
-      EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
-      JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
-      size_t* max_pushed_argument_count,
-      SourcePositionMode source_position_mode = kCallSourcePositions,
-      Features features = SupportedFeatures(),
-      EnableScheduling enable_scheduling = v8_flags.turbo_instruction_scheduling
-                                               ? kEnableScheduling
-                                               : kDisableScheduling,
-      EnableRootsRelativeAddressing enable_roots_relative_addressing =
-          kDisableRootsRelativeAddressing,
-      EnableTraceTurboJson trace_turbo = kDisableTraceTurboJson);
-
-  ~InstructionSelector();
-
-  std::optional<BailoutReason> SelectInstructions();
-
-  bool IsSupported(CpuFeature feature) const;
-
-  // Returns the features supported on the target platform.
-  static Features SupportedFeatures() {
-    return Features(CpuFeatures::SupportedFeatures());
-  }
-
-  const ZoneVector<std::pair<int, int>>& instr_origins() const;
-  const std::map<NodeId, int> GetVirtualRegistersForTesting() const;
-
-  static MachineOperatorBuilder::Flags SupportedMachineOperatorFlags();
-  static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
-
- private:
-  InstructionSelector(std::nullptr_t, InstructionSelectorT* turboshaft_impl);
-  InstructionSelector(const InstructionSelector&) = delete;
-  InstructionSelector& operator=(const InstructionSelector&) = delete;
-  InstructionSelectorT* turboshaft_impl_;
-};
 
 // The flags continuation is a way to combine a branch or a materialization
 // of a boolean value with an instruction that sets the flags register.
@@ -454,7 +389,8 @@ struct PushParameterT {
 enum class FrameStateInputKind { kAny, kStackSlot };
 
 // Instruction selection generates an InstructionSequence for a given Schedule.
-class InstructionSelectorT final : public TurboshaftAdapter {
+class V8_EXPORT_PRIVATE InstructionSelectorT final
+    : public turboshaft::OperationMatcher {
  public:
   using OperandGenerator = OperandGeneratorT;
   using PushParameter = PushParameterT;
@@ -465,27 +401,65 @@ class InstructionSelectorT final : public TurboshaftAdapter {
 
   using source_position_table_t =
       turboshaft::GrowingOpIndexSidetable<SourcePosition>;
-  using Features = InstructionSelector::Features;
+
+  enum SourcePositionMode { kCallSourcePositions, kAllSourcePositions };
+  enum EnableScheduling { kDisableScheduling, kEnableScheduling };
+  enum EnableRootsRelativeAddressing {
+    kDisableRootsRelativeAddressing,
+    kEnableRootsRelativeAddressing
+  };
+  enum EnableSwitchJumpTable {
+    kDisableSwitchJumpTable,
+    kEnableSwitchJumpTable
+  };
+  enum EnableTraceTurboJson { kDisableTraceTurboJson, kEnableTraceTurboJson };
+
+  class Features final {
+   public:
+    Features() : bits_(0) {}
+    explicit Features(unsigned bits) : bits_(bits) {}
+    explicit Features(CpuFeature f) : bits_(1u << f) {}
+    Features(CpuFeature f1, CpuFeature f2) : bits_((1u << f1) | (1u << f2)) {}
+
+    bool Contains(CpuFeature f) const { return (bits_ & (1u << f)); }
+
+   private:
+    unsigned bits_;
+  };
+
+  static MachineOperatorBuilder::Flags SupportedMachineOperatorFlags();
+  static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
+
+  static InstructionSelectorT ForTurboshaft(
+      Zone* zone, size_t node_count, Linkage* linkage,
+      InstructionSequence* sequence, turboshaft::Graph* schedule, Frame* frame,
+      EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
+      JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
+      size_t* max_pushed_argument_count,
+      SourcePositionMode source_position_mode = kCallSourcePositions,
+      Features features = SupportedFeatures(),
+      EnableScheduling enable_scheduling = v8_flags.turbo_instruction_scheduling
+                                               ? kEnableScheduling
+                                               : kDisableScheduling,
+      EnableRootsRelativeAddressing enable_roots_relative_addressing =
+          kDisableRootsRelativeAddressing,
+      EnableTraceTurboJson trace_turbo = kDisableTraceTurboJson);
 
   InstructionSelectorT(
       Zone* zone, size_t node_count, Linkage* linkage,
       InstructionSequence* sequence, turboshaft::Graph* schedule,
       source_position_table_t* source_positions, Frame* frame,
-      InstructionSelector::EnableSwitchJumpTable enable_switch_jump_table,
-      TickCounter* tick_counter, JSHeapBroker* broker,
-      size_t* max_unoptimized_frame_height, size_t* max_pushed_argument_count,
-      InstructionSelector::SourcePositionMode source_position_mode =
-          InstructionSelector::kCallSourcePositions,
+      EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
+      JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
+      size_t* max_pushed_argument_count,
+      SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
-      InstructionSelector::EnableScheduling enable_scheduling =
-          v8_flags.turbo_instruction_scheduling
-              ? InstructionSelector::kEnableScheduling
-              : InstructionSelector::kDisableScheduling,
-      InstructionSelector::EnableRootsRelativeAddressing
-          enable_roots_relative_addressing =
-              InstructionSelector::kDisableRootsRelativeAddressing,
-      InstructionSelector::EnableTraceTurboJson trace_turbo =
-          InstructionSelector::kDisableTraceTurboJson);
+      EnableScheduling enable_scheduling = v8_flags.turbo_instruction_scheduling
+                                               ? kEnableScheduling
+                                               : kDisableScheduling,
+      EnableRootsRelativeAddressing enable_roots_relative_addressing =
+          kDisableRootsRelativeAddressing,
+      EnableTraceTurboJson trace_turbo = kDisableTraceTurboJson);
 
   // Visit code for the entire graph with the included schedule.
   std::optional<BailoutReason> SelectInstructions();
@@ -710,11 +684,345 @@ class InstructionSelectorT final : public TurboshaftAdapter {
     return schedule_->PreviousIndex(block->end());
   }
 
+  // TODO(nicohartmann): Maybe we should get rid of this.
+  turboshaft::Graph* turboshaft_graph() const { return schedule_; }
+
+  turboshaft::Block* block(turboshaft::Graph* schedule,
+                           turboshaft::OpIndex node) const {
+    // TODO(nicohartmann@): This might be too slow and we should consider
+    // precomputing.
+    return &schedule->Get(schedule->BlockOf(node));
+  }
+
+  RpoNumber rpo_number(const turboshaft::Block* block) const {
+    return RpoNumber::FromInt(block->index().id());
+  }
+
+  const ZoneVector<turboshaft::Block*>& rpo_order(turboshaft::Graph* schedule) {
+    return schedule->blocks_vector();
+  }
+
+  bool IsLoopHeader(const turboshaft::Block* block) const {
+    return block->IsLoop();
+  }
+
+  size_t PredecessorCount(const turboshaft::Block* block) const {
+    return block->PredecessorCount();
+  }
+  turboshaft::Block* PredecessorAt(const turboshaft::Block* block,
+                                   size_t index) const {
+    return block->Predecessors()[index];
+  }
+
+  base::iterator_range<turboshaft::Graph::OpIndexIterator> nodes(
+      const turboshaft::Block* block) {
+    return schedule_->OperationIndices(*block);
+  }
+
+  bool IsRetain(turboshaft::OpIndex node) const {
+    return Get(node).Is<turboshaft::RetainOp>();
+  }
+  bool IsHeapConstant(turboshaft::OpIndex node) const {
+    const turboshaft::ConstantOp* constant =
+        TryCast<turboshaft::ConstantOp>(node);
+    if (constant == nullptr) return false;
+    return constant->kind == turboshaft::ConstantOp::Kind::kHeapObject;
+  }
+  bool IsExternalConstant(turboshaft::OpIndex node) const {
+    const turboshaft::ConstantOp* constant =
+        TryCast<turboshaft::ConstantOp>(node);
+    if (constant == nullptr) return false;
+    return constant->kind == turboshaft::ConstantOp::Kind::kExternal;
+  }
+  bool IsRelocatableWasmConstant(turboshaft::OpIndex node) const {
+    const turboshaft::ConstantOp* constant =
+        TryCast<turboshaft::ConstantOp>(node);
+    if (constant == nullptr) return false;
+    return constant->kind ==
+           turboshaft::any_of(
+               turboshaft::ConstantOp::Kind::kRelocatableWasmCall,
+               turboshaft::ConstantOp::Kind::kRelocatableWasmStubCall);
+  }
+  bool IsLoadOrLoadImmutable(turboshaft::OpIndex node) const {
+    return Get(node).opcode == turboshaft::Opcode::kLoad;
+  }
+  bool IsProtectedLoad(turboshaft::OpIndex node) const;
+
+  bool is_load(turboshaft::OpIndex node) const {
+    const turboshaft::Operation& op = Get(node);
+    return op.Is<turboshaft::LoadOp>()
+#if V8_ENABLE_WEBASSEMBLY
+           || op.Is<turboshaft::Simd128LoadTransformOp>()
+#if V8_ENABLE_WASM_SIMD256_REVEC
+           || op.Is<turboshaft::Simd256LoadTransformOp>()
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif
+        ;
+  }
+
+  class LoadView {
+   public:
+    LoadView(turboshaft::Graph* graph, turboshaft::OpIndex node) : node_(node) {
+      switch (graph->Get(node_).opcode) {
+        case turboshaft::Opcode::kLoad:
+          load_ = &graph->Get(node_).Cast<turboshaft::LoadOp>();
+          break;
+#if V8_ENABLE_WEBASSEMBLY
+        case turboshaft::Opcode::kSimd128LoadTransform:
+          load_transform_ =
+              &graph->Get(node_).Cast<turboshaft::Simd128LoadTransformOp>();
+          break;
+#if V8_ENABLE_WASM_SIMD256_REVEC
+        case turboshaft::Opcode::kSimd256LoadTransform:
+          load_transform256_ =
+              &graph->Get(node_).Cast<turboshaft::Simd256LoadTransformOp>();
+          break;
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif  // V8_ENABLE_WEBASSEMBLY
+        default:
+          UNREACHABLE();
+      }
+    }
+    LoadRepresentation loaded_rep() const {
+      DCHECK_NOT_NULL(load_);
+      return load_->machine_type();
+    }
+    turboshaft::MemoryRepresentation ts_loaded_rep() const {
+      DCHECK_NOT_NULL(load_);
+      return load_->loaded_rep;
+    }
+    turboshaft::RegisterRepresentation ts_result_rep() const {
+      DCHECK_NOT_NULL(load_);
+      return load_->result_rep;
+    }
+    bool is_protected(bool* traps_on_null) const {
+      if (kind().with_trap_handler) {
+        if (load_) {
+          *traps_on_null = load_->kind.trap_on_null;
+#if V8_ENABLE_WEBASSEMBLY
+        } else {
+#if V8_ENABLE_WASM_SIMD256_REVEC
+          DCHECK(
+              (load_transform_ && !load_transform_->load_kind.trap_on_null) ||
+              (load_transform256_ &&
+               !load_transform256_->load_kind.trap_on_null));
+#else
+          DCHECK(load_transform_);
+          DCHECK(!load_transform_->load_kind.trap_on_null);
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+          *traps_on_null = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+        }
+        return true;
+      }
+      return false;
+    }
+    bool is_atomic() const { return kind().is_atomic; }
+
+    turboshaft::OpIndex base() const {
+      if (load_) return load_->base();
+#if V8_ENABLE_WEBASSEMBLY
+      if (load_transform_) return load_transform_->base();
+#if V8_ENABLE_WASM_SIMD256_REVEC
+      if (load_transform256_) return load_transform256_->base();
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif
+      UNREACHABLE();
+    }
+    turboshaft::OpIndex index() const {
+      if (load_) return load_->index().value_or_invalid();
+#if V8_ENABLE_WEBASSEMBLY
+      if (load_transform_) return load_transform_->index();
+#if V8_ENABLE_WASM_SIMD256_REVEC
+      if (load_transform256_) return load_transform256_->index();
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif
+      UNREACHABLE();
+    }
+    int32_t displacement() const {
+      static_assert(
+          std::is_same_v<decltype(turboshaft::StoreOp::offset), int32_t>);
+      if (load_) {
+        int32_t offset = load_->offset;
+        if (load_->kind.tagged_base) {
+          CHECK_GE(offset,
+                   std::numeric_limits<int32_t>::min() + kHeapObjectTag);
+          offset -= kHeapObjectTag;
+        }
+        return offset;
+#if V8_ENABLE_WEBASSEMBLY
+      } else if (load_transform_) {
+        int32_t offset = load_transform_->offset;
+        DCHECK(!load_transform_->load_kind.tagged_base);
+        return offset;
+#if V8_ENABLE_WASM_SIMD256_REVEC
+      } else if (load_transform256_) {
+        int32_t offset = load_transform256_->offset;
+        DCHECK(!load_transform256_->load_kind.tagged_base);
+        return offset;
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif
+      }
+      UNREACHABLE();
+    }
+    uint8_t element_size_log2() const {
+      static_assert(
+          std::is_same_v<decltype(turboshaft::StoreOp::element_size_log2),
+                         uint8_t>);
+      if (load_) return load_->element_size_log2;
+#if V8_ENABLE_WEBASSEMBLY
+      if (load_transform_) return 0;
+#if V8_ENABLE_WASM_SIMD256_REVEC
+      if (load_transform256_) return 0;
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif
+      UNREACHABLE();
+    }
+
+    operator turboshaft::OpIndex() const { return node_; }
+
+   private:
+    turboshaft::LoadOp::Kind kind() const {
+      if (load_) return load_->kind;
+#if V8_ENABLE_WEBASSEMBLY
+      if (load_transform_) return load_transform_->load_kind;
+#if V8_ENABLE_WASM_SIMD256_REVEC
+      if (load_transform256_) return load_transform256_->load_kind;
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif
+      UNREACHABLE();
+    }
+
+    turboshaft::OpIndex node_;
+    const turboshaft::LoadOp* load_ = nullptr;
+#if V8_ENABLE_WEBASSEMBLY
+    const turboshaft::Simd128LoadTransformOp* load_transform_ = nullptr;
+#if V8_ENABLE_WASM_SIMD256_REVEC
+    const turboshaft::Simd256LoadTransformOp* load_transform256_ = nullptr;
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif
+  };
+
+  LoadView load_view(turboshaft::OpIndex node) {
+    DCHECK(is_load(node));
+    return LoadView(schedule_, node);
+  }
+
+  class StoreView {
+   public:
+    StoreView(turboshaft::Graph* graph, turboshaft::OpIndex node)
+        : node_(node) {
+      op_ = &graph->Get(node_).Cast<turboshaft::StoreOp>();
+    }
+
+    StoreRepresentation stored_rep() const {
+      return {op_->stored_rep.ToMachineType().representation(),
+              op_->write_barrier};
+    }
+    turboshaft::MemoryRepresentation ts_stored_rep() const {
+      return op_->stored_rep;
+    }
+    std::optional<AtomicMemoryOrder> memory_order() const {
+      // TODO(nicohartmann@): Currently we don't support memory orders.
+      if (op_->kind.is_atomic) return AtomicMemoryOrder::kSeqCst;
+      return std::nullopt;
+    }
+    MemoryAccessKind access_kind() const {
+      return op_->kind.with_trap_handler
+                 ? MemoryAccessKind::kProtectedByTrapHandler
+                 : MemoryAccessKind::kNormal;
+    }
+    bool is_atomic() const { return op_->kind.is_atomic; }
+
+    turboshaft::OpIndex base() const { return op_->base(); }
+    turboshaft::OptionalOpIndex index() const { return op_->index(); }
+    turboshaft::OpIndex value() const { return op_->value(); }
+    IndirectPointerTag indirect_pointer_tag() const {
+      return static_cast<IndirectPointerTag>(op_->indirect_pointer_tag());
+    }
+    int32_t displacement() const {
+      static_assert(
+          std::is_same_v<decltype(turboshaft::StoreOp::offset), int32_t>);
+      int32_t offset = op_->offset;
+      if (op_->kind.tagged_base) {
+        CHECK_GE(offset, std::numeric_limits<int32_t>::min() + kHeapObjectTag);
+        offset -= kHeapObjectTag;
+      }
+      return offset;
+    }
+    uint8_t element_size_log2() const {
+      static_assert(
+          std::is_same_v<decltype(turboshaft::StoreOp::element_size_log2),
+                         uint8_t>);
+      return op_->element_size_log2;
+    }
+
+    bool is_store_trap_on_null() const {
+      return op_->kind.with_trap_handler && op_->kind.trap_on_null;
+    }
+
+    operator turboshaft::OpIndex() const { return node_; }
+
+   private:
+    turboshaft::OpIndex node_;
+    const turboshaft::StoreOp* op_;
+  };
+
+  StoreView store_view(turboshaft::OpIndex node) {
+    return StoreView(schedule_, node);
+  }
+
+#if V8_ENABLE_WEBASSEMBLY
+  // TODO(391750831): Inline this.
+  class SimdShuffleView {
+   public:
+    explicit SimdShuffleView(const turboshaft::Graph* graph,
+                             turboshaft::OpIndex node)
+        : node_(node) {
+      op128_ = &graph->Get(node).Cast<turboshaft::Simd128ShuffleOp>();
+      // Initialize input mapping.
+      for (int i = 0; i < op128_->input_count; ++i) {
+        input_mapping_.push_back(i);
+      }
+    }
+
+    bool isSimd128() const {
+      // TODO(nicohartmann@): Extend when we add support for Simd256.
+      return true;
+    }
+
+    const uint8_t* data() const { return op128_->shuffle; }
+
+    turboshaft::OpIndex input(int index) const {
+      DCHECK_LT(index, op128_->input_count);
+      return op128_->input(input_mapping_[index]);
+    }
+
+    void SwapInputs() { std::swap(input_mapping_[0], input_mapping_[1]); }
+
+    void DuplicateFirstInput() {
+      DCHECK_LE(2, input_mapping_.size());
+      input_mapping_[1] = input_mapping_[0];
+    }
+
+    operator turboshaft::OpIndex() const { return node_; }
+
+   private:
+    turboshaft::OpIndex node_;
+    base::SmallVector<int, 2> input_mapping_;
+    const turboshaft::Simd128ShuffleOp* op128_;
+  };
+
+  SimdShuffleView simd_shuffle_view(turboshaft::OpIndex node) {
+    return SimdShuffleView(schedule_, node);
+  }
+#endif
+
  private:
   friend OperandGenerator;
 
   bool UseInstructionScheduling() const {
-    return (enable_scheduling_ == InstructionSelector::kEnableScheduling) &&
+    return (enable_scheduling_ == kEnableScheduling) &&
            InstructionScheduler::SchedulerSupported();
   }
 
@@ -1076,8 +1384,6 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   // Visit the load node with a value and opcode to replace with.
   void VisitLoad(turboshaft::OpIndex node, turboshaft::OpIndex value,
                  InstructionCode opcode);
-  void VisitLoadTransform(Node* node, Node* value, InstructionCode opcode);
-  void VisitFinishRegion(Node* node);
   void VisitParameter(turboshaft::OpIndex node);
   void VisitIfException(turboshaft::OpIndex node);
   void VisitOsrValue(turboshaft::OpIndex node);
@@ -1086,7 +1392,6 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   void VisitConstant(turboshaft::OpIndex node);
   void VisitCall(turboshaft::OpIndex call, turboshaft::Block* handler = {});
   void VisitDeoptimizeIf(turboshaft::OpIndex node);
-  void VisitDynamicCheckMapsWithDeoptUnless(Node* node);
   void VisitTrapIf(turboshaft::OpIndex node);
   void VisitTailCall(turboshaft::OpIndex call);
   void VisitGoto(turboshaft::Block* target);
@@ -1101,7 +1406,6 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   void VisitRetain(turboshaft::OpIndex node);
   void VisitUnreachable(turboshaft::OpIndex node);
   void VisitStaticAssert(turboshaft::OpIndex node);
-  void VisitDeadValue(Node* node);
   void VisitBitcastWord32PairToFloat64(turboshaft::OpIndex node);
 
   void TryPrepareScheduleFirstProjection(turboshaft::OpIndex maybe_projection);
@@ -1129,8 +1433,6 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   // operations.
   void EmitMoveParamToFPR(turboshaft::OpIndex node, int index);
 
-  bool CanProduceSignalingNaN(Node* node);
-
   void AddOutputToSelectContinuation(OperandGenerator* g, int first_input_index,
                                      turboshaft::OpIndex node);
 
@@ -1146,8 +1448,8 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle
   // indices, and a boolean indicating if the shuffle is a swizzle (one input).
   template <const int simd_size = kSimd128Size>
-  void CanonicalizeShuffle(TurboshaftAdapter::SimdShuffleView& view,
-                           uint8_t* shuffle, bool* is_swizzle)
+  void CanonicalizeShuffle(SimdShuffleView& view, uint8_t* shuffle,
+                           bool* is_swizzle)
     requires(simd_size == kSimd128Size || simd_size == kSimd256Size)
   {
     // Get raw shuffle indices.
@@ -1177,7 +1479,7 @@ class InstructionSelectorT final : public TurboshaftAdapter {
 
   // Swaps the two first input operands of the node, to help match shuffles
   // to specific architectural instructions.
-  void SwapShuffleInputs(TurboshaftAdapter::SimdShuffleView& node);
+  void SwapShuffleInputs(SimdShuffleView& node);
 
 #if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
   void VisitSimd128LoadPairDeinterleave(turboshaft::OpIndex node);
@@ -1233,8 +1535,6 @@ class InstructionSelectorT final : public TurboshaftAdapter {
                                         ArchOpcode uint16_op,
                                         ArchOpcode uint32_op,
                                         ArchOpcode uint64_op);
-  void VisitWord64AtomicNarrowBinop(Node* node, ArchOpcode uint8_op,
-                                    ArchOpcode uint16_op, ArchOpcode uint32_op);
 
 #if V8_TARGET_ARCH_64_BIT
   bool ZeroExtendsWord32ToWord64(turboshaft::OpIndex node,
@@ -1280,7 +1580,7 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   Linkage* const linkage_;
   InstructionSequence* const sequence_;
   source_position_table_t* const source_positions_;
-  InstructionSelector::SourcePositionMode const source_position_mode_;
+  SourcePositionMode const source_position_mode_;
   Features features_;
   turboshaft::Graph* const schedule_;
   const turboshaft::Block* current_block_;
@@ -1295,10 +1595,9 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   IntVector virtual_registers_;
   IntVector virtual_register_rename_;
   InstructionScheduler* scheduler_;
-  InstructionSelector::EnableScheduling enable_scheduling_;
-  InstructionSelector::EnableRootsRelativeAddressing
-      enable_roots_relative_addressing_;
-  InstructionSelector::EnableSwitchJumpTable enable_switch_jump_table_;
+  EnableScheduling enable_scheduling_;
+  EnableRootsRelativeAddressing enable_roots_relative_addressing_;
+  EnableSwitchJumpTable enable_switch_jump_table_;
   ZoneUnorderedMap<FrameStateInput, CachedStateValues*,
                    typename FrameStateInput::Hash,
                    typename FrameStateInput::Equal>
@@ -1307,7 +1606,7 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   Frame* frame_;
   bool instruction_selection_failed_;
   ZoneVector<std::pair<int, int>> instr_origins_;
-  InstructionSelector::EnableTraceTurboJson trace_turbo_;
+  EnableTraceTurboJson trace_turbo_;
   TickCounter* const tick_counter_;
   // The broker is only used for unparking the LocalHeap for diagnostic printing
   // for failed StaticAsserts.
@@ -1332,6 +1631,9 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   ZoneVector<Upper32BitsState> phi_states_;
 #endif
 };
+
+// TODO(nicohartmann): Remove once InstructionSelectorT is renamed.
+using InstructionSelector = InstructionSelectorT;
 
 }  // namespace compiler
 }  // namespace internal

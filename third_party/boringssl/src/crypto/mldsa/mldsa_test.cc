@@ -185,6 +185,54 @@ TEST(MLDSATest, SignatureIsRandomized) {
             1);
 }
 
+TEST(MLDSATest, PrehashedSignatureVerifies) {
+  std::vector<uint8_t> encoded_public_key(MLDSA65_PUBLIC_KEY_BYTES);
+  auto priv = std::make_unique<MLDSA65_private_key>();
+  uint8_t seed[MLDSA_SEED_BYTES];
+  EXPECT_TRUE(
+      MLDSA65_generate_key(encoded_public_key.data(), seed, priv.get()));
+
+  auto pub = std::make_unique<MLDSA65_public_key>();
+  CBS cbs = CBS(encoded_public_key);
+  ASSERT_TRUE(MLDSA65_parse_public_key(pub.get(), &cbs));
+
+  std::vector<uint8_t> encoded_signature(MLDSA65_SIGNATURE_BYTES);
+  static const uint8_t kMessage[] = {'H', 'e', 'l', 'l', 'o', ' ',
+                                     'w', 'o', 'r', 'l', 'd'};
+
+  MLDSA65_prehash prehash_state;
+  EXPECT_TRUE(MLDSA65_prehash_init(&prehash_state, pub.get(), nullptr, 0));
+  MLDSA65_prehash_update(&prehash_state, kMessage, sizeof(kMessage));
+  uint8_t representative[MLDSA_MU_BYTES];
+  MLDSA65_prehash_finalize(representative, &prehash_state);
+  EXPECT_TRUE(MLDSA65_sign_message_representative(encoded_signature.data(),
+                                                  priv.get(), representative));
+
+  EXPECT_EQ(MLDSA65_verify(pub.get(), encoded_signature.data(),
+                           encoded_signature.size(), kMessage, sizeof(kMessage),
+                           nullptr, 0),
+            1);
+
+  // Updating in multiple chunks also works.
+  for (size_t i = 0; i <= sizeof(kMessage); ++i) {
+    for (size_t j = i; j <= sizeof(kMessage); ++j) {
+      EXPECT_TRUE(MLDSA65_prehash_init(&prehash_state, pub.get(), nullptr, 0));
+      MLDSA65_prehash_update(&prehash_state, kMessage, i);
+      MLDSA65_prehash_update(&prehash_state, kMessage + i, j - i);
+      MLDSA65_prehash_update(&prehash_state, kMessage + j,
+                             sizeof(kMessage) - j);
+      MLDSA65_prehash_finalize(representative, &prehash_state);
+      EXPECT_TRUE(MLDSA65_sign_message_representative(
+          encoded_signature.data(), priv.get(), representative));
+
+      EXPECT_EQ(MLDSA65_verify(pub.get(), encoded_signature.data(),
+                               encoded_signature.size(), kMessage,
+                               sizeof(kMessage), nullptr, 0),
+                1);
+    }
+  }
+}
+
 TEST(MLDSATest, PublicFromPrivateIsConsistent) {
   std::vector<uint8_t> encoded_public_key(MLDSA65_PUBLIC_KEY_BYTES);
   auto priv = std::make_unique<MLDSA65_private_key>();

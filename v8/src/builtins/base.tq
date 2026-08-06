@@ -58,9 +58,6 @@ type Zero extends PositiveSmi;
 // A tagged value represented by an all-zero bitpattern.
 type TaggedZeroPattern extends TaggedIndex;
 
-// A value with the size of Tagged which may contain arbitrary data.
-type Uninitialized extends Tagged;
-
 type BuiltinsName extends int31 constexpr 'Builtin';
 
 type UseCounterFeature extends int31
@@ -1323,6 +1320,7 @@ extern macro IsInteger(JSAny): bool;
 extern macro IsInteger(HeapNumber): bool;
 
 extern macro AllocateHeapNumberWithValue(float64): HeapNumber;
+extern macro AllocateSharedHeapNumberWithValue(float64): HeapNumber;
 extern macro AllocateContextCell(Object): ContextCell;
 extern macro ChangeInt32ToTagged(int32): Number;
 extern macro ChangeUint32ToTagged(uint32): Number;

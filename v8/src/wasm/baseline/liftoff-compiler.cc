@@ -2312,7 +2312,9 @@ class LiftoffCompiler {
         return EmitIsNull(opcode, value.type);
       case kExprAnyConvertExtern: {
         VarState input_state = __ cache_state()->stack_state.back();
-        CallBuiltin(Builtin::kWasmAnyConvertExtern,
+        const bool is_shared = value.type.is_shared();
+        CallBuiltin(is_shared ? Builtin::kWasmAnyConvertExternShared
+                              : Builtin::kWasmAnyConvertExtern,
                     MakeSig::Returns(kRefNull).Params(kRefNull), {input_state},
                     decoder->position());
         __ DropValues(1);
@@ -9767,6 +9769,7 @@ class LiftoffCompiler {
     if (v8_flags.experimental_wasm_skip_null_checks || !type.is_nullable()) {
       return;
     }
+    SCOPED_CODE_COMMENT("null check");
     LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
     LoadNullValueForCompare(null.gp(), pinned, type);
     OolTrapLabel trap =
@@ -9779,6 +9782,7 @@ class LiftoffCompiler {
                         LiftoffRegister array, LiftoffRegister index,
                         LiftoffRegList pinned) {
     if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
+    SCOPED_CODE_COMMENT("array bounds check");
     LiftoffRegister length = __ GetUnusedRegister(kGpReg, pinned);
     constexpr int kLengthOffset =
         wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset);

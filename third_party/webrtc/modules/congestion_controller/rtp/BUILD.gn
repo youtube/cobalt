@@ -85,7 +85,6 @@ if (rtc_include_tests) {
       "../../../rtc_base:safe_conversions",
       "../../../rtc_base/network:sent_packet",
       "../../../system_wrappers",
-      "../../../test:field_trial",
       "../../../test:test_support",
       "../../pacing",
       "../../remote_bitrate_estimator",

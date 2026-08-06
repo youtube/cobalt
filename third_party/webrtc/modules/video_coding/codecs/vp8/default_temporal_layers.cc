@@ -31,7 +31,6 @@
 #include "modules/video_coding/codecs/interface/common_constants.h"
 #include "modules/video_coding/codecs/vp8/include/temporal_layers_checker.h"
 #include "modules/video_coding/include/video_codec_interface.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
@@ -546,7 +545,7 @@ void DefaultTemporalLayers::OnEncodeDone(size_t stream_index,
     if (!is_keyframe &&
         frame_config.References(static_cast<Vp8FrameConfig::Buffer>(i))) {
       RTC_DCHECK_LT(vp8_info.referencedBuffersCount,
-                    arraysize(CodecSpecificInfoVP8::referencedBuffers));
+                    std::size(vp8_info.referencedBuffers));
       references = true;
       vp8_info.referencedBuffers[vp8_info.referencedBuffersCount++] = i;
     }
@@ -554,7 +553,7 @@ void DefaultTemporalLayers::OnEncodeDone(size_t stream_index,
     if (is_keyframe ||
         frame_config.Updates(static_cast<Vp8FrameConfig::Buffer>(i))) {
       RTC_DCHECK_LT(vp8_info.updatedBuffersCount,
-                    arraysize(CodecSpecificInfoVP8::updatedBuffers));
+                    std::size(vp8_info.updatedBuffers));
       updates = true;
       vp8_info.updatedBuffers[vp8_info.updatedBuffersCount++] = i;
     }

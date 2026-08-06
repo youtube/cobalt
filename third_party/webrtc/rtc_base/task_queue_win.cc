@@ -35,7 +35,6 @@
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
 #include "rtc_base/logging.h"
@@ -270,7 +269,7 @@ void TaskQueueWin::RunThreadMain() {
     // (e.g. required for InitializeQueueThread and stopping the thread in
     // PlatformThread).
     DWORD result = ::MsgWaitForMultipleObjectsEx(
-        arraysize(handles), handles, INFINITE, QS_ALLEVENTS, MWMO_ALERTABLE);
+        std::size(handles), handles, INFINITE, QS_ALLEVENTS, MWMO_ALERTABLE);
     RTC_CHECK_NE(WAIT_FAILED, result);
     if (result == (WAIT_OBJECT_0 + 2)) {
       // There are messages in the message queue that need to be handled.

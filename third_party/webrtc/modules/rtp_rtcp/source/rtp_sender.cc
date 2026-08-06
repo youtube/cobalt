@@ -38,7 +38,6 @@
 #include "modules/rtp_rtcp/source/rtp_packet_history.h"
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_interface.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_minmax.h"
@@ -200,16 +199,15 @@ RTPSender::~RTPSender() {
 }
 
 ArrayView<const RtpExtensionSize> RTPSender::FecExtensionSizes() {
-  return MakeArrayView(kFecOrPaddingExtensionSizes,
-                       arraysize(kFecOrPaddingExtensionSizes));
+  return kFecOrPaddingExtensionSizes;
 }
 
 ArrayView<const RtpExtensionSize> RTPSender::VideoExtensionSizes() {
-  return MakeArrayView(kVideoExtensionSizes, arraysize(kVideoExtensionSizes));
+  return kVideoExtensionSizes;
 }
 
 ArrayView<const RtpExtensionSize> RTPSender::AudioExtensionSizes() {
-  return MakeArrayView(kAudioExtensionSizes, arraysize(kAudioExtensionSizes));
+  return kAudioExtensionSizes;
 }
 
 void RTPSender::SetExtmapAllowMixed(bool extmap_allow_mixed) {

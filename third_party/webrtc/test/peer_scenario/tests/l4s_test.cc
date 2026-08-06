@@ -9,8 +9,16 @@
  */
 
 #include <atomic>
+#include <string>
 
+#include "absl/strings/str_cat.h"
+#include "api/jsep.h"
+#include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
+#include "api/stats/rtc_stats_report.h"
 #include "api/stats/rtcstats_objects.h"
+#include "api/test/network_emulation/network_emulation_interfaces.h"
+#include "api/transport/ecn_marking.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -19,6 +27,9 @@
 #include "modules/rtp_rtcp/source/rtcp_packet/transport_feedback.h"
 #include "modules/rtp_rtcp/source/rtp_util.h"
 #include "pc/test/mock_peer_connection_observers.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/logging.h"
+#include "rtc_base/network_constants.h"
 #include "test/create_frame_generator_capturer.h"
 #include "test/field_trial.h"
 #include "test/gmock.h"

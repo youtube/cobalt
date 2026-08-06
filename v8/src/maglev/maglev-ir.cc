@@ -2591,6 +2591,7 @@ void LoadTaggedFieldForContextSlot::GenerateCode(MaglevAssembler* masm,
           __ CompareInt32AndJumpIf(scratch, ContextCell::kInt32, kNotEqual,
                                    &check_float64);
           __ LoadContextCellInt32Value(scratch, value);
+          __ SmiTagInt32AndJumpIfSuccess(value, scratch, *done);
           __ Int32ToDouble(double_value, scratch);
           __ Jump(&allocate, Label::kNear);
           __ bind(&check_float64);
@@ -3653,6 +3654,27 @@ void CheckStringOrStringWrapper::GenerateCode(MaglevAssembler* masm,
   __ CompareInt32AndJumpIf(scratch, SLOW_STRING_WRAPPER_ELEMENTS, kGreaterThan,
                            deopt);
   __ Jump(&done);
+  __ bind(&done);
+}
+
+void CheckStringOrOddball::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+}
+void CheckStringOrOddball::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  if (check_type() == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    __ EmitEagerDeoptIfSmi(this, object,
+                           DeoptimizeReason::kNotAStringOrOddball);
+  }
+
+  Label done;
+  __ JumpIfObjectType(object, InstanceType::ODDBALL_TYPE, &done);
+  __ JumpIfNotString(
+      object, __ GetDeoptLabel(this, DeoptimizeReason::kNotAStringOrOddball));
+
   __ bind(&done);
 }
 
@@ -5244,6 +5266,13 @@ void StringEqual::GenerateCode(MaglevAssembler* masm,
             // near jump.
             v8_flags.debug_code ? Label::kFar : Label::kNear);
 
+  if (inputs_ == StringEqualInputs::kStringsOrOddballs) {
+    // This code is only used for strict equality. If either left or right is
+    // not a string, then they must be non-equal (they cannot be the same
+    // oddball, since that was checked above).
+    __ JumpIfNotString(left, &if_not_equal);
+    __ JumpIfNotString(right, &if_not_equal);
+  }
   __ StringLength(left_length, left);
   __ StringLength(right_length, right);
   __ CompareInt32AndJumpIf(left_length, right_length, kNotEqual, &if_not_equal,

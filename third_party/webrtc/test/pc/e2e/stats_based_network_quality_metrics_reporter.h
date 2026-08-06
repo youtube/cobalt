@@ -13,22 +13,24 @@
 
 #include <cstdint>
 #include <map>
-#include <memory>
 #include <set>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/numerics/samples_stats_counter.h"
+#include "api/scoped_refptr.h"
+#include "api/stats/rtc_stats_report.h"
 #include "api/test/metrics/metrics_logger.h"
 #include "api/test/network_emulation/network_emulation_interfaces.h"
 #include "api/test/network_emulation_manager.h"
 #include "api/test/peerconnection_quality_test_fixture.h"
+#include "api/test/track_id_stream_info_map.h"
 #include "api/units/data_size.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
+#include "system_wrappers/include/clock.h"
 
 namespace webrtc {
 namespace webrtc_pc_e2e {

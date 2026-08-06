@@ -1070,12 +1070,26 @@ struct SimplifiedOperatorGlobalCache final {
   CHECKED_BOUNDS_OP_LIST(CHECKED_BOUNDS)
   CHECKED_BOUNDS(CheckBounds)
   // For IrOpcode::kCheckBounds, we allow additional flags:
+  CheckBoundsOperator kCheckBoundsAllow64BitBounds = {
+      FeedbackSource(), CheckBoundsFlag::kAllow64BitBounds};
+  CheckBoundsOperator kCheckBoundsAbortingAndAllow64BitBounds = {
+      FeedbackSource(), CheckBoundsFlag::kAbortOnOutOfBounds |
+                            CheckBoundsFlag::kAllow64BitBounds};
   CheckBoundsOperator kCheckBoundsConverting = {
       FeedbackSource(), CheckBoundsFlag::kConvertStringAndMinusZero};
+  CheckBoundsOperator kCheckBoundsConvertingAndAllow64BitBounds = {
+      FeedbackSource(), CheckBoundsFlag::kConvertStringAndMinusZero |
+                            CheckBoundsFlag::kAllow64BitBounds};
   CheckBoundsOperator kCheckBoundsAbortingAndConverting = {
       FeedbackSource(),
       CheckBoundsFlags(CheckBoundsFlag::kAbortOnOutOfBounds) |
           CheckBoundsFlags(CheckBoundsFlag::kConvertStringAndMinusZero)};
+  CheckBoundsOperator kCheckBoundsAbortingAndConvertingAndAllow64BitBounds = {
+      FeedbackSource(),
+      CheckBoundsFlags(CheckBoundsFlag::kAbortOnOutOfBounds) |
+          CheckBoundsFlags(CheckBoundsFlag::kConvertStringAndMinusZero) |
+          CheckBoundsFlags(CheckBoundsFlag::kAllow64BitBounds)};
+
 #undef CHECKED_BOUNDS
 
   template <DeoptimizeReason kDeoptimizeReason>
@@ -1086,7 +1100,7 @@ struct SimplifiedOperatorGlobalCache final {
               "CheckIf", 1, 1, 1, 0, 1, 0,
               CheckIfParameters(kDeoptimizeReason, FeedbackSource())) {}
   };
-#define CHECK_IF(Name, message) \
+#define CHECK_IF(Name, message, ...) \
   CheckIfOperator<DeoptimizeReason::k##Name> kCheckIf##Name;
   DEOPTIMIZE_REASON_LIST(CHECK_IF)
 #undef CHECK_IF
@@ -1548,15 +1562,31 @@ const Operator* SimplifiedOperatorBuilder::CheckBounds(
   if (!feedback.IsValid()) {
     if (flags & CheckBoundsFlag::kAbortOnOutOfBounds) {
       if (flags & CheckBoundsFlag::kConvertStringAndMinusZero) {
-        return &cache_.kCheckBoundsAbortingAndConverting;
+        if (flags & CheckBoundsFlag::kAllow64BitBounds) {
+          return &cache_.kCheckBoundsAbortingAndConvertingAndAllow64BitBounds;
+        } else {
+          return &cache_.kCheckBoundsAbortingAndConverting;
+        }
       } else {
-        return &cache_.kCheckBoundsAborting;
+        if (flags & CheckBoundsFlag::kAllow64BitBounds) {
+          return &cache_.kCheckBoundsAbortingAndAllow64BitBounds;
+        } else {
+          return &cache_.kCheckBoundsAborting;
+        }
       }
     } else {
       if (flags & CheckBoundsFlag::kConvertStringAndMinusZero) {
-        return &cache_.kCheckBoundsConverting;
+        if (flags & CheckBoundsFlag::kAllow64BitBounds) {
+          return &cache_.kCheckBoundsConvertingAndAllow64BitBounds;
+        } else {
+          return &cache_.kCheckBoundsConverting;
+        }
       } else {
-        return &cache_.kCheckBounds;
+        if (flags & CheckBoundsFlag::kAllow64BitBounds) {
+          return &cache_.kCheckBoundsAllow64BitBounds;
+        } else {
+          return &cache_.kCheckBounds;
+        }
       }
     }
   }
@@ -1782,10 +1812,10 @@ const Operator* SimplifiedOperatorBuilder::CheckIf(
     DeoptimizeReason reason, const FeedbackSource& feedback) {
   if (!feedback.IsValid()) {
     switch (reason) {
-#define CHECK_IF(Name, message)   \
-  case DeoptimizeReason::k##Name: \
+#define CHECK_IF(Name, message, ...) \
+  case DeoptimizeReason::k##Name:    \
     return &cache_.kCheckIf##Name;
-    DEOPTIMIZE_REASON_LIST(CHECK_IF)
+      DEOPTIMIZE_REASON_LIST(CHECK_IF)
 #undef CHECK_IF
     }
   }

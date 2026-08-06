@@ -2512,6 +2512,21 @@ class GraphBuildingNodeProcessor {
                        node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckStringOrOddball* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    ObjectIsOp::InputAssumptions input_assumptions =
+        node->check_type() == maglev::CheckType::kCheckHeapObject
+            ? ObjectIsOp::InputAssumptions::kNone
+            : ObjectIsOp::InputAssumptions::kHeapObject;
+    V<Word32> check =
+        __ ObjectIs(Map(node->receiver_input()),
+                    ObjectIsOp::Kind::kStringOrOddball, input_assumptions);
+    __ DeoptimizeIfNot(check, frame_state,
+                       DeoptimizeReason::kNotAStringOrOddball,
+                       node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckSymbol* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -2784,7 +2799,15 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::StringEqual* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ StringEqual(Map(node->lhs()), Map(node->rhs())));
+    if (node->inputs() == maglev::StringEqualInputs::kStringsOrOddballs) {
+      // TODO(marja): Can we get rid of the StringOrOddballStrictEqual operator,
+      // by handling the oddballs somewhere and delegating strings to
+      // StringEqual?
+      SetMap(node,
+             __ StringOrOddballStrictEqual(Map(node->lhs()), Map(node->rhs())));
+    } else {
+      SetMap(node, __ StringEqual(Map(node->lhs()), Map(node->rhs())));
+    }
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StringLength* node,
@@ -2960,16 +2983,21 @@ class GraphBuildingNodeProcessor {
           result = __ LoadField<Object>(
               slot, AccessBuilder::ForContextCellTaggedValue());
         } ELSE {
-          ScopedVar<Float64, AssemblerT> number(this);
           IF (__ Word32Equal(slot_state,
                              __ Word32Constant(ContextCell::kInt32))) {
-            number = __ ChangeInt32ToFloat64(__ LoadField<Word32>(
-                slot, AccessBuilder::ForContextCellInt32Value()));
+            result = V<Number>::Cast(__ ConvertUntaggedToJSPrimitive(
+                __ LoadField<Word32>(slot,
+                                     AccessBuilder::ForContextCellInt32Value()),
+                ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber,
+                RegisterRepresentation::Word32(),
+                ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+                CheckForMinusZeroMode::kDontCheckForMinusZero));
           } ELSE {
-            number = __ LoadField<Float64>(
-                slot, AccessBuilder::ForContextCellFloat64Value());
+            result = __ AllocateHeapNumberWithValue(
+                __ LoadField<Float64>(
+                    slot, AccessBuilder::ForContextCellFloat64Value()),
+                isolate_->factory());
           }
-          result = __ AllocateHeapNumberWithValue(number, isolate_->factory());
         }
       }
     }
@@ -3176,9 +3204,6 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::LoadTypedArrayLength* node,
                                 const maglev::ProcessingState& state) {
-    // TODO(dmercadier): consider loading the raw length instead of the byte
-    // length. This is not currently done because the raw length field might be
-    // removed soon.
     V<WordPtr> length =
         __ LoadField<WordPtr>(Map<JSTypedArray>(node->receiver_input()),
                               AccessBuilder::ForJSTypedArrayByteLength());

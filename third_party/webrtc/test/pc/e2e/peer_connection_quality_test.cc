@@ -79,7 +79,6 @@
 #include "test/pc/e2e/test_peer.h"
 #include "test/pc/e2e/test_peer_factory.h"
 #include "test/test_flags.h"
-#include "test/testsupport/file_utils.h"
 
 namespace webrtc {
 namespace webrtc_pc_e2e {

@@ -23,6 +23,7 @@ if (rtc_include_tests) {
       "../../:create_frame_generator_capturer",
       "../../:field_trial",
       "../../:test_support",
+      "../../../api:audio_options_api",
       "../../../api:libjingle_peerconnection_api",
       "../../../api:make_ref_counted",
       "../../../api:rtc_stats_api",
@@ -34,13 +35,18 @@ if (rtc_include_tests) {
       "../../../api/transport:ecn_marking",
       "../../../api/units:data_rate",
       "../../../api/units:time_delta",
+      "../../../api/video:video_frame",
       "../../../media:stream_params",
       "../../../modules/rtp_rtcp:rtp_rtcp_format",
       "../../../pc:media_session",
       "../../../pc:pc_test_utils",
       "../../../pc:session_description",
       "../../../rtc_base:checks",
+      "../../../rtc_base:copy_on_write_buffer",
       "../../../rtc_base:logging",
+      "../../../rtc_base:network_constants",
+      "../../scenario",
+      "//third_party/abseil-cpp/absl/strings:strings",
     ]
     if (rtc_enable_protobuf) {
       deps += [

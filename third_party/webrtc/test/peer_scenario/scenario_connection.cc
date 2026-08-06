@@ -41,6 +41,7 @@
 #include "pc/jsep_transport_controller.h"
 #include "pc/rtp_transport_internal.h"
 #include "pc/session_description.h"
+#include "rtc_base/async_packet_socket.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/crypto_random.h"

@@ -384,6 +384,7 @@ rtc_library("libjingle_peerconnection_api") {
     "video_codecs:video_codecs_api",
     "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",
@@ -1694,12 +1695,6 @@ rtc_source_set("field_trials_view") {
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
-}
-
-rtc_source_set("webrtc_key_value_config") {
-  visibility = [ "*" ]
-  sources = [ "webrtc_key_value_config.h" ]
-  deps = [ ":field_trials_view" ]
 }
 
 rtc_library("field_trials") {

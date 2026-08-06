@@ -11,6 +11,8 @@
 
 #include <stdio.h>
 
+#include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -24,11 +26,12 @@
 #include "api/units/timestamp.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/video_frame.h"
+#include "api/video/video_frame_buffer.h"
 #include "common_video/libyuv/include/webrtc_libyuv.h"
-#include "rtc_base/time_utils.h"
 #include "system_wrappers/include/clock.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/pc/e2e/analyzer/video/analyzing_video_sinks_helper.h"
 #include "test/pc/e2e/analyzer/video/example_video_quality_analyzer.h"
 #include "test/testsupport/file_utils.h"
 #include "test/testsupport/frame_reader.h"

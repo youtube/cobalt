@@ -70,7 +70,7 @@
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/system/file_wrapper.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 
 namespace webrtc {
 
@@ -341,8 +341,7 @@ class RtpSendChannelHelper : public Base, public MediaChannelUtil {
     auto parameters_iterator = rtp_send_parameters_.find(ssrc);
     if (parameters_iterator != rtp_send_parameters_.end()) {
       auto result = CheckRtpParametersInvalidModificationAndValues(
-          parameters_iterator->second, parameters,
-          test::ExplicitKeyValueConfig(""));
+          parameters_iterator->second, parameters, CreateTestFieldTrials());
       if (!result.ok()) {
         return webrtc::InvokeSetParametersCallback(callback, result);
       }

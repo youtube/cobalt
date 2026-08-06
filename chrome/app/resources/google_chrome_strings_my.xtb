@@ -318,6 +318,7 @@
 <translation id="4970880042055371251">ChromeOS ဗားရှင်း</translation>
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">“Google Password Manager” ကို နှိပ်ပါ</translation>
+<translation id="504867494566807945">Chrome တွင် အက်ပ်များရှိ လင့်ခ်များကို ဖွင့်ပါ။ ထို့ပြင် အလွယ်သုံးနိုင်ရန်အတွက် သင်၏ လုပ်ဆောင်စရာဘားတွင် ၎င်းကို ပင်ထိုးပါ။</translation>
 <translation id="5114340746415930644">သင်၏အကောင့် <ph name="USER_EMAIL" /> တွင် Chrome ဒေတာ သုံးရန်နှင့် သိမ်းရန်အတွက် စကားဝှက်စာ ထည့်ပါ</translation>
 <translation id="5120334927898581447">အခြား Google ဝန်ဆောင်မှုများသို့ လက်မှတ်ထိုးဝင်သောအခါ Chrome သို့ လက်မှတ်ထိုးဝင်ပါ</translation>
 <translation id="5126049312684316860">သင်ဝင်ကြည့်နိုင်ဖွယ်ရှိသည့် စာမျက်နှာများသို့ ဝင်ကြည့်သောအခါ ပိုမိုလျင်မြန်စွာ ပွင့်စေရန် Chrome သည် စာမျက်နှာတစ်ခုထက်ပို၍ ကြိုဖွင့်သည်</translation>
@@ -398,6 +399,7 @@ Google Chrome သည် သင်၏ ဆက်တင်များကို ပ
 <translation id="6075300983329039771">Chrome သို့ လက်မှတ်ထိုးဝင်ရန် သင့်အဖွဲ့အစည်း <ph name="MANAGER" /> က သတ်မှတ်ထားသည်</translation>
 <translation id="6113794647360055231">Chrome သည် ပိုလို့ကို ကောင်းလာပါပြီ</translation>
 <translation id="6116252277240876590">Chrome တွင် မီနူး၊ ဆက်တင်၊ သတိပေးချက်နှင့် အခြားစာသားများ ပြရန်အတွက် ဤဘာသာစကားကို အသုံးပြုသည်</translation>
+<translation id="6127237283587442951">Chrome ကို မူရင်းအနေဖြင့်သုံးပြီး ပင်ထိုးပါ</translation>
 <translation id="6134085236017727171">သင့်မိုက်ခရိုဖုန်းသုံးရန် <ph name="BEGIN_LINK" />စနစ် ဆက်တင်များ<ph name="END_LINK" /> တွင် Chrome သုံးခွင့်ပေးပါ</translation>
 <translation id="6135456723633883042">ဤတဘ်များသည် အပိုဆောင်းရင်းမြစ်များကို သုံးနေသည်။ သင့်စွမ်းဆောင်ရည် ပိုကောင်းစေရန် ၎င်းတို့ကို Chrome အား ပိတ်ခွင့်ပြုပါ။</translation>
 <translation id="6145313976051292476">Chrome တွင် PDF များ ဖွင့်ရန်</translation>
@@ -512,7 +514,6 @@ Google Chrome သည် သင်၏ ဆက်တင်များကို ပ
 <translation id="7572537927358445944">ပိတ် • Chrome သည် ဤနောက်ဆက်တွဲ လာသည့်နေရာကို စိစစ်၍မရပါ</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> ထည့်သွင်းသည့်ဖိုင်</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
-<translation id="7626032353295482388">Chrome က ကြိုဆိုပါသည်</translation>
 <translation id="7626072681686626474">ဤစက်ကိုမသုံးမီ အောက်ပါ ‘ဝန်ဆောင်မှုစည်းမျဉ်းများ’ ကို ဖတ်ရှုပြီး လက်ခံရန် <ph name="MANAGER" /> က သတ်မှတ်ထားသည်။ ဤစည်းမျဉ်းများက ‘Google ChromeOS စည်းမျဉ်းများ’ ကို ထပ်ထည့်ခြင်း၊ မွမ်းမံခြင်း သို့မဟုတ် ကန့်သတ်ခြင်း မရှိပါ။</translation>
 <translation id="7629695634924605473">သင့်စကားဝှက်များ ကျိုးပေါက်ထားခြင်း ရှိမရှိ Chrome က သင့်အား အသိပေးပါမည်</translation>
 <translation id="7641148173327520642">သင့်စနစ်စီမံခန့်ခွဲသူသည် <ph name="TARGET_URL_HOSTNAME" /> သို့ ဝင်ကြည့်ရန်အတွက် <ph name="ALTERNATIVE_BROWSER_NAME" /> ဖွင့်ရန် Google Chrome ကို စီစဉ်သတ်မှတ်ထားသည်။</translation>
@@ -632,6 +633,7 @@ Google Chrome သည် သင်၏ ဆက်တင်များကို ပ
 <translation id="9090566250983691233">ဖိုင်အချို့ကို Chrome က ဘာကြောင့်ပိတ်ထားကြောင်း လေ့လာရန်</translation>
 <translation id="9106236359747881194">ရှာဖွေရန် စာသားရွေးပါ</translation>
 <translation id="911206726377975832">သင့်အသုံးပြုမှု ဒေတာအားလဲ ဖျက်မည်လား?</translation>
+<translation id="9134482777260927479">အိမ်စာအတွက် အကူအညီ</translation>
 <translation id="9138603949443464873">သင့်အပြောင်းအလဲများ ထည့်သွင်းရန် Chrome ကို ပြန်စတင်ပါ</translation>
 <translation id="9148058034647219655">ထွက်</translation>
 <translation id="9195993889682885387">ပြီးခဲ့သောသီတင်းပတ် အနည်းငယ်မှ သင်၏ကြည့်ရှုခြင်းမှတ်တမ်းပေါ် အခြေခံပြီး Chrome က သင့်စိတ်ဝင်စားမှုများကို ခန့်မှန်းနိုင်သည်။ ဤအချက်အလက်ကို သင်၏စက်တွင်သာ သိမ်းသည်။</translation>

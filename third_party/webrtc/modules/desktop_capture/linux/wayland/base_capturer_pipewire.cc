@@ -10,11 +10,22 @@
 
 #include "modules/desktop_capture/linux/wayland/base_capturer_pipewire.h"
 
+#include <sys/types.h>
+
+#include <cstdint>
+#include <memory>
+#include <utility>
+
+#include "modules/desktop_capture/delegated_source_list_controller.h"
 #include "modules/desktop_capture/desktop_capture_options.h"
+#include "modules/desktop_capture/desktop_capture_types.h"
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/linux/wayland/restore_token_manager.h"
+#include "modules/desktop_capture/linux/wayland/screen_capture_portal_interface.h"
+#include "modules/desktop_capture/linux/wayland/screencast_portal.h"
 #include "modules/portal/pipewire_utils.h"
-#include "modules/portal/xdg_desktop_portal_utils.h"
+#include "modules/portal/portal_request_response.h"
+#include "modules/portal/xdg_session_details.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/time_utils.h"

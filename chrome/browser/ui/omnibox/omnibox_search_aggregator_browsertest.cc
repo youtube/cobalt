@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
@@ -468,8 +469,15 @@ class OmniboxSearchAggregatorHTTPErrorTest
       search_aggregator_response_;
 };
 
+// TODO(crbug.com/421836646): Re-enable this test once the flakiness is
+// resolved.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_HTTPErrorResponse DISABLED_HTTPErrorResponse
+#else
+#define MAYBE_HTTPErrorResponse HTTPErrorResponse
+#endif
 IN_PROC_BROWSER_TEST_P(OmniboxSearchAggregatorHTTPErrorTest,
-                       HTTPErrorResponse) {
+                       MAYBE_HTTPErrorResponse) {
   scoped_config_.Get().multiple_requests = true;
   AutocompleteInput input(
       kSearchInput, metrics::OmniboxEventProto::NTP,

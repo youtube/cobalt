@@ -79,6 +79,7 @@ class JSBinopReduction final {
       case CompareOperationHint::kBigInt64:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kStringOrOddball:
       case CompareOperationHint::kInternalizedString:
         break;
     }
@@ -98,6 +99,7 @@ class JSBinopReduction final {
       case CompareOperationHint::kSymbol:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kStringOrOddball:
       case CompareOperationHint::kInternalizedString:
         return false;
       case CompareOperationHint::kBigInt:
@@ -1632,14 +1634,14 @@ Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
                             .MachineSelectIf<Object>(gasm.Word32Equal(
                                 state, gasm.Int32Constant(ContextCell::kInt32)))
                             .Then([&] {
-                              return gasm.AllocateHeapNumber(gasm.LoadField(
+                              return gasm.LoadField<Number>(
                                   AccessBuilder::ForContextCellInt32Value(),
-                                  value));
+                                  heap_value);
                             })
                             .Else([&] {
-                              return gasm.AllocateHeapNumber(gasm.LoadField(
+                              return gasm.LoadField<Number>(
                                   AccessBuilder::ForContextCellFloat64Value(),
-                                  value));
+                                  heap_value);
                             })
                             .Value();
                       })

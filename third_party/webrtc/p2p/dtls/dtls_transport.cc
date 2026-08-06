@@ -459,9 +459,9 @@ bool DtlsTransportInternalImpl::SetupDtls() {
   // (such as automatic packetization smoothing).
   if (dtls_in_stun_) {
     // - This is only needed when using PQC but we don't know that here.
-    // - 800 is sufficiently small so that dtls pqc handshake packets
-    // can get put into STUN attributes.
-    const int kDtlsMtu = 800;
+    // - 900 is sufficiently small so that dtls pqc handshake packets
+    // can get put into STUN attributes and still fit into two packets.
+    const int kDtlsMtu = 900;
     dtls_->SetMTU(kDtlsMtu);
   }
 

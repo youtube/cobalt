@@ -3166,7 +3166,6 @@ filegroup(
         "src/compiler/backend/instruction-scheduler.h",
         "src/compiler/backend/instruction-selector.cc",
         "src/compiler/backend/instruction-selector.h",
-        "src/compiler/backend/instruction-selector-adapter.h",
         "src/compiler/backend/instruction-selector-impl.h",
         "src/compiler/backend/jump-threading.cc",
         "src/compiler/backend/jump-threading.h",
@@ -3711,8 +3710,6 @@ filegroup(
         "src/builtins/builtins-string-gen.cc",
         "src/builtins/builtins-string-gen.h",
         "src/builtins/builtins-string-tsa.cc",
-        # Temporal is currently gn-only
-        # "src/builtins/builtins-temporal-gen.cc",
         "src/builtins/builtins-typed-array-gen.cc",
         "src/builtins/builtins-typed-array-gen.h",
         "src/builtins/builtins-utils-gen.h",

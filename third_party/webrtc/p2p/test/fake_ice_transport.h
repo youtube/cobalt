@@ -11,6 +11,7 @@
 #ifndef P2P_TEST_FAKE_ICE_TRANSPORT_H_
 #define P2P_TEST_FAKE_ICE_TRANSPORT_H_
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -19,7 +20,6 @@
 #include <string>
 #include <utility>
 
-#include "absl/algorithm/container.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
@@ -288,7 +288,9 @@ class FakeIceTransport : public IceTransportInternal {
   }
   void RemoveRemoteCandidate(const Candidate& candidate) override {
     RTC_DCHECK_RUN_ON(network_thread_);
-    auto it = absl::c_find(remote_candidates_, candidate);
+    auto it = std::remove_if(
+        remote_candidates_.begin(), remote_candidates_.end(),
+        [&](const Candidate& c) { return candidate.MatchesForRemoval(c); });
     if (it == remote_candidates_.end()) {
       RTC_LOG(LS_INFO) << "Trying to remove a candidate which doesn't exist.";
       return;

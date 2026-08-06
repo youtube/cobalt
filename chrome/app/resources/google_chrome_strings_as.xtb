@@ -318,6 +318,7 @@
 <translation id="4970880042055371251">ChromeOSৰ সংস্কৰণ</translation>
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">“Google Password Manager”ত ক্লিক কৰক</translation>
+<translation id="504867494566807945">যিকোনো এপৰ পৰা Chromeত লিংক খোলক। লগতে সহজে এক্সেছ পাবলৈ, এইটো আপোনাৰ টাস্কবাৰত পিন কৰি থোৱা থাকে।</translation>
 <translation id="5114340746415930644">আপোনাৰ একাউণ্টত Chromeৰ ডেটা ব্যৱহাৰ আৰু ছেভ কৰিবলৈ নিজৰ পাছফ্ৰে’জ দিয়ক, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">আপুনি অন্য Google সেৱাসমূহত ছাইন ইন কৰাৰ সময়ত Chromeত ছাইন ইন কৰক</translation>
 <translation id="5126049312684316860">Chromeএ আপুনি চোৱাৰ সম্ভাৱনা থকা অধিক পৃষ্ঠা আগতীয়াকৈ ল’ড কৰে, যাতে আপুনি সেইবোৰ চালে সেইবোৰ অধিক ক্ষিপ্ৰতাৰে ল’ড হয়</translation>
@@ -398,6 +399,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="6075300983329039771">আপোনাৰ প্ৰতিষ্ঠান, <ph name="MANAGER" />ৰ বাবে আপুনি Chromeত ছাইন ইন কৰাৰ আৱশ্যক</translation>
 <translation id="6113794647360055231">Chrome অধিক ব্যৱহাৰৰ উপযোগী হৈছে</translation>
 <translation id="6116252277240876590">Chromeত মেনু, ছেটিং, সতৰ্কবাৰ্তা আৰু অন্য পাঠ দেখুৱাবলৈ এই ভাষাটো ব্যৱহাৰ কৰা হয়</translation>
+<translation id="6127237283587442951">ডিফ’ল্ট হিচাপে Chrome ব্যৱহাৰ কৰি ইয়াক পিন কৰি থোৱা পাওক</translation>
 <translation id="6134085236017727171">আপোনাৰ মাইক্ৰ’ফ’ন ব্যৱহাৰ কৰিবলৈ, <ph name="BEGIN_LINK" />ছিষ্টেমৰ ছেটিঙ<ph name="END_LINK" />ত Chromeক এক্সেছ দিয়ক</translation>
 <translation id="6135456723633883042">এই টেবসমূহে অতিৰিক্ত সম্পদ ব্যৱহাৰ কৰি আছে। আপোনাৰ কাৰ্যদক্ষতা উন্নত কৰিবলৈ Chromeক সেইসমূহ নিষ্ক্ৰিয় কৰিবলৈ দিয়ক।</translation>
 <translation id="6145313976051292476">Chromeত PDF খোলক</translation>
@@ -512,7 +514,6 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="7572537927358445944">অফ আছে • এই এক্সটেনশ্বনটো ক’ৰ পৰা আহিছে সেয়া Chromeএ সত্যাপন কৰিব নোৱাৰে</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> ইনষ্টলাৰ</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
-<translation id="7626032353295482388">Chromeলৈ স্বাগতম</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" />ৰ বাবে আপুনি এই ডিভাইচটো ব্যৱহাৰ কৰাৰ পূৰ্বে তলত উল্লেখ কৰা সেৱাৰ চৰ্তাৱলী পঢ়ি তাত সন্মতি দিয়াৰ আৱশ্যক। এই চৰ্তাৱলীয়ে ChromeOSৰ চৰ্তাৱলী বিস্তাৰ, সংশোধন অথবা সীমিত নকৰে।</translation>
 <translation id="7629695634924605473">Chromeএ আপোনাৰ পাছৱৰ্ডসমূহ কেতিয়াবা হেক কৰা হৈছিল নেকি আপোনাক জানিবলৈ দিয়ে</translation>
 <translation id="7641148173327520642">আপোনাৰ ছিষ্টেমৰ প্ৰশাসকে <ph name="TARGET_URL_HOSTNAME" /> এক্সেছ কৰিবৰ কাৰণে <ph name="ALTERNATIVE_BROWSER_NAME" /> খুলিবলৈ Google Chromeক কনফিগাৰ কৰিছে।</translation>
@@ -632,6 +633,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="9090566250983691233">Chromeএ কিয় কিছুমান ফাইল অৱৰোধ কৰে সেই বিষয়ে জানক</translation>
 <translation id="9106236359747881194">সন্ধান কৰিবলৈ পাঠ বাছনি কৰক</translation>
 <translation id="911206726377975832">লগতে আপোনাৰ ব্ৰাউজিং ডেটাও মচিবনে?</translation>
+<translation id="9134482777260927479">গৃহকাৰ্য সম্পৰ্কীয় সহায়</translation>
 <translation id="9138603949443464873">আপুনি কৰা সলনি কার্যসমূহ প্ৰযোজ্য কৰিবলৈ Chrome পুনৰ লঞ্চ কৰক</translation>
 <translation id="9148058034647219655">বাহিৰ হওক</translation>
 <translation id="9195993889682885387">Chromeএ যোৱা কেইসপ্তাহমানৰ আপোনাৰ ব্ৰাউজিঙৰ ইতিহাসৰ ভিত্তিত আপোনাৰ আগ্ৰহসমূহ অনুমান কৰিব পাৰে। আপোনাৰ ডিভাইচটোত এই তথ্য থাকে।</translation>

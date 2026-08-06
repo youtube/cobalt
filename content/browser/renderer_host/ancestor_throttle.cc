@@ -99,11 +99,10 @@ RenderFrameHostImpl* GetParentForFrameAncestors(NavigationRequest* request,
 }  // namespace
 
 // static
-std::unique_ptr<NavigationThrottle> AncestorThrottle::MaybeCreateThrottleFor(
-    NavigationHandle* handle) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+void AncestorThrottle::CreateAndAdd(NavigationThrottleRegistry& registry) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  return base::WrapUnique(new AncestorThrottle(handle));
+  registry.AddThrottle(base::WrapUnique(new AncestorThrottle(registry)));
 }
 
 AncestorThrottle::~AncestorThrottle() {}
@@ -169,8 +168,8 @@ const char* AncestorThrottle::GetNameForLogging() {
   return "AncestorThrottle";
 }
 
-AncestorThrottle::AncestorThrottle(NavigationHandle* handle)
-    : NavigationThrottle(handle) {}
+AncestorThrottle::AncestorThrottle(NavigationThrottleRegistry& registry)
+    : NavigationThrottle(registry) {}
 
 void AncestorThrottle::ParseXFrameOptionsError(
     const net::HttpResponseHeaders* headers,

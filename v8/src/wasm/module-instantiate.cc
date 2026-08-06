@@ -689,7 +689,7 @@ void ResolvedWasmImport::SetCallable(Isolate* isolate,
   trusted_function_data_ = {};
   if (!IsJSFunction(*callable)) return;
   Tagged<SharedFunctionInfo> sfi = Cast<JSFunction>(*callable_)->shared();
-  if (sfi->HasWasmFunctionData()) {
+  if (sfi->HasWasmFunctionData(isolate)) {
     trusted_function_data_ = direct_handle(sfi->wasm_function_data(), isolate);
   }
 }
@@ -742,7 +742,7 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
     if (IsJSFunction(js_function_data->GetCallable())) {
       Tagged<SharedFunctionInfo> sfi =
           Cast<JSFunction>(js_function_data->GetCallable())->shared();
-      if (sfi->HasWasmFunctionData()) {
+      if (sfi->HasWasmFunctionData(isolate)) {
         // Special case if the underlying callable is a WasmJSFunction or
         // WasmExportedFunction: link the outer WasmJSFunction itself and not
         // the inner callable. Otherwise when the wrapper tiers up, we will try
@@ -2089,6 +2089,8 @@ MaybeDirectHandle<Object> InstanceBuilder::LookupImportAsm(
       }
       return value;
     }
+    case LookupIterator::STRING_LOOKUP_START_OBJECT:
+      UNREACHABLE();
   }
 }
 

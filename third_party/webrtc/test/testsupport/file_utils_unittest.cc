@@ -16,6 +16,7 @@
 #include <fstream>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "rtc_base/checks.h"
@@ -25,6 +26,10 @@
 
 #ifdef WIN32
 #define chdir _chdir
+#endif
+
+#if defined(WEBRTC_POSIX)
+#include <unistd.h>
 #endif
 
 using ::testing::EndsWith;

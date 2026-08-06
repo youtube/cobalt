@@ -12,6 +12,7 @@
 
 #include <stddef.h>
 
+#include <memory>
 #include <optional>
 #include <set>
 #include <string>

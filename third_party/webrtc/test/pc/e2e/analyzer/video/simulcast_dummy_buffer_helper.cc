@@ -10,6 +10,9 @@
 
 #include "test/pc/e2e/analyzer/video/simulcast_dummy_buffer_helper.h"
 
+#include <cstring>
+
+#include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_buffer.h"

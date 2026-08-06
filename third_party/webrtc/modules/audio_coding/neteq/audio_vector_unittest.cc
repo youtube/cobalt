@@ -12,8 +12,10 @@
 
 #include <stdlib.h>
 
+#include <array>
 #include <cstdint>
 
+#include "api/audio/audio_view.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "test/gtest.h"
 
@@ -28,7 +30,9 @@ class AudioVectorTest : public ::testing::Test {
     }
   }
 
-  size_t array_length() const { return sizeof(array_) / sizeof(array_[0]); }
+  constexpr size_t array_length() const {
+    return sizeof(array_) / sizeof(array_[0]);
+  }
 
   int16_t array_[10];
 };
@@ -77,6 +81,34 @@ TEST_F(AudioVectorTest, PushBackAndCopy) {
   // Now copy the empty vector and verify that the copy becomes empty too.
   vec.CopyTo(&vec_copy);
   EXPECT_TRUE(vec_copy.Empty());
+}
+
+TEST_F(AudioVectorTest, CopyTo) {
+  AudioVector vec;
+  vec.PushBack(array_, array_length());
+  ASSERT_EQ(vec.Size(), 10u);
+
+  std::array<int16_t, 10> buffer;
+  MonoView<int16_t> view(&buffer[0], buffer.size());
+  // Try to read 10 samples from position 1, which should fail.
+  EXPECT_FALSE(vec.CopyTo(1, view));
+  // Reading 10 samples from position 0, should succeed.
+  EXPECT_TRUE(vec.CopyTo(0, view));
+  EXPECT_EQ(view[5], 5);  // sanity check.
+
+  // Free up space at the front of the buffer. This changes
+  // the internal start position without reallocating memory.
+  vec.PopFront(2);
+
+  std::array<int16_t, 2> new_values = {20, 21};
+  vec.PushBack(&new_values[0], new_values.size());
+
+  // Now the CopyTo() operation will need to wrap around
+  // the end of the internal buffer to fill the view.
+  EXPECT_TRUE(vec.CopyTo(0, view));
+  EXPECT_EQ(view[0], 2);
+  EXPECT_EQ(view[8], 20);
+  EXPECT_EQ(view[9], 21);
 }
 
 // Test the PushBack method with another AudioVector as input argument.

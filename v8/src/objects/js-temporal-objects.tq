@@ -23,25 +23,12 @@ bitfield struct JSTemporalSecondParts extends uint31 {
   iso_nanosecond: int32: 10 bit;
 }
 
-bitfield struct JSTemporalTimeZoneFlags extends uint31 {
-  is_offset: bool: 1 bit;
-  offset_milliseconds_or_time_zone_index: int32: 28 bit;
-}
 bitfield struct JSTemporalTimeZoneSubMilliseconds extends uint31 {
   offset_sub_milliseconds: int32: 21 bit;
 }
 
 extern class JSTemporalDuration extends JSObject {
-  years: Number;
-  months: Number;
-  weeks: Number;
-  days: Number;
-  hours: Number;
-  minutes: Number;
-  seconds: Number;
-  milliseconds: Number;
-  microseconds: Number;
-  nanoseconds: Number;
+  duration: Foreign;  // Managed<temporal_rs::Duration>
 }
 
 extern class JSTemporalInstant extends JSObject {
@@ -76,10 +63,6 @@ extern class JSTemporalPlainYearMonth extends JSObject {
   calendar: JSReceiver;
 }
 
-extern class JSTemporalTimeZone extends JSObject {
-  flags: SmiTagged<JSTemporalTimeZoneFlags>;
-  details: SmiTagged<JSTemporalTimeZoneSubMilliseconds>;
-}
 
 extern class JSTemporalZonedDateTime extends JSObject {
   nanoseconds: BigInt;

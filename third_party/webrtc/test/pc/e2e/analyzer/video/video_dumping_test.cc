@@ -11,12 +11,14 @@
 
 #include <stdio.h>
 
+#include <cstdint>
+#include <cstring>
 #include <memory>
-#include <optional>
 #include <string>
 #include <vector>
 
 #include "api/scoped_refptr.h"
+#include "api/test/video/video_frame_writer.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_buffer.h"

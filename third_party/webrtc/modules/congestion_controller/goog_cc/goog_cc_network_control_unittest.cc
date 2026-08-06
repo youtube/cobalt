@@ -21,6 +21,7 @@
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/test/network_emulation/create_cross_traffic.h"
 #include "api/test/network_emulation/cross_traffic.h"
 #include "api/transport/goog_cc_factory.h"
@@ -31,8 +32,7 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "call/video_receive_stream.h"
-#include "logging/rtc_event_log/mock/mock_rtc_event_log.h"
-#include "test/field_trial.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/network/network_emulation.h"
@@ -180,10 +180,12 @@ TransportPacketsFeedback CreateTransportPacketsFeedback(
 
 // Scenarios:
 
-void UpdatesTargetRateBasedOnLinkCapacity(absl::string_view test_name = "") {
+void UpdatesTargetRateBasedOnLinkCapacity(absl::string_view test_name = "",
+                                          absl::string_view field_trials = "") {
   auto factory = CreateFeedbackOnlyFactory();
   Scenario s("googcc_unit/target_capacity" + std::string(test_name), false);
   CallClientConfig config;
+  config.field_trials.Merge(FieldTrials(field_trials));
   config.transport.cc_factory = &factory;
   config.transport.rates.min_rate = DataRate::KilobitsPerSec(10);
   config.transport.rates.max_rate = DataRate::KilobitsPerSec(1500);
@@ -262,7 +264,8 @@ DataRate RunRembDipScenario(absl::string_view test_name) {
 
 class NetworkControllerTestFixture {
  public:
-  NetworkControllerTestFixture() : factory_() {}
+  explicit NetworkControllerTestFixture(absl::string_view field_trials = "")
+      : field_trials_(CreateTestFieldTrials(field_trials)) {}
   explicit NetworkControllerTestFixture(GoogCcFactoryConfig googcc_config)
       : factory_(std::move(googcc_config)) {}
 
@@ -289,8 +292,8 @@ class NetworkControllerTestFixture {
     return config;
   }
 
-  NiceMock<MockRtcEventLog> event_log_;
-  const Environment env_ = CreateEnvironment(&event_log_);
+  FieldTrials field_trials_ = CreateTestFieldTrials();
+  const Environment env_ = CreateEnvironment(&field_trials_);
   GoogCcNetworkControllerFactory factory_;
 };
 
@@ -439,9 +442,9 @@ TEST(GoogCcNetworkControllerTest, UpdatesDelayBasedEstimate) {
 }
 
 TEST(GoogCcNetworkControllerTest, LimitPacingFactorToUpperLinkCapacity) {
-  ScopedFieldTrials trial(
+  NetworkControllerTestFixture fixture(
+      /*field_trials=*/
       "WebRTC-Bwe-LimitPacingFactorByUpperLinkCapacityEstimate/Enabled/");
-  NetworkControllerTestFixture fixture;
   std::unique_ptr<NetworkControllerInterface> controller =
       fixture.CreateController();
   Timestamp current_time = Timestamp::Millis(123);
@@ -472,8 +475,6 @@ TEST(GoogCcNetworkControllerTest, LimitPacingFactorToUpperLinkCapacity) {
 // Test congestion window pushback on network delay happens.
 TEST(GoogCcScenario, CongestionWindowPushbackOnNetworkDelay) {
   auto factory = CreateFeedbackOnlyFactory();
-  ScopedFieldTrials trial(
-      "WebRTC-CongestionWindow/QueueSize:800,MinBitrate:30000/");
   Scenario s("googcc_unit/cwnd_on_delay", false);
   auto send_net =
       s.CreateMutableSimulationNode([=](NetworkSimulationConfig* c) {
@@ -483,6 +484,8 @@ TEST(GoogCcScenario, CongestionWindowPushbackOnNetworkDelay) {
   auto ret_net = s.CreateSimulationNode(
       [](NetworkSimulationConfig* c) { c->delay = TimeDelta::Millis(100); });
   CallClientConfig config;
+  config.field_trials.Set("WebRTC-CongestionWindow",
+                          "QueueSize:800,MinBitrate:30000");
   config.transport.cc_factory = &factory;
   // Start high so bandwidth drop has max effect.
   config.transport.rates.start_rate = DataRate::KilobitsPerSec(300);
@@ -506,8 +509,6 @@ TEST(GoogCcScenario, CongestionWindowPushbackOnNetworkDelay) {
 // Test congestion window pushback on network delay happens.
 TEST(GoogCcScenario, CongestionWindowPushbackDropFrameOnNetworkDelay) {
   auto factory = CreateFeedbackOnlyFactory();
-  ScopedFieldTrials trial(
-      "WebRTC-CongestionWindow/QueueSize:800,MinBitrate:30000,DropFrame:true/");
   Scenario s("googcc_unit/cwnd_on_delay", false);
   auto send_net =
       s.CreateMutableSimulationNode([=](NetworkSimulationConfig* c) {
@@ -517,6 +518,8 @@ TEST(GoogCcScenario, CongestionWindowPushbackDropFrameOnNetworkDelay) {
   auto ret_net = s.CreateSimulationNode(
       [](NetworkSimulationConfig* c) { c->delay = TimeDelta::Millis(100); });
   CallClientConfig config;
+  config.field_trials.Set("WebRTC-CongestionWindow",
+                          "QueueSize:800,MinBitrate:30000,DropFrame:true");
   config.transport.cc_factory = &factory;
   // Start high so bandwidth drop has max effect.
   config.transport.rates.start_rate = DataRate::KilobitsPerSec(300);
@@ -537,9 +540,6 @@ TEST(GoogCcScenario, CongestionWindowPushbackDropFrameOnNetworkDelay) {
 }
 
 TEST(GoogCcScenario, PaddingRateLimitedByCongestionWindowInTrial) {
-  ScopedFieldTrials trial(
-      "WebRTC-CongestionWindow/QueueSize:200,MinBitrate:30000/");
-
   Scenario s("googcc_unit/padding_limited", false);
   auto send_net =
       s.CreateMutableSimulationNode([=](NetworkSimulationConfig* c) {
@@ -549,6 +549,8 @@ TEST(GoogCcScenario, PaddingRateLimitedByCongestionWindowInTrial) {
   auto ret_net = s.CreateSimulationNode(
       [](NetworkSimulationConfig* c) { c->delay = TimeDelta::Millis(100); });
   CallClientConfig config;
+  config.field_trials.Set("WebRTC-CongestionWindow",
+                          "QueueSize:200,MinBitrate:30000");
   // Start high so bandwidth drop has max effect.
   config.transport.rates.start_rate = DataRate::KilobitsPerSec(1000);
   config.transport.rates.max_rate = DataRate::KilobitsPerSec(2000);
@@ -577,8 +579,6 @@ TEST(GoogCcScenario, LimitsToFloorIfRttIsHighInTrial) {
   // allows the RTT to recover faster than the regular control mechanism would
   // achieve.
   const DataRate kBandwidthFloor = DataRate::KilobitsPerSec(50);
-  ScopedFieldTrials trial("WebRTC-Bwe-MaxRttLimit/limit:2s,floor:" +
-                          std::to_string(kBandwidthFloor.kbps()) + "kbps/");
   // In the test case, we limit the capacity and add a cross traffic packet
   // burst that blocks media from being sent. This causes the RTT to quickly
   // increase above the threshold in the trial.
@@ -592,6 +592,9 @@ TEST(GoogCcScenario, LimitsToFloorIfRttIsHighInTrial) {
   auto ret_net = s.CreateSimulationNode(
       [](NetworkSimulationConfig* c) { c->delay = TimeDelta::Millis(100); });
   CallClientConfig config;
+  config.field_trials.Set(
+      "WebRTC-Bwe-MaxRttLimit",
+      "limit:2s,floor:" + std::to_string(kBandwidthFloor.kbps()) + "kbps");
   config.transport.rates.start_rate = kLinkCapacity;
 
   auto* client = CreateVideoSendingClient(&s, config, {send_net}, {ret_net});
@@ -650,15 +653,16 @@ TEST(GoogCcScenario, StableEstimateDoesNotVaryInSteadyState) {
 }
 
 TEST(GoogCcScenario, LossBasedControlUpdatesTargetRateBasedOnLinkCapacity) {
-  ScopedFieldTrials trial("WebRTC-Bwe-LossBasedControl/Enabled/");
   // TODO(srte): Should the behavior be unaffected at low loss rates?
-  UpdatesTargetRateBasedOnLinkCapacity("_loss_based");
+  UpdatesTargetRateBasedOnLinkCapacity(
+      /*test_name=*/"_loss_based",
+      /*field_trials=*/"WebRTC-Bwe-LossBasedControl/Enabled/");
 }
 
 TEST(GoogCcScenario, LossBasedControlDoesModestBackoffToHighLoss) {
-  ScopedFieldTrials trial("WebRTC-Bwe-LossBasedControl/Enabled/");
   Scenario s("googcc_unit/high_loss_channel", false);
   CallClientConfig config;
+  config.field_trials.Set("WebRTC-Bwe-LossBasedControl", "Enabled");
   config.transport.rates.min_rate = DataRate::KilobitsPerSec(10);
   config.transport.rates.max_rate = DataRate::KilobitsPerSec(1500);
   config.transport.rates.start_rate = DataRate::KilobitsPerSec(300);
@@ -726,13 +730,13 @@ TEST(GoogCcScenario, MaintainsLowRateInSafeResetTrial) {
   const DataRate kLinkCapacity = DataRate::KilobitsPerSec(200);
   const DataRate kStartRate = DataRate::KilobitsPerSec(300);
 
-  ScopedFieldTrials trial("WebRTC-Bwe-SafeResetOnRouteChange/Enabled/");
   Scenario s("googcc_unit/safe_reset_low");
   auto* send_net = s.CreateSimulationNode([&](NetworkSimulationConfig* c) {
     c->bandwidth = kLinkCapacity;
     c->delay = TimeDelta::Millis(10);
   });
   auto* client = s.CreateClient("send", [&](CallClientConfig* c) {
+    c->field_trials.Set("WebRTC-Bwe-SafeResetOnRouteChange", "Enabled");
     c->transport.rates.start_rate = kStartRate;
   });
   auto* route = s.CreateRoutes(
@@ -750,7 +754,6 @@ TEST(GoogCcScenario, MaintainsLowRateInSafeResetTrial) {
 }
 
 TEST(GoogCcScenario, DoNotResetBweUnlessNetworkAdapterChangeOnRoutChange) {
-  ScopedFieldTrials trial("WebRTC-Bwe-ResetOnAdapterIdChange/Enabled/");
   Scenario s("googcc_unit/do_not_reset_bwe_unless_adapter_change");
 
   const DataRate kLinkCapacity = DataRate::KilobitsPerSec(1000);
@@ -761,6 +764,7 @@ TEST(GoogCcScenario, DoNotResetBweUnlessNetworkAdapterChangeOnRoutChange) {
     c->delay = TimeDelta::Millis(50);
   });
   auto* client = s.CreateClient("send", [&](CallClientConfig* c) {
+    c->field_trials.Set("WebRTC-Bwe-ResetOnAdapterIdChange", "Enabled");
     c->transport.rates.start_rate = kStartRate;
   });
   client->UpdateNetworkAdapterId(0);
@@ -791,13 +795,13 @@ TEST(GoogCcScenario, CutsHighRateInSafeResetTrial) {
   const DataRate kLinkCapacity = DataRate::KilobitsPerSec(1000);
   const DataRate kStartRate = DataRate::KilobitsPerSec(300);
 
-  ScopedFieldTrials trial("WebRTC-Bwe-SafeResetOnRouteChange/Enabled/");
   Scenario s("googcc_unit/safe_reset_high_cut");
   auto send_net = s.CreateSimulationNode([&](NetworkSimulationConfig* c) {
     c->bandwidth = kLinkCapacity;
     c->delay = TimeDelta::Millis(50);
   });
   auto* client = s.CreateClient("send", [&](CallClientConfig* c) {
+    c->field_trials.Set("WebRTC-Bwe-SafeResetOnRouteChange", "Enabled");
     c->transport.rates.start_rate = kStartRate;
   });
   auto* route = s.CreateRoutes(
@@ -816,7 +820,6 @@ TEST(GoogCcScenario, CutsHighRateInSafeResetTrial) {
 }
 
 TEST(GoogCcScenario, DetectsHighRateInSafeResetTrial) {
-  ScopedFieldTrials trial("WebRTC-Bwe-SafeResetOnRouteChange/Enabled,ack/");
   const DataRate kInitialLinkCapacity = DataRate::KilobitsPerSec(200);
   const DataRate kNewLinkCapacity = DataRate::KilobitsPerSec(800);
   const DataRate kStartRate = DataRate::KilobitsPerSec(300);
@@ -831,6 +834,7 @@ TEST(GoogCcScenario, DetectsHighRateInSafeResetTrial) {
     c->delay = TimeDelta::Millis(50);
   });
   auto* client = s.CreateClient("send", [&](CallClientConfig* c) {
+    c->field_trials.Set("WebRTC-Bwe-SafeResetOnRouteChange", "Enabled,ack");
     c->transport.rates.start_rate = kStartRate;
   });
   auto* route = s.CreateRoutes(
@@ -855,12 +859,6 @@ TEST(GoogCcScenario, DetectsHighRateInSafeResetTrial) {
 }
 
 TEST(GoogCcScenario, TargetRateReducedOnPacingBufferBuildupInTrial) {
-  // Configure strict pacing to ensure build-up.
-  ScopedFieldTrials trial(
-      "WebRTC-CongestionWindow/QueueSize:100,MinBitrate:30000/"
-      "WebRTC-Video-Pacing/factor:1.0/"
-      "WebRTC-AddPacingToCongestionWindowPushback/Enabled/");
-
   const DataRate kLinkCapacity = DataRate::KilobitsPerSec(1000);
   const DataRate kStartRate = DataRate::KilobitsPerSec(1000);
 
@@ -870,6 +868,11 @@ TEST(GoogCcScenario, TargetRateReducedOnPacingBufferBuildupInTrial) {
     c->delay = TimeDelta::Millis(50);
   });
   auto* client = s.CreateClient("send", [&](CallClientConfig* c) {
+    c->field_trials.Set("WebRTC-CongestionWindow",
+                        "QueueSize:100,MinBitrate:30000");
+    c->field_trials.Set("WebRTC-Video-Pacing", "factor:1.0");
+    c->field_trials.Set("WebRTC-AddPacingToCongestionWindowPushback",
+                        "Enabled");
     c->transport.rates.start_rate = kStartRate;
   });
   auto* route = s.CreateRoutes(
@@ -884,7 +887,6 @@ TEST(GoogCcScenario, TargetRateReducedOnPacingBufferBuildupInTrial) {
 }
 
 TEST(GoogCcScenario, NoBandwidthTogglingInLossControlTrial) {
-  ScopedFieldTrials trial("WebRTC-Bwe-LossBasedControl/Enabled/");
   Scenario s("googcc_unit/no_toggling");
   auto* send_net = s.CreateSimulationNode([&](NetworkSimulationConfig* c) {
     c->bandwidth = DataRate::KilobitsPerSec(2000);
@@ -893,6 +895,7 @@ TEST(GoogCcScenario, NoBandwidthTogglingInLossControlTrial) {
   });
 
   auto* client = s.CreateClient("send", [&](CallClientConfig* c) {
+    c->field_trials.Set("WebRTC-Bwe-LossBasedControl", "Enabled");
     c->transport.rates.start_rate = DataRate::KilobitsPerSec(300);
   });
   auto* route = s.CreateRoutes(
@@ -918,7 +921,6 @@ TEST(GoogCcScenario, NoBandwidthTogglingInLossControlTrial) {
 }
 
 TEST(GoogCcScenario, NoRttBackoffCollapseWhenVideoStops) {
-  ScopedFieldTrials trial("WebRTC-Bwe-MaxRttLimit/limit:2s/");
   Scenario s("googcc_unit/rttbackoff_video_stop");
   auto* send_net = s.CreateSimulationNode([&](NetworkSimulationConfig* c) {
     c->bandwidth = DataRate::KilobitsPerSec(2000);
@@ -926,6 +928,7 @@ TEST(GoogCcScenario, NoRttBackoffCollapseWhenVideoStops) {
   });
 
   auto* client = s.CreateClient("send", [&](CallClientConfig* c) {
+    c->field_trials.Set("WebRTC-Bwe-MaxRttLimit", "limit:2s");
     c->transport.rates.start_rate = DataRate::KilobitsPerSec(1000);
   });
   auto* route = s.CreateRoutes(

@@ -156,6 +156,22 @@ rtc_library("create_frame_generator_capturer") {
   ]
 }
 
+rtc_library("create_test_field_trials") {
+  testonly = true
+  sources = [ "create_test_field_trials.h" ]
+  deps = [
+    "../api:field_trials",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
+
+  if (build_with_chromium) {
+    sources += [ "create_test_field_trials_without_absl_flag.cc" ]
+  } else {
+    sources += [ "create_test_field_trials.cc" ]
+    deps += [ "//third_party/abseil-cpp/absl/flags:flag" ]
+  }
+}
+
 rtc_library("frame_generator_capturer") {
   visibility = [ "*" ]
   testonly = true
@@ -705,6 +721,7 @@ if (rtc_include_tests) {
         ":call_config_utils",
         ":copy_to_file_audio_capturer_unittest",
         ":create_frame_generator_capturer",
+        ":create_test_field_trials",
         ":direct_transport",
         ":fake_video_codecs",
         ":fileutils",
@@ -730,6 +747,7 @@ if (rtc_include_tests) {
         "../api:create_frame_generator",
         "../api:create_simulcast_test_fixture_api",
         "../api:create_time_controller",
+        "../api:field_trials",
         "../api:frame_generator_api",
         "../api:mock_video_codec_factory",
         "../api:mock_video_decoder",
@@ -798,6 +816,7 @@ if (rtc_include_tests) {
 
       sources = [
         "call_config_utils_unittest.cc",
+        "create_test_field_trials_unittest.cc",
         "direct_transport_unittest.cc",
         "fake_vp8_encoder_unittest.cc",
         "frame_generator_capturer_unittest.cc",
@@ -1253,7 +1272,14 @@ if (!build_with_chromium) {
       "test_flags.cc",
       "test_flags.h",
     ]
-    deps = [ "//third_party/abseil-cpp/absl/flags:flag" ]
+
+    # TODO: bugs.webrtc.org/419453427 - remove dependency on
+    # `create_test_field_trials` when force_fieldtrials flags declaration
+    # is removed from the header.
+    deps = [
+      ":create_test_field_trials",
+      "//third_party/abseil-cpp/absl/flags:flag",
+    ]
   }
 
   rtc_library("test_common") {
@@ -1392,7 +1418,11 @@ rtc_library("call_config_utils") {
     "call_config_utils.h",
   ]
   deps = [
+    "../api:rtp_headers",
+    "../api:transport_api",
+    "../api/video_codecs:video_codecs_api",
     "../call:video_receive_stream_api",
+    "../rtc_base:checks",
     "../rtc_base:rtc_json",
   ]
 }

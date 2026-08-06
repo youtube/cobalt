@@ -213,6 +213,8 @@ class Heap final {
  public:
   enum class HeapGrowingMode { kSlow, kConservative, kMinimal, kDefault };
 
+  enum class PerformHeapLimitCheck { kYes, kNo };
+
   enum HeapState {
     NOT_IN_GC,
     SCAVENGE,
@@ -365,7 +367,7 @@ class Heap final {
            collector == GarbageCollector::MINOR_MARK_SWEEPER;
   }
 
-  V8_EXPORT_PRIVATE static bool IsFreeSpaceValid(FreeSpace object);
+  V8_EXPORT_PRIVATE static bool IsFreeSpaceValid(const FreeSpace* object);
 
   static inline GarbageCollector YoungGenerationCollector() {
     return (v8_flags.minor_ms) ? GarbageCollector::MINOR_MARK_SWEEPER
@@ -972,7 +974,9 @@ class Heap final {
   // collect more garbage.
   V8_EXPORT_PRIVATE void CollectGarbage(
       AllocationSpace space, GarbageCollectionReason gc_reason,
-      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
+      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags,
+      PerformHeapLimitCheck check_heap_limit_reached =
+          PerformHeapLimitCheck::kYes);
 
   // Performs a full garbage collection.
   V8_EXPORT_PRIVATE void CollectAllGarbage(
@@ -1781,6 +1785,9 @@ class Heap final {
   GarbageCollector SelectGarbageCollector(AllocationSpace space,
                                           GarbageCollectionReason gc_reason,
                                           const char** reason) const;
+
+  void CheckHeapLimitReached();
+  bool ReachedHeapLimit();
 
   // Make all LABs of all threads iterable.
   void MakeLinearAllocationAreasIterable();

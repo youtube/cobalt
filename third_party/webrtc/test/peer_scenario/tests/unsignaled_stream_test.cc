@@ -8,13 +8,30 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "api/jsep.h"
+#include "api/rtp_parameters.h"
+#include "api/test/network_emulation/network_emulation_interfaces.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_sink_interface.h"
 #include "media/base/stream_params.h"
+#include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "modules/rtp_rtcp/source/byte_io.h"
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
+#include "modules/rtp_rtcp/source/rtp_packet.h"
 #include "modules/rtp_rtcp/source/rtp_util.h"
 #include "pc/session_description.h"
+#include "rtc_base/copy_on_write_buffer.h"
 #include "test/gtest.h"
 #include "test/peer_scenario/peer_scenario.h"
+#include "test/peer_scenario/peer_scenario_client.h"
 
 namespace webrtc {
 namespace test {

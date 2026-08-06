@@ -609,14 +609,14 @@ int32_t ModuleRtpRtcpImpl2::SendNACK(const uint16_t* nack_list,
   }
   nack_last_seq_number_sent_ = nack_list[start_id + nack_length - 1];
 
-  return rtcp_sender_.SendRTCP(GetFeedbackState(), kRtcpNack, nack_length,
-                               &nack_list[start_id]);
+  return rtcp_sender_.SendRTCP(
+      GetFeedbackState(), kRtcpNack,
+      MakeArrayView(&nack_list[start_id], nack_length));
 }
 
 void ModuleRtpRtcpImpl2::SendNack(
     const std::vector<uint16_t>& sequence_numbers) {
-  rtcp_sender_.SendRTCP(GetFeedbackState(), kRtcpNack, sequence_numbers.size(),
-                        sequence_numbers.data());
+  rtcp_sender_.SendRTCP(GetFeedbackState(), kRtcpNack, sequence_numbers);
 }
 
 bool ModuleRtpRtcpImpl2::TimeToSendFullNackList(int64_t now) const {

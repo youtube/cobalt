@@ -268,6 +268,7 @@ export abstract class BaseSliceTrack<
     sliceLayout: Partial<SliceLayout> = {},
     protected readonly depthGuess: number = 0,
     protected readonly instantWidthPx: number = CHEVRON_WIDTH_PX,
+    protected readonly forceTimestampRenderOrder: boolean = false,
   ) {
     // Work out the extra columns.
     // This is the union of the embedder-defined columns and the base columns
@@ -310,7 +311,12 @@ export abstract class BaseSliceTrack<
     return `slice_${this.trackUuid}`;
   }
 
-  async onCreate(): Promise<void> {
+  private oldQuery?: string;
+
+  private async initialize(): Promise<void> {
+    // This disposes all already initialized stuff and empties the trash.
+    await this.trash.asyncDispose();
+
     const result = await this.onInit();
     result && this.trash.use(result);
 
@@ -390,10 +396,18 @@ export abstract class BaseSliceTrack<
 
     this.trash.defer(async () => {
       await this.engine.tryQuery(`drop table ${this.getTableName()}`);
+      this.oldQuery = undefined;
+      this.slicesKey = CacheKey.zero();
     });
   }
 
   async onUpdate({visibleWindow, size}: TrackRenderContext): Promise<void> {
+    const query = this.getSqlSource();
+    if (query !== this.oldQuery) {
+      await this.initialize();
+      this.oldQuery = query;
+    }
+
     const windowSizePx = Math.max(1, size.width);
     const timespan = visibleWindow.toTimeSpan();
     const rawSlicesKey = CacheKey.create(
@@ -501,11 +515,13 @@ export abstract class BaseSliceTrack<
 
     // Second pass: fill slices by color.
     const vizSlicesByColor = vizSlices.slice();
-    vizSlicesByColor.sort((a, b) =>
-      colorCompare(a.colorScheme.base, b.colorScheme.base),
-    );
+    if (!this.forceTimestampRenderOrder) {
+      vizSlicesByColor.sort((a, b) =>
+        colorCompare(a.colorScheme.base, b.colorScheme.base),
+      );
+    }
     let lastColor = undefined;
-    for (const slice of vizSlicesByColor) {
+    for (const slice of vizSlices) {
       const color = slice.isHighlighted
         ? slice.colorScheme.variant.cssString
         : slice.colorScheme.base.cssString;

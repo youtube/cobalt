@@ -268,6 +268,7 @@ component("base") {
     "containers/linked_list.h",
     "containers/lru_cache.h",
     "containers/map_util.h",
+    "containers/ring_buffer.h",
     "containers/small_map.h",
     "containers/span.h",
     "containers/span_forward_internal.h",
@@ -836,6 +837,8 @@ component("base") {
     "threading/hang_watcher.h",
     "threading/platform_thread.cc",
     "threading/platform_thread.h",
+    "threading/platform_thread_metrics.cc",
+    "threading/platform_thread_metrics.h",
     "threading/platform_thread_ref.cc",
     "threading/platform_thread_ref.h",
     "threading/post_task_and_reply_impl.cc",
@@ -1026,6 +1029,7 @@ component("base") {
       "process/process_metrics_linux.cc",
       "threading/platform_thread_linux.cc",
       "threading/platform_thread_linux_base.cc",
+      "threading/platform_thread_metrics_linux.cc",
       "threading/thread_type_delegate.cc",
       "threading/thread_type_delegate.h",
     ]
@@ -1190,6 +1194,8 @@ component("base") {
       "android/apk_info.h",
       "android/application_status_listener.cc",
       "android/application_status_listener.h",
+      "android/background_thread_pool_field_trial.cc",
+      "android/background_thread_pool_field_trial.h",
       "android/base_feature_map.cc",
       "android/build_info.cc",
       "android/build_info.h",
@@ -1246,6 +1252,7 @@ component("base") {
       "android/scoped_hardware_buffer_handle.h",
       "android/scoped_input_event.cc",
       "android/scoped_input_event.h",
+      "android/self_compaction_manager.h",
       "android/shared_preferences/shared_preferences_manager.cc",
       "android/shared_preferences/shared_preferences_manager.h",
       "android/statistics_recorder_android.cc",
@@ -1290,6 +1297,7 @@ component("base") {
       "process/process_iterator_linux.cc",
       "process/process_metrics_linux.cc",
       "system/sys_info_linux.cc",
+      "threading/platform_thread_metrics_linux.cc",
     ]
 
     deps += [
@@ -1516,6 +1524,7 @@ component("base") {
       "synchronization/waitable_event_watcher_posix.cc",
       "system/sys_info_fuchsia.cc",
       "threading/platform_thread_fuchsia.cc",
+      "threading/platform_thread_metrics_fuchsia.cc",
       "threading/platform_thread_posix.cc",
       "threading/thread_local_storage_posix.cc",
       "time/time_conversion_posix.cc",
@@ -1944,6 +1953,7 @@ component("base") {
       "synchronization/waitable_event_watcher_win.cc",
       "synchronization/waitable_event_win.cc",
       "system/sys_info_win.cc",
+      "threading/platform_thread_metrics_win.cc",
       "threading/platform_thread_win.cc",
       "threading/platform_thread_win.h",
       "threading/thread_local_storage_win.cc",
@@ -2171,6 +2181,7 @@ component("base") {
       "strings/sys_string_conversions_apple.mm",
       "system/sys_info_apple.mm",
       "threading/platform_thread_apple.mm",
+      "threading/platform_thread_metrics_apple.mm",
       "time/time_apple.mm",
     ]
     frameworks += [
@@ -3806,6 +3817,7 @@ test("base_unittests") {
     "test/values_test_util_unittest.cc",
     "thread_annotations_unittest.cc",
     "threading/hang_watcher_unittest.cc",
+    "threading/platform_thread_metrics_unittest.cc",
     "threading/platform_thread_unittest.cc",
     "threading/post_task_and_reply_impl_unittest.cc",
     "threading/scoped_blocking_call_unittest.cc",

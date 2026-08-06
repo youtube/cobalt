@@ -386,6 +386,7 @@ Täiustatud kaitsega juhitage järgmisi Chrome’i seadeid:
 <translation id="5723967018671998714">Kolmanda osapoole küpsisefailid on inkognito režiimis blokeeritud</translation>
 <translation id="5740126560802162366">Saidid võivad teie seadmesse andmeid salvestada</translation>
 <translation id="5743425052258407233">Hankige oma ajalugu kõikides seadmetes, et saaksite lihtsalt jätkata sealt, kus pooleli jäite</translation>
+<translation id="5749158352074143502">Jätka selle vahekaardiga</translation>
 <translation id="5750869797196646528">Käeliigutuste jälgimine</translation>
 <translation id="5771720122942595109"><ph name="PERMISSION_1" /> on keelatud</translation>
 <translation id="5804241973901381774">Load</translation>
@@ -458,6 +459,7 @@ Täiustatud kaitsega juhitage järgmisi Chrome’i seadeid:
 <translation id="6612358246767739896">Kaitstud sisu</translation>
 <translation id="662080504995468778">Jää siia</translation>
 <translation id="6635327442719709864">Kui see on sisse lülitatud, saavad saidid küsida jadaportide kasutamist. Kui see on välja lülitatud, ei saa saidid jadaporte kasutada.</translation>
+<translation id="6678072580827808850">Ohutuskontrolli ülevaatamine</translation>
 <translation id="6683865262523156564">See sait on grupis, mis näeb teie tegevusi. Grupi on määratlenud <ph name="RWS_OWNER" />.</translation>
 <translation id="6689172468748959065">Profiilifotod</translation>
 <translation id="6697925417670533197">Aktiivsed allalaadimised</translation>
@@ -532,7 +534,6 @@ Täiustatud kaitsega juhitage järgmisi Chrome’i seadeid:
 <translation id="7759147511335618829">MIDI-seadme juhtimine ja ümberprogrammeerimine</translation>
 <translation id="7781829728241885113">Eile</translation>
 <translation id="7791543448312431591">Lisa</translation>
-<translation id="7801888679188438140">{TILE_COUNT,plural, =1{Jätka selle vahekaardiga}other{Jätka nende vahekaartidega}}</translation>
 <translation id="780301667611848630">Tänan, ei</translation>
 <translation id="7804248752222191302">Sait kasutab teie kaamerat</translation>
 <translation id="7807060072011926525">Pakub Google</translation>
@@ -549,7 +550,6 @@ Täiustatud kaitsega juhitage järgmisi Chrome’i seadeid:
 <translation id="7986741934819883144">Kontakti valimine</translation>
 <translation id="7990211076305263060">Kui see on sisse lülitatud, võivad saidid küsida luba teie mikrofoni kasutamiseks. Kui see on välja lülitatud, ei saa saidid teie mikrofoni kasutada.</translation>
 <translation id="8007176423574883786">Selle seadme puhul on välja lülitatud</translation>
-<translation id="8010630645305864042">{TILE_COUNT,plural, =1{Peida valik Selle vahelehe kaardiga jätkamine}other{Peida valik Nende vahelehtede kaardiga jätkamine}}</translation>
 <translation id="802154636333426148">Allalaadimine ebaõnnestus</translation>
 <translation id="8042586301629853791">Sortimisalus:</translation>
 <translation id="8051193500142930381">Kaamerat vajavad funktsioonid ei tööta</translation>

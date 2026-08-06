@@ -1434,6 +1434,7 @@ rtc_library("webrtc_sdp") {
     "../rtc_base:stringutils",
     "../rtc_base/system:rtc_export",
     "//third_party/abseil-cpp/absl/algorithm:container",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]

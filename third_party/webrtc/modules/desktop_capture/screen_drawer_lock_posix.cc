@@ -11,7 +11,10 @@
 #include "modules/desktop_capture/screen_drawer_lock_posix.h"
 
 #include <fcntl.h>
+#include <semaphore.h>
 #include <sys/stat.h>
+
+#include <string>
 
 #include "absl/strings/string_view.h"
 #include "rtc_base/checks.h"

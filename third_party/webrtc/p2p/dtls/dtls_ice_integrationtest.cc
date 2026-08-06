@@ -126,7 +126,7 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
         {.time_mode = webrtc::TimeMode::kSimulated});
 
     BuiltInNetworkBehaviorConfig networkBehavior;
-    networkBehavior.link_capacity = webrtc::DataRate::KilobitsPerSec(200);
+    networkBehavior.link_capacity = webrtc::DataRate::KilobitsPerSec(220);
     // TODO (webrtc:383141571) : Investigate why this testcase fails for
     // DTLS 1.3 delay if networkBehavior.queue_delay_ms = 100ms.
     // - unless both peers support dtls in stun, in which case it passes.

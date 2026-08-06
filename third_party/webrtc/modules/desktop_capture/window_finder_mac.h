@@ -12,6 +12,8 @@
 #define MODULES_DESKTOP_CAPTURE_WINDOW_FINDER_MAC_H_
 
 #include "api/scoped_refptr.h"
+#include "modules/desktop_capture/desktop_capture_types.h"
+#include "modules/desktop_capture/desktop_geometry.h"
 #include "modules/desktop_capture/window_finder.h"
 
 namespace webrtc {

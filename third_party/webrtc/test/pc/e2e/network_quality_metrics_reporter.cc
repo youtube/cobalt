@@ -9,14 +9,24 @@
  */
 #include "test/pc/e2e/network_quality_metrics_reporter.h"
 
+#include <cstdint>
+#include <string>
 #include <utility>
 
-#include "api/stats/rtc_stats.h"
+#include "absl/strings/string_view.h"
+#include "api/scoped_refptr.h"
+#include "api/stats/rtc_stats_report.h"
 #include "api/stats/rtcstats_objects.h"
 #include "api/test/metrics/metric.h"
+#include "api/test/metrics/metrics_logger.h"
+#include "api/test/network_emulation/network_emulation_interfaces.h"
+#include "api/test/network_emulation_manager.h"
+#include "api/test/track_id_stream_info_map.h"
+#include "api/units/data_size.h"
+#include "api/units/time_delta.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
-#include "system_wrappers/include/field_trial.h"
+#include "rtc_base/synchronization/mutex.h"
 
 namespace webrtc {
 namespace webrtc_pc_e2e {

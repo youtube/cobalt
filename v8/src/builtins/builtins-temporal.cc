@@ -145,6 +145,22 @@ namespace internal {
     return obj->field();                                                     \
   }
 
+// Like TEMPORAL_GET, but gets from an underlying Rust function
+// rust_field is the name of the field with the Rust type. rust_getter is the
+// name of the getter on the rust side (ideally the same as `field`). cvt is
+// conversion code that converts `value` into the final returned JS Handle (use
+// one of the macros below)
+#define TEMPORAL_GET_RUST(T, rust_field, METHOD, field, rust_getter, cvt)    \
+  BUILTIN(Temporal##T##Prototype##METHOD) {                                  \
+    HandleScope scope(isolate);                                              \
+    CHECK_RECEIVER(JSTemporal##T, obj, "Temporal." #T ".prototype." #field); \
+    auto value = obj->rust_field()->raw()->rust_getter();                    \
+    return std::move(cvt);                                                   \
+  }
+
+#define CONVERT_INTEGER *isolate->factory()->NewNumberFromInt64(value)
+#define CONVERT_DOUBLE *isolate->factory()->NewNumber(value)
+
 #define TEMPORAL_GET_NUMBER_AFTER_DIVID(T, M, field, scale, name)        \
   BUILTIN(Temporal##T##Prototype##M) {                                   \
     HandleScope scope(isolate);                                          \
@@ -178,7 +194,6 @@ namespace internal {
   BUILTIN(Temporal##T##Prototype##METHOD) { UNIMPLEMENTED(); }
 
 // Now
-TEMPORAL_NOW0(TimeZone)
 TEMPORAL_NOW0(Instant)
 TEMPORAL_NOW2(PlainDateTime)
 TEMPORAL_NOW_ISO1(PlainDateTime)
@@ -510,16 +525,25 @@ BUILTIN(TemporalDurationCompare) {
                                         args.atOrUndefined(isolate, 3)));
 }
 TEMPORAL_METHOD1(Duration, From)
-TEMPORAL_GET(Duration, Years, years)
-TEMPORAL_GET(Duration, Months, months)
-TEMPORAL_GET(Duration, Weeks, weeks)
-TEMPORAL_GET(Duration, Days, days)
-TEMPORAL_GET(Duration, Hours, hours)
-TEMPORAL_GET(Duration, Minutes, minutes)
-TEMPORAL_GET(Duration, Seconds, seconds)
-TEMPORAL_GET(Duration, Milliseconds, milliseconds)
-TEMPORAL_GET(Duration, Microseconds, microseconds)
-TEMPORAL_GET(Duration, Nanoseconds, nanoseconds)
+TEMPORAL_GET_RUST(Duration, duration, Years, years, years, CONVERT_INTEGER)
+TEMPORAL_GET_RUST(Duration, duration, Months, months, months, CONVERT_INTEGER)
+TEMPORAL_GET_RUST(Duration, duration, Weeks, weeks, weeks, CONVERT_INTEGER)
+TEMPORAL_GET_RUST(Duration, duration, Days, days, days, CONVERT_INTEGER)
+TEMPORAL_GET_RUST(Duration, duration, Hours, hours, hours, CONVERT_INTEGER)
+TEMPORAL_GET_RUST(Duration, duration, Minutes, minutes, minutes,
+                  CONVERT_INTEGER)
+TEMPORAL_GET_RUST(Duration, duration, Seconds, seconds, seconds,
+                  CONVERT_INTEGER)
+TEMPORAL_GET_RUST(Duration, duration, Milliseconds, milliseconds, milliseconds,
+                  CONVERT_INTEGER)
+// In theory the Duration may have millisecond values that are out of range for
+// a float (but in range for a BigInt). Spec asks these functions to be
+// converted to a Number so we can just produce Infinity when we are out of
+// range.
+TEMPORAL_GET_RUST(Duration, duration, Microseconds, microseconds, microseconds,
+                  CONVERT_DOUBLE)
+TEMPORAL_GET_RUST(Duration, duration, Nanoseconds, nanoseconds, nanoseconds,
+                  CONVERT_DOUBLE)
 TEMPORAL_PROTOTYPE_METHOD1(Duration, Round, round)
 TEMPORAL_PROTOTYPE_METHOD1(Duration, Total, total)
 TEMPORAL_PROTOTYPE_METHOD1(Duration, With, with)
@@ -538,6 +562,7 @@ TEMPORAL_PROTOTYPE_METHOD1(Duration, ToString, toString)
 TEMPORAL_CONSTRUCTOR1(Instant)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, Equals, equals)
 TEMPORAL_VALUE_OF(Instant)
+TEMPORAL_METHOD1(Instant, From)
 TEMPORAL_PROTOTYPE_METHOD0(Instant, EpochNanoseconds, epochNanoseconds)
 TEMPORAL_PROTOTYPE_METHOD0(Instant, EpochMilliseconds, epochMilliseconds)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, Add, add)
@@ -549,59 +574,6 @@ TEMPORAL_PROTOTYPE_METHOD2(Instant, ToLocaleString, toLocaleString)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, ToString, toString)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, ToZonedDateTime, toZonedDateTime)
 TEMPORAL_PROTOTYPE_METHOD2(Instant, Until, until)
-
-// TimeZone
-TEMPORAL_CONSTRUCTOR1(TimeZone)
-TEMPORAL_PROTOTYPE_METHOD2(TimeZone, GetInstantFor, getInstantFor)
-TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetNextTransition, getNextTransition)
-TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetOffsetNanosecondsFor,
-                           getOffsetNanosecondsFor)
-TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetOffsetStringFor, getOffsetStringFor)
-TEMPORAL_PROTOTYPE_METHOD2(TimeZone, GetPlainDateTimeFor, getPlainDateTimeFor)
-TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetPossibleInstantsFor,
-                           getPossibleInstantFor)
-TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetPreviousTransition,
-                           getPreviousTransition)
-
-// #sec-get-temporal.timezone.prototype.id
-BUILTIN(TemporalTimeZonePrototypeId) {
-  HandleScope scope(isolate);
-  // 1. Let timeZone be the this value.
-  // 2. Perform ? RequireInternalSlot(timeZone,
-  // [[InitializedTemporalTimeZone]]).
-  CHECK_RECEIVER(JSTemporalTimeZone, time_zone,
-                 "Temporal.TimeZone.prototype.id");
-  // 3. Return ? ToString(timeZone).
-  RETURN_RESULT_OR_FAILURE(isolate, Object::ToString(isolate, time_zone));
-}
-
-// #sec-temporal.timezone.prototype.tojson
-BUILTIN(TemporalTimeZonePrototypeToJSON) {
-  HandleScope scope(isolate);
-  // 1. Let timeZone be the this value.
-  // 2. Perform ? RequireInternalSlot(timeZone,
-  // [[InitializedTemporalTimeZone]]).
-  CHECK_RECEIVER(JSTemporalTimeZone, time_zone,
-                 "Temporal.TimeZone.prototype.toJSON");
-  // 3. Return ? ToString(timeZone).
-  RETURN_RESULT_OR_FAILURE(isolate, Object::ToString(isolate, time_zone));
-}
-
-// #sec-temporal.timezone.prototype.tostring
-BUILTIN(TemporalTimeZonePrototypeToString) {
-  HandleScope scope(isolate);
-  const char* method_name = "Temporal.TimeZone.prototype.toString";
-  // 1. Let timeZone be the this value.
-  // 2. Perform ? RequireInternalSlot(timeZone,
-  // [[InitializedTemporalTimeZone]]).
-  CHECK_RECEIVER(JSTemporalTimeZone, time_zone, method_name);
-  // 3. Return timeZone.[[Identifier]].
-  RETURN_RESULT_OR_FAILURE(
-      isolate, JSTemporalTimeZone::ToString(isolate, time_zone, method_name));
-}
-
-// #sec-temporal.timezone.from
-BUILTIN(TemporalTimeZoneFrom) { UNIMPLEMENTED(); }
 
 // get Temporal.*.prototype.era/eraYear
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDate, Era, era)

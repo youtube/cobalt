@@ -15,6 +15,7 @@
 #include "base/debug/leak_annotations.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_macros.h"
@@ -1150,13 +1151,6 @@ bool HangWatcher::WatchStateSnapShot::IsActionable() const {
   return !hung_watch_state_copies_.empty();
 }
 
-HangWatcher::WatchStateSnapShot HangWatcher::GrabWatchStateSnapshotForTesting()
-    const {
-  WatchStateSnapShot snapshot;
-  snapshot.Init(watch_states_, deadline_ignore_threshold_, TimeDelta());
-  return snapshot;
-}
-
 void HangWatcher::Monitor() {
   DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
 
@@ -1362,6 +1356,12 @@ void HangWatcher::StopMonitoringForTesting() {
 
 void HangWatcher::SetTickClockForTesting(const base::TickClock* tick_clock) {
   tick_clock_ = tick_clock;
+}
+
+std::string HangWatcher::GetHungThreadListCrashKeyForTesting() const {
+  WatchStateSnapShot snapshot;
+  snapshot.Init(watch_states_, deadline_ignore_threshold_, TimeDelta());
+  return snapshot.PrepareHungThreadListCrashKey();
 }
 
 void HangWatcher::BlockIfCaptureInProgress() {

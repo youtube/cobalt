@@ -2100,9 +2100,10 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
     const Type& callType = c.type();
     // Note: MatrixCompMult creates its own result ID, avoid calling nextId as it could generate a
     // RelaxedPrecision decoration on an ID that would never be used.
-    SpvId result = kind == kMatrixCompMult_SpecialIntrinsic ? 0 : this->nextId(&callType);
+    SpvId result = 0;
     switch (kind) {
         case kAtan_SpecialIntrinsic: {
+            result = this->nextId(&callType);
             STArray<2, SpvId> argumentIds;
             for (const std::unique_ptr<Expression>& arg : arguments) {
                 argumentIds.push_back(this->writeExpression(*arg, out));
@@ -2118,6 +2119,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             break;
         }
         case kSampledImage_SpecialIntrinsic: {
+            result = this->nextId(nullptr);
             SkASSERT(arguments.size() == 2);
             SpvId img = this->writeExpression(*arguments[0], out);
             SpvId sampler = this->writeExpression(*arguments[1], out);
@@ -2130,6 +2132,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             break;
         }
         case kSubpassLoad_SpecialIntrinsic: {
+            result = this->nextId(nullptr);
             SpvId img = this->writeExpression(*arguments[0], out);
             ExpressionArray args;
             args.reserve_exact(2);
@@ -2159,6 +2162,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             break;
         }
         case kTexture_SpecialIntrinsic: {
+            result = this->nextId(nullptr);
             SpvOp_ op = SpvOpImageSampleImplicitLod;
             const Type& arg1Type = arguments[1]->type();
             switch (arguments[0]->type().dimensions()) {
@@ -2212,6 +2216,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             break;
         }
         case kTextureGrad_SpecialIntrinsic: {
+            result = this->nextId(nullptr);
             SpvOp_ op = SpvOpImageSampleExplicitLod;
             SkASSERT(arguments.size() == 4);
             SkASSERT(arguments[0]->type().dimensions() == SpvDim2D);
@@ -2228,6 +2233,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             break;
         }
         case kTextureLod_SpecialIntrinsic: {
+            result = this->nextId(nullptr);
             SpvOp_ op = SpvOpImageSampleExplicitLod;
             SkASSERT(arguments.size() == 3);
             SkASSERT(arguments[0]->type().dimensions() == SpvDim2D);
@@ -2248,6 +2254,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             break;
         }
         case kTextureRead_SpecialIntrinsic: {
+            result = this->nextId(nullptr);
             SkASSERT(arguments[0]->type().dimensions() == SpvDim2D);
             SkASSERT(arguments[1]->type().matches(*fContext.fTypes.fUInt2));
 
@@ -2292,6 +2299,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
         }
         case kTextureWidth_SpecialIntrinsic:
         case kTextureHeight_SpecialIntrinsic: {
+            result = this->nextId(nullptr);
             SkASSERT(arguments[0]->type().dimensions() == SpvDim2D);
             fCapabilities |= 1ULL << SpvCapabilityImageQuery;
 
@@ -2306,6 +2314,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             break;
         }
         case kMod_SpecialIntrinsic: {
+            result = this->nextId(&callType);
             TArray<SpvId> args = this->vectorize(arguments, out);
             SkASSERT(args.size() == 2);
             const Type& operandType = arguments[0]->type();
@@ -2319,6 +2328,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             break;
         }
         case kDFdy_SpecialIntrinsic: {
+            result = this->nextId(&callType);
             SpvId fn = this->writeExpression(*arguments[0], out);
             this->writeOpCode(SpvOpDPdy, 4, out);
             this->writeWord(this->getType(callType), out);
@@ -2340,6 +2350,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             break;
         }
         case kClamp_SpecialIntrinsic: {
+            result = this->nextId(&callType);
             TArray<SpvId> args = this->vectorize(arguments, out);
             SkASSERT(args.size() == 3);
             this->writeGLSLExtendedInstruction(callType, result, GLSLstd450FClamp, GLSLstd450SClamp,
@@ -2347,6 +2358,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             break;
         }
         case kMax_SpecialIntrinsic: {
+            result = this->nextId(&callType);
             TArray<SpvId> args = this->vectorize(arguments, out);
             SkASSERT(args.size() == 2);
             this->writeGLSLExtendedInstruction(callType, result, GLSLstd450FMax, GLSLstd450SMax,
@@ -2354,6 +2366,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             break;
         }
         case kMin_SpecialIntrinsic: {
+            result = this->nextId(&callType);
             TArray<SpvId> args = this->vectorize(arguments, out);
             SkASSERT(args.size() == 2);
             this->writeGLSLExtendedInstruction(callType, result, GLSLstd450FMin, GLSLstd450SMin,
@@ -2361,6 +2374,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             break;
         }
         case kMix_SpecialIntrinsic: {
+            result = this->nextId(&callType);
             TArray<SpvId> args = this->vectorize(arguments, out);
             SkASSERT(args.size() == 3);
             if (arguments[2]->type().componentType().isBoolean()) {
@@ -2377,6 +2391,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             break;
         }
         case kSaturate_SpecialIntrinsic: {
+            result = this->nextId(&callType);
             SkASSERT(arguments.size() == 1);
             int width = arguments[0]->type().columns();
             STArray<3, SpvId> spvArgs{
@@ -2389,6 +2404,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             break;
         }
         case kSmoothStep_SpecialIntrinsic: {
+            result = this->nextId(&callType);
             TArray<SpvId> args = this->vectorize(arguments, out);
             SkASSERT(args.size() == 3);
             this->writeGLSLExtendedInstruction(callType, result, GLSLstd450SmoothStep, SpvOpUndef,
@@ -2396,6 +2412,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             break;
         }
         case kStep_SpecialIntrinsic: {
+            result = this->nextId(&callType);
             TArray<SpvId> args = this->vectorize(arguments, out);
             SkASSERT(args.size() == 2);
             this->writeGLSLExtendedInstruction(callType, result, GLSLstd450Step, SpvOpUndef,
@@ -2412,6 +2429,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
         case kAtomicAdd_SpecialIntrinsic:
         case kAtomicLoad_SpecialIntrinsic:
         case kAtomicStore_SpecialIntrinsic:
+            result = this->nextId(nullptr);
             result = this->writeAtomicIntrinsic(c, kind, result, out);
             break;
         case kStorageBarrier_SpecialIntrinsic:

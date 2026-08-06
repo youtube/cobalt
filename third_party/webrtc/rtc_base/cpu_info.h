@@ -20,6 +20,11 @@ namespace cpu_info {
 // Returned number of cores is always >= 1.
 uint32_t DetectNumberOfCores();
 
+enum class ISA { kSSE2 = 0, kSSE3, kAVX2, kFMA3, kNeon };
+
+// Returns true if the CPU supports the given instruction set.
+bool Supports(ISA instruction_set_architecture);
+
 }  // namespace cpu_info
 
 }  // namespace webrtc

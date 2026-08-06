@@ -817,9 +817,13 @@ namespace internal {
   TFH(KeyedHasICBaseline, KeyedHasICBaseline)                                  \
   TFH(KeyedHasIC_Megamorphic, KeyedHasICWithVector)                            \
   TFH(AddLhsIsStringConstantInternalizeWithVector,                             \
-      AddLhsIsStringConstantInternalizeWithVector)                             \
+      AddStringConstantInternalizeWithVector)                                  \
   TFH(AddLhsIsStringConstantInternalizeTrampoline,                             \
-      AddLhsIsStringConstantInternalizeTrampoline)                             \
+      AddStringConstantInternalizeTrampoline)                                  \
+  TFH(AddRhsIsStringConstantInternalizeWithVector,                             \
+      AddStringConstantInternalizeWithVector)                                  \
+  TFH(AddRhsIsStringConstantInternalizeTrampoline,                             \
+      AddStringConstantInternalizeTrampoline)                                  \
                                                                                \
   /* IterableToList */                                                         \
   /* ES #sec-iterabletolist */                                                 \
@@ -909,6 +913,8 @@ namespace internal {
   /* used as a property key and thus should be internalized early.        */   \
   TFC(Add_LhsIsStringConstant_Internalize_WithFeedback, BinaryOp_WithFeedback) \
   TFC(Add_LhsIsStringConstant_Internalize_Baseline, BinaryOp_Baseline)         \
+  TFC(Add_RhsIsStringConstant_Internalize_WithFeedback, BinaryOp_WithFeedback) \
+  TFC(Add_RhsIsStringConstant_Internalize_Baseline, BinaryOp_Baseline)         \
                                                                                \
   /* Compare ops with feedback collection */                                   \
   TFC(Equal_Baseline, Compare_Baseline)                                        \
@@ -1507,11 +1513,7 @@ namespace internal {
                                                                                \
   /* CallAsyncModule* are spec anonymyous functions */                         \
   CPP(CallAsyncModuleFulfilled, JSParameterCount(0))                           \
-  CPP(CallAsyncModuleRejected, JSParameterCount(0))                            \
-                                                                               \
-  /* "Private" (created but not exposed) Bulitins needed by Temporal */        \
-  TFJ(StringFixedArrayFromIterable, kJSArgcReceiverSlots + 1, kReceiver,       \
-      kIterable)
+  CPP(CallAsyncModuleRejected, JSParameterCount(0))
 
 #define BUILTIN_LIST_BASE(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM) \
   BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM)           \
@@ -1521,8 +1523,6 @@ namespace internal {
 #define BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                        \
                                                                                \
   /* Temporal */                                                               \
-  /* Temporal #sec-temporal.now.timezone */                                    \
-  CPP(TemporalNowTimeZone, kDontAdaptArgumentsSentinel)                        \
   /* Temporal #sec-temporal.now.instant */                                     \
   CPP(TemporalNowInstant, kDontAdaptArgumentsSentinel)                         \
   /* Temporal #sec-temporal.now.plaindatetime */                               \
@@ -1907,6 +1907,8 @@ namespace internal {
   /* Temporal.Instant */                                                       \
   /* Temporal #sec-temporal.instant */                                         \
   CPP(TemporalInstantConstructor, kDontAdaptArgumentsSentinel)                 \
+  /* Temporal #sec-temporal.instant.from */                                    \
+  CPP(TemporalInstantFrom, kDontAdaptArgumentsSentinel)                        \
   /* Temporal #sec-get-temporal.instant.prototype.epochmilliseconds */         \
   CPP(TemporalInstantPrototypeEpochMilliseconds, JSParameterCount(0))          \
   /* Temporal #sec-get-temporal.instant.prototype.epochnanoseconds */          \
@@ -2011,42 +2013,9 @@ namespace internal {
   /* Temporal #sec-temporal.plainmonthday.prototype.getisofields */            \
   CPP(TemporalPlainMonthDayPrototypeGetISOFields, kDontAdaptArgumentsSentinel) \
                                                                                \
-  /* Temporal.TimeZone */                                                      \
-  /* Temporal #sec-temporal.timezone */                                        \
-  CPP(TemporalTimeZoneConstructor, kDontAdaptArgumentsSentinel)                \
-  /* Temporal #sec-temporal.timezone.from */                                   \
-  CPP(TemporalTimeZoneFrom, kDontAdaptArgumentsSentinel)                       \
-  /* Temporal #sec-get-temporal.timezone.prototype.id */                       \
-  CPP(TemporalTimeZonePrototypeId, JSParameterCount(0))                        \
-  /* Temporal #sec-temporal.timezone.prototype.getoffsetnanosecondsfor */      \
-  CPP(TemporalTimeZonePrototypeGetOffsetNanosecondsFor,                        \
-      kDontAdaptArgumentsSentinel)                                             \
-  /* Temporal #sec-temporal.timezone.prototype.getoffsetstringfor */           \
-  CPP(TemporalTimeZonePrototypeGetOffsetStringFor,                             \
-      kDontAdaptArgumentsSentinel)                                             \
-  /* Temporal #sec-temporal.timezone.prototype.getplaindatetimefor */          \
-  CPP(TemporalTimeZonePrototypeGetPlainDateTimeFor,                            \
-      kDontAdaptArgumentsSentinel)                                             \
-  /* Temporal #sec-temporal.timezone.prototype.getinstantfor */                \
-  CPP(TemporalTimeZonePrototypeGetInstantFor, kDontAdaptArgumentsSentinel)     \
-  /* Temporal #sec-temporal.timezone.prototype.getpossibleinstantsfor */       \
-  CPP(TemporalTimeZonePrototypeGetPossibleInstantsFor,                         \
-      kDontAdaptArgumentsSentinel)                                             \
-  /* Temporal #sec-temporal.timezone.prototype.getnexttransition */            \
-  CPP(TemporalTimeZonePrototypeGetNextTransition, kDontAdaptArgumentsSentinel) \
-  /* Temporal #sec-temporal.timezone.prototype.getprevioustransition */        \
-  CPP(TemporalTimeZonePrototypeGetPreviousTransition,                          \
-      kDontAdaptArgumentsSentinel)                                             \
-  /* Temporal #sec-temporal.timezone.prototype.tostring */                     \
-  CPP(TemporalTimeZonePrototypeToString, kDontAdaptArgumentsSentinel)          \
-  /* Temporal #sec-temporal.timezone.prototype.tojson */                       \
-  CPP(TemporalTimeZonePrototypeToJSON, kDontAdaptArgumentsSentinel)            \
-                                                                               \
   /* Temporal #sec-date.prototype.totemporalinstant */                         \
   CPP(DatePrototypeToTemporalInstant, kDontAdaptArgumentsSentinel)             \
                                                                                \
-  TFJ(TemporalInstantFixedArrayFromIterable, kJSArgcReceiverSlots + 1,         \
-      kReceiver, kIterable)                                                    \
                                                                                \
   /* Intl */ /* Temporal #sec-get-temporal.plaindate.prototype.era */          \
   CPP(TemporalPlainDatePrototypeEra,                                           \

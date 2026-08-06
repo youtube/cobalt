@@ -53,9 +53,9 @@
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/fenced_frame/fenced_frame_url_mapping.h"  // nogncheck
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/interest_group/ad_auction_headers_util.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/loader/browser_initiated_resource_request.h"
 #include "content/browser/loader/cached_navigation_url_loader.h"
 #include "content/browser/loader/navigation_early_hints_manager.h"
@@ -871,7 +871,7 @@ struct TopicsHeaderValueResult {
 // Returns the topics header for a navigation request. Returns std::nullopt if
 // the request isn't eligible for topics. This should align with the handling in
 // `GetTopicsHeaderValueForSubresourceRequest()`.
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 TopicsHeaderValueResult GetTopicsHeaderValueForNavigationRequest(
     FrameTreeNode* frame_tree_node,
     const GURL& url) {
@@ -940,7 +940,7 @@ TopicsHeaderValueResult GetTopicsHeaderValueForNavigationRequest(
       .topics_eligible = topics_eligible,
       .header_value = DeriveTopicsHeaderValue(topics, num_versions_in_epochs)};
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 ukm::SourceId GetPageUkmSourceId(FrameTreeNode* frame_tree_node) {
   CHECK(frame_tree_node);
@@ -2054,7 +2054,7 @@ NavigationRequest::NavigationRequest(
       }
     }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     TopicsHeaderValueResult topics_header_value_result =
         GetTopicsHeaderValueForNavigationRequest(frame_tree_node,
                                                  common_params_->url);
@@ -2065,16 +2065,14 @@ NavigationRequest::NavigationRequest(
       headers.SetHeader(kBrowsingTopicsRequestHeaderKey,
                         *topics_header_value_result.header_value);
     }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     if (has_ad_auction_headers_attribute_ &&
         IsAdAuctionHeadersEligibleForNavigation(
             *frame_tree_node_, url::Origin::Create(common_params_->url))) {
       ad_auction_headers_eligible_ = true;
       headers.SetHeader(kAdAuctionRequestHeaderKey, "?1");
     }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   }
 
   begin_params_->headers = headers.ToString();
@@ -5784,7 +5782,7 @@ void NavigationRequest::OnRedirectChecksComplete(
   // regardless of cross-origin-ness, the timestamp can also affect the
   // candidate epochs where the topics are derived from, thus resulting in
   // different topics across redirects.
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (topics_eligible_) {
     topics_eligible_ = false;
 
@@ -5814,15 +5812,13 @@ void NavigationRequest::OnRedirectChecksComplete(
     modified_headers.SetHeader(kBrowsingTopicsRequestHeaderKey,
                                *topics_header_value_result.header_value);
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (ad_auction_headers_eligible_) {
     // Redirects are ineligible for ad auction headers.
     ad_auction_headers_eligible_ = false;
     removed_headers.push_back(kAdAuctionRequestHeaderKey);
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   if (shared_storage_writable_opted_in_) {
     // On a redirect, the PermissionsPolicy may change the status of this
@@ -6277,9 +6273,9 @@ void NavigationRequest::CommitErrorPage(
     }
   }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   topics_eligible_ = false;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   ad_auction_headers_eligible_ = false;
 
@@ -6439,7 +6435,7 @@ void NavigationRequest::CommitNavigation() {
   commit_params_->storage_key = GetRenderFrameHost()->CalculateStorageKey(
       origin_to_commit, base::OptionalToPtr(nonce));
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (topics_eligible_) {
     topics_eligible_ = false;
 
@@ -6450,16 +6446,14 @@ void NavigationRequest::CommitNavigation() {
           browsing_topics::ApiCallerSource::kIframeAttribute);
     }
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (ad_auction_headers_eligible_) {
     ProcessAdAuctionResponseHeaders(origin_to_commit, *GetRenderFrameHost(),
                                     response() ? response()->headers : nullptr);
   } else if (has_ad_auction_headers_attribute_) {
     RemoveAdAuctionResponseHeaders(response() ? response()->headers : nullptr);
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   RenderFrameHostImpl* old_frame_host =
       frame_tree_node_->render_manager()->current_frame_host();
@@ -6750,18 +6744,11 @@ void NavigationRequest::CommitNavigation() {
   // consistently upheld condition.
   DUMP_WILL_BE_CHECK(commit_params->redirect_response.size() ==
                      commit_params->redirect_infos.size());
-  if (base::FeatureList::IsEnabled(kSanitizeRedirectUrlsDuringNavigation)) {
-    // Before sending the commit parameters to the renderer process, sanitize
-    // the redirect URLs to avoid leaking pontentially sensitive data into
-    // processes which are cross-site. There is no dependency on the
-    // cross-site-ness, therefore just sanitize unilaterally.
-    for (auto redirect : commit_params->redirect_infos) {
-      redirect.new_url = redirect.new_url.DeprecatedGetOriginAsURL();
-    }
-    for (auto redirect : commit_params->redirects) {
-      redirect = redirect.DeprecatedGetOriginAsURL();
-    }
-  }
+  // Before sending the commit parameters to the renderer process, sanitize
+  // the redirect URLs to avoid leaking potentially sensitive data into
+  // processes which are cross-site. There is no dependency on the
+  // cross-site-ness, therefore just sanitize unilaterally.
+  SanitizeRedirectsForCommit(commit_params);
 
   GetRenderFrameHost()->CommitNavigation(
       this, std::move(common_params), std::move(commit_params),
@@ -7563,6 +7550,31 @@ void NavigationRequest::UpdateHistoryParamsInCommitNavigationParams() {
       navigation_controller.GetEntryCount();
 }
 
+void NavigationRequest::SanitizeRedirectsForCommit(
+    blink::mojom::CommitNavigationParamsPtr& commit_params) {
+  if (!base::FeatureList::IsEnabled(kSanitizeRedirectUrlsDuringNavigation)) {
+    return;
+  }
+  // It is safe to convert GURL to an Origin and back in the code below because
+  // we only want to discard the rest of the URL (e.g., path and params). The
+  // actual underlying Origin is not needed, which could be inherited or opaque
+  // in sandbox cases.
+  for (GURL& redirect : commit_params->redirects) {
+    redirect = redirect.DeprecatedGetOriginAsURL();
+  }
+
+  // In the redirect_infos vector, the last entry is the URL we are going to
+  // commit after following all redirects. We should not be sanitizing it, as
+  // we need to commit the real URL as part of the navigation.
+  if (!commit_params->redirect_infos.empty()) {
+    auto redirect_infos_span = base::span(commit_params->redirect_infos);
+    for (net::RedirectInfo& redirect :
+         redirect_infos_span.first(redirect_infos_span.size() - 1)) {
+      redirect.new_url = redirect.new_url.DeprecatedGetOriginAsURL();
+    }
+  }
+}
+
 void NavigationRequest::RendererRequestedNavigationCancellationForTesting() {
   OnNavigationClientDisconnected(0, "");
 }
@@ -7900,7 +7912,16 @@ void NavigationRequest::Resume(NavigationThrottle* resuming_throttle) {
   if (response_body_watcher_) {
     CHECK(response_body_callback_);
     response_body_watcher_.reset();
+    base::WeakPtr<NavigationRequest> this_ptr(weak_factory_.GetWeakPtr());
     std::move(response_body_callback_).Run(std::string());
+    if (this_ptr.WasInvalidated()) {
+      // TODO(https://crbug.com/411238078): Replace the debug code with a
+      // comment once we ensure that this is the root cause.
+      SCOPED_CRASH_KEY_STRING32("Bug411238078", "throttle",
+                                resuming_throttle->GetNameForLogging());
+      base::debug::DumpWithoutCrashing();
+      return;
+    }
   }
 
   is_resuming_ = false;
@@ -11341,17 +11362,30 @@ NavigationDiscardReason NavigationRequest::GetTypeForNavigationDiscardReason() {
   return NavigationDiscardReason::kNewOtherNavigationBrowserInitiated;
 }
 
+std::optional<ukm::builders::NavigationTimeline>
+NavigationRequest::GetNavigationTimelineUkmBuilder() {
+  if (ShouldRecordNavigationTimelineUkm() && IsInMainFrame() &&
+      // UKM data is sampled at a frequency of `kUkmSamplingRate`.
+      base::RandDouble() < kUkmSamplingRate) {
+    return ukm::builders::NavigationTimeline(GetNextPageUkmSourceId());
+  }
+  return std::nullopt;
+}
+
+bool NavigationRequest::ShouldRecordNavigationTimelineUkm() const {
+  return !IsSameDocument() && !IsRestore() &&
+         !NavigationTypeUtils::IsHistory(common_params_->navigation_type) &&
+         !NavigationTypeUtils::IsReload(common_params_->navigation_type) &&
+         common_params_->url.SchemeIsHTTPOrHTTPS() &&
+         !IsPrerenderedPageActivation();
+}
+
 void NavigationRequest::MaybeRecordTraceEventsAndHistograms() {
   if (navigation_handle_timing_.navigation_commit_sent_time.is_null()) {
     return;
   }
 
-  bool record_uma =
-      !IsSameDocument() && !IsRestore() &&
-      !NavigationTypeUtils::IsHistory(common_params_->navigation_type) &&
-      !NavigationTypeUtils::IsReload(common_params_->navigation_type) &&
-      common_params_->url.SchemeIsHTTPOrHTTPS() &&
-      !IsPrerenderedPageActivation();
+  bool record_metrics = ShouldRecordNavigationTimelineUkm();
 
   DCHECK(!blink::IsRendererDebugURL(common_params_->url));
   base::TimeTicks navigation_start_time = common_params_->navigation_start;
@@ -11374,7 +11408,7 @@ void NavigationRequest::MaybeRecordTraceEventsAndHistograms() {
                                                        trace_id, begin_time); \
       TRACE_EVENT_NESTABLE_ASYNC_END_WITH_TIMESTAMP0("navigation", name,      \
                                                      trace_id, end_time);     \
-      if (record_uma) {                                                       \
+      if (record_metrics) {                                                   \
         base::UmaHistogramTimes(                                              \
             "Navigation.MainFrame.NewNavigation.IgnoreRestore."               \
             "IsHTTPOrHTTPS." name ".Time2",                                   \
@@ -11393,7 +11427,7 @@ void NavigationRequest::MaybeRecordTraceEventsAndHistograms() {
           "navigation", name, trace_id, begin_time, arg1_name, arg1_val); \
       TRACE_EVENT_NESTABLE_ASYNC_END_WITH_TIMESTAMP0("navigation", name,  \
                                                      trace_id, end_time); \
-      if (record_uma) {                                                   \
+      if (record_metrics) {                                               \
         base::UmaHistogramTimes(                                          \
             "Navigation.MainFrame.NewNavigation.IgnoreRestore."           \
             "IsHTTPOrHTTPS." name ".Time2",                               \
@@ -11434,7 +11468,7 @@ void NavigationRequest::MaybeRecordTraceEventsAndHistograms() {
                                     navigation_commit_sent_time);
 
   // UKM data is sampled at a frequency of `kUkmSamplingRate`.
-  if (record_uma && base::RandDouble() < kUkmSamplingRate &&
+  if (record_metrics && base::RandDouble() < kUkmSamplingRate &&
       !navigation_start_time.is_null() && !begin_navigation_time_.is_null() &&
       !loader_start_time.is_null() && !receive_response_time_.is_null() &&
       navigation_start_time <= begin_navigation_time_ &&

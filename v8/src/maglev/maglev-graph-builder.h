@@ -2395,11 +2395,13 @@ class MaglevGraphBuilder {
   ReduceResult BuildCheckSmi(ValueNode* object, bool elidable = true);
   ReduceResult BuildCheckNumber(ValueNode* object);
   ReduceResult BuildCheckHeapObject(ValueNode* object);
+  ReduceResult BuildCheckJSFunction(ValueNode* object);
   ReduceResult BuildCheckJSReceiver(ValueNode* object);
   ReduceResult BuildCheckJSReceiverOrNullOrUndefined(ValueNode* object);
   ReduceResult BuildCheckSeqOneByteString(ValueNode* object);
   ReduceResult BuildCheckString(ValueNode* object);
   ReduceResult BuildCheckStringOrStringWrapper(ValueNode* object);
+  ReduceResult BuildCheckStringOrOddball(ValueNode* object);
   ReduceResult BuildCheckSymbol(ValueNode* object);
   ReduceResult BuildCheckMaps(
       ValueNode* object, base::Vector<const compiler::MapRef> maps,
@@ -2554,6 +2556,9 @@ class MaglevGraphBuilder {
   ValueNode* BuildLoadJSArrayLength(ValueNode* js_array,
                                     NodeType length_type = NodeType::kSmi);
   ValueNode* BuildLoadElements(ValueNode* object);
+
+  ValueNode* BuildLoadJSFunctionFeedbackCell(ValueNode* closure);
+  ValueNode* BuildLoadJSFunctionContext(ValueNode* closure);
 
   MaybeReduceResult TryBuildCheckInt32Condition(
       ValueNode* lhs, ValueNode* rhs, AssertCondition condition,
@@ -3318,6 +3323,8 @@ class MaglevGraphBuilder {
 
   InterpreterFrameState current_interpreter_frame_;
   compiler::FeedbackSource current_speculation_feedback_;
+  SpeculationMode current_speculation_mode_ =
+      SpeculationMode::kDisallowSpeculation;
 
   ValueNode* inlined_new_target_ = nullptr;
 
@@ -3401,7 +3408,14 @@ class MaglevGraphBuilder {
   }
 
   bool CanSpeculateCall() const {
-    return current_speculation_feedback_.IsValid();
+    return current_speculation_mode_ == SpeculationMode::kAllowSpeculation;
+  }
+
+  bool CanSpeculateCall(
+      std::initializer_list<SpeculationMode> supported_modes) const {
+    return CanSpeculateCall() ||
+           std::find(supported_modes.begin(), supported_modes.end(),
+                     current_speculation_mode_) != supported_modes.end();
   }
 
   inline void MarkNodeDead(Node* node) {

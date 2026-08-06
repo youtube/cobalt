@@ -32,6 +32,7 @@
 
 #include "base/check_op.h"
 #include "base/logging.h"
+#include "base/notimplemented.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
 #include "client/client_argv_handling.h"
@@ -50,7 +51,6 @@
 #include "util/posix/spawn_subprocess.h"
 
 #if BUILDFLAG(IS_STARBOARD)
-#include "base/notreached.h"
 #include "base/synchronization/lock.h"
 #include "starboard/elf_loader/evergreen_info.h"
 #endif  // BUILDFLAG(IS_STARBOARD)

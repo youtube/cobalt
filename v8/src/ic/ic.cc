@@ -226,6 +226,7 @@ static void LookupForRead(LookupIterator* it, bool is_has_property) {
       case LookupIterator::ACCESSOR:
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
       case LookupIterator::DATA:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
       case LookupIterator::NOT_FOUND:
         return;
     }
@@ -607,6 +608,29 @@ bool IC::UpdateMegaDOMIC(const MaybeObjectDirectHandle& handler,
   return true;
 }
 
+bool IC::UpdateOneMapManyNamesIC(DirectHandle<Name> new_name) {
+#if V8_ENABLE_WEBASSEMBLY
+  if (state() != MONOMORPHIC) return false;
+  if (!IsKeyedLoadIC() && !IsKeyedStoreIC()) return false;
+  // For JS objects, using the generic stub is faster. Wasm objects benefit
+  // from collecting a map that the optimizing compiler can use.
+  Tagged<Map> old_map = nexus()->GetFirstMap();
+  if (old_map.is_null() || !IsWasmObjectMap(old_map)) return false;
+  if (old_map != *lookup_start_object_map()) return false;
+  Tagged<Name> old_name = nexus()->GetName();
+  if (old_name.is_null()) return false;     // Saw indexed access before.
+  if (old_name == *new_name) return false;  // Something else is wrong.
+  DirectHandle<Smi> generic = IsKeyedLoadIC()
+                                  ? LoadHandler::LoadGeneric(isolate())
+                                  : StoreHandler::StoreGeneric(isolate());
+  ConfigureVectorState(DirectHandle<Name>(), lookup_start_object_map(),
+                       generic);
+  return true;
+#else
+  return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
 bool IC::UpdatePolymorphicIC(DirectHandle<Name> name,
                              const MaybeObjectDirectHandle& handler) {
   DCHECK(IsHandler(*handler));
@@ -744,6 +768,7 @@ void IC::SetCache(DirectHandle<Name> name, const MaybeObjectHandle& handler) {
         UpdateMonomorphicIC(handler, name);
         break;
       }
+      if (UpdateOneMapManyNamesIC(name)) break;
       [[fallthrough]];
     case POLYMORPHIC:
       if (UpdatePolymorphicIC(name, handler)) break;
@@ -797,10 +822,9 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
       }
     }
     handler = ComputeHandler(lookup);
-    auto holder = lookup->GetHolder<Object>();
-    CHECK(*holder == *(lookup->lookup_start_object()) ||
-          LoadHandler::CanHandleHolderNotLookupStart(*handler.object()) ||
-          IsJSPrimitiveWrapper(*holder));
+    CHECK(lookup->state() == LookupIterator::STRING_LOOKUP_START_OBJECT ||
+          *lookup->GetHolder<Object>() == *(lookup->lookup_start_object()) ||
+          LoadHandler::CanHandleHolderNotLookupStart(*handler.object()));
   }
   // Can't use {lookup->name()} because the LookupIterator might be in
   // "elements" mode for keys that are strings representing integers above
@@ -1121,6 +1145,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::NOT_FOUND:
     case LookupIterator::TRANSITION:
+    case LookupIterator::STRING_LOOKUP_START_OBJECT:
       UNREACHABLE();
   }
 
@@ -1672,6 +1697,9 @@ bool StoreIC::LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
                                             store_origin);
         return it->IsCacheableTransition();
       }
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        UNREACHABLE();
+
       case LookupIterator::NOT_FOUND:
         // If we are in StoreGlobal then check if we should throw on
         // non-existent properties.
@@ -1800,6 +1828,7 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
         case LookupIterator::INTERCEPTOR:
         case LookupIterator::ACCESSOR:
         case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
+        case LookupIterator::STRING_LOOKUP_START_OBJECT:
           UNREACHABLE();
         case LookupIterator::ACCESS_CHECK: {
           DCHECK(!IsAccessCheckNeeded(*it->GetHolder<JSObject>()));
@@ -1818,6 +1847,8 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
     case LookupIterator::INTERCEPTOR:
     case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
       break;
+    case LookupIterator::STRING_LOOKUP_START_OBJECT:
+      UNREACHABLE();
   }
 
   // We need to restart to handle interceptors properly.
@@ -2235,6 +2266,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::NOT_FOUND:
     case LookupIterator::WASM_OBJECT:
+    case LookupIterator::STRING_LOOKUP_START_OBJECT:
       UNREACHABLE();
   }
   return MaybeObjectHandle();
@@ -2398,6 +2430,12 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     if (IsJSProxyMap(*receiver_map) && !IsDefineKeyedOwnIC()) {
       return StoreHandler::StoreProxy(isolate());
     }
+
+#if V8_ENABLE_WEBASSEMBLY
+    if (IsWasmObjectMap(*receiver_map)) {
+      set_slow_stub_reason("wasm object");
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     // Wasm objects or other kind of special objects go through the slow stub.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
@@ -2610,12 +2648,6 @@ MaybeDirectHandle<Object> KeyedStoreIC::Store(Handle<JSAny> object,
       set_slow_stub_reason("map in array prototype");
       use_ic = false;
     }
-#if V8_ENABLE_WEBASSEMBLY
-    if (IsWasmObjectMap(heap_object->map())) {
-      set_slow_stub_reason("wasm object");
-      use_ic = false;
-    }
-#endif
   }
 
   Handle<Map> old_receiver_map;
@@ -3845,15 +3877,25 @@ bool MaybeCanCloneObjectForObjectAssign(DirectHandle<JSReceiver> source,
     LookupIterator it(isolate, target, key);
     switch (it.state()) {
       case LookupIterator::NOT_FOUND:
-        break;
+        continue;
       case LookupIterator::DATA:
         if (it.property_attributes() & PropertyAttributes::READ_ONLY) {
           return false;
         }
-        break;
-      default:
+        continue;
+
+      case LookupIterator::INTERCEPTOR:
+      case LookupIterator::TRANSITION:
+      case LookupIterator::ACCESS_CHECK:
+      case LookupIterator::JSPROXY:
+      case LookupIterator::WASM_OBJECT:
+      case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
+      case LookupIterator::ACCESSOR:
         return false;
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        UNREACHABLE();
     }
+    UNREACHABLE();
   }
   return true;
 }

@@ -16,7 +16,6 @@
 #include <algorithm>
 
 #include "modules/desktop_capture/win/scoped_gdi_object.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/string_utils.h"

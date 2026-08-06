@@ -37,7 +37,7 @@
 #ifdef WEBRTC_ANDROID_PLATFORM_BUILD
 #include "external/webrtc/webrtc/modules/audio_coding/neteq/neteq_unittest.pb.h"
 #else
-#include "modules/audio_coding/neteq/neteq_unittest.pb.h"  // IWYU pragma: keep
+#include "modules/audio_coding/neteq/neteq_unittest.pb.h"
 #endif
 
 #endif

@@ -3708,7 +3708,6 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(
       map, empty_byte_array(), buffer, byte_offset, byte_length));
   Tagged<JSTypedArray> raw = *typed_array;
   DisallowGarbageCollection no_gc;
-  raw->set_length(length);
   raw->SetOffHeapDataPtr(isolate(), buffer->backing_store(), byte_offset);
   raw->set_is_length_tracking(is_length_tracking);
   raw->set_is_backed_by_rab(is_backed_by_rab);
@@ -3806,7 +3805,8 @@ MaybeDirectHandle<JSBoundFunction> Factory::NewJSBoundFunction(
 
 // ES6 section 9.5.15 ProxyCreate (target, handler)
 Handle<JSProxy> Factory::NewJSProxy(DirectHandle<JSReceiver> target,
-                                    DirectHandle<JSReceiver> handler) {
+                                    DirectHandle<JSReceiver> handler,
+                                    bool revocable) {
   // Allocate the proxy object.
   DirectHandle<Map> map = IsCallable(*target)
                               ? IsConstructor(*target)
@@ -3819,6 +3819,7 @@ Handle<JSProxy> Factory::NewJSProxy(DirectHandle<JSReceiver> target,
   result->initialize_properties(isolate());
   result->set_target(*target, SKIP_WRITE_BARRIER);
   result->set_handler(*handler, SKIP_WRITE_BARRIER);
+  result->set_flags(JSProxy::IsRevocableBit::encode(revocable));
   return handle(result, isolate());
 }
 

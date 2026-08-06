@@ -20,10 +20,14 @@ declare_args() {
   chromium_milestone = _version_info.MAJOR
 }
 
+declare_args() {
+  chromium_milestone_le_150 = chromium_milestone <= 150
+}
+
 config("global_defines_shared") {
   defines = [
     "CHROMIUM_MILESTONE=$chromium_milestone",
-    "CHROMIUM_MILESTONE_LE_138=($chromium_milestone<=138)",
+    "CHROMIUM_MILESTONE_LE_150=$chromium_milestone_le_150",
   ]
   if (enable_privacy_sandbox_apis) {
     defines += [ "ENABLE_BUILDFLAG_ENABLE_PRIVACY_SANDBOX_APIS" ]

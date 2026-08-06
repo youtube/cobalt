@@ -34,6 +34,7 @@
 #include "api/crypto/crypto_options.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/make_ref_counted.h"
 #include "api/media_types.h"
 #include "api/priority.h"
@@ -72,11 +73,11 @@
 #include "rtc_base/dscp.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/mock_audio_decoder_factory.h"
 #include "test/mock_audio_encoder_factory.h"
-#include "test/scoped_key_value_config.h"
 
 namespace {
 using ::testing::_;
@@ -95,7 +96,9 @@ using ::webrtc::BuiltinAudioProcessingBuilder;
 using ::webrtc::Call;
 using ::webrtc::CallConfig;
 using ::webrtc::CreateEnvironment;
+using ::webrtc::CreateTestFieldTrials;
 using ::webrtc::Environment;
+using ::webrtc::FieldTrials;
 using ::webrtc::scoped_refptr;
 
 constexpr uint32_t kMaxUnsignaledRecvStreams = 4;
@@ -251,6 +254,7 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
  public:
   WebRtcVoiceEngineTestFake()
       : use_null_apm_(GetParam()),
+        field_trials_(CreateTestFieldTrials()),
         env_(CreateEnvironment(&field_trials_)),
         adm_(webrtc::test::MockAudioDeviceModule::CreateStrict()),
         apm_(use_null_apm_
@@ -911,7 +915,7 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
  protected:
   webrtc::AutoThread main_thread_;
   const bool use_null_apm_;
-  webrtc::test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_;
   const Environment env_;
   webrtc::scoped_refptr<webrtc::test::MockAudioDeviceModule> adm_;
   webrtc::scoped_refptr<StrictMock<webrtc::test::MockAudioProcessing>> apm_;
@@ -1326,8 +1330,7 @@ TEST_P(WebRtcVoiceEngineTestFake,
 }
 
 TEST_P(WebRtcVoiceEngineTestFake, AdaptivePtimeFieldTrial) {
-  webrtc::test::ScopedKeyValueConfig override_field_trials(
-      field_trials_, "WebRTC-Audio-AdaptivePtime/enabled:true/");
+  field_trials_.Set("WebRTC-Audio-AdaptivePtime", "enabled:true");
   EXPECT_TRUE(SetupSendStream());
   EXPECT_TRUE(GetAudioNetworkAdaptorConfig(kSsrcX));
 }
@@ -4124,8 +4127,8 @@ TEST(WebRtcVoiceEngineTest, CollectRecvCodecs) {
 }
 
 TEST(WebRtcVoiceEngineTest, CollectRecvCodecsWithLatePtAssignment) {
-  webrtc::test::ScopedKeyValueConfig field_trials(
-      "WebRTC-PayloadTypesInTransport/Enabled/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-PayloadTypesInTransport/Enabled/");
   Environment env = CreateEnvironment(&field_trials);
 
   for (bool use_null_apm : {false, true}) {

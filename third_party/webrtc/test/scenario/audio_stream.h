@@ -9,13 +9,18 @@
  */
 #ifndef TEST_SCENARIO_AUDIO_STREAM_H_
 #define TEST_SCENARIO_AUDIO_STREAM_H_
-#include <memory>
-#include <string>
+#include <cstdint>
 #include <vector>
 
+#include "api/audio_codecs/audio_decoder_factory.h"
+#include "api/audio_codecs/audio_encoder_factory.h"
+#include "api/call/transport.h"
+#include "api/rtp_parameters.h"
+#include "api/scoped_refptr.h"
+#include "call/audio_receive_stream.h"
+#include "call/audio_send_stream.h"
 #include "test/scenario/call_client.h"
 #include "test/scenario/column_printer.h"
-#include "test/scenario/network_node.h"
 #include "test/scenario/scenario_config.h"
 
 namespace webrtc {

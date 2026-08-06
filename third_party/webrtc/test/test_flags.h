@@ -15,7 +15,11 @@
 
 #include "absl/flags/declare.h"
 
+// TODO: bugs.webrtc.org/419453427 - Remove this flag declaration from the
+// header when tests are migrated to use this flag through the
+// CreateTestFieldTrials function bypassing global field trials string.
 ABSL_DECLARE_FLAG(std::string, force_fieldtrials);
+
 ABSL_DECLARE_FLAG(std::vector<std::string>, plot);
 ABSL_DECLARE_FLAG(std::string, isolated_script_test_perf_output);
 ABSL_DECLARE_FLAG(std::string, webrtc_test_metrics_output_path);

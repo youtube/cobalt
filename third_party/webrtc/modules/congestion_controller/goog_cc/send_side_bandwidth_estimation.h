@@ -57,7 +57,7 @@ class LinkCapacityTracker {
 
 class RttBasedBackoff {
  public:
-  explicit RttBasedBackoff(const FieldTrialsView* key_value_config);
+  explicit RttBasedBackoff(const FieldTrialsView& key_value_config);
   ~RttBasedBackoff();
   void UpdatePropagationRtt(Timestamp at_time, TimeDelta propagation_rtt);
   bool IsRttAboveLimit() const;

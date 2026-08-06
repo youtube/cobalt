@@ -10,12 +10,12 @@
 
 #include "rtc_base/bit_buffer.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 
 #include "api/array_view.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/bitstream_reader.h"
-#include "rtc_base/byte_buffer.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -197,12 +197,12 @@ TEST(BitBufferWriterTest, SymmetricGolomb) {
   char test_string[] = "my precious";
   uint8_t bytes[64] = {0};
   BitBufferWriter buffer(bytes, 64);
-  for (size_t i = 0; i < arraysize(test_string); ++i) {
-    EXPECT_TRUE(buffer.WriteExponentialGolomb(test_string[i]));
+  for (char value : test_string) {
+    EXPECT_TRUE(buffer.WriteExponentialGolomb(value));
   }
   BitstreamReader reader(bytes);
-  for (size_t i = 0; i < arraysize(test_string); ++i) {
-    EXPECT_EQ(int64_t{reader.ReadExponentialGolomb()}, int64_t{test_string[i]});
+  for (char value : test_string) {
+    EXPECT_EQ(int64_t{reader.ReadExponentialGolomb()}, int64_t{value});
   }
   EXPECT_TRUE(reader.Ok());
 }

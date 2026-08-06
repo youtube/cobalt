@@ -72,6 +72,9 @@
   'wasm/shared-memory-worker-gc': [PASS, SLOW],
   'wasm/shared-memory-worker-gc-stress': [PASS, SLOW],
 
+  # Requires throwing exception due to stack overflow.
+  'maglev/regress-421228426': [PASS, SLOW, ['mode == debug', SKIP]],
+
   # https://crbug.com/1129854
   'tools/log': ['arch == arm or arch == arm64', SKIP],
 
@@ -255,6 +258,9 @@
   # TODO(thibaudm): Register allocation struggles with the function in this
   # test, which has the maximum allowed number of parameters.
   'regress/regress-crbug-724153': [SLOW],
+
+  # BUG(https://crbug.com/420932895): Very slow in many configurations.
+  'random-bit-correlations': [PASS, ['mode == debug or simulator_run', SKIP]],
 }],  # ALWAYS
 
 ################################################################################
@@ -438,6 +444,7 @@
   'json': [PASS, SLOW],
   'regress/asm/regress-775710': [PASS, SLOW],
   'regress/regress-crbug-820312': [PASS, SLOW],
+  'regress/regress-904275': [PASS, SLOW],
   'wasm/wasm-interpreter': [PASS, SLOW],
 
   # BUG(v8:7880): Slow tests.
@@ -1516,6 +1523,9 @@
   'regress/regress-748069': [SKIP],
   'regress/regress-779407': [SKIP],
   'regress/regress-852258': [SKIP],
+  # Segfault, probably due to an uncaught stack overflow.
+  # See chromium:419744840.
+  'regress/regress-408820921': [SKIP],
 }],  # 'system == android'
 
 ##############################################################################
@@ -2281,6 +2291,12 @@
   'interrupt-budget-override': [SKIP],
   'never-optimize': [SKIP],
 }],  # variant == maglev
+
+##############################################################################
+['variant != default', {
+  # BUG(https://crbug.com/420932895): Very slow in many configurations.
+  'random-bit-correlations': [SKIP],
+}],  # variant != default
 
 ##############################################################################
 ['no_simd_hardware == True', {

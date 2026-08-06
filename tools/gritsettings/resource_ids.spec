@@ -212,6 +212,10 @@
     "META": {"sizes": {"includes": [10]}},
     "includes": [2940],
   },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/certificate_manager/resources.grd": {
+    "META": {"sizes": {"includes": [40],}},
+    "includes": [2950],
+  },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/certificate_viewer/resources.grd": {
     "META": {"sizes": {"includes": [10],}},
     "includes": [2960],
@@ -681,7 +685,7 @@
     "includes": [5040],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/tab_strip/resources.grd": {
-    "META": {"sizes": {"includes": [30]}},
+    "META": {"sizes": {"includes": [40]}},
     "includes": [5060],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/tabs/tab_group_home/resources.grd": {
@@ -1530,10 +1534,9 @@
     "messages": [10080],
   },
 
-  "third_party/search_engines_data/resources/search_engines_scaled_resources.grd": {
+  "third_party/search_engines_data/resources_internal/search_engines_scaled_resources.grd": {
     "structures": [10100],
   },
-
   "cobalt/shell/shell_resources.grd": {
     "includes": [31500]
   },

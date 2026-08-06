@@ -112,11 +112,15 @@ static long sock_ctrl(BIO *b, int cmd, long num, void *ptr) {
 }
 
 static const BIO_METHOD methods_sockp = {
-    BIO_TYPE_SOCKET, "socket",
-    sock_write,      sock_read,
-    NULL /* puts */, NULL /* gets, */,
-    sock_ctrl,       NULL /* create */,
-    sock_free,       NULL /* callback_ctrl */,
+    BIO_TYPE_SOCKET,
+    "socket",
+    sock_write,
+    sock_read,
+    nullptr /* gets, */,
+    sock_ctrl,
+    nullptr /* create */,
+    sock_free,
+    nullptr /* callback_ctrl */,
 };
 
 const BIO_METHOD *BIO_s_socket(void) { return &methods_sockp; }
@@ -179,7 +183,7 @@ int (*BIO_meth_get_gets(const BIO_METHOD *method))(BIO *, char *, int) {
 
 int (*BIO_meth_get_puts(const BIO_METHOD *method))(BIO *, const char *) {
   BSSL_CHECK(method == BIO_s_socket());
-  return method->bputs;
+  return nullptr;
 }
 
 long (*BIO_meth_get_ctrl(const BIO_METHOD *method))(BIO *, int, long, void *) {

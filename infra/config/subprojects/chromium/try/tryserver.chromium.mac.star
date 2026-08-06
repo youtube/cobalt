@@ -157,7 +157,7 @@ try_.orchestrator_builder(
     branch_selector = branches.selector.MAC_BRANCHES,
     mirrors = [
         "ci/Mac Builder",
-        "ci/mac14-tests",
+        "ci/mac15-x64-rel-tests",
         "ci/GPU Mac Builder",
         "ci/Mac Release (Intel)",
         "ci/Mac Retina Release (AMD)",
@@ -762,27 +762,21 @@ ios_builder(
 )
 
 ios_builder(
+    name = "tvos-rel-fyi",
+    mirrors = ["ci/tvos-rel-fyi"],
+    gn_args = "ci/tvos-rel-fyi",
+    builderless = True,
+    cpu = cpu.ARM64,
+    contact_team_email = "cobalt-appletv@google.com",
+)
+
+ios_builder(
     name = "ios-vm",
     mirrors = ["ci/ios-vm"],
     gn_args = "ci/ios-vm",
     builderless = True,
     cpu = cpu.ARM64,
     contact_team_email = "bling-engprod@google.com",
-)
-
-ios_builder(
-    name = "ios17-beta-simulator",
-    mirrors = ["ci/ios17-beta-simulator"],
-    gn_args = "ci/ios17-beta-simulator",
-    cpu = cpu.ARM64,
-)
-
-ios_builder(
-    name = "ios17-sdk-simulator",
-    mirrors = ["ci/ios17-sdk-simulator"],
-    gn_args = "ci/ios17-sdk-simulator",
-    cpu = cpu.ARM64,
-    xcode = xcode.x16betabots,
 )
 
 ios_builder(
@@ -796,11 +790,26 @@ ios_builder(
 )
 
 ios_builder(
+    name = "ios19-beta-simulator",
+    mirrors = ["ci/ios19-beta-simulator"],
+    gn_args = "ci/ios19-beta-simulator",
+    cpu = cpu.ARM64,
+)
+
+ios_builder(
     name = "ios18-sdk-simulator",
     mirrors = [
         "ci/ios18-sdk-simulator",
     ],
     gn_args = "ci/ios18-sdk-simulator",
+    cpu = cpu.ARM64,
+    xcode = xcode.x16betabots,
+)
+
+ios_builder(
+    name = "ios19-sdk-simulator",
+    mirrors = ["ci/ios19-sdk-simulator"],
+    gn_args = "ci/ios19-sdk-simulator",
     cpu = cpu.ARM64,
     xcode = xcode.x16betabots,
 )

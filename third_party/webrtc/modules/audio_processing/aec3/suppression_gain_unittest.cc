@@ -18,7 +18,6 @@
 #include "modules/audio_processing/aec3/subtractor_output.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"
 #include "rtc_base/checks.h"
-#include "system_wrappers/include/cpu_features_wrapper.h"
 #include "test/gtest.h"
 
 namespace webrtc {

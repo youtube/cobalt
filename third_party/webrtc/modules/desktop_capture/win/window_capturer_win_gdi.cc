@@ -23,7 +23,6 @@
 #include "modules/desktop_capture/desktop_frame_win.h"
 #include "modules/desktop_capture/win/screen_capture_utils.h"
 #include "modules/desktop_capture/win/selected_window_context.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/string_utils.h"
@@ -79,7 +78,7 @@ BOOL CALLBACK OwnedWindowCollector(HWND hwnd, LPARAM param) {
     // e.g. some tooltips have the transparent style set).
     if (GetWindowLong(hwnd, GWL_EXSTYLE) & WS_EX_TRANSPARENT) {
       const WCHAR kSysShadow[] = L"SysShadow";
-      const size_t kClassLength = arraysize(kSysShadow);
+      const size_t kClassLength = std::size(kSysShadow);
       WCHAR class_name[kClassLength];
       const int class_name_length =
           GetClassNameW(hwnd, class_name, kClassLength);

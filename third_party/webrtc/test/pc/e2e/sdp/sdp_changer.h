@@ -12,16 +12,17 @@
 #define TEST_PC_E2E_SDP_SDP_CHANGER_H_
 
 #include <map>
-#include <optional>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/jsep.h"
 #include "api/rtp_parameters.h"
 #include "api/test/pclf/media_configuration.h"
 #include "media/base/rid_description.h"
+#include "p2p/base/transport_description.h"
 #include "pc/session_description.h"
 #include "pc/simulcast_description.h"
 

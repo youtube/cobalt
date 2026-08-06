@@ -12,7 +12,6 @@
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tick-counter.h"
 #include "src/common/globals.h"
-#include "src/compiler/backend/instruction-selector-adapter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -60,7 +59,7 @@ InstructionSelectorT::InstructionSelectorT(
     InstructionSelector::EnableRootsRelativeAddressing
         enable_roots_relative_addressing,
     InstructionSelector::EnableTraceTurboJson trace_turbo)
-    : TurboshaftAdapter(schedule),
+    : OperationMatcher(*schedule),
       zone_(zone),
       linkage_(linkage),
       sequence_(sequence),
@@ -1052,6 +1051,24 @@ Instruction* InstructionSelectorT::EmitWithContinuation(
               emit_inputs, emit_temps_size, emit_temps);
 }
 
+bool InstructionSelectorT::IsProtectedLoad(turboshaft::OpIndex node) const {
+#if V8_ENABLE_WEBASSEMBLY
+  if (Get(node).opcode == turboshaft::Opcode::kSimd128LoadTransform) {
+    return true;
+  }
+#if V8_ENABLE_WASM_SIMD256_REVEC
+  if (Get(node).opcode == turboshaft::Opcode::kSimd256LoadTransform) {
+    return true;
+  }
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  if (!IsLoadOrLoadImmutable(node)) return false;
+
+  bool traps_on_null;
+  return LoadView(schedule_, node).is_protected(&traps_on_null);
+}
+
 void InstructionSelectorT::AppendDeoptimizeArguments(
     InstructionOperandVector* args, DeoptimizeReason reason, uint32_t node_id,
     FeedbackSource const& feedback, OpIndex frame_state, DeoptimizeKind kind) {
@@ -1399,10 +1416,11 @@ bool InstructionSelectorT::IsCommutative(turboshaft::OpIndex node) const {
   return false;
 }
 namespace {
-bool increment_effect_level_for_node(TurboshaftAdapter* adapter, OpIndex node) {
+bool increment_effect_level_for_node(InstructionSelectorT* selector,
+                                     OpIndex node) {
   // We need to increment the effect level if the operation consumes any of the
   // dimensions of the {kTurboshaftEffectLevelMask}.
-  const Operation& op = adapter->Get(node);
+  const Operation& op = selector->Get(node);
   if (op.Is<RetainOp>()) {
     // Retain has CanWrite effect so that it's not reordered before the last
     // read it protects, but it shouldn't increment the effect level, since
@@ -3833,16 +3851,6 @@ void InstructionSelectorT::VisitNode(OpIndex node) {
   }
 }
 
-bool InstructionSelectorT::CanProduceSignalingNaN(Node* node) {
-  // TODO(jarin) Improve the heuristic here.
-  if (node->opcode() == IrOpcode::kFloat64Add ||
-      node->opcode() == IrOpcode::kFloat64Sub ||
-      node->opcode() == IrOpcode::kFloat64Mul) {
-    return false;
-  }
-  return true;
-}
-
 #if V8_TARGET_ARCH_64_BIT
 bool InstructionSelectorT::ZeroExtendsWord32ToWord64(OpIndex node,
                                                      int recursion_depth) {
@@ -3971,13 +3979,12 @@ FrameStateDescriptor* InstructionSelectorT::GetFrameStateDescriptor(
 
 #if V8_ENABLE_WEBASSEMBLY
 // static
-void InstructionSelectorT::SwapShuffleInputs(
-    TurboshaftAdapter::SimdShuffleView& view) {
+void InstructionSelectorT::SwapShuffleInputs(SimdShuffleView& view) {
   view.SwapInputs();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-InstructionSelector InstructionSelector::ForTurboshaft(
+InstructionSelectorT InstructionSelectorT::ForTurboshaft(
     Zone* zone, size_t node_count, Linkage* linkage,
     InstructionSequence* sequence, Graph* graph, Frame* frame,
     EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
@@ -3986,43 +3993,14 @@ InstructionSelector InstructionSelector::ForTurboshaft(
     Features features, EnableScheduling enable_scheduling,
     EnableRootsRelativeAddressing enable_roots_relative_addressing,
     EnableTraceTurboJson trace_turbo) {
-  return InstructionSelector(
-      nullptr,
-      new InstructionSelectorT(
-          zone, node_count, linkage, sequence, graph,
-          &graph->source_positions(), frame, enable_switch_jump_table,
-          tick_counter, broker, max_unoptimized_frame_height,
-          max_pushed_argument_count, source_position_mode, features,
-          enable_scheduling, enable_roots_relative_addressing, trace_turbo));
+  return InstructionSelectorT(
+      zone, node_count, linkage, sequence, graph, &graph->source_positions(),
+      frame, enable_switch_jump_table, tick_counter, broker,
+      max_unoptimized_frame_height, max_pushed_argument_count,
+      source_position_mode, features, enable_scheduling,
+      enable_roots_relative_addressing, trace_turbo);
 }
 
-InstructionSelector::InstructionSelector(std::nullptr_t,
-                                         InstructionSelectorT* turboshaft_impl)
-    : turboshaft_impl_(turboshaft_impl) {}
-
-InstructionSelector::~InstructionSelector() { delete turboshaft_impl_; }
-
-#define DISPATCH_TO_IMPL(...) return turboshaft_impl_->__VA_ARGS__;
-
-std::optional<BailoutReason> InstructionSelector::SelectInstructions() {
-  DISPATCH_TO_IMPL(SelectInstructions())
-}
-
-bool InstructionSelector::IsSupported(CpuFeature feature) const {
-  DISPATCH_TO_IMPL(IsSupported(feature))
-}
-
-const ZoneVector<std::pair<int, int>>& InstructionSelector::instr_origins()
-    const {
-  DISPATCH_TO_IMPL(instr_origins())
-}
-
-const std::map<NodeId, int> InstructionSelector::GetVirtualRegistersForTesting()
-    const {
-  DISPATCH_TO_IMPL(GetVirtualRegistersForTesting());
-}
-
-#undef DISPATCH_TO_IMPL
 #undef VISIT_UNSUPPORTED_OP
 
 }  // namespace compiler

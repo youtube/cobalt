@@ -1466,10 +1466,10 @@ enum class GarbageCollectionReason : int {
   kMeasureMemory = 24,
   kBackgroundAllocationFailure = 25,
   kFinalizeConcurrentMinorMS = 26,
-  kFinalizeMinorMSForMajorGC = 27,
-  kCppHeapAllocationFailure = 28,
-  kFrozen = 29,
-  kIdleContextDisposal = 30,
+  kCppHeapAllocationFailure = 27,
+  kFrozen = 28,
+  kIdleContextDisposal = 29,
+  kFinalizeMinorMSForMajorGC = 30,
 
   NUM_REASONS,
 };
@@ -2342,6 +2342,7 @@ class CompareOperationFeedback {
 
     kInternalizedString = kInternalizedStringFlag,
     kString = kInternalizedString | kOtherStringFlag,
+    kStringOrOddball = kString | kOddball,
 
     kReceiver = kReceiverFlag,
     kReceiverOrNullOrUndefined = kReceiver | kNullOrUndefined,
@@ -2592,7 +2593,11 @@ enum class CachedTieringDecision : int32_t {
   kNormal,
 };
 
-enum class SpeculationMode { kAllowSpeculation, kDisallowSpeculation };
+enum class SpeculationMode {
+  kAllowSpeculation = 0,
+  kDisallowBoundsCheckSpeculation = 1,
+  kDisallowSpeculation = 3
+};
 enum class CallFeedbackContent { kTarget, kReceiver };
 
 inline std::ostream& operator<<(std::ostream& os,
@@ -2600,6 +2605,8 @@ inline std::ostream& operator<<(std::ostream& os,
   switch (speculation_mode) {
     case SpeculationMode::kAllowSpeculation:
       return os << "SpeculationMode::kAllowSpeculation";
+    case SpeculationMode::kDisallowBoundsCheckSpeculation:
+      return os << "SpeculationMode::kDisallowBoundsCheckSpeculation";
     case SpeculationMode::kDisallowSpeculation:
       return os << "SpeculationMode::kDisallowSpeculation";
   }
@@ -2682,7 +2689,7 @@ enum IsolateAddressId {
   V(TrapArrayTooLarge)             \
   V(TrapStringOffsetOutOfBounds)
 
-enum class KeyedAccessLoadMode {
+enum class KeyedAccessLoadMode : uint8_t {
   kInBounds = 0b00,
   kHandleOOB = 0b01,
   kHandleHoles = 0b10,
@@ -2714,7 +2721,7 @@ inline bool LoadModeHandlesHoles(KeyedAccessLoadMode load_mode) {
           static_cast<T>(KeyedAccessLoadMode::kHandleHoles)) != 0;
 }
 
-enum class KeyedAccessStoreMode {
+enum class KeyedAccessStoreMode : uint8_t {
   kInBounds,
   kGrowAndHandleCOW,
   kIgnoreTypedArrayOOB,
@@ -2943,7 +2950,12 @@ static constexpr ReleaseStoreTag kReleaseStore;
 static constexpr RelaxedStoreTag kRelaxedStore;
 static constexpr SeqCstAccessTag kSeqCstAccess;
 
-static constexpr int kAdd_LhsIsStringConstant_Internalize_CacheSlotOffset = 1;
+static constexpr int kAdd_StringConstant_Internalize_CacheSlotOffset = 1;
+
+enum class AddStringConstantAndInternalizeVariant : uint8_t {
+  kLhsIsStringConstant = 0,
+  kRhsIsStringConstant = 1,
+};
 
 }  // namespace v8
 

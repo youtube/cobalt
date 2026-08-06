@@ -88,7 +88,9 @@ void ProfileIOSIOData::InitializeOnUIThread(ProfileIOS* profile) {
 
   params->proxy_config_service = ProxyServiceFactory::CreateProxyConfigService(
       profile->GetProxyConfigTracker());
-  params->system_cookie_store = web::CreateSystemCookieStore(profile);
+  auto pair = web::CreateSystemCookieStore(profile);
+  cookie_store_handle_ = std::move(pair.second);
+  params->system_cookie_store = std::move(pair.first);
   params->profile = profile;
   profile_params_ = std::move(params);
 
@@ -127,20 +129,6 @@ HostContentSettingsMap* ProfileIOSIOData::GetHostContentSettingsMap() const {
 
 bool ProfileIOSIOData::IsOffTheRecord() const {
   return profile_type() == ProfileIOSType::INCOGNITO_PROFILE;
-}
-
-void ProfileIOSIOData::InitializeMetricsEnabledStateOnUIThread() {
-  DCHECK_CURRENTLY_ON(web::WebThread::UI);
-  // Prep the PrefMember and send it to the IO thread, since this value will be
-  // read from there.
-  enable_metrics_.Init(metrics::prefs::kMetricsReportingEnabled,
-                       GetApplicationContext()->GetLocalState());
-  enable_metrics_.MoveToSequence(web::GetIOThreadTaskRunner({}));
-}
-
-bool ProfileIOSIOData::GetMetricsEnabledStateOnIOThread() const {
-  DCHECK_CURRENTLY_ON(web::WebThread::IO);
-  return enable_metrics_.GetValue();
 }
 
 void ProfileIOSIOData::Init(ProtocolHandlerMap* protocol_handlers) const {
@@ -205,8 +193,7 @@ void ProfileIOSIOData::ShutdownOnUIThread(
     std::unique_ptr<IOSChromeURLRequestContextGetterVector> context_getters) {
   DCHECK_CURRENTLY_ON(web::WebThread::UI);
 
-  enable_referrers_.Destroy();
-  enable_metrics_.Destroy();
+  cookie_store_handle_.reset();
   accept_language_pref_watcher_.reset();
 
   if (!context_getters->empty()) {

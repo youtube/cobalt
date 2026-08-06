@@ -1436,8 +1436,6 @@ bool ValidQueryType(const Context *context, QueryType queryType)
             return context->getClientVersion() >= ES_3_0;
         case QueryType::TimeElapsed:
             return context->getExtensions().disjointTimerQueryEXT;
-        case QueryType::CommandsCompleted:
-            return context->getExtensions().syncQueryCHROMIUM;
         case QueryType::PrimitivesGenerated:
             return context->getClientVersion() >= ES_3_2 ||
                    context->getExtensions().geometryShaderAny();
@@ -2392,13 +2390,6 @@ bool ValidateGenQueriesEXT(const Context *context,
                            GLsizei n,
                            const QueryID *ids)
 {
-    if (!context->getExtensions().occlusionQueryBooleanEXT &&
-        !context->getExtensions().disjointTimerQueryEXT)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kQueryExtensionNotEnabled);
-        return false;
-    }
-
     return ValidateGenOrDelete(context, entryPoint, n, ids);
 }
 
@@ -2407,25 +2398,11 @@ bool ValidateDeleteQueriesEXT(const Context *context,
                               GLsizei n,
                               const QueryID *ids)
 {
-    if (!context->getExtensions().occlusionQueryBooleanEXT &&
-        !context->getExtensions().disjointTimerQueryEXT)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kQueryExtensionNotEnabled);
-        return false;
-    }
-
     return ValidateGenOrDelete(context, entryPoint, n, ids);
 }
 
 bool ValidateIsQueryEXT(const Context *context, angle::EntryPoint entryPoint, QueryID id)
 {
-    if (!context->getExtensions().occlusionQueryBooleanEXT &&
-        !context->getExtensions().disjointTimerQueryEXT)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kQueryExtensionNotEnabled);
-        return false;
-    }
-
     return true;
 }
 
@@ -2491,14 +2468,6 @@ bool ValidateBeginQueryEXT(const Context *context,
                            QueryType target,
                            QueryID id)
 {
-    if (!context->getExtensions().occlusionQueryBooleanEXT &&
-        !context->getExtensions().disjointTimerQueryEXT &&
-        !context->getExtensions().syncQueryCHROMIUM)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kQueryExtensionNotEnabled);
-        return false;
-    }
-
     return ValidateBeginQueryBase(context, entryPoint, target, id);
 }
 
@@ -2523,14 +2492,6 @@ bool ValidateEndQueryBase(const Context *context, angle::EntryPoint entryPoint, 
 
 bool ValidateEndQueryEXT(const Context *context, angle::EntryPoint entryPoint, QueryType target)
 {
-    if (!context->getExtensions().occlusionQueryBooleanEXT &&
-        !context->getExtensions().disjointTimerQueryEXT &&
-        !context->getExtensions().syncQueryCHROMIUM)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kQueryExtensionNotEnabled);
-        return false;
-    }
-
     return ValidateEndQueryBase(context, entryPoint, target);
 }
 
@@ -2539,12 +2500,6 @@ bool ValidateQueryCounterEXT(const Context *context,
                              QueryID id,
                              QueryType target)
 {
-    if (!context->getExtensions().disjointTimerQueryEXT)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kExtensionNotEnabled);
-        return false;
-    }
-
     if (target != QueryType::Timestamp)
     {
         ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kInvalidQueryTarget);
@@ -2628,14 +2583,6 @@ bool ValidateGetQueryivEXT(const Context *context,
                            GLenum pname,
                            const GLint *params)
 {
-    if (!context->getExtensions().occlusionQueryBooleanEXT &&
-        !context->getExtensions().disjointTimerQueryEXT &&
-        !context->getExtensions().syncQueryCHROMIUM)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kExtensionNotEnabled);
-        return false;
-    }
-
     return ValidateGetQueryivBase(context, entryPoint, target, pname, nullptr);
 }
 
@@ -2648,8 +2595,7 @@ bool ValidateGetQueryivRobustANGLE(const Context *context,
                                    const GLint *params)
 {
     if ((context->getClientVersion() < ES_3_0) && !context->getExtensions().disjointTimerQueryEXT &&
-        !context->getExtensions().occlusionQueryBooleanEXT &&
-        !context->getExtensions().syncQueryCHROMIUM)
+        !context->getExtensions().occlusionQueryBooleanEXT)
     {
         ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kEntryPointBaseUnsupported);
         return false;
@@ -2736,11 +2682,6 @@ bool ValidateGetQueryObjectivEXT(const Context *context,
                                  GLenum pname,
                                  const GLint *params)
 {
-    if (!context->getExtensions().disjointTimerQueryEXT)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kExtensionNotEnabled);
-        return false;
-    }
     return ValidateGetQueryObjectValueBase(context, entryPoint, id, pname, nullptr);
 }
 
@@ -2786,13 +2727,6 @@ bool ValidateGetQueryObjectuivEXT(const Context *context,
                                   GLenum pname,
                                   const GLuint *params)
 {
-    if (!context->getExtensions().disjointTimerQueryEXT &&
-        !context->getExtensions().occlusionQueryBooleanEXT &&
-        !context->getExtensions().syncQueryCHROMIUM)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kExtensionNotEnabled);
-        return false;
-    }
     return ValidateGetQueryObjectValueBase(context, entryPoint, id, pname, nullptr);
 }
 
@@ -2805,8 +2739,7 @@ bool ValidateGetQueryObjectuivRobustANGLE(const Context *context,
                                           const GLuint *params)
 {
     if ((context->getClientVersion() < ES_3_0) && !context->getExtensions().disjointTimerQueryEXT &&
-        !context->getExtensions().occlusionQueryBooleanEXT &&
-        !context->getExtensions().syncQueryCHROMIUM)
+        !context->getExtensions().occlusionQueryBooleanEXT)
     {
         ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kEntryPointBaseUnsupported);
         return false;
@@ -2840,11 +2773,6 @@ bool ValidateGetQueryObjecti64vEXT(const Context *context,
                                    GLenum pname,
                                    const GLint64 *params)
 {
-    if (!context->getExtensions().disjointTimerQueryEXT)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kExtensionNotEnabled);
-        return false;
-    }
     return ValidateGetQueryObjectValueBase(context, entryPoint, id, pname, nullptr);
 }
 
@@ -2890,11 +2818,6 @@ bool ValidateGetQueryObjectui64vEXT(const Context *context,
                                     GLenum pname,
                                     const GLuint64 *params)
 {
-    if (!context->getExtensions().disjointTimerQueryEXT)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kExtensionNotEnabled);
-        return false;
-    }
     return ValidateGetQueryObjectValueBase(context, entryPoint, id, pname, nullptr);
 }
 
@@ -5106,12 +5029,6 @@ bool ValidateEGLImageTargetTexture2DOES(const Context *context,
                                         TextureType type,
                                         egl::ImageID image)
 {
-    if (!context->getExtensions().EGLImageOES && !context->getExtensions().EGLImageExternalOES)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kExtensionNotEnabled);
-        return false;
-    }
-
     switch (type)
     {
         case TextureType::_2D:
@@ -5151,12 +5068,6 @@ bool ValidateEGLImageTargetRenderbufferStorageOES(const Context *context,
                                                   GLenum target,
                                                   egl::ImageID image)
 {
-    if (!context->getExtensions().EGLImageOES)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kExtensionNotEnabled);
-        return false;
-    }
-
     switch (target)
     {
         case GL_RENDERBUFFER:
@@ -7329,6 +7240,14 @@ bool ValidateGetTexParameterBase(const Context *context,
                 return false;
             }
             break;
+        case GL_TEXTURE_ASTC_DECODE_PRECISION_EXT:
+            if (!context->getExtensions().textureCompressionAstcDecodeModeEXT)
+            {
+                ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM,
+                                       kTextureCompressionASTCDecodeModeExtensionRequired);
+                return false;
+            }
+            break;
 
         default:
             ANGLE_VALIDATION_ERRORF(GL_INVALID_ENUM, kEnumNotSupported, pname);
@@ -8127,6 +8046,33 @@ bool ValidateTexParameterBase(const Context *context,
             }
             break;
 
+        case GL_TEXTURE_ASTC_DECODE_PRECISION_EXT:
+            if (!context->getExtensions().textureCompressionAstcDecodeModeEXT)
+            {
+                ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM,
+                                       kTextureCompressionASTCDecodeModeExtensionRequired);
+                return false;
+            }
+            switch (ConvertToGLenum(params[0]))
+            {
+                case GL_RGBA16F:
+                case GL_RGBA8:
+                    break;
+                case GL_RGB9_E5:
+                    if (!context->getExtensions().textureCompressionAstcDecodeModeRgb9e5EXT)
+                    {
+                        ANGLE_VALIDATION_ERROR(
+                            GL_INVALID_ENUM,
+                            kTextureCompressionASTCDecodeModeRGB9E5ExtensionRequired);
+                        return false;
+                    }
+                    break;
+
+                default:
+                    ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kEnumInvalid);
+                    return false;
+            }
+            break;
         default:
             ANGLE_VALIDATION_ERRORF(GL_INVALID_ENUM, kEnumNotSupported, pname);
             return false;

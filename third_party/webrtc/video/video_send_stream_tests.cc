@@ -1088,8 +1088,7 @@ void VideoSendStreamTest::TestNackRetransmission(
 
         RTCPSender::FeedbackState feedback_state;
         EXPECT_EQ(0, rtcp_sender.SendRTCP(feedback_state, kRtcpNack,
-                                          sequence_numbers.size(),
-                                          sequence_numbers.data()));
+                                          sequence_numbers));
       }
 
       // Drop media packet, otherwise transport feeback may indirectly ack the

@@ -2910,7 +2910,8 @@ bool WasmExportedFunction::IsWasmExportedFunction(Tagged<Object> object) {
       code->builtin_id() != Builtin::kWasmStressSwitch) {
     return false;
   }
-  DCHECK(js_function->shared()->HasWasmExportedFunctionData());
+  DCHECK(js_function->shared()->HasWasmExportedFunctionData(
+      GetCurrentIsolateForSandbox()));
   return true;
 }
 
@@ -2922,9 +2923,11 @@ bool WasmCapiFunction::IsWasmCapiFunction(Tagged<Object> object) {
   // if (js_function->code()->kind() != CodeKind::WASM_TO_CAPI_FUNCTION) {
   //   return false;
   // }
-  // DCHECK(js_function->shared()->HasWasmCapiFunctionData());
+  // DCHECK(js_function->shared()->HasWasmCapiFunctionData(
+  //        GetCurrentIsolateForSandbox()));
   // return true;
-  return js_function->shared()->HasWasmCapiFunctionData();
+  return js_function->shared()->HasWasmCapiFunctionData(
+      GetCurrentIsolateForSandbox());
 }
 
 DirectHandle<WasmCapiFunction> WasmCapiFunction::New(
@@ -3076,7 +3079,8 @@ std::unique_ptr<char[]> WasmExportedFunction::GetDebugName(
 bool WasmJSFunction::IsWasmJSFunction(Tagged<Object> object) {
   if (!IsJSFunction(object)) return false;
   Tagged<JSFunction> js_function = Cast<JSFunction>(object);
-  return js_function->shared()->HasWasmJSFunctionData();
+  return js_function->shared()->HasWasmJSFunctionData(
+      GetCurrentIsolateForSandbox());
 }
 
 DirectHandle<Map> CreateStructMap(
@@ -3212,7 +3216,7 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
   wasm::ImportCallKind kind;
   if (IsJSFunction(*callable)) {
     Tagged<SharedFunctionInfo> shared = Cast<JSFunction>(callable)->shared();
-    if (shared->HasWasmFunctionData()) {
+    if (shared->HasWasmFunctionData(isolate)) {
       kind = wasm::ImportCallKind::kUseCallBuiltin;
     } else {
       expected_arity =
@@ -3331,26 +3335,33 @@ constexpr int32_t kInt31MinValue = -kInt31MaxValue - 1;
 // Tries to canonicalize a HeapNumber to an i31ref Smi. Returns the original
 // HeapNumber if it fails.
 DirectHandle<Object> CanonicalizeHeapNumber(DirectHandle<Object> number,
-                                            Isolate* isolate) {
-  double double_value = Cast<HeapNumber>(number)->value();
+                                            Isolate* isolate, bool is_shared) {
+  auto heap_number = Cast<HeapNumber>(number);
+  double double_value = heap_number->value();
   if (double_value >= kInt31MinValue && double_value <= kInt31MaxValue &&
       !IsMinusZero(double_value) &&
       double_value == FastI2D(FastD2I(double_value))) {
     return direct_handle(Smi::FromInt(FastD2I(double_value)), isolate);
+  }
+  if (is_shared && !HeapLayout::InWritableSharedSpace(*heap_number)) {
+    return isolate->factory()->NewHeapNumber<AllocationType::kSharedOld>(
+        double_value);
   }
   return number;
 }
 
 // Tries to canonicalize a Smi into an i31 Smi. Returns a HeapNumber if it
 // fails.
-DirectHandle<Object> CanonicalizeSmi(DirectHandle<Object> smi,
-                                     Isolate* isolate) {
+DirectHandle<Object> CanonicalizeSmi(DirectHandle<Object> smi, Isolate* isolate,
+                                     bool is_shared) {
   if constexpr (SmiValuesAre31Bits()) return smi;
 
   int32_t value = Cast<Smi>(*smi).value();
 
   if (value <= kInt31MaxValue && value >= kInt31MinValue) {
     return smi;
+  } else if (is_shared) {
+    return isolate->factory()->NewHeapNumber<AllocationType::kSharedOld>(value);
   } else {
     return isolate->factory()->NewHeapNumber(value);
   }
@@ -3454,9 +3465,11 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
     case HeapType::kAny: {
       // TODO(mliedtke): We need to construct heap numbers with correct
       // sharedness.
-      if (IsSmi(*value)) return CanonicalizeSmi(value, isolate);
+      if (IsSmi(*value)) {
+        return CanonicalizeSmi(value, isolate, expected.is_shared());
+      }
       if (IsHeapNumber(*value)) {
-        return CanonicalizeHeapNumber(value, isolate);
+        return CanonicalizeHeapNumber(value, isolate, expected.is_shared());
       }
       if (!ConvertToSharedIfExpected(isolate, &value, expected,
                                      error_message)) {
@@ -3496,10 +3509,12 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
     }
     case HeapType::kEq: {
       if (IsSmi(*value)) {
-        DirectHandle<Object> truncated = CanonicalizeSmi(value, isolate);
+        DirectHandle<Object> truncated =
+            CanonicalizeSmi(value, isolate, expected.is_shared());
         if (IsSmi(*truncated)) return truncated;
       } else if (IsHeapNumber(*value)) {
-        DirectHandle<Object> truncated = CanonicalizeHeapNumber(value, isolate);
+        DirectHandle<Object> truncated =
+            CanonicalizeHeapNumber(value, isolate, expected.is_shared());
         if (IsSmi(*truncated)) return truncated;
       } else if (IsWasmStruct(*value) || IsWasmArray(*value)) {
         if (!CheckExpectedSharedness(isolate, value, expected, error_message)) {
@@ -3514,10 +3529,12 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
     }
     case HeapType::kI31: {
       if (IsSmi(*value)) {
-        DirectHandle<Object> truncated = CanonicalizeSmi(value, isolate);
+        DirectHandle<Object> truncated =
+            CanonicalizeSmi(value, isolate, expected.is_shared());
         if (IsSmi(*truncated)) return truncated;
       } else if (IsHeapNumber(*value)) {
-        DirectHandle<Object> truncated = CanonicalizeHeapNumber(value, isolate);
+        DirectHandle<Object> truncated =
+            CanonicalizeHeapNumber(value, isolate, expected.is_shared());
         if (IsSmi(*truncated)) return truncated;
       }
       *error_message =

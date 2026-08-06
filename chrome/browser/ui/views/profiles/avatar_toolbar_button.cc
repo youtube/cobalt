@@ -266,48 +266,23 @@ bool AvatarToolbarButton::ShouldPaintBorder() const {
 }
 
 bool AvatarToolbarButton::ShouldBlendHighlightColor() const {
-  return delegate_->ShouldBlendHighlightColor();
-}
-
-base::ScopedClosureRunner AvatarToolbarButton::ShowExplicitText(
-    const std::u16string& text,
-    std::optional<std::u16string> accessibility_label) {
-  return delegate_->ShowExplicitText(text, accessibility_label);
-}
-
-void AvatarToolbarButton::ResetButtonAction() {
-  explicit_button_pressed_action_.Reset();
-  reset_button_action_button_closure_ptr_ = nullptr;
-}
-
-base::ScopedClosureRunner AvatarToolbarButton::SetExplicitButtonAction(
-    base::RepeatingClosure explicit_closure) {
-  // This logic is similar to the one in
-  // `AvatarToolbarButtonDelegate::ShowExplicitText()`.
-  // TODO(b/323516037): look into how to combine those into one struct for
-  // consistency.
-
-  // If an action was already set, enforce resetting it and invalidate the
-  // existing reset closure internally.
-  if (!explicit_button_pressed_action_.is_null()) {
-    // It is safe to run the scoped closure multiple times. It is a no-op after
-    // the first time.
-    reset_button_action_button_closure_ptr_->RunAndReset();
+  if (base::FeatureList::IsEnabled(
+          features::kEnableAppMenuButtonColorsForDefaultAvatarButtonStates)) {
+    return false;
   }
-
-  explicit_button_pressed_action_ = std::move(explicit_closure);
-
-  base::ScopedClosureRunner closure = base::ScopedClosureRunner(
-      base::BindRepeating(&AvatarToolbarButton::ResetButtonAction,
-                          weak_ptr_factory_.GetWeakPtr()));
-  // Keep a pointer to the current active closure in case the current action was
-  // reset from another call to `SetExplicitButtonAction()`.
-  reset_button_action_button_closure_ptr_ = &closure;
-  return closure;
+  return GetWidget() && GetWidget()->GetCustomTheme();
 }
 
-bool AvatarToolbarButton::HasExplicitButtonAction() const {
-  return !explicit_button_pressed_action_.is_null();
+base::ScopedClosureRunner AvatarToolbarButton::SetExplicitButtonState(
+    const std::u16string& text,
+    std::optional<std::u16string> accessibility_label,
+    std::optional<base::RepeatingCallback<void(bool)>> explicit_action) {
+  return delegate_->SetExplicitButtonState(text, std::move(accessibility_label),
+                                           std::move(explicit_action));
+}
+
+bool AvatarToolbarButton::HasExplicitButtonState() const {
+  return delegate_->HasExplicitButtonState();
 }
 
 void AvatarToolbarButton::SetButtonActionDisabled(bool disabled) {
@@ -448,14 +423,7 @@ void AvatarToolbarButton::ButtonPressed(bool is_source_accelerator) {
   }
 #endif
 
-  if (!explicit_button_pressed_action_.is_null()) {
-    explicit_button_pressed_action_.Run();
-    return;
-  }
-
-  // Default behavior, shows the profile menu.
-  ProfileMenuCoordinator::GetOrCreateForBrowser(browser_)->Show(
-      is_source_accelerator);
+  delegate_->OnButtonPressed(is_source_accelerator);
 }
 
 void AvatarToolbarButton::AfterPropertyChange(const void* key,
@@ -469,20 +437,28 @@ void AvatarToolbarButton::AfterPropertyChange(const void* key,
 }
 
 SkColor AvatarToolbarButton::GetForegroundColor(ButtonState state) const {
-  bool has_custom_theme =
-      this->GetWidget() && this->GetWidget()->GetCustomTheme();
+  if (base::FeatureList::IsEnabled(
+          features::kEnableAppMenuButtonColorsForDefaultAvatarButtonStates)) {
+    if (IsLabelPresentAndVisible()) {
+      return GetHighlightTextColor().value_or(GetColorProvider()->GetColor(
+          kColorAvatarButtonHighlightDefaultForeground));
+    }
+  } else {
+    const bool has_custom_theme =
+        this->GetWidget() && this->GetWidget()->GetCustomTheme();
 
-  // If there is a custom theme use the `ToolbarButton` version of
-  // `GetForegroundColor()` This is to avoid creating new colorIds for icons for
-  // all the different states. With chrome refresh and without any custom theme,
-  // the color would be same as the label color.
-  if (!has_custom_theme && IsLabelPresentAndVisible()) {
-    const std::optional<SkColor> foreground_color = GetHighlightTextColor();
-    const auto* const color_provider = GetColorProvider();
-    return foreground_color.has_value()
-               ? foreground_color.value()
-               : color_provider->GetColor(
-                     kColorAvatarButtonHighlightDefaultForeground);
+    // If there is a custom theme use the `ToolbarButton` version of
+    // `GetForegroundColor()` This is to avoid creating new colorIds for icons
+    // for all the different states. With chrome refresh and without any custom
+    // theme, the color would be same as the label color.
+    if (!has_custom_theme && IsLabelPresentAndVisible()) {
+      const std::optional<SkColor> foreground_color = GetHighlightTextColor();
+      const auto* const color_provider = GetColorProvider();
+      return foreground_color.has_value()
+                 ? foreground_color.value()
+                 : color_provider->GetColor(
+                       kColorAvatarButtonHighlightDefaultForeground);
+    }
   }
 
   return ToolbarButton::GetForegroundColor(state);
@@ -493,16 +469,6 @@ bool AvatarToolbarButton::IsLabelPresentAndVisible() const {
     return false;
   }
   return label()->GetVisible() && !label()->GetText().empty();
-}
-
-void AvatarToolbarButton::UpdateButtonAction() {
-  internal_reset_button_action_closure_.RunAndReset();
-  std::optional<base::RepeatingClosure> button_action =
-      delegate_->GetButtonAction();
-  if (button_action.has_value()) {
-    internal_reset_button_action_closure_ =
-        SetExplicitButtonAction(*std::move(button_action));
-  }
 }
 
 void AvatarToolbarButton::UpdateLayoutInsets() {

@@ -18,10 +18,11 @@
 #include <optional>
 #include <vector>
 
+#include "api/field_trials.h"
 #include "rtc_base/random.h"
 #include "rtc_base/time_utils.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 
 namespace webrtc {
 namespace test {
@@ -169,7 +170,7 @@ class EmulatedNonMonotoneousClock : public EmulatedClock {
 };
 
 TEST(ClockRepair, NoClockDrift) {
-  test::ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   const int kSeeds = 10;
   const int kFirstSeed = 1;
   const int64_t kRuntimeUs = 10 * kNumMicrosecsPerSec;

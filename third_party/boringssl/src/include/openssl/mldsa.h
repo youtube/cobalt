@@ -31,6 +31,9 @@ extern "C" {
 // MLDSA_SEED_BYTES is the number of bytes in an ML-DSA seed value.
 #define MLDSA_SEED_BYTES 32
 
+// MLDSA_MU_BYTES is the number of bytes in an ML-DSA mu value.
+#define MLDSA_MU_BYTES 64
+
 
 // ML-DSA-65.
 
@@ -49,6 +52,16 @@ struct MLDSA65_public_key {
   union {
     uint8_t bytes[32 + 64 + 256 * 4 * 6];
     uint32_t alignment;
+  } opaque;
+};
+
+// MLDSA65_prehash contains a pre-hash context for ML-DSA-65. The contents of
+// this object should never leave the address space since the format is
+// unstable.
+struct MLDSA65_prehash {
+  union {
+    uint8_t bytes[200 + 4 + 4 + 4 * sizeof(size_t)];
+    uint64_t alignment;
   } opaque;
 };
 
@@ -109,6 +122,45 @@ OPENSSL_EXPORT int MLDSA65_verify(const struct MLDSA65_public_key *public_key,
                                   size_t msg_len, const uint8_t *context,
                                   size_t context_len);
 
+// MLDSA65_prehash_init initializes a pre-hashing state using |public_key|. The
+// |context| argument can be used to include implicit contextual information
+// that isn't included in the message. The same value of |context| must be
+// presented to |MLDSA65_verify| in order for the generated signature to be
+// considered valid. |context| and |context_len| may be |NULL| and 0 to use an
+// empty context (this is common). Returns 1 on success and 0 on failure (if the
+// context is too long).
+OPENSSL_EXPORT int MLDSA65_prehash_init(
+    struct MLDSA65_prehash *out_state,
+    const struct MLDSA65_public_key *public_key, const uint8_t *context,
+    size_t context_len);
+
+// MLDSA65_prehash_update incorporates the given |msg| of length |msg_len| into
+// the pre-hashing state. This can be called multiple times on successive chunks
+// of the message. This should be called after |MLDSA65_prehash_init| and before
+// |MLDSA65_prehash_finalize|.
+OPENSSL_EXPORT void MLDSA65_prehash_update(struct MLDSA65_prehash *inout_state,
+                                           const uint8_t *msg, size_t msg_len);
+
+// MLDSA65_prehash_finalize extracts a pre-hashed message representative from
+// the given pre-hashing state. This should be called after
+// |MLDSA65_prehash_init| and |MLDSA65_prehash_update|. The resulting
+// |out_msg_rep| should then be passed to |MLDSA65_sign_message_representative|
+// to obtain a signature.
+OPENSSL_EXPORT void MLDSA65_prehash_finalize(
+    uint8_t out_msg_rep[MLDSA_MU_BYTES], struct MLDSA65_prehash *inout_state);
+
+// MLDSA65_sign_message_representative generates a signature for the pre-hashed
+// message |msg_rep| using |private_key| (following the randomized algorithm),
+// and writes the encoded signature to |out_encoded_signature|. The |msg_rep|
+// should be obtained via calls to |MLDSA65_prehash_init|,
+// |MLDSA65_prehash_update| and |MLDSA65_prehash_finalize| using the public key
+// from the same key pair, otherwise the signature will not verify. Returns 1 on
+// success and 0 on failure.
+OPENSSL_EXPORT int MLDSA65_sign_message_representative(
+    uint8_t out_encoded_signature[MLDSA65_SIGNATURE_BYTES],
+    const struct MLDSA65_private_key *private_key,
+    const uint8_t msg_rep[MLDSA_MU_BYTES]);
+
 // MLDSA65_marshal_public_key serializes |public_key| to |out| in the standard
 // format for ML-DSA-65 public keys. It returns 1 on success or 0 on
 // allocation error.
@@ -143,6 +195,16 @@ struct MLDSA87_public_key {
   union {
     uint8_t bytes[32 + 64 + 256 * 4 * 8];
     uint32_t alignment;
+  } opaque;
+};
+
+// MLDSA87_prehash contains a pre-hash context for ML-DSA-87. The contents of
+// this object should never leave the address space since the format is
+// unstable.
+struct MLDSA87_prehash {
+  union {
+    uint8_t bytes[200 + 4 + 4 + 4 * sizeof(size_t)];
+    uint64_t alignment;
   } opaque;
 };
 
@@ -202,6 +264,45 @@ OPENSSL_EXPORT int MLDSA87_verify(const struct MLDSA87_public_key *public_key,
                                   size_t signature_len, const uint8_t *msg,
                                   size_t msg_len, const uint8_t *context,
                                   size_t context_len);
+
+// MLDSA87_prehash_init initializes a pre-hashing state using |public_key|. The
+// |context| argument can be used to include implicit contextual information
+// that isn't included in the message. The same value of |context| must be
+// presented to |MLDSA87_verify| in order for the generated signature to be
+// considered valid. |context| and |context_len| may be |NULL| and 0 to use an
+// empty context (this is common). Returns 1 on success and 0 on failure (if the
+// context is too long).
+OPENSSL_EXPORT int MLDSA87_prehash_init(
+    struct MLDSA87_prehash *out_state,
+    const struct MLDSA87_public_key *public_key, const uint8_t *context,
+    size_t context_len);
+
+// MLDSA87_prehash_update incorporates the given |msg| of length |msg_len| into
+// the pre-hashing state. This can be called multiple times on successive chunks
+// of the message. This should be called after |MLDSA87_prehash_init| and before
+// |MLDSA87_prehash_finalize|.
+OPENSSL_EXPORT void MLDSA87_prehash_update(struct MLDSA87_prehash *inout_state,
+                                           const uint8_t *msg, size_t msg_len);
+
+// MLDSA87_prehash_finalize extracts a pre-hashed message representative from
+// the given pre-hashing state. This should be called after
+// |MLDSA87_prehash_init| and |MLDSA87_prehash_update|. The resulting
+// |out_msg_rep| should then be passed to |MLDSA87_sign_message_representative|
+// to obtain a signature.
+OPENSSL_EXPORT void MLDSA87_prehash_finalize(
+    uint8_t out_msg_rep[MLDSA_MU_BYTES], struct MLDSA87_prehash *inout_state);
+
+// MLDSA87_sign_message_representative generates a signature for the pre-hashed
+// message |msg_rep| using |private_key| (following the randomized algorithm),
+// and writes the encoded signature to |out_encoded_signature|. The |msg_rep|
+// should be obtained via calls to |MLDSA87_prehash_init|,
+// |MLDSA87_prehash_update| and |MLDSA87_prehash_finalize| using the public key
+// from the same key pair, otherwise the signature will not verify. Returns 1 on
+// success and 0 on failure.
+OPENSSL_EXPORT int MLDSA87_sign_message_representative(
+    uint8_t out_encoded_signature[MLDSA87_SIGNATURE_BYTES],
+    const struct MLDSA87_private_key *private_key,
+    const uint8_t msg_rep[MLDSA_MU_BYTES]);
 
 // MLDSA87_marshal_public_key serializes |public_key| to |out| in the standard
 // format for ML-DSA-87 public keys. It returns 1 on success or 0 on

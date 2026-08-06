@@ -11,11 +11,22 @@
 #include "modules/desktop_capture/linux/wayland/screencast_stream_utils.h"
 
 #include <libdrm/drm_fourcc.h>
-#include <pipewire/pipewire.h>
-#include <spa/param/video/format-utils.h>
+#include <pipewire/version.h>
+#include <spa/param/format.h>
+#include <spa/param/param.h>
+#include <spa/pod/builder.h>
+#include <spa/pod/iter.h>
+#include <spa/pod/pod.h>
+#include <spa/pod/vararg.h>
+#include <spa/utils/type.h>
 
-#include <string>
+#include <cstdint>
+#include <optional>
+#include <tuple>
+#include <vector>
 
+#include "absl/strings/string_view.h"
+#include "rtc_base/string_encode.h"
 #include "rtc_base/string_to_number.h"
 
 #if !PW_CHECK_VERSION(0, 3, 29)

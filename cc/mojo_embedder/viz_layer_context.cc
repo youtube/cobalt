@@ -399,6 +399,8 @@ viz::mojom::TransformTreeUpdatePtr ComputeTransformTreePropertiesUpdate(
           new_tree.device_transform_scale_factor() &&
       old_tree.nodes_affected_by_outer_viewport_bounds_delta() ==
           new_tree.nodes_affected_by_outer_viewport_bounds_delta() &&
+      old_tree.nodes_affected_by_safe_area_bottom() ==
+          new_tree.nodes_affected_by_safe_area_bottom() &&
       old_tree.sticky_position_data() == new_tree.sticky_position_data() &&
       old_tree.anchor_position_scroll_data() ==
           new_tree.anchor_position_scroll_data()) {
@@ -412,6 +414,8 @@ viz::mojom::TransformTreeUpdatePtr ComputeTransformTreePropertiesUpdate(
       new_tree.device_transform_scale_factor();
   wire->nodes_affected_by_outer_viewport_bounds_delta =
       new_tree.nodes_affected_by_outer_viewport_bounds_delta();
+  wire->nodes_affected_by_safe_area_bottom =
+      new_tree.nodes_affected_by_safe_area_bottom();
   wire->sticky_position_data =
       SerializeStickyPositionData(new_tree.sticky_position_data());
   wire->anchor_position_scroll_data =
@@ -768,7 +772,6 @@ void SerializeLayer(LayerImpl& layer,
     rare_properties->capture_bounds = CHECK_DEREF(layer.capture_bounds());
     wire.rare_properties = std::move(rare_properties);
   }
-  wire.may_contain_video = layer.may_contain_video();
   switch (layer.GetLayerType()) {
     case mojom::LayerType::kMirror: {
       auto mirror_layer_extra = viz::mojom::MirrorLayerExtra::New();

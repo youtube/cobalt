@@ -10,6 +10,8 @@
 #ifndef MODULES_DESKTOP_CAPTURE_DESKTOP_CAPTURE_OPTIONS_H_
 #define MODULES_DESKTOP_CAPTURE_DESKTOP_CAPTURE_OPTIONS_H_
 
+#include <cstdint>
+
 #include "api/scoped_refptr.h"
 #include "rtc_base/system/rtc_export.h"
 

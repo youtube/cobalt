@@ -360,6 +360,7 @@ class ExceptionHandlerInfo;
   V(CheckString)                              \
   V(CheckSeqOneByteString)                    \
   V(CheckStringOrStringWrapper)               \
+  V(CheckStringOrOddball)                     \
   V(CheckSymbol)                              \
   V(CheckValue)                               \
   V(CheckValueEqualsInt32)                    \
@@ -662,11 +663,13 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
   V(OtherSeqOneByteString, (1 << 9))                \
   V(OtherString, (1 << 10))                         \
                                                     \
-  V(StringWrapper, (1 << 11))                       \
-  V(JSArray, (1 << 12))                             \
-  V(Callable, (1 << 13))                            \
-  V(OtherJSReceiver, (1 << 14))                     \
-  V(OtherHeapObject, (1 << 15))
+  V(Context, (1 << 11))                             \
+  V(StringWrapper, (1 << 12))                       \
+  V(JSArray, (1 << 13))                             \
+  V(JSFunction, (1 << 14))                          \
+  V(OtherCallable, (1 << 15))                       \
+  V(OtherHeapObject, (1 << 16))                     \
+  V(OtherJSReceiver, (1 << 17))
 
 #define COUNT(...) +1
 static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
@@ -675,6 +678,7 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
 #define COMBINED_NODE_TYPE_LIST(V)                                        \
   /* A value which has all the above bits set */                          \
   V(Unknown, ((1 << kNumberOfLeafNodeTypes) - 1))                         \
+  V(Callable, kJSFunction | kOtherCallable)                               \
   V(NullOrUndefined, kNull | kUndefined)                                  \
   V(Oddball, kNullOrUndefined | kBoolean)                                 \
   V(Number, kSmi | kHeapNumber)                                           \
@@ -689,6 +693,7 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
                           kOtherSeqOneByteString)                         \
   V(String, kInternalizedString | kSeqOneByteString | kOtherString)       \
   V(StringOrStringWrapper, kString | kStringWrapper)                      \
+  V(StringOrOddball, kString | kOddball)                                  \
   V(Name, kString | kSymbol)                                              \
   V(JSReceiver, kJSArray | kCallable | kStringWrapper | kOtherJSReceiver) \
   V(JSReceiverOrNullOrUndefined, kJSReceiver | kNullOrUndefined)          \
@@ -711,6 +716,7 @@ inline constexpr bool NodeTypeIsNeverStandalone(NodeType type) {
   switch (type) {
     // "Other" string types should be considered internal and never appear as
     // standalone leaf types.
+    case NodeType::kOtherCallable:
     case NodeType::kOtherInternalizedString:
     case NodeType::kOtherSeqInternalizedOneByteString:
     case NodeType::kOtherSeqOneByteString:
@@ -853,7 +859,9 @@ inline NodeType StaticTypeForMap(compiler::MapRef map,
     // Oddball but not a Boolean.
     return NodeType::kNullOrUndefined;
   }
+  if (map.IsContextMap()) return NodeType::kContext;
   if (map.IsJSArrayMap()) return NodeType::kJSArray;
+  if (map.IsJSFunctionMap()) return NodeType::kJSFunction;
   if (map.is_callable()) {
     return NodeType::kCallable;
   }
@@ -914,16 +922,23 @@ inline bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
       return map.IsInternalizedStringMap();
     case NodeType::kStringWrapper:
       return map.IsStringWrapperMap();
+    case NodeType::kContext:
+      return map.IsContextMap();
     case NodeType::kJSArray:
       return map.IsJSArrayMap();
+    case NodeType::kJSFunction:
+      return map.IsJSFunctionMap();
     case NodeType::kCallable:
       return map.is_callable();
+    case NodeType::kOtherCallable:
+      return map.is_callable() && !map.IsJSFunctionMap();
     case NodeType::kOtherJSReceiver:
       return map.IsJSReceiverMap() && !map.IsJSArrayMap() &&
              !map.is_callable() && !map.IsStringWrapperMap();
     case NodeType::kOtherHeapObject:
       return !map.IsHeapNumberMap() && !map.IsOddballMap() &&
-             !map.IsSymbolMap() && !map.IsStringMap() && !map.IsJSReceiverMap();
+             !map.IsContextMap() && !map.IsSymbolMap() && !map.IsStringMap() &&
+             !map.IsJSReceiverMap();
     default:
       UNREACHABLE();
   }
@@ -2303,18 +2318,7 @@ class NodeBase : public ZoneObject {
     set_properties(new_properties);
   }
 
-  void OverwriteWithIdentityTo(ValueNode* node) {
-    // OverwriteWith() checks if the node we're overwriting to has the same
-    // input count and the same properties. Here we don't need to do that, since
-    // overwriting with a node with property pure, we only need to check if
-    // there is at least 1 input. Since the first input is always the one
-    // closest to the input_base().
-    DCHECK_GE(input_count(), 1);
-    set_opcode(NodeBase::opcode_of<Identity>);
-    set_properties(OpProperties::Pure());
-    bitfield_ = InputCountField::update(bitfield_, 1);
-    change_input(0, node);
-  }
+  inline void OverwriteWithIdentityTo(ValueNode* node);
 
   auto options() const { return std::tuple{}; }
 
@@ -2625,11 +2629,7 @@ class ValueNode : public Node {
     DCHECK_LT(use_count_, kMaxInt);
     use_count_++;
   }
-  void remove_use() {
-    // Make sure a saturated use count won't drop below zero.
-    DCHECK_GT(use_count_, 0);
-    use_count_--;
-  }
+  inline void remove_use();
   // Avoid revisiting nodes when processing an unused node's inputs, by marking
   // it as visited.
   void mark_unused_inputs_visited() {
@@ -2909,16 +2909,6 @@ inline void NodeBase::set_input(int index, ValueNode* node) {
   DCHECK_EQ(input(index).node(), nullptr);
   node->add_use();
   new (&input(index)) Input(node);
-}
-
-inline void NodeBase::change_input(int index, ValueNode* node) {
-  DCHECK_NE(input(index).node(), nullptr);
-  input(index).node()->remove_use();
-
-#ifdef DEBUG
-  input(index) = Input(nullptr);
-#endif
-  set_input(index, node);
 }
 
 template <>
@@ -4948,11 +4938,16 @@ class ToBooleanLogicalNot
   using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
+// With StringEqualInputs::kStringsOrOddballs StringEqual allows non-string
+// objects which are then compared with pointer equality (they will never be
+// equal to a String and they're equal to each other if the pointers are equal).
+enum class StringEqualInputs { kOnlyStrings, kStringsOrOddballs };
 class StringEqual : public FixedInputValueNodeT<2, StringEqual> {
   using Base = FixedInputValueNodeT<2, StringEqual>;
 
  public:
-  explicit StringEqual(uint64_t bitfield) : Base(bitfield) {}
+  explicit StringEqual(uint64_t bitfield, StringEqualInputs inputs)
+      : Base(bitfield), inputs_(inputs) {}
   static constexpr OpProperties kProperties = OpProperties::Call() |
                                               OpProperties::LazyDeopt() |
                                               OpProperties::CanAllocate();
@@ -4967,6 +4962,12 @@ class StringEqual : public FixedInputValueNodeT<2, StringEqual> {
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  StringEqualInputs inputs() const { return inputs_; }
+  auto options() const { return std::tuple(inputs_); }
+
+ private:
+  StringEqualInputs inputs_;
 };
 
 class TaggedEqual : public FixedInputValueNodeT<2, TaggedEqual> {
@@ -5019,7 +5020,8 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
   using Base = FixedInputValueNodeT<3, TestInstanceOf>;
 
  public:
-  explicit TestInstanceOf(uint64_t bitfield, compiler::FeedbackSource feedback)
+  explicit TestInstanceOf(uint64_t bitfield,
+                          const compiler::FeedbackSource& feedback)
       : Base(bitfield), feedback_(feedback) {}
 
   // The implementation currently calls runtime.
@@ -5031,7 +5033,7 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
   Input& context() { return input(0); }
   Input& object() { return input(1); }
   Input& callable() { return input(2); }
-  compiler::FeedbackSource feedback() const { return feedback_; }
+  const compiler::FeedbackSource& feedback() const { return feedback_; }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -6297,6 +6299,9 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
 
   int non_escaping_use_count() const { return non_escaping_use_count_; }
 
+  void RemoveNonEscapingUses(int n = 1) {
+    non_escaping_use_count_ = std::max(non_escaping_use_count_ - n, 0);
+  }
   void AddNonEscapingUses(int n = 1) {
     DCHECK(!HasBeenAnalysed());
     non_escaping_use_count_ += n;
@@ -6321,6 +6326,7 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
   }
   bool HasBeenElided() const {
     DCHECK(HasBeenAnalysed());
+    DCHECK_GE(use_count_, non_escaping_use_count_);
     return escape_analysis_result_ == EscapeAnalysisResult::kElided;
   }
   bool HasEscaped() const {
@@ -7245,6 +7251,31 @@ class CheckStringOrStringWrapper
 
  public:
   explicit CheckStringOrStringWrapper(uint64_t bitfield, CheckType check_type)
+      : Base(CheckTypeBitField::update(bitfield, check_type)) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kReceiverIndex = 0;
+  Input& receiver_input() { return input(kReceiverIndex); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  auto options() const { return std::tuple{check_type()}; }
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
+};
+
+class CheckStringOrOddball : public FixedInputNodeT<1, CheckStringOrOddball> {
+  using Base = FixedInputNodeT<1, CheckStringOrOddball>;
+
+ public:
+  explicit CheckStringOrOddball(uint64_t bitfield, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
@@ -9870,6 +9901,7 @@ class Phi : public ValueNodeT<Phi> {
     return same_loop_uses_repr_hint_;
   }
 
+  NodeType post_loop_type() const { return post_loop_type_; }
   void merge_post_loop_type(NodeType type) {
     DCHECK(!has_key());
     post_loop_type_ = UnionType(post_loop_type_, type);

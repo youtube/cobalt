@@ -25,7 +25,6 @@
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/jsep.h"
-#include "api/jsep_ice_candidate.h"
 #include "api/jsep_session_description.h"
 #include "api/rtp_parameters.h"
 #include "rtc_base/strings/string_builder.h"
@@ -60,17 +59,6 @@ RTC_EXPORT std::string SdpSerializeCandidate(const Candidate& candidate);
 bool SdpDeserialize(absl::string_view message,
                     JsepSessionDescription* jdesc,
                     SdpParseError* error);
-
-// Deserializes the passed in SDP string to one JsepIceCandidate.
-// The first line must be a=candidate line and only the first line will be
-// parsed.
-// message - The SDP string to be Deserialized.
-// candidates - The JsepIceCandidate from the SDP string.
-// error - The detail error information when parsing fails.
-// return - true on success, false on failure.
-RTC_EXPORT bool SdpDeserializeCandidate(absl::string_view message,
-                                        JsepIceCandidate* candidate,
-                                        SdpParseError* error);
 
 // Deserializes the passed in SDP string to a cricket Candidate.
 // The first line must be a=candidate line and only the first line will be

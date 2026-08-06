@@ -65,8 +65,8 @@ void GetEGLInitDisplays(bool supports_angle_d3d,
 
   std::string requested_renderer =
       force_software_gl
-      ? default_software_renderer
-      : command_line->GetSwitchValueASCII(switches::kUseANGLE);
+          ? default_software_renderer
+          : command_line->GetSwitchValueASCII(switches::kUseANGLE);
 
   bool use_angle_default =
       !force_software_gl &&

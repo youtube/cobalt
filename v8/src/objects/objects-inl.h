@@ -813,7 +813,7 @@ template <typename T, template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 typename HandleType<JSReceiver>::MaybeType Object::ToObject(
     Isolate* isolate, HandleType<T> object, const char* method_name) {
-  if (IsJSReceiver(*object)) return Cast<JSReceiver>(object);
+  if (V8_LIKELY(IsJSReceiver(*object))) return Cast<JSReceiver>(object);
   return ToObjectImpl(isolate, object, method_name);
 }
 
@@ -1333,6 +1333,33 @@ void HeapObject::VerifySmiField(int offset) {
 
 #endif
 
+// static
+bool JSArray::MayHaveReadOnlyLength(Tagged<Map> js_array_map) {
+  DCHECK(IsJSArrayMap(js_array_map));
+  if (V8_UNLIKELY(
+          js_array_map->instance_descriptors()->number_of_descriptors() == 0)) {
+    return true;
+  }
+  DCHECK(!js_array_map->is_dictionary_map());
+
+  // Fast path: "length" is the first fast property of arrays with non
+  // dictionary properties. Since it's not configurable, it's guaranteed to be
+  // the first in the descriptor array.
+  InternalIndex first(0);
+  DCHECK(js_array_map->instance_descriptors()->GetKey(first) ==
+         GetReadOnlyRoots().length_string());
+  return V8_UNLIKELY(
+      js_array_map->instance_descriptors()->GetDetails(first).IsReadOnly());
+}
+
+bool JSArray::HasReadOnlyLength(DirectHandle<JSArray> array) {
+  Tagged<Map> map = array->map();
+
+  // If map guarantees that there can't be a read-only length, we are done.
+  if (!MayHaveReadOnlyLength(map)) return false;
+  return V8_UNLIKELY(HasReadOnlyLengthSlowPath(array));
+}
+
 ReadOnlyRoots HeapObject::EarlyGetReadOnlyRoots() const {
   return ReadOnlyHeap::EarlyGetReadOnlyRoots(*this);
 }
@@ -1528,6 +1555,10 @@ void HeapObject::SetFillerMap(const WritableFreeSpace& writable_space,
 
 DEF_ACQUIRE_GETTER(HeapObject, map, Tagged<Map>) {
   return map_word(cage_base, kAcquireLoad).ToMap();
+}
+
+ObjectSlot HeapObjectLayout::map_slot() const {
+  return Tagged<HeapObject>(this)->map_slot();
 }
 
 ObjectSlot HeapObject::map_slot() const {

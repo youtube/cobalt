@@ -2082,9 +2082,8 @@ bool MarkCompactCollector::MarkTransitiveClosureUntilFixpoint() {
       another_ephemeron_iteration_main_thread = ProcessEphemerons();
     }
 
-    // Can only check for local emptiness here as parallel marking tasks may
-    // still be running. The caller performs the CHECKs for global emptiness.
-    CHECK(local_weak_objects()->current_ephemerons_local.IsLocalEmpty());
+    CHECK(
+        local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
     CHECK(local_weak_objects()->next_ephemerons_local.IsLocalEmpty());
 
     ++iterations;
@@ -3446,7 +3445,7 @@ bool MarkCompactCollector::ProcessOldBytecodeSFI(
   Isolate* const isolate = heap_->isolate();
 
   const bool bytecode_already_decompiled =
-      flushing_candidate->HasUncompiledData();
+      flushing_candidate->HasUncompiledData(isolate);
   if (!bytecode_already_decompiled) {
     // Check if the bytecode is still live.
     Tagged<BytecodeArray> bytecode =

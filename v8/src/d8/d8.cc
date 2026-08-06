@@ -2677,10 +2677,10 @@ void Shell::EnableJSPI(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void Shell::SetFlushDenormals(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  if (i::v8_flags.correctness_fuzzer_suppressions) {
+  if (i::v8_flags.correctness_fuzzer_suppressions || i::v8_flags.fuzzing) {
     // Setting denormals flushing in the middle of code is almost certain to
-    // cause correctness issues, in a way that isn't interesting to us. Make
-    // this a no-op instead.
+    // cause correctness issues or crashes, in a way that isn't interesting to
+    // us. Make this a no-op instead.
     return;
   }
   // Check if the argument is a valid function.
@@ -3927,8 +3927,6 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   if (!options.omit_quit) {
     global_template->Set(isolate, "quit", FunctionTemplate::New(isolate, Quit));
   }
-  global_template->Set(isolate, "testRunner",
-                       Shell::CreateTestRunnerTemplate(isolate));
   global_template->Set(isolate, "Realm", Shell::CreateRealmTemplate(isolate));
   global_template->Set(isolate, "performance",
                        Shell::CreatePerformanceTemplate(isolate));
@@ -4007,16 +4005,6 @@ Local<ObjectTemplate> Shell::CreateAsyncHookTemplate(Isolate* isolate) {
       isolate, "triggerAsyncId",
       FunctionTemplate::New(isolate, AsyncHooksTriggerAsyncId));
   return async_hooks_templ;
-}
-
-Local<ObjectTemplate> Shell::CreateTestRunnerTemplate(Isolate* isolate) {
-  Local<ObjectTemplate> test_template = ObjectTemplate::New(isolate);
-  // Reliable access to quit functionality. The "quit" method function
-  // installed on the global object can be hidden with the --omit-quit flag
-  // (e.g. on asan bots).
-  test_template->Set(isolate, "quit", FunctionTemplate::New(isolate, Quit));
-
-  return test_template;
 }
 
 Local<ObjectTemplate> Shell::CreatePerformanceTemplate(Isolate* isolate) {
@@ -4496,53 +4484,7 @@ void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
   }
 
   if (options.dump_counters || options.dump_counters_nvp) {
-    base::MutexGuard mutex_guard(&counter_mutex_);
-    std::vector<std::pair<std::string, Counter*>> counters(
-        counter_map_->begin(), counter_map_->end());
-    std::sort(counters.begin(), counters.end());
-
-    if (options.dump_counters_nvp) {
-      // Dump counters as name-value pairs.
-      for (const auto& pair : counters) {
-        std::string key = pair.first;
-        Counter* counter = pair.second;
-        if (counter->is_histogram()) {
-          std::cout << "\"c:" << key << "\"=" << counter->count() << "\n";
-          std::cout << "\"t:" << key << "\"=" << counter->sample_total()
-                    << "\n";
-        } else {
-          std::cout << "\"" << key << "\"=" << counter->count() << "\n";
-        }
-      }
-    } else {
-      // Dump counters in formatted boxes.
-      constexpr int kNameBoxSize = 64;
-      constexpr int kValueBoxSize = 13;
-      std::cout << "+" << std::string(kNameBoxSize, '-') << "+"
-                << std::string(kValueBoxSize, '-') << "+\n";
-      std::cout << "| Name" << std::string(kNameBoxSize - 5, ' ') << "| Value"
-                << std::string(kValueBoxSize - 6, ' ') << "|\n";
-      std::cout << "+" << std::string(kNameBoxSize, '-') << "+"
-                << std::string(kValueBoxSize, '-') << "+\n";
-      for (const auto& pair : counters) {
-        std::string key = pair.first;
-        Counter* counter = pair.second;
-        if (counter->is_histogram()) {
-          std::cout << "| c:" << std::setw(kNameBoxSize - 4) << std::left << key
-                    << " | " << std::setw(kValueBoxSize - 2) << std::right
-                    << counter->count() << " |\n";
-          std::cout << "| t:" << std::setw(kNameBoxSize - 4) << std::left << key
-                    << " | " << std::setw(kValueBoxSize - 2) << std::right
-                    << counter->sample_total() << " |\n";
-        } else {
-          std::cout << "| " << std::setw(kNameBoxSize - 2) << std::left << key
-                    << " | " << std::setw(kValueBoxSize - 2) << std::right
-                    << counter->count() << " |\n";
-        }
-      }
-      std::cout << "+" << std::string(kNameBoxSize, '-') << "+"
-                << std::string(kValueBoxSize, '-') << "+\n";
-    }
+    DumpCounters();
   }
 
   if (options.dump_system_memory_stats) {
@@ -4559,6 +4501,54 @@ void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
   if (dispose) {
     delete counters_file_;
     delete counter_map_;
+  }
+}
+
+void Shell::DumpCounters() {
+  base::MutexGuard mutex_guard(&counter_mutex_);
+  std::vector<std::pair<std::string, Counter*>> counters(counter_map_->begin(),
+                                                         counter_map_->end());
+  std::sort(counters.begin(), counters.end());
+
+  if (options.dump_counters_nvp) {
+    // Dump counters as name-value pairs.
+    for (const auto& pair : counters) {
+      std::string key = pair.first;
+      Counter* counter = pair.second;
+      if (counter->is_histogram()) {
+        std::cout << "\"c:" << key << "\"=" << counter->count() << "\n";
+        std::cout << "\"t:" << key << "\"=" << counter->sample_total() << "\n";
+      } else {
+        std::cout << "\"" << key << "\"=" << counter->count() << "\n";
+      }
+    }
+    return;
+  }
+
+  // Dump counters in formatted boxes.
+  constexpr int kNameBoxSize = 64;
+  constexpr int kValueBoxSize = 13;
+  std::cout << std::string(kNameBoxSize, '-') << "+"
+            << std::string(kValueBoxSize - 1, '-') << "\n";
+  std::cout << "Name" << std::string(kNameBoxSize - 4, ' ') << "| Value"
+            << std::string(kValueBoxSize - 7, ' ') << "\n";
+  std::cout << std::string(kNameBoxSize, '-') << "+"
+            << std::string(kValueBoxSize - 1, '-') << "\n";
+  for (const auto& pair : counters) {
+    std::string key = pair.first;
+    Counter* counter = pair.second;
+    if (counter->is_histogram()) {
+      std::cout << "c:" << std::setw(kNameBoxSize - 2) << std::left << key
+                << std::setw(kValueBoxSize) << std::right << counter->count()
+                << "\n";
+      std::cout << "t:" << std::setw(kNameBoxSize - 2) << std::left << key
+                << std::setw(kValueBoxSize) << std::right
+                << counter->sample_total() << "\n";
+    } else {
+      std::cout << std::setw(kNameBoxSize) << std::left << key
+                << std::setw(kValueBoxSize) << std::right << counter->count()
+                << "\n";
+    }
   }
 }
 
@@ -5719,10 +5709,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (FlagMatches("--no-fail", &argv[i])) {
       options.no_fail = true;
     } else if (FlagMatches("--dump-counters", &argv[i])) {
-      i::v8_flags.slow_histograms = true;
       options.dump_counters = true;
     } else if (FlagMatches("--dump-counters-nvp", &argv[i])) {
-      i::v8_flags.slow_histograms = true;
       options.dump_counters_nvp = true;
     } else if (FlagMatches("--dump-system-memory-stats", &argv[i])) {
       options.dump_system_memory_stats = true;

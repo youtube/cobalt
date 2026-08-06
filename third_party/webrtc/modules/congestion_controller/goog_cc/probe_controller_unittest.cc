@@ -14,13 +14,14 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/field_trials.h"
 #include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "logging/rtc_event_log/mock/mock_rtc_event_log.h"
 #include "system_wrappers/include/clock.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -49,7 +50,8 @@ constexpr TimeDelta kBitrateDropTimeout = TimeDelta::Seconds(5);
 class ProbeControllerFixture {
  public:
   explicit ProbeControllerFixture(absl::string_view field_trials = "")
-      : field_trial_config_(field_trials), clock_(100000000L) {}
+      : field_trial_config_(CreateTestFieldTrials(field_trials)),
+        clock_(100000000L) {}
 
   std::unique_ptr<ProbeController> CreateController() {
     return std::make_unique<ProbeController>(&field_trial_config_,
@@ -59,7 +61,7 @@ class ProbeControllerFixture {
   Timestamp CurrentTime() { return clock_.CurrentTime(); }
   void AdvanceTime(TimeDelta delta) { clock_.AdvanceTime(delta); }
 
-  ExplicitKeyValueConfig field_trial_config_;
+  FieldTrials field_trial_config_;
   SimulatedClock clock_;
   NiceMock<MockRtcEventLog> mock_rtc_event_log;
 };

@@ -9,9 +9,16 @@
  */
 #include "test/peer_scenario/signaling_route.h"
 
+#include <cstddef>
+#include <functional>
 #include <memory>
+#include <string>
+#include <utility>
 
-#include "test/network/network_emulation_manager.h"
+#include "api/jsep.h"
+#include "api/test/network_emulation/cross_traffic.h"
+#include "rtc_base/checks.h"
+#include "test/peer_scenario/peer_scenario_client.h"
 
 namespace webrtc {
 namespace test {

@@ -47,10 +47,12 @@
 #include "cc/paint/skia_paint_canvas.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#include "components/subresource_filter/core/common/test_ruleset_creator.h"
+#include "components/subresource_filter/core/common/test_ruleset_utils.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/aggregation_service/aggregation_service.h"
 #include "content/browser/attribution_reporting/attribution_manager.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/in_memory_federated_permission_context.h"
 #include "content/browser/renderer_host/frame_tree.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
@@ -796,7 +798,7 @@ void WebTestControlHost::ResetBrowserAfterWebTest() {
     storage_partition->GetCookieManagerForBrowserProcess()->DeleteCookies(
         network::mojom::CookieDeletionFilter::New(), base::DoNothing());
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     if (auto* attribution_manager =
             AttributionManager::FromBrowserContext(browser_context)) {
       attribution_manager->ClearData(
@@ -814,7 +816,7 @@ void WebTestControlHost::ResetBrowserAfterWebTest() {
           /*filter=*/StoragePartition::StorageKeyMatcherFunction(),
           /*done=*/base::DoNothing());
     }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   }
 
   ui::SelectFileDialog::SetFactory(nullptr);
@@ -1658,6 +1660,23 @@ void WebTestControlHost::SetFilePathForMockFileDialog(
     const base::FilePath& path) {
   ui::SelectFileDialog::SetFactory(
       std::make_unique<FakeSelectFileDialogFactory>(path));
+}
+
+void WebTestControlHost::CreateSubresourceFilterRulesetFile(
+    const std::vector<std::string>& disallowed_suffixes,
+    CreateSubresourceFilterRulesetFileCallback callback) {
+  std::vector<url_pattern_index::proto::UrlRule> rules;
+  for (const std::string& disallowed_suffix : disallowed_suffixes) {
+    rules.push_back(
+        subresource_filter::testing::CreateSuffixRule(disallowed_suffix));
+  }
+
+  subresource_filter::testing::TestRulesetPair test_ruleset_pair;
+  subresource_filter::testing::TestRulesetCreator ruleset_creator;
+  ruleset_creator.CreateRulesetWithRules(rules, &test_ruleset_pair);
+
+  std::move(callback).Run(subresource_filter::testing::TestRuleset::Open(
+      test_ruleset_pair.indexed));
 }
 
 void WebTestControlHost::FocusDevtoolsSecondaryWindow() {

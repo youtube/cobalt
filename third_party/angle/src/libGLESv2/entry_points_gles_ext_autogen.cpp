@@ -580,10 +580,27 @@ void GL_APIENTRY GL_DrawArraysInstancedBaseInstanceANGLE(GLenum mode,
     {
         PrimitiveMode modePacked = PackParam<PrimitiveMode>(mode);
         SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid = (context->skipValidation() ||
-                            ValidateDrawArraysInstancedBaseInstanceANGLE(
-                                context, angle::EntryPoint::GLDrawArraysInstancedBaseInstanceANGLE,
-                                modePacked, first, count, instanceCount, baseInstance));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().baseVertexBaseInstanceANGLE))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid = ValidateDrawArraysInstancedBaseInstanceANGLE(
+                    context, angle::EntryPoint::GLDrawArraysInstancedBaseInstanceANGLE, modePacked,
+                    first, count, instanceCount, baseInstance);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(context,
+                                        angle::EntryPoint::GLDrawArraysInstancedBaseInstanceANGLE);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->drawArraysInstancedBaseInstanceANGLE(modePacked, first, count, instanceCount,
@@ -622,11 +639,28 @@ void GL_APIENTRY GL_DrawElementsInstancedBaseVertexBaseInstanceANGLE(GLenum mode
         PrimitiveMode modePacked    = PackParam<PrimitiveMode>(mode);
         DrawElementsType typePacked = PackParam<DrawElementsType>(type);
         SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid =
-            (context->skipValidation() ||
-             ValidateDrawElementsInstancedBaseVertexBaseInstanceANGLE(
-                 context, angle::EntryPoint::GLDrawElementsInstancedBaseVertexBaseInstanceANGLE,
-                 modePacked, count, typePacked, indices, instanceCount, baseVertex, baseInstance));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().baseVertexBaseInstanceANGLE))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid = ValidateDrawElementsInstancedBaseVertexBaseInstanceANGLE(
+                    context, angle::EntryPoint::GLDrawElementsInstancedBaseVertexBaseInstanceANGLE,
+                    modePacked, count, typePacked, indices, instanceCount, baseVertex,
+                    baseInstance);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(
+                    context, angle::EntryPoint::GLDrawElementsInstancedBaseVertexBaseInstanceANGLE);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->drawElementsInstancedBaseVertexBaseInstanceANGLE(
@@ -663,11 +697,27 @@ void GL_APIENTRY GL_MultiDrawArraysInstancedBaseInstanceANGLE(GLenum mode,
     {
         PrimitiveMode modePacked = PackParam<PrimitiveMode>(mode);
         SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid =
-            (context->skipValidation() ||
-             ValidateMultiDrawArraysInstancedBaseInstanceANGLE(
-                 context, angle::EntryPoint::GLMultiDrawArraysInstancedBaseInstanceANGLE,
-                 modePacked, firsts, counts, instanceCounts, baseInstances, drawcount));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().baseVertexBaseInstanceANGLE))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid = ValidateMultiDrawArraysInstancedBaseInstanceANGLE(
+                    context, angle::EntryPoint::GLMultiDrawArraysInstancedBaseInstanceANGLE,
+                    modePacked, firsts, counts, instanceCounts, baseInstances, drawcount);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(
+                    context, angle::EntryPoint::GLMultiDrawArraysInstancedBaseInstanceANGLE);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->multiDrawArraysInstancedBaseInstance(modePacked, firsts, counts,
@@ -709,13 +759,30 @@ GL_MultiDrawElementsInstancedBaseVertexBaseInstanceANGLE(GLenum mode,
         PrimitiveMode modePacked    = PackParam<PrimitiveMode>(mode);
         DrawElementsType typePacked = PackParam<DrawElementsType>(type);
         SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid =
-            (context->skipValidation() ||
-             ValidateMultiDrawElementsInstancedBaseVertexBaseInstanceANGLE(
-                 context,
-                 angle::EntryPoint::GLMultiDrawElementsInstancedBaseVertexBaseInstanceANGLE,
-                 modePacked, counts, typePacked, indices, instanceCounts, baseVertices,
-                 baseInstances, drawcount));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().baseVertexBaseInstanceANGLE))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid = ValidateMultiDrawElementsInstancedBaseVertexBaseInstanceANGLE(
+                    context,
+                    angle::EntryPoint::GLMultiDrawElementsInstancedBaseVertexBaseInstanceANGLE,
+                    modePacked, counts, typePacked, indices, instanceCounts, baseVertices,
+                    baseInstances, drawcount);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(
+                    context,
+                    angle::EntryPoint::GLMultiDrawElementsInstancedBaseVertexBaseInstanceANGLE);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->multiDrawElementsInstancedBaseVertexBaseInstance(
@@ -1403,7 +1470,7 @@ void GL_APIENTRY GL_DrawElementsInstancedANGLE(GLenum mode,
           "context = %d, mode = %s, count = %d, type = %s, indices = 0x%016" PRIxPTR
           ", primcount = %d",
           CID(context), GLenumToString(GLESEnum::PrimitiveType, mode), count,
-          GLenumToString(GLESEnum::PrimitiveType, type), (uintptr_t)indices, primcount);
+          GLenumToString(GLESEnum::DrawElementsType, type), (uintptr_t)indices, primcount);
 
     if (ANGLE_LIKELY(context != nullptr))
     {
@@ -7315,7 +7382,7 @@ void GL_APIENTRY GL_DrawElementsInstancedBaseInstanceEXT(GLenum mode,
           "context = %d, mode = %s, count = %d, type = %s, indices = 0x%016" PRIxPTR
           ", instancecount = %d, baseinstance = %u",
           CID(context), GLenumToString(GLESEnum::PrimitiveType, mode), count,
-          GLenumToString(GLESEnum::PrimitiveType, type), (uintptr_t)indices, instancecount,
+          GLenumToString(GLESEnum::DrawElementsType, type), (uintptr_t)indices, instancecount,
           baseinstance);
 
     if (ANGLE_LIKELY(context != nullptr))
@@ -8205,9 +8272,26 @@ void GL_APIENTRY GL_BeginQueryEXT(GLenum target, GLuint id)
         QueryType targetPacked = PackParam<QueryType>(target);
         QueryID idPacked       = PackParam<QueryID>(id);
         SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid = (context->skipValidation() ||
-                            ValidateBeginQueryEXT(context, angle::EntryPoint::GLBeginQueryEXT,
-                                                  targetPacked, idPacked));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().disjointTimerQueryEXT ||
+                             context->getExtensions().occlusionQueryBooleanEXT))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid = ValidateBeginQueryEXT(context, angle::EntryPoint::GLBeginQueryEXT,
+                                                    targetPacked, idPacked);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(context, angle::EntryPoint::GLBeginQueryEXT);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->beginQuery(targetPacked, idPacked);
@@ -8232,9 +8316,26 @@ void GL_APIENTRY GL_DeleteQueriesEXT(GLsizei n, const GLuint *ids)
     {
         const QueryID *idsPacked = PackParam<const QueryID *>(ids);
         SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid = (context->skipValidation() ||
-                            ValidateDeleteQueriesEXT(context, angle::EntryPoint::GLDeleteQueriesEXT,
-                                                     n, idsPacked));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().disjointTimerQueryEXT ||
+                             context->getExtensions().occlusionQueryBooleanEXT))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid = ValidateDeleteQueriesEXT(
+                    context, angle::EntryPoint::GLDeleteQueriesEXT, n, idsPacked);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(context, angle::EntryPoint::GLDeleteQueriesEXT);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->deleteQueries(n, idsPacked);
@@ -8259,9 +8360,26 @@ void GL_APIENTRY GL_EndQueryEXT(GLenum target)
     {
         QueryType targetPacked = PackParam<QueryType>(target);
         SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid =
-            (context->skipValidation() ||
-             ValidateEndQueryEXT(context, angle::EntryPoint::GLEndQueryEXT, targetPacked));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().disjointTimerQueryEXT ||
+                             context->getExtensions().occlusionQueryBooleanEXT))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid =
+                    ValidateEndQueryEXT(context, angle::EntryPoint::GLEndQueryEXT, targetPacked);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(context, angle::EntryPoint::GLEndQueryEXT);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->endQuery(targetPacked);
@@ -8286,9 +8404,26 @@ void GL_APIENTRY GL_GenQueriesEXT(GLsizei n, GLuint *ids)
     {
         QueryID *idsPacked = PackParam<QueryID *>(ids);
         SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid =
-            (context->skipValidation() ||
-             ValidateGenQueriesEXT(context, angle::EntryPoint::GLGenQueriesEXT, n, idsPacked));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().disjointTimerQueryEXT ||
+                             context->getExtensions().occlusionQueryBooleanEXT))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid = ValidateGenQueriesEXT(context, angle::EntryPoint::GLGenQueriesEXT, n,
+                                                    idsPacked);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(context, angle::EntryPoint::GLGenQueriesEXT);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->genQueries(n, idsPacked);
@@ -8312,9 +8447,25 @@ void GL_APIENTRY GL_GetInteger64vEXT(GLenum pname, GLint64 *data)
     if (ANGLE_LIKELY(context != nullptr))
     {
         SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid =
-            (context->skipValidation() ||
-             ValidateGetInteger64vEXT(context, angle::EntryPoint::GLGetInteger64vEXT, pname, data));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().disjointTimerQueryEXT))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid = ValidateGetInteger64vEXT(
+                    context, angle::EntryPoint::GLGetInteger64vEXT, pname, data);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(context, angle::EntryPoint::GLGetInteger64vEXT);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->getInteger64v(pname, data);
@@ -8340,10 +8491,25 @@ void GL_APIENTRY GL_GetQueryObjecti64vEXT(GLuint id, GLenum pname, GLint64 *para
     {
         QueryID idPacked = PackParam<QueryID>(id);
         SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid =
-            (context->skipValidation() ||
-             ValidateGetQueryObjecti64vEXT(context, angle::EntryPoint::GLGetQueryObjecti64vEXT,
-                                           idPacked, pname, params));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().disjointTimerQueryEXT))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid = ValidateGetQueryObjecti64vEXT(
+                    context, angle::EntryPoint::GLGetQueryObjecti64vEXT, idPacked, pname, params);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(context, angle::EntryPoint::GLGetQueryObjecti64vEXT);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->getQueryObjecti64v(idPacked, pname, params);
@@ -8368,10 +8534,25 @@ void GL_APIENTRY GL_GetQueryObjectivEXT(GLuint id, GLenum pname, GLint *params)
     {
         QueryID idPacked = PackParam<QueryID>(id);
         SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid =
-            (context->skipValidation() ||
-             ValidateGetQueryObjectivEXT(context, angle::EntryPoint::GLGetQueryObjectivEXT,
-                                         idPacked, pname, params));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().disjointTimerQueryEXT))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid = ValidateGetQueryObjectivEXT(
+                    context, angle::EntryPoint::GLGetQueryObjectivEXT, idPacked, pname, params);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(context, angle::EntryPoint::GLGetQueryObjectivEXT);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->getQueryObjectiv(idPacked, pname, params);
@@ -8396,10 +8577,25 @@ void GL_APIENTRY GL_GetQueryObjectui64vEXT(GLuint id, GLenum pname, GLuint64 *pa
     {
         QueryID idPacked = PackParam<QueryID>(id);
         SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid =
-            (context->skipValidation() ||
-             ValidateGetQueryObjectui64vEXT(context, angle::EntryPoint::GLGetQueryObjectui64vEXT,
-                                            idPacked, pname, params));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().disjointTimerQueryEXT))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid = ValidateGetQueryObjectui64vEXT(
+                    context, angle::EntryPoint::GLGetQueryObjectui64vEXT, idPacked, pname, params);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(context, angle::EntryPoint::GLGetQueryObjectui64vEXT);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->getQueryObjectui64v(idPacked, pname, params);
@@ -8425,10 +8621,26 @@ void GL_APIENTRY GL_GetQueryObjectuivEXT(GLuint id, GLenum pname, GLuint *params
     {
         QueryID idPacked = PackParam<QueryID>(id);
         SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid =
-            (context->skipValidation() ||
-             ValidateGetQueryObjectuivEXT(context, angle::EntryPoint::GLGetQueryObjectuivEXT,
-                                          idPacked, pname, params));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().disjointTimerQueryEXT ||
+                             context->getExtensions().occlusionQueryBooleanEXT))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid = ValidateGetQueryObjectuivEXT(
+                    context, angle::EntryPoint::GLGetQueryObjectuivEXT, idPacked, pname, params);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(context, angle::EntryPoint::GLGetQueryObjectuivEXT);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->getQueryObjectuiv(idPacked, pname, params);
@@ -8455,9 +8667,26 @@ void GL_APIENTRY GL_GetQueryivEXT(GLenum target, GLenum pname, GLint *params)
     {
         QueryType targetPacked = PackParam<QueryType>(target);
         SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid = (context->skipValidation() ||
-                            ValidateGetQueryivEXT(context, angle::EntryPoint::GLGetQueryivEXT,
-                                                  targetPacked, pname, params));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().disjointTimerQueryEXT ||
+                             context->getExtensions().occlusionQueryBooleanEXT))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid = ValidateGetQueryivEXT(context, angle::EntryPoint::GLGetQueryivEXT,
+                                                    targetPacked, pname, params);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(context, angle::EntryPoint::GLGetQueryivEXT);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->getQueryiv(targetPacked, pname, params);
@@ -8482,8 +8711,26 @@ GLboolean GL_APIENTRY GL_IsQueryEXT(GLuint id)
     {
         QueryID idPacked = PackParam<QueryID>(id);
         SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid = (context->skipValidation() ||
-                            ValidateIsQueryEXT(context, angle::EntryPoint::GLIsQueryEXT, idPacked));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().disjointTimerQueryEXT ||
+                             context->getExtensions().occlusionQueryBooleanEXT))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid =
+                    ValidateIsQueryEXT(context, angle::EntryPoint::GLIsQueryEXT, idPacked);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(context, angle::EntryPoint::GLIsQueryEXT);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             returnValue = context->isQuery(idPacked);
@@ -8515,9 +8762,25 @@ void GL_APIENTRY GL_QueryCounterEXT(GLuint id, GLenum target)
         QueryID idPacked       = PackParam<QueryID>(id);
         QueryType targetPacked = PackParam<QueryType>(target);
         SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid = (context->skipValidation() ||
-                            ValidateQueryCounterEXT(context, angle::EntryPoint::GLQueryCounterEXT,
-                                                    idPacked, targetPacked));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().disjointTimerQueryEXT))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid = ValidateQueryCounterEXT(context, angle::EntryPoint::GLQueryCounterEXT,
+                                                      idPacked, targetPacked);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(context, angle::EntryPoint::GLQueryCounterEXT);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->queryCounter(idPacked, targetPacked);
@@ -11302,7 +11565,9 @@ void GL_APIENTRY GL_BindProgramPipelineEXT(GLuint pipeline)
     ASSERT(!egl::Display::GetCurrentThreadUnlockedTailCall()->any());
 }
 
-GLuint GL_APIENTRY GL_CreateShaderProgramvEXT(GLenum type, GLsizei count, const GLchar **strings)
+GLuint GL_APIENTRY GL_CreateShaderProgramvEXT(GLenum type,
+                                              GLsizei count,
+                                              const GLchar *const *strings)
 {
     ASSERT(!egl::Display::GetCurrentThreadUnlockedTailCall()->any());
     Context *context = GetValidGlobalContext();
@@ -15560,6 +15825,8 @@ void GL_APIENTRY GL_BlitFramebufferNV(GLint srcX0,
     ASSERT(!egl::Display::GetCurrentThreadUnlockedTailCall()->any());
 }
 
+// GL_NV_pack_subimage
+
 // GL_NV_pixel_buffer_object
 
 // GL_NV_polygon_mode
@@ -15625,10 +15892,27 @@ void GL_APIENTRY GL_EGLImageTargetRenderbufferStorageOES(GLenum target, GLeglIma
     {
         egl::ImageID imagePacked = PackParam<egl::ImageID>(image);
         SCOPED_EGL_IMAGE_SHARE_CONTEXT_LOCK(context, imagePacked);
-        bool isCallValid = (context->skipValidation() ||
-                            ValidateEGLImageTargetRenderbufferStorageOES(
-                                context, angle::EntryPoint::GLEGLImageTargetRenderbufferStorageOES,
-                                target, imagePacked));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().EGLImageOES))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid = ValidateEGLImageTargetRenderbufferStorageOES(
+                    context, angle::EntryPoint::GLEGLImageTargetRenderbufferStorageOES, target,
+                    imagePacked);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(context,
+                                        angle::EntryPoint::GLEGLImageTargetRenderbufferStorageOES);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->eGLImageTargetRenderbufferStorage(target, imagePacked);
@@ -15657,10 +15941,27 @@ void GL_APIENTRY GL_EGLImageTargetTexture2DOES(GLenum target, GLeglImageOES imag
         TextureType targetPacked = PackParam<TextureType>(target);
         egl::ImageID imagePacked = PackParam<egl::ImageID>(image);
         SCOPED_EGL_IMAGE_SHARE_CONTEXT_LOCK(context, imagePacked);
-        bool isCallValid = (context->skipValidation() ||
-                            ValidateEGLImageTargetTexture2DOES(
-                                context, angle::EntryPoint::GLEGLImageTargetTexture2DOES,
-                                targetPacked, imagePacked));
+        bool isCallValid = context->skipValidation();
+        if (!isCallValid)
+        {
+            if (ANGLE_LIKELY(context->getExtensions().EGLImageExternalOES ||
+                             context->getExtensions().EGLImageOES))
+            {
+#if defined(ANGLE_ENABLE_ASSERTS)
+                const uint32_t errorCount = context->getPushedErrorCount();
+#endif
+                isCallValid = ValidateEGLImageTargetTexture2DOES(
+                    context, angle::EntryPoint::GLEGLImageTargetTexture2DOES, targetPacked,
+                    imagePacked);
+#if defined(ANGLE_ENABLE_ASSERTS)
+                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
+#endif
+            }
+            else
+            {
+                RecordVersionErrorESEXT(context, angle::EntryPoint::GLEGLImageTargetTexture2DOES);
+            }
+        }
         if (ANGLE_LIKELY(isCallValid))
         {
             context->eGLImageTargetTexture2D(targetPacked, imagePacked);
@@ -15677,6 +15978,7 @@ void GL_APIENTRY GL_EGLImageTargetTexture2DOES(GLenum target, GLeglImageOES imag
 }
 
 // GL_OES_EGL_image_external
+// EGLImageTargetTexture2DOES is already defined.
 
 // GL_OES_EGL_image_external_essl3
 

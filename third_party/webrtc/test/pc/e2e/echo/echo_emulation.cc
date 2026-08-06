@@ -9,10 +9,18 @@
  */
 #include "test/pc/e2e/echo/echo_emulation.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <limits>
+#include <memory>
 #include <utility>
 
+#include "api/array_view.h"
+#include "api/sequence_checker.h"
 #include "api/test/pclf/media_configuration.h"
+#include "modules/audio_device/include/test_audio_device.h"
+#include "rtc_base/buffer.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
 namespace webrtc {

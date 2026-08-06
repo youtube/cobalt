@@ -10,14 +10,16 @@
 
 #include "modules/desktop_capture/linux/wayland/shared_screencast_stream.h"
 
-#include <memory>
-#include <utility>
+#include <sys/types.h>
 
+#include <cstdint>
+#include <memory>
+
+#include "api/scoped_refptr.h"
 #include "api/units/time_delta.h"
-#include "modules/desktop_capture/desktop_capturer.h"
-#include "modules/desktop_capture/desktop_frame.h"
 #include "modules/desktop_capture/linux/wayland/test/test_screencast_stream_provider.h"
 #include "modules/desktop_capture/rgba_color.h"
+#include "modules/desktop_capture/shared_desktop_frame.h"
 #include "rtc_base/event.h"
 #include "test/gmock.h"
 #include "test/gtest.h"

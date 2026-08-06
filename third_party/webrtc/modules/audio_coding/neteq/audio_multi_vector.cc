@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 #include "api/array_view.h"
@@ -21,23 +22,26 @@
 #include "rtc_base/checks.h"
 
 namespace webrtc {
-
-AudioMultiVector::AudioMultiVector(size_t N) : channels_(N) {
-  RTC_DCHECK_GT(N, 0);
-  RTC_DCHECK_LE(N, kMaxNumberOfAudioChannels);
-  for (auto& c : channels_) {
-    c.reset(new AudioVector());
+namespace {
+std::vector<std::unique_ptr<AudioVector>> InitializeChannelVector(
+    size_t num_channels,
+    size_t channel_size = 0u) {
+  RTC_DCHECK_GT(num_channels, 0u);
+  RTC_CHECK_LE(num_channels, kMaxNumberOfAudioChannels);
+  std::vector<std::unique_ptr<AudioVector>> channels(num_channels);
+  for (auto& c : channels) {
+    c = channel_size ? std::make_unique<AudioVector>(channel_size)
+                     : std::make_unique<AudioVector>();
   }
+  return channels;
 }
+}  // namespace
+
+AudioMultiVector::AudioMultiVector(size_t N)
+    : channels_(InitializeChannelVector(N)) {}
 
 AudioMultiVector::AudioMultiVector(size_t N, size_t initial_size)
-    : channels_(N) {
-  RTC_DCHECK_GT(N, 0);
-  RTC_DCHECK_LE(N, kMaxNumberOfAudioChannels);
-  for (auto& c : channels_) {
-    c.reset(new AudioVector(initial_size));
-  }
-}
+    : channels_(InitializeChannelVector(N, initial_size)) {}
 
 AudioMultiVector::~AudioMultiVector() = default;
 
@@ -146,6 +150,27 @@ size_t AudioMultiVector::ReadInterleavedFromIndex(size_t start_index,
     }
   }
   return index;
+}
+
+bool AudioMultiVector::ReadInterleavedFromIndex(
+    const size_t start_index,
+    InterleavedView<int16_t> dst) const {
+  RTC_DCHECK_EQ(dst.num_channels(), Channels());
+  if (start_index + dst.samples_per_channel() > Size()) {
+    return false;
+  }
+  if (Channels() == 1) {
+    // Special case to avoid the nested for loop below.
+    return channels_[0]->CopyTo(start_index, dst.AsMono());
+  }
+  size_t index = 0;
+  for (size_t i = 0; i < dst.samples_per_channel(); ++i) {
+    for (const auto& ch : channels_) {
+      dst[index] = (*ch)[i + start_index];
+      ++index;
+    }
+  }
+  return true;
 }
 
 size_t AudioMultiVector::ReadInterleavedFromEnd(size_t length,

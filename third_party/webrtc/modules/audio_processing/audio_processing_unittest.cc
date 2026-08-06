@@ -51,6 +51,7 @@
 #include "modules/audio_processing/test/test_utils.h"
 #include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/cpu_info.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/numerics/safe_minmax.h"
@@ -59,7 +60,6 @@
 #include "rtc_base/swap_queue.h"
 #include "rtc_base/system/file_wrapper.h"
 #include "rtc_base/task_queue_for_test.h"
-#include "system_wrappers/include/cpu_features_wrapper.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
@@ -295,7 +295,7 @@ std::string GetReferenceFilename() {
 #if defined(WEBRTC_AUDIOPROC_FIXED_PROFILE)
   return test::ResourcePath("audio_processing/output_data_fixed", "pb");
 #elif defined(WEBRTC_AUDIOPROC_FLOAT_PROFILE)
-  if (GetCPUInfo(kAVX2) != 0) {
+  if (cpu_info::Supports(cpu_info::ISA::kAVX2)) {
     return test::ResourcePath("audio_processing/output_data_float_avx2", "pb");
   }
   return test::ResourcePath("audio_processing/output_data_float", "pb");

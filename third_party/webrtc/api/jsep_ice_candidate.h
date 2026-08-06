@@ -20,6 +20,8 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/nullability.h"
+#include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/jsep.h"
 #include "rtc_base/system/rtc_export.h"
@@ -29,16 +31,18 @@ namespace webrtc {
 // Implementation of IceCandidateInterface.
 class RTC_EXPORT JsepIceCandidate : public IceCandidateInterface {
  public:
-  JsepIceCandidate(const std::string& sdp_mid, int sdp_mline_index);
-  JsepIceCandidate(const std::string& sdp_mid,
+  JsepIceCandidate(absl::string_view sdp_mid,
                    int sdp_mline_index,
                    const Candidate& candidate);
   JsepIceCandidate(const JsepIceCandidate&) = delete;
   JsepIceCandidate& operator=(const JsepIceCandidate&) = delete;
   ~JsepIceCandidate() override;
-  // `err` may be null.
-  bool Initialize(const std::string& sdp, SdpParseError* err);
-  void SetCandidate(const Candidate& candidate) { candidate_ = candidate; }
+
+  static std::unique_ptr<JsepIceCandidate> Create(
+      absl::string_view mid,
+      int sdp_mline_index,
+      absl::string_view sdp,
+      SdpParseError* absl_nullable error = nullptr);
 
   std::string sdp_mid() const override;
   int sdp_mline_index() const override;
@@ -49,9 +53,9 @@ class RTC_EXPORT JsepIceCandidate : public IceCandidateInterface {
   bool ToString(std::string* out) const override;
 
  private:
-  std::string sdp_mid_;
-  int sdp_mline_index_;
-  Candidate candidate_;
+  const std::string sdp_mid_;
+  const int sdp_mline_index_;
+  const Candidate candidate_;
 };
 
 // Implementation of IceCandidateCollection which stores JsepIceCandidates.

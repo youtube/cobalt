@@ -171,6 +171,7 @@ targets.tests.gtest_test(
     name = "ash_pixeltests",
     mixins = [
         "skia_gold_test",
+        "skia_gold_test_on_linux_gce",
     ],
     args = [
         "--enable-pixel-output-in-tests",
@@ -1174,6 +1175,10 @@ targets.tests.gtest_test(
         "../../media/test/data/test-25fps.vp9.json",
     ],
     binary = "video_decode_accelerator_tests",
+)
+
+targets.tests.gtest_test(
+    name = "video_encode_accelerator_tests",
 )
 
 targets.tests.gtest_test(

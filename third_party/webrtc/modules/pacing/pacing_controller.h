@@ -238,7 +238,6 @@ class PacingController {
 
   Clock* const clock_;
   PacketSender* const packet_sender_;
-  const FieldTrialsView& field_trials_;
 
   const bool drain_large_queues_;
   const bool send_padding_if_silent_;

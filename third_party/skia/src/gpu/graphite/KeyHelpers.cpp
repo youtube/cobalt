@@ -566,11 +566,11 @@ void add_color_space_uniforms(const SkColorSpaceXformSteps& steps,
                            type == skcms_TFType_PQish ? -2.f :
                            type == skcms_TFType_HLGish ? -1.f :
                                                          0.f;
-        gatherer->writeHalf(SkV4{srcG, steps.fSrcTF.a, steps.fSrcTF.b, steps.fSrcTF.c});
-        gatherer->writeHalf(SkV4{steps.fSrcTF.d, steps.fSrcTF.e, steps.fSrcTF.f, srcW});
+        gatherer->write(SkV4{srcG, steps.fSrcTF.a, steps.fSrcTF.b, steps.fSrcTF.c});
+        gatherer->write(SkV4{steps.fSrcTF.d, steps.fSrcTF.e, steps.fSrcTF.f, srcW});
     } else {
-        gatherer->writeHalf(SkV4{0.f, 0.f, 0.f, 0.f});
-        gatherer->writeHalf(SkV4{0.f, 0.f, 0.f, srcW});
+        gatherer->write(SkV4{0.f, 0.f, 0.f, 0.f});
+        gatherer->write(SkV4{0.f, 0.f, 0.f, srcW});
     }
 
     if (steps.fFlags.encode) {
@@ -579,11 +579,11 @@ void add_color_space_uniforms(const SkColorSpaceXformSteps& steps,
                            type == skcms_TFType_PQish ? -2.f :
                            type == skcms_TFType_HLGinvish ? -1.f :
                                                             0.f;
-        gatherer->writeHalf(SkV4{dstG, steps.fDstTFInv.a, steps.fDstTFInv.b, steps.fDstTFInv.c});
-        gatherer->writeHalf(SkV4{steps.fDstTFInv.d, steps.fDstTFInv.e, steps.fDstTFInv.f, dstW});
+        gatherer->write(SkV4{dstG, steps.fDstTFInv.a, steps.fDstTFInv.b, steps.fDstTFInv.c});
+        gatherer->write(SkV4{steps.fDstTFInv.d, steps.fDstTFInv.e, steps.fDstTFInv.f, dstW});
     } else {
-        gatherer->writeHalf(SkV4{0.f, 0.f, 0.f, 0.f});
-        gatherer->writeHalf(SkV4{0.f, 0.f, 0.f, dstW});
+        gatherer->write(SkV4{0.f, 0.f, 0.f, 0.f});
+        gatherer->write(SkV4{0.f, 0.f, 0.f, dstW});
     }
 }
 
@@ -1071,10 +1071,27 @@ void add_matrix_colorfilter_uniform_data(const ShaderCodeDictionary* dict,
                                          const MatrixColorFilterBlock::MatrixColorFilterData& data,
                                          PipelineDataGatherer* gatherer) {
     BEGIN_WRITE_UNIFORMS(gatherer, dict, BuiltInCodeSnippetID::kMatrixColorFilter)
-    gatherer->write(data.fMatrix);
-    gatherer->write(data.fTranslate);
-    gatherer->write(static_cast<int>(data.fInHSLA));
-    gatherer->write(static_cast<int>(data.fClamp));
+
+    gatherer->writeHalf(data.fMatrix);
+    gatherer->writeHalf(data.fTranslate);
+    if (data.fClamp) {
+        gatherer->writeHalf(SkV2{0.f, 1.f});
+    } else {
+        // Alpha is always clamped to 1. RGB clamp to the max finite half value.
+        static constexpr float kUnclamped = 65504.f; // SK_HalfMax converted back to float
+        SkASSERT(SkHalfToFloat(SkFloatToHalf(kUnclamped)) == kUnclamped);
+        SkASSERT(SkHalfToFloat(SkFloatToHalf(-kUnclamped)) == -kUnclamped);
+        gatherer->writeHalf(SkV2{-kUnclamped, kUnclamped});
+    }
+}
+
+void add_hsl_matrix_colorfilter_uniform_data(
+        const ShaderCodeDictionary* dict,
+        const MatrixColorFilterBlock::MatrixColorFilterData& data,
+        PipelineDataGatherer* gatherer) {
+    BEGIN_WRITE_UNIFORMS(gatherer, dict, BuiltInCodeSnippetID::kHSLMatrixColorFilter)
+    gatherer->writeHalf(data.fMatrix);
+    gatherer->writeHalf(data.fTranslate);
 }
 
 } // anonymous namespace
@@ -1083,10 +1100,15 @@ void MatrixColorFilterBlock::AddBlock(const KeyContext& keyContext,
                                       PaintParamsKeyBuilder* builder,
                                       PipelineDataGatherer* gatherer,
                                       const MatrixColorFilterData& matrixCFData) {
+    if (matrixCFData.fInHSLA) {
+        add_hsl_matrix_colorfilter_uniform_data(keyContext.dict(), matrixCFData, gatherer);
 
-    add_matrix_colorfilter_uniform_data(keyContext.dict(), matrixCFData, gatherer);
+        builder->addBlock(BuiltInCodeSnippetID::kHSLMatrixColorFilter);
+    } else {
+        add_matrix_colorfilter_uniform_data(keyContext.dict(), matrixCFData, gatherer);
 
-    builder->addBlock(BuiltInCodeSnippetID::kMatrixColorFilter);
+        builder->addBlock(BuiltInCodeSnippetID::kMatrixColorFilter);
+    }
 }
 
 //--------------------------------------------------------------------------------------------------

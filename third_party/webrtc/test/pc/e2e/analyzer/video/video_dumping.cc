@@ -19,9 +19,8 @@
 #include "absl/strings/string_view.h"
 #include "api/test/video/video_frame_writer.h"
 #include "api/video/video_frame.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "system_wrappers/include/clock.h"
-#include "test/testsupport/video_frame_writer.h"
 
 namespace webrtc {
 namespace webrtc_pc_e2e {

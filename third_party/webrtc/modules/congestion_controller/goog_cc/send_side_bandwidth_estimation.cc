@@ -152,7 +152,7 @@ DataRate LinkCapacityTracker::estimate() const {
   return DataRate::BitsPerSec(capacity_estimate_bps_);
 }
 
-RttBasedBackoff::RttBasedBackoff(const FieldTrialsView* key_value_config)
+RttBasedBackoff::RttBasedBackoff(const FieldTrialsView& key_value_config)
     : disabled_("Disabled"),
       configured_limit_("limit", TimeDelta::Seconds(3)),
       drop_fraction_("fraction", 0.8),
@@ -166,7 +166,7 @@ RttBasedBackoff::RttBasedBackoff(const FieldTrialsView* key_value_config)
       last_packet_sent_(Timestamp::MinusInfinity()) {
   ParseFieldTrial({&disabled_, &configured_limit_, &drop_fraction_,
                    &drop_interval_, &bandwidth_floor_},
-                  key_value_config->Lookup("WebRTC-Bwe-MaxRttLimit"));
+                  key_value_config.Lookup("WebRTC-Bwe-MaxRttLimit"));
   if (!disabled_) {
     rtt_limit_ = configured_limit_.Get();
   }
@@ -195,7 +195,7 @@ SendSideBandwidthEstimation::SendSideBandwidthEstimation(
     const FieldTrialsView* key_value_config,
     RtcEventLog* event_log)
     : key_value_config_(key_value_config),
-      rtt_backoff_(key_value_config),
+      rtt_backoff_(*key_value_config),
       lost_packets_since_last_loss_update_(0),
       expected_packets_since_last_loss_update_(0),
       current_target_(DataRate::Zero()),

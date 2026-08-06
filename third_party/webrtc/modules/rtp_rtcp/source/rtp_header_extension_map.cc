@@ -21,7 +21,6 @@
 #include "modules/rtp_rtcp/source/rtp_generic_frame_descriptor_extension.h"
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "modules/rtp_rtcp/source/rtp_video_layers_allocation_extension.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
@@ -64,7 +63,7 @@ constexpr ExtensionInfo kExtensions[] = {
 
 // Because of kRtpExtensionNone, NumberOfExtension is 1 bigger than the actual
 // number of known extensions.
-static_assert(arraysize(kExtensions) ==
+static_assert(std::ssize(kExtensions) ==
                   static_cast<int>(kRtpExtensionNumberOfExtensions) - 1,
               "kExtensions expect to list all known extensions");
 

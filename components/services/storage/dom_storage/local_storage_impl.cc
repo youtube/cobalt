@@ -455,7 +455,7 @@ void LocalStorageImpl::FlushStorageKeyForTesting(
 }
 
 void LocalStorageImpl::ShutDown(base::OnceClosure callback) {
-  DCHECK_NE(connection_state_, CONNECTION_SHUTDOWN);
+  CHECK_NE(connection_state_, CONNECTION_SHUTDOWN);
   DCHECK(callback);
 
   control_receiver_.reset();
@@ -935,7 +935,7 @@ void LocalStorageImpl::OnGotStorageUsageForShutdown(
     }
   }
 
-  if (!storage_keys_to_delete.empty()) {
+  if (!storage_keys_to_delete.empty() && database_) {
     DeleteStorageKeys(database_.get(), std::move(storage_keys_to_delete),
                       base::BindOnce(&LocalStorageImpl::OnStorageKeysDeleted,
                                      base::Unretained(this)));
@@ -1018,6 +1018,13 @@ void LocalStorageImpl::DeleteStaleStorageAreas() {
 
 void LocalStorageImpl::OnGotMetaDataToDeleteStaleStorageAreas(
     std::vector<DomStorageDatabase::KeyValuePair> data) {
+  if (!database_) {
+    // This method is provided as a callback to an off thread task. Between the
+    // time that the task is posted and now when this callback is invoked, the
+    // `database_` member may have been reset.
+    return;
+  }
+
   // Collect last accessed or modified time for all storage areas.
   std::map<blink::StorageKey, base::Time> storage_key_to_latest_use_time;
   for (const DomStorageDatabase::KeyValuePair& row : data) {

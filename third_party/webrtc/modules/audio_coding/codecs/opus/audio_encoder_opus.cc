@@ -11,6 +11,7 @@
 #include "modules/audio_coding/codecs/opus/audio_encoder_opus.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
@@ -37,7 +38,6 @@
 #include "modules/audio_coding/audio_network_adaptor/include/audio_network_adaptor.h"
 #include "modules/audio_coding/codecs/opus/audio_coder_opus_common.h"
 #include "modules/audio_coding/codecs/opus/opus_interface.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
@@ -72,11 +72,11 @@ constexpr int kDefaultMaxPlaybackRate = 48000;
 
 // These two lists must be sorted from low to high
 #if WEBRTC_OPUS_SUPPORT_120MS_PTIME
-constexpr int kANASupportedFrameLengths[] = {20, 40, 60, 120};
-constexpr int kOpusSupportedFrameLengths[] = {10, 20, 40, 60, 120};
+constexpr std::array kANASupportedFrameLengths = {20, 40, 60, 120};
+constexpr std::array kOpusSupportedFrameLengths = {10, 20, 40, 60, 120};
 #else
-constexpr int kANASupportedFrameLengths[] = {20, 40, 60};
-constexpr int kOpusSupportedFrameLengths[] = {10, 20, 40, 60};
+constexpr std::array kANASupportedFrameLengths = {20, 40, 60};
+constexpr std::array kOpusSupportedFrameLengths = {10, 20, 40, 60};
 #endif
 
 // PacketLossFractionSmoother uses an exponential filter with a time constant
@@ -264,9 +264,8 @@ std::optional<AudioEncoderOpusConfig> AudioEncoderOpusImpl::SdpToConfig(
                            ? AudioEncoderOpusConfig::ApplicationMode::kVoip
                            : AudioEncoderOpusConfig::ApplicationMode::kAudio;
 
-  constexpr int kMinANAFrameLength = kANASupportedFrameLengths[0];
-  constexpr int kMaxANAFrameLength =
-      kANASupportedFrameLengths[arraysize(kANASupportedFrameLengths) - 1];
+  constexpr int kMinANAFrameLength = kANASupportedFrameLengths.front();
+  constexpr int kMaxANAFrameLength = kANASupportedFrameLengths.back();
 
   // For now, minptime and maxptime are only used with ANA. If ptime is outside
   // of this range, it will get adjusted once ANA takes hold. Ideally, we'd know

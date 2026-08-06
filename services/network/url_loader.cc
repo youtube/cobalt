@@ -1464,6 +1464,7 @@ void URLLoader::CheckPartialDecoderResult(int result) {
 }
 
 void URLLoader::ReadMore() {
+  is_read_more_task_posted_ = false;
   if (partial_decoder_result_) {
     // If we have buffered raw data from the partial decoder, send that first.
     while (partial_decoder_result_->HasRawData()) {
@@ -1543,7 +1544,9 @@ void URLLoader::ReadMore() {
           std::optional<int> bytes_read_maybe = slop_bucket_->AttemptRead();
           if (bytes_read_maybe.has_value()) {
             int bytes_read = bytes_read_maybe.value();
-            if (bytes_read != net::ERR_IO_PENDING) {
+            if (bytes_read == net::ERR_IO_PENDING) {
+              read_in_progress_ = true;
+            } else {
               // DidRead() will not delete `this` when `into_slop_bucket` is
               // true, so it is safe to access member variables after this call.
               DidRead(bytes_read, /*completed_synchronously=*/true,
@@ -1568,16 +1571,14 @@ void URLLoader::ReadMore() {
 
     // We may be able to fill up the buffer from the slop bucket.
     if (slop_bucket_) {
-      const size_t consumed = slop_bucket_->Consume(pending_write_->buffer(),
-                                                    pending_write_buffer_size_);
+      const size_t consumed =
+          slop_bucket_->Consume(base::as_writable_byte_span(*pending_write_));
       if (consumed) {
         // TODO(ricea): Refactor the way pending writes work so we don't need to
         // poke a value into `pending_write_buffer_offset_` here.
         pending_write_buffer_offset_ = consumed;
         CompletePendingWrite(true);
-        base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-            FROM_HERE, base::BindOnce(&URLLoader::ReadMore,
-                                      weak_ptr_factory_.GetWeakPtr()));
+        ReadMoreAsync();
         return;
       } else if (slop_bucket_->read_in_progress()) {
         // There were no bytes available, but a read is in progress. Need to
@@ -1609,6 +1610,14 @@ void URLLoader::ReadMore() {
             /*into_slop_bucket=*/false);
     // |this| may have been deleted.
   }
+}
+
+void URLLoader::ReadMoreAsync() {
+  CHECK(!is_read_more_task_posted_);
+  is_read_more_task_posted_ = true;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&URLLoader::ReadMore, weak_ptr_factory_.GetWeakPtr()));
 }
 
 // Handles the completion of a read. `num_bytes` is the number of bytes read, 0
@@ -1736,9 +1745,7 @@ void URLLoader::DidRead(int num_bytes,
     CompletePendingWrite(true /* success */);
   }
   if (completed_synchronously) {
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&URLLoader::ReadMore, weak_ptr_factory_.GetWeakPtr()));
+    ReadMoreAsync();
   } else {
     ReadMore();
   }
@@ -2011,7 +2018,9 @@ void URLLoader::OnResponseBodyStreamReady(MojoResult result) {
     return;
   }
 
-  ReadMore();
+  if (!is_read_more_task_posted_ && !read_in_progress_) {
+    ReadMore();
+  }
 }
 
 void URLLoader::DeleteSelf() {

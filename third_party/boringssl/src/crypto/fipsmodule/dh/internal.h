@@ -17,8 +17,6 @@
 
 #include <openssl/base.h>
 
-#include <openssl/thread.h>
-
 #include "../../internal.h"
 
 #if defined(__cplusplus)

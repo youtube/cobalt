@@ -965,18 +965,6 @@ bool SdpDeserialize(absl::string_view message,
   return true;
 }
 
-bool SdpDeserializeCandidate(absl::string_view message,
-                             JsepIceCandidate* jcandidate,
-                             SdpParseError* error) {
-  RTC_DCHECK(jcandidate != nullptr);
-  Candidate candidate;
-  if (!ParseCandidate(message, &candidate, error, true)) {
-    return false;
-  }
-  jcandidate->SetCandidate(candidate);
-  return true;
-}
-
 bool SdpDeserializeCandidate(absl::string_view transport_name,
                              absl::string_view message,
                              Candidate* candidate,

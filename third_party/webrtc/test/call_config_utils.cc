@@ -13,6 +13,13 @@
 #include <string>
 #include <vector>
 
+#include "api/call/transport.h"
+#include "api/rtp_headers.h"
+#include "api/video_codecs/sdp_video_format.h"
+#include "call/video_receive_stream.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/strings/json.h"
+
 namespace webrtc {
 namespace test {
 

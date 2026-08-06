@@ -12,19 +12,58 @@
 
 #include <fcntl.h>
 #include <libdrm/drm_fourcc.h>
+#include <pipewire/context.h>
+#include <pipewire/core.h>
+#include <pipewire/loop.h>
 #include <pipewire/pipewire.h>
-#include <spa/param/video/format-utils.h>
+#include <pipewire/port.h>
+#include <pipewire/properties.h>
+#include <pipewire/stream.h>
+#include <pipewire/thread-loop.h>
+#include <pipewire/version.h>
+#include <spa/buffer/buffer.h>
+#include <spa/buffer/meta.h>
+#include <spa/param/buffers.h>
+#include <spa/param/format.h>
+#include <spa/param/param.h>
+#include <spa/param/video/raw-utils.h>
+#include <spa/param/video/raw.h>
+#include <spa/pod/builder.h>
+#include <spa/pod/iter.h>
+#include <spa/pod/vararg.h>
+#include <spa/support/loop.h>
+#include <spa/utils/defs.h>
+#include <spa/utils/hook.h>
+#include <spa/utils/type.h>
+#include <sys/mman.h>
+#include <sys/types.h>
 
+#include <algorithm>
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
+#include <memory>
+#include <optional>
+#include <utility>
 #include <vector>
 
-#include "absl/memory/memory.h"
+#include "api/scoped_refptr.h"
+#include "modules/desktop_capture/desktop_capture_types.h"
+#include "modules/desktop_capture/desktop_capturer.h"
+#include "modules/desktop_capture/desktop_frame.h"
+#include "modules/desktop_capture/desktop_geometry.h"
+#include "modules/desktop_capture/desktop_region.h"
 #include "modules/desktop_capture/linux/wayland/egl_dmabuf.h"
 #include "modules/desktop_capture/linux/wayland/screencast_stream_utils.h"
+#include "modules/desktop_capture/mouse_cursor.h"
+#include "modules/desktop_capture/screen_capture_frame_queue.h"
+#include "modules/desktop_capture/shared_desktop_frame.h"
 #include "modules/portal/pipewire_utils.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/sanitizer.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
 #include "rtc_base/time_utils.h"
 
 namespace webrtc {

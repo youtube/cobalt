@@ -49,7 +49,7 @@ vars = {
   'dummy_checkout_chromium': False,
 
   # Current revision of VK-GL-CTS (a.k.a dEQP).
-  'vk_gl_cts_revision': 'c9d2e24d1a6da00165a0b5908ea4ba05c2e5f0b2',
+  'vk_gl_cts_revision': '2231585b0204b05ff02d0019b1d584384745b317',
 
   # Current revision of googletest.
   # Note: this dep cannot be auto-rolled b/c of nesting.
@@ -169,6 +169,7 @@ vars = {
   'checkout_angle_restricted_trace_animal_crossing': 'checkout_angle_restricted_traces',
   'checkout_angle_restricted_trace_antistress': 'checkout_angle_restricted_traces',
   'checkout_angle_restricted_trace_antutu_refinery': 'checkout_angle_restricted_traces',
+  'checkout_angle_restricted_trace_aquarium': 'checkout_angle_restricted_traces',
   'checkout_angle_restricted_trace_arena_of_valor': 'checkout_angle_restricted_traces',
   'checkout_angle_restricted_trace_arknights': 'checkout_angle_restricted_traces',
   'checkout_angle_restricted_trace_asphalt_8': 'checkout_angle_restricted_traces',
@@ -915,7 +916,7 @@ deps = {
   },
 
   'third_party/OpenGL-Registry/src': {
-    'url': Var('chromium_git') + '/external/github.com/KhronosGroup/OpenGL-Registry@5bae8738b23d06968e7c3a41308568120943ae77',
+    'url': Var('chromium_git') + '/external/github.com/KhronosGroup/OpenGL-Registry@200cea4030cb49d3e40677379e6368a5f0e8c27b',
     'condition': 'not build_with_chromium',
   },
 
@@ -1021,17 +1022,17 @@ deps = {
   },
 
   'third_party/vulkan-deps': {
-    'url': Var('chromium_git') + '/vulkan-deps@bf024288c340597e8421df8db06c2de12c25bf31',
+    'url': Var('chromium_git') + '/vulkan-deps@84aa8fdf32d01c9c5e2b25f4410765c1f8c296da',
     'condition': 'not build_with_chromium',
   },
 
   'third_party/glslang/src': {
-    'url': '{chromium_git}/external/github.com/KhronosGroup/glslang@93231001597dad1149a5d035af30eda50b9e6b6c',
+    'url': '{chromium_git}/external/github.com/KhronosGroup/glslang@be4ee7d0e3bfd151bfda7b3a8e03f8c49c55ed7b',
     'condition': 'not build_with_chromium',
   },
 
   'third_party/lunarg-vulkantools/src': {
-    'url': '{chromium_git}/external/github.com/LunarG/VulkanTools@67b5d1d7f84660ca14951315afb4f9baa08ae138',
+    'url': '{chromium_git}/external/github.com/LunarG/VulkanTools@4841ea0a48c4ea07e9f24db3322f31541a25a101',
     'condition': 'not build_with_chromium',
   },
 
@@ -1041,12 +1042,12 @@ deps = {
   },
 
   'third_party/spirv-headers/src': {
-    'url': '{chromium_git}/external/github.com/KhronosGroup/SPIRV-Headers@c9aad99f9276817f18f72a4696239237c83cb775',
+    'url': '{chromium_git}/external/github.com/KhronosGroup/SPIRV-Headers@9a46274d2ef215d3c258ed4d1863bff4514fa316',
     'condition': 'not build_with_chromium',
   },
 
   'third_party/spirv-tools/src': {
-    'url': '{chromium_git}/external/github.com/KhronosGroup/SPIRV-Tools@01021466b5e71deaac9054f56082566c782bfd51',
+    'url': '{chromium_git}/external/github.com/KhronosGroup/SPIRV-Tools@a9d7fde99e73a619bbdda648473eff5895ead273',
     'condition': 'not build_with_chromium',
   },
 
@@ -1066,12 +1067,12 @@ deps = {
   },
 
   'third_party/vulkan-utility-libraries/src': {
-    'url': '{chromium_git}/external/github.com/KhronosGroup/Vulkan-Utility-Libraries@ae56bd6e65d9faa731150e931cb35f0d895223bc',
+    'url': '{chromium_git}/external/github.com/KhronosGroup/Vulkan-Utility-Libraries@49ac28931f28bffaa3cd73dc4ad997284d574962',
     'condition': 'not build_with_chromium',
   },
 
   'third_party/vulkan-validation-layers/src': {
-    'url': '{chromium_git}/external/github.com/KhronosGroup/Vulkan-ValidationLayers@84b023ac42601ff51ea6094dc2c18ca62960b25d',
+    'url': '{chromium_git}/external/github.com/KhronosGroup/Vulkan-ValidationLayers@e2d41fdd5ac2b0138112b61bd6eed0e0bb0ea693',
     'condition': 'not build_with_chromium',
   },
 
@@ -1364,6 +1365,16 @@ deps = {
       ],
       'dep_type': 'cipd',
       'condition': 'checkout_angle_restricted_trace_antutu_refinery',
+  },
+  'src/tests/restricted_traces/aquarium': {
+      'packages': [
+        {
+            'package': 'angle/traces/aquarium',
+            'version': 'version:1',
+        },
+      ],
+      'dep_type': 'cipd',
+      'condition': 'checkout_angle_restricted_trace_aquarium',
   },
   'src/tests/restricted_traces/arena_of_valor': {
       'packages': [

@@ -11,6 +11,7 @@
 #ifndef TEST_PC_E2E_ANALYZER_VIDEO_SIMULCAST_DUMMY_BUFFER_HELPER_H_
 #define TEST_PC_E2E_ANALYZER_VIDEO_SIMULCAST_DUMMY_BUFFER_HELPER_H_
 
+#include "api/scoped_refptr.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_buffer.h"
 

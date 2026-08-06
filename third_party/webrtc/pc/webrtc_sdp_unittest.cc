@@ -839,11 +839,6 @@ static bool SdpDeserialize(const std::string& message,
   return SdpDeserialize(message, jdesc, nullptr);
 }
 
-static bool SdpDeserializeCandidate(const std::string& message,
-                                    JsepIceCandidate* candidate) {
-  return SdpDeserializeCandidate(message, candidate, nullptr);
-}
-
 // Add some extra `newlines` to the `message` after `line`.
 static void InjectAfter(const std::string& line,
                         const std::string& newlines,
@@ -930,6 +925,13 @@ static TransportDescription MakeTransportDescription(std::string ufrag,
   SSLFingerprint fingerprint(DIGEST_SHA_1, kIdentityDigest);
   return TransportDescription(std::vector<std::string>(), ufrag, pwd,
                               ICEMODE_FULL, CONNECTIONROLE_NONE, &fingerprint);
+}
+
+static std::unique_ptr<JsepIceCandidate> NewCandidate(
+    absl::string_view sdp,
+    absl::string_view mid = kDummyMid,
+    int index = kDummyIndex) {
+  return JsepIceCandidate::Create(mid, index, sdp);
 }
 
 // WebRtcSdpTest
@@ -2226,20 +2228,19 @@ TEST_F(WebRtcSdpTest, SerializeTcpCandidates) {
 TEST_F(WebRtcSdpTest, ParseTcpCandidateWithoutTcptype) {
   std::string missing_tcptype =
       "candidate:a0+B/1 1 tcp 2130706432 192.168.1.5 9999 typ host";
-  JsepIceCandidate jcandidate(kDummyMid, kDummyIndex);
-  EXPECT_TRUE(SdpDeserializeCandidate(missing_tcptype, &jcandidate));
-
-  EXPECT_EQ(std::string(TCPTYPE_PASSIVE_STR), jcandidate.candidate().tcptype());
+  std::unique_ptr<JsepIceCandidate> jcandidate = NewCandidate(missing_tcptype);
+  ASSERT_TRUE(jcandidate.get());
+  EXPECT_EQ(std::string(TCPTYPE_PASSIVE_STR),
+            jcandidate->candidate().tcptype());
 }
 
 TEST_F(WebRtcSdpTest, ParseSslTcpCandidate) {
   std::string ssltcp =
       "candidate:a0+B/1 1 ssltcp 2130706432 192.168.1.5 9999 typ host tcptype "
       "passive";
-  JsepIceCandidate jcandidate(kDummyMid, kDummyIndex);
-  EXPECT_TRUE(SdpDeserializeCandidate(ssltcp, &jcandidate));
-
-  EXPECT_EQ(std::string("ssltcp"), jcandidate.candidate().protocol());
+  std::unique_ptr<JsepIceCandidate> jcandidate = NewCandidate(ssltcp);
+  ASSERT_TRUE(jcandidate.get());
+  EXPECT_EQ(std::string("ssltcp"), jcandidate->candidate().protocol());
 }
 
 TEST_F(WebRtcSdpTest, SerializeSessionDescriptionWithH264) {
@@ -2570,43 +2571,46 @@ TEST_F(WebRtcSdpTest, DeserializeMediaContentDescriptionWithExtmapAllowMixed) {
 }
 
 TEST_F(WebRtcSdpTest, DeserializeCandidate) {
-  JsepIceCandidate jcandidate(kDummyMid, kDummyIndex);
-
   std::string sdp = kSdpOneCandidate;
-  EXPECT_TRUE(SdpDeserializeCandidate(sdp, &jcandidate));
-  EXPECT_EQ(kDummyMid, jcandidate.sdp_mid());
-  EXPECT_EQ(kDummyIndex, jcandidate.sdp_mline_index());
-  EXPECT_TRUE(jcandidate.candidate().IsEquivalent(jcandidate_->candidate()));
-  EXPECT_EQ(0, jcandidate.candidate().network_cost());
+  std::unique_ptr<JsepIceCandidate> jcandidate = NewCandidate(sdp);
+  ASSERT_TRUE(jcandidate.get());
+  EXPECT_EQ(kDummyMid, jcandidate->sdp_mid());
+  EXPECT_EQ(kDummyIndex, jcandidate->sdp_mline_index());
+  EXPECT_TRUE(jcandidate->candidate().IsEquivalent(jcandidate_->candidate()));
+  EXPECT_EQ(0, jcandidate->candidate().network_cost());
 
   // Candidate line without generation extension.
   sdp = kSdpOneCandidate;
   Replace(" generation 2", "", &sdp);
-  EXPECT_TRUE(SdpDeserializeCandidate(sdp, &jcandidate));
-  EXPECT_EQ(kDummyMid, jcandidate.sdp_mid());
-  EXPECT_EQ(kDummyIndex, jcandidate.sdp_mline_index());
+  jcandidate = NewCandidate(sdp);
+  ASSERT_TRUE(jcandidate.get());
+  EXPECT_EQ(kDummyMid, jcandidate->sdp_mid());
+  EXPECT_EQ(kDummyIndex, jcandidate->sdp_mline_index());
   Candidate expected = jcandidate_->candidate();
   expected.set_generation(0);
-  EXPECT_TRUE(jcandidate.candidate().IsEquivalent(expected));
+  EXPECT_TRUE(jcandidate->candidate().IsEquivalent(expected));
 
   // Candidate with network id and/or cost.
   sdp = kSdpOneCandidate;
   Replace(" generation 2", " generation 2 network-id 2", &sdp);
-  EXPECT_TRUE(SdpDeserializeCandidate(sdp, &jcandidate));
-  EXPECT_EQ(kDummyMid, jcandidate.sdp_mid());
-  EXPECT_EQ(kDummyIndex, jcandidate.sdp_mline_index());
+  jcandidate = NewCandidate(sdp);
+  ASSERT_TRUE(jcandidate.get());
+  EXPECT_EQ(kDummyMid, jcandidate->sdp_mid());
+  EXPECT_EQ(kDummyIndex, jcandidate->sdp_mline_index());
   expected = jcandidate_->candidate();
   expected.set_network_id(2);
-  EXPECT_TRUE(jcandidate.candidate().IsEquivalent(expected));
-  EXPECT_EQ(0, jcandidate.candidate().network_cost());
+  EXPECT_TRUE(jcandidate->candidate().IsEquivalent(expected));
+  EXPECT_EQ(0, jcandidate->candidate().network_cost());
   // Add network cost
   Replace(" network-id 2", " network-id 2 network-cost 9", &sdp);
-  EXPECT_TRUE(SdpDeserializeCandidate(sdp, &jcandidate));
-  EXPECT_TRUE(jcandidate.candidate().IsEquivalent(expected));
-  EXPECT_EQ(9, jcandidate.candidate().network_cost());
+  jcandidate = NewCandidate(sdp);
+  ASSERT_TRUE(jcandidate.get());
+  EXPECT_TRUE(jcandidate->candidate().IsEquivalent(expected));
+  EXPECT_EQ(9, jcandidate->candidate().network_cost());
 
   sdp = kSdpTcpActiveCandidate;
-  EXPECT_TRUE(SdpDeserializeCandidate(sdp, &jcandidate));
+  jcandidate = NewCandidate(sdp);
+  ASSERT_TRUE(jcandidate.get());
   // Make a Candidate equivalent to kSdpTcpCandidate string.
   Candidate candidate(ICE_CANDIDATE_COMPONENT_RTP, "tcp",
                       SocketAddress("192.168.1.5", 9), kCandidatePriority, "",
@@ -2615,11 +2619,9 @@ TEST_F(WebRtcSdpTest, DeserializeCandidate) {
   std::unique_ptr<IceCandidateInterface> jcandidate_template(
       new JsepIceCandidate(std::string("audio_content_name"), 0, candidate));
   EXPECT_TRUE(
-      jcandidate.candidate().IsEquivalent(jcandidate_template->candidate()));
-  sdp = kSdpTcpPassiveCandidate;
-  EXPECT_TRUE(SdpDeserializeCandidate(sdp, &jcandidate));
-  sdp = kSdpTcpSOCandidate;
-  EXPECT_TRUE(SdpDeserializeCandidate(sdp, &jcandidate));
+      jcandidate->candidate().IsEquivalent(jcandidate_template->candidate()));
+  ASSERT_TRUE(NewCandidate(kSdpTcpPassiveCandidate).get());
+  ASSERT_TRUE(NewCandidate(kSdpTcpSOCandidate).get());
 }
 
 // This test verifies the deserialization of candidate-attribute
@@ -2627,56 +2629,55 @@ TEST_F(WebRtcSdpTest, DeserializeCandidate) {
 // candidate:<blah>. This format will be used when candidates
 // are trickled.
 TEST_F(WebRtcSdpTest, DeserializeRawCandidateAttribute) {
-  JsepIceCandidate jcandidate(kDummyMid, kDummyIndex);
-
   std::string candidate_attribute = kRawCandidate;
-  EXPECT_TRUE(SdpDeserializeCandidate(candidate_attribute, &jcandidate));
-  EXPECT_EQ(kDummyMid, jcandidate.sdp_mid());
-  EXPECT_EQ(kDummyIndex, jcandidate.sdp_mline_index());
-  EXPECT_TRUE(jcandidate.candidate().IsEquivalent(jcandidate_->candidate()));
-  EXPECT_EQ(2u, jcandidate.candidate().generation());
+  auto jcandidate = NewCandidate(candidate_attribute);
+  ASSERT_TRUE(jcandidate.get());
+  EXPECT_EQ(kDummyMid, jcandidate->sdp_mid());
+  EXPECT_EQ(kDummyIndex, jcandidate->sdp_mline_index());
+  EXPECT_TRUE(jcandidate->candidate().IsEquivalent(jcandidate_->candidate()));
+  EXPECT_EQ(2u, jcandidate->candidate().generation());
 
   // Candidate line without generation extension.
   candidate_attribute = kRawCandidate;
   Replace(" generation 2", "", &candidate_attribute);
-  EXPECT_TRUE(SdpDeserializeCandidate(candidate_attribute, &jcandidate));
-  EXPECT_EQ(kDummyMid, jcandidate.sdp_mid());
-  EXPECT_EQ(kDummyIndex, jcandidate.sdp_mline_index());
+  jcandidate = NewCandidate(candidate_attribute);
+  ASSERT_TRUE(jcandidate.get());
+  EXPECT_EQ(kDummyMid, jcandidate->sdp_mid());
+  EXPECT_EQ(kDummyIndex, jcandidate->sdp_mline_index());
   Candidate expected = jcandidate_->candidate();
   expected.set_generation(0);
-  EXPECT_TRUE(jcandidate.candidate().IsEquivalent(expected));
+  EXPECT_TRUE(jcandidate->candidate().IsEquivalent(expected));
 
   // Candidate line without candidate:
   candidate_attribute = kRawCandidate;
   Replace("candidate:", "", &candidate_attribute);
-  EXPECT_FALSE(SdpDeserializeCandidate(candidate_attribute, &jcandidate));
+  ASSERT_FALSE(NewCandidate(candidate_attribute).get());
 
   // Candidate line with IPV6 address.
-  EXPECT_TRUE(SdpDeserializeCandidate(kRawIPV6Candidate, &jcandidate));
+  ASSERT_TRUE(NewCandidate(kRawIPV6Candidate).get());
 
   // Candidate line with hostname address.
-  EXPECT_TRUE(SdpDeserializeCandidate(kRawHostnameCandidate, &jcandidate));
+  ASSERT_TRUE(NewCandidate(kRawHostnameCandidate).get());
 }
 
 // This test verifies that the deserialization of an invalid candidate string
 // fails.
 TEST_F(WebRtcSdpTest, DeserializeInvalidCandidiate) {
-  JsepIceCandidate jcandidate(kDummyMid, kDummyIndex);
-
   std::string candidate_attribute = kRawCandidate;
+  ASSERT_TRUE(NewCandidate(candidate_attribute).get());
+
   candidate_attribute.replace(0, 1, "x");
-  EXPECT_FALSE(SdpDeserializeCandidate(candidate_attribute, &jcandidate));
+  EXPECT_FALSE(NewCandidate(candidate_attribute).get());
 
   candidate_attribute = kSdpOneCandidate;
   candidate_attribute.replace(0, 1, "x");
-  EXPECT_FALSE(SdpDeserializeCandidate(candidate_attribute, &jcandidate));
+  EXPECT_FALSE(NewCandidate(candidate_attribute).get());
 
   candidate_attribute = kRawCandidate;
   candidate_attribute.append("\r\n");
   candidate_attribute.append(kRawCandidate);
-  EXPECT_FALSE(SdpDeserializeCandidate(candidate_attribute, &jcandidate));
-
-  EXPECT_FALSE(SdpDeserializeCandidate(kSdpTcpInvalidCandidate, &jcandidate));
+  EXPECT_FALSE(NewCandidate(candidate_attribute).get());
+  EXPECT_FALSE(NewCandidate(kSdpTcpInvalidCandidate).get());
 }
 
 TEST_F(WebRtcSdpTest, DeserializeSdpWithSctpDataChannels) {
@@ -2949,28 +2950,27 @@ TEST_F(WebRtcSdpTest, DeserializeSessionDescriptionWithoutEndLineBreak) {
 }
 
 TEST_F(WebRtcSdpTest, DeserializeCandidateWithDifferentTransport) {
-  JsepIceCandidate jcandidate(kDummyMid, kDummyIndex);
   std::string new_sdp = kSdpOneCandidate;
   Replace("udp", "unsupported_transport", &new_sdp);
-  EXPECT_FALSE(SdpDeserializeCandidate(new_sdp, &jcandidate));
+  EXPECT_FALSE(NewCandidate(new_sdp).get());
   new_sdp = kSdpOneCandidate;
   Replace("udp", "uDP", &new_sdp);
-  EXPECT_TRUE(SdpDeserializeCandidate(new_sdp, &jcandidate));
-  EXPECT_EQ(kDummyMid, jcandidate.sdp_mid());
-  EXPECT_EQ(kDummyIndex, jcandidate.sdp_mline_index());
-  EXPECT_TRUE(jcandidate.candidate().IsEquivalent(jcandidate_->candidate()));
+  auto jcandidate = NewCandidate(new_sdp);
+  ASSERT_TRUE(jcandidate.get());
+  EXPECT_EQ(kDummyMid, jcandidate->sdp_mid());
+  EXPECT_EQ(kDummyIndex, jcandidate->sdp_mline_index());
+  EXPECT_TRUE(jcandidate->candidate().IsEquivalent(jcandidate_->candidate()));
 }
 
 TEST_F(WebRtcSdpTest, DeserializeCandidateWithUfragPwd) {
-  JsepIceCandidate jcandidate(kDummyMid, kDummyIndex);
-  EXPECT_TRUE(
-      SdpDeserializeCandidate(kSdpOneCandidateWithUfragPwd, &jcandidate));
-  EXPECT_EQ(kDummyMid, jcandidate.sdp_mid());
-  EXPECT_EQ(kDummyIndex, jcandidate.sdp_mline_index());
+  auto jcandidate = NewCandidate(kSdpOneCandidateWithUfragPwd);
+  ASSERT_TRUE(jcandidate.get());
+  EXPECT_EQ(kDummyMid, jcandidate->sdp_mid());
+  EXPECT_EQ(kDummyIndex, jcandidate->sdp_mline_index());
   Candidate ref_candidate = jcandidate_->candidate();
   ref_candidate.set_username("user_rtp");
   ref_candidate.set_password("password_rtp");
-  EXPECT_TRUE(jcandidate.candidate().IsEquivalent(ref_candidate));
+  EXPECT_TRUE(jcandidate->candidate().IsEquivalent(ref_candidate));
 }
 
 TEST_F(WebRtcSdpTest, DeserializeSdpWithConferenceFlag) {

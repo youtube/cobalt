@@ -18,11 +18,13 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "chrome/browser/extensions/account_extension_tracker.h"
 #include "chrome/browser/extensions/api/developer_private/developer_private_api.h"
 #include "chrome/browser/extensions/api/developer_private/inspectable_views_finder.h"
 #include "chrome/browser/extensions/commands/command_service.h"
 #include "chrome/browser/extensions/error_console/error_console.h"
 #include "chrome/browser/extensions/extension_allowlist.h"
+#include "chrome/browser/extensions/extension_safety_check_utils.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/permissions/site_permissions_helper.h"
@@ -34,6 +36,7 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "content/public/browser/render_frame_host.h"
 #include "extensions/browser/blocklist_extension_prefs.h"
 #include "extensions/browser/blocklist_state.h"
@@ -581,9 +584,26 @@ void ExtensionInfoGeneratorShared::FillExtensionInfo(
   ExtensionManagement* extension_management =
       ExtensionManagementFactory::GetForBrowserContext(browser_context_);
 
-  // TODO(crbug.com/419419534): Add back ControlledInfo.
-
   Profile* profile = Profile::FromBrowserContext(browser_context_);
+
+  // ControlledInfo.
+  bool is_policy_location = Manifest::IsPolicyLocation(extension.location());
+  if (is_policy_location) {
+    info.controlled_info.emplace();
+    info.controlled_info->text =
+        l10n_util::GetStringUTF8(IDS_EXTENSIONS_INSTALL_LOCATION_ENTERPRISE);
+  } else {
+    // Create Safety Hub information for any non-enterprise extension.
+    developer::SafetyCheckWarningReason warning_reason =
+        ExtensionSafetyCheckUtils::GetSafetyCheckWarningReason(extension,
+                                                               profile);
+    if (warning_reason != developer::SafetyCheckWarningReason::kNone) {
+      info.safety_check_warning_reason = warning_reason;
+      info.safety_check_text =
+          ExtensionSafetyCheckUtils::GetSafetyCheckWarningStrings(
+              warning_reason, state);
+    }
+  }
 
   bool is_enabled = state == developer::ExtensionState::kEnabled;
 
@@ -834,7 +854,13 @@ void ExtensionInfoGeneratorShared::FillExtensionInfo(
   // TODO(crbug.com/419419534): Add back MV2 deprecation if needed, so that
   // extension_info_generator_desktop can be removed.
 
-  // TODO(crbug.com/419419534): Add back can_upload_as_account_extension.
+  // Whether the extension can be uploaded as an account extension.
+  // `CanUploadAsAccountExtension` should already check for the feature flag
+  // somewhere but add another guard for it here just in case.
+  info.can_upload_as_account_extension =
+      switches::IsExtensionsExplicitBrowserSigninEnabled() &&
+      AccountExtensionTracker::Get(profile)->CanUploadAsAccountExtension(
+          extension);
 
   // The icon. This section must come last as it moves `info`.
   ExtensionResource icon = IconsInfo::GetIconResource(

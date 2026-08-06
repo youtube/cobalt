@@ -1687,7 +1687,6 @@ void Context::getQueryiv(QueryType target, GLenum pname, GLint *params)
             {
                 case QueryType::AnySamples:
                 case QueryType::AnySamplesConservative:
-                case QueryType::CommandsCompleted:
                     params[0] = 1;
                     break;
                 case QueryType::PrimitivesGenerated:
@@ -4046,6 +4045,17 @@ Extensions Context::generateSupportedExtensions() const
         // GL_KHR_texture_compression_astc_ldr and GL_KHR_texture_compression_astc_hdr
         ASSERT(supportedExtensions.textureCompressionAstcLdrKHR);
         ASSERT(supportedExtensions.textureCompressionAstcHdrKHR);
+    }
+
+    if (supportedExtensions.textureCompressionAstcDecodeModeEXT ||
+        supportedExtensions.textureCompressionAstcDecodeModeRgb9e5EXT)
+    {
+        // GL_KHR_texture_compression_astc_hdr,
+        // GL_KHR_texture_compression_astc_ldr,
+        // or GL_OES_texture_compression_astc is required.
+        ASSERT(supportedExtensions.textureCompressionAstcOES ||
+               supportedExtensions.textureCompressionAstcLdrKHR ||
+               supportedExtensions.textureCompressionAstcHdrKHR);
     }
 
     // GL_KHR_protected_textures

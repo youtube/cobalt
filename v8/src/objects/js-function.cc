@@ -1058,7 +1058,6 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_TEMPORAL_PLAIN_MONTH_DAY_TYPE:
     case JS_TEMPORAL_PLAIN_TIME_TYPE:
     case JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE:
-    case JS_TEMPORAL_TIME_ZONE_TYPE:
     case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
 #endif
     case JS_WEAK_MAP_TYPE:
@@ -1469,7 +1468,7 @@ DirectHandle<String> JSFunction::ToString(Isolate* isolate,
   // If this function was compiled from asm.js, use the recorded offset
   // information.
 #if V8_ENABLE_WEBASSEMBLY
-  if (shared_info->HasWasmExportedFunctionData()) {
+  if (shared_info->HasWasmExportedFunctionData(isolate)) {
     DirectHandle<WasmExportedFunctionData> function_data(
         shared_info->wasm_exported_function_data(), isolate);
     const wasm::WasmModule* module = function_data->instance_data()->module();

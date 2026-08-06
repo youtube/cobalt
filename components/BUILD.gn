@@ -376,6 +376,7 @@ test("components_unittests") {
     "//components/url_formatter/spoof_checks/top_domains:unit_tests",
     "//components/url_matcher:unit_tests",
     "//components/url_pattern_index:unit_tests",
+    "//components/user_data_importer/utility:unit_tests",
     "//components/variations:unit_tests",
     "//components/variations/field_trial_config:unit_tests",
     "//components/variations/service:unit_tests",
@@ -951,6 +952,7 @@ test("components_unittests") {
     "FilterDataTest.Matches",
     "OsRegistrationTest.Parses",
     "PrivacyMathTest.GetKCombinationAtIndexDoesNotCrash",
+    "PrivacyMathTest.GetNumStatesDoesNotCrash",
     "RegistrationInfoTest.Parses",
     "SourceRegistrationTest.Parses",
     "TriggerRegistrationTest.Parses",
@@ -1176,7 +1178,6 @@ if (use_blink) {
     if (enable_screen_ai_service) {
       deps += [
         "//services/screen_ai",
-        "//services/screen_ai:test_support",
         "//services/screen_ai/public/mojom",
         "//skia",
       ]

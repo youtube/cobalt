@@ -11,9 +11,12 @@
 #include "api/jsep_ice_candidate.h"
 
 #include <cstddef>
+#include <limits>
 #include <memory>
 #include <string>
 
+#include "absl/base/nullability.h"
+#include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "pc/webrtc_sdp.h"
 
@@ -23,17 +26,29 @@
 // TODO(bugs.webrtc.org/12330): Merge the two .cc files somehow.
 
 namespace webrtc {
+namespace {
+// The sdpMLineIndex property is an unsigned short, a zero based index of the
+// m-line associated with the candidate. This function ensures we consistently
+// set the property to -1 for out-of-bounds values, to make candidate
+// comparisons more robust.
+int EnsureValidMLineIndex(int sdp_mline_index) {
+  if (sdp_mline_index < 0 ||
+      sdp_mline_index > std::numeric_limits<uint16_t>::max())
+    return -1;
+  return sdp_mline_index;
+}
+}  // namespace
 
 IceCandidateInterface* CreateIceCandidate(const std::string& sdp_mid,
                                           int sdp_mline_index,
                                           const std::string& sdp,
                                           SdpParseError* error) {
-  JsepIceCandidate* jsep_ice = new JsepIceCandidate(sdp_mid, sdp_mline_index);
-  if (!jsep_ice->Initialize(sdp, error)) {
-    delete jsep_ice;
+  std::unique_ptr<JsepIceCandidate> jsep_ice =
+      JsepIceCandidate::Create(sdp_mid, sdp_mline_index, sdp, error);
+  if (!jsep_ice) {
     return nullptr;
   }
-  return jsep_ice;
+  return jsep_ice.release();
 }
 
 std::unique_ptr<IceCandidateInterface> CreateIceCandidate(
@@ -44,15 +59,24 @@ std::unique_ptr<IceCandidateInterface> CreateIceCandidate(
                                             candidate);
 }
 
-JsepIceCandidate::JsepIceCandidate(const std::string& sdp_mid,
-                                   int sdp_mline_index)
-    : sdp_mid_(sdp_mid), sdp_mline_index_(sdp_mline_index) {}
+// static
+std::unique_ptr<JsepIceCandidate> JsepIceCandidate::Create(
+    absl::string_view mid,
+    int sdp_mline_index,
+    absl::string_view sdp,
+    SdpParseError* absl_nullable error /*= nullptr*/) {
+  Candidate candidate;
+  if (!SdpDeserializeCandidate(mid, sdp, &candidate, error)) {
+    return nullptr;
+  }
+  return std::make_unique<JsepIceCandidate>(mid, sdp_mline_index, candidate);
+}
 
-JsepIceCandidate::JsepIceCandidate(const std::string& sdp_mid,
+JsepIceCandidate::JsepIceCandidate(absl::string_view sdp_mid,
                                    int sdp_mline_index,
                                    const Candidate& candidate)
     : sdp_mid_(sdp_mid),
-      sdp_mline_index_(sdp_mline_index),
+      sdp_mline_index_(EnsureValidMLineIndex(sdp_mline_index)),
       candidate_(candidate) {}
 
 JsepIceCandidate::~JsepIceCandidate() {}
@@ -65,10 +89,6 @@ JsepCandidateCollection JsepCandidateCollection::Clone() const {
         candidate->candidate()));
   }
   return new_collection;
-}
-
-bool JsepIceCandidate::Initialize(const std::string& sdp, SdpParseError* err) {
-  return SdpDeserializeCandidate(sdp, this, err);
 }
 
 bool JsepIceCandidate::ToString(std::string* out) const {

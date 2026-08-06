@@ -1251,7 +1251,8 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
           if (static_cast<double>(iv) == fv) {
             if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
               if (iv < kMinAdditiveSafeInteger ||
-                  kMaxAdditiveSafeInteger < iv) {
+                  kMaxAdditiveSafeInteger < iv ||
+                  (iv == 0 && std::signbit(fv))) {
                 Node* unreachable = InsertUnconditionalDeopt(
                     use_node, DeoptimizeReason::kNotAdditiveSafeInteger,
                     use_info.feedback());
@@ -1394,7 +1395,12 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     }
   } else if (output_rep == MachineRepresentation::kTaggedSigned) {
     if (output_type.Is(Type::SignedSmall())) {
-      op = simplified()->ChangeTaggedSignedToInt64();
+      if (output_type.IsRange() && output_type.AsRange()->Min() >= 0) {
+        node = InsertChangeTaggedSignedToInt32(node);
+        op = machine()->ChangeUint32ToUint64();
+      } else {
+        op = simplified()->ChangeTaggedSignedToInt64();
+      }
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);
