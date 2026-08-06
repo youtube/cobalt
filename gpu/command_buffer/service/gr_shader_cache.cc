@@ -8,6 +8,7 @@
 #include <inttypes.h>
 
 #include "base/base64.h"
+#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_macros.h"
@@ -223,8 +224,15 @@ void GrShaderCache::WriteToDisk(const CacheKey& key, CacheData* data) {
     return;
 
   // Only cache the shader on disk if this client id is permitted.
+#if BUILDFLAG(IS_COBALT)
+  if (client_ids_to_cache_on_disk_.count(current_client_id()) == 0 &&
+      !base::CommandLine::ForCurrentProcess()->HasSwitch("single-process")) {
+    return;
+  }
+#else
   if (client_ids_to_cache_on_disk_.count(current_client_id()) == 0)
     return;
+#endif
 
   data->pending_disk_write = false;
 
