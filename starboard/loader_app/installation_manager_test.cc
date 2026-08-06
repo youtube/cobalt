@@ -640,9 +640,9 @@ TEST_F(InstallationManagerTest, RevertMatrix3) {
     RevertHelper(3, priority_success_pairs2[i], expected_priorities[i], true);
   }
 }
-INSTANTIATE_TEST_CASE_P(NumberOfMaxInstallations,
-                        InstallationManagerTest,
-                        NUMBER_INSTALLS_PARAMS);
+INSTANTIATE_TEST_SUITE_P(NumberOfMaxInstallations,
+                         InstallationManagerTest,
+                         NUMBER_INSTALLS_PARAMS);
 
 }  // namespace loader_app
 
