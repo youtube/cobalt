@@ -30,6 +30,7 @@
 #include "media/base/mock_filters.h"
 #include "media/base/test_helpers.h"
 #include "media/gpu/starboard/starboard_gpu_factory_impl.h"
+#include "media/mojo/common/starboard/mojo_renderer_bypass_bridge.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "starboard/decode_target.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -293,6 +294,50 @@ TEST_F(StarboardRendererWrapperTest, InitializeWithGpuChannelToken) {
   task_environment_.RunUntilIdle();
 }
 
+TEST_F(StarboardRendererWrapperTest, InitializeWithBypassBridge) {
+  auto bypass_bridge = base::MakeRefCounted<MojoRendererBypassBridge>(
+      task_environment_.GetMainThreadTaskRunner(), base::DoNothing(),
+      base::DoNothing());
+  AddStream(DemuxerStream::AUDIO, false);
+  AddStream(DemuxerStream::VIDEO, false);
+  streams_[0]->set_mime_type("audio/mp4");
+  streams_[1]->set_mime_type("video/mp4");
+  bypass_bridge->SetStreams(streams_[0].get(), streams_[1].get());
+  uint32_t bridge_id = 12345;
+  BypassBridgeRegistry::Register(bridge_id, bypass_bridge);
+  base::ScopedClosureRunner unregister_runner(
+      base::BindOnce(&BypassBridgeRegistry::Unregister, bridge_id));
+
+  base::MockOnceCallback<void(bool)> bypass_init_cb;
+  EXPECT_CALL(bypass_init_cb, Run(true));
+  renderer_wrapper_->InitializeWithBypassBridge(bridge_id,
+                                                bypass_init_cb.Get());
+
+  EXPECT_CALL(*mock_renderer_, OnInitialize(_, _, _))
+      .WillOnce(RunOnceCallback<2>(PIPELINE_OK));
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  renderer_wrapper_->Initialize(&media_resource_, &renderer_client_,
+                                renderer_init_cb_.Get());
+
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererWrapperTest,
+       InitializeWithBypassBridge_NoValidStreams) {
+  auto bypass_bridge = base::MakeRefCounted<MojoRendererBypassBridge>(
+      task_environment_.GetMainThreadTaskRunner(), base::DoNothing(),
+      base::DoNothing());
+  uint32_t bridge_id = 12345;
+  BypassBridgeRegistry::Register(bridge_id, bypass_bridge);
+  base::ScopedClosureRunner unregister_runner(
+      base::BindOnce(&BypassBridgeRegistry::Unregister, bridge_id));
+
+  base::MockOnceCallback<void(bool)> bypass_init_cb;
+  EXPECT_CALL(bypass_init_cb, Run(false));
+  renderer_wrapper_->InitializeWithBypassBridge(bridge_id,
+                                                bypass_init_cb.Get());
+}
+
 TEST_F(StarboardRendererWrapperTest, Flush) {
   base::MockOnceClosure closure;
   EXPECT_CALL(*mock_renderer_, OnFlush(_)).WillOnce(RunOnceCallback<0>());
@@ -343,6 +388,104 @@ TEST_F(StarboardRendererWrapperTest, GetCurrentVideoFrame) {
       callback;
   EXPECT_CALL(callback, Run(testing::IsNull()));
   renderer_wrapper_->GetCurrentVideoFrame(callback.Get());
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererWrapperTest, ProxyDemuxerStreamDelegation) {
+  auto bypass_bridge = base::MakeRefCounted<MojoRendererBypassBridge>(
+      task_environment_.GetMainThreadTaskRunner(), base::DoNothing(),
+      base::DoNothing());
+  AddStream(DemuxerStream::AUDIO, false);
+  AddStream(DemuxerStream::VIDEO, false);
+  streams_[0]->set_mime_type("audio/mp4");
+  streams_[1]->set_mime_type("video/mp4");
+  bypass_bridge->SetStreams(streams_[0].get(), streams_[1].get());
+
+  uint32_t bridge_id = 12345;
+  BypassBridgeRegistry::Register(bridge_id, bypass_bridge);
+  base::ScopedClosureRunner unregister_runner(
+      base::BindOnce(&BypassBridgeRegistry::Unregister, bridge_id));
+
+  base::MockOnceCallback<void(bool)> bypass_init_cb;
+  EXPECT_CALL(bypass_init_cb, Run(true));
+  renderer_wrapper_->InitializeWithBypassBridge(bridge_id,
+                                                bypass_init_cb.Get());
+
+  MediaResource* captured_media_resource = nullptr;
+  EXPECT_CALL(*mock_renderer_, OnInitialize(_, _, _))
+      .WillOnce(
+          Invoke([&captured_media_resource](MediaResource* media_resource,
+                                            RendererClient* client,
+                                            PipelineStatusCallback& init_cb) {
+            captured_media_resource = media_resource;
+            std::move(init_cb).Run(PIPELINE_OK);
+          }));
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  renderer_wrapper_->Initialize(&media_resource_, &renderer_client_,
+                                renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+
+  ASSERT_NE(captured_media_resource, nullptr);
+
+  // Verify delegation of mime_type() and EnableBitstreamConverter() through
+  // proxy streams.
+  EXPECT_CALL(*streams_[0], EnableBitstreamConverter());
+  EXPECT_CALL(*streams_[1], EnableBitstreamConverter());
+
+  auto proxy_streams = captured_media_resource->GetAllStreams();
+  ASSERT_EQ(proxy_streams.size(), 2u);
+  EXPECT_EQ(proxy_streams[0]->mime_type(), "audio/mp4");
+  EXPECT_EQ(proxy_streams[1]->mime_type(), "video/mp4");
+  proxy_streams[0]->EnableBitstreamConverter();
+  proxy_streams[1]->EnableBitstreamConverter();
+}
+
+TEST_F(StarboardRendererWrapperTest, TimerLifecycle) {
+  auto bypass_bridge = base::MakeRefCounted<MojoRendererBypassBridge>(
+      task_environment_.GetMainThreadTaskRunner(), base::DoNothing(),
+      base::DoNothing());
+  AddStream(DemuxerStream::AUDIO, false);
+  AddStream(DemuxerStream::VIDEO, false);
+  streams_[0]->set_mime_type("audio/mp4");
+  streams_[1]->set_mime_type("video/mp4");
+  bypass_bridge->SetStreams(streams_[0].get(), streams_[1].get());
+
+  uint32_t bridge_id = 12345;
+  BypassBridgeRegistry::Register(bridge_id, bypass_bridge);
+  base::ScopedClosureRunner unregister_runner(
+      base::BindOnce(&BypassBridgeRegistry::Unregister, bridge_id));
+
+  base::MockOnceCallback<void(bool)> bypass_init_cb;
+  EXPECT_CALL(bypass_init_cb, Run(true));
+  renderer_wrapper_->InitializeWithBypassBridge(bridge_id,
+                                                bypass_init_cb.Get());
+
+  EXPECT_CALL(*mock_renderer_, OnInitialize(_, _, _))
+      .WillOnce(RunOnceCallback<2>(PIPELINE_OK));
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  renderer_wrapper_->Initialize(&media_resource_, &renderer_client_,
+                                renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+
+  // Start playing (sets playback_rate > 0 when SetPlaybackRate(1.0) is called).
+  EXPECT_CALL(*mock_renderer_, GetMediaTime())
+      .WillRepeatedly(Return(base::Seconds(0)));
+  EXPECT_CALL(*mock_renderer_, SetPlaybackRate(1.0));
+  renderer_wrapper_->SetPlaybackRate(1.0);
+  EXPECT_CALL(*mock_renderer_, StartPlayingFrom(base::Seconds(0)));
+  renderer_wrapper_->StartPlayingFrom(base::Seconds(0));
+
+  // Pause playback (playback_rate == 0).
+  EXPECT_CALL(*mock_renderer_, SetPlaybackRate(0.0));
+  renderer_wrapper_->SetPlaybackRate(0.0);
+
+  // Resume and Flush.
+  EXPECT_CALL(*mock_renderer_, SetPlaybackRate(1.0));
+  renderer_wrapper_->SetPlaybackRate(1.0);
+  base::MockOnceClosure flush_cb;
+  EXPECT_CALL(*mock_renderer_, OnFlush(_)).WillOnce(RunOnceCallback<0>());
+  EXPECT_CALL(flush_cb, Run());
+  renderer_wrapper_->Flush(flush_cb.Get());
   task_environment_.RunUntilIdle();
 }
 

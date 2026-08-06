@@ -20,7 +20,7 @@
 #include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
-#include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_pcm_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/mock_audio_decoder.h"

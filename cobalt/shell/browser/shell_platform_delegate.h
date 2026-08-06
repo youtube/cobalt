@@ -167,8 +167,9 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
                                   WebContents* web_contents,
                                   bool enter_fullscreen);
 
-  bool IsFullscreenForTabOrPending(Shell* shell,
-                                   const WebContents* web_contents) const;
+  virtual bool IsFullscreenForTabOrPending(
+      Shell* shell,
+      const WebContents* web_contents) const;
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
