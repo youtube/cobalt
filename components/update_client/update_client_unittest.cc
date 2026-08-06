@@ -710,6 +710,7 @@ class UpdateClientTest : public testing::Test {
 // Tests the scenario where one update check is done for one CRX. The CRX
 // has no update.
 TEST_F(UpdateClientTest, OneCrxNoUpdate) {
+  EXPECT_TRUE(false);
   class DataCallbackMock {
    public:
     static void Callback(
