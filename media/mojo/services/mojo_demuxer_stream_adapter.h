@@ -49,9 +49,6 @@ class MEDIA_MOJO_EXPORT MojoDemuxerStreamAdapter : public DemuxerStream {
   Type type() const override;
   void EnableBitstreamConverter() override;
   bool SupportsConfigChanges() override;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  std::string mime_type() const override;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
   void OnStreamReady(Type type,

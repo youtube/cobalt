@@ -151,7 +151,15 @@ std::string MojoRendererBypassBridge::GetMimeType(
     return "";
   }
   DemuxerStream* stream = GetStreamLocked(type);
-  return stream ? stream->mime_type() : "";
+  if (!stream) {
+    return "";
+  }
+  if (type == DemuxerStream::AUDIO) {
+    return stream->audio_decoder_config().mime_type();
+  } else if (type == DemuxerStream::VIDEO) {
+    return stream->video_decoder_config().mime_type();
+  }
+  return "";
 }
 
 void MojoRendererBypassBridge::EnableBitstreamConverter(
