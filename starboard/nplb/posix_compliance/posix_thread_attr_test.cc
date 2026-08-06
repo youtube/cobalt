@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <pthread.h>
+#include <memory>
 #include <stdlib.h>
 #include <unistd.h>
 
