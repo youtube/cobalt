@@ -349,4 +349,58 @@ TEST_F(NativeStabilityManagerTest,
   }
 }
 
+TEST_F(NativeStabilityManagerTest,
+       AcknowledgingEmptyOrDuplicateUuidsHasNoEffect) {
+  auto* manager = NativeStabilityManager::GetInstance();
+  SbNativeStabilityReport report1 = {};
+  report1.report_type = kSbNativeStabilityReportCrash;
+  std::strncpy(report1.native_stability_event_uuid, "uuid-1",
+               sizeof(report1.native_stability_event_uuid) - 1);
+  SetupStubExtension(manager, {report1});
+
+  // Acknowledge empty strings and duplicates alongside valid UUID.
+  base::RunLoop run_loop;
+  manager->AcknowledgeReports({"", "uuid-1", "uuid-1", ""},
+                              run_loop.QuitClosure());
+  run_loop.Run();
+
+  // Verify uuid-1 was acknowledged and no crash occurred.
+  base::RunLoop run_loop2;
+  manager->GetPendingReports(base::BindOnce(
+      [](base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        EXPECT_TRUE(reports.empty());
+        std::move(quit_closure).Run();
+      },
+      run_loop2.QuitClosure()));
+  run_loop2.Run();
+}
+
+TEST_F(NativeStabilityManagerTest,
+       GetPendingReportsIgnoresCorruptedAckedUuidsFile) {
+  auto* manager = NativeStabilityManager::GetInstance();
+  SbNativeStabilityReport report1 = {};
+  report1.report_type = kSbNativeStabilityReportCrash;
+  std::strncpy(report1.native_stability_event_uuid, "uuid-1",
+               sizeof(report1.native_stability_event_uuid) - 1);
+  SetupStubExtension(manager, {report1});
+
+  // Write corrupted JSON to the acked UUIDs file path.
+  base::FilePath file_path =
+      temp_dir_.GetPath().Append("acked_event_uuids.json");
+  ASSERT_TRUE(base::WriteFile(file_path, "invalid json"));
+
+  // Verify GetPendingReports handles corrupt JSON gracefully and returns the
+  // pending report.
+  base::RunLoop run_loop;
+  manager->GetPendingReports(base::BindOnce(
+      [](base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        EXPECT_EQ(reports.size(), 1u);
+        std::move(quit_closure).Run();
+      },
+      run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
 }  // namespace h5vcc_native_stability
