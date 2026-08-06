@@ -17,8 +17,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <memory>
-
 #include "build/build_config.h"
 #include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
