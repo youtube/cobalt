@@ -18,6 +18,7 @@ config build = common.build {
         regex = [
           'build_id',
           'build_info.json',
+          'lib_export/**/libchrobalt.so',
         ]
       }
     },

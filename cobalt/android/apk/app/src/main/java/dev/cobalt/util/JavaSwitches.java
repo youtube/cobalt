@@ -34,6 +34,12 @@ public class JavaSwitches {
   public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
   public static final String ENABLE_OPTIMIZED_V8_CODE_CACHE = "EnableOptimizedV8CodeCache";
 
+  /** flag to allow caching CSS and WebAssembly resources in the HTTP disk cache. */
+  public static final String ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE = "EnableCssAndWasmForHttpCache";
+
+  /** flag to enable aggressive HTTP disk cache and V8 generated code cache tuning exclusions. */
+  public static final String ENABLE_HTTP_AND_V8_CACHE_TUNING = "EnableHttpAndV8CacheTuning";
+
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
 
@@ -82,9 +88,6 @@ public class JavaSwitches {
   public static final String COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE =
       "CobaltDynamicMojoPipeMediaSize";
 
-  /** flag to disable FontSrcLocalMatching lookup table. */
-  public static final String DISABLE_FONT_SRC_LOCAL_MATCHING = "DisableFontSrcLocalMatching";
-
   /** Avoid reuse resource. */
   public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
 
@@ -94,6 +97,13 @@ public class JavaSwitches {
 
   /** flag to aggressively flush v8 bytecode after a configurable old time. */
   public static final String V8_SET_BYTECODE_OLD_TIME = "V8SetBytecodeOldTime";
+
+  /** Flag for enable go/cobalt-direct-window-rendering */
+  public static final String DIRECT_WINDOW_RENDERING = "DirectWindowRendering";
+  public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
+
+  /** flag to enable area based buffer budget experiment. */
+  public static final String AREA_BASED_VIDEO_BUFFER_BUDGET = "AreaBasedVideoBufferBudget";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
@@ -123,6 +133,13 @@ public class JavaSwitches {
         jsFlags.add("--flush-bytecode");
         jsFlags.add("--bytecode-old-time=" + oldTime);
       }
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE)) {
+      jsFlags.add("--initial-old-space-size="
+          + javaSwitches.get(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    } else {
+      jsFlags.add("--initial-old-space-size=64");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
@@ -183,16 +200,20 @@ public class JavaSwitches {
           "--enable-features=SmallerInterestArea:" + featureParams.toString());
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_FONT_SRC_LOCAL_MATCHING)) {
-      extraCommandLineArgs.add("--disable-features=FontSrcLocalMatching");
-    }
-
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
       extraCommandLineArgs.add("--enable-optimized-font-loading");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_V8_CODE_CACHE)) {
       extraCommandLineArgs.add("--enable-optimized-v8-code-cache");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE)) {
+      extraCommandLineArgs.add("--enable-css-and-wasm-for-http-cache");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_HTTP_AND_V8_CACHE_TUNING)) {
+      extraCommandLineArgs.add("--enable-http-and-v8-cache-tuning");
     }
 
     if (jsFlags.length() > 0) {
@@ -214,6 +235,15 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER)) {
       extraCommandLineArgs.add(
           "--enable-features=" + JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER);
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DIRECT_WINDOW_RENDERING)) {
+      extraCommandLineArgs.add("--use-window-surface-for-ui");
+      extraCommandLineArgs.add("--enable-h5vcc-settings=Media.ForceClearSurfaceView=1");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
+      extraCommandLineArgs.add("--enable-features=AreaBasedVideoBufferBudget");
     }
 
     return extraCommandLineArgs;
