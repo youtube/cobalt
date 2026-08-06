@@ -49,6 +49,7 @@ mojom("web_test_common_mojom") {
       # TODO(b/409786069): Add web tests for window.accessibility
       #"//cobalt/browser/h5vcc_accessibility/public/mojom",
       "//cobalt/browser/h5vcc_experiments/public/mojom",
+      "//cobalt/browser/h5vcc_native_stability/public/mojom",
       "//cobalt/browser/h5vcc_runtime/public/mojom",
       "//cobalt/browser/h5vcc_settings/public/mojom",
       "//cobalt/browser/h5vcc_system/public/mojom",
@@ -217,6 +218,13 @@ static_library("web_test_browser") {
       "browser/web_test_bluetooth_fake_adapter_setter_impl.h",
       "browser/web_test_first_device_bluetooth_chooser.cc",
       "browser/web_test_first_device_bluetooth_chooser.h",
+    ]
+  }
+
+  if (!enable_privacy_sandbox_apis) {
+    sources -= [
+      "browser/web_test_privacy_sandbox.cc",
+      "browser/web_test_privacy_sandbox.h",
     ]
   }
 

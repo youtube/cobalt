@@ -34,8 +34,8 @@ import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 import org.chromium.ui.base.WindowAndroid;
 
-/** An Activity base class for running browser tests against ContentShell. */
-public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestActivity
+/** Activity for running browser tests inside Cobalt. */
+public abstract class CobaltBrowserTestActivity extends NativeBrowserTestActivity
         implements StarboardBridge.HostApplication {
     private static final String TAG = "native_test";
 

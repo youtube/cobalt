@@ -8,7 +8,7 @@ on:
       max_commits:
         description: 'Max number of commits to include on a single PR'
         type: number
-        default: 25
+        default: 10
 
 permissions:
   contents: read
@@ -16,9 +16,18 @@ permissions:
 jobs:
   autoroll:
     runs-on: ubuntu-latest
+    env:
+      DEPOT_TOOLS_METRICS: 0
+      GIT_AUTHOR_NAME: "cobalt-github-releaser-bot"
+      GIT_AUTHOR_EMAIL: "95661244+cobalt-github-releaser-bot@users.noreply.github.com"
+      GIT_COMMITTER_NAME: "cobalt-github-releaser-bot"
+      GIT_COMMITTER_EMAIL: "95661244+cobalt-github-releaser-bot@users.noreply.github.com"
     permissions:
       contents: write
       pull-requests: write
+    defaults:
+      run:
+        working-directory: src
     strategy:
       fail-fast: false
       matrix:
@@ -31,15 +40,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          path: src
           ref: main
           fetch-depth: 1000
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
-
-      - name: Setup Git user
-        run: |
-          git config --global user.name "GitHub Release Automation"
-          git config --global user.email "github@google.com"
-          git config --global submodule.recurse false
 
       - name: Prepare Cherry Pick Branch
         env:
@@ -48,6 +52,8 @@ jobs:
           FETCH_DEPTH: 1000
         run: |
           set -x
+
+          git config --global submodule.recurse false
 
           # Copy script from main branch.
           git show main:.github/scripts/autoroll_lts.py > "${RUNNER_TEMP}/autoroll_lts.py"
@@ -71,13 +77,21 @@ jobs:
         run: |
           # Get the first commit SHA of the existing PR.
           # If the PR doesn't exist, it returns an empty string.
-          FIRST_SHA=$(gh pr view "autoroll-${{ matrix.branch.source }}-to-${{ matrix.branch.target }}" --json commits --jq '.commits[0].oid' 2>/dev/null || echo "")
+          FIRST_SHA=$(gh pr list --head "autoroll-${{ matrix.branch.source }}-to-${{ matrix.branch.target }}" --state open --json commits --jq '.[0].commits[0].oid // ""')
           echo "first_sha=$FIRST_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Set Up Depot Tools
+        if: startsWith(matrix.branch.source, 'chromium/')
+        run: |
+          DEPOT_TOOLS_TEMP="${RUNNER_TEMP}/depot_tools"
+          git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$DEPOT_TOOLS_TEMP"
+          echo "$DEPOT_TOOLS_TEMP" >> $GITHUB_PATH
+          source "${DEPOT_TOOLS_TEMP}/bootstrap_python3" && bootstrap_python3
 
       - name: Cherry Pick Merged PRs
         id: autoroll
         env:
-          MAX_COMMITS: ${{ inputs.max_commits || 25 }}
+          MAX_COMMITS: ${{ inputs.max_commits || 10 }}
         run: |
           set -x
 
@@ -86,7 +100,7 @@ jobs:
             --source-branch "${{ matrix.branch.source }}" \
             --target-branch "${{ matrix.branch.target }}" \
             --autoroll-file "${{ matrix.branch.autoroll }}" \
-            --max-commits "${{ env.MAX_COMMITS }}")
+            --max-commits "${{ env.MAX_COMMITS }}" \
             --existing-pr-sha "${{ steps.pr_info.outputs.first_sha }}")
 
           if [[ -n "${PR_LINKS}" ]]; then

@@ -179,8 +179,7 @@ template("evergreen_final_target") {
     }
 
     copy("copy_${original_target_name}_empty_fonts") {
-      sources =
-          [ "//starboard/content/fonts/$source_font_config_dir/fonts.xml" ]
+      sources = [ "//starboard/content/fonts/config/empty/fonts.xml" ]
       outputs = [
         "$root_out_dir/app/${original_target_name}/content/fonts/fonts.xml",
       ]

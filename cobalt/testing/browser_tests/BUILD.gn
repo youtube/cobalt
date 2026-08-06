@@ -151,9 +151,9 @@ if (is_android) {
     testonly = true
     resources_package = "org.chromium.content_browsertests_apk"
     sources = [
+      "browsertests_apk/src/org/chromium/content_browsertests_apk/CobaltBrowserTestActivity.java",
       "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsActivity.java",
       "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsApplication.java",
-      "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentShellBrowserTestActivity.java",
     ]
     deps = [
       ":cobalt_browsertests_manifest_gen",
@@ -233,6 +233,7 @@ test("cobalt_browsertests") {
     #"media_source_browsertest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
     "navigation_browsertest.cc",
+    "privacy_sandbox_disabled_browsertest.cc",
 
     #"session_history_browsertest.cc",
     #"site_per_process_browsertest.cc",

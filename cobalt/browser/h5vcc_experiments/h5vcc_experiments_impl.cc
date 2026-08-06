@@ -106,7 +106,7 @@ void H5vccExperimentsImpl::SetExperimentState(
     if (time_since_last_write.is_positive()) {
       base::UmaHistogramCustomTimes("Cobalt.Finch.TimeBetweenWrites",
                                     time_since_last_write, base::Hours(1),
-                                    base::Days(30), 50);
+                                    base::Days(24), 50);
     }
   }
 
