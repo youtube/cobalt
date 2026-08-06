@@ -142,6 +142,24 @@ source_set("browser") {
       "//cobalt/browser/dial/public/mojom",
     ]
   }
+
+  if (!cobalt_is_release_build) {
+    deps += [ ":proxy_server_support" ]
+  }
+}
+
+if (!cobalt_is_release_build) {
+  source_set("proxy_server_support") {
+    sources = [
+      "proxy_server_support.cc",
+      "proxy_server_support.h",
+    ]
+    deps = [
+      "//base",
+      "//net",
+      "//services/network/public/mojom",
+    ]
+  }
 }
 
 source_set("features") {
