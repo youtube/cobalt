@@ -26,6 +26,15 @@ build = common.build {
       }
     },
   ]
+  action = [
+    {
+      define_artifacts = {
+        regex = [
+          'build_vars/dynamic_flags.txt',
+        ]
+      }
+    },
+  ]
   env_vars = super.env_vars + [
     {
       key = 'EXTRA_GN_ARGUMENTS'
