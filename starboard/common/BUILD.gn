@@ -34,6 +34,8 @@ static_library("common") {
   ]
 
   sources = [
+    "//copied_base/base/memory/cobalt_memory_context.cc",
+    "//copied_base/base/memory/cobalt_memory_context.h",
     "//starboard/shared/media_session/playback_state.cc",
     "//starboard/shared/media_session/playback_state.h",
     "allocator.cc",

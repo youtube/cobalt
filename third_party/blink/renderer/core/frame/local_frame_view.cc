@@ -204,6 +204,10 @@
     }                               \
   } while (false)
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 namespace blink {
 namespace {
 
@@ -664,6 +668,9 @@ bool LocalFrameView::LayoutFromRootObject(LayoutObject& root) {
   "blink,benchmark,rail," TRACE_DISABLED_BY_DEFAULT("blink.debug.layout")
 
 void LocalFrameView::PerformLayout() {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kLayout);
+#endif
   ScriptForbiddenScope forbid_script;
 
   has_pending_layout_ = false;
@@ -807,6 +814,11 @@ void LocalFrameView::UpdateLayout() {
   DCHECK(frame_);
   DCHECK_EQ(frame_->View(), this);
   DCHECK(frame_->GetPage());
+
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kLayout);
+#endif
 
   Lifecycle().EnsureStateAtMost(DocumentLifecycle::kStyleClean);
 
@@ -2658,6 +2670,12 @@ bool LocalFrameView::AnyFrameIsPrintingOrPaintingPreview() {
 void LocalFrameView::RunPaintLifecyclePhase(PaintBenchmarkMode benchmark_mode) {
   DCHECK(ScriptForbiddenScope::WillBeScriptForbidden());
   DCHECK(LocalFrameTreeAllowsThrottling());
+
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kGraphics);
+#endif
+
   TRACE_EVENT0("blink,benchmark", "LocalFrameView::RunPaintLifecyclePhase");
   // While printing or capturing a paint preview of a document, the paint walk
   // is done into a special canvas. There is no point doing a normal paint step

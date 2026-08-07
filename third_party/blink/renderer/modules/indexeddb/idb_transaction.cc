@@ -28,6 +28,11 @@
 #include <memory>
 #include <utility>
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#include "cobalt/shell/buildflags.h"
+#endif
+
 #include "base/auto_reset.h"
 #include "base/format_macros.h"
 #include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom-blink.h"
@@ -397,6 +402,9 @@ void IDBTransaction::UnregisterRequest(IDBRequest* request) {
 
 void IDBTransaction::EnqueueResult(
     std::unique_ptr<IDBRequestQueueItem> result) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kStorage);
+#endif
   result_queue_.push_back(std::move(result));
   // StartLoading() may complete post-processing synchronously, so the result
   // needs to be in the queue before StartLoading() is called.
@@ -520,6 +528,9 @@ void IDBTransaction::Put(int64_t object_store_id,
                          mojom::blink::IDBPutMode put_mode,
                          Vector<IDBIndexKeys> index_keys,
                          mojom::blink::IDBTransaction::PutCallback callback) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kStorage);
+#endif
   if (!remote_.is_connected()) {
     std::move(callback).Run(
         mojom::blink::IDBTransactionPutResult::NewErrorResult(

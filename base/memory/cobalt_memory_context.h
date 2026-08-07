@@ -8,7 +8,12 @@
 #include <atomic>
 #include <cstdint>
 #include <string_view>
+#include <pthread.h>
+
 #include "base/base_export.h"
+#include "build/build_config.h"
+
+#include <pthread.h>
 
 namespace base {
 namespace memory {
@@ -23,7 +28,7 @@ enum class MemoryContext : uint8_t {
   kGraphics = 6,
   kStorage = 7,
 
-  // Next-Generation Granular Sub-Regions
+  // Granular Sub-Regions
   kGraphicsCanvas = 8,
   kGraphicsCompositor = 9,
   kGraphicsGlyphs = 10,
@@ -33,7 +38,7 @@ enum class MemoryContext : uint8_t {
   kNetworkLoader = 14,
   kNetworkCache = 15,
   kBlinkDOM = 16,
-  kBlinkStyle = 17,
+  kBlinkStyle = 17,  // CSS Style resolution
   kBlinkParser = 18,
   kPlatformIPC = 19,
   kPlatformStarboard = 20,
@@ -43,8 +48,15 @@ enum class MemoryContext : uint8_t {
   kCount
 };
 
-BASE_EXPORT MemoryContext GetCurrentMemoryContext();
-BASE_EXPORT void SetCurrentMemoryContext(MemoryContext context);
+#if defined(__GNUC__)
+#define MAYBE_COBALT_WEAK __attribute__((weak))
+#else
+#define MAYBE_COBALT_WEAK
+#endif
+
+pthread_key_t GetSharedMemoryContextKey();
+MemoryContext GetCurrentMemoryContext();
+void SetCurrentMemoryContext(MemoryContext context);
 
 // ScopedMemoryContext is a helper class that sets the current thread's
 // memory context for the duration of its lifetime, restoring the previous
@@ -59,8 +71,14 @@ BASE_EXPORT void SetCurrentMemoryContext(MemoryContext context);
 // it was constructed.
 class BASE_EXPORT ScopedMemoryContext {
  public:
-  explicit ScopedMemoryContext(MemoryContext context);
-  ~ScopedMemoryContext();
+  explicit ScopedMemoryContext(MemoryContext context) {
+    prev_context_ = GetCurrentMemoryContext();
+    SetCurrentMemoryContext(context);
+  }
+
+  ~ScopedMemoryContext() {
+    SetCurrentMemoryContext(prev_context_);
+  }
 
   ScopedMemoryContext(const ScopedMemoryContext&) = delete;
   ScopedMemoryContext& operator=(const ScopedMemoryContext&) = delete;
@@ -71,10 +89,9 @@ class BASE_EXPORT ScopedMemoryContext {
   MemoryContext prev_context_;
 };
 
-BASE_EXPORT std::string_view ContextToString(MemoryContext context);
+MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context);
 
 }  // namespace memory
 }  // namespace base
 
 #endif  // BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
-

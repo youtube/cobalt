@@ -7,6 +7,11 @@
 #include <optional>
 
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#include "cobalt/shell/buildflags.h"
+#endif
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
@@ -569,6 +574,9 @@ void PaintLayerPainter::PaintFragmentWithPhase(
 void PaintLayerPainter::PaintWithPhase(PaintPhase phase,
                                        GraphicsContext& context,
                                        PaintFlags paint_flags) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kGraphics);
+#endif
   const auto* layout_box_with_fragments =
       paint_layer_.GetLayoutBoxWithBlockFragments();
   wtf_size_t fragment_idx = 0u;
