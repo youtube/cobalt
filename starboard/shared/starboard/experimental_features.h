@@ -48,7 +48,7 @@ class ExperimentalFeatureKey {
  public:
   using ValueType = T;
   using DefaultValueType =
-      std::conditional_t<std::is_same_v<T, std::string>, std::string_view, T>;
+      std::conditional_t<std::is_same_v<T, std::string>, const char*, T>;
 
   template <size_t N>
   constexpr explicit ExperimentalFeatureKey(const char (&key)[N])

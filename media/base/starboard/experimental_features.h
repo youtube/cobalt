@@ -48,7 +48,7 @@ class MEDIA_EXPORT ExperimentalFeatureKey {
  public:
   using ValueType = T;
   using DefaultValueType =
-      std::conditional_t<std::is_same_v<T, std::string>, std::string_view, T>;
+      std::conditional_t<std::is_same_v<T, std::string>, const char*, T>;
 
   template <size_t N>
   constexpr explicit ExperimentalFeatureKey(const char (&key)[N])
@@ -99,8 +99,7 @@ class MEDIA_EXPORT ExperimentalFeatures {
   std::optional<T> Get(const ExperimentalFeatureKey<T>& key) const {
     auto it = settings_.find(key.key());
     if (it != settings_.end()) {
-      auto val = GetValue<T>(it->second);
-      if (val.has_value()) {
+      if (auto val = GetValue<T>(it->second); val.has_value()) {
         return val;
       }
     }
