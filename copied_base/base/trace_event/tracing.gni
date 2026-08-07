@@ -6,6 +6,11 @@ import("//build/config/chrome_build.gni")
 import("//build/config/chromeos/ui_mode.gni")
 
 declare_args() {
+  # Set to true to enable base::trace_event tracing (perfetto-backed).
+  enable_base_tracing = true
+}
+
+declare_args() {
   # Enable more trace events. Disabled by default due to binary size impact,
   # but highly recommended for local development.
   extended_tracing_enabled = false
