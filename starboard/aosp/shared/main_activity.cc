@@ -25,6 +25,7 @@
 
 #include "cobalt/aosp/jni_headers/MainActivity_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/aosp/shared/application_aosp.h"
 #include "starboard/aosp/shared/window_surface.h"
 #include "starboard/common/log.h"
 #include "starboard/system.h"
@@ -113,6 +114,20 @@ void JNI_MainActivity_NativeOnSurfaceCreated(
 void JNI_MainActivity_NativeOnSurfaceDestroyed(JNIEnv*) {
   SB_LOG(INFO) << "cobalt_loader: Starboard surface destroyed.";
   starboard::android::shared::SetWindowSurface(nullptr);
+}
+
+jboolean JNI_MainActivity_NativeSendKeyEvent(JNIEnv* /*env*/,
+                                             jint key_code,
+                                             jint action,
+                                             jint unicode_char,
+                                             jint meta_state) {
+  ApplicationAOSP* application = ApplicationAOSP::GetIfExists();
+  if (application == nullptr) {
+    return JNI_FALSE;
+  }
+  return application->InjectKeyEvent(key_code, action, unicode_char, meta_state)
+             ? JNI_TRUE
+             : JNI_FALSE;
 }
 
 }  // namespace starboard

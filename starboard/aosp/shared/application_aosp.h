@@ -15,6 +15,7 @@
 #ifndef STARBOARD_AOSP_SHARED_APPLICATION_AOSP_H_
 #define STARBOARD_AOSP_SHARED_APPLICATION_AOSP_H_
 
+#include <atomic>
 #include <cstdint>
 
 #include "starboard/shared/starboard/queue_application.h"
@@ -30,10 +31,30 @@ namespace starboard {
 //
 // Lifetime and ownership: a single instance is created on the stack by
 // SbRunStarboardMain() and lives for as long as Starboard runs.
+//
+// Threading: the event queue is thread-safe, so events may be injected from any
+// thread, including the Android UI thread. Callers running on Android threads
+// must reach the instance through GetIfExists(), because the Activity can call
+// into Starboard before this object exists and after it is gone.
 class ApplicationAOSP : public QueueApplication {
  public:
   explicit ApplicationAOSP(SbEventHandleCallback sb_event_handle_callback)
-      : QueueApplication(sb_event_handle_callback) {}
+      : QueueApplication(sb_event_handle_callback) {
+    g_instance.store(this, std::memory_order_release);
+  }
+  ~ApplicationAOSP() override {
+    // Clear here instead of letting ~Application clear it because it runs only
+    // after ~QueueApplication has already destroyed the event queue. If a JNI
+    // thread would Inject() between the queue destruction and the application
+    // destruction could inject into a destroyed queue. So we destroy the
+    // application instance here to prevent it.
+    g_instance.store(nullptr, std::memory_order_release);
+  }
+
+  // Returns the live application, or nullptr when there is none.
+  static ApplicationAOSP* GetIfExists() {
+    return g_instance.load(std::memory_order_acquire);
+  }
 
   // Aborts if there is no application. Only use this from the Starboard thread,
   // (from code that runs inside SbRunStarboardMain)
@@ -44,6 +65,13 @@ class ApplicationAOSP : public QueueApplication {
   // proxies for SbWindowCreate/SbWindowDestroy
   SbWindow CreateWindow(const SbWindowOptions* options);
   bool DestroyWindow(SbWindow window);
+
+  // Converts an Android key event into a Starboard input event and injects it
+  // into the engine.
+  bool InjectKeyEvent(int key_code,
+                      int action,
+                      int unicode_char,
+                      int meta_state);
 
  protected:
   // AOSP has no native event queue for the to poll, Android delivers
@@ -59,6 +87,14 @@ class ApplicationAOSP : public QueueApplication {
     return nullptr;
   }
   void WakeSystemEventWait() override {}
+
+ private:
+  // The live instance, or nullptr when there is none.
+  static inline std::atomic<ApplicationAOSP*> g_instance{nullptr};
+
+  // The window CreateWindow() handed out, so injected input events can name the
+  // window they belong to.
+  SbWindow window_ = kSbWindowInvalid;
 };
 
 }  // namespace starboard
