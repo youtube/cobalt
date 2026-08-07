@@ -22,9 +22,21 @@ namespace {
 constexpr ExperimentalFeatureKey<bool> kFooFeatureA("Foo.FeatureA");
 constexpr ExperimentalFeatureKey<bool> kFooFeatureB("Foo.FeatureB");
 constexpr ExperimentalFeatureKey<bool> kFooFeatureC("Foo.FeatureC");
+constexpr ExperimentalFeatureKey<bool> kFooFeatureDefaultFalse(
+    "Foo.FeatureDefaultFalse",
+    false);
+constexpr ExperimentalFeatureKey<bool> kFooFeatureDefaultTrue(
+    "Foo.FeatureDefaultTrue",
+    true);
 constexpr ExperimentalFeatureKey<int> kFooIntFeature("Foo.IntFeature");
+constexpr ExperimentalFeatureKey<int> kFooIntFeatureDefault(
+    "Foo.IntFeatureDefault",
+    100);
 constexpr ExperimentalFeatureKey<std::string> kFooStringFeature(
     "Foo.StringFeature");
+constexpr ExperimentalFeatureKey<std::string> kFooStringFeatureDefault(
+    "Foo.StringFeatureDefault",
+    "default_str");
 
 TEST(ExperimentalFeaturesTest, GetBool) {
   ExperimentalFeatures::Map map;
@@ -79,11 +91,50 @@ TEST(ExperimentalFeaturesTest, MissingKeyReturnsNullopt) {
 TEST(ExperimentalFeaturesTest, TypeMismatchReturnsNullopt) {
   ExperimentalFeatures::Map map;
   map["Foo.IntFeature"] = std::string("not_an_int");
+  map["Foo.IntFeatureDefault"] = std::string("not_an_int");
   map["Foo.StringFeature"] = static_cast<int64_t>(123);
   ExperimentalFeatures settings(map);
 
   EXPECT_EQ(settings.Get(kFooIntFeature), std::nullopt);
+  EXPECT_EQ(settings.Get(kFooIntFeatureDefault), std::optional<int>(100));
   EXPECT_EQ(settings.Get(kFooStringFeature), std::nullopt);
+}
+
+TEST(ExperimentalFeaturesTest, DefaultValuesWhenMissingOrUnset) {
+  ExperimentalFeatures settings;
+
+  EXPECT_FALSE(settings.GetBool(kFooFeatureDefaultFalse));
+  EXPECT_TRUE(settings.GetBool(kFooFeatureDefaultTrue));
+  EXPECT_EQ(settings.Get(kFooFeatureDefaultFalse), std::optional<bool>(false));
+  EXPECT_EQ(settings.Get(kFooFeatureDefaultTrue), std::optional<bool>(true));
+  EXPECT_EQ(settings.Get(kFooIntFeatureDefault), std::optional<int>(100));
+  EXPECT_EQ(settings.Get(kFooStringFeatureDefault),
+            std::optional<std::string>("default_str"));
+}
+
+TEST(ExperimentalFeaturesTest, SettingOverridesDefaultValue) {
+  ExperimentalFeatures::Map map;
+  map["Foo.FeatureDefaultFalse"] = static_cast<int64_t>(1);
+  map["Foo.FeatureDefaultTrue"] = static_cast<int64_t>(0);
+  map["Foo.IntFeatureDefault"] = static_cast<int64_t>(200);
+  map["Foo.StringFeatureDefault"] = std::string("custom_str");
+  ExperimentalFeatures settings(map);
+
+  EXPECT_TRUE(settings.GetBool(kFooFeatureDefaultFalse));
+  EXPECT_FALSE(settings.GetBool(kFooFeatureDefaultTrue));
+  EXPECT_EQ(settings.Get(kFooFeatureDefaultFalse), std::optional<bool>(true));
+  EXPECT_EQ(settings.Get(kFooFeatureDefaultTrue), std::optional<bool>(false));
+  EXPECT_EQ(settings.Get(kFooIntFeatureDefault), std::optional<int>(200));
+  EXPECT_EQ(settings.Get(kFooStringFeatureDefault),
+            std::optional<std::string>("custom_str"));
+}
+
+TEST(ExperimentalFeaturesTest, IntSentinelFallsBackToDefault) {
+  ExperimentalFeatures::Map map;
+  map["Foo.IntFeatureDefault"] = static_cast<int64_t>(0);
+  ExperimentalFeatures settings(map);
+
+  EXPECT_EQ(settings.Get(kFooIntFeatureDefault), std::optional<int>(100));
 }
 
 }  // namespace
