@@ -214,12 +214,6 @@ source_set("metrics") {
     "metrics/cobalt_metrics_services_manager_client.cc",
     "metrics/cobalt_metrics_services_manager_client.h",
   ]
-  if (!is_official_build) {
-    sources += [
-      "metrics/cobalt_memory_metrics_helper.cc",
-      "metrics/cobalt_memory_metrics_helper.h",
-    ]
-  }
   deps = [
     ":features",
     "//cobalt/browser/h5vcc_metrics/public/mojom",

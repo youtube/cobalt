@@ -471,6 +471,13 @@ component("core") {
   if (is_cobalt && use_starboard_media) {
     deps += [ "//starboard:starboard_group" ]
   }
+
+  if (is_cobalt && !is_official_build) {
+    sources += [
+      "inspector/cobalt_memory_metrics_helper.cc",
+      "inspector/cobalt_memory_metrics_helper.h",
+    ]
+  }
 }
 
 # Certain sources should be compiled with heavy optimization enabled.
@@ -1574,6 +1581,10 @@ source_set("unit_tests") {
   }
 
   data_deps = [ ":unit_tests_data" ]
+
+  if (is_cobalt && !is_official_build) {
+    sources += [ "inspector/cobalt_memory_metrics_helper_test.cc" ]
+  }
 
   if (use_aura) {
     sources += [ "scroll/scrollbar_theme_aura_test.cc" ]
