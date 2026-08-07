@@ -20,6 +20,7 @@ import android.app.Activity;
 import android.app.Service;
 import android.graphics.PixelFormat;
 import android.os.Bundle;
+import android.view.KeyEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.Window;
@@ -69,6 +70,8 @@ public class MainActivity extends BaseCobaltActivity {
     void startLoader();
     void nativeOnSurfaceCreated(Surface surface);
     void nativeOnSurfaceDestroyed();
+
+    boolean nativeSendKeyEvent(int keyCode, int action, int unicodeChar, int metaState);
   }
 
   private boolean mStarboardStarted;
@@ -138,6 +141,18 @@ public class MainActivity extends BaseCobaltActivity {
         });
 
     setContentView(new VideoSurfaceView(this));
+  }
+
+  @Override
+  public boolean dispatchKeyEvent(KeyEvent event) {
+    boolean handled =
+        MainActivityJni.get()
+            .nativeSendKeyEvent(
+                event.getKeyCode(),
+                event.getAction(),
+                event.getUnicodeChar(),
+                event.getMetaState());
+    return handled || super.dispatchKeyEvent(event);
   }
 
   @Override

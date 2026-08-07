@@ -66,6 +66,13 @@ class ApplicationAOSP : public QueueApplication {
   SbWindow CreateWindow(const SbWindowOptions* options);
   bool DestroyWindow(SbWindow window);
 
+  // Converts an Android input event into a Starboard input event and injects it
+  // into the engine
+  bool InjectKeyEvent(int key_code,
+                      int action,
+                      int unicode_char,
+                      int meta_state);
+
  protected:
   bool MayHaveSystemEvents() override { return false; }
   Event* WaitForSystemEventWithTimeout(int64_t /*time*/) override {
@@ -76,6 +83,11 @@ class ApplicationAOSP : public QueueApplication {
  private:
   // The live instance, or nullptr when there is none.
   static inline std::atomic<ApplicationAOSP*> g_instance{nullptr};
+
+  // The window CreateWindow() handed out, so injected input events can name the
+  // window they belong to. Only touched from the Starboard thread, which is
+  // where both SbWindowCreate/SbWindowDestroy and the event pump run.
+  SbWindow window_ = kSbWindowInvalid;
 };
 
 }  // namespace starboard

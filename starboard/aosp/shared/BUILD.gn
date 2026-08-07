@@ -51,10 +51,15 @@ source_set("aosp_loader_glue") {
     "starboard_library_loader.cc",
   ]
 
+  # main_activity.cc calls ApplicationAOSP::GetIfExists()->InjectKeyEvent(),
+  # which pulls in the internal QueueApplication header.
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+
   deps = [
     ":starboard_platform",
     "//base",
     "//cobalt/aosp:jni_headers",
     "//starboard/android/shared:starboard_platform",
+    "//starboard/common",
   ]
 }
