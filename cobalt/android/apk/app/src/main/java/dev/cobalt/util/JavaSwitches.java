@@ -224,7 +224,8 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE)) {
       extraCommandLineArgs.add("--enable-gpu-shader-disk-cache");
-    
+    }
+
     if (javaSwitches.containsKey(JavaSwitches.MAX_HTTP_CACHE_SIZE)) {
       String rawSize = javaSwitches.get(JavaSwitches.MAX_HTTP_CACHE_SIZE);
       if (rawSize != null) {
