@@ -220,7 +220,7 @@ public class JavaSwitches {
         }
       }
     }
-  
+
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE)) {
       extraCommandLineArgs.add("--enable-css-and-wasm-for-http-cache");
     }
