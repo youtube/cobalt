@@ -45,8 +45,6 @@ class MODULES_EXPORT H5vccRuntime final
 
   void ContextDestroyed() override;
 
-  // Web-exposed interface:
-  String initialDeepLink();
   DEFINE_ATTRIBUTE_EVENT_LISTENER(deeplink, kDeeplink)
 
   // EventTarget interface:
@@ -79,8 +77,6 @@ class MODULES_EXPORT H5vccRuntime final
       remote_h5vcc_runtime_;
   HeapMojoReceiver<h5vcc_runtime::mojom::blink::DeepLinkListener, H5vccRuntime>
       deep_link_receiver_;
-
-  String initial_deep_link_;
 };
 
 }  // namespace blink
