@@ -208,7 +208,8 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaFlushAudioTrackDuringSeek(
     "Media.FlushAudioTrackDuringSeek");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaForceClearSurfaceView(
-    "Media.ForceClearSurfaceView");
+    "Media.ForceClearSurfaceView",
+    /*default_value=*/true);
 
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreMediaCodecCallbacksDuringFlushing(

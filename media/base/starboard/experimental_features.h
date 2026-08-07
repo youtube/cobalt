@@ -177,7 +177,8 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaEnableTrivialOptimizations(
     "Media.EnableTrivialOptimizations");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaForceClearSurfaceView(
-    "Media.ForceClearSurfaceView");
+    "Media.ForceClearSurfaceView",
+    /*default_value=*/true);
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaForceDecodeToTexture(
     "Media.ForceDecodeToTexture");
