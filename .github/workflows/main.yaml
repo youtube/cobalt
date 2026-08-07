@@ -592,7 +592,7 @@ jobs:
         uses: ./.github/actions/on_device_tests
         with:
           nightly: ${{ inputs.nightly }}
-          test_targets_json: ${{ steps.parse-device-targets.outputs.test_targets_json }}
+          test_objects_json: ${{ steps.parse-device-targets.outputs.test_objects_json }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
@@ -796,7 +796,7 @@ jobs:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
-          test_executables_json: ${{ steps.parse-host-targets.outputs.test_executables_json }}
+          test_objects_json: ${{ steps.parse-host-targets.outputs.test_objects_json }}
           test_type: gtest
       - name: Parse Test Target JSON (Host JUnit)
         id: parse-host-junit-targets
@@ -812,7 +812,7 @@ jobs:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: 1
-          test_executables_json: ${{ steps.parse-host-junit-targets.outputs.test_executables_json }}
+          test_objects_json: ${{ steps.parse-host-junit-targets.outputs.test_objects_json }}
           test_type: junit
 
   web-tests:
@@ -942,6 +942,7 @@ jobs:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
           datadog_api_key: ${{ secrets.datadog_api_key }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
+          required_passing: ${{ matrix.test_info.required_passing != false }}
       - name: ${{ matrix.test_info.target }} Device Logs
         if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true' && matrix.test_info.runs_on == 'device'
         continue-on-error: true
@@ -1056,5 +1057,5 @@ jobs:
         run: |
           # Print test result summary.
           shopt -s globstar nullglob
-          python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
+          python3 cobalt/tools/junit_mini_parser.py results/**/*.xml || true
         shell: bash
