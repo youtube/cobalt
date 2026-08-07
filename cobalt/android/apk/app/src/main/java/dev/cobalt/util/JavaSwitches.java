@@ -108,6 +108,10 @@ public class JavaSwitches {
   /** flag to enable area based buffer budget experiment. */
   public static final String AREA_BASED_VIDEO_BUFFER_BUDGET = "AreaBasedVideoBufferBudget";
 
+  /** flag to allow critical memory pressure handling in foreground for V8. */
+  public static final String ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND =
+      "AllowCriticalMemoryPressureHandlingInForeground";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -251,6 +255,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
       extraCommandLineArgs.add("--enable-features=AreaBasedVideoBufferBudget");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)) {
+      extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
     }
 
     return extraCommandLineArgs;
