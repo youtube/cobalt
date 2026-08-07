@@ -17,37 +17,39 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_samples.h"
 #include "base/metrics/statistics_recorder.h"
-#include "base/strings/string_util.h"
+#include "base/process/process_metrics.h"
+#include "base/strings/strcat.h"
+#include "build/build_config.h"
+#include "v8/include/v8.h"
 
 namespace blink {
 
 namespace {
 
-// All Cobalt memory breakdown histograms (emitted in
-// cobalt_memory_metrics_emitter.cc and peak_gpu_memory_callback.cc via
-// base::UmaHistogramMemoryLargeMB) store values in MiB (Mebibytes). We convert
-// MiB to bytes (1 MiB = 1,048,576 bytes) for consistent DevTools byte
-// reporting.
+// All Cobalt memory breakdown histograms (emitted via base::UmaHistogramMemoryLargeMB)
+// store values in MiB. We convert MiB to bytes (1 MiB = 1,048,576 bytes) for
+// consistent DevTools byte reporting.
 constexpr uint64_t kBytesPerMiB = 1024 * 1024;
 
 bool IsMiBHistogram(std::string_view metric_name) {
-  return base::StartsWith(metric_name, "Memory.Experimental.Browser2.",
-                          base::CompareCase::SENSITIVE) ||
-         metric_name == "Memory.Browser.ResidentSet" ||
-         metric_name == "Memory.Browser.PrivateMemoryFootprint" ||
-         metric_name == "Memory.Browser.LibChrobaltRss" ||
-         metric_name == "Memory.GPU.PeakMemoryUsage2.PageLoad";
+  for (const char* canonical_name : kCanonicalMemoryMetricNames) {
+    if (canonical_name && metric_name == canonical_name) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace
 
-std::optional<uint64_t> GetMetricValueBytes(std::string_view metric_name) {
+std::optional<uint64_t> GetP50MetricValueBytes(std::string_view metric_name) {
   base::HistogramBase* histogram =
       base::StatisticsRecorder::FindHistogram(metric_name);
   if (!histogram) {
@@ -89,14 +91,18 @@ std::optional<uint64_t> GetMetricValueBytes(std::string_view metric_name) {
   return p50_value;
 }
 
-std::optional<std::vector<MemoryBreakdownMetric>> GetMemoryBreakdown() {
+std::optional<std::vector<MemoryBreakdownMetric>> GetP50MemoryBreakdown() {
   std::vector<MemoryBreakdownMetric> breakdown;
-  breakdown.reserve(std::size(kMemoryBreakdownMetricNames));
+  breakdown.reserve(std::size(kCanonicalMemoryMetricNames));
 
-  for (const char* metric_name : kMemoryBreakdownMetricNames) {
-    auto value = GetMetricValueBytes(metric_name);
+  for (const char* canonical_name : kCanonicalMemoryMetricNames) {
+    if (!canonical_name) {
+      continue;
+    }
+    auto value = GetP50MetricValueBytes(canonical_name);
     if (value.has_value()) {
-      breakdown.push_back({metric_name, value.value()});
+      breakdown.push_back(
+          {base::StrCat({canonical_name, kP50Suffix}), *value});
     }
   }
 
@@ -105,6 +111,58 @@ std::optional<std::vector<MemoryBreakdownMetric>> GetMemoryBreakdown() {
   }
 
   return breakdown;
+}
+
+std::optional<std::vector<MemoryBreakdownMetric>> GetLiveMemoryBreakdown() {
+#if !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_ANDROID)
+  return std::nullopt;
+#else
+  std::vector<MemoryBreakdownMetric> metrics;
+  metrics.reserve(std::size(kCanonicalMemoryMetricNames));
+
+  // 1. Process OS Memory (ResidentSet and PrivateMemoryFootprint)
+  std::unique_ptr<base::ProcessMetrics> process_metrics =
+      base::ProcessMetrics::CreateCurrentProcessMetrics();
+  if (process_metrics) {
+    auto memory_info = process_metrics->GetMemoryInfo();
+    if (memory_info.has_value()) {
+      if (memory_info->resident_set_bytes > 0) {
+        metrics.push_back(
+            {base::StrCat(
+                 {kCanonicalMemoryMetricNames[CobaltMemoryMetricId::kResidentSet],
+                  kLiveSuffix}),
+             memory_info->resident_set_bytes});
+      }
+      if (memory_info->rss_anon_bytes > 0) {
+        metrics.push_back(
+            {base::StrCat(
+                 {kCanonicalMemoryMetricNames[
+                      CobaltMemoryMetricId::kPrivateMemoryFootprint],
+                  kLiveSuffix}),
+             memory_info->rss_anon_bytes});
+      }
+    }
+  }
+
+  // 2. V8 Live Heap Memory
+  if (v8::Isolate* isolate = v8::Isolate::TryGetCurrent()) {
+    v8::HeapStatistics heap_stats;
+    isolate->GetHeapStatistics(&heap_stats);
+    if (heap_stats.used_heap_size() > 0) {
+      metrics.push_back(
+          {base::StrCat(
+               {kCanonicalMemoryMetricNames[CobaltMemoryMetricId::kV8],
+                kLiveSuffix}),
+           heap_stats.used_heap_size()});
+    }
+  }
+
+  if (metrics.empty()) {
+    return std::nullopt;
+  }
+
+  return metrics;
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
 }
 
 }  // namespace blink
