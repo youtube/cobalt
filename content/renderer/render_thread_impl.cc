@@ -1827,10 +1827,9 @@ void RenderThreadImpl::OnSyncMemoryPressure(
           "allow-critical-memory-pressure-handling-in-foreground");
 
   if (!allow_critical_in_foreground && !RendererIsHidden() &&
-      v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical) {
+      v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
     v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
-  }
-#endif
+#endif  // !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
 
   if (base::FeatureList::IsEnabled(
           features::kForwardMemoryPressureToBlinkIsolates)) {
