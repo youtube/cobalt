@@ -86,6 +86,7 @@ source_set("browser") {
     "//cobalt/media/service",
     "//cobalt/media/service/mojom",
     "//cobalt/memory",
+    "//net",
     "//cobalt/shell:cobalt_shell_lib",
     "//components/embedder_support:user_agent",
     "//components/metrics",

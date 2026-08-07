@@ -48,6 +48,8 @@ class H5vccMetricsImpl : public content::DocumentService<mojom::H5vccMetrics> {
   // Follows Chrome's WebUI's
   // HistogramsMessageHandler::HandleRequestHistograms() implementation.
   void RequestHistograms(RequestHistogramsCallback callback) override;
+  void ForceEmit(ForceEmitCallback callback) override;
+
 
  private:
   H5vccMetricsImpl(content::RenderFrameHost& render_frame_host,

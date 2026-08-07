@@ -82,4 +82,18 @@ void H5vccMetricsImpl::RequestHistograms(RequestHistogramsCallback callback) {
       manager_client->metrics_service_client()));
 }
 
+void H5vccMetricsImpl::ForceEmit(ForceEmitCallback callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  auto* client = cobalt::GlobalFeatures::GetInstance()
+                     ->metrics_services_manager_client()
+                     ->metrics_service_client();
+  if (client) {
+    client->ForceEmitMetrics(std::move(callback));
+  } else {
+    LOG(WARNING) << "CobaltMetricsServiceClient not available for ForceEmit.";
+    std::move(callback).Run();
+  }
+}
+
 }  // namespace h5vcc_metrics
+

@@ -125,34 +125,45 @@ def main():
   with open(trace_path, "r", encoding="utf-8", errors="replace") as f:
     trace_string = f.read()
 
-  # Step 5: Find the base load address of the specified library
-  lib_name = re.escape(os.path.basename(lib_path))
-  print(f"Extracting {os.path.basename(lib_path)} memory mapping from trace...")
-  regex_pattern = (rf"\\\"?mf\\\"?:\s*\\\"?([^\\\"]*{lib_name})\\\"?,"
-                   r"\s*\\\"?pf\\\"?:\s*5,"
-                   r"\s*\\\"?sa\\\"?:\s*\\\"?(?P<sa>[0-9a-fA-F]+)\\\"?,"
-                   r"\s*\\\"?sz\\\"?:\s*\\\"?(?P<sz>[0-9a-fA-F]+)\\\"?")
-  match = re.search(regex_pattern, trace_string)
+  # Step 5: Find the base load address of the executable/library
+  lib_name = os.path.basename(lib_path)
+  print(f"Extracting {lib_name} memory mapping from trace...")
+  
+  # Match any pf value. sa and sz are hexadecimal
+  pattern = (r"\\\"?mf\\\"?:\s*\\\"?([^\\\"]*" + re.escape(lib_name) + r")\\\"?,"
+             r"\s*\\\"?pf\\\"?:\s*(?P<pf>[0-9]+),"
+             r"\s*\\\"?sa\\\"?:\s*\\\"?(?P<sa>[0-9a-fA-F]+)\\\"?,"
+             r"\s*\\\"?sz\\\"?:\s*\\\"?(?P<sz>[0-9a-fA-F]+)\\\"?")
+  
+  matches = list(re.finditer(pattern, trace_string))
+  if not matches:
+    # Try a relaxed pattern
+    relaxed_pattern = (re.escape(lib_name) + r"[^}\n]*?pf[^}\n]*?(?P<pf>[0-9]+)[^}\n]*?sa[^}\n]*?"
+                       r"(?P<sa>[0-9a-fA-F]+)[^}\n]*?sz[^}\n]*?(?P<sz>[0-9a-fA-F]+)")
+    matches = list(re.finditer(relaxed_pattern, trace_string))
 
-  if not match:
-    relaxed_pattern = (rf"{lib_name}[^}}\n]*?pf[^}}\n]*?5[^}}\n]*?sa[^}}\n]*?"
-                       r"(?P<sa>[0-9a-fA-F]+)"
-                       r"[^}\n]*?sz[^}\n]*?(?P<sz>[0-9a-fA-F]+)")
-    match = re.search(relaxed_pattern, trace_string)
-
-  if not match:
-    print(f"Error: Could not find {os.path.basename(lib_path)} "
-          "executable mapping in trace!")
+  if not matches:
+    print(f"Error: Could not find any {lib_name} memory mappings in trace!")
     sys.exit(1)
 
-  base_address_hex = match.group("sa")
-  size_hex = match.group("sz")
+  # Find the lowest start address segment and compute overall virtual range
+  mappings = []
+  for m in matches:
+    sa_val = int(m.group("sa"), 16)
+    sz_val = int(m.group("sz"), 16)
+    pf_val = int(m.group("pf"))
+    mappings.append((sa_val, sz_val, pf_val))
 
-  base_address = int(base_address_hex, 16)
-  size = int(size_hex, 16)
+  mappings.sort(key=lambda x: x[0])
+  base_address = mappings[0][0]
+  
+  # Calculate virtual size containing all mapped segments
+  max_end = max(sa_val + sz_val for sa_val, sz_val, _ in mappings)
+  size = max_end - base_address
 
-  print(f"🎉 Found libchrobalt.so base load address: 0x{base_address_hex} "
-        f"(Size: 0x{size_hex} bytes)")
+  print(f"🎉 Found {len(mappings)} mappings for {lib_name}.")
+  print(f"🎉 Selected lowest segment as ELF base load address: 0x{base_address:x}")
+  print(f"🎉 Overall virtual mapped range size: 0x{size:x} bytes")
 
   trace_data = json.loads(trace_string)
 

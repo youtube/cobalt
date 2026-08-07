@@ -564,7 +564,7 @@ def extract_allocations(heaps_v2: Dict[str, Any]) -> List[AllocationRecord]:
         clean_stack = filter_profiler_hooks(stack)
         leaf = get_actionable_leaf(clean_stack)
         container = get_immediate_container(stack)
-        subsystem = classify_subsystem(alloc_name, clean_stack)
+        subsystem = classify_subsystem(alloc_name, stack)
         records.append(
             AllocationRecord(
                 alloc_name,
@@ -618,7 +618,7 @@ def extract_allocations(heaps_v2: Dict[str, Any]) -> List[AllocationRecord]:
             clean_stack = filter_profiler_hooks(stack)
             leaf = get_actionable_leaf(clean_stack)
             container = get_immediate_container(stack)
-            subsystem = classify_subsystem(eff_alloc_name, clean_stack)
+            subsystem = classify_subsystem(eff_alloc_name, stack)
             records.append(
                 AllocationRecord(
                     eff_alloc_name,
@@ -655,7 +655,7 @@ def extract_allocations(heaps_v2: Dict[str, Any]) -> List[AllocationRecord]:
             clean_stack = filter_profiler_hooks(stack)
             leaf = get_actionable_leaf(clean_stack)
             container = get_immediate_container(stack)
-            subsystem = classify_subsystem(alloc_name, clean_stack)
+            subsystem = classify_subsystem(alloc_name, stack)
             records.append(
                 AllocationRecord(
                     alloc_name,
@@ -707,7 +707,7 @@ def extract_allocations(heaps_v2: Dict[str, Any]) -> List[AllocationRecord]:
         clean_stack = filter_profiler_hooks(stack)
         leaf = get_actionable_leaf(clean_stack)
         container = get_immediate_container(stack)
-        subsystem = classify_subsystem("heap_nodes", clean_stack)
+        subsystem = classify_subsystem("heap_nodes", stack)
         records.append(
             AllocationRecord(
                 "heap_nodes",

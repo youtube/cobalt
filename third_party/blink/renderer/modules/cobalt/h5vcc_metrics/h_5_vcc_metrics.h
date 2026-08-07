@@ -59,6 +59,7 @@ class MODULES_EXPORT H5vccMetrics final
                                                      uint64_t,
                                                      ExceptionState&);
   ScriptPromise<IDLString> requestHistograms(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> forceEmit(ScriptState*, ExceptionState&);
 
   // EventTarget impl.
   ExecutionContext* GetExecutionContext() const override {
@@ -88,6 +89,7 @@ class MODULES_EXPORT H5vccMetrics final
   void OnSetMetricEventInterval(ScriptPromiseResolver<IDLUndefined>* resolver);
   void OnRequestHistograms(ScriptPromiseResolver<IDLString>* resolver,
                            const WTF::String& histograms_base64);
+  void OnForceEmit(ScriptPromiseResolver<IDLUndefined>* resolver);
 
   void EnsureRemoteIsBound();
   void OnCloseConnection();

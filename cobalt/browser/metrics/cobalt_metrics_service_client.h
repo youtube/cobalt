@@ -17,6 +17,8 @@
 
 #include <memory>
 #include <string_view>
+#include <vector>
+
 
 #include "base/memory/weak_ptr.h"
 #include "base/threading/sequence_bound.h"
@@ -112,6 +114,9 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   void ScheduleMemoryRecordForTesting(base::OnceClosure done_callback);
   void ScheduleCpuRecordForTesting(base::OnceClosure done_callback);
 
+  void ForceEmitMetrics(base::OnceClosure done_callback);
+
+
  protected:
   explicit CobaltMetricsServiceClient(
       metrics::MetricsStateManager* state_manager,
@@ -162,6 +167,8 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   // TODO(cobalt, b/417477183): Consider removing this when user actions work in
   // Kabuki.
   void StartIdleRefreshTimer();
+  void OnForceEmitComplete();
+
 
   const std::unique_ptr<variations::SyntheticTrialRegistry>
       synthetic_trial_registry_;
@@ -193,7 +200,12 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   bool IsInitialized() const { return !!metrics_service_; }
 
   COBALT_THREAD_CHECKER(thread_checker_);
+
+  bool force_emit_in_progress_ = false;
+  std::vector<base::OnceClosure> pending_force_emit_callbacks_;
+  base::WeakPtrFactory<CobaltMetricsServiceClient> weak_ptr_factory_{this};
 };
+
 
 }  // namespace cobalt
 
