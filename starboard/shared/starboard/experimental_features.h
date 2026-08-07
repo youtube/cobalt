@@ -83,7 +83,7 @@ class ExperimentalFeatures {
   ~ExperimentalFeatures() = default;
 
   // Returns the boolean value for the given key, falling back to false if the
-  // key is missing or unset and has no default value.
+  // key is missing or is unset with no default value.
   bool GetBool(const ExperimentalFeatureKey<bool>& key) const {
     return Get(key).value_or(false);
   }
