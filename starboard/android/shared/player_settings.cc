@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,26 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/player_set_max_video_input_size.h"
+#include "starboard/android/shared/player_settings.h"
 
 #include "starboard/android/shared/video_max_video_input_size.h"
-#include "starboard/extension/player_set_max_video_input_size.h"
+#include "starboard/android/shared/video_surface_view.h"
+#include "starboard/extension/player_settings.h"
 
 namespace starboard {
 
 namespace {
 
-const StarboardExtensionPlayerSetMaxVideoInputSizeApi
-    kPlayerSetMaxVideoInputSizeApi = {
-        kStarboardExtensionPlayerSetMaxVideoInputSizeName,
-        1,
-        &SetMaxVideoInputSizeForCurrentThread,
+const StarboardExtensionPlayerSettingsApi kPlayerSettingsApi = {
+    kStarboardExtensionPlayerSettingsName,
+    1,
+    &SetMaxVideoInputSizeForCurrentThread,
+    &SetVideoSurfaceViewForCurrentThread,
 };
 
 }  // namespace
 
-const void* GetPlayerSetMaxVideoInputSizeApi() {
-  return &kPlayerSetMaxVideoInputSizeApi;
+const void* GetPlayerSettingsApi() {
+  return &kPlayerSettingsApi;
 }
 
 }  // namespace starboard

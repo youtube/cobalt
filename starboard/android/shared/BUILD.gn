@@ -215,11 +215,9 @@ static_library("starboard_platform") {
     "player_get_maximum_number_of_samples_per_write.cc",
     "player_get_preferred_output_mode.cc",
     "player_set_bounds.cc",
-    "player_set_max_video_input_size.cc",
-    "player_set_max_video_input_size.h",
     "player_set_playback_rate.cc",
-    "player_set_video_surface_view.cc",
-    "player_set_video_surface_view.h",
+    "player_settings.cc",
+    "player_settings.h",
 
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "posix_emu/dirent.cc",
@@ -453,6 +451,8 @@ test("starboard_platform_tests") {
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
               "video_frame_tracker_test.cc",
+              "video_max_video_input_size_test.cc",
+              "video_surface_view_test.cc",
             ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]

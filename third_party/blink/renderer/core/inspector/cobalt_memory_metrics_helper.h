@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_METRICS_COBALT_MEMORY_METRICS_HELPER_H_
-#define COBALT_BROWSER_METRICS_COBALT_MEMORY_METRICS_HELPER_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_INSPECTOR_COBALT_MEMORY_METRICS_HELPER_H_
+#define THIRD_PARTY_BLINK_RENDERER_CORE_INSPECTOR_COBALT_MEMORY_METRICS_HELPER_H_
 
 #include <cstdint>
 #include <optional>
 #include <string_view>
 #include <vector>
 
-namespace cobalt {
+namespace blink {
 
 struct MemoryBreakdownMetric {
   const char* name;
@@ -62,6 +62,6 @@ std::optional<uint64_t> GetMetricValueBytes(std::string_view metric_name);
 // StatisticsRecorder. Returns std::nullopt if no metrics are recorded.
 std::optional<std::vector<MemoryBreakdownMetric>> GetMemoryBreakdown();
 
-}  // namespace cobalt
+}  // namespace blink
 
-#endif  // COBALT_BROWSER_METRICS_COBALT_MEMORY_METRICS_HELPER_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_INSPECTOR_COBALT_MEMORY_METRICS_HELPER_H_
