@@ -30,5 +30,13 @@ BASE_FEATURE(kTestFinchFeature,
 const base::FeatureParam<std::string> kTestFinchFeatureParam{
     &kTestFinchFeature, "TestFinchFeatureParam", ""};
 
+BASE_FEATURE(kDisableSplashScreen,
+             "DisableSplashScreen",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kForceImageSplashScreen,
+             "ForceImageSplashScreen",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace cobalt
