@@ -192,9 +192,15 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaFlushAudioTrackDuringSeek(
 inline constexpr ExperimentalFeatureKey<bool> kMediaForceClearSurfaceView(
     "Media.ForceClearSurfaceView");
 
+inline constexpr ExperimentalFeatureKey<bool> kMediaForceDualThreads(
+    "Media.ForceDualThreads");
+
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreMediaCodecCallbacksDuringFlushing(
         "Media.IgnoreMediaCodecCallbacksDuringFlushing");
+
+inline constexpr ExperimentalFeatureKey<bool> kMediaNdkAudioTrack(
+    "Media.NdkAudioTrack");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaNdkVideo("Media.NdkVideo");
 
