@@ -16,6 +16,7 @@
 
 #include "base/command_line.h"
 #include "content/public/browser/navigation_throttle.h"
+#include "content/public/browser/navigation_throttle_registry.h"
 #include "content/public/test/mock_navigation_handle.h"
 #include "content/public/test/mock_navigation_throttle_registry.h"
 #include "net/base/net_errors.h"
@@ -54,12 +55,10 @@ class MockCobaltSecureNavigationThrottle
 
 class CobaltSecureNavigationThrottleTest : public ::testing::Test {
  protected:
-  CobaltSecureNavigationThrottleTest() {
+  CobaltSecureNavigationThrottleTest() : registry_(&mock_navigation_handle_) {
     base::CommandLine::Init(0, nullptr);
-    registry_ = std::make_unique<content::MockNavigationThrottleRegistry>(
-        &mock_navigation_handle_);
     throttle_ = std::make_unique<NiceMock<MockCobaltSecureNavigationThrottle>>(
-        *registry_);
+        registry_);
   }
 
   content::NavigationThrottle::ThrottleCheckResult RunWillStartRequest(
@@ -81,7 +80,7 @@ class CobaltSecureNavigationThrottleTest : public ::testing::Test {
 
   // Use the pre-existing content::MockNavigationHandle with NiceMock
   NiceMock<content::MockNavigationHandle> mock_navigation_handle_;
-  std::unique_ptr<content::MockNavigationThrottleRegistry> registry_;
+  content::MockNavigationThrottleRegistry registry_;
   std::unique_ptr<MockCobaltSecureNavigationThrottle> throttle_;
   scoped_refptr<net::HttpResponseHeaders> response_headers_;
 };

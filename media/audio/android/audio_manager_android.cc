@@ -537,6 +537,7 @@ void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
       output_device_cache_ = base::flat_map(devices);
       break;
   }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void AudioManagerAndroid::GetCommunicationDeviceNames(
@@ -575,7 +576,6 @@ const AudioManagerAndroid::DeviceCache& AudioManagerAndroid::GetDeviceCache(
     case AudioDeviceDirection::kOutput:
       return output_device_cache_;
   }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 std::optional<AudioDevice> AudioManagerAndroid::GetDeviceForAAudioStream(
