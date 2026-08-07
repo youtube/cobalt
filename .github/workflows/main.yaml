@@ -65,12 +65,11 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-          persist-credentials: false
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
         continue-on-error: true  # Ignore this step if we cannot remove the label.
@@ -87,182 +86,144 @@ jobs:
         shell: bash
         run: |
           set -x
-          platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -c '.platforms')
+          platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
           echo "platforms=${platforms}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Select build runners
         id: set-build-runners
         shell: bash
         run: |
           set -x
-          build_runners=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -c '.build_runners // ["self-hosted", "chrobalt-linux-runner"]' )
+          build_runners=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.build_runners // ["self-hosted", "chrobalt-linux-runner"]' )
           echo "build_runners=${build_runners}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set build targets
         id: set-targets
         shell: bash
         run: |
           set -x
-          targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -cr '.targets')
+          targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.targets')
           echo "targets=${targets}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set build configs
         id: set-build-configs
         shell: bash
         run: |
           set -x
           # Attempt to load build configs from JSON. If not present use default.
-          build_configs=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -cr '.build_configs')
+          build_configs=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.build_configs')
           if [[ "${build_configs}" == "null" ]]; then
             build_configs='["devel", "qa", "gold"]'
           fi
           echo "build_configs=${build_configs}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set platform extra includes
         id: set-includes
         shell: bash
         run: |
           set -x
-          includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -c '.includes')
+          includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
           echo "includes=${includes}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set Docker service
         id: set-docker-service
         shell: bash
         run: |
           set -x
-          docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -r '.docker_service // empty')
+          docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service // empty')
           echo "docker_service=${docker_service}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set on-host tests
         id: set-test-on-host
         shell: bash
         run: |
           set -x
-          test_on_host=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -rc '.test_on_host')
+          test_on_host=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_host')
           echo "test_on_host=${test_on_host}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set on-device tests
         id: set-test-on-device
         shell: bash
         run: |
           set -x
-          test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -rc '.test_on_device')
+          test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
           echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set test package
         id: set-test-package
         shell: bash
         run: |
           set -x
-          test_package=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -rc '.test_package')
+          test_package=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_package')
           echo "test_package=${test_package}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set e2e tests
         id: set-test-e2e
         shell: bash
         run: |
           set -x
-          test_e2e=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -rc '.test_e2e')
+          test_e2e=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_e2e')
           echo "test_e2e=${test_e2e}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set YTS tests
         id: set-test-yts
         shell: bash
         run: |
           set -x
-          test_yts=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -rc '.test_yts')
+          test_yts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts')
           echo "test_yts=${test_yts}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set YTS Playback tests
         id: set-test-yts-playback
         shell: bash
         run: |
           set -x
-          test_yts_playback=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -rc '.test_yts_playback')
+          test_yts_playback=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts_playback')
           echo "test_yts_playback=${test_yts_playback}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set Browser tests
         id: set-test-browser
         shell: bash
         run: |
           set -x
-          test_browser=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -rc '.test_browser')
+          test_browser=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_browser')
           echo "test_browser=${test_browser}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set YTS WPT tests
         id: set-test-yts-wpt
         shell: bash
         run: |
           set -x
-          test_yts_wpt=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -rc '.test_yts_wpt')
+          test_yts_wpt=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts_wpt')
           echo "test_yts_wpt=${test_yts_wpt}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set web tests
         id: set-web-tests
         shell: bash
         run: |
           set -x
-          web_tests=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -rc '.web_tests')
+          web_tests=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.web_tests')
           echo "web_tests=${web_tests}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set root target for unit tests
         id: set-test-root-target
         shell: bash
         run: |
           set -x
-          test_root_target=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -rc '.test_root_target')
+          test_root_target=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_root_target')
           echo "test_root_target=${test_root_target}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set E2E test device type
         id: set-test-device-family
         shell: bash
         run: |
           set -x
-          test_device_family=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -rc '.test_device_family // empty')
+          test_device_family=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_device_family // empty')
           echo "test_device_family=${test_device_family}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set YTS test targets
         id: set-yts-test-targets
         shell: bash
         run: |
           set -x
-          yts_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -cr '.yts_test_targets // []')
+          yts_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.yts_test_targets // []')
           echo "yts_test_targets=${yts_test_targets}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set YTS Playback test targets
         id: set-yts-playback-test-targets
         shell: bash
         run: |
           set -x
-          yts_playback_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -cr '.yts_playback_test_targets // []')
+          yts_playback_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.yts_playback_test_targets // []')
           echo "yts_playback_test_targets=${yts_playback_test_targets}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set Browser test targets
         id: set-browser-test-targets
         shell: bash
         run: |
           set -x
-          browser_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -cr '.browser_test_targets // []')
+          browser_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.browser_test_targets // []')
           echo "browser_test_targets=${browser_test_targets}" >> $GITHUB_OUTPUT
 
           # Also export just the target strings for the results matrix.
@@ -275,73 +236,58 @@ jobs:
           # platforms that may have the flag enabled but no defined tests, or
           # for host platforms (like Linux) where targets might be filtered out
           # based on the primary target list.
-          if [[ "${STEPS_SET_TEST_BROWSER_OUTPUTS_TEST_BROWSER}" == "true" && "${browser_test_targets_json}" != "[]" ]]; then
+          if [[ "${{ steps.set-test-browser.outputs.test_browser }}" == "true" && "${browser_test_targets_json}" != "[]" ]]; then
             echo "run_browser_tests=true" >> $GITHUB_OUTPUT
           else
             echo "run_browser_tests=false" >> $GITHUB_OUTPUT
           fi
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
-          STEPS_SET_TEST_BROWSER_OUTPUTS_TEST_BROWSER: ${{ steps.set-test-browser.outputs.test_browser }}
       - name: Set YTS WPT test targets
         id: set-yts-wpt-test-targets
         shell: bash
         run: |
           set -x
-          yts_wpt_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -cr '.yts_wpt_test_targets // []')
+          yts_wpt_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.yts_wpt_test_targets // []')
           echo "yts_wpt_test_targets=${yts_wpt_test_targets}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set E2E test targets
         id: set-e2e-test-targets
         shell: bash
         run: |
           set -x
-          e2e_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -cr '.e2e_test_targets // []')
+          e2e_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.e2e_test_targets // []')
           echo "e2e_test_targets=${e2e_test_targets}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set test device dimensions
         id: set-test-dimensions
         shell: bash
         run: |
           set -x
-          test_dimensions=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -rc '.test_dimensions')
+          test_dimensions=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_dimensions')
           echo "test_dimensions=${test_dimensions}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set test attempts
         id: set-test-attempts
         shell: bash
         run: |
           set -x
-          test_attempts=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -rc '.test_attempts // empty')
+          test_attempts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_attempts // empty')
           echo "test_attempts=${test_attempts}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set number of on-host unit test shards
         id: set-gtest-shards
         shell: bash
         run: |
           set -x
           # Retrieve number of shards from config. If not specified, default to 1 shard with `echo 1`.
-          num_gtest_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -rc '.num_gtest_shards // 1' )
+          num_gtest_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards // 1' )
           echo "num_gtest_shards=${num_gtest_shards}" >> $GITHUB_OUTPUT
 
           # Create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5].
           gtest_shards="[$(seq -s, 0 1 $((${num_gtest_shards} - 1)))]"
           echo "gtest_shards=${gtest_shards}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set enable sccache
         id: set-enable-sccache
         shell: bash
         run: |
           set -x
-          enable_sccache=$(cat ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json | jq -rc '.enable_sccache')
+          enable_sccache=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.enable_sccache')
           echo "enable_sccache=${enable_sccache}" >> $GITHUB_OUTPUT
-        env:
-          INPUTS_PLATFORM: ${{ inputs.platform }}
       - name: Set Docker files checksum
         id: set-docker-hash
         env:
@@ -357,13 +303,12 @@ jobs:
         env:
           TEST_ON_HOST: ${{ steps.set-test-on-host.outputs.test_on_host }}
           TEST_ON_DEVICE: ${{ steps.set-test-on-device.outputs.test_on_device }}
-          INPUTS_PLATFORM: ${{ inputs.platform }}
         run: |
           set -x
           run_on_device_test="false"
           expected_tests="[]"
 
-          first_platform=$(jq -r '.platforms[0]' ${GITHUB_WORKSPACE}/.github/config/${INPUTS_PLATFORM}.json)
+          first_platform=$(jq -r '.platforms[0]' ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json)
           test_targets_json_file="cobalt/build/testing/targets/${first_platform}/test_targets.json"
 
           if [ -f "$test_targets_json_file" ]; then
@@ -438,12 +383,11 @@ jobs:
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-          persist-credentials: false
       - name: Build docker image
         if: needs.initialize.outputs.docker_service != ''
         id: build-docker-image
@@ -463,12 +407,11 @@ jobs:
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-          persist-credentials: false
       - name: Build docker image
         id: build-docker-image
         uses: ./.github/actions/docker
@@ -487,12 +430,11 @@ jobs:
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-          persist-credentials: false
       - name: Build docker image
         id: build-docker-image
         uses: ./.github/actions/docker
@@ -541,12 +483,11 @@ jobs:
             echo "TMPDIR=${{ runner.temp }}" >> $GITHUB_ENV
           fi
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-          persist-credentials: false
       # TODO(b/501486531): This step duplicates a lot of logic from
       # other steps like depot_tools and checkout. Because I need
       # to verify the performance of overlay in the real world.
@@ -635,12 +576,11 @@ jobs:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-          persist-credentials: false
       - name: Parse Test Target JSON (Device GTest)
         id: parse-device-targets
         uses: ./.github/actions/test_targets_json
@@ -681,12 +621,11 @@ jobs:
         config: [devel]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-          persist-credentials: false
       - name: Run E2E Tests
         uses: ./.github/actions/internal_tests
         with:
@@ -717,12 +656,11 @@ jobs:
         config: [devel]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-          persist-credentials: false
       - name: Run YTS Tests
         uses: ./.github/actions/internal_tests
         with:
@@ -748,12 +686,11 @@ jobs:
         config: [devel]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-          persist-credentials: false
       - name: Run YTS Playback Tests
         uses: ./.github/actions/internal_tests
         with:
@@ -775,12 +712,11 @@ jobs:
         config: [devel]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-          persist-credentials: false
       - name: Run Browser Tests (Linux)
         uses: ./.github/actions/linux_browser_tests
         with:
@@ -810,12 +746,11 @@ jobs:
         config: [devel]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-          persist-credentials: false
       - name: Run YTS WPT Tests
         uses: ./.github/actions/internal_tests
         with:
@@ -842,12 +777,11 @@ jobs:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-${{ matrix.shard }}
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-          persist-credentials: false
       - name: Parse Test Target JSON (Host GTest)
         id: parse-host-targets
         uses: ./.github/actions/test_targets_json
@@ -907,12 +841,11 @@ jobs:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-          persist-credentials: false
       - name: Prepare OverlayFS Workspace
         id: overlay_workspace
         uses: ./.github/actions/overlay_workspace
@@ -965,12 +898,11 @@ jobs:
         test_info: ${{ fromJson(needs.initialize.outputs.expected_tests_json) }}
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-          persist-credentials: false
       - name: Extract Test Target Name
         id: extract-target-name
         env:
@@ -983,8 +915,8 @@ jobs:
           set -x
           # Get first entry in test filters file.
           test_filter=""
-          test_target="${STEPS_EXTRACT_TARGET_NAME_OUTPUTS_TEST_TARGET}"
-          test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${MATRIX_PLATFORM}/${test_target}_filter.json"
+          test_target="${{ steps.extract-target-name.outputs.test_target }}"
+          test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_target}_filter.json"
           if [ -f ${test_filter_json_dir} ]; then
             test_filter="$(jq -cr '.failing_tests[0]' ${test_filter_json_dir})"
             if [ "${test_filter}" = '*' ]; then
@@ -995,9 +927,6 @@ jobs:
             fi
           fi
         shell: bash
-        env:
-          STEPS_EXTRACT_TARGET_NAME_OUTPUTS_TEST_TARGET: ${{ steps.extract-target-name.outputs.test_target }}
-          MATRIX_PLATFORM: ${{ matrix.platform }}
       - name: Download Test Results
         if: steps.filter.outputs.skipped != 'true'
         uses: actions/download-artifact@v5
@@ -1050,12 +979,11 @@ jobs:
         test_target: ${{ fromJson(needs.initialize.outputs.browser_test_targets_json || '[]') }}
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-          persist-credentials: false
       - name: Extract Test Target Name
         id: extract-target-name
         env:
@@ -1106,12 +1034,11 @@ jobs:
         config: [devel]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-          persist-credentials: false
       - name: Download Unit Test Results
         if: needs.test-results.result != 'skipped' && needs.test-results.result != ''
         uses: actions/download-artifact@v5

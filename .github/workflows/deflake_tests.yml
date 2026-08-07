@@ -16,12 +16,11 @@ jobs:
       actions: write
     steps:
       - name: Checkout .github Files
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: .github
-          persist-credentials: false
       - name: Rerun Failing Tests
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

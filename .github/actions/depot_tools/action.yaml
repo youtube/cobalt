@@ -45,10 +45,8 @@ runs:
 
     - name: Set CIPD Cache Directory
       if: steps.cache-path.outputs.path != ''
-      run: echo "CIPD_CACHE_DIR=${STEPS_CACHE_PATH_OUTPUTS_PATH}/cipd-cache" >> ${GITHUB_ENV}
+      run: echo "CIPD_CACHE_DIR=${{ steps.cache-path.outputs.path }}/cipd-cache" >> ${GITHUB_ENV}
       shell: bash
-      env:
-        STEPS_CACHE_PATH_OUTPUTS_PATH: ${{ steps.cache-path.outputs.path }}
 
     - name: Bootstrap Bundled python3
       run: |

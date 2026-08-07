@@ -28,14 +28,13 @@ jobs:
       docker_content_sha: ${{ steps.set-docker-hash.outputs.docker_content_sha }}
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: |
             cobalt/docker
             docker-compose.yaml
-          persist-credentials: false
       - name: Set Docker files checksum
         id: set-docker-hash
         env:
@@ -58,7 +57,7 @@ jobs:
       packages: write
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
@@ -67,7 +66,6 @@ jobs:
             cobalt/docker
             docker-compose.yaml
             .pre-commit-config.yaml
-          persist-credentials: false
       - name: Copy pre-commit config to build context
         run: cp .pre-commit-config.yaml cobalt/docker/pre-commit/
       - name: Build and Push Docker image
@@ -91,7 +89,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 2
           filter: blob:none
@@ -101,7 +99,6 @@ jobs:
             .clang-format
             .pylintrc
             cobalt/precommit
-          persist-credentials: false
       - name: Sparse checkout changed files
         run: |
           git diff --name-only HEAD~1 HEAD | git sparse-checkout add --stdin

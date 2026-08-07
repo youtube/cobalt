@@ -27,13 +27,12 @@ runs:
     - name: Set Docker Build Vars
       env:
         DOCKER_SERVICE: ${{ inputs.docker_service }}
-        FLOATING_RAW: ${{ inputs.is_pr == 'true' && github.event.pull_request.number || github.ref_name }}
       run: |
         # Set Docker Build Vars
         set -x
 
         # Set floating to either the PR number (for PRs) or the branch name (for post-submit).
-        FLOATING_TAG="${FLOATING_RAW}"
+        FLOATING_TAG="${{ inputs.is_pr == 'true' && github.event.pull_request.number || github.ref_name }}"
         # Replace slashes with double underscore.
         FLOATING_TAG="${FLOATING_TAG//\//__}"
         # Remove url unsafe suffix from LTS branches.
@@ -49,15 +48,13 @@ runs:
         ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${TOKEN_ENDPOINT} | jq -r .access_token)
 
         # Login to GAR to be able to push images created by fork based PR workflows.
-        if [[ "${INPUTS_IS_PR}" == "true" ]]; then
+        if [[ "${{ inputs.is_pr }}" == "true" ]]; then
           printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev
         fi
 
         # Login to Marketplace GAR to be able to pull base images.
         printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://marketplace.gcr.io
       shell: bash
-      env:
-        INPUTS_IS_PR: ${{ inputs.is_pr }}
 
     - name: Login to GitHub Docker Registry
       uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0

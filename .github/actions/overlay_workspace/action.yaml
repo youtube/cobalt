@@ -27,7 +27,6 @@ runs:
       shell: bash
       env:
         REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
-        INPUTS_PATH: ${{ inputs.path }}
       run: |
         # LOWER_DIR (Read-Only): The pristine golden workspace (tip of tree) on the node's SSD. All pods read from this.
         LOWER_DIR="/runner-cache/golden-workspace"
@@ -39,7 +38,7 @@ runs:
         WORK_DIR="/runner-cache/workspaces/${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}/work"
 
         # MERGED_DIR: The directory the CI job actually sees and works in. It seamlessly combines LOWER_DIR and UPPER_DIR.
-        MERGED_DIR="${GITHUB_WORKSPACE}/${INPUTS_PATH}"
+        MERGED_DIR="${GITHUB_WORKSPACE}/${{ inputs.path }}"
 
         # Failsafe cleanup: Unmount and delete any orphaned workspaces from cancelled jobs
         # Since this node only runs one pod at a time, we can safely wipe all workspaces.

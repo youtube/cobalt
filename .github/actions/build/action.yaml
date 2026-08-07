@@ -78,7 +78,6 @@ runs:
           STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
           # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
           DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
-          INPUTS_TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
         run: |
           set -x
           cd cobalt/src
@@ -90,7 +89,7 @@ runs:
           fi
 
           # TODO: b/382508397 - Currently, override with static test targets
-          cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${INPUTS_TEST_TARGETS_JSON_FILE}"
+          cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${{ inputs.test_targets_json_file }}"
 
           # gn desc out/${{ matrix.platform }}_${{ matrix.config }}/ "*" --format=json > gn_desc.json
           # # Trim any warning gn printed before the json (all lines above the first curly brace).
@@ -111,14 +110,14 @@ runs:
           #     --json-output > "${DYN_TEST_TARGETS_JSON_FILE}"
 
 
-          test_targets_json=$(jq -cr '[.[] | select(.target != null) | .target]' ${INPUTS_TEST_TARGETS_JSON_FILE})
+          test_targets_json=$(jq -cr '[.[] | select(.target != null) | .target]' ${{ inputs.test_targets_json_file }})
           echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
 
           test_targets_count=$(echo ${test_targets_json} | jq -cr 'length')
           echo "test_targets_count=${test_targets_count}" >> $GITHUB_OUTPUT
         shell: bash
       - name: Archive test target JSON
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}_test_targets_json
           path: cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
@@ -128,11 +127,9 @@ runs:
         run: |
           set -ex
           cd cobalt/src
-          test_targets=$(echo "${STEPS_CALCULATE_TEST_TARGETS_OUTPUTS_TEST_TARGETS_JSON}" | jq -cr 'join(" ")')
+          test_targets=$(echo '${{ steps.calculate-test-targets.outputs.test_targets_json }}' | jq -cr 'join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
         shell: bash
-        env:
-          STEPS_CALCULATE_TEST_TARGETS_OUTPUTS_TEST_TARGETS_JSON: ${{ steps.calculate-test-targets.outputs.test_targets_json }}
       - name: Ninja build
         env:
           TARGETS_JSON: ${{ inputs.targets }}
@@ -148,7 +145,7 @@ runs:
         shell: bash
       - name: Archive Android APKs
         if: (startsWith(matrix.platform, 'android') || startsWith(matrix.platform, 'aosp')) && matrix.config == 'qa'
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }} APKs
           path: |

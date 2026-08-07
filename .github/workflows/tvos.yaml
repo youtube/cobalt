@@ -41,13 +41,12 @@ jobs:
       targets: ${{ steps.short-targets.outputs.targets }}
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           sparse-checkout: |
             .github/actions/test_targets_json
             cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json
           sparse-checkout-cone-mode: false
-          persist-credentials: false
 
       - name: Parse Test Targets JSON
         id: parse-targets
@@ -58,11 +57,9 @@ jobs:
       - name: Convert Targets to Short Names
         id: short-targets
         run: |
-          targets=$(echo "${STEPS_PARSE_TARGETS_OUTPUTS_TEST_TARGETS_JSON}" | jq -cr 'map(split(":")[-1])')
+          targets=$(echo '${{ steps.parse-targets.outputs.test_targets_json }}' | jq -cr 'map(split(":")[-1])')
           echo "Targets found: ${targets}"
           echo "targets=${targets}" >> "$GITHUB_OUTPUT"
-        env:
-          STEPS_PARSE_TARGETS_OUTPUTS_TEST_TARGETS_JSON: ${{ steps.parse-targets.outputs.test_targets_json }}
 
   wait-for-kokoro-build:
     needs: get-sha
@@ -141,7 +138,7 @@ jobs:
           done
 
       - name: Upload to GitHub Actions
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1
+        uses: actions/upload-artifact@v4
         with:
           name: tvos-test-artifacts
           path: "*.tar.gz"
@@ -158,13 +155,12 @@ jobs:
         target: ${{ fromJSON(needs.get-targets.outputs.targets) }}
     steps:
       - name: Checkout Cobalt (Sparse)
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           sparse-checkout: |
             cobalt/testing/filters
             .github
             cobalt/tools
-          persist-credentials: false
 
       - name: Download from GitHub Actions
         uses: actions/download-artifact@v4
@@ -175,11 +171,11 @@ jobs:
         id: filter
         run: |
           test_filter=""
-          filter_file="cobalt/testing/filters/tvos-arm64-simulator/${MATRIX_TARGET}_filter.json"
+          filter_file="cobalt/testing/filters/tvos-arm64-simulator/${{ matrix.target }}_filter.json"
           if [[ -f "${filter_file}" ]]; then
             test_filter="$(jq -cr '.failing_tests[0]' "${filter_file}")"
             if [[ "${test_filter}" == '*' ]]; then
-              echo "${MATRIX_TARGET} was skipped due to test filter."
+              echo "${{ matrix.target }} was skipped due to test filter."
               echo "skipped=true" >> "$GITHUB_OUTPUT"
             else
               echo "skipped=false" >> "$GITHUB_OUTPUT"
@@ -188,8 +184,6 @@ jobs:
             echo "skipped=false" >> "$GITHUB_OUTPUT"
           fi
         shell: bash
-        env:
-          MATRIX_TARGET: ${{ matrix.target }}
 
       - name: Run Test in Simulator
         id: run-tests
@@ -242,7 +236,7 @@ jobs:
 
       - name: Archive Test Results
         if: always() && steps.filter.outputs.skipped != 'true'
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1
+        uses: actions/upload-artifact@v4
         with:
           name: tvos_${{ matrix.target }}_test_results
           path: results/*
