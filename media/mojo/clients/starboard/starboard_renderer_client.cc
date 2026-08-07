@@ -251,8 +251,8 @@ void StarboardRendererClient::UpdateStarboardRenderingMode(
       if (is_playing_) {
         StopVideoRendererSink();
       } else {
-        LOG(WARNING) << "StarboardRendererClient doesn't stop video rendering "
-                        "sink, since the video is not playing.";
+        LOG(INFO) << "StarboardRendererClient doesn't stop video rendering "
+                     "sink, since the video is not playing.";
       }
       break;
     case StarboardRenderingMode::kDecodeToTexture:
@@ -261,8 +261,8 @@ void StarboardRendererClient::UpdateStarboardRenderingMode(
       if (is_playing_) {
         StartVideoRendererSink();
       } else {
-        LOG(WARNING) << "StarboardRendererClient doesn't start video rendering "
-                        "sink, since StartPlayingFrom() is not called.";
+        LOG(INFO) << "StarboardRendererClient doesn't start video rendering "
+                     "sink, since StartPlayingFrom() is not called.";
       }
       break;
     case StarboardRenderingMode::kInvalid:
