@@ -144,6 +144,8 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   class BASE_EXPORT Delegate {
    public:
     virtual ~Delegate() = default;
+    virtual void RecordHangStarted(const std::string& hang_uuid) {}
+    virtual void RecordHangRecovered(const std::string& hang_uuid) {}
     // Returns true if hang reporting should be enabled
     // potentially overriding default settings.
     virtual bool IsHangReportingEnabled() = 0;
@@ -396,6 +398,12 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // invokes the appropriate closure if so.
   void Monitor() LOCKS_EXCLUDED(watch_state_lock_);
 
+#if BUILDFLAG(IS_COBALT)
+  void CheckAndRecordHangRecovered()
+      EXCLUSIVE_LOCKS_REQUIRED(watch_state_lock_);
+  void RecordHangStarted();
+#endif
+
   // Record the hang crash dump and perform the necessary housekeeping before
   // and after.
   void DoDumpWithoutCrashing(const WatchStateSnapShot& watch_state_snapshot)
@@ -431,6 +439,9 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // Snapshot to be reused across hang captures. The point of keeping it
   // around is reducing allocations during capture.
   WatchStateSnapShot watch_state_snapshot_
+      GUARDED_BY_CONTEXT(hang_watcher_thread_checker_);
+
+  std::string active_hang_uuid_
       GUARDED_BY_CONTEXT(hang_watcher_thread_checker_);
 
   base::DelegateSimpleThread thread_;
