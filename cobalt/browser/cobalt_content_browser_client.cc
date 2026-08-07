@@ -255,9 +255,10 @@ base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           "enable-gpu-shader-disk-cache")) {
     base::FilePath user_data_dir;
-    base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir);
-    DCHECK(!user_data_dir.empty());
-    return user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache"));
+    if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
+        !user_data_dir.empty()) {
+      return user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache"));
+    }
   }
   return base::FilePath();
 }
@@ -266,9 +267,10 @@ base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           "enable-gpu-shader-disk-cache")) {
     base::FilePath user_data_dir;
-    base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir);
-    DCHECK(!user_data_dir.empty());
-    return user_data_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
+    if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
+        !user_data_dir.empty()) {
+      return user_data_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
+    }
   }
   return base::FilePath();
 }
