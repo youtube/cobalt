@@ -290,6 +290,7 @@ protocol::Response InspectorPerformanceAgent::getMetrics(
 
   append_metrics(GetLiveMemoryBreakdown());
   append_metrics(GetP50MemoryBreakdown());
+  append_metrics(GetPeakMemoryGuardrails());
 #endif
 
   *out_result = std::move(result);
