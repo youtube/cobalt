@@ -46,9 +46,6 @@ public class JavaSwitches {
   /** flag to enable a 1.5s delay before firing the freeze event on background. */
   public static final String DELAY_FREEZE_ON_BACKGROUND = "DelayFreezeOnBackground";
 
-  /** flag to force use IPv4 for system host resolution. */
-  public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
-
   public static final String USE_MINOR_MS_FOR_MINOR_GC = "UseMinorMSForMinorGC";
 
   /** flag to delete stale leveldb LOCK file on startup. */
@@ -108,10 +105,6 @@ public class JavaSwitches {
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
-
-    if (javaSwitches.containsKey(JavaSwitches.USE_IPV4_FOR_DNS)) {
-      extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
-    }
 
     if (javaSwitches.containsKey(JavaSwitches.LOCAL_STORAGE_DELETE_LOCK_FILE)) {
       extraCommandLineArgs.add("--enable-features=LocalStorageDeleteLockFile");
