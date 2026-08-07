@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/controller/memory_usage_monitor.h"
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+#include "third_party/blink/renderer/platform/allow_discouraged_type.h"
 
 #include "build/build_config.h"
 #include "build/buildflag.h"
@@ -65,8 +66,8 @@ class CONTROLLER_EXPORT HighestPmfReporter
   unsigned webpage_counts_at_current_highest_pmf_ = 0;
   unsigned report_count_ = 0;
 #if BUILDFLAG(IS_COBALT)
-  std::vector<base::TimeDelta> time_to_report_;
-  std::vector<std::string> metric_names_;
+  std::vector<base::TimeDelta> time_to_report_ ALLOW_DISCOURAGED_TYPE("Cobalt specific");
+  std::vector<std::string> metric_names_ ALLOW_DISCOURAGED_TYPE("Cobalt specific");
 #endif
 };
 

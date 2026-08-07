@@ -117,7 +117,8 @@ class HighestPmfReporterBrowserTest : public content::ContentBrowserTest {
   std::unique_ptr<blink::MockHighestPmfReporter> reporter_;
 };
 
-#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_ANDROID)
+#if (BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_APPLE)) && \
+    !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_ANDROID)
 #define MAYBE_ReportMetric DISABLED_ReportMetric
 #else
 #define MAYBE_ReportMetric ReportMetric
