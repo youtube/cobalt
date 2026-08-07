@@ -23,7 +23,7 @@ import org.chromium.base.test.util.UrlUtils;
 /**
  * Android activity for running content_public.browser.tests
  */
-public class ContentBrowserTestsActivity extends ContentShellBrowserTestActivity {
+public class ContentBrowserTestsActivity extends CobaltBrowserTestActivity {
     private static final String TAG = "native_test";
 
     @Override

@@ -1,0 +1,51 @@
+# Disable dangerous-triggers rule because this workflow uses pull_request_target
+# strictly to edit PR labels (pull-requests: write) without checking out or executing
+# untrusted code from PR branches.
+# actionlint: disable dangerous-triggers
+# zizmor: ignore[dangerous-triggers]
+name: Auto Label Kokoro
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+    branches:
+      - main
+      - staging
+      - experimental/*
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.event_name }} @ ${{ github.event.pull_request.number || github.sha }}'
+  cancel-in-progress: true
+
+permissions:
+  pull-requests: write
+
+jobs:
+  label-kokoro-run:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - name: Apply kokoro:run label to PR for collaborators/committers
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
+          AUTHOR_ASSOC: ${{ github.event.pull_request.author_association }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          echo "Author '${PR_AUTHOR}' association: ${AUTHOR_ASSOC}"
+
+          if [[ "${AUTHOR_ASSOC}" == "OWNER" || "${AUTHOR_ASSOC}" == "MEMBER" || "${AUTHOR_ASSOC}" == "COLLABORATOR" ]]; then
+            if ! echo "$PR_LABELS" | jq -e '.[] | select(.name == "kokoro:run")' > /dev/null; then
+              echo "Author is a collaborator/committer. Applying kokoro:run label..."
+              gh pr edit "$PR_URL" --add-label "kokoro:run"
+            else
+              echo "kokoro:run label is already present."
+            fi
+          else
+            echo "Author '${PR_AUTHOR}' association is '${AUTHOR_ASSOC}'. Skipping auto-labeling."
+          fi
