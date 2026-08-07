@@ -250,6 +250,30 @@ CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
       content::ShellContentBrowserClient::Get());
 }
 
+#if BUILDFLAG(IS_ANDROID)
+base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "enable-gpu-shader-disk-cache")) {
+    base::FilePath user_data_dir;
+    base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir);
+    DCHECK(!user_data_dir.empty());
+    return user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache"));
+  }
+  return base::FilePath();
+}
+
+base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "enable-gpu-shader-disk-cache")) {
+    base::FilePath user_data_dir;
+    base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir);
+    DCHECK(!user_data_dir.empty());
+    return user_data_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
+  }
+  return base::FilePath();
+}
+#endif
+
 std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {

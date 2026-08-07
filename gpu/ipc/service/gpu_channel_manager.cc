@@ -590,21 +590,6 @@ void GpuChannelManager::PopulateCache(const gpu::GpuDiskCacheHandle& handle,
   switch (gpu::GetHandleType(handle)) {
     case gpu::GpuDiskCacheType::kGlShaders: {
       auto gl_shader_handle = std::get<gpu::GpuDiskCacheGlShaderHandle>(handle);
-#if BUILDFLAG(IS_COBALT)
-      bool is_single_process = base::CommandLine::ForCurrentProcess()->HasSwitch("single-process");
-
-      if (gl_shader_handle == kGrShaderGpuDiskCacheHandle || is_single_process) {
-        if (gr_shader_cache_) {
-          gr_shader_cache_->PopulateCache(key, data);
-        }
-      } 
-      
-      if (gl_shader_handle != kGrShaderGpuDiskCacheHandle || is_single_process) {
-        if (program_cache()) {
-          program_cache()->LoadProgram(key, data);
-        }
-      }
-#else
       if (gl_shader_handle == kGrShaderGpuDiskCacheHandle) {
         if (gr_shader_cache_)
           gr_shader_cache_->PopulateCache(key, data);
@@ -613,7 +598,6 @@ void GpuChannelManager::PopulateCache(const gpu::GpuDiskCacheHandle& handle,
 
       if (program_cache())
         program_cache()->LoadProgram(key, data);
-#endif
       break;
     }
     case gpu::GpuDiskCacheType::kDawnWebGPU:
