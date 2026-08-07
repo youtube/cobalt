@@ -419,7 +419,7 @@ if (is_win || is_mac || is_linux) {
         "linux/systemd_util.h",
         "setup_linux.cc",
         "update_service_internal_impl_qualifying_linux.cc",
-        "update_usage_stats_task_linux.cc",
+        "usage_stats_permissions_linux.cc",
       ]
     } else if (is_linux) {
       sources += [
