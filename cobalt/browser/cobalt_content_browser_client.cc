@@ -49,6 +49,7 @@
 #include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
+#include "cobalt/build/configs/buildflags.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
 #include "cobalt/shell/browser/shell.h"
@@ -101,6 +102,10 @@
 #include "cobalt/browser/cobalt_crash_annotations.h"  // nogncheck
 #endif                                                // BUILDFLAG(IS_STARBOARD)
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#include "cobalt/browser/proxy_server_support.h"
+#endif
 
 namespace cobalt {
 
@@ -397,6 +402,11 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
     network_context_params->file_paths->sct_auditing_pending_reports_file_name =
         base::FilePath(kSCTAuditingPendingReportsFileName);
   }
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  cobalt::browser::ConfigureProxyFromCommandLineIfNeeded(
+      network_context_params);
+#endif
 
   network_context_params->enable_certificate_reporting = true;
 
