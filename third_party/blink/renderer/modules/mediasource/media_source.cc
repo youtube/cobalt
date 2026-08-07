@@ -604,7 +604,7 @@ bool MediaSource::IsTypeSupportedInternal(ExecutionContext* context,
   // Interupt Chromium's IsTypeSupported() from here for better performance.
   SbMediaSupportType support_type =
       ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
-          type.Ascii().c_str(), "");
+          type.Ascii(), "");
   return support_type != kSbMediaSupportTypeNotSupported;
 #else
   // 2. If type does not contain a valid MIME type string, then return false.

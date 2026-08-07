@@ -452,8 +452,7 @@ void MimeUtil::AddContainerWithCodecs(std::string mime_type, CodecSet codecs) {
 bool MimeUtil::IsSupportedMediaMimeType(std::string_view mime_type) const {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   SbMediaSupportType support_type =
-      GetSbMediaInterface()->CanPlayMimeAndKeySystem(
-          std::string(mime_type).c_str(), "");
+      GetSbMediaInterface()->CanPlayMimeAndKeySystem(mime_type, "");
   bool result = support_type != kSbMediaSupportTypeNotSupported;
   LOG(INFO) << __func__ << "(" << mime_type << ") -> "
             << (result ? "true" : "false");
@@ -562,8 +561,7 @@ SupportsType MimeUtil::IsSupportedMediaFormat(
       << __func__ << "can be used for non encrypted formats only in Chrobalt";
 
   SbMediaSupportType support_type =
-      GetSbMediaInterface()->CanPlayMimeAndKeySystem(
-          std::string(mime_type).c_str(), "");
+      GetSbMediaInterface()->CanPlayMimeAndKeySystem(mime_type, "");
   LOG(INFO) << __func__ << "(" << mime_type << ") -> " << support_type;
   switch (support_type) {
     case kSbMediaSupportTypeNotSupported:

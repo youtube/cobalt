@@ -309,7 +309,7 @@ bool CanLoadURL(const KURL& url, const String& content_type_str) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     SbMediaSupportType support_type =
         ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
-            content_type_str.Ascii().c_str(), "");
+            content_type_str.Ascii(), "");
     MIMETypeRegistry::SupportsType result;
     switch (support_type) {
       case kSbMediaSupportTypeNotSupported:
@@ -424,7 +424,7 @@ MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
   } else {
     const SbMediaSupportType support_type =
         ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
-            content_type.Raw().Ascii().c_str(), "");
+            content_type.Raw().Ascii(), "");
     switch (support_type) {
       case kSbMediaSupportTypeNotSupported:
         result = MIMETypeRegistry::kNotSupported;

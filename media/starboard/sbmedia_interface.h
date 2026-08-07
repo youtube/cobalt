@@ -17,6 +17,8 @@
 
 #include <stdint.h>
 
+#include <string_view>
+
 #include "media/base/media_export.h"
 #include "starboard/media.h"
 
@@ -37,10 +39,10 @@ class MEDIA_EXPORT SbMediaInterface {
   virtual ~SbMediaInterface() = default;
 
   virtual SbMediaSupportType CanPlayMimeAndKeySystem(
-      const char* mime,
-      const char* key_system) = 0;
-  virtual bool CanChangeType(const char* current_mime,
-                             const char* new_mime) = 0;
+      std::string_view mime,
+      std::string_view key_system) = 0;
+  virtual bool CanChangeType(std::string_view current_mime,
+                             std::string_view new_mime) = 0;
   virtual int GetAudioOutputCount() = 0;
   virtual bool GetAudioConfiguration(
       int output_index,
@@ -66,9 +68,11 @@ class MEDIA_EXPORT SbMediaInterface {
 // Thread-safe as it delegates to thread-safe Starboard C APIs.
 class MEDIA_EXPORT DefaultSbMediaInterface final : public SbMediaInterface {
  public:
-  SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
-                                             const char* key_system) override;
-  bool CanChangeType(const char* current_mime, const char* new_mime) override;
+  SbMediaSupportType CanPlayMimeAndKeySystem(
+      std::string_view mime,
+      std::string_view key_system) override;
+  bool CanChangeType(std::string_view current_mime,
+                     std::string_view new_mime) override;
   int GetAudioOutputCount() override;
   bool GetAudioConfiguration(
       int output_index,

@@ -425,7 +425,7 @@ bool KeySystemConfigSelector::IsSupportedContentType(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   const std::string full_mime = container_lower + "; codecs=\"" + codecs + "\"";
   if (::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
-          full_mime.c_str(), key_system.c_str()) ==
+          full_mime, key_system) ==
       kSbMediaSupportTypeNotSupported) {
     LOG(INFO) << __func__ << "(" << full_mime << " and " << key_system
               << ") are unsupported.";
