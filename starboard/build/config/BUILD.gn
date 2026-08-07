@@ -328,7 +328,9 @@ config("cpp20_supported_config") {
 }
 
 config("win_cpp17_config") {
-  cflags = [ "/std:c++17" ]
+  if (!is_clang) {
+    cflags = [ "/std:c++17" ]
+  }
 }
 
 config("win_cpp20_config") {
