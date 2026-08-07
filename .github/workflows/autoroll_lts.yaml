@@ -38,12 +38,13 @@ jobs:
         ]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           path: src
           ref: main
           fetch-depth: 1000
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
+          persist-credentials: false
 
       - name: Prepare Cherry Pick Branch
         env:
@@ -92,6 +93,7 @@ jobs:
         id: autoroll
         env:
           MAX_COMMITS: ${{ inputs.max_commits || 10 }}
+          STEPS_PR_INFO_OUTPUTS_FIRST_SHA: ${{ steps.pr_info.outputs.first_sha }}
         run: |
           set -x
 
@@ -100,8 +102,8 @@ jobs:
             --source-branch "${{ matrix.branch.source }}" \
             --target-branch "${{ matrix.branch.target }}" \
             --autoroll-file "${{ matrix.branch.autoroll }}" \
-            --max-commits "${{ env.MAX_COMMITS }}" \
-            --existing-pr-sha "${{ steps.pr_info.outputs.first_sha }}")
+            --max-commits "${MAX_COMMITS}" \
+            --existing-pr-sha "${STEPS_PR_INFO_OUTPUTS_FIRST_SHA}")
 
           if [[ -n "${PR_LINKS}" ]]; then
             echo "cherry_picked=true" >> "$GITHUB_OUTPUT"

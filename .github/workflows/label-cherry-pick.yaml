@@ -75,7 +75,7 @@ jobs:
       CHERRY_PICK_BRANCH: cherry-pick-${{ matrix.target_branch }}-${{ github.event.pull_request.number }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         timeout-minutes: 30
         with:
           ref: ${{ matrix.target_branch }}
@@ -95,7 +95,7 @@ jobs:
         continue-on-error: true
         run: |
           set -x
-          git fetch origin ${{ matrix.target_branch }}
+          git fetch origin ${MATRIX_TARGET_BRANCH}
 
           set +e
           # Select the first parent as the mainline tree. This is necessary if
@@ -110,6 +110,8 @@ jobs:
             git cherry-pick --continue
           fi
           exit ${RES}
+        env:
+          MATRIX_TARGET_BRANCH: ${{ matrix.target_branch }}
 
       - name: Create Pull Request
         id: create-pr

@@ -58,6 +58,10 @@ runs:
         GITHUB_WORKFLOW: ${{ github.workflow }}
         TEST_TYPE: ${{ inputs.test_type }}
         TEST_RETRY_LEVEL: FAIL
+        INPUTS_TEST_TARGETS: ${{ inputs.test_targets }}
+        INPUTS_TEST_DIMENSIONS: ${{ inputs.test_dimensions }}
+        INPUTS_ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        INPUTS_TEST_DEVICE_FAMILY: ${{ inputs.test_device_family }}
       run: |
         set -x
 
@@ -65,7 +69,7 @@ runs:
           --token ${GITHUB_TOKEN} \
           trigger \
           --test_type ${TEST_TYPE} \
-          --targets '${{ inputs.test_targets }}' \
+          --targets "${INPUTS_TEST_TARGETS}" \
           --retry_level ${TEST_RETRY_LEVEL} \
           --label ${TEST_TYPE} \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
@@ -83,9 +87,9 @@ runs:
           --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
           --label branch:${GITHUB_REF_NAME} \
           --label target_branch:${GITHUB_BASE_REF} \
-          --dimensions '${{ inputs.test_dimensions }}' \
-          --artifact_name '${{ inputs.artifact_name }}' \
-          --device_family '${{ inputs.test_device_family }}' \
+          --dimensions "${INPUTS_TEST_DIMENSIONS}" \
+          --artifact_name "${INPUTS_ARTIFACT_NAME}" \
+          --device_family "${INPUTS_TEST_DEVICE_FAMILY}" \
           --cobalt_path "${GCS_ARTIFACTS_PATH}" || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."

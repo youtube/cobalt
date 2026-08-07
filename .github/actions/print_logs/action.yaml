@@ -28,8 +28,9 @@ runs:
       if: inputs.symbolize == 'true'
       env:
         WORKFLOW: ${{ github.workflow }}
+        STEPS_GCS_PROJECT_OUTPUTS_NAME: ${{ steps.gcs-project.outputs.name }}
       run: |
-        gsutil -m cp "gs://${{ steps.gcs-project.outputs.name }}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/symbols/*" \
+        gsutil -m cp "gs://${STEPS_GCS_PROJECT_OUTPUTS_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/symbols/*" \
           "${GITHUB_WORKSPACE}/out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/
       shell: bash
     - name: Print Logs and Test Summary
@@ -39,13 +40,13 @@ runs:
         # nullopt to returns empty string if the glob matches no files.
         shopt -s globstar nullglob
 
-        log_files=(${{ inputs.log_glob }})
+        log_files=(${INPUTS_LOG_GLOB})
         if [ ${#log_files[@]} -eq 0 ]; then
           echo "::error::No log files were collected. The tests probably failed to run."
           exit 1
         else
           for log_file in ${log_files[@]}; do
-            if [ "${{ inputs.symbolize }}" == "true" ]; then
+            if [ "${INPUTS_SYMBOLIZE}" == "true" ]; then
               # TODO: stack.py fails import packages. Perhaps needs depot tools setup?
               cat ../${log_file} | python3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/${{ matrix.platform }}_${{ matrix.config }}/
             else
@@ -55,3 +56,6 @@ runs:
           done
         fi
       shell: bash
+      env:
+        INPUTS_LOG_GLOB: ${{ inputs.log_glob }}
+        INPUTS_SYMBOLIZE: ${{ inputs.symbolize }}

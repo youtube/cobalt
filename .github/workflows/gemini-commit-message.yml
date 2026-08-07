@@ -82,7 +82,7 @@ jobs:
           set -eux
           # Logic: Concatenate both URLs. Since events are exclusive, one will be empty.
           # PR Event URL + Issue Comment URL
-          PR_API_URL="${{ github.event.pull_request.url }}${{ github.event.issue.pull_request.url }}"
+          PR_API_URL="${GITHUB_EVENT_PULL_REQUEST_URL}${GITHUB_EVENT_ISSUE_PULL_REQUEST_URL}"
 
           diff_content=$(curl -fsSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3.diff" "$PR_API_URL")
 
@@ -91,6 +91,9 @@ jobs:
             echo "$diff_content"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_EVENT_PULL_REQUEST_URL: ${{ github.event.pull_request.url }}
+          GITHUB_EVENT_ISSUE_PULL_REQUEST_URL: ${{ github.event.issue.pull_request.url }}
 
       # --- Step 2: Call Gemini API ---
       - name: 'Generate Commit Message with Gemini'

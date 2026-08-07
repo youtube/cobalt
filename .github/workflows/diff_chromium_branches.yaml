@@ -27,12 +27,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: |
             .github
+          persist-credentials: false
       - name: Set upstream branches
         id: set-upstream-branches
         env:
@@ -68,15 +69,16 @@ jobs:
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           EVENT_ACTION: ${{ github.event.action }}
+          INPUTS_DOWNSTREAM_BRANCH: ${{ inputs.downstream_branch }}
         shell: bash
         run: |
           set -eux
-          if [[ -n "${{ inputs.downstream_branch }}" ]]; then
+          if [[ -n "${INPUTS_DOWNSTREAM_BRANCH}" ]]; then
             # Get the trimmed downstream branch directly from inputs
-            DOWNSTREAM_BRANCH=${{ inputs.downstream_branch }}
+            DOWNSTREAM_BRANCH=${INPUTS_DOWNSTREAM_BRANCH}
           else
             # Get the downstream branch from the labelled PR
-            DOWNSTREAM_BRANCH="${{ github.ref }}"
+            DOWNSTREAM_BRANCH="${GITHUB_REF}"
           fi
           echo "downstream_branch=${DOWNSTREAM_BRANCH}" >> "$GITHUB_OUTPUT"
       - name: Set code ownership
@@ -100,10 +102,11 @@ jobs:
       matrix:
         upstream_branch: ${{ fromJson(needs.initialize.outputs.upstream_branches) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: chromium/${{ matrix.upstream_branch.milestone }}
           filter: blob:none
+          persist-credentials: false
       - name: Calculate main diff (excluding cobalt-owned folders)
         env:
           DOWNSTREAM_REF: ${{ needs.initialize.outputs.downstream_branch }}
