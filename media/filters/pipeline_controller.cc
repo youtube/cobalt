@@ -298,7 +298,7 @@ void PipelineController::Dispatch() {
     if (pending_audio_track_change_) {
       pending_audio_track_change_ = false;
       pipeline_->OnEnabledAudioTracksChanged(
-          std::move(pending_audio_track_change_id_),
+          pending_audio_track_change_id_,
           base::BindOnce(&PipelineController::OnTrackChangeComplete,
                          weak_factory_.GetWeakPtr()));
       return;
@@ -307,7 +307,7 @@ void PipelineController::Dispatch() {
     if (pending_video_track_change_) {
       pending_video_track_change_ = false;
       pipeline_->OnSelectedVideoTrackChanged(
-          std::move(pending_video_track_change_id_),
+          pending_video_track_change_id_,
           base::BindOnce(&PipelineController::OnTrackChangeComplete,
                          weak_factory_.GetWeakPtr()));
       return;
@@ -435,7 +435,7 @@ void PipelineController::OnEnabledAudioTracksChanged(
   DCHECK(thread_checker_.CalledOnValidThread());
 
   pending_audio_track_change_ = true;
-  pending_audio_track_change_id_ = std::move(enabled_track_id);
+  pending_audio_track_change_id_ = enabled_track_id;
 
   Dispatch();
 }
@@ -445,7 +445,7 @@ void PipelineController::OnSelectedVideoTrackChanged(
   DCHECK(thread_checker_.CalledOnValidThread());
 
   pending_video_track_change_ = true;
-  pending_video_track_change_id_ = std::move(selected_track_id);
+  pending_video_track_change_id_ = selected_track_id;
 
   Dispatch();
 }

@@ -16,8 +16,8 @@ const char kSwitchValueTrue[] = "true";
 namespace content {
 
 CobaltSecureNavigationThrottle::CobaltSecureNavigationThrottle(
-    content::NavigationHandle* handle)
-    : content::NavigationThrottle(handle) {}
+    content::NavigationThrottleRegistry& registry)
+    : content::NavigationThrottle(registry) {}
 
 CobaltSecureNavigationThrottle::~CobaltSecureNavigationThrottle() = default;
 

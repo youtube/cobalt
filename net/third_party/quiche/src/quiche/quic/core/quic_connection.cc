@@ -2118,10 +2118,10 @@ bool QuicConnection::OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) {
     QUIC_LOG_EVERY_N_SEC(ERROR, 120) << "Get unexpected AckFrequencyFrame.";
     return false;
   }
-  if (frame.requested_max_ack_delay < local_min_ack_delay_) {
+  if (frame.max_ack_delay < local_min_ack_delay_) {
     QUIC_LOG_EVERY_N_SEC(ERROR, 120)
-        << "Received AckFrequencyFrame with requested_max_ack_delay "
-        << frame.requested_max_ack_delay
+        << "Received AckFrequencyFrame with max_ack_delay "
+        << frame.max_ack_delay
         << " which is less than the minimum ack delay " << local_min_ack_delay_;
     CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, "MaxAckDelay too small",
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -4114,11 +4114,10 @@ void QuicConnection::OnHandshakeComplete() {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 2, 3);
     auto ack_frequency_frame =
         sent_packet_manager_.GetUpdatedAckFrequencyFrame();
-    // This AckFrequencyFrame is meant to only update the max_ack_delay. All
-    // other values are set to the default.
-    ack_frequency_frame.ack_eliciting_threshold =
+    // This AckFrequencyFrame is meant to only update the max_ack_delay. Set
+    // packet tolerance to the default value for now.
+    ack_frequency_frame.packet_tolerance =
         kDefaultRetransmittablePacketsBeforeAck;
-    ack_frequency_frame.reordering_threshold = 1;
     visitor_->SendAckFrequency(ack_frequency_frame);
     if (!connected_) {
       return;

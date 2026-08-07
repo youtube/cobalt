@@ -1598,6 +1598,7 @@ source_set("platform_browser_tests") {
       "//chrome/browser/extensions:test_support",
       "//chrome/browser/extensions/api/bookmarks/test:test_support",
       "//chrome/browser/prefetch",
+      "//chrome/browser/preloading:prefs",
       "//chrome/browser/sync",
       "//chrome/browser/ui/extensions",
       "//chrome/browser/ui/extensions:test_support",

@@ -47,7 +47,7 @@ class End2EndTestRenderer final : public Renderer {
   RendererType GetRendererType() override;
 
   void OnTracksChanged(DemuxerStream::Type track_type,
-                       DemuxerStream* enabled_track,
+                       std::vector<DemuxerStream*> enabled_tracks,
                        base::OnceClosure change_completed_cb) override;
 
  private:

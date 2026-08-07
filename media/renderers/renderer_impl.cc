@@ -997,11 +997,15 @@ void RendererImpl::CleanUpTrackChange(base::OnceClosure on_finished,
 }
 
 void RendererImpl::OnTracksChanged(DemuxerStream::Type track_type,
-                                   DemuxerStream* stream,
+                                   std::vector<DemuxerStream*> tracks,
                                    base::OnceClosure change_completed_cb) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   TRACE_EVENT1("media", "RendererImpl::OnTracksChanged", "track_type",
                track_type);
+
+  DCHECK_LT(tracks.size(), 2u);
+  DemuxerStream* stream = tracks.empty() ? nullptr : tracks[0];
+
   // 'fixing' the stream -> restarting if its the same stream,
   //                        reinitializing if it is different.
   base::OnceClosure fix_stream_cb;

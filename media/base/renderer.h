@@ -114,11 +114,13 @@ class MEDIA_EXPORT Renderer {
   // This method must be safe to call from any thread.
   virtual base::TimeDelta GetMediaTime() = 0;
 
-  // If `enabled_track` is not nullptr, then it is played by the renderer
-  // subclass associated with `track_type`. If it is nullptr, then tracks are
-  // flushed and disabled for the provided type.
+  // Provides a list of DemuxerStreams correlating to the tracks which should
+  // be played. An empty list would mean that any playing track of the same
+  // type should be flushed and disabled. Any provided Streams should be played
+  // by whatever mechanism the subclass of Renderer choses for managing it's AV
+  // playback.
   virtual void OnTracksChanged(DemuxerStream::Type track_type,
-                               DemuxerStream* enabled_track,
+                               std::vector<DemuxerStream*> enabled_tracks,
                                base::OnceClosure change_completed_cb);
 
   // Signal to the renderer that there has been a client request to access a

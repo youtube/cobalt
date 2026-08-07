@@ -447,9 +447,9 @@ void End2EndTestRenderer::OnMessageFromSink(
 
 void End2EndTestRenderer::OnTracksChanged(
     DemuxerStream::Type track_type,
-    DemuxerStream* enabled_track,
+    std::vector<DemuxerStream*> enabled_tracks,
     base::OnceClosure change_completed_cb) {
-  courier_renderer_->OnTracksChanged(track_type, std::move(enabled_track),
+  courier_renderer_->OnTracksChanged(track_type, std::move(enabled_tracks),
                                      std::move(change_completed_cb));
 }
 
