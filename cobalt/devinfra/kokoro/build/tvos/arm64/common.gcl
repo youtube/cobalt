@@ -26,7 +26,7 @@ build = common.build {
       }
     },
   ]
-  action = [
+  action = super.action + [
     {
       define_artifacts = {
         regex = [
