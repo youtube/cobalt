@@ -85,7 +85,8 @@
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/updater/updater_module.h"  //nogncheck
-#include "content/public/browser/storage_partition.h"
+#include "starboard/extension/installation_manager.h"
+#include "starboard/system.h"
 #endif  // BUILDFLAG(USE_EVERGREEN)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -431,10 +432,14 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
   auto* storage_partition =
       web_contents->GetPrimaryMainFrame()->GetStoragePartition();
   if (storage_partition && !updater::UpdaterModule::GetInstance()) {
-    LOG(INFO) << "Creating UpdaterModule singleton.";
-    updater::UpdaterModule::CreateInstance(
-        storage_partition->GetURLLoaderFactoryForBrowserProcess(),
-        GetUserAgent(), updater::kDefaultUpdateCheckDelay);
+    if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
+      LOG(INFO) << "Creating UpdaterModule singleton.";
+      updater::UpdaterModule::CreateInstance(
+          storage_partition->GetURLLoaderFactoryForBrowserProcess(),
+          GetUserAgent(), updater::kDefaultUpdateCheckDelay);
+    } else {
+      LOG(INFO) << "Evergreen Lite mode detected, disabling UpdaterModule.";
+    }
   }
 #endif
 }
