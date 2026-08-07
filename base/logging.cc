@@ -812,7 +812,8 @@ void LogMessage::Flush() {
 #endif
   stream_ << std::endl;
   std::string str_newline(stream_.str());
-  TraceLogMessage(file_, line_, str_newline.substr(message_start_));
+  size_t safe_start = std::min(message_start_, str_newline.length());
+  TraceLogMessage(file_, line_, str_newline.substr(safe_start));
 
   // FATAL messages should always run the assert handler and crash, even if a
   // message handler marks them as otherwise handled.

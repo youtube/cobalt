@@ -578,10 +578,10 @@ class GPU_GLES2_EXPORT GLES2DecoderPassthroughImpl
 
   // Use a limit that is at least ANGLE's IMPLEMENTATION_MAX_ACTIVE_TEXTURES
   // constant
-#if BUILDFLAG(IS_COBALT)
-  // Increase kMaxTextureUnits from 64 to 96 to match hardware limits and prevent
-  // initialization failure of the passthrough command decoder.
-  static constexpr size_t kMaxTextureUnits = 96;
+#if BUILDFLAG(IS_COBALT) || BUILDFLAG(IS_STARBOARD)
+  // Increase kMaxTextureUnits from 64 to 128 to match hardware limits and prevent
+  // initialization failure of the passthrough command decoder on modern TV GPUs.
+  static constexpr size_t kMaxTextureUnits = 128;
 #else
   static constexpr size_t kMaxTextureUnits = 64;
 #endif

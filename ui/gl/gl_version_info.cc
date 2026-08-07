@@ -54,8 +54,13 @@ void GLVersionInfo::Initialize(const char* version_str,
     is_d3d = renderer_string.find("Direct3D") != std::string::npos;
     // (is_d3d should only be possible if is_angle is true.)
     DCHECK(!is_d3d || is_angle);
+#if BUILDFLAG(IS_COBALT) || BUILDFLAG(IS_STARBOARD)
+    if (is_angle && driver_vendor == "ANGLE" && renderer_string.starts_with("ANGLE ("))
+      ExtractDriverVendorANGLE(renderer_str);
+#else
     if (is_angle && driver_vendor == "ANGLE")
       ExtractDriverVendorANGLE(renderer_str);
+#endif
   }
 }
 
