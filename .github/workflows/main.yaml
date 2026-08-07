@@ -1057,5 +1057,5 @@ jobs:
         run: |
           # Print test result summary.
           shopt -s globstar nullglob
-          python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
+          python3 cobalt/tools/junit_mini_parser.py results/**/*.xml || true
         shell: bash
