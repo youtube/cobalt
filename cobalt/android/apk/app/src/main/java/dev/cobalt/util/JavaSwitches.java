@@ -43,9 +43,6 @@ public class JavaSwitches {
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
 
-  /** flag to enable a 1.5s delay before firing the freeze event on background. */
-  public static final String DELAY_FREEZE_ON_BACKGROUND = "DelayFreezeOnBackground";
-
   /** flag to force use IPv4 for system host resolution. */
   public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
 
@@ -65,6 +62,9 @@ public class JavaSwitches {
 
   /** flag to limit GPU image cache items */
   public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
+
+  /** flag to globally configure max HTTP cache size ceiling in bytes. */
+  public static final String MAX_HTTP_CACHE_SIZE = "MaxHttpCacheSize";
 
   /** flag to limit GPU image cache working set budget bytes */
   public static final String DECODED_IMAGE_WORKING_SET_BUDGET_BYTES = "DecodedImageWorkingSetBudgetBytes";
@@ -206,6 +206,16 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_V8_CODE_CACHE)) {
       extraCommandLineArgs.add("--enable-optimized-v8-code-cache");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.MAX_HTTP_CACHE_SIZE)) {
+      String rawSize = javaSwitches.get(JavaSwitches.MAX_HTTP_CACHE_SIZE);
+      if (rawSize != null) {
+        String size = rawSize.replaceAll("[^0-9]", "");
+        if (!size.isEmpty()) {
+          extraCommandLineArgs.add("--max-http-cache-size=" + size);
+        }
+      }
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE)) {
