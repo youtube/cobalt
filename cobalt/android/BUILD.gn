@@ -187,6 +187,7 @@ android_library("cobalt_main_java") {
       "//cobalt/shell/android:cobalt_shell_java",
       "//cobalt/shell/android:cobalt_shell_jni_headers",
       "//components/embedder_support/android:view_java",
+      "//components/origin_matcher/android:java",
       "//content/public/android:content_java",
       "//media/capture/video/android:capture_java",
       "//net/android:net_java",

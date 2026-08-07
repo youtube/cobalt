@@ -9,18 +9,13 @@
 #include "base/android/jni_android.h"
 #include "base/logging.h"
 #include "base/memory_jni/MemoryInfoBridge_jni.h"
-<<<<<<< HEAD
 #include "base/time/time.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/trace_event.h"
-=======
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/memory_jni/CobaltMemoryInfoBridge_jni.h"
 #endif  // BUILDFLAG(IS_COBALT)
-
-#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
->>>>>>> parent of d584bc1b896 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 namespace base::android {
 

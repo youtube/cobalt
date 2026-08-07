@@ -61,7 +61,6 @@ rdk_gcc_toolchain("starboard") {
     is_starboard = true
     sysroot = "$rdk_sysroot"
     build_base_with_cpp17 = true
-    enable_base_tracing = false
 
     # TODO: b/451695911 - enable remote compilation, when we can.
     use_remoteexec = false
@@ -80,7 +79,6 @@ rdk_gcc_toolchain("native_target") {
     is_starboard = false
     sysroot = "$rdk_sysroot"
     build_base_with_cpp17 = true
-    enable_base_tracing = false
 
     # TODO: b/451695911 - enable remote compilation, when we can.
     use_remoteexec = false

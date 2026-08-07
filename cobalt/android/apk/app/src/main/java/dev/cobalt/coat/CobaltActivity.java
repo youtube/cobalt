@@ -64,6 +64,7 @@ import org.chromium.base.memory.MemoryPressureMonitor;
 import org.chromium.base.memory.MemoryPressureUma;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.version_info.VersionInfo;
+import org.chromium.components.origin_matcher.OriginMatcher;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
@@ -506,14 +507,22 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     javascriptInjector.setAllowInspection(true);
     for (CobaltJavaScriptAndroidObject javascriptAndroidObject : mJavaScriptAndroidObjectList) {
-      Log.d(
-          TAG,
-          "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
-      javascriptInjector.addPossiblyUnsafeInterface(
-          javascriptAndroidObject,
-          javascriptAndroidObject.getJavaScriptInterfaceName(),
-          CobaltJavaScriptInterface.class,
-          /* originAllowlist= */ new ArrayList<String>());
+      OriginMatcher matcher = new OriginMatcher();
+      try {
+        matcher.setRuleList(new ArrayList<String>());
+        Log.d(
+              TAG,
+              "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
+        javascriptInjector.addPossiblyUnsafeInterfaceToOrigins(
+            javascriptAndroidObject,
+            javascriptAndroidObject.getJavaScriptInterfaceName(),
+            CobaltJavaScriptInterface.class,
+            matcher);
+        // We always need to clean the matcher when we
+        // are done with it.
+      } finally {
+        matcher.destroy();
+      }
     }
   }
 

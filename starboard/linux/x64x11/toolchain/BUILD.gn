@@ -23,7 +23,6 @@ overridable_clang_toolchain("starboard") {
     current_os = "linux"
     current_cpu = "x64"
     is_starboard = true
-    enable_base_tracing = false
   }
   propagates_configs = !enable_cobalt_hermetic_hacks
 }
@@ -33,6 +32,5 @@ clang_toolchain("native_target") {
     is_starboard = false
     current_os = "linux"
     current_cpu = "x64"
-    enable_base_tracing = false
   }
 }

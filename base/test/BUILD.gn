@@ -641,6 +641,7 @@ action("amalgamated_perfetto_sql_stdlib") {
          ] + rebase_path(sources, root_build_dir)
 }
 
+if (!is_cobalt_hermetic_build) {
 # We encapsulate the trace processor in a separate shared library to prevent
 # any duplicate symbol issues. Perfetto symbols are exported by chromium’s
 # base via a public_dep on libperfetto; libtrace_processor also depends on
@@ -670,35 +671,6 @@ target(_target_type, "test_trace_processor") {
     configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   }
 
-<<<<<<< HEAD
-=======
-  import("//base/tracing/stdlib/chrome/perfetto_sql_files.gni")
-  action("amalgamated_perfetto_sql_stdlib") {
-    script = "//third_party/perfetto/tools/gen_amalgamated_sql.py"
-    sources = rebase_path(chrome_stdlib_sql_files,
-                          ".",
-                          "//base/tracing/stdlib/chrome")
-    stdlib_header = "$root_gen_dir/base/test/perfetto_sql_stdlib.h"
-    outputs = [ stdlib_header ]
-    args = [
-             "--namespace",
-             "chrome_stdlib",
-             "--cpp-out",
-             rebase_path(stdlib_header, root_build_dir),
-           ] + rebase_path(sources, root_build_dir)
-  }
-
-if (!is_cobalt_hermetic_build) {
-  # We encapsulate the trace processor in a separate shared library to prevent
-  # any duplicate symbol issues. Perfetto symbols are exported by chromium’s
-  # base via a public_dep on libperfetto; libtrace_processor also depends on
-  # these symbols. So we “hide” the perfetto symbols exported from this
-  # interface. Also, chrome targets depend on chromium_sqlite and the trace
-  # processor depends on dev_sqlite. The two share the same symbols but have
-  # different implementations, so we need to hide dev_sqlite in this shared
-  # library even in non-component builds to prevent duplicate symbols.
-  _target_type = "shared_library"
->>>>>>> parent of d584bc1b896 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (is_ios) {
     info_plist = "test_trace_processor_impl.plist"
     output_name = "TestTraceProcessor"
@@ -723,25 +695,10 @@ if (!is_cobalt_hermetic_build) {
     }
   }
 }
+}  # !is_cobalt_hermetic_build
 
-<<<<<<< HEAD
 if (!is_component_build && is_mac) {
   bundle_data("test_trace_processor_bundle_data") {
-=======
-  if (!is_component_build && is_mac) {
-    bundle_data("test_trace_processor_bundle_data") {
-      testonly = true
-      sources = [ "$root_out_dir/Libraries/libtest_trace_processor.dylib" ]
-      outputs = [ "{{bundle_contents_dir}}/Libraries/{{source_file_part}}" ]
-      public_deps = [ ":test_trace_processor" ]
-    }
-  }
-}
-} else if (!is_component_build && is_mac) {
-  # Provide a dummy target in order for clients to not have to special-case
-  # the dependency.
-  group("test_trace_processor_bundle_data") {
->>>>>>> parent of d584bc1b896 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     testonly = true
     sources = [ "$root_out_dir/Libraries/libtest_trace_processor.dylib" ]
     outputs = [ "{{bundle_contents_dir}}/Libraries/{{source_file_part}}" ]
