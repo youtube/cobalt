@@ -36,8 +36,9 @@ constexpr std::array<const char*, kBaselineReportCount> kBaselineMetricNames = {
     "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.4to8min",
     "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.8to16min"};
 
-constexpr std::array<base::TimeDelta, kBaselineReportCount> kBaselineTimeToReport = {
-    base::Minutes(2), base::Minutes(4), base::Minutes(8), base::Minutes(16)};
+constexpr std::array<base::TimeDelta, kBaselineReportCount>
+    kBaselineTimeToReport = {base::Minutes(2), base::Minutes(4),
+                             base::Minutes(8), base::Minutes(16)};
 #else
 constexpr size_t kMaxReportCount = 4;
 
@@ -98,7 +99,9 @@ HighestPmfReporter::HighestPmfReporter(
         previous_interval = interval_min;
 
         time_to_report_.push_back(base::Minutes(interval_min));
-        metric_names_.push_back("Memory.Experimental.Renderer.HighestPrivateMemoryFootprint." + suffix_strs[i]);
+        metric_names_.push_back(
+            "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint." +
+            suffix_strs[i]);
       }
       if (success) {
         use_baseline = false;
@@ -150,7 +153,7 @@ void HighestPmfReporter::OnMemoryPing(MemoryUsage usage) {
         FROM_HERE,
         WTF::BindOnce(&HighestPmfReporter::OnReportMetrics,
                       WTF::Unretained(this)),
-        #if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT)
         time_to_report_[0]);
 #else
         kTimeToReport[0]);
@@ -162,7 +165,11 @@ void HighestPmfReporter::OnMemoryPing(MemoryUsage usage) {
 
   current_highest_pmf_ = usage.private_footprint_bytes;
   peak_resident_bytes_at_current_highest_pmf_ = usage.peak_resident_bytes;
+#if BUILDFLAG(IS_COBALT)
+  webpage_counts_at_current_highest_pmf_ = 1;
+#else
   webpage_counts_at_current_highest_pmf_ = Page::OrdinaryPages().size();
+#endif
 
   // TODO(tasak): Report the highest memory footprint throughout renderer's
   // lifetime.
@@ -180,7 +187,7 @@ void HighestPmfReporter::OnReportMetrics() {
   peak_resident_bytes_at_current_highest_pmf_ = 0.0;
   webpage_counts_at_current_highest_pmf_ = 0;
   report_count_++;
-  #if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT)
   if (report_count_ >= time_to_report_.size()) {
 #else
   if (report_count_ >= kMaxReportCount) {
@@ -191,10 +198,11 @@ void HighestPmfReporter::OnReportMetrics() {
     return;
   }
 
-  base::TimeDelta delay =
-      #if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT)
+  const base::TimeDelta delay =
       time_to_report_[report_count_] - time_to_report_[report_count_ - 1];
 #else
+  const base::TimeDelta delay =
       kTimeToReport[report_count_] - kTimeToReport[report_count_ - 1];
 #endif
   task_runner_->PostDelayedTask(
@@ -205,7 +213,7 @@ void HighestPmfReporter::OnReportMetrics() {
 }
 
 void HighestPmfReporter::ReportMetrics() {
-  #if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT)
   base::UmaHistogramMemoryMB(metric_names_[report_count_],
                              base::saturated_cast<base::Histogram::Sample32>(
                                  current_highest_pmf_ / 1024 / 1024));
