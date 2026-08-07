@@ -92,11 +92,20 @@ jlong JNI_BaseStarboardBridge_StartNativeStarboard(
     auto command_line = std::make_unique<CommandLine>(GetArgs());
     LogInit(*command_line);
     ScopedJavaGlobalRef<jobject> asset_manager(env, j_asset_manager.obj());
+#if BUILDFLAG(IS_STARBOARD)
+    // Just initialize file_internal directories and asset manager here,
+    // ApplicationAOSP will be created in SbRunStarboardMain
+    SbFileAndroidInitialize(std::move(asset_manager),
+                            ConvertJavaStringToUTF8(env, j_files_dir),
+                            ConvertJavaStringToUTF8(env, j_cache_dir),
+                            ConvertJavaStringToUTF8(env, j_native_library_dir));
+#else
     g_native_app_instance = new ApplicationAndroid(
         std::move(command_line), std::move(asset_manager),
         ConvertJavaStringToUTF8(env, j_files_dir),
         ConvertJavaStringToUTF8(env, j_cache_dir),
         ConvertJavaStringToUTF8(env, j_native_library_dir));
+#endif
   }
   pthread_mutex_unlock(&g_native_app_init_mutex);
   return reinterpret_cast<jlong>(g_native_app_instance);
