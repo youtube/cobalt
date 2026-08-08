@@ -5,6 +5,13 @@
 #ifndef CONTENT_BROWSER_DEVTOOLS_WORKER_DEVTOOLS_MANAGER_H_
 #define CONTENT_BROWSER_DEVTOOLS_WORKER_DEVTOOLS_MANAGER_H_
 
+#include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "content/browser/devtools/worker_devtools_manager_stub.h"
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include <map>
 
 #include "base/memory/singleton.h"
@@ -51,5 +58,7 @@ class WorkerDevToolsManager {
 };
 
 }  // namespace content
+
+#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_WORKER_DEVTOOLS_MANAGER_H_

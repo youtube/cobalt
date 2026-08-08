@@ -293,7 +293,53 @@ component("core") {
   sources += rebase_path(blink_core_sources_html, "", "html")
   sources += rebase_path(blink_core_sources_imagebitmap, "", "imagebitmap")
   sources += rebase_path(blink_core_sources_input, "", "input")
-  sources += rebase_path(blink_core_sources_inspector, "", "inspector")
+  if (enable_devtools_backend) {
+    sources += rebase_path(blink_core_sources_inspector, "", "inspector")
+  } else {
+    sources += [
+      "inspector/console_message.cc",
+      "inspector/console_message_storage.cc",
+      "inspector/dev_tools_emulator.cc",
+      "inspector/dev_tools_host.cc",
+      "inspector/exception_metadata.cc",
+      "inspector/identifiers_factory.cc",
+      "inspector/inspector_audits_issue.cc",
+      "inspector/inspector_issue.cc",
+      "inspector/inspector_issue_conversion.cc",
+      "inspector/inspector_issue_reporter.cc",
+      "inspector/inspector_issue_storage.cc",
+      "inspector/devtools_agent_stub.cc",
+      "inspector/worker_inspector_controller_stub.cc",
+      "inspector/inspector_animation_agent_stub.cc",
+      "inspector/inspector_network_agent_stub.cc",
+      "inspector/inspector_page_agent_stub.cc",
+      "inspector/devtools_session_stub.cc",
+      "inspector/inspector_dom_agent_stub.cc",
+      "inspector/inspector_log_agent_stub.cc",
+      "inspector/inspector_audits_agent_stub.cc",
+      "inspector/inspector_css_agent_stub.cc",
+      "inspector/inspector_performance_agent_stub.cc",
+      "inspector/inspector_dom_debugger_agent_stub.cc",
+      "inspector/inspector_layer_tree_agent_stub.cc",
+      "inspector/inspector_emulation_agent_stub.cc",
+      "inspector/inspector_dom_snapshot_agent_stub.cc",
+      "inspector/inspector_event_breakpoints_agent_stub.cc",
+      "inspector/inspector_media_agent_stub.cc",
+      "inspector/inspector_performance_timeline_agent_stub.cc",
+      "inspector/inspector_preload_agent_stub.cc",
+      "inspector/inspector_overlay_agent_stub.cc",
+      "inspector/main_thread_debugger_stub.cc",
+      "inspector/inspector_media_context_impl_stub.cc",
+      "inspector/worker_thread_debugger_stub.cc",
+      "inspector/inspector_task_runner.cc",
+      "inspector/inspector_trace_events.cc",
+      "inspector/invalidation_set_to_selector_map.cc",
+      "inspector/request_debug_header_scope.cc",
+      "inspector/style_rule_to_style_sheet_contents_map.cc",
+      "inspector/thread_debugger_common_impl.cc",
+      "inspector/v8_inspector_string.cc",
+    ]
+  }
   sources += rebase_path(blink_core_sources_intersection_observer,
                          "",
                          "intersection_observer")
