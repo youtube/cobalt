@@ -238,8 +238,11 @@ class MigrationManagerTest : public testing::Test {
   base::ScopedPathOverride cache_dir_override_{base::DIR_CACHE};
 };
 
+<<<<<<< HEAD
 // --- General State and Utility Tests ---
 
+=======
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
 TEST_F(MigrationManagerTest, MigrationStateGetOutcomeTest) {
   // Test no data to migrate.
   auto state = base::MakeRefCounted<MigrationState>();
@@ -271,6 +274,32 @@ TEST_F(MigrationManagerTest, MigrationStateGetOutcomeTest) {
   state->UpdateCookieResult(InjectionResult::kSuccess);
   state->UpdateLocalStorageResult(InjectionResult::kSuccess);
   EXPECT_EQ(MigrationOutcome::kTimeout, state->GetOutcome());
+<<<<<<< HEAD
+=======
+}
+
+// TODO(b/399166308): Add more test cases for specific migration tasks.
+TEST_F(MigrationManagerTest, VerifyGroupTasksRunsCallbacksSequentially) {
+  constexpr uint32_t kTaskCount = 100;
+  std::vector<Task> tasks;
+  std::vector<int> collected_values;
+  for (uint32_t i = 0; i < kTaskCount; i++) {
+    tasks.push_back(base::BindOnce(
+        [](std::vector<int>& collected_values, uint32_t i,
+           base::OnceClosure callback) {
+          collected_values.push_back(static_cast<int>(i));
+          std::move(callback).Run();
+        },
+        std::ref(collected_values), i));
+  }
+  EXPECT_TRUE(collected_values.empty());
+  Task grouped_task = GroupTasks(std::move(tasks));
+  std::move(grouped_task).Run(base::DoNothing());
+  base::RunLoop().RunUntilIdle();
+  std::vector<int> expected_values(static_cast<size_t>(kTaskCount));
+  std::iota(expected_values.begin(), expected_values.end(), 0);
+  EXPECT_THAT(collected_values, ::testing::ElementsAreArray(expected_values));
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
 }
 
 TEST_F(MigrationManagerTest, ToCanonicalCookiesTest) {
@@ -302,7 +331,7 @@ TEST_F(MigrationManagerTest, ToCanonicalCookiesTest) {
 
   auto cookies = ToCanonicalCookies(storage);
   EXPECT_EQ(2u, cookies.size());
-  for (size_t i = 0; i < 2; i++) {
+  for (size_t i = 0; i < cookies.size(); i++) {
     EXPECT_EQ(source_cookies[i]->name(), cookies[i]->Name());
     EXPECT_EQ(source_cookies[i]->value(), cookies[i]->Value());
     EXPECT_EQ(source_cookies[i]->domain(), cookies[i]->Domain());

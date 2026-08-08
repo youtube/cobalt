@@ -17,12 +17,18 @@
 #include <memory>
 
 #include "base/check.h"
+<<<<<<< HEAD
 #include "base/command_line.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/sequence_checker.h"
 #include "base/task/bind_post_task.h"
+=======
+#include "base/functional/bind.h"
+#include "base/path_service.h"
+#include "base/sequence_checker.h"
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
@@ -31,10 +37,18 @@
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/switches.h"
+<<<<<<< HEAD
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/common/shell_paths.h"
+=======
+#include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
+#include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/common/shell_switches.h"
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/browser/browser_thread.h"
@@ -181,6 +195,7 @@ void CobaltBrowserMainParts::InitializeMessageLoopContext() {
   // On Linux, we might need the base behavior.
   // go/chrobalt-pre-initialization-storage-migration-pipeline
 #if !BUILDFLAG(IS_ANDROID)
+<<<<<<< HEAD
   ShellBrowserMainParts::InitializeMessageLoopContext();
 #endif
 }
@@ -188,6 +203,45 @@ void CobaltBrowserMainParts::InitializeMessageLoopContext() {
 CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
                                                bool is_visible)
     : ShellBrowserMainParts(deep_link, is_visible) {}
+=======
+  auto create_window_task = base::BindOnce(
+      &CobaltBrowserMainParts::CreateWindowWithMigrationStatus,
+      base::Unretained(this), GetStartupURL(), deep_link(), browser_context());
+  PostOrRunIfStorageMigrationFinished(std::move(create_window_task));
+#endif
+}
+
+void CobaltBrowserMainParts::CreateWindowWithMigrationStatus(
+    GURL url,
+    std::string deeplink_url,
+    content::ShellBrowserContext* browser_context) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  std::string migration_status = cobalt::migrate_storage_record::
+      MigrationManager::GetMigrationStatusUrlParameter();
+  if (!migration_status.empty() && url.is_valid()) {
+    GURL::Replacements replacements;
+    std::string query = url.query();
+    if (!query.empty()) {
+      query += "&";
+    }
+    query += migration_status;
+    replacements.SetQueryStr(query);
+    url = url.ReplaceComponents(replacements);
+    LOG(INFO)
+        << "Storage migration status telemetry injected into startup URL: "
+        << url.spec();
+  }
+
+  content::Shell::CreateNewWindow(browser_context, url, nullptr, gfx::Size(),
+                                  ::switches::ShouldCreateSplashScreen(),
+                                  deeplink_url);
+}
+
+CobaltBrowserMainParts::CobaltBrowserMainParts(bool is_visible,
+                                               const std::string& deep_link)
+    : ShellBrowserMainParts(is_visible, deep_link) {}
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
 
 int CobaltBrowserMainParts::PreCreateThreads() {
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
@@ -237,6 +291,7 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   client->SetUserAgentCrashAnnotation();
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
+<<<<<<< HEAD
 #if BUILDFLAG(USE_EVERGREEN)
   // It would probably be harmless but confusing to add this annotation on
   // platforms that do not support native stability tracking.
@@ -247,6 +302,8 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
       ->ArmCrashUuidAnnotation();
 #endif  // BUILDFLAG(USE_EVERGREEN)
 
+=======
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
   int result = ShellBrowserMainParts::PreMainMessageLoopRun();
 
   if (result != 0) {
@@ -262,16 +319,20 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 
 void CobaltBrowserMainParts::StartStorageMigration() {
   LOG(INFO) << "CobaltBrowserMainParts::StartStorageMigration started.";
+<<<<<<< HEAD
 
   // Ensure we are on the UI thread/Expected sequence before accessing the
   // partition.
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(sequence_checker_.CalledOnValidSequence());
 
+=======
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
   content::StoragePartition* partition =
       browser_context()->GetDefaultStoragePartition();
 
   DCHECK(partition);
+<<<<<<< HEAD
 
   // M138 Change: Use base::BindPostTask to wrap the completion callback.
   // This guarantees that regardless of which thread the MigrationManager
@@ -283,12 +344,21 @@ void CobaltBrowserMainParts::StartStorageMigration() {
 
   cobalt::migrate_storage_record::MigrationManager::RunMigration(
       partition, std::move(completion_callback));
+=======
+  cobalt::migrate_storage_record::MigrationManager::RunMigration(
+      partition, base::BindOnce(&CobaltBrowserMainParts::OnMigrationComplete,
+                                weak_ptr_factory_.GetWeakPtr()));
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
 }
 
 void CobaltBrowserMainParts::OnMigrationComplete() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(sequence_checker_.CalledOnValidSequence());
   LOG(INFO) << "Migration complete. Proceeding with deferred launchShell.";
+<<<<<<< HEAD
+=======
+
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
   migration_finished_ = true;
   if (pending_task_) {
     std::move(pending_task_).Run();
