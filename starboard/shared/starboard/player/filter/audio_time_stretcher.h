@@ -50,9 +50,12 @@ class AudioTimeStretcher {
   ~AudioTimeStretcher();
 
   // Initializes this object with information about the audio stream.
+  // |enable_optimized| activates NEON de-interleaving SIMD paths when
+  // available.
   void Initialize(SbMediaAudioSampleType sample_type,
                   int channels,
-                  int samples_per_second);
+                  int samples_per_second,
+                  bool enable_optimized);
 
   // Tries to fill |requested_frames| frames into |dest| with possibly scaled
   // data from our |audio_buffer_|. Data is scaled based on |playback_rate|,
@@ -213,9 +216,10 @@ class AudioTimeStretcher {
   // The initial and maximum capacity calculated by Initialize().
   int initial_capacity_;
   int max_capacity_;
+  bool enable_optimized_wsola_ = false;
 
   AudioTimeStretcher(const AudioTimeStretcher&) = delete;
-  void operator=(const AudioTimeStretcher&) = delete;
+  AudioTimeStretcher& operator=(const AudioTimeStretcher&) = delete;
 };
 
 }  // namespace starboard

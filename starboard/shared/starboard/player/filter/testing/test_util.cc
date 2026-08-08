@@ -12,9 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if !defined(_USE_MATH_DEFINES)
+#define _USE_MATH_DEFINES
+#endif  // !defined(_USE_MATH_DEFINES)
+
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 
 #include <unistd.h>
+
+#include <cmath>
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
@@ -302,6 +308,75 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
   auto input_buffer = new InputBuffer(StubDeallocateSampleFunc, nullptr,
                                       nullptr, player_sample_info);
   return input_buffer;
+}
+
+// A helper function to create a simple DecodedAudio object for testing.
+// It allocates memory and fills it with a simple sine wave.
+scoped_refptr<DecodedAudio> CreateTestDecodedAudio(int frames,
+                                                   int channels,
+                                                   int sample_rate,
+                                                   float frequency,
+                                                   float amplitude) {
+  const int bytes_per_frame = channels * sizeof(float);
+  const int buffer_size = frames * bytes_per_frame;
+
+  auto audio = make_scoped_refptr<DecodedAudio>(
+      channels, kSbMediaAudioSampleTypeFloat32,
+      kSbMediaAudioFrameStorageTypeInterleaved, 0, buffer_size);
+
+  float* data = audio->data_as_float32();
+  for (int i = 0; i < frames; ++i) {
+    for (int c = 0; c < channels; ++c) {
+      data[i * channels + c] =
+          amplitude * std::sin(2.0 * M_PI * frequency * i / sample_rate);
+    }
+  }
+  return audio;
+}
+
+scoped_refptr<DecodedAudio> CreateTestDecodedAudioWithData(
+    const std::vector<float>& data_values,
+    int channels) {
+  int frames = data_values.size() / channels;
+  const int bytes_per_frame = channels * sizeof(float);
+  const int buffer_size = frames * bytes_per_frame;
+
+  auto audio = make_scoped_refptr<DecodedAudio>(
+      channels, kSbMediaAudioSampleTypeFloat32,
+      kSbMediaAudioFrameStorageTypeInterleaved, 0, buffer_size);
+
+  memcpy(audio->data(), data_values.data(), buffer_size);
+  return audio;
+}
+
+// A helper to create a stereo DecodedAudio object with different frequencies
+// and amplitudes on Left and Right channels. This generates a true stereo
+// signal, which is necessary to verify stereo alignment and detect
+// cross-channel contamination bugs, unlike CreateTestDecodedAudio() which
+// generates a dual-mono signal when channels = 2.
+scoped_refptr<DecodedAudio> CreateTestStereoDecodedAudio(
+    int frames,
+    int sample_rate,
+    float left_frequency,
+    float left_amplitude,
+    float right_frequency,
+    float right_amplitude) {
+  const int kChannels = 2;
+  const int bytes_per_frame = kChannels * sizeof(float);
+  const int buffer_size = frames * bytes_per_frame;
+
+  auto audio = make_scoped_refptr<DecodedAudio>(
+      kChannels, kSbMediaAudioSampleTypeFloat32,
+      kSbMediaAudioFrameStorageTypeInterleaved, 0, buffer_size);
+
+  float* data = audio->data_as_float32();
+  for (int i = 0; i < frames; ++i) {
+    data[i * 2] = left_amplitude *
+                  std::sin(2.0 * M_PI * left_frequency * i / sample_rate);
+    data[i * 2 + 1] = right_amplitude *
+                      std::sin(2.0 * M_PI * right_frequency * i / sample_rate);
+  }
+  return audio;
 }
 
 }  // namespace starboard

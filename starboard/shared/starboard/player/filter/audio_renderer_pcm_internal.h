@@ -109,6 +109,7 @@ class AudioRendererPcm : public AudioRenderer,
   const int max_cached_frames_;
   const int min_frames_per_append_;
   const bool allow_audio_writing_on_pause_;
+  const bool enable_decoded_audio_simd_optimizations_;
   // |buffered_frames_to_start_| would be initialized in OnFirstOutput().
   // Before it's initialized, set it to a large number.
   int buffered_frames_to_start_ = 48 * 1024;
