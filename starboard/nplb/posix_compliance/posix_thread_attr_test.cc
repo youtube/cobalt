@@ -13,7 +13,11 @@
 // limitations under the License.
 
 #include <pthread.h>
+#include <memory>
+#include <stdlib.h>
+#include <unistd.h>
 
+#include "build/build_config.h"
 #include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -84,8 +88,16 @@ TEST(PosixThreadAttrTest, StackSizeAttr) {
 // Test for setting and getting both stack address and size.
 TEST(PosixThreadAttrTest, StackAddrAndSizeAttr) {
   pthread_attr_t attr;
+  void* set_stack_addr = nullptr;
+#if BUILDFLAG(IS_STARBOARD)
+  // bionic's pthread_attr_setstack() requires a page-aligned stack base
+  const size_t page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+  ASSERT_EQ(posix_memalign(&set_stack_addr, page_size, kStackSize), 0);
+  std::unique_ptr<void, void (*)(void*)> stack_guard(set_stack_addr, std::free);
+#else   // BUILDFLAG(IS_STARBOARD)
   std::array<char, kStackSize> stack_buffer;
-  void* set_stack_addr = static_cast<void*>(stack_buffer.data());
+  set_stack_addr = static_cast<void*>(stack_buffer.data());
+#endif  // BUILDFLAG(IS_STARBOARD)
   void* ret_stack_addr = nullptr;
   size_t ret_stack_size = 0;
 
