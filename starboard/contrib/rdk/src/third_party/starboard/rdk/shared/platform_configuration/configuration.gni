@@ -58,3 +58,5 @@ size_config_path =
 if (is_starboard) {
   sb_evergreen_compatible_use_libunwind = true
 }
+
+use_system_libcurl_for_crashpad = true
