@@ -453,6 +453,12 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   SbPlayerBridge::PlayerInfo info{&video_frames_decoded, &video_frames_dropped,
                                   &audio_bytes_decoded, &video_bytes_decoded,
                                   &media_time};
+#if BUILDFLAG(IS_IOS_TVOS)
+  std::optional<TimeDelta> polled_duration;
+  if (IsUrlPlayer()) {
+    info.duration = &polled_duration;
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   player_bridge_->GetInfo(&info);
 
@@ -483,6 +489,32 @@ TimeDelta StarboardRenderer::GetMediaTime() {
         FROM_HERE, base::BindOnce(&StarboardRenderer::OnStatisticsUpdate,
                                   weak_factory_.GetWeakPtr(), statistics));
   }
+#if BUILDFLAG(IS_IOS_TVOS)
+  if (IsUrlPlayer()) {
+    if (duration_change_cb_ && polled_duration.has_value() &&
+        polled_duration != last_duration_) {
+      last_duration_ = polled_duration;
+      duration_change_cb_.Run(*polled_duration);
+    }
+
+    // Polling buffered ranges on every media-time update may affect
+    // performance. Since the URL player exposes only the last loaded range and
+    // polling is not synchronized with platform buffer updates, reported ranges
+    // may be incomplete or stale.
+    if (buffered_ranges_cb_) {
+      TimeDelta buffer_start, buffer_length;
+      player_bridge_->GetUrlPlayerBufferedTimeRanges(&buffer_start,
+                                                     &buffer_length);
+      if (buffer_start != last_buffer_start_ ||
+          buffer_length != last_buffer_length_) {
+        last_buffer_start_ = buffer_start;
+        last_buffer_length_ = buffer_length;
+        buffered_ranges_cb_.Run(buffer_start, buffer_length);
+      }
+    }
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
   StoreMediaTime(media_time);
 
   return media_time;
