@@ -72,6 +72,12 @@ struct StructTraits<media::mojom::AudioDecoderConfigDataView,
 
   static bool Read(media::mojom::AudioDecoderConfigDataView input,
                    media::AudioDecoderConfig* output);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  static const std::string& mime_type(const media::AudioDecoderConfig& input) {
+    return input.mime_type();
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace mojo
