@@ -11,6 +11,7 @@ class FakeH5vccNativeStabilityImpl {
     this.interceptor_.oninterfacerequest = e => this.bind(e.handle);
     this.receiver_ = new H5vccNativeStabilityReceiver(this);
     this.reports_ = [];
+    this.ackedUuids_ = [];
   }
 
   start() {
@@ -23,6 +24,7 @@ class FakeH5vccNativeStabilityImpl {
 
   reset() {
     this.reports_ = [];
+    this.ackedUuids_ = [];
   }
 
   // Added for stubbing getPendingReports() results in tests.
@@ -32,8 +34,19 @@ class FakeH5vccNativeStabilityImpl {
 
   async getPendingReports() {
     return {
-      reports: this.reports_
+      reports: this.reports_.filter(report => {
+        const uuid = report.crashReport?.base?.nativeStabilityEventUuid ||
+                     report.hangReport?.base?.nativeStabilityEventUuid;
+        return !uuid || !this.ackedUuids_.includes(uuid);
+      })
     };
+  }
+
+  async acknowledgeReports(uuids) {
+    if (uuids && Array.isArray(uuids)) {
+      this.ackedUuids_.push(...uuids);
+    }
+    return {};
   }
 
   bind(handle) {
