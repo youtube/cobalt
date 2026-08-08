@@ -802,8 +802,8 @@ void LogMessage::Flush() {
     // TODO(chrisha): Integrate with symbolization once those tools exist!
     const auto* task = base::TaskAnnotator::CurrentTaskForThread();
     if (task && task->ipc_hash) {
-      stream_ << "IPC message handler context: "
-              << base::StringPrintf("0x%08X", task->ipc_hash) << std::endl;
+      stream_ << "IPC message handler context: 0x"
+              << std::hex << task->ipc_hash << std::dec << std::endl;
     }
 
     // Include the crash keys, if any.
