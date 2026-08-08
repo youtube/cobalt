@@ -89,6 +89,7 @@ class MediaCodec {
     bool force_big_endian_hdr_metadata = false;
     std::optional<int> tunnel_mode_audio_session_id;
     bool enable_ndk_video = false;
+    bool set_output_surface_on_flush = false;
   };
 
   static constexpr int32_t kBufferFlagCodecConfig = 2;
@@ -171,6 +172,9 @@ class MediaCodec {
   virtual void SetPlaybackRate(double playback_rate) = 0;
   virtual bool Restart() = 0;
   virtual jint Flush() = 0;
+  virtual bool SetOutputSurface(const jni_zero::JavaRef<jobject>& j_surface) {
+    return false;
+  }
   virtual std::optional<FrameSize> GetOutputSize() = 0;
   virtual std::optional<AudioOutputFormatResult> GetAudioOutputFormat() = 0;
 };

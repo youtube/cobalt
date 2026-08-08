@@ -222,6 +222,9 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaNdkAudioTrack(
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaNdkVideo("Media.NdkVideo");
 
+inline constexpr ExperimentalFeatureKey<bool> kMediaSetOutputSurfaceOnFlush(
+    "Media.SetOutputSurfaceOnFlush");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
     "Media.SkipFlushOnDecoderTeardown");
 
