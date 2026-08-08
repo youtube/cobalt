@@ -12,9 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/toolchain_variables.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
+
+assert(is_starboard_toolchain)
 
 group("starboard_platform") {
   public_deps = [
@@ -52,7 +55,7 @@ static_library("starboard_base_symbolize") {
     "//starboard:starboard_headers_only",
     "//starboard/common:common_headers_only",
   ]
-  if (is_starboard && current_toolchain == starboard_toolchain) {
+  if (is_starboard) {
     public_deps = [ "//starboard/elf_loader:evergreen_info" ]
   }
 
@@ -304,21 +307,19 @@ static_library("starboard_platform_sources") {
   }
 }
 
-if (current_toolchain == starboard_toolchain) {
-  source_set("starboard_platform_tests") {
-    testonly = true
+source_set("starboard_platform_tests") {
+  testonly = true
 
-    sources = media_tests_sources + player_tests_sources +
-              [ "//starboard/shared/ffmpeg/ffmpeg_audio_decoder_test.cc" ]
+  sources = media_tests_sources + player_tests_sources +
+            [ "//starboard/shared/ffmpeg/ffmpeg_audio_decoder_test.cc" ]
 
-    configs += [ "//starboard/build/config:starboard_implementation" ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 
-    deps = [
-      ":starboard_platform",
-      "//starboard:starboard_with_main",
-      "//starboard/shared/starboard/player/filter/testing:test_util",
-      "//testing/gmock",
-      "//testing/gtest",
-    ]
-  }
+  deps = [
+    ":starboard_platform",
+    "//starboard:starboard_with_main",
+    "//starboard/shared/starboard/player/filter/testing:test_util",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
 }

@@ -12,27 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/toolchain_variables.gni")
+import("//starboard/build/config/linux/rdk/config_variables.gni")
 
-assert(is_starboard_toolchain)
-
-static_library("starboard_platform") {
-  sources = [ "run_starboard_main.cc" ]
-
-  configs += [ "//starboard/build/config:starboard_implementation" ]
-
-  public_deps = [ "//starboard/android/shared:starboard_platform" ]
+group("loader_app_rdk_plugin") {
+  data_deps = [ "$rdk_starboard_root/third_party/starboard/rdk/shared:loader_app($starboard_toolchain)" ]
 }
 
-source_set("aosp_loader_glue") {
-  sources = [
-    "main_activity.cc",
-    "starboard_library_loader.cc",
-  ]
+group("rdk_cobalt_content") {
+  data_deps = [ ":rdk_cobalt_keymap($default_toolchain)" ]
+}
 
-  deps = [
-    "//base",
-    "//cobalt/aosp:jni_headers",
-    "//starboard/android/shared:starboard_platform",
-  ]
+copy("rdk_cobalt_keymap") {
+  sources = [ "content/etc/keymapping.json" ]
+  outputs = [ "$root_out_dir/app/cobalt/content/etc/keymapping.json" ]
 }
