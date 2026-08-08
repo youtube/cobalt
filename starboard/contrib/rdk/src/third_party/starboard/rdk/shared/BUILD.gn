@@ -28,9 +28,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/linux/rdk/config_variables.gni")
+import("//starboard/build/config/toolchain_variables.gni")
 import("//build/config/linux/pkg_config.gni")
 import("$rdk_starboard_root/third_party/starboard/rdk/shared/build/rdk_toolchain.gni")
+
+assert(is_starboard_toolchain)
 
 declare_args() {
   rdk_enable_securityagent = true
@@ -108,7 +110,7 @@ if (rdk_enable_ocdm) {
 
 group("starboard_platform") {
   public_deps = [ ":starboard_platform_sources" ]
-  data_deps = [ ":rdk_cobalt_content" ]
+  data_deps = [ "cobalt:rdk_cobalt_content" ]
 }
 
 static_library("starboard_platform_sources") {
@@ -318,11 +320,7 @@ static_library("starboard_platform_sources") {
     ]
   }
 
-  if (!sb_is_modular || is_starboard) {
-    sources += [
-      "main_rdk.cc",
-    ]
-  }
+  sources += [ "main_rdk.cc" ]
 
   cflags = []
 
@@ -370,29 +368,3 @@ static_library("starboard_platform_sources") {
   }
 }
 
-group("rdk_cobalt_content") {
-  data_deps = [ ":rdk_cobalt_keymap($default_toolchain)" ]
-}
-
-copy("rdk_cobalt_keymap") {
-  sources = [ "cobalt/content/etc/keymapping.json" ]
-  outputs = [ "$root_out_dir/app/cobalt/content/etc/keymapping.json" ]
-}
-
-group("loader_app_rdk_plugin") {
-  data_deps = [":loader_app($starboard_toolchain)"]
-}
-
-if (is_starboard && current_toolchain == starboard_toolchain) {
-  if (starboard_level_final_executable_type == "shared_library") {
-    group("loader_app") {
-      deps = [ "//starboard/loader_app:loader_app" ]
-    }
-  } else {
-    target("shared_library", "loader_app") {
-      output_dir = root_build_dir
-      deps = [ "//starboard/loader_app:loader_app_sources" ]
-      data_deps = [ "//starboard/content/fonts:copy_font_data" ]
-    }
-  }
-}

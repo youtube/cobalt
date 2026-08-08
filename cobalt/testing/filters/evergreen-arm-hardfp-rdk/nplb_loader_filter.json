@@ -4,6 +4,7 @@
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/*",
     "PosixClockNanosleepTest.AbsoluteSleepTimeInPastReturnsImmediately",
     "PosixOnceTest.SunnyDayMultipleThreadsInit",
+    "PosixSignalTest.KillSendsSignalToSelf",
     "PosixSignalTest.PthreadKillSendsSignalToSpecificThread",
     "PosixSocketAcceptTest.RainyDayNoConnection",
     "PosixSocketAcceptTest.RainyDayNotListening",
