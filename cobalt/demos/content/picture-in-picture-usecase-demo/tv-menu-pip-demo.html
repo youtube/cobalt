@@ -1,0 +1,206 @@
+<!--
+  Copyright 2026 The Cobalt Authors. All Rights Reserved.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Cobalt TV Menu PiP Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --card-bg: #161f2e;
+      --accent-blue: #38bdf8;
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      width: 100vw;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 60px;
+      padding-bottom: 120px;
+      box-sizing: border-box;
+    }
+
+    video {
+      visibility: hidden;
+    }
+
+    .catalog-container {
+      width: 1120px;
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+    }
+
+    .category-section {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .category-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .category-title::before {
+      content: '';
+      width: 4px;
+      height: 16px;
+      background: var(--accent-blue);
+      border-radius: 2px;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 356px);
+      gap: 26px;
+    }
+
+    .video-block {
+      position: relative;
+      width: 356px;
+      height: 200px;
+      border-radius: 12px;
+      background: var(--card-bg);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+      cursor: pointer;
+      box-sizing: border-box;
+    }
+
+    .texture-block {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .texture-block video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .bbb-poster {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--card-bg);
+      border-radius: 12px;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 5;
+    }
+
+    .poster-text {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent-blue);
+      letter-spacing: 1px;
+    }
+
+    #block-3 {
+      border-radius: 12px;
+      background: transparent;
+    }
+    #video-ad {
+      position: absolute;
+      top: -10px; left: -10px;
+      width: calc(100% + 20px);
+      height: calc(100% + 20px);
+      background: transparent;
+      border: none;
+      object-fit: cover;
+    }
+    .overlay-mask {
+      position: absolute;
+      top: -24px; left: -24px;
+      width: calc(100% + 48px);
+      height: calc(100% + 48px);
+      border: 24px solid var(--bg-dark);
+      border-radius: 36px;
+      box-sizing: border-box;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .card-placeholder {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #232d40;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 16px;
+      box-sizing: border-box;
+      background: var(--card-bg);
+    }
+
+    .card-content {
+      display: flex;
+      flex-direction: column;
+      z-index: 3;
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    .focus-ring {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 12px;
+      box-sizing: border-box;
+      pointer-events: none;
+      z-index: 10;
+      border: 3.5px solid transparent;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .video-block.focused .focus-ring {
+      border-color: var(--accent-blue) !important;
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.8) !important;
+    }
+  </style>
+</head>
+<body>
+  <!-- Dynamically Generated Catalog Container -->
+  <div id="catalog-container" class="catalog-container"></div>
+
+  <script src="tv-menu-pip-demo.js"></script>
+</body>
+</html>
