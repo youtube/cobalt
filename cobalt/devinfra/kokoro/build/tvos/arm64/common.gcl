@@ -26,7 +26,7 @@ build = common.build {
       }
     },
   ]
-  action = cond(super.has_attribute('action'), super.action, []) + [
+  action = super.get('action', []) + [
     {
       define_artifacts = {
         regex = [
