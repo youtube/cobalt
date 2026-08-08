@@ -58,4 +58,15 @@ blink_modules_sources("payments") {
     "//third_party/blink/renderer/modules/credentialmanagement",
     "//third_party/blink/renderer/modules/permissions",
   ]
+
+  if (!enable_privacy_sandbox_apis) {
+    _filtered_sources = filter_exclude(sources, [
+      "secure_payment_confirmation*",
+    ])
+    sources = []
+    sources = _filtered_sources
+    deps -= [
+      "//third_party/blink/renderer/modules/credentialmanagement",
+    ]
+  }
 }

@@ -3778,6 +3778,9 @@ source_set("browser") {
                                          "private_aggregation/*",
                                          "aggregation_service/*",
                                          "fenced_frame/*",
+                                         "webid/*",
+                                         "in_memory_federated_permission_context.*",
+                                         "devtools/protocol/fedcm_handler.*",
                                          "devtools/auction_worklet_devtools_agent_host.*",
                                        ])
     sources = []
