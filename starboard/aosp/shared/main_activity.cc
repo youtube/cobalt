@@ -18,7 +18,6 @@
 #include <unistd.h>
 
 #include <string>
-#include <thread>
 #include <vector>
 
 #include "cobalt/aosp/jni_headers/MainActivity_jni.h"
@@ -31,7 +30,12 @@ int main(int argc, char** argv);
 
 namespace {
 
-void StarboardMain() {
+// Cobalt normally runs main() on the process's main thread, which has a large
+// (typically 8 MB) stack. Here it runs on a dedicated thread instead, and
+// bionic's default thread stack is only ~1 MB.
+constexpr size_t kStarboardMainStackSize = 8 * 1024 * 1024;
+
+void* StarboardMain(void* /*context*/) {
   pthread_setname_np(pthread_self(), "StarboardMain");
 
   JNIEnv* env = jni_zero::AttachCurrentThread();
@@ -58,6 +62,7 @@ void StarboardMain() {
   argv.push_back(nullptr);
 
   main(static_cast<int>(args.size()), argv.data());
+  return nullptr;
 }
 
 }  // namespace
@@ -65,7 +70,17 @@ void StarboardMain() {
 namespace starboard {
 
 void JNI_MainActivity_StartLoader(JNIEnv* env) {
-  std::thread(StarboardMain).detach();
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+  pthread_attr_setstacksize(&attr, kStarboardMainStackSize);
+  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+  pthread_t thread;
+  if (pthread_create(&thread, &attr, &StarboardMain, nullptr) != 0) {
+    SB_LOG(ERROR) << "Failed to create StarboardMain thread";
+  }
+
+  pthread_attr_destroy(&attr);
 }
 
 }  // namespace starboard
