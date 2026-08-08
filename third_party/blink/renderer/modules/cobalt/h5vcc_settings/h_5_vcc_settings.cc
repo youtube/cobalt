@@ -193,7 +193,7 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
   if (name == "Media.VideoBufferSizeClampMb") {
     return ProcessSettingAsPositiveInt(
         script_state, exception_context, name, *value, [](int int_value) {
-          ::media::SetVideoBufferSizeClamp(int_value);
+          ::media::Set4KHDRVideoBufferSizeClamp(int_value);
           return true;
         });
   }
