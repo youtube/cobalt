@@ -171,9 +171,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   };
 
 #if BUILDFLAG(IS_IOS_TVOS)
-  // Returns true when the renderer is operating in URL player mode.
-  // This is a runtime check only; it does not replace the compile-time
-  // #if BUILDFLAG(IS_IOS_TVOS) guard needed for URL-player-only symbols.
   bool IsUrlPlayer() const;
   // Handles presenting state for URL player: propagates video resolution
   // for hole-punch rendering and re-applies playback rate.
@@ -258,6 +255,11 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   std::string source_url_;
   DurationChangeCB duration_change_cb_;
   BufferedRangesCB buffered_ranges_cb_;
+
+  // Cached values for change-detection; only notify upstream when they differ.
+  TimeDelta last_buffer_start_;
+  TimeDelta last_buffer_length_;
+  std::optional<TimeDelta> last_duration_;
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(IS_ANDROID)
   RequestOverlayInfoCallBack request_overlay_info_cb_;
