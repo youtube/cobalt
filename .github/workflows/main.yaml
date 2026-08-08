@@ -18,6 +18,7 @@ on:
         required: false
         type: boolean
         default: false
+
     secrets:
       datadog_api_key:
         required: false
@@ -59,9 +60,6 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_PR_REPO_URL: ${{ github.event.pull_request.base.repo.url }}
       GITHUB_EVENT_NUMBER: ${{ github.event.number }}
-    if: |
-      github.event.action != 'labeled' ||
-      (github.event.pull_request.merged == false && (github.event.label.name == 'runtest' || github.event.label.name == 'yts_playback_test'))
     timeout-minutes: 10
     steps:
       - name: Restore CI Essentials
@@ -70,16 +68,29 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Fetch Current Labels
+        id: get-labels
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_NUMBER: ${{ github.event.number }}
+        run: |
+          # Fetch labels dynamically to avoid stale labels in rerun/workflow_dispatch context.
+          if [ "$EVENT_NAME" = "pull_request" ] || [ "$EVENT_NAME" = "pull_request_target" ]; then
+            labels=$(gh pr view "$EVENT_NUMBER" --json labels -q '[.labels.[].name]')
+          else
+            labels="[]"
+          fi
+          echo "labels=${labels}" >> $GITHUB_OUTPUT
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
         continue-on-error: true  # Ignore this step if we cannot remove the label.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NUMBER: ${{ github.event.number }}
         run: |
-          set +e
-          curl \
-            -X DELETE \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-            ${GITHUB_PR_REPO_URL}/issues/${GITHUB_EVENT_NUMBER}/labels/runtest
+          gh pr edit "$EVENT_NUMBER" --remove-label runtest
         shell: bash
       - name: Set platforms
         id: set-platforms
@@ -303,6 +314,7 @@ jobs:
         env:
           TEST_ON_HOST: ${{ steps.set-test-on-host.outputs.test_on_host }}
           TEST_ON_DEVICE: ${{ steps.set-test-on-device.outputs.test_on_device }}
+          LABELS: ${{ steps.get-labels.outputs.labels }}
         run: |
           set -x
           run_on_device_test="false"
@@ -312,10 +324,12 @@ jobs:
           test_targets_json_file="cobalt/build/testing/targets/${first_platform}/test_targets.json"
 
           if [ -f "$test_targets_json_file" ]; then
+            has_runtest_label=$(echo "${LABELS}" | jq 'any(. == "runtest")')
             if [[ "$TEST_ON_DEVICE" == "true" && (
                   "$IS_NON_DRAFT_PULL_REQUEST" == "true" ||
                   "$RUN_ODT_ON_NIGHTLY" == "true" ||
-                  "$RUN_ODT_ON_PUSH" == "true" ) ]]; then
+                  "$RUN_ODT_ON_PUSH" == "true" ||
+                  "$has_runtest_label" == "true" ) ]]; then
               run_on_device_test="true"
             fi
 
@@ -344,6 +358,7 @@ jobs:
           } >> $GITHUB_OUTPUT
         shell: bash
     outputs:
+      labels: ${{ steps.get-labels.outputs.labels }}
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       build_runners: ${{ steps.set-build-runners.outputs.build_runners }}
       targets: ${{ steps.set-targets.outputs.targets }}
@@ -607,8 +622,9 @@ jobs:
       needs.initialize.outputs.test_e2e == 'true' &&
         (
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+          (inputs.nightly == 'true' && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
+          contains(fromJson(needs.initialize.outputs.labels), 'runtest')
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_e2e_tests
@@ -642,8 +658,9 @@ jobs:
       needs.initialize.outputs.test_yts == 'true' &&
         (
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+          (inputs.nightly == 'true' && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
+          contains(fromJson(needs.initialize.outputs.labels), 'runtest')
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_tests
@@ -672,9 +689,7 @@ jobs:
     # Run YTS Playback tests via presumit.
     if: |
       needs.initialize.outputs.test_yts_playback == 'true' &&
-        (
-          github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'yts_playback_test')
-        )
+      contains(fromJson(needs.initialize.outputs.labels), 'yts_playback_test')
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_playback_tests
     permissions: {}
@@ -731,8 +746,7 @@ jobs:
     if: |
       needs.initialize.outputs.test_yts_wpt == 'true' &&
         (
-          (inputs.nightly == 'true' || github.event_name == 'schedule') ||
-          (github.event_name == 'push')
+          inputs.nightly == 'true' || github.event_name == 'push'
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_wpt_tests
