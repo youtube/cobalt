@@ -31,7 +31,9 @@ AXPropertyFilter::AXPropertyFilter(const std::string& str, Type type)
   if (index != std::string::npos) {
     filter_str = str.substr(0, index);
     if (index + 1 < str.length()) {
-      match_str = str.substr(index + 1, std::string::npos);
+      match_str = str.substr(index + 1);
+    } else {
+      match_str.clear();
     }
   }
 
@@ -40,10 +42,10 @@ AXPropertyFilter::AXPropertyFilter(const std::string& str, Type type)
   // sequence, indicating a variable definition. Do not confuse it with a value
   // string start.
   index = match_str.rfind('=');
-  if (index != 0 && index != std::string::npos && match_str[index - 1] == ':') {
+  if (index != std::string::npos && index > 0 && index - 1 < match_str.length() && match_str[index - 1] == ':') {
     index = std::string::npos;
   }
-  property_str = match_str.substr(0, index);
+  property_str = (index == std::string::npos) ? match_str : match_str.substr(0, index);
 }
 
 }  // namespace ui

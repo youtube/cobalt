@@ -137,7 +137,7 @@ class ReportingServiceImpl : public ReportingService {
 
     std::optional<base::Value> header_value = base::JSONReader::Read(
         "[" + header_string + "]", base::JSON_PARSE_RFC, kMaxJsonDepth);
-    if (!header_value)
+    if (!header_value || !header_value->is_list())
       return;
 
     DVLOG(1) << "Received Reporting policy for " << origin;
