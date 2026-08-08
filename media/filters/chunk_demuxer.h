@@ -29,6 +29,10 @@
 #include "media/filters/source_buffer_stream.h"
 #include "media/filters/stream_parser_factory.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <string_view>
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 class SourceBufferStream;
@@ -88,6 +92,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   // Returns the latest presentation timestamp of the buffers queued in the
   // stream.
   base::TimeDelta GetWriteHead() const;
+  void SetMimeType(std::string_view mime_type);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void OnMemoryPressure(
@@ -191,7 +196,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   GetPendingBuffers_Locked() EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  const std::string mime_type_;
+  std::string mime_type_ GUARDED_BY(lock_);
   base::TimeDelta write_head_ GUARDED_BY(lock_);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -299,9 +304,12 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 #endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Special version of AddId() that retains the |mime_type| from the web app.
+  // Special versions of AddId(), CanChangeType(), and ChangeType() that retain
+  // the |mime_type| from the web app.
   [[nodiscard]] Status AddId(const std::string& id,
                              const std::string& mime_type);
+  bool CanChangeType(const std::string& id, const std::string& new_mime);
+  void ChangeType(const std::string& id, const std::string& new_mime);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Notifies a caller via `tracks_updated_cb` that the set of media tracks
@@ -398,6 +406,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   void Remove(const std::string& id, base::TimeDelta start,
               base::TimeDelta end);
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   // Returns whether or not the source buffer associated with |id| can change
   // its parser type to one which parses |content_type| and |codecs|.
   // |content_type| indicates the ContentType of the MIME type for the data that
@@ -417,6 +426,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   void ChangeType(const std::string& id,
                   const std::string& content_type,
                   const std::string& codecs);
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // If the buffer is full, attempts to try to free up space, as specified in
   // the "Coded Frame Eviction Algorithm" in the Media Source Extensions Spec.

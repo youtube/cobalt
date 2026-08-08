@@ -206,6 +206,18 @@ void WebSourceBufferImpl::Remove(double start, double end) {
   demuxer_->Remove(id_, timedelta_start, timedelta_end);
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+bool WebSourceBufferImpl::CanChangeType(const WebString& mime_type) {
+  return demuxer_->CanChangeType(id_, mime_type.Utf8());
+}
+
+void WebSourceBufferImpl::ChangeType(const WebString& mime_type) {
+  // Caller must first call ResetParserState() to flush any pending frames.
+  DCHECK(!demuxer_->IsParsingMediaSegment(id_));
+
+  demuxer_->ChangeType(id_, mime_type.Utf8());
+}
+#else
 bool WebSourceBufferImpl::CanChangeType(const WebString& content_type,
                                         const WebString& codecs) {
   return demuxer_->CanChangeType(id_, content_type.Utf8(), codecs.Utf8());
@@ -218,6 +230,7 @@ void WebSourceBufferImpl::ChangeType(const WebString& content_type,
 
   demuxer_->ChangeType(id_, content_type.Utf8(), codecs.Utf8());
 }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 bool WebSourceBufferImpl::SetTimestampOffset(double offset) {
   if (demuxer_->IsParsingMediaSegment(id_))

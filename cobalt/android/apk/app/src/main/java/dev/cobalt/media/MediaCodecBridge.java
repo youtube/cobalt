@@ -485,14 +485,17 @@ class MediaCodecBridge {
     boolean shouldConfigureHdr =
         colorInfo != null && MediaCodecUtil.isHdrCapableVideoDecoder(mime, codecCapabilities);
     if (shouldConfigureHdr) {
-      Log.d(TAG, "Setting HDR info.");
+      Log.d(TAG, "Setting color info.");
       mediaFormat.setInteger(MediaFormat.KEY_COLOR_TRANSFER, colorInfo.colorTransfer);
       mediaFormat.setInteger(MediaFormat.KEY_COLOR_STANDARD, colorInfo.colorStandard);
       // If color range is unspecified, don't set it.
       if (colorInfo.colorRange != 0) {
         mediaFormat.setInteger(MediaFormat.KEY_COLOR_RANGE, colorInfo.colorRange);
       }
-      mediaFormat.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, colorInfo.hdrStaticInfo);
+      // Only set HDR static metadata for HDR transfer functions (6 = ST2084, 7 = HLG)
+      if (colorInfo.colorTransfer == 6 || colorInfo.colorTransfer == 7) {
+        mediaFormat.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, colorInfo.hdrStaticInfo);
+      }
     }
 
     if (tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE) {

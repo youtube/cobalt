@@ -293,11 +293,16 @@ ChunkDemuxer::Status TestMediaSource::AddId() {
 void TestMediaSource::ChangeType(const std::string& mimetype) {
   chunk_demuxer_->ResetParserState(kSourceId, base::TimeDelta(),
                                    kInfiniteDuration, &last_timestamp_offset_);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  mimetype_ = mimetype;
+  chunk_demuxer_->ChangeType(kSourceId, mimetype);
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::string type;
   std::string codecs;
   SplitMime(mimetype, &type, &codecs);
   mimetype_ = mimetype;
   chunk_demuxer_->ChangeType(kSourceId, type, codecs);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void TestMediaSource::OnEncryptedMediaInitData(
