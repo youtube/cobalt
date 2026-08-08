@@ -62,6 +62,7 @@
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/sbmedia_interface.h"  // nogncheck
 #include "starboard/media.h"  // nogncheck
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -602,7 +603,8 @@ bool MediaSource::IsTypeSupportedInternal(ExecutionContext* context,
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Interupt Chromium's IsTypeSupported() from here for better performance.
   SbMediaSupportType support_type =
-      SbMediaCanPlayMimeAndKeySystem(type.Ascii().c_str(), "");
+      ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+          type.Ascii(), "");
   return support_type != kSbMediaSupportTypeNotSupported;
 #else
   // 2. If type does not contain a valid MIME type string, then return false.
