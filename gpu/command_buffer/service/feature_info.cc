@@ -282,7 +282,10 @@ bool IsGL_REDSupportedOnFBOs() {
   return true;
 #else
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
+  // Skip probing on Android and Starboard platforms where embedded GLES
+  // driver initialization may leave benign error flags in the pipeline,
+  // avoiding premature fatal DCHECK aborts in devel/debug builds.
   return true;
 #endif
 
