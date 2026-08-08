@@ -329,12 +329,12 @@ constexpr base::TimeDelta kDelaySecondsForContentStateSync = base::Seconds(1);
 
 #if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
 using RoutingIDFrameMap = absl::flat_hash_map<int, RenderFrameImpl*>;
-static base::LazyInstance<RoutingIDFrameMap>::DestructorAtExit
+static base::LazyInstance<RoutingIDFrameMap>::Leaky
     g_routing_id_frame_map = LAZY_INSTANCE_INITIALIZER;
 #endif
 
 using FrameMap = absl::flat_hash_map<blink::WebFrame*, RenderFrameImpl*>;
-base::LazyInstance<FrameMap>::DestructorAtExit g_frame_map =
+static base::LazyInstance<FrameMap>::Leaky g_frame_map =
     LAZY_INSTANCE_INITIALIZER;
 
 // Please keep in sync with "RendererBlockedURLReason" in
