@@ -32,6 +32,7 @@
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/containers/contains.h"
 #include "base/strings/string_split.h"
+#include "starboard/media.h" // nogncheck
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace {
@@ -101,18 +102,6 @@ bool ParseMimeType(const std::string& mime_type,
 }  // namespace
 
 namespace media {
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-ChunkDemuxerStream::ChunkDemuxerStream(const std::string& mime_type,
-                                       Type type,
-                                       MediaTrack::Id media_track_id)
-    : mime_type_(mime_type),
-      type_(type),
-      liveness_(StreamLiveness::kUnknown),
-      media_track_id_(media_track_id),
-      state_(UNINITIALIZED),
-      is_enabled_(true) {}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 ChunkDemuxerStream::ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id)
     : type_(type),
@@ -334,13 +323,6 @@ void ChunkDemuxerStream::UnmarkEndOfStream() {
   base::AutoLock auto_lock(lock_);
   stream_->UnmarkEndOfStream();
 }
-
-// DemuxerStream methods.
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-std::string ChunkDemuxerStream::mime_type() const {
-  return mime_type_;
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void ChunkDemuxerStream::Read(uint32_t count, ReadCB read_cb) {
   base::AutoLock auto_lock(lock_);
@@ -870,8 +852,15 @@ ChunkDemuxer::Status ChunkDemuxer::AddIdInternal(
   CHECK(*insert_result.first == id);
   CHECK(insert_result.second);  // Only true if insertion succeeded.
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  const std::string& mime_type = id_to_mime_map_[id];
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   source_state->Init(base::BindOnce(&ChunkDemuxer::OnSourceInitDone,
                                     base::Unretained(this), id),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+                                    mime_type,
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
                      expected_codecs, encrypted_media_init_data_cb_);
 
   // TODO(wolenetz): Change to DCHECKs once less verification in release build
@@ -1277,6 +1266,10 @@ void ChunkDemuxer::Remove(const std::string& id,
 }
 
 bool ChunkDemuxer::CanChangeType(const std::string& id,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+                                 const std::string& new_mime_type) {
+  DVLOG(1) << __func__ << " id=" << id << " new_mime_type=" << new_mime_type;
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
                                  const std::string& content_type,
                                  const std::string& codecs) {
   // Note, Chromium currently will not compare content_type and codecs, if any,
@@ -1290,6 +1283,7 @@ bool ChunkDemuxer::CanChangeType(const std::string& id,
 
   DVLOG(1) << __func__ << " id=" << id << " content_type=" << content_type
            << " codecs=" << codecs;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   base::AutoLock auto_lock(lock_);
 
   DCHECK(IsValidId_Locked(id));
@@ -1301,28 +1295,62 @@ bool ChunkDemuxer::CanChangeType(const std::string& id,
   // CanChangeType() doesn't care if there has or hasn't been received a first
   // initialization segment for the source buffer corresponding to |id|.
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  auto iter = id_to_mime_map_.find(id);
+  std::string current_mime_type =
+      iter != id_to_mime_map_.end() ? iter->second : "";
+
+  if (!SbMediaCanChangeType(current_mime_type.c_str(), 
+                            new_mime_type.c_str())) {
+    LOG(INFO) << "Codec transition for " << current_mime_type << " to "
+              << new_mime_type << " is not supported."
+              << " ChunkDemuxer::CanChangeType returns false.";
+    return false;
+  }
+
+  std::string content_type, codecs;
+  if (!ParseMimeType(new_mime_type, &content_type, &codecs)) {
+    return false;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::unique_ptr<media::StreamParser> stream_parser(
       CreateParserForTypeAndCodecs(content_type, codecs, media_log_));
   return !!stream_parser;
 }
 
 void ChunkDemuxer::ChangeType(const std::string& id,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+                              const std::string& new_mime_type) {
+  DVLOG(1) << __func__ << " id=" << id << " new_mime_type=" << new_mime_type;
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
                               const std::string& content_type,
                               const std::string& codecs) {
   DVLOG(1) << __func__ << " id=" << id << " content_type=" << content_type
            << " codecs=" << codecs;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   base::AutoLock auto_lock(lock_);
 
   DCHECK(state_ == INITIALIZING || state_ == INITIALIZED) << state_;
   DCHECK(IsValidId_Locked(id));
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::string content_type, codecs;
+  CHECK(ParseMimeType(new_mime_type, &content_type, &codecs));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::unique_ptr<media::StreamParser> stream_parser(
       CreateParserForTypeAndCodecs(content_type, codecs, media_log_));
   // Caller should query CanChangeType() first to protect from failing this.
   DCHECK(stream_parser);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  id_to_mime_map_[id] = new_mime_type;
+  source_state_map_[id]->ChangeType(std::move(stream_parser),
+                                    ExpectedCodecs(content_type, codecs),
+                                    new_mime_type);
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
   source_state_map_[id]->ChangeType(std::move(stream_parser),
                                     ExpectedCodecs(content_type, codecs));
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 double ChunkDemuxer::GetDuration() {
@@ -1654,15 +1682,8 @@ ChunkDemuxerStream* ChunkDemuxer::CreateDemuxerStream(
       NOTREACHED();
   }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  auto iter = id_to_mime_map_.find(source_id);
-  std::string mime_type = iter != id_to_mime_map_.end() ? iter->second : "";
-  std::unique_ptr<ChunkDemuxerStream> stream =
-      std::make_unique<ChunkDemuxerStream>(mime_type, type, media_track_id);
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::unique_ptr<ChunkDemuxerStream> stream =
       std::make_unique<ChunkDemuxerStream>(type, media_track_id);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   DCHECK(track_id_to_demux_stream_map_.find(media_track_id) ==
          track_id_to_demux_stream_map_.end());
   track_id_to_demux_stream_map_[media_track_id] = stream.get();

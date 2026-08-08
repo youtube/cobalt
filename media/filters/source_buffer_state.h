@@ -50,6 +50,9 @@ class MEDIA_EXPORT SourceBufferState {
   ~SourceBufferState();
 
   void Init(StreamParser::InitCB init_cb,
+# if BUILDFLAG(USE_STARBOARD_MEDIA)
+            const std::string& mime_type,
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
             std::optional<std::string_view> expected_codecs,
             const StreamParser::EncryptedMediaInitDataCB&
                 encrypted_media_init_data_cb);
@@ -57,8 +60,14 @@ class MEDIA_EXPORT SourceBufferState {
   // Reconfigures this source buffer to use |new_stream_parser|. Caller must
   // first ensure that ResetParserState() was done to flush any pending frames
   // from the old stream parser.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void ChangeType(std::unique_ptr<StreamParser> new_stream_parser,
+                  const std::string& new_expected_codecs,
+                  const std::string& new_mime_type);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   void ChangeType(std::unique_ptr<StreamParser> new_stream_parser,
                   const std::string& new_expected_codecs);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Appends media data to the StreamParser, but no parsing is done of it yet,
   // just buffering the media data for future parsing via RunSegmentParserLoop()
@@ -298,6 +307,10 @@ class MEDIA_EXPORT SourceBufferState {
 
   std::vector<AudioCodec> expected_audio_codecs_;
   std::vector<VideoCodec> expected_video_codecs_;
+
+  #if BUILDFLAG(USE_STARBOARD_MEDIA)
+    std::string mime_type_;
+  #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

@@ -687,9 +687,9 @@ void StarboardRenderer::CreatePlayerBridge() {
                     : invalid_video_config;
 
   const std::string audio_mime_type =
-      audio_stream_ ? audio_stream_->mime_type() : "";
+      audio_stream_ ? audio_stream_->audio_decoder_config().mime_type() : "";
   const std::string video_mime_type =
-      video_stream_ ? video_stream_->mime_type() : "";
+      video_stream_ ? video_stream_->video_decoder_config().mime_type() : "";
 
   std::string error_message;
 
@@ -809,12 +809,14 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
 
   if (stream->type() == DemuxerStream::AUDIO) {
     const AudioDecoderConfig& decoder_config = stream->audio_decoder_config();
-    player_bridge_->UpdateAudioConfig(decoder_config, stream->mime_type());
+    player_bridge_->UpdateAudioConfig(decoder_config,
+                                      decoder_config.mime_type());
   } else {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
 
-    player_bridge_->UpdateVideoConfig(decoder_config, stream->mime_type());
+    player_bridge_->UpdateVideoConfig(decoder_config,
+                                      decoder_config.mime_type());
 
     // TODO(b/375275033): Refine natural size change handling.
 #if 0
@@ -904,15 +906,15 @@ void StarboardRenderer::OnDemuxerStreamRead(
     }
   } else if (status == DemuxerStream::kConfigChanged) {
     if (stream == audio_stream_) {
-      client_->OnAudioConfigChange(stream->audio_decoder_config());
+      AudioDecoderConfig config = stream->audio_decoder_config();
+      client_->OnAudioConfigChange(config);
     } else {
       DCHECK_EQ(stream, video_stream_);
-      client_->OnVideoConfigChange(stream->video_decoder_config());
+      VideoDecoderConfig config = stream->video_decoder_config();
+      client_->OnVideoConfigChange(config);
       // TODO(b/375275033): Refine calling to OnVideoNaturalSizeChange().
-      client_->OnVideoNaturalSizeChange(
-          stream->video_decoder_config().visible_rect().size());
-      paint_video_hole_frame_cb_.Run(
-          stream->video_decoder_config().visible_rect().size());
+      client_->OnVideoNaturalSizeChange(config.visible_rect().size());
+      paint_video_hole_frame_cb_.Run(config.visible_rect().size());
     }
     UpdateDecoderConfig(stream);
     stream->Read(

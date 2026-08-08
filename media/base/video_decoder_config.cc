@@ -115,6 +115,9 @@ std::string VideoDecoderConfig::AsHumanReadableString() const {
     << ", encryption scheme: " << encryption_scheme()
     << ", rotation: " << VideoRotationToString(video_transformation().rotation)
     << ", flipped: " << video_transformation().mirrored
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    << ", mime_type: " << mime_type()
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     << ", color space: " << color_space_info().ToGfxColorSpace().ToString();
 
   if (hdr_metadata().has_value()) {

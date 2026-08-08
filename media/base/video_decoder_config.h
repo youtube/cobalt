@@ -164,6 +164,11 @@ class MEDIA_EXPORT VideoDecoderConfig {
   // useful for decryptors that decrypts an encrypted stream to a clear stream.
   void SetIsEncrypted(bool is_encrypted);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void set_mime_type(std::string value) { mime_type_ = value; }
+  const std::string& mime_type() const { return mime_type_; }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
  private:
   VideoCodec codec_ = VideoCodec::kUnknown;
   VideoCodecProfile profile_ = VIDEO_CODEC_PROFILE_UNKNOWN;
@@ -190,6 +195,10 @@ class MEDIA_EXPORT VideoDecoderConfig {
   VideoColorSpace color_space_info_;
   std::optional<gfx::HDRMetadata> hdr_metadata_;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Full mime string for the Video Decoder Config.
+  std::string mime_type_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler
   // generated copy constructor and assignment operator. Since the extra data is
   // typically small, the performance impact is minimal.
