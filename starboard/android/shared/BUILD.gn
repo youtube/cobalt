@@ -351,6 +351,8 @@ static_library("starboard_platform") {
       "posix_emu/file.cc",
       "posix_emu/net_if.cc",
       "posix_emu/stat.cc",
+      "posix_emu/stdlib.cc",
+      "posix_emu/unistd.cc",
     ]
 
     public_deps += [
