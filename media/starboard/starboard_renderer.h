@@ -257,6 +257,11 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   std::string source_url_;
   DurationChangeCB duration_change_cb_;
   BufferedRangesCB buffered_ranges_cb_;
+
+  // Cached values for change-detection; only notify upstream when they differ.
+  TimeDelta last_buffer_start_;
+  TimeDelta last_buffer_length_;
+  std::optional<TimeDelta> last_duration_;
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(IS_ANDROID)
   RequestOverlayInfoCallBack request_overlay_info_cb_;
