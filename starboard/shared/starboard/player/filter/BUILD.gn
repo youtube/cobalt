@@ -50,6 +50,8 @@ static_library("filter_based_player_sources") {
     "//starboard/shared/starboard/player/filter/media_time_provider_impl.h",
     "//starboard/shared/starboard/player/filter/mock_audio_decoder.h",
     "//starboard/shared/starboard/player/filter/mock_audio_renderer_sink.h",
+    "//starboard/shared/starboard/player/filter/passthrough_time_tracker.cc",
+    "//starboard/shared/starboard/player/filter/passthrough_time_tracker.h",
     "//starboard/shared/starboard/player/filter/player_components.cc",
     "//starboard/shared/starboard/player/filter/player_components.h",
     "//starboard/shared/starboard/player/filter/punchout_video_renderer_sink.cc",

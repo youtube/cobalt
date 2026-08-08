@@ -69,6 +69,9 @@ class AudioDecoderPassthrough : public AudioDecoder {
                            kSbMediaAudioFrameStorageTypePlanar,
                            input_buffer->timestamp(), input_buffer->size());
       memcpy(decoded_audio->data(), input_buffer->data(), input_buffer->size());
+      decoded_audio->set_discarded_durations(
+          input_buffer->audio_sample_info().discarded_duration_from_front,
+          input_buffer->audio_sample_info().discarded_duration_from_back);
       decoded_audios_.push(std::move(decoded_audio));
       output_cb_();
     }

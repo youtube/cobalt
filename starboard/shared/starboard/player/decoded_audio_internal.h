@@ -62,6 +62,16 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
     return reinterpret_cast<const float*>(storage_.data() + offset_in_bytes_);
   }
   int size_in_bytes() const { return size_in_bytes_; }
+  int64_t discarded_duration_from_front() const {
+    return discarded_duration_from_front_;
+  }
+  int64_t discarded_duration_from_back() const {
+    return discarded_duration_from_back_;
+  }
+  void set_discarded_durations(int64_t from_front, int64_t from_back) {
+    discarded_duration_from_front_ = from_front;
+    discarded_duration_from_back_ = from_back;
+  }
 
   uint8_t* data() { return storage_.data() + offset_in_bytes_; }
   int16_t* data_as_int16() {
@@ -128,6 +138,8 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
   // `storage_.data() + offset_in_bytes_`, `size_in_bytes_` bytes in total.
   int offset_in_bytes_ = 0;
   int size_in_bytes_ = 0;
+  int64_t discarded_duration_from_front_ = 0;
+  int64_t discarded_duration_from_back_ = 0;
 
   DecodedAudio(const DecodedAudio&) = delete;
   void operator=(const DecodedAudio&) = delete;

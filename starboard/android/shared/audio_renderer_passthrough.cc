@@ -306,6 +306,7 @@ void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
   decoded_audio_writing_in_progress_ = nullptr;
   decoded_audio_writing_offset_ = 0;
   total_frames_written_on_audio_track_thread_ = 0;
+  time_tracker_.Reset(seek_to_time);
 }
 
 // This function can be called from *any* threads.
@@ -348,9 +349,9 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
     int64_t total_frames_played =
         frames_played + playback_head_position_when_stopped_;
     total_frames_played = std::min(total_frames_played, total_frames_written_);
-    playback_time =
-        audio_start_time + total_frames_played * 1'000'000LL /
-                               audio_stream_info_.samples_per_second;
+    playback_time = time_tracker_.GetCurrentMediaTime(
+        total_frames_played, audio_stream_info_.samples_per_second,
+        audio_start_time);
     return std::max(playback_time, seek_to_time_);
   }
 
@@ -365,8 +366,9 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
 
   // TODO: This may cause time regression, because the unadjusted time will be
   //       returned on pause, after an adjusted time has been returned.
-  playback_time = audio_start_time + playback_head_position * 1'000'000LL /
-                                         audio_stream_info_.samples_per_second;
+  playback_time = time_tracker_.GetCurrentMediaTime(
+      playback_head_position, audio_stream_info_.samples_per_second,
+      audio_start_time);
 
   // When underlying AudioTrack is paused, we use returned playback time
   // directly. Note that we should not use |paused_| or |playback_rate_| here.
@@ -575,6 +577,12 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
 
       if (decoded_audio_writing_offset_ ==
           decoded_audio_writing_in_progress_->size_in_bytes()) {
+        time_tracker_.OnBufferWritten(
+            total_frames_written_on_audio_track_thread_, sync_time,
+            frames_per_input_buffer_ * 1'000'000LL /
+                audio_stream_info_.samples_per_second,
+            decoded_audio_writing_in_progress_->discarded_duration_from_front(),
+            decoded_audio_writing_in_progress_->discarded_duration_from_back());
         total_frames_written_on_audio_track_thread_ += frames_per_input_buffer_;
         decoded_audio_writing_in_progress_ = nullptr;
         decoded_audio_writing_offset_ = 0;
