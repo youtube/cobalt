@@ -41,7 +41,6 @@ jobs:
           path: src
           ref: main
           fetch-depth: 1000
-          filter: blob:none
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
 
       - name: Prepare Cherry Pick Branch
