@@ -73,6 +73,7 @@ static_library("elf_loader") {
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (current_toolchain == starboard_toolchain) {
   starboard_executable("elf_loader_sandbox") {
+    target_type = starboard_level_gtest_target_type
     testonly = true
     sources = [ "elf_loader_sandbox.cc" ]
     configs += [ ":elf_loader_config" ]

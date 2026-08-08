@@ -6,3 +6,5 @@ starboard_target_platform = "rdk-arm"
 rdk_build_with_yocto = false
 rdk_starboard_root = "//starboard/contrib/rdk/src"
 rdk_enable_securityagent = false
+starboard_level_final_executable_type = "shared_library"
+starboard_level_gtest_target_type = "executable"
