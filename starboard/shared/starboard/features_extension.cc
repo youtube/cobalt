@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/features_extension.h"
+#include "starboard/shared/starboard/features_extension.h"
 
 #include "starboard/extension/features.h"
 #include "starboard/shared/starboard/feature_list.h"
 
 namespace starboard {
 // Variable that designates what extension version is used.
-const uint32_t FEATURES_API_EXTENSION_VERSION = 1u;
+constexpr uint32_t kFeaturesApiExtensionVersion = 1u;
 
 // Extension function to receive the features and parameters passed
 // down from Cobalt. This function will then pass these values to
@@ -35,7 +35,7 @@ void InitializeStarboardFeatures(const SbFeature* features,
 
 constexpr StarboardExtensionFeaturesApi kFeaturesApi = {
     kStarboardExtensionFeaturesName,
-    FEATURES_API_EXTENSION_VERSION,
+    kFeaturesApiExtensionVersion,
     &InitializeStarboardFeatures,
 };
 

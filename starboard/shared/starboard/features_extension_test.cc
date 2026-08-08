@@ -29,10 +29,10 @@ TEST(FeaturesExtensionTest, InitializeFeatures) {
   EXPECT_EQ(extension_api->version, 1u);
   ASSERT_NE(extension_api->InitializeStarboardFeatures, nullptr);
 
-  SbFeature test_feature = {"AndroidExtensionTestFeature", true};
+  SbFeature test_feature = {"ExtensionTestFeature", true};
 
   SbFeatureParam test_param;
-  test_param.feature_name = "AndroidExtensionTestFeature";
+  test_param.feature_name = "ExtensionTestFeature";
   test_param.param_name = "TestParam";
   test_param.type = SbFeatureParamTypeBool;
   test_param.value.bool_value = true;

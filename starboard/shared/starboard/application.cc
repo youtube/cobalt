@@ -15,7 +15,9 @@
 #include "starboard/shared/starboard/application.h"
 
 #include <atomic>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
@@ -23,7 +25,6 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
-
 namespace starboard {
 
 namespace {
@@ -35,6 +36,36 @@ const char kMinLogLevel[] = "min_log_level";
 // debug (0), info, warning, error, fatal. Note that Starboard has no debug;
 // levels start at kSbLogPriorityInfo which is a 1.
 const char kV[] = "v";
+
+struct DeprecatedSwitchMapping {
+  const char* old_flag;
+  const char* replacement_instruction;
+};
+
+const DeprecatedSwitchMapping kDeprecatedSwitchMappings[] = {
+    {"dump_video_data", "--enable-features=DumpVideoData"},
+    {"dump_video_input_hash", "--enable-features=DumpVideoInputHash"},
+    {"maximum_drm_session_updates",
+     "--enable-features=LimitDrmSessionUpdates:MaximumDrmSessionUpdates/"
+     "<value>"},
+    {"use_stub_audio_decoder", "--enable-features=UseStubAudioDecoder"},
+    {"use_stub_audio_sink", "--enable-features=UseStubAudioSink"},
+    {"use_stub_video_decoder", "--enable-features=UseStubVideoDecoder"},
+};
+
+void CheckDeprecatedSwitches(const CommandLine* command_line) {
+  if (!command_line) {
+    return;
+  }
+
+  for (const auto& mapping : kDeprecatedSwitchMappings) {
+    if (command_line->HasSwitch(mapping.old_flag)) {
+      SB_LOG(FATAL) << "Command-line switch '--" << mapping.old_flag
+                    << "' is deprecated. Please use '"
+                    << mapping.replacement_instruction << "' instead.";
+    }
+  }
+}
 
 void DeleteStartData(void* data) {
   SbEventStartData* start_data = static_cast<SbEventStartData*>(data);
@@ -80,6 +111,7 @@ Application* Application::Get() {
 
 int Application::Run(CommandLine command_line, const char* link_data) {
   Initialize();
+  CheckDeprecatedSwitches(&command_line);
   command_line_.reset(new CommandLine(command_line));
   if (link_data) {
     SetStartLink(link_data);
@@ -90,6 +122,7 @@ int Application::Run(CommandLine command_line, const char* link_data) {
 
 int Application::Run(CommandLine command_line) {
   Initialize();
+  CheckDeprecatedSwitches(&command_line);
   command_line_.reset(new CommandLine(command_line));
 
   if (command_line_->HasSwitch(kLinkSwitch)) {
@@ -194,6 +227,17 @@ void Application::HandleFrame(SbPlayer player,
                               int z_index,
                               const Rect& rect) {
   AcceptFrame(player, frame, z_index, rect);
+}
+
+void Application::SetCommandLine(int argc, const char** argv) {
+  auto command_line = std::make_unique<CommandLine>(argc, argv);
+  CheckDeprecatedSwitches(command_line.get());
+  command_line_ = std::move(command_line);
+}
+
+void Application::SetCommandLine(std::unique_ptr<CommandLine> command_line) {
+  CheckDeprecatedSwitches(command_line.get());
+  command_line_ = std::move(command_line);
 }
 
 void Application::SetStartLink(const char* start_link) {

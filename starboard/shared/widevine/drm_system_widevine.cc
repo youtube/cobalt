@@ -30,7 +30,8 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/shared/starboard/application.h"
+#include "starboard/shared/starboard/feature_list.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/widevine/widevine_storage.h"
 #include "starboard/shared/widevine/widevine_timer.h"
@@ -227,12 +228,12 @@ DrmSystemWidevine::DrmSystemWidevine(
   ON_INSTANCE_CREATED(DrmSystemWidevine);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  auto command_line = Application::Get()->GetCommandLine();
-  auto value = command_line->GetSwitchValue("maximum_drm_session_updates");
-  if (!value.empty()) {
-    maximum_number_of_session_updates_ = atoi(value.c_str());
-    SB_LOG(INFO) << "Limit drm session updates to "
-                 << maximum_number_of_session_updates_;
+  if (features::FeatureList::IsEnabled(features::kLimitDrmSessionUpdates)) {
+    if (int value = features::kMaxDrmSessionUpdates.Get(); value > 0) {
+      maximum_number_of_session_updates_ = value;
+      SB_LOG(INFO) << "Limit drm session updates to "
+                   << maximum_number_of_session_updates_;
+    }
   }
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 

@@ -37,7 +37,7 @@ static_library("scoped_feature_list") {
 
   deps = [
     "//starboard/common",
-    "//starboard/shared/starboard:feature_list",
+    "//starboard/shared/starboard:features",
   ]
 }
 
@@ -49,7 +49,7 @@ source_set("testing_test") {
   deps = [
     ":scoped_feature_list",
     "//starboard/common",
-    "//starboard/shared/starboard:feature_list",
+    "//starboard/shared/starboard:features",
     "//testing/gtest",
   ]
 }

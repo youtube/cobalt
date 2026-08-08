@@ -27,7 +27,8 @@
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
-#include "starboard/shared/starboard/application.h"
+#include "starboard/shared/starboard/feature_list.h"
+#include "starboard/shared/starboard/features.h"
 
 namespace starboard {
 
@@ -39,8 +40,8 @@ using std::placeholders::_2;
 class PlayerToWriterMap {
  public:
   PlayerToWriterMap()
-      : dump_video_data_(Application::Get()->GetCommandLine()->HasSwitch(
-            "dump_video_data")) {}
+      : dump_video_data_(
+            features::FeatureList::IsEnabled(features::kDumpVideoData)) {}
   bool dump_video_data() const { return dump_video_data_; }
   void Register(SbPlayer player) {
     std::lock_guard scoped_lock(mutex_);

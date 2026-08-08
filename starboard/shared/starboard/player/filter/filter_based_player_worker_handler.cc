@@ -26,8 +26,9 @@
 #include "starboard/common/murmurhash2.h"
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
-#include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
+#include "starboard/shared/starboard/feature_list.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
@@ -49,7 +50,7 @@ void DumpInputHash(const InputBuffer* input_buffer) {}
 
 void DumpInputHash(const InputBuffer* input_buffer) {
   static const bool s_dump_input_hash =
-      Application::Get()->GetCommandLine()->HasSwitch("dump_video_input_hash");
+      features::FeatureList::IsEnabled(features::kDumpVideoInputHash);
 
   if (!s_dump_input_hash) {
     return;

@@ -100,7 +100,25 @@ FEATURE_LIST_START
 //   STARBOARD_FEATURE(kCobaltVideoDebug, "CobaltVideoDebug", false)
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 
-#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+// Common features starts
+// keep-sorted start newline_separated=yes
+STARBOARD_FEATURE(kDumpVideoData, "DumpVideoData", false)
+
+STARBOARD_FEATURE(kDumpVideoInputHash, "DumpVideoInputHash", false)
+
+STARBOARD_FEATURE(kLimitDrmSessionUpdates, "LimitDrmSessionUpdates", false)
+
+// By default, stub audio decoder is disabled.
+STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
+
+STARBOARD_FEATURE(kUseStubAudioSink, "UseStubAudioSink", false)
+
+// By default, stub video decoder is disabled.
+STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
+// keep-sorted end
+// Common features end
+
+#if BUILDFLAG(IS_ANDROID)
 // keep-sorted start newline_separated=yes
 // Set to true to enable area-based video buffer budget calculation.
 STARBOARD_FEATURE(kAreaBasedVideoBufferBudget,
@@ -146,12 +164,6 @@ STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
 STARBOARD_FEATURE(kReleaseVideoFramesAfterAudioStarts,
                   "ReleaseVideoFramesAfterAudioStarts",
                   false)
-
-// By default, stub audio decoder is disabled.
-STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
-
-// By default, stub video decoder is disabled.
-STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
 
 // By default, Cobalt restarts MediaCodec after stops/flushes during
 // Reset()/Flush(). Set the following variable to true with parameters
@@ -236,6 +248,12 @@ FEATURE_PARAM_LIST_START
 //                           "standard")
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 
+STARBOARD_FEATURE_PARAM(int,
+                        kMaxDrmSessionUpdates,
+                        kLimitDrmSessionUpdates,
+                        "MaximumDrmSessionUpdates",
+                        0)
+
 #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 // By default, Cobalt restarts MediaCodec after stops/flushes during
 // Reset()/Flush(). Set the following variable to > 0 to force it to
@@ -251,4 +269,5 @@ STARBOARD_FEATURE_PARAM(STARBOARD_FEATURE_PARAM_TIME_TYPE,
                         "ResetDelayUsec",
                         base::Microseconds(0))
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+
 FEATURE_PARAM_LIST_END
