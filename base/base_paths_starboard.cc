@@ -65,10 +65,15 @@ bool PathProviderStarboard(int key, FilePath* result) {
     // it in or remove it and references to it.
     case DIR_SRC_TEST_DATA_ROOT: {
       FilePath test_data_path;
-      // On POSIX, unit tests execute two levels deep from the source root.
-      // For example:  out/{Debug|Release}/net_unittest
       if (PathProviderStarboard(DIR_EXE, &test_data_path)) {
 #if BUILDFLAG(USE_EVERGREEN)
+        // On Evergreen devices, standalone test packages extract content/test/data
+        // directly into DIR_EXE. If present, use DIR_EXE as the test data root
+        // instead of navigating up parent directories to a full source checkout.
+        if (base::PathExists(test_data_path.Append(FILE_PATH_LITERAL("content/test/data")))) {
+          *result = test_data_path;
+          return true;
+        }
         *result = test_data_path.DirName().DirName().DirName();
 #else
         *result = test_data_path.DirName().DirName();
