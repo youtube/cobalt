@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "base/base_switches.h"
+#include "build/build_config.h"
 #include "build/buildflag.h"
 #include "cc/base/switches.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
@@ -108,9 +109,19 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       {::switches::kUseCmdDecoder, "passthrough"},
       // Set the default size for the content shell/starboard window.
       {::switches::kContentShellHostWindowSize, "1920x1080"},
-      // Enable remote Devtools access.
+#if !defined(COBALT_IS_RELEASE_BUILD)
+      // Enable remote DevTools on default port 9222 (matches
+      // C25 experience).
       {::switches::kRemoteDebuggingPort, "9222"},
-      {::switches::kRemoteAllowOrigins, "http://localhost:9222"},
+      // Bind DevTools to all network interfaces (0.0.0.0) so
+      // remote hosts/containers can connect without localhost
+      // restriction.
+      {::switches::kRemoteDebuggingAddress, "0.0.0.0"},
+      // Allow incoming WebSocket connections from any Origin (*)
+      // to prevent Chromium from rejecting remote DevTools
+      // connections with HTTP 403 Forbidden.
+      {::switches::kRemoteAllowOrigins, "*"},
+#endif
       // kEnableLowEndDeviceMode sets MSAA to 4 (and not 8, the default). But
       // we set it explicitly just in case.
       {blink::switches::kGpuRasterizationMSAASampleCount, "4"},
