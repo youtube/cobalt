@@ -26,6 +26,7 @@ config("platform_configuration") {
       "-Wl,--wrap=if_indextoname",
       "-Wl,--wrap=open",
       "-Wl,--wrap=openat",
+      "-Wl,--wrap=readlink",
       "-Wl,--wrap=stat",
     ]
   }
