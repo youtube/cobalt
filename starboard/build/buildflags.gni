@@ -23,3 +23,14 @@ declare_args() {
       is_cobalt && current_toolchain != host_toolchain &&
       (!is_starboard || current_toolchain != v8_snapshot_toolchain)
 }
+
+declare_args() {
+  # Set by platforms whose Starboard media implementation is the Android one
+  # (MediaCodec/AudioTrack), i.e. Android TV and AOSP.
+  #
+  # Platforms opt in from their args.gn, which applies to every toolchain of the
+  # build: see cobalt/build/configs/android_common.gn for Android TV and
+  # cobalt/build/configs/aosp-arm/args.gn for AOSP. 3P partners with their own
+  # platform directory should do the same.
+  use_android_media = false
+}

@@ -158,6 +158,13 @@ config("buildflag_defines") {
     defines += [ "ENABLE_BUILDFLAG_IS_ANDROIDTV" ]
   }
 
+  # use_android_media and BUILDFLAG(USE_ANDROID_MEDIA) should be used to guard
+  # code that depends on the Android Starboard media implementation
+  # (MediaCodec/AudioTrack) on Android TV and AOSP.
+  if (use_android_media) {
+    defines += [ "ENABLE_BUILDFLAG_USE_ANDROID_MEDIA" ]
+  }
+
   # Use is_native_toolchain and BUILDFLAG(IS_NATIVE_TOOLCHAIN) for code that
   # should only be built using the platform's "native_target" toolchain. This is for
   # binaries that should run natively on the system, without Starboard.
