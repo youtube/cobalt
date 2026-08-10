@@ -1078,8 +1078,10 @@ void SourceBuffer::ChangeType_Locked(
   //    previously) of SourceBuffer objects in the sourceBuffers attribute of
   //    the parent media source, then throw a NotSupportedError exception and
   //    abort these steps.
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   ContentType content_type(type);
   String codecs = content_type.Parameter("codecs");
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
   // TODO(wolenetz): Refactor and use a less-strict version of isTypeSupported
   // here. As part of that, CanChangeType in Chromium should inherit relaxation
   // of impl's StreamParserFactory (since it returns true iff a stream parser
@@ -1087,7 +1089,11 @@ void SourceBuffer::ChangeType_Locked(
   if (!MediaSource::IsTypeSupportedInternal(
           GetExecutionContext(), type,
           false /* allow underspecified codecs in |type| */) ||
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
       !web_source_buffer_->CanChangeType(content_type.GetType(), codecs)) {
+#else   // !BUILDFLAG(USE_STARBOARD_MEDIA)
+      !web_source_buffer_->CanChangeType(type)) {
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
     MediaSource::LogAndThrowDOMException(
         *exception_state, DOMExceptionCode::kNotSupportedError,
         "Changing to the type provided ('" + type + "') is not supported.");
@@ -1108,7 +1114,11 @@ void SourceBuffer::ChangeType_Locked(
   //    value in the "Generate Timestamps Flag" column of the byte stream format
   //    registry entry that is associated with type.
   // This call also updates the pipeline to switch bytestream parser and codecs.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  web_source_buffer_->ChangeType(type);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   web_source_buffer_->ChangeType(content_type.GetType(), codecs);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // 8. If the generate timestamps flag equals true: Set the mode attribute on
   //    this SourceBuffer object to "sequence", including running the associated

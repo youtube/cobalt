@@ -1313,8 +1313,7 @@ bool ChunkDemuxer::CanChangeType(const std::string& id,
     target_mime += "; codecs=\"" + codecs + "\"";
   }
 
-  if (!SbMediaIsChangeTypeTransitionSupported(current_mime.c_str(),
-                                              target_mime.c_str())) {
+  if (!SbMediaCanChangeType(current_mime.c_str(), target_mime.c_str())) {
     LOG(INFO) << "Codec transition unsupported natively on hardware: "
               << current_mime << " -> " << target_mime;
     return false;
@@ -1347,6 +1346,37 @@ void ChunkDemuxer::ChangeType(const std::string& id,
   source_state_map_[id]->ChangeType(std::move(stream_parser),
                                     ExpectedCodecs(content_type, codecs));
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+bool ChunkDemuxer::CanChangeType(const std::string& id,
+                                 const std::string& mime_type) {
+  std::string content_type;
+  std::string codecs;
+  ParseMimeType(mime_type, &content_type, &codecs);
+  return CanChangeType(id, content_type, codecs);
+}
+
+void ChunkDemuxer::ChangeType(const std::string& id,
+                              const std::string& mime_type) {
+  DVLOG(1) << __func__ << " id=" << id << " mime_type=" << mime_type;
+
+  base::AutoLock auto_lock(lock_);
+  DCHECK(state_ == INITIALIZING || state_ == INITIALIZED) << state_;
+  DCHECK(IsValidId_Locked(id));
+
+  id_to_mime_map_[id] = mime_type;
+
+  std::string content_type;
+  std::string codecs;
+  ParseMimeType(mime_type, &content_type, &codecs);
+
+  std::unique_ptr<media::StreamParser> stream_parser(
+      CreateParserForTypeAndCodecs(content_type, codecs, media_log_));
+  DCHECK(stream_parser);
+  source_state_map_[id]->ChangeType(std::move(stream_parser),
+                                    ExpectedCodecs(content_type, codecs));
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 double ChunkDemuxer::GetDuration() {
   base::AutoLock auto_lock(lock_);
