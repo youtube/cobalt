@@ -12,6 +12,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/strings/to_string.h"
 #include "build/build_config.h"
 #include "media/base/media.h"
 #include "media/base/media_client.h"
@@ -453,8 +454,8 @@ bool MimeUtil::IsSupportedMediaMimeType(std::string_view mime_type) const {
   SbMediaSupportType support_type =
       SbMediaCanPlayMimeAndKeySystem(mime_type.data(), "");
   bool result = support_type != kSbMediaSupportTypeNotSupported;
-  LOG(INFO) << __func__ << "(" << mime_type << ") -> "
-            << (result ? "true" : "false");
+  DVLOG(1) << __func__ << "(" << mime_type << ") -> "
+           << base::ToString(result);
   return result;
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   return media_format_map_.contains(base::ToLowerASCII(mime_type));
@@ -561,7 +562,7 @@ SupportsType MimeUtil::IsSupportedMediaFormat(
 
   SbMediaSupportType support_type =
       SbMediaCanPlayMimeAndKeySystem(mime_type.data(), "");
-  LOG(INFO) << __func__ << "(" << mime_type.data() << ") -> " << support_type;
+  DVLOG(1) << __func__ << "(" << mime_type << ") -> " << support_type;
   switch (support_type) {
     case kSbMediaSupportTypeNotSupported:
       return SupportsType::kNotSupported;
