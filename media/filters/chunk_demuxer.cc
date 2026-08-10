@@ -1313,8 +1313,7 @@ bool ChunkDemuxer::CanChangeType(const std::string& id,
     target_mime += "; codecs=\"" + codecs + "\"";
   }
 
-  if (!SbMediaIsChangeTypeTransitionSupported(current_mime.c_str(),
-                                              target_mime.c_str())) {
+  if (!SbMediaCanChangeType(current_mime.c_str(), target_mime.c_str())) {
     LOG(INFO) << "Codec transition unsupported natively on hardware: "
               << current_mime << " -> " << target_mime;
     return false;
