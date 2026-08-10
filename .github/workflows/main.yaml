@@ -958,6 +958,7 @@ jobs:
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
+          required_passing: ${{ matrix.test_info.required_passing != false }}
           # TODO: Enable symbolization when it works.
           # symbolize: ${{ needs.initialize.outputs.test_on_device == 'true' }}
           symbolize: 'false'
