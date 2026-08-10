@@ -25,6 +25,10 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/v8_script_runner.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/command_line.h"
+#endif
+
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
@@ -649,9 +653,17 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
           cache_handler) {
         cache_handler->WillProduceCodeCache();
       }
+#if BUILDFLAG(IS_COBALT)
+      if (produce_cache_options ==
+              V8CodeCache::ProduceCacheOptions::kProduceCodeCache &&
+          (execution_context->IsServiceWorkerGlobalScope() ||
+           base::CommandLine::ForCurrentProcess()->HasSwitch(
+               "defer-v8-code-cache-write"))) {
+#else
       if (produce_cache_options ==
               V8CodeCache::ProduceCacheOptions::kProduceCodeCache &&
           execution_context->IsServiceWorkerGlobalScope()) {
+#endif
         static constexpr base::TimeDelta kCacheCodeOnIdleDelay =
             base::Milliseconds(1);
         // TODO(crbug.com/40202028): Consider scheduling idle tasks via
