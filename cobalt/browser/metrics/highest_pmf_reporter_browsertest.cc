@@ -136,19 +136,20 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest, MAYBE_ReportMetric) {
   // OnMemoryPing
   test_task_runner_->FastForwardBy(base::Seconds(1));
 
-  // Fast forward by 2 minutes, which should trigger the first report bucket
-  test_task_runner_->FastForwardBy(base::Minutes(2));
+  // Fast forward by 1 minute, which should trigger the first report
+  // bucket
+  test_task_runner_->FastForwardBy(base::Minutes(1));
 
   auto samples = histogram_tester.GetAllSamples(
-      "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.0to2min");
+      "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.1minTest");
   EXPECT_FALSE(samples.empty());
 
-  // Fast forward by 2 more minutes, which should trigger the second report
-  // bucket (total 4min)
-  test_task_runner_->FastForwardBy(base::Minutes(2));
+  // Fast forward by 1 more minute, which should trigger the second report
+  // bucket (total 2min)
+  test_task_runner_->FastForwardBy(base::Minutes(1));
 
   auto samples2 = histogram_tester.GetAllSamples(
-      "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.2to4min");
+      "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.2minTest");
   EXPECT_FALSE(samples2.empty());
 }
 

@@ -99,9 +99,9 @@ HighestPmfReporter::HighestPmfReporter(
         previous_interval = interval_min;
 
         time_to_report_.push_back(base::Minutes(interval_min));
-        metric_names_.push_back(
-            "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint." +
-            suffix_strs[i]);
+        metric_names_.push_back(WTF::String(
+            ("Memory.Experimental.Renderer.HighestPrivateMemoryFootprint." +
+             suffix_strs[i]).c_str()));
       }
       if (success) {
         use_baseline = false;
@@ -115,7 +115,7 @@ HighestPmfReporter::HighestPmfReporter(
   if (use_baseline) {
     for (size_t i = 0; i < kBaselineReportCount; ++i) {
       time_to_report_.push_back(kBaselineTimeToReport[i]);
-      metric_names_.push_back(kBaselineMetricNames[i]);
+      metric_names_.push_back(WTF::String(kBaselineMetricNames[i]));
     }
   }
 #endif
@@ -214,7 +214,7 @@ void HighestPmfReporter::OnReportMetrics() {
 
 void HighestPmfReporter::ReportMetrics() {
 #if BUILDFLAG(IS_COBALT)
-  base::UmaHistogramMemoryMB(metric_names_[report_count_],
+  base::UmaHistogramMemoryMB(metric_names_[report_count_].Utf8(),
                              base::saturated_cast<base::Histogram::Sample32>(
                                  current_highest_pmf_ / 1024 / 1024));
 #else

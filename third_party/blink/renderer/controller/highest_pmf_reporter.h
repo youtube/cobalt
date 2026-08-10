@@ -11,13 +11,11 @@
 #include "third_party/blink/renderer/controller/memory_usage_monitor.h"
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
-#include "third_party/blink/renderer/platform/allow_discouraged_type.h"
-
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #if BUILDFLAG(IS_COBALT)
-#include <string>
-#include <vector>
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 #endif
 
 namespace base {
@@ -66,8 +64,8 @@ class CONTROLLER_EXPORT HighestPmfReporter
   unsigned webpage_counts_at_current_highest_pmf_ = 0;
   unsigned report_count_ = 0;
 #if BUILDFLAG(IS_COBALT)
-  std::vector<base::TimeDelta> time_to_report_ ALLOW_DISCOURAGED_TYPE("Cobalt specific");
-  std::vector<std::string> metric_names_ ALLOW_DISCOURAGED_TYPE("Cobalt specific");
+  WTF::Vector<base::TimeDelta> time_to_report_;
+  WTF::Vector<WTF::String> metric_names_;
 #endif
 };
 
