@@ -68,6 +68,13 @@ class NativeStabilityManager {
   //
   // As with GetPendingReports(), disk I/O is offloaded to a background
   // ThreadPool task runner and callbacks are posted back to the UI sequence.
+  //
+  // Concurrent execution by different Cobalt processes will not produce invalid
+  // acknowledged state but could cause read-modify-write races with the last
+  // write winning.
+  // TODO(b/528362453): Consider implementing mutual process exclusion. Since
+  // this is most likely to occur with Cobalt processes running different web
+  // applications, we may do this by partitioning the file by web app.
   void AcknowledgeReports(std::vector<std::string> native_stability_event_uuids,
                           base::OnceClosure callback);
 
