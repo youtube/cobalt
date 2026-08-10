@@ -123,7 +123,6 @@ pipeline () {
       echo "Uploading libchrobalt.so to GCS..."
       
       local gcs_dest="gs://cobalt-internal-build-artifacts/kimono_artifacts/${KOKORO_BUILD_NUMBER}/${TARGET_PLATFORM}_${CONFIG}/libchrobalt.so"
-
       local so_file
       so_file=$(find "${build_out_dir}" -type f -name "libchrobalt.so" | head -n 1)
       if [[ -z "${so_file}" ]]; then
