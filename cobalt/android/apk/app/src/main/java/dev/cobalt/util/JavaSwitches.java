@@ -41,13 +41,7 @@ public class JavaSwitches {
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
 
-  /** flag to force use IPv4 for system host resolution. */
-  public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
-
   public static final String USE_MINOR_MS_FOR_MINOR_GC = "UseMinorMSForMinorGC";
-
-  /** flag to delete stale leveldb LOCK file on startup. */
-  public static final String LOCAL_STORAGE_DELETE_LOCK_FILE = "LocalStorageDeleteLockFile";
 
   /** flag to tune compositor offscreen interest area size in pixels. */
   public static final String INTEREST_AREA_SIZE_IN_PIXELS = "InterestAreaSizeInPixels";
@@ -113,14 +107,6 @@ public class JavaSwitches {
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
-
-    if (javaSwitches.containsKey(JavaSwitches.USE_IPV4_FOR_DNS)) {
-      extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.LOCAL_STORAGE_DELETE_LOCK_FILE)) {
-      extraCommandLineArgs.add("--enable-features=LocalStorageDeleteLockFile");
-    }
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
       extraCommandLineArgs.add("--disable-quic");
