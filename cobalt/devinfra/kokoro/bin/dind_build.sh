@@ -124,8 +124,13 @@ pipeline () {
       
       local gcs_dest="gs://cobalt-internal-build-artifacts/kimono_artifacts/${KOKORO_BUILD_NUMBER}/${TARGET_PLATFORM}_${CONFIG}/libchrobalt.so"
 
-      gsutil cp "${build_out_dir}/libchrobalt.so" "${gcs_dest}"
-
+      local so_file
+      so_file=$(find "${build_out_dir}" -type f -name "libchrobalt.so" | head -n 1)
+      if [[ -z "${so_file}" ]]; then
+        echo "Error: libchrobalt.so not found in ${build_out_dir}" >&2
+        exit 1
+      fi
+      gsutil cp "${so_file}" "${gcs_dest}"
       echo "COBALT_SO_PATH=${gcs_dest}" >> "${KOKORO_ARTIFACTS_DIR}/build.properties"
     fi
   fi
