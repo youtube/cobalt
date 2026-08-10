@@ -186,8 +186,7 @@ void VideoSurfaceHolder::ReleaseVideoSurface() {
   }
 }
 
-void VideoSurfaceHolder::CleanUpVideoWindow(
-    bool force_clear,
+void VideoSurfaceHolder::CleanUpVideoSurface(
     SbDecodeTargetGraphicsContextProvider* gpu_provider) {
   // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
   // during painting.
@@ -198,22 +197,25 @@ void VideoSurfaceHolder::CleanUpVideoWindow(
     return;
   }
 
+  SB_CHECK(gpu_provider);
+  gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
+                                    g_native_video_window);
+  SB_LOG(INFO) << "Video surface has been cleared.";
+}
+
+void VideoSurfaceHolder::ResetVideoSurface() {
+  // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
+  // during painting.
+  std::lock_guard lock(*GetViewSurfaceMutex());
+
   JNIEnv* env = AttachCurrentThread();
   if (!env) {
-    SB_LOG(INFO) << "Tried to clean up video window when JNIEnv was null.";
-    return;
-  }
-
-  if (force_clear) {
-    SB_CHECK(gpu_provider);
-    gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
-                                      g_native_video_window);
-    SB_LOG(INFO) << "Video surface has been cleared.";
+    SB_LOG(INFO) << "Tried to reset video window when JNIEnv was null.";
     return;
   }
 
   StarboardBridge::GetInstance()->ResetVideoSurface(env);
-  SB_LOG(INFO) << "Video surface has been reset (default behavior).";
+  SB_LOG(INFO) << "Video surface has been reset.";
 }
 
 }  // namespace starboard
