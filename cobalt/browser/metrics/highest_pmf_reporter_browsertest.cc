@@ -141,10 +141,8 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest, MAYBE_ReportMetric) {
   test_task_runner_->FastForwardBy(
       base::Minutes(1) + base::Seconds(1));  // Adding extra second to be sure!
 
-  LOG(ERROR) << "TOTAL HISTOGRAMS:";
-  for (const auto& hist : histogram_tester.GetHistogramsRecorded()) {
-    LOG(ERROR) << "    " << hist;
-  }
+  LOG(ERROR) << "TOTAL HISTOGRAMS:\n"
+             << histogram_tester.GetAllHistogramsRecorded();
 
   auto samples = histogram_tester.GetAllSamples(
       "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.1minTest");
