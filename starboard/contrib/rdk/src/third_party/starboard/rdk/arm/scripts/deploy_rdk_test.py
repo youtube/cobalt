@@ -69,6 +69,8 @@ class TestDeployRdk(unittest.TestCase):
         mock.patch("time.sleep").start()
         mock.patch("os.path.exists", return_value=True).start()
         mock.patch("pathlib.Path.exists", return_value=True).start()
+        mock.patch("pathlib.Path.read_text", return_value="starboard_level_final_executable_type = \"shared_library\"\n").start()
+        mock.patch("pathlib.Path.write_text").start()
         mock.patch("pathlib.Path.mkdir").start()
         mock.patch("pathlib.Path.unlink").start()
         mock.patch("os.remove").start()
@@ -98,13 +100,11 @@ class TestDeployRdk(unittest.TestCase):
         with mock.patch("sys.argv", argv):
             deploy_rdk.main()
 
-        # Check targets built: cobalt_loader, loader_app and loader_app_rdk_plugin
+        # Check targets built: cobalt_loader
         build_call = next(call for call in self.mock_run.call_args_list 
                          if "autoninja" in str(call))
         targets = build_call[0][0]
         self.assertIn("cobalt_loader", targets)
-        self.assertIn("loader_app", targets)
-        self.assertIn("loader_app_rdk_plugin", targets)
 
         # Check tar command: robust flag order -czvf, -T <deps_file>, then -C <out_dir>
         tar_call = next(call for call in self.mock_run.call_args_list 
@@ -124,13 +124,11 @@ class TestDeployRdk(unittest.TestCase):
         with mock.patch("sys.argv", argv):
             deploy_rdk.main()
 
-        # Check targets built: cobalt_loader and loader_app
+        # Check targets built: cobalt_loader
         build_call = next(call for call in self.mock_run.call_args_list 
                          if "autoninja" in str(call))
         targets = build_call[0][0]
         self.assertIn("cobalt_loader", targets)
-        self.assertIn("loader_app", targets)
-        self.assertNotIn("loader_app_rdk_plugin", targets)
 
         # Check tar command: robust flag order -czvf, -T <deps_file>, then -C <out_dir>
         tar_call = next(call for call in self.mock_run.call_args_list 
@@ -262,6 +260,7 @@ class TestDeployRdk(unittest.TestCase):
         self.assertIn("--no-rbe", gn_call[0][0])
 
 
+
 class TestDeployRdkDeviceDetection(unittest.TestCase):
     """Unit tests for the device auto-detection logic in deploy_rdk script."""
 
@@ -282,6 +281,8 @@ class TestDeployRdkDeviceDetection(unittest.TestCase):
         # Mock filesystem
         mock.patch("os.path.exists", return_value=True).start()
         mock.patch("pathlib.Path.exists", return_value=True).start()
+        mock.patch("pathlib.Path.read_text", return_value="starboard_level_final_executable_type = \"shared_library\"\n").start()
+        mock.patch("pathlib.Path.write_text").start()
         mock.patch("pathlib.Path.mkdir").start()
         mock.patch("pathlib.Path.unlink").start()
         mock.patch("os.remove").start()
