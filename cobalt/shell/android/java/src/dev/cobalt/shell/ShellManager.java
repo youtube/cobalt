@@ -35,7 +35,6 @@ import org.jni_zero.NativeMethods;
 @JNINamespace("content")
 @NullMarked
 public class ShellManager {
-    private static final String TAG = "cobalt";
     private WindowAndroid mWindow;
     private @Nullable Shell mActiveShell;
 
@@ -176,7 +175,6 @@ public class ShellManager {
     public void destroy() {
         // Remove active shell (Currently single shell support only available).
         if (mActiveShell != null) {
-            mActiveShell.close();
             removeShell(mActiveShell);
         }
         if (mContentViewRenderView != null) {

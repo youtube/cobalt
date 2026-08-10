@@ -164,8 +164,9 @@ bool ParseVideoInfo(const MimeType& mime_type,
   if (!eotf.empty()) {
     SbMediaTransferId transfer_id_from_eotf = GetTransferIdFromString(eotf);
     if (transfer_id_from_eotf == kSbMediaTransferIdUnknown) {
-      // The eotf is an unknown value, mark the codec info as invalid.
-      SB_LOG(WARNING) << "Unknown eotf " << eotf << ".";
+      // Web apps probe unknown or dummy EOTF values (e.g., "catavision")
+      // via isTypeSupported() to verify MIME parameter validation.
+      // This is a normal code path.
       return false;
     }
     SB_LOG_IF(WARNING,

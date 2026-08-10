@@ -23,6 +23,7 @@
 #include "base/trace_event/optional_trace_event.h"
 #include "base/trace_event/typed_macros.h"
 #include "base/types/cxx23_from_range.h"
+#include "build/buildflag.h"
 #include "base/unguessable_token.h"
 #include "content/browser/renderer_host/batched_proxy_ipc_sender.h"
 #include "content/browser/renderer_host/navigation_controller_impl.h"
@@ -433,7 +434,9 @@ FrameTreeNode* FrameTree::AddFrame(
       document_token, devtools_frame_token, frame_policy, frame_name,
       frame_unique_name);
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   added_node->SetFencedFramePropertiesIfNeeded();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   if (browser_interface_broker_receiver.is_valid()) {
     added_node->current_frame_host()->BindBrowserInterfaceBrokerReceiver(
@@ -949,7 +952,9 @@ void FrameTree::Init(SiteInstanceImpl* main_frame_site_instance,
   root_.render_manager()->InitRoot(main_frame_site_instance,
                                    renderer_initiated_creation, frame_policy,
                                    main_frame_name, devtools_frame_token);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   root_.SetFencedFramePropertiesIfNeeded();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   // The initial empty document should inherit the origin (the origin may
   // change after the first commit) and other state (such as the

@@ -3,10 +3,29 @@
 import argparse
 from collections import defaultdict
 import enum
+import json
+import os
 import re
 import shutil
+import ssl
 import subprocess
 import sys
+import urllib.error
+import urllib.request
+
+_COBALT_SUBMODULE_DIRS = [
+    'net/third_party/quiche/src',
+    'third_party/angle',
+    'third_party/boringssl/src',
+    'third_party/cpuinfo/src',
+    'third_party/googletest/src',
+    'third_party/icu',
+    'third_party/libc++/src',
+    'third_party/perfetto',
+    'third_party/skia',
+    'third_party/webrtc',
+    'v8',
+]
 
 
 @enum.unique
@@ -22,8 +41,8 @@ def log(msg):
   print(msg, file=sys.stderr)
 
 
-def run(cmd):
-  subprocess.run(cmd, check=True, stdout=sys.stderr)
+def run(cmd, cwd=None):
+  subprocess.run(cmd, check=True, stdout=sys.stderr, cwd=cwd)
 
 
 def get_out(cmd):
@@ -183,8 +202,102 @@ def get_submodule_root_dirs():
       {line.split(' ', 1)[1].split('/')[0] for line in paths.splitlines()})
 
 
+def remove_local_checkout():
+  log('Removing local checkout...')
+  roots = get_submodule_root_dirs()
+  if roots:
+    run(['rm', '-rf', '--'] + roots)
+  run(['git', 'rm', '-qrf', '--', '.'])
+  run(['git', 'clean', '-qffdx'])
+
+
+def replace_submodules_with_dirs():
+  log('Running gclient sync...')
+  repo_url = get_out(['git', 'remote', 'get-url', 'origin']).strip()
+  run(['gclient', 'config', '--name=src', '--unmanaged', repo_url], cwd='..')
+  run(['gclient', 'sync', '--no-history'], cwd='..')
+  run(['rm', '-f', '--', os.path.join('..', '.gclient')])
+  log('Removing Chromium submodules for Cobalt directories...')
+  for submodule_dir in _COBALT_SUBMODULE_DIRS:
+    run(['rm', '-rf', '--', os.path.join(submodule_dir, '.git')])
+    run([
+        'git', 'rm', '-qrf', '--cached', '--ignore-unmatch', '--', submodule_dir
+    ])
+
+
+def fetch_chromium_tree(chromium_sha):
+  """Fetches the root tree hash directly from Chromium's Gitiles API."""
+  url = (f'https://chromium.googlesource.com/chromium/src/+/{chromium_sha}'
+         '?format=JSON')
+  req = urllib.request.Request(url, headers={'User-Agent': 'cobalt-autoroller'})
+
+  ctx = ssl.create_default_context()
+  try:
+    with urllib.request.urlopen(req, context=ctx) as resp:
+      text = resp.read().decode('utf-8')
+  except (ssl.SSLCertVerificationError, urllib.error.URLError):
+    # pylint: disable=protected-access
+    unverified_ctx = ssl._create_unverified_context()
+    # pylint: enable=protected-access
+    with urllib.request.urlopen(req, context=unverified_ctx) as resp:
+      text = resp.read().decode('utf-8')
+
+  # Gitiles JSON API responses prepend a 4-char anti-XSSI security prefix: )]}'
+  if text.startswith(")]}'"):
+    text = text[4:].lstrip()
+
+  data = json.loads(text)
+  return data['tree']
+
+
+def get_upstream_chromium_sha(cobalt_sha):
+  """Extracts the upstream Chromium commit SHA from the commit message body."""
+  body = get_out(['git', 'log', '-1', '--format=%B', cobalt_sha])
+  match = re.search(r'Update to commit ([0-9a-fA-F]{40})', body)
+  return match.group(1) if match else None
+
+
+def verify_chromium_commit(sha):
+  """Verifies that current Git tree matches expected Chromium commit tree.
+
+  Args:
+    sha: The SHA of the commit in Cobalt being rolled in.
+
+  Returns:
+    bool: True if the current tree matches the expected Chromium commit tree,
+      False otherwise.
+  """
+  upstream_sha = get_upstream_chromium_sha(sha)
+  if not upstream_sha:
+    log(f'ERROR: No upstream Chromium commit SHA found in message of {sha}.')
+    return False
+
+  log(f'Verifying against upstream Chromium commit {upstream_sha} via '
+      'Gitiles...')
+  try:
+    expected_tree = fetch_chromium_tree(upstream_sha)
+  except Exception as e:  # pylint: disable=broad-except
+    log(f'ERROR: Failed to query Gitiles for Chromium commit '
+        f'{upstream_sha}: {e}')
+    return False
+
+  current_tree = get_out(['git', 'rev-parse', 'HEAD^{tree}']).strip()
+
+  if current_tree == expected_tree:
+    log(f'Verification passed: Tree {current_tree} matches Chromium '
+        f'{upstream_sha}.')
+    return True
+
+  diff_output = get_out(['git', 'diff', '--name-status', sha, 'HEAD']).strip()
+  log(f'ERROR: Rolled-in tree ({current_tree}) differs from Chromium '
+      f'{upstream_sha} ({expected_tree})!')
+  if diff_output:
+    log(f'Offending files:\n{diff_output}')
+  return False
+
+
 def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
-                         autoroll_file):
+                         autoroll_metadata):
   """Temporarily reverts Cobalt changes to apply a Chromium cherry-pick.
 
   This function performs a "clean slate" cherry-pick by wiping the current
@@ -199,46 +312,58 @@ def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
     metadata: Metadata associated with the cherry-pick, passed to the final
       conflicting revert call.
     first_commit: boolean flag indicating if it's the first commit in the PR.
-    autoroll_file: Path to the file that tracks autoroll progress.
+    autoroll_metadata: autoroll file path and sha tuple that tracks progress.
 
   Returns:
     CommitStatus and unmerged_files.
   """
-  log('Deleting everything...')
-  roots = get_submodule_root_dirs()
-  if roots:
-    run(['rm', '-rf', '--'] + roots)
-  run(['git', 'rm', '-rf', '--', '.'])
-  run(['git', 'clean', '-ffdx'])
-
   log(f'Checking out clean Chromium state: {previous_sha}')
+  remove_local_checkout()
   run(['git', 'checkout', previous_sha, '--', '.'])
+
+  replace_submodules_with_dirs()
 
   log('Committing Cobalt revert...')
   run(['git', 'add', '--', '.'])
   run([
-      'git', 'commit', '--no-verify', '-m',
-      'CONFLICTED Chromium Cherry pick: Reverting Cobalt.'
+      'git', 'commit', '--no-verify', '-qm',
+      'CONFLICTED Chromium Cherry pick: Revert Cobalt.'
   ])
-  cobalt_revert_sha = get_out(['git', 'rev-parse', 'HEAD']).strip()
+  revert_cobalt_sha = get_out(['git', 'rev-parse', 'HEAD']).strip()
+
+  log(f'Checking out clean Chromium state: {previous_sha}')
+  remove_local_checkout()
+  run(['git', 'checkout', '-f', previous_sha, '--', '.'])
+
+  log('Committing submodules restore...')
+  run(['git', 'add', '--', '.'])
+  run(['git', 'commit', '--no-verify', '-qm', 'Restore submodules.'])
 
   log('Cherry picking Chromium...')
   run(['git', 'cherry-pick', sha])
 
+  if not verify_chromium_commit(sha):
+    raise RuntimeError(
+        f'Verification failed: Rolled-in tree for {sha} does not match '
+        f'Chromium {sha}')
+
+  replace_submodules_with_dirs()
+
+  log('Committing submodules replace...')
+  run(['git', 'add', '--', '.'])
+  run(['git', 'commit', '--no-verify', '-qm', 'Remove submodules.'])
+
   log('Reverting Cobalt revert...')
-  return revert(cobalt_revert_sha, metadata, first_commit, autoroll_file)
+  return apply_and_commit('revert', revert_cobalt_sha, metadata, first_commit,
+                          autoroll_metadata)
 
 
-def cherry_pick(sha, metadata, first_commit, autoroll_file):
+def cherry_pick(sha, metadata, first_commit, autoroll_metadata):
   return apply_and_commit('cherry-pick', sha, metadata, first_commit,
-                          autoroll_file)
+                          autoroll_metadata)
 
 
-def revert(sha, metadata, first_commit, autoroll_file):
-  return apply_and_commit('revert', sha, metadata, first_commit, autoroll_file)
-
-
-def apply_and_commit(action, sha, metadata, first_commit, autoroll_file):
+def apply_and_commit(action, sha, metadata, first_commit, autoroll_metadata):
   """Attempts to apply a single commit.
 
   Returns:
@@ -277,11 +402,12 @@ def apply_and_commit(action, sha, metadata, first_commit, autoroll_file):
     return CommitStatus.SKIPPED, unmerged_files
 
   # Update autoroll file
+  autoroll_file, autoroll_sha = autoroll_metadata
   with open(autoroll_file, 'w', encoding='utf-8') as f:
     if result == CommitStatus.CONFLICTED:
-      f.write(f'CONFLICTED:{sha}\n')
+      f.write(f'CONFLICTED:{autoroll_sha}\n')
     else:
-      f.write(f'{sha}\n')
+      f.write(f'{autoroll_sha}\n')
   run(['git', 'add', '--', autoroll_file])
 
   # Commit
@@ -343,14 +469,15 @@ def main():
     # Commit PR
     metadata = get_cherry_pick_metadata(sha, title, pr_num)
     first_commit = not commits_added
+    autoroll_metadata = (args.autoroll_file, sha)
 
     if args.source_branch.startswith('chromium/'):
       result, unmerged_files = chromium_cherry_pick(previous_sha, sha, metadata,
                                                     first_commit,
-                                                    args.autoroll_file)
+                                                    autoroll_metadata)
     else:
       result, unmerged_files = cherry_pick(sha, metadata, first_commit,
-                                           args.autoroll_file)
+                                           autoroll_metadata)
 
     if result in (CommitStatus.SUCCESS, CommitStatus.CONFLICTED):
       commits_added.append(identifier)

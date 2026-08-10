@@ -18,6 +18,7 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.content.Intent;
 import android.net.Uri;
+import java.util.Locale;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -30,6 +31,7 @@ import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.view.WindowManager;
+
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
@@ -104,6 +106,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   private Boolean mIsKeepScreenOnEnabled = false;
   private Runnable mFreezeRunnable;
   private final Handler mHandler = new Handler(Looper.getMainLooper());
+
   private boolean mIsCobaltUsingAndroidOverlay;
 
   private NetworkChangeNotifier.ConnectionTypeObserver mNetworkRecoveryObserver;
@@ -139,6 +142,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       };
   private boolean mWasDisplayOn = true;
 
+
   @VisibleForTesting
   static String[] appendArgsFromMetaData(Bundle metaData, String[] commandLineArgs) {
     if (metaData == null) {
@@ -152,7 +156,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     boolean enableSplashScreen = metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
     if (!enableSplashScreen) {
-      args.add("--disable-splash-screen");
+      args.add("--enable-features=DisableSplashScreen");
     }
 
     String enableFeatures = metaData.getString(META_DATA_ENABLE_FEATURES);
@@ -249,9 +253,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     // Set up the animation placeholder to be the SurfaceView. This disables the
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
-        mShellManager.getContentViewRenderView().getSurfaceView());
+        mShellManager.getContentViewRenderView().getAnchorView());
     mA11yHelper =
-        new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getSurfaceView());
+        new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getAnchorView());
 
     maybeRegisterNetworkRecoveryObserver();
 
@@ -529,10 +533,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onStart() {
-    DisplayUtil.cacheDefaultDisplay(this);
-    DisplayUtil.addDisplayListener(this);
-    mWasDisplayOn = isDisplayOn();
-    registerDisplayListener();
     StartupGuard.getInstance().setStartupMilestone(10);
     if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
@@ -545,23 +545,34 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       createNewSurfaceView();
     }
 
+    DisplayUtil.cacheDefaultDisplay(this);
+    DisplayUtil.addDisplayListener(this);
     AudioOutputManager.addAudioDeviceListener(this);
+
+    if (isNvidiaShield()) {
+      mWasDisplayOn = isDisplayOn();
+      registerDisplayListener();
+    }
 
     super.onStart();
 
-    if (mFreezeRunnable != null) {
+    if (isNvidiaShield() && mFreezeRunnable != null) {
       mHandler.removeCallbacks(mFreezeRunnable);
       mFreezeRunnable = null;
     }
     WebContents webContents = getActiveWebContents();
     if (webContents != null
-        && (getJavaSwitches().containsKey(JavaSwitches.DELAY_FREEZE_ON_BACKGROUND)
+        && (isNvidiaShield()
             || getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
       // document.onresume event
       webContents.onResume();
     }
     // visibility:visible event
-    updateShellActivityVisible(mWasDisplayOn);
+    if (isNvidiaShield()) {
+      updateShellActivityVisible(mWasDisplayOn);
+    } else {
+      updateShellActivityVisible(true);
+    }
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
 
     StartupGuard.getInstance().setStartupMilestone(11);
@@ -576,14 +587,16 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onStop() {
-    unregisterDisplayListener();
+    if (isNvidiaShield()) {
+      unregisterDisplayListener();
+    }
     super.onStop();
 
     // visibility:hidden event
     updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
-      if (getJavaSwitches().containsKey(JavaSwitches.DELAY_FREEZE_ON_BACKGROUND)) {
+      if (isNvidiaShield()) {
         if (mFreezeRunnable != null) {
           mHandler.removeCallbacks(mFreezeRunnable);
         }
@@ -631,11 +644,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onDestroy() {
-    unregisterDisplayListener();
     unregisterNetworkRecoveryObserver();
-    if (mFreezeRunnable != null) {
-      mHandler.removeCallbacks(mFreezeRunnable);
-      mFreezeRunnable = null;
+    if (isNvidiaShield()) {
+      unregisterDisplayListener();
+      if (mFreezeRunnable != null) {
+        mHandler.removeCallbacks(mFreezeRunnable);
+        mFreezeRunnable = null;
+      }
     }
     if (mShellManager != null) {
       mShellManager.destroy();
@@ -910,6 +925,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (mShellManager != null) {
       mShellManager.onActivityVisible(isVisible);
     }
+  }
+
+  private static boolean isNvidiaShield() {
+    return "NVIDIA".equalsIgnoreCase(Build.MANUFACTURER)
+        || "NVIDIA".equalsIgnoreCase(Build.BRAND)
+        || (Build.MODEL != null && Build.MODEL.toLowerCase(Locale.US).contains("shield"));
   }
 
   private boolean isDisplayOn() {

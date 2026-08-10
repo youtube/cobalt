@@ -41,8 +41,8 @@ import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Locale;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -61,6 +61,7 @@ class MediaCodecBridge {
   @GuardedBy("mNativeBridgeLock")
   private long mNativeMediaCodecBridge;
 
+  private final String mCodecName;
   private final SynchronizedHolder<MediaCodec, IllegalStateException> mMediaCodec =
       new SynchronizedHolder<>(() -> new IllegalStateException("MediaCodec was destroyed"));
 
@@ -88,17 +89,14 @@ class MediaCodecBridge {
       return true;
     }
     // |mOperatingRate| won't be 0, but to be cautious we still add a check here.
-    if (!mSkipVideoFramesOver60Fps
-        || mOperatingRate <= kMaxAcceptedOperatingRate
-        || mOperatingRate == 0) {
+    if (!mSkipVideoFramesOver60Fps || mOperatingRate <= kMaxAcceptedOperatingRate || mOperatingRate == 0) {
       return false;
     }
     // Deterministically downsample to 60fps by picking one frame per 1/60s interval.
     // Some visual jitter may occur briefly when the playback rate changes.
     double frameIntervalUs = 1_000_000.0 / mOperatingRate;
     if (Math.floor(presentationTimeUs * kMaxAcceptedOperatingRate / 1_000_000.0)
-        == Math.floor(
-            (presentationTimeUs - frameIntervalUs) * kMaxAcceptedOperatingRate / 1_000_000.0)) {
+        == Math.floor((presentationTimeUs - frameIntervalUs) * kMaxAcceptedOperatingRate / 1_000_000.0)) {
       return true;
     }
     return false;
@@ -127,17 +125,17 @@ class MediaCodecBridge {
     return mActiveOutputBuffers.get();
   }
 
-  /** Wraps a {@link MediaFormat} object to expose its properties to native code */
-  // Copied from Chromium's MediaCodecBridge.java
-  // https://source.chromium.org/chromium/chromium/src/+/main:media/base/android/java/src/org/chromium/media/MediaCodecBridge.java;l=294-350;drc=6ac17d9d1b844a695209e865137466925fa1214f
-  // Here are changes made.
-  // - Exposes formatHasCropValues() to the native layer, which needs to call it.
-  // - Removes the methods that Cobalt do not use (e.g. colorStandrd).
-  // - Add @Nonnul annotation to mFormat. since it is not null.
-  // - Add safety checks for width() and height() to prevent a crash. Cobalt's native code
-  //   accesses the format immediately in the onOutputFormatChanged callback, which can be
-  //   before the dimension keys are available.
-  private static class MediaFormatWrapper {
+   /** Wraps a {@link MediaFormat} object to expose its properties to native code */
+   // Copied from Chromium's MediaCodecBridge.java
+   // https://source.chromium.org/chromium/chromium/src/+/main:media/base/android/java/src/org/chromium/media/MediaCodecBridge.java;l=294-350;drc=6ac17d9d1b844a695209e865137466925fa1214f
+   // Here are changes made.
+   // - Exposes formatHasCropValues() to the native layer, which needs to call it.
+   // - Removes the methods that Cobalt do not use (e.g. colorStandrd).
+   // - Add @Nonnul annotation to mFormat. since it is not null.
+   // - Add safety checks for width() and height() to prevent a crash. Cobalt's native code
+   //   accesses the format immediately in the onOutputFormatChanged callback, which can be
+   //   before the dimension keys are available.
+   private static class MediaFormatWrapper {
     @NonNull private final MediaFormat mFormat;
 
     private MediaFormatWrapper(MediaFormat format) {
@@ -147,9 +145,9 @@ class MediaCodecBridge {
     @CalledByNative("MediaFormatWrapper")
     private boolean formatHasCropValues() {
       return mFormat.containsKey(KEY_CROP_RIGHT)
-          && mFormat.containsKey(KEY_CROP_LEFT)
-          && mFormat.containsKey(KEY_CROP_BOTTOM)
-          && mFormat.containsKey(KEY_CROP_TOP);
+            && mFormat.containsKey(KEY_CROP_LEFT)
+            && mFormat.containsKey(KEY_CROP_BOTTOM)
+            && mFormat.containsKey(KEY_CROP_TOP);
     }
 
     @CalledByNative("MediaFormatWrapper")
@@ -279,6 +277,7 @@ class MediaCodecBridge {
   public MediaCodecBridge(
       long nativeMediaCodecBridge,
       MediaCodec mediaCodec,
+      String codecName,
       int tunnelModeAudioSessionId,
       boolean enableFrameRendererListener,
       boolean enableIgnoreCallbacksDuringFlushing) {
@@ -287,6 +286,7 @@ class MediaCodecBridge {
     }
     mNativeMediaCodecBridge = nativeMediaCodecBridge;
     mMediaCodec.set(mediaCodec);
+    mCodecName = codecName != null ? codecName : "unknown";
     mIsTunnelingPlayback = tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE;
     mEnableFrameRendererListener = enableFrameRendererListener;
     mEnableIgnoreCallbacksDuringFlushing = enableIgnoreCallbacksDuringFlushing;
@@ -312,7 +312,7 @@ class MediaCodecBridge {
           @Override
           public void onInputBufferAvailable(MediaCodec codec, int index) {
             synchronized (mNativeBridgeLock) {
-              if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
+              if (mNativeMediaCodecBridge == 0) {
                 return;
               }
               MediaCodecBridgeJni.get()
@@ -346,7 +346,7 @@ class MediaCodecBridge {
           @Override
           public void onOutputFormatChanged(MediaCodec codec, MediaFormat format) {
             synchronized (mNativeBridgeLock) {
-              if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
+              if (mNativeMediaCodecBridge == 0) {
                 return;
               }
               mActiveFormat = new MediaFormatWrapper(format);
@@ -370,7 +370,7 @@ class MediaCodecBridge {
             @Override
             public void onFrameRendered(MediaCodec codec, long presentationTimeUs, long nanoTime) {
               synchronized (mNativeBridgeLock) {
-                if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
+                if (mNativeMediaCodecBridge == 0) {
                   return;
                 }
                 MediaCodecBridgeJni.get()
@@ -473,6 +473,7 @@ class MediaCodecBridge {
         new MediaCodecBridge(
             nativeMediaCodecBridge,
             mediaCodec,
+            decoderName,
             tunnelModeAudioSessionId,
             enableFrameRendererListener,
             ignoreCodecCallbacksDuringFlushing);
@@ -720,12 +721,11 @@ class MediaCodecBridge {
         mFrameRateEstimator.reset();
       }
       if (mEnableIgnoreCallbacksDuringFlushing) {
-        mMainHandler.post(
-            () -> {
-              synchronized (mNativeBridgeLock) {
-                mIsFlushing = false;
-              }
-            });
+        mMainHandler.post(() -> {
+          synchronized (mNativeBridgeLock) {
+            mIsFlushing = false;
+          }
+        });
       }
     }
     return MediaCodecStatus.OK;
@@ -742,30 +742,32 @@ class MediaCodecBridge {
       // We skip calling stop() on Android 11, as this version has a race condition
       // if an error occurs during stop(). See b/369372033 for details.
       if (android.os.Build.VERSION.SDK_INT == android.os.Build.VERSION_CODES.R) {
-        Log.w(TAG, "Skipping stop() during destruction to avoid Android 11 framework bug");
+        Log.i(
+            TAG,
+            "Skipping stop() during destruction to avoid Android 11 framework bug: codec="
+                + mCodecName);
       } else {
         try {
           mMediaCodec.get().stop();
         } catch (Exception e) {
-          Log.w(TAG, "Failed to stop MediaCodec. Proceeding with release", e);
+          Log.w(TAG, "Failed to stop MediaCodec: codec=" + mCodecName, e);
         }
       }
 
       try {
-        String codecName = mMediaCodec.get().getName();
-        Log.w(TAG, "Calling MediaCodec.release() on " + codecName);
+        Log.i(TAG, "Calling MediaCodec.release(): codec=" + mCodecName);
         mMediaCodec.get().release();
       } catch (Exception e) {
         // The MediaCodec is stuck in a wrong state, possibly due to losing
         // the surface.
-        Log.w(TAG, "Failed to release MediaCodec", e);
+        Log.w(TAG, "Failed to release MediaCodec: codec=" + mCodecName, e);
       }
       mMediaCodec.set(null);
     } catch (Throwable t) {
       // Catch Throwable (both Exception and Error) to prevent JNI crashes if the JVM
       // throws linkage errors (e.g., NoClassDefFoundError) during ClassLoader unloading
       // in teardown. See b/455621481.
-      Log.e(TAG, "Exception or Error during MediaCodecBridge release()", t);
+      Log.e(TAG, "Exception or Error during MediaCodecBridge release(): codec=" + mCodecName, t);
     }
   }
 
@@ -774,8 +776,8 @@ class MediaCodecBridge {
     MediaFormat format = null;
     try {
       format = mMediaCodec.get().getOutputFormat();
-      // Catches `RuntimeException` to handle any undocumented exceptions.
-      // See http://b/445694177#comment4 for details.
+    // Catches `RuntimeException` to handle any undocumented exceptions.
+    // See http://b/445694177#comment4 for details.
     } catch (RuntimeException e) {
       Log.e(TAG, "Failed to get output format", e);
       return null;
@@ -785,7 +787,7 @@ class MediaCodecBridge {
     // If the format is null, we crash the app for dev builds to enforce the API contract.
     // On release builds, we log the error and return null.
     if (format == null) {
-      assert (false);
+      assert(false);
       Log.e(TAG, "MediaCodec.getOutputFormat() returned null");
       return null;
     }
@@ -1082,7 +1084,7 @@ class MediaCodecBridge {
             @Override
             public void onFirstTunnelFrameReady(MediaCodec codec) {
               synchronized (mNativeBridgeLock) {
-                if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
+                if (mNativeMediaCodecBridge == 0) {
                   return;
                 }
                 MediaCodecBridgeJni.get()
@@ -1091,9 +1093,7 @@ class MediaCodecBridge {
             }
           };
       if (mEnableIgnoreCallbacksDuringFlushing) {
-        mMediaCodec
-            .get()
-            .setOnFirstTunnelFrameReadyListener(mMainHandler, mFirstTunnelFrameReadyListener);
+        mMediaCodec.get().setOnFirstTunnelFrameReadyListener(mMainHandler, mFirstTunnelFrameReadyListener);
       } else {
         mMediaCodec.get().setOnFirstTunnelFrameReadyListener(null, mFirstTunnelFrameReadyListener);
       }
