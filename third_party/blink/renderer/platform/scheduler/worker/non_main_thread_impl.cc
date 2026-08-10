@@ -20,6 +20,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/default_tick_clock.h"
+#include "build/build_config.h"
 #include "mojo/public/cpp/bindings/direct_receiver.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/platform/task_type.h"
@@ -53,6 +54,18 @@ NonMainThreadImpl::NonMainThreadImpl(const ThreadCreationParams& params)
       supports_gc_(params.supports_gc) {
   base::SimpleThread::Options options;
   options.thread_type = params.base_thread_type;
+
+#if BUILDFLAG(IS_COBALT)
+  // When "ReduceAndroidThreadStackSize" is enabled, the default stack size for
+  // helper threads is reduced to 256KB to save virtual memory. Worker backing
+  // threads host their own V8 isolate, and V8Initializer::InitializeWorker()
+  // tells that isolate it has kWorkerMaxStackSize (500KB) available below the
+  // entry point. With a 256KB stack the isolate's stack guard would sit past
+  // the real stack bottom, turning a catchable RangeError into a SIGSEGV.
+  // Exclude all NonMainThreads from the reduction, matching the carve-outs in
+  // RenderProcessHostImpl and GpuProcessHost.
+  options.stack_size = 1024 * 1024;
+#endif
 
   base::MessagePumpType message_pump_type = base::MessagePumpType::DEFAULT;
   if (params.thread_type == ThreadType::kCompositorThread &&

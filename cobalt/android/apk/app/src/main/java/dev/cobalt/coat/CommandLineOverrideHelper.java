@@ -121,6 +121,14 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("ReclaimPrepaintTilesWhenIdle");
         paramOverrides.add("ReclaimOldPrepaintTiles");
 
+        // Reduce default thread stacks from the platform default (1MB on
+        // bionic) to 256KB. High-risk threads are carved out explicitly:
+        // the in-process renderer and GPU main threads, and all Blink
+        // NonMainThreads. Both features are needed for full coverage --
+        // Starboard threads bypass base::PlatformThread entirely.
+        paramOverrides.add("ReduceAndroidThreadStackSize");
+        paramOverrides.add("ReduceStarboardThreadStackSize");
+
         return paramOverrides;
     }
 
