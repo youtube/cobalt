@@ -119,6 +119,13 @@ HighestPmfReporter::HighestPmfReporter(
     }
   }
 #endif
+
+#if BUILDFLAG(IS_COBALT)
+  LOG(ERROR) << "HighestPmfReporter Constructor Finished! use_baseline: " << use_baseline;
+  for (size_t i = 0; i < time_to_report_.size(); ++i) {
+    LOG(ERROR) << "    Task " << i << " delay=" << time_to_report_[i].InSeconds() << "s, name=" << metric_names_[i];
+  }
+#endif
 }
 
 bool HighestPmfReporter::FirstNavigationStarted() {
@@ -214,7 +221,9 @@ void HighestPmfReporter::OnReportMetrics() {
 
 void HighestPmfReporter::ReportMetrics() {
 #if BUILDFLAG(IS_COBALT)
-  base::UmaHistogramMemoryMB(metric_names_[report_count_].Utf8(),
+  std::string metric_name = metric_names_[report_count_].Utf8();
+  LOG(ERROR) << "UmaHistogramMemoryMB CALLED WITH: " << metric_name << ", VAL: " << current_highest_pmf_;
+  base::UmaHistogramMemoryMB(metric_name,
                              base::saturated_cast<base::Histogram::Sample32>(
                                  current_highest_pmf_ / 1024 / 1024));
 #else
