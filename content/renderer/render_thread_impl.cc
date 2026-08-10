@@ -1832,9 +1832,8 @@ void RenderThreadImpl::OnSyncMemoryPressure(
     v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
 #else
   if (!RendererIsHidden() &&
-      v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical) {
+      v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
     v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
-  }
 #endif  // BUILDFLAG(IS_COBALT)
 
 #endif  // !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
