@@ -654,11 +654,13 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
         cache_handler->WillProduceCodeCache();
       }
 #if BUILDFLAG(IS_COBALT)
+      static const bool defer_v8_code_cache_write =
+          base::CommandLine::ForCurrentProcess()->HasSwitch(
+              "defer-v8-code-cache-write");
       if (produce_cache_options ==
               V8CodeCache::ProduceCacheOptions::kProduceCodeCache &&
           (execution_context->IsServiceWorkerGlobalScope() ||
-           base::CommandLine::ForCurrentProcess()->HasSwitch(
-               "defer-v8-code-cache-write"))) {
+           defer_v8_code_cache_write)) {
 #else
       if (produce_cache_options ==
               V8CodeCache::ProduceCacheOptions::kProduceCodeCache &&
