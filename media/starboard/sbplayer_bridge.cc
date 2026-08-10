@@ -346,6 +346,7 @@ void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config) {
             << video_config.AsHumanReadableString();
 
   video_config_ = video_config;
+  video_mime_type_ = video_config_.mime_type();
   video_stream_info_.frame_width =
       static_cast<int>(video_config_.natural_size().width());
   video_stream_info_.frame_height =

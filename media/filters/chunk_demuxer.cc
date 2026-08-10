@@ -876,7 +876,6 @@ ChunkDemuxer::Status ChunkDemuxer::AddIdInternal(
   CHECK(it != id_to_mime_map_.end());
   const std::string& mime_type = it->second;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
   source_state->Init(base::BindOnce(&ChunkDemuxer::OnSourceInitDone,
                                     base::Unretained(this), id),
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
