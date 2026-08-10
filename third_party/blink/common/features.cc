@@ -507,6 +507,16 @@ BASE_FEATURE_PARAM(std::string,
                    &kHighestPmfReporterConfigurable,
                    "metric_suffixes",
                    "0to2min,2to4min,4to8min,8to16min");
+
+BASE_FEATURE(kMemoryUsageMonitorConfigurable,
+             "MemoryUsageMonitorConfigurable",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kMemoryUsageMonitorPollingIntervalMs,
+                   &kMemoryUsageMonitorConfigurable,
+                   "polling_interval_ms",
+                   1000);
 #endif
 
 

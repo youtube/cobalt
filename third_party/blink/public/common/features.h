@@ -255,6 +255,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string,
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     std::string,
     kHighestPmfReporterMetricSuffixes);
+
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kMemoryUsageMonitorConfigurable);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
+                                               kMemoryUsageMonitorPollingIntervalMs);
 #endif
 
 
