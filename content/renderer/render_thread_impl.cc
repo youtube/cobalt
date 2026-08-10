@@ -338,6 +338,15 @@ bool IsBackgrounded(std::optional<base::Process::Priority> process_priority) {
   }
 }
 
+#if BUILDFLAG(IS_COBALT)
+bool IsCriticalAllowedInForeground() {
+  static const bool kAllowCriticalInForeground =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "allow-critical-memory-pressure-handling-in-foreground");
+  return kAllowCriticalInForeground;
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 perfetto::StaticString ProcessPriorityToString(
     std::optional<base::Process::Priority> priority) {
   if (!priority) {
@@ -1821,13 +1830,9 @@ void RenderThreadImpl::OnSyncMemoryPressure(
 
 #if !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
   // In order to reduce performance impact, translate critical level to
-  // moderate level for foreground renderer for non cobalt builds.
+  // moderate level for foreground renderer.
 #if BUILDFLAG(IS_COBALT)
-  static const bool allow_critical_in_foreground =
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "allow-critical-memory-pressure-handling-in-foreground");
-
-  if (!allow_critical_in_foreground && !RendererIsHidden() &&
+  if (!IsCriticalAllowedInForeground() && !RendererIsHidden() &&
       v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
     v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
 #else
@@ -1835,7 +1840,6 @@ void RenderThreadImpl::OnSyncMemoryPressure(
       v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
     v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
 #endif  // BUILDFLAG(IS_COBALT)
-
 #endif  // !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
 
   if (base::FeatureList::IsEnabled(
