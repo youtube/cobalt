@@ -47,6 +47,7 @@ void MojoRendererBypassBridge::Invalidate() {
 
 void MojoRendererBypassBridge::SetStreams(DemuxerStream* audio,
                                           DemuxerStream* video) {
+  DCHECK(client_task_runner_->RunsTasksInCurrentSequence());
   base::AutoLock auto_lock(lock_);
   audio_stream_ = audio;
   video_stream_ = video;
@@ -155,10 +156,14 @@ std::string MojoRendererBypassBridge::GetMimeType(
 
 void MojoRendererBypassBridge::EnableBitstreamConverter(
     DemuxerStream::Type type) {
-  base::AutoLock auto_lock(lock_);
-  if (!active_) {
+  if (!client_task_runner_->RunsTasksInCurrentSequence()) {
+    client_task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&MojoRendererBypassBridge::EnableBitstreamConverter,
+                       this, type));
     return;
   }
+  base::AutoLock auto_lock(lock_);
   DemuxerStream* stream = GetStreamLocked(type);
   if (!stream) {
     return;
@@ -170,12 +175,16 @@ void MojoRendererBypassBridge::RunTimeUpdateOnClientThread(
     base::TimeDelta time,
     base::TimeDelta max_time,
     base::TimeTicks capture_time) {
-  time_update_cb_.Run(time, max_time, capture_time);
+  if (time_update_cb_) {
+    time_update_cb_.Run(time, max_time, capture_time);
+  }
 }
 
 void MojoRendererBypassBridge::RunStatisticsUpdateOnClientThread(
     const PipelineStatistics& stats) {
-  statistics_update_cb_.Run(stats);
+  if (statistics_update_cb_) {
+    statistics_update_cb_.Run(stats);
+  }
 }
 
 void MojoRendererBypassBridge::OnReadDone(
