@@ -1,4 +1,4 @@
-﻿// Copyright 2022 The Chromium Authors
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,22 +22,6 @@
 
 namespace base::allocator::dispatcher::internal {
 namespace {
-base::debug::CrashKeySize GetCrashKeySize(const std::string& crash_key_name) {
-  if (std::size(crash_key_name) <= 32ul) {
-    return base::debug::CrashKeySize::Size32;
-  }
-  if (std::size(crash_key_name) <= 64ul) {
-    return base::debug::CrashKeySize::Size64;
-  }
-  if (std::size(crash_key_name) <= 256ul) {
-    return base::debug::CrashKeySize::Size256;
-  }
-  CHECK(std::size(crash_key_name) <= 1024ul);
-
-  return base::debug::CrashKeySize::Size1024;
-}
-
-#if DCHECK_IS_ON()
 void Swap(std::atomic_bool& lh_op, std::atomic_bool& rh_op) {
   auto lh_op_value = lh_op.load(std::memory_order_relaxed);
   auto rh_op_value = rh_op.load(std::memory_order_relaxed);
@@ -45,7 +29,6 @@ void Swap(std::atomic_bool& lh_op, std::atomic_bool& rh_op) {
   CHECK(lh_op.compare_exchange_strong(lh_op_value, rh_op_value));
   CHECK(rh_op.compare_exchange_strong(rh_op_value, lh_op_value));
 }
-#endif
 }  // namespace
 
 void* MMapAllocator::AllocateMemory(size_t size_in_bytes) {
@@ -78,18 +61,14 @@ PThreadTLSSystem::PThreadTLSSystem(PThreadTLSSystem&& other) {
   std::swap(crash_key_, other.crash_key_);
   std::swap(data_access_key_, other.data_access_key_);
 
-#if DCHECK_IS_ON()
   Swap(initialized_, other.initialized_);
-#endif
 }
 
 PThreadTLSSystem& PThreadTLSSystem::operator=(PThreadTLSSystem&& other) {
   std::swap(crash_key_, other.crash_key_);
   std::swap(data_access_key_, other.data_access_key_);
 
-#if DCHECK_IS_ON()
   Swap(initialized_, other.initialized_);
-#endif
 
   return *this;
 }
@@ -97,45 +76,21 @@ PThreadTLSSystem& PThreadTLSSystem::operator=(PThreadTLSSystem&& other) {
 bool PThreadTLSSystem::Setup(
     OnThreadTerminationFunction thread_termination_function,
     std::string_view instance_id) {
-#if DCHECK_IS_ON()
-  // Initialize must happen outside of the allocation path. Therefore, it is
-  // secure to verify with DCHECK.
-  DCHECK(!initialized_.exchange(true, std::memory_order_acq_rel));
-#endif
+  if (initialized_.exchange(true, std::memory_order_acq_rel)) {
+    return true;
+  }
 
   auto const key_create_res =
       pthread_key_create(&data_access_key_, thread_termination_function);
-
-  // On some platforms creating a new pthread-key requires an allocation when a
-  // given number of keys has been created. I.e. in glibc this limit is denoted
-  // by PTHREAD_KEY_2NDLEVEL_SIZE. However, this value is neither present on all
-  // systems nor accessible from here. Hence, we do not do any checks here.
-  // However, we strongly recommend to setup the TLS system as early as possible
-  // to avoid exceeding this limit.
-
-  // Some crashes might be caused by the initialization being performed too late
-  // and running into the problems mentioned above. Since there's no way to
-  // handle this issue programmatically, we include the key into the crashpad
-  // report to allow for later inspection.
-  std::string crash_key_name = "tls_system-";
-  crash_key_name += instance_id;
-
-  crash_key_ = base::debug::AllocateCrashKeyString(
-      crash_key_name.c_str(), GetCrashKeySize(crash_key_name));
-  base::debug::SetCrashKeyString(crash_key_,
-                                 base::NumberToString(data_access_key_));
 
   return (0 == key_create_res);
 }
 
 bool PThreadTLSSystem::TearDownForTesting() {
-#if DCHECK_IS_ON()
-  // TearDownForTesting must happen outside of the allocation path. Therefore,
-  // it is secure to verify with DCHECK.
-  DCHECK(initialized_.exchange(false, std::memory_order_acq_rel));
-#endif
+  if (!initialized_.exchange(false, std::memory_order_acq_rel)) {
+    return true;
+  }
 
-  base::debug::ClearCrashKeyString(crash_key_);
   crash_key_ = nullptr;
 
   auto const key_delete_res = pthread_key_delete(data_access_key_);

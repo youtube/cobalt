@@ -44,18 +44,6 @@ void ReentryGuard::InitTLSSlot() {}
 
 #endif
 
-void ReentryGuard::RecordTLSSlotToCrashKey() {
-  // Record the key in crash dumps to detect when it's higher than 32
-  // (PTHREAD_KEY_2NDLEVEL_SIZE).
-  // TODO(crbug.com/40062835): Remove this after diagnosing reentry crashes.
-  static auto* const crash_key = base::debug::AllocateCrashKeyString(
-      "reentry_guard_tls_slot", base::debug::CrashKeySize::Size32);
-
-#if BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_ANDROID)
-  base::debug::SetCrashKeyString(crash_key, base::NumberToString(entered_key_));
-#else
-  base::debug::SetCrashKeyString(crash_key, "unused");
-#endif
-}
+void ReentryGuard::RecordTLSSlotToCrashKey() {}
 
 }  // namespace base::allocator::dispatcher

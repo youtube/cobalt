@@ -269,25 +269,35 @@ bool GLOzoneEGLStarboard::LoadGLES2Bindings(
     // implementation. If that fails then fallback on direct call to
     // eglGetProcAddress.
     const SbEglInterface* egl = SbGetEglInterface();
-    gl::GLFunctionPointerType proc = GetEglInterfaceProcAddress(name, egl);
-    if (proc) {
-      return proc;
-    }
+    if (egl) {
+      gl::GLFunctionPointerType proc = GetEglInterfaceProcAddress(name, egl);
+      if (proc) {
+        return proc;
+      }
 
-    proc = reinterpret_cast<gl::GLFunctionPointerType>(
-        SbGetEglInterface()->eglGetProcAddress(name));
-    if (proc) {
-      return proc;
+      if (egl->eglGetProcAddress) {
+        proc = reinterpret_cast<gl::GLFunctionPointerType>(
+            egl->eglGetProcAddress(name));
+        if (proc) {
+          return proc;
+        }
+      }
     }
 
     // If still not found, try to retrieve GLES2 functions directly from the
     // SbGlesInterface as a fallback.
     const SbGlesInterface* gles = SbGetGlesInterface();
-    return GetGlesInterfaceProcAddress(name, gles);
+    if (gles) {
+      return GetGlesInterfaceProcAddress(name, gles);
+    }
+    return nullptr;
   };
 #else
-  gl::GLGetProcAddressProc gl_proc = reinterpret_cast<gl::GLGetProcAddressProc>(
-      SbGetEglInterface()->eglGetProcAddress);
+  const SbEglInterface* egl = SbGetEglInterface();
+  gl::GLGetProcAddressProc gl_proc =
+      (egl && egl->eglGetProcAddress)
+          ? reinterpret_cast<gl::GLGetProcAddressProc>(egl->eglGetProcAddress)
+          : nullptr;
 #endif
 
   if (!gl_proc) {

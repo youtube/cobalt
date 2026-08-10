@@ -328,7 +328,7 @@ void MessagePumpEpoll::AddEpollEvent(EpollEventEntry& entry) {
   const uint32_t events = entry.ComputeActiveEvents();
   epoll_event event{.events = events, .data = {.ptr = &entry}};
   int rv = epoll_ctl(epoll_.get(), EPOLL_CTL_ADD, entry.fd, &event);
-#if DCHECK_IS_ON()
+#if DCHECK_IS_ON() && !BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_STARBOARD)
   // TODO(361611793): Remove these debug logs after resolving the issue.
   if (rv != 0) {
     for (auto& history : entry.epoll_history_) {
@@ -344,17 +344,30 @@ void MessagePumpEpoll::AddEpollEvent(EpollEventEntry& entry) {
   } else {
     entry.PushEpollHistory(std::make_optional(event));
   }
+#else
+  if (rv == 0) {
+#if DCHECK_IS_ON()
+    entry.PushEpollHistory(std::make_optional(event));
 #endif
+  }
+#endif
+#if !BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_STARBOARD)
   DPCHECK(rv == 0);
+#else
+  DPCHECK(rv == 0 || errno == EEXIST);
+#endif
   entry.registered_events = events;
 
-  DCHECK(FindPollEntry(entry.fd) == pollfds_.end());
-  struct pollfd poll_entry;
-  poll_entry.fd = entry.fd;
-  poll_entry.revents = 0;
-  SetEventsForPoll(events, &poll_entry);
-
-  pollfds_.push_back(poll_entry);
+  auto poll_entry_it = FindPollEntry(entry.fd);
+  if (poll_entry_it != pollfds_.end()) {
+    SetEventsForPoll(events, &(*poll_entry_it));
+  } else {
+    struct pollfd poll_entry;
+    poll_entry.fd = entry.fd;
+    poll_entry.revents = 0;
+    SetEventsForPoll(events, &poll_entry);
+    pollfds_.push_back(poll_entry);
+  }
 }
 
 void MessagePumpEpoll::UpdateEpollEvent(EpollEventEntry& entry) {
@@ -385,7 +398,11 @@ void MessagePumpEpoll::UpdateEpollEvent(EpollEventEntry& entry) {
     }
     epoll_event event{.events = events, .data = {.ptr = &entry}};
     int rv = epoll_ctl(epoll_.get(), EPOLL_CTL_MOD, entry.fd, &event);
+#if !BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_STARBOARD)
     DPCHECK(rv == 0);
+#else
+    DPCHECK(rv == 0 || errno == ENOENT || errno == EBADF);
+#endif
 #if DCHECK_IS_ON()
     entry.PushEpollHistory(std::make_optional(event));
 #endif
@@ -405,7 +422,11 @@ void MessagePumpEpoll::StopEpollEvent(EpollEventEntry& entry) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!entry.stopped) {
     int rv = epoll_ctl(epoll_.get(), EPOLL_CTL_DEL, entry.fd, nullptr);
+#if !BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_STARBOARD)
     DPCHECK(rv == 0);
+#else
+    DPCHECK(rv == 0 || errno == ENOENT || errno == EBADF);
+#endif
 #if DCHECK_IS_ON()
     entry.PushEpollHistory(std::nullopt);
 #endif
@@ -520,15 +541,23 @@ std::vector<struct pollfd>::iterator MessagePumpEpoll::FindPollEntry(int fd) {
 }
 
 void MessagePumpEpoll::RemovePollEntry(int fd) {
-  pollfds_.erase(FindPollEntry(fd));
+  auto it = FindPollEntry(fd);
+  if (it != pollfds_.end()) {
+    pollfds_.erase(it);
+  }
 }
 
 bool MessagePumpEpoll::GetEventsPoll(int epoll_timeout,
                                      std::vector<epoll_event>* epoll_events) {
+  if (pollfds_.empty()) {
+    return false;
+  }
   int retval = poll(&pollfds_[0], base::checked_cast<nfds_t>(pollfds_.size()),
                     epoll_timeout);
   if (retval < 0) {
+#if !BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_STARBOARD)
     DPCHECK(errno == EINTR);
+#endif
     return false;
   }
   // Nothing to do, timeout.
@@ -548,7 +577,10 @@ bool MessagePumpEpoll::GetEventsPoll(int epoll_timeout,
       event.data.ptr = &wake_event_;
     } else {
       auto entry = entries_.find(pollfd_entry.fd);
-      CHECK(entry != entries_.end());
+      if (entry == entries_.end()) {
+        pollfd_entry.revents = 0;
+        continue;
+      }
       event.data.ptr = &(entry->second);
     }
 

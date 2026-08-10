@@ -1,4 +1,4 @@
-﻿// Copyright 2022 The Chromium Authors
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -130,19 +130,8 @@ class BASE_EXPORT PThreadTLSSystem {
  private:
   base::debug::CrashKeyString* crash_key_ = nullptr;
   pthread_key_t data_access_key_ = 0;
-#if DCHECK_IS_ON()
-  // From POSIX standard at https://www.open-std.org/jtc1/sc22/open/n4217.pdf:
-  // The effect of calling pthread_getspecific() or pthread_setspecific() with a
-  // key value not obtained from pthread_key_create() or after key has been
-  // deleted with pthread_key_delete() is undefined.
-  //
-  // Unfortunately, POSIX doesn't define a special value of pthread_key_t
-  // indicating an invalid key which would allow us to detect accesses outside
-  // of initialized state. Hence, to prevent us from drifting into the evil
-  // realm of undefined behaviour we store whether we're somewhere between Setup
-  // and Teardown.
+  // Store whether we're somewhere between Setup and Teardown.
   std::atomic_bool initialized_{false};
-#endif
 };
 
 using DefaultTLSSystem = PThreadTLSSystem;

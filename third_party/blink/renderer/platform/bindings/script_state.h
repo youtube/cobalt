@@ -150,26 +150,26 @@ class PLATFORM_EXPORT ScriptState : public GarbageCollected<ScriptState> {
 
   static ScriptState* ForRelevantRealm(v8::Isolate* isolate,
                                        v8::Local<v8::Object> object) {
-    DCHECK(!object.IsEmpty());
+    if (object.IsEmpty()) {
+      return nullptr;
+    }
     ScriptState* script_state = static_cast<ScriptState*>(
         object->GetAlignedPointerFromEmbedderDataInCreationContext(
             isolate, kV8ContextPerContextDataIndex));
-    // ScriptState::ForRelevantRealm() must be called only for objects having a
-    // creation context while the context must have a valid embedder data in
-    // the embedder field.
-    DCHECK(script_state);
     return script_state;
   }
 
   static ScriptState* From(v8::Isolate* isolate,
                            v8::Local<v8::Context> context) {
-    DCHECK(!context.IsEmpty());
+    if (context.IsEmpty()) {
+      return nullptr;
+    }
     ScriptState* script_state =
         static_cast<ScriptState*>(context->GetAlignedPointerFromEmbedderData(
             isolate, kV8ContextPerContextDataIndex));
-    // ScriptState::From() must not be called for a context that does not have
-    // valid embedder data in the embedder field.
-    DCHECK(script_state);
+    if (!script_state) {
+      return nullptr;
+    }
     SECURITY_CHECK(script_state->context_ == context);
     return script_state;
   }

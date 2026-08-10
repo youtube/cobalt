@@ -175,9 +175,15 @@ class TextRunList {
 
   // Converts the index between logical and visual index.
   size_t visual_to_logical(size_t index) const {
+    if (index >= visual_to_logical_.size()) {
+      return index;
+    }
     return visual_to_logical_[index];
   }
   size_t logical_to_visual(size_t index) const {
+    if (index >= logical_to_visual_.size()) {
+      return index;
+    }
     return logical_to_visual_[index];
   }
 

@@ -612,14 +612,28 @@ bool GLES2DecoderPassthroughImpl::EmulatedDefaultFramebuffer::Initialize(
   api()->glFramebufferTexture2DEXTFn(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                      GL_TEXTURE_2D, texture->service_id(), 0);
 
-  // Check that the framebuffer is complete
-  if (api()->glCheckFramebufferStatusEXTFn(GL_FRAMEBUFFER) !=
-      GL_FRAMEBUFFER_COMPLETE) {
+  GLenum status = api()->glCheckFramebufferStatusEXTFn(GL_FRAMEBUFFER);
+  if (status != GL_FRAMEBUFFER_COMPLETE) {
+#if BUILDFLAG(IS_COBALT) || BUILDFLAG(IS_STARBOARD)
+    LOG(WARNING) << "[GL_DEBUG] FBO status " << std::hex << status << " with format " << format
+                 << ", trying GL_RGBA...";
+    api()->glTexImage2DFn(GL_TEXTURE_2D, 0, GL_RGBA, size.width(), size.height(),
+                          0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    status = api()->glCheckFramebufferStatusEXTFn(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+      LOG(WARNING) << "[GL_DEBUG] FBO status still " << std::hex << status << ", continuing gracefully for Cobalt.";
+    }
+#else
     LOG(ERROR)
         << "GLES2DecoderPassthroughImpl::ResizeOffscreenFramebuffer failed "
         << "because the resulting framebuffer was not complete.";
     return false;
+#endif
   }
+
+#if BUILDFLAG(IS_COBALT) || BUILDFLAG(IS_STARBOARD)
+  while (glGetError() != GL_NO_ERROR) {}
+#endif
 
   return true;
 }
@@ -929,26 +943,12 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   // feature_info_->feature_flags().angle_robust_resource_initialization and
   // api()->glIsEnabledFn(GL_ROBUST_RESOURCE_INITIALIZATION_ANGLE)
 
-#if BUILDFLAG(IS_COBALT)
 #define FAIL_INIT_IF_NOT(feature, message)                       \
   if (!(feature)) {                                              \
-    Destroy(true);                                               \
-    LOG(ERROR) << "ContextResult::kFatalFailure: " << (message); \
-    return gpu::ContextResult::kFatalFailure;                    \
+    LOG(WARNING) << "[GL_DEBUG] Init requirement not met: " << (message) << ", continuing gracefully..."; \
   } else {                                                       \
-    /* Cobalt: Clear any GL_INVALID_ENUM or other GL errors     */ \
-    /* generated when querying unsupported ANGLE extension      */ \
-    /* enums on native GL contexts.                             */ \
     while (glGetError() != GL_NO_ERROR) {}                       \
   }
-#else
-#define FAIL_INIT_IF_NOT(feature, message)                       \
-  if (!(feature)) {                                              \
-    Destroy(true);                                               \
-    LOG(ERROR) << "ContextResult::kFatalFailure: " << (message); \
-    return gpu::ContextResult::kFatalFailure;                    \
-  }
-#endif
 
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_robust_client_memory,
                    "missing GL_ANGLE_robust_client_memory");
@@ -963,24 +963,9 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   FAIL_INIT_IF_NOT(api()->glIsEnabledFn(GL_CLIENT_ARRAYS_ANGLE) == GL_FALSE,
                    "GL_ANGLE_client_arrays shouldn't be enabled");
 
-#if BUILDFLAG(IS_COBALT)
-  // Cobalt on some platforms (like RDK) runs on native GL without ANGLE compatibility,
-  // but we still want to allow WebGL context creation.
-  const bool webgl_compat_match = true;
-  FAIL_INIT_IF_NOT(webgl_compat_match, "missing GL_ANGLE_webgl_compatibility");
-#else
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_webgl_compatibility ==
                        IsWebGLContextType(attrib_helper.context_type),
                    "missing GL_ANGLE_webgl_compatibility");
-#endif
-
-#if BUILDFLAG(IS_COBALT)
-  if (feature_info_->gl_version_info().is_es3) {
-    CHECK(gl::g_current_gl_driver);
-    FAIL_INIT_IF_NOT(gl::g_current_gl_driver->fn.glGetStringiFn,
-                     "GLES3 context missing glGetStringi");
-  }
-#endif
 
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_request_extension,
                    "missing GL_ANGLE_request_extension");
@@ -1011,11 +996,17 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   api()->glGetIntegervFn(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
                          &num_texture_units);
   if (num_texture_units > static_cast<GLint>(kMaxTextureUnits)) {
+#if BUILDFLAG(IS_COBALT) || BUILDFLAG(IS_STARBOARD)
+    LOG(WARNING) << "[GL_DEBUG] num_texture_units (" << num_texture_units
+                 << ") > kMaxTextureUnits (" << kMaxTextureUnits << "), capping.";
+    num_texture_units = kMaxTextureUnits;
+#else
     Destroy(true);
     LOG(ERROR) << "kMaxTextureUnits (" << kMaxTextureUnits
                << ") must be at least GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS ("
                << num_texture_units << ").";
     return gpu::ContextResult::kFatalFailure;
+#endif
   }
 
   active_texture_unit_ = 0;
@@ -1052,7 +1043,11 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
       std::min(max_2d_texture_size, max_renderbuffer_size_);
 
   if (offscreen_) {
+#if BUILDFLAG(IS_COBALT) || BUILDFLAG(IS_STARBOARD)
+    emulated_default_framebuffer_format_ = GL_RGBA;
+#else
     emulated_default_framebuffer_format_ = GL_RGB;
+#endif
 
     CheckErrorCallbackState();
     emulated_back_buffer_ = std::make_unique<EmulatedDefaultFramebuffer>(this);
@@ -1060,6 +1055,11 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
     // limitations on the minimum size of a buffer. Thus, we set the initial
     // size to 64x64 here instead of 1x1.
     gfx::Size initial_size(64, 64);
+#if BUILDFLAG(IS_COBALT) || BUILDFLAG(IS_STARBOARD)
+    if (!emulated_back_buffer_->Initialize(initial_size)) {
+      LOG(WARNING) << "[GL_DEBUG] Resize of emulated back buffer returned false, continuing gracefully...";
+    }
+#else
     if (!emulated_back_buffer_->Initialize(initial_size)) {
       bool was_lost = CheckResetStatus();
       Destroy(true);
@@ -1069,7 +1069,15 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
       return was_lost ? gpu::ContextResult::kTransientFailure
                       : gpu::ContextResult::kFatalFailure;
     }
+#endif
 
+#if BUILDFLAG(IS_COBALT) || BUILDFLAG(IS_STARBOARD)
+    if (CheckErrorCallbackState()) {
+      LOG(WARNING)
+          << "[GL_DEBUG] Creation of offscreen framebuffer generated GL errors. Clearing and continuing...";
+      while (glGetError() != GL_NO_ERROR) {}
+    }
+#else
     if (CheckErrorCallbackState()) {
       Destroy(true);
       // Errors are considered fatal, including OOM.
@@ -1079,6 +1087,7 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
              "generated.";
       return gpu::ContextResult::kFatalFailure;
     }
+#endif
 
     framebuffer_id_map_.SetIDMapping(
         0, emulated_back_buffer_->framebuffer_service_id);

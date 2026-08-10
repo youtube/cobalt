@@ -165,9 +165,12 @@ class OzonePlatformStarboard : public OzonePlatform {
 OzonePlatform* CreateOzonePlatformStarboard() {
   base::CommandLine* cmd = base::CommandLine::ForCurrentProcess();
   if (cmd->HasSwitch(switches::kUseGL)) {
-    CHECK_EQ(cmd->GetSwitchValueASCII(switches::kUseGL),
-             gl::kGLImplementationANGLEName)
-        << " Unsupported " << switches::kUseGL << " implementation";
+    const std::string use_gl = cmd->GetSwitchValueASCII(switches::kUseGL);
+    CHECK(use_gl == gl::kGLImplementationANGLEName ||
+          use_gl == "egl-angle" ||
+          use_gl == "starboard" ||
+          use_gl.empty())
+        << " Unsupported " << switches::kUseGL << " implementation: " << use_gl;
   }
 
   return new OzonePlatformStarboard();
