@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-include ':app'
+#ifndef STARBOARD_ANDROID_SHARED_PLAYER_SETTINGS_H_
+#define STARBOARD_ANDROID_SHARED_PLAYER_SETTINGS_H_
 
-println "GRADLE VERSION: $gradle.gradleVersion"
+namespace starboard {
 
-gradle.ext.rootBuildDir = hasProperty('cobaltGradleDir')
-    ? new File(cobaltGradleDir, 'build')
-    : new File(rootDir, "/../../../out/android_studio/gradle/build").canonicalFile
+const void* GetPlayerSettingsApi();
+
+}  // namespace starboard
+
+#endif  // STARBOARD_ANDROID_SHARED_PLAYER_SETTINGS_H_
