@@ -75,8 +75,9 @@ DrmSystem::DrmSystem(PassKey<DrmSystem>,
                      Callbacks callbacks)
     : Thread("DrmSystemThread"),
       key_system_(key_system),
-      enable_app_provisioning_(
-          MediaCapabilitiesCache::GetInstance()->IsAppProvisioningEnabled()),
+      // We are launching drm app provisioning.
+      // TODO: b/537337783 - Remove dead codes 2 weeks later (08/26/2026).
+      enable_app_provisioning_(true),
       context_(context),
       callbacks_(callbacks),
       hdcp_lost_(false),
