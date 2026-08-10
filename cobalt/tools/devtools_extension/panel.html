@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Cobalt Memory Breakdown</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <div class="panel-container">
+    <!-- Header Toolbar -->
+    <header class="toolbar">
+      <div class="toolbar-brand">
+        <span class="logo-cobalt">COBALT</span>
+        <span class="toolbar-title">Memory Breakdown</span>
+      </div>
+
+      <div class="connection-bar">
+        <label for="cdp-url">Target CDP:</label>
+        <input type="text" id="cdp-url" value="ws://127.0.0.1:9222" placeholder="ws://127.0.0.1:9222">
+        <button id="btn-connect" class="btn btn-primary">Connect</button>
+        <span id="connection-status" class="status-badge disconnected">Disconnected</span>
+      </div>
+
+      <div class="toolbar-actions">
+        <button id="btn-refresh" class="btn btn-secondary" title="Fetch instantaneous snapshot">🔄 Refresh</button>
+        <button id="btn-baseline" class="btn btn-secondary" title="Take baseline snapshot for diffing">📍 Take Baseline</button>
+        <button id="btn-export-json" class="btn btn-secondary" title="Export metrics as JSON">⬇ Export JSON</button>
+        <div class="mode-toggle">
+          <label class="switch-label">
+            <input type="checkbox" id="toggle-live" checked>
+            <span class="slider"></span>
+            <span class="mode-text">1 Hz Live Polling</span>
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <!-- Top KPI Cards & Summary -->
+    <section class="kpi-grid">
+      <div class="kpi-card" id="card-rss">
+        <div class="kpi-label">Physical Resident Set (RSS)</div>
+        <div class="kpi-value" id="val-rss">-- MB</div>
+        <div class="kpi-sub" id="delta-rss">Baseline: --</div>
+      </div>
+      <div class="kpi-card" id="card-pmf">
+        <div class="kpi-label">Private Memory Footprint</div>
+        <div class="kpi-value" id="val-pmf">-- MB</div>
+        <div class="kpi-sub" id="delta-pmf">Baseline: --</div>
+      </div>
+      <div class="kpi-card" id="card-v8">
+        <div class="kpi-label">V8 JavaScript Heap</div>
+        <div class="kpi-value" id="val-v8">-- MB</div>
+        <div class="kpi-sub" id="delta-v8">Baseline: --</div>
+      </div>
+      <div class="kpi-card" id="card-gpu-peak">
+        <div class="kpi-label">Peak GPU (PageLoad)</div>
+        <div class="kpi-value" id="val-gpu-peak">-- MB</div>
+        <div class="kpi-sub">Field Telemetry P50</div>
+      </div>
+    </section>
+
+    <!-- Lifecycle Guardrails Row -->
+    <section class="guardrail-section">
+      <div class="section-title">⏱ Time-Windowed Peak Private Memory Footprint (Guardrails)</div>
+      <div class="guardrail-grid">
+        <div class="guardrail-card">
+          <div class="gr-window">0 to 2 min (Startup)</div>
+          <div class="gr-value" id="gr-0to2">-- MB</div>
+          <div class="gr-budget">Budget: &lt; 220 MB</div>
+        </div>
+        <div class="guardrail-card">
+          <div class="gr-window">2 to 4 min (Playback)</div>
+          <div class="gr-value" id="gr-2to4">-- MB</div>
+          <div class="gr-budget">Budget: &lt; 250 MB</div>
+        </div>
+        <div class="guardrail-card">
+          <div class="gr-window">4 to 8 min (Browse)</div>
+          <div class="gr-value" id="gr-4to8">-- MB</div>
+          <div class="gr-budget">Budget: &lt; 270 MB</div>
+        </div>
+        <div class="guardrail-card">
+          <div class="gr-window">8 to 16 min (Soak)</div>
+          <div class="gr-value" id="gr-8to16">-- MB</div>
+          <div class="gr-budget">Budget: &lt; 280 MB</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Memory Distribution Stacked Bar -->
+    <section class="breakdown-bar-section">
+      <div class="section-title">📊 Subsystem Memory Distribution (Live)</div>
+      <div class="stacked-bar-container">
+        <div class="stacked-bar" id="allocator-stacked-bar">
+          <div class="bar-segment seg-v8" style="width: 0%" title="V8 Heap"></div>
+          <div class="bar-segment seg-stacks" style="width: 0%" title="Thread Stacks"></div>
+          <div class="bar-segment seg-other" style="width: 100%" title="Other RSS"></div>
+        </div>
+        <div class="bar-legend" id="bar-legend">
+          <span class="legend-item"><span class="legend-dot seg-v8"></span> V8 Heap</span>
+          <span class="legend-item"><span class="legend-dot seg-stacks"></span> Thread Stacks</span>
+          <span class="legend-item"><span class="legend-dot seg-other"></span> Other Footprint</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Detailed Metrics Table -->
+    <section class="table-section">
+      <div class="section-title">📋 Canonical Memory Breakdown &amp; Telemetry Suite</div>
+      <table class="metrics-table" id="metrics-table">
+        <thead>
+          <tr>
+            <th>Subsystem / Telemetry Metric</th>
+            <th>Type</th>
+            <th>Current Value</th>
+            <th>Baseline Delta</th>
+            <th>% of Total RSS</th>
+            <th>Source / Domain</th>
+          </tr>
+        </thead>
+        <tbody id="metrics-table-body">
+          <tr>
+            <td colspan="6" class="placeholder-row">Connect to a running Cobalt instance (e.g. ws://127.0.0.1:9222) to view metrics.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Footer -->
+    <footer class="panel-footer">
+      <span>Cobalt DevTools Extension • Unified CDP Backend (`Performance.getMetrics`) • <code>go/kimono-memory-metrics</code></span>
+    </footer>
+  </div>
+
+  <script src="panel.js"></script>
+</body>
+</html>
