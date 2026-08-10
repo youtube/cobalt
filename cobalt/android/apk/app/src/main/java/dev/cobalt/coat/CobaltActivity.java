@@ -18,7 +18,6 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.content.Intent;
 import android.net.Uri;
-import java.util.Locale;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -31,7 +30,6 @@ import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.view.WindowManager;
-
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
@@ -57,6 +55,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.chromium.base.CommandLine;
@@ -141,7 +140,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
         }
       };
   private boolean mWasDisplayOn = true;
-
 
   @VisibleForTesting
   static String[] appendArgsFromMetaData(Bundle metaData, String[] commandLineArgs) {
@@ -517,7 +515,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
           javascriptAndroidObject,
           javascriptAndroidObject.getJavaScriptInterfaceName(),
           CobaltJavaScriptInterface.class,
-          /* originAllowlist= */ new ArrayList<String>());
+          // An empty allowlist matches no origin at all, which silently disables every
+          // injected Java object. "*" restores the pre-M138 behaviour of allowing all
+          // origins.
+          // TODO(b/543808733): consider a stricter allowlist than "*".
+          /* originAllowlist= */ List.of("*"));
     }
   }
 
@@ -562,8 +564,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     }
     WebContents webContents = getActiveWebContents();
     if (webContents != null
-        && (isNvidiaShield()
-            || getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
+        && (isNvidiaShield() || getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
       // document.onresume event
       webContents.onResume();
     }
