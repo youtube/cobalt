@@ -53,6 +53,9 @@ public class JavaSwitches {
   public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES =
       "DisableGpuMemoryBufferCompositorResources";
 
+  /** flag to enable the GPU shader disk cache. */
+  public static final String ENABLE_GPU_SHADER_DISK_CACHE = "EnableGpuShaderDiskCache";
+
   /** flag to limit GPU image cache items */
   public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
 
@@ -207,6 +210,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_V8_CODE_CACHE)) {
       extraCommandLineArgs.add("--enable-optimized-v8-code-cache");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE)) {
+      extraCommandLineArgs.add("--enable-gpu-shader-disk-cache");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.MAX_HTTP_CACHE_SIZE)) {
