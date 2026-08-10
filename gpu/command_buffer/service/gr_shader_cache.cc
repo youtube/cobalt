@@ -224,7 +224,16 @@ void GrShaderCache::WriteToDisk(const CacheKey& key, CacheData* data) {
     return;
 
   // Only cache the shader on disk if this client id is permitted.
-#if !BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT)
+  // In Cobalt, we bypass this restriction and allow caching if the
+  // 'enable-gpu-shader-disk-cache' experiment flag is active, unless
+  // the process explicitly specifies the 'incognito' flag.
+  if (client_ids_to_cache_on_disk_.count(current_client_id()) == 0 &&
+      (!base::CommandLine::ForCurrentProcess()->HasSwitch("enable-gpu-shader-disk-cache") ||
+       base::CommandLine::ForCurrentProcess()->HasSwitch("incognito"))) {
+    return;
+  }
+#else
   if (client_ids_to_cache_on_disk_.count(current_client_id()) == 0)
     return;
 #endif
