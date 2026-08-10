@@ -155,7 +155,7 @@ SourceBufferState::~SourceBufferState() {
 
 void SourceBufferState::Init(StreamParser::InitCB init_cb,
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-                             const std::string& mime_type,
+                             std::string_view mime_type,
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
                              std::optional<std::string_view> expected_codecs,
                              const StreamParser::EncryptedMediaInitDataCB&
