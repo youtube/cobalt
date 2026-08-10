@@ -41,8 +41,26 @@ H5vccNativeStability::getPendingReports(ScriptState* script_state,
       ScriptPromiseResolver<IDLSequence<V8NativeStabilityReport>>>(
       script_state, exception_state.GetContext());
 
+  ongoing_requests_.insert(resolver);
   remote_native_stability_->GetPendingReports(
       WTF::BindOnce(&H5vccNativeStability::OnGetPendingReports,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+
+  return resolver->Promise();
+}
+
+ScriptPromise<IDLUndefined> H5vccNativeStability::acknowledgeReports(
+    ScriptState* script_state,
+    const Vector<String>& native_stability_event_uuids,
+    ExceptionState& exception_state) {
+  EnsureReceiverIsBound();
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      script_state, exception_state.GetContext());
+
+  ongoing_requests_.insert(resolver);
+  remote_native_stability_->AcknowledgeReports(
+      native_stability_event_uuids,
+      WTF::BindOnce(&H5vccNativeStability::OnAcknowledgeReports,
                     WrapPersistent(this), WrapPersistent(resolver)));
 
   return resolver->Promise();
@@ -65,6 +83,7 @@ void H5vccNativeStability::OnGetPendingReports(
     ScriptPromiseResolver<IDLSequence<V8NativeStabilityReport>>* resolver,
     Vector<h5vcc_native_stability::mojom::blink::NativeStabilityReportPtr>
         mojo_reports) {
+  ongoing_requests_.erase(resolver);
   HeapVector<Member<V8NativeStabilityReport>> result;
   for (const auto& mojo_report : mojo_reports) {
     if (mojo_report->is_crash_report()) {
@@ -87,6 +106,12 @@ void H5vccNativeStability::OnGetPendingReports(
   resolver->Resolve(std::move(result));
 }
 
+void H5vccNativeStability::OnAcknowledgeReports(
+    ScriptPromiseResolver<IDLUndefined>* resolver) {
+  ongoing_requests_.erase(resolver);
+  resolver->Resolve();
+}
+
 void H5vccNativeStability::EnsureReceiverIsBound() {
   DCHECK(GetExecutionContext());
 
@@ -98,11 +123,25 @@ void H5vccNativeStability::EnsureReceiverIsBound() {
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
       remote_native_stability_.BindNewPipeAndPassReceiver(task_runner));
+  remote_native_stability_.set_disconnect_handler(WTF::BindOnce(
+      &H5vccNativeStability::OnConnectionError, WrapWeakPersistent(this)));
+}
+
+void H5vccNativeStability::OnConnectionError() {
+  remote_native_stability_.reset();
+  HeapHashSet<Member<ScriptPromiseResolverBase>> pending_promises;
+  // Script may execute during a call to Reject(). Swap these sets to prevent
+  // concurrent modification.
+  ongoing_requests_.swap(pending_promises);
+  for (auto& resolver : pending_promises) {
+    resolver->Reject("Mojo connection error.");
+  }
 }
 
 void H5vccNativeStability::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
+  visitor->Trace(ongoing_requests_);
   visitor->Trace(remote_native_stability_);
 }
 
