@@ -133,8 +133,6 @@ class SbPlayerInterface {
   };
 #endif  // !BUILDFLAG(COBALT_MEDIA_ENABLE_UMA_METRICS)
   MediaMetricsProvider media_metrics_provider_;
-
-  bool SetDecodeToTexturePreferred(bool preferred);
 };
 
 class DefaultSbPlayerInterface final : public SbPlayerInterface {
