@@ -98,9 +98,7 @@ runs:
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
           --gcs_result_path "${{ inputs.gcs_results_path }}" || {
             echo "Finished running tests..."
-            echo "The test session failed. See logs for details."
-            # Fail the job so it's easy to retrigger.
-            exit 1
+            echo "The test session had failure(s). Results will be evaluated in the next step."
           }
         echo "Finished running tests..."
       shell: bash
@@ -139,11 +137,17 @@ runs:
 
               # Try to find the crashed test in the log and create a fake junit xml for it.
               log_path=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"_log.txt)
-              xml_path=("${test_output}"/${{ matrix.platform }}/1/"${test_target}"_testoutput.xml)
-              python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
-              exit_code=1
+              xml_path="${test_output}/${{ matrix.platform }}/1/${test_target}_testoutput.xml"
+              if [[ ${#log_path[@]} -gt 0 && -f "${log_path[0]}" ]]; then
+                python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path[0]}" "${xml_path}"
+              fi
+              if [[ "$required_passing" == "true" ]]; then
+                exit_code=1
+              else
+                echo "Test result xml is missing for ${test_target}, but required_passing is false for this target. Ignoring."
+              fi
             fi
-          elif grep -q -e '<failure' -e '<error' ${xml_files}; then
+          elif grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
             if [[ "$required_passing" == "true" ]]; then
               echo "::error::Found failures in the test xml."
               exit_code=1
