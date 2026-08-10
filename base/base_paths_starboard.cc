@@ -24,6 +24,8 @@
 #include "base/logging.h"
 #include "build/build_config.h"
 #include "starboard/common/app_key.h"
+#include "starboard/common/device_type.h"
+#include "starboard/common/system_property.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
 
@@ -67,14 +69,14 @@ bool PathProviderStarboard(int key, FilePath* result) {
       FilePath test_data_path;
       if (PathProviderStarboard(DIR_EXE, &test_data_path)) {
 #if BUILDFLAG(USE_EVERGREEN)
-        // On Evergreen devices, standalone test packages extract content/test/data
-        // directly into DIR_EXE. If present, use DIR_EXE as the test data root
-        // instead of navigating up parent directories to a full source checkout.
-        if (base::PathExists(test_data_path.Append(FILE_PATH_LITERAL("content/test/data")))) {
+        // On desktop host, navigate up to the source checkout.
+        // On target devices (e.g. STB, TV), test data is packaged directly in DIR_EXE.
+        if (starboard::GetSystemPropertyString(kSbSystemPropertyDeviceType) ==
+            starboard::kSystemDeviceTypeDesktopPC) {
+          *result = test_data_path.DirName().DirName().DirName();
+        } else {
           *result = test_data_path;
-          return true;
         }
-        *result = test_data_path.DirName().DirName().DirName();
 #else
         *result = test_data_path.DirName().DirName();
 #endif
