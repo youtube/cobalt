@@ -121,7 +121,7 @@ pipeline () {
     local build_out_dir="out/${TARGET_PLATFORM}_${CONFIG}"
     if [[ -d "${build_out_dir}" ]]; then
       echo "Uploading libchrobalt.so to GCS..."
-      
+
       local gcs_dest="gs://cobalt-internal-build-artifacts/kimono_artifacts/${KOKORO_BUILD_NUMBER}/${TARGET_PLATFORM}_${CONFIG}/libchrobalt.so"
       local so_file
       so_file=$(find "${build_out_dir}" -type f -name "libchrobalt.so" | head -n 1)
