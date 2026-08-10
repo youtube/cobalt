@@ -1,4 +1,4 @@
-name: Autoroll LTS
+name: Autoroll Main
 
 on:
   schedule:
@@ -17,7 +17,6 @@ jobs:
   autoroll:
     runs-on: ubuntu-latest
     env:
-      DEPOT_TOOLS_METRICS: 0
       GIT_AUTHOR_NAME: "cobalt-github-releaser-bot"
       GIT_AUTHOR_EMAIL: "95661244+cobalt-github-releaser-bot@users.noreply.github.com"
       GIT_COMMITTER_NAME: "cobalt-github-releaser-bot"
@@ -34,7 +33,6 @@ jobs:
         branch: [
           {source: main, target: 27.lts, autoroll: .github/AUTOROLL},
           {source: main, target: staging, autoroll: .github/AUTOROLL},
-          {source: chromium/main, target: staging, autoroll: .github/AUTOROLL_CHROMIUM},
         ]
     steps:
       - name: Checkout code
@@ -79,14 +77,6 @@ jobs:
           # If the PR doesn't exist, it returns an empty string.
           FIRST_SHA=$(gh pr list --head "autoroll-${{ matrix.branch.source }}-to-${{ matrix.branch.target }}" --state open --json commits --jq '.[0].commits[0].oid // ""')
           echo "first_sha=$FIRST_SHA" >> "$GITHUB_OUTPUT"
-
-      - name: Set Up Depot Tools
-        if: startsWith(matrix.branch.source, 'chromium/')
-        run: |
-          DEPOT_TOOLS_TEMP="${RUNNER_TEMP}/depot_tools"
-          git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$DEPOT_TOOLS_TEMP"
-          echo "$DEPOT_TOOLS_TEMP" >> $GITHUB_PATH
-          source "${DEPOT_TOOLS_TEMP}/bootstrap_python3" && bootstrap_python3
 
       - name: Cherry Pick Merged PRs
         id: autoroll
