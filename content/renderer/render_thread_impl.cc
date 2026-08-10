@@ -1821,14 +1821,22 @@ void RenderThreadImpl::OnSyncMemoryPressure(
 
 #if !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
   // In order to reduce performance impact, translate critical level to
-  // moderate level for foreground renderer unless for experiment.
-  const bool allow_critical_in_foreground =
+  // moderate level for foreground renderer for non cobalt builds.
+#if BUILDFLAG(IS_COBALT)
+  static const bool allow_critical_in_foreground =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           "allow-critical-memory-pressure-handling-in-foreground");
 
   if (!allow_critical_in_foreground && !RendererIsHidden() &&
       v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
     v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
+#else
+  if (!RendererIsHidden() &&
+      v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical) {
+    v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
 #endif  // !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
 
   if (base::FeatureList::IsEnabled(
