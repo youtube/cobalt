@@ -90,8 +90,7 @@ public final class CommandLineOverrideHelper {
 
         // Trades a little V8 performance for significant memory savings.
         paramOverrides.add("--optimize-for-size");
-        // Set initial old space size to 64MB and max old space size to 512MB.
-        paramOverrides.add("--initial-old-space-size=64");
+        // Set max old space size to 512MB.
         paramOverrides.add("--max-old-space-size=512");
 
         // Disable decommitting pooled pages to prevent virtual memory fragmentation.
@@ -135,6 +134,9 @@ public final class CommandLineOverrideHelper {
         // OpenSL ES supports seamless switching to virtual microphones like AtvRemote.
         // For details, see http://b/478022126#comment6.
         paramOverrides.add("UseAAudioInput");
+
+        // Disable FontSrcLocalMatching lookup table.
+        paramOverrides.add("FontSrcLocalMatching");
 
         return paramOverrides;
     }

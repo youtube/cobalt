@@ -186,17 +186,6 @@ void VideoSurfaceHolder::ReleaseVideoSurface() {
   }
 }
 
-bool VideoSurfaceHolder::GetVideoWindowSize(int* width, int* height) {
-  std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_native_video_window == NULL) {
-    return false;
-  } else {
-    *width = ANativeWindow_getWidth(g_native_video_window);
-    *height = ANativeWindow_getHeight(g_native_video_window);
-    return true;
-  }
-}
-
 void VideoSurfaceHolder::CleanUpVideoWindow(
     bool force_clear,
     SbDecodeTargetGraphicsContextProvider* gpu_provider) {

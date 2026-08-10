@@ -26,22 +26,27 @@ public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
+
+  /** flag to enable auto-retrying URL load on network recovery before splash screen is hidden. */
+  public static final String ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY =
+      "EnableAutoRetryOnNetworkRecovery";
+
   public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
   public static final String ENABLE_OPTIMIZED_V8_CODE_CACHE = "EnableOptimizedV8CodeCache";
 
+  /** flag to allow caching CSS and WebAssembly resources in the HTTP disk cache. */
+  public static final String ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE = "EnableCssAndWasmForHttpCache";
+
+  /** flag to enable aggressive HTTP disk cache and V8 generated code cache tuning exclusions. */
+  public static final String ENABLE_HTTP_AND_V8_CACHE_TUNING = "EnableHttpAndV8CacheTuning";
+
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
-
-  /** flag to enable a 1.5s delay before firing the freeze event on background. */
-  public static final String DELAY_FREEZE_ON_BACKGROUND = "DelayFreezeOnBackground";
 
   /** flag to force use IPv4 for system host resolution. */
   public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
 
   public static final String USE_MINOR_MS_FOR_MINOR_GC = "UseMinorMSForMinorGC";
-
-  /** flag to delete stale leveldb LOCK file on startup. */
-  public static final String LOCAL_STORAGE_DELETE_LOCK_FILE = "LocalStorageDeleteLockFile";
 
   /** flag to tune compositor offscreen interest area size in pixels. */
   public static final String INTEREST_AREA_SIZE_IN_PIXELS = "InterestAreaSizeInPixels";
@@ -54,6 +59,9 @@ public class JavaSwitches {
 
   /** flag to limit GPU image cache items */
   public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
+
+  /** flag to globally configure max HTTP cache size ceiling in bytes. */
+  public static final String MAX_HTTP_CACHE_SIZE = "MaxHttpCacheSize";
 
   /** flag to limit GPU image cache working set budget bytes */
   public static final String DECODED_IMAGE_WORKING_SET_BUDGET_BYTES = "DecodedImageWorkingSetBudgetBytes";
@@ -77,9 +85,6 @@ public class JavaSwitches {
   public static final String COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE =
       "CobaltDynamicMojoPipeMediaSize";
 
-  /** flag to disable FontSrcLocalMatching lookup table. */
-  public static final String DISABLE_FONT_SRC_LOCAL_MATCHING = "DisableFontSrcLocalMatching";
-
   /** Avoid reuse resource. */
   public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
 
@@ -90,16 +95,19 @@ public class JavaSwitches {
   /** flag to aggressively flush v8 bytecode after a configurable old time. */
   public static final String V8_SET_BYTECODE_OLD_TIME = "V8SetBytecodeOldTime";
 
+  /** Flag for enable go/cobalt-direct-window-rendering */
+  public static final String DIRECT_WINDOW_RENDERING = "DirectWindowRendering";
+  public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
+
+  /** flag to enable area based buffer budget experiment. */
+  public static final String AREA_BASED_VIDEO_BUFFER_BUDGET = "AreaBasedVideoBufferBudget";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
 
     if (javaSwitches.containsKey(JavaSwitches.USE_IPV4_FOR_DNS)) {
       extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.LOCAL_STORAGE_DELETE_LOCK_FILE)) {
-      extraCommandLineArgs.add("--enable-features=LocalStorageDeleteLockFile");
     }
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -118,6 +126,13 @@ public class JavaSwitches {
         jsFlags.add("--flush-bytecode");
         jsFlags.add("--bytecode-old-time=" + oldTime);
       }
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE)) {
+      jsFlags.add("--initial-old-space-size="
+          + javaSwitches.get(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    } else {
+      jsFlags.add("--initial-old-space-size=64");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
@@ -178,16 +193,30 @@ public class JavaSwitches {
           "--enable-features=SmallerInterestArea:" + featureParams.toString());
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_FONT_SRC_LOCAL_MATCHING)) {
-      extraCommandLineArgs.add("--disable-features=FontSrcLocalMatching");
-    }
-
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
       extraCommandLineArgs.add("--enable-optimized-font-loading");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_V8_CODE_CACHE)) {
       extraCommandLineArgs.add("--enable-optimized-v8-code-cache");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.MAX_HTTP_CACHE_SIZE)) {
+      String rawSize = javaSwitches.get(JavaSwitches.MAX_HTTP_CACHE_SIZE);
+      if (rawSize != null) {
+        String size = rawSize.replaceAll("[^0-9]", "");
+        if (!size.isEmpty()) {
+          extraCommandLineArgs.add("--max-http-cache-size=" + size);
+        }
+      }
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE)) {
+      extraCommandLineArgs.add("--enable-css-and-wasm-for-http-cache");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_HTTP_AND_V8_CACHE_TUNING)) {
+      extraCommandLineArgs.add("--enable-http-and-v8-cache-tuning");
     }
 
     if (jsFlags.length() > 0) {
@@ -209,6 +238,15 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER)) {
       extraCommandLineArgs.add(
           "--enable-features=" + JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER);
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DIRECT_WINDOW_RENDERING)) {
+      extraCommandLineArgs.add("--use-window-surface-for-ui");
+      extraCommandLineArgs.add("--enable-h5vcc-settings=Media.ForceClearSurfaceView=1");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
+      extraCommandLineArgs.add("--enable-features=AreaBasedVideoBufferBudget");
     }
 
     return extraCommandLineArgs;
