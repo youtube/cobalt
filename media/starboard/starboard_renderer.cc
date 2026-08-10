@@ -270,20 +270,18 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   state_ = STATE_INITIALIZING;
 
 #if BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(media::kCobaltUsingAndroidOverlay)) {
+  if (base::FeatureList::IsEnabled(media::kCobaltUsingAndroidOverlay) ||
+      IsSecondaryVideoProtected()) {
+    CHECK(request_overlay_info_cb_);
+    CHECK(android_overlay_factory_cb_);
     // RequestOverlayInfoCB and create AndroidOverlay if the BASE feature is
-    // enabled.
-    if (request_overlay_info_cb_ && android_overlay_factory_cb_) {
-      LOG(INFO) << "Requesting AndroidOverlay for Video SurfaceView.";
-      // Set |restart_for_transitions| to false due to devices are
-      // isSetOutputSurfaceSupported() in
-      // media/base/android/java/src/org/chromium/media/MediaCodecUtil.java.
-      request_overlay_info_cb_.Run(/*restart_for_transitions=*/false);
-      return;
-    }
-    // When CobaltUsingAndroidOverlay is enabled, both request_overlay_info_cb_
-    // and android_overlay_factory_cb_ should not be null.
-    NOTREACHED();
+    // enabled or if secondary video requires DRM (L1).
+    // Set |restart_for_transitions| to false due to devices are
+    // isSetOutputSurfaceSupported() in
+    // media/base/android/java/src/org/chromium/media/MediaCodecUtil.java.
+    LOG(INFO) << "Requesting AndroidOverlay for Video SurfaceView.";
+    request_overlay_info_cb_.Run(/*restart_for_transitions=*/false);
+    return;
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -319,6 +317,27 @@ void StarboardRenderer::SetCdm(CdmContext* cdm_context,
 
   DCHECK(init_cb_);
   state_ = STATE_INITIALIZING;
+
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(media::kCobaltUsingAndroidOverlay) ||
+      IsSecondaryVideoProtected()) {
+    CHECK(request_overlay_info_cb_);
+    CHECK(android_overlay_factory_cb_);
+    // RequestOverlayInfoCB and create AndroidOverlay if the BASE feature is
+    // enabled or if secondary video requires DRM (L1).
+    LOG(INFO)
+        << "Requesting AndroidOverlay for Video SurfaceView after CDM set.";
+    request_overlay_info_cb_.Run(/*restart_for_transitions=*/false);
+    return;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  if (get_sb_window_handle_cb_) {
+    // Get SbWindow from CobaltRenderContentClient.
+    get_sb_window_handle_cb_.Run();
+    return;
+  }
+
   CreatePlayerBridge();
 }
 
@@ -1167,6 +1186,14 @@ void StarboardRenderer::OnOverlayFailed(AndroidOverlay* overlay) {
         "StarboardRenderer::OnOverlayFailed() failed to create a "
         "valid AndroidOverlay"));
   }
+}
+
+bool StarboardRenderer::IsSecondaryVideoProtected() const {
+  if (max_video_capabilities_.empty() || !cdm_context_) {
+    return false;
+  }
+  const auto key_system = cdm_context_->GetKeySystem();
+  return key_system == "com.widevine" || key_system == "com.widevine.alpha";
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
