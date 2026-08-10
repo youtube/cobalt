@@ -48,7 +48,7 @@ source_set("starboard") {
     "//ui/base/ime",
     "//ui/display",
     "//ui/display/fake",
-    "//ui/events/ozone/layout:layout",
+    "//ui/events/ozone/layout",
     "//ui/gfx:native_widget_types",
     "//ui/ozone:ozone_base",
     "//ui/ozone/common",
@@ -63,6 +63,7 @@ source_set("starboard_unittests") {
   testonly = true
 
   sources = [
+    "test/platform_event_source_starboard_unittest.cc",
     "test/platform_window_starboard_unittest.cc",
     "test/starboard_test_helper.h",
     "test/surface_factory_starboard_unittest.cc",
@@ -70,16 +71,17 @@ source_set("starboard_unittests") {
 
   deps = [
     ":starboard",
+    "//base/test:test_support",
     "//starboard:starboard_headers_only",
-    "//starboard/common:common",
+    "//starboard/common",
     "//testing/gmock",
     "//testing/gtest",
-    "//ui/events:events",
+    "//ui/events",
     "//ui/events:events_base",
     "//ui/events/types:headers",
     "//ui/gl",
     "//ui/ozone:platform",
-    "//ui/platform_window:platform_window",
+    "//ui/platform_window",
   ]
 }
 

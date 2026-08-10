@@ -129,19 +129,25 @@ void PlatformEventSourceStarboard::HandleEvent(const SbEvent* event) {
         break;
     }
     int flag = ui::EF_NONE;
-    if (kSbInputEventTypePress) {
+    if (input_data->type == kSbInputEventTypePress) {
       flag = ui::EF_LEFT_MOUSE_BUTTON;
     }
 
-    // Mouse wheel scrolls are separate from MouseEvent and will crash here. We
-    // need to handle them properly.
     if (event_type == ui::EventType::ET_MOUSEWHEEL) {
-      return;
+      ui_event = std::make_unique<ui::MouseWheelEvent>(
+          gfx::Vector2d(
+              -input_data->delta.x * ui::MouseWheelEvent::kWheelDelta,
+              -input_data->delta.y * ui::MouseWheelEvent::kWheelDelta),
+          gfx::PointF(input_data->position.x, input_data->position.y),
+          gfx::PointF(input_data->position.x, input_data->position.y),
+          base::TimeTicks() + base::Microseconds(raw_timestamp), flag, 0);
+    } else {
+      ui_event = std::make_unique<ui::MouseEvent>(
+          event_type,
+          gfx::PointF(input_data->position.x, input_data->position.y),
+          gfx::PointF{}, base::TimeTicks() + base::Microseconds(raw_timestamp),
+          flag, ui::EF_LEFT_MOUSE_BUTTON);
     }
-    ui_event = std::make_unique<ui::MouseEvent>(
-        event_type, gfx::PointF(input_data->position.x, input_data->position.y),
-        gfx::PointF{}, base::TimeTicks() + base::Microseconds(raw_timestamp),
-        flag, ui::EF_LEFT_MOUSE_BUTTON);
   } else {
     return;
   }
