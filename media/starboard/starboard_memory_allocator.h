@@ -36,6 +36,8 @@ namespace media {
 
 using starboard::AlignDown;
 using starboard::AlignUp;
+using starboard::Allocator;
+using DecommitMode = starboard::Allocator::DecommitMode;
 
 // StarboardMemoryAllocator is an allocator that allocates and frees memory
 // using posix_memalign() and free().
@@ -70,7 +72,7 @@ class StarboardMemoryAllocator : public starboard::Allocator {
   }
   void Free(void* memory) override { free(memory); }
 
-  void Decommit(void* memory, size_t size, bool conservative) override {
+  void Decommit(void* memory, size_t size, DecommitMode mode) override {
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     CHECK(enable_decommit_);
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
@@ -82,12 +84,21 @@ class StarboardMemoryAllocator : public starboard::Allocator {
 
     if (aligned_start < aligned_end) {
       size_t aligned_size = aligned_end - aligned_start;
+
+      if (mode == DecommitMode::kCold) {
+#if defined(MADV_COLD)
+        madvise(aligned_start, aligned_size, MADV_COLD);
+#endif  // defined(MADV_COLD)
+        return;
+      }
+
       // MADV_FREE is not supported on all kernel versions/configurations. If it
       // fails, fallback to MADV_DONTNEED to ensure memory is still decommitted.
-      if (conservative &&
+      if (mode == DecommitMode::kConservative &&
           madvise(aligned_start, aligned_size, MADV_FREE) == 0) {
         return;
       }
+
       madvise(aligned_start, aligned_size, MADV_DONTNEED);
     }
   }
