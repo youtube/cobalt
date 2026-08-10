@@ -18,8 +18,11 @@
 #include <cstring>
 #include <vector>
 
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
+#include "base/strings/stringprintf.h"
 #include "base/test/task_environment.h"
 #include "cobalt/browser/h5vcc_native_stability/public/mojom/h5vcc_native_stability.mojom.h"
 #include "starboard/extension/native_stability.h"
@@ -60,11 +63,21 @@ void SetupStubExtension(
 
 class NativeStabilityManagerTest : public ::testing::Test {
  protected:
+  void SetUp() override {
+    // Overriding the acked UUIDs file path with a unique temporary directory
+    // for every test 1) isolates test storage and 2) ensures actual platform
+    // directories (e.g. kSbSystemPathCacheDirectory) are not used.
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+    NativeStabilityManager::GetInstance()->SetAckedUuidsFilePathForTesting(
+        temp_dir_.GetPath().Append("acked_event_uuids.json"));
+  }
+
   void TearDown() override {
     NativeStabilityManager::GetInstance()->ResetForTesting();
   }
 
   base::test::TaskEnvironment task_environment_;
+  base::ScopedTempDir temp_dir_;
 };
 
 TEST_F(NativeStabilityManagerTest, GetInstanceReturnsSingleton) {
@@ -176,6 +189,12 @@ TEST_F(NativeStabilityManagerTest,
       kStarboardExtensionNativeStabilityName,
       1,
       [](SbNativeStabilityReport* reports, int max_reports) -> int {
+        for (int i = 0; i < max_reports; ++i) {
+          reports[i].report_type = kSbNativeStabilityReportCrash;
+          std::string uuid = base::StringPrintf("crash-uuid-%05d", i);
+          std::strncpy(reports[i].native_stability_event_uuid, uuid.c_str(),
+                       sizeof(reports[i].native_stability_event_uuid) - 1);
+        }
         return 999;  // Return out-of-bounds count exceeding max_reports
       },
   };
@@ -194,7 +213,7 @@ TEST_F(NativeStabilityManagerTest,
          std::vector<mojom::NativeStabilityReportPtr> reports) {
         // Verify no crash occurred and count was clamped to kMaxNumReports
         // (128)
-        EXPECT_LE(reports.size(), 128u);
+        EXPECT_EQ(reports.size(), 128u);
         std::move(quit_closure).Run();
       },
       run_loop.QuitClosure()));
@@ -249,6 +268,135 @@ TEST_F(NativeStabilityManagerTest, GetPendingReportsIgnoresUnknownReportType) {
          std::vector<mojom::NativeStabilityReportPtr> reports) {
         // Verify unknown report type was skipped and not included in results
         EXPECT_TRUE(reports.empty());
+        std::move(quit_closure).Run();
+      },
+      run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
+TEST_F(NativeStabilityManagerTest,
+       AcknowledgedReportsFilteredByGetPendingReports) {
+  auto* manager = NativeStabilityManager::GetInstance();
+
+  SbNativeStabilityReport report1 = {};
+  report1.report_type = kSbNativeStabilityReportCrash;
+  std::strncpy(report1.native_stability_event_uuid, "uuid-1",
+               sizeof(report1.native_stability_event_uuid) - 1);
+  report1.event_time_s = 1000;
+
+  SbNativeStabilityReport report2 = {};
+  report2.report_type = kSbNativeStabilityReportCrash;
+  std::strncpy(report2.native_stability_event_uuid, "uuid-2",
+               sizeof(report2.native_stability_event_uuid) - 1);
+  report2.event_time_s = 2000;
+
+  SetupStubExtension(manager, {report1, report2});
+
+  // Verify initial call returns both reports.
+  {
+    base::RunLoop run_loop;
+    manager->GetPendingReports(base::BindOnce(
+        [](base::OnceClosure quit_closure,
+           std::vector<mojom::NativeStabilityReportPtr> reports) {
+          ASSERT_EQ(reports.size(), 2u);
+          std::move(quit_closure).Run();
+        },
+        run_loop.QuitClosure()));
+    run_loop.Run();
+  }
+
+  // Acknowledge uuid-1.
+  {
+    base::RunLoop run_loop;
+    manager->AcknowledgeReports({"uuid-1"}, run_loop.QuitClosure());
+    run_loop.Run();
+  }
+
+  // Verify subsequent call returns only uuid-2.
+  {
+    base::RunLoop run_loop;
+    manager->GetPendingReports(base::BindOnce(
+        [](base::OnceClosure quit_closure,
+           std::vector<mojom::NativeStabilityReportPtr> reports) {
+          ASSERT_EQ(reports.size(), 1u);
+          EXPECT_EQ(
+              reports[0]->get_crash_report()->base->native_stability_event_uuid,
+              "uuid-2");
+          std::move(quit_closure).Run();
+        },
+        run_loop.QuitClosure()));
+    run_loop.Run();
+  }
+
+  // Acknowledge uuid-2 as well.
+  {
+    base::RunLoop run_loop;
+    manager->AcknowledgeReports({"uuid-2"}, run_loop.QuitClosure());
+    run_loop.Run();
+  }
+
+  // Verify GetPendingReports returns no reports once all are acknowledged.
+  {
+    base::RunLoop run_loop;
+    manager->GetPendingReports(base::BindOnce(
+        [](base::OnceClosure quit_closure,
+           std::vector<mojom::NativeStabilityReportPtr> reports) {
+          EXPECT_TRUE(reports.empty());
+          std::move(quit_closure).Run();
+        },
+        run_loop.QuitClosure()));
+    run_loop.Run();
+  }
+}
+
+TEST_F(NativeStabilityManagerTest,
+       AcknowledgingEmptyOrDuplicateUuidsHasNoEffect) {
+  auto* manager = NativeStabilityManager::GetInstance();
+  SbNativeStabilityReport report1 = {};
+  report1.report_type = kSbNativeStabilityReportCrash;
+  std::strncpy(report1.native_stability_event_uuid, "uuid-1",
+               sizeof(report1.native_stability_event_uuid) - 1);
+  SetupStubExtension(manager, {report1});
+
+  // Acknowledge empty strings and duplicates alongside valid UUID.
+  base::RunLoop run_loop;
+  manager->AcknowledgeReports({"", "uuid-1", "uuid-1", ""},
+                              run_loop.QuitClosure());
+  run_loop.Run();
+
+  // Verify uuid-1 was acknowledged and no crash occurred.
+  base::RunLoop run_loop2;
+  manager->GetPendingReports(base::BindOnce(
+      [](base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        EXPECT_TRUE(reports.empty());
+        std::move(quit_closure).Run();
+      },
+      run_loop2.QuitClosure()));
+  run_loop2.Run();
+}
+
+TEST_F(NativeStabilityManagerTest,
+       GetPendingReportsIgnoresCorruptedAckedUuidsFile) {
+  auto* manager = NativeStabilityManager::GetInstance();
+  SbNativeStabilityReport report1 = {};
+  report1.report_type = kSbNativeStabilityReportCrash;
+  std::strncpy(report1.native_stability_event_uuid, "uuid-1",
+               sizeof(report1.native_stability_event_uuid) - 1);
+  SetupStubExtension(manager, {report1});
+
+  // Write corrupted JSON to the acked UUIDs file path.
+  base::FilePath file_path =
+      temp_dir_.GetPath().Append("acked_event_uuids.json");
+  ASSERT_TRUE(base::WriteFile(file_path, "invalid json"));
+
+  // Verify GetPendingReports handles corrupt JSON gracefully and returns the
+  // pending report.
+  base::RunLoop run_loop;
+  manager->GetPendingReports(base::BindOnce(
+      [](base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        EXPECT_EQ(reports.size(), 1u);
         std::move(quit_closure).Run();
       },
       run_loop.QuitClosure()));
