@@ -104,9 +104,7 @@ class SbPlayerBridge {
                  const GetDecodeTargetGraphicsContextProviderFunc&
                      get_decode_target_graphics_context_provider_func,
                  const AudioDecoderConfig& audio_config,
-                 const std::string& audio_mime_type,
                  const VideoDecoderConfig& video_config,
-                 const std::string& video_mime_type,
                  SbWindow window,
                  SbDrmSystem drm_system,
                  Host* host,
@@ -129,10 +127,8 @@ class SbPlayerBridge {
 
   bool IsValid() const { return SbPlayerIsValid(player_); }
 
-  void UpdateAudioConfig(const AudioDecoderConfig& audio_config,
-                         const std::string& mime_type);
-  void UpdateVideoConfig(const VideoDecoderConfig& video_config,
-                         const std::string& mime_type);
+  void UpdateAudioConfig(const AudioDecoderConfig& audio_config);
+  void UpdateVideoConfig(const VideoDecoderConfig& video_config);
 
   void WriteBuffers(DemuxerStream::Type type,
                     const std::vector<scoped_refptr<DecoderBuffer>>& buffers);

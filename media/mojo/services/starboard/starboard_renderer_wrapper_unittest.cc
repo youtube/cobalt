@@ -300,8 +300,13 @@ TEST_F(StarboardRendererWrapperTest, InitializeWithBypassBridge) {
       base::DoNothing());
   AddStream(DemuxerStream::AUDIO, false);
   AddStream(DemuxerStream::VIDEO, false);
-  streams_[0]->set_mime_type("audio/mp4");
-  streams_[1]->set_mime_type("video/mp4");
+  AudioDecoderConfig audio_config = streams_[0]->audio_decoder_config();
+  audio_config.set_mime_type("audio/mp4");
+  streams_[0]->set_audio_decoder_config(audio_config);
+
+  VideoDecoderConfig video_config = streams_[1]->video_decoder_config();
+  video_config.set_mime_type("video/mp4");
+  streams_[1]->set_video_decoder_config(video_config);
   bypass_bridge->SetStreams(streams_[0].get(), streams_[1].get());
   uint32_t bridge_id = 12345;
   BypassBridgeRegistry::Register(bridge_id, bypass_bridge);
@@ -450,8 +455,13 @@ TEST_F(StarboardRendererWrapperTest, TimerLifecycle) {
       base::DoNothing());
   AddStream(DemuxerStream::AUDIO, false);
   AddStream(DemuxerStream::VIDEO, false);
-  streams_[0]->set_mime_type("audio/mp4");
-  streams_[1]->set_mime_type("video/mp4");
+  AudioDecoderConfig audio_config = streams_[0]->audio_decoder_config();
+  audio_config.set_mime_type("audio/mp4");
+  streams_[0]->set_audio_decoder_config(audio_config);
+
+  VideoDecoderConfig video_config = streams_[1]->video_decoder_config();
+  video_config.set_mime_type("video/mp4");
+  streams_[1]->set_video_decoder_config(video_config);
   bypass_bridge->SetStreams(streams_[0].get(), streams_[1].get());
 
   uint32_t bridge_id = 12345;

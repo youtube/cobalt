@@ -144,24 +144,6 @@ StreamLiveness MojoRendererBypassBridge::GetLiveness(
   return stream ? stream->liveness() : StreamLiveness::kUnknown;
 }
 
-std::string MojoRendererBypassBridge::GetMimeType(
-    DemuxerStream::Type type) const {
-  base::AutoLock auto_lock(lock_);
-  if (!active_) {
-    return "";
-  }
-  DemuxerStream* stream = GetStreamLocked(type);
-  if (!stream) {
-    return "";
-  }
-  if (type == DemuxerStream::AUDIO) {
-    return stream->audio_decoder_config().mime_type();
-  } else if (type == DemuxerStream::VIDEO) {
-    return stream->video_decoder_config().mime_type();
-  }
-  return "";
-}
-
 void MojoRendererBypassBridge::EnableBitstreamConverter(
     DemuxerStream::Type type) {
   if (!client_task_runner_->RunsTasksInCurrentSequence()) {
