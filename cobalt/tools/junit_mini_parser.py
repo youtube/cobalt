@@ -16,6 +16,7 @@ standard library."""
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import collections
 import logging
 import os
@@ -25,14 +26,7 @@ import xml.etree.ElementTree
 
 def find_failing_tests(
     junit_xml_files: list[str]) -> dict[str, list[tuple[str, str]]]:
-  """Parses a list of JUnit XML files to find failing test cases.
-
-  Args:
-    junit_xml_files (list): A list of paths to JUnit XML files.
-
-  Returns:
-    A map of test target -> list of (failing test name, failure message) tuples.
-  """
+  """Parses a list of JUnit XML files to find failing test cases."""
   failing_tests = collections.defaultdict(list)
   for filename in junit_xml_files:
     try:
@@ -57,18 +51,13 @@ def find_failing_tests(
   return failing_tests
 
 
-def main(xml_files: list[str]) -> int:
-  """Main entry point.
-
-  Args:
-    xml_files (list): A list of paths to JUnit XML files.
-
-  Returns:
-    1 if failing tests are found, 0 otherwise.
-  """
+def main(xml_files: list[str], optional_targets: list[str] = None) -> int:
+  """Main entry point."""
   failing_tests = find_failing_tests(xml_files)
+  optional_targets = optional_targets or []
 
   if failing_tests:
+    has_required_failure = False
     logging.info('Failing Tests:')
     for target, test_status in sorted(failing_tests.items()):
       logging.info('%s', target)
@@ -77,6 +66,13 @@ def main(xml_files: list[str]) -> int:
         if message:
           logging.info('%s', message)
       logging.info('')  # Blank line between targets
+
+      if not any(opt in target for opt in optional_targets):
+        has_required_failure = True
+
+    if not has_required_failure:
+      logging.info('Optional failures ignored.')
+      return 0
     return 1
 
   if xml_files:
@@ -86,10 +82,15 @@ def main(xml_files: list[str]) -> int:
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO, format='%(message)s')
-  if len(sys.argv) == 1:
-    logging.error('Usage: python junit_mini_parser.py '
-                  '<junit_xml_file1> <junit_xml_file2> ...')
-    logging.error('Please provide a list of JUnit XML files as command line '
-                  'arguments.')
-    sys.exit(2)
-  sys.exit(main(sys.argv[1:]))
+
+  parser = argparse.ArgumentParser(
+      description='A util that prints failing tests from JUnit xml.')
+  parser.add_argument(
+      '--optional-targets',
+      nargs='*',
+      default=[],
+      help='List of optional targets to ignore exit codes for')
+  parser.add_argument('xml_files', nargs='*', help='Paths to JUnit XML files')
+
+  args = parser.parse_args()
+  sys.exit(main(args.xml_files, args.optional_targets))
