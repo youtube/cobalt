@@ -173,7 +173,13 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
 
   GpuChannel* LookupChannel(int32_t client_id) const;
 
+#if BUILDFLAG(IS_COBALT)
   gl::GLSurface* default_offscreen_surface();
+#else
+  gl::GLSurface* default_offscreen_surface() const {
+    return default_offscreen_surface_.get();
+  }
+#endif
 
   GpuMemoryBufferFactory* gpu_memory_buffer_factory() {
     return gpu_memory_buffer_factory_;
