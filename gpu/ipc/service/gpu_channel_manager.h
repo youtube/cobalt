@@ -195,8 +195,8 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
 
 #if BUILDFLAG(IS_ANDROID)
   void DidAccessGpu();
-#endif
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
+  void OnBackgroundCleanup();
+#elif BUILDFLAG(IS_COBALT)
   void OnBackgroundCleanup();
 #endif
 
