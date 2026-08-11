@@ -31,6 +31,8 @@ RUN apt-get update && apt-get install -y \
     bzip2 \
     jq \
     fuse-overlayfs \
+    qemu-user-static \
+    binfmt-support \
     && rm -rf /var/lib/apt/lists/*
 
 ARG GCLOUD=google-cloud-cli-linux-x86_64.tar.gz
