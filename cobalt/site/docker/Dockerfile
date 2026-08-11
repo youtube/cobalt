@@ -25,8 +25,6 @@ RUN apt update -qqy \
         python3 \
         pkg-config \
         unzip \
-        qemu-user-static \
-        binfmt-support \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
