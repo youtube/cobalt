@@ -68,40 +68,78 @@ runs:
       run: |
         set -x
 
-        # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
-        python3 -u cobalt/tools/on_device_tests_gateway_client.py \
-          --token ${GITHUB_TOKEN} \
-          trigger \
-          --test_type ${TEST_TYPE} \
-          --device_family '${{ inputs.test_device_family }}' \
-          --targets "${TEST_OBJECTS_JSON}" \
-          --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}" \
-          --label chrobalt_on_device_test \
-          --label github_${GITHUB_PR_NUMBER:-postsubmit} \
-          --label builder-${{ matrix.platform }} \
-          --label builder_url-${GITHUB_RUN_URL} \
-          --label ${TEST_TYPE} \
-          --label github \
-          --label ${GITHUB_EVENT_NAME} \
-          --label ${GITHUB_WORKFLOW} \
-          --label actor-${GITHUB_ACTOR} \
-          --label actor_id-${GITHUB_ACTOR_ID} \
-          --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
-          --label sha-${GITHUB_SHA} \
-          --label repository-${GITHUB_REPO} \
-          --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
-          --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
-          --label branch:${GITHUB_REF_NAME} \
-          --label target_branch:${GITHUB_BASE_REF} \
-          --dimensions '${{ inputs.test_dimensions }}' \
-          ${TEST_ATTEMPTS:+"--test_attempts" "$TEST_ATTEMPTS"} \
-          --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
-          --gcs_result_path "${{ inputs.gcs_results_path }}" || {
-            echo "Finished running tests..."
-            echo "The test session failed. See logs for details."
-            # Fail the job so it's easy to retrigger.
-            exit 1
+        REQUIRED_TARGETS_JSON=$(echo "${TEST_OBJECTS_JSON}" | jq -c '[.[] | select(.required_passing != false)]')
+        OPTIONAL_TARGETS_JSON=$(echo "${TEST_OBJECTS_JSON}" | jq -c '[.[] | select(.required_passing == false)]')
+
+        run_gateway() {
+          local targets_json="$1"
+          python3 -u cobalt/tools/on_device_tests_gateway_client.py \
+            --token ${GITHUB_TOKEN} \
+            trigger \
+            --test_type ${TEST_TYPE} \
+            --device_family '${{ inputs.test_device_family }}' \
+            --targets "${targets_json}" \
+            --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}" \
+            --label chrobalt_on_device_test \
+            --label github_${GITHUB_PR_NUMBER:-postsubmit} \
+            --label builder-${{ matrix.platform }} \
+            --label builder_url-${GITHUB_RUN_URL} \
+            --label ${TEST_TYPE} \
+            --label github \
+            --label ${GITHUB_EVENT_NAME} \
+            --label ${GITHUB_WORKFLOW} \
+            --label actor-${GITHUB_ACTOR} \
+            --label actor_id-${GITHUB_ACTOR_ID} \
+            --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
+            --label sha-${GITHUB_SHA} \
+            --label repository-${GITHUB_REPO} \
+            --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
+            --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
+            --label branch:${GITHUB_REF_NAME} \
+            --label target_branch:${GITHUB_BASE_REF} \
+            --dimensions '${{ inputs.test_dimensions }}' \
+            ${TEST_ATTEMPTS:+"--test_attempts" "$TEST_ATTEMPTS"} \
+            --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
+            --gcs_result_path "${{ inputs.gcs_results_path }}"
+        }
+
+        # Trigger required tests
+        REQUIRED_PID=""
+        if [ "$REQUIRED_TARGETS_JSON" != "[]" ]; then
+          run_gateway "$REQUIRED_TARGETS_JSON" &
+          REQUIRED_PID=$!
+        fi
+
+        # Trigger optional tests
+        OPTIONAL_PID=""
+        if [ "$OPTIONAL_TARGETS_JSON" != "[]" ]; then
+          # Add a delay so mobile harness doesn't receive two massive bursts at the identical millisecond
+          sleep 2
+          run_gateway "$OPTIONAL_TARGETS_JSON" &
+          OPTIONAL_PID=$!
+        fi
+
+        EXIT_CODE=0
+
+        # Wait for required tests
+        if [ -n "$REQUIRED_PID" ]; then
+          wait $REQUIRED_PID || {
+            echo "Required tests gateway session failed."
+            EXIT_CODE=1
           }
+        fi
+
+        # Wait for optional tests
+        if [ -n "$OPTIONAL_PID" ]; then
+          wait $OPTIONAL_PID || {
+            echo "Optional tests gateway session failed. Ignoring error."
+          }
+        fi
+
+        if [ "$EXIT_CODE" = "1" ]; then
+           echo "The required test session failed. See logs for details."
+           exit 1
+        fi
         echo "Finished running tests..."
       shell: bash
     - name: Download ${{ matrix.platform }} Test Results from GCS
@@ -141,7 +179,12 @@ runs:
               log_path=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"_log.txt)
               xml_path=("${test_output}"/${{ matrix.platform }}/1/"${test_target}"_testoutput.xml)
               python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
-              exit_code=1
+              if [[ "$required_passing" == "true" ]]; then
+                echo "::error::Missing XML for required target: ${test_target}."
+                exit_code=1
+              else
+                echo "Missing XML for ${test_target}, but required_passing is false. Ignoring."
+              fi
             fi
           elif grep -q -e '<failure' -e '<error' ${xml_files}; then
             if [[ "$required_passing" == "true" ]]; then
