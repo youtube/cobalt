@@ -9936,6 +9936,7 @@ IN_PROC_BROWSER_TEST_P(AndroidPrewarmSpareRendererTest,
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 class HstsUpgradeBrowserTest : public NavigationBrowserTest {
  public:
   HstsUpgradeBrowserTest() {
@@ -10022,5 +10023,6 @@ IN_PROC_BROWSER_TEST_F(HstsUpgradeBrowserTest, DISABLED_UpgradeTopLevelOnly) {
   ASSERT_TRUE(fenced_frame);
   EXPECT_EQ(url_of_hsts_frame_http, fenced_frame->GetLastCommittedURL());
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 }  // namespace content

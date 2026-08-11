@@ -809,12 +809,15 @@ static_library("test_support") {
       "../browser/interest_group/*",
       "../browser/private_aggregation/*",
       "../browser/aggregation_service/*",
+      "../browser/fenced_frame/*",
       "../public/test/*browsing_topics*",
       "../public/test/*shared_storage*",
       "../public/test/*attribution*",
       "../public/test/*interest_group*",
       "../public/test/*private_aggregation*",
       "../public/test/*aggregation_service*",
+      "../public/test/*fenced_frame*",
+      "fenced_frame_test_utils.*",
     ])
     sources = []
     sources = _filtered_sources
@@ -2491,6 +2494,7 @@ test("content_browsertests") {
       "../browser/interest_group/*",
       "../browser/private_aggregation/*",
       "../browser/aggregation_service/*",
+      "../browser/fenced_frame/*",
     ])
     sources = []
     sources = _filtered_sources
@@ -3758,12 +3762,15 @@ test("content_unittests") {
       "../browser/interest_group/*",
       "../browser/private_aggregation/*",
       "../browser/aggregation_service/*",
+      "../browser/fenced_frame/*",
       "../public/test/*browsing_topics*",
       "../public/test/*shared_storage*",
       "../public/test/*attribution*",
       "../public/test/*interest_group*",
       "../public/test/*private_aggregation*",
       "../public/test/*aggregation_service*",
+      "../public/test/*fenced_frame*",
+      "*fenced_frame*",
       "*test_aggregation_service*",
     ])
     sources = []

@@ -29,6 +29,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
@@ -77,7 +78,7 @@ class SbPlayerBridge {
   using GetDecodeTargetGraphicsContextProviderFunc =
       base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>;
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   using OnEncryptedMediaInitDataEncounteredCB = base::RepeatingCallback<
       void(const char*, const unsigned char*, unsigned)>;
   // Create an SbPlayerBridge with url-based player.
@@ -95,7 +96,7 @@ class SbPlayerBridge {
                  std::string pipeline_identifier
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   );
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   using ExperimentalFeatures = StarboardRendererConfig::ExperimentalFeatures;
   // Create a SbPlayerBridge with normal player
   SbPlayerBridge(SbPlayerInterface* interface,
@@ -146,14 +147,14 @@ class SbPlayerBridge {
   void GetInfo(PlayerInfo* out_info);
   std::vector<SbMediaAudioConfiguration> GetAudioConfigurations();
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   void GetUrlPlayerBufferedTimeRanges(base::TimeDelta* buffer_start_time,
                                       base::TimeDelta* buffer_length_time);
   void GetVideoResolution(int* frame_width, int* frame_height);
   base::TimeDelta GetDuration();
   base::TimeDelta GetStartDate();
   void SetDrmSystem(SbDrmSystem drm_system);
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   void Suspend();
   // TODO: This is temporary for supporting background media playback.
@@ -211,7 +212,7 @@ class SbPlayerBridge {
       absl::flat_hash_map<const DecoderBuffer::Allocator::Handle,
                           DecodingBuffer>;
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   OnEncryptedMediaInitDataEncounteredCB
       on_encrypted_media_init_data_encountered_cb_;
 
@@ -223,7 +224,7 @@ class SbPlayerBridge {
       unsigned int init_data_length);
 
   void CreateUrlPlayer(const std::string& url);
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   void CreatePlayer();
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
@@ -285,10 +286,10 @@ class SbPlayerBridge {
                                  void* context,
                                  const void* sample_buffer);
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   SbPlayerOutputMode ComputeSbUrlPlayerOutputMode(
       SbPlayerOutputMode default_output_mode);
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   // Returns the output mode that should be used for a video with the given
   // specifications.
   SbPlayerOutputMode ComputeSbPlayerOutputMode(
@@ -298,9 +299,9 @@ class SbPlayerBridge {
   void SendColorSpaceHistogram() const;
 
 // The following variables are initialized in the ctor and never changed.
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   std::string url_;
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   SbPlayerInterface* sbplayer_interface_;
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const GetDecodeTargetGraphicsContextProviderFunc
@@ -384,9 +385,9 @@ class SbPlayerBridge {
   base::Time first_video_sample_time_{};
   base::Time sb_player_state_presenting_time_{};
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   const bool is_url_based_;
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   // Used for Gathered Sample Write.
   bool pending_audio_eos_buffer_ = false;

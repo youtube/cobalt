@@ -23,6 +23,8 @@
 #include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom.h"
 #include "cobalt/browser/h5vcc_metrics/h5vcc_metrics_impl.h"
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
+#include "cobalt/browser/h5vcc_native_stability/h5vcc_native_stability_impl.h"
+#include "cobalt/browser/h5vcc_native_stability/public/mojom/h5vcc_native_stability.mojom.h"
 #include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
 #include "cobalt/browser/h5vcc_settings/h5vcc_settings_impl.h"
@@ -179,6 +181,25 @@ void PopulateCobaltFrameBinders(
 
   binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
+#if BUILDFLAG(USE_EVERGREEN)
+  binder_map->Add<h5vcc_native_stability::mojom::H5vccNativeStability>(
+      base::BindRepeating(
+          &h5vcc_native_stability::H5vccNativeStabilityImpl::Create));
+#else
+  // For platforms not (yet) supporting native stability reporting, register
+  // a stub binder that ignores binding requests and drops the receiver. This
+  // prevents the browser from terminating the frame's Mojo broker if the
+  // interface is requested, while ensuring no disk I/O or state modification
+  // occurs on unsupported platforms.
+  binder_map->Add<h5vcc_native_stability::mojom::H5vccNativeStability>(
+      base::BindRepeating(
+          [](content::RenderFrameHost*,
+             mojo::PendingReceiver<
+                 h5vcc_native_stability::mojom::H5vccNativeStability>) {
+            VLOG(1) << "Ignoring H5vccNativeStability request for "
+                    << "non-Evergreen build.";
+          }));
+#endif
   binder_map->Add<media::mojom::PlatformWindowProvider>(
       base::BindRepeating(&BindPlatformWindowProvider));
   binder_map->Add<h5vcc_platform_service::mojom::H5vccPlatformServiceManager>(

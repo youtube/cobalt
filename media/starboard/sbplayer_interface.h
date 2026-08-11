@@ -16,6 +16,7 @@
 #define MEDIA_STARBOARD_SBPLAYER_INTERFACE_H_
 
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/starboard/buildflags.h"
 #include "starboard/player.h"
 
@@ -26,9 +27,9 @@
 #include "cobalt/media/base/metrics_provider.h"
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_UMA_METRICS)
 
-#if SB_HAS(PLAYER_WITH_URL)
-#include SB_URL_PLAYER_INCLUDE_PATH
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "starboard/tvos/shared/media/url_player.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace media {
 
@@ -73,7 +74,7 @@ class SbPlayerInterface {
 
   virtual SbDecodeTarget GetCurrentFrame(SbPlayer player) = 0;
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   virtual SbPlayer CreateUrlPlayer(const char* url,
                                    SbWindow window,
                                    SbPlayerStatusFunc player_status_func,
@@ -88,7 +89,7 @@ class SbPlayerInterface {
   virtual void GetUrlPlayerExtraInfo(
       SbPlayer player,
       SbUrlPlayerExtraInfo* out_url_player_info) = 0;
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   virtual bool GetAudioConfiguration(
       SbPlayer player,
@@ -132,8 +133,6 @@ class SbPlayerInterface {
   };
 #endif  // !BUILDFLAG(COBALT_MEDIA_ENABLE_UMA_METRICS)
   MediaMetricsProvider media_metrics_provider_;
-
-  bool SetDecodeToTexturePreferred(bool preferred);
 };
 
 class DefaultSbPlayerInterface final : public SbPlayerInterface {
@@ -171,7 +170,7 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
   void GetInfo(SbPlayer player, SbPlayerInfo* out_player_info) override;
   SbDecodeTarget GetCurrentFrame(SbPlayer player) override;
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   SbPlayer CreateUrlPlayer(const char* url,
                            SbWindow window,
                            SbPlayerStatusFunc player_status_func,
@@ -184,7 +183,7 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
   void GetUrlPlayerExtraInfo(
       SbPlayer player,
       SbUrlPlayerExtraInfo* out_url_player_info) override;
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   bool GetAudioConfiguration(
       SbPlayer player,

@@ -34,10 +34,6 @@ BASE_FEATURE(kHangReporting,
              "HangReporting",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kUseIPv4ForDNS,
-             "UseIPv4ForDNS",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kCobaltMetricsIntervalFeature,
              "CobaltMetricsInterval",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -62,6 +58,14 @@ BASE_FEATURE(kInMemoryUpdatesMemoryBuffer,
 
 const base::FeatureParam<int> kInMemoryUpdatesMemoryBufferParam{
     &kInMemoryUpdatesMemoryBuffer, "memory_buffer_bytes", 35 * 1024 * 1024};
+
+BASE_FEATURE(kDisableSplashScreen,
+             "DisableSplashScreen",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kForceVideoSplashScreen,
+             "ForceVideoSplashScreen",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace features
 }  // namespace cobalt

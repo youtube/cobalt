@@ -92,6 +92,28 @@ group("gn_all") {
   }
 }
 
+# Target containing the SbEventHandle implementation, kept separate from ":common"
+# so tests defining their own entry point/mock can omit it or link it as needed.
+static_library("sb_event_handle") {
+  sources = [ "app/sb_event_handle.cc" ]
+  deps = [
+    ":common",
+    "//base",
+    "//starboard:starboard_group",
+  ]
+}
+
+# Target containing the default app/cobalt.cc entry point.
+static_library("cobalt_app") {
+  sources = [ "app/cobalt.cc" ]
+  deps = [
+    ":common",
+    ":sb_event_handle",
+    "//base",
+    "//starboard:starboard_group",
+  ]
+}
+
 group("cobalt_browsertests") {
   testonly = true
 
@@ -107,6 +129,7 @@ if (is_ios && target_platform == "tvos") {
     deps = [
       ":common",
       "//base",
+      "//cobalt/browser/tvos:plist_info",
       "//cobalt/browser/tvos/intents:yt_intents",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
@@ -140,6 +163,7 @@ if (is_ios && target_platform == "tvos") {
     deps = [
       ":common",
       "//base",
+      "//cobalt/browser/tvos:plist_info",
       "//cobalt/browser/tvos/intents:yt_intents",
       "//cobalt/shell:cobalt_shell_lib",
       "//components/crash/core/app",
@@ -188,11 +212,10 @@ if (is_ios && target_platform == "tvos") {
     cobalt_target_type = "executable"
   }
   target(cobalt_target_type, "cobalt") {
-    sources = [ "app/cobalt.cc" ]
-
     configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
 
     deps = [
+      ":cobalt_app",
       ":common",
       "//base",
       "//starboard:starboard_headers_only",
@@ -326,6 +349,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/experiments/experiment_config_manager_unittest.cc",
     "//cobalt/browser/global_features_unittest.cc",
     "//cobalt/browser/h5vcc_metrics/histogram_fetcher_test.cc",
+    "//cobalt/browser/h5vcc_native_stability/native_stability_manager_unittest.cc",
     "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
     "//cobalt/browser/metrics/cobalt_detailed_metrics_delegate_unittest.cc",
     "//cobalt/browser/metrics/cobalt_enabled_state_provider_test.cc",
@@ -387,6 +411,8 @@ test("cobalt_unittests") {
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/browser/h5vcc_native_stability",
+    "//cobalt/browser/h5vcc_native_stability/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/user_agent",

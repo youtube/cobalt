@@ -104,6 +104,9 @@ class StarboardRendererWrapper
   void InitializeWithBypassBridge(
       uint32_t bypass_bridge_id,
       InitializeWithBypassBridgeCallback callback) override;
+#if BUILDFLAG(IS_IOS_TVOS)
+  void SetSourceUrl(const std::string& source_url) override;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info) override;
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -158,20 +161,16 @@ class StarboardRendererWrapper
   void StartMediaTimePollingIfNeeded();
   void StopMediaTimePolling();
 
-  mojo::Receiver<RendererExtension> renderer_extension_receiver_;
-  mojo::Remote<ClientExtension> client_extension_remote_;
+  THREAD_CHECKER(thread_checker_);
+
   cobalt::media::VideoGeometrySetterService* video_geometry_setter_service_;
   const base::UnguessableToken overlay_plane_id_;
   mojom::CommandBufferIdPtr command_buffer_id_;
   base::SequenceBound<StarboardGpuFactory> gpu_factory_;
   scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner_;
-  // |renderer_| must be declared after |gpu_task_runner_| as |renderer|'s dtor
-  // may make use of |gpu_task_runner_|.
-  StarboardRenderer renderer_;
 
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_ = {};
-
   bool is_gpu_factory_initialized_ = false;
   scoped_refptr<VideoFrame> current_frame_;
   scoped_refptr<gpu::ClientSharedImage> current_shared_image_;
@@ -184,15 +183,20 @@ class StarboardRendererWrapper
 
   raw_ptr<StarboardRenderer> test_renderer_;
   raw_ptr<base::SequenceBound<StarboardGpuFactory>> test_gpu_factory_;
+  double playback_rate_ = 0.0;
 
+  // NOTE: Members are destroyed in reverse order of declaration.
+  // |renderer_| is destroyed before |gpu_task_runner_|, frames, and proxy
+  // resources, but after Mojo receivers/remotes disconnect.
+  StarboardRenderer renderer_;
+
+  mojo::Receiver<RendererExtension> renderer_extension_receiver_;
+  mojo::Remote<ClientExtension> client_extension_remote_;
   mojo::Remote<cobalt::media::mojom::VideoGeometryChangeSubscriber>
       video_geometry_change_subcriber_remote_;
   mojo::Receiver<cobalt::media::mojom::VideoGeometryChangeClient>
       video_geometry_change_client_receiver_{this};
-
-  double playback_rate_ = 0.0;
   base::RepeatingTimer time_update_timer_;
-  THREAD_CHECKER(thread_checker_);
 
   // NOTE: Do not add member variables after weak_factory_
   // It should be the first one destroyed among all members.
