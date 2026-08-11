@@ -73,7 +73,7 @@ runs:
       run: |
         set -x
 
-        # Extract an array of target strings for the test runner 
+        # Extract an array of target strings for the test runner
         TARGETS_ARRAY=$(echo "${TEST_OBJECTS_JSON:-[]}" | jq -c '[.[] | .target]')
 
         # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
@@ -134,9 +134,9 @@ runs:
         for test_target_with_path in "${test_targets[@]}"; do
           # Trim path prefix (before :).
           test_target=${test_target_with_path#*:}
-          
+
           required_passing=$(echo "$TEST_OBJECTS_JSON" | jq -r ".[] | select(.target == \"$test_target_with_path\") | .required_passing")
-          
+
           xml_files=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"*.xml)
           if [[ "${#xml_files[@]}" -eq 0 ]]; then
             # No matching XML results found. Check if the test target is filtered.
