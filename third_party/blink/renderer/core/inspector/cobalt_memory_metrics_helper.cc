@@ -114,7 +114,7 @@ std::optional<std::vector<MemoryBreakdownMetric>> GetP50MemoryBreakdown() {
 }
 
 std::optional<std::vector<MemoryBreakdownMetric>> GetLiveMemoryBreakdown() {
-#if !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROID)
   return std::nullopt;
 #else
   std::vector<MemoryBreakdownMetric> metrics;
@@ -162,7 +162,7 @@ std::optional<std::vector<MemoryBreakdownMetric>> GetLiveMemoryBreakdown() {
   }
 
   return metrics;
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
 }
 
 }  // namespace blink
