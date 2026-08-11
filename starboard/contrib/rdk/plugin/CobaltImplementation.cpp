@@ -311,6 +311,11 @@ private:
         Core::SystemInfo::SetEnvironment(_T("GST_DEBUG"), gstDebug);
       }
 
+      if (config.EssosContextDestroy.IsSet() == true) {
+        string val = config.EssosContextDestroy.Value();
+        Core::SystemInfo::SetEnvironment(_T("COBALT_ESSOS_CONTEXT_DESTROY"), val);
+      }
+
       if (config.PreloadEnabled.IsSet() == true) {
         _preloadEnabled = config.PreloadEnabled.Value();
       }
@@ -701,6 +706,7 @@ public:
   void OnConcealRequest() {
     // Device lifecycle tests from YTS expect 'suspend' behavior on 'conceal'
     Request(PluginHost::IStateControl::SUSPEND);
+    NotifyClosure();
   }
 
   BEGIN_INTERFACE_MAP (CobaltImplementation)
