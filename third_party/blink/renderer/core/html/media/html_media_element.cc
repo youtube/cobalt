@@ -131,7 +131,6 @@
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/strings/string_util.h"
 #include "media/base/starboard/sbmedia_interface.h"
-#include "starboard/media.h"  // nogncheck
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #ifndef LOG_MEDIA_EVENTS

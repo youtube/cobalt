@@ -63,7 +63,6 @@
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/starboard/sbmedia_interface.h"
-#include "starboard/media.h"  // nogncheck
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 using blink::WebMediaSource;

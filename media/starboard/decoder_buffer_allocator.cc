@@ -35,7 +35,6 @@
 #include "starboard/common/external_metadata_reuse_allocator_base.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/media.h"
 
 namespace media {
 
