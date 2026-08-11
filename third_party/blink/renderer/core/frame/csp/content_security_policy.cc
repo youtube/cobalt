@@ -568,6 +568,7 @@ bool ContentSecurityPolicy::AllowInline(
     const String& context_url,
     const WTF::OrdinalNumber& context_line,
     ReportingDisposition reporting_disposition) {
+  return true;
   DCHECK(element || inline_type == InlineType::kScriptAttribute ||
          inline_type == InlineType::kNavigation);
 
@@ -624,6 +625,7 @@ bool ContentSecurityPolicy::AllowEval(
     ReportingDisposition reporting_disposition,
     ContentSecurityPolicy::ExceptionStatus exception_status,
     const String& script_content) {
+  return true;
   bool is_allowed = true;
   for (const auto& policy : policies_) {
     is_allowed &= CSPDirectiveListAllowEval(

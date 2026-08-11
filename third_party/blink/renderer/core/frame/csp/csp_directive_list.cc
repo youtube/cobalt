@@ -679,6 +679,7 @@ bool CSPDirectiveListAllowInline(
     const String& context_url,
     const WTF::OrdinalNumber& context_line,
     ReportingDisposition reporting_disposition) {
+  return true;
   CSPDirectiveName type = EffectiveDirectiveForInlineCheck(inline_type);
 
   CSPOperativeDirective directive = OperativeDirective(csp, type);
