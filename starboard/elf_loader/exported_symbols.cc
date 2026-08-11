@@ -299,8 +299,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(access);
   REGISTER_WRAPPER(bind);
   REGISTER_WRAPPER(chmod);
-  map_["__clock_gettime64"] =
-      reinterpret_cast<const void*>(&__abi_wrap_clock_gettime);
+  REGISTER_WRAPPER(__clock_gettime64);
   REGISTER_WRAPPER(clock_gettime);
   REGISTER_WRAPPER(closedir);
   REGISTER_WRAPPER(clock_nanosleep);
