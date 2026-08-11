@@ -19,6 +19,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/update_client/network.h"
+#include "components/update_client/net/network_impl_cobalt.h"
 #include "components/update_client/persisted_data.h"
 #include "components/update_client/test_configurator.h"
 #include "components/update_client/url_fetcher_downloader.h"

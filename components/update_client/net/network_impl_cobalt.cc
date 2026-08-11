@@ -85,7 +85,12 @@ class NetworkFetcherCobalt : public NetworkFetcher {
         base::BindOnce(
             [](NetworkFetcherCobalt* fetcher,
                PostRequestCompleteCallback post_request_complete_callback,
-               std::optional<std::string> response_body) {
+               std::unique_ptr<std::string> response_body) {
+              std::optional<std::string> optional_response_body;
+              int net_error = fetcher->simple_url_loader_->NetError();
+              if (net_error == net::OK && response_body) {
+                optional_response_body = std::move(*response_body);
+              }
               std::string etag, cup_proof, cookie;
               int64_t retry_after = -1;
               if (fetcher->simple_url_loader_->ResponseInfo() &&
@@ -97,7 +102,7 @@ class NetworkFetcherCobalt : public NetworkFetcher {
                 retry_after = headers->GetInt64HeaderValue(kHeaderXRetryAfter);
               }
               std::move(post_request_complete_callback)
-                  .Run(std::move(response_body),
+                  .Run(std::move(optional_response_body),
                        fetcher->simple_url_loader_->NetError(), etag, cup_proof,
                        cookie, retry_after);
             },

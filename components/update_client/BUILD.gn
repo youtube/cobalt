@@ -424,7 +424,10 @@ source_set("unit_tests") {
   ]
 
   if (is_cobalt && use_evergreen) {
-    deps += [ ":unzip_impl_cobalt" ]
+    deps += [
+      ":network_impl_cobalt",
+      ":unzip_impl_cobalt",
+    ]
   } else if (!is_cobalt) {
     deps += [
       ":in_process_unzipper",
