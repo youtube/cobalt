@@ -75,7 +75,11 @@ std::unique_ptr<NdkAudioTrack> NdkAudioTrack::Create(
   AAudio::StreamBuilder_SetSampleRate(builder, sampling_frequency_hz);
   AAudio::StreamBuilder_SetChannelCount(builder, channels);
   AAudio::StreamBuilder_SetFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
-
+  AAudio::StreamBuilder_SetUsage(
+      builder, is_web_audio ? AAUDIO_USAGE_NOTIFICATION : AAUDIO_USAGE_MEDIA);
+  AAudio::StreamBuilder_SetContentType(
+      builder,
+      is_web_audio ? AAUDIO_CONTENT_TYPE_MUSIC : AAUDIO_CONTENT_TYPE_MOVIE);
   std::optional<int> preferred_frames;
   if (preferred_buffer_size_in_bytes > 0) {
     preferred_frames =
