@@ -255,6 +255,32 @@ CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
       content::ShellContentBrowserClient::Get());
 }
 
+#if BUILDFLAG(IS_ANDROID)
+base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "enable-gpu-shader-disk-cache")) {
+    base::FilePath user_data_dir;
+    if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
+        !user_data_dir.empty()) {
+      return user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache"));
+    }
+  }
+  return base::FilePath();
+}
+
+base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "enable-gpu-shader-disk-cache")) {
+    base::FilePath user_data_dir;
+    if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
+        !user_data_dir.empty()) {
+      return user_data_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
+    }
+  }
+  return base::FilePath();
+}
+#endif
+
 std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
@@ -401,6 +427,17 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
         base::FilePath(kTransportSecurityPersisterFilename);
     network_context_params->file_paths->sct_auditing_pending_reports_file_name =
         base::FilePath(kSCTAuditingPendingReportsFileName);
+  }
+
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "max-http-cache-size")) {
+    std::string size_str =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+            "max-http-cache-size");
+    int parsed_size = 0;
+    if (base::StringToInt(size_str, &parsed_size)) {
+      network_context_params->http_cache_max_size = parsed_size;
+    }
   }
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)

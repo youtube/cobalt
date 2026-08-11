@@ -81,13 +81,6 @@ public class ShellManager {
     }
 
     /**
-     * @return The window used to generate all shells.
-     */
-    public WindowAndroid getWindow() {
-        return mWindow;
-    }
-
-    /**
      * Get the ContentViewRenderView.
      */
     public @Nullable ContentViewRenderView getContentViewRenderView() {
@@ -99,15 +92,6 @@ public class ShellManager {
      */
     public @Nullable Shell getActiveShell() {
         return mActiveShell;
-    }
-
-    /**
-     * Creates a new shell pointing to the specified URL.
-     * @param url The URL the shell should load upon creation.
-     */
-    public void launchShell(String url) {
-        // Calls the overloaded method with a null listener.
-        launchShell(url, /* deepLinkUrl= */ "", /* listener= */ null);
     }
 
     /**
