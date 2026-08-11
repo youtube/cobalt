@@ -51,7 +51,9 @@
 #include "ui/gl/gl_share_group.h"
 #include "ui/gl/gl_surface_egl.h"
 #include "ui/gl/gl_version_info.h"
+#if BUILDFLAG(IS_COBALT)
 #include "ui/gl/gl_utils.h"
+#endif
 #include "ui/gl/init/gl_factory.h"
 
 #if BUILDFLAG(USE_DAWN)
@@ -920,6 +922,7 @@ void GpuChannelManager::HandleMemoryPressure(
 #endif  // BUILDFLAG(IS_WIN)
 }
 
+#if BUILDFLAG(IS_COBALT)
 gl::GLSurface* GpuChannelManager::default_offscreen_surface() {
   if (!default_offscreen_surface_) {
     gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
@@ -935,6 +938,7 @@ gl::GLSurface* GpuChannelManager::default_offscreen_surface() {
   }
   return default_offscreen_surface_.get();
 }
+#endif  // BUILDFLAG(IS_COBALT)
 
 scoped_refptr<SharedContextState> GpuChannelManager::GetSharedContextState(
     ContextResult* result) {
