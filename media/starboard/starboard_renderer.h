@@ -97,7 +97,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void SetVolume(float volume) override;
   TimeDelta GetMediaTime() override;
   void OnTracksChanged(DemuxerStream::Type track_type,
-                       std::vector<DemuxerStream*> enabled_tracks,
+                       DemuxerStream* enabled_tracks,
                        base::OnceClosure change_completed_cb) override;
   RendererType GetRendererType() override { return RendererType::kStarboard; }
 

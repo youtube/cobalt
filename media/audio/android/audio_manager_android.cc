@@ -261,7 +261,6 @@ std::string GetFallbackDeviceNameForType(AudioDeviceType type) {
       return GetLocalizedStringUTF8(MessageId::GENERIC_AUDIO_DEVICE_NAME);
   }
 }
-#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // Utility function used by `GetDeviceNames()` to find an A2DP/SCO device pair,
 // if present, and combine it into a single A2DP device with an associated SCO
@@ -301,6 +300,7 @@ void CombineBluetoothClassicDevices(
   });
   devices.erase(sco_device);
 }
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 bool UseAAudioOutput() {
   if (!__builtin_available(android AAUDIO_MIN_API, *)) {
@@ -482,32 +482,12 @@ void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
   DCHECK(device_names->empty());
   AddDefaultDevice(device_names);
 
-<<<<<<< HEAD
-  std::vector<JniAudioDevice> j_devices =
-      GetJniDelegate().GetDevices(direction == AudioDeviceDirection::kInput);
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // simplfified flow - just return, device_names is set to default.
   return;
 #else
-  std::vector<JniAudioDevice> j_devices;
-  switch (direction) {
-    case AudioDeviceDirection::kInput:
-    case AudioDeviceDirection::kOutput:
-      j_devices = GetJniDelegate().GetDevices(
-          /* inputs= */ direction == AudioDeviceDirection::kInput);
-      break;
-    case AudioDeviceDirection::kCommunication:
-      auto j_devices_optional = GetJniDelegate().GetCommunicationDevices();
-      if (!j_devices_optional) {
-        // Most probable reason for an `std::nullopt` result here is that the
-        // process lacks MODIFY_AUDIO_SETTINGS or RECORD_AUDIO permissions.
-        return;
-      }
-      j_devices = std::move(j_devices_optional).value();
-      break;
-  }
->>>>>>> parent of d584bc1b896 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  std::vector<JniAudioDevice> j_devices =
+      GetJniDelegate().GetDevices(direction == AudioDeviceDirection::kInput);
 
   // This container is later converted to a `base::flat_map`, but it starts out
   // as an `std::vector` in order to avoid the O(n) insertion time of
@@ -557,6 +537,7 @@ void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
       output_device_cache_ = base::flat_map(devices);
       break;
   }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void AudioManagerAndroid::GetCommunicationDeviceNames(
@@ -595,7 +576,6 @@ const AudioManagerAndroid::DeviceCache& AudioManagerAndroid::GetDeviceCache(
     case AudioDeviceDirection::kOutput:
       return output_device_cache_;
   }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 std::optional<AudioDevice> AudioManagerAndroid::GetDeviceForAAudioStream(

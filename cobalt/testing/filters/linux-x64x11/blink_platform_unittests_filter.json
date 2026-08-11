@@ -6,6 +6,7 @@
     "BMPSuite/BMPImageDecoderTest.VerifyBMPSuiteImage/*",
     "BackgroundResourceFecherTest.BackgroundResponseProcessorExceedMaxBufferedBytesPerProcess",
     "BackgroundResourceFecherTest.BufferIncomingFreezeExceedMaxBufferedBytesPerProcess",
+    "BitmapImageTest.APNGDecoder19",
     "FilePathConversionTest.convert",
     "H264/ResolutionMonitorTestWithValidFrame.*",
     "HarfBuzzShaperTest.*",

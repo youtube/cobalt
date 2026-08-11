@@ -130,6 +130,11 @@ blink_modules_sources("webgpu") {
     } else {
       deps -= [ "//third_party/dawn/src/dawn:proc" ]
     }
+
+    # TODO(b/543717825): Cobalt excludes "webgpu" from the "modules" component's
+    # sub_modules, so it no longer gets modules_export.h via that target's
+    # allow_circular_includes_from. Depend on it directly instead.
+    deps += [ "//third_party/blink/renderer/modules" ]
   }
 }
 
@@ -145,4 +150,11 @@ source_set("unit_tests") {
     "//third_party/blink/renderer/modules",
     "//third_party/blink/renderer/platform:test_support",
   ]
+
+  if (is_cobalt) {
+    # TODO(b/543717825): Cobalt excludes "webgpu" from the "modules" component's
+    # sub_modules, so depending on "modules" no longer transitively forwards
+    # ":webgpu"'s headers.
+    deps += [ ":webgpu" ]
+  }
 }
