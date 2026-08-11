@@ -111,6 +111,13 @@ public class JavaSwitches {
   public static final String ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND =
       "AllowCriticalMemoryPressureHandlingInForeground";
 
+  /**
+   * Flag to disable LessAggressiveParkableString feature to unpause foreground compression and use
+   * a 2-second aging interval.
+   */
+  public static final String DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING =
+      "DisableLessAggressiveParkableString";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -276,6 +283,10 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(
         JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)) {
       extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING)) {
+      extraCommandLineArgs.add("--disable-features=LessAggressiveParkableString");
     }
 
     return extraCommandLineArgs;
