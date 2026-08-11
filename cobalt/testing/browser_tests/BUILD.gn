@@ -394,6 +394,7 @@ test("cobalt_browsertests") {
     "//ui/webui:test_support",
   ]
 
+  data = []
   data_deps = [
     ":cobalt_test_bundle_data",
     "//cobalt/shell:pak",
@@ -430,7 +431,7 @@ test("cobalt_browsertests") {
 
   if (is_linux) {
     deps += [ "//third_party/libyuv" ]
-    data = [
+    data += [
       "//net/tools/testserver/",
       "//third_party/pywebsocket3/src/mod_pywebsocket/",
     ]
@@ -443,6 +444,7 @@ test("cobalt_browsertests") {
       "//starboard:starboard_headers_only",
     ]
     data_deps += [ ":cobalt_browsertests_runner_script" ]
+    data += [ "//content/test/data/title1.html" ]
 
     # Modular build does not call generate_wrapper().
     if (!use_custom_libc) {
