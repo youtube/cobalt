@@ -123,11 +123,9 @@ runs:
         # Check for missing result xml files.
         exit_code=0
         readarray -t test_targets < <(echo "${TEST_OBJECTS_JSON:-[]}" | jq -r '.[] | .target')
-        readarray -t required_passings < <(echo "${TEST_OBJECTS_JSON:-[]}" | jq -r '.[] | if has("required_passing") then .required_passing else true end')
         num_tests=${#test_targets[@]}
         for ((i=0; i<$num_tests; i++)); do
           test_target_with_path="${test_targets[i]}"
-          required_passing="${required_passings[i]}"
 
           test_target=${test_target_with_path#*:}
           xml_files=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"*.xml)
@@ -144,12 +142,8 @@ runs:
               exit_code=1
             fi
           elif grep -q -e '<failure' -e '<error' ${xml_files}; then
-            if [[ "$required_passing" == "true" ]]; then
               echo "::error::Found failures in the test xml."
               exit_code=1
-            else
-              echo "Found failures for ${test_target}, but required_passing is false for this target. Ignoring."
-            fi
           fi
         done
         exit ${exit_code}

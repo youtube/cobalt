@@ -85,11 +85,9 @@ runs:
         failed_suites=""
 
         readarray -t test_executables < <(echo "${TEST_OBJECTS_JSON:-[]}" | jq -r '.[] | .executable')
-        readarray -t required_passings < <(echo "${TEST_OBJECTS_JSON:-[]}" | jq -r '.[] | if has("required_passing") then .required_passing else true end')
         num_tests=${#test_executables[@]}
         for ((i=0; i<$num_tests; i++)); do
           test_executable_path="${test_executables[i]}"
-          required_passing="${required_passings[i]}"
           filename=$(basename "${test_executable_path}")
           test_executable="${filename%%.*}"
 
@@ -126,11 +124,7 @@ runs:
                 --gtest_total_shards="${GTEST_TOTAL_SHARDS}" \
                 --gtest_output="xml:${xml_path}" \
                 --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
-              if [[ "$required_passing" == "true" ]]; then
-                failed_suites="${failed_suites} ${test_executable}"
-              else
-                echo "Test suite failed but has required_passing=false. Ignoring."
-              fi
+              failed_suites="${failed_suites} ${test_executable}"
             }
 
             if [[ ! -f ${xml_path} ]]; then
@@ -159,11 +153,9 @@ runs:
         failed_suites=""
 
         readarray -t test_executables < <(echo "${TEST_OBJECTS_JSON:-[]}" | jq -r '.[] | .executable')
-        readarray -t required_passings < <(echo "${TEST_OBJECTS_JSON:-[]}" | jq -r '.[] | if has("required_passing") then .required_passing else true end')
         num_tests=${#test_executables[@]}
         for ((i=0; i<$num_tests; i++)); do
           test_executable_path="${test_executables[i]}"
-          required_passing="${required_passings[i]}"
 
           test_executable=$(basename "${test_executable_path}")
 
@@ -187,11 +179,7 @@ runs:
           # test result format in our testing workflow.
           json_path="${test_output}/${test_executable_name}_result.json"
           stdbuf -i0 -o0 -e0 ./${test_executable_path} --json-results-file="${json_path}" 2>&1 | tee ${log_path} || {
-            if [[ "$required_passing" == "true" ]]; then
-              failed_suites="${failed_suites} ${test_executable_name}"
-            else
-              echo "Test suite failed but has required_passing=false. Ignoring."
-            fi
+            failed_suites="${failed_suites} ${test_executable_name}"
           }
           if [[ -f ${json_path} ]]; then
             python3 ${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py "${json_path}" "${xml_path}"
