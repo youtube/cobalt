@@ -921,6 +921,9 @@ void GpuChannelManager::HandleMemoryPressure(
 }
 
 #if BUILDFLAG(IS_COBALT)
+// Lazily instantiates the default offscreen surface on demand to minimize memory
+// usage and allow full destruction and release of underlying EGL surface
+// resources during background suspend.
 gl::GLSurface* GpuChannelManager::default_offscreen_surface() {
   if (!default_offscreen_surface_) {
     gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
