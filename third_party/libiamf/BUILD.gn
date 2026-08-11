@@ -1,0 +1,78 @@
+# Copyright 2024 The Cobalt Authors. All Rights Reserved.
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#     http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/config/compiler/compiler.gni")
+import("//build/config/sanitizers/sanitizers.gni")
+
+assert(use_cobalt_customizations)
+
+config("libiamf_config") {
+  include_dirs = [ "//third_party/opus/src/include",
+                   "source/code/include",
+                   "source/code/src/common",
+                   "source/code/src/iamf_dec",
+                   "source/code/src/iamf_dec/opus"
+                 ]
+  defines = [ "CONFIG_OPUS_CODEC", "IAMF_RIMARY_PROFILE=001", "IAMF_ADDITIONAL_PROFILE=001" ]
+}
+
+static_library("libiamf") {
+  sources = [
+    # Common sources
+    "source/code/src/common/audio_defines.h",
+    "source/code/src/common/fixedp11_5.c",
+    "source/code/src/common/fixedp11_5.h",
+    "source/code/src/common/IAMF_debug_dev.h",
+    "source/code/src/common/IAMF_debug.h",
+    # Decoder sources
+    "source/code/src/iamf_dec/ae_rdr.h",
+    "source/code/src/iamf_dec/audio_effect_peak_limiter.c",
+    "source/code/src/iamf_dec/audio_effect_peak_limiter.h",
+    "source/code/src/iamf_dec/bitstream.c",
+    "source/code/src/iamf_dec/bitstream.h",
+    "source/code/src/iamf_dec/demixer.c",
+    "source/code/src/iamf_dec/demixer.h",
+    "source/code/src/iamf_dec/downmix_renderer.c",
+    "source/code/src/iamf_dec/downmix_renderer.h",
+    "source/code/src/iamf_dec/h2b_rdr.c",
+    "source/code/src/iamf_dec/h2m_rdr.c",
+    "source/code/src/iamf_dec/IAMF_codec.h",
+    "source/code/src/iamf_dec/IAMF_core_decoder.c",
+    "source/code/src/iamf_dec/IAMF_core_decoder.h",
+    "source/code/src/iamf_dec/IAMF_decoder_private.h",
+    "source/code/src/iamf_dec/IAMF_decoder.c",
+    "source/code/src/iamf_dec/IAMF_OBU.c",
+    "source/code/src/iamf_dec/IAMF_OBU.h",
+    "source/code/src/iamf_dec/IAMF_types.h",
+    "source/code/src/iamf_dec/IAMF_types.h",
+    "source/code/src/iamf_dec/IAMF_utils.c",
+    "source/code/src/iamf_dec/IAMF_utils.h",
+    "source/code/src/iamf_dec/m2b_rdr.c",
+    "source/code/src/iamf_dec/m2m_rdr.c",
+    "source/code/src/iamf_dec/opus/IAMF_opus_decoder.c",
+    "source/code/src/iamf_dec/opus/opus_multistream2_decoder.c",
+    "source/code/src/iamf_dec/opus/opus_multistream2_decoder.h",
+    "source/code/src/iamf_dec/pcm/IAMF_pcm_decoder.c",
+    "source/code/src/iamf_dec/queue_t.c",
+    "source/code/src/iamf_dec/queue_t.h",
+    "source/code/src/iamf_dec/resample.c",
+    "source/code/src/iamf_dec/speex_resampler.h",
+    "source/code/src/iamf_dec/vlogging_tool_sr.c",
+  ]
+
+  public_configs = [ ":libiamf_config" ]
+  deps = [
+    "//third_party/opus",
+  ]
+}

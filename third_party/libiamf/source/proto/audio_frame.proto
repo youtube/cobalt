@@ -1,0 +1,37 @@
+// Copyright (c) 2023, Alliance for Open Media. All rights reserved
+//
+// This source code is subject to the terms of the BSD 3-Clause Clear License
+// and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+// License was not distributed with this source code in the LICENSE file, you
+// can obtain it at www.aomedia.org/license/software-license/bsd-3-c-c. If the
+// Alliance for Open Media Patent License 1.0 was not distributed with this
+// source code in the PATENTS file, you can obtain it at
+// www.aomedia.org/license/patent.
+
+syntax = "proto2";
+
+package libiamf_proto;
+
+message AudioFrameObuMetadata {
+  optional string wav_filename = 1;
+  reserved 2;
+  reserved 3;
+
+  // Trimming information.
+  optional uint32 samples_to_trim_at_end = 4;
+  optional uint32 samples_to_trim_at_start = 5;
+
+  // ID of the audio element whose substreams will be provided/mixed
+  // from the channels in this WAV file.
+  optional uint32 audio_element_id = 6;
+
+  // Channels used in this WAV file, in the order as described in [ITU2051-3]
+  // for loudspeaker layouts or ACN order for ambisonics. May be fewer than
+  // the total number of channels in the WAV file if only a subset is to be
+  // used.
+  repeated uint32 channel_ids = 7 [packed = true];
+
+  // Channel Labels, e.g. "L2", "Ls5". For ambisonics, use "A{ACN number}",
+  // e.g. "A0", "A13". Must be of the same length as `channel_ids`.
+  repeated string channel_labels = 8;
+}

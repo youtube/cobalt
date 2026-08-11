@@ -1,0 +1,41 @@
+// Copyright (c) 2023, Alliance for Open Media. All rights reserved
+//
+// This source code is subject to the terms of the BSD 3-Clause Clear License
+// and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+// License was not distributed with this source code in the LICENSE file, you
+// can obtain it at www.aomedia.org/license/software-license/bsd-3-c-c. If the
+// Alliance for Open Media Patent License 1.0 was not distributed with this
+// source code in the PATENTS file, you can obtain it at
+// www.aomedia.org/license/patent.
+
+syntax = "proto2";
+
+package libiamf_proto;
+
+import "obu_header.proto";
+import "parameter_data.proto";
+
+message ParameterDataExtension {
+  optional uint32 parameter_data_size = 1;
+  optional bytes parameter_data_bytes = 2;
+}
+
+message ParameterSubblock {
+  optional uint32 subblock_duration = 1;
+  oneof parameter_data {
+    MixGainParameterData mix_gain_parameter_data = 2;
+    DemixingInfoParameterData demixing_info_parameter_data = 3;
+    ReconGainInfoParameterData recon_gain_info_parameter_data = 4;
+    ParameterDataExtension parameter_data_extension = 5;
+  }
+}
+
+message ParameterBlockObuMetadata {
+  optional uint32 parameter_id = 1;
+  optional uint32 duration = 2;
+  optional uint32 num_subblocks = 3;
+  optional uint32 constant_subblock_duration = 4;
+  repeated ParameterSubblock subblocks = 5;
+  optional int32 start_timestamp = 6;
+  optional ObuHeaderMetadata obu_header = 7;
+}

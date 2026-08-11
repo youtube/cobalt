@@ -1,0 +1,78 @@
+// Copyright (c) 2023, Alliance for Open Media. All rights reserved
+//
+// This source code is subject to the terms of the BSD 3-Clause Clear License
+// and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+// License was not distributed with this source code in the LICENSE file, you
+// can obtain it at www.aomedia.org/license/software-license/bsd-3-c-c. If the
+// Alliance for Open Media Patent License 1.0 was not distributed with this
+// source code in the PATENTS file, you can obtain it at
+// www.aomedia.org/license/patent.
+
+syntax = "proto2";
+
+package libiamf_proto;
+
+enum Leb128GeneratorMode {
+  GENERATE_LEB_INVALID = 0;
+  // Generate values using the minimum number of bytes.
+  GENERATE_LEB_MINIMUM = 1;
+  // Generate values using the target of bytes.
+  GENERATE_LEB_FIXED_SIZE = 2;
+}
+
+message Leb128Generator {
+  optional Leb128GeneratorMode mode = 1 [default = GENERATE_LEB_MINIMUM];
+  // Configures the target number of bytes when using `GENERATE_LEB_FIXED_SIZE`
+  // mode.
+  optional int32 fixed_size = 2 [default = 5];
+}
+
+message TestVectorMetadata {
+  optional string human_readable_description = 1;
+  // Prefix of the output file names. Leave empty to skip writing to output
+  // files.
+  optional string file_name_prefix = 2;
+
+  // TODO(b/269708630): Rename `is_valid` to `is_valid_to_encode`.
+  // `true` when all mixes are valid to encode. Mixes may be invalid if they
+  // contain any mixes that use certain reserved values, or if they exercise any
+  // features which are not supported by the encoder.
+  optional bool is_valid = 3;
+  // `true` when a compliant decoder would decode at least one valid mix. Some
+  // other mixes may be invalid or use reserved values which may be ignored.
+  optional bool is_valid_to_decode = 14 [default = true];
+  optional string mp4_fixed_timestamp = 4;
+  reserved 5;
+  // Tags to identify the repository this test vector belongs to. A repository
+  // could be a git branch or it could refer to some other way to organize a
+  // test suite.
+  //
+  // Some canonical tags are used to identify which GitHub branch(es) the test
+  // vector should be synchronized with.
+  //
+  // `github/aomediacodec/libiamf/main`: Used on the `main` branch of
+  //     https://github.com/AOMediaCodec/libiamf
+  // `github/aomediacodec/libiamf/v1.0.0-errata`: Used on the `v1.0.0-errata`
+  //     branch of https://github.com/AOMediaCodec/libiamf
+  repeated string test_repository_tags = 15;
+  repeated string primary_tested_spec_sections = 6;
+  optional string base_test = 7;
+  optional int32 ms_per_fragment = 8 [default = 10000];
+  optional bool override_computed_recon_gains = 9 [default = false];
+
+  // Controls whether to validate the user-provided loudness against the
+  // computed loudness.
+  optional bool validate_user_loudness = 13 [default = false];
+
+  // An override to control the output bit-depth of the output `rendered` wav
+  // file.
+  optional uint32 output_wav_file_bit_depth_override = 12;
+
+  // `true` partitions the input mix gain parameter blocks to be aligned with
+  // single frames. The `param_definition` in the descriptor OBUs must be
+  // accurate.
+  optional bool partition_mix_gain_parameter_blocks = 10 [default = true];
+
+  // Settings to configure how `Leb128`s are generated.
+  optional Leb128Generator leb_generator = 11;
+}
