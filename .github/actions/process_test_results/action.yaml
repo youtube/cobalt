@@ -88,16 +88,15 @@ runs:
           echo "  |_| |_____|____/ |_|   |____/ |_|/_/   \_\|_|  \___/ |____/ "
           echo
 
-          OPTIONAL_ARGS=""
-          if [ "${REQUIRED_PASSING}" == "false" ]; then
-             OPTIONAL_ARGS="--optional-targets ${TARGET_NAME}"
+          if python3 cobalt/tools/junit_mini_parser.py ${RESULTS_GLOB}; then
+            parser_exit_code=0
+          else
+            parser_exit_code=1
           fi
-
-          python3 cobalt/tools/junit_mini_parser.py ${OPTIONAL_ARGS} ${RESULTS_GLOB}
 
           if [ "${REQUIRED_PASSING}" == "false" ]; then
              echo "::warning::${TARGET_NAME} has ${TESTS_FAILED} failed test(s), but is not required to pass."
-          else
+          elif [ "${parser_exit_code}" != "0" ]; then
              echo "::error::${TARGET_NAME} has ${TESTS_FAILED} failed test(s)."
              exit_code=1
           fi
