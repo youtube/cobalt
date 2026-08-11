@@ -13,7 +13,7 @@ inputs:
   num_gtest_shards:
     description: "Total number of shards used to run the steps in this file."
     required: true
-  test_objects_json:
+  test_executables_json:
     description: "JSON array of test executables to run."
     required: true
   test_type:
@@ -78,16 +78,16 @@ runs:
         XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
         GTEST_SHARD_INDEX: ${{ matrix.shard }}
         GTEST_TOTAL_SHARDS: ${{ inputs.num_gtest_shards }}
-        TEST_OBJECTS_JSON: ${{ inputs.test_objects_json }}
+        TEST_EXECUTABLES_JSON: ${{ inputs.test_executables_json }}
       run: |
         set -x
 
         failed_suites=""
 
-        readarray -t test_executables < <(echo "${TEST_OBJECTS_JSON:-[]}" | jq -r '.[] | .executable')
-        num_tests=${#test_executables[@]}
-        for ((i=0; i<$num_tests; i++)); do
-          test_executable_path="${test_executables[i]}"
+        # Parse the JSON array into a space-separated string using jq.
+        test_executables=$(jq -nr --arg json "${TEST_EXECUTABLES_JSON:-[]}" '$json | fromjson | join(" ")')
+
+        for test_executable_path in ${test_executables}; do
           filename=$(basename "${test_executable_path}")
           test_executable="${filename%%.*}"
 
@@ -146,17 +146,16 @@ runs:
       id: run-junit-suites
       shell: bash
       env:
-        TEST_OBJECTS_JSON: ${{ inputs.test_objects_json }}
+        TEST_EXECUTABLES_JSON: ${{ inputs.test_executables_json }}
       run: |
         set -x
 
         failed_suites=""
 
-        readarray -t test_executables < <(echo "${TEST_OBJECTS_JSON:-[]}" | jq -r '.[] | .executable')
-        num_tests=${#test_executables[@]}
-        for ((i=0; i<$num_tests; i++)); do
-          test_executable_path="${test_executables[i]}"
+        # Parse the JSON array into a space-separated string using jq.
+        test_executables=$(jq -nr --arg json "${TEST_EXECUTABLES_JSON:-[]}" '$json | fromjson | join(" ")')
 
+        for test_executable_path in ${test_executables}; do
           test_executable=$(basename "${test_executable_path}")
 
           # JUnit tests are executed by their wrapper script "out/PLATFORM_CONFIG/bin/run_NAME".
