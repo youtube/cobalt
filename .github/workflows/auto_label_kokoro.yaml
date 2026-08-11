@@ -15,6 +15,7 @@ on:
     branches:
       - main
       - staging
+      - autoroll-chromium/main-to-staging
       - experimental/*
 
 concurrency:
