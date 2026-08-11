@@ -16,7 +16,9 @@ standard library."""
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import collections
+import json
 import logging
 import os
 import sys
@@ -57,39 +59,106 @@ def find_failing_tests(
   return failing_tests
 
 
-def main(xml_files: list[str]) -> int:
-  """Main entry point.
-
-  Args:
-    xml_files (list): A list of paths to JUnit XML files.
-
-  Returns:
-    1 if failing tests are found, 0 otherwise.
-  """
+def main(xml_files: list[str], expected_tests_json_str: str = None) -> int:
+  """Main entry point."""
   failing_tests = find_failing_tests(xml_files)
 
+  expected_tests = []
+  if expected_tests_json_str:
+    try:
+      expected_tests = json.loads(expected_tests_json_str)
+    except ValueError as e:
+      logging.error('Failed to parse expected tests JSON: %s', e)
+      return 1
+
+  # Gather all tested targets from XML files.
+  # Parsing all xml files to find which targets are present.
+  present_targets = set()
+  for filename in xml_files:
+    try:
+      tree = xml.etree.ElementTree.parse(filename)
+      root = tree.getroot()
+      # root might be <testsuites> or <testsuite>
+      if root.tag == 'testsuites':
+        testsuites = root.findall('testsuite')
+      else:
+        testsuites = [root]
+      for ts in testsuites:
+        target = ts.attrib.get('name')
+        if target:
+          present_targets.add(target)
+    except (OSError, xml.etree.ElementTree.ParseError):
+      pass
+
+  missing_required = False
+  for expected in expected_tests:
+    if expected.get('required_passing', True):
+      # Extract target name from the JSON.
+      target_val = expected.get('target', '')
+      target_name = target_val.split(
+          ':')[-1] if ':' in target_val else target_val
+
+      # Now check if it's in present_targets
+      # But sometimes XML name has prefixes or suffixes.
+      found = False
+      for pt in present_targets:
+        if target_name in pt:
+          found = True
+          break
+
+      if not found:
+        logging.error('Missing required test target: %s', target_name)
+        missing_required = True
+
   if failing_tests:
+    has_required_failure = False
     logging.info('Failing Tests:')
     for target, test_status in sorted(failing_tests.items()):
       logging.info('%s', target)
-      for test, message in sorted(test_status):
-        logging.info('[  FAILED  ] %s', test)
+      for test_name, message in test_status:
+        logging.info('  %s', test_name)
         if message:
           logging.info('%s', message)
       logging.info('')  # Blank line between targets
+
+      # Check if this failing target was required
+      is_required = True
+
+      # Best effort matching against the expected tests JSON
+      for expected in expected_tests:
+        target_val = expected.get('target', '')
+        target_name = target_val.split(
+            ':')[-1] if ':' in target_val else target_val
+        if target_name in target:
+          if not expected.get('required_passing', True):
+            is_required = False
+          break
+
+      if is_required:
+        has_required_failure = True
+
+    if not has_required_failure and not missing_required:
+      logging.info('Optional failures ignored and no missing required targets.')
+      return 0
+    return 1
+
+  if missing_required:
     return 1
 
   if xml_files:
-    logging.info('No failing tests found in the test results.')
+    logging.info('No failing tests found in %d files.', len(xml_files))
   return 0
 
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO, format='%(message)s')
-  if len(sys.argv) == 1:
-    logging.error('Usage: python junit_mini_parser.py '
-                  '<junit_xml_file1> <junit_xml_file2> ...')
-    logging.error('Please provide a list of JUnit XML files as command line '
-                  'arguments.')
-    sys.exit(2)
-  sys.exit(main(sys.argv[1:]))
+  parser = argparse.ArgumentParser(
+      description='A util that prints failing tests from JUnit xml.')
+  parser.add_argument(
+      '--expected-tests-json',
+      default='',
+      help='JSON string containing array of expected test objects')
+  parser.add_argument('xml_files', nargs='*', help='Paths to JUnit XML files')
+
+  args = parser.parse_args()
+  sys.exit(main(args.xml_files, args.expected_tests_json))

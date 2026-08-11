@@ -941,8 +941,8 @@ jobs:
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
           datadog_api_key: ${{ secrets.datadog_api_key }}
+          expected_tests_json: ${{ needs.initialize.outputs.expected_tests_json }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
-          required_passing: ${{ matrix.test_info.required_passing != false }}
       - name: ${{ matrix.test_info.target }} Device Logs
         if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true' && matrix.test_info.runs_on == 'device'
         continue-on-error: true
@@ -1003,6 +1003,7 @@ jobs:
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
           datadog_api_key: ${{ secrets.datadog_api_key }}
+          expected_tests_json: ${{ needs.initialize.outputs.expected_tests_json }}
           num_gtest_shards: 1
       - name: ${{ matrix.test_target }} Device Logs
         if: always() && needs.initialize.outputs.test_on_device == 'true'
@@ -1057,5 +1058,5 @@ jobs:
         run: |
           # Print test result summary.
           shopt -s globstar nullglob
-          python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
+          python3 cobalt/tools/junit_mini_parser.py --expected-tests-json '${{ needs.initialize.outputs.expected_tests_json }}' results/**/*.xml
         shell: bash
