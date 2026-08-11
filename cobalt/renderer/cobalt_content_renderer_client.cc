@@ -20,6 +20,7 @@
 
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -45,6 +46,10 @@
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
 #include "ui/gfx/geometry/size_conversions.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "media/starboard/url_player_demuxer.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace cobalt {
 
@@ -219,7 +224,6 @@ void CobaltContentRendererClient::RenderThreadStarted() {
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
-  CHECK(content::RenderThread::IsMainThread());
   ::media::SupportedCodecs codecs = GetStarboardEmeSupportedCodecs();
 
   using Robustness = cdm::WidevineKeySystemInfo::Robustness;
@@ -262,7 +266,6 @@ std::unique_ptr<::media::KeySystemSupportRegistration>
 CobaltContentRendererClient::GetSupportedKeySystems(
     content::RenderFrame* render_frame,
     ::media::GetSupportedKeySystemsCB cb) {
-  CHECK(content::RenderThread::IsMainThread());
   ::media::KeySystemInfos key_systems;
   AddStarboardCmaKeySystems(&key_systems);
   std::move(cb).Run(std::move(key_systems));
@@ -271,7 +274,6 @@ CobaltContentRendererClient::GetSupportedKeySystems(
 
 bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
     const ::media::AudioType& type) {
-  CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromAudioType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
@@ -285,7 +287,6 @@ bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
 
 bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
     const ::media::VideoType& type) {
-  CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromVideoType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
@@ -370,6 +371,20 @@ void CobaltContentRendererClient::PostSandboxInitialized() {
     unregister_thread_closure = base::HangWatcher::RegisterThread(
         base::HangWatcher::ThreadType::kRendererThread);
   }
+}
+
+std::unique_ptr<::media::Demuxer>
+CobaltContentRendererClient::OverrideDemuxerForUrl(
+    content::RenderFrame* render_frame,
+    const GURL& url,
+    scoped_refptr<base::SequencedTaskRunner> task_runner) {
+#if BUILDFLAG(IS_IOS_TVOS)
+  if (::media::IsHlsUrl(url)) {
+    return std::make_unique<::media::UrlPlayerDemuxer>(std::move(task_runner),
+                                                       url);
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+  return nullptr;
 }
 
 }  // namespace cobalt

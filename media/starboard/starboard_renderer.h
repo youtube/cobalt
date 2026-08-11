@@ -22,6 +22,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/base/cdm_context.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
@@ -122,6 +123,12 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   void OnVideoGeometryChange(const gfx::Rect& output_rect);
   void OnSbWindowHandleReady(const uint64_t sb_window_handle);
+#if BUILDFLAG(IS_IOS_TVOS)
+  void SetSourceUrl(const std::string& source_url);
+  void OnEncryptedMediaInitDataEncountered(const char* init_data_type,
+                                           const unsigned char* init_data,
+                                           unsigned int init_data_length);
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -150,6 +157,15 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
     STATE_ERROR
   };
 
+#if BUILDFLAG(IS_IOS_TVOS)
+  // Returns true when the renderer is operating in URL player mode.
+  bool IsUrlPlayer() const;
+  // Handles presenting state for URL player: propagates video resolution
+  // for hole-punch rendering and re-applies playback rate.
+  void OnUrlPlayerPresenting();
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
+  void UpdateAudioWriteDuration();
   void CreatePlayerBridge();
   void ApplyPendingBounds();
   void UpdateDecoderConfig(DemuxerStream* stream);
@@ -178,6 +194,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // AndroidOverlay callbacks.
   void OnOverlayReady(AndroidOverlay*);
   void OnOverlayFailed(AndroidOverlay*);
+  bool IsSecondaryVideoProtected() const;
 #endif  // BUILDFLAG(IS_ANDROID)
 
   int GetDefaultMaxBuffers(AudioCodec codec,
@@ -200,6 +217,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+#if BUILDFLAG(IS_IOS_TVOS)
+  std::string source_url_;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   const StarboardRendererConfig::ExperimentalFeatures experimental_features_;
   // TODO: b/375674101 - Connect this to h5vcc setting.
   const int max_samples_per_write_;

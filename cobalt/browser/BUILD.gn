@@ -64,6 +64,8 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_experiments",
     "//cobalt/browser/h5vcc_experiments/public/mojom",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/browser/h5vcc_native_stability",
+    "//cobalt/browser/h5vcc_native_stability/public/mojom",
     "//cobalt/browser/h5vcc_platform_service",
     "//cobalt/browser/h5vcc_platform_service/public/mojom",
     "//cobalt/browser/h5vcc_runtime/public/mojom",
@@ -138,6 +140,24 @@ source_set("browser") {
     deps += [
       "//cobalt/browser/dial",
       "//cobalt/browser/dial/public/mojom",
+    ]
+  }
+
+  if (!cobalt_is_release_build) {
+    deps += [ ":proxy_server_support" ]
+  }
+}
+
+if (!cobalt_is_release_build) {
+  source_set("proxy_server_support") {
+    sources = [
+      "proxy_server_support.cc",
+      "proxy_server_support.h",
+    ]
+    deps = [
+      "//base",
+      "//net",
+      "//services/network/public/mojom",
     ]
   }
 }

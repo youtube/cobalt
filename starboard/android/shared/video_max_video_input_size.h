@@ -17,8 +17,8 @@
 
 namespace starboard {
 
-// Get max_video_input_size setting via SetMaxVideoInputSizeForCurrentThread(),
-// it returns 0 if s_thread_local_key is invalid.
+// Get max_video_input_size setting set via
+// SetMaxVideoInputSizeForCurrentThread(). Returns 0 if not set.
 int GetMaxVideoInputSizeForCurrentThread();
 
 // 1. This is utilized to establish the maximum video input size
@@ -26,7 +26,7 @@ int GetMaxVideoInputSizeForCurrentThread();
 // 2. The maximum video input dimensions serve as a suggestion; the
 //    implementation is not obligated to adhere to it, and there is no
 //    feedback provided.
-// 3. Set it to 0 disable the setting.
+// 3. Set it to 0 to disable the setting.
 void SetMaxVideoInputSizeForCurrentThread(int max_video_input_size);
 
 }  // namespace starboard

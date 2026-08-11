@@ -271,6 +271,9 @@ if (is_cobalt) {
     "*peer_connection*",
     "*explicit_congestion_notification*",
     "*v8_union_mediastreamtrack_string*",
+    "*blob_event*",
+    "*v8_media_recorder.*",
+    "*v8_recording_state*",
   ]
     
   cobalt_hardware_exclude_patterns = [
@@ -316,6 +319,16 @@ if (is_cobalt) {
       "*v8_private_aggregation*",
       "*private_attribution*",
       "*storage_access*",
+      "*ad_auction*",
+      "*navigator_auction*",
+      "*protected_audience*",
+      "*interest_group*",
+      "*auction*",
+      "*v8_ads*",
+      "*fencedframeconfig*",
+      "*adproperties*",
+      "*v8_ad_*",
+      "*view_or_click_counts*",
     ]
   }
 }

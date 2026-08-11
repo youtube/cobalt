@@ -1,4 +1,5 @@
 include_rules = [
+  "+audio/utility",
   "+call",
   "+common_audio",
   "+logging/rtc_event_log",

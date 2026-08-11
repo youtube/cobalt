@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <android/api-level.h>
 #include <jni.h>
 
 #include <atomic>
@@ -21,6 +22,7 @@
 
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
+#include "starboard/android/shared/audio_track.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
@@ -30,6 +32,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
@@ -47,7 +50,7 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
-#include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -56,6 +59,31 @@ namespace {
 
 using features::FeatureList;
 using jni_zero::AttachCurrentThread;
+
+constexpr int kAndroidApiLevelU = 34;
+
+bool IsFeatureEnabledOrDefaultOnAndroidU(
+    const SbFeature& feature,
+    const ExperimentalFeatures& experimental_features,
+    const ExperimentalFeatureKey<bool>& experimental_feature_key) {
+  return android_get_device_api_level() >= kAndroidApiLevelU ||
+         FeatureList::IsEnabled(feature) ||
+         experimental_features.GetBool(experimental_feature_key);
+}
+
+bool ShouldEnableFlushDuringSeek(
+    const ExperimentalFeatures& experimental_features) {
+  return IsFeatureEnabledOrDefaultOnAndroidU(
+      features::kForceFlushDecoderDuringReset, experimental_features,
+      kMediaEnableFlushDuringSeek);
+}
+
+bool ShouldEnableResetAudioDecoder(
+    const ExperimentalFeatures& experimental_features) {
+  return IsFeatureEnabledOrDefaultOnAndroidU(features::kForceResetAudioDecoder,
+                                             experimental_features,
+                                             kMediaEnableResetAudioDecoder);
+}
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
@@ -68,6 +96,31 @@ bool UseLibopusDecoder(SbMediaAudioCodec codec,
                        bool force_platform_opus_decoder) {
   return codec == kSbMediaAudioCodecOpus && !SbDrmSystemIsValid(drm_system) &&
          !force_platform_opus_decoder;
+}
+
+bool ShouldUseDualThreads(SbMediaAudioCodec audio_codec,
+                          SbDrmSystem drm_system,
+                          const ExperimentalFeatures& features,
+                          bool force_platform_opus_decoder) {
+  // If there is no audio codec, default to using dual threads.
+  if (audio_codec == kSbMediaAudioCodecNone) {
+    return true;
+  }
+
+  // The experimental feature flag overrides all other conditions.
+  if (features.GetBool(kMediaForceDualThreads)) {
+    return true;
+  }
+
+  // `use_dual_threads` should be disabled if the libopus audio
+  // decoder isn't used, as we want to limit the initial behavior to
+  // playbacks with software based audio where their threading behavior is
+  // more straightforward.
+  //
+  // TODO(b/329686979): Make this work better with AdaptiveAudioDecoder,
+  // where technically the stream can start with aac then transit into opus.
+  return UseLibopusDecoder(audio_codec, drm_system,
+                           force_platform_opus_decoder);
 }
 
 bool IsTunnelModeVideoDecoderSupported(const std::string& mime,
@@ -306,6 +359,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(true);
       SB_LOG(INFO) << "`enable_av1_startup_optimization` is set to true.";
     }
+    if (experimental_features.GetBool(kMediaNdkAudioTrack)) {
+      AudioTrack::SetNdkAudioTrackEnabled(true);
+      SB_LOG(INFO) << "`ndk_audio_track` is set to true.";
+    }
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
       SB_LOG(INFO) << "Creating non-passthrough components.";
@@ -325,10 +382,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       }
     }
 
-    bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.experimental_features().GetBool(
-            kMediaEnableFlushDuringSeek);
+    bool enable_flush_during_seek = ShouldEnableFlushDuringSeek(
+        creation_parameters.experimental_features());
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       auto video_mime_type = MimeType::Create(creation_parameters.video_mime());
@@ -462,8 +517,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     const auto& experimental_features =
         creation_parameters.experimental_features();
     bool enable_reset_audio_decoder =
-        FeatureList::IsEnabled(features::kForceResetAudioDecoder) ||
-        experimental_features.GetBool(kMediaEnableResetAudioDecoder) ||
+        ShouldEnableResetAudioDecoder(experimental_features) ||
         (video_mime_type &&
          video_mime_type->GetParamBoolValue("enableresetaudiodecoder", false));
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
@@ -476,8 +530,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << ".";
 
     bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
-        experimental_features.GetBool(kMediaEnableFlushDuringSeek) ||
+        ShouldEnableFlushDuringSeek(experimental_features) ||
         (video_mime_type &&
          video_mime_type->GetParamBoolValue("enableflushduringseek", false));
     SB_LOG_IF(INFO, enable_flush_during_seek)
@@ -593,8 +646,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
-        experimental_features.GetBool(kMediaEnableFlushDuringSeek);
+        ShouldEnableFlushDuringSeek(experimental_features);
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
 
@@ -628,20 +680,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
-    bool use_dual_threads = true;
-    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
-      // `use_dual_threads` should be disabled if the libopus audio
-      // decoder isn't used, as we want to limit the initial behavior to
-      // playbacks with software based audio where their threading behavior is
-      // more straightforward.
-      // TODO(b/329686979): Make this work better with AdaptiveAudioDecoder,
-      // where technically the stream can start with aac then transit into opus.
-      if (!UseLibopusDecoder(creation_parameters.audio_codec(),
-                             creation_parameters.drm_system(),
-                             force_platform_opus_decoder_)) {
-        use_dual_threads = false;
-      }
-    }
+    bool use_dual_threads = ShouldUseDualThreads(
+        creation_parameters.audio_codec(), creation_parameters.drm_system(),
+        experimental_features, force_platform_opus_decoder_);
 
     return MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),

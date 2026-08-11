@@ -144,7 +144,7 @@ runs:
           fi
         shell: bash
       - name: Archive Android APKs
-        if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
+        if: (startsWith(matrix.platform, 'android') || startsWith(matrix.platform, 'aosp')) && matrix.config == 'qa'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }} APKs

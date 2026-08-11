@@ -35,9 +35,6 @@ extern const base::FeatureParam<std::string> kTestFinchFeatureParam;
 // Enables native hang reporting via Crashpad.
 extern const base::Feature kHangReporting;
 
-// Use IPv4 for system host resolution.
-extern const base::Feature kUseIPv4ForDNS;
-
 // Enables overriding the default metrics collection interval with a fixed
 // value.
 extern const base::Feature kCobaltMetricsIntervalFeature;
@@ -61,6 +58,12 @@ extern const base::Feature kInMemoryUpdatesMemoryBuffer;
 
 // Sets the memory buffer size in bytes.
 extern const base::FeatureParam<int> kInMemoryUpdatesMemoryBufferParam;
+
+// Disables showing the splash screen.
+extern const base::Feature kDisableSplashScreen;
+
+// Forces the display of a video as the splash screen.
+extern const base::Feature kForceVideoSplashScreen;
 
 }  // namespace features
 }  // namespace cobalt

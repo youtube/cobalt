@@ -14,22 +14,36 @@
 
 #include "media/mojo/clients/starboard/starboard_renderer_client.h"
 
+#include <atomic>
+
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
+#include "build/build_config.h"
 #include "media/base/media_log.h"
 #include "media/base/media_resource.h"
+#include "media/base/media_switches.h"
 #include "media/base/video_frame.h"
 #include "media/mojo/clients/mojo_renderer.h"
 #include "media/renderers/video_overlay_factory.h"
 #include "media/video/gpu_video_accelerator_factories.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "url/gurl.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/task/bind_post_task.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 namespace media {
+
+namespace {
+std::atomic<uint32_t> g_next_bypass_id{1};
+}  // namespace
 
 StarboardRendererClient::StarboardRendererClient(
     const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
@@ -45,7 +59,8 @@ StarboardRendererClient::StarboardRendererClient(
     ,
     RequestOverlayInfoCB request_overlay_info_cb
 #endif  // BUILDFLAG(IS_ANDROID)
-    )
+    ,
+    bool bypass_mojo_for_media)
     : MojoRendererWrapper(std::move(mojo_renderer)),
       media_task_runner_(media_task_runner),
       media_log_(std::move(media_log)),
@@ -60,7 +75,8 @@ StarboardRendererClient::StarboardRendererClient(
       ,
       request_overlay_info_cb_(std::move(request_overlay_info_cb))
 #endif  // BUILDFLAG(IS_ANDROID)
-{
+      ,
+      bypass_mojo_for_media_(bypass_mojo_for_media) {
   DCHECK(media_task_runner_);
   DCHECK(video_renderer_sink_);
   DCHECK(video_overlay_factory_);
@@ -70,6 +86,11 @@ StarboardRendererClient::StarboardRendererClient(
 StarboardRendererClient::~StarboardRendererClient() {
   SetPlayingState(false);
   DCHECK(!video_renderer_sink_started_);
+
+  if (bypass_bridge_) {
+    bypass_bridge_->Invalidate();
+    BypassBridgeRegistry::Unregister(bypass_id_);
+  }
 
 #if BUILDFLAG(IS_ANDROID)
   if (request_overlay_info_cb_ && overlay_info_requested_) {
@@ -230,8 +251,8 @@ void StarboardRendererClient::UpdateStarboardRenderingMode(
       if (is_playing_) {
         StopVideoRendererSink();
       } else {
-        LOG(WARNING) << "StarboardRendererClient doesn't stop video rendering "
-                        "sink, since the video is not playing.";
+        LOG(INFO) << "StarboardRendererClient doesn't stop video rendering "
+                     "sink, since the video is not playing.";
       }
       break;
     case StarboardRenderingMode::kDecodeToTexture:
@@ -240,8 +261,8 @@ void StarboardRendererClient::UpdateStarboardRenderingMode(
       if (is_playing_) {
         StartVideoRendererSink();
       } else {
-        LOG(WARNING) << "StarboardRendererClient doesn't start video rendering "
-                        "sink, since StartPlayingFrom() is not called.";
+        LOG(INFO) << "StarboardRendererClient doesn't start video rendering "
+                     "sink, since StartPlayingFrom() is not called.";
       }
       break;
     case StarboardRenderingMode::kInvalid:
@@ -334,6 +355,88 @@ void StarboardRendererClient::InitializeMojoRenderer(
     PipelineStatusCallback init_cb) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
   DCHECK(AreMojoPipesConnected());
+
+  // URL player is incompatible with the bypass bridge because the bypass
+  // bridge proxies demuxer streams, while the URL player delegates playback
+  // entirely to the native platform player.
+  bool is_url_player = false;
+#if BUILDFLAG(IS_IOS_TVOS)
+  GURL url = media_resource->GetMediaUrl();
+  is_url_player = url.is_valid();
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
+  if (!is_url_player &&
+      (base::FeatureList::IsEnabled(kCobaltBypassMojoForMedia) ||
+       bypass_mojo_for_media_)) {
+    bypass_bridge_ = base::MakeRefCounted<MojoRendererBypassBridge>(
+        media_task_runner_,
+        base::BindRepeating(&StarboardRendererClient::OnTimeUpdateFromBridge,
+                            weak_factory_.GetWeakPtr()),
+        base::BindRepeating(
+            &StarboardRendererClient::OnStatisticsUpdateFromBridge,
+            weak_factory_.GetWeakPtr()));
+    DemuxerStream* audio_stream =
+        media_resource->GetFirstStream(DemuxerStream::AUDIO);
+    DemuxerStream* video_stream =
+        media_resource->GetFirstStream(DemuxerStream::VIDEO);
+    bypass_bridge_->SetStreams(audio_stream, video_stream);
+    bypass_id_ = g_next_bypass_id.fetch_add(1);
+    BypassBridgeRegistry::Register(bypass_id_, bypass_bridge_);
+    renderer_extension_->InitializeWithBypassBridge(
+        bypass_id_,
+        mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+            base::BindOnce(
+                &StarboardRendererClient::OnExtensionBypassInitialized,
+                weak_factory_.GetWeakPtr(), media_resource, client,
+                std::move(init_cb)),
+            false));
+    return;
+  }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+  if (is_url_player) {
+    renderer_extension_->SetSourceUrl(url.spec());
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
+  MojoRendererWrapper::Initialize(media_resource, client, std::move(init_cb));
+}
+
+void StarboardRendererClient::OnTimeUpdateFromBridge(
+    base::TimeDelta time,
+    base::TimeDelta max_time,
+    base::TimeTicks capture_time) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (mojo_renderer()) {
+    mojo_renderer()->OnTimeUpdate(time, max_time, capture_time);
+  }
+}
+
+void StarboardRendererClient::OnStatisticsUpdateFromBridge(
+    const PipelineStatistics& stats) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (mojo_renderer()) {
+    mojo_renderer()->OnStatisticsUpdate(stats);
+  }
+}
+
+void StarboardRendererClient::OnExtensionBypassInitialized(
+    MediaResource* media_resource,
+    RendererClient* client,
+    PipelineStatusCallback init_cb,
+    bool success) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (!success) {
+    if (bypass_bridge_) {
+      bypass_bridge_->Invalidate();
+      BypassBridgeRegistry::Unregister(bypass_id_);
+      bypass_bridge_ = nullptr;
+    }
+    if (init_cb) {
+      std::move(init_cb).Run(PIPELINE_ERROR_INITIALIZATION_FAILED);
+    }
+    return;
+  }
   MojoRendererWrapper::Initialize(media_resource, client, std::move(init_cb));
 }
 

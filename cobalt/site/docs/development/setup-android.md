@@ -1,236 +1,125 @@
 Project: /youtube/cobalt/_project.yaml
 Book: /youtube/cobalt/_book.yaml
 
-# Chrobalt ATV: Engineering Setup & Development Guide
+# Set up your environment - AOSP
 
-Welcome to **Chrobalt ATV**! This guide is designed to onboard software engineers to Cobalt development for Android TV (ATV) on the Chromium browser engine.
+These instructions explain how to build and run Cobalt for the AOSP platform (`aosp-arm`, `aosp-arm64`, `aosp-x86`).
 
----
+Before following these instructions, make sure you have set up your workstation and source checkout as described in [Set up your environment - Linux](setup-linux.md).
 
-## 1. Welcome & Architectural Overview
+## Prerequisites
 
-### What is Chrobalt?
+1. Follow all steps in [Set up your environment - Linux](setup-linux.md) to install basic system dependencies, `depot_tools`, clone the Cobalt repository, and run `build/install-build-deps.sh`.
 
-**Chrobalt** is the project codename for Cobalt versions 26 and later. Starting with v26, Cobalt transitioned from a standalone repository to running inside the upstream Chromium repository.
-
-* **Chrobalt ATV** is built natively using Chromium’s `GN` and `Ninja` build systems.
-* **Shared Engine**: The core browser engine and Starboard media adaptations compile into a single shared library named `libchrobalt.so`.
-* **APK Packaging**: The native library and its resources package into a standard Android APK (`Cobalt.apk`) under the `dev.cobalt.coat` package.
-
----
-
-## 2. System Requirements & Prerequisites
-
-Before setting up your workspace, verify that your development machine meets the following minimum hardware and software specifications:
-
-* **Operating System**: Linux x86-64 (Ubuntu 22.04 LTS or newer recommended). Note that building Chromium/Cobalt for Android on Windows or macOS is not supported.
-* **Memory**: At least 16 GB RAM (32+ GB highly recommended for optimal C++ linking performance).
-* **Disk Space**: Minimum 100 GB of available SSD storage.
-* **System Tools**: `git`, `python3`, and `curl`.
-
-### Installing Depot Tools
-Chromium projects require Google's `depot_tools` suite for source code checkout and dependency management.
-
-```bash
-# Clone depot_tools
-git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git ~/depot_tools
-
-# Add depot_tools to your PATH in ~/.bashrc or ~/.zshrc
-export PATH="$PATH:$HOME/depot_tools"
-```
-
----
-
-## 3. Repository & Workspace Setup
-
-There are two supported approaches to configuring your local Chrobalt ATV checkout.
-
-### Option A: Automated Checkout Setup (Recommended)
-
-If you are initializing a fresh workspace, use the automated Cobalt checkout script:
-
-```bash
-python3 .agent/skills/cobalt-new-checkout/scripts/cobalt_new_checkout.py --non-interactive --github-user "<your_github_username>"
-```
-
-### Option B: Standard Chromium Checkout (Manual)
-
-If you prefer to manage the checkout manually or are converting an existing Linux Chromium checkout:
-
-1. **Fetch the Android Source Tree**
-
-   ```bash
-   mkdir ~/chromium && cd ~/chromium
-   fetch --nohooks android
-   # Note: Use --no-history for a faster checkout without full commit history.
-   ```
-
-2. **Converting an Existing Checkout**
-   If you already have a Linux checkout, append `android` to `target_os` in your root `.gclient` configuration:
+2. Ensure your root `.gclient` file includes `android` in `target_os`:
 
    ```python
    target_os = [ 'linux', 'android' ]
    ```
-   Then run `gclient sync`.
 
-3. **Install System and Android Dependencies**
-   Execute Chromium's automated dependency script to install required Linux packages, the Android SDK, and NDK toolchains:
+   Then synchronize dependencies from your top-level repository:
 
    ```bash
-   cd src
-   build/install-build-deps.sh
-   gclient runhooks
+   cd ~/cobalt/src
+   gclient sync
    ```
 
-4. **Set Up Android Debug Keystore**
-   Generate a local debug keystore required for signing development APKs:
+3. Set up an Android debug keystore required for signing development APKs:
 
    ```bash
    keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000
    ```
 
----
+## Build and Run Cobalt for AOSP
 
-## 4. Build Configuration (GN)
+1. Configure the build directory for the target AOSP platform (`aosp-arm`, `aosp-arm64`, `aosp-x86`) using `cobalt/build/gn.py`.
 
-Chrobalt ATV uses `GN` to generate build files. You can maintain multiple build directories (e.g., `out/android-arm_qa/`).
-
-### Core Build Variables
-
-When configuring your build environment, Chrobalt ATV relies on several crucial GN variables defined in `//cobalt/build/configs/`:
-
-| GN Variable | Chrobalt ATV Value | Purpose |
-| :--- | :--- | :--- |
-| `target_os` | `"android"` | Sets the target operating system to Android. |
-| `is_cobalt` | `true` | Enables Cobalt-specific browser and runtime overrides. |
-| `is_androidtv` | `true` | Optimizes UI, input, and media pipelines for Android TV. |
-| `use_starboard_media` | `true` | Integrates Starboard hardware decoding & DRM pipelines. |
-| `is_starboard` | `false` | Disables legacy standalone Starboard OS wrappers. |
-| `use_evergreen` | `false` | Disables Cobalt Evergreen binary updaters (native APK build). |
-
-### Build Flavors
-
-Choose your target optimization level via `build_type`:
-
-* **`debug`** (`is_debug=true`, `is_official_build=false`): Full unstripped debug symbols, zero optimization. Best for step-by-step C++ debugging.
-* **`devel`** (`is_debug=false`, `is_official_build=false`): Symbols retained, partial optimization. Standard for daily development and local testing.
-* **`qa`** (`is_debug=false`, `is_official_build=true`): Full optimization, symbols stripped. Matches staging and certification environments.
-* **`gold`** (`is_debug=false`, `is_official_build=true`): Production release build.
-
-### Initializing a Build Directory
-
-Generate the Ninja configuration using `gn args`:
-
-```bash
-gn args out/android-arm_qa
-```
-
-In the text editor that opens, enter your desired configuration:
-
-```gn
-target_os = "android"
-target_cpu = "arm"         # Use "arm64" for 64-bit ATV hardware (verify via adb shell getprop ro.product.cpu.abi)
-
-is_cobalt = true
-is_androidtv = true
-use_starboard_media = true
-
-build_type = "qa"       # Options: "debug", "devel", "qa", "gold"
-```
-
----
-
-## 5. Compiling & Packaging
-
-Chrobalt ATV packages its implementation into `Cobalt.apk` defined in `//cobalt/android/BUILD.gn`.
-
-### Building the Application APK
-
-Build the target using `autoninja` (which automatically optimizes core utilization):
-
-```bash
-autoninja -C out/android-arm_qa cobalt_apk
-```
-
-Upon successful compilation, the output APK will be available at:
-
-```bash
-out/android-arm_qa/apks/Cobalt.apk
-```
-
----
-
-## 6. Device Deployment & Execution
-
-### Device Setup
-
-1. On your Android TV or Google TV device, navigate to **Settings > System > About**.
-2. Highlight **Android TV OS build** and press the select button seven times until the "You are now a developer" toast appears.
-3. Return to **Settings > System > Developer options** and enable **USB debugging**.
-4. Connect your workstation to the device via USB or Wi-Fi debugging and authorize the connection. Verify connectivity:
+   Use the `-c` flag to specify a `build_type` (`debug`, `devel`, `qa`, or `gold`).
 
    ```bash
-   adb devices
+   cobalt/build/gn.py -p aosp-arm -c devel --no-rbe
    ```
 
-### Installing the APK
+2. Compile the `cobalt_loader` target using `autoninja`:
 
-You can install the compiled APK directly via `adb`:
+   ```bash
+   autoninja -C out/aosp-arm_devel cobalt_loader
+   ```
+
+   This generates the application loader APK at `out/aosp-arm_devel/apks/cobalt.apk`.
+
+3. Deploy and launch on an AOSP device or emulator:
+
+   Ensure your device is connected via ADB (`adb devices` or `adb connect <device_ip>:5555`).
+
+   Install the compiled APK:
+
+   ```bash
+   adb install -r out/aosp-arm_devel/apks/cobalt.apk
+   ```
+
+   Launch the application using `adb` (Package: `dev.cobalt.coat`, Activity: `dev.cobalt.app.MainActivity`):
+
+   ```bash
+   adb shell am start dev.cobalt.coat/dev.cobalt.app.MainActivity
+   ```
+
+   Pass runtime flags using `--esa commandLineArgs`:
+
+   ```bash
+   adb shell am start --esa commandLineArgs 'url=https://www.youtube.com/tv' dev.cobalt.coat/dev.cobalt.app.MainActivity
+   ```
+
+   To force-stop any running instance before relaunching:
+
+   ```bash
+   adb shell am force-stop dev.cobalt.coat
+   ```
+
+## Running Tests
+
+The No Platform Left Behind (NPLB) test suite verifies Starboard implementation on AOSP targets.
+
+1. Compile the NPLB test suite:
+
+   ```bash
+   cobalt/build/gn.py -p aosp-arm -c devel --no-rbe
+   autoninja -C out/aosp-arm_devel nplb_loader
+   ```
+
+   This generates the test APK at `out/aosp-arm_devel/apks/nplb.apk`.
+
+2. Install the NPLB test APK on the target device:
+
+   ```bash
+   adb install -r out/aosp-arm_devel/apks/nplb.apk
+   ```
+
+3. Launch NPLB on device passing the target compressed library argument via `--esa commandLineArgs`:
+
+   ```bash
+   adb shell "am start --esa commandLineArgs '--evergreen_library=app/cobalt/lib/libnplb.lz4,--evergreen_content=app/cobalt/content' dev.cobalt.coat/dev.cobalt.app.MainActivity"
+   ```
+
+4. Pass standard Google Test filtering arguments:
+
+   ```bash
+   # Run NPLB with a specific test filter (e.g. Memory tests)
+   adb shell "am start --esa commandLineArgs '--evergreen_library=app/cobalt/lib/libnplb.lz4,--evergreen_content=app/cobalt/content,--gtest_filter=*Memory*' dev.cobalt.coat/dev.cobalt.app.MainActivity"
+   ```
+
+## Debugging
+
+To monitor log output, watch logcat with a filter for Starboard and Cobalt messages:
 
 ```bash
-adb install -r out/android-arm_qa/apks/Cobalt.apk
+adb logcat -s "starboard:*" "Cobalt:*"
 ```
 
-### Launching with Command-Line Arguments
+## Clean up or reset the environment
 
-Chrobalt ATV uses the `--esa commandLineArgs` parameter to pass configuration switches and feature flags to the runtime.
-
-**Basic Launch**:
+To clean build artifacts:
 
 ```bash
-adb shell am start dev.cobalt.coat/dev.cobalt.app.MainActivity
-```
-
-**Launching with Feature Flags**:
-Separate individual flags with commas (`,`) and multiple values within a flag with semicolons (`;`):
-
-```bash
-# Enable a specific feature
-adb shell am start --esa commandLineArgs 'enable-features=MyCoolFeature' dev.cobalt.coat/dev.cobalt.app.MainActivity
-
-# Combine feature toggles and JS engine switches
-adb shell am start --esa commandLineArgs 'enable-features=FeatureA;FeatureB,disable-features=LegacyFeature,js-flags=--no-opt' dev.cobalt.coat/dev.cobalt.app.MainActivity
-```
-
-To force-stop the running instance before relaunching:
-
-```bash
-adb shell am force-stop dev.cobalt.coat
-```
-
----
-
-## 7. Debugging, Logging & Testing
-
-### Viewing Logs (Logcat)
-
-Cobalt logs to the standard Android logcat. To monitor execution and filter for Cobalt, Starboard, and Chromium events:
-
-```bash
-adb logcat -s "starboard:*" "Cobalt:*" "chromium:*"
-```
-
-## 8. Environment Cleanup
-
-Run the following commands to reset your Android build environment, remove signing keys, or purge cached SDK/NDK toolchains:
-
-```bash
-# Uninstall APK from target device
-adb uninstall dev.cobalt.coat
-
-# Delete cached Android signing keys and emulator configs
-rm -rf ~/.android
-
-# Remove downloaded SDK/NDK toolchains (if installed outside depot_tools)
-rm -rf ~/starboard-toolchains
+gn clean out/aosp-arm_devel
 ```
