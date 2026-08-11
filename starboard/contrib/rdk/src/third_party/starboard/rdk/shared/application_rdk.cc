@@ -215,7 +215,9 @@ ApplicationRdk::Event* ApplicationRdk::WaitForSystemEventWithTimeout(int64_t tim
       read(fds[i].fd, &tmp, sizeof(uint64_t));
 
       if ( fds[i].fd == monitor_timer_fd_ ) {
-        hang_monitor_->Reset();
+        if (hang_monitor_) {
+          hang_monitor_->Reset();
+        }
       }
     }
   }
@@ -266,14 +268,14 @@ void ApplicationRdk::Inject(Event* e) {
 }
 
 void ApplicationRdk::OnSuspend() {
-  SbSpeechSynthesisCancel();
-
   if ( !(monitor_timer_fd_ < 0) ) {
     setTimerInterval(monitor_timer_fd_, 0s);
   }
   if ( !(ess_timer_fd_ < 0) ) {
     setTimerInterval(ess_timer_fd_, 0s);
   }
+
+  hang_monitor_.reset();
 
   if (ctx_) {
     // Unset the Essos terminate listener to prevent callback loops
@@ -289,14 +291,18 @@ void ApplicationRdk::OnResume() {
     BuildEssosContext();
   } else {
     EssContextSetTerminateListener(ctx_, this, &terminateListener);
+    if ( !(ess_timer_fd_ < 0) ) {
+      setTimerInterval(ess_timer_fd_, kEssRunLoopPeriod);
+    }
+  }
+
+  if (!hang_monitor_) {
+    hang_monitor_.reset(new HangMonitor("ApplicationRdk"));
   }
 
   if ( !(monitor_timer_fd_ < 0) && hang_monitor_ ) {
     setTimerInterval(monitor_timer_fd_, hang_monitor_->GetResetInterval());
   }
-
-  // Only restart the Essos timer run loop once the window is materialized.
-  setTimerInterval(ess_timer_fd_, kEssRunLoopPeriod);
 }
 
 void ApplicationRdk::OnTerminated() {
