@@ -141,6 +141,16 @@ void KillGpuProcess() {
                            base::BindOnce(&KillGpuProcessImpl));
 }
 
+void CleanupGpuProcessOnBackground() {
+  GpuProcessHost::CallOnUI(
+      FROM_HERE, GPU_PROCESS_KIND_SANDBOXED, false /* force_create */,
+      base::BindOnce([](content::GpuProcessHost* host) {
+        if (host && host->gpu_service()) {
+          host->gpu_service()->OnBackgroundCleanup();
+        }
+      }));
+}
+
 gpu::GpuChannelEstablishFactory* GetGpuChannelEstablishFactory() {
   return BrowserMainLoop::GetInstance()->gpu_channel_establish_factory();
 }

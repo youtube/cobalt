@@ -173,9 +173,7 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
 
   GpuChannel* LookupChannel(int32_t client_id) const;
 
-  gl::GLSurface* default_offscreen_surface() const {
-    return default_offscreen_surface_.get();
-  }
+  gl::GLSurface* default_offscreen_surface();
 
   GpuMemoryBufferFactory* gpu_memory_buffer_factory() {
     return gpu_memory_buffer_factory_;
@@ -191,6 +189,8 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
 
 #if BUILDFLAG(IS_ANDROID)
   void DidAccessGpu();
+#endif
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
   void OnBackgroundCleanup();
 #endif
 

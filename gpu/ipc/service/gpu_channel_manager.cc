@@ -51,6 +51,7 @@
 #include "ui/gl/gl_share_group.h"
 #include "ui/gl/gl_surface_egl.h"
 #include "ui/gl/gl_version_info.h"
+#include "ui/gl/gl_utils.h"
 #include "ui/gl/init/gl_factory.h"
 
 #if BUILDFLAG(USE_DAWN)
@@ -770,7 +771,9 @@ void GpuChannelManager::DoWakeUpGpu() {
   glFinish();
   DidAccessGpu();
 }
+#endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_ANDROID)
 void GpuChannelManager::OnBackgroundCleanup() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
@@ -797,6 +800,43 @@ void GpuChannelManager::OnBackgroundCleanup() {
     shared_context_state_.reset();
   }
 
+  SkGraphics::PurgeAllCaches();
+}
+#elif BUILDFLAG(IS_COBALT)
+void GpuChannelManager::OnBackgroundCleanup() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  // 1. Mark all GPU channel contexts lost and remove GPU channels to destroy client GL contexts.
+  std::vector<int> channels_to_clear;
+  for (auto& kv : gpu_channels_) {
+    if (kv.second->HasActiveStatefulContext()) {
+      continue;
+    }
+    channels_to_clear.push_back(kv.first);
+    kv.second->MarkAllContextsLost();
+  }
+  for (int channel : channels_to_clear) {
+    RemoveChannel(channel);
+  }
+
+  // 2. Free unreferenced compiled GL/GLES shader binaries from the GPU cache.
+  if (program_cache_)
+    program_cache_->Trim(0u);
+
+  // 3. Mark SharedContextState context lost and reset it so Skia GrDirectContext
+  // and the shared EGLContext are completely destroyed.
+  if (shared_context_state_) {
+    shared_context_state_->MarkContextLost();
+    shared_context_state_.reset();
+  }
+
+  // 4. Destroy the default offscreen pbuffer surface so zero EGL surfaces remain allocated on suspend.
+  if (default_offscreen_surface_) {
+    default_offscreen_surface_->Destroy();
+    default_offscreen_surface_ = nullptr;
+  }
+
+  // 5. Clear CPU-side font and 2D raster caches.
   SkGraphics::PurgeAllCaches();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -878,6 +918,22 @@ void GpuChannelManager::HandleMemoryPressure(
 #if BUILDFLAG(IS_WIN)
   TrimD3DResources(shared_context_state_);
 #endif  // BUILDFLAG(IS_WIN)
+}
+
+gl::GLSurface* GpuChannelManager::default_offscreen_surface() {
+  if (!default_offscreen_surface_) {
+    gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
+    if (display && !display->IsInitialized()) {
+      gl::init::GetOrInitializeGLOneOffPlatformImplementation(
+          /*fallback_to_software_gl=*/false,
+          /*disable_gl_drawing=*/false,
+          /*init_extensions=*/true,
+          gl::GpuPreference::kDefault);
+    }
+    default_offscreen_surface_ = gl::init::CreateOffscreenGLSurface(
+        gl::GetDefaultDisplayEGL(), gfx::Size());
+  }
+  return default_offscreen_surface_.get();
 }
 
 scoped_refptr<SharedContextState> GpuChannelManager::GetSharedContextState(
