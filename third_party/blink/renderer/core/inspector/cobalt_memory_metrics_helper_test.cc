@@ -75,7 +75,7 @@ TEST_F(CobaltMemoryMetricsHelperTest,
 }
 
 TEST_F(CobaltMemoryMetricsHelperTest, GetLiveMemoryBreakdownReturnsValidMetrics) {
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
   auto live_metrics = GetLiveMemoryBreakdown();
   ASSERT_TRUE(live_metrics.has_value());
   EXPECT_FALSE(live_metrics->empty());
