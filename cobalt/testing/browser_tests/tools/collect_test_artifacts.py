@@ -45,8 +45,13 @@ def find_runtime_deps(build_dir):
   if os.path.isfile(exact_deps_file):
     return Path(exact_deps_file)
 
+  # Check for _loader variant
+  loader_deps_file = os.path.join(build_dir, 'cobalt_browsertests_loader.runtime_deps')
+  if os.path.isfile(loader_deps_file):
+    return Path(loader_deps_file)
+
   # Fallback to rglob
-  results = list(Path(build_dir).rglob(deps_by_platform[platform][1]))
+  results = list(Path(build_dir).rglob('*browsertests*.runtime_deps'))
   if results:
     return results[0]
   return None

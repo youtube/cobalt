@@ -214,7 +214,8 @@ class CobaltTestRunner:
     list_cmd.extend(self.unknown_args)
 
     try:
-      output = subprocess.check_output(list_cmd, text=True)
+      output = subprocess.check_output(
+          list_cmd, stderr=subprocess.STDOUT, text=True)
       return output
     except subprocess.CalledProcessError as e:
       logging.error("Failed to list tests: %s", e.output)
