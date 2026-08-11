@@ -14,6 +14,7 @@
 
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 
+#include <atomic>
 #include <memory>
 
 #include "base/functional/bind.h"
@@ -33,6 +34,7 @@
 namespace ui {
 
 namespace {
+std::atomic<int> g_open_windows_count{0};
 std::unique_ptr<PlatformWindowStarboard::WindowCreatedCallback>
     g_created_callback =
         std::make_unique<PlatformWindowStarboard::WindowCreatedCallback>(
@@ -163,6 +165,13 @@ void PlatformWindowStarboard::Show(bool inactive) {
     sb_window_ = SbWindowCreate(&options);
     CHECK(SbWindowIsValid(sb_window_));
 
+    int count = ++g_open_windows_count;
+    intptr_t handle =
+        reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_));
+    LOG(INFO) << "[Ozone Starboard] SbWindow created: " << sb_window_
+              << " (handle=" << reinterpret_cast<void*>(handle)
+              << "), active SbWindows: " << count;
+
     (*g_created_callback).Run(sb_window_);
   }
 
@@ -180,6 +189,7 @@ void PlatformWindowStarboard::Hide() {
     widget_available_ = false;
     delegate_->OnAcceleratedWidgetDestroyed();
   }
+  DestroySbWindowInstance();
 }
 
 void PlatformWindowStarboard::Close() {
@@ -227,13 +237,18 @@ void PlatformWindowStarboard::Minimize() {
     widget_available_ = false;
     delegate_->OnAcceleratedWidgetDestroyed();
   }
+  DestroySbWindowInstance();
 }
 
 void PlatformWindowStarboard::DestroySbWindowInstance() {
   if (SbWindowIsValid(sb_window_)) {
-    (*g_destroyed_callback).Run(sb_window_);
-    SbWindowDestroy(sb_window_);
+    SbWindow window_to_destroy = sb_window_;
     sb_window_ = kSbWindowInvalid;
+    int count = --g_open_windows_count;
+    LOG(INFO) << "[Ozone Starboard] SbWindow destroyed: " << window_to_destroy
+              << ", active SbWindows: " << count;
+    (*g_destroyed_callback).Run(window_to_destroy);
+    SbWindowDestroy(window_to_destroy);
   }
 }
 
@@ -246,6 +261,13 @@ void PlatformWindowStarboard::Restore() {
 
     sb_window_ = SbWindowCreate(&options);
     CHECK(SbWindowIsValid(sb_window_));
+
+    int count = ++g_open_windows_count;
+    intptr_t handle =
+        reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_));
+    LOG(INFO) << "[Ozone Starboard] SbWindow created on restore: " << sb_window_
+              << " (handle=" << reinterpret_cast<void*>(handle)
+              << "), active SbWindows: " << count;
 
     (*g_created_callback).Run(sb_window_);
   }

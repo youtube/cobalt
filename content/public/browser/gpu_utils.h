@@ -21,6 +21,9 @@ CONTENT_EXPORT const gpu::GpuPreferences GetGpuPreferencesFromCommandLine();
 // Kills the GPU process with a normal termination status.
 CONTENT_EXPORT void KillGpuProcess();
 
+// Cleans up GL contexts, caches, and surfaces in the GPU service on background.
+CONTENT_EXPORT void CleanupGpuProcessOnBackground();
+
 CONTENT_EXPORT gpu::GpuChannelEstablishFactory* GetGpuChannelEstablishFactory();
 
 #if BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX)

@@ -1193,8 +1193,8 @@ void GpuServiceImpl::OnBackgroundCleanup() {
 }
 
 void GpuServiceImpl::OnBackgroundCleanupGpuMainThread() {
-  // Currently only called on Android.
-#if BUILDFLAG(IS_ANDROID)
+  // Currently called on Android and Cobalt.
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
   if (!main_runner_->BelongsToCurrentThread()) {
     main_runner_->PostTask(
         FROM_HERE,
@@ -1210,8 +1210,8 @@ void GpuServiceImpl::OnBackgroundCleanupGpuMainThread() {
 }
 
 void GpuServiceImpl::OnBackgroundCleanupCompositorGpuThread() {
-  // Currently only called on Android.
-#if BUILDFLAG(IS_ANDROID)
+  // Currently called on Android and Cobalt.
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
   if (compositor_gpu_thread_)
     compositor_gpu_thread_->OnBackgroundCleanup();
 #else

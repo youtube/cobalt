@@ -77,50 +77,42 @@ class ApplicationRdk : public QueueApplication {
   void Initialize() override;
   void Teardown() override;
   void Inject(Event* e) override;
-  void OnSuspend() override;
-  void OnResume() override;
-
-  // --- QueueApplication overrides ---
   bool MayHaveSystemEvents() override;
   Event* PollNextSystemEvent() override;
   Event* WaitForSystemEventWithTimeout(int64_t time) override;
   void WakeSystemEventWait() override;
+  void OnSuspend() override;
+  void OnResume() override;
 
-  // --- Essos ---
+ private:
   void OnTerminated();
   void OnKeyPressed(unsigned int key);
   void OnKeyReleased(unsigned int key);
   void OnDisplaySize(int width, int height);
-
- private:
   void MaterializeNativeWindow();
   void DestroyNativeWindow();
   void BuildEssosContext();
   void FatalError();
-
+  void ReleaseMemory();
   void ScheduleMemoryUsageCheck(int64_t delay);
   int64_t CheckMemoryUsage();
-  void ReleaseMemory();
+
+  std::unique_ptr<EssInput> input_handler_;
+  std::unique_ptr<HangMonitor> hang_monitor_;
+  EssCtx *ctx_ = nullptr;
+  NativeWindowType native_window_ = 0;
+  SbWindow window_ = nullptr;
+  int window_width_ = 0;
+  int window_height_ = 0;
+  bool resize_pending_ = false;
+  int wakeup_fd_ = -1;
+  int ess_timer_fd_ = -1;
+  int monitor_timer_fd_ = -1;
+  std::chrono::time_point<std::chrono::steady_clock> ess_loop_last_ts_;
 
   static EssTerminateListener terminateListener;
   static EssKeyListener keyListener;
   static EssSettingsListener settingsListener;
-
-  EssCtx *ctx_ { nullptr };
-  std::unique_ptr<EssInput> input_handler_ { nullptr };
-  SbWindow window_ { kSbWindowInvalid };
-  NativeWindowType native_window_ { 0 };
-  int window_width_ { 0 };
-  int window_height_ { 0 };
-  bool resize_pending_ { false };
-  bool essos_context_destroy_ { false };
-
-  std::chrono::time_point<std::chrono::steady_clock> ess_loop_last_ts_;
-  int ess_timer_fd_ { -1 };
-  int wakeup_fd_ { -1 };
-  int monitor_timer_fd_ { -1 };
-
-  std::unique_ptr<HangMonitor> hang_monitor_ { nullptr };
 };
 
 }  // namespace starboard

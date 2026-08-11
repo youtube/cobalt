@@ -20,6 +20,7 @@
 #include "build/buildflag.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/shell/browser/shell.h"
+#include "content/public/browser/gpu_utils.h"
 #include "content/public/browser/javascript_dialog_manager.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host.h"
@@ -320,6 +321,8 @@ void ShellPlatformDelegate::OnAllFramesConcealed(
     ConcealShell(shell);
   }
   is_visible_ = false;
+
+  content::CleanupGpuProcessOnBackground();
 
   // Stop observing as we only need one notification per conceal.
   cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
