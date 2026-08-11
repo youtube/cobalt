@@ -18,6 +18,11 @@
 
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 
+int __abi_wrap___clock_gettime64(int /* clockid_t */ musl_clock_id,
+                                 struct musl_timespec* mts) {
+  return __abi_wrap_clock_gettime(musl_clock_id, mts);
+}
+
 int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
                              struct musl_timespec* mts) {
   if (!mts) {

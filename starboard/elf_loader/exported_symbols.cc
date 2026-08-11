@@ -29,6 +29,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
+#include <link.h>
 #include <malloc.h>
 #include <net/if.h>
 #include <netdb.h>
@@ -87,6 +88,10 @@
 #include "starboard/system.h"
 #include "starboard/time_zone.h"
 #include "starboard/window.h"
+
+extern "C" int __cxa_thread_atexit_impl(void (*func)(void*),
+                                        void* obj,
+                                        void* dso_symbol);
 
 #define REGISTER_SYMBOL(s)                        \
   do {                                            \
@@ -278,6 +283,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(write);
 
   // Linux APIs
+  REGISTER_SYMBOL(__cxa_thread_atexit_impl);
+  REGISTER_SYMBOL(dl_iterate_phdr);
   REGISTER_SYMBOL(recvmmsg);
   REGISTER_WRAPPER(ioctl_FIONREAD);
 
@@ -292,6 +299,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(access);
   REGISTER_WRAPPER(bind);
   REGISTER_WRAPPER(chmod);
+  REGISTER_WRAPPER(__clock_gettime64);
   REGISTER_WRAPPER(clock_gettime);
   REGISTER_WRAPPER(closedir);
   REGISTER_WRAPPER(clock_nanosleep);
