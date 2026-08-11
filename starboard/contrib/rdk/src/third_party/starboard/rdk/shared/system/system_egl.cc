@@ -36,10 +36,9 @@
 #include "third_party/starboard/rdk/shared/application_rdk.h"
 #include "third_party/starboard/rdk/shared/log_override.h"
 
-#include <atomic>
 #include <cstring>
 #include <mutex>
-#include <string>
+#include <cstring>
 #include <essos-app.h>
 
 #ifdef EGL_PLATFORM_WAYLAND_EXT
@@ -53,10 +52,6 @@ extern "C" EssAppPlatformDisplayType EssContextGetAppPlatformDisplayType( EssCtx
 #endif
 
 namespace {
-
-std::atomic<int> g_open_surfaces_count{0};
-std::atomic<int> g_open_contexts_count{0};
-std::atomic<SbEglSurface> g_window_surface{EGL_NO_SURFACE};
 
 #ifdef EGL_PLATFORM_WAYLAND_EXT
 static PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC gEglCreatePlatformWindowSurfaceEXT;
@@ -111,36 +106,12 @@ SbEglBoolean SbEglCopyBuffers(SbEglDisplay dpy,
   return eglCopyBuffers(dpy, surface, (EGLNativePixmapType)target);
 }
 
-SbEglSurface SbEglCreatePbufferSurface(SbEglDisplay dpy,
-                                      SbEglConfig config,
-                                      const SbEglInt32* attrib_list) {
-  SbEglSurface result = eglCreatePbufferSurface(dpy, config, attrib_list);
-  if (result != EGL_NO_SURFACE) {
-    int count = ++g_open_surfaces_count;
-    SB_LOG(INFO) << "[Starboard RDK EGL] Created Pbuffer Surface: " << result
-                 << ", active surfaces: " << count;
-  } else {
-    SB_LOG(ERROR) << "[Starboard RDK EGL] Failed to create Pbuffer Surface, err: "
-                  << eglGetError();
-  }
-  return result;
-}
-
 SbEglSurface SbEglCreatePixmapSurface(SbEglDisplay dpy,
                                       SbEglConfig config,
                                       SbEglNativePixmapType pixmap,
                                       const SbEglInt32* attrib_list) {
-  SbEglSurface result = eglCreatePixmapSurface(
-      dpy, config, (EGLNativePixmapType)pixmap, attrib_list);
-  if (result != EGL_NO_SURFACE) {
-    int count = ++g_open_surfaces_count;
-    SB_LOG(INFO) << "[Starboard RDK EGL] Created Pixmap Surface: " << result
-                 << ", active surfaces: " << count;
-  } else {
-    SB_LOG(ERROR) << "[Starboard RDK EGL] Failed to create Pixmap Surface, err: "
-                  << eglGetError();
-  }
-  return result;
+  return eglCreatePixmapSurface(dpy, config, (EGLNativePixmapType)pixmap,
+                                attrib_list);
 }
 
 SbEglSurface SbEglCreateWindowSurface(SbEglDisplay dpy,
@@ -165,73 +136,6 @@ SbEglSurface SbEglCreateWindowSurface(SbEglDisplay dpy,
       SB_LOG(ERROR) << "eglCreateWindowSurface failed, err: " << eglGetError();
   }
 
-  if (result != EGL_NO_SURFACE) {
-    int count = ++g_open_surfaces_count;
-    SB_LOG(INFO) << "[Starboard RDK EGL] Created Window Surface: " << result
-                 << " (win=" << reinterpret_cast<void*>(win)
-                 << "), active surfaces: " << count;
-  }
-
-  return result;
-}
-
-SbEglBoolean SbEglDestroySurface(SbEglDisplay dpy, SbEglSurface surface) {
-  SbEglBoolean result = eglDestroySurface(dpy, surface);
-  if (result) {
-    int count = --g_open_surfaces_count;
-    SB_LOG(INFO) << "[Starboard RDK EGL] Destroyed Surface: " << surface
-                 << ", active surfaces: " << count;
-  } else {
-    SB_LOG(ERROR) << "[Starboard RDK EGL] Failed to destroy Surface: " << surface
-                  << ", err: " << eglGetError();
-  }
-  return result;
-}
-
-SbEglContext SbEglCreateContext(SbEglDisplay dpy,
-                                SbEglConfig config,
-                                SbEglContext share_context,
-                                const SbEglInt32* attrib_list) {
-  SbEglContext result =
-      eglCreateContext(dpy, config, share_context, attrib_list);
-  if (result != EGL_NO_CONTEXT) {
-    int count = ++g_open_contexts_count;
-    SB_LOG(INFO) << "[Starboard RDK EGL] Created Context: " << result
-                 << " (share=" << share_context
-                 << "), active contexts: " << count;
-  } else {
-    SB_LOG(ERROR) << "[Starboard RDK EGL] Failed to create Context, err: "
-                  << eglGetError();
-  }
-  return result;
-}
-
-SbEglBoolean SbEglDestroyContext(SbEglDisplay dpy, SbEglContext ctx) {
-  SbEglBoolean result = eglDestroyContext(dpy, ctx);
-  if (result) {
-    int count = --g_open_contexts_count;
-    SB_LOG(INFO) << "[Starboard RDK EGL] Destroyed Context: " << ctx
-                 << ", active contexts: " << count;
-  } else {
-    SB_LOG(ERROR) << "[Starboard RDK EGL] Failed to destroy Context: " << ctx
-                  << ", err: " << eglGetError();
-  }
-  return result;
-}
-
-SbEglBoolean SbEglInitialize(SbEglDisplay dpy,
-                             SbEglInt32* major,
-                             SbEglInt32* minor) {
-  SbEglBoolean result = eglInitialize(dpy, major, minor);
-  SB_LOG(INFO) << "[Starboard RDK EGL] eglInitialize on display: " << dpy
-               << ", result: " << (result ? "SUCCESS" : "FAILED");
-  return result;
-}
-
-SbEglBoolean SbEglTerminate(SbEglDisplay dpy) {
-  SbEglBoolean result = eglTerminate(dpy);
-  SB_LOG(INFO) << "[Starboard RDK EGL] eglTerminate on display: " << dpy
-               << ", result: " << (result ? "SUCCESS" : "FAILED");
   return result;
 }
 
@@ -277,12 +181,12 @@ SbEglDisplay SbEglGetDisplay(SbEglNativeDisplayType display_id) {
 const SbEglInterface g_sb_egl_interface = {
     &eglChooseConfig,
     &SbEglCopyBuffers,
-    &SbEglCreateContext,
-    &SbEglCreatePbufferSurface,
+    &eglCreateContext,
+    &eglCreatePbufferSurface,
     &SbEglCreatePixmapSurface,
     &SbEglCreateWindowSurface,
-    &SbEglDestroyContext,
-    &SbEglDestroySurface,
+    &eglDestroyContext,
+    &eglDestroySurface,
     &eglGetConfigAttrib,
     &eglGetConfigs,
     &eglGetCurrentDisplay,
@@ -290,13 +194,13 @@ const SbEglInterface g_sb_egl_interface = {
     &SbEglGetDisplay,
     &eglGetError,
     &eglGetProcAddress,
-    &SbEglInitialize,
+    &eglInitialize,
     &eglMakeCurrent,
     &eglQueryContext,
     &eglQueryString,
     &eglQuerySurface,
     &eglSwapBuffers,
-    &SbEglTerminate,
+    &eglTerminate,
     &eglWaitGL,
     &eglWaitNative,
     &eglBindTexImage,
