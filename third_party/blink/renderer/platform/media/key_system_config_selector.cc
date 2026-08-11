@@ -33,6 +33,7 @@
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/starboard/sbmedia_interface.h"
 #include "starboard/media.h"  // nogncheck
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -423,7 +424,8 @@ bool KeySystemConfigSelector::IsSupportedContentType(
   // robustness algorithm).
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   const std::string full_mime = container_lower + "; codecs=\"" + codecs + "\"";
-  if (SbMediaCanPlayMimeAndKeySystem(full_mime.c_str(), key_system.c_str()) ==
+  if (::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+          full_mime, key_system) ==
       kSbMediaSupportTypeNotSupported) {
     LOG(INFO) << __func__ << "(" << full_mime << " and " << key_system
               << ") are unsupported.";
