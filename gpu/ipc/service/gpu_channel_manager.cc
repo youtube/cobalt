@@ -773,9 +773,7 @@ void GpuChannelManager::DoWakeUpGpu() {
   glFinish();
   DidAccessGpu();
 }
-#endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_ANDROID)
 void GpuChannelManager::OnBackgroundCleanup() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
