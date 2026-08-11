@@ -141,6 +141,7 @@ void KillGpuProcess() {
                            base::BindOnce(&KillGpuProcessImpl));
 }
 
+#if BUILDFLAG(IS_COBALT)
 void CleanupGpuProcessOnBackground() {
   GpuProcessHost::CallOnUI(
       FROM_HERE, GPU_PROCESS_KIND_SANDBOXED, false /* force_create */,
@@ -150,6 +151,7 @@ void CleanupGpuProcessOnBackground() {
         }
       }));
 }
+#endif
 
 gpu::GpuChannelEstablishFactory* GetGpuChannelEstablishFactory() {
   return BrowserMainLoop::GetInstance()->gpu_channel_establish_factory();
