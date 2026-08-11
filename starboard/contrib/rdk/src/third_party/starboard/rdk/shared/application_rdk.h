@@ -98,7 +98,6 @@ class ApplicationRdk : public QueueApplication {
   int64_t CheckMemoryUsage();
 
   std::unique_ptr<EssInput> input_handler_;
-  std::unique_ptr<HangMonitor> hang_monitor_;
   EssCtx *ctx_ = nullptr;
   NativeWindowType native_window_ = 0;
   SbWindow window_ = nullptr;
@@ -107,7 +106,6 @@ class ApplicationRdk : public QueueApplication {
   bool resize_pending_ = false;
   int wakeup_fd_ = -1;
   int ess_timer_fd_ = -1;
-  int monitor_timer_fd_ = -1;
   std::chrono::time_point<std::chrono::steady_clock> ess_loop_last_ts_;
 
   static EssTerminateListener terminateListener;

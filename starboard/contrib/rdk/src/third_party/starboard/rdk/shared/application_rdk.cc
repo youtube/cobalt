@@ -96,8 +96,7 @@ static void setTimerInterval(int fd, microseconds time) {
 
 ApplicationRdk::ApplicationRdk(SbEventHandleCallback sb_event_handle_callback)
   : QueueApplication(sb_event_handle_callback)
-  , input_handler_(new EssInput)
-  , hang_monitor_(new HangMonitor("ApplicationRdk")) {
+  , input_handler_(new EssInput) {
   BuildEssosContext();
 }
 
@@ -117,19 +116,6 @@ void ApplicationRdk::Initialize() {
   } else {
     setTimerInterval(ess_timer_fd_, kEssRunLoopPeriod);
   }
-
-#if defined(COBALT_BUILD_TYPE_DEVEL)
-  hang_monitor_.reset();
-  SB_LOG(INFO) << "Disable application watch dog for devel build.";
-#else
-  monitor_timer_fd_ = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC | TFD_NONBLOCK);
-  if ( monitor_timer_fd_ == -1 ) {
-    SB_LOG(ERROR) << "Failed to create timerfd, error: " << errno << " (" << strerror(errno) << ')';
-    hang_monitor_.reset();
-  } else {
-    setTimerInterval(monitor_timer_fd_, hang_monitor_->GetResetInterval());
-  }
-#endif
 
   SbAudioSinkImpl::Initialize();
   ::starboard::Initialize();
@@ -153,9 +139,7 @@ void ApplicationRdk::Teardown() {
 
   close(ess_timer_fd_);
   close(wakeup_fd_);
-  if ( !(monitor_timer_fd_ < 0) )
-      close(monitor_timer_fd_);
-  ess_timer_fd_ = wakeup_fd_ = monitor_timer_fd_ = -1;
+  ess_timer_fd_ = wakeup_fd_ = -1;
 }
 
 bool ApplicationRdk::MayHaveSystemEvents() {
@@ -163,10 +147,9 @@ bool ApplicationRdk::MayHaveSystemEvents() {
 }
 
 ApplicationRdk::Event* ApplicationRdk::PollNextSystemEvent() {
-  auto now = steady_clock::now();
-  if ((now - ess_loop_last_ts_) > kEssRunLoopPeriod) {
-    ess_loop_last_ts_ = now;
-    if (ctx_) {
+  if ( ess_loop_last_ts_ + kEssRunLoopPeriod <= steady_clock::now() ) {
+    ess_loop_last_ts_ = steady_clock::now();
+    if (ctx_ != nullptr) {
       EssContextRunEventLoopOnce( ctx_ );
     }
   }
@@ -175,7 +158,7 @@ ApplicationRdk::Event* ApplicationRdk::PollNextSystemEvent() {
 
 ApplicationRdk::Event* ApplicationRdk::WaitForSystemEventWithTimeout(int64_t time) {
   struct timespec timeout;
-  struct pollfd fds[3];
+  struct pollfd fds[2];
   int fds_sz = 0;
   int rc = 0;
 
@@ -188,13 +171,6 @@ ApplicationRdk::Event* ApplicationRdk::WaitForSystemEventWithTimeout(int64_t tim
 
   if ( !(wakeup_fd_ < 0) ) {
     fds[fds_sz].fd = wakeup_fd_;
-    fds[fds_sz].events = POLLIN;
-    fds[fds_sz].revents = 0;
-    ++fds_sz;
-  }
-
-  if ( !(monitor_timer_fd_ < 0) ) {
-    fds[fds_sz].fd = monitor_timer_fd_;
     fds[fds_sz].events = POLLIN;
     fds[fds_sz].revents = 0;
     ++fds_sz;
@@ -213,12 +189,6 @@ ApplicationRdk::Event* ApplicationRdk::WaitForSystemEventWithTimeout(int64_t tim
       // Ack timer or wakeup event
       uint64_t tmp;
       read(fds[i].fd, &tmp, sizeof(uint64_t));
-
-      if ( fds[i].fd == monitor_timer_fd_ ) {
-        if (hang_monitor_) {
-          hang_monitor_->Reset();
-        }
-      }
     }
   }
 
@@ -268,14 +238,9 @@ void ApplicationRdk::Inject(Event* e) {
 }
 
 void ApplicationRdk::OnSuspend() {
-  if ( !(monitor_timer_fd_ < 0) ) {
-    setTimerInterval(monitor_timer_fd_, 0s);
-  }
   if ( !(ess_timer_fd_ < 0) ) {
     setTimerInterval(ess_timer_fd_, 0s);
   }
-
-  hang_monitor_.reset();
 
   if (ctx_) {
     // Unset the Essos terminate listener to prevent callback loops
@@ -294,14 +259,6 @@ void ApplicationRdk::OnResume() {
     if ( !(ess_timer_fd_ < 0) ) {
       setTimerInterval(ess_timer_fd_, kEssRunLoopPeriod);
     }
-  }
-
-  if (!hang_monitor_) {
-    hang_monitor_.reset(new HangMonitor("ApplicationRdk"));
-  }
-
-  if ( !(monitor_timer_fd_ < 0) && hang_monitor_ ) {
-    setTimerInterval(monitor_timer_fd_, hang_monitor_->GetResetInterval());
   }
 }
 
@@ -336,8 +293,7 @@ void ApplicationRdk::MaterializeNativeWindow() {
     return;
   }
 
-  bool is_new_ctx = (ctx_ == nullptr);
-  if (is_new_ctx) {
+  if (ctx_ == nullptr) {
     BuildEssosContext();
   }
 
@@ -355,7 +311,7 @@ void ApplicationRdk::MaterializeNativeWindow() {
   if (!EssContextCreateNativeWindow(ctx_, window_width_, window_height_,
                                     &native_window_)) {
     error = true;
-  } else if (is_new_ctx && !EssContextStart(ctx_)) {
+  } else if (!EssContextStart(ctx_)) {
     error = true;
   }
 
@@ -379,7 +335,11 @@ void ApplicationRdk::DestroyNativeWindow() {
     }
     native_window_ = 0;
   }
+  if (ctx_) {
+    EssContextStop(ctx_);
+  }
 }
+
 
 void ApplicationRdk::DisplayInfoChanged() {
   if (state() != kStateStarted)
