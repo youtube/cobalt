@@ -15,10 +15,6 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
-#include <atomic>
-#include <string>
-
-#include "starboard/common/log.h"
 #include "starboard/egl.h"
 
 #if !defined(EGL_VERSION_1_0) || !defined(EGL_VERSION_1_1) || \
@@ -28,9 +24,6 @@
 #endif
 
 namespace {
-
-std::atomic<int> g_open_surfaces_count{0};
-std::atomic<int> g_open_contexts_count{0};
 
 // Convenience functions that redirect to the intended function but "cast" the
 // type of the SbEglNative*Type parameter into the desired type. Depending on
@@ -44,114 +37,20 @@ SbEglBoolean SbEglCopyBuffers(SbEglDisplay dpy,
   return eglCopyBuffers(dpy, surface, (EGLNativePixmapType)target);
 }
 
-SbEglSurface SbEglCreatePbufferSurface(SbEglDisplay dpy,
-                                       SbEglConfig config,
-                                       const SbEglInt32* attrib_list) {
-  SbEglSurface result = eglCreatePbufferSurface(dpy, config, attrib_list);
-  if (result != EGL_NO_SURFACE) {
-    int count = ++g_open_surfaces_count;
-    SB_LOG(INFO) << "[Starboard EGL] Created Pbuffer Surface: " << result
-                 << ", active surfaces: " << count;
-  } else {
-    SB_LOG(ERROR) << "[Starboard EGL] Failed to create Pbuffer Surface, err: "
-                  << eglGetError();
-  }
-  return result;
-}
-
 SbEglSurface SbEglCreatePixmapSurface(SbEglDisplay dpy,
                                       SbEglConfig config,
                                       SbEglNativePixmapType pixmap,
                                       const SbEglInt32* attrib_list) {
-  SbEglSurface result = eglCreatePixmapSurface(
-      dpy, config, (EGLNativePixmapType)pixmap, attrib_list);
-  if (result != EGL_NO_SURFACE) {
-    int count = ++g_open_surfaces_count;
-    SB_LOG(INFO) << "[Starboard EGL] Created Pixmap Surface: " << result
-                 << ", active surfaces: " << count;
-  } else {
-    SB_LOG(ERROR) << "[Starboard EGL] Failed to create Pixmap Surface, err: "
-                  << eglGetError();
-  }
-  return result;
+  return eglCreatePixmapSurface(dpy, config, (EGLNativePixmapType)pixmap,
+                                attrib_list);
 }
 
 SbEglSurface SbEglCreateWindowSurface(SbEglDisplay dpy,
                                       SbEglConfig config,
                                       SbEglNativeWindowType win,
                                       const SbEglInt32* attrib_list) {
-  SbEglSurface result = eglCreateWindowSurface(
-      dpy, config, (EGLNativeWindowType)win, attrib_list);
-  if (result != EGL_NO_SURFACE) {
-    int count = ++g_open_surfaces_count;
-    SB_LOG(INFO) << "[Starboard EGL] Created Window Surface: " << result
-                 << " (win=" << reinterpret_cast<void*>(win)
-                 << "), active surfaces: " << count;
-  } else {
-    SB_LOG(ERROR) << "[Starboard EGL] Failed to create Window Surface, err: "
-                  << eglGetError();
-  }
-  return result;
-}
-
-SbEglBoolean SbEglDestroySurface(SbEglDisplay dpy, SbEglSurface surface) {
-  SbEglBoolean result = eglDestroySurface(dpy, surface);
-  if (result) {
-    int count = --g_open_surfaces_count;
-    SB_LOG(INFO) << "[Starboard EGL] Destroyed Surface: " << surface
-                 << ", active surfaces: " << count;
-  } else {
-    SB_LOG(ERROR) << "[Starboard EGL] Failed to destroy Surface: " << surface
-                  << ", err: " << eglGetError();
-  }
-  return result;
-}
-
-SbEglContext SbEglCreateContext(SbEglDisplay dpy,
-                                SbEglConfig config,
-                                SbEglContext share_context,
-                                const SbEglInt32* attrib_list) {
-  SbEglContext result =
-      eglCreateContext(dpy, config, share_context, attrib_list);
-  if (result != EGL_NO_CONTEXT) {
-    int count = ++g_open_contexts_count;
-    SB_LOG(INFO) << "[Starboard EGL] Created Context: " << result
-                 << " (share=" << share_context
-                 << "), active contexts: " << count;
-  } else {
-    SB_LOG(ERROR) << "[Starboard EGL] Failed to create Context, err: "
-                  << eglGetError();
-  }
-  return result;
-}
-
-SbEglBoolean SbEglDestroyContext(SbEglDisplay dpy, SbEglContext ctx) {
-  SbEglBoolean result = eglDestroyContext(dpy, ctx);
-  if (result) {
-    int count = --g_open_contexts_count;
-    SB_LOG(INFO) << "[Starboard EGL] Destroyed Context: " << ctx
-                 << ", active contexts: " << count;
-  } else {
-    SB_LOG(ERROR) << "[Starboard EGL] Failed to destroy Context: " << ctx
-                  << ", err: " << eglGetError();
-  }
-  return result;
-}
-
-SbEglBoolean SbEglInitialize(SbEglDisplay dpy,
-                             SbEglInt32* major,
-                             SbEglInt32* minor) {
-  SbEglBoolean result = eglInitialize(dpy, major, minor);
-  SB_LOG(INFO) << "[Starboard EGL] eglInitialize on display: " << dpy
-               << ", result: " << (result ? "SUCCESS" : "FAILED");
-  return result;
-}
-
-SbEglBoolean SbEglTerminate(SbEglDisplay dpy) {
-  SbEglBoolean result = eglTerminate(dpy);
-  SB_LOG(INFO) << "[Starboard EGL] eglTerminate on display: " << dpy
-               << ", result: " << (result ? "SUCCESS" : "FAILED");
-  return result;
+  return eglCreateWindowSurface(dpy, config, (EGLNativeWindowType)win,
+                                attrib_list);
 }
 
 SbEglDisplay SbEglGetDisplay(SbEglNativeDisplayType display_id) {
@@ -172,12 +71,12 @@ SbEglDisplay SbEglGetPlatformDisplay(SbEglEnum platform,
 const SbEglInterface g_sb_egl_interface = {
     &eglChooseConfig,
     &SbEglCopyBuffers,
-    &SbEglCreateContext,
-    &SbEglCreatePbufferSurface,
+    &eglCreateContext,
+    &eglCreatePbufferSurface,
     &SbEglCreatePixmapSurface,
     &SbEglCreateWindowSurface,
-    &SbEglDestroyContext,
-    &SbEglDestroySurface,
+    &eglDestroyContext,
+    &eglDestroySurface,
     &eglGetConfigAttrib,
     &eglGetConfigs,
     &eglGetCurrentDisplay,
@@ -185,13 +84,13 @@ const SbEglInterface g_sb_egl_interface = {
     &SbEglGetDisplay,
     &eglGetError,
     &eglGetProcAddress,
-    &SbEglInitialize,
+    &eglInitialize,
     &eglMakeCurrent,
     &eglQueryContext,
     &eglQueryString,
     &eglQuerySurface,
     &eglSwapBuffers,
-    &SbEglTerminate,
+    &eglTerminate,
     &eglWaitGL,
     &eglWaitNative,
     &eglBindTexImage,
