@@ -27,6 +27,11 @@ runs:
         uses: ./.github/actions/sccache
         with:
           sccache_gcs_key: ${{ inputs.sccache_gcs_key }}
+      - name: Install 32-bit execution support for ARM builds
+        if: startsWith(matrix.platform, 'android-arm') || startsWith(matrix.platform, 'aosp-arm') || startsWith(matrix.platform, 'evergreen-arm')
+        run: |
+          sudo apt-get update -qqy && sudo apt-get install -qqy --no-install-recommends qemu-user-static binfmt-support
+        shell: bash
       - name: GN gen
         env:
           ENABLE_SCCACHE: ${{ inputs.enable_sccache }}
