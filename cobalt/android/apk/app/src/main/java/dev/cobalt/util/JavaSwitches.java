@@ -32,6 +32,9 @@ public class JavaSwitches {
   public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
   public static final String ENABLE_OPTIMIZED_V8_CODE_CACHE = "EnableOptimizedV8CodeCache";
 
+  /** flag to enable deferred V8 bytecode serialization in background/idle */
+  public static final String DEFER_V8_CODE_CACHE_WRITE = "DeferV8CodeCacheWrite";
+
   /** flag to allow caching CSS and WebAssembly resources in the HTTP disk cache. */
   public static final String ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE = "EnableCssAndWasmForHttpCache";
 
@@ -212,6 +215,10 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-optimized-v8-code-cache");
     }
 
+    if (javaSwitches.containsKey(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE)) {
+      extraCommandLineArgs.add("--defer-v8-code-cache-write");
+    }
+
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE)) {
       extraCommandLineArgs.add("--enable-gpu-shader-disk-cache");
     }
@@ -266,7 +273,8 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=AreaBasedVideoBufferBudget");
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)) {
+    if (javaSwitches.containsKey(
+        JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)) {
       extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
     }
 
