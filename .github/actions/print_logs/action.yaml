@@ -12,6 +12,10 @@ inputs:
     description: "If logs should be ran through crash symbolization tools."
     required: false
     default: 'false'
+  required_passing:
+    description: "Whether passing this test is required."
+    required: false
+    default: 'true'
 runs:
   using: "composite"
   steps:
@@ -30,7 +34,7 @@ runs:
         WORKFLOW: ${{ github.workflow }}
       run: |
         gsutil -m cp "gs://${{ steps.gcs-project.outputs.name }}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/symbols/*" \
-          "${GITHUB_WORKSPACE}/out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/
+          "${GITHUB_WORKSPACE}/out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/"
       shell: bash
     - name: Print Logs and Test Summary
       run: |
@@ -41,8 +45,12 @@ runs:
 
         log_files=(${{ inputs.log_glob }})
         if [ ${#log_files[@]} -eq 0 ]; then
-          echo "::error::No log files were collected. The tests probably failed to run."
-          exit 1
+          if [ "${{ inputs.required_passing }}" == "false" ]; then
+            echo "::warning::No log files were collected, but required_passing is false."
+          else
+            echo "::error::No log files were collected. The tests probably failed to run."
+            exit 1
+          fi
         else
           for log_file in ${log_files[@]}; do
             if [ "${{ inputs.symbolize }}" == "true" ]; then

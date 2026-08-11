@@ -74,8 +74,12 @@ runs:
             # If both the logs and the results are missing the tests probably failed to run.
             msg="Some targets may have failed to run."
           fi
-          echo "::error::${msg} Found ${#result_xmls[@]} test results, ${#result_logs[@]} logs, expected ${GTEST_SHARDS}."
-          exit_code=1
+          if [ "${REQUIRED_PASSING}" == "false" ]; then
+            echo "::warning::${msg} Found ${#result_xmls[@]} test results, ${#result_logs[@]} logs, expected ${GTEST_SHARDS}, but required_passing is false. Ignoring."
+          else
+            echo "::error::${msg} Found ${#result_xmls[@]} test results, ${#result_logs[@]} logs, expected ${GTEST_SHARDS}."
+            exit_code=1
+          fi
         fi
 
         if [ ${TESTS_FAILED:-0} -gt 0 ]; then

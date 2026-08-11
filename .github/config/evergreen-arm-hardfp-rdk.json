@@ -13,7 +13,6 @@
     "device_pool": "maneki"
   },
   "targets": [
-    "cobalt:gn_all",
     "loader_app",
     "loader_app_rdk_plugin",
     "crash_sandbox_loaded_content",

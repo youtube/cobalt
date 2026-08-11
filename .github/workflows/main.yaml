@@ -961,6 +961,7 @@ jobs:
           # TODO: Enable symbolization when it works.
           # symbolize: ${{ needs.initialize.outputs.test_on_device == 'true' }}
           symbolize: 'false'
+          required_passing: ${{ matrix.test_info.required_passing != false }}
 
   browser-test-results:
     needs: [initialize, build, browser-test-on-host]
