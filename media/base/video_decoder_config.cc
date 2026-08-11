@@ -84,17 +84,25 @@ bool VideoDecoderConfig::IsValidConfig() const {
 }
 
 bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
-  // Note: On Starboard builds (BUILDFLAG(USE_STARBOARD_MEDIA)), `mime_type()`
-  // is intentionally excluded from Matches():
-  // 1. Matches() checks whether underlying hardware decoders require 
-  //    re-initialization based on elementary stream properties (codec,
-  //    profile, resolution, extra_data).
-  // 2. Format transitions (e.g., MediaSource.changeType) are explicitly
-  //    signaled down the pipeline via DemuxerStream::kConfigChanged buffer
-  //    boundaries.
-  // 3. Omitting `mime_type()` prevents redundant hardware decoder teardowns if
-  //    container MIME strings differ while elementary video/audio parameters
-  //    remain identical.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Note: On Starboard builds (BUILDFLAG(USE_STARBOARD_MEDIA)),
+  // `mime_type()` is intentionally omitted from Matches() to minimize risk to
+  // playback stability:
+  // 1. Matches() evaluates whether a stream config change requires tearing
+  //    down and re-initializing the underlying hardware decoder (SbPlayer /
+  //    MediaCodec).
+  // 2. The existing elementary stream fields compared below (codec, profile,
+  //    resolution, extra_data) already provide sufficient information to
+  //    detect any hardware-relevant format changes. Real format switches
+  //    (e.g., H.264 -> VP9) alter these elementary fields and correctly
+  //    trigger decoder re-initialization, making an additional `mime_type()`
+  //    comparison unnecessary.
+  // 3. Omitting `mime_type()` minimizes the risk of false-positive decoder
+  //    flushes: adding `mime_type()` introduces brand new behavior that is
+  //    risky. It's now possible that mime_type strings that didn't cause
+  //    Matches() to fail now do with this change, introducing new
+  //    regressions.
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   return codec() == config.codec() && profile() == config.profile() &&
          alpha_mode() == config.alpha_mode() &&
          video_transformation() == config.video_transformation() &&

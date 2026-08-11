@@ -126,6 +126,7 @@ class MEDIA_EXPORT AudioDecoderConfig {
   void set_mime_type(std::string_view mime_type) { mime_type_ = mime_type; }
   const std::string& mime_type() const { return mime_type_; }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
  private:
   // WARNING: When modifying or adding any parameters, update the following:
   // - AudioDecoderConfig::AsHumanReadableString()
