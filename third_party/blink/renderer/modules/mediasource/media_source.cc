@@ -604,8 +604,7 @@ bool MediaSource::IsTypeSupportedInternal(ExecutionContext* context,
   auto ascii = type.Ascii();
   SbMediaSupportType support_type =
       ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
-          std::string_view(ascii.data() ? ascii.data() : "", ascii.length()),
-          "");
+          std::string_view(ascii.c_str(), ascii.length()), "");
   return support_type != kSbMediaSupportTypeNotSupported;
 #else
   // 2. If type does not contain a valid MIME type string, then return false.
