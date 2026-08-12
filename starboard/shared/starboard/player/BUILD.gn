@@ -12,10 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/buildflag_header.gni")
+import("//starboard/build/buildflags.gni")
 import("//starboard/shared/starboard/player/testdata/sha1_files.gni")
 
 if (is_android && !is_androidtv) {
   import("//build/config/android/rules.gni")
+}
+
+buildflag_header("player_buildflags") {
+  header = "buildflags.h"
+
+  sb_max_video_resolution_2k = sb_max_video_resolution == "2k"
+  sb_max_video_resolution_4k = sb_max_video_resolution == "4k"
+  sb_max_video_resolution_8k = sb_max_video_resolution == "8k"
+
+  flags = [
+    "SB_MAX_VIDEO_RESOLUTION_2K=$sb_max_video_resolution_2k",
+    "SB_MAX_VIDEO_RESOLUTION_4K=$sb_max_video_resolution_4k",
+    "SB_MAX_VIDEO_RESOLUTION_8K=$sb_max_video_resolution_8k",
+  ]
 }
 
 static_library("video_dmp") {
@@ -43,8 +59,26 @@ action("player_download_test_data") {
 
   script = "//starboard/tools/download_from_gcs.py"
 
-  sha_sources = []
+  sha_files_filtered = []
   foreach(sha1_file, sha1_files) {
+    _include = true
+    if (sb_max_video_resolution == "2k") {
+      if (sha1_file == "vertical_4k_30_fps_313_vp9.dmp.sha1" ||
+          sha1_file == "vertical_8k_30_fps_571_av1.dmp.sha1") {
+        _include = false
+      }
+    } else if (sb_max_video_resolution == "4k") {
+      if (sha1_file == "vertical_8k_30_fps_571_av1.dmp.sha1") {
+        _include = false
+      }
+    }
+    if (_include) {
+      sha_files_filtered += [ sha1_file ]
+    }
+  }
+
+  sha_sources = []
+  foreach(sha1_file, sha_files_filtered) {
     sha_sources += [ string_join("/",
                                  [
                                    "testdata",
@@ -70,13 +104,14 @@ action("player_download_test_data") {
   sha1_dir = rebase_path("testdata", root_build_dir)
 
   args = [
-    "--bucket",
-    "cobalt-static-storage-public",
-    "--sha1",
-    sha1_dir,
-    "--output",
-    rebase_path("$outdir/testdata", root_build_dir),
-  ]
+           "--bucket",
+           "cobalt-static-storage-public",
+           "--sha1",
+           sha1_dir,
+           "--output",
+           rebase_path("$outdir/testdata", root_build_dir),
+           "--files",
+         ] + sha_files_filtered
 }
 
 if (is_apple) {

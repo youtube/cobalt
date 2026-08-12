@@ -102,9 +102,11 @@ def MaybeDownloadFileFromGcs(bucket, sha1_file, output_file, force=False):
 def MaybeDownloadDirectoryFromGcs(bucket,
                                   sha1_directory,
                                   output_directory,
+                                  files=None,
                                   force=False):
   res = True
-  for filename in os.listdir(sha1_directory):
+  file_list = files if files is not None else os.listdir(sha1_directory)
+  for filename in file_list:
     filebase, ext = os.path.splitext(filename)
     if ext == '.sha1':
       filepath = os.path.join(sha1_directory, filename)
@@ -132,6 +134,10 @@ def main():
       required=True,
       help='Path to file or directory to download file(s) to.')
   parser.add_argument(
+      '--files',
+      nargs='*',
+      help='Specific sha1 file names to download (if --sha1 is a directory).')
+  parser.add_argument(
       '-f',
       '--force',
       action='store_true',
@@ -143,7 +149,7 @@ def main():
 
   if os.path.isdir(args.sha1):
     MaybeDownloadDirectoryFromGcs(args.bucket, args.sha1, args.output,
-                                  args.force)
+                                  args.files, args.force)
   else:
     MaybeDownloadFileFromGcs(args.bucket, args.sha1, args.output, args.force)
 

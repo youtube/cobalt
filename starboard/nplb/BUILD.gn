@@ -355,6 +355,7 @@ test("nplb") {
     "//starboard/nplb/compiler_compliance:cpp14_supported",
     "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/media:media_util",
+    "//starboard/shared/starboard/player:player_buildflags",
     "//starboard/shared/starboard/player:player_test_data",
     "//starboard/shared/starboard/player:video_dmp",
     "//starboard/testing:fake_graphics_context_provider",

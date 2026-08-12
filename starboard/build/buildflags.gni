@@ -22,4 +22,13 @@ declare_args() {
   use_starboard_media =
       is_cobalt && current_toolchain != host_toolchain &&
       (!is_starboard || current_toolchain != v8_snapshot_toolchain)
+
+  # Specifies the maximum video resolution supported by the target device.
+  # Used to exclude large test assets from the package on resource-constrained platforms.
+  # Allowed values: "2k", "4k", "8k" (default: "8k")
+  sb_max_video_resolution = "8k"
 }
+
+assert(sb_max_video_resolution == "2k" || sb_max_video_resolution == "4k" ||
+           sb_max_video_resolution == "8k",
+       "sb_max_video_resolution must be '2k', '4k', or '8k'")

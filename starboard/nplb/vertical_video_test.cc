@@ -16,12 +16,14 @@
 #include <tuple>
 #include <vector>
 
+#include "build/buildflag.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
+#include "starboard/shared/starboard/player/buildflags.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -48,21 +50,27 @@ void CheckVerticalResolutionSupport(const char* mime) {
 }
 
 std::vector<SbPlayerTestConfig> GetVerticalVideoTestConfigs() {
-  const char* kVideoFilenames[] = {
-      "vertical_1080p_30_fps_137_avc.dmp", "vertical_4k_30_fps_313_vp9.dmp",
-      "vertical_8k_30_fps_571_av1.dmp",    "vertical_144p_24_fps_278_vp9.dmp",
-      "vertical_240p_24_fps_242_vp9.dmp",  "vertical_360p_24_fps_243_vp9.dmp",
-      "vertical_480p_24_fps_244_vp9.dmp",  "vertical_720p_24_fps_247_vp9.dmp",
-      "vertical_1080p_24_fps_248_vp9.dmp", "vertical_144p_24_fps_394_av1.dmp",
-      "vertical_240p_24_fps_395_av1.dmp",  "vertical_360p_24_fps_396_av1.dmp",
-      "vertical_480p_24_fps_397_av1.dmp",  "vertical_720p_24_fps_398_av1.dmp",
-      "vertical_1080p_24_fps_399_av1.dmp", "vertical_144p_60_fps_278_vp9.dmp",
-      "vertical_240p_60_fps_242_vp9.dmp",  "vertical_360p_60_fps_243_vp9.dmp",
-      "vertical_480p_60_fps_244_vp9.dmp",  "vertical_720p_60_fps_302_vp9.dmp",
-      "vertical_1080p_60_fps_303_vp9.dmp", "vertical_144p_60_fps_394_av1.dmp",
-      "vertical_240p_60_fps_395_av1.dmp",  "vertical_360p_60_fps_396_av1.dmp",
-      "vertical_480p_60_fps_397_av1.dmp",  "vertical_720p_60_fps_398_av1.dmp",
-      "vertical_1080p_60_fps_399_av1.dmp",
+  const char* const kVideoFilenames[] = {
+      "vertical_1080p_30_fps_137_avc.dmp",
+#if !BUILDFLAG(SB_MAX_VIDEO_RESOLUTION_2K)
+      "vertical_4k_30_fps_313_vp9.dmp",
+#endif
+#if !BUILDFLAG(SB_MAX_VIDEO_RESOLUTION_2K) && \
+    !BUILDFLAG(SB_MAX_VIDEO_RESOLUTION_4K)
+      "vertical_8k_30_fps_571_av1.dmp",
+#endif
+      "vertical_144p_24_fps_278_vp9.dmp",  "vertical_240p_24_fps_242_vp9.dmp",
+      "vertical_360p_24_fps_243_vp9.dmp",  "vertical_480p_24_fps_244_vp9.dmp",
+      "vertical_720p_24_fps_247_vp9.dmp",  "vertical_1080p_24_fps_248_vp9.dmp",
+      "vertical_144p_24_fps_394_av1.dmp",  "vertical_240p_24_fps_395_av1.dmp",
+      "vertical_360p_24_fps_396_av1.dmp",  "vertical_480p_24_fps_397_av1.dmp",
+      "vertical_720p_24_fps_398_av1.dmp",  "vertical_1080p_24_fps_399_av1.dmp",
+      "vertical_144p_60_fps_278_vp9.dmp",  "vertical_240p_60_fps_242_vp9.dmp",
+      "vertical_360p_60_fps_243_vp9.dmp",  "vertical_480p_60_fps_244_vp9.dmp",
+      "vertical_720p_60_fps_302_vp9.dmp",  "vertical_1080p_60_fps_303_vp9.dmp",
+      "vertical_144p_60_fps_394_av1.dmp",  "vertical_240p_60_fps_395_av1.dmp",
+      "vertical_360p_60_fps_396_av1.dmp",  "vertical_480p_60_fps_397_av1.dmp",
+      "vertical_720p_60_fps_398_av1.dmp",  "vertical_1080p_60_fps_399_av1.dmp",
   };
 
   const char* kAudioFilename = "silence_aac_stereo.dmp";
@@ -119,19 +127,24 @@ TEST(VerticalVideoTest, CapabilityQuery) {
         "video/webm; codecs=\"vp9\"; width=810; height=1440");
   }
 
+#if !BUILDFLAG(SB_MAX_VIDEO_RESOLUTION_2K)
   support = SbMediaCanPlayMimeAndKeySystem(
       "video/webm; codecs=\"vp9\"; width=3840; height=2160", "");
   if (support == kSbMediaSupportTypeProbably) {
     CheckVerticalResolutionSupport(
         "video/webm; codecs=\"vp9\"; width=1215; height=2160");
   }
+#endif
 
+#if !BUILDFLAG(SB_MAX_VIDEO_RESOLUTION_2K) && \
+    !BUILDFLAG(SB_MAX_VIDEO_RESOLUTION_4K)
   support = SbMediaCanPlayMimeAndKeySystem(
       "video/mp4; codecs=\"av01.0.16M.08\"; width=7680; height=4320", "");
   if (support == kSbMediaSupportTypeProbably) {
     CheckVerticalResolutionSupport(
         "video/mp4; codecs=\"av01.0.16M.08\"; width=2430; height=4320");
   }
+#endif
 }
 
 TEST_P(VerticalVideoTest, WriteSamples) {
