@@ -1,0 +1,79 @@
+name: Workflow Dispatcher
+
+on:
+  pull_request_target:
+    types: [labeled]
+
+permissions: read-all
+
+jobs:
+  dispatch:
+    if: github.event.label.name == 'runtest' || github.event.label.name == 'yts_playback_test' || github.event.label.name == 'kokoro:run' || github.event.label.name == 'kokoro:force-run'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Checkout Workflows
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          sparse-checkout: .github/workflows
+          sparse-checkout-cone-mode: false
+      - name: Check label and trigger PR jobs
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const pr = context.payload.pull_request;
+            const labelName = context.payload.label.name;
+            let workflows = [];
+
+            if (labelName === 'kokoro:run' || labelName === 'kokoro:force-run') {
+              workflows = ['tvos.yaml'];
+            } else {
+              const workflowsDir = path.join(process.env.GITHUB_WORKSPACE, '.github/workflows');
+              const files = fs.readdirSync(workflowsDir);
+
+              for (const file of files) {
+                if (file.endsWith('.yaml') || file.endsWith('.yml')) {
+                  if (file === 'workflow_dispatcher.yaml' || file === 'main.yaml') {
+                    continue;
+                  }
+                  const content = fs.readFileSync(path.join(workflowsDir, file), 'utf8');
+                  const regex = /uses:\s*['"]?\.\/\.github\/workflows\/main\.yaml['"]?/;
+                  if (regex.test(content)) {
+                    workflows.push(file);
+                  }
+                }
+              }
+            }
+
+            console.log(`Triggering workflows for label ${labelName}:`, workflows);
+
+            for (const workflow of workflows) {
+              try {
+                const runs = await github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: workflow,
+                  head_sha: pr.head.sha,
+                  event: 'pull_request'
+                });
+
+                if (runs.data.workflow_runs.length === 0) {
+                  continue;
+                }
+
+                const latestRun = runs.data.workflow_runs[0];
+                await github.rest.actions.rerunWorkflow({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: latestRun.id
+                });
+              } catch (error) {
+                console.error(`Failed to rerun ${workflow}:`, error);
+              }
+            }
