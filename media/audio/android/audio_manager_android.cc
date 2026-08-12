@@ -84,7 +84,9 @@ class JniDelegateImpl : public AudioManagerAndroid::JniDelegate {
       : j_audio_manager_(Java_AudioManagerAndroid_createAudioManagerAndroid(
             AttachCurrentThread(),
             reinterpret_cast<jlong>(audio_manager))) {
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
     Java_AudioManagerAndroid_init(AttachCurrentThread(), j_audio_manager_);
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   ~JniDelegateImpl() override {
@@ -549,6 +551,10 @@ void AudioManagerAndroid::GetCommunicationDeviceNames(
   DCHECK(device_names->empty());
   AddDefaultDevice(device_names);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // simplfified flow - just return, device_names is set to default.
+  return;
+#else
   std::optional<std::vector<JniAudioDevice>> j_devices =
       GetJniDelegate().GetCommunicationDevices();
   if (!j_devices) {
@@ -566,6 +572,7 @@ void AudioManagerAndroid::GetCommunicationDeviceNames(
     device_names->emplace_back(std::move(j_device.name).value(),
                                std::move(device_id_string));
   }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 const AudioManagerAndroid::DeviceCache& AudioManagerAndroid::GetDeviceCache(
