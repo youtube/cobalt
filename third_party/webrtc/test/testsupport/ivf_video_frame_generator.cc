@@ -16,15 +16,13 @@
 #include <memory>
 #include <optional>
 
+#include "build/build_config.h"
+
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
-<<<<<<< HEAD
 #include "api/scoped_refptr.h"
 #include "api/test/frame_generator_interface.h"
 #include "api/units/time_delta.h"
-=======
-#include "build/build_config.h"
->>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "api/video/encoded_image.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/video_codec_type.h"
