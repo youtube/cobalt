@@ -33,6 +33,7 @@ template("starboard_executable") {
         "//cobalt/aosp:cobalt_apk_java",
       ]
       remove_uncalled_jni = true
+      add_stubs_for_missing_jni = true
 
       configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
       configs += [ "//build/config/android:hide_all_but_jni" ]

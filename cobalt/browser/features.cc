@@ -71,11 +71,11 @@ BASE_FEATURE(kForceVideoSplashScreen,
 
 BASE_FEATURE(kEnablePictureInPicture,
              "PictureInPicture",
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_ANDROIDTV)
              base::FEATURE_ENABLED_BY_DEFAULT
-#else   // BUILDFLAG(IS_ANDROID)
+#else   // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_ANDROIDTV)
              base::FEATURE_DISABLED_BY_DEFAULT
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_ANDROIDTV)
 );
 
 }  // namespace features

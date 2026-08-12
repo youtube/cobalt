@@ -43,7 +43,7 @@ source_set("browser") {
     ]
   }
 
-  if (is_android) {
+  if (is_android && !is_androidtv) {
     sources += [
       "android/overlay/cobalt_video_overlay_window.cc",
       "android/overlay/cobalt_video_overlay_window.h",
@@ -116,12 +116,15 @@ source_set("browser") {
   if (is_android) {
     deps += [
       "//cobalt/android:jni_headers",
-      "//cobalt/android:pip_jni_headers",
       "//components/embedder_support/android:web_contents_delegate",
       "//components/thin_webview",
       "//components/thin_webview/internal",
       "//ui/android",
     ]
+  }
+
+  if (is_android && !is_androidtv) {
+    deps += [ "//cobalt/android:pip_jni_headers" ]
   }
 
   if (is_androidtv) {

@@ -288,11 +288,11 @@ CobaltContentBrowserClient::CreateWindowForVideoPictureInPicture(
   // TODO: b/532158001 - Support PiP on Linux.
   // PiP is currently only supported on Android. On other platforms, calling
   // Create() allocates a dummy object that leaks memory, so we return nullptr.
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_ANDROIDTV)
   return content::VideoOverlayWindow::Create(controller);
-#else   // BUILDFLAG(IS_ANDROID)
+#else   // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_ANDROIDTV)
   return nullptr;
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_ANDROIDTV)
 }
 
 std::unique_ptr<content::BrowserMainParts>
