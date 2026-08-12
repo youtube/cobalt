@@ -135,6 +135,14 @@ public final class CommandLineOverrideHelper {
     // Disable FontSrcLocalMatching lookup table.
     paramOverrides.add("FontSrcLocalMatching");
 
+    // Disable deferring audio focus until audible for Starboard/Cobalt:
+    // 1. Cobalt runs on living-room/TV devices where playback is user-initiated
+    // and should acquire audio focus immediately.
+    // 2. Starboard renders audio directly to native audio sinks, bypassing
+    // Chromium's AudioStreamMonitor, so WebContents is never reported as
+    // audible, meaning deferred audio focus is never executed.
+    paramOverrides.add("DeferAudioFocusUntilAudible");
+
     return paramOverrides;
   }
 
