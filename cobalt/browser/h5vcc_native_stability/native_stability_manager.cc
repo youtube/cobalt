@@ -229,18 +229,24 @@ void NativeStabilityManager::GetPendingReportsOnTaskRunner(
   std::unordered_set<std::string> acked_uuids =
       ReadAckedUuidsFromDisk(file_path);
 
-  SbNativeStabilityReport sb_reports[kMaxNumReports];
-  int count =
-      native_stability_extension->ReadReports(sb_reports, kMaxNumReports);
+  std::vector<SbNativeStabilityReport> sb_reports(kMaxNumReports);
+  int count = native_stability_extension->ReadReports(sb_reports.data(),
+                                                      kMaxNumReports);
+  if (count < 0) {
+    LOG(WARNING) << "NativeStability extension ReadReports returned error ("
+                 << count << ").";
+    std::move(callback).Run(std::move(results));
+    return;
+  }
   if (count > kMaxNumReports) {
     LOG(WARNING) << "NativeStability extension ReadReports returned count ("
                  << count << ") exceeding max buffer size (" << kMaxNumReports
                  << "). Clamping result.";
     count = kMaxNumReports;
   }
+  sb_reports.resize(count);
 
-  for (int i = 0; i < count; ++i) {
-    const auto& sb_report = sb_reports[i];
+  for (const auto& sb_report : sb_reports) {
     std::string uuid(sb_report.native_stability_event_uuid);
     if (!uuid.empty() && acked_uuids.contains(uuid)) {
       VLOG(1) << "Skipping acknowledged native stability report UUID: " << uuid;
@@ -349,9 +355,9 @@ void NativeStabilityManager::PruneStorageOnTaskRunner(
     return;
   }
 
-  SbNativeStabilityReport sb_reports[kMaxNumReports];
-  int count =
-      native_stability_extension->ReadReports(sb_reports, kMaxNumReports);
+  std::vector<SbNativeStabilityReport> sb_reports(kMaxNumReports);
+  int count = native_stability_extension->ReadReports(sb_reports.data(),
+                                                      kMaxNumReports);
   if (count < 0) {
     LOG(WARNING) << "NativeStability extension ReadReports returned error ("
                  << count << "). Aborting storage pruning.";
@@ -366,10 +372,11 @@ void NativeStabilityManager::PruneStorageOnTaskRunner(
                  << "). Clamping result.";
     count = kMaxNumReports;
   }
+  sb_reports.resize(count);
 
   std::unordered_set<std::string> starboard_report_ids;
-  for (int i = 0; i < count; ++i) {
-    std::string uuid(sb_reports[i].native_stability_event_uuid);
+  for (const auto& sb_report : sb_reports) {
+    std::string uuid(sb_report.native_stability_event_uuid);
     if (!uuid.empty()) {
       starboard_report_ids.insert(uuid);
     }
