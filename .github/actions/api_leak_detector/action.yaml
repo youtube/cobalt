@@ -12,12 +12,11 @@ runs:
         CONFIG: ${{ matrix.config }}
       run: |
         set -x
-        if [ -z "${SB_API_VERSION}" ]; then
-          SB_API_VERSION_FLAG=""
-        else
-          SB_API_VERSION_FLAG="--sb_api_version=${SB_API_VERSION}"
+        FLAGS=()
+        if [ -n "${SB_API_VERSION}" ]; then
+          FLAGS+=("--sb_api_version=${SB_API_VERSION}")
         fi
-        python3 cobalt/src/starboard/tools/api_leak_detector/api_leak_detector.py -p "${PLATFORM}" -c "${CONFIG}" --submit-check "${SB_API_VERSION_FLAG}"
+        python3 cobalt/src/starboard/tools/api_leak_detector/api_leak_detector.py -p "${PLATFORM}" -c "${CONFIG}" --submit-check "${FLAGS[@]}"
         if [ "${CONFIG}" == "devel" ]; then
-          python3 cobalt/src/starboard/tools/api_leak_detector/api_leak_detector.py -p "${PLATFORM}" -c "${CONFIG}" --submit-check "${SB_API_VERSION_FLAG}" -t nplb
+          python3 cobalt/src/starboard/tools/api_leak_detector/api_leak_detector.py -p "${PLATFORM}" -c "${CONFIG}" --submit-check "${FLAGS[@]}" -t nplb
         fi
