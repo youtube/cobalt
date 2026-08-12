@@ -76,7 +76,7 @@ DrmSystem::DrmSystem(PassKey<DrmSystem>,
     : Thread("DrmSystemThread"),
       key_system_(key_system),
       // We are launching drm app provisioning.
-      // TODO: b/537337783 - Remove dead codes 2 weeks later (08/26/2026).
+      // TODO: b/537337783 - Remove dead code 2 weeks later (08/26/2026).
       enable_app_provisioning_(true),
       context_(context),
       callbacks_(callbacks),
