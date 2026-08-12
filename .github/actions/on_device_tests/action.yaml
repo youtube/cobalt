@@ -128,7 +128,7 @@ runs:
 
         # Check for missing result xml files.
         exit_code=0
-        readarray -t test_targets < <(echo "${TEST_TARGETS_JSON}" | jq -r '.[]')
+        readarray -t test_targets < <(echo "${TEST_TARGETS_JSON:-[]}" | jq -r '.[]')
         for test_target_with_path in "${test_targets[@]}"; do
           # Trim path prefix (before :).
           test_target=${test_target_with_path#*:}

@@ -90,7 +90,7 @@ runs:
         failed_suites=""
 
         # Parse the JSON array into a bash array using jq.
-        readarray -t test_executables < <(echo "${TEST_EXECUTABLES_JSON}" | jq -r '.[]')
+        readarray -t test_executables < <(echo "${TEST_EXECUTABLES_JSON:-[]}" | jq -r '.[]')
 
         for test_executable_path in "${test_executables[@]}"; do
           filename=$(basename "${test_executable_path}")
@@ -158,7 +158,7 @@ runs:
         failed_suites=""
 
         # Parse the JSON array into a bash array using jq.
-        readarray -t test_executables < <(echo "${TEST_EXECUTABLES_JSON}" | jq -r '.[]')
+        readarray -t test_executables < <(echo "${TEST_EXECUTABLES_JSON:-[]}" | jq -r '.[]')
 
         for test_executable_path in "${test_executables[@]}"; do
           test_executable=$(basename "${test_executable_path}")

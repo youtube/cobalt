@@ -137,7 +137,7 @@ runs:
           CONFIG: ${{ matrix.config }}
         run: |
           set -ex
-          readarray -t test_targets < <(echo "${TEST_TARGETS_JSON}" | jq -r '.[]')
+          readarray -t test_targets < <(echo "${TEST_TARGETS_JSON:-[]}" | jq -r '.[]')
           time autoninja -C out/"${PLATFORM}_${CONFIG}" "${test_targets[@]}"
         shell: bash
       - name: Ninja build
@@ -149,7 +149,7 @@ runs:
           CONFIG: ${{ matrix.config }}
         run: |
           set -ex
-          readarray -t targets < <(echo "${TARGETS_JSON}" | jq -r '.[]')
+          readarray -t targets < <(echo "${TARGETS_JSON:-[]}" | jq -r '.[]')
           time autoninja -C out/"${PLATFORM}_${CONFIG}" "${targets[@]}"
           if [[ "${USE_SCCACHE}" == "true" ]]; then
             sccache --show-stats
