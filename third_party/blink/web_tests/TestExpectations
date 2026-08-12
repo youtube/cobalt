@@ -9146,7 +9146,6 @@ crbug.com/422174062 [ Win ] external/wpt/css/css-masking/clip-path/clip-path-inl
 crbug.com/415666471 [ Linux ] external/wpt/speech-api/SpeechRecognition-installOnDevice.https.html [ Failure Pass Timeout ]
 crbug.com/415666471 [ Linux ] virtual/speech-with-unified-autoplay/external/wpt/speech-api/SpeechRecognition-installOnDevice.https.html [ Failure Pass Timeout ]
 
-<<<<<<< HEAD
 # Gardener 2025-06-10
 crbug.com/424009458 [ Mac ] webaudio/codec-tests/webm/webm-decode.html [ Failure Pass ]
 crbug.com/423416578 [ Linux ] custom-elements/form-validation-bubble-appearance.html [ Crash Failure Pass ]
@@ -9158,9 +9157,6 @@ crbug.com/414257771 [ Mac ] external/wpt/notifications/shownotification.https.wi
 # Gardener 2025-06-16
 crbug.com/424918655 [ Mac ] external/wpt/soft-navigation-heuristics/lcp/tentative/contracted-image.html [ Failure Pass ]
 crbug.com/420596996 [ Win ] virtual/webnn-service-with-gpu/external/wpt/webnn/conformance_tests/parallel-dispatch.https.any.serviceworker.html?gpu [ Failure Pass ]
-=======
-# Gardener 2025-06-09
-crbug.com/423416578 [ Linux ] custom-elements/form-validation-bubble-appearance.html [ Failure Pass ]
 
 # Cobalt bug: b/461834934.
 wpt_internal/cobalt/HTMLVideoElementExtension/getAndSetMaxVideoCapabilities.html [ Timeout ]
@@ -9174,4 +9170,3 @@ wpt_internal/cobalt/h5vcc-system/h5vcc-system-exit.https.any.html [ Failure Time
 wpt_internal/cobalt/h5vcc-system/h5vcc-system-limitAdTracking.https.any.html [ Failure Timeout ]
 wpt_internal/cobalt/h5vcc-system/h5vcc-system-trackingAuthorizationStatus.https.any.html [ Failure Timeout ]
 wpt_internal/cobalt/h5vcc-system/h5vcc-system-userOnExitStrategy.https.any.html [ Failure Timeout ]
->>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
