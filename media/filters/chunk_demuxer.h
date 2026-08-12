@@ -272,9 +272,19 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // the caller must provide valid, supported decoder configs; those overloads'
   // usage indicates that we intend to append WebCodecs encoded audio or video
   // chunks for this ID.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // We pass a default parameter |mime_type| to the standard AddId() call,
+  // as this allows us to easily pass on the value instead of duplicating
+  // existing code.
+  [[nodiscard]] Status AddId(const std::string& id,
+                             const std::string& content_type,
+                             const std::string& codecs,
+                             std::string_view mime_type = "");
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] Status AddId(const std::string& id,
                              const std::string& content_type,
                              const std::string& codecs);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] Status AddId(const std::string& id,
                              std::unique_ptr<AudioDecoderConfig> audio_config);
   [[nodiscard]] Status AddId(const std::string& id,
@@ -491,10 +501,20 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // Helper for AddId's creation of FrameProcessor, and
   // SourceBufferState creation, initialization and tracking in
   // source_state_map_.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // The Starboard implementation of AddIdInternal() also accepts |mime_type|
+  // to pass to the SourceBufferState.
+  ChunkDemuxer::Status AddIdInternal(
+      const std::string& id,
+      std::unique_ptr<media::StreamParser> stream_parser,
+      std::optional<std::string_view> expected_codecs,
+      std::string_view mime_type = "");
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   ChunkDemuxer::Status AddIdInternal(
       const std::string& id,
       std::unique_ptr<media::StreamParser> stream_parser,
       std::optional<std::string_view> expected_codecs);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void ChangeState_Locked(State new_state);
 
@@ -617,9 +637,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
       track_id_to_demux_stream_map_;
 
   bool supports_change_type_ = true;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  std::map<std::string, std::string> id_to_mime_map_;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media
