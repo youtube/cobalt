@@ -223,6 +223,7 @@ test("cobalt_browsertests") {
     "//cobalt/browser/metrics/cobalt_memory_threshold_browsertest.cc",
     "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
     "//cobalt/browser/metrics/font_metrics_browsertest.cc",
+    "//cobalt/browser/metrics/highest_pmf_reporter_browsertest.cc",
     "content_main_runner_impl_browsertest.cc",
 
     #"encrypted_media_browsertest.cc",
@@ -364,6 +365,7 @@ test("cobalt_browsertests") {
     "//storage/browser",
     "//storage/browser:test_support",
     "//third_party/blink/public:blink",
+    "//third_party/blink/renderer/controller",
     "//third_party/leveldatabase",
     "//third_party/mesa_headers",
     "//third_party/re2",
