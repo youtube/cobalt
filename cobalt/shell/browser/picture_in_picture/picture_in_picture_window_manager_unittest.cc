@@ -49,6 +49,10 @@ class PictureInPictureWindowManagerTest : public testing::Test {
   void TearDown() override {
     PictureInPictureWindowManager::GetInstance().ExitPictureInPicture();
   }
+
+ protected:
+  MockPictureInPictureWindowController controller1_;
+  MockPictureInPictureWindowController controller2_;
 };
 
 TEST_F(PictureInPictureWindowManagerTest, GetWebContentsReturnsNullInitially) {
@@ -60,20 +64,19 @@ TEST_F(PictureInPictureWindowManagerTest,
        EnterAndExitPictureInPictureWithController) {
   content::WebContents* kDummyWebContents =
       reinterpret_cast<content::WebContents*>(0x12345678);
-  MockPictureInPictureWindowController controller;
-  EXPECT_CALL(controller, GetWebContents())
+  EXPECT_CALL(controller1_, GetWebContents())
       .WillRepeatedly(testing::Return(kDummyWebContents));
 
   base::HistogramTester histogram_tester;
 
   PictureInPictureWindowManager::GetInstance()
-      .EnterPictureInPictureWithController(&controller);
+      .EnterPictureInPictureWithController(&controller1_);
   EXPECT_EQ(PictureInPictureWindowManager::GetInstance().GetWebContents(),
             kDummyWebContents);
   histogram_tester.ExpectBucketCount("Cobalt.PictureInPicture.Enter", true, 1);
   histogram_tester.ExpectTotalCount("Cobalt.PictureInPicture.Exit", 0);
 
-  EXPECT_CALL(controller, Close(false));
+  EXPECT_CALL(controller1_, Close(false));
   PictureInPictureWindowManager::GetInstance().ExitPictureInPicture();
   EXPECT_EQ(PictureInPictureWindowManager::GetInstance().GetWebContents(),
             nullptr);
@@ -84,23 +87,21 @@ TEST_F(PictureInPictureWindowManagerTest,
        ReplacingControllerClosesOldController) {
   content::WebContents* kDummyWebContents =
       reinterpret_cast<content::WebContents*>(0x12345678);
-  MockPictureInPictureWindowController controller1;
-  MockPictureInPictureWindowController controller2;
-  EXPECT_CALL(controller1, GetWebContents())
+  EXPECT_CALL(controller1_, GetWebContents())
       .WillRepeatedly(testing::Return(kDummyWebContents));
-  EXPECT_CALL(controller2, GetWebContents())
+  EXPECT_CALL(controller2_, GetWebContents())
       .WillRepeatedly(testing::Return(kDummyWebContents));
 
   PictureInPictureWindowManager::GetInstance()
-      .EnterPictureInPictureWithController(&controller1);
+      .EnterPictureInPictureWithController(&controller1_);
 
-  EXPECT_CALL(controller1, Close(false));
+  EXPECT_CALL(controller1_, Close(false));
   PictureInPictureWindowManager::GetInstance()
-      .EnterPictureInPictureWithController(&controller2);
+      .EnterPictureInPictureWithController(&controller2_);
   EXPECT_EQ(PictureInPictureWindowManager::GetInstance().GetWebContents(),
             kDummyWebContents);
 
-  EXPECT_CALL(controller2, Close(false));
+  EXPECT_CALL(controller2_, Close(false));
   PictureInPictureWindowManager::GetInstance().ExitPictureInPicture();
 }
 

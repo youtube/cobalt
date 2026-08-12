@@ -184,7 +184,11 @@ const char kPictureInPictureScript[] = R"(
   });
 
   window.play = async function() {
-    await window.mseReadyPromise;
+    const success = await window.mseReadyPromise;
+    if (!success) {
+      console.error('MSE initialization failed.');
+      return false;
+    }
     await window.video.play();
     return true;
   };
