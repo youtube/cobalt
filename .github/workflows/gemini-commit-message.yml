@@ -88,9 +88,7 @@ jobs:
           # PR Event URL + Issue Comment URL
           PR_API_URL="${PR_URL_1}${PR_URL_2}"
 
-          set +x
           diff_content=$(curl -fsSL -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3.diff" "${PR_API_URL}")
-          set -x
 
           {
             echo "diff_content<<EOF"
@@ -127,12 +125,10 @@ jobs:
               }]
             }')
 
-          set +x
           api_response=$(curl -s -X POST \
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_SECRET}" \
             -H "Content-Type: application/json" \
             -d "${json_payload}")
-          set -x
 
           gemini_text_response=$(echo "${api_response}" | jq -r '.candidates[0].content.parts[0].text // "Error: Could not parse a valid response from the Gemini API. Please check the API response logs in the workflow run."')
 
