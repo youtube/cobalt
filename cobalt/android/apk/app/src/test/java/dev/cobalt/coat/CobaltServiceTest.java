@@ -13,19 +13,12 @@
 // limitations under the License.import static org.junit.Assert.assertEquals;
 
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.junit.Assert.assertEquals;
 
-import android.util.Base64;
-import dev.cobalt.coat.CobaltActivity;
 import dev.cobalt.coat.CobaltService;
-import java.util.Locale;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
