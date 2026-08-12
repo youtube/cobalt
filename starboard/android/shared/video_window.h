@@ -68,6 +68,8 @@ class VideoSurfaceHolder {
  private:
   AcquiredSurface AcquireVideoSurfaceUsingSurfaceDestroyer(JobQueue* job_queue);
   void ReleaseVideoSurfaceUsingSurfaceDestroyer();
+
+  scoped_refptr<SurfaceDestroyNotifier> active_notifier_;
 };
 
 // SurfaceDestroyNotifier is used to safely handle the destruction of the video

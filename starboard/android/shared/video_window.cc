@@ -217,7 +217,12 @@ void SurfaceDestroyNotifier::Notify() {
   }
   done_ = false;
   scoped_refptr<SurfaceDestroyNotifier> self(this);
-  job_queue_->Schedule([self]() { self->NotifyDestroyed(); });
+  auto task = [self]() { self->NotifyDestroyed(); };
+  if (!job_queue_->Schedule(std::move(task))) {
+    SB_LOG(ERROR) << "Failed to schedule NotifyDestroyed on JobQueue!";
+    done_ = true;
+    return;
+  }
 
   constexpr std::chrono::seconds kTeardownTimeout(1);
   if (!done_cv_.wait_for(lock, kTeardownTimeout, [this] { return done_; })) {
@@ -276,8 +281,9 @@ VideoSurfaceHolder::AcquireVideoSurfaceUsingSurfaceDestroyer(
   }
   GetGlobalSurfaceDestroyNotifier() =
       make_scoped_refptr<SurfaceDestroyNotifier>(this, job_queue);
+  active_notifier_ = GetGlobalSurfaceDestroyNotifier();
 
-  return {GetGlobalSurfaceDestroyNotifier(), GetGlobalVideoSurface()};
+  return {active_notifier_, GetGlobalVideoSurface()};
 }
 
 VideoSurfaceHolder::AcquiredSurface VideoSurfaceHolder::AcquireVideoSurface(
@@ -298,11 +304,17 @@ VideoSurfaceHolder::AcquiredSurface VideoSurfaceHolder::AcquireVideoSurface(
 }
 
 void VideoSurfaceHolder::ReleaseVideoSurfaceUsingSurfaceDestroyer() {
-  std::lock_guard lock(*GetViewSurfaceMutex());
-  auto& notifier = GetGlobalSurfaceDestroyNotifier();
-  if (notifier && notifier->IsCurrentHolder(this)) {
-    notifier->Disconnect();
-    notifier = nullptr;
+  scoped_refptr<SurfaceDestroyNotifier> notifier_to_disconnect;
+  {
+    std::lock_guard lock(*GetViewSurfaceMutex());
+    notifier_to_disconnect = std::move(active_notifier_);
+    auto& global_notifier = GetGlobalSurfaceDestroyNotifier();
+    if (global_notifier && global_notifier->IsCurrentHolder(this)) {
+      global_notifier = nullptr;
+    }
+  }
+  if (notifier_to_disconnect) {
+    notifier_to_disconnect->Disconnect();
   }
 }
 
