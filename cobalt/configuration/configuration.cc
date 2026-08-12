@@ -19,6 +19,7 @@
 
 #include "base/memory/singleton.h"
 #include "base/notreached.h"
+#include "build/build_config.h"
 #include "starboard/system.h"
 
 namespace cobalt {
@@ -43,6 +44,9 @@ Configuration::Configuration() {
 }
 
 Configuration::UserOnExitStrategy Configuration::CobaltUserOnExitStrategy() {
+#if BUILDFLAG(IS_ANDROID)
+  return Configuration::UserOnExitStrategy::kMinimize;
+#else
   constexpr char kStop[] = "stop";
   constexpr char kSuspend[] = "suspend";
   constexpr char kNoExit[] = "noexit";
@@ -62,8 +66,9 @@ Configuration::UserOnExitStrategy Configuration::CobaltUserOnExitStrategy() {
   } else if (strategy == kNoExit) {
     return Configuration::UserOnExitStrategy::kNoExit;
   }
-  NOTREACHED() << "Invalid CobaltUserOnExitStrategy: " << strategy;
+  LOG(ERROR) << "Invalid CobaltUserOnExitStrategy: " << strategy;
   return Configuration::UserOnExitStrategy::kClose;
+#endif
 }
 
 int Configuration::CobaltLocalTypefaceCacheSizeInBytes() {
