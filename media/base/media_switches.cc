@@ -641,15 +641,7 @@ BASE_FEATURE(kDedicatedMediaServiceThread,
 // background apps on android, where focus is typically exclusive.
 BASE_FEATURE(kDeferAudioFocusUntilAudible,
              "DeferAudioFocusUntilAudible",
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-// Disabled for Starboard/Cobalt for the following reasons:
-// 1. Cobalt runs on living-room/TV devices where playback is user-initiated and
-//    should acquire audio focus immediately.
-// 2. Starboard renders audio directly to native audio sinks, bypassing
-//    Chromium's AudioStreamMonitor, so WebContents is never reported as
-//    audible, meaning deferred audio focus is never executed.
-             base::FEATURE_DISABLED_BY_DEFAULT
-#elif BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
              base::FEATURE_DISABLED_BY_DEFAULT
