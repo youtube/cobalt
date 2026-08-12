@@ -66,11 +66,10 @@
 
 namespace cobalt {
 
-CobaltMainDelegate::CobaltMainDelegate(
-    absl::optional<int64_t> startup_timestamp,
-    const char* initial_deep_link,
-    bool is_content_browsertests,
-    bool is_visible)
+CobaltMainDelegate::CobaltMainDelegate(std::optional<int64_t> startup_timestamp,
+                                       const char* initial_deep_link,
+                                       bool is_content_browsertests,
+                                       bool is_visible)
     : content::ShellMainDelegate(),
       startup_timestamp_(startup_timestamp),
       is_visible_(is_visible),

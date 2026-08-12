@@ -17,30 +17,41 @@
 
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
 namespace blink {
 
 struct MemoryBreakdownMetric {
-  const char* name;
+  std::string name;
   uint64_t value_bytes;
 };
 
-// Helper functions for extracting live Cobalt/Chromium memory breakdown metrics
-// from base::StatisticsRecorder. Aligns with go/kimono-memory-metrics and
-// mirrors the field p50 (median) metric calculation in
-// interpret_uma_histogram.py. Used by Blink CDP Performance domain
-// (InspectorPerformanceAgent::getMetrics) and DevTools memory breakdown
-// inspection.
-//
-// Threading Model:
-// These non-member functions are thread-safe and can be called from any thread
-// or TaskRunner, as they rely on the thread-safe base::StatisticsRecorder.
+// Suffix identifiers for distinguishing statistical medians vs. live meters.
+inline constexpr char kP50Suffix[] = ".P50";
+inline constexpr char kLiveSuffix[] = ".Live";
 
-// Standard memory breakdown metrics tracked in PLX / Kimono telemetry
-// configs.
-constexpr const char* kMemoryBreakdownMetricNames[] = {
+// Metric indices for structured reference across helper functions.
+enum CobaltMemoryMetricId {
+  kResidentSet = 0,
+  kPrivateMemoryFootprint,
+  kMalloc,
+  kPartitionAlloc,
+  kV8,
+  kBlinkGC,
+  kSkia,
+  kLibChrobaltRss,
+  kCodeOther,
+  kFonts,
+  kStacks,
+  kJavaHeap,
+  kPeakMemoryUsagePageLoad,
+  kNumCobaltMemoryMetrics
+};
+
+// Canonical UMA memory breakdown metric names tracked in PLX / Kimono telemetry configs.
+inline constexpr const char* kCanonicalMemoryMetricNames[kNumCobaltMemoryMetrics] = {
     "Memory.Browser.ResidentSet",
     "Memory.Browser.PrivateMemoryFootprint",
     "Memory.Experimental.Browser2.Malloc",
@@ -55,12 +66,30 @@ constexpr const char* kMemoryBreakdownMetricNames[] = {
     "Memory.Experimental.Browser2.JavaHeap",
     "Memory.GPU.PeakMemoryUsage2.PageLoad"};
 
-// Query a single metric by histogram name. Returns value in bytes if found.
-std::optional<uint64_t> GetMetricValueBytes(std::string_view metric_name);
+// ============================================================================
+// 1. Session Median (P50) Memory Breakdown Metrics (UMA Histograms)
+// ============================================================================
+// Helper functions for extracting session median (P50) Cobalt/Chromium memory
+// breakdown metrics from base::StatisticsRecorder. Aligns with
+// go/kimono-memory-metrics and mirrors the field p50 metric calculation in
+// interpret_uma_histogram.py.
 
-// Queries all target memory breakdown metrics currently present in
+// Query a single P50 metric by base histogram name. Returns value in bytes if found.
+std::optional<uint64_t> GetP50MetricValueBytes(std::string_view metric_name);
+
+// Queries all target P50 memory breakdown metrics currently present in
 // StatisticsRecorder. Returns std::nullopt if no metrics are recorded.
-std::optional<std::vector<MemoryBreakdownMetric>> GetMemoryBreakdown();
+std::optional<std::vector<MemoryBreakdownMetric>> GetP50MemoryBreakdown();
+
+// ============================================================================
+// 2. Real-Time Instantaneous Live Memory Metrics
+// ============================================================================
+// Queries the active, instantaneous memory footprints from process metrics
+// and runtime subsystem allocators (e.g. resident set, private footprint,
+// malloc, v8).
+
+// Queries all available live instantaneous memory breakdown metrics.
+std::optional<std::vector<MemoryBreakdownMetric>> GetLiveMemoryBreakdown();
 
 }  // namespace blink
 
