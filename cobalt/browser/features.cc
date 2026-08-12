@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/features.h"
 
+#include "cobalt/build/configs/buildflags.h"
+
 namespace cobalt {
 namespace features {
 
@@ -66,6 +68,15 @@ BASE_FEATURE(kDisableSplashScreen,
 BASE_FEATURE(kForceVideoSplashScreen,
              "ForceVideoSplashScreen",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kEnablePictureInPicture,
+             "PictureInPicture",
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else   // BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif  // BUILDFLAG(IS_ANDROID)
+);
 
 }  // namespace features
 }  // namespace cobalt
