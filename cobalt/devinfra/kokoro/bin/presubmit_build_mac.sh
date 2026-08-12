@@ -146,6 +146,22 @@ EOF
       "${GSUTIL}" cp "${archive_file}" "${gcs_archive_path}"
     fi
   done
+
+  # Handshake: Tell Kokoro (Child Job) where the binary is
+  # Create the folder directly under KOKORO_ARTIFACTS_DIR
+  local artifacts_dir="${KOKORO_ARTIFACTS_DIR:-.}"
+  mkdir -p "${artifacts_dir}/build_vars"
+
+  # Use the script's own 'build_id' variable for consistency
+  BIGSTORE_ROOT="/bigstore/${bucket}/kokoro/build/${TARGET_PLATFORM}_${CONFIG}/${build_id}"
+
+  # Pass the main artifact to the lab test
+  GCS_FILE_PATH="${BIGSTORE_ROOT}/cobalt_unittests.tar.gz"
+
+  # Write the file directly under artifacts_dir
+  echo "--define=tvos_gunit_test_package=${GCS_FILE_PATH}" > "${artifacts_dir}/build_vars/dynamic_flags.txt"
+  echo "Wrote dynamic flags to ${artifacts_dir}/build_vars/dynamic_flags.txt:"
+  cat "${artifacts_dir}/build_vars/dynamic_flags.txt"
 }
 
 
