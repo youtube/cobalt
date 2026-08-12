@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -59,7 +60,7 @@ class MockAppEventRunner : public AppEventRunner {
   MOCK_METHOD(void, InitializeSystem, (), (override));
   MOCK_METHOD(void,
               CreateMainDelegate,
-              (absl::optional<int64_t> startup_timestamp,
+              (std::optional<int64_t> startup_timestamp,
                bool is_visible,
                const char* initial_deep_link),
               (override));
