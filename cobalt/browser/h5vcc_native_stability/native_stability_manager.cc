@@ -41,11 +41,13 @@ namespace h5vcc_native_stability {
 
 namespace {
 
-// TODO(b/528362453): Per the design doc, we should prune native stability JSON
-// storage at startup by removing entries for events no longer persisted by the
-// crash reporting system's own local storage.
 constexpr char kNativeStabilityDirName[] = "native_stability";
 constexpr char kAckedEventUuidsFileName[] = "acked_event_uuids.json";
+
+// We want a number large enough that we avoid missing any reports in all but
+// the most extreme cases, but not so large that we waste significant memory
+// when allocating the buffer.
+constexpr int kMaxNumReports = 128;
 
 mojom::BaseReportDataPtr CreateBaseReportData(
     const SbNativeStabilityReport& sb_report) {
@@ -227,10 +229,6 @@ void NativeStabilityManager::GetPendingReportsOnTaskRunner(
   std::unordered_set<std::string> acked_uuids =
       ReadAckedUuidsFromDisk(file_path);
 
-  // We want a number large enough that we avoid missing any reports in all but
-  // the most extreme cases, but not so large that we waste significant memory
-  // when allocating the buffer.
-  constexpr int kMaxNumReports = 128;
   SbNativeStabilityReport sb_reports[kMaxNumReports];
   int count =
       native_stability_extension->ReadReports(sb_reports, kMaxNumReports);
@@ -318,6 +316,83 @@ void NativeStabilityManager::RecordHangRecovered(const std::string& hang_uuid) {
   // TODO(b/528362453): Implement persistent storage layer.
   LOG(INFO) << "Mock NativeStabilityManager::RecordHangRecovered for UUID: "
             << hang_uuid;
+}
+
+void NativeStabilityManager::PruneStorage(base::OnceClosure callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!task_runner_) {
+    task_runner_ = base::ThreadPool::CreateSequencedTaskRunner(
+        {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
+         base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
+  }
+  auto* native_stability_extension =
+      static_cast<const StarboardExtensionNativeStabilityApi*>(
+          GetExtension(kStarboardExtensionNativeStabilityName));
+  task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          &NativeStabilityManager::PruneStorageOnTaskRunner,
+          base::Unretained(this), native_stability_extension,
+          callback ? base::BindPostTaskToCurrentDefault(std::move(callback))
+                   : base::OnceClosure()));
+}
+
+void NativeStabilityManager::PruneStorageOnTaskRunner(
+    const StarboardExtensionNativeStabilityApi* native_stability_extension,
+    base::OnceClosure callback) {
+  if (!native_stability_extension || native_stability_extension->version < 1 ||
+      !native_stability_extension->ReadReports) {
+    VLOG(1) << "NativeStability extension is not supported on this platform.";
+    if (callback) {
+      std::move(callback).Run();
+    }
+    return;
+  }
+
+  SbNativeStabilityReport sb_reports[kMaxNumReports];
+  int count =
+      native_stability_extension->ReadReports(sb_reports, kMaxNumReports);
+  if (count < 0) {
+    LOG(WARNING) << "NativeStability extension ReadReports returned error ("
+                 << count << "). Aborting storage pruning.";
+    if (callback) {
+      std::move(callback).Run();
+    }
+    return;
+  }
+  if (count > kMaxNumReports) {
+    LOG(WARNING) << "NativeStability extension ReadReports returned count ("
+                 << count << ") exceeding max buffer size (" << kMaxNumReports
+                 << "). Clamping result.";
+    count = kMaxNumReports;
+  }
+
+  std::unordered_set<std::string> starboard_report_ids;
+  for (int i = 0; i < count; ++i) {
+    std::string uuid(sb_reports[i].native_stability_event_uuid);
+    if (!uuid.empty()) {
+      starboard_report_ids.insert(uuid);
+    }
+  }
+
+  base::FilePath file_path = GetAckedUuidsFilePath();
+  std::unordered_set<std::string> acked_uuids =
+      ReadAckedUuidsFromDisk(file_path);
+
+  size_t removed = std::erase_if(
+      acked_uuids, [&starboard_report_ids](const std::string& uuid) {
+        return !starboard_report_ids.contains(uuid);
+      });
+
+  if (removed > 0) {
+    VLOG(1) << "Removed " << removed
+            << " obsolete native stability report UUID(s) from disk.";
+    WriteAckedUuidsToDisk(file_path, acked_uuids);
+  }
+
+  if (callback) {
+    std::move(callback).Run();
+  }
 }
 
 }  // namespace h5vcc_native_stability
