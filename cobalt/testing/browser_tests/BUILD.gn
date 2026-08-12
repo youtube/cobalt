@@ -324,7 +324,6 @@ test("cobalt_browsertests") {
     "//device/base/synchronization",
     "//device/bluetooth:mocks",
     "//gin",
-    "//gpu",
     "//gpu/ipc/host",
     "//ipc",
     "//ipc:test_sink",
