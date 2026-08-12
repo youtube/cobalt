@@ -35,28 +35,29 @@ jobs:
           LABEL_NAME: ${{ github.event.label.name }}
           BASE_REF: ${{ github.base_ref }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          if [[ $EVENT_ACTION == 'closed' ]]; then
+          if [[ ${EVENT_ACTION} == 'closed' ]]; then
             # Fetch live labels from the API to include auto-added ones
-            labels=$(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json labels --jq '.labels[].name')
+            labels=$(gh pr view ${PR_NUMBER} --repo ${GITHUB_REPOSITORY} --json labels --jq '.labels[].name')
           else
             # Or get the label that was added on the merged PR.
-            labels=$LABEL_NAME
+            labels=${LABEL_NAME}
           fi
 
           # This list must contain all cherry-pick destinations as file is used for all branches.
           branches=("main" "26.eap" "26.android" "25.lts.1+" "24.lts.1+" "23.lts.1+" "22.lts.1+" "21.lts.1+" "20.lts.1+" "19.lts.1+" "rc_11" "COBALT_9")
           filtered_branches=()
           for branch in "${branches[@]}"; do
-            if [[ $branch == $BASE_REF ]]; then
+            if [[ "${branch}" == "${BASE_REF}" ]]; then
               continue
             fi
-            if [[ ${labels[@]} =~ "cp-$branch" ]]; then
-              filtered_branches+=("$branch")
+            if [[ "${labels}" =~ "cp-${branch}" ]]; then
+              filtered_branches+=("${branch}")
             fi
           done
 
-          echo "target_branch=$(echo -n "${filtered_branches[@]}" | jq -cRs 'split(" ")')" >> $GITHUB_OUTPUT
+          echo "target_branch=$(echo -n "${filtered_branches[@]}" | jq -cRs 'split(" ")')" >> "${GITHUB_OUTPUT}"
 
   cherry_pick:
     runs-on: ubuntu-latest
@@ -93,9 +94,11 @@ jobs:
       - name: Cherry pick merge commit
         id: cherry-pick
         continue-on-error: true
+        env:
+          TARGET_BRANCH: ${{ matrix.target_branch }}
         run: |
           set -x
-          git fetch origin ${{ matrix.target_branch }}
+          git fetch origin "${TARGET_BRANCH}"
 
           set +e
           # Select the first parent as the mainline tree. This is necessary if
