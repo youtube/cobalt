@@ -204,9 +204,6 @@ inline constexpr ExperimentalFeatureKey<bool>
 inline constexpr ExperimentalFeatureKey<bool> kMediaFlushAudioTrackDuringSeek(
     "Media.FlushAudioTrackDuringSeek");
 
-inline constexpr ExperimentalFeatureKey<bool> kMediaForceClearSurfaceView(
-    "Media.ForceClearSurfaceView");
-
 inline constexpr ExperimentalFeatureKey<bool> kMediaForceDualThreads(
     "Media.ForceDualThreads");
 

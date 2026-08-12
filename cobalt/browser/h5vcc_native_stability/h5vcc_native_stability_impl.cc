@@ -40,4 +40,11 @@ void H5vccNativeStabilityImpl::GetPendingReports(
   NativeStabilityManager::GetInstance()->GetPendingReports(std::move(callback));
 }
 
+void H5vccNativeStabilityImpl::AcknowledgeReports(
+    const std::vector<std::string>& native_stability_event_uuids,
+    AcknowledgeReportsCallback callback) {
+  NativeStabilityManager::GetInstance()->AcknowledgeReports(
+      native_stability_event_uuids, std::move(callback));
+}
+
 }  // namespace h5vcc_native_stability
