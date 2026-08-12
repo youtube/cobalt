@@ -35,6 +35,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "base/timer/elapsed_timer.h"
 #include "base/threading/sequence_local_storage_slot.h"
 #include "base/types/optional_util.h"
 #include "build/build_config.h"
