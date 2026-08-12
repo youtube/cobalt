@@ -492,6 +492,11 @@ public abstract class CobaltActivity extends Activity {
 
     super.onCreate(savedInstanceState);
 
+    if (isFinishing()) {
+      Log.i(TAG, "Activity is finishing during onCreate; skipping engine startup.");
+      return;
+    }
+
     setupStartupGuard();
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
