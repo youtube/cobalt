@@ -18,9 +18,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GIT_AUTHOR_NAME: "cobalt-github-releaser-bot"
-      GIT_AUTHOR_EMAIL: "95661244+cobalt-github-releaser-bot@users.noreply.github.com"
+      GIT_AUTHOR_EMAIL: "cobalt-github-releaser-bot@google.com"
       GIT_COMMITTER_NAME: "cobalt-github-releaser-bot"
-      GIT_COMMITTER_EMAIL: "95661244+cobalt-github-releaser-bot@users.noreply.github.com"
+      GIT_COMMITTER_EMAIL: "cobalt-github-releaser-bot@google.com"
     permissions:
       contents: write
       pull-requests: write
@@ -54,7 +54,8 @@ jobs:
           git config --global submodule.recurse false
 
           # Copy script from main branch.
-          git show main:.github/scripts/autoroll_lts.py > "${RUNNER_TEMP}/autoroll_lts.py"
+          git show main:.github/scripts/autoroll.py > "${RUNNER_TEMP}/autoroll.py"
+          git show main:.github/scripts/autoroll_lib.py > "${RUNNER_TEMP}/autoroll_lib.py"
 
           git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
 
@@ -86,7 +87,7 @@ jobs:
           set -x
 
           # Run the Python script to perform cherry-picks and get all PR links.
-          PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
+          PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll.py" \
             --source-branch "${{ matrix.branch.source }}" \
             --target-branch "${{ matrix.branch.target }}" \
             --autoroll-file "${{ matrix.branch.autoroll }}" \
