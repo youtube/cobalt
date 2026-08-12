@@ -224,7 +224,7 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
 }
 
 CobaltContentBrowserClient::CobaltContentBrowserClient(
-    absl::optional<int64_t> startup_timestamp,
+    std::optional<int64_t> startup_timestamp,
     const std::string& deep_link,
     bool is_visible)
     : startup_timestamp_(startup_timestamp),
