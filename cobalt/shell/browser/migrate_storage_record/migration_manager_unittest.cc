@@ -117,7 +117,6 @@ class MockStorageArea : public blink::mojom::StorageArea {
   void GetAll(
       mojo::PendingRemote<blink::mojom::StorageAreaObserver> new_observer,
       GetAllCallback callback) override {}
-  void Checkpoint() override {}
 
   int put_call_count() const { return put_call_count_; }
   void set_should_fail(bool fail) { should_fail_ = fail; }
@@ -149,7 +148,6 @@ class MockLocalStorageControl : public ::storage::mojom::LocalStorageControl {
   void ApplyPolicyUpdates(std::vector<::storage::mojom::StoragePolicyUpdatePtr>
                               policy_updates) override {}
   void ForceKeepSessionState() override {}
-  void NeedsFlushForTesting(NeedsFlushForTestingCallback callback) override {}
 
   int flush_call_count() const { return flush_call_count_; }
   int purge_memory_call_count() const { return purge_memory_call_count_; }
