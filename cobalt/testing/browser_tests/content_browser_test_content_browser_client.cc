@@ -14,6 +14,7 @@
 
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 
+#include <optional>
 #include <string_view>
 
 #include "base/test/task_environment.h"
@@ -56,7 +57,7 @@ void ContentBrowserTestContentBrowserClient::
     RegisterBrowserInterfaceBindersForFrame(
         RenderFrameHost* render_frame_host,
         mojo::BinderMapWithContext<RenderFrameHost*>* map) {
-  cobalt::PopulateCobaltFrameBinders(absl::nullopt, render_frame_host, map);
+  cobalt::PopulateCobaltFrameBinders(std::nullopt, render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
 }
