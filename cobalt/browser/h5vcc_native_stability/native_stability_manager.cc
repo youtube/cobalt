@@ -16,6 +16,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -49,11 +50,19 @@ constexpr char kAckedEventUuidsFileName[] = "acked_event_uuids.json";
 // when allocating the buffer.
 constexpr int kMaxNumReports = 128;
 
+// Safely extracts the UUID string from an SbNativeStabilityReport, clamping to
+// the canonical 36-character UUID length and guarding against missing null
+// terminators in the C character array.
+std::string SafelyGetReportUuid(const SbNativeStabilityReport& report) {
+  std::string_view sv(report.native_stability_event_uuid,
+                      sizeof(report.native_stability_event_uuid) - 1);
+  return std::string(sv.substr(0, sv.find('\0')));
+}
+
 mojom::BaseReportDataPtr CreateBaseReportData(
     const SbNativeStabilityReport& sb_report) {
   auto base_data = mojom::BaseReportData::New();
-  base_data->native_stability_event_uuid =
-      sb_report.native_stability_event_uuid;
+  base_data->native_stability_event_uuid = SafelyGetReportUuid(sb_report);
   base_data->event_time_sec = sb_report.event_time_s;
   return base_data;
 }
@@ -247,7 +256,7 @@ void NativeStabilityManager::GetPendingReportsOnTaskRunner(
   sb_reports.resize(count);
 
   for (const auto& sb_report : sb_reports) {
-    std::string uuid(sb_report.native_stability_event_uuid);
+    std::string uuid = SafelyGetReportUuid(sb_report);
     if (!uuid.empty() && acked_uuids.contains(uuid)) {
       VLOG(1) << "Skipping acknowledged native stability report UUID: " << uuid;
       continue;
@@ -376,7 +385,7 @@ void NativeStabilityManager::PruneStorageOnTaskRunner(
 
   std::unordered_set<std::string> starboard_report_ids;
   for (const auto& sb_report : sb_reports) {
-    std::string uuid(sb_report.native_stability_event_uuid);
+    std::string uuid = SafelyGetReportUuid(sb_report);
     if (!uuid.empty()) {
       starboard_report_ids.insert(uuid);
     }

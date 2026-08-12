@@ -296,6 +296,32 @@ TEST_F(NativeStabilityManagerTest, GetPendingReportsIgnoresUnknownReportType) {
 }
 
 TEST_F(NativeStabilityManagerTest,
+       GetPendingReportsClampsUuidWithoutNullTerminator) {
+  auto* manager = NativeStabilityManager::GetInstance();
+  SbNativeStabilityReport report = {};
+  report.report_type = kSbNativeStabilityReportCrash;
+  // Fill all 37 bytes so there is no null terminator in the char array.
+  std::memset(report.native_stability_event_uuid, 'a',
+              sizeof(report.native_stability_event_uuid));
+
+  SetupStubExtension(manager, {report});
+
+  base::RunLoop run_loop;
+  manager->GetPendingReports(base::BindOnce(
+      [](base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        ASSERT_EQ(reports.size(), 1u);
+        // Canonical UUIDs are at most 36 characters (leaving 1 byte for '\0').
+        EXPECT_EQ(
+            reports[0]->get_crash_report()->base->native_stability_event_uuid,
+            std::string(sizeof(report.native_stability_event_uuid) - 1, 'a'));
+        std::move(quit_closure).Run();
+      },
+      run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
+TEST_F(NativeStabilityManagerTest,
        AcknowledgedReportsFilteredByGetPendingReports) {
   auto* manager = NativeStabilityManager::GetInstance();
 
@@ -597,6 +623,43 @@ TEST_F(NativeStabilityManagerTest,
 
   // Verify file was not created on disk.
   EXPECT_FALSE(base::PathExists(file_path));
+}
+
+TEST_F(NativeStabilityManagerTest,
+       PruneStorageClampsUuidWithoutNullTerminator) {
+  auto* manager = NativeStabilityManager::GetInstance();
+  SbNativeStabilityReport report = {};
+  report.report_type = kSbNativeStabilityReportCrash;
+  // Fill all 37 bytes so there is no null terminator in the char array.
+  std::memset(report.native_stability_event_uuid, 'a',
+              sizeof(report.native_stability_event_uuid));
+
+  SetupStubExtension(manager, {report});
+
+  std::string clamped_uuid(sizeof(report.native_stability_event_uuid) - 1, 'a');
+  base::FilePath file_path =
+      temp_dir_.GetPath().Append("acked_event_uuids.json");
+
+  {
+    base::RunLoop run_loop;
+    manager->AcknowledgeReports({clamped_uuid}, run_loop.QuitClosure());
+    run_loop.Run();
+  }
+
+  EXPECT_EQ(ReadAckedUuidsFromDiskForTesting(file_path),
+            (std::unordered_set<std::string>{clamped_uuid}));
+
+  {
+    base::RunLoop run_loop;
+    manager->PruneStorage(run_loop.QuitClosure());
+    run_loop.Run();
+  }
+
+  // Verify acked_event_uuids.json still contains the 36-character UUID. This
+  // proves that PruneStorage() clamped the UUID it found in the starboard
+  // stability report persisted on disk.
+  EXPECT_EQ(ReadAckedUuidsFromDiskForTesting(file_path),
+            (std::unordered_set<std::string>{clamped_uuid}));
 }
 
 }  // namespace h5vcc_native_stability
