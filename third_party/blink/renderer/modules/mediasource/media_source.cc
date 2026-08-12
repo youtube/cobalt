@@ -603,8 +603,8 @@ bool MediaSource::IsTypeSupportedInternal(ExecutionContext* context,
   // Interupt Chromium's IsTypeSupported() from here for better performance.
   auto ascii = type.Ascii();
   SbMediaSupportType support_type =
-      ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
-          std::string_view(ascii.c_str(), ascii.length()), "");
+      ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(ascii.c_str(),
+                                                              "");
   return support_type != kSbMediaSupportTypeNotSupported;
 #else
   // 2. If type does not contain a valid MIME type string, then return false.

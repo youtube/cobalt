@@ -277,8 +277,8 @@ bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
   std::string mime = GetMimeFromAudioType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
-    support_type =
-        ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(mime, "");
+    support_type = ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+        mime.c_str(), "");
   }
   bool result = support_type != kSbMediaSupportTypeNotSupported;
   LOG(INFO) << __func__ << "(" << type.codec << ") -> "
@@ -291,8 +291,8 @@ bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
   std::string mime = GetMimeFromVideoType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
-    support_type =
-        ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(mime, "");
+    support_type = ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+        mime.c_str(), "");
   }
   bool result = support_type != kSbMediaSupportTypeNotSupported;
   LOG(INFO) << __func__ << "(" << type.codec << ") -> "

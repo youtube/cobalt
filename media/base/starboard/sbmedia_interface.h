@@ -17,8 +17,6 @@
 
 #include <stdint.h>
 
-#include <string_view>
-
 #include "media/base/media_export.h"
 #include "starboard/media.h"
 
@@ -42,10 +40,10 @@ class MEDIA_EXPORT SbMediaInterface {
   virtual ~SbMediaInterface() = default;
 
   virtual SbMediaSupportType CanPlayMimeAndKeySystem(
-      std::string_view mime,
-      std::string_view key_system) const = 0;
-  virtual bool CanChangeType(std::string_view current_mime,
-                             std::string_view new_mime) const = 0;
+      const char* mime,
+      const char* key_system) const = 0;
+  virtual bool CanChangeType(const char* current_mime,
+                             const char* new_mime) const = 0;
   virtual int GetAudioOutputCount() const = 0;
   virtual bool GetAudioConfiguration(
       int output_index,
@@ -75,10 +73,10 @@ class MEDIA_EXPORT SbMediaInterface {
 class MEDIA_EXPORT DefaultSbMediaInterface final : public SbMediaInterface {
  public:
   SbMediaSupportType CanPlayMimeAndKeySystem(
-      std::string_view mime,
-      std::string_view key_system) const override;
-  bool CanChangeType(std::string_view current_mime,
-                     std::string_view new_mime) const override;
+      const char* mime,
+      const char* key_system) const override;
+  bool CanChangeType(const char* current_mime,
+                     const char* new_mime) const override;
   int GetAudioOutputCount() const override;
   bool GetAudioConfiguration(
       int output_index,
@@ -98,8 +96,7 @@ class MEDIA_EXPORT DefaultSbMediaInterface final : public SbMediaInterface {
 // By default, this returns a DefaultSbMediaInterface instance.
 MEDIA_EXPORT SbMediaInterface* GetSbMediaInterface();
 
-// Sets a custom SbMediaInterface for testing. Pass nullptr to restore the
-// default.
+// Sets a custom SbMediaInterface for testing.
 MEDIA_EXPORT void SetSbMediaInterfaceForTesting(SbMediaInterface* interface);
 
 }  // namespace media

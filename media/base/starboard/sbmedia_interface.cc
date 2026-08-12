@@ -15,7 +15,6 @@
 #include "media/base/starboard/sbmedia_interface.h"
 
 #include <atomic>
-#include <string>
 
 #include "base/check.h"
 #include "base/no_destructor.h"
@@ -29,16 +28,14 @@ std::atomic<SbMediaInterface*> g_sbmedia_interface_for_testing{nullptr};
 }  // namespace
 
 SbMediaSupportType DefaultSbMediaInterface::CanPlayMimeAndKeySystem(
-    std::string_view mime,
-    std::string_view key_system) const {
-  return SbMediaCanPlayMimeAndKeySystem(std::string(mime).c_str(),
-                                        std::string(key_system).c_str());
+    const char* mime,
+    const char* key_system) const {
+  return SbMediaCanPlayMimeAndKeySystem(mime, key_system);
 }
 
-bool DefaultSbMediaInterface::CanChangeType(std::string_view current_mime,
-                                            std::string_view new_mime) const {
-  return SbMediaCanChangeType(std::string(current_mime).c_str(),
-                              std::string(new_mime).c_str());
+bool DefaultSbMediaInterface::CanChangeType(const char* current_mime,
+                                            const char* new_mime) const {
+  return SbMediaCanChangeType(current_mime, new_mime);
 }
 
 int DefaultSbMediaInterface::GetAudioOutputCount() const {
