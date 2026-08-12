@@ -32,6 +32,9 @@ public class JavaSwitches {
   public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
   public static final String ENABLE_OPTIMIZED_V8_CODE_CACHE = "EnableOptimizedV8CodeCache";
 
+  /** flag to enable deferred V8 bytecode serialization in background/idle */
+  public static final String DEFER_V8_CODE_CACHE_WRITE = "DeferV8CodeCacheWrite";
+
   /** flag to allow caching CSS and WebAssembly resources in the HTTP disk cache. */
   public static final String ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE = "EnableCssAndWasmForHttpCache";
 
@@ -52,6 +55,9 @@ public class JavaSwitches {
   /** flag to disable GPU memory buffer compositor resources. */
   public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES =
       "DisableGpuMemoryBufferCompositorResources";
+
+  /** flag to enable the GPU shader disk cache. */
+  public static final String ENABLE_GPU_SHADER_DISK_CACHE = "EnableGpuShaderDiskCache";
 
   /** flag to limit GPU image cache items */
   public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
@@ -100,6 +106,10 @@ public class JavaSwitches {
 
   /** flag to enable area based buffer budget experiment. */
   public static final String AREA_BASED_VIDEO_BUFFER_BUDGET = "AreaBasedVideoBufferBudget";
+
+  /** flag to allow critical memory pressure handling in foreground for V8. */
+  public static final String ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND =
+      "AllowCriticalMemoryPressureHandlingInForeground";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
@@ -205,6 +215,14 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-optimized-v8-code-cache");
     }
 
+    if (javaSwitches.containsKey(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE)) {
+      extraCommandLineArgs.add("--defer-v8-code-cache-write");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE)) {
+      extraCommandLineArgs.add("--enable-gpu-shader-disk-cache");
+    }
+
     if (javaSwitches.containsKey(JavaSwitches.MAX_HTTP_CACHE_SIZE)) {
       String rawSize = javaSwitches.get(JavaSwitches.MAX_HTTP_CACHE_SIZE);
       if (rawSize != null) {
@@ -253,6 +271,11 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
       extraCommandLineArgs.add("--enable-features=AreaBasedVideoBufferBudget");
+    }
+
+    if (javaSwitches.containsKey(
+        JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)) {
+      extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
     }
 
     return extraCommandLineArgs;
