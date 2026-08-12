@@ -165,6 +165,6 @@ runs:
              "${GITHUB_WORKSPACE}/artifacts/"
         fi
 
-        gsutil -m cp -r "${GITHUB_WORKSPACE}/artifacts/*" \
+        gcloud storage cp -r "${GITHUB_WORKSPACE}/artifacts/*" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}/"
       shell: bash
