@@ -83,26 +83,11 @@ bool VideoDecoderConfig::IsValidConfig() const {
          gfx::Rect(coded_size_).Contains(visible_rect_);
 }
 
-bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Note: On Starboard builds (BUILDFLAG(USE_STARBOARD_MEDIA)),
-  // `mime_type()` is intentionally omitted from Matches() to minimize risk to
-  // playback stability:
-  // 1. Matches() evaluates whether a stream config change requires tearing
-  //    down and re-initializing the underlying hardware decoder (SbPlayer /
-  //    MediaCodec).
-  // 2. The existing elementary stream fields compared below (codec, profile,
-  //    resolution, extra_data) already provide sufficient information to
-  //    detect any hardware-relevant format changes. Real format switches
-  //    (e.g., H.264 -> VP9) alter these elementary fields and correctly
-  //    trigger decoder re-initialization, making an additional `mime_type()`
-  //    comparison unnecessary.
-  // 3. Omitting `mime_type()` minimizes the risk of false-positive decoder
-  //    flushes: adding `mime_type()` introduces brand new behavior that is
-  //    risky. It's now possible that mime_type strings that didn't cause
-  //    Matches() to fail now do with this change, introducing new
-  //    regressions.
+// TODO(b/545325130): Explicitly signal SbPlayer of a changeType() call when
+// the config/mime_type is identical to the current config/mime_type.
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
   return codec() == config.codec() && profile() == config.profile() &&
          alpha_mode() == config.alpha_mode() &&
          video_transformation() == config.video_transformation() &&
@@ -113,6 +98,9 @@ bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
          extra_data() == config.extra_data() &&
          encryption_scheme() == config.encryption_scheme() &&
          color_space_info() == config.color_space_info() &&
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+         mime_type() == config.mime_type() &&
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
          hdr_metadata() == config.hdr_metadata() && level() == config.level();
 }
 

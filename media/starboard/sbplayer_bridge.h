@@ -348,10 +348,6 @@ class SbPlayerBridge {
   // Keep track of the output mode we are supposed to output to.
   SbPlayerOutputMode output_mode_;
 
-  // Keep copies of the mime type strings instead of using the ones in the
-  // DemuxerStreams to ensure that the strings are always valid.
-  std::string audio_mime_type_;
-  std::string video_mime_type_;
   // A string of video maximum capabilities.
   std::string max_video_capabilities_;
 

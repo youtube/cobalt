@@ -333,9 +333,8 @@ void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config) {
             << audio_config.AsHumanReadableString();
 
   audio_config_ = audio_config;
-  audio_mime_type_ = audio_config.mime_type();
   audio_stream_info_ = MediaAudioConfigToSbMediaAudioStreamInfo(
-      audio_config_, audio_mime_type_.c_str());
+      audio_config_, audio_config_.mime_type().c_str());
   LOG(INFO) << "Converted to SbMediaAudioStreamInfo -- " << audio_stream_info_;
 }
 
@@ -347,7 +346,6 @@ void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config) {
             << video_config.AsHumanReadableString();
 
   video_config_ = video_config;
-  video_mime_type_ = video_config_.mime_type();
   video_stream_info_.frame_width =
       static_cast<int>(video_config_.natural_size().width());
   video_stream_info_.frame_height =
@@ -356,8 +354,8 @@ void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config) {
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
   video_stream_info_.color_metadata = MediaToSbMediaColorMetadata(
       video_config_.color_space_info(), video_config_.hdr_metadata(),
-      video_mime_type_);
-  video_stream_info_.mime = video_mime_type_.c_str();
+      video_config_.mime_type());
+  video_stream_info_.mime = video_config_.mime_type().c_str();
   video_stream_info_.max_video_capabilities = max_video_capabilities_.c_str();
   LOG(INFO) << "Converted to SbMediaVideoStreamInfo -- " << video_stream_info_;
 }

@@ -165,6 +165,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
   void SetIsEncrypted(bool is_encrypted);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Mime_type string of the config.
   void set_mime_type(std::string_view mime_type) { mime_type_ = mime_type; }
   const std::string& mime_type() const { return mime_type_; }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -197,7 +198,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Full mime string for the video decoder config.
-  std::string mime_type_;
+  std::string mime_type_ = "";
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler
   // generated copy constructor and assignment operator. Since the extra data is
