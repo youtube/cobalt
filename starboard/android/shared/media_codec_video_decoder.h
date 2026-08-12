@@ -207,10 +207,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const int64_t flush_delay_usec_;
   const bool skip_flush_on_decoder_teardown_;
 
-  // By default, we reset the surface view after every playback. This flag
-  // enables clearing the surface view, instead of resetting it.
-  const bool force_clear_surface_;
-
   // Codec initialization will be delayed until the decoder receives enough
   // inputs to estimate video fps when |needs_fps_to_initialize_codec_| is true.
   const bool needs_fps_to_initialize_codec_;

@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_PLAYER_SET_VIDEO_SURFACE_VIEW_H_
-#define STARBOARD_ANDROID_SHARED_PLAYER_SET_VIDEO_SURFACE_VIEW_H_
+#ifndef COBALT_BROWSER_TVOS_PLIST_INFO_H_
+#define COBALT_BROWSER_TVOS_PLIST_INFO_H_
 
-namespace starboard {
+#include <optional>
+#include <string>
+#include <string_view>
 
-const void* GetPlayerSetVideoSurfaceViewApi();
+namespace cobalt {
 
-}  // namespace starboard
+// Retrieves a given value from the main bundle's Info.plist and returns it as
+// an std::string if it exists and can be converted to an NSString*. Returns
+// std::nullopt otherwise.
+std::optional<std::string> GetValueFromPlistAsString(std::string_view key_name);
 
-#endif  // STARBOARD_ANDROID_SHARED_PLAYER_SET_VIDEO_SURFACE_VIEW_H_
+}  // namespace cobalt
+
+#endif  // COBALT_BROWSER_TVOS_PLIST_INFO_H_

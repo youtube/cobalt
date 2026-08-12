@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_TVOS_SHARED_MEDIA_PLAYER_CONFIGURATION_H_
-#define STARBOARD_TVOS_SHARED_MEDIA_PLAYER_CONFIGURATION_H_
+#ifndef STARBOARD_ANDROID_SHARED_PLAYER_SETTINGS_H_
+#define STARBOARD_ANDROID_SHARED_PLAYER_SETTINGS_H_
 
 namespace starboard {
-namespace shared {
-namespace uikit {
 
-const void* GetPlayerConfigurationApi();
+const void* GetPlayerSettingsApi();
 
-bool IsDecodeToTexturePreferred();
-
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_TVOS_SHARED_MEDIA_PLAYER_CONFIGURATION_H_
+#endif  // STARBOARD_ANDROID_SHARED_PLAYER_SETTINGS_H_

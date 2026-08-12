@@ -14,7 +14,9 @@
 
 #include "starboard/common/reuse_allocator_base.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <cstring>
 #include <utility>
 
 #include "starboard/common/check_op.h"
@@ -27,12 +29,16 @@ ReuseAllocatorBase::ReuseAllocatorBase(Allocator* fallback_allocator,
                                        size_t max_capacity,
                                        size_t retain_blocks,
                                        size_t conservative_decommit_blocks,
-                                       bool aggressive_decommit_on_suspend)
+                                       bool aggressive_decommit_on_suspend,
+                                       bool memset_on_reclaim,
+                                       bool mark_as_cold_on_reclaim)
     : fallback_allocator_(fallback_allocator),
       max_capacity_(max_capacity),
       retain_blocks_(retain_blocks),
       conservative_decommit_blocks_(conservative_decommit_blocks),
-      aggressive_decommit_on_suspend_(aggressive_decommit_on_suspend) {
+      aggressive_decommit_on_suspend_(aggressive_decommit_on_suspend),
+      memset_on_reclaim_(memset_on_reclaim),
+      mark_as_cold_on_reclaim_(mark_as_cold_on_reclaim) {
   SB_DCHECK(fallback_allocator_);
 }
 
@@ -45,7 +51,7 @@ ReuseAllocatorBase::~ReuseAllocatorBase() {
 void ReuseAllocatorBase::DecommitAllDecommitableBlocks() {
   if (aggressive_decommit_on_suspend_) {
     // Aggressively decommit all idle blocks (including retained and
-    // lazily-freed blocks) with MADV_DONTNEED (conservative=false). This
+    // lazily-freed blocks) with MADV_DONTNEED (kAggressive). This
     // instantly drops the process RSS to prevent the OS Out-Of-Memory killer
     // from terminating the app in background/suspended states.
     for (auto& fallback_block : fallback_allocations_) {
@@ -53,7 +59,7 @@ void ReuseAllocatorBase::DecommitAllDecommitableBlocks() {
           fallback_block.state != kIdleDecommitted) {
         fallback_allocator_->Decommit(fallback_block.address,
                                       fallback_block.size,
-                                      /*conservative=*/false);
+                                      DecommitMode::kAggressive);
         fallback_block.state = kIdleDecommitted;
       }
     }
@@ -66,11 +72,11 @@ void ReuseAllocatorBase::DecommitAllDecommitableBlocks() {
          it != fallback_allocations_.rend(); ++it) {
       if (it->state == kIdlePendingDecommit) {
         fallback_allocator_->Decommit(it->address, it->size,
-                                      /*conservative=*/false);
+                                      DecommitMode::kAggressive);
         it->state = kIdleDecommitted;
       } else if (it->state == kIdlePendingFree) {
         fallback_allocator_->Decommit(it->address, it->size,
-                                      /*conservative=*/true);
+                                      DecommitMode::kConservative);
         it->state = kIdleFreed;
       }
     }
@@ -112,9 +118,23 @@ std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
 void ReuseAllocatorBase::ReclaimFallbackBlocks() {
   SB_LOG(INFO) << "Allocator reached idle state, reclaiming "
                << fallback_allocations_.size() << " fallback allocations.";
-  allocation_counter_ = 0;
+  block_decommit_attempt_count_ = 0;
   for (size_t i = 0; i < fallback_allocations_.size(); ++i) {
     auto& fallback_block = fallback_allocations_[i];
+
+    // Do nothing if the block has already been decommitted or freed.
+    if (fallback_block.state == kIdleDecommitted ||
+        fallback_block.state == kIdleFreed) {
+      continue;
+    }
+
+    if (fallback_block.state == kActiveInUse && memset_on_reclaim_) {
+      memset(fallback_block.address, 0, fallback_block.size);
+    }
+    if (fallback_block.state == kActiveInUse && mark_as_cold_on_reclaim_) {
+      fallback_allocator_->Decommit(fallback_block.address, fallback_block.size,
+                                    DecommitMode::kCold);
+    }
     if (i < retain_blocks_) {
       fallback_block.state = kIdleRetained;
     } else if (i < retain_blocks_ + conservative_decommit_blocks_) {
@@ -127,23 +147,25 @@ void ReuseAllocatorBase::ReclaimFallbackBlocks() {
   }
 }
 
-void ReuseAllocatorBase::TryToDecommitOneBlock() {
+// TODO(b/454441375): Move this to be in sync with the declaration order.
+void ReuseAllocatorBase::TryToDecommitOneBlock(int cadence) {
   if (!has_pending_decommits_) {
     return;
   }
-  ++allocation_counter_;
-  if (allocation_counter_ % 100 == 0) {
+  const size_t effective_cadence = static_cast<size_t>(std::max(1, cadence));
+  ++block_decommit_attempt_count_;
+  if (block_decommit_attempt_count_ % effective_cadence == 0) {
     for (auto it = fallback_allocations_.rbegin();
          it != fallback_allocations_.rend(); ++it) {
       if (it->state == kIdlePendingDecommit) {
         fallback_allocator_->Decommit(it->address, it->size,
-                                      /*conservative=*/false);
+                                      DecommitMode::kAggressive);
         it->state = kIdleDecommitted;
         return;
       }
       if (it->state == kIdlePendingFree) {
         fallback_allocator_->Decommit(it->address, it->size,
-                                      /*conservative=*/true);
+                                      DecommitMode::kConservative);
         it->state = kIdleFreed;
         return;
       }

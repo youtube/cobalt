@@ -24,8 +24,19 @@ namespace starboard {
 namespace {
 
 constexpr ExperimentalFeatureKey<bool> kTestBoolKey("Test.BoolKey");
+constexpr ExperimentalFeatureKey<bool> kTestBoolKeyDefaultFalse(
+    "Test.BoolKeyDefaultFalse",
+    false);
+constexpr ExperimentalFeatureKey<bool> kTestBoolKeyDefaultTrue(
+    "Test.BoolKeyDefaultTrue",
+    true);
 constexpr ExperimentalFeatureKey<int> kTestIntKey("Test.IntKey");
+constexpr ExperimentalFeatureKey<int> kTestIntKeyDefault("Test.IntKeyDefault",
+                                                         100);
 constexpr ExperimentalFeatureKey<std::string> kTestStringKey("Test.StringKey");
+constexpr ExperimentalFeatureKey<std::string> kTestStringKeyDefault(
+    "Test.StringKeyDefault",
+    "default_str");
 
 TEST(StarboardExperimentalFeaturesTest, BasicGetters) {
   ExperimentalFeatures::Map map;
@@ -61,10 +72,49 @@ TEST(StarboardExperimentalFeaturesTest, IntOutOfBoundsReturnsNullopt) {
 TEST(StarboardExperimentalFeaturesTest, MissingKeysAndTypeMismatch) {
   ExperimentalFeatures::Map map;
   map["Test.IntKey"] = std::string("not_an_int");
+  map["Test.IntKeyDefault"] = std::string("not_an_int");
   ExperimentalFeatures features(map);
 
   EXPECT_EQ(features.Get(kTestBoolKey), std::nullopt);
   EXPECT_EQ(features.Get(kTestIntKey), std::nullopt);
+  EXPECT_EQ(features.Get(kTestIntKeyDefault), std::optional<int>(100));
+}
+
+TEST(StarboardExperimentalFeaturesTest, DefaultValuesWhenMissingOrUnset) {
+  ExperimentalFeatures features;
+
+  EXPECT_FALSE(features.GetBool(kTestBoolKeyDefaultFalse));
+  EXPECT_TRUE(features.GetBool(kTestBoolKeyDefaultTrue));
+  EXPECT_EQ(features.Get(kTestBoolKeyDefaultFalse), std::optional<bool>(false));
+  EXPECT_EQ(features.Get(kTestBoolKeyDefaultTrue), std::optional<bool>(true));
+  EXPECT_EQ(features.Get(kTestIntKeyDefault), std::optional<int>(100));
+  EXPECT_EQ(features.Get(kTestStringKeyDefault),
+            std::optional<std::string>("default_str"));
+}
+
+TEST(StarboardExperimentalFeaturesTest, SettingOverridesDefaultValue) {
+  ExperimentalFeatures::Map map;
+  map["Test.BoolKeyDefaultFalse"] = static_cast<int64_t>(1);
+  map["Test.BoolKeyDefaultTrue"] = static_cast<int64_t>(0);
+  map["Test.IntKeyDefault"] = static_cast<int64_t>(200);
+  map["Test.StringKeyDefault"] = std::string("custom_str");
+  ExperimentalFeatures features(map);
+
+  EXPECT_TRUE(features.GetBool(kTestBoolKeyDefaultFalse));
+  EXPECT_FALSE(features.GetBool(kTestBoolKeyDefaultTrue));
+  EXPECT_EQ(features.Get(kTestBoolKeyDefaultFalse), std::optional<bool>(true));
+  EXPECT_EQ(features.Get(kTestBoolKeyDefaultTrue), std::optional<bool>(false));
+  EXPECT_EQ(features.Get(kTestIntKeyDefault), std::optional<int>(200));
+  EXPECT_EQ(features.Get(kTestStringKeyDefault),
+            std::optional<std::string>("custom_str"));
+}
+
+TEST(StarboardExperimentalFeaturesTest, IntSentinelFallsBackToDefault) {
+  ExperimentalFeatures::Map map;
+  map["Test.IntKeyDefault"] = static_cast<int64_t>(0);
+  ExperimentalFeatures features(map);
+
+  EXPECT_EQ(features.Get(kTestIntKeyDefault), std::optional<int>(100));
 }
 
 TEST(StarboardExperimentalFeaturesTest, OutputStreamOperatorFormatsCorrectly) {

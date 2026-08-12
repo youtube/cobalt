@@ -38,7 +38,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/experimental/experimental_features.h"
-#include "starboard/extension/player_set_video_surface_view.h"
+#include "starboard/extension/player_settings.h"
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
 #include "cobalt/base/statistics.h"
@@ -46,9 +46,6 @@
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS)
 #include "cobalt/media/base/format_support_query_metrics.h"
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS)
-#if BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
-#include "starboard/extension/player_set_max_video_input_size.h"
-#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
 
 namespace media {
 
@@ -762,34 +759,26 @@ void SbPlayerBridge::CreatePlayer() {
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   cval_stats_->StartTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+  const StarboardExtensionPlayerSettingsApi* player_settings_extension =
+      static_cast<const StarboardExtensionPlayerSettingsApi*>(
+          SbSystemGetExtension(kStarboardExtensionPlayerSettingsName));
+  if (player_settings_extension &&
+      strcmp(player_settings_extension->name,
+             kStarboardExtensionPlayerSettingsName) == 0 &&
+      player_settings_extension->version >= 1) {
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
-  const StarboardExtensionPlayerSetMaxVideoInputSizeApi*
-      player_set_max_video_input_size_extension =
-          static_cast<const StarboardExtensionPlayerSetMaxVideoInputSizeApi*>(
-              SbSystemGetExtension(
-                  kStarboardExtensionPlayerSetMaxVideoInputSizeName));
-  if (player_set_max_video_input_size_extension &&
-      strcmp(player_set_max_video_input_size_extension->name,
-             kStarboardExtensionPlayerSetMaxVideoInputSizeName) == 0 &&
-      player_set_max_video_input_size_extension->version >= 1) {
-    player_set_max_video_input_size_extension
-        ->SetMaxVideoInputSizeForCurrentThread(max_video_input_size_);
-  }
+    if (player_settings_extension->SetMaxVideoInputSizeForCurrentThread) {
+      player_settings_extension->SetMaxVideoInputSizeForCurrentThread(
+          max_video_input_size_);
+    }
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
 #if BUILDFLAG(IS_ANDROID)
-  const StarboardExtensionPlayerSetVideoSurfaceViewApi*
-      player_set_video_surface_view_extension =
-          static_cast<const StarboardExtensionPlayerSetVideoSurfaceViewApi*>(
-              SbSystemGetExtension(
-                  kStarboardExtensionPlayerSetVideoSurfaceViewName));
-  if (player_set_video_surface_view_extension &&
-      strcmp(player_set_video_surface_view_extension->name,
-             kStarboardExtensionPlayerSetVideoSurfaceViewName) == 0 &&
-      player_set_video_surface_view_extension->version >= 1) {
-    player_set_video_surface_view_extension
-        ->SetVideoSurfaceViewForCurrentThread(surface_view_);
-  }
+    if (player_settings_extension->SetVideoSurfaceViewForCurrentThread) {
+      player_settings_extension->SetVideoSurfaceViewForCurrentThread(
+          surface_view_);
+    }
 #endif  // BUILDFLAG(IS_ANDROID)
+  }
 
   const StarboardExtensionExperimentalFeaturesConfigurationApi*
       experimental_features_extension = static_cast<
@@ -808,17 +797,11 @@ void SbPlayerBridge::CreatePlayer() {
         &extension_features);
   }
 
-  const bool should_get_decode_target_graphics_context_provider =
-      output_mode_ == kSbPlayerOutputModeDecodeToTexture ||
-      experimental_features_.GetBool(kMediaForceClearSurfaceView);
-
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::PlayerErrorCB, this,
-      should_get_decode_target_graphics_context_provider
-          ? get_decode_target_graphics_context_provider_func_.Run()
-          : nullptr);
+      get_decode_target_graphics_context_provider_func_.Run());
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
