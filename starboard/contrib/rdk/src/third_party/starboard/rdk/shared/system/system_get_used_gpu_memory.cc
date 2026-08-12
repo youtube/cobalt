@@ -29,30 +29,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
+#include <fcntl.h>
+#include <inttypes.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <cstdint>
 
 #include "starboard/common/file.h"
-#include "starboard/common/log.h"
-#include "starboard/common/string.h"
-
-#include <cerrno>
+#include "starboard/system.h"
 
 int64_t SbSystemGetUsedGPUMemory() {
-  starboard::ScopedFile status_file(
-    "/sys/fs/cgroup/gpu/gpu.usage_in_bytes",
-    O_RDONLY);
+  starboard::ScopedFile file("/sys/class/misc/mali0/device/gpu_memory",
+                             O_RDONLY);
+  if (!file.IsValid()) {
+    return 0;
+  }
 
-  if (status_file.IsValid()) {
-    const int kBufferSize = 512;
-    char buffer[kBufferSize];
-    int bytes_read = status_file.ReadAll(buffer, kBufferSize);
-    if (bytes_read == kBufferSize) {
-      bytes_read = kBufferSize - 1;
-    }
-    buffer[bytes_read] = '\0';
-    int64_t usage_in_bytes = strtoll(buffer, nullptr, 10);
-    if (usage_in_bytes > 0 && errno != ERANGE)
-      return usage_in_bytes;
+  char buffer[2048];
+  int bytes_read = file.ReadAll(buffer, sizeof(buffer) - 1);
+  if (bytes_read <= 0) {
+    return 0;
+  }
+  buffer[bytes_read] = '\0';
+
+  char target[32];
+  int target_len = snprintf(target, sizeof(target), "%d", getpid());
+
+  char* pos = strstr(buffer, target);
+  if (!pos) {
+    return 0;
+  }
+
+  int64_t pages = 0;
+  if (sscanf(pos + target_len, "%" SCNd64, &pages) == 1) {
+    return pages * sysconf(_SC_PAGE_SIZE);
   }
 
   return 0;

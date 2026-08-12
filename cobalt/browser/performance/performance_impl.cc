@@ -14,6 +14,9 @@
 
 #include "cobalt/browser/performance/performance_impl.h"
 
+#include <utility>
+
+#include "base/notreached.h"
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
 #include "base/system/sys_info.h"
@@ -21,12 +24,19 @@
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/jni_android.h"
+#include "base/memory_jni/CobaltMemoryInfoBridge_jni.h"
+#include "base/memory_jni/MemoryInfoBridge_jni.h"
+#endif
+
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
 
 using ::starboard::StarboardBridge;
 #elif BUILDFLAG(IS_STARBOARD)
 #include "starboard/common/time.h"
+#include "starboard/system.h"
 #endif
 
 namespace performance {
@@ -109,6 +119,68 @@ void PerformanceImpl::MeasureReservedVirtualMemory(
         return info.has_value() ? info->vm_size_bytes : 0;
       }),
       std::move(callback));
+}
+
+void PerformanceImpl::MeasureUsedGpuMemory(
+    MeasureUsedGpuMemoryCallback callback) {
+#if BUILDFLAG(IS_ANDROID)
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> std::pair<bool, uint64_t> {
+        JNIEnv* env = base::android::AttachCurrentThread();
+        base::android::ScopedJavaLocalRef<jobject> memory_info =
+            Java_MemoryInfoBridge_getActivityManagerMemoryInfoForSelf(env);
+        if (memory_info.is_null()) {
+          return {false, 0};
+        }
+        int graphics_kb =
+            Java_CobaltMemoryInfoBridge_getGraphicsMemoryKb(env, memory_info);
+        return {true, static_cast<uint64_t>(graphics_kb) * 1024};
+      }),
+      base::BindOnce(
+          [](MeasureUsedGpuMemoryCallback cb,
+             std::pair<bool, uint64_t> result) {
+            std::move(cb).Run(result.first, result.second);
+          },
+          std::move(callback)));
+#elif BUILDFLAG(IS_STARBOARD)
+  if (!SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
+    std::move(callback).Run(false, 0);
+    return;
+  }
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t { return SbSystemGetUsedGPUMemory(); }),
+      base::BindOnce([](MeasureUsedGpuMemoryCallback cb,
+                        uint64_t bytes) { std::move(cb).Run(true, bytes); },
+                     std::move(callback)));
+#else
+  std::move(callback).Run(false, 0);
+#endif
+}
+
+void PerformanceImpl::MeasureTotalGpuMemory(
+    MeasureTotalGpuMemoryCallback callback) {
+#if BUILDFLAG(IS_STARBOARD)
+  if (!SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
+    std::move(callback).Run(false, 0);
+    return;
+  }
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t { return SbSystemGetTotalGPUMemory(); }),
+      base::BindOnce(
+          [](MeasureTotalGpuMemoryCallback cb, uint64_t bytes) {
+            if (bytes == 0) {
+              std::move(cb).Run(false, 0);
+              return;
+            }
+            std::move(cb).Run(true, bytes);
+          },
+          std::move(callback)));
+#else
+  std::move(callback).Run(false, 0);
+#endif
 }
 
 void PerformanceImpl::GetAppStartupTimeStamp(
