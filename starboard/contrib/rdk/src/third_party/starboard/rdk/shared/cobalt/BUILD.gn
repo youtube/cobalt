@@ -1,4 +1,4 @@
-# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-declare_args() {
-  # Top-level directory for staging deploy build output. Platform install
-  # actions should use ${sb_install_output_dir} defined in this file to place
-  # artifacts for each deploy target in its own subdirectoy.
-  sb_install_output_dir = "$root_build_dir/install"
+import("//starboard/build/config/linux/rdk/config_variables.gni")
 
-  # Sub-directory for install content.
-  sb_install_content_subdir = ""
+group("loader_app_rdk_plugin") {
+  data_deps = [ "$rdk_starboard_root/third_party/starboard/rdk/shared:loader_app($starboard_toolchain)" ]
 }
 
-# By default, use standard subdirectory.
+group("rdk_cobalt_content") {
+  data_deps = [ ":rdk_cobalt_keymap($default_toolchain)" ]
+}
 
-if (sb_install_content_subdir == "") {
-  sb_install_content_subdir = "usr/share/cobalt"
+copy("rdk_cobalt_keymap") {
+  sources = [ "content/etc/keymapping.json" ]
+  outputs = [ "$root_out_dir/app/cobalt/content/etc/keymapping.json" ]
 }

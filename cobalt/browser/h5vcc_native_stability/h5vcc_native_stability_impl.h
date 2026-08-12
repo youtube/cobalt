@@ -42,6 +42,9 @@ class H5vccNativeStabilityImpl
 
   // mojom::H5vccNativeStability implementation:
   void GetPendingReports(GetPendingReportsCallback callback) override;
+  void AcknowledgeReports(
+      const std::vector<std::string>& native_stability_event_uuids,
+      AcknowledgeReportsCallback callback) override;
 
  private:
   H5vccNativeStabilityImpl(
