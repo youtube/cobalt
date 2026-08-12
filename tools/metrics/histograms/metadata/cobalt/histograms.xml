@@ -233,6 +233,17 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Media.IsBufferPoolAllocateOnDemand" enum="Boolean"
+    expires_after="never">
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
+  <summary>
+    Records whether the Starboard media buffer pool is allocated on demand as
+    reported by SbMediaIsBufferPoolAllocateOnDemand(). Recorded during
+    DecoderBufferAllocator initialization.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Network.CumulativePlatformErrorRaised" units="count"
     expires_after="never">
   <owner>charleykim@google.com</owner>
