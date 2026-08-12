@@ -66,6 +66,7 @@
 #include "components/variations/pref_names.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/overlay_window.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -224,7 +225,7 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
 }
 
 CobaltContentBrowserClient::CobaltContentBrowserClient(
-    absl::optional<int64_t> startup_timestamp,
+    std::optional<int64_t> startup_timestamp,
     const std::string& deep_link,
     bool is_visible)
     : startup_timestamp_(startup_timestamp),
@@ -253,6 +254,45 @@ CobaltContentBrowserClient::~CobaltContentBrowserClient() {
 CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
   return static_cast<CobaltContentBrowserClient*>(
       content::ShellContentBrowserClient::Get());
+}
+
+#if BUILDFLAG(IS_ANDROID)
+base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "enable-gpu-shader-disk-cache")) {
+    base::FilePath user_data_dir;
+    if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
+        !user_data_dir.empty()) {
+      return user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache"));
+    }
+  }
+  return base::FilePath();
+}
+
+base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "enable-gpu-shader-disk-cache")) {
+    base::FilePath user_data_dir;
+    if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
+        !user_data_dir.empty()) {
+      return user_data_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
+    }
+  }
+  return base::FilePath();
+}
+#endif
+
+std::unique_ptr<content::VideoOverlayWindow>
+CobaltContentBrowserClient::CreateWindowForVideoPictureInPicture(
+    content::VideoPictureInPictureWindowController* controller) {
+  // TODO: b/532158001 - Support PiP on Linux.
+  // PiP is currently only supported on Android. On other platforms, calling
+  // Create() allocates a dummy object that leaks memory, so we return nullptr.
+#if BUILDFLAG(IS_ANDROID)
+  return content::VideoOverlayWindow::Create(controller);
+#else   // BUILDFLAG(IS_ANDROID)
+  return nullptr;
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 std::unique_ptr<content::BrowserMainParts>

@@ -8,7 +8,7 @@ on:
       max_commits:
         description: 'Max number of commits to include on a single PR'
         type: number
-        default: 10
+        default: 1
 
 permissions:
   contents: read
@@ -19,9 +19,9 @@ jobs:
     env:
       DEPOT_TOOLS_METRICS: 0
       GIT_AUTHOR_NAME: "cobalt-github-releaser-bot"
-      GIT_AUTHOR_EMAIL: "95661244+cobalt-github-releaser-bot@users.noreply.github.com"
+      GIT_AUTHOR_EMAIL: "cobalt-github-releaser-bot@google.com"
       GIT_COMMITTER_NAME: "cobalt-github-releaser-bot"
-      GIT_COMMITTER_EMAIL: "95661244+cobalt-github-releaser-bot@users.noreply.github.com"
+      GIT_COMMITTER_EMAIL: "cobalt-github-releaser-bot@google.com"
     permissions:
       contents: write
       pull-requests: write
@@ -54,7 +54,8 @@ jobs:
           git config --global submodule.recurse false
 
           # Copy script from main branch.
-          git show main:.github/scripts/autoroll_lts.py > "${RUNNER_TEMP}/autoroll_lts.py"
+          git show main:.github/scripts/autoroll_chromium.py > "${RUNNER_TEMP}/autoroll_chromium.py"
+          git show main:.github/scripts/autoroll_lib.py > "${RUNNER_TEMP}/autoroll_lib.py"
 
           git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
 
@@ -88,14 +89,13 @@ jobs:
       - name: Cherry Pick Merged PRs
         id: autoroll
         env:
-          MAX_COMMITS: ${{ inputs.max_commits || 10 }}
+          MAX_COMMITS: ${{ inputs.max_commits || 1 }}
         run: |
           set -x
 
           # Run the Python script to perform cherry-picks and get all PR links.
-          PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
+          PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_chromium.py" \
             --source-branch "${{ matrix.branch.source }}" \
-            --target-branch "${{ matrix.branch.target }}" \
             --autoroll-file "${{ matrix.branch.autoroll }}" \
             --max-commits "${{ env.MAX_COMMITS }}" \
             --existing-pr-sha "${{ steps.pr_info.outputs.first_sha }}")

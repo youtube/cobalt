@@ -24,8 +24,8 @@ import org.chromium.base.task.SequencedTaskRunner;
 import org.chromium.base.task.TaskTraits;
 
 /**
- * Memory tracker for MediaCodecBridge instances to estimate video memory usage.
- * Reports metrics periodically (5 minutes) while bridges are active.
+ * Memory tracker for MediaCodecBridge instances to estimate video memory usage. Reports metrics
+ * periodically (5 minutes) while bridges are active.
  */
 public class MediaCodecOutputTracker {
   private static MediaCodecOutputTracker sInstance;
@@ -33,11 +33,10 @@ public class MediaCodecOutputTracker {
   private static final long DEFAULT_REPORT_INTERVAL_MS = 300000; // 5 minutes
   private static final Object sTrackerLock = new Object();
 
-  private final Set<MediaCodecBridge> mBridges =
-        Collections.newSetFromMap(new WeakHashMap<>());
+  private final Set<MediaCodecBridge> mBridges = Collections.newSetFromMap(new WeakHashMap<>());
 
   private final SequencedTaskRunner mTaskRunner =
-        PostTask.createSequencedTaskRunner(TaskTraits.BEST_EFFORT);
+      PostTask.createSequencedTaskRunner(TaskTraits.BEST_EFFORT);
 
   private boolean mIsReporting = false;
 
@@ -72,17 +71,17 @@ public class MediaCodecOutputTracker {
 
   private void postReportTask() {
     mTaskRunner.postDelayedTask(
-      () -> {
-        synchronized (sTrackerLock) {
-          if (!mIsReporting || mBridges.isEmpty()) {
-            mIsReporting = false;
-            return;
+        () -> {
+          synchronized (sTrackerLock) {
+            if (!mIsReporting || mBridges.isEmpty()) {
+              mIsReporting = false;
+              return;
+            }
           }
-        }
-        reportMetrics();
-        postReportTask();
-      },
-      DEFAULT_REPORT_INTERVAL_MS);
+          reportMetrics();
+          postReportTask();
+        },
+        DEFAULT_REPORT_INTERVAL_MS);
   }
 
   private void reportMetrics() {
@@ -137,5 +136,4 @@ public class MediaCodecOutputTracker {
   void forceReportForTesting() {
     reportMetrics();
   }
-
 }

@@ -19,9 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 
-/**
- * Defines the constant names for feature switches used in Kimono.
- */
+/** Defines the constant names for feature switches used in Kimono. */
 public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
@@ -34,6 +32,9 @@ public class JavaSwitches {
   public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
   public static final String ENABLE_OPTIMIZED_V8_CODE_CACHE = "EnableOptimizedV8CodeCache";
 
+  /** flag to enable deferred V8 bytecode serialization in background/idle */
+  public static final String DEFER_V8_CODE_CACHE_WRITE = "DeferV8CodeCacheWrite";
+
   /** flag to allow caching CSS and WebAssembly resources in the HTTP disk cache. */
   public static final String ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE = "EnableCssAndWasmForHttpCache";
 
@@ -42,9 +43,6 @@ public class JavaSwitches {
 
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
-
-  /** flag to force use IPv4 for system host resolution. */
-  public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
 
   public static final String USE_MINOR_MS_FOR_MINOR_GC = "UseMinorMSForMinorGC";
 
@@ -55,7 +53,11 @@ public class JavaSwitches {
   public static final String RECLAIM_DELAY_IN_SECONDS = "ReclaimDelayInSeconds";
 
   /** flag to disable GPU memory buffer compositor resources. */
-  public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES = "DisableGpuMemoryBufferCompositorResources";
+  public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES =
+      "DisableGpuMemoryBufferCompositorResources";
+
+  /** flag to enable the GPU shader disk cache. */
+  public static final String ENABLE_GPU_SHADER_DISK_CACHE = "EnableGpuShaderDiskCache";
 
   /** flag to limit GPU image cache items */
   public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
@@ -64,7 +66,8 @@ public class JavaSwitches {
   public static final String MAX_HTTP_CACHE_SIZE = "MaxHttpCacheSize";
 
   /** flag to limit GPU image cache working set budget bytes */
-  public static final String DECODED_IMAGE_WORKING_SET_BUDGET_BYTES = "DecodedImageWorkingSetBudgetBytes";
+  public static final String DECODED_IMAGE_WORKING_SET_BUDGET_BYTES =
+      "DecodedImageWorkingSetBudgetBytes";
 
   /** flag to allow scaling clipped images in GpuImageDecodeCache */
   public static final String ENABLE_SCALING_CLIPPED_IMAGES = "EnableScalingClippedImages";
@@ -76,14 +79,15 @@ public class JavaSwitches {
   public static final String REDUCE_ANDROID_THREAD_STACK_SIZE = "ReduceAndroidThreadStackSize";
 
   /** flag to enable dynamic mojo pipe sizing. */
-  public static final String ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING = "EnableCobaltDynamicMojoPipeSizing";
+  public static final String ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING =
+      "EnableCobaltDynamicMojoPipeSizing";
 
   /** flag to tune cobalt dynamic mojo pipe sizing subresource size in bytes. */
-  public static final String COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE = "CobaltDynamicMojoPipeSubresourceSize";
+  public static final String COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE =
+      "CobaltDynamicMojoPipeSubresourceSize";
 
   /** flag to tune cobalt dynamic mojo pipe sizing media size in bytes. */
-  public static final String COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE =
-      "CobaltDynamicMojoPipeMediaSize";
+  public static final String COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE = "CobaltDynamicMojoPipeMediaSize";
 
   /** Avoid reuse resource. */
   public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
@@ -97,18 +101,19 @@ public class JavaSwitches {
 
   /** Flag for enable go/cobalt-direct-window-rendering */
   public static final String DIRECT_WINDOW_RENDERING = "DirectWindowRendering";
+
   public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
 
   /** flag to enable area based buffer budget experiment. */
   public static final String AREA_BASED_VIDEO_BUFFER_BUDGET = "AreaBasedVideoBufferBudget";
 
+  /** flag to allow critical memory pressure handling in foreground for V8. */
+  public static final String ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND =
+      "AllowCriticalMemoryPressureHandlingInForeground";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
-
-    if (javaSwitches.containsKey(JavaSwitches.USE_IPV4_FOR_DNS)) {
-      extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
-    }
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
       extraCommandLineArgs.add("--disable-quic");
@@ -129,8 +134,9 @@ public class JavaSwitches {
     }
 
     if (javaSwitches.containsKey(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE)) {
-      jsFlags.add("--initial-old-space-size="
-          + javaSwitches.get(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE).replaceAll("[^0-9]", ""));
+      jsFlags.add(
+          "--initial-old-space-size="
+              + javaSwitches.get(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE).replaceAll("[^0-9]", ""));
     } else {
       jsFlags.add("--initial-old-space-size=64");
     }
@@ -140,11 +146,15 @@ public class JavaSwitches {
     }
 
     if (javaSwitches.containsKey(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS)) {
-      String limit = javaSwitches.get(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS).replaceAll("[^0-9]", "");
+      String limit =
+          javaSwitches.get(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS).replaceAll("[^0-9]", "");
       extraCommandLineArgs.add("--cc-image-cache-limit-items=" + limit);
     }
     if (javaSwitches.containsKey(JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES)) {
-      String budget = javaSwitches.get(JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES).replaceAll("[^0-9]", "");
+      String budget =
+          javaSwitches
+              .get(JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES)
+              .replaceAll("[^0-9]", "");
       extraCommandLineArgs.add("--decoded-image-working-set-budget-bytes=" + budget);
     }
 
@@ -153,7 +163,8 @@ public class JavaSwitches {
     }
 
     StringJoiner mojoPipeParams = new StringJoiner("/");
-    String subresourceSize = javaSwitches.get(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE);
+    String subresourceSize =
+        javaSwitches.get(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE);
     if (subresourceSize != null) {
       String size = subresourceSize.replaceAll("[^0-9]", "");
       if (!size.isEmpty()) {
@@ -169,9 +180,11 @@ public class JavaSwitches {
       }
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING) || mojoPipeParams.length() > 0) {
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING)
+        || mojoPipeParams.length() > 0) {
       if (mojoPipeParams.length() > 0) {
-        extraCommandLineArgs.add("--enable-features=CobaltDynamicMojoPipeSizing:" + mojoPipeParams.toString());
+        extraCommandLineArgs.add(
+            "--enable-features=CobaltDynamicMojoPipeSizing:" + mojoPipeParams.toString());
       } else {
         extraCommandLineArgs.add("--enable-features=CobaltDynamicMojoPipeSizing");
       }
@@ -179,18 +192,19 @@ public class JavaSwitches {
 
     StringJoiner featureParams = new StringJoiner("/");
     if (javaSwitches.containsKey(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS)) {
-      String size = javaSwitches.get(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS).replaceAll("[^0-9]", "");
+      String size =
+          javaSwitches.get(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS).replaceAll("[^0-9]", "");
       featureParams.add("size_in_pixels/" + size);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.RECLAIM_DELAY_IN_SECONDS)) {
-      String delay = javaSwitches.get(JavaSwitches.RECLAIM_DELAY_IN_SECONDS).replaceAll("[^0-9]", "");
+      String delay =
+          javaSwitches.get(JavaSwitches.RECLAIM_DELAY_IN_SECONDS).replaceAll("[^0-9]", "");
       featureParams.add("reclaim_delay_s/" + delay);
     }
 
     if (featureParams.length() > 0) {
-      extraCommandLineArgs.add(
-          "--enable-features=SmallerInterestArea:" + featureParams.toString());
+      extraCommandLineArgs.add("--enable-features=SmallerInterestArea:" + featureParams.toString());
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
@@ -199,6 +213,14 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_V8_CODE_CACHE)) {
       extraCommandLineArgs.add("--enable-optimized-v8-code-cache");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE)) {
+      extraCommandLineArgs.add("--defer-v8-code-cache-write");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE)) {
+      extraCommandLineArgs.add("--enable-gpu-shader-disk-cache");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.MAX_HTTP_CACHE_SIZE)) {
@@ -224,11 +246,13 @@ public class JavaSwitches {
     }
 
     if (javaSwitches.containsKey(JavaSwitches.REDUCE_STARBOARD_THREAD_STACK_SIZE)) {
-      extraCommandLineArgs.add("--enable-features=" + JavaSwitches.REDUCE_STARBOARD_THREAD_STACK_SIZE);
+      extraCommandLineArgs.add(
+          "--enable-features=" + JavaSwitches.REDUCE_STARBOARD_THREAD_STACK_SIZE);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.REDUCE_ANDROID_THREAD_STACK_SIZE)) {
-      extraCommandLineArgs.add("--enable-features=" + JavaSwitches.REDUCE_ANDROID_THREAD_STACK_SIZE);
+      extraCommandLineArgs.add(
+          "--enable-features=" + JavaSwitches.REDUCE_ANDROID_THREAD_STACK_SIZE);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.AVOID_CC_REUSE_RESOURCE)) {
@@ -247,6 +271,11 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
       extraCommandLineArgs.add("--enable-features=AreaBasedVideoBufferBudget");
+    }
+
+    if (javaSwitches.containsKey(
+        JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)) {
+      extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
     }
 
     return extraCommandLineArgs;

@@ -56,6 +56,11 @@ class AAudio {
   static void (*StreamBuilder_SetBufferCapacityInFrames)(
       AAudioStreamBuilder* builder,
       int32_t numFrames);
+  static void (*StreamBuilder_SetUsage)(AAudioStreamBuilder* builder,
+                                        aaudio_usage_t usage);
+  static void (*StreamBuilder_SetContentType)(
+      AAudioStreamBuilder* builder,
+      aaudio_content_type_t contentType);
   static aaudio_result_t (*StreamBuilder_OpenStream)(
       AAudioStreamBuilder* builder,
       AAudioStream** stream);

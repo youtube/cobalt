@@ -119,7 +119,14 @@ TEST(SbMicrophoneReadTest, RainyDayAudioBufferIsNULL) {
 
     EXPECT_TRUE(SbMicrophoneOpen(microphone));
 
+    // If 0 bytes are expected, a null output buffer
+    // is not an issue
     int read_bytes = SbMicrophoneRead(microphone, NULL, 0);
+    EXPECT_EQ(read_bytes, 0);
+
+    // If reading audio_data_size bytes is expected, a null output
+    // buffer is an invalid argument.
+    read_bytes = SbMicrophoneRead(microphone, NULL, kBufferSize);
     EXPECT_EQ(read_bytes, -1);
 
     EXPECT_TRUE(SbMicrophoneClose(microphone));
