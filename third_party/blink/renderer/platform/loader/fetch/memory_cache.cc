@@ -24,9 +24,11 @@
 
 #include <utility>
 
+#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "build/build_config.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "third_party/blink/public/common/features.h"
@@ -405,6 +407,16 @@ void MemoryCache::OnMemoryPressure(
           features::kReleaseResourceStrongReferencesOnMemoryPressure)) {
     ClearStrongReferences();
   }
+
+#if BUILDFLAG(IS_COBALT)
+  static const bool kEvictMemoryCacheOnCritical =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "evict-memory-cache-on-critical-memory-pressure");
+  if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL &&
+      kEvictMemoryCacheOnCritical) {
+    EvictResources();
+  }
+#endif
 }
 
 void MemoryCache::SavePageResourceStrongReferences(

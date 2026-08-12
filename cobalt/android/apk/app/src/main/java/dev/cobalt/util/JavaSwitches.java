@@ -108,6 +108,10 @@ public class JavaSwitches {
   public static final String ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND =
       "AllowCriticalMemoryPressureHandlingInForeground";
 
+  /** flag to evict blink memory cache on critical memory pressure. */
+  public static final String EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE =
+      "EvictMemoryCacheOnCriticalMemoryPressure";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -268,6 +272,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)) {
       extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE)) {
+      extraCommandLineArgs.add("--evict-memory-cache-on-critical-memory-pressure");
     }
 
     return extraCommandLineArgs;
