@@ -54,7 +54,8 @@ TEST(CobaltSwitchDefaultsTest, MergeDisabledFeatures) {
   std::string disabled_features =
       GetSwitchValue(cmd_line_pxr, ::switches::kDisableFeatures);
   EXPECT_EQ(
-      std::string("PersistentOriginTrials,Vulkan,MemoryCacheStrongReference"),
+      std::string("PersistentOriginTrials,Vulkan,MemoryCacheStrongReference,"
+                  "LessAggressiveParkableString"),
       disabled_features);
 }
 
