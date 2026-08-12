@@ -92,6 +92,12 @@ class MEDIA_EXPORT DecoderBuffer
     virtual Allocator::Handle handle() const {
       return Allocator::kInvalidHandle;
     }
+    virtual Allocator::Handle ReleaseHandle() {
+      return Allocator::kInvalidHandle;
+    }
+    virtual DemuxerStream::Type type() const {
+      return DemuxerStream::UNKNOWN;
+    }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   };
 
@@ -428,6 +434,8 @@ class MEDIA_EXPORT DecoderBuffer
     size_t size = 0;
   };
   // Encoded data, allocated from DecoderBuffer::Allocator.
+  // Note: Must be declared before external_memory_ so constructor initializer lists
+  // can inspect allocator_data_ when initializing external_memory_.
   const std::optional<AllocatorData> allocator_data_;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
