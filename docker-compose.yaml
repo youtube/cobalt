@@ -2,22 +2,27 @@ services:
   linux:
     build:
       context: cobalt/docker/linux
+      network: host
     image: "${DOCKER_COMPOSE_IMAGE:-linux}"
     platform: linux/amd64
   rdk:
     build:
       context: cobalt/docker/rdk
+      network: host
     image: "${DOCKER_COMPOSE_IMAGE:-rdk}"
     platform: linux/amd64
   unittest:
     build:
       context: cobalt/docker/unittest
+      network: host
     image: "${DOCKER_COMPOSE_IMAGE:-unittest}"
   webtest:
     build:
       context: cobalt/docker/webtest
+      network: host
     image: "${DOCKER_COMPOSE_IMAGE:-webtest}"
   pre-commit:
     build:
       context: cobalt/docker/pre-commit
+      network: host
     image: "${DOCKER_COMPOSE_IMAGE:-pre-commit}"
