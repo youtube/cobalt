@@ -22,6 +22,10 @@
 #include "third_party/blink/renderer/platform/instrumentation/instance_counters.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread.h"
 
+#if BUILDFLAG(IS_COBALT) && !defined(OFFICIAL_BUILD)
+#include "third_party/blink/renderer/core/inspector/cobalt_memory_metrics_helper.h"
+#endif
+
 namespace blink {
 
 namespace TimeDomain = protocol::Performance::SetTimeDomain::TimeDomainEnum;
@@ -269,6 +273,24 @@ protocol::Response InspectorPerformanceAgent::getMetrics(
                      .since_origin()
                      .InSecondsF());
   }
+
+#if BUILDFLAG(IS_COBALT) && !defined(OFFICIAL_BUILD)
+  auto append_metrics =
+      [&result](const std::optional<std::vector<MemoryBreakdownMetric>>&
+                    metrics) {
+        if (metrics) {
+          for (const MemoryBreakdownMetric& entry : *metrics) {
+            if (!entry.name.empty()) {
+              AppendMetric(result.get(), String::FromUTF8(entry.name),
+                           static_cast<double>(entry.value_bytes));
+            }
+          }
+        }
+      };
+
+  append_metrics(GetLiveMemoryBreakdown());
+  append_metrics(GetP50MemoryBreakdown());
+#endif
 
   *out_result = std::move(result);
   return protocol::Response::Success();

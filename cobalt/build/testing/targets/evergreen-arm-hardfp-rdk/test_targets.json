@@ -22,6 +22,12 @@
     ]
   },
   {
+    "target": "cobalt/testing/browser_tests:cobalt_browsertests_loader",
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/cobalt_browsertests_loader.py",
+    "runs_on": "device",
+    "test_type": "gtest"
+  },
+  {
     "target": "crypto:crypto_unittests_loader",
     "executable": "out/evergreen-arm-hardfp-rdk_devel/crypto_unittests_loader.py",
     "runs_on": "device",

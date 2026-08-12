@@ -297,7 +297,7 @@ def verify_chromium_commit(sha):
 
 
 def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
-                         autoroll_file):
+                         autoroll_metadata):
   """Temporarily reverts Cobalt changes to apply a Chromium cherry-pick.
 
   This function performs a "clean slate" cherry-pick by wiping the current
@@ -312,7 +312,7 @@ def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
     metadata: Metadata associated with the cherry-pick, passed to the final
       conflicting revert call.
     first_commit: boolean flag indicating if it's the first commit in the PR.
-    autoroll_file: Path to the file that tracks autoroll progress.
+    autoroll_metadata: autoroll file path and sha tuple that tracks progress.
 
   Returns:
     CommitStatus and unmerged_files.
@@ -354,19 +354,16 @@ def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
   run(['git', 'commit', '--no-verify', '-qm', 'Remove submodules.'])
 
   log('Reverting Cobalt revert...')
-  return revert(revert_cobalt_sha, metadata, first_commit, autoroll_file)
+  return apply_and_commit('revert', revert_cobalt_sha, metadata, first_commit,
+                          autoroll_metadata)
 
 
-def cherry_pick(sha, metadata, first_commit, autoroll_file):
+def cherry_pick(sha, metadata, first_commit, autoroll_metadata):
   return apply_and_commit('cherry-pick', sha, metadata, first_commit,
-                          autoroll_file)
+                          autoroll_metadata)
 
 
-def revert(sha, metadata, first_commit, autoroll_file):
-  return apply_and_commit('revert', sha, metadata, first_commit, autoroll_file)
-
-
-def apply_and_commit(action, sha, metadata, first_commit, autoroll_file):
+def apply_and_commit(action, sha, metadata, first_commit, autoroll_metadata):
   """Attempts to apply a single commit.
 
   Returns:
@@ -405,11 +402,12 @@ def apply_and_commit(action, sha, metadata, first_commit, autoroll_file):
     return CommitStatus.SKIPPED, unmerged_files
 
   # Update autoroll file
+  autoroll_file, autoroll_sha = autoroll_metadata
   with open(autoroll_file, 'w', encoding='utf-8') as f:
     if result == CommitStatus.CONFLICTED:
-      f.write(f'CONFLICTED:{sha}\n')
+      f.write(f'CONFLICTED:{autoroll_sha}\n')
     else:
-      f.write(f'{sha}\n')
+      f.write(f'{autoroll_sha}\n')
   run(['git', 'add', '--', autoroll_file])
 
   # Commit
@@ -471,14 +469,15 @@ def main():
     # Commit PR
     metadata = get_cherry_pick_metadata(sha, title, pr_num)
     first_commit = not commits_added
+    autoroll_metadata = (args.autoroll_file, sha)
 
     if args.source_branch.startswith('chromium/'):
       result, unmerged_files = chromium_cherry_pick(previous_sha, sha, metadata,
                                                     first_commit,
-                                                    args.autoroll_file)
+                                                    autoroll_metadata)
     else:
       result, unmerged_files = cherry_pick(sha, metadata, first_commit,
-                                           args.autoroll_file)
+                                           autoroll_metadata)
 
     if result in (CommitStatus.SUCCESS, CommitStatus.CONFLICTED):
       commits_added.append(identifier)
