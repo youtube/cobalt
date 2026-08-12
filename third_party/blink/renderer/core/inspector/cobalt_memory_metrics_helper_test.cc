@@ -20,6 +20,8 @@
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/statistics_recorder.h"
+#include "base/strings/strcat.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace blink {
@@ -35,8 +37,8 @@ class CobaltMemoryMetricsHelperTest : public ::testing::Test {
 };
 
 TEST_F(CobaltMemoryMetricsHelperTest, HandlesUnrecordedHistogram) {
-  auto result =
-      GetMetricValueBytes("Memory.Experimental.Browser2.NonExistentTestMetric");
+  auto result = GetP50MetricValueBytes(
+      "Memory.Experimental.Browser2.NonExistentTestMetric");
   EXPECT_FALSE(result.has_value());
 }
 
@@ -45,29 +47,52 @@ TEST_F(CobaltMemoryMetricsHelperTest, RetrievesRecordedHistogramInBytes) {
 
   base::UmaHistogramMemoryLargeMB(test_histogram_name, 16);  // 16 MiB
 
-  auto result = GetMetricValueBytes(test_histogram_name);
+  auto result = GetP50MetricValueBytes(test_histogram_name);
   ASSERT_TRUE(result.has_value());
   EXPECT_GE(*result, 10u * 1024u * 1024u);
   EXPECT_LE(*result, 20u * 1024u * 1024u);
 }
 
 TEST_F(CobaltMemoryMetricsHelperTest,
-       GetMemoryBreakdownReturnsRecordedMetrics) {
+       GetP50MemoryBreakdownReturnsRecordedMetricsWithP50Suffix) {
   const char* metric_name = "Memory.Browser.ResidentSet";
+  std::string expected_p50_name =
+      base::StrCat({metric_name, kP50Suffix});
   base::UmaHistogramMemoryLargeMB(metric_name, 32);  // 32 MiB
 
-  auto breakdown = GetMemoryBreakdown();
+  auto breakdown = GetP50MemoryBreakdown();
   ASSERT_TRUE(breakdown.has_value());
 
-  bool found_resident_set = false;
+  bool found_resident_set_p50 = false;
   for (const auto& entry : *breakdown) {
-    if (std::string(entry.name) == metric_name) {
-      found_resident_set = true;
+    if (entry.name == expected_p50_name) {
+      found_resident_set_p50 = true;
       EXPECT_GE(entry.value_bytes, 20u * 1024u * 1024u);
       EXPECT_LE(entry.value_bytes, 45u * 1024u * 1024u);
     }
   }
-  EXPECT_TRUE(found_resident_set);
+  EXPECT_TRUE(found_resident_set_p50);
+}
+
+TEST_F(CobaltMemoryMetricsHelperTest, GetLiveMemoryBreakdownReturnsValidMetrics) {
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+  auto live_metrics = GetLiveMemoryBreakdown();
+  ASSERT_TRUE(live_metrics.has_value());
+  EXPECT_FALSE(live_metrics->empty());
+  bool found_rss_live = false;
+  for (const auto& entry : *live_metrics) {
+    EXPECT_GT(entry.value_bytes, 0u);
+    EXPECT_TRUE(entry.name.ends_with(kLiveSuffix));
+    if (entry.name ==
+        base::StrCat({"Memory.Browser.ResidentSet", kLiveSuffix})) {
+      found_rss_live = true;
+    }
+  }
+  EXPECT_TRUE(found_rss_live);
+#else
+  auto live_metrics = GetLiveMemoryBreakdown();
+  EXPECT_FALSE(live_metrics.has_value());
+#endif
 }
 
 }  // namespace blink
