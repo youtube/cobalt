@@ -14,10 +14,9 @@
 
 #include "starboard/android/shared/video_window.h"
 
-#include <unistd.h>
-
 #include <chrono>
 #include <memory>
+#include <thread>
 
 #include "starboard/android/shared/fake_media_codec.h"
 #include "starboard/android/shared/media_codec_video_decoder.h"
@@ -43,7 +42,6 @@ class VideoDecoderSurfaceTest : public ::testing::Test {
   }
 
   void TearDown() override {
-    // Clean up global surface state
     JNIEnv* env = jni_zero::AttachCurrentThread();
     starboard::SetVideoSurfaceForTesting(env, nullptr);
   }
@@ -58,18 +56,13 @@ TEST_F(VideoDecoderSurfaceTest,
       features::kEnableSurfaceDestroyNotifier);
 
   JNIEnv* env = jni_zero::AttachCurrentThread();
-
-  // 1. Set the global video surface so the decoder can acquire it.
   starboard::SetVideoSurfaceForTesting(env, real_surface_);
 
-  // 2. Create JobThread for the decoder.
   std::unique_ptr<JobThread> job_thread = JobThread::Create("decoder_thread");
   ASSERT_NE(job_thread, nullptr);
 
-  // 3. Create Decoder Config (punch-out mode, null surface_view to force
-  // acquisition).
   MediaCodecVideoDecoder::StreamConfig stream_config{
-      []() {
+      [] {
         VideoStreamInfo info;
         info.codec = kSbMediaVideoCodecH264;
         info.frame_size = {1920, 1080};
@@ -93,7 +86,7 @@ TEST_F(VideoDecoderSurfaceTest,
   bool init_done = false;
   bool init_success = false;
 
-  job_thread->Schedule([&]() {
+  job_thread->Schedule([&] {
     auto result = MediaCodecVideoDecoder::CreateForTesting(
         std::move(factory), job_thread->job_queue(), stream_config,
         tunnel_config, pipeline_config, platform_options);
@@ -115,17 +108,13 @@ TEST_F(VideoDecoderSurfaceTest,
 
   std::atomic<bool> jni_thread_done{false};
 
-  // Thread A: Simulate JNI thread receiving surface destroyed event.
+  // Simulate JNI thread receiving surface destroyed event.
   struct JniSimThread : public starboard::Thread {
     explicit JniSimThread(std::atomic<bool>& done)
         : Thread("JniSimThread"), done_(done) {}
     void Run() override {
-      // JNIEnv is thread-local. Background threads must obtain their own local
-      // JNIEnv pointer by attaching to the JVM.
       JNIEnv* env = jni_zero::AttachCurrentThread();
-      SB_LOG(INFO) << "JNI thread: Calling OnVideoSurfaceChanged(nullptr)...";
       starboard::SetVideoSurfaceForTesting(env, nullptr);
-      SB_LOG(INFO) << "JNI thread: OnVideoSurfaceChanged returned.";
       done_ = true;
       jni_zero::DetachFromVM();
     }
@@ -136,32 +125,22 @@ TEST_F(VideoDecoderSurfaceTest,
   JniSimThread jni_sim_thread(jni_thread_done);
   jni_sim_thread.Start();
 
-  // Thread B: Simulate decoder teardown on the decoder thread.
-  // We add a small delay to ensure the JNI thread can acquire the lock first,
-  // which is necessary to trigger the deadlock on the unpatched code.
-  // Thread B: Simulate decoder teardown on the decoder thread.
-  // We add a small delay to ensure the JNI thread can acquire the lock first,
-  // which is necessary to trigger the deadlock on the unpatched code.
-  job_thread->Schedule([&decoder]() {
-    SB_LOG(INFO) << "Decoder thread: Waiting before destroying...";
-    usleep(100'000);
-    SB_LOG(INFO) << "Decoder thread: Destroying decoder...";
+  // Simulate decoder teardown on decoder thread.
+  job_thread->Schedule([&decoder] {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     decoder.reset();
-    SB_LOG(INFO) << "Decoder thread: Decoder destroyed.";
   });
 
   jni_sim_thread.Join();
   auto duration = CurrentMonotonicTime() - start_time;
-  EXPECT_LT(duration, 800'000);  // Expect less than 800ms (should be ~100ms
-                                 // with fix, 1000ms with deadlock)
+  EXPECT_LT(
+      duration,
+      800'000);  // Should be ~100ms with fix, 1000ms with deadlock timeout
 
-  // Ensure decoder destruction on job_thread completes before stopping it.
-  job_thread->ScheduleAndWait([&decoder]() { decoder.reset(); });
+  job_thread->ScheduleAndWait([&decoder] { decoder.reset(); });
 
-  SB_LOG(INFO) << "Stopping job thread...";
   job_thread->Stop();
   job_thread.reset();
-  SB_LOG(INFO) << "Job thread stopped.";
 
   EXPECT_TRUE(jni_thread_done);
 }
@@ -171,16 +150,13 @@ TEST_F(VideoDecoderSurfaceTest, LegacyTeardown_FeatureDisabled) {
       features::kEnableSurfaceDestroyNotifier);
 
   JNIEnv* env = jni_zero::AttachCurrentThread();
-
-  // 1. Set the global video surface so the decoder can acquire it.
   starboard::SetVideoSurfaceForTesting(env, real_surface_);
 
-  // 2. Create JobThread for the decoder.
   std::unique_ptr<JobThread> job_thread = JobThread::Create("decoder_thread");
   ASSERT_NE(job_thread, nullptr);
 
   MediaCodecVideoDecoder::StreamConfig stream_config{
-      []() {
+      [] {
         VideoStreamInfo info;
         info.codec = kSbMediaVideoCodecH264;
         info.frame_size = {1920, 1080};
@@ -204,7 +180,7 @@ TEST_F(VideoDecoderSurfaceTest, LegacyTeardown_FeatureDisabled) {
   bool init_done = false;
   bool init_success = false;
 
-  job_thread->Schedule([&]() {
+  job_thread->Schedule([&] {
     auto result = MediaCodecVideoDecoder::CreateForTesting(
         std::move(factory), job_thread->job_queue(), stream_config,
         tunnel_config, pipeline_config, platform_options);
@@ -231,9 +207,7 @@ TEST_F(VideoDecoderSurfaceTest, LegacyTeardown_FeatureDisabled) {
         : Thread("JniSimThread"), done_(done) {}
     void Run() override {
       JNIEnv* env = jni_zero::AttachCurrentThread();
-      SB_LOG(INFO) << "JNI thread: Calling OnVideoSurfaceChanged(nullptr)...";
       starboard::SetVideoSurfaceForTesting(env, nullptr);
-      SB_LOG(INFO) << "JNI thread: OnVideoSurfaceChanged returned.";
       done_ = true;
       jni_zero::DetachFromVM();
     }
@@ -245,7 +219,7 @@ TEST_F(VideoDecoderSurfaceTest, LegacyTeardown_FeatureDisabled) {
 
   jni_sim_thread.Join();
 
-  job_thread->ScheduleAndWait([&decoder]() { decoder.reset(); });
+  job_thread->ScheduleAndWait([&decoder] { decoder.reset(); });
 
   job_thread->Stop();
   job_thread.reset();

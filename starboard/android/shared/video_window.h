@@ -64,6 +64,10 @@ class VideoSurfaceHolder {
 
   // Reset the video surface by re-creating video surface.
   void ResetVideoSurface();
+
+ private:
+  AcquiredSurface AcquireVideoSurfaceUsingSurfaceDestroyer(JobQueue* job_queue);
+  void ReleaseVideoSurfaceUsingSurfaceDestroyer();
 };
 
 // SurfaceDestroyNotifier is used to safely handle the destruction of the video
