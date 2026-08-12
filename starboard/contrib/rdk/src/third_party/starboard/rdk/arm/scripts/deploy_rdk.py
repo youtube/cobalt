@@ -253,6 +253,64 @@ def ensure_dolby_vision_policy(device_id: Optional[str], device_ip: Optional[str
     run_remote_command(f"echo 1 > {policy_file}", device_id, device_ip)
 
 
+def _extract_flag_key(arg: str) -> str:
+    """Extracts option key from flag string (e.g. '--foo' from '--foo=val', '--foo val', or '--foo')."""
+    return arg.split("=", 1)[0].split()[0]
+
+
+def _filter_args_by_keys(base_args: List[str], override_args: List[str]) -> List[str]:
+    """Filters flags from base_args whose option keys match any flag in override_args."""
+    override_keys = set()
+    for arg in override_args:
+        if arg.startswith("--"):
+            override_keys.add(_extract_flag_key(arg))
+
+    filtered_args = []
+    i = 0
+    while i < len(base_args):
+        arg = base_args[i]
+        if arg.startswith("--"):
+            key = _extract_flag_key(arg)
+            if key in override_keys:
+                # Key is overridden by override_args. Skip this flag.
+                if "=" not in arg and " " not in arg and (i + 1 < len(base_args)) and not base_args[i + 1].startswith("--"):
+                    i += 1  # Skip space-separated value item (e.g. '1' in '--foo 1' or '--foo', '1')
+            else:
+                filtered_args.append(arg)
+        else:
+            filtered_args.append(arg)
+        i += 1
+
+    return filtered_args
+
+
+def _merge_args(base_args: List[str], override_args: List[str]) -> List[str]:
+    """Replaces flags in base_args with matching option keys from override_args, and appends override_args."""
+    return _filter_args_by_keys(base_args, override_args) + override_args
+
+
+def remove_duplicate_sb_args(
+    cobalt_json_args: List[str],
+    script_args: Optional[List[str]] = None,
+    user_override_args: Optional[List[str]] = None,
+) -> List[str]:
+    """Combines cobalt_json_args, script_args, and user_override_args with key deduplication.
+
+    Precedence order (highest to lowest):
+      1. user_override_args (passed via --param)
+      2. script_args (script-added flags e.g. --remote-debugging-port=9222)
+      3. cobalt_json_args (pre-existing flags from WPEFramework cobalt.json / sbmainargs)
+    """
+    script_args = script_args or []
+    user_override_args = user_override_args or []
+
+    # 1. Merge script_args with user_override_args
+    override_args = _merge_args(script_args, user_override_args)
+
+    # 2. Merge cobalt_json_args with override_args
+    return _merge_args(cobalt_json_args, override_args)
+
+
 def launch_on_device(
     device_id: Optional[str],
     device_ip: Optional[str],
@@ -314,29 +372,17 @@ def launch_on_device(
             res = json.loads(res_str.strip())
             if "result" in res:
                 config = res["result"]
-                sb_args = config.get("sbmainargs", [])
+                cobalt_json_args = config.get("sbmainargs", [])
                 
-                # Filter out any existing url, profiling and remote debugging arguments to prevent duplicates
-                blocked_flags = {
-                    "--remote-debugging-port",
-                    "--enable-heap-profiling",
-                    "--memlog",
-                    "--memlog-stack-mode",
-                    "--trace-startup",
-                    "--trace-startup-duration",
-                    "--trace-startup-format",
-                    "--trace-startup-file",
-                    "--url",
-                }
-                sb_args = [arg for arg in sb_args if arg.split("=", 1)[0] not in blocked_flags]
-                
+                script_args = []
                 if devtools:
-                    sb_args.append("--remote-debugging-port=9222")
+                    script_args.append("--remote-debugging-port=9222")
 
-                if param:
-                    sb_args.extend(param)
+                user_override_args = param if param else []
 
-                config["sbmainargs"] = sb_args
+                config["sbmainargs"] = remove_duplicate_sb_args(
+                    cobalt_json_args, script_args, user_override_args
+                )
 
                 # Set configuration
                 rpc_set_config = json.dumps({
@@ -498,9 +544,23 @@ def parse_args() -> argparse.Namespace:
         "--param",
         nargs=argparse.REMAINDER,
         default=[],
-        help="Additional runtime parameter(s) to pass to StarboardMain (must be specified last).",
+        help=(
+            "Additional runtime parameter(s) to pass to StarboardMain (must be specified last). "
+            "All arguments must start with '--' (positional arguments are not supported)."
+        ),
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    if args.param:
+        for arg in args.param:
+            if not arg.startswith("--"):
+                print(
+                    f"Error: All arguments passed to --param must start with '--' (positional arguments are not supported). "
+                    f"Positional argument '{arg}' is not supported."
+                )
+                sys.exit(1)
+
+    return args
 
 
 def get_model_name(device_id: str) -> Optional[str]:
