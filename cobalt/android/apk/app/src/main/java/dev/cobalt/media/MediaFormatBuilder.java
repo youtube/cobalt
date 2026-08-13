@@ -78,8 +78,7 @@ class MediaFormatBuilder {
     // https://github.com/google/ExoPlayer/blob/0ba317b1337eaa789f05dd6c5241246478a3d1e5/library/common/src/main/java/com/google/android/exoplayer2/audio/OpusUtil.java#L52.
     int preSkipSamples = ((configurationData[11] & 0xFF) << 8) | (configurationData[10] & 0xFF);
     long preSkipNanos = (preSkipSamples * nanosecondsInOneSecond) / sampleRate;
-    long seekPreRollNanos =
-        (defaultSeekPreRollSamples * nanosecondsInOneSecond) / sampleRate;
+    long seekPreRollNanos = (defaultSeekPreRollSamples * nanosecondsInOneSecond) / sampleRate;
     return new byte[][] {
       configurationData,
       ByteBuffer.allocate(8).order(ByteOrder.nativeOrder()).putLong(preSkipNanos).array(),
