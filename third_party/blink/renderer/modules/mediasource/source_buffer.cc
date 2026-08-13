@@ -1091,7 +1091,7 @@ void SourceBuffer::ChangeType_Locked(
           false /* allow underspecified codecs in |type| */) ||
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
       !web_source_buffer_->CanChangeType(content_type.GetType(), codecs)) {
-#else   // !BUILDFLAG(USE_STARBOARD_MEDIA)
+#else  // !BUILDFLAG(USE_STARBOARD_MEDIA)
       !web_source_buffer_->CanChangeType(type)) {
 #endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
     MediaSource::LogAndThrowDOMException(
@@ -1116,7 +1116,7 @@ void SourceBuffer::ChangeType_Locked(
   // This call also updates the pipeline to switch bytestream parser and codecs.
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   web_source_buffer_->ChangeType(type);
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
   web_source_buffer_->ChangeType(content_type.GetType(), codecs);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
