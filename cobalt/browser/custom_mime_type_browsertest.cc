@@ -32,7 +32,9 @@ namespace {
 
 // A test implementation of SbMediaInterface used to intercept and record
 // MIME types and key systems queried by the media pipeline during browser
-// tests. This class is thread-safe and can be accessed from any thread.
+// tests. This class is owned by the CustomMimeTypeBrowserTest fixture and
+// its lifetime is tied to it. It is thread-safe and can be accessed from
+// any thread.
 class TestSbMediaInterface : public media::SbMediaInterface {
  public:
   TestSbMediaInterface() = default;
@@ -114,8 +116,9 @@ class TestSbMediaInterface : public media::SbMediaInterface {
 }  // namespace
 
 // Browser test fixture for verifying custom MIME type parameter forwarding
-// from the web engine to the Starboard media interface.
-// This class is thread-affine to the browser main thread.
+// from the web engine to the Starboard media interface. This class is owned
+// and managed by the gtest framework, with a lifetime spanning a single test
+// case execution. It is thread-affine to the browser main thread.
 class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
  public:
   CustomMimeTypeBrowserTest() = default;

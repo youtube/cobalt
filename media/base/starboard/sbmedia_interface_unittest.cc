@@ -38,7 +38,8 @@ namespace {
 
 // A mock implementation of SbMediaInterface for unit testing the media
 // pipeline's interaction with the Starboard media layer. This class is
-// thread-safe.
+// typically owned by the test fixture or instantiated as a local variable
+// within a test, and is thread-safe.
 class MockSbMediaInterface : public SbMediaInterface {
  public:
   MockSbMediaInterface() = default;
@@ -75,7 +76,9 @@ class MockSbMediaInterface : public SbMediaInterface {
 };
 
 // Test fixture for testing SbMediaInterface and its integration with MimeUtil.
-// This class is thread-affine to the main test thread.
+// This class is owned and managed by the gtest framework, with a lifetime
+// spanning a single test case execution. It is thread-affine to the main
+// test thread.
 class SbMediaInterfaceTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -87,6 +90,8 @@ class SbMediaInterfaceTest : public ::testing::Test {
     // Restore default interface after each test.
     SetSbMediaInterfaceForTesting(nullptr);
   }
+
+  MockSbMediaInterface mock_interface_;
 };
 
 TEST_F(SbMediaInterfaceTest, DefaultInterfaceReturnedWhenNotOverridden) {
@@ -98,24 +103,22 @@ TEST_F(SbMediaInterfaceTest, SetAndResetTestingInterface) {
   SbMediaInterface* default_interface = GetSbMediaInterface();
   ASSERT_NE(default_interface, nullptr);
 
-  MockSbMediaInterface mock_interface;
-  SetSbMediaInterfaceForTesting(&mock_interface);
-  EXPECT_EQ(GetSbMediaInterface(), &mock_interface);
+  SetSbMediaInterfaceForTesting(&mock_interface_);
+  EXPECT_EQ(GetSbMediaInterface(), &mock_interface_);
 
   SetSbMediaInterfaceForTesting(nullptr);
   EXPECT_EQ(GetSbMediaInterface(), default_interface);
 }
 
 TEST_F(SbMediaInterfaceTest, MockCanPlayMimeAndKeySystem) {
-  MockSbMediaInterface mock_interface;
-  SetSbMediaInterfaceForTesting(&mock_interface);
+  SetSbMediaInterfaceForTesting(&mock_interface_);
 
   const char kMime[] =
       "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
       "tunnelmode=true; hdr=hdr10plus";
   const char kKeySystem[] = "com.widevine.alpha";
 
-  EXPECT_CALL(mock_interface,
+  EXPECT_CALL(mock_interface_,
               CanPlayMimeAndKeySystem(StrEq(kMime), StrEq(kKeySystem)))
       .WillOnce(Return(kSbMediaSupportTypeProbably));
 
@@ -124,13 +127,12 @@ TEST_F(SbMediaInterfaceTest, MockCanPlayMimeAndKeySystem) {
 }
 
 TEST_F(SbMediaInterfaceTest, MockCanChangeType) {
-  MockSbMediaInterface mock_interface;
-  SetSbMediaInterfaceForTesting(&mock_interface);
+  SetSbMediaInterfaceForTesting(&mock_interface_);
 
   const char kCurrentMime[] = "video/mp4; codecs=\"avc1.64002a\"";
   const char kNewMime[] = "video/webm; codecs=\"vp9\"";
 
-  EXPECT_CALL(mock_interface,
+  EXPECT_CALL(mock_interface_,
               CanChangeType(StrEq(kCurrentMime), StrEq(kNewMime)))
       .WillOnce(Return(true))
       .WillOnce(Return(false));
@@ -140,10 +142,9 @@ TEST_F(SbMediaInterfaceTest, MockCanChangeType) {
 }
 
 TEST_F(SbMediaInterfaceTest, MockAudioOutputAndConfiguration) {
-  MockSbMediaInterface mock_interface;
-  SetSbMediaInterfaceForTesting(&mock_interface);
+  SetSbMediaInterfaceForTesting(&mock_interface_);
 
-  EXPECT_CALL(mock_interface, GetAudioOutputCount()).WillOnce(Return(2));
+  EXPECT_CALL(mock_interface_, GetAudioOutputCount()).WillOnce(Return(2));
   EXPECT_EQ(GetSbMediaInterface()->GetAudioOutputCount(), 2);
 
   SbMediaAudioConfiguration expected_config = {};
@@ -152,7 +153,7 @@ TEST_F(SbMediaInterfaceTest, MockAudioOutputAndConfiguration) {
   expected_config.coding_type = kSbMediaAudioCodingTypePcm;
   expected_config.connector = kSbMediaAudioConnectorHdmi;
 
-  EXPECT_CALL(mock_interface, GetAudioConfiguration(0, _))
+  EXPECT_CALL(mock_interface_, GetAudioConfiguration(0, _))
       .WillOnce(DoAll(SetArgPointee<1>(expected_config), Return(true)));
 
   SbMediaAudioConfiguration actual_config = {};
@@ -164,32 +165,31 @@ TEST_F(SbMediaInterfaceTest, MockAudioOutputAndConfiguration) {
 }
 
 TEST_F(SbMediaInterfaceTest, MockBufferParametersAndBudgets) {
-  MockSbMediaInterface mock_interface;
-  SetSbMediaInterfaceForTesting(&mock_interface);
+  SetSbMediaInterfaceForTesting(&mock_interface_);
 
-  EXPECT_CALL(mock_interface, GetBufferAllocationUnit())
+  EXPECT_CALL(mock_interface_, GetBufferAllocationUnit())
       .WillOnce(Return(65536));
   EXPECT_EQ(GetSbMediaInterface()->GetBufferAllocationUnit(), 65536);
 
-  EXPECT_CALL(mock_interface, GetAudioBufferBudget())
+  EXPECT_CALL(mock_interface_, GetAudioBufferBudget())
       .WillOnce(Return(5 * 1024 * 1024));
   EXPECT_EQ(GetSbMediaInterface()->GetAudioBufferBudget(), 5 * 1024 * 1024);
 
-  EXPECT_CALL(mock_interface, GetBufferGarbageCollectionDurationThreshold())
+  EXPECT_CALL(mock_interface_, GetBufferGarbageCollectionDurationThreshold())
       .WillOnce(Return(30000000LL));
   EXPECT_EQ(
       GetSbMediaInterface()->GetBufferGarbageCollectionDurationThreshold(),
       30000000LL);
 
-  EXPECT_CALL(mock_interface, GetInitialBufferCapacity())
+  EXPECT_CALL(mock_interface_, GetInitialBufferCapacity())
       .WillOnce(Return(1024 * 1024));
   EXPECT_EQ(GetSbMediaInterface()->GetInitialBufferCapacity(), 1024 * 1024);
 
-  EXPECT_CALL(mock_interface, IsBufferPoolAllocateOnDemand())
+  EXPECT_CALL(mock_interface_, IsBufferPoolAllocateOnDemand())
       .WillOnce(Return(true));
   EXPECT_TRUE(GetSbMediaInterface()->IsBufferPoolAllocateOnDemand());
 
-  EXPECT_CALL(mock_interface,
+  EXPECT_CALL(mock_interface_,
               GetVideoBufferBudget(kSbMediaVideoCodecH264, 3840, 2160, 8))
       .WillOnce(Return(100 * 1024 * 1024));
   EXPECT_EQ(GetSbMediaInterface()->GetVideoBufferBudget(kSbMediaVideoCodecH264,
@@ -199,8 +199,7 @@ TEST_F(SbMediaInterfaceTest, MockBufferParametersAndBudgets) {
 
 TEST_F(SbMediaInterfaceTest,
        MimeUtilIsSupportedMediaMimeTypePreservesAttributes) {
-  MockSbMediaInterface mock_interface;
-  SetSbMediaInterfaceForTesting(&mock_interface);
+  SetSbMediaInterfaceForTesting(&mock_interface_);
 
   internal::MimeUtil mime_util;
 
@@ -208,7 +207,7 @@ TEST_F(SbMediaInterfaceTest,
       "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
       "tunnelmode=true; hdr=hdr10plus";
 
-  EXPECT_CALL(mock_interface,
+  EXPECT_CALL(mock_interface_,
               CanPlayMimeAndKeySystem(StrEq(kCustomMime.c_str()),
                                       AnyOf(IsNull(), StrEq(""))))
       .WillOnce(Return(kSbMediaSupportTypeProbably))
@@ -221,8 +220,7 @@ TEST_F(SbMediaInterfaceTest,
 }
 
 TEST_F(SbMediaInterfaceTest, MimeUtilIsSupportedMediaFormatSupportTypeMapping) {
-  MockSbMediaInterface mock_interface;
-  SetSbMediaInterfaceForTesting(&mock_interface);
+  SetSbMediaInterfaceForTesting(&mock_interface_);
 
   internal::MimeUtil mime_util;
 
@@ -231,7 +229,7 @@ TEST_F(SbMediaInterfaceTest, MimeUtilIsSupportedMediaFormatSupportTypeMapping) {
       "tunnelmode=true";
   const std::vector<std::string> kCodecs = {"avc1.64002a"};
 
-  EXPECT_CALL(mock_interface,
+  EXPECT_CALL(mock_interface_,
               CanPlayMimeAndKeySystem(StrEq(kCustomMime.c_str()),
                                       AnyOf(IsNull(), StrEq(""))))
       .WillOnce(Return(kSbMediaSupportTypeProbably))
