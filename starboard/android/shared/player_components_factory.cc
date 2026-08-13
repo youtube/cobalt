@@ -390,10 +390,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             video_mime_type->GetParamBoolValue("enableflushduringseek", false);
       }
     }
-    SB_LOG_IF(INFO, enable_flush_during_seek)
-        << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
-        << " audio passthrough decoder during Reset().";
-
     SB_LOG(INFO) << "Creating passthrough components.";
     // TODO: Enable tunnel mode for passthrough
     auto audio_renderer = AudioRendererPassthrough::Create(
@@ -643,9 +639,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
         ShouldEnableFlushDuringSeek(experimental_features);
-    int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
-    int64_t reset_delay_usec = features::kResetDelayUsec.Get();
-
+    int64_t flush_delay_usec = android_get_device_api_level() < 34
+                                   ? features::kFlushDelayUsec.Get()
+                                   : 0;
+    int64_t reset_delay_usec = android_get_device_api_level() < 34
+                                   ? features::kResetDelayUsec.Get()
+                                   : 0;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       // Use mime param to determine endianness of HDR metadata. If param is
@@ -666,16 +665,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       }
     }
 
-    SB_LOG_IF(INFO, enable_flush_during_seek)
-        << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
-        << " video decoder during Reset().";
-    SB_LOG_IF(INFO, flush_delay_usec > 0)
-        << "`kFlushDelayUsec` is set to > 0, force a delay of "
-        << flush_delay_usec << "us during Flush().";
-    SB_LOG_IF(INFO, reset_delay_usec > 0)
-        << "`kResetDelayUsec` is set to > 0, force a delay of "
-        << reset_delay_usec << "us during Reset().";
-
     bool use_dual_threads = ShouldUseDualThreads(
         creation_parameters.audio_codec(), creation_parameters.drm_system(),
         experimental_features, force_platform_opus_decoder_);
@@ -688,9 +677,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
          creation_parameters.surface_view(),
          creation_parameters.max_video_capabilities()},
         {tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode},
-        {max_video_input_size, enable_flush_during_seek, use_dual_threads,
+        {max_video_input_size, force_big_endian_hdr_metadata, use_dual_threads,
          experimental_features},
-        {force_big_endian_hdr_metadata, reset_delay_usec, flush_delay_usec});
+        {enable_flush_during_seek, reset_delay_usec, flush_delay_usec});
   }
 
   bool IsTunnelModeSupported(const CreationParameters& creation_parameters,

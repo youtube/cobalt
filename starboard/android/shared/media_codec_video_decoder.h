@@ -74,13 +74,13 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   struct PipelineConfig {
     int max_input_size = 0;
-    bool enable_flush_during_seek = false;
+    bool force_big_endian_hdr_metadata = false;
     bool use_dual_threads = true;
     ExperimentalFeatures experimental_features;
   };
 
-  struct PlatformOptions {
-    bool force_big_endian_hdr_metadata = false;
+  struct ResetConfig {
+    bool enable_flush_during_seek = false;
     int64_t reset_delay_usec = 0;
     int64_t flush_delay_usec = 0;
   };
@@ -92,7 +92,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       const StreamConfig& stream_config,
       const TunnelModeConfig& tunnel_mode_config,
       const PipelineConfig& pipeline_config,
-      const PlatformOptions& platform_options);
+      const ResetConfig& reset_config);
 
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>>
   CreateForTesting(std::unique_ptr<MediaCodec::Factory> media_codec_factory,
@@ -100,7 +100,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                    const StreamConfig& stream_config,
                    const TunnelModeConfig& tunnel_mode_config,
                    const PipelineConfig& pipeline_config,
-                   const PlatformOptions& platform_options);
+                   const ResetConfig& reset_config);
 
   static void SetVideoFramePoolEnabled(bool enabled);
 
@@ -111,7 +111,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       const StreamConfig& stream_config,
       const TunnelModeConfig& tunnel_mode_config,
       const PipelineConfig& pipeline_config,
-      const PlatformOptions& platform_options,
+      const ResetConfig& reset_config,
       std::string* error_message);
 
   ~MediaCodecVideoDecoder() override;
@@ -202,9 +202,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // SurfaceView from AndroidOverlay passed from StarboardRenderer to SbPlayer.
   jni_zero::ScopedJavaGlobalRef<jobject> surface_view_;
 
-  const bool enable_flush_during_seek_;
-  const int64_t reset_delay_usec_;
-  const int64_t flush_delay_usec_;
+  const ResetConfig reset_config_;
   const bool skip_flush_on_decoder_teardown_;
 
   // Codec initialization will be delayed until the decoder receives enough
@@ -297,10 +295,13 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       const StreamConfig& stream_config,
       const TunnelModeConfig& tunnel_mode_config,
       const PipelineConfig& pipeline_config,
-      const PlatformOptions& platform_options);
+      const ResetConfig& reset_config);
 
   const std::unique_ptr<VideoSurfaceTextureBridge> surface_texture_bridge_;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const MediaCodecVideoDecoder::ResetConfig& config);
 
 }  // namespace starboard
 

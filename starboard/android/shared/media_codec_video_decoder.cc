@@ -269,15 +269,23 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
   bool rendered_;
 };
 
+std::ostream& operator<<(std::ostream& os,
+                         const MediaCodecVideoDecoder::ResetConfig& config) {
+  return os << "{enable_flush_during_seek="
+            << ToString(config.enable_flush_during_seek)
+            << ", reset_delay_usec=" << config.reset_delay_usec
+            << ", flush_delay_usec=" << config.flush_delay_usec << "}";
+}
+
 NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>>
 MediaCodecVideoDecoder::Create(JobQueue* job_queue,
                                const StreamConfig& stream_config,
                                const TunnelModeConfig& tunnel_mode_config,
                                const PipelineConfig& pipeline_config,
-                               const PlatformOptions& platform_options) {
+                               const ResetConfig& reset_config) {
   auto default_factory = std::make_unique<DefaultMediaCodecFactory>();
   return CreateInternal(std::move(default_factory), job_queue, stream_config,
-                        tunnel_mode_config, pipeline_config, platform_options);
+                        tunnel_mode_config, pipeline_config, reset_config);
 }
 
 // static
@@ -288,11 +296,11 @@ MediaCodecVideoDecoder::CreateForTesting(
     const StreamConfig& stream_config,
     const TunnelModeConfig& tunnel_mode_config,
     const PipelineConfig& pipeline_config,
-    const PlatformOptions& platform_options) {
+    const ResetConfig& reset_config) {
   SB_CHECK(media_codec_factory);
   return CreateInternal(std::move(media_codec_factory), job_queue,
                         stream_config, tunnel_mode_config, pipeline_config,
-                        platform_options);
+                        reset_config);
 }
 
 // static
@@ -303,12 +311,12 @@ MediaCodecVideoDecoder::CreateInternal(
     const StreamConfig& stream_config,
     const TunnelModeConfig& tunnel_mode_config,
     const PipelineConfig& pipeline_config,
-    const PlatformOptions& platform_options) {
+    const ResetConfig& reset_config) {
   std::string error_message;
   auto video_decoder = std::make_unique<MediaCodecVideoDecoder>(
       PassKey<MediaCodecVideoDecoder>(), std::move(media_codec_factory),
       job_queue, stream_config, tunnel_mode_config, pipeline_config,
-      platform_options, &error_message);
+      reset_config, &error_message);
 
   if (!error_message.empty()) {
     return Failure(error_message);
@@ -332,7 +340,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     const StreamConfig& stream_config,
     const TunnelModeConfig& tunnel_mode_config,
     const PipelineConfig& pipeline_config,
-    const PlatformOptions& platform_options,
+    const ResetConfig& reset_config,
     std::string* error_message)
     : JobOwner(job_queue),
       video_codec_(stream_config.video_stream_info.codec),
@@ -344,7 +352,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       require_software_codec_(
           IsSoftwareDecoderRequired(stream_config.max_video_capabilities)),
       force_big_endian_hdr_metadata_(
-          platform_options.force_big_endian_hdr_metadata),
+          pipeline_config.force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_config.audio_session_id),
       max_video_input_size_(pipeline_config.max_input_size),
       use_dual_threads_(pipeline_config.use_dual_threads),
@@ -353,13 +361,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                               jni_zero::AttachCurrentThread(),
                               static_cast<jobject>(stream_config.surface_view))
                         : nullptr),
-      enable_flush_during_seek_(pipeline_config.enable_flush_during_seek),
-      reset_delay_usec_(android_get_device_api_level() < 34
-                            ? platform_options.reset_delay_usec
-                            : 0),
-      flush_delay_usec_(android_get_device_api_level() < 34
-                            ? platform_options.flush_delay_usec
-                            : 0),
+      reset_config_(reset_config),
       skip_flush_on_decoder_teardown_(
           pipeline_config.experimental_features.GetBool(
               kMediaSkipFlushOnDecoderTeardown)),
@@ -442,7 +444,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << "\", tunnel mode audio session id="
                << ToString(tunnel_mode_audio_session_id_)
                << ", is_video_frame_tracker_enabled="
-               << ToString(is_video_frame_tracker_enabled_);
+               << ToString(is_video_frame_tracker_enabled_)
+               << ", reset_config=" << reset_config_;
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
@@ -869,8 +872,9 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
-      force_big_endian_hdr_metadata_, max_video_input_size_, flush_delay_usec_,
-      use_dual_threads_, skip_video_frames_over_60_fps_,
+      force_big_endian_hdr_metadata_, max_video_input_size_,
+      reset_config_.flush_delay_usec, use_dual_threads_,
+      skip_video_frames_over_60_fps_,
       ignore_mediacodec_callbacks_during_flushing_, enable_ndk_video_,
       enable_trivial_optimizations_);
   if (result) {
@@ -1210,11 +1214,11 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   // re-create |media_decoder_|. If |needs_fps_to_initialize_codec_| is true,
   // set video_fps_ to 0 will call InitializeCodec(),
   // which we do not need if flush the codec.
-  if (!enable_flush_during_seek_ || skip_flush || !media_decoder_ ||
-      !media_decoder_->Flush()) {
+  if (!reset_config_.enable_flush_during_seek || skip_flush ||
+      !media_decoder_ || !media_decoder_->Flush()) {
     TeardownCodec();
-    if (reset_delay_usec_ > 0) {
-      usleep(reset_delay_usec_);
+    if (reset_config_.reset_delay_usec > 0) {
+      usleep(reset_config_.reset_delay_usec);
     }
 
     // Note that |input_buffer_written_| may not be strictly accurate after
