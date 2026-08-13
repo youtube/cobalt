@@ -78,5 +78,12 @@ BASE_FEATURE(kEnablePictureInPicture,
 #endif  // BUILDFLAG(IS_ANDROID)
 );
 
+BASE_FEATURE(kCobaltNativeMemoryAblation,
+             "CobaltNativeMemoryAblation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kMemoryAblationSizeMBParam{
+    &kCobaltNativeMemoryAblation, "ablation_size_mb", 0};
+
 }  // namespace features
 }  // namespace cobalt

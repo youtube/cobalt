@@ -34,6 +34,8 @@ source_set("browser") {
     "cobalt_web_contents_observer.h",
     "h5vcc_settings_impl.cc",
     "h5vcc_settings_impl.h",
+    "memory_ablation.cc",
+    "memory_ablation.h",
   ]
 
   if (is_androidtv) {

@@ -68,6 +68,12 @@ extern const base::Feature kForceVideoSplashScreen;
 // Enables video Picture-in-Picture support.
 extern const base::Feature kEnablePictureInPicture;
 
+// Enables native memory ablation study to verify Finch and memory metrics.
+extern const base::Feature kCobaltNativeMemoryAblation;
+
+// Memory ablation size to allocate in Megabytes (default: 0).
+extern const base::FeatureParam<int> kMemoryAblationSizeMBParam;
+
 }  // namespace features
 }  // namespace cobalt
 
