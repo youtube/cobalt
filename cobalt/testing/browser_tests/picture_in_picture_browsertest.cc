@@ -17,9 +17,11 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/run_loop.h"
 #include "build/build_config.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
@@ -222,10 +224,8 @@ const char kPictureInPictureScript[] = R"(
 
 bool IsPictureInPictureAvailable(Shell* shell) {
 #if BUILDFLAG(IS_ANDROID)
-  auto result = EvalJs(shell,
-                       "typeof document.pictureInPictureEnabled !== "
-                       "'undefined' && document.pictureInPictureEnabled");
-  return result.error.empty() && result.ExtractBool();
+  return base::FeatureList::IsEnabled(
+      cobalt::features::kEnablePictureInPicture);
 #else
   return false;
 #endif
@@ -235,12 +235,12 @@ bool IsPictureInPictureAvailable(Shell* shell) {
 
 IN_PROC_BROWSER_TEST_F(PictureInPictureBrowserTest,
                        EnterAndExitPictureInPicture) {
-  GURL test_url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), test_url));
-
   if (!IsPictureInPictureAvailable(shell())) {
     GTEST_SKIP() << "Picture-in-Picture not available in this test environment";
   }
+
+  GURL test_url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), test_url));
 
   ASSERT_TRUE(ExecJs(shell(), kPictureInPictureScript));
   ASSERT_TRUE(ExecJs(shell(), "addPictureInPictureEventListeners();"));
@@ -260,12 +260,12 @@ IN_PROC_BROWSER_TEST_F(PictureInPictureBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(PictureInPictureBrowserTest,
                        NavigationExitsPictureInPicture) {
-  GURL test_url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), test_url));
-
   if (!IsPictureInPictureAvailable(shell())) {
     GTEST_SKIP() << "Picture-in-Picture not available in this test environment";
   }
+
+  GURL test_url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), test_url));
 
   ASSERT_TRUE(ExecJs(shell(), kPictureInPictureScript));
   ASSERT_TRUE(ExecJs(shell(), "addPictureInPictureEventListeners();"));
