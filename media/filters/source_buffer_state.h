@@ -57,6 +57,11 @@ class MEDIA_EXPORT SourceBufferState {
             const StreamParser::EncryptedMediaInitDataCB&
                 encrypted_media_init_data_cb);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  const std::string& mime_type() const { return mime_type_; }
+  void set_mime_type(std::string_view mime_type) { mime_type_ = std::string(mime_type); }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // Reconfigures this source buffer to use |new_stream_parser|. Caller must
   // first ensure that ResetParserState() was done to flush any pending frames
   // from the old stream parser.
