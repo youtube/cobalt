@@ -33,7 +33,6 @@
 #include "base/debug/task_trace.h"
 #include "base/functional/callback.h"
 #include "base/immediate_crash.h"
-#include "base/logging/rust_logger.rs.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/pending_task.h"
@@ -122,13 +121,10 @@ typedef FILE* FileHandle;
 #include "base/fuchsia/scoped_fx_logger.h"
 #endif
 
-<<<<<<< HEAD
-=======
-#if !BUILDFLAG(IS_NACL) && (!BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC))
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
 #include "base/logging/rust_logger.rs.h"
 #endif
 
->>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 namespace logging {
 
 namespace {
@@ -566,12 +562,10 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
   }
 #endif
 
-<<<<<<< HEAD
-=======
-#if !BUILDFLAG(IS_NACL) && (!BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC))
->>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   // Connects Rust logging with the //base logging functionality.
   internal::init_rust_log_crate();
+#endif
 
   // Ignore file options unless logging to file is set.
   if ((g_logging_destination & LOG_TO_FILE) == 0) {
