@@ -41,7 +41,7 @@ class TestSbMediaInterface : public media::SbMediaInterface {
   TestSbMediaInterface() = default;
   ~TestSbMediaInterface() override = default;
 
-  void set_support_type(SbMediaSupportType type) {
+  void SetSupportType(SbMediaSupportType type) {
     base::AutoLock lock(lock_);
     support_type_ = type;
   }
@@ -152,7 +152,7 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        MediaSourceIsTypeSupported_ForwardsRawCustomAttributes) {
-  test_media_interface_.set_support_type(kSbMediaSupportTypeProbably);
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
 
   const char kCustomMime[] =
       "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
@@ -169,7 +169,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        MediaSourceIsTypeSupported_NotSupportedReturnsFalse) {
-  test_media_interface_.set_support_type(kSbMediaSupportTypeNotSupported);
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeNotSupported);
 
   const char kUnsupportedMime[] =
       "video/mp4; codecs=\"unsupported.codec\"; width=99999; height=99999;";
@@ -186,7 +186,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        MediaSourceIsTypeSupported_HighFramerateAndBitrate) {
-  test_media_interface_.set_support_type(kSbMediaSupportTypeProbably);
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
 
   const char kCustomMime[] =
       "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
@@ -203,7 +203,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        MediaSourceIsTypeSupported_ColorimetryAndHdrAttributes) {
-  test_media_interface_.set_support_type(kSbMediaSupportTypeProbably);
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
 
   const char kCustomMime[] =
       "video/mp4; codecs=\"vp9\"; width=3840; height=2160; hdr=hdr10plus; "
@@ -220,7 +220,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        MediaSourceIsTypeSupported_PlaybackAndDecoderFlags) {
-  test_media_interface_.set_support_type(kSbMediaSupportTypeProbably);
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
 
   const char kCustomMime[] =
       "video/mp4; codecs=\"avc1.64002a\"; tunnelmode=true; "
@@ -238,7 +238,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        MediaSourceIsTypeSupported_AllCustomParametersCombined) {
-  test_media_interface_.set_support_type(kSbMediaSupportTypeProbably);
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
 
   const char kCustomMime[] =
       "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
@@ -259,7 +259,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        CanPlayType_ForwardsRawCustomAttributesMaybe) {
-  test_media_interface_.set_support_type(kSbMediaSupportTypeMaybe);
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeMaybe);
 
   const char kCustomMime[] =
       "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
@@ -278,7 +278,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        CanPlayType_ForwardsRawCustomAttributesProbably) {
-  test_media_interface_.set_support_type(kSbMediaSupportTypeProbably);
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
 
   const char kCustomMime[] =
       "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
@@ -297,7 +297,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        CanPlayType_NotSupportedReturnsEmptyString) {
-  test_media_interface_.set_support_type(kSbMediaSupportTypeNotSupported);
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeNotSupported);
 
   const char kUnsupportedMime[] =
       "video/mp4; codecs=\"avc1.64002a\"; width=99999; height=99999;";
@@ -315,7 +315,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        AudioCanPlayType_ForwardsRawCustomAttributes) {
-  test_media_interface_.set_support_type(kSbMediaSupportTypeProbably);
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
 
   const char kAudioCustomMime[] =
       "audio/mp4; codecs=\"mp4a.40.2\"; channels=6; bitrate=384000;";
@@ -333,7 +333,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        AudioCanPlayType_PassthroughAndResetAttributes) {
-  test_media_interface_.set_support_type(kSbMediaSupportTypeProbably);
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
 
   const char kAudioCustomMime[] =
       "audio/mp4; codecs=\"mp4a.40.2\"; channels=8; bitrate=768000; "
