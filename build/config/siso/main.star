@@ -10,11 +10,8 @@ load("@builtin//runtime.star", "runtime")
 load("@builtin//struct.star", "module")
 load("./backend_config/backend.star", "backend")
 load("./blink_all.star", "blink_all")
-<<<<<<< HEAD
-load("./config.star", "config")
-=======
 load("./cobalt.star", "cobalt")
->>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+load("./config.star", "config")
 load("./gn_logs.star", "gn_logs")
 load("./linux.star", chromium_linux = "chromium")
 load("./mac.star", chromium_mac = "chromium")
