@@ -14,7 +14,6 @@
 
 #include "media/base/starboard/sbmedia_interface.h"
 
-#include <cstring>
 #include <string>
 #include <vector>
 
@@ -27,7 +26,6 @@
 using ::testing::_;
 using ::testing::AnyOf;
 using ::testing::DoAll;
-using ::testing::Eq;
 using ::testing::IsNull;
 using ::testing::Return;
 using ::testing::SetArgPointee;
