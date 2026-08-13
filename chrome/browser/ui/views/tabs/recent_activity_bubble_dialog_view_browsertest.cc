@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/tabs/recent_activity_bubble_dialog_view.h"
 
+#include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
@@ -22,6 +23,7 @@
 #include "chrome/browser/ui/views/tabs/tab_group_editor_bubble_view.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_controller.h"
+#include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/collaboration/public/features.h"
@@ -89,6 +91,7 @@ RecentActivityAction GetRecentActivityActionFromCollaborationEvent(
     case CollaborationEvent::COLLABORATION_MEMBER_ADDED:
     case CollaborationEvent::COLLABORATION_MEMBER_REMOVED:
       return RecentActivityAction::kManageSharing;
+    case CollaborationEvent::VERSION_OUT_OF_DATE:
     case CollaborationEvent::UNDEFINED:
       return RecentActivityAction::kNone;
   }

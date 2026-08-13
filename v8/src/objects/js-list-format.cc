@@ -87,29 +87,33 @@ MaybeDirectHandle<JSListFormat> JSListFormat::New(
 
   // 10. Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]],
   // requestedLocales, opt, undefined, localeData).
-  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
-      Intl::ResolveLocale(isolate, JSListFormat::GetAvailableLocales(),
-                          requested_locales, matcher, {});
-  if (maybe_resolve_locale.IsNothing()) {
+  Intl::ResolvedLocale r;
+  if (!Intl::ResolveLocale(isolate, JSListFormat::GetAvailableLocales(),
+                           requested_locales, matcher, {})
+           .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
-  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
+
   DirectHandle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
 
   // 12. Let t be GetOption(options, "type", "string", «"conjunction",
   //    "disjunction", "unit"», "conjunction").
   Maybe<Type> maybe_type = GetStringOption<Type>(
-      isolate, options, "type", service, {"conjunction", "disjunction", "unit"},
-      {Type::CONJUNCTION, Type::DISJUNCTION, Type::UNIT}, Type::CONJUNCTION);
+      isolate, options, "type", service,
+      std::to_array<const std::string_view>(
+          {"conjunction", "disjunction", "unit"}),
+      std::array{Type::CONJUNCTION, Type::DISJUNCTION, Type::UNIT},
+      Type::CONJUNCTION);
   MAYBE_RETURN(maybe_type, MaybeDirectHandle<JSListFormat>());
   Type type_enum = maybe_type.FromJust();
 
   // 14. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
   Maybe<Style> maybe_style = GetStringOption<Style>(
-      isolate, options, "style", service, {"long", "short", "narrow"},
-      {Style::LONG, Style::SHORT, Style::NARROW}, Style::LONG);
+      isolate, options, "style", service,
+      std::to_array<const std::string_view>({"long", "short", "narrow"}),
+      std::array{Style::LONG, Style::SHORT, Style::NARROW}, Style::LONG);
   MAYBE_RETURN(maybe_style, MaybeDirectHandle<JSListFormat>());
   Style style_enum = maybe_style.FromJust();
 

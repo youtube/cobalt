@@ -12,11 +12,11 @@
 
 #include <algorithm>
 #include <array>
-#include <complex>
 #include <numeric>
 #include <vector>
 
 #include "api/array_view.h"
+#include "modules/audio_processing/agc2/rnn_vad/common.h"
 #include "modules/audio_processing/agc2/rnn_vad/test_utils.h"
 #include "modules/audio_processing/utility/pffft_wrapper.h"
 #include "rtc_base/numerics/safe_compare.h"

@@ -10,23 +10,27 @@
 
 #include "modules/audio_processing/aec3/comfort_noise_generator.h"
 
-// Defines WEBRTC_ARCH_X86_FAMILY, used below.
-#include "rtc_base/system/arch.h"
-
-#if defined(WEBRTC_ARCH_X86_FAMILY)
-#include <emmintrin.h>
-#endif
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
-#include <functional>
+#include <memory>
 #include <numbers>
 #include <numeric>
+#include <vector>
 
-#include "common_audio/signal_processing/include/signal_processing_library.h"
+#include "api/array_view.h"
+#include "api/audio/echo_canceller3_config.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/fft_data.h"
 #include "modules/audio_processing/aec3/vector_math.h"
-#include "rtc_base/checks.h"
+
+// Defines WEBRTC_ARCH_X86_FAMILY, used below.
+#include "rtc_base/system/arch.h"
+#if defined(WEBRTC_ARCH_X86_FAMILY)
+#include <emmintrin.h>
+#endif
 
 namespace webrtc {
 

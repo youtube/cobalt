@@ -927,11 +927,11 @@ static TransportDescription MakeTransportDescription(std::string ufrag,
                               ICEMODE_FULL, CONNECTIONROLE_NONE, &fingerprint);
 }
 
-static std::unique_ptr<JsepIceCandidate> NewCandidate(
+static std::unique_ptr<IceCandidate> NewCandidate(
     absl::string_view sdp,
     absl::string_view mid = kDummyMid,
     int index = kDummyIndex) {
-  return JsepIceCandidate::Create(mid, index, sdp);
+  return IceCandidate::Create(mid, index, sdp);
 }
 
 // WebRtcSdpTest
@@ -1059,7 +1059,7 @@ class WebRtcSdpTest : public ::testing::Test {
     candidates_.push_back(candidate12);
 
     jcandidate_.reset(
-        new JsepIceCandidate(std::string("audio_content_name"), 0, candidate1));
+        new IceCandidate(std::string("audio_content_name"), 0, candidate1));
 
     // Set up JsepSessionDescription.
     jdesc_.Initialize(desc_.Clone(), kSessionId, kSessionVersion);
@@ -1071,7 +1071,7 @@ class WebRtcSdpTest : public ::testing::Test {
       bool is_video = (i > 5);
       mline_id = is_video ? "video_content_name" : "audio_content_name";
       mline_index = is_video ? 1 : 0;
-      JsepIceCandidate jice(mline_id, mline_index, candidates_.at(i));
+      IceCandidate jice(mline_id, mline_index, candidates_.at(i));
       jdesc_.AddCandidate(&jice);
     }
   }
@@ -1498,8 +1498,8 @@ class WebRtcSdpTest : public ::testing::Test {
         return false;
       }
       for (size_t j = 0; j < cc1->count(); ++j) {
-        const IceCandidateInterface* c1 = cc1->at(j);
-        const IceCandidateInterface* c2 = cc2->at(j);
+        const IceCandidate* c1 = cc1->at(j);
+        const IceCandidate* c2 = cc2->at(j);
         EXPECT_EQ(c1->sdp_mid(), c2->sdp_mid());
         EXPECT_EQ(c1->sdp_mline_index(), c2->sdp_mline_index());
         EXPECT_TRUE(c1->candidate().IsEquivalent(c2->candidate()));
@@ -1951,7 +1951,7 @@ class WebRtcSdpTest : public ::testing::Test {
   VideoContentDescription* video_desc_;
   SctpDataContentDescription* sctp_desc_;
   std::vector<Candidate> candidates_;
-  std::unique_ptr<IceCandidateInterface> jcandidate_;
+  std::unique_ptr<IceCandidate> jcandidate_;
   JsepSessionDescription jdesc_;
 };
 
@@ -2177,20 +2177,20 @@ TEST_F(WebRtcSdpTest, SerializeCandidates) {
 
   Candidate candidate_with_ufrag(candidates_.front());
   candidate_with_ufrag.set_username("ABC");
-  jcandidate_.reset(new JsepIceCandidate(std::string("audio_content_name"), 0,
-                                         candidate_with_ufrag));
+  jcandidate_.reset(new IceCandidate(std::string("audio_content_name"), 0,
+                                     candidate_with_ufrag));
   message = SdpSerializeCandidate(*jcandidate_);
   EXPECT_EQ(std::string(kRawCandidate) + " ufrag ABC", message);
 
   Candidate candidate_with_network_info(candidates_.front());
   candidate_with_network_info.set_network_id(1);
-  jcandidate_.reset(new JsepIceCandidate(std::string("audio"), 0,
-                                         candidate_with_network_info));
+  jcandidate_.reset(
+      new IceCandidate(std::string("audio"), 0, candidate_with_network_info));
   message = SdpSerializeCandidate(*jcandidate_);
   EXPECT_EQ(std::string(kRawCandidate) + " network-id 1", message);
   candidate_with_network_info.set_network_cost(999);
-  jcandidate_.reset(new JsepIceCandidate(std::string("audio"), 0,
-                                         candidate_with_network_info));
+  jcandidate_.reset(
+      new IceCandidate(std::string("audio"), 0, candidate_with_network_info));
   message = SdpSerializeCandidate(*jcandidate_);
   EXPECT_EQ(std::string(kRawCandidate) + " network-id 1 network-cost 999",
             message);
@@ -2201,7 +2201,7 @@ TEST_F(WebRtcSdpTest, SerializeHostnameCandidate) {
   Candidate candidate(ICE_CANDIDATE_COMPONENT_RTP, "udp", address,
                       kCandidatePriority, "", "", IceCandidateType::kHost,
                       kCandidateGeneration, kCandidateFoundation1);
-  JsepIceCandidate jcandidate(std::string("audio_content_name"), 0, candidate);
+  IceCandidate jcandidate(std::string("audio_content_name"), 0, candidate);
   std::string message = SdpSerializeCandidate(jcandidate);
   EXPECT_EQ(std::string(kRawHostnameCandidate), message);
 }
@@ -2212,8 +2212,8 @@ TEST_F(WebRtcSdpTest, SerializeTcpCandidates) {
                       "", IceCandidateType::kHost, kCandidateGeneration,
                       kCandidateFoundation1);
   candidate.set_tcptype(TCPTYPE_ACTIVE_STR);
-  std::unique_ptr<IceCandidateInterface> jcandidate(
-      new JsepIceCandidate(std::string("audio_content_name"), 0, candidate));
+  std::unique_ptr<IceCandidate> jcandidate(
+      new IceCandidate(std::string("audio_content_name"), 0, candidate));
 
   std::string message = SdpSerializeCandidate(*jcandidate);
   EXPECT_EQ(std::string(kSdpTcpActiveCandidate), message);
@@ -2228,7 +2228,7 @@ TEST_F(WebRtcSdpTest, SerializeTcpCandidates) {
 TEST_F(WebRtcSdpTest, ParseTcpCandidateWithoutTcptype) {
   std::string missing_tcptype =
       "candidate:a0+B/1 1 tcp 2130706432 192.168.1.5 9999 typ host";
-  std::unique_ptr<JsepIceCandidate> jcandidate = NewCandidate(missing_tcptype);
+  std::unique_ptr<IceCandidate> jcandidate = NewCandidate(missing_tcptype);
   ASSERT_TRUE(jcandidate.get());
   EXPECT_EQ(std::string(TCPTYPE_PASSIVE_STR),
             jcandidate->candidate().tcptype());
@@ -2238,7 +2238,7 @@ TEST_F(WebRtcSdpTest, ParseSslTcpCandidate) {
   std::string ssltcp =
       "candidate:a0+B/1 1 ssltcp 2130706432 192.168.1.5 9999 typ host tcptype "
       "passive";
-  std::unique_ptr<JsepIceCandidate> jcandidate = NewCandidate(ssltcp);
+  std::unique_ptr<IceCandidate> jcandidate = NewCandidate(ssltcp);
   ASSERT_TRUE(jcandidate.get());
   EXPECT_EQ(std::string("ssltcp"), jcandidate->candidate().protocol());
 }
@@ -2572,7 +2572,7 @@ TEST_F(WebRtcSdpTest, DeserializeMediaContentDescriptionWithExtmapAllowMixed) {
 
 TEST_F(WebRtcSdpTest, DeserializeCandidate) {
   std::string sdp = kSdpOneCandidate;
-  std::unique_ptr<JsepIceCandidate> jcandidate = NewCandidate(sdp);
+  std::unique_ptr<IceCandidate> jcandidate = NewCandidate(sdp);
   ASSERT_TRUE(jcandidate.get());
   EXPECT_EQ(kDummyMid, jcandidate->sdp_mid());
   EXPECT_EQ(kDummyIndex, jcandidate->sdp_mline_index());
@@ -2616,8 +2616,8 @@ TEST_F(WebRtcSdpTest, DeserializeCandidate) {
                       SocketAddress("192.168.1.5", 9), kCandidatePriority, "",
                       "", IceCandidateType::kHost, kCandidateGeneration,
                       kCandidateFoundation1);
-  std::unique_ptr<IceCandidateInterface> jcandidate_template(
-      new JsepIceCandidate(std::string("audio_content_name"), 0, candidate));
+  std::unique_ptr<IceCandidate> jcandidate_template(
+      new IceCandidate(std::string("audio_content_name"), 0, candidate));
   EXPECT_TRUE(
       jcandidate->candidate().IsEquivalent(jcandidate_template->candidate()));
   ASSERT_TRUE(NewCandidate(kSdpTcpPassiveCandidate).get());

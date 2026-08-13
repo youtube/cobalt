@@ -349,29 +349,23 @@ SkIRect Mapping::map<SkIRect>(const SkIRect& geom, const SkMatrix& matrix) {
 
 template<>
 SkIPoint Mapping::map<SkIPoint>(const SkIPoint& geom, const SkMatrix& matrix) {
-    SkPoint p = SkPoint::Make(SkIntToScalar(geom.fX), SkIntToScalar(geom.fY));
-    matrix.mapPoints(&p, 1);
+    SkPoint p = matrix.mapPoint({SkIntToScalar(geom.fX), SkIntToScalar(geom.fY)});
     return SkIPoint::Make(SkScalarRoundToInt(p.fX), SkScalarRoundToInt(p.fY));
 }
 
 template<>
 SkPoint Mapping::map<SkPoint>(const SkPoint& geom, const SkMatrix& matrix) {
-    SkPoint p;
-    matrix.mapPoints(&p, &geom, 1);
-    return p;
+    return matrix.mapPoint(geom);
 }
 
 template<>
 Vector Mapping::map<Vector>(const Vector& geom, const SkMatrix& matrix) {
-    SkVector v = SkVector::Make(geom.fX, geom.fY);
-    matrix.mapVectors(&v, 1);
-    return Vector{v};
+    return Vector(matrix.mapVector({geom.fX, geom.fY}));
 }
 
 template<>
 IVector Mapping::map<IVector>(const IVector& geom, const SkMatrix& matrix) {
-    SkVector v = SkVector::Make(SkIntToScalar(geom.fX), SkIntToScalar(geom.fY));
-    matrix.mapVectors(&v, 1);
+    const SkVector v = matrix.mapVector({SkIntToScalar(geom.fX), SkIntToScalar(geom.fY)});
     return IVector(SkScalarRoundToInt(v.fX), SkScalarRoundToInt(v.fY));
 }
 
@@ -1443,7 +1437,7 @@ sk_sp<SkShader> FilterResult::getAnalyzedShaderView(
 
     if (analysis & BoundsAnalysis::kRequiresDecalInLayerSpace) {
         SkASSERT(fTileMode == SkTileMode::kDecal);
-        // TODO(skbug:12784) - As part of fully supporting subsets in image shaders, it probably
+        // TODO(skbug.com/40043877) - As part of fully supporting subsets in image shaders, it probably
         // makes sense to share the subset tiling logic that's in GrTextureEffect as dedicated
         // SkShaders. Graphite can then add those to its program as-needed vs. always doing
         // shader-based tiling, and CPU can have raster-pipeline tiling applied more flexibly than

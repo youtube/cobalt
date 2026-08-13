@@ -19,11 +19,13 @@
 #include "chrome/browser/ui/tabs/saved_tab_groups/tab_group_action_context_desktop.h"
 #include "chrome/browser/ui/views/data_sharing/account_card_view.h"
 #include "chrome/browser/ui/views/data_sharing/data_sharing_bubble_controller.h"
+#include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/collaboration/public/collaboration_service.h"
 #include "components/collaboration/public/service_status.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
+#include "components/signin/public/identity_manager/account_info.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/dialog_model.h"
 #include "ui/views/bubble/bubble_dialog_model_host.h"
@@ -130,11 +132,16 @@ void CollaborationControllerDelegateDesktop::ShowError(const ErrorInfo& error,
     return;
   }
 
+  DataSharingBubbleController::GetOrCreateForBrowser(browser_)->Close();
+
   ShowErrorDialog(error);
   error_ui_callback_ = std::move(result);
 }
 
 void CollaborationControllerDelegateDesktop::Cancel(ResultCallback result) {
+  if (browser_) {
+    DataSharingBubbleController::GetOrCreateForBrowser(browser_)->Close();
+  }
   MaybeCloseDialogs();
   std::move(result).Run(CollaborationControllerDelegate::Outcome::kSuccess);
 }
@@ -159,9 +166,7 @@ void CollaborationControllerDelegateDesktop::ShowJoinDialog(
   }
   auto* controller =
       DataSharingBubbleController::GetOrCreateForBrowser(browser_);
-  controller->SetOnCloseCallback(base::BindOnce(
-      &CollaborationControllerDelegateDesktop::OnJoinDialogClosing,
-      weak_ptr_factory_.GetWeakPtr(), std::move(result)));
+  controller->SetJoinCallback(std::move(result));
   controller->SetShowErrorDialogCallback(base::BindOnce(
       &CollaborationControllerDelegateDesktop::ShowErrorDialog,
       weak_ptr_factory_.GetWeakPtr(), ErrorInfo(ErrorInfo::Type::kUnknown)));
@@ -262,6 +267,9 @@ void CollaborationControllerDelegateDesktop::PromoteTabGroup(
   if (!browser_) {
     return;
   }
+
+  DataSharingBubbleController::GetOrCreateForBrowser(browser_)->Close();
+
   // Open tab group by group id.
   tab_groups::TabGroupSyncService* tab_group_sync_service =
       tab_groups::TabGroupSyncServiceFactory::GetForProfile(
@@ -319,22 +327,6 @@ void CollaborationControllerDelegateDesktop::OnBrowserClosing(
     browser_ = nullptr;
     ExitFlow();
   }
-}
-
-void CollaborationControllerDelegateDesktop::OnJoinDialogClosing(
-    ResultCallback result,
-    std::optional<data_sharing::mojom::GroupAction> action,
-    std::optional<data_sharing::mojom::GroupActionProgress> progress) {
-  // Joins flow should end when the shared tab group is open after join
-  // or cancel without joining.
-  CollaborationControllerDelegate::Outcome outcome =
-      CollaborationControllerDelegate::Outcome::kCancel;
-  if (action == data_sharing::mojom::GroupAction::kJoinGroup &&
-      progress == data_sharing::mojom::GroupActionProgress::kSuccess) {
-    outcome = CollaborationControllerDelegate::Outcome::kSuccess;
-  }
-
-  std::move(result).Run(outcome);
 }
 
 void CollaborationControllerDelegateDesktop::OnManageDialogClosing(
@@ -494,8 +486,6 @@ void CollaborationControllerDelegateDesktop::MaybeCloseDialogs() {
   if (!browser_) {
     return;
   }
-
-  DataSharingBubbleController::GetOrCreateForBrowser(browser_)->Close();
 
   if (prompt_dialog_widget_) {
     if (!prompt_dialog_widget_->IsClosed()) {

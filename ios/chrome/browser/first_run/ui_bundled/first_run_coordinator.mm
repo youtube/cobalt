@@ -20,6 +20,7 @@
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_context_style.h"
 #import "ios/chrome/browser/docking_promo/coordinator/docking_promo_coordinator.h"
 #import "ios/chrome/browser/first_run/model/first_run_metrics.h"
+#import "ios/chrome/browser/first_run/ui_bundled/animated_lens/coordinator/animated_lens_promo_coordinator.h"
 #import "ios/chrome/browser/first_run/ui_bundled/best_features/coordinator/best_features_screen_coordinator.h"
 #import "ios/chrome/browser/first_run/ui_bundled/default_browser/default_browser_screen_coordinator.h"
 #import "ios/chrome/browser/first_run/ui_bundled/features.h"
@@ -208,6 +209,16 @@ class FirstRunCoordinatorMetricsHelper final {
       lensInteractivePromoCoordinator.firstRunDelegate = self;
       return lensInteractivePromoCoordinator;
     }
+    case kLensAnimatedPromo: {
+      AnimatedLensPromoCoordinator* lensAnimatedPromoCoordinator =
+          [[AnimatedLensPromoCoordinator alloc]
+              initWithBaseNavigationController:self.navigationController
+                                       browser:self.browser];
+      lensAnimatedPromoCoordinator.firstRunDelegate = self;
+      return lensAnimatedPromoCoordinator;
+    }
+    case kGuidedTour:
+    case kSafariImport:
     case kStepsCompleted:
       NOTREACHED() << "Reaches kStepsCompleted unexpectedly.";
   }

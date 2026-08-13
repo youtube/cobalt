@@ -475,10 +475,9 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   return media_time;
 }
 
-void StarboardRenderer::OnTracksChanged(
-    DemuxerStream::Type track_type,
-    std::vector<DemuxerStream*> enabled_tracks,
-    base::OnceClosure change_completed_cb) {
+void StarboardRenderer::OnTracksChanged(DemuxerStream::Type track_type,
+                                        DemuxerStream* enabled_tracks,
+                                        base::OnceClosure change_completed_cb) {
   LOG(INFO) << "OnTracksChanged not supported for type: " << track_type;
   std::move(change_completed_cb).Run();
 }

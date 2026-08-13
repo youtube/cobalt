@@ -259,7 +259,7 @@
 #include "components/payments/content/payment_request_display_manager.h"
 #include "components/payments/content/secure_payment_confirmation_service_factory.h"
 #include "components/pdf/common/pdf_util.h"
-#include "components/permissions/permission_context_base.h"
+#include "components/permissions/content_setting_permission_context_base.h"
 #include "components/policy/content/policy_blocklist_service.h"
 #include "components/policy/core/common/management/management_service.h"
 #include "components/policy/core/common/policy_pref_names.h"
@@ -625,6 +625,7 @@
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "extensions/browser/api/web_request/web_request_proxying_webtransport.h"
+#include "extensions/common/user_script.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 #if BUILDFLAG(ENABLE_GUEST_VIEW)
@@ -1474,12 +1475,6 @@ void ChromeContentBrowserClient::RegisterProfilePrefs(
       policy::policy_prefs::kCSSCustomStateDeprecatedSyntaxEnabled,
       /*default_value=*/false);
 
-  registry->RegisterBooleanPref(
-      policy::policy_prefs::kSelectParserRelaxationEnabled,
-      /*default_value=*/true);
-
-  registry->RegisterBooleanPref(
-      policy::policy_prefs::kKeyboardFocusableScrollersEnabled, true);
   registry->RegisterBooleanPref(
       policy::policy_prefs::kStandardizedBrowserZoomEnabled, true);
 
@@ -2784,11 +2779,6 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
       }
 
       if (!prefs->GetBoolean(
-              policy::policy_prefs::kKeyboardFocusableScrollersEnabled)) {
-        command_line->AppendSwitch(
-            blink::switches::kKeyboardFocusableScrollersOptOut);
-      }
-      if (!prefs->GetBoolean(
               policy::policy_prefs::kStandardizedBrowserZoomEnabled)) {
         command_line->AppendSwitch(
             blink::switches::kDisableStandardizedBrowserZoom);
@@ -2797,11 +2787,6 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
               policy::policy_prefs::kCSSCustomStateDeprecatedSyntaxEnabled)) {
         command_line->AppendSwitch(
             blink::switches::kCSSCustomStateDeprecatedSyntaxEnabled);
-      }
-      if (!prefs->GetBoolean(
-              policy::policy_prefs::kSelectParserRelaxationEnabled)) {
-        command_line->AppendSwitch(
-            blink::switches::kDisableSelectParserRelaxation);
       }
 
       if (prefs->GetBoolean(policy::policy_prefs::
@@ -3397,9 +3382,10 @@ ChromeContentBrowserClient::AllowWebBluetooth(
   // base::CommandLine::ForCurrentProcess()->
   // HasSwitch(switches::kEnableWebBluetooth) is true.
   if (base::GetFieldTrialParamValue(
-          permissions::PermissionContextBase::kPermissionsKillSwitchFieldStudy,
-          "Bluetooth") ==
-      permissions::PermissionContextBase::kPermissionsKillSwitchBlockedValue) {
+          permissions::ContentSettingPermissionContextBase::
+              kPermissionsKillSwitchFieldStudy,
+          "Bluetooth") == permissions::ContentSettingPermissionContextBase::
+                              kPermissionsKillSwitchBlockedValue) {
     // The kill switch is enabled for this permission. Block requests.
     return AllowWebBluetoothResult::BLOCK_GLOBALLY_DISABLED;
   }
@@ -4434,9 +4420,10 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
       Profile::FromBrowserContext(web_contents->GetBrowserContext());
   PrefService* prefs = profile->GetPrefs();
 
-// Fill font preferences. These are not registered on Android
+// Fill font preferences. These are not registered on Android unless we're built
+// with extensions (the chrome.fontSettings API can change these).
 // - http://crbug.com/308033, http://crbug.com/696364.
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
   // Enabling the FontFamilyCache needs some KeyedService that might not be
   // available for some irregular profiles, like the System Profile.
   if (!AreKeyedServicesDisabledForProfileByDefault(profile)) {
@@ -5041,13 +5028,28 @@ void ChromeContentBrowserClient::GetAdditionalMappedFilesForChildProcess(
   fd = ui::GetCommonResourcesPackFd(&region);
   mappings->ShareWithRegion(kAndroidChrome100PercentPakDescriptor, fd, region);
 
-  fd = ui::GetLocalePackFd(&region);
-  mappings->ShareWithRegion(kAndroidLocalePakDescriptor, fd, region);
+  // There are (up to) 2 locale paks for Clank. One contains all the strings
+  // that exist in WebView, and is shared with WebView. The other contains all
+  // the strings that are present in Clank but not WebView.
+  //
+  // Note that in the near future when we introduce gendered locales, we will
+  // have up to 4 locale paks here: WebView-gendered, non-WebView-gendered,
+  // WebView-fallback, and non-WebView-fallback. The "fallback" paks are for the
+  // default gender, and will be read from if a particular string doesn't exist
+  // in the corresponding gendered pak.
+  const std::vector<ui::ResourceBundle::FdAndRegion>& locale_paks =
+      ui::GetLocalePaks();
+  CHECK_GE(locale_paks.size(), 1u);
+  CHECK_LE(locale_paks.size(), 2u);
+
+  mappings->ShareWithRegion(kAndroidLocalePakDescriptor, locale_paks.at(0).fd,
+                            locale_paks.at(0).region);
 
   // Optional secondary locale .pak file.
-  fd = ui::GetSecondaryLocalePackFd(&region);
-  if (fd != -1) {
-    mappings->ShareWithRegion(kAndroidSecondaryLocalePakDescriptor, fd, region);
+  if (locale_paks.size() == 2) {
+    CHECK_GE(locale_paks.at(1).fd, 0);
+    mappings->ShareWithRegion(kAndroidSecondaryLocalePakDescriptor,
+                              locale_paks.at(1).fd, locale_paks.at(1).region);
   }
 
   base::FilePath app_data_path;
@@ -5614,12 +5616,6 @@ ChromeContentBrowserClient::MaybeCreateSafeBrowsingURLLoaderThrottle(
       safe_browsing::RealTimePolicyEngine::CanPerformEnterpriseFullURLLookup(
           profile->GetPrefs(), has_valid_dm_token, profile->IsOffTheRecord(),
           profile->IsGuestSession());
-#if BUILDFLAG(IS_ANDROID)
-  is_enterprise_lookup_enabled =
-      is_enterprise_lookup_enabled &&
-      base::FeatureList::IsEnabled(
-          safe_browsing::kEnterpriseRealTimeUrlCheckOnAndroid);
-#endif
   bool is_consumer_lookup_enabled =
       safe_browsing::RealTimePolicyEngine::CanPerformFullURLLookup(
           profile->GetPrefs(), profile->IsOffTheRecord(),
@@ -5652,17 +5648,13 @@ ChromeContentBrowserClient::MaybeCreateSafeBrowsingURLLoaderThrottle(
   std::optional<safe_browsing::internal::ReferringAppInfo> referring_app_info =
       std::nullopt;
 #if BUILDFLAG(IS_ANDROID)
-  if (safe_browsing::IsEnhancedProtectionEnabled(*profile->GetPrefs()) &&
-      base::FeatureList::IsEnabled(
-          safe_browsing::kAddReferringAppInfoToProtegoPings)) {
-    bool get_webapk_info = base::FeatureList::IsEnabled(
-        safe_browsing::kAddReferringWebApkToProtegoPings);
+  if (safe_browsing::IsEnhancedProtectionEnabled(*profile->GetPrefs())) {
     WebContents* web_contents = wc_getter.Run();
     if (web_contents) {
       referring_app_info =
           std::make_optional<safe_browsing::internal::ReferringAppInfo>(
               safe_browsing::GetReferringAppInfo(web_contents,
-                                                 get_webapk_info));
+                                                 /*get_webapk_info=*/true));
     }
   }
 #endif

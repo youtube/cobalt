@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/infobars/confirm_infobar.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -66,9 +67,8 @@ ConfirmInfoBar::ConfirmInfoBar(std::unique_ptr<ConfirmInfoBarDelegate> delegate)
                                 kCancelButtonElementId);
   }
 
-  // TODO(crbug.com/378107817): It seems like link_ isn't always needed, but
-  // it's added regardless. See about only adding when necessary.
-  link_ = AddChildView(CreateLink(delegate_ptr->GetLinkText()));
+  link_ = AddChildView(CreateLink(delegate_ptr->GetLinkText(),
+                                  delegate_ptr->GetLinkAccessibleText()));
 }
 
 ConfirmInfoBar::~ConfirmInfoBar() = default;

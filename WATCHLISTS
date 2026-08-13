@@ -1165,6 +1165,7 @@
                   'content/browser/media/.*(cdm|key_system|media_license|encrypted)|' \
                   'media/base/android/.*drm|' \
                   'media/cdm/|' \
+                  'media/mojo/services/.*(cdm|drm|media_foundation)|' \
                   'third_party/widevine/cdm/' \
                   'third_party/blink/web_tests/external/wpt/encrypted-media/'
     },
@@ -2507,7 +2508,8 @@
                                            'shannc+watch@chromium.org'],
     'accessibility_features_ash': ['hirokisato+watch@chromium.org',
                                    'katie+watch@chromium.org'],
-    'accessibility_minimal_core': ['aleventhal+watcha11y@chromium.org'],
+      'accessibility_minimal_core': ['aleventhal+watcha11y@chromium.org',
+        'lucasradaelli+watch@google.com'],
     'accessibility_reading': ['lwinston+watch-readinga11y@google.com',
                               'trewin+watch@google.com'],
     'accessibility_service': ['hirokisato+watch@chromium.org',

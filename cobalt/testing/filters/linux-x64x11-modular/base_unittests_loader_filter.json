@@ -6,6 +6,7 @@
     "AsanBackupRefPtrTest.EarlyAllocationDetection",
     "CancelableEventTest.BothCancelFailureAndSucceedOccurUnderContention",
     "CharacterEncodingTest.GetCanonicalEncodingNameByAliasName",
+    "CriticalProcessAndThreadSpotChecks/HangWatcherAnyCriticalThreadTests.AnyCriticalThreadHung/*",
     "FileEnumerator.*",
     "FilePathTest.*",
     "FilePathWatcherWithChangeInfoTest.DeletedFileInDirectory/3",

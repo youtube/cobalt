@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <iterator>
 
+#include "api/array_view.h"
 #include "api/audio/audio_processing.h"
 #include "rtc_base/checks.h"
 

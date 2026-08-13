@@ -23,11 +23,14 @@ class BaseDialogUIDelegate {
   virtual ~BaseDialogUIDelegate() = default;
 
   virtual void ResizeNativeView(int height) = 0;
-  virtual void ShowNativeView() = 0;
+  virtual BrowserWindowInterface* GetBrowser() = 0;
+  virtual void ShowNativeView(base::OnceCallback<void()> callback) = 0;
   virtual void CloseNativeView() = 0;
   virtual notice::mojom::PrivacySandboxNotice GetPrivacySandboxNotice() = 0;
   virtual void SetPrivacySandboxNotice(
       notice::mojom::PrivacySandboxNotice notice) = 0;
+  virtual void OpenPrivacySandboxSettings() = 0;
+  virtual void OpenPrivacySandboxAdMeasurementSettings() = 0;
 };
 
 // MojoWebUIController for Privacy Sandbox Base Dialog

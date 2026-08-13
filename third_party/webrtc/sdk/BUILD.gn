@@ -1208,6 +1208,7 @@ if (is_ios || is_mac) {
             ":videoframebuffer_objc",
             ":videosource_objc",
             ":videotoolbox_objc",
+            "../api:array_view",
             "../api:libjingle_peerconnection_api",
             "../api:rtc_error_matchers",
             "../api:scoped_refptr",
@@ -1226,7 +1227,6 @@ if (is_ios || is_mac) {
             "../media:rtc_media_tests_utils",
             "../modules/video_coding:video_codec_interface",
             "../rtc_base:gunit_helpers",
-            "../rtc_base:macromagic",
             "../rtc_base:refcount",
             "../rtc_base:rtc_event",
             "../rtc_base/system:unused",
@@ -1741,6 +1741,7 @@ if (is_ios || is_mac) {
         "objc/components/video_codec/nalu_rewriter.h",
       ]
       deps = [
+        "../api:array_view",
         "../common_video",
         "../modules/video_coding:webrtc_h264",
         "../rtc_base:buffer",
@@ -1779,6 +1780,8 @@ if (is_ios || is_mac) {
         ":video_toolbox_cc",
         ":videocodec_objc",
         ":videoframebuffer_objc",
+        "../api:array_view",
+        "../api/video:video_rtp_headers",
         "../api/video_codecs:video_codecs_api",
         "../common_video",
         "../modules/video_coding:video_codec_interface",

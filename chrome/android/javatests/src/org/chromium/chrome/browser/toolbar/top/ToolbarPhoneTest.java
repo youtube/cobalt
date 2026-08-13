@@ -86,7 +86,6 @@ import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonDataImpl;
 import org.chromium.chrome.browser.toolbar.optional_button.OptionalButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.top.ToolbarPhone.VisualState;
-import org.chromium.chrome.browser.ui.appmenu.AppMenuCoordinator;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
 import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
@@ -226,7 +225,7 @@ public class ToolbarPhoneTest {
                     // Has to be created on the main thread.
                     MenuButtonCoordinator realMenuButtonCoordinator =
                             new MenuButtonCoordinator(
-                                    new OneshotSupplierImpl<AppMenuCoordinator>(),
+                                    new OneshotSupplierImpl<>(),
                                     new TestControlsVisibilityDelegate(),
                                     mActivityTestRule.getActivity().getWindowAndroid(),
                                     mFocusFunction,
@@ -236,7 +235,8 @@ public class ToolbarPhoneTest {
                                     mThemeColorProvider,
                                     () -> null,
                                     CallbackUtils.emptyRunnable(),
-                                    R.id.menu_button_wrapper);
+                                    R.id.menu_button_wrapper,
+                                    null);
                     mToolbar.setMenuButtonCoordinatorForTesting(realMenuButtonCoordinator);
                     mToolbar.updateOptionalButton(
                             new ButtonDataImpl(

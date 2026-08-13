@@ -11,6 +11,8 @@
 #include "modules/audio_processing/agc2/interpolated_gain_curve.h"
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
 #include <iterator>
 
 #include "absl/strings/string_view.h"
@@ -18,6 +20,7 @@
 #include "modules/audio_processing/logging/apm_data_dumper.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
+#include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
 

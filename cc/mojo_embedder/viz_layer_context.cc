@@ -220,8 +220,7 @@ void ComputePropertyTreeNodeUpdate(
   wire->clip_id = new_node.clip_id;
   wire->element_id = new_node.element_id;
   wire->opacity = new_node.opacity;
-  wire->has_render_surface =
-      new_node.render_surface_reason != RenderSurfaceReason::kNone;
+  wire->render_surface_reason = new_node.render_surface_reason;
   wire->surface_contents_scale = new_node.surface_contents_scale;
   wire->subtree_capture_id = new_node.subtree_capture_id;
   wire->subtree_size = new_node.subtree_size;
@@ -427,12 +426,16 @@ viz::mojom::ScrollTreeUpdatePtr ComputeScrollTreePropertiesUpdate(
     const ScrollTree& old_tree,
     const ScrollTree& new_tree) {
   if (old_tree.synced_scroll_offset_map() ==
-      new_tree.synced_scroll_offset_map()) {
+          new_tree.synced_scroll_offset_map() &&
+      old_tree.scrolling_contents_cull_rects() ==
+          new_tree.scrolling_contents_cull_rects()) {
     return nullptr;
   }
 
   auto wire = viz::mojom::ScrollTreeUpdate::New();
   wire->synced_scroll_offsets = new_tree.synced_scroll_offset_map();
+  wire->scrolling_contents_cull_rects =
+      new_tree.scrolling_contents_cull_rects();
 
   return wire;
 }
@@ -822,6 +825,8 @@ void SerializeLayer(LayerImpl& layer,
       break;
     }
     case mojom::LayerType::kPicture: {
+      // kPicture layers become kTileDisplay layers in Viz.
+      wire.type = mojom::LayerType::kTileDisplay;
       PictureLayerImpl& picture_layer = static_cast<PictureLayerImpl&>(layer);
       wire.is_backdrop_filter_mask = picture_layer.is_backdrop_filter_mask();
 
@@ -1162,6 +1167,8 @@ void VizLayerContext::UpdateDisplayTreeFrom(
   if (tree.local_surface_id_from_parent().is_valid()) {
     update->local_surface_id_from_parent = tree.local_surface_id_from_parent();
   }
+  update->new_local_surface_id_request =
+      tree.TakeNewLocalSurfaceIdRequestForVizProcess();
   update->background_color = tree.background_color();
 
   const ViewportPropertyIds& property_ids = tree.viewport_property_ids();

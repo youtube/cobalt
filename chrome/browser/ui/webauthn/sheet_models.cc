@@ -876,6 +876,13 @@ void AuthenticatorClientPinEntrySheetModel::OnAccept() {
   }
 }
 
+bool AuthenticatorClientPinEntrySheetModel::IsOtherMechanismButtonVisible()
+    const {
+  // Always allow restarting the request to select a different security key or
+  // hybrid authenticator.
+  return true;
+}
+
 // AuthenticatorClientPinTapAgainSheetModel ----------------------
 
 AuthenticatorClientPinTapAgainSheetModel::
@@ -2176,7 +2183,9 @@ void CombinedSelectorSheetModel::SetSelectionIndex(size_t index) {
 }
 
 std::u16string CombinedSelectorSheetModel::GetStepTitle() const {
-  return u"";
+  return l10n_util::GetStringFUTF16(
+      IDS_WEBAUTHN_SIGN_IN_TO_WEBSITE_DIALOG_TITLE,
+      base::UTF8ToUTF16(dialog_model()->relying_party_id));
 }
 
 std::u16string CombinedSelectorSheetModel::GetStepDescription() const {

@@ -11,10 +11,14 @@
 #ifndef MODULES_DESKTOP_CAPTURE_WIN_FULL_SCREEN_WIN_APPLICATION_HANDLER_H_
 #define MODULES_DESKTOP_CAPTURE_WIN_FULL_SCREEN_WIN_APPLICATION_HANDLER_H_
 
-#include <memory>
+#include <windows.h>
 
+#include <cstdint>
+#include <memory>
+#include <string>
+
+#include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/full_screen_application_handler.h"
-#include "modules/desktop_capture/win/window_capture_utils.h"
 
 namespace webrtc {
 

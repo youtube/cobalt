@@ -15,6 +15,7 @@
 #import "base/ios/ios_util.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/metrics/user_metrics.h"
+#import "base/strings/string_number_conversions.h"
 #import "base/strings/string_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/google/core/common/google_util.h"
@@ -721,10 +722,9 @@ bool AreIssuesEqual(const std::vector<password_manager::AffiliatedGroup>& lhs,
   _trustedVaultWidgetPromoItem =
       [[InlinePromoItem alloc] initWithType:ItemTypeTrustedVaultWidgetPromo];
   _trustedVaultWidgetPromoItem.shouldShowCloseButton = NO;
-  // TODO(crbug.com/407605858): Update this image based on the UX
-  // recommendation.
+  _trustedVaultWidgetPromoItem.shouldDisplayBadge = NO;
   _trustedVaultWidgetPromoItem.promoImage =
-      [UIImage imageNamed:WidgetPromoImageName()];
+      [UIImage imageNamed:kPasswordManagerTrustedVaultWidgetPromoImage];
   _trustedVaultWidgetPromoItem.promoText = l10n_util::GetNSStringF(
       IDS_IOS_IDENTITY_ERROR_INFOBAR_KEEP_USING_PASSWORDS_MESSAGE_WITH_EMAIL,
       _userEmail);
@@ -1544,10 +1544,10 @@ bool AreIssuesEqual(const std::vector<password_manager::AffiliatedGroup>& lhs,
   }
 
   self.trustedVaultWidgetPromoItem.enabled = enabled;
-  // TODO(crbug.com/407605858): Update images based on the UX recommendation.
-  self.trustedVaultWidgetPromoItem.promoImage =
-      [UIImage imageNamed:enabled ? WidgetPromoImageName()
-                                  : WidgetPromoDisabledImageName()];
+  self.trustedVaultWidgetPromoItem.promoImage = [UIImage
+      imageNamed:enabled
+                     ? kPasswordManagerTrustedVaultWidgetPromoImage
+                     : kPasswordManagerTrustedVaultWidgetPromoDisabledImage];
   [self reconfigureCellsForItems:@[ self.trustedVaultWidgetPromoItem ]];
 }
 

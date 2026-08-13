@@ -114,8 +114,6 @@
     }
   },
   {"name": "Build-Mac-Clang-arm64-Debug-iOS_Metal"},
-  {"name": "Build-Mac-Clang-arm64-Debug-iOS_iOS12"},
-  {"name": "Build-Mac-Clang-arm64-Debug-iOS_iOS12_Metal"},
   {"name": "Build-Mac-Clang-arm64-Release"},
   {"name": "Build-Mac-Clang-arm64-Release-ANGLE"},
   {"name": "Build-Mac-Clang-arm64-Release-Graphite_Dawn_Metal"},
@@ -150,8 +148,6 @@
     "name": "Build-Mac-Clang-arm64-Release-iOS_Metal",
     "cq_config": {}
   },
-  {"name": "Build-Mac-Clang-arm64-Release-iOS_iOS12"},
-  {"name": "Build-Mac-Clang-arm64-Release-iOS_iOS12_Metal"},
   {"name": "Build-Mac-Clang-x64-Release-iOS"},
   {"name": "Build-Mac-Clang-x86_64-Debug"},
   {"name": "Build-Mac-Clang-x86_64-Debug-ANGLE"},
@@ -556,7 +552,7 @@
   {"name": "Perf-ChromeOS-Clang-Octopus-GPU-IntelUHDGraphics600-x86_64-Release-All"},
   {"name": "Perf-ChromeOS-Clang-Trogdor-GPU-Adreno618-arm64-Release-All"},
   {
-    "name": "Perf-Mac10.15.7-Clang-MacBookPro11.5-GPU-RadeonHD8870M-x86_64-Release-All-Graphite_Native_Metal",
+    "name": "Perf-Mac11-Clang-MacBookPro11.5-GPU-RadeonHD8870M-x86_64-Release-All-Graphite_Native_Metal",
     "cq_config": {
       "location_regexes": [
         "(tests|src/gpu)/graphite/.*",
@@ -564,7 +560,7 @@
       ]
     }
   },
-  {"name": "Perf-Mac10.15.7-Clang-MacBookPro11.5-GPU-RadeonHD8870M-x86_64-Release-All-Metal"},
+  {"name": "Perf-Mac11-Clang-MacBookPro11.5-GPU-RadeonHD8870M-x86_64-Release-All-Metal"},
   {"name": "Perf-Mac13-Clang-MacBookPro15.3-GPU-AppleM3-arm64-Debug-All"},
   {"name": "Perf-Mac13-Clang-MacBookPro15.3-GPU-AppleM3-arm64-Debug-All-Graphite_Native_Metal"},
   {"name": "Perf-Mac13-Clang-MacBookPro15.3-GPU-AppleM3-arm64-Debug-All-Metal"},
@@ -651,8 +647,6 @@
   {"name": "Perf-iOS-Clang-iPhone7-GPU-PowerVRGT7600-arm64-Release-All-Metal"},
   {"name": "Perf-iOS-Clang-iPhone8-GPU-AppleA11-arm64-Release-All"},
   {"name": "Perf-iOS-Clang-iPhone8-GPU-AppleA11-arm64-Release-All-Metal"},
-  {"name": "Perf-iOS-Clang-iPhone8-GPU-AppleA11-arm64-Release-All-iOS12"},
-  {"name": "Perf-iOS-Clang-iPhone8-GPU-AppleA11-arm64-Release-All-iOS12_Metal"},
   {"name": "Perf-iOS18-Clang-iPhone11-GPU-AppleA13-arm64-Release-All"},
   {"name": "Perf-iOS18-Clang-iPhone11-GPU-AppleA13-arm64-Release-All-Metal"},
   {"name": "Perf-iOS18-Clang-iPhone15Pro-GPU-AppleA17-arm64-Release-All"},
@@ -752,7 +746,7 @@
   {"name": "Test-ChromeOS-Clang-Trogdor-GPU-Adreno618-arm64-Debug-All"},
   {"name": "Test-ChromeOS-Clang-Trogdor-GPU-Adreno618-arm64-Release-All"},
   {
-    "name": "Test-Mac10.15.7-Clang-MacBookPro11.5-GPU-RadeonHD8870M-x86_64-Debug-All-Graphite_Native_Metal",
+    "name": "Test-Mac11-Clang-MacBookPro11.5-GPU-RadeonHD8870M-x86_64-Debug-All-Graphite_Native_Metal",
     "cq_config": {
       "location_regexes": [
         "(tests|src/gpu)/graphite/.*",
@@ -762,11 +756,10 @@
       ]
     }
   },
-  {"name": "Test-Mac10.15.7-Clang-MacBookPro11.5-GPU-RadeonHD8870M-x86_64-Debug-All-Metal"},
-  {"name": "Test-Mac10.15.7-Clang-MacBookPro11.5-GPU-RadeonHD8870M-x86_64-Debug-All-Metal_ColorSpaces"},
-  {"name": "Test-Mac10.15.7-Clang-MacBookPro11.5-GPU-RadeonHD8870M-x86_64-Release-All-Metal"},
-  {"name": "Test-Mac10.15.7-Clang-MacBookPro11.5-GPU-RadeonHD8870M-x86_64-Release-All-Metal_ColorSpaces"},
-  {"name": "Test-Mac10.15.7-Clang-VMware7.1-CPU-AVX-x86_64-Debug-All-NativeFonts"},
+  {"name": "Test-Mac11-Clang-MacBookPro11.5-GPU-RadeonHD8870M-x86_64-Debug-All-Metal"},
+  {"name": "Test-Mac11-Clang-MacBookPro11.5-GPU-RadeonHD8870M-x86_64-Debug-All-Metal_ColorSpaces"},
+  {"name": "Test-Mac11-Clang-MacBookPro11.5-GPU-RadeonHD8870M-x86_64-Release-All-Metal"},
+  {"name": "Test-Mac11-Clang-MacBookPro11.5-GPU-RadeonHD8870M-x86_64-Release-All-Metal_ColorSpaces"},
   {"name": "Test-Mac13-Clang-MacBookPro15.3-GPU-AppleM3-arm64-Debug-All"},
   {"name": "Test-Mac13-Clang-MacBookPro15.3-GPU-AppleM3-arm64-Debug-All-ANGLE"},
   {"name": "Test-Mac13-Clang-MacBookPro15.3-GPU-AppleM3-arm64-Debug-All-Graphite_Native_Metal"},
@@ -1078,12 +1071,8 @@
   {"name": "Test-iOS-Clang-iPhone7-GPU-PowerVRGT7600-arm64-Release-All-Metal"},
   {"name": "Test-iOS-Clang-iPhone8-GPU-AppleA11-arm64-Debug-All"},
   {"name": "Test-iOS-Clang-iPhone8-GPU-AppleA11-arm64-Debug-All-Metal"},
-  {"name": "Test-iOS-Clang-iPhone8-GPU-AppleA11-arm64-Debug-All-iOS12"},
-  {"name": "Test-iOS-Clang-iPhone8-GPU-AppleA11-arm64-Debug-All-iOS12_Metal"},
   {"name": "Test-iOS-Clang-iPhone8-GPU-AppleA11-arm64-Release-All"},
   {"name": "Test-iOS-Clang-iPhone8-GPU-AppleA11-arm64-Release-All-Metal"},
-  {"name": "Test-iOS-Clang-iPhone8-GPU-AppleA11-arm64-Release-All-iOS12"},
-  {"name": "Test-iOS-Clang-iPhone8-GPU-AppleA11-arm64-Release-All-iOS12_Metal"},
   {"name": "Test-iOS18-Clang-iPhone11-GPU-AppleA13-arm64-Debug-All"},
   {"name": "Test-iOS18-Clang-iPhone11-GPU-AppleA13-arm64-Debug-All-Metal"},
   {"name": "Test-iOS18-Clang-iPhone11-GPU-AppleA13-arm64-Release-All"},

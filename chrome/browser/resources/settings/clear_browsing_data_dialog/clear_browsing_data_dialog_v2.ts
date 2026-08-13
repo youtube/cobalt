@@ -18,11 +18,14 @@ import './clear_browsing_data_time_picker.js';
 import './history_deletion_dialog.js';
 import './other_google_data_dialog.js';
 
+import type {SyncBrowserProxy, SyncStatus} from '/shared/settings/people_page/sync_browser_proxy.js';
+import {SyncBrowserProxyImpl} from '/shared/settings/people_page/sync_browser_proxy.js';
 import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 import {assert} from 'chrome://resources/js/assert.js';
+import {FocusOutlineManager} from 'chrome://resources/js/focus_outline_manager.js';
 import {afterNextRender, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import type {SettingsCheckboxElement} from '../controls/settings_checkbox.js';
@@ -31,6 +34,7 @@ import {loadTimeData} from '../i18n_setup.js';
 import type {ClearBrowsingDataBrowserProxy} from './clear_browsing_data_browser_proxy.js';
 import {BrowsingDataType, ClearBrowsingDataBrowserProxyImpl} from './clear_browsing_data_browser_proxy.js';
 import {getTemplate} from './clear_browsing_data_dialog_v2.html.js';
+import {canDeleteAccountData} from './clear_browsing_data_signin_util.js';
 import type {SettingsClearBrowsingDataTimePicker} from './clear_browsing_data_time_picker.js';
 
 /**
@@ -145,6 +149,11 @@ export class SettingsClearBrowsingDataDialogV2Element extends
         value: false,
       },
 
+      deleteButtonLabel_: {
+        type: String,
+        computed: 'computeDeleteButtonLabel_(syncStatus_.signedInState)',
+      },
+
       isDeletionInProgress_: {
         type: Boolean,
         value: false,
@@ -168,10 +177,13 @@ export class SettingsClearBrowsingDataDialogV2Element extends
       expandedBrowsingDataTypeOptionsList_: Array,
 
       moreBrowsingDataTypeOptionsList_: Array,
+
+      syncStatus_: Object,
     };
   }
 
   declare private dataTypesExpanded_: boolean;
+  declare private deleteButtonLabel_: string;
   declare private isDeletionInProgress_: boolean;
   declare private isNoDatatypeSelected_: boolean;
   declare private showHistoryDeletionDialog_: boolean;
@@ -179,9 +191,12 @@ export class SettingsClearBrowsingDataDialogV2Element extends
   declare private expandedBrowsingDataTypeOptionsList_:
       BrowsingDataTypeOption[];
   declare private moreBrowsingDataTypeOptionsList_: BrowsingDataTypeOption[];
+  declare private syncStatus_: SyncStatus|undefined;
 
   private clearBrowsingDataBrowserProxy_: ClearBrowsingDataBrowserProxy =
       ClearBrowsingDataBrowserProxyImpl.getInstance();
+  private syncBrowserProxy_: SyncBrowserProxy =
+      SyncBrowserProxyImpl.getInstance();
 
   override ready() {
     super.ready();
@@ -189,6 +204,11 @@ export class SettingsClearBrowsingDataDialogV2Element extends
     this.addWebUiListener(
         'browsing-data-counter-text-update',
         this.updateCounterText_.bind(this));
+
+    this.addWebUiListener(
+        'sync-status-changed', this.handleSyncStatus_.bind(this));
+    this.syncBrowserProxy_.getSyncStatus().then(
+        this.handleSyncStatus_.bind(this));
 
     this.setUpDataTypeOptionLists_();
 
@@ -200,10 +220,16 @@ export class SettingsClearBrowsingDataDialogV2Element extends
     afterNextRender(this, () => this.updateDeleteButtonState_());
   }
 
+  private handleSyncStatus_(syncStatus: SyncStatus) {
+    this.syncStatus_ = syncStatus;
+  }
+
   override connectedCallback() {
     super.connectedCallback();
 
     this.clearBrowsingDataBrowserProxy_.initialize();
+
+    this.setFocusOutlineToVisible_();
   }
 
   private setUpDataTypeOptionLists_() {
@@ -259,6 +285,12 @@ export class SettingsClearBrowsingDataDialogV2Element extends
   private shouldDataTypeBeExpanded_(datatype: BrowsingDataType) {
     return DEFAULT_BROWSING_DATATYPES_LIST.includes(datatype) ||
         this.getPref(getDataTypePrefName(datatype)).value;
+  }
+
+  private computeDeleteButtonLabel_() {
+    return canDeleteAccountData(this.syncStatus_) ?
+        loadTimeData.getString('clearData') :
+        loadTimeData.getString('deleteDataFromDevice');
   }
 
   private onTimePeriodChanged_() {
@@ -339,9 +371,26 @@ export class SettingsClearBrowsingDataDialogV2Element extends
     this.showOtherGoogleDataDialog_ = true;
   }
 
+  private setFocusOutlineToVisible_() {
+    // AutoFocus is not visible in mouse navigation by default. But in this
+    // dialog the default focus is on cancel which is not a default button. To
+    // make this clear to the user we make it visible to the user and remove
+    // the focus after the next mouse event.
+    const focusOutlineManager = FocusOutlineManager.forDocument(document);
+    focusOutlineManager.visible = true;
+
+    document.addEventListener('mousedown', () => {
+      focusOutlineManager.visible = false;
+    }, {once: true});
+  }
+
   private onOtherGoogleDataDialogClose_(e: Event) {
     e.stopPropagation();
     this.showOtherGoogleDataDialog_ = false;
+    afterNextRender(this, () => {
+      this.$.cancelButton.focus();
+      this.setFocusOutlineToVisible_();
+    });
   }
 }
 

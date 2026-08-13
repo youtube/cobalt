@@ -1365,6 +1365,8 @@ policies:
   1364: LocalNetworkAccessRestrictionsEnabled
   1365: PrefetchWithServiceWorkerEnabled
   1366: AIModeSearchSuggestSettings
+  1367: AIModeSettings
+  1368: WatermarkStyle
 
 atomic_groups:
   1: Homepage

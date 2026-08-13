@@ -154,6 +154,8 @@ public abstract class ChromeFeatureList {
 
     // Feature names.
     /* Alphabetical: */
+    public static final String ACCOUNT_FOR_SUPPRESSED_KEYBOARD_INSETS =
+            "AccountForSuppressedKeyboardInsets";
     public static final String ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2 =
             "AdaptiveButtonInTopToolbarCustomizationV2";
     public static final String ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_PAGE_SUMMARY =
@@ -186,6 +188,7 @@ public abstract class ChromeFeatureList {
             "AndroidOmniboxFocusedNewTabPage";
     public static final String ANDROID_OPEN_PDF_INLINE_BACKPORT = "AndroidOpenPdfInlineBackport";
     public static final String ANDROID_PDF_ASSIST_CONTENT = "AndroidPdfAssistContent";
+    public static final String ANDROID_PINNED_TABS = "AndroidPinnedTabs";
     public static final String ANDROID_PROGRESS_BAR_VISUAL_UPDATE =
             "AndroidProgressBarVisualUpdate";
     public static final String ANDROID_TAB_GROUPS_COLOR_UPDATE_GM3 =
@@ -335,6 +338,8 @@ public abstract class ChromeFeatureList {
     public static final String CONTEXTUAL_PAGE_ACTIONS = "ContextualPageActions";
     public static final String CONTEXTUAL_PAGE_ACTION_READER_MODE =
             "ContextualPageActionReaderMode";
+    public static final String CONTEXTUAL_PAGE_ACTION_TAB_GROUPING =
+            "ContextualPageActionTabGrouping";
     public static final String CONTEXTUAL_SEARCH_DISABLE_ONLINE_DETECTION =
             "ContextualSearchDisableOnlineDetection";
     public static final String CONTEXTUAL_SEARCH_SUPPRESS_SHORT_VIEW =
@@ -451,6 +456,7 @@ public abstract class ChromeFeatureList {
     public static final String NEW_TAB_PAGE_ANDROID_TRIGGER_FOR_PRERENDER2 =
             "NewTabPageAndroidTriggerForPrerender2";
     public static final String NEW_TAB_PAGE_CUSTOMIZATION = "NewTabPageCustomization";
+    public static final String NEW_TAB_PAGE_CUSTOMIZATION_V2 = "NewTabPageCustomizationV2";
     public static final String NEW_TAB_PAGE_CUSTOMIZATION_TOOLBAR_BUTTON =
             "NewTabPageCustomizationToolbarButton";
     public static final String NEW_TAB_PAGE_CUSTOMIZATION_FOR_MVT = "NewTabPageCustomizationForMvt";
@@ -565,6 +571,7 @@ public abstract class ChromeFeatureList {
     public static final String SHARE_CUSTOM_ACTIONS_IN_CCT = "ShareCustomActionsInCCT";
     public static final String SHOW_HOME_BUTTON_POLICY_ANDROID = "ShowHomeButtonPolicyAndroid";
     public static final String SHOW_NEW_TAB_ANIMATIONS = "ShowNewTabAnimations";
+    public static final String SHOW_TAB_LIST_ANIMATIONS = "ShowTabListAnimations";
     public static final String SHOW_WARNINGS_FOR_SUSPICIOUS_NOTIFICATIONS =
             "ShowWarningsForSuspiciousNotifications";
     public static final String SKIP_ISOLATED_SPLIT_PRELOAD = "SkipIsolatedSplitPreload";
@@ -600,6 +607,7 @@ public abstract class ChromeFeatureList {
     public static final String TAB_STRIP_TRANSITION_IN_DESKTOP_WINDOW =
             "TabStripTransitionInDesktopWindow";
     public static final String TAB_ARCHIVAL_DRAG_DROP_ANDROID = "TabArchivalDragDropAndroid";
+    public static final String TAB_COLLECTION_ANDROID = "TabCollectionAndroid";
     public static final String TAB_SWITCHER_DRAG_DROP_ANDROID = "TabSwitcherDragDropAndroid";
     public static final String TAB_SWITCHER_COLOR_BLEND_ANIMATE = "TabSwitcherColorBlendAnimate";
     public static final String TAB_SWITCHER_FOREIGN_FAVICON_SUPPORT =
@@ -628,6 +636,8 @@ public abstract class ChromeFeatureList {
     public static final String USE_CHIME_ANDROID_SDK = "UseChimeAndroidSdk";
     public static final String USE_ACTIVITY_MANAGER_FOR_TAB_ACTIVATION =
             "UseActivityManagerForTabActivation";
+    public static final String USE_INITIAL_NETWORK_STATE_AT_STARTUP =
+            "UseInitialNetworkStateAtStartup";
     public static final String USE_LIBUNWINDSTACK_NATIVE_UNWINDER_ANDROID =
             "UseLibunwindstackNativeUnwinderAndroid";
     public static final String VISITED_URL_RANKING_SERVICE = "VisitedURLRankingService";
@@ -642,8 +652,13 @@ public abstract class ChromeFeatureList {
     public static final String XSURFACE_METRICS_REPORTING = "XsurfaceMetricsReporting";
 
     /* Alphabetical: */
+    public static final CachedFlag sAccountForSuppressedKeyboardInsets =
+            newCachedFlag(ACCOUNT_FOR_SUPPRESSED_KEYBOARD_INSETS, /* defaultValue= */ true);
     public static final CachedFlag sAllowTabClosingUponMinimization =
-            newCachedFlag(ALLOW_TAB_CLOSING_UPON_MINIMIZATION, false);
+            newCachedFlag(
+                    ALLOW_TAB_CLOSING_UPON_MINIMIZATION,
+                    /* defaultValue= */ false,
+                    /* defaultValueInTests= */ true);
     public static final CachedFlag sAndroidAppIntegration =
             newCachedFlag(ANDROID_APP_INTEGRATION, true);
     public static final CachedFlag sAndroidAppIntegrationModule =
@@ -654,7 +669,7 @@ public abstract class ChromeFeatureList {
             newCachedFlag(ANDROID_APP_INTEGRATION_V2, true);
 
     public static final CachedFlag sAndroidComposeplate =
-            newCachedFlag(ANDROID_COMPOSEPLATE, false);
+            newCachedFlag(ANDROID_COMPOSEPLATE, false, true);
     public static final CachedFlag sAndroidAppIntegrationWithFavicon =
             newCachedFlag(ANDROID_APP_INTEGRATION_WITH_FAVICON, true);
     public static final CachedFlag sAndroidBottomToolbar =
@@ -856,6 +871,8 @@ public abstract class ChromeFeatureList {
             newCachedFlag(NEW_TAB_PAGE_ANDROID_TRIGGER_FOR_PRERENDER2, true);
     public static final CachedFlag sNewTabPageCustomization =
             newCachedFlag(NEW_TAB_PAGE_CUSTOMIZATION, false, true);
+    public static final CachedFlag sNewTabPageCustomizationV2 =
+            newCachedFlag(NEW_TAB_PAGE_CUSTOMIZATION_V2, false);
     public static final CachedFlag sNewTabPageCustomizationToolbarButton =
             newCachedFlag(NEW_TAB_PAGE_CUSTOMIZATION_TOOLBAR_BUTTON, false);
 
@@ -941,6 +958,11 @@ public abstract class ChromeFeatureList {
             newCachedFlag(USE_CHIME_ANDROID_SDK, false);
     public static final CachedFlag sUseActivityManagerForTabActivation =
             newCachedFlag(USE_ACTIVITY_MANAGER_FOR_TAB_ACTIVATION, true);
+    public static final CachedFlag sUseInitialNetworkStateAtStartup =
+            newCachedFlag(
+                    USE_INITIAL_NETWORK_STATE_AT_STARTUP,
+                    /* defaultValue= */ false,
+                    /* defaultValueInTests= */ true);
     public static final CachedFlag sUseLibunwindstackNativeUnwinderAndroid =
             newCachedFlag(USE_LIBUNWINDSTACK_NATIVE_UNWINDER_ANDROID, true);
     public static final CachedFlag sWebApkMinShellApkVersion =
@@ -948,6 +970,7 @@ public abstract class ChromeFeatureList {
 
     public static final List<CachedFlag> sFlagsCachedFullBrowser =
             List.of(
+                    sAccountForSuppressedKeyboardInsets,
                     sAllowTabClosingUponMinimization,
                     sAndroidAppIntegration,
                     sAndroidAppIntegrationModule,
@@ -1037,6 +1060,7 @@ public abstract class ChromeFeatureList {
                     sNavBarColorMatchesTabBackground,
                     sNewTabPageAndroidTriggerForPrerender2,
                     sNewTabPageCustomization,
+                    sNewTabPageCustomizationV2,
                     sNewTabPageCustomizationToolbarButton,
                     sNewTabPageCustomizationForMvt,
                     sNotificationTrampoline,
@@ -1068,6 +1092,7 @@ public abstract class ChromeFeatureList {
                     sTraceBinderIpc,
                     sUseChimeAndroidSdk,
                     sUseActivityManagerForTabActivation,
+                    sUseInitialNetworkStateAtStartup,
                     sUseLibunwindstackNativeUnwinderAndroid,
                     sBackgroundThreadPoolFieldTrial,
                     sWebApkMinShellApkVersion);
@@ -1095,8 +1120,10 @@ public abstract class ChromeFeatureList {
             newMutableFlagWithSafeDefault(ANDROID_DUMP_ON_SCROLL_WITHOUT_RESOURCE, false);
     public static final MutableFlagWithSafeDefault sAndroidNativePagesInNewTab =
             newMutableFlagWithSafeDefault(ANDROID_NATIVE_PAGES_IN_NEW_TAB, false);
+    public static final MutableFlagWithSafeDefault sAndroidPinnedTabs =
+            newMutableFlagWithSafeDefault(ANDROID_PINNED_TABS, false);
     public static final MutableFlagWithSafeDefault
-            sAndroidShowRestoreTabsPromoOnFREBypassedKillSwitch =
+            sAndroidShowRestoreTabsPromoOnFreBypassedKillSwitch =
                     newMutableFlagWithSafeDefault(
                             ANDROID_SHOW_RESTORE_TABS_PROMO_ON_FRE_BYPASSED_KILL_SWITCH, true);
     public static final MutableFlagWithSafeDefault sAndroidTabDeclutterArchiveAllButActiveTab =
@@ -1113,7 +1140,7 @@ public abstract class ChromeFeatureList {
             newMutableFlagWithSafeDefault(ANDROID_TAB_DECLUTTER_PERFORMANCE_IMPROVEMENTS, false);
     public static final MutableFlagWithSafeDefault sAndroidTabDeclutterRescueKillSwitch =
             newMutableFlagWithSafeDefault(ANDROID_TAB_DECLUTTER_RESCUE_KILLSWITCH, true);
-    public static final MutableFlagWithSafeDefault sAndroidTabGroupsColorUpdateGM3 =
+    public static final MutableFlagWithSafeDefault sAndroidTabGroupsColorUpdateGm3 =
             newMutableFlagWithSafeDefault(ANDROID_TAB_GROUPS_COLOR_UPDATE_GM3, false);
     public static final MutableFlagWithSafeDefault sBcivBottomControls =
             newMutableFlagWithSafeDefault(BCIV_BOTTOM_CONTROLS, true);
@@ -1159,6 +1186,8 @@ public abstract class ChromeFeatureList {
             newMutableFlagWithSafeDefault(SAFETY_HUB_FOLLOWUP, true);
     public static final MutableFlagWithSafeDefault sShowNewTabAnimations =
             newMutableFlagWithSafeDefault(SHOW_NEW_TAB_ANIMATIONS, false);
+    public static final MutableFlagWithSafeDefault sShowTabListAnimations =
+            newMutableFlagWithSafeDefault(SHOW_TAB_LIST_ANIMATIONS, false);
     public static final MutableFlagWithSafeDefault sSuppressToolbarCapturesAtGestureEnd =
             newMutableFlagWithSafeDefault(SUPPRESS_TOOLBAR_CAPTURES_AT_GESTURE_END, false);
     public static final MutableFlagWithSafeDefault sSwapNewTabAndNewTabInGroupAndroid =
@@ -1241,6 +1270,10 @@ public abstract class ChromeFeatureList {
 
     public static final BooleanCachedFeatureParam sAndroidBottomToolbarDefaultToTop =
             newBooleanCachedFeatureParam(ANDROID_BOTTOM_TOOLBAR, "default_to_top", true);
+
+    public static final StringCachedFeatureParam sAndroidComposeplateButtonUrl =
+            newStringCachedFeatureParam(
+                    ANDROID_COMPOSEPLATE, "composeplate_button_url", "about:blank");
 
     public static final IntCachedFeatureParam sBackgroundThreadPoolFieldTrialConfig =
             newIntCachedFeatureParam(BACKGROUND_THREAD_POOL_FIELD_TRIAL, "config", 0);
@@ -1561,6 +1594,7 @@ public abstract class ChromeFeatureList {
                     sAndroidAppIntegrationWithFaviconUseLargeFavicon,
                     sAndroidAppIntegrationWithFaviconZeroStateFaviconNumber,
                     sAndroidBottomToolbarDefaultToTop,
+                    sAndroidComposeplateButtonUrl,
                     sAndroidThemeModuleForceDependencies,
                     sBackgroundThreadPoolFieldTrialConfig,
                     sBatchTabRestoreBatchSize,
@@ -1630,16 +1664,16 @@ public abstract class ChromeFeatureList {
     /* Alphabetical: */
     public static final MutableBooleanParamWithSafeDefault
             sAndroidNativePagesInNewTabBookmarksEnabled =
-            sAndroidNativePagesInNewTab.newBooleanParam(
-                    "android_native_pages_in_new_tab_bookmarks_enabled", true);
+                    sAndroidNativePagesInNewTab.newBooleanParam(
+                            "android_native_pages_in_new_tab_bookmarks_enabled", true);
     public static final MutableBooleanParamWithSafeDefault
             sAndroidNativePagesInNewTabDownloadsEnabled =
-            sAndroidNativePagesInNewTab.newBooleanParam(
-                    "android_native_pages_in_new_tab_downloads_enabled", true);
+                    sAndroidNativePagesInNewTab.newBooleanParam(
+                            "android_native_pages_in_new_tab_downloads_enabled", true);
     public static final MutableBooleanParamWithSafeDefault
             sAndroidNativePagesInNewTabHistoryEnabled =
-            sAndroidNativePagesInNewTab.newBooleanParam(
-                    "android_native_pages_in_new_tab_history_enabled", true);
+                    sAndroidNativePagesInNewTab.newBooleanParam(
+                            "android_native_pages_in_new_tab_history_enabled", true);
     public static final MutableBooleanParamWithSafeDefault
             sAndroidNativePagesInNewTabRecentTabsEnabled =
                     sAndroidNativePagesInNewTab.newBooleanParam(

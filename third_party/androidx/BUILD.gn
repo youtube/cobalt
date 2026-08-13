@@ -204,13 +204,11 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt("androidx_autofill_autofill_java") {
-    aar_path = "../androidx/cipd/libs/androidx_autofill_autofill/autofill-1.3.0-SNAPSHOT.aar"
+    aar_path =
+        "../androidx/cipd/libs/androidx_autofill_autofill/autofill-1.3.0.aar"
     info_path = "../androidx/committed/libs/androidx_autofill_autofill/androidx_autofill_autofill.info"
     enable_bytecode_checks = false
-    deps = [
-      ":androidx_core_core_java",
-      "//third_party/android_deps:org_jspecify_jspecify_java",
-    ]
+    deps = [ ":androidx_core_core_java" ]
   }
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
@@ -279,12 +277,14 @@ if (!limit_android_deps) {
     info_path = "../androidx/committed/libs/androidx_biometric_biometric/androidx_biometric_biometric.info"
     enable_bytecode_checks = false
     deps = [
+      ":androidx_activity_activity_java",
       ":androidx_annotation_annotation_java",
       ":androidx_appcompat_appcompat_java",
       ":androidx_core_core_java",
       ":androidx_fragment_fragment_java",
       ":androidx_lifecycle_lifecycle_common_java8_java",
       ":androidx_lifecycle_lifecycle_livedata_core_java",
+      ":androidx_lifecycle_lifecycle_process_java",
       ":androidx_lifecycle_lifecycle_viewmodel_java",
       "//third_party/android_deps:org_jspecify_jspecify_java",
     ]
@@ -1042,7 +1042,7 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt("androidx_mediarouter_mediarouter_java") {
-    aar_path = "../androidx/cipd/libs/androidx_mediarouter_mediarouter/mediarouter-1.8.0-SNAPSHOT.aar"
+    aar_path = "../androidx/cipd/libs/androidx_mediarouter_mediarouter/mediarouter-1.8.0.aar"
     info_path = "../androidx/committed/libs/androidx_mediarouter_mediarouter/androidx_mediarouter_mediarouter.info"
     enable_bytecode_checks = false
     deps = [
@@ -2881,6 +2881,7 @@ if (!limit_android_deps) {
     deps = [
       ":androidx_annotation_annotation_java",
       ":androidx_core_core_ktx_java",
+      ":androidx_lifecycle_lifecycle_common_java",
       ":androidx_lifecycle_lifecycle_livedata_core_java",
       ":androidx_lifecycle_lifecycle_viewmodel_java",
       ":androidx_savedstate_savedstate_java",

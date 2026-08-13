@@ -44,7 +44,7 @@ ub-risk-4 = "ub-risk-4"
 [policy."adler2:2.0.0"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."anstyle:1.0.10"]
+[policy."anstyle:1.0.11"]
 criteria = ["crypto-safe", "safe-to-run"]
 
 [policy."anyhow:1.0.98"]
@@ -74,7 +74,7 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."calendrical_calculations:0.2.0"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."cc:1.2.24"]
+[policy."cc:1.2.26"]
 criteria = []
 
 [policy."cfg-if:1.0.0"]
@@ -260,7 +260,7 @@ criteria = []
 [policy."litemap:0.8.0"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."llguidance:0.7.21"]
+[policy."llguidance:0.7.29"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."log:0.4.27"]
@@ -380,22 +380,22 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."synstructure:0.13.2"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."temporal_capi:0.0.8"]
+[policy."temporal_capi:0.0.9"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."temporal_rs:0.0.8"]
+[policy."temporal_rs:0.0.9"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."termcolor:1.4.1"]
 criteria = ["crypto-safe", "safe-to-run"]
 
-[policy."timezone_provider:0.0.8"]
+[policy."timezone_provider:0.0.9"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."tinystr:0.8.1"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."toktrie:0.7.24"]
+[policy."toktrie:0.7.29"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."tzif:0.3.0"]

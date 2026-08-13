@@ -43,6 +43,10 @@ BASE_FEATURE(kLensOverlayContextualSearchbox,
              "LensOverlayContextualSearchbox",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kLensOverlayContextualSearchboxForOmniboxSuggestions,
+             "LensOverlayContextualSearchboxForOmniboxSuggestions",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kLensOverlayLatencyOptimizations,
              "LensOverlayLatencyOptimizations",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -65,6 +69,10 @@ BASE_FEATURE(kLensOverlaySimplifiedSelection,
 
 BASE_FEATURE(kLensOverlayVisualSelectionUpdates,
              "LensOverlayVisualSelectionUpdates",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensOverlayVisualSelectionUpdatesForOmniboxSuggestions,
+             "LensOverlayVisualSelectionUpdatesForOmniboxSuggestions",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensOverlayUpdatedClientContext,
@@ -291,20 +299,26 @@ constexpr base::FeatureParam<bool> kEnableEarlyStartQueryFlowOptimization{
     &kLensOverlayLatencyOptimizations,
     "enable-early-start-query-flow-optimization", true};
 
+constexpr base::FeatureParam<bool>
+    kSendClientContextToClusterInfoRequestForContextualSuggest{
+        &kLensOverlayContextualSearchbox,
+        "send-client-context-to-cluster-info-request-for-contextual-suggest",
+        true};
+
 constexpr base::FeatureParam<bool> kUseUpdatedContentFields{
-    &kLensOverlayContextualSearchbox, "use-updated-content-fields", false};
+    &kLensOverlayContextualSearchbox, "use-updated-content-fields", true};
 
 constexpr base::FeatureParam<bool> kUsePdfsAsContext{
     &kLensOverlayContextualSearchbox, "use-pdfs-as-context", true};
 
 constexpr base::FeatureParam<bool> kUseInnerTextAsContext{
-    &kLensOverlayContextualSearchbox, "use-inner-text-as-context", false};
+    &kLensOverlayContextualSearchbox, "use-inner-text-as-context", true};
 
 constexpr base::FeatureParam<bool> kUseInnerHtmlAsContext{
-    &kLensOverlayContextualSearchbox, "use-inner-html-as-context", true};
+    &kLensOverlayContextualSearchbox, "use-inner-html-as-context", false};
 
 constexpr base::FeatureParam<bool> kUseApcAsContext{
-    &kLensOverlayContextualSearchbox, "use-apc-as-context", false};
+    &kLensOverlayContextualSearchbox, "use-apc-as-context", true};
 
 constexpr base::FeatureParam<bool> kSendPageUrlForContextualization{
     &kLensOverlayContextualSearchbox, "send-page-url-for-contextualization",
@@ -373,7 +387,7 @@ constexpr base::FeatureParam<size_t> kLensOverlayFileUploadLimitBytes{
     &kLensOverlayContextualSearchbox, "file-upload-limit-bytes", 200000000};
 
 constexpr base::FeatureParam<size_t> kLensOverlayPdfTextCharacterLimit{
-    &kLensOverlayContextualSearchbox, "pdf-text-character-limit", 10000};
+    &kLensOverlayContextualSearchbox, "pdf-text-character-limit", 5000};
 
 const base::FeatureParam<base::TimeDelta> kLensOverlaySurveyResultsTime{
     &kLensOverlaySurvey, "results-time", base::Seconds(1)};
@@ -407,7 +421,7 @@ constexpr base::FeatureParam<int> kZstdCompressionLevel{
     &kLensOverlayContextualSearchbox, "zstd-compression-level", 3};
 
 constexpr base::FeatureParam<bool> kPageContentUploadRequestIdFix{
-    &kLensOverlayContextualSearchbox, "page-content-request-id-fix", false};
+    &kLensOverlayContextualSearchbox, "page-content-request-id-fix", true};
 
 constexpr base::FeatureParam<bool> kShowUploadProgressBar{
     &kLensOverlayContextualSearchbox, "show-upload-progress-bar", true};
@@ -417,10 +431,14 @@ constexpr base::FeatureParam<double> kUploadProgressBarShowHeuristic{
     0.1};
 
 constexpr base::FeatureParam<bool> kAutoFocusSearchbox{
-    &kLensOverlayContextualSearchbox, "auto-focus-searchbox", true};
+    &kLensOverlayContextualSearchbox, "auto-focus-searchbox", false};
+
+constexpr base::FeatureParam<bool> kAutoFocusSearchboxForOmniboxSuggestions{
+    &kLensOverlayContextualSearchboxForOmniboxSuggestions,
+    "auto-focus-searchbox", true};
 
 constexpr base::FeatureParam<bool> kUpdateViewportEachQuery{
-    &kLensOverlayContextualSearchbox, "update-viewport-each-query", false};
+    &kLensOverlayContextualSearchbox, "update-viewport-each-query", true};
 
 constexpr base::FeatureParam<bool> kSendPdfCurrentPage{
     &kLensOverlayContextualSearchbox, "send-pdf-current-page", true};
@@ -478,6 +496,10 @@ constexpr base::FeatureParam<bool>
     kLensOverlaySimplifiedSelectionShouldCopyAsImage{
         &kLensOverlaySimplifiedSelection, "copy-command-copies-as-image",
         false};
+
+constexpr base::FeatureParam<bool>
+    kLensOverlayVisualSelectionUpdatesEnableDynamicTheme{
+        &kLensOverlayVisualSelectionUpdates, "enable-dynamic-theme", false};
 
 constexpr base::FeatureParam<bool>
     kLensOverlayVisualSelectionUpdatesEnableBorderGlow{
@@ -792,6 +814,10 @@ bool UseInnerHtmlAsContext() {
   return kUseInnerHtmlAsContext.Get();
 }
 
+bool SendClientContextToClusterInfoRequestForContextualSuggest() {
+  return kSendClientContextToClusterInfoRequestForContextualSuggest.Get();
+}
+
 bool UseApcAsContext() {
   return kUseApcAsContext.Get();
 }
@@ -856,10 +882,6 @@ bool IsOmniboxEntrypointAlwaysVisible() {
 
 bool UseBrowserDarkModeSettingForLensOverlay() {
   return kUseBrowserDarkModeSettingForLensOverlay.Get();
-}
-
-bool IsDynamicThemeDetectionEnabled() {
-  return kDynamicThemeForLensOverlay.Get();
 }
 
 double DynamicThemeMinPopulationPct() {
@@ -945,7 +967,9 @@ int GetLensOverlayImageContextMenuActionsTextReceivedTimeout() {
 }
 
 bool IsLensOverlayContextualSearchboxEnabled() {
-  return base::FeatureList::IsEnabled(kLensOverlayContextualSearchbox);
+  return base::FeatureList::IsEnabled(kLensOverlayContextualSearchbox) ||
+         base::FeatureList::IsEnabled(
+             kLensOverlayContextualSearchboxForOmniboxSuggestions);
 }
 
 bool IsLensOverlaySidePanelOpenInNewTabEnabled() {
@@ -1040,6 +1064,10 @@ double GetUploadProgressBarShowHeuristic() {
 }
 
 bool ShouldAutoFocusSearchbox() {
+  if (base::FeatureList::IsEnabled(
+          kLensOverlayContextualSearchboxForOmniboxSuggestions)) {
+    return kAutoFocusSearchboxForOmniboxSuggestions.Get();
+  }
   return kAutoFocusSearchbox.Get();
 }
 
@@ -1064,56 +1092,65 @@ bool GetShouldCopyAsImage() {
 }
 
 bool IsLensOverlayVisualSelectionUpdatesEnabled() {
-  return base::FeatureList::IsEnabled(kLensOverlayVisualSelectionUpdates);
+  return base::FeatureList::IsEnabled(kLensOverlayVisualSelectionUpdates) ||
+         base::FeatureList::IsEnabled(
+             kLensOverlayVisualSelectionUpdatesForOmniboxSuggestions);
+}
+
+bool IsDynamicThemeDetectionEnabled() {
+  if (IsLensOverlayVisualSelectionUpdatesEnabled()) {
+    return kLensOverlayVisualSelectionUpdatesEnableDynamicTheme.Get();
+  }
+  return kDynamicThemeForLensOverlay.Get();
 }
 
 bool GetVisualSelectionUpdatesEnableBorderGlow() {
-  return base::FeatureList::IsEnabled(kLensOverlayVisualSelectionUpdates) &&
+  return IsLensOverlayVisualSelectionUpdatesEnabled() &&
          kLensOverlayVisualSelectionUpdatesEnableBorderGlow.Get();
 }
 
 bool GetVisualSelectionUpdatesEnableGradientRegionStroke() {
-  return base::FeatureList::IsEnabled(kLensOverlayVisualSelectionUpdates) &&
+  return IsLensOverlayVisualSelectionUpdatesEnabled() &&
          kLensOverlayVisualSelectionUpdatesEnableGradientRegionStroke.Get();
 }
 
 bool GetVisualSelectionUpdatesEnableWhiteRegionStroke() {
-  return base::FeatureList::IsEnabled(kLensOverlayVisualSelectionUpdates) &&
+  return IsLensOverlayVisualSelectionUpdatesEnabled() &&
          kLensOverlayVisualSelectionUpdatesEnableWhiteRegionStroke.Get();
 }
 
 bool GetVisualSelectionUpdatesEnableRegionSelectedGlow() {
-  return base::FeatureList::IsEnabled(kLensOverlayVisualSelectionUpdates) &&
+  return IsLensOverlayVisualSelectionUpdatesEnabled() &&
          kLensOverlayVisualSelectionUpdatesEnableRegionSelectedGlow.Get();
 }
 
 bool GetVisualSelectionUpdatesEnableGradientSuperG() {
-  return base::FeatureList::IsEnabled(kLensOverlayVisualSelectionUpdates) &&
+  return IsLensOverlayVisualSelectionUpdatesEnabled() &&
          kLensOverlayVisualSelectionUpdatesEnableGradientSuperG.Get();
 }
 
 bool GetVisualSelectionUpdatesEnableCsbThumbnail() {
-  return base::FeatureList::IsEnabled(kLensOverlayVisualSelectionUpdates) &&
+  return IsLensOverlayVisualSelectionUpdatesEnabled() &&
          kLensOverlayVisualSelectionUpdatesCsbThumbnail.Get();
 }
 
 bool GetVisualSelectionUpdatesEnableCsbMotionTweaks() {
-  return base::FeatureList::IsEnabled(kLensOverlayVisualSelectionUpdates) &&
+  return IsLensOverlayVisualSelectionUpdatesEnabled() &&
          kLensOverlayVisualSelectionUpdatesEnableCsbMotionTweaks.Get();
 }
 
 bool GetVisualSelectionUpdatesEnableThumbnailSizingTweaks() {
-  return base::FeatureList::IsEnabled(kLensOverlayVisualSelectionUpdates) &&
+  return IsLensOverlayVisualSelectionUpdatesEnabled() &&
          kLensOverlayVisualSelectionUpdatesThumbnailSizingTweaks.Get();
 }
 
 bool GetVisualSelectionUpdatesHideCsbEllipsis() {
-  return base::FeatureList::IsEnabled(kLensOverlayVisualSelectionUpdates) &&
+  return IsLensOverlayVisualSelectionUpdatesEnabled() &&
          kLensOverlayVisualSelectionUpdatesHideCsbEllipsis.Get();
 }
 
 bool GetVisualSelectionUpdatesEnableCloseButtonTweaks() {
-  return base::FeatureList::IsEnabled(kLensOverlayVisualSelectionUpdates) &&
+  return IsLensOverlayVisualSelectionUpdatesEnabled() &&
          kLensOverlayVisualSelectionUpdatesCloseButtonTweaks.Get();
 }
 

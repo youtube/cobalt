@@ -49,6 +49,7 @@ chromium-metrics-reviews@google.com.
   <int value="14" label="'Select plus address' link in the password sheet"/>
   <int value="15" label="'Manage plus addresses' link in the password sheet"/>
   <int value="16" label="'Manage loyalty cards' link"/>
+  <int value="17" label="'Verify it's you' link"/>
 </enum>
 
 <enum name="AccessorySheetTrigger">
@@ -726,12 +727,6 @@ chromium-metrics-reviews@google.com.
       label="Opened manually / Notifying the user that their passkey was
              deleted because it was not present on an all accepted
              credentials report"/>
-</enum>
-
-<enum name="PasswordBubbleFollowupType">
-  <int value="0" label="Safe state"/>
-  <int value="1" label="More passwords to fix"/>
-  <int value="2" label="Unsafe state"/>
 </enum>
 
 <enum name="PasswordChangeFlowState">

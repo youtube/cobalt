@@ -111,7 +111,7 @@ class PeerConnectionWrapperForRampUpTest : public PeerConnectionWrapper {
                                                      pc,
                                                      std::move(observer)) {}
 
-  bool AddIceCandidates(std::vector<const IceCandidateInterface*> candidates) {
+  bool AddIceCandidates(std::vector<const IceCandidate*> candidates) {
     bool success = true;
     for (const auto candidate : candidates) {
       if (!pc()->AddIceCandidate(candidate)) {

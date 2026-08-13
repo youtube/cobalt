@@ -182,7 +182,6 @@ TEST_F(PeerConnectionE2EQualityTestSmokeTest, MAYBE_Smoke) {
                {"charlie", network_links.second->endpoints()}}),
           network_emulation(), test::GetGlobalMetricsLogger()));
   RunParams run_params(TimeDelta::Seconds(2));
-  run_params.enable_flex_fec_support = true;
   RunAndCheckEachVideoStreamReceivedFrames(run_params);
 }
 
@@ -232,7 +231,6 @@ TEST_F(PeerConnectionE2EQualityTestSmokeTest, SmokeH264) {
                {"charlie", network_links.second->endpoints()}}),
           network_emulation(), test::GetGlobalMetricsLogger()));
   RunParams run_params(TimeDelta::Seconds(2));
-  run_params.enable_flex_fec_support = true;
   RunAndCheckEachVideoStreamReceivedFrames(run_params);
 }
 #endif
@@ -306,7 +304,6 @@ TEST_F(PeerConnectionE2EQualityTestSmokeTest, MAYBE_ChangeNetworkConditions) {
   });
 
   RunParams run_params(TimeDelta::Seconds(2));
-  run_params.enable_flex_fec_support = true;
   RunAndCheckEachVideoStreamReceivedFrames(run_params);
 }
 

@@ -9,6 +9,8 @@
  */
 
 #include <array>
+#include <cstddef>
+#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -20,6 +22,7 @@
 #include "modules/audio_processing/agc2/rnn_vad/common.h"
 #include "modules/audio_processing/agc2/rnn_vad/features_extraction.h"
 #include "modules/audio_processing/agc2/rnn_vad/rnn.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_compare.h"
 

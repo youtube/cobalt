@@ -1106,6 +1106,11 @@ void PrivateState::setShadingRate(GLenum rate)
     mExtendedDirtyBits.set(state::EXTENDED_DIRTY_BIT_SHADING_RATE);
 }
 
+void PrivateState::setShadingRateCombinerOps(GLenum combinerOp0, GLenum combinerOp1)
+{
+    return;
+}
+
 void PrivateState::setPackAlignment(GLint alignment)
 {
     mPack.alignment = alignment;
@@ -1201,7 +1206,10 @@ void PrivateState::setFramebufferSRGB(bool sRGB)
         mFramebufferSRGB = sRGB;
         mDirtyBits.set(state::DIRTY_BIT_FRAMEBUFFER_SRGB_WRITE_CONTROL_MODE);
         mDirtyObjects.set(state::DIRTY_OBJECT_DRAW_FRAMEBUFFER);
-        mDirtyObjects.set(state::DIRTY_OBJECT_DRAW_ATTACHMENTS);
+        if (isRobustResourceInitEnabled())
+        {
+            mDirtyObjects.set(state::DIRTY_OBJECT_DRAW_ATTACHMENTS);
+        }
     }
 }
 
@@ -2881,6 +2889,7 @@ void State::setDrawFramebufferBinding(Framebuffer *framebuffer)
         if (isRobustResourceInitEnabled() && mDrawFramebuffer->hasResourceThatNeedsInit())
         {
             mDirtyObjects.set(state::DIRTY_OBJECT_DRAW_ATTACHMENTS);
+            mDirtyObjects.set(state::DIRTY_OBJECT_DRAW_FRAMEBUFFER);
         }
     }
 }
@@ -3930,9 +3939,17 @@ angle::Result State::syncDirtyObject(const Context *context, GLenum target)
     {
         case GL_READ_FRAMEBUFFER:
             localSet.set(state::DIRTY_OBJECT_READ_FRAMEBUFFER);
+            if (mDirtyObjects.test(state::DIRTY_OBJECT_READ_ATTACHMENTS))
+            {
+                localSet.set(state::DIRTY_OBJECT_READ_ATTACHMENTS);
+            }
             break;
         case GL_DRAW_FRAMEBUFFER:
             localSet.set(state::DIRTY_OBJECT_DRAW_FRAMEBUFFER);
+            if (mDirtyObjects.test(state::DIRTY_OBJECT_DRAW_ATTACHMENTS))
+            {
+                localSet.set(state::DIRTY_OBJECT_DRAW_ATTACHMENTS);
+            }
             break;
         default:
             UNREACHABLE();

@@ -584,7 +584,6 @@ webrtc_fuzzer_test("audio_processing_sample_rate_fuzzer") {
     "../../modules/audio_processing:audio_frame_proxies",
     "../../modules/audio_processing:audioproc_test_utils",
     "../../rtc_base:checks",
-    "../../rtc_base:macromagic",
     "../../rtc_base:safe_minmax",
   ]
 }
@@ -598,7 +597,6 @@ webrtc_fuzzer_test("agc_fuzzer") {
     "../../modules/audio_processing",
     "../../modules/audio_processing:audio_buffer",
     "../../modules/audio_processing/agc:gain_control_interface",
-    "../../rtc_base:macromagic",
     "../../rtc_base:safe_minmax",
   ]
 
@@ -790,7 +788,6 @@ if (rtc_build_libvpx) {
       "../../rtc_base:checks",
       "../../rtc_base:safe_compare",
       "//third_party/abseil-cpp/absl/algorithm:container",
-      "//third_party/abseil-cpp/absl/base:core_headers",
       "//third_party/abseil-cpp/absl/container:inlined_vector",
       "//third_party/abseil-cpp/absl/strings:string_view",
       rtc_libvpx_dir,

@@ -391,7 +391,7 @@ inline void MaglevAssembler::SmiAddConstant(Register dst, Register src,
       Sub64(overflow, dst, overflow);
       MacroAssembler::Branch(fail, ne, overflow, Operand(zero_reg), distance);
     } else {
-      AddOverflow64(dst, src, addend, overflow);
+      AddOverflowWord(dst, src, addend, overflow);
       MacroAssembler::Branch(fail, lt, overflow, Operand(zero_reg), distance);
     }
   } else {
@@ -413,7 +413,7 @@ inline void MaglevAssembler::SmiSubConstant(Register dst, Register src,
       Sub64(overflow, dst, overflow);
       MacroAssembler::Branch(fail, ne, overflow, Operand(zero_reg), distance);
     } else {
-      SubOverflow64(dst, src, subtrahend, overflow);
+      SubOverflowWord(dst, src, subtrahend, overflow);
       MacroAssembler::Branch(fail, lt, overflow, Operand(zero_reg), distance);
     }
   } else {
@@ -1102,6 +1102,15 @@ inline void MaglevAssembler::BranchOnObjectType(
          false_distance, fallthrough_when_false);
 }
 
+inline void MaglevAssembler::JumpIfObjectType(Register heap_object,
+                                              InstanceType type, Label* target,
+                                              Label::Distance distance) {
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  IsObjectType(heap_object, scratch, scratch, type);
+  JumpIf(kEqual, target, distance);
+}
+
 inline void MaglevAssembler::JumpIfObjectTypeInRange(Register heap_object,
                                                      InstanceType lower_limit,
                                                      InstanceType higher_limit,
@@ -1442,6 +1451,16 @@ inline void MaglevAssembler::JumpIfNotSmi(Register src, Label* on_smi,
 void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
                                  Label* target, Label::Distance distance) {
   MacroAssembler::Branch(target, cc, value, Operand(byte), distance);
+}
+
+void MaglevAssembler::Float64SilenceNan(DoubleRegister value) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  Register scratch2 = temps.AcquireScratch();
+  li(scratch, Operand(kDQuietNanMask));
+  fmv_x_d(scratch2, value);
+  Or(scratch2, scratch2, Operand(scratch));
+  fmv_d_x(value, scratch2);
 }
 
 void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,

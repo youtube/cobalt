@@ -12,10 +12,20 @@
 
 #include <comdef.h>
 #include <dxgi.h>
+#include <wrl/client.h>
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <utility>
 
+#include "modules/desktop_capture/desktop_geometry.h"
+#include "modules/desktop_capture/shared_desktop_frame.h"
+#include "modules/desktop_capture/win/d3d_device.h"
 #include "modules/desktop_capture/win/desktop_capture_utils.h"
+#include "modules/desktop_capture/win/dxgi_output_duplicator.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 

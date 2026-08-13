@@ -148,6 +148,7 @@ rtc_library("aec3") {
     "../../../common_audio:common_audio_c",
     "../../../rtc_base:checks",
     "../../../rtc_base:cpu_info",
+    "../../../rtc_base:gtest_prod",
     "../../../rtc_base:logging",
     "../../../rtc_base:macromagic",
     "../../../rtc_base:race_checker",
@@ -246,6 +247,7 @@ rtc_source_set("fft_data") {
   deps = [
     ":aec3_common",
     "../../../api:array_view",
+    "../../../rtc_base:checks",
     "../../../rtc_base/system:arch",
   ]
 }
@@ -273,8 +275,10 @@ if (current_cpu == "x86" || current_cpu == "x64") {
     deps = [
       ":adaptive_fir_filter",
       ":adaptive_fir_filter_erl",
+      ":aec3_common",
       ":fft_data",
       ":matched_filter",
+      ":render_buffer",
       ":vector_math",
       "../../../api:array_view",
       "../../../rtc_base:checks",
@@ -314,6 +318,7 @@ if (rtc_include_tests) {
       "..:high_pass_filter",
       "../../../api:array_view",
       "../../../api/audio:aec3_config",
+      "../../../api/audio:echo_control",
       "../../../api/environment",
       "../../../api/environment:environment_factory",
       "../../../rtc_base:checks",

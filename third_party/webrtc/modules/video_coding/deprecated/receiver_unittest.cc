@@ -16,6 +16,7 @@
 #include <queue>
 #include <vector>
 
+#include "api/field_trials.h"
 #include "api/units/time_delta.h"
 #include "api/video/video_frame_type.h"
 #include "modules/video_coding/deprecated/event_wrapper.h"
@@ -26,15 +27,16 @@
 #include "modules/video_coding/timing/timing.h"
 #include "rtc_base/checks.h"
 #include "system_wrappers/include/clock.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 
 namespace webrtc {
 
 class TestVCMReceiver : public ::testing::Test {
  protected:
   TestVCMReceiver()
-      : clock_(0),
+      : field_trials_(CreateTestFieldTrials()),
+        clock_(0),
         timing_(&clock_, field_trials_),
         receiver_(&timing_, &clock_, field_trials_),
         stream_generator_(0, clock_.TimeInMilliseconds()) {}
@@ -82,7 +84,7 @@ class TestVCMReceiver : public ::testing::Test {
     return true;
   }
 
-  test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_;
   SimulatedClock clock_;
   VCMTiming timing_;
   VCMReceiver receiver_;
@@ -368,7 +370,8 @@ class FrameInjectEvent : public EventWrapper {
 class VCMReceiverTimingTest : public ::testing::Test {
  protected:
   VCMReceiverTimingTest()
-      : clock_(&stream_generator_, &receiver_),
+      : field_trials_(CreateTestFieldTrials()),
+        clock_(&stream_generator_, &receiver_),
         stream_generator_(0, clock_.TimeInMilliseconds()),
         timing_(&clock_, field_trials_),
         receiver_(
@@ -380,7 +383,7 @@ class VCMReceiverTimingTest : public ::testing::Test {
 
   virtual void SetUp() {}
 
-  test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_;
   SimulatedClockWithFrames clock_;
   StreamGenerator stream_generator_;
   VCMTiming timing_;

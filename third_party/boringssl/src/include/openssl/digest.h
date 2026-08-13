@@ -283,17 +283,27 @@ OPENSSL_EXPORT void EVP_MD_CTX_set_flags(EVP_MD_CTX *ctx, int flags);
 OPENSSL_EXPORT int EVP_MD_nid(const EVP_MD *md);
 
 
+// Internal constants and structures (hidden).
+
 struct evp_md_pctx_ops;
+
+// EVP_MAX_MD_DATA_SIZE is a private constant which specifies the size of the
+// largest digest state. SHA-512 and BLAKE2b are joint-largest. Consuming code
+// only uses this via the `EVP_MD_CTX` type.
+#define EVP_MAX_MD_DATA_SIZE 208
 
 // env_md_ctx_st is typoed ("evp" -> "env"), but the typo comes from OpenSSL
 // and some consumers forward-declare these structures so we're leaving it
 // alone.
 struct env_md_ctx_st {
+  // md_data contains the hash-specific context.
+  union {
+    uint8_t md_data[EVP_MAX_MD_DATA_SIZE];
+    uint64_t alignment;
+  };
+
   // digest is the underlying digest function, or NULL if not set.
   const EVP_MD *digest;
-  // md_data points to a block of memory that contains the hash-specific
-  // context.
-  void *md_data;
 
   // pctx is an opaque (at this layer) pointer to additional context that
   // EVP_PKEY functions may store in this object.

@@ -10,8 +10,12 @@
 
 #include <windows.h>
 
+#include <cstddef>
 #include <memory>
 
+#include "modules/desktop_capture/desktop_capture_types.h"
+#include "modules/desktop_capture/desktop_geometry.h"
+#include "modules/desktop_capture/rgba_color.h"
 #include "modules/desktop_capture/screen_drawer.h"
 #include "rtc_base/thread.h"
 

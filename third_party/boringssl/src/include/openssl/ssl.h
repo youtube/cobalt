@@ -5888,6 +5888,16 @@ OPENSSL_EXPORT int SSL_CTX_check_private_key(const SSL_CTX *ctx);
 // See discussion in |SSL_CTX_check_private_key|.
 OPENSSL_EXPORT int SSL_check_private_key(const SSL *ssl);
 
+// SSL_CTX_get_security_level returns zero.
+//
+// This function is not meaningful in BoringSSL. OpenSSL has an arbitrary
+// mapping from algorithms to "security levels" and offers an API to filter TLS
+// configuration by those levels. In OpenSSL, this function does not return how
+// secure |ctx| is, just what security level the caller previously configured.
+// As BoringSSL does not implement this API, we return zero to report that the
+// security levels mechanism is not used.
+OPENSSL_EXPORT int SSL_CTX_get_security_level(const SSL_CTX *ctx);
+
 
 // Compliance policy configurations
 //

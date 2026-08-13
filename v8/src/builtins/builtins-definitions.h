@@ -22,6 +22,15 @@ namespace internal {
 #define IF_TSA(TSA_MACRO, CSA_MACRO, ...) EXPAND(CSA_MACRO(__VA_ARGS__))
 #endif
 
+#if V8_ENABLE_GEARBOX
+#define WITH_GEARBOX(KIND, NAME, ...) \
+  KIND(NAME##_Generic, __VA_ARGS__)   \
+  KIND(NAME##_ISX, __VA_ARGS__)       \
+  KIND(NAME, __VA_ARGS__)
+#else
+#define WITH_GEARBOX(KIND, NAME, ...) KIND(NAME, __VA_ARGS__)
+#endif  // V8_ENABLE_GEARBOX
+
 // CPP: Builtin in C++. Entered via BUILTIN_EXIT frame.
 //      Args: name, formal parameter count
 // TFJ: Builtin in Turbofan, with JS linkage (callable as Javascript function).
@@ -382,7 +391,7 @@ namespace internal {
   TFH(KeyedStoreIC_SloppyArguments_NoTransitionIgnoreTypedArrayOOB,            \
       StoreWithVector)                                                         \
   TFH(KeyedStoreIC_SloppyArguments_NoTransitionHandleCOW, StoreWithVector)     \
-  TFH(StoreFastElementIC_InBounds, StoreWithVector)                            \
+  WITH_GEARBOX(TFH, StoreFastElementIC_InBounds, StoreWithVector)              \
   TFH(StoreFastElementIC_NoTransitionGrowAndHandleCOW, StoreWithVector)        \
   TFH(StoreFastElementIC_NoTransitionIgnoreTypedArrayOOB, StoreWithVector)     \
   TFH(StoreFastElementIC_NoTransitionHandleCOW, StoreWithVector)               \
@@ -1577,8 +1586,6 @@ namespace internal {
   CPP(TemporalPlainDatePrototypeToPlainYearMonth, kDontAdaptArgumentsSentinel) \
   /* Temporal #sec-temporal.plaindate.prototype.toplainmonthday */             \
   CPP(TemporalPlainDatePrototypeToPlainMonthDay, kDontAdaptArgumentsSentinel)  \
-  /* Temporal #sec-temporal.plaindate.prototype.getisofields */                \
-  CPP(TemporalPlainDatePrototypeGetISOFields, kDontAdaptArgumentsSentinel)     \
   /* Temporal #sec-temporal.plaindate.prototype.add */                         \
   CPP(TemporalPlainDatePrototypeAdd, kDontAdaptArgumentsSentinel)              \
   /* Temporal #sec-temporal.plaindate.prototype.substract */                   \
@@ -1637,12 +1644,6 @@ namespace internal {
   CPP(TemporalPlainTimePrototypeRound, kDontAdaptArgumentsSentinel)            \
   /* Temporal #sec-temporal.plaintime.prototype.equals */                      \
   CPP(TemporalPlainTimePrototypeEquals, kDontAdaptArgumentsSentinel)           \
-  /* Temporal #sec-temporal.plaintime.prototype.toplaindatetime */             \
-  CPP(TemporalPlainTimePrototypeToPlainDateTime, kDontAdaptArgumentsSentinel)  \
-  /* Temporal #sec-temporal.plaintime.prototype.tozoneddatetime */             \
-  CPP(TemporalPlainTimePrototypeToZonedDateTime, kDontAdaptArgumentsSentinel)  \
-  /* Temporal #sec-temporal.plaintime.prototype.getisofields */                \
-  CPP(TemporalPlainTimePrototypeGetISOFields, kDontAdaptArgumentsSentinel)     \
   /* Temporal #sec-temporal.plaintime.prototype.tostring */                    \
   CPP(TemporalPlainTimePrototypeToString, kDontAdaptArgumentsSentinel)         \
   /* Temporal #sec-temporal.plaindtimeprototype.tojson */                      \
@@ -1737,8 +1738,6 @@ namespace internal {
       kDontAdaptArgumentsSentinel)                                             \
   /* Temporal #sec-temporal.plaindatetime.prototype.toplaintime */             \
   CPP(TemporalPlainDateTimePrototypeToPlainTime, kDontAdaptArgumentsSentinel)  \
-  /* Temporal #sec-temporal.plaindatetime.prototype.getisofields */            \
-  CPP(TemporalPlainDateTimePrototypeGetISOFields, kDontAdaptArgumentsSentinel) \
                                                                                \
   /* Temporal.ZonedDateTime */                                                 \
   /* Temporal #sec-temporal.zoneddatetime */                                   \
@@ -1847,8 +1846,6 @@ namespace internal {
   /* Temporal #sec-temporal.zoneddatetime.prototype.toplainmonthday */         \
   CPP(TemporalZonedDateTimePrototypeToPlainMonthDay,                           \
       kDontAdaptArgumentsSentinel)                                             \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.getisofields */            \
-  CPP(TemporalZonedDateTimePrototypeGetISOFields, kDontAdaptArgumentsSentinel) \
                                                                                \
   /* Temporal.Duration */                                                      \
   /* Temporal #sec-temporal.duration */                                        \
@@ -1980,9 +1977,6 @@ namespace internal {
   CPP(TemporalPlainYearMonthPrototypeValueOf, kDontAdaptArgumentsSentinel)     \
   /* Temporal #sec-temporal.plainyearmonth.prototype.toplaindate */            \
   CPP(TemporalPlainYearMonthPrototypeToPlainDate, kDontAdaptArgumentsSentinel) \
-  /* Temporal #sec-temporal.plainyearmonth.prototype.getisofields */           \
-  CPP(TemporalPlainYearMonthPrototypeGetISOFields,                             \
-      kDontAdaptArgumentsSentinel)                                             \
                                                                                \
   /* Temporal.PlainMonthDay */                                                 \
   /* Temporal #sec-temporal.plainmonthday */                                   \
@@ -2010,8 +2004,6 @@ namespace internal {
   CPP(TemporalPlainMonthDayPrototypeValueOf, kDontAdaptArgumentsSentinel)      \
   /* Temporal #sec-temporal.plainmonthday.prototype.toplaindate */             \
   CPP(TemporalPlainMonthDayPrototypeToPlainDate, kDontAdaptArgumentsSentinel)  \
-  /* Temporal #sec-temporal.plainmonthday.prototype.getisofields */            \
-  CPP(TemporalPlainMonthDayPrototypeGetISOFields, kDontAdaptArgumentsSentinel) \
                                                                                \
   /* Temporal #sec-date.prototype.totemporalinstant */                         \
   CPP(DatePrototypeToTemporalInstant, kDontAdaptArgumentsSentinel)             \

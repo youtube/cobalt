@@ -12,6 +12,7 @@
 #include "base/containers/contains.h"
 #include "base/functional/callback_helpers.h"
 #include "base/hash/hash.h"
+#include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "components/collaboration/public/messaging/message.h"
@@ -52,6 +53,7 @@ bool ShouldAggregate(const InstantMessage& message) {
   switch (message.collaboration_event) {
     case CollaborationEvent::TAB_UPDATED:
     case CollaborationEvent::TAB_REMOVED:
+    case CollaborationEvent::VERSION_OUT_OF_DATE:
       return false;
     case CollaborationEvent::TAB_GROUP_REMOVED:
     case CollaborationEvent::COLLABORATION_MEMBER_ADDED:

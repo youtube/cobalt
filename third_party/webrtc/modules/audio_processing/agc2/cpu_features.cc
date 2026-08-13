@@ -10,6 +10,8 @@
 
 #include "modules/audio_processing/agc2/cpu_features.h"
 
+#include <string>
+
 #include "rtc_base/cpu_info.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/system/arch.h"

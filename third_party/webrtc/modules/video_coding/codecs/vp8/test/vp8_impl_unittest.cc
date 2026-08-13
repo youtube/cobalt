@@ -22,6 +22,7 @@
 #include "absl/container/inlined_vector.h"
 #include "absl/memory/memory.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/scoped_refptr.h"
 #include "api/test/create_frame_generator.h"
 #include "api/test/frame_generator_interface.h"
@@ -48,11 +49,10 @@
 #include "modules/video_coding/include/video_error_codes.h"
 #include "modules/video_coding/utility/vp8_header_parser.h"
 #include "rtc_base/time_utils.h"
-#include "test/field_trial.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/mappable_native_buffer.h"
-#include "test/scoped_key_value_config.h"
 #include "test/video_codec_settings.h"
 #include "vpx/vpx_codec.h"
 #include "vpx/vpx_encoder.h"
@@ -174,13 +174,14 @@ TEST_F(TestVp8Impl, DefaultErrorResilienceEnabledForTemporalLayers) {
 
 TEST_F(TestVp8Impl,
        PartitionErrorResilienceEnabledForTemporalLayersWithFieldTrial) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-VP8-ForcePartitionResilience/Enabled/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-VP8-ForcePartitionResilience/Enabled/");
   codec_settings_.simulcastStream[0].numberOfTemporalLayers = 2;
   codec_settings_.VP8()->numberOfTemporalLayers = 2;
 
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder(CreateEnvironment(), {}, absl::WrapUnique(vpx));
+  LibvpxVp8Encoder encoder(CreateEnvironment(&field_trials), {},
+                           absl::WrapUnique(vpx));
   EXPECT_CALL(*vpx,
               codec_enc_init(_, _,
                              Field(&vpx_codec_enc_cfg_t::g_error_resilient,
@@ -686,7 +687,7 @@ TEST(LibvpxVp8EncoderTest, GetEncoderInfoReturnsStaticInformation) {
 }
 
 TEST(LibvpxVp8EncoderTest, RequestedResolutionAlignmentFromFieldTrial) {
-  test::ScopedKeyValueConfig field_trials(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-VP8-GetEncoderInfoOverride/"
       "requested_resolution_alignment:10/");
 
@@ -701,7 +702,7 @@ TEST(LibvpxVp8EncoderTest, RequestedResolutionAlignmentFromFieldTrial) {
 }
 
 TEST(LibvpxVp8EncoderTest, ResolutionBitrateLimitsFromFieldTrial) {
-  test::ScopedKeyValueConfig field_trials(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-VP8-GetEncoderInfoOverride/"
       "frame_size_pixels:123|456|789,"
       "min_start_bitrate_bps:11000|22000|33000,"
@@ -874,11 +875,9 @@ class TestVp8ImplWithMaxFrameDropTrial
     : public TestVp8Impl,
       public WithParamInterface<std::tuple<std::string, TimeDelta, TimeDelta>> {
  public:
-  TestVp8ImplWithMaxFrameDropTrial()
-      : TestVp8Impl(), trials_(std::get<0>(GetParam())) {}
-
- protected:
-  test::ScopedFieldTrials trials_;
+  TestVp8ImplWithMaxFrameDropTrial() {
+    field_trials_.Merge(FieldTrials(std::get<0>(GetParam())));
+  }
 };
 
 TEST_P(TestVp8ImplWithMaxFrameDropTrial, EnforcesMaxFrameDropInterval) {

@@ -102,21 +102,33 @@ bool NextInIgnoreList(typename ZoneSet<Key>::const_iterator& ignore,
 bool CheckAllPhiInputsAreContextType(compiler::JSHeapBroker* broker,
                                      LocalIsolate* local_isolate,
                                      const KnownNodeAspects& node_aspects,
-                                     ValueNode* phi) {
-  CHECK(phi->Is<Phi>());
+                                     Phi* phi) {
   for (Input& input : *phi) {
     if (!input.node()) continue;
-    if (input.node()->Is<Phi>()) {
-      CheckAllPhiInputsAreContextType(broker, local_isolate, node_aspects,
-                                      input.node());
+    if (phi->is_loop_phi() && &phi->backedge_input() == &input) continue;
+    if (NodeTypeIs(
+            GetNodeType(broker, local_isolate, node_aspects, input.node()),
+            NodeType::kContext)) {
       continue;
     }
-    // Note: OSR values can leak a context with InitialValue that we are unable
-    // to type.
-    CHECK(NodeTypeIs(
-              GetNodeType(broker, local_isolate, node_aspects, input.node()),
-              NodeType::kContext) ||
-          input.node()->Is<InitialValue>());
+    // OSR values can leak a context with InitialValue that we are unable to
+    // type.
+    if (input.node()->Is<InitialValue>() ||
+        input.node()->Is<GeneratorRestoreRegister>()) {
+      continue;
+    }
+    if (phi->Cast<Phi>()->owner() == interpreter::Register::current_context()) {
+      // We are unable to type loop phis holding the context from resumable
+      // loops, since they start with an empty KNA.
+      // Instead here, we just check if the phi makes sense,
+      return true;
+    }
+    if (auto next_phi = input.node()->TryCast<Phi>()) {
+      CheckAllPhiInputsAreContextType(broker, local_isolate, node_aspects,
+                                      next_phi);
+      continue;
+    }
+    return false;
   }
   return true;
 }
@@ -128,45 +140,69 @@ bool CheckAllPhiInputsAreContextType(compiler::JSHeapBroker* broker,
 void KnownNodeAspects::UpdateMayHaveAliasingContexts(
     compiler::JSHeapBroker* broker, LocalIsolate* local_isolate,
     ValueNode* context) {
-  if (context->Is<InitialValue>()) {
-    may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
-        may_have_aliasing_contexts_,
-        ContextSlotLoadsAlias::kOnlyLoadsRelativeToCurrentContext);
-  } else if (context->Is<Constant>()) {
-    may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
-        may_have_aliasing_contexts_,
-        ContextSlotLoadsAlias::kOnlyLoadsRelativeToConstant);
-  } else if (auto load_prev_ctxt =
-                 context->TryCast<LoadTaggedFieldForContextSlotNoCells>()) {
-    auto input = load_prev_ctxt->input(0).node();
-    USE(input);
-    // Note: OSR values can leak a context with InitialValue that we are unable
-    // to type.
-    DCHECK(NodeTypeIs(GetNodeType(broker, local_isolate, *this, input),
-                      NodeType::kContext) ||
-           input->Is<Phi>() || input->Is<InitialValue>());
-    SLOW_DCHECK_IMPLIES(
-        input->Is<Phi>(),
-        CheckAllPhiInputsAreContextType(broker, local_isolate, *this, input));
-    DCHECK_EQ(load_prev_ctxt->offset(),
-              Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
-    // TODO(olivf): We would like to remove this, but it currently fails test
-    // maglev/regress/regress-367758074.js.
-    may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
-  } else if (auto load = context->TryCast<LoadTaggedField>()) {
-    // Currently, the only way to leak a context via load tagged field is with
-    // JSFunction or JSGeneratorObject.
-    USE(load);
-    DCHECK(load->offset() == JSFunction::kContextOffset ||
-           load->offset() == JSGeneratorObject::kContextOffset);
-    may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
-  } else {
-    // This DCHECK only shows which kind of nodes can be a context, even if this
-    // DCHECK fails, it is always safe to set aliasing context mode to kYes.
-    DCHECK(context->Is<InlinedAllocation>() ||
-           context->Is<CreateFunctionContext>() || context->Is<CallRuntime>() ||
-           context->Is<GeneratorRestoreRegister>() || context->Is<Phi>());
-    may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
+  while (true) {
+    if (auto load_prev_ctxt =
+            context->TryCast<LoadTaggedFieldForContextSlotNoCells>()) {
+      DCHECK_EQ(load_prev_ctxt->offset(),
+                Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
+      // Recurse until we find the root.
+      context = load_prev_ctxt->input(0).node();
+      continue;
+    }
+    break;
+  }
+
+  switch (context->opcode()) {
+    case Opcode::kInitialValue:
+      may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
+          may_have_aliasing_contexts_,
+          ContextSlotLoadsAlias::kOnlyLoadsRelativeToCurrentContext);
+      break;
+    case Opcode::kConstant:
+      may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
+          may_have_aliasing_contexts_,
+          ContextSlotLoadsAlias::kOnlyLoadsRelativeToConstant);
+      DCHECK(NodeTypeIs(GetNodeType(broker, local_isolate, *this, context),
+                        NodeType::kContext));
+      break;
+    case Opcode::kCreateFunctionContext:
+    case Opcode::kInlinedAllocation:
+      // These can be precisely tracked.
+      DCHECK(NodeTypeIs(GetNodeType(broker, local_isolate, *this, context),
+                        NodeType::kContext));
+      break;
+    case Opcode::kLoadTaggedField: {
+      LoadTaggedField* load = context->Cast<LoadTaggedField>();
+      // Currently, the only way to leak a context via load tagged field is with
+      // JSFunction or JSGeneratorObject.
+      USE(load);
+      DCHECK(load->offset() == JSFunction::kContextOffset ||
+             load->offset() == JSGeneratorObject::kContextOffset);
+      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
+      DCHECK(NodeTypeIs(GetNodeType(broker, local_isolate, *this, context),
+                        NodeType::kContext));
+      break;
+    }
+    case Opcode::kCallRuntime:
+      DCHECK(NodeTypeIs(GetNodeType(broker, local_isolate, *this, context),
+                        NodeType::kContext));
+      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
+      break;
+    case Opcode::kGeneratorRestoreRegister:
+      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
+      break;
+    case Opcode::kPhi:
+      SLOW_DCHECK(CheckAllPhiInputsAreContextType(broker, local_isolate, *this,
+                                                  context->Cast<Phi>()));
+      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
+      break;
+    default:
+      // This DCHECK only shows which kind of nodes can be a context, even if
+      // this DCHECK fails, it is always safe to set aliasing context mode to
+      // kYes.
+      DCHECK(false);
+      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
+      break;
   }
 }
 
@@ -259,6 +295,7 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
       if (loop_effects->may_have_aliasing_contexts) {
         may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
       } else {
+        DCHECK_EQ(may_have_aliasing_contexts_, ContextSlotLoadsAlias::kNone);
         may_have_aliasing_contexts_ = other.may_have_aliasing_contexts();
       }
     }

@@ -719,6 +719,7 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
         static_cast<unsigned>(
             function_template_info_.c_functions(broker()).size()));
 
+    // LINT.IfChange
     // TODO(crbug.com/418936518): Support deopt for functions with return value.
     Node* error_message = jsgraph()->SmiConstant(
         static_cast<int>(AbortReason::kUnsupportedDeopt));
@@ -730,6 +731,11 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
             : CreateStubBuiltinContinuationFrameState(
                   jsgraph(), Builtin::kAbort, ContextInput(), &error_message, 1,
                   FrameStateInput(), ContinuationFrameStateMode::LAZY);
+    // The `DeoptimizationEntry_LazyAfterFastCall` builtin currently sets the
+    // return value unconditionally to `undefined`. If a continuation builtin is
+    // set up here, then the entry builtin should not overwrite the return
+    // value.
+    // LINT.ThenChange(/src/builtins/x64/builtins-x64.cc:DeoptAfterFastCallSetReturnValue)
 
     // Callback data value for fast Api calls. Unlike slow Api calls, the fast
     // variant passes callback data directly.
@@ -4543,6 +4549,17 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   DCHECK_IMPLIES(speculation_mode == SpeculationMode::kAllowSpeculation,
                  feedback_source.IsValid());
 
+  // Let's not add instructions to the graph (like e.g., CheckIfConstructor
+  // does) if the resulting call might be dead.
+  if (feedback_source.IsValid()) {
+    ProcessedFeedback const& call_feedback =
+        broker()->GetFeedbackForCall(feedback_source);
+    if (call_feedback.IsInsufficient()) {
+      return ReduceForInsufficientFeedback(
+          node, DeoptimizeReason::kInsufficientTypeFeedbackForCall);
+    }
+  }
+
   Node* arguments_list =
       NodeProperties::GetValueInput(node, arraylike_or_spread_index);
 
@@ -5956,7 +5973,11 @@ Reduction JSCallReducer::ReduceReturnReceiver(Node* node) {
 Reduction JSCallReducer::ReduceForInsufficientFeedback(
     Node* node, DeoptimizeReason reason) {
   DCHECK(node->opcode() == IrOpcode::kJSCall ||
-         node->opcode() == IrOpcode::kJSConstruct);
+         node->opcode() == IrOpcode::kJSCallWithSpread ||
+         node->opcode() == IrOpcode::kJSCallWithArrayLike ||
+         node->opcode() == IrOpcode::kJSConstruct ||
+         node->opcode() == IrOpcode::kJSConstructWithSpread ||
+         node->opcode() == IrOpcode::kJSConstructWithArrayLike);
   if (!(flags() & kBailoutOnUninitialized)) return NoChange();
 
   Node* effect = NodeProperties::GetEffectInput(node);

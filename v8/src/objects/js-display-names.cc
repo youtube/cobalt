@@ -436,24 +436,23 @@ MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
   // ecma402/#sec-Intl.DisplayNames-internal-slots
   // The value of the [[RelevantExtensionKeys]] internal slot is
   // «  ».
-  std::set<std::string> relevant_extension_keys = {};
   // 9. Let r be ResolveLocale(%DisplayNames%.[[AvailableLocales]],
   //     requestedLocales, opt, %DisplayNames%.[[RelevantExtensionKeys]]).
-  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
-      Intl::ResolveLocale(isolate, JSDisplayNames::GetAvailableLocales(),
-                          requested_locales, matcher, relevant_extension_keys);
-  if (maybe_resolve_locale.IsNothing()) {
+  Intl::ResolvedLocale r;
+  if (!Intl::ResolveLocale(isolate, JSDisplayNames::GetAvailableLocales(),
+                           requested_locales, matcher, {})
+           .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
-  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   icu::Locale icu_locale = r.icu_locale;
 
   // 10. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
   Maybe<Style> maybe_style = GetStringOption<Style>(
-      isolate, options, "style", service, {"long", "short", "narrow"},
-      {Style::kLong, Style::kShort, Style::kNarrow}, Style::kLong);
+      isolate, options, "style", service,
+      std::to_array<const std::string_view>({"long", "short", "narrow"}),
+      std::array{Style::kLong, Style::kShort, Style::kNarrow}, Style::kLong);
   MAYBE_RETURN(maybe_style, MaybeDirectHandle<JSDisplayNames>());
   Style style_enum = maybe_style.FromJust();
 
@@ -464,9 +463,11 @@ MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
   // undefined).
   Maybe<Type> maybe_type = GetStringOption<Type>(
       isolate, options, "type", service,
-      {"language", "region", "script", "currency", "calendar", "dateTimeField"},
-      {Type::kLanguage, Type::kRegion, Type::kScript, Type::kCurrency,
-       Type::kCalendar, Type::kDateTimeField},
+      std::to_array<const std::string_view>({"language", "region", "script",
+                                             "currency", "calendar",
+                                             "dateTimeField"}),
+      std::array{Type::kLanguage, Type::kRegion, Type::kScript, Type::kCurrency,
+                 Type::kCalendar, Type::kDateTimeField},
       Type::kUndefined);
   MAYBE_RETURN(maybe_type, MaybeDirectHandle<JSDisplayNames>());
   Type type_enum = maybe_type.FromJust();
@@ -481,8 +482,9 @@ MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
   // 15. Let fallback be ? GetOption(options, "fallback", "string",
   //     « "code", "none" », "code").
   Maybe<Fallback> maybe_fallback = GetStringOption<Fallback>(
-      isolate, options, "fallback", service, {"code", "none"},
-      {Fallback::kCode, Fallback::kNone}, Fallback::kCode);
+      isolate, options, "fallback", service,
+      std::to_array<const std::string_view>({"code", "none"}),
+      std::array{Fallback::kCode, Fallback::kNone}, Fallback::kCode);
   MAYBE_RETURN(maybe_fallback, MaybeDirectHandle<JSDisplayNames>());
   Fallback fallback_enum = maybe_fallback.FromJust();
 
@@ -493,8 +495,9 @@ MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
   // "string", « "dialect", "standard" », "dialect").
   Maybe<LanguageDisplay> maybe_language_display =
       GetStringOption<LanguageDisplay>(
-          isolate, options, "languageDisplay", service, {"dialect", "standard"},
-          {LanguageDisplay::kDialect, LanguageDisplay::kStandard},
+          isolate, options, "languageDisplay", service,
+          std::to_array<const std::string_view>({"dialect", "standard"}),
+          std::array{LanguageDisplay::kDialect, LanguageDisplay::kStandard},
           LanguageDisplay::kDialect);
   MAYBE_RETURN(maybe_language_display, MaybeDirectHandle<JSDisplayNames>());
   // 25. If type is "language", then

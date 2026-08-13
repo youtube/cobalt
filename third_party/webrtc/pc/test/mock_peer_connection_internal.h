@@ -208,10 +208,7 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
               SetConfiguration,
               (const PeerConnectionInterface::RTCConfiguration&),
               (override));
-  MOCK_METHOD(bool,
-              AddIceCandidate,
-              (const IceCandidateInterface*),
-              (override));
+  MOCK_METHOD(bool, AddIceCandidate, (const IceCandidate*), (override));
   MOCK_METHOD(bool,
               RemoveIceCandidates,
               (const std::vector<webrtc::Candidate>&),

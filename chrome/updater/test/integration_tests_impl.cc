@@ -495,7 +495,6 @@ void RegisterAppByValue(UpdaterScope scope, const base::Value::Dict& value) {
 
 void EnterTestMode(const GURL& update_url,
                    const GURL& crash_upload_url,
-                   const GURL& device_management_url,
                    const GURL& app_logo_url,
                    base::TimeDelta idle_timeout,
                    base::TimeDelta server_keep_alive_time,
@@ -504,7 +503,6 @@ void EnterTestMode(const GURL& update_url,
       ExternalConstantsBuilder()
           .SetUpdateURL(std::vector<std::string>{update_url.spec()})
           .SetCrashUploadURL(crash_upload_url.spec())
-          .SetDeviceManagementURL(device_management_url.spec())
           .SetAppLogoURL(app_logo_url.spec())
           .SetUseCUP(false)
           .SetInitialDelay(base::Milliseconds(100))
@@ -828,6 +826,7 @@ void ExpectAppsUpdateSequence(UpdaterScope scope,
   std::set<base::FilePath> downloaded_crxes;
   for (const AppUpdateExpectation& app : apps) {
     if ((app.should_update || app.always_serve_crx) &&
+        (app.from_version != app.to_version) &&
         !base::Contains(downloaded_crxes, app.crx_relative_path)) {
       // Download requests for apps that install/update
       const base::FilePath crx_path = exe_path.Append(app.crx_relative_path);

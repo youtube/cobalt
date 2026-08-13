@@ -10,7 +10,14 @@
 
 #include "modules/audio_processing/aec3/subband_nearend_detector.h"
 
+#include <array>
+#include <cstddef>
 #include <numeric>
+
+#include "api/array_view.h"
+#include "api/audio/echo_canceller3_config.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/moving_average.h"
 
 namespace webrtc {
 SubbandNearendDetector::SubbandNearendDetector(

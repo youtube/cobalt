@@ -12,13 +12,14 @@
 
 #include <cstdint>
 
+#include "api/field_trials.h"
 #include "api/units/frequency.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "system_wrappers/include/clock.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 
 namespace webrtc {
 namespace {
@@ -81,7 +82,7 @@ MATCHER(HasConsistentVideoDelayTimings, "") {
 }  // namespace
 
 TEST(VCMTimingTest, JitterDelay) {
-  test::ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   SimulatedClock clock(0);
   VCMTiming timing(&clock, field_trials);
   timing.Reset();
@@ -177,7 +178,7 @@ TEST(VCMTimingTest, JitterDelay) {
 
 TEST(VCMTimingTest, TimestampWrapAround) {
   constexpr auto kStartTime = Timestamp::Millis(1337);
-  test::ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   SimulatedClock clock(kStartTime);
   VCMTiming timing(&clock, field_trials);
 
@@ -199,7 +200,7 @@ TEST(VCMTimingTest, TimestampWrapAround) {
 }
 
 TEST(VCMTimingTest, UseLowLatencyRenderer) {
-  test::ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   SimulatedClock clock(0);
   VCMTiming timing(&clock, field_trials);
   timing.Reset();
@@ -231,7 +232,7 @@ TEST(VCMTimingTest, MaxWaitingTimeIsZeroForZeroRenderTime) {
   constexpr TimeDelta kTimeDelta = 1 / Frequency::Hertz(60);
   constexpr Timestamp kZeroRenderTime = Timestamp::Zero();
   SimulatedClock clock(kStartTimeUs);
-  test::ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   VCMTiming timing(&clock, field_trials);
   timing.Reset();
   timing.set_playout_delay({TimeDelta::Zero(), TimeDelta::Zero()});
@@ -266,8 +267,8 @@ TEST(VCMTimingTest, MaxWaitingTimeZeroDelayPacingExperiment) {
   // The minimum pacing is enabled by a field trial and active if the RTP
   // playout delay header extension is set to min==0.
   constexpr TimeDelta kMinPacing = TimeDelta::Millis(3);
-  test::ScopedKeyValueConfig field_trials(
-      "WebRTC-ZeroPlayoutDelay/min_pacing:3ms/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-ZeroPlayoutDelay/min_pacing:3ms/");
   constexpr int64_t kStartTimeUs = 3.15e13;  // About one year in us.
   constexpr TimeDelta kTimeDelta = 1 / Frequency::Hertz(60);
   constexpr auto kZeroRenderTime = Timestamp::Zero();
@@ -317,8 +318,8 @@ TEST(VCMTimingTest, MaxWaitingTimeZeroDelayPacingExperiment) {
 TEST(VCMTimingTest, DefaultMaxWaitingTimeUnaffectedByPacingExperiment) {
   // The minimum pacing is enabled by a field trial but should not have any
   // effect if render_time_ms is greater than 0;
-  test::ScopedKeyValueConfig field_trials(
-      "WebRTC-ZeroPlayoutDelay/min_pacing:3ms/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-ZeroPlayoutDelay/min_pacing:3ms/");
   constexpr int64_t kStartTimeUs = 3.15e13;  // About one year in us.
   const TimeDelta kTimeDelta = TimeDelta::Millis(1000.0 / 60.0);
   SimulatedClock clock(kStartTimeUs);
@@ -350,8 +351,8 @@ TEST(VCMTimingTest, MaxWaitingTimeReturnsZeroIfTooManyFramesQueuedIsTrue) {
   // The minimum pacing is enabled by a field trial and active if the RTP
   // playout delay header extension is set to min==0.
   constexpr TimeDelta kMinPacing = TimeDelta::Millis(3);
-  test::ScopedKeyValueConfig field_trials(
-      "WebRTC-ZeroPlayoutDelay/min_pacing:3ms/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-ZeroPlayoutDelay/min_pacing:3ms/");
   constexpr int64_t kStartTimeUs = 3.15e13;  // About one year in us.
   const TimeDelta kTimeDelta = TimeDelta::Millis(1000.0 / 60.0);
   constexpr auto kZeroRenderTime = Timestamp::Zero();
@@ -386,7 +387,7 @@ TEST(VCMTimingTest, MaxWaitingTimeReturnsZeroIfTooManyFramesQueuedIsTrue) {
 }
 
 TEST(VCMTimingTest, UpdateCurrentDelayCapsWhenOffByMicroseconds) {
-  test::ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   SimulatedClock clock(0);
   VCMTiming timing(&clock, field_trials);
   timing.Reset();
@@ -409,7 +410,7 @@ TEST(VCMTimingTest, UpdateCurrentDelayCapsWhenOffByMicroseconds) {
 }
 
 TEST(VCMTimingTest, GetTimings) {
-  test::ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   SimulatedClock clock(33);
   VCMTiming timing(&clock, field_trials);
   timing.Reset();
@@ -452,7 +453,7 @@ TEST(VCMTimingTest, GetTimings) {
 
 TEST(VCMTimingTest, GetTimingsBeforeAndAfterValidRtpTimestamp) {
   SimulatedClock clock(33);
-  test::ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   VCMTiming timing(&clock, field_trials);
 
   // Setup.

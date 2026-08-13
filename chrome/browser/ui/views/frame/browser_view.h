@@ -516,6 +516,9 @@ class BrowserView : public BrowserWindow,
   // Activate the tab containing the given WebContents (if any).
   void ActivateWebContents(content::WebContents* web_contents);
 
+  // Updates stored focus for web contents that is being activated.
+  void MaybeUpdateStoredFocusForWebContents(content::WebContents*);
+
   // BrowserWindow:
   void Show() override;
   void ShowInactive() override;
@@ -1287,6 +1290,8 @@ class BrowserView : public BrowserWindow,
   // container on new tab pages.
   raw_ptr<new_tab_footer::NewTabFooterWebView> new_tab_footer_web_view_ =
       nullptr;
+  // Separator between the web contents and the Footer.
+  raw_ptr<views::View> new_tab_footer_web_view_separator_ = nullptr;
 
   // The scrim view that covers the content area when a tab-modal dialog is
   // open.

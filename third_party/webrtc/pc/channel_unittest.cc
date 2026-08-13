@@ -48,7 +48,6 @@
 #include "pc/rtp_transport.h"
 #include "pc/rtp_transport_internal.h"
 #include "pc/session_description.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/byte_order.h"
@@ -70,6 +69,7 @@ namespace {
 using ::testing::AllOf;
 using ::testing::ElementsAre;
 using ::testing::Field;
+using ::webrtc::ArrayView;
 using ::webrtc::DtlsTransportInternal;
 using ::webrtc::FakeVoiceMediaReceiveChannel;
 using ::webrtc::FakeVoiceMediaSendChannel;
@@ -1206,11 +1206,9 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
     EXPECT_TRUE(CheckNoRtp2());
   }
 
-  void SendBundleToBundle(const int* pl_types,
-                          int len,
+  void SendBundleToBundle(ArrayView<const int, 2> pl_types,
                           bool rtcp_mux,
                           bool secure) {
-    ASSERT_EQ(2, len);
     int sequence_number1_1 = 0, sequence_number2_2 = 0;
     // Only pl_type1 was added to the bundle filter for both `channel1_`
     // and `channel2_`.
@@ -1853,19 +1851,19 @@ TEST_F(VoiceChannelSingleThreadTest, TestOnTransportReadyToSend) {
 }
 
 TEST_F(VoiceChannelSingleThreadTest, SendBundleToBundle) {
-  Base::SendBundleToBundle(kAudioPts, arraysize(kAudioPts), false, false);
+  Base::SendBundleToBundle(kAudioPts, false, false);
 }
 
 TEST_F(VoiceChannelSingleThreadTest, SendBundleToBundleSecure) {
-  Base::SendBundleToBundle(kAudioPts, arraysize(kAudioPts), false, true);
+  Base::SendBundleToBundle(kAudioPts, false, true);
 }
 
 TEST_F(VoiceChannelSingleThreadTest, SendBundleToBundleWithRtcpMux) {
-  Base::SendBundleToBundle(kAudioPts, arraysize(kAudioPts), true, false);
+  Base::SendBundleToBundle(kAudioPts, true, false);
 }
 
 TEST_F(VoiceChannelSingleThreadTest, SendBundleToBundleWithRtcpMuxSecure) {
-  Base::SendBundleToBundle(kAudioPts, arraysize(kAudioPts), true, true);
+  Base::SendBundleToBundle(kAudioPts, true, true);
 }
 
 TEST_F(VoiceChannelSingleThreadTest, DefaultMaxBitrateIsUnlimited) {
@@ -1994,19 +1992,19 @@ TEST_F(VoiceChannelDoubleThreadTest, TestOnTransportReadyToSend) {
 }
 
 TEST_F(VoiceChannelDoubleThreadTest, SendBundleToBundle) {
-  Base::SendBundleToBundle(kAudioPts, arraysize(kAudioPts), false, false);
+  Base::SendBundleToBundle(kAudioPts, false, false);
 }
 
 TEST_F(VoiceChannelDoubleThreadTest, SendBundleToBundleSecure) {
-  Base::SendBundleToBundle(kAudioPts, arraysize(kAudioPts), false, true);
+  Base::SendBundleToBundle(kAudioPts, false, true);
 }
 
 TEST_F(VoiceChannelDoubleThreadTest, SendBundleToBundleWithRtcpMux) {
-  Base::SendBundleToBundle(kAudioPts, arraysize(kAudioPts), true, false);
+  Base::SendBundleToBundle(kAudioPts, true, false);
 }
 
 TEST_F(VoiceChannelDoubleThreadTest, SendBundleToBundleWithRtcpMuxSecure) {
-  Base::SendBundleToBundle(kAudioPts, arraysize(kAudioPts), true, true);
+  Base::SendBundleToBundle(kAudioPts, true, true);
 }
 
 TEST_F(VoiceChannelDoubleThreadTest, DefaultMaxBitrateIsUnlimited) {
@@ -2125,19 +2123,19 @@ TEST_F(VideoChannelSingleThreadTest, TestReceivePrAnswer) {
 }
 
 TEST_F(VideoChannelSingleThreadTest, SendBundleToBundle) {
-  Base::SendBundleToBundle(kVideoPts, arraysize(kVideoPts), false, false);
+  Base::SendBundleToBundle(kVideoPts, false, false);
 }
 
 TEST_F(VideoChannelSingleThreadTest, SendBundleToBundleSecure) {
-  Base::SendBundleToBundle(kVideoPts, arraysize(kVideoPts), false, true);
+  Base::SendBundleToBundle(kVideoPts, false, true);
 }
 
 TEST_F(VideoChannelSingleThreadTest, SendBundleToBundleWithRtcpMux) {
-  Base::SendBundleToBundle(kVideoPts, arraysize(kVideoPts), true, false);
+  Base::SendBundleToBundle(kVideoPts, true, false);
 }
 
 TEST_F(VideoChannelSingleThreadTest, SendBundleToBundleWithRtcpMuxSecure) {
-  Base::SendBundleToBundle(kVideoPts, arraysize(kVideoPts), true, true);
+  Base::SendBundleToBundle(kVideoPts, true, true);
 }
 
 TEST_F(VideoChannelSingleThreadTest, TestOnTransportReadyToSend) {
@@ -2570,19 +2568,19 @@ TEST_F(VideoChannelDoubleThreadTest, TestReceivePrAnswer) {
 }
 
 TEST_F(VideoChannelDoubleThreadTest, SendBundleToBundle) {
-  Base::SendBundleToBundle(kVideoPts, arraysize(kVideoPts), false, false);
+  Base::SendBundleToBundle(kVideoPts, false, false);
 }
 
 TEST_F(VideoChannelDoubleThreadTest, SendBundleToBundleSecure) {
-  Base::SendBundleToBundle(kVideoPts, arraysize(kVideoPts), false, true);
+  Base::SendBundleToBundle(kVideoPts, false, true);
 }
 
 TEST_F(VideoChannelDoubleThreadTest, SendBundleToBundleWithRtcpMux) {
-  Base::SendBundleToBundle(kVideoPts, arraysize(kVideoPts), true, false);
+  Base::SendBundleToBundle(kVideoPts, true, false);
 }
 
 TEST_F(VideoChannelDoubleThreadTest, SendBundleToBundleWithRtcpMuxSecure) {
-  Base::SendBundleToBundle(kVideoPts, arraysize(kVideoPts), true, true);
+  Base::SendBundleToBundle(kVideoPts, true, true);
 }
 
 TEST_F(VideoChannelDoubleThreadTest, TestOnTransportReadyToSend) {

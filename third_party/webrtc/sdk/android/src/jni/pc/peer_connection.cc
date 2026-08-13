@@ -304,8 +304,7 @@ PeerConnectionObserverJni::PeerConnectionObserverJni(
 
 PeerConnectionObserverJni::~PeerConnectionObserverJni() = default;
 
-void PeerConnectionObserverJni::OnIceCandidate(
-    const IceCandidateInterface* candidate) {
+void PeerConnectionObserverJni::OnIceCandidate(const IceCandidate* candidate) {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
   Java_Observer_onIceCandidate(env, j_observer_global_,
                                NativeToJavaIceCandidate(env, *candidate));
@@ -678,7 +677,7 @@ static jboolean JNI_PeerConnection_AddIceCandidate(
     const jni_zero::JavaParamRef<jstring>& j_candidate_sdp) {
   std::string sdp_mid = JavaToNativeString(jni, j_sdp_mid);
   std::string sdp = JavaToNativeString(jni, j_candidate_sdp);
-  std::unique_ptr<IceCandidateInterface> candidate(
+  std::unique_ptr<IceCandidate> candidate(
       CreateIceCandidate(sdp_mid, j_sdp_mline_index, sdp, nullptr));
   return ExtractNativePC(jni, j_pc)->AddIceCandidate(candidate.get());
 }
@@ -692,7 +691,7 @@ static void JNI_PeerConnection_AddIceCandidateWithObserver(
     const jni_zero::JavaParamRef<jobject>& j_observer) {
   std::string sdp_mid = JavaToNativeString(jni, j_sdp_mid);
   std::string sdp = JavaToNativeString(jni, j_candidate_sdp);
-  std::unique_ptr<IceCandidateInterface> candidate(
+  std::unique_ptr<IceCandidate> candidate(
       CreateIceCandidate(sdp_mid, j_sdp_mline_index, sdp, nullptr));
 
   scoped_refptr<AddIceCandidateObserverJni> observer(

@@ -1131,6 +1131,14 @@ inline constexpr char kPrivacySandboxFakeNoticeFirstSignInTime[] =
 inline constexpr char kPrivacySandboxFakeNoticeFirstSignOutTime[] =
     "privacy_sandbox.fake_notice.first_sign_out_time";
 
+// Deprecated 06/2025.
+inline constexpr char kStorageGarbageCollect[] =
+    "extensions.storage.garbagecollect";
+inline constexpr char kVariationsLimitedEntropySyntheticTrialSeed[] =
+    "variations_limited_entropy_synthetic_trial_seed";
+inline constexpr char kVariationsLimitedEntropySyntheticTrialSeedV2[] =
+    "variations_limited_entropy_synthetic_trial_seed_v2";
+
 // Register local state used only for migration (clearing or moving to a new
 // key).
 void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
@@ -1246,6 +1254,11 @@ void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
   // Deprecated 05/2025.
   registry->RegisterStringPref(kModuleBlocklistCacheMD5Digest, "");
 #endif
+
+  // Deprecated 06/2025.
+  registry->RegisterUint64Pref(kVariationsLimitedEntropySyntheticTrialSeed, 0);
+  registry->RegisterUint64Pref(kVariationsLimitedEntropySyntheticTrialSeedV2,
+                               0);
 }
 
 // Register prefs used only for migration (clearing or moving to a new key).
@@ -1612,6 +1625,9 @@ void RegisterProfilePrefsForMigration(
   registry->RegisterTimeDeltaPref(kSyncPollInterval, base::TimeDelta());
   registry->RegisterDictionaryPref(kSharingVapidKey);
   registry->RegisterBooleanPref(kHasSeenWelcomePage, false);
+
+  // Deprecated 06/2025
+  registry->RegisterBooleanPref(kStorageGarbageCollect, false);
 }
 
 }  // namespace
@@ -2530,6 +2546,10 @@ void MigrateObsoleteLocalStatePrefs(PrefService* local_state) {
   local_state->ClearPref(kModuleBlocklistCacheMD5Digest);
 #endif
 
+  // Added 06/2025.
+  local_state->ClearPref(kVariationsLimitedEntropySyntheticTrialSeed);
+  local_state->ClearPref(kVariationsLimitedEntropySyntheticTrialSeedV2);
+
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_LOCAL_STATE_PREFS
 
@@ -2933,6 +2953,9 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   profile_prefs->ClearPref(kSyncPollInterval);
   profile_prefs->ClearPref(kSharingVapidKey);
   profile_prefs->ClearPref(kHasSeenWelcomePage);
+
+  // Added 06/2025.
+  profile_prefs->ClearPref(kStorageGarbageCollect);
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

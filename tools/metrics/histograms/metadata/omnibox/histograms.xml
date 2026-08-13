@@ -44,7 +44,8 @@ chromium-metrics-reviews@google.com.
       summary="Default Search keywords set by policy."/>
   <variant name=".DefaultSearchEngineSetByUser"
       summary="Default Search keywords set by user"/>
-  <variant name=".FeaturedAllowUserOverrideSiteSearchSetByPolicy"
+  <variant name=".Extension" summary="keywords created by an extension."/>
+  <variant name=".FeaturedOverridableSiteSearchSetByPolicy"
       summary="featured SiteSearch keywords set by an enterprise admin
                through policy that users can override"/>
   <variant name=".FeaturedSearchAggregatorSetByPolicy"
@@ -53,9 +54,12 @@ chromium-metrics-reviews@google.com.
   <variant name=".FeaturedSiteSearchSetByPolicy"
       summary="featured SiteSearch keywords set by an enterprise admin
                through policy that users cannot override"/>
-  <variant name=".NonFeaturedAllowUserOverrideSiteSearchSetByPolicy"
+  <variant name=".NonFeaturedOverridableSiteSearchSetByPolicy"
       summary="non-featured SiteSearch keywords set by an enterprise admin
                through policy that users can override"/>
+  <variant name=".NonFeaturedSearchAggregatorSetByPolicy"
+      summary="non-featured EnterpriseSearchAggregator keywords set by an
+               enterprise admin through policy"/>
   <variant name=".NonFeaturedSiteSearchSetByPolicy"
       summary="non-featured SiteSearch keywords set by an enterprise admin
                through policy that users cannot override"/>
@@ -63,11 +67,6 @@ chromium-metrics-reviews@google.com.
       summary="SiteSearch keywords set by the user that do not support
                replacement. (e.g. 'x.com')"/>
   <variant name=".Prepopulated" summary="prepopulated keywords"/>
-  <variant name=".SearchAggregatorSetByPolicy"
-      summary="non-featured EnterpriseSearchAggregator keywords set by an
-               enterprise admin through policy"/>
-  <variant name=".SearchEngineSetByExtension"
-      summary="keywords created by an extension."/>
   <variant name=".StarterPack" summary="starter pack keywords"/>
   <variant name=".SubstitutingSiteSearchSetByUser"
       summary="SiteSearch keywords set by the user that support replacement
@@ -539,7 +538,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.AutocompletionTime.UpdateResult{Slice}"
-    units="microseconds" expires_after="2025-10-05">
+    units="microseconds" expires_after="2025-12-07">
   <owner>manukh@chromium.org</owner>
   <owner>jdonnelly@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -1053,6 +1052,17 @@ Keep consistent with active providers. Doesn't need to include every provider in
   </summary>
 </histogram>
 
+<histogram name="Omnibox.DsePreload.Prefetch.NoVarySearchDataCacheUpdate"
+    enum="SearchPreloadServiceNoVarySearchDataCacheUpdate"
+    expires_after="2025-12-01">
+  <owner>kenoss@chromium.org</owner>
+  <owner>chrome-prerendering@google.com</owner>
+  <summary>
+    Records a No-Varry-Search data cache change when a non-redirect response
+    header for DSE prefetch is received.
+  </summary>
+</histogram>
+
 <histogram name="Omnibox.EnteredKeywordMode2" enum="OmniboxEnteredKeywordMode2"
     expires_after="2025-11-16">
   <owner>jdonnelly@chromium.org</owner>
@@ -1217,7 +1227,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.FocusToOpenTimeAnyPopupState3.ByPageContext.{OmniboxPageContext}"
-    units="ms" expires_after="2025-10-05">
+    units="ms" expires_after="2025-12-07">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -1825,6 +1835,136 @@ Keep consistent with active providers. Doesn't need to include every provider in
   </summary>
 </histogram>
 
+<histogram name="Omnibox.NavigationToPopupShown.DomContentLoaded" units="ms"
+    expires_after="2025-11-16">
+  <owner>mercerd@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The length of time between a DOMContentLoaded event and the suggest popup
+    being shown to the user.
+
+    Recorded the first time the the omnibox popup is opened after a
+    DOMContentLoaded loaded. Only recorded on the first omnibox popup shown
+    after a navigation. Subsequent omnibox openings are ignored. If the user
+    focused the omnibox before the main document element was available, this
+    metric will not be recorded. Each tab keeps track of its own page change
+    events and omnibox popup open events, meaning if the user opens multiple
+    tabs and opens the omnibox popup on each one, this metric will be recorded
+    multiple times.
+  </summary>
+</histogram>
+
+<histogram
+    name="Omnibox.NavigationToPopupShown.DomContentLoaded.ByPageContext.{OmniboxPageContext}"
+    units="ms" expires_after="2025-11-16">
+  <owner>mercerd@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The length of time between a DOMContentLoaded event and the suggest popup
+    being shown to the user.
+
+    Recorded the first time the the omnibox popup is opened after a
+    DOMContentLoaded event. Only recorded on the first omnibox popup shown after
+    a navigation. Subsequent omnibox openings are ignored. If the user focused
+    the omnibox before the main document element was available, this metric will
+    not be recorded. Each tab keeps track of its own DOMContentLoaded events and
+    omnibox popup open events, meaning if the user opens multiple tabs and opens
+    the omnibox popup on each one, this metric will be recorded multiple times.
+
+    Sliced by page context to help better understand the latency budget for
+    different page types.
+  </summary>
+  <token key="OmniboxPageContext" variants="OmniboxPageContext"/>
+</histogram>
+
+<histogram name="Omnibox.NavigationToPopupShown.MainDocumentElementAvailable"
+    units="ms" expires_after="2025-11-16">
+  <owner>mercerd@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The length of time between a the main document element being available and
+    the suggest popup being shown to the user. The main document element is
+    available when the HTML has finished parsing and window.document is
+    available.
+
+    Recorded the first time the the omnibox popup is opened after a main
+    document element available event. Only recorded on the first omnibox popup
+    shown after a navigation. Subsequent omnibox openings are ignored. If the
+    user focused the omnibox before the main document element was available,
+    this metric will not be recorded. Each tab keeps track of its own main
+    document element available events and omnibox popup open events, meaning if
+    the user opens multiple tabs and opens the omnibox popup on each one, this
+    metric will be recorded multiple times.
+  </summary>
+</histogram>
+
+<histogram
+    name="Omnibox.NavigationToPopupShown.MainDocumentElementAvailable.ByPageContext.{OmniboxPageContext}"
+    units="ms" expires_after="2025-11-16">
+  <owner>mercerd@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The length of time between a the main document element being available and
+    the suggest popup being shown to the user. The main document element is
+    available when the HTML has finished parsing and window.document is
+    available.
+
+    Recorded the first time the the omnibox popup is opened after a main
+    document element available event. Only recorded on the first omnibox popup
+    shown after a navigation. Subsequent omnibox openings are ignored. If the
+    user focused the omnibox before the main document element was available,
+    this metric will not be recorded. Each tab keeps track of its own main
+    document element available events and omnibox popup open events, meaning if
+    the user opens multiple tabs and opens the omnibox popup on each one, this
+    metric will be recorded multiple times.
+
+    Sliced by page context to help better understand the latency budget for
+    different page types.
+  </summary>
+  <token key="OmniboxPageContext" variants="OmniboxPageContext"/>
+</histogram>
+
+<histogram name="Omnibox.NavigationToPopupShown.PrimaryPageChanged" units="ms"
+    expires_after="2025-11-16">
+  <owner>mercerd@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The length of time between a page change event and the suggest popup being
+    shown to the user.
+
+    Recorded the first time the the omnibox popup is opened after a page change
+    event. Only recorded on the first omnibox popup shown after a navigation.
+    Subsequent omnibox openings are ignored. If the user focused the omnibox
+    before the main document element was available, this metric will not be
+    recorded. Each tab keeps track of its own page change events and omnibox
+    popup open events, meaning if the user opens multiple tabs and opens the
+    omnibox popup on each one, this metric will be recorded multiple times.
+  </summary>
+</histogram>
+
+<histogram
+    name="Omnibox.NavigationToPopupShown.PrimaryPageChanged.ByPageContext.{OmniboxPageContext}"
+    units="ms" expires_after="2025-11-16">
+  <owner>mercerd@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The length of time between a page change event and the suggest popup being
+    shown to the user.
+
+    Recorded the first time the the omnibox popup is opened after a page change
+    event. Only recorded on the first omnibox popup shown after a navigation.
+    Subsequent omnibox openings are ignored. If the user focused the omnibox
+    before the main document element was available, this metric will not be
+    recorded. Each tab keeps track of its own page change events and omnibox
+    popup open events, meaning if the user opens multiple tabs and opens the
+    omnibox popup on each one, this metric will be recorded multiple times.
+
+    Sliced by page context to help better understand the latency budget for
+    different page types.
+  </summary>
+  <token key="OmniboxPageContext" variants="OmniboxPageContext"/>
+</histogram>
+
 <histogram name="Omnibox.NumberOfVisibleCharacters" units="characters"
     expires_after="2025-09-07">
   <owner>peilinwang@google.com</owner>
@@ -2214,7 +2354,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.SearchPrefetch.Within1sDuplicateSearchTermsAge"
-    units="ms" expires_after="2025-09-14">
+    units="ms" expires_after="2025-11-30">
   <owner>lingqi@chromium.org</owner>
   <owner>nhiroki@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>
@@ -2230,7 +2370,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.SearchPrefetch.Within1sDuplicateSearchTermsRelationship"
-    enum="DuplicateNavigationServingResult" expires_after="2025-09-14">
+    enum="DuplicateNavigationServingResult" expires_after="2025-12-07">
   <owner>lingqi@chromium.org</owner>
   <owner>nhiroki@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>
@@ -2828,7 +2968,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.SuggestRequestsSent.ResponseTime2.RequestState{RemoteRequestType}{RemoteRequestCompleted}"
-    units="ms" expires_after="2025-08-10">
+    units="ms" expires_after="2025-11-30">
   <owner>ananyaseelam@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -2861,7 +3001,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.SuggestRequestsSent.ResultCount.EnterpriseSearchAggregatorSuggest{EnterpriseSuggestionType}"
-    units="count" expires_after="2025-08-10">
+    units="count" expires_after="2025-11-30">
   <owner>ananyaseelam@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>

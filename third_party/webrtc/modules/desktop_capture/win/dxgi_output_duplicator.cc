@@ -12,12 +12,20 @@
 
 #include <dxgi.h>
 #include <dxgiformat.h>
-#include <string.h>
 #include <unknwn.h>
 #include <windows.h>
 
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
+#include <optional>
 
+#include "modules/desktop_capture/desktop_frame.h"
+#include "modules/desktop_capture/desktop_frame_rotation.h"
+#include "modules/desktop_capture/desktop_geometry.h"
+#include "modules/desktop_capture/desktop_region.h"
+#include "modules/desktop_capture/shared_desktop_frame.h"
+#include "modules/desktop_capture/win/d3d_device.h"
 #include "modules/desktop_capture/win/desktop_capture_utils.h"
 #include "modules/desktop_capture/win/dxgi_texture_mapping.h"
 #include "modules/desktop_capture/win/dxgi_texture_staging.h"

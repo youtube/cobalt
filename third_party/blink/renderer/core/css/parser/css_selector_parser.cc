@@ -1137,8 +1137,8 @@ PseudoId CSSSelectorParser::ParsePseudoElement(const String& selector_string,
     }
 
     case kPseudoIdViewTransitionGroup:
-    case kPseudoIdViewTransitionImagePair:
     case kPseudoIdViewTransitionGroupChildren:
+    case kPseudoIdViewTransitionImagePair:
     case kPseudoIdViewTransitionOld:
     case kPseudoIdViewTransitionNew: {
       if (result.IdentList().size() != 1 ||
@@ -1235,8 +1235,8 @@ bool IsPseudoClassValidAfterPseudoElement(
     case CSSSelector::kPseudoFileSelectorButton:
       return IsUserActionPseudoClass(pseudo_class);
     case CSSSelector::kPseudoViewTransitionGroup:
-    case CSSSelector::kPseudoViewTransitionImagePair:
     case CSSSelector::kPseudoViewTransitionGroupChildren:
+    case CSSSelector::kPseudoViewTransitionImagePair:
     case CSSSelector::kPseudoViewTransitionOld:
     case CSSSelector::kPseudoViewTransitionNew:
       return pseudo_class == CSSSelector::kPseudoOnlyChild;
@@ -1401,7 +1401,6 @@ base::span<CSSSelector> CSSSelectorParser::ConsumeCompoundSelector(
     if (namespace_uri == DefaultNamespace()) {
       namespace_prefix = g_null_atom;
     }
-    context_->Count(WebFeature::kHasIDClassTagAttribute);
     output_.push_back(CSSSelector(
         QualifiedName(namespace_prefix, element_name, namespace_uri)));
     return reset_vector.CommitAddedElements();
@@ -1528,7 +1527,6 @@ bool CSSSelectorParser::ConsumeId(CSSParserTokenStream& stream) {
   AtomicString value = stream.Consume().Value().ToAtomicString();
   selector.SetValue(value, IsQuirksModeBehavior(context_->Mode()));
   output_.push_back(std::move(selector));
-  context_->Count(WebFeature::kHasIDClassTagAttribute);
   return true;
 }
 
@@ -1544,7 +1542,6 @@ bool CSSSelectorParser::ConsumeClass(CSSParserTokenStream& stream) {
   AtomicString value = stream.Consume().Value().ToAtomicString();
   selector.SetValue(value, IsQuirksModeBehavior(context_->Mode()));
   output_.push_back(std::move(selector));
-  context_->Count(WebFeature::kHasIDClassTagAttribute);
   return true;
 }
 
@@ -1581,7 +1578,6 @@ bool CSSSelectorParser::ConsumeAttribute(CSSParserTokenStream& stream) {
     CSSSelector selector(CSSSelector::kAttributeSet, qualified_name,
                          CSSSelector::AttributeMatchType::kCaseSensitive);
     output_.push_back(std::move(selector));
-    context_->Count(WebFeature::kHasIDClassTagAttribute);
     return true;
   }
 
@@ -1602,7 +1598,6 @@ bool CSSSelectorParser::ConsumeAttribute(CSSParserTokenStream& stream) {
   CSSSelector selector(match_type, qualified_name, case_sensitivity,
                        attribute_value.Value().ToAtomicString());
   output_.push_back(std::move(selector));
-  context_->Count(WebFeature::kHasIDClassTagAttribute);
   return true;
 }
 
@@ -1840,8 +1835,8 @@ bool CSSSelectorParser::ConsumePseudo(CSSParserTokenStream& stream,
       return true;
     }
     case CSSSelector::kPseudoViewTransitionGroup:
-    case CSSSelector::kPseudoViewTransitionImagePair:
     case CSSSelector::kPseudoViewTransitionGroupChildren:
+    case CSSSelector::kPseudoViewTransitionImagePair:
     case CSSSelector::kPseudoViewTransitionOld:
     case CSSSelector::kPseudoViewTransitionNew: {
       std::unique_ptr<Vector<AtomicString>> name_and_classes =

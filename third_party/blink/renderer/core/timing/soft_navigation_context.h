@@ -36,8 +36,15 @@ class CORE_EXPORT SoftNavigationContext
     user_interaction_timestamp_ = value;
   }
 
-  const String& Url() const { return url_; }
-  void SetUrl(const String& url) { url_ = url; }
+  // First Url and Last Url help for cases with multiple client-side redirects.
+  const String& InitialUrl() const { return initial_url_; }
+  void AddUrl(const String& url) {
+    if (initial_url_.empty()) {
+      initial_url_ = url;
+    }
+    most_recent_url_ = url;
+  }
+  bool HasUrl() const { return !initial_url_.empty(); }
 
   bool WasEmitted() const { return was_emitted_; }
   void SetWasEmitted() { was_emitted_ = true; }
@@ -46,6 +53,8 @@ class CORE_EXPORT SoftNavigationContext
   // Returns true if this paint updated the attributed area, and so we should
   // check for sufficient paints to emit a soft-nav entry.
   bool HasDomModification() const { return num_modified_dom_nodes_ > 0; }
+
+  uint64_t PaintedArea() const { return painted_area_; }
 
   // Reports a new contentful paint area to this context, and the Node painted.
   // Returns true if we update the total attributed area (meaning this context
@@ -72,7 +81,8 @@ class CORE_EXPORT SoftNavigationContext
   bool advanced_paint_attribution_enabled_;
 
   base::TimeTicks user_interaction_timestamp_;
-  String url_;
+  String initial_url_;
+  String most_recent_url_;
   bool was_emitted_ = false;
 
   blink::HeapHashSet<WeakMember<Node>> modified_nodes_;

@@ -12,6 +12,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
+#include "chrome/browser/ui/views/frame/multi_contents_drop_target_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_resize_area.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view_drop_target_controller.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view_mini_toolbar.h"
@@ -21,8 +22,6 @@
 #include "ui/events/types/event_type.h"
 #include "ui/gfx/scoped_canvas.h"
 #include "ui/views/view_class_properties.h"
-
-DEFINE_ELEMENT_IDENTIFIER_VALUE(kMultiContentsViewDropTargetElementId);
 
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(MultiContentsView,
                                       kMultiContentsViewElementId);
@@ -62,13 +61,12 @@ MultiContentsView::MultiContentsView(
 
   SetProperty(views::kElementIdentifierKey, kMultiContentsViewElementId);
 
-  views::View* drop_target_view = AddChildView(std::make_unique<views::View>());
-  drop_target_view->SetProperty(views::kElementIdentifierKey,
-                                kMultiContentsViewDropTargetElementId);
-  drop_target_view->SetVisible(false);
+  drop_target_view_ =
+      AddChildView(std::make_unique<MultiContentsDropTargetView>());
+  drop_target_view_->SetVisible(false);
   drop_target_controller_ =
       std::make_unique<MultiContentsViewDropTargetController>(
-          *drop_target_view);
+          *drop_target_view_);
 }
 
 MultiContentsView::~MultiContentsView() = default;
@@ -231,6 +229,13 @@ views::ProposedLayout MultiContentsView::CalculateProposedLayout(
   layouts.child_layouts.emplace_back(contents_container_views_[1],
                                      contents_container_views_[1]->GetVisible(),
                                      end_rect);
+
+  // TODO(crbug.com/394369035): The used drop target view is a placeholder, and
+  // therefore will never be visible. The actual drop target view will be
+  // added later.
+  layouts.child_layouts.emplace_back(drop_target_view_.get(),
+                                     false,
+                                     gfx::Rect(0,0, 0, 0));
 
   layouts.host_size = gfx::Size(width, height);
   return layouts;

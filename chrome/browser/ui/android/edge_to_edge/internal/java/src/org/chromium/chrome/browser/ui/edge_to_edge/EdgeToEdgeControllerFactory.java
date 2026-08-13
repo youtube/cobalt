@@ -94,6 +94,7 @@ public class EdgeToEdgeControllerFactory {
      * @param bottomControlsStacker The {@link BottomControlsStacker} for observing and changing
      *     browser controls heights.
      * @param fullscreenManager The {@link FullscreenManager} for provide the fullscreen state.
+     * @param isTablet Whether the device is a tablet.
      */
     public static SystemBarColorHelper createBottomChin(
             View androidView,
@@ -103,7 +104,8 @@ public class EdgeToEdgeControllerFactory {
             Runnable requestRenderRunnable,
             EdgeToEdgeController edgeToEdgeController,
             BottomControlsStacker bottomControlsStacker,
-            FullscreenManager fullscreenManager) {
+            FullscreenManager fullscreenManager,
+            boolean isTablet) {
         assert isEdgeToEdgeBottomChinEnabled();
         return new EdgeToEdgeBottomChinCoordinator(
                 androidView,
@@ -113,7 +115,8 @@ public class EdgeToEdgeControllerFactory {
                 requestRenderRunnable,
                 edgeToEdgeController,
                 bottomControlsStacker,
-                fullscreenManager);
+                fullscreenManager,
+                isTablet);
     }
 
     /**
@@ -162,8 +165,13 @@ public class EdgeToEdgeControllerFactory {
             return false;
         }
 
+        // Not supported on tablet unless the flag is on.
+        if (!EdgeToEdgeUtils.isEdgeToEdgeTabletEnabled()
+                && DeviceFormFactor.isNonMultiDisplayContextOnTablet(activity)) {
+            return false;
+        }
+
         return EdgeToEdgeUtils.isEdgeToEdgeBottomChinEnabled()
-                && !DeviceFormFactor.isNonMultiDisplayContextOnTablet(activity)
                 && !BuildInfo.getInstance().isAutomotive
                 // TODO(https://crbug.com/325356134) Look into using UiUtils#isGestureNavigationMode
                 // instead.

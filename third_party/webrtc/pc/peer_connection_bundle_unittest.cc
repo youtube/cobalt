@@ -112,7 +112,7 @@ class PeerConnectionWrapperForBundleTest : public PeerConnectionWrapper {
       const auto& content = desc->contents()[i];
       if (content.media_description()->type() == media_type) {
         candidate->set_transport_name(content.mid());
-        std::unique_ptr<IceCandidateInterface> jsep_candidate =
+        std::unique_ptr<IceCandidate> jsep_candidate =
             CreateIceCandidate(content.mid(), i, *candidate);
         return pc()->AddIceCandidate(jsep_candidate.get());
       }
@@ -294,7 +294,7 @@ SdpContentMutator RemoveRtcpMux() {
 }
 
 std::vector<int> GetCandidateComponents(
-    const std::vector<IceCandidateInterface*> candidates) {
+    const std::vector<IceCandidate*> candidates) {
   std::vector<int> components;
   components.reserve(candidates.size());
   for (auto* candidate : candidates) {

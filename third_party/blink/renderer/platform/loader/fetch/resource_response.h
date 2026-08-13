@@ -233,6 +233,11 @@ class PLATFORM_EXPORT ResourceResponse final {
     was_fetched_via_service_worker_ = value;
   }
 
+  bool FromSyntheticResponse() const { return from_synthetic_response_; }
+  void SetFromSyntheticResponse(bool value) {
+    from_synthetic_response_ = value;
+  }
+
   network::mojom::FetchResponseSource GetServiceWorkerResponseSource() const {
     return service_worker_response_source_;
   }
@@ -297,6 +302,11 @@ class PLATFORM_EXPORT ResourceResponse final {
   base::Time ResponseTime() const { return response_time_; }
   void SetResponseTime(base::Time response_time) {
     response_time_ = response_time;
+  }
+
+  base::Time OriginalResponseTime() const { return original_response_time_; }
+  void SetOriginalResponseTime(base::Time original_response_time) {
+    original_response_time_ = original_response_time;
   }
 
   const net::IPEndPoint& RemoteIPEndpoint() const {
@@ -544,6 +554,9 @@ class PLATFORM_EXPORT ResourceResponse final {
   // Was the resource fetched over a ServiceWorker.
   bool was_fetched_via_service_worker_ : 1;
 
+  // True if the response is created with the synthetic response.
+  bool from_synthetic_response_ : 1;
+
   // True if service worker navigation preload was performed due to
   // the request for this resource.
   bool did_service_worker_navigation_preload_ : 1;
@@ -660,6 +673,9 @@ class PLATFORM_EXPORT ResourceResponse final {
   // The time at which the response headers were received.  For cached
   // responses, this time could be "far" in the past.
   base::Time response_time_;
+
+  // Like response_time, but ignoring revalidations.
+  base::Time original_response_time_;
 
   // ALPN negotiated protocol of the socket which fetched this resource.
   AtomicString alpn_negotiated_protocol_;

@@ -11,6 +11,7 @@
 #ifndef MODULES_AUDIO_PROCESSING_UTILITY_PFFFT_WRAPPER_H_
 #define MODULES_AUDIO_PROCESSING_UTILITY_PFFFT_WRAPPER_H_
 
+#include <cstddef>
 #include <memory>
 
 #include "api/array_view.h"

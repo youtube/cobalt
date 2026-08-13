@@ -415,15 +415,43 @@ void GlicKeyedService::ResumeActorTask(
   actor_controller_->ResumeTask(task_id, context_options, std::move(callback));
 }
 
+void GlicKeyedService::OnUserInputSubmitted(glic::mojom::WebClientMode mode) {
+  metrics_->OnUserInputSubmitted(mode);
+  if (actor_controller_) {
+    actor_controller_->OnUserInputSubmitted();
+  }
+}
+
+void GlicKeyedService::OnRequestStarted() {
+  if (actor_controller_) {
+    actor_controller_->OnRequestStarted();
+  }
+}
+
+void GlicKeyedService::OnResponseStarted() {
+  metrics_->OnResponseStarted();
+  if (actor_controller_) {
+    actor_controller_->OnResponseStarted();
+  }
+}
+
+void GlicKeyedService::OnResponseStopped() {
+  metrics_->OnResponseStarted();
+  if (actor_controller_) {
+    actor_controller_->OnResponseStopped();
+  }
+}
+
 bool GlicKeyedService::IsActorCoordinatorActingOnTab(
     const content::WebContents* tab) const {
   return actor_controller_ &&
          actor_controller_->IsActorCoordinatorActingOnTab(tab);
 }
 
-actor::ActorCoordinator& GlicKeyedService::GetActorCoordinatorForTesting() {
+actor::ActorCoordinator& GlicKeyedService::GetActorCoordinatorForTesting(
+    tabs::TabInterface* tab) {
   CHECK(actor_controller_);
-  return actor_controller_->GetActorCoordinatorForTesting();  // IN-TEST
+  return actor_controller_->GetActorCoordinatorForTesting(tab);  // IN-TEST
 }
 
 void GlicKeyedService::CaptureScreenshot(
@@ -443,9 +471,16 @@ bool GlicKeyedService::IsContextAccessIndicatorShown(
          GetFocusedTabData().focus()->GetContents() == contents;
 }
 
+void GlicKeyedService::AddPreloadCallback(base::OnceCallback<void()> callback) {
+  preload_callback_ = std::move(callback);
+}
+
 void GlicKeyedService::TryPreload() {
   if (base::FeatureList::IsEnabled(features::kGlicDisableWarming) &&
       !base::FeatureList::IsEnabled(features::kGlicWarming)) {
+    // This is to ensure the preload process completes and preload_callback_ is
+    // called.
+    FinishPreload(false);
     return;
   }
   GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
@@ -462,11 +497,17 @@ void GlicKeyedService::TryPreload() {
   } else {
     base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
-        base::BindOnce(
-            &GlicProfileManager::ShouldPreloadForProfile,
-            glic_profile_manager->GetWeakPtr(), profile_,
-            base::BindOnce(&GlicKeyedService::FinishPreload, GetWeakPtr())),
+        base::BindOnce(&GlicKeyedService::TryPreloadAfterDelay, GetWeakPtr()),
         delay);
+  }
+}
+
+void GlicKeyedService::TryPreloadAfterDelay() {
+  GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
+  if (glic_profile_manager) {
+    glic_profile_manager->ShouldPreloadForProfile(
+        profile_,
+        base::BindOnce(&GlicKeyedService::FinishPreload, GetWeakPtr()));
   }
 }
 
@@ -510,9 +551,13 @@ bool GlicKeyedService::IsActiveWebContents(content::WebContents* contents) {
          contents == window_controller().GetFreWebContents();
 }
 
-void GlicKeyedService::FinishPreload(Profile* profile, bool should_preload) {
-  if (base::FeatureList::IsEnabled(features::kGlicWarming) && profile &&
-      GlicEnabling::IsEnabledAndConsentForProfile(profile)) {
+void GlicKeyedService::FinishPreload(bool should_preload) {
+  if (preload_callback_) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(preload_callback_)));
+  }
+  if (base::FeatureList::IsEnabled(features::kGlicWarming) && profile_ &&
+      GlicEnabling::IsEnabledAndConsentForProfile(profile_)) {
     base::UmaHistogramBoolean("Glic.ShouldPreload", should_preload);
   }
 
@@ -523,7 +568,7 @@ void GlicKeyedService::FinishPreload(Profile* profile, bool should_preload) {
   window_controller_->Preload();
 }
 
-void GlicKeyedService::FinishPreloadFre(Profile* profile, bool should_preload) {
+void GlicKeyedService::FinishPreloadFre(bool should_preload) {
   if (!should_preload) {
     return;
   }

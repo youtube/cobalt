@@ -1756,11 +1756,12 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
     return nullptr;
   }
 
-  // Return true if this box is to be treated as a column spanner. This function
-  // assumes that `column-span` is `all`, but there are additional requirements
-  // for it to actually become a spanner. For one, it needs to be a block-level
-  // box that's inside a multicol container, and it also needs to be in the
-  // block formatting context established by the columns.
+  // Return true if this box is to be treated as a column spanner. In order to
+  // return true, this function requires `column-span` to be `all`, but there
+  // are additional requirements as well, for it to actually become a
+  // spanner. For one, it needs to be a block-level box that's inside a multicol
+  // container, and it also needs to be in the block formatting context
+  // established by the columns.
   virtual bool IsValidColumnSpanner() const {
     NOT_DESTROYED();
     return false;
@@ -2362,10 +2363,6 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   gfx::PointF LocalToAncestorPoint(const gfx::PointF&,
                                    const LayoutBoxModelObject* ancestor,
                                    MapCoordinatesFlags = 0) const;
-  void LocalToAncestorRects(Vector<PhysicalRect>&,
-                            const LayoutBoxModelObject* ancestor,
-                            const PhysicalOffset& pre_offset,
-                            const PhysicalOffset& post_offset) const;
 
   // Return the transformation matrix to map points from local to the coordinate
   // system of a container, taking transforms into account (kIgnoreTransforms is

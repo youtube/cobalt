@@ -19,8 +19,15 @@
 
 #include "modules/audio_processing/agc/legacy/analog_agc.h"
 
-#include <stdlib.h>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 
+#include "common_audio/signal_processing/dot_product_with_scale.h"
+#include "common_audio/signal_processing/include/signal_processing_library.h"
+#include "common_audio/signal_processing/include/spl_inl.h"
+#include "modules/audio_processing/agc/legacy/digital_agc.h"
+#include "modules/audio_processing/agc/legacy/gain_control.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {

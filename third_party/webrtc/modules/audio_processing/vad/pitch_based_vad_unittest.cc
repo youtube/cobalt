@@ -10,11 +10,11 @@
 
 #include "modules/audio_processing/vad/pitch_based_vad.h"
 
-#include <math.h>
-#include <stdio.h>
-
+#include <cstdio>
+#include <cstring>
 #include <string>
 
+#include "modules/audio_processing/vad/common.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 

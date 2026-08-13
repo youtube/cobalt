@@ -110,13 +110,12 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   // ResolveLocale(%RelativeTimeFormat%.[[AvailableLocales]],
   //               requestedLocales, opt,
   //               %RelativeTimeFormat%.[[RelevantExtensionKeys]], localeData).
-  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
-      Intl::ResolveLocale(isolate, JSRelativeTimeFormat::GetAvailableLocales(),
-                          requested_locales, matcher, {"nu"});
-  if (maybe_resolve_locale.IsNothing()) {
+  Intl::ResolvedLocale r;
+  if (!Intl::ResolveLocale(isolate, JSRelativeTimeFormat::GetAvailableLocales(),
+                           requested_locales, matcher, {"nu"})
+           .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
-  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   UErrorCode status = U_ZERO_ERROR;
 
@@ -149,8 +148,9 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   // 16. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
   Maybe<Style> maybe_style = GetStringOption<Style>(
-      isolate, options, "style", service, {"long", "short", "narrow"},
-      {Style::LONG, Style::SHORT, Style::NARROW}, Style::LONG);
+      isolate, options, "style", service,
+      std::to_array<const std::string_view>({"long", "short", "narrow"}),
+      std::array{Style::LONG, Style::SHORT, Style::NARROW}, Style::LONG);
   MAYBE_RETURN(maybe_style, MaybeDirectHandle<JSRelativeTimeFormat>());
   Style style_enum = maybe_style.FromJust();
 
@@ -159,8 +159,9 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   // 18. Let numeric be ? GetOption(options, "numeric", "string",
   //                                «"always", "auto"», "always").
   Maybe<Numeric> maybe_numeric = GetStringOption<Numeric>(
-      isolate, options, "numeric", service, {"always", "auto"},
-      {Numeric::ALWAYS, Numeric::AUTO}, Numeric::ALWAYS);
+      isolate, options, "numeric", service,
+      std::to_array<const std::string_view>({"always", "auto"}),
+      std::array{Numeric::ALWAYS, Numeric::AUTO}, Numeric::ALWAYS);
   MAYBE_RETURN(maybe_numeric, MaybeDirectHandle<JSRelativeTimeFormat>());
   Numeric numeric_enum = maybe_numeric.FromJust();
 

@@ -2027,12 +2027,6 @@ BASE_FEATURE_PARAM(bool,
                    false);
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
 
-// When enabled, this flag partitions the :visited link hashtable by
-// <link url, top-level site, frame origin>
-BASE_FEATURE(kPartitionVisitedLinkDatabase,
-             "PartitionVisitedLinkDatabase",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables the use of the PaintCache for Path2D objects that are rasterized
 // out of process.  Has no effect when kCanvasOopRasterization is disabled.
 BASE_FEATURE(kPath2DPaintCache,
@@ -2303,6 +2297,12 @@ BASE_FEATURE(kReleaseResourceDecodedDataOnMemoryPressure,
              "ReleaseResourceDecodedDataOnMemoryPressure",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Flag guard for removing usage of the CommitNavigationParams.redirects
+// array of URLs in the renderer process.
+BASE_FEATURE(kRemoveCommitRedirectUrlsArray,
+             "RemoveCommitRedirectUrlsArray",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Disables sending the Purpose: "prefetch" header for prefetches and
 // prerenders.
 BASE_FEATURE(kRemovePurposeHeaderForPrefetch,
@@ -2479,6 +2479,19 @@ BASE_FEATURE_PARAM(std::string,
                    &kServiceWorkerSyntheticResponse,
                    "allowed_urls",
                    "");
+
+// 'Mode' parameter for blink::features::kSoftNavigationHeuristics.
+const base::FeatureParam<SoftNavigationHeuristicsMode>::Option
+    kSoftNavigationHeuristicsModes[] = {
+        {SoftNavigationHeuristicsMode::kBasic, "basic"},
+        {SoftNavigationHeuristicsMode::kAdvancedPaintAttribution,
+         "advanced_paint_attribution"}};
+BASE_FEATURE_ENUM_PARAM(SoftNavigationHeuristicsMode,
+                        kSoftNavigationHeuristicsModeParam,
+                        &kSoftNavigationHeuristics,
+                        "mode",
+                        SoftNavigationHeuristicsMode::kBasic,
+                        &kSoftNavigationHeuristicsModes);
 
 // If enabled, force renderer process foregrounded from CommitNavigation to
 // DOMContentLoad (crbug/351953350).
@@ -2737,19 +2750,6 @@ BASE_FEATURE_PARAM(bool,
                    &kWebAudioBypassOutputBuffering,
                    "latency_exact",
                    true);
-
-// This feature flag controls whether the WebAudio destination resampler is
-// bypassed. When enabled, if the WebAudio context's sample rate differs from
-// the hardware's sample rate, the resampling step that normally occurs within
-// the WebAudio destination node is skipped. This allows the AudioService to
-// handle any necessary resampling, potentially reducing latency and overhead.
-BASE_FEATURE(kWebAudioRemoveAudioDestinationResampler,
-             "WebAudioRemoveAudioDestinationResampler",
-#if BUILDFLAG(IS_ANDROID)
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_ANDROID)
 
 /// Enables cache-aware WebFonts loading. See https://crbug.com/570205.
 // The feature is disabled on Android for WebView API issue discussed at

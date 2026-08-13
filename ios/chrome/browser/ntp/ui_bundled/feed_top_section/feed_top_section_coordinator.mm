@@ -49,7 +49,7 @@ using base::UmaHistogramEnumeration;
 using base::UserMetricsAction;
 
 @interface FeedTopSectionCoordinator () <
-    SigninPresenter,
+    SigninPromoViewMediatorDelegate,
     NotificationsOptInAlertCoordinatorDelegate>
 
 @property(nonatomic, strong) FeedTopSectionMediator* feedTopSectionMediator;
@@ -118,7 +118,7 @@ using base::UserMetricsAction;
                               syncService:syncService
                               accessPoint:signin_metrics::AccessPoint::
                                               kNtpFeedTopPromo
-                          signinPresenter:self
+                                 delegate:self
                  accountSettingsPresenter:nil
         changeProfileContinuationProvider:DoNothingContinuationProvider()];
 
@@ -180,18 +180,28 @@ using base::UserMetricsAction;
   self.isSigninPromoVisibleOnScreen = visible;
 }
 
-#pragma mark - SigninPresenter
+#pragma mark - SigninPromoViewMediatorDelegate
 
-- (void)showSignin:(ShowSigninCommand*)command {
+- (void)showSignin:(SigninPromoViewMediator*)mediator
+           command:(ShowSigninCommand*)command {
+  CHECK_EQ(self.signinPromoMediator, mediator);
   __weak __typeof(self) weakSelf = self;
-  [command addSigninCompletion:^(SigninCoordinatorResult, id<SystemIdentity>) {
-    [weakSelf stopSigninCoordinator];
+  [command addSigninCompletion:^(SigninCoordinatorResult result,
+                                 id<SystemIdentity>) {
+    [weakSelf signinDidCompleteWithResult:result];
   }];
   _signinCoordinator =
       [SigninCoordinator signinCoordinatorWithCommand:command
                                               browser:self.browser
                                    baseViewController:self.baseViewController];
   [_signinCoordinator start];
+}
+
+#pragma mark - SigninPromoViewMediatorDelegate Helper
+
+- (void)signinDidCompleteWithResult:(SigninCoordinatorResult)result {
+  [self.signinPromoMediator signinDidCompleteWithResult:result];
+  [self stopSigninCoordinator];
 }
 
 #pragma mark - Setters

@@ -76,12 +76,20 @@
         backgroundCustomizationConfigurationMap =
             [NSMutableDictionary dictionary];
 
+    // Create and add a background configuration with no background applied.
+    BackgroundCustomizationConfiguration* defaultConfig =
+        [[BackgroundCustomizationConfiguration alloc] initWithNoBackground];
+    backgroundCustomizationConfigurationMap[defaultConfig.configurationID] =
+        defaultConfig;
+
     // TODO(crbug.com/408243803): fetch background customization
     // configurations and fill the `backgroundCustomizationConfigurationMap` and
     // `selectedBackgroundId`.
-    [self.mainPageConsumer populateBackgroundCustomizationConfigurations:
-                               backgroundCustomizationConfigurationMap
-                                                    selectedBackgroundId:nil];
+    [self.mainPageConsumer
+        populateBackgroundCustomizationConfigurations:
+            backgroundCustomizationConfigurationMap
+                                 selectedBackgroundId:defaultConfig
+                                                          .configurationID];
   }
 }
 
@@ -268,6 +276,12 @@
 - (void)applyBackgroundForConfiguration:
     (BackgroundCustomizationConfiguration*)backgroundConfiguration {
   // TODO(crbug.com/408243803): apply NTP background configuration to NTP.
+}
+
+- (void)deleteBackgroundFromRecentlyUsedAtIndex:(NSInteger)index {
+  // TODO(crbug.com/408243803): Remove the background at the given index from
+  // the "Recently Used" list. If the background being removed is also set as
+  // the current NTP background, clear the current background as well.
 }
 
 - (void)fetchBackgroundCustomizationThumbnailURLImage:(GURL)thumbnailURL

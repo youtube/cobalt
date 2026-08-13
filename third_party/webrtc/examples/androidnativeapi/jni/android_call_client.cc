@@ -56,7 +56,7 @@ class AndroidCallClient::PCObserver : public webrtc::PeerConnectionObserver {
       webrtc::PeerConnectionInterface::IceConnectionState new_state) override;
   void OnIceGatheringChange(
       webrtc::PeerConnectionInterface::IceGatheringState new_state) override;
-  void OnIceCandidate(const webrtc::IceCandidateInterface* candidate) override;
+  void OnIceCandidate(const webrtc::IceCandidate* candidate) override;
 
  private:
   AndroidCallClient* const client_;
@@ -250,7 +250,7 @@ void AndroidCallClient::PCObserver::OnIceGatheringChange(
 }
 
 void AndroidCallClient::PCObserver::OnIceCandidate(
-    const webrtc::IceCandidateInterface* candidate) {
+    const webrtc::IceCandidate* candidate) {
   RTC_LOG(LS_INFO) << "OnIceCandidate: " << candidate->server_url();
   webrtc::MutexLock lock(&client_->pc_mutex_);
   RTC_DCHECK(client_->pc_ != nullptr);

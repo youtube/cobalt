@@ -652,7 +652,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
     }
     return Candidate();
   }
-  const IceCandidateInterface* last_gathered_ice_candidate() const {
+  const IceCandidate* last_gathered_ice_candidate() const {
     return last_gathered_ice_candidate_.get();
   }
   const IceCandidateErrorEvent& error_event() const { return error_event_; }
@@ -1068,7 +1068,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
     ice_candidate_pair_change_history_.push_back(event);
   }
 
-  void OnIceCandidate(const IceCandidateInterface* candidate) override {
+  void OnIceCandidate(const IceCandidate* candidate) override {
     RTC_LOG(LS_INFO) << debug_name_ << ": OnIceCandidate";
 
     if (remote_async_dns_resolver_) {
@@ -1094,8 +1094,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
     // Check if we expected to have a candidate.
     EXPECT_GT(candidates_expected_, 1);
     candidates_expected_--;
-    std::string ice_sdp;
-    EXPECT_TRUE(candidate->ToString(&ice_sdp));
+    std::string ice_sdp = candidate->ToString();
     if (signaling_message_receiver_ == nullptr || !signal_ice_candidates_) {
       // Remote party may be deleted.
       return;
@@ -1155,7 +1154,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
   SignalingMessageReceiver* signaling_message_receiver_ = nullptr;
   int signaling_delay_ms_ = 0;
   bool signal_ice_candidates_ = true;
-  std::unique_ptr<IceCandidateInterface> last_gathered_ice_candidate_;
+  std::unique_ptr<IceCandidate> last_gathered_ice_candidate_;
   IceCandidateErrorEvent error_event_;
 
   // Store references to the video sources we've created, so that we can stop

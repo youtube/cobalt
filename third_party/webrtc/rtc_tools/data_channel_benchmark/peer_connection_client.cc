@@ -131,10 +131,9 @@ PeerConnectionClient::PeerConnectionClient(
     PeerConnectionFactoryInterface* factory,
     SignalingInterface* signaling)
     : signaling_(signaling) {
-  signaling_->OnIceCandidate(
-      [&](std::unique_ptr<IceCandidateInterface> candidate) {
-        AddIceCandidate(std::move(candidate));
-      });
+  signaling_->OnIceCandidate([&](std::unique_ptr<IceCandidate> candidate) {
+    AddIceCandidate(std::move(candidate));
+  });
   signaling_->OnRemoteDescription(
       [&](std::unique_ptr<SessionDescriptionInterface> sdp) {
         SetRemoteDescription(std::move(sdp));
@@ -251,8 +250,7 @@ void PeerConnectionClient::OnIceGatheringChange(
   }
 }
 
-void PeerConnectionClient::OnIceCandidate(
-    const IceCandidateInterface* candidate) {
+void PeerConnectionClient::OnIceCandidate(const IceCandidate* candidate) {
   signaling_->SendIceCandidate(candidate);
 }
 
@@ -305,7 +303,7 @@ bool PeerConnectionClient::SetRemoteDescription(
 }
 
 void PeerConnectionClient::AddIceCandidate(
-    std::unique_ptr<IceCandidateInterface> candidate) {
+    std::unique_ptr<IceCandidate> candidate) {
   RTC_LOG(LS_INFO) << "AddIceCandidate";
 
   peer_connection_->AddIceCandidate(

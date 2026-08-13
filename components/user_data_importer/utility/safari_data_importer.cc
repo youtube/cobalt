@@ -5,80 +5,196 @@
 #include "components/user_data_importer/utility/safari_data_importer.h"
 
 #include "base/containers/span_rust.h"
+#include "base/files/file_util.h"
 #include "base/strings/sys_string_conversions.h"
-#include "base/threading/scoped_blocking_call.h"
+#include "base/task/thread_pool.h"
 #include "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
+#include "components/user_data_importer/utility/safari_data_import_manager.h"
 #include "components/user_data_importer/utility/zip_ffi_glue.rs.h"
 
 namespace user_data_importer {
 
-// Returns the contents of the file of the desired type contained in the
-// provided zip file. Returns an empty string on failure.
-std::string unzipFile(const std::string& zip_filename, FileType filetype) {
-  // TODO(crbug.com/407587751): Add a base::ScopedBlockingCall object here, once
-  // this code has been moved to the IO thread.
+SafariDataImporter::SafariDataImporter(
+    password_manager::SavedPasswordsPresenter* presenter,
+    std::unique_ptr<SafariDataImportManager> manager)
+    : password_importer_(std::make_unique<password_manager::PasswordImporter>(
+          presenter,
+          /*user_confirmation_required=*/true)),
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
+      manager_(std::move(manager)) {}
+
+SafariDataImporter::~SafariDataImporter() = default;
+
+void SafariDataImporter::StartImport(const base::FilePath& path,
+                                     PasswordImportCallback passwords_callback,
+                                     ImportCallback bookmarks_callback,
+                                     ImportCallback history_callback,
+                                     ImportCallback payment_cards_callback) {
+  std::string zip_filename = path.MaybeAsASCII();
+  if (zip_filename.empty()) {
+    // Nothing to import, early exit.
+    PasswordImportResults results;
+    PostCallback(std::move(passwords_callback), std::move(results));
+    PostCallback(std::move(bookmarks_callback), /*number_of_imports=*/0);
+    PostCallback(std::move(history_callback), /*number_of_imports=*/0);
+    PostCallback(std::move(payment_cards_callback), /*number_of_imports=*/0);
+    return;
+  }
+
+  base::ThreadPool::PostTask(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(&SafariDataImporter::ImportInWorkerThread,
+                     base::Unretained(this), std::move(zip_filename),
+                     std::move(passwords_callback),
+                     std::move(bookmarks_callback), std::move(history_callback),
+                     std::move(payment_cards_callback)));
+}
+
+void SafariDataImporter::ContinueImport(
+    const std::vector<int>& selected_password_ids,
+    PasswordImportCallback passwords_callback,
+    ImportCallback bookmarks_callback,
+    ImportCallback history_callback,
+    ImportCallback payment_cards_callback) {
+  // TODO(crbug.com/407587751): Launch task on task_runner_.
+  password_importer_->ContinueImport(selected_password_ids,
+                                     std::move(passwords_callback));
+
+  // TODO(crbug.com/407587751): Import other types here.
+  PostCallback(std::move(bookmarks_callback), /*number_of_imports=*/0);
+  PostCallback(std::move(history_callback), /*number_of_imports=*/0);
+  PostCallback(std::move(payment_cards_callback), /*number_of_imports=*/0);
+
+  CloseZipFileArchive();
+}
+
+// Called after calling "Import" in order to cancel the import process.
+void SafariDataImporter::CancelImport() {
+  // TODO(crbug.com/407587751): Notify password_importer_.
+
+  CloseZipFileArchive();
+}
+
+void SafariDataImporter::CloseZipFileArchive() {
+  zip_file_archive_.reset();
+}
+
+bool SafariDataImporter::CreateZipFileArchive(std::string zip_filename) {
   const std::vector<uint8_t> zip_filename_span(zip_filename.begin(),
                                                zip_filename.end());
   rust::Slice<const uint8_t> rs_zip_filename =
       base::SpanToRustSlice(zip_filename_span);
+  rust::Box<ResultOfZipFileArchive> result_of_zip_file_archive =
+      new_archive(rs_zip_filename);
+
+  if (result_of_zip_file_archive->err()) {
+    return false;
+  }
+
+  zip_file_archive_.emplace(result_of_zip_file_archive->unwrap());
+  return true;
+}
+
+std::string SafariDataImporter::Unzip(FileType filetype) {
   std::string output_bytes;
-  if (!unzip_using_rust(rs_zip_filename, filetype, output_bytes)) {
+  if (!zip_file_archive_ ||
+      !(*zip_file_archive_)->unzip(filetype, output_bytes)) {
     return std::string();
   }
   return output_bytes;
 }
 
-SafariDataImporter::SafariDataImporter(
-    password_manager::SavedPasswordsPresenter* presenter)
-    : password_importer_(
-          std::make_unique<password_manager::PasswordImporter>(presenter)) {}
+size_t SafariDataImporter::UncompressedFileSize(FileType filetype) {
+  return zip_file_archive_ ? (*zip_file_archive_)->get_file_size(filetype) : 0u;
+}
 
-SafariDataImporter::~SafariDataImporter() = default;
-
-void SafariDataImporter::Import(
-    const base::FilePath& path,
-    password_manager::PasswordImporter::ImportResultsCallback
-        passwords_callback,
+void SafariDataImporter::ImportInWorkerThread(
+    std::string zip_filename,
+    PasswordImportCallback passwords_callback,
     ImportCallback bookmarks_callback,
     ImportCallback history_callback,
     ImportCallback payment_cards_callback) {
-  std::string zip_filename = path.MaybeAsASCII();
-  if (zip_filename.empty()) {
-    password_manager::ImportResults results;
-    std::move(passwords_callback).Run(std::move(results));
-    std::move(bookmarks_callback).Run(0);
-    std::move(history_callback).Run(0);
-    std::move(payment_cards_callback).Run(0);
+  if (!CreateZipFileArchive(std::move(zip_filename))) {
+    // Nothing to import, early exit.
+    PasswordImportResults results;
+    PostCallback(std::move(passwords_callback), std::move(results));
+    PostCallback(std::move(bookmarks_callback), /*number_of_imports=*/0);
+    PostCallback(std::move(history_callback), /*number_of_imports=*/0);
+    PostCallback(std::move(payment_cards_callback), /*number_of_imports=*/0);
     return;
   }
 
-  // TODO(crbug.com/407587751): Run the following code in the IO thread.
-
   // Passwords import may require conflict resolution, so it is done first.
-  ImportPasswords(unzipFile(zip_filename, FileType::Passwords),
-                  std::move(passwords_callback));
+  LaunchImportPasswordsTask(std::move(passwords_callback));
 
   // Launch payment cards and bookmarks import processes.
-  ImportPaymentCards(unzipFile(zip_filename, FileType::PaymentCards),
-                     std::move(payment_cards_callback));
-  ImportBookmarks(unzipFile(zip_filename, FileType::Bookmarks),
-                  std::move(bookmarks_callback));
+  LaunchImportPaymentCardsTask(std::move(payment_cards_callback));
+  LaunchImportBookmarksTask(std::move(bookmarks_callback));
 
   // History import may require synchronously reading from the file, so it is
-  // done last.
-  ImportHistory(zip_filename, std::move(history_callback));
+  // done last in this thread.
+  StartImportHistory(std::move(history_callback));
+}
+
+void SafariDataImporter::LaunchImportBookmarksTask(
+    ImportCallback bookmarks_callback) {
+  std::string html_data = Unzip(FileType::Bookmarks);
+  base::ScopedTempFile bookmarks_html;
+  if (!html_data.empty() && bookmarks_html.Create()) {
+    base::WriteFile(bookmarks_html.path(), html_data);
+  }
+
+  if (!bookmarks_html) {
+    PostCallback(std::move(bookmarks_callback), /*number_of_imports=*/0);
+  } else {
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&SafariDataImporter::ImportBookmarks,
+                       base::Unretained(this), std::move(bookmarks_html),
+                       std::move(bookmarks_callback)));
+  }
+}
+
+void SafariDataImporter::LaunchImportPasswordsTask(
+    PasswordImportCallback passwords_callback) {
+  std::string csv_data = Unzip(FileType::Passwords);
+  if (csv_data.empty()) {
+    PasswordImportResults results;
+    PostCallback(std::move(passwords_callback), std::move(results));
+  } else {
+    task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&SafariDataImporter::ImportPasswords,
+                                  base::Unretained(this), std::move(csv_data),
+                                  std::move(passwords_callback)));
+  }
+}
+
+void SafariDataImporter::LaunchImportPaymentCardsTask(
+    ImportCallback payment_cards_callback) {
+  std::string json_data = Unzip(FileType::PaymentCards);
+  if (json_data.empty()) {
+    PostCallback(std::move(payment_cards_callback), /*number_of_imports=*/0);
+  } else {
+    task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&SafariDataImporter::ImportPaymentCards,
+                                  base::Unretained(this), std::move(json_data),
+                                  std::move(payment_cards_callback)));
+  }
+}
+
+void SafariDataImporter::PostCallback(auto callback, auto results) {
+  // Post the callback back to the original task runner.
+  task_runner_->PostTask(FROM_HERE,
+                         base::BindOnce(
+                             [](auto callback, auto results) {
+                               std::move(callback).Run(std::move(results));
+                             },
+                             std::move(callback), std::move(results)));
 }
 
 void SafariDataImporter::ImportPasswords(
     std::string csv_data,
-    password_manager::PasswordImporter::ImportResultsCallback
-        passwords_callback) {
-  if (csv_data.empty()) {
-    password_manager::ImportResults results;
-    std::move(passwords_callback).Run(std::move(results));
-    return;
-  }
-
+    PasswordImportCallback passwords_callback) {
   // TODO(crbug.com/407587751): Pick a store based on whether the user is
   // signed in to their account.
   password_manager::PasswordForm::Store to_store =
@@ -92,40 +208,39 @@ void SafariDataImporter::ImportPaymentCards(
     std::string json_data,
     ImportCallback payment_cards_callback) {
   if (json_data.empty()) {
-    std::move(payment_cards_callback).Run(0);
+    PostCallback(std::move(payment_cards_callback), /*number_of_imports=*/0);
     return;
   }
 
   // TODO(crbug.com/407587751): Import payment cards.
-  std::move(payment_cards_callback).Run(0);
+  PostCallback(std::move(payment_cards_callback), /*number_of_imports=*/0);
 }
 
-void SafariDataImporter::ImportBookmarks(std::string html_data,
+void SafariDataImporter::ImportBookmarks(base::ScopedTempFile&& bookmarks_html,
                                          ImportCallback bookmarks_callback) {
-  if (html_data.empty()) {
-    std::move(bookmarks_callback).Run(0);
-    return;
-  }
+  CHECK(bookmarks_html);
 
   // TODO(crbug.com/407587751): Import bookmarks.
-  std::move(bookmarks_callback).Run(0);
+  PostCallback(std::move(bookmarks_callback), /*number_of_imports=*/0);
 }
 
-void SafariDataImporter::ImportHistory(const std::string& zip_filename,
-                                       ImportCallback history_callback) {
+void SafariDataImporter::StartImportHistory(ImportCallback history_callback) {
+  // This is an approximation of the number of bytes per URL entry in the
+  // history file.
+  static const size_t kBytesPerURL = 200;
+  size_t file_size = UncompressedFileSize(FileType::History);
+  size_t approximate_number_of_urls =
+      (file_size > 0) ? (file_size / kBytesPerURL) + 1 : 0;
+  PostCallback(std::move(history_callback),
+               /*number_of_imports=*/approximate_number_of_urls);
+}
+
+void SafariDataImporter::ImportHistory(ImportCallback history_callback) {
   // TODO(crbug.com/407587751): Import history.
   // Note: Because the history file can be very large, the parsing will happen
   // entirely in Rust, so that we can stream the unzipper's output to the JSON
   // parser's input.
-  std::move(history_callback).Run(0);
-}
-
-void SafariDataImporter::ResolvePasswordConflicts(
-    const std::vector<int>& selected_ids,
-    password_manager::PasswordImporter::ImportResultsCallback
-        passwords_callback) {
-  password_importer_->ContinueImport(selected_ids,
-                                     std::move(passwords_callback));
+  PostCallback(std::move(history_callback), /*number_of_imports=*/0);
 }
 
 }  // namespace user_data_importer

@@ -10,8 +10,11 @@
 
 #include "modules/audio_processing/agc2/gain_applier.h"
 
+#include <cstddef>
+
 #include "api/audio/audio_view.h"
 #include "modules/audio_processing/agc2/agc2_common.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_minmax.h"
 
 namespace webrtc {

@@ -13,9 +13,12 @@
 #include <shellscalingapi.h>
 #include <windows.h>
 
+#include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "modules/desktop_capture/desktop_capture_types.h"
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/desktop_geometry.h"
 #include "rtc_base/checks.h"

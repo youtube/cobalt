@@ -25,6 +25,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
@@ -144,6 +145,14 @@ enum SplitHistogramTypes {
   kPlaybackType = 0x1 << 1,
   kEncrypted = 0x1 << 2,
 };
+
+std::optional<media::MediaTrack::Id> ConvertTrackType(
+    std::optional<WebMediaPlayer::TrackId> track_id) {
+  if (track_id.has_value()) {
+    return media::MediaTrack::Id(track_id->Utf8().data());
+  }
+  return std::nullopt;
+}
 
 constexpr const char* GetHistogramName(SplitHistogramName type) {
   switch (type) {
@@ -1331,38 +1340,20 @@ bool WebMediaPlayerImpl::HasAudio() const {
   return pipeline_metadata_.has_audio;
 }
 
-void WebMediaPlayerImpl::OnEnabledAudioTracksChanged(
-    std::vector<media::MediaTrack::Id> enabled) {
-  DCHECK(main_task_runner_->BelongsToCurrentThread());
-  media_log_->AddEvent<MediaLogEvent::kAudioTrackChange>(enabled);
-  pipeline_controller_->OnEnabledAudioTracksChanged(enabled);
-}
-
-void WebMediaPlayerImpl::OnSelectedVideoTrackChanged(
-    std::optional<media::MediaTrack::Id> selected) {
-  DCHECK(main_task_runner_->BelongsToCurrentThread());
-  media_log_->AddEvent<MediaLogEvent::kVideoTrackChange>(selected);
-  pipeline_controller_->OnSelectedVideoTrackChanged(selected);
-}
-
 void WebMediaPlayerImpl::EnabledAudioTracksChanged(
-    const std::vector<WebMediaPlayer::TrackId>& enabled_track_ids) {
+    std::optional<WebMediaPlayer::TrackId> enabled_track_id) {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
-  std::vector<MediaTrack::Id> enabled_tracks;
-  for (const auto& blinkTrackId : enabled_track_ids) {
-    enabled_tracks.push_back(MediaTrack::Id(blinkTrackId.Utf8().data()));
-  }
-  OnEnabledAudioTracksChanged(std::move(enabled_tracks));
+  auto media_track_id = ConvertTrackType(std::move(enabled_track_id));
+  media_log_->AddEvent<MediaLogEvent::kAudioTrackChange>(media_track_id);
+  pipeline_controller_->OnEnabledAudioTracksChanged(media_track_id);
 }
 
 void WebMediaPlayerImpl::SelectedVideoTrackChanged(
     std::optional<WebMediaPlayer::TrackId> selected_track_id) {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
-  std::optional<MediaTrack::Id> selected_track;
-  if (selected_track_id.has_value()) {
-    selected_track = MediaTrack::Id(selected_track_id->Utf8().data());
-  }
-  OnSelectedVideoTrackChanged(selected_track);
+  auto media_track_id = ConvertTrackType(std::move(selected_track_id));
+  media_log_->AddEvent<MediaLogEvent::kVideoTrackChange>(media_track_id);
+  pipeline_controller_->OnSelectedVideoTrackChanged(media_track_id);
 }
 
 gfx::Size WebMediaPlayerImpl::NaturalSize() const {
@@ -1985,7 +1976,9 @@ void WebMediaPlayerImpl::DemuxerRequestsSeek(base::TimeDelta seek_time) {
 void WebMediaPlayerImpl::RestartForHls() {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
-  observer_->OnHlsManifestDetected();
+  if (observer_) {
+    observer_->OnHlsManifestDetected();
+  }
   SetMemoryReportingState(false);
   StartPipeline();
 #else

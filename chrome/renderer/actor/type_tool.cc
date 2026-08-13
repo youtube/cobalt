@@ -9,6 +9,7 @@
 #include "base/no_destructor.h"
 #include "base/notimplemented.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/strings/to_string.h"
 #include "base/time/time.h"
 #include "chrome/common/actor.mojom-shared.h"
@@ -126,13 +127,19 @@ TypeTool::TargetAndKeys::~TargetAndKeys() = default;
 TypeTool::TargetAndKeys::TargetAndKeys(const TargetAndKeys&) = default;
 TypeTool::TargetAndKeys& TypeTool::TargetAndKeys::operator=(
     const TargetAndKeys&) = default;
+TypeTool::TargetAndKeys::TargetAndKeys(TargetAndKeys&&) = default;
+TypeTool::TargetAndKeys& TypeTool::TargetAndKeys::operator=(TargetAndKeys&&) =
+    default;
 
 TypeTool::KeyParams::KeyParams() = default;
 TypeTool::KeyParams::~KeyParams() = default;
 TypeTool::KeyParams::KeyParams(const KeyParams& other) = default;
 
-TypeTool::TypeTool(mojom::TypeActionPtr action, content::RenderFrame& frame)
-    : frame_(frame), action_(std::move(action)) {}
+TypeTool::TypeTool(content::RenderFrame& frame,
+                   Journal::TaskId task_id,
+                   Journal& journal,
+                   mojom::TypeActionPtr action)
+    : ToolBase(frame, task_id, journal), action_(std::move(action)) {}
 
 TypeTool::~TypeTool() = default;
 
@@ -255,11 +262,10 @@ mojom::ActionResultPtr TypeTool::SimulateKeyPress(TypeTool::KeyParams params) {
   return MakeOkResult();
 }
 
-void TypeTool::Execute(ToolFinishedCallback callback) {
+mojom::ActionResultPtr TypeTool::Execute() {
   ValidatedResult validated_result = Validate();
   if (!validated_result.has_value()) {
-    std::move(callback).Run(std::move(validated_result.error()));
-    return;
+    return std::move(validated_result.error());
   }
 
   if (std::holds_alternative<gfx::PointF>(validated_result->target)) {
@@ -271,8 +277,7 @@ void TypeTool::Execute(ToolFinishedCallback callback) {
 
     // Cancel rest of typing if initial click failed.
     if (!IsOk(*result)) {
-      std::move(callback).Run(std::move(result));
-      return;
+      return result;
     }
   } else {
     WebElement element = std::get<blink::WebElement>(validated_result->target);
@@ -303,12 +308,11 @@ void TypeTool::Execute(ToolFinishedCallback callback) {
   for (const auto& param : validated_result->key_sequence) {
     mojom::ActionResultPtr result = SimulateKeyPress(param);
     if (!IsOk(*result)) {
-      std::move(callback).Run(std::move(result));
-      return;
+      return result;
     }
   }
 
-  std::move(callback).Run(MakeOkResult());
+  return MakeOkResult();
 }
 
 std::string TypeTool::DebugString() const {

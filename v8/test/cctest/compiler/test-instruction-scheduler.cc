@@ -12,8 +12,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-using FlagsContinuation = FlagsContinuationT;
-
 // Create InstructionBlocks with a single block.
 InstructionBlocks* CreateSingleBlock(Zone* zone) {
   InstructionBlock* block = zone->New<InstructionBlock>(
@@ -28,7 +26,7 @@ InstructionBlocks* CreateSingleBlock(Zone* zone) {
 class InstructionSchedulerTester {
  public:
   InstructionSchedulerTester()
-      : scope_(kCompressGraphZone),
+      : scope_(),
         blocks_(CreateSingleBlock(scope_.main_zone())),
         sequence_(scope_.main_isolate(), scope_.main_zone(), blocks_),
         scheduler_(scope_.main_zone(), &sequence_) {}

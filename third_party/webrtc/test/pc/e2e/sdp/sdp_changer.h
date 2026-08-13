@@ -82,11 +82,10 @@ class SignalingInterceptor {
       std::unique_ptr<SessionDescriptionInterface> answer,
       const VideoCodecConfig& first_codec);
 
-  std::vector<std::unique_ptr<IceCandidateInterface>> PatchOffererIceCandidates(
-      ArrayView<const IceCandidateInterface* const> candidates);
-  std::vector<std::unique_ptr<IceCandidateInterface>>
-  PatchAnswererIceCandidates(
-      ArrayView<const IceCandidateInterface* const> candidates);
+  std::vector<std::unique_ptr<IceCandidate>> PatchOffererIceCandidates(
+      ArrayView<const IceCandidate* const> candidates);
+  std::vector<std::unique_ptr<IceCandidate>> PatchAnswererIceCandidates(
+      ArrayView<const IceCandidate* const> candidates);
 
  private:
   // Contains information about simulcast section, that is required to perform

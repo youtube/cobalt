@@ -24,6 +24,7 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.android_webview.common.AwFeatureMap;
 import org.chromium.android_webview.common.AwFeatures;
 import org.chromium.android_webview.common.AwSwitches;
 import org.chromium.android_webview.common.Lifetime;
@@ -613,7 +614,10 @@ public final class AwBrowserProcess {
             intent.setClassName(
                     getWebViewPackageName(),
                     EmbeddedComponentLoader.AW_COMPONENTS_PROVIDER_SERVICE);
-            loader.connect(intent);
+            loader.connect(
+                    intent,
+                    AwFeatureMap.isEnabled(
+                            AwFeatures.WEBVIEW_CONNECT_TO_COMPONENT_PROVIDER_IN_BACKGROUND));
         }
     }
 

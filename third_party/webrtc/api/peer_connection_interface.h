@@ -1117,18 +1117,17 @@ class RTC_EXPORT PeerConnectionInterface : public webrtc::RefCountInterface {
   // TODO(hbos): The spec mandates chaining this operation onto the operations
   // chain; deprecate and remove this version in favor of the callback-based
   // signature.
-  virtual bool AddIceCandidate(const IceCandidateInterface* candidate) = 0;
+  virtual bool AddIceCandidate(const IceCandidate* candidate) = 0;
   // TODO(hbos): Remove default implementation once implemented by downstream
   // projects.
-  virtual void AddIceCandidate(
-      std::unique_ptr<IceCandidateInterface> /* candidate */,
-      std::function<void(RTCError)> /* callback */) {}
+  virtual void AddIceCandidate(std::unique_ptr<IceCandidate> /* candidate */,
+                               std::function<void(RTCError)> /* callback */) {}
 
   // Removes a group of remote candidates from the ICE agent. Needed mainly for
   // continual gathering, to avoid an ever-growing list of candidates as
   // networks come and go. Note that the candidates' transport_name must be set
   // to the MID of the m= section that generated the candidate.
-  // TODO(bugs.webrtc.org/8395): Use IceCandidateInterface instead of
+  // TODO(bugs.webrtc.org/8395): Use IceCandidate instead of
   // webrtc::Candidate, which would avoid the transport_name oddity.
   virtual bool RemoveIceCandidates(
       const std::vector<Candidate>& candidates) = 0;
@@ -1302,7 +1301,7 @@ class PeerConnectionObserver {
       PeerConnectionInterface::IceGatheringState new_state) = 0;
 
   // A new ICE candidate has been gathered.
-  virtual void OnIceCandidate(const IceCandidateInterface* candidate) = 0;
+  virtual void OnIceCandidate(const IceCandidate* candidate) = 0;
 
   // Gathering of an ICE candidate failed.
   // See https://w3c.github.io/webrtc-pc/#event-icecandidateerror

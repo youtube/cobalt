@@ -9,13 +9,13 @@
  */
 #include "api/audio/audio_processing.h"
 
-#include <math.h>
 #include <stdio.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <iostream>
 #include <limits>

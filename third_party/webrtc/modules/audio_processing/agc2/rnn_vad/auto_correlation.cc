@@ -12,6 +12,9 @@
 
 #include <algorithm>
 
+#include "api/array_view.h"
+#include "modules/audio_processing/agc2/rnn_vad/common.h"
+#include "modules/audio_processing/utility/pffft_wrapper.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {

@@ -11,8 +11,9 @@
 #ifndef MODULES_DESKTOP_CAPTURE_WIN_DXGI_ADAPTER_DUPLICATOR_H_
 #define MODULES_DESKTOP_CAPTURE_WIN_DXGI_ADAPTER_DUPLICATOR_H_
 
-#include <wrl/client.h>
-
+#include <cstdint>
+#include <optional>
+#include <string>
 #include <vector>
 
 #include "modules/desktop_capture/desktop_geometry.h"

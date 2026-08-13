@@ -23,11 +23,12 @@ class TabStripModelAdapterImpl : public TabStripModelAdapter {
 
   void AddObserver(TabStripModelObserver* observer) override;
   void RemoveObserver(TabStripModelObserver* observer) override;
-  std::vector<tabs::TabHandle> GetTabs() override;
-  TabRendererData GetTabRendererData(int index) override;
+  std::vector<tabs::TabHandle> GetTabs() const override;
+  TabRendererData GetTabRendererData(int index) const override;
   void CloseTab(size_t tab_index) override;
   std::optional<int> GetIndexForHandle(tabs::TabHandle tab_handle) override;
   void ActivateTab(size_t index) override;
+  void MoveTab(tabs::TabHandle handle, Position target) override;
   mojom::TabCollectionContainerPtr GetTabStripTopology() override;
 
  private:

@@ -176,6 +176,7 @@
 <translation id="5259423875997548710">Chromium-এ ভিজ্যুয়াল সার্চ করুন।</translation>
 <translation id="5308226104666789935">কোনও আপডেট আছে কিনা, Chromium-এ তা চেক করে দেখা যাচ্ছে না</translation>
 <translation id="5311557153294205270">Chromium-এ আপনার বুকমার্কে ইনপুট করা URL যোগ করে।</translation>
+<translation id="5383251701169024761">অন্য অ্যাপে সেভ করা পাসওয়ার্ড সহজেই পেতে, অটোফিলের জন্য Chromium বেছে নিন।</translation>
 <translation id="538767207339317086">Chromium-এ সাইন-ইন করতে দিন</translation>
 <translation id="5389058611415066188">Chromium ব্যবহার করে নিরাপদে থাকুন</translation>
 <translation id="5415273218238091735">Chromium সম্পর্কিত পরামর্শ</translation>
@@ -276,7 +277,6 @@
 <translation id="7763454117143368771">বিপজ্জনক সাইট থেকে নিরাপদে থাকতে এবং আপনার পাসওয়ার্ড সুরক্ষিত রাখতে আপনার ডিফল্ট ব্রাউজার হিসেবে Chromium ব্যবহার করুন</translation>
 <translation id="7784950022329154821">Chromium বন্ধ করার সময় ছদ্মবেশী ট্যাব লক করুন</translation>
 <translation id="78025249032851484">আপনার Chromium পুরনো হয়ে গেছে।</translation>
-<translation id="7811371919871579588">অন্য অ্যাপে সেভ করা পাসওয়ার্ড পেতে অটোফিলের জন্য Chromium বেছে নিন।</translation>
 <translation id="7859018312476869945">আপনি যখন অ্যাড্রেস বার বা সার্চ বক্সে টাইপ করেন, তখন আরও ভালো পরামর্শ পেতে Chromium আপনি যা টাইপ করেন তা আপনার ডিফল্ট সার্চ ইঞ্জিনে পাঠায়। এটি ছদ্মবেশী মোডে বন্ধ আছে।</translation>
 <translation id="7890287942691234100">Chromium স্ক্যানার ব্যবহার করা শুরু করুন</translation>
 <translation id="7905064834449738336">আপনি পাসওয়ার্ড ব্যবহার করার সময়, সেটি অনলাইনে প্রকাশিত হয়েছে কিনা সেই সম্পর্কে Chromium সতর্ক করে। এটি করার সময় আপনার পাসওয়ার্ড ও ব্যবহারকারীর নাম এনক্রিপ্ট করা থাকে, তাই সেগুলি কেউ দেখতে পাবে না, এমনকি Google-ও না।</translation>
@@ -331,6 +331,7 @@
 <translation id="9050790730841755540">অন্যান্য অ্যাপের লিঙ্কে যেকোনও সময় ট্যাপ করতে Chromium ব্যবহার করুন।</translation>
 <translation id="9059693977935746710">আপনার এই পাসওয়ার্ড মনে রাখার দরকার নেই। <ph name="EMAIL" />-এর পাসওয়ার্ড ম্যানেজারে এটি সেভ করা হবে</translation>
 <translation id="9089354809943900324">Chromium পুরানো হয়ে গেছে</translation>
+<translation id="9105645282262300612">Chromium সম্পর্কিত পরামর্শ: আপনি যা দেখছেন তাই সার্চ করুন</translation>
 <translation id="9152995302810511799">Chromium সম্পর্কিত পরামর্শ: Chromium-এর সবচেয়ে শক্তিশালী সুরক্ষা পান</translation>
 <translation id="9177628952266852500"><ph name="EMAIL" />. Chromium ম্যানেজ করা হয়।</translation>
 <translation id="921174536258924340">Chromium সব পাসওয়ার্ড চেক করতে পারেনি। আগামীকাল আবার চেষ্টা করুন বা <ph name="BEGIN_LINK" />আপনার Google অ্যাকাউন্টের পাসওয়ার্ড চেক করুন।<ph name="END_LINK" /></translation>

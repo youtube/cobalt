@@ -953,7 +953,8 @@ void URLRequestHttpJob::SetCookieHeaderAndStart(
       request_->context()->device_bound_session_service();
   if (service) {
     std::optional<device_bound_sessions::SessionService::DeferralParams>
-        deferral = service->ShouldDefer(request_, first_party_set_metadata_);
+        deferral = service->ShouldDefer(request_, &request_info_.extra_headers,
+                                        first_party_set_metadata_);
     // If the request needs to be deferred while waiting for refresh, do not
     // start the transaction at this time. This may also kick off a refresh.
     if (deferral) {
@@ -965,10 +966,7 @@ void URLRequestHttpJob::SetCookieHeaderAndStart(
           request_, *deferral,
           // restart with new cookies callback
           base::BindOnce(&URLRequestHttpJob::RestartTransactionForRefresh,
-                         weak_factory_.GetWeakPtr()),
-          // continue callback
-          base::BindOnce(&URLRequestHttpJob::StartTransaction,
-                         weak_factory_.GetWeakPtr()));
+                         weak_factory_.GetWeakPtr(), *deferral));
       return;
     }
 
@@ -1406,9 +1404,23 @@ void URLRequestHttpJob::RestartTransaction() {
   }
 }
 
-void URLRequestHttpJob::RestartTransactionForRefresh() {
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+void URLRequestHttpJob::RestartTransactionForRefresh(
+    const device_bound_sessions::SessionService::DeferralParams&
+        deferral_params,
+    device_bound_sessions::SessionService::RefreshResult result) {
+  // Some deferrals are not associated with a particular session
+  // (e.g. session service initialization).
+  if (deferral_params.session_id.has_value()) {
+    request_->AddDeviceBoundSessionDeferral(
+        device_bound_sessions::SessionKey{SchemefulSite(request_->url()),
+                                          *deferral_params.session_id},
+        result);
+  }
+
   RestartTransaction();
 }
+#endif
 
 void URLRequestHttpJob::RestartTransactionWithAuth(
     const AuthCredentials& credentials) {
@@ -1531,9 +1543,17 @@ std::unique_ptr<SourceStream> URLRequestHttpJob::SetUpSourceStream() {
       FilterSourceStream::GetContentEncodingTypes(
           request_->accepted_stream_types(), *headers);
 
-  if (request()->client_side_content_decoding_enabled()) {
+  if (request()->client_side_content_decoding_enabled() &&
+      !headers->HasHeader("use-as-dictionary")) {
     // When client side content encoding is enabled, the client will decode the
     // body. So returns the original stream.
+    //
+    // Currently, the write logic for SharedDictionary assumes that the
+    // dictionary itself is not compressed when it reaches
+    // network::CorsURLLoader::OnReceiveResponse. Therefore, if there is a
+    // possibility that the response will be used as a dictionary, meaning the
+    // use-as-dictionary header is set, we will decode it within
+    // URLRequestHttpJob.
     client_side_content_decoding_types_ = std::move(types);
     return upstream;
   }

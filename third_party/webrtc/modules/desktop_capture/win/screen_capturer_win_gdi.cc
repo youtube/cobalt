@@ -10,6 +10,11 @@
 
 #include "modules/desktop_capture/win/screen_capturer_win_gdi.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
 #include <utility>
 
 #include "modules/desktop_capture/desktop_capture_metrics_helper.h"
@@ -17,9 +22,10 @@
 #include "modules/desktop_capture/desktop_capture_types.h"
 #include "modules/desktop_capture/desktop_frame.h"
 #include "modules/desktop_capture/desktop_frame_win.h"
+#include "modules/desktop_capture/desktop_geometry.h"
 #include "modules/desktop_capture/desktop_region.h"
-#include "modules/desktop_capture/mouse_cursor.h"
-#include "modules/desktop_capture/win/cursor.h"
+#include "modules/desktop_capture/shared_desktop_frame.h"
+#include "modules/desktop_capture/shared_memory.h"
 #include "modules/desktop_capture/win/desktop.h"
 #include "modules/desktop_capture/win/screen_capture_utils.h"
 #include "rtc_base/checks.h"

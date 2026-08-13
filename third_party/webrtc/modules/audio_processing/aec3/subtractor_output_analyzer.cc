@@ -11,8 +11,12 @@
 #include "modules/audio_processing/aec3/subtractor_output_analyzer.h"
 
 #include <algorithm>
+#include <cstddef>
 
+#include "api/array_view.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/subtractor_output.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 

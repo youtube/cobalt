@@ -14,11 +14,22 @@
 #include <windows.foundation.metadata.h>
 #include <windows.graphics.capture.h>
 
+#include <cstdint>
+#include <cwchar>
+#include <map>
+#include <memory>
+#include <tuple>
 #include <utility>
 
 #include "modules/desktop_capture/desktop_capture_metrics_helper.h"
+#include "modules/desktop_capture/desktop_capture_options.h"
 #include "modules/desktop_capture/desktop_capture_types.h"
-#include "modules/desktop_capture/win/wgc_desktop_frame.h"
+#include "modules/desktop_capture/desktop_capturer.h"
+#include "modules/desktop_capture/desktop_frame.h"
+#include "modules/desktop_capture/win/screen_capture_utils.h"
+#include "modules/desktop_capture/win/wgc_capture_session.h"
+#include "modules/desktop_capture/win/wgc_capture_source.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/win/get_activation_factory.h"

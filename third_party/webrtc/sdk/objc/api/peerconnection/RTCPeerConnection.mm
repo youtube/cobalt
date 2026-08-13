@@ -309,7 +309,7 @@ void PeerConnectionDelegateAdapter::OnIceGatheringChange(
 }
 
 void PeerConnectionDelegateAdapter::OnIceCandidate(
-    const IceCandidateInterface *candidate) {
+    const IceCandidate *candidate) {
   RTC_OBJC_TYPE(RTCPeerConnection) *peer_connection = peer_connection_;
   if (peer_connection == nil) {
     return;
@@ -614,7 +614,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 }
 
 - (void)addIceCandidate:(RTC_OBJC_TYPE(RTCIceCandidate) *)candidate {
-  std::unique_ptr<const webrtc::IceCandidateInterface> iceCandidate(
+  std::unique_ptr<const webrtc::IceCandidate> iceCandidate(
       candidate.nativeCandidate);
   _peerConnection->AddIceCandidate(iceCandidate.get());
 }
@@ -639,7 +639,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
     (NSArray<RTC_OBJC_TYPE(RTCIceCandidate) *> *)iceCandidates {
   std::vector<webrtc::Candidate> candidates;
   for (RTC_OBJC_TYPE(RTCIceCandidate) * iceCandidate in iceCandidates) {
-    std::unique_ptr<const webrtc::IceCandidateInterface> candidate(
+    std::unique_ptr<const webrtc::IceCandidate> candidate(
         iceCandidate.nativeCandidate);
     if (candidate) {
       candidates.push_back(candidate->candidate());

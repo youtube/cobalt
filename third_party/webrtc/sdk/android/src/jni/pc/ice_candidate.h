@@ -32,7 +32,7 @@ ScopedJavaLocalRef<jobject> NativeToJavaCandidate(JNIEnv* env,
 
 ScopedJavaLocalRef<jobject> NativeToJavaIceCandidate(
     JNIEnv* env,
-    const IceCandidateInterface& candidate);
+    const IceCandidate& candidate);
 
 ScopedJavaLocalRef<jobjectArray> NativeToJavaCandidateArray(
     JNIEnv* jni,

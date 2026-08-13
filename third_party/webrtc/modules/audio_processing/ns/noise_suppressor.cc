@@ -15,8 +15,15 @@
 #include <string.h>
 
 #include <algorithm>
+#include <array>
+#include <memory>
 
+#include "api/array_view.h"
+#include "modules/audio_processing/audio_buffer.h"
 #include "modules/audio_processing/ns/fast_math.h"
+#include "modules/audio_processing/ns/ns_common.h"
+#include "modules/audio_processing/ns/ns_config.h"
+#include "modules/audio_processing/ns/suppression_params.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {

@@ -401,13 +401,11 @@ try_.orchestrator_builder(
     description_html = "This builder may trigger tests on multiple Android versions.",
     mirrors = [
         "ci/Android Release (Pixel 2)",  # Pixel 2 on Pie
-        # TODO(crbug.com/352811552): Drop Pie after 14 is fully on CQ
-        "ci/android-pie-arm64-rel",  # Pixel 1, 2 on Pie
         "ci/android-14-arm64-rel",  # Pixel 7 on Android 14
     ],
     gn_args = gn_args.config(
         configs = [
-            "ci/android-pie-arm64-rel",
+            "ci/android-14-arm64-rel",
             "release_try_builder",
             "android_fastbuild",
             "enable_android_secondary_abi",
@@ -1033,18 +1031,6 @@ try_.builder(
     gn_args = "ci/android-15-webview-wpt-fyi-rel",
     contact_team_email = "chrome-product-engprod@google.com",
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
-)
-
-try_.builder(
-    name = "android-chrome-13-x64-wpt-android-specific",
-    mirrors = ["ci/android-chrome-13-x64-wpt-android-specific"],
-    gn_args = gn_args.config(
-        configs = [
-            "ci/android-chrome-13-x64-wpt-android-specific",
-            "release_try_builder",
-        ],
-    ),
-    contact_team_email = "chrome-blink-engprod@google.com",
 )
 
 try_.builder(

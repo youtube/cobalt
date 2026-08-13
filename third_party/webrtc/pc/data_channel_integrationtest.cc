@@ -1771,8 +1771,7 @@ TEST_P(DataChannelIntegrationTestUnifiedPlanFieldTrials,
 
   // Forward turn ice candidate also to callee2.
   auto candidate = caller()->last_gathered_ice_candidate();
-  std::string ice_sdp;
-  EXPECT_TRUE(candidate->ToString(&ice_sdp));
+  std::string ice_sdp = candidate->ToString();
   callee2->ReceiveIceMessage(candidate->sdp_mid(), candidate->sdp_mline_index(),
                              ice_sdp);
 

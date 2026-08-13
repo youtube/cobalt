@@ -10,8 +10,6 @@
 
 #include "modules/audio_processing/logging/apm_data_dumper.h"
 
-#include "absl/strings/string_view.h"
-#include "rtc_base/strings/string_builder.h"
 
 // Check to verify that the define is properly set.
 #if !defined(WEBRTC_APM_DEBUG_DUMP) || \

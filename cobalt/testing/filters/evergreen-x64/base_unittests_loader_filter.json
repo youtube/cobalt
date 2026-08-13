@@ -4,6 +4,7 @@
     "AlternateBucketDistribution/PartitionAllocThreadCacheTest.*",
     "AlternateTestParams/PartitionAllocTest.ZeroFreedMemory/1",
     "CancelableEventTest.BothCancelFailureAndSucceedOccurUnderContention",
+    "CriticalProcessAndThreadSpotChecks/HangWatcherAnyCriticalThreadTests.AnyCriticalThreadHung/*",
     "FilePathWatcherWithChangeInfoTest.DeletedFileInDirectory/3",
     "FileUtilTest.ChangeDirectoryPermissionsAndEnumerate",
     "FileUtilTest.ChangeFilePermissionsAndRead",

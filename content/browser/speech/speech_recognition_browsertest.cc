@@ -18,6 +18,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
@@ -433,8 +434,10 @@ IN_PROC_BROWSER_TEST_F(SpeechRecognitionBrowserTest,
       }));
 
   bool has_reponsed = false;
-  EXPECT_CALL(*mock_speech_service, SendAudioToSpeechRecognitionService(_))
-      .WillRepeatedly(testing::Invoke([&](media::mojom::AudioDataS16Ptr data) {
+  EXPECT_CALL(*mock_speech_service, SendAudioToSpeechRecognitionService(_, _))
+      .WillRepeatedly(testing::Invoke([&](media::mojom::AudioDataS16Ptr data,
+                                          std::optional<base::TimeDelta>
+                                              media_start_pts) {
         if (!has_reponsed) {
           has_reponsed = true;
           media::SpeechRecognitionResult result =

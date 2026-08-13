@@ -13,11 +13,11 @@
 #include "chrome/browser/ui/tabs/tab_menu_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
-#include "chrome/browser/ui/tabs/test/split_tabs_interactive_test_mixin.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
+#include "chrome/browser/ui/views/test/split_tabs_interactive_test_mixin.h"
 #include "chrome/browser/ui/views/toolbar/split_tabs_button.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
@@ -291,19 +291,24 @@ IN_PROC_BROWSER_TEST_F(SplitTabButtonInteractiveTest, EnterSplitView) {
       CheckTabInSplit(0, true), CheckTabInSplit(1, true));
 }
 
-IN_PROC_BROWSER_TEST_F(SplitTabButtonInteractiveTest, OpenMenu) {
-  RunTestSequence(UpdateSplitTabButtonPinState(true),
-                  WaitForShow(kToolbarSplitTabsToolbarButtonElementId),
-                  CheckTabInSplit(0, false),
-                  // Since the active tab isn't in a split, the button press
-                  // should create an empty split tab.
-                  PressButton(kToolbarSplitTabsToolbarButtonElementId),
-                  CheckTabCount(2),
-                  // Pressing the button while we are in a split should open the
-                  // menu instead.
-                  PressButton(kToolbarSplitTabsToolbarButtonElementId),
-                  WaitForShow(SplitTabMenuModel::kReversePositionMenuItem),
-                  CheckTabCount(2));
+IN_PROC_BROWSER_TEST_F(SplitTabButtonInteractiveTest, ToggleMenu) {
+  RunTestSequence(
+      UpdateSplitTabButtonPinState(true),
+      WaitForShow(kToolbarSplitTabsToolbarButtonElementId),
+      CheckTabInSplit(0, false),
+      // Since the active tab isn't in a split, the button press
+      // should create an empty split tab.
+      PressButton(kToolbarSplitTabsToolbarButtonElementId), CheckTabCount(2),
+      // Pressing the button while we are in a split should open the
+      // menu instead.
+      PressButton(kToolbarSplitTabsToolbarButtonElementId),
+      WaitForShow(SplitTabMenuModel::kReversePositionMenuItem),
+      CheckTabCount(2),
+      // Click on the button again while the menu for the split
+      // button is open and confirm it hides the menu.
+      MoveMouseTo(kToolbarSplitTabsToolbarButtonElementId), ClickMouse(),
+      WaitForHide(SplitTabMenuModel::kReversePositionMenuItem),
+      CheckTabCount(2));
 }
 
 IN_PROC_BROWSER_TEST_F(SplitTabButtonInteractiveTest,
@@ -387,4 +392,15 @@ IN_PROC_BROWSER_TEST_F(SplitTabButtonInteractiveTest, ExitSplit) {
       CheckResult(
           [this]() { return browser()->tab_strip_model()->active_index(); },
           0));
+}
+
+IN_PROC_BROWSER_TEST_F(SplitTabButtonInteractiveTest, ButtonUpdatesOnSplit) {
+  RunTestSequence(AddInstrumentedTab(kWebContents2Id, GetTestUrl()),
+                  SelectTab(kTabStripElementId, 0), EnterSplitView(0, 1),
+                  WaitForShow(kToolbarSplitTabsToolbarButtonElementId),
+                  SetOnIncompatibleAction(
+                      OnIncompatibleAction::kIgnoreAndContinue,
+                      "Screenshot can only run in pixel_tests on Windows."),
+                  Screenshot(kToolbarSplitTabsToolbarButtonElementId,
+                             "SplitTabButton", "6618989"));
 }

@@ -8,9 +8,9 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include "api/array_view.h"
 #include "common_video/h264/h264_common.h"
 #include "components/video_codec/nalu_rewriter.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/gunit.h"
 
 #import <XCTest/XCTest.h>
@@ -40,8 +40,7 @@ static const uint8_t SPS_PPS_BUFFER[] = {
 
 - (void)testCreateVideoFormatDescription {
   CMVideoFormatDescriptionRef description =
-      webrtc::CreateVideoFormatDescription(SPS_PPS_BUFFER,
-                                           arraysize(SPS_PPS_BUFFER));
+      webrtc::CreateVideoFormatDescription(SPS_PPS_BUFFER);
   XCTAssertTrue(description);
   if (description) {
     CFRelease(description);
@@ -59,8 +58,8 @@ static const uint8_t SPS_PPS_BUFFER[] = {
     // PPS nalu.
     0x00, 0x00, 0x01, 0x28, 0xCE, 0x3C, 0x30};
   // clang-format on
-  description = webrtc::CreateVideoFormatDescription(
-      sps_pps_not_at_start_buffer, arraysize(sps_pps_not_at_start_buffer));
+  description =
+      webrtc::CreateVideoFormatDescription(sps_pps_not_at_start_buffer);
 
   XCTAssertTrue(description);
 
@@ -70,51 +69,38 @@ static const uint8_t SPS_PPS_BUFFER[] = {
   }
 
   const uint8_t other_buffer[] = {0x00, 0x00, 0x00, 0x01, 0x28};
-  XCTAssertFalse(webrtc::CreateVideoFormatDescription(other_buffer,
-                                                      arraysize(other_buffer)));
+  XCTAssertFalse(webrtc::CreateVideoFormatDescription(other_buffer));
 }
 
 - (void)testReadEmptyInput {
-  const uint8_t annex_b_test_data[] = {0x00};
-  webrtc::AnnexBBufferReader reader(annex_b_test_data, 0);
-  const uint8_t* nalu = nullptr;
-  size_t nalu_length = 0;
+  webrtc::AnnexBBufferReader reader({});
+  webrtc::ArrayView<const uint8_t> nalu;
   XCTAssertEqual(0u, reader.BytesRemaining());
-  XCTAssertFalse(reader.ReadNalu(&nalu, &nalu_length));
-  XCTAssertEqual(nullptr, nalu);
-  XCTAssertEqual(0u, nalu_length);
+  XCTAssertFalse(reader.ReadNalu(nalu));
 }
 
 - (void)testReadSingleNalu {
   const uint8_t annex_b_test_data[] = {0x00, 0x00, 0x00, 0x01, 0xAA};
-  webrtc::AnnexBBufferReader reader(annex_b_test_data,
-                                    arraysize(annex_b_test_data));
-  const uint8_t* nalu = nullptr;
-  size_t nalu_length = 0;
-  XCTAssertEqual(arraysize(annex_b_test_data), reader.BytesRemaining());
-  XCTAssertTrue(reader.ReadNalu(&nalu, &nalu_length));
-  XCTAssertEqual(annex_b_test_data + 4, nalu);
-  XCTAssertEqual(1u, nalu_length);
+  webrtc::AnnexBBufferReader reader(annex_b_test_data);
+  webrtc::ArrayView<const uint8_t> nalu;
+  XCTAssertEqual(std::size(annex_b_test_data), reader.BytesRemaining());
+  XCTAssertTrue(reader.ReadNalu(nalu));
+  XCTAssertEqual(annex_b_test_data + 4, nalu.data());
+  XCTAssertEqual(1u, nalu.size());
   XCTAssertEqual(0u, reader.BytesRemaining());
-  XCTAssertFalse(reader.ReadNalu(&nalu, &nalu_length));
-  XCTAssertEqual(nullptr, nalu);
-  XCTAssertEqual(0u, nalu_length);
+  XCTAssertFalse(reader.ReadNalu(nalu));
 }
 
 - (void)testReadSingleNalu3ByteHeader {
   const uint8_t annex_b_test_data[] = {0x00, 0x00, 0x01, 0xAA};
-  webrtc::AnnexBBufferReader reader(annex_b_test_data,
-                                    arraysize(annex_b_test_data));
-  const uint8_t* nalu = nullptr;
-  size_t nalu_length = 0;
-  XCTAssertEqual(arraysize(annex_b_test_data), reader.BytesRemaining());
-  XCTAssertTrue(reader.ReadNalu(&nalu, &nalu_length));
-  XCTAssertEqual(annex_b_test_data + 3, nalu);
-  XCTAssertEqual(1u, nalu_length);
+  webrtc::AnnexBBufferReader reader(annex_b_test_data);
+  webrtc::ArrayView<const uint8_t> nalu;
+  XCTAssertEqual(std::size(annex_b_test_data), reader.BytesRemaining());
+  XCTAssertTrue(reader.ReadNalu(nalu));
+  XCTAssertEqual(annex_b_test_data + 3, nalu.data());
+  XCTAssertEqual(1u, nalu.size());
   XCTAssertEqual(0u, reader.BytesRemaining());
-  XCTAssertFalse(reader.ReadNalu(&nalu, &nalu_length));
-  XCTAssertEqual(nullptr, nalu);
-  XCTAssertEqual(0u, nalu_length);
+  XCTAssertFalse(reader.ReadNalu(nalu));
 }
 
 - (void)testReadMissingNalu {
@@ -123,14 +109,10 @@ static const uint8_t SPS_PPS_BUFFER[] = {
                                        0x00, 0x01,
                                        0x00, 0x00, 0x00, 0xFF};
   // clang-format on
-  webrtc::AnnexBBufferReader reader(annex_b_test_data,
-                                    arraysize(annex_b_test_data));
-  const uint8_t* nalu = nullptr;
-  size_t nalu_length = 0;
+  webrtc::AnnexBBufferReader reader(annex_b_test_data);
+  webrtc::ArrayView<const uint8_t> nalu;
   XCTAssertEqual(0u, reader.BytesRemaining());
-  XCTAssertFalse(reader.ReadNalu(&nalu, &nalu_length));
-  XCTAssertEqual(nullptr, nalu);
-  XCTAssertEqual(0u, nalu_length);
+  XCTAssertFalse(reader.ReadNalu(nalu));
 }
 
 - (void)testReadMultipleNalus {
@@ -141,50 +123,37 @@ static const uint8_t SPS_PPS_BUFFER[] = {
                                        0x00, 0x00, 0x00, 0xFF,
                                        0x00, 0x00, 0x01, 0xAA, 0xBB};
   // clang-format on
-  webrtc::AnnexBBufferReader reader(annex_b_test_data,
-                                    arraysize(annex_b_test_data));
-  const uint8_t* nalu = nullptr;
-  size_t nalu_length = 0;
-  XCTAssertEqual(arraysize(annex_b_test_data), reader.BytesRemaining());
-  XCTAssertTrue(reader.ReadNalu(&nalu, &nalu_length));
-  XCTAssertEqual(annex_b_test_data + 4, nalu);
-  XCTAssertEqual(8u, nalu_length);
+  webrtc::AnnexBBufferReader reader(annex_b_test_data);
+  webrtc::ArrayView<const uint8_t> nalu;
+  XCTAssertEqual(std::size(annex_b_test_data), reader.BytesRemaining());
+  XCTAssertTrue(reader.ReadNalu(nalu));
+  XCTAssertEqual(annex_b_test_data + 4, nalu.data());
+  XCTAssertEqual(8u, nalu.size());
   XCTAssertEqual(5u, reader.BytesRemaining());
-  XCTAssertTrue(reader.ReadNalu(&nalu, &nalu_length));
-  XCTAssertEqual(annex_b_test_data + 15, nalu);
-  XCTAssertEqual(2u, nalu_length);
+  XCTAssertTrue(reader.ReadNalu(nalu));
+  XCTAssertEqual(annex_b_test_data + 15, nalu.data());
+  XCTAssertEqual(2u, nalu.size());
   XCTAssertEqual(0u, reader.BytesRemaining());
-  XCTAssertFalse(reader.ReadNalu(&nalu, &nalu_length));
-  XCTAssertEqual(nullptr, nalu);
-  XCTAssertEqual(0u, nalu_length);
+  XCTAssertFalse(reader.ReadNalu(nalu));
 }
 
 - (void)testEmptyOutputBuffer {
-  const uint8_t expected_buffer[] = {0x00};
-  const size_t buffer_size = 1;
-  std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
-  memset(buffer.get(), 0, buffer_size);
-  webrtc::AvccBufferWriter writer(buffer.get(), 0);
+  webrtc::AvccBufferWriter writer({});
   XCTAssertEqual(0u, writer.BytesRemaining());
-  XCTAssertFalse(
-      writer.WriteNalu(NALU_TEST_DATA_0, arraysize(NALU_TEST_DATA_0)));
-  XCTAssertEqual(
-      0, memcmp(expected_buffer, buffer.get(), arraysize(expected_buffer)));
+  XCTAssertFalse(writer.WriteNalu(NALU_TEST_DATA_0));
 }
 
 - (void)testWriteSingleNalu {
   const uint8_t expected_buffer[] = {0x00, 0x00, 0x00, 0x03, 0xAA, 0xBB, 0xCC};
-  const size_t buffer_size = arraysize(NALU_TEST_DATA_0) + 4;
-  std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
-  webrtc::AvccBufferWriter writer(buffer.get(), buffer_size);
+  constexpr size_t buffer_size = std::size(NALU_TEST_DATA_0) + 4;
+  uint8_t buffer[buffer_size];
+  webrtc::AvccBufferWriter writer(buffer);
   XCTAssertEqual(buffer_size, writer.BytesRemaining());
-  XCTAssertTrue(
-      writer.WriteNalu(NALU_TEST_DATA_0, arraysize(NALU_TEST_DATA_0)));
+  XCTAssertTrue(writer.WriteNalu(NALU_TEST_DATA_0));
   XCTAssertEqual(0u, writer.BytesRemaining());
-  XCTAssertFalse(
-      writer.WriteNalu(NALU_TEST_DATA_1, arraysize(NALU_TEST_DATA_1)));
-  XCTAssertEqual(
-      0, memcmp(expected_buffer, buffer.get(), arraysize(expected_buffer)));
+  XCTAssertFalse(writer.WriteNalu(NALU_TEST_DATA_1));
+  XCTAssertEqual(0,
+                 memcmp(expected_buffer, buffer, std::size(expected_buffer)));
 }
 
 - (void)testWriteMultipleNalus {
@@ -194,34 +163,30 @@ static const uint8_t SPS_PPS_BUFFER[] = {
     0x00, 0x00, 0x00, 0x04, 0xDE, 0xAD, 0xBE, 0xEF
   };
   // clang-format on
-  const size_t buffer_size =
-      arraysize(NALU_TEST_DATA_0) + arraysize(NALU_TEST_DATA_1) + 8;
-  std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
-  webrtc::AvccBufferWriter writer(buffer.get(), buffer_size);
+  constexpr size_t buffer_size =
+      std::size(NALU_TEST_DATA_0) + std::size(NALU_TEST_DATA_1) + 8;
+  uint8_t buffer[buffer_size];
+  webrtc::AvccBufferWriter writer(buffer);
   XCTAssertEqual(buffer_size, writer.BytesRemaining());
-  XCTAssertTrue(
-      writer.WriteNalu(NALU_TEST_DATA_0, arraysize(NALU_TEST_DATA_0)));
-  XCTAssertEqual(buffer_size - (arraysize(NALU_TEST_DATA_0) + 4),
+  XCTAssertTrue(writer.WriteNalu(NALU_TEST_DATA_0));
+  XCTAssertEqual(buffer_size - (std::size(NALU_TEST_DATA_0) + 4),
                  writer.BytesRemaining());
-  XCTAssertTrue(
-      writer.WriteNalu(NALU_TEST_DATA_1, arraysize(NALU_TEST_DATA_1)));
+  XCTAssertTrue(writer.WriteNalu(NALU_TEST_DATA_1));
   XCTAssertEqual(0u, writer.BytesRemaining());
-  XCTAssertEqual(
-      0, memcmp(expected_buffer, buffer.get(), arraysize(expected_buffer)));
+  XCTAssertEqual(0,
+                 memcmp(expected_buffer, buffer, std::size(expected_buffer)));
 }
 
 - (void)testOverflow {
   const uint8_t expected_buffer[] = {0x00, 0x00, 0x00};
-  const size_t buffer_size = arraysize(NALU_TEST_DATA_0);
-  std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
-  memset(buffer.get(), 0, buffer_size);
-  webrtc::AvccBufferWriter writer(buffer.get(), buffer_size);
+  constexpr size_t buffer_size = std::size(NALU_TEST_DATA_0);
+  uint8_t buffer[buffer_size] = {};
+  webrtc::AvccBufferWriter writer(buffer);
   XCTAssertEqual(buffer_size, writer.BytesRemaining());
-  XCTAssertFalse(
-      writer.WriteNalu(NALU_TEST_DATA_0, arraysize(NALU_TEST_DATA_0)));
+  XCTAssertFalse(writer.WriteNalu(NALU_TEST_DATA_0));
   XCTAssertEqual(buffer_size, writer.BytesRemaining());
-  XCTAssertEqual(
-      0, memcmp(expected_buffer, buffer.get(), arraysize(expected_buffer)));
+  XCTAssertEqual(0,
+                 memcmp(expected_buffer, buffer, std::size(expected_buffer)));
 }
 
 - (void)testH264AnnexBBufferToCMSampleBuffer {
@@ -248,7 +213,6 @@ static const uint8_t SPS_PPS_BUFFER[] = {
 
   Boolean result =
       webrtc::H264AnnexBBufferToCMSampleBuffer(annex_b_test_data,
-                                               arraysize(annex_b_test_data),
                                                description,
                                                &out_sample_buffer,
                                                memory_pool);
@@ -263,10 +227,10 @@ static const uint8_t SPS_PPS_BUFFER[] = {
       CMSampleBufferGetDataBuffer(out_sample_buffer);
   size_t block_buffer_size = CMBlockBufferGetDataLength(block_buffer);
   CMBlockBufferGetDataPointer(block_buffer, 0, nullptr, nullptr, &data_ptr);
-  XCTAssertEqual(block_buffer_size, arraysize(annex_b_test_data));
+  XCTAssertEqual(block_buffer_size, std::size(annex_b_test_data));
 
   int data_comparison_result = memcmp(
-      expected_cmsample_data, data_ptr, arraysize(expected_cmsample_data));
+      expected_cmsample_data, data_ptr, std::size(expected_cmsample_data));
 
   XCTAssertEqual(0, data_comparison_result);
 
@@ -294,10 +258,10 @@ static const uint8_t SPS_PPS_BUFFER[] = {
     0xAA, 0xFF}; // second chunk, 2 bytes
   // clang-format on
 
-  webrtc::Buffer annexb_buffer(arraysize(cmsample_data));
+  webrtc::Buffer annexb_buffer(std::size(cmsample_data));
   CMSampleBufferRef sample_buffer =
       [self createCMSampleBufferRef:(void*)cmsample_data
-                       cmsampleSize:arraysize(cmsample_data)];
+                       cmsampleSize:std::size(cmsample_data)];
 
   Boolean result =
       webrtc::H264CMSampleBufferToAnnexBBuffer(sample_buffer,
@@ -306,13 +270,11 @@ static const uint8_t SPS_PPS_BUFFER[] = {
 
   XCTAssertTrue(result);
 
-  XCTAssertEqual(arraysize(expected_annex_b_data), annexb_buffer.size());
-
-  int data_comparison_result = memcmp(expected_annex_b_data,
-                                      annexb_buffer.data(),
-                                      arraysize(expected_annex_b_data));
-
-  XCTAssertEqual(0, data_comparison_result);
+  XCTAssertEqual(std::size(expected_annex_b_data), annexb_buffer.size());
+  XCTAssertEqual(
+      0,
+      memcmp(
+          expected_annex_b_data, annexb_buffer.data(), annexb_buffer.size()));
 }
 
 - (void)testH264CMSampleBufferToAnnexBBufferWithKeyframe {
@@ -330,10 +292,10 @@ static const uint8_t SPS_PPS_BUFFER[] = {
     0xAA, 0xFF}; // second chunk, 2 bytes
   // clang-format on
 
-  webrtc::Buffer annexb_buffer(arraysize(cmsample_data));
+  webrtc::Buffer annexb_buffer(std::size(cmsample_data));
   CMSampleBufferRef sample_buffer =
       [self createCMSampleBufferRef:(void*)cmsample_data
-                       cmsampleSize:arraysize(cmsample_data)];
+                       cmsampleSize:std::size(cmsample_data)];
 
   Boolean result =
       webrtc::H264CMSampleBufferToAnnexBBuffer(sample_buffer,
@@ -342,23 +304,22 @@ static const uint8_t SPS_PPS_BUFFER[] = {
 
   XCTAssertTrue(result);
 
-  XCTAssertEqual(arraysize(SPS_PPS_BUFFER) + arraysize(expected_annex_b_data),
+  XCTAssertEqual(std::size(SPS_PPS_BUFFER) + std::size(expected_annex_b_data),
                  annexb_buffer.size());
 
   XCTAssertEqual(
       0,
-      memcmp(SPS_PPS_BUFFER, annexb_buffer.data(), arraysize(SPS_PPS_BUFFER)));
+      memcmp(SPS_PPS_BUFFER, annexb_buffer.data(), std::size(SPS_PPS_BUFFER)));
 
   XCTAssertEqual(0,
                  memcmp(expected_annex_b_data,
-                        annexb_buffer.data() + arraysize(SPS_PPS_BUFFER),
-                        arraysize(expected_annex_b_data)));
+                        annexb_buffer.data() + std::size(SPS_PPS_BUFFER),
+                        std::size(expected_annex_b_data)));
 }
 
 - (CMVideoFormatDescriptionRef)createDescription {
   CMVideoFormatDescriptionRef description =
-      webrtc::CreateVideoFormatDescription(SPS_PPS_BUFFER,
-                                           arraysize(SPS_PPS_BUFFER));
+      webrtc::CreateVideoFormatDescription(SPS_PPS_BUFFER);
   XCTAssertTrue(description);
   return description;
 }

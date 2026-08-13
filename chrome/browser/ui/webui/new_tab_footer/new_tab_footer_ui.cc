@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/webui/customize_buttons/customize_buttons_handler.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer_handler.h"
+#include "chrome/browser/ui/webui/webui_load_timer.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
@@ -41,6 +42,10 @@ bool NewTabFooterUIConfig::IsWebUIEnabled(
 
 NewTabFooterUI::NewTabFooterUI(content::WebUI* web_ui)
     : TopChromeWebUIController(web_ui, /*enable_chrome_send=*/true),
+      webui_load_timer_(std::make_unique<WebuiLoadTimer>(
+          web_ui->GetWebContents(),
+          "NewTabPage.Footer.WebUI.LoadDocumentTime",
+          "NewTabPage.Footer.WebUI.LoadCompletedTime")),
       customize_buttons_factory_receiver_(this),
       profile_(Profile::FromWebUI(web_ui)) {
   // Set up the chrome://newtab-footer source.
@@ -60,6 +65,8 @@ NewTabFooterUI::NewTabFooterUI(content::WebUI* web_ui)
        IDS_NTP_CUSTOM_BG_CUSTOMIZE_NTP_WALLPAPER_SEARCH_LABEL},
       {"manageExtension", IDS_MANAGE_EXTENSION},
       {"wallpaperSearchButton", IDS_NTP_WALLPAPER_SEARCH_PAGE_HEADER},
+      // TODO(crbug.com/394902303): alphabetically order the following strings.
+      {"managementLinkDesc", IDS_OPENS_MANAGEMENT_PAGE},
   };
   source->AddLocalizedStrings(kLocalizedStrings);
 }

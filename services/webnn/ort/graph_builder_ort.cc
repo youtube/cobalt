@@ -45,6 +45,14 @@ constexpr base::cstring_view kOpTypeErf = "Erf";
 constexpr base::cstring_view kOpTypeReciprocal = "Reciprocal";
 constexpr base::cstring_view kOpTypeCast = "Cast";
 
+constexpr base::cstring_view kOpTypeGelu = "Gelu";
+constexpr base::cstring_view kOpTypeGemm = "Gemm";
+constexpr base::cstring_view kOpTypeHardSwish = "HardSwish";
+constexpr base::cstring_view kOpTypeRelu = "Relu";
+constexpr base::cstring_view kOpTypeSigmoid = "Sigmoid";
+constexpr base::cstring_view kOpTypeSoftsign = "Softsign";
+constexpr base::cstring_view kOpTypeTanh = "Tanh";
+
 constexpr std::string_view kUnderscore = "_";
 
 std::string GetOperandName(std::string_view label, OperandId id) {
@@ -269,6 +277,49 @@ void GraphBuilderOrt::AddElementWiseUnaryOperation(
   }
 }
 
+void GraphBuilderOrt::AddGemmOperation(const mojom::Gemm& gemm) {
+  const std::string node = GenerateOperationName(gemm.label);
+  const std::string input_a = GetOperandNameById(gemm.a_operand_id);
+  const std::string input_b = GetOperandNameById(gemm.b_operand_id);
+  const std::string output = GetOperandNameById(gemm.output_operand_id);
+
+  const DataTypeLimits& data_type_limits = context_properties_.data_type_limits;
+  const OperandDescriptor& input_a_descriptor =
+      GetOperand(gemm.a_operand_id).descriptor;
+  const OperandDescriptor& input_b_descriptor =
+      GetOperand(gemm.b_operand_id).descriptor;
+  CHECK(data_type_limits.gemm_a.SupportsAll(
+      {input_a_descriptor, input_b_descriptor}));
+  CHECK_EQ(input_a_descriptor.data_type(), input_b_descriptor.data_type());
+
+  std::vector<const char*> inputs = {input_a.c_str(), input_b.c_str()};
+  std::string input_c;
+  if (gemm.c_operand_id.has_value()) {
+    const OperandDescriptor& input_c_descriptor =
+        GetOperand(*gemm.c_operand_id).descriptor;
+    CHECK(data_type_limits.gemm_c.Supports(input_c_descriptor));
+    CHECK_EQ(input_c_descriptor.data_type(), input_a_descriptor.data_type());
+
+    input_c = GetOperandNameById(*gemm.c_operand_id);
+    inputs.push_back(input_c.c_str());
+  }
+  std::array<const char*, 1> outputs = {output.c_str()};
+
+  constexpr base::cstring_view kAttrAlpha = "alpha";
+  constexpr base::cstring_view kAttrBeta = "beta";
+  constexpr base::cstring_view kAttrTransA = "transA";
+  constexpr base::cstring_view kAttrTransB = "transB";
+  std::array<ScopedOrtOpAttr, 4> attributes = {
+      model_editor_.CreateAttribute(kAttrAlpha, gemm.alpha),
+      model_editor_.CreateAttribute(kAttrBeta, gemm.beta),
+      model_editor_.CreateAttribute(kAttrTransA,
+                                    static_cast<int64_t>(gemm.a_transpose)),
+      model_editor_.CreateAttribute(kAttrTransB,
+                                    static_cast<int64_t>(gemm.b_transpose))};
+
+  model_editor_.AddNode(kOpTypeGemm, node, inputs, outputs, attributes);
+}
+
 [[nodiscard]] base::expected<std::unique_ptr<ModelEditor::ModelInfo>,
                              mojom::ErrorPtr>
 GraphBuilderOrt::BuildModel() {
@@ -284,6 +335,8 @@ GraphBuilderOrt::BuildModel() {
   constant_operands_.clear();
 
   for (const mojom::OperationPtr& operation : graph_info_->operations) {
+    const DataTypeLimits& data_type_limits =
+        context_properties_.data_type_limits;
     switch (operation->which()) {
       case mojom::Operation::Tag::kElementWiseBinary: {
         AddElementWiseBinaryOperation(*operation->get_element_wise_binary());
@@ -291,6 +344,48 @@ GraphBuilderOrt::BuildModel() {
       }
       case mojom::Operation::Tag::kElementWiseUnary: {
         AddElementWiseUnaryOperation(*operation->get_element_wise_unary());
+        break;
+      }
+      case mojom::Operation::Tag::kGelu: {
+        CHECK(data_type_limits.gelu_input.Supports(
+            GetOperand(operation->get_gelu()->input_operand_id).descriptor));
+        AddUnaryOperation(*operation->get_gelu(), kOpTypeGelu);
+        break;
+      }
+      case mojom::Operation::Tag::kGemm: {
+        AddGemmOperation(*operation->get_gemm());
+        break;
+      }
+      case mojom::Operation::Tag::kHardSwish: {
+        CHECK(data_type_limits.hard_swish_input.Supports(
+            GetOperand(operation->get_hard_swish()->input_operand_id)
+                .descriptor));
+        AddUnaryOperation(*operation->get_hard_swish(), kOpTypeHardSwish);
+        break;
+      }
+      case mojom::Operation::Tag::kRelu: {
+        CHECK(data_type_limits.relu_input.Supports(
+            GetOperand(operation->get_relu()->input_operand_id).descriptor));
+        AddUnaryOperation(*operation->get_relu(), kOpTypeRelu);
+        break;
+      }
+      case mojom::Operation::Tag::kSigmoid: {
+        CHECK(data_type_limits.sigmoid_input.Supports(
+            GetOperand(operation->get_sigmoid()->input_operand_id).descriptor));
+        AddUnaryOperation(*operation->get_sigmoid(), kOpTypeSigmoid);
+        break;
+      }
+      case mojom::Operation::Tag::kSoftsign: {
+        CHECK(data_type_limits.softsign_input.Supports(
+            GetOperand(operation->get_softsign()->input_operand_id)
+                .descriptor));
+        AddUnaryOperation(*operation->get_softsign(), kOpTypeSoftsign);
+        break;
+      }
+      case mojom::Operation::Tag::kTanh: {
+        CHECK(data_type_limits.tanh_input.Supports(
+            GetOperand(operation->get_tanh()->input_operand_id).descriptor));
+        AddUnaryOperation(*operation->get_tanh(), kOpTypeTanh);
         break;
       }
       case mojom::Operation::Tag::kArgMinMax:
@@ -305,12 +400,9 @@ GraphBuilderOrt::BuildModel() {
       case mojom::Operation::Tag::kGather:
       case mojom::Operation::Tag::kGatherElements:
       case mojom::Operation::Tag::kGatherNd:
-      case mojom::Operation::Tag::kGelu:
-      case mojom::Operation::Tag::kGemm:
       case mojom::Operation::Tag::kGru:
       case mojom::Operation::Tag::kGruCell:
       case mojom::Operation::Tag::kHardSigmoid:
-      case mojom::Operation::Tag::kHardSwish:
       case mojom::Operation::Tag::kInstanceNormalization:
       case mojom::Operation::Tag::kLayerNormalization:
       case mojom::Operation::Tag::kLinear:
@@ -323,19 +415,15 @@ GraphBuilderOrt::BuildModel() {
       case mojom::Operation::Tag::kPrelu:
       case mojom::Operation::Tag::kQuantizeLinear:
       case mojom::Operation::Tag::kReduce:
-      case mojom::Operation::Tag::kRelu:
       case mojom::Operation::Tag::kResample2d:
       case mojom::Operation::Tag::kReshape:
       case mojom::Operation::Tag::kReverse:
       case mojom::Operation::Tag::kScatterElements:
       case mojom::Operation::Tag::kScatterNd:
-      case mojom::Operation::Tag::kSigmoid:
       case mojom::Operation::Tag::kSlice:
       case mojom::Operation::Tag::kSoftmax:
       case mojom::Operation::Tag::kSoftplus:
-      case mojom::Operation::Tag::kSoftsign:
       case mojom::Operation::Tag::kSplit:
-      case mojom::Operation::Tag::kTanh:
       case mojom::Operation::Tag::kTile:
       case mojom::Operation::Tag::kTranspose:
       case mojom::Operation::Tag::kTriangular:

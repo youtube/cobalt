@@ -51,6 +51,7 @@ import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.bookmarks.TabBookmarker;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
+import org.chromium.chrome.browser.browser_controls.TopControlsStacker;
 import org.chromium.chrome.browser.browserservices.intents.WebappConstants;
 import org.chromium.chrome.browser.commerce.ShoppingServiceFactory;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
@@ -135,6 +136,7 @@ import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.ToolbarIntentMetadata;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarBehavior;
+import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.top.ToolbarActionModeCallback;
 import org.chromium.chrome.browser.toolbar.top.ToolbarControlContainer;
 import org.chromium.chrome.browser.ui.activity_recreation.ActivityRecreationController;
@@ -323,6 +325,7 @@ public class RootUiCoordinator
     private final boolean mIsIncognitoReauthPendingOnRestore;
     protected final ExpandedSheetHelper mExpandedBottomSheetHelper;
     protected final BottomControlsStacker mBottomControlsStacker;
+    protected final TopControlsStacker mTopControlsStacker;
     @NonNull protected final ObservableSupplier<Integer> mOverviewColorSupplier;
     @Nullable private ContextualSearchObserver mReadAloudContextualSearchObserver;
     @Nullable private PageZoomCoordinator mPageZoomCoordinator;
@@ -552,6 +555,7 @@ public class RootUiCoordinator
         mEdgeToEdgeManager = edgeToEdgeManager;
         mBottomControlsStacker =
                 new BottomControlsStacker(mBrowserControlsManager, mActivity, mWindowAndroid);
+        mTopControlsStacker = new TopControlsStacker();
     }
 
     // TODO(pnoland, crbug.com/865801): remove this in favor of wiring it directly.
@@ -742,6 +746,7 @@ public class RootUiCoordinator
             mAutomotiveBackButtonToolbarCoordinator = null;
         }
         mBottomControlsStacker.destroy();
+        mTopControlsStacker.destroy();
         mActivity = null;
     }
 
@@ -1323,6 +1328,11 @@ public class RootUiCoordinator
         return true;
     }
 
+    /** Returns the {@link MenuButtonCoordinator.VisibilityDelegate}. */
+    protected @Nullable MenuButtonCoordinator.VisibilityDelegate getMenuButtonVisibilityDelegate() {
+        return null;
+    }
+
     // WindowFocusChangedObserver implementation
 
     @Override
@@ -1513,7 +1523,8 @@ public class RootUiCoordinator
                             mReadAloudControllerSupplier,
                             getDesktopWindowStateManager(),
                             getMultiInstanceManager(),
-                            mTabBookmarkerSupplier);
+                            mTabBookmarkerSupplier,
+                            getMenuButtonVisibilityDelegate());
             if (!mSupportsAppMenuSupplier.getAsBoolean()) {
                 mToolbarManager.getToolbar().disableMenuButton();
             }

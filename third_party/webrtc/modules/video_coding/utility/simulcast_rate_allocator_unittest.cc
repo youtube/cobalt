@@ -18,6 +18,7 @@
 
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/units/data_rate.h"
 #include "api/video/video_bitrate_allocation.h"
 #include "api/video/video_bitrate_allocator.h"
@@ -26,13 +27,13 @@
 #include "api/video_codecs/vp8_frame_buffer_controller.h"
 #include "api/video_codecs/vp8_frame_config.h"
 #include "rtc_base/checks.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 namespace {
-using test::ExplicitKeyValueConfig;
+
 using ::testing::_;
 
 constexpr uint32_t kFramerateFps = 5;
@@ -305,8 +306,8 @@ TEST_F(SimulcastRateAllocatorTest, Regular3TLTemporalRateAllocation) {
 }
 
 TEST_F(SimulcastRateAllocatorTest, BaseHeavy3TLTemporalRateAllocation) {
-  ExplicitKeyValueConfig field_trials(
-      "WebRTC-UseBaseHeavyVP8TL3RateAllocation/Enabled/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-UseBaseHeavyVP8TL3RateAllocation/Enabled/");
 
   SetupCodec3SL3TL({true, true, true});
   CreateAllocator(CreateEnvironment(&field_trials));
@@ -590,7 +591,7 @@ TEST_F(SimulcastRateAllocatorTest, NonConferenceModeScreenshare) {
 }
 
 TEST_F(SimulcastRateAllocatorTest, StableRate) {
-  ExplicitKeyValueConfig field_trials(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-StableTargetRate/"
       "enabled:true,"
       "video_hysteresis_factor:1.1/");

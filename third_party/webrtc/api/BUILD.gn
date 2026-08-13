@@ -388,6 +388,7 @@ rtc_library("libjingle_peerconnection_api") {
     "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:str_format",
     "//third_party/abseil-cpp/absl/strings:string_view",
 
     # Basically, don't add stuff here. You might break sensitive downstream
@@ -1109,6 +1110,7 @@ if (rtc_include_tests) {
     testonly = true
     sources = [ "test/videocodec_test_fixture.h" ]
     deps = [
+      ":field_trials",
       ":videocodec_test_stats_api",
       "../modules/video_coding:codec_globals_headers",
       "../modules/video_coding:video_codec_interface",

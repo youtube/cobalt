@@ -10,7 +10,6 @@ import {CustomizeButtonsDocumentCallbackRouter, CustomizeButtonsHandlerRemote, C
 import {CustomizeButtonsProxy} from 'chrome://newtab-footer/customize_buttons_proxy.js';
 import type {ManagementNotice, NewTabFooterDocumentRemote} from 'chrome://newtab-footer/new_tab_footer.mojom-webui.js';
 import {NewTabFooterDocumentCallbackRouter, NewTabFooterHandlerRemote} from 'chrome://newtab-footer/new_tab_footer.mojom-webui.js';
-import type {CustomizeButtonsElement} from 'chrome://newtab-footer/shared/customize_buttons/customize_buttons.js';
 import {WindowProxy} from 'chrome://newtab-footer/window_proxy.js';
 import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -33,7 +32,6 @@ function installMock<T extends object>(
 
 suite('NewTabFooterAppTest', () => {
   let element: NewTabFooterAppElement;
-  let customizeButtons: CustomizeButtonsElement;
   let handler: TestMock<NewTabFooterHandlerRemote>&NewTabFooterHandlerRemote;
   let callbackRouter: NewTabFooterDocumentRemote;
   let customizeButtonsCallbackRouterRemote: CustomizeButtonsDocumentRemote;
@@ -43,7 +41,7 @@ suite('NewTabFooterAppTest', () => {
 
   const url: URL = new URL(location.href);
 
-  setup(() => {
+  async function setupFooter() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     handler = TestMock.fromClass(NewTabFooterHandlerRemote);
     NewTabFooterDocumentProxy.setInstance(
@@ -62,27 +60,17 @@ suite('NewTabFooterAppTest', () => {
     windowProxy = installMock(WindowProxy);
     windowProxy.setResultFor('url', url);
 
-    initializeElement();
-    customizeButtons =
-        element.shadowRoot.querySelector('ntp-customize-buttons')!;
-  });
-
-  async function initializeElement() {
     element = document.createElement('new-tab-footer-app');
     document.body.appendChild(element);
     await microtasksFinished();
-    await handler.whenCalled('updateManagementNotice');
-  }
-
-  function getCustomizeButton(): CrButtonElement {
-    return $$(customizeButtons, '#customizeButton')!;
   }
 
   suite('Extension', () => {
-    test('Get extension name on initialization', async () => {
-      // Arrange.
-      await initializeElement();
+    setup(async () => {
+      await setupFooter();
+    });
 
+    test('Get extension name on initialization', async () => {
       // Act.
       const fooName = 'foo';
       callbackRouter.setNtpExtensionName(fooName);
@@ -107,7 +95,7 @@ suite('NewTabFooterAppTest', () => {
     test('Click extension name link', async () => {
       // Arrange.
       callbackRouter.setNtpExtensionName('foo');
-      await initializeElement();
+      await callbackRouter.$.flushForTesting();
 
       // Act.
       const link = $$(element, '#extensionNameContainer [role="link"]');
@@ -126,12 +114,16 @@ suite('NewTabFooterAppTest', () => {
   });
 
   suite('Managed', () => {
+    setup(async () => {
+      await setupFooter();
+    });
+
     test('Get management notice', async () => {
       // Arrange.
-      await initializeElement();
       const managementNotice: ManagementNotice = {
         text: 'Managed by your organization',
         bitmapDataUrl: {url: 'chrome://resources/images/chrome_logo_dark.svg'},
+        isCustomLogo: false,
       };
 
       // Act.
@@ -142,12 +134,13 @@ suite('NewTabFooterAppTest', () => {
       const managementNoticeContainer =
           element.shadowRoot.querySelector('#managementNoticeContainer');
       assertTrue(!!managementNoticeContainer);
-      let managementNoticeText = managementNoticeContainer.querySelector('p');
-      assertTrue(!!managementNoticeText);
+      let managementNoticeLink =
+          $$(element, '#managementNoticeContainer [role="link"]');
+      assertTrue(!!managementNoticeLink);
       assertEquals(
-          managementNoticeText.innerText, 'Managed by your organization');
+          managementNoticeLink.innerText, 'Managed by your organization');
       let managementNoticeLogo =
-          managementNoticeContainer.querySelector<HTMLImageElement>('img');
+          $$<HTMLImageElement>(element, '#managementNoticeLogo');
       assertTrue(!!managementNoticeLogo);
       assertEquals(
           managementNoticeLogo.src,
@@ -158,14 +151,78 @@ suite('NewTabFooterAppTest', () => {
       await callbackRouter.$.flushForTesting();
 
       // Assert.
-      managementNoticeText = $$(element, '#managementNoticeContainer p');
+      managementNoticeLink =
+          $$(element, '#managementNoticeContainer [role="link"]');
       managementNoticeLogo = $$(element, '#managementNoticeLogo');
-      assertFalse(!!managementNoticeText);
+      assertFalse(!!managementNoticeLink);
       assertFalse(!!managementNoticeLogo);
+    });
+
+    test('Management notice logo style', async () => {
+      // Arrange.
+      const managementNoticeWithCustomLogo: ManagementNotice = {
+        text: 'Managed by your organization',
+        bitmapDataUrl: {url: 'chrome://resources/images/chrome_logo_dark.svg'},
+        isCustomLogo: true,
+      };
+
+      // Act.
+      callbackRouter.setManagementNotice(managementNoticeWithCustomLogo);
+      await callbackRouter.$.flushForTesting();
+
+      // Assert.
+      let logoContainter = $$(element, '#managementNoticeLogoContainer');
+      assertTrue(!!logoContainter);
+      assertTrue(logoContainter.classList.contains('custom_logo'));
+
+      const managementNoticeWithDefaultLogo: ManagementNotice = {
+        text: 'Managed by your organization',
+        bitmapDataUrl: {url: 'chrome://resources/images/chrome_logo_dark.svg'},
+        isCustomLogo: false,
+      };
+
+      // Act.
+      callbackRouter.setManagementNotice(managementNoticeWithDefaultLogo);
+      await callbackRouter.$.flushForTesting();
+
+      logoContainter = $$(element, '#managementNoticeLogoContainer');
+      assertTrue(!!logoContainter);
+      assertEquals(logoContainter.classList.length, 0);
+    });
+
+    test('Click manageemnt notice link', async () => {
+      // Arrange.
+      const managementNotice: ManagementNotice = {
+        text: 'Managed by your organization',
+        bitmapDataUrl: {url: 'chrome://resources/images/chrome_logo_dark.svg'},
+        isCustomLogo: false,
+      };
+      callbackRouter.setManagementNotice(managementNotice);
+      await callbackRouter.$.flushForTesting();
+
+      // Act.
+      const link = $$(element, '#managementNoticeContainer [role="link"]');
+      assertTrue(!!link);
+      link.click();
+
+      // Assert.
+      assertEquals(1, handler.getCallCount('openManagementPage'));
     });
   });
 
   suite('CustomizeChromeButton', () => {
+    setup(async () => {
+      await setupFooter();
+    });
+
+    function getCustomizeButton(): CrButtonElement {
+      const buttons = $$(element, '#customizeButtons');
+      assertTrue(!!buttons);
+      const button = $$<CrButtonElement>(buttons, '#customizeButton');
+      assertTrue(!!button);
+      return button;
+    }
+
     test('clicking customize button opens side panel', () => {
       // Act.
       getCustomizeButton().click();

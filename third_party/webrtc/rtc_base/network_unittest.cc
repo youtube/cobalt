@@ -25,10 +25,12 @@
 #include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/sequence_checker.h"
 #include "api/test/rtc_error_matchers.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/ip_address.h"
+#include "rtc_base/logging.h"
 #include "rtc_base/net_helpers.h"
 #include "rtc_base/net_test_helpers.h"
 #include "rtc_base/network_constants.h"
@@ -38,6 +40,8 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_field_trials.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
 
@@ -49,23 +53,13 @@
 
 #include "rtc_base/ifaddrs_converter.h"
 #endif  // defined(WEBRTC_POSIX)
-#include "test/gmock.h"
-#if defined(WEBRTC_WIN)
-#include "rtc_base/logging.h"  // For RTC_LOG_GLE
-#endif
 // IWYU pragma: end_keep
-#include "test/field_trial.h"
-#include "test/scoped_key_value_config.h"
 
 using ::testing::Contains;
 using ::testing::IsTrue;
 using ::testing::Not;
 using ::testing::UnorderedElementsAre;
 using ::testing::UnorderedElementsAreArray;
-using ::webrtc::CreateEnvironment;
-using ::webrtc::Environment;
-using ::webrtc::test::ScopedFieldTrials;
-using ::webrtc::test::ScopedKeyValueConfig;
 
 #define MAYBE_SKIP_IPV4                        \
   if (!::webrtc::HasIPv4Enabled()) {           \
@@ -175,8 +169,6 @@ std::vector<const Network*> CopyNetworkPointers(
 
 class NetworkTest : public ::testing::Test, public sigslot::has_slots<> {
  public:
-  NetworkTest() : callback_called_(false) {}
-
   void OnNetworksChanged() { callback_called_ = true; }
 
   NetworkManager::Stats MergeNetworkList(
@@ -339,9 +331,10 @@ class NetworkTest : public ::testing::Test, public sigslot::has_slots<> {
 #endif  // defined(WEBRTC_POSIX)
 
  protected:
-  ScopedKeyValueConfig field_trials_;
+  const FieldTrials field_trials_ = CreateTestFieldTrials();
+  const Environment env_ = CreateEnvironment(&field_trials_);
   AutoThread main_thread_;
-  bool callback_called_;
+  bool callback_called_ = false;
 };
 
 class TestBasicNetworkManager : public BasicNetworkManager {
@@ -369,7 +362,7 @@ TEST_F(NetworkTest, TestIsIgnoredNetworkIgnoresIPsStartingWith0) {
   Network ipv4_network2("test_eth1", "Test Network Adapter 2",
                         IPAddress(0x010000U), 24, ADAPTER_TYPE_ETHERNET);
   PhysicalSocketServer socket_server;
-  BasicNetworkManager network_manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager network_manager(env_, &socket_server);
   network_manager.StartUpdating();
   EXPECT_FALSE(IsIgnoredNetwork(network_manager, ipv4_network1));
   EXPECT_TRUE(IsIgnoredNetwork(network_manager, ipv4_network2));
@@ -381,14 +374,13 @@ TEST_F(NetworkTest, TestIgnoreList) {
                     24);
   Network include_me("include_me", "Include me please!", IPAddress(0x12345600U),
                      24);
-  const Environment env = CreateEnvironment();
   PhysicalSocketServer socket_server;
-  BasicNetworkManager default_network_manager(env, &socket_server);
+  BasicNetworkManager default_network_manager(env_, &socket_server);
   default_network_manager.StartUpdating();
   EXPECT_FALSE(IsIgnoredNetwork(default_network_manager, ignore_me));
   EXPECT_FALSE(IsIgnoredNetwork(default_network_manager, include_me));
 
-  BasicNetworkManager ignoring_network_manager(env, &socket_server);
+  BasicNetworkManager ignoring_network_manager(env_, &socket_server);
   std::vector<std::string> ignore_list;
   ignore_list.push_back("ignore_me");
   ignoring_network_manager.set_network_ignore_list(ignore_list);
@@ -400,7 +392,7 @@ TEST_F(NetworkTest, TestIgnoreList) {
 // Test is failing on Windows opt: b/11288214
 TEST_F(NetworkTest, DISABLED_TestCreateNetworks) {
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   std::vector<std::unique_ptr<Network>> result = GetNetworks(manager, true);
   // We should be able to bind to any addresses we find.
   for (auto it = result.begin(); it != result.end(); ++it) {
@@ -434,7 +426,7 @@ TEST_F(NetworkTest, DISABLED_TestCreateNetworks) {
 // ALLOWED.
 TEST_F(NetworkTest, TestUpdateNetworks) {
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   manager.SignalNetworksChanged.connect(static_cast<NetworkTest*>(this),
                                         &NetworkTest::OnNetworksChanged);
   EXPECT_EQ(NetworkManager::ENUMERATION_ALLOWED,
@@ -474,7 +466,7 @@ TEST_F(NetworkTest, TestBasicMergeNetworkList) {
   ipv4_network1.AddIP(IPAddress(0x12345678));
   ipv4_network2.AddIP(IPAddress(0x00010004));
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
 
   // Add ipv4_network1 to the list of networks.
   std::vector<std::unique_ptr<Network>> list;
@@ -581,7 +573,7 @@ void SetupNetworks(std::vector<std::unique_ptr<Network>>* list) {
 // Test that the basic network merging case works.
 TEST_F(NetworkTest, TestIPv6MergeNetworkList) {
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   manager.SignalNetworksChanged.connect(static_cast<NetworkTest*>(this),
                                         &NetworkTest::OnNetworksChanged);
   std::vector<std::unique_ptr<Network>> networks;
@@ -603,7 +595,7 @@ TEST_F(NetworkTest, TestIPv6MergeNetworkList) {
 // objects remain in the result list.
 TEST_F(NetworkTest, TestNoChangeMerge) {
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   manager.SignalNetworksChanged.connect(static_cast<NetworkTest*>(this),
                                         &NetworkTest::OnNetworksChanged);
   std::vector<std::unique_ptr<Network>> networks;
@@ -634,7 +626,7 @@ TEST_F(NetworkTest, TestNoChangeMerge) {
 // IP changed.
 TEST_F(NetworkTest, MergeWithChangedIP) {
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   manager.SignalNetworksChanged.connect(static_cast<NetworkTest*>(this),
                                         &NetworkTest::OnNetworksChanged);
   std::vector<std::unique_ptr<Network>> original_list;
@@ -671,7 +663,7 @@ TEST_F(NetworkTest, MergeWithChangedIP) {
 
 TEST_F(NetworkTest, TestMultipleIPMergeNetworkList) {
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   manager.SignalNetworksChanged.connect(static_cast<NetworkTest*>(this),
                                         &NetworkTest::OnNetworksChanged);
   std::vector<std::unique_ptr<Network>> original_list;
@@ -725,7 +717,7 @@ TEST_F(NetworkTest, TestMultipleIPMergeNetworkList) {
 // Test that merge correctly distinguishes multiple networks on an interface.
 TEST_F(NetworkTest, TestMultiplePublicNetworksOnOneInterfaceMerge) {
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   manager.SignalNetworksChanged.connect(static_cast<NetworkTest*>(this),
                                         &NetworkTest::OnNetworksChanged);
   std::vector<std::unique_ptr<Network>> original_list;
@@ -768,7 +760,7 @@ TEST_F(NetworkTest, TestMultiplePublicNetworksOnOneInterfaceMerge) {
 // Test that DumpNetworks does not crash.
 TEST_F(NetworkTest, TestCreateAndDumpNetworks) {
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   manager.StartUpdating();
   std::vector<std::unique_ptr<Network>> list = GetNetworks(manager, true);
   bool changed;
@@ -778,7 +770,7 @@ TEST_F(NetworkTest, TestCreateAndDumpNetworks) {
 
 TEST_F(NetworkTest, TestIPv6Toggle) {
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   manager.StartUpdating();
   bool ipv6_found = false;
   for (const auto& network : GetNetworks(manager, true)) {
@@ -794,7 +786,7 @@ TEST_F(NetworkTest, TestIPv6Toggle) {
 // IPv6 comes first.
 TEST_F(NetworkTest, IPv6NetworksPreferredOverIPv4) {
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   Network ipv4_network1("test_eth0", "Test Network Adapter 1",
                         IPAddress(0x12345600U), 24);
   ipv4_network1.AddIP(IPAddress(0x12345600U));
@@ -824,7 +816,7 @@ TEST_F(NetworkTest, IPv6NetworksPreferredOverIPv4) {
 // to be preference-ordered by name. For example, "eth0" before "eth1".
 TEST_F(NetworkTest, NetworksSortedByInterfaceName) {
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   auto eth0 = std::make_unique<Network>("test_eth0", "Test Network Adapter 1",
                                         IPAddress(0x65432100U), 24);
   eth0->AddIP(IPAddress(0x65432100U));
@@ -873,7 +865,7 @@ TEST_F(NetworkTest, TestConvertIfAddrsNoAddress) {
 
   std::vector<std::unique_ptr<Network>> result;
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   manager.StartUpdating();
   CallConvertIfAddrs(manager, &list, true, &result);
   EXPECT_TRUE(result.empty());
@@ -890,7 +882,7 @@ TEST_F(NetworkTest, TestConvertIfAddrsMultiAddressesOnOneInterface) {
                         "FFFF:FFFF:FFFF:FFFF::", 0);
   std::vector<std::unique_ptr<Network>> result;
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   manager.StartUpdating();
   CallConvertIfAddrs(manager, list, true, &result);
   EXPECT_EQ(1U, result.size());
@@ -912,7 +904,7 @@ TEST_F(NetworkTest, TestConvertIfAddrsNotRunning) {
 
   std::vector<std::unique_ptr<Network>> result;
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   manager.StartUpdating();
   CallConvertIfAddrs(manager, &list, true, &result);
   EXPECT_TRUE(result.empty());
@@ -927,7 +919,7 @@ TEST_F(NetworkTest, TestConvertIfAddrsGetsNullAddr) {
 
   std::vector<std::unique_ptr<Network>> result;
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   manager.StartUpdating();
   CallConvertIfAddrs(manager, &list, true, &result);
   EXPECT_TRUE(result.empty());
@@ -939,7 +931,7 @@ TEST_F(NetworkTest, TestGetAdapterTypeFromNetworkMonitor) {
   char if_name[20] = "wifi0";
   std::string ipv6_address = "1000:2000:3000:4000:0:0:0:1";
   std::string ipv6_mask = "FFFF:FFFF:FFFF:FFFF::";
-  const Environment env = CreateEnvironment();
+  const Environment env = env_;
   PhysicalSocketServer socket_server;
   BasicNetworkManager manager_without_monitor(
       env, &socket_server, /*network_monitor_factory=*/nullptr);
@@ -972,7 +964,7 @@ TEST_F(NetworkTest, TestGetAdapterTypeFromNameMatching) {
   std::string ipv6_address2 = "1000:2000:3000:8000:0:0:0:1";
   std::string ipv6_mask = "FFFF:FFFF:FFFF:FFFF::";
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   manager.StartUpdating();
 
   // IPSec interface; name is in form "ipsec<index>".
@@ -1050,7 +1042,7 @@ TEST_F(NetworkTest, TestNetworkMonitorIsAdapterAvailable) {
   // Sanity check that both interfaces are included by default.
   FakeNetworkMonitorFactory factory;
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server, &factory);
+  BasicNetworkManager manager(env_, &socket_server, &factory);
   manager.StartUpdating();
   CallConvertIfAddrs(manager, list, /*include_ignored=*/false, &result);
   EXPECT_EQ(2u, result.size());
@@ -1076,7 +1068,7 @@ TEST_F(NetworkTest, TestNetworkMonitorIsAdapterAvailable) {
 // prefix/length into a single Network.
 TEST_F(NetworkTest, TestMergeNetworkList) {
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   std::vector<std::unique_ptr<Network>> list;
 
   // Create 2 IPAddress classes with only last digit different.
@@ -1112,7 +1104,7 @@ TEST_F(NetworkTest, TestMergeNetworkList) {
 // a network becomes inactive and then active again.
 TEST_F(NetworkTest, TestMergeNetworkListWithInactiveNetworks) {
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   Network network1("test_wifi", "Test Network Adapter 1",
                    IPAddress(0x12345600U), 24);
   Network network2("test_eth0", "Test Network Adapter 2",
@@ -1261,7 +1253,7 @@ TEST_F(NetworkTest, TestGetBestIPWithPreferGlobalIPv6ToLinkLocalEnabled) {
 TEST_F(NetworkTest, TestNetworkMonitoring) {
   FakeNetworkMonitorFactory factory;
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server, &factory);
+  BasicNetworkManager manager(env_, &socket_server, &factory);
   manager.SignalNetworksChanged.connect(static_cast<NetworkTest*>(this),
                                         &NetworkTest::OnNetworksChanged);
   manager.StartUpdating();
@@ -1293,8 +1285,7 @@ TEST_F(NetworkTest, MAYBE_DefaultLocalAddress) {
   IPAddress ip;
   FakeNetworkMonitorFactory factory;
   PhysicalSocketServer socket_server;
-  TestBasicNetworkManager manager(CreateEnvironment(), &socket_server,
-                                  &factory);
+  TestBasicNetworkManager manager(env_, &socket_server, &factory);
   manager.SignalNetworksChanged.connect(static_cast<NetworkTest*>(this),
                                         &NetworkTest::OnNetworksChanged);
   manager.StartUpdating();
@@ -1359,7 +1350,7 @@ TEST_F(NetworkTest, MAYBE_DefaultLocalAddress) {
 // when changing from cellular_X to cellular_Y.
 TEST_F(NetworkTest, TestWhenNetworkListChangeReturnsChangedFlag) {
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
 
   IPAddress ip1;
   EXPECT_TRUE(IPFromString("2400:4030:1:2c00:be30:0:0:1", &ip1));
@@ -1421,7 +1412,7 @@ TEST_F(NetworkTest, IgnoresMACBasedIPv6Address) {
   std::string ipv6_address = "2607:fc20:f340:1dc8:214:22ff:fe01:2345";
   std::string ipv6_mask = "FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF";
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   manager.StartUpdating();
 
   // IPSec interface; name is in form "ipsec<index>".
@@ -1435,11 +1426,12 @@ TEST_F(NetworkTest, IgnoresMACBasedIPv6Address) {
 }
 
 TEST_F(NetworkTest, WebRTC_AllowMACBasedIPv6Address) {
-  ScopedFieldTrials field_trials("WebRTC-AllowMACBasedIPv6/Enabled/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-AllowMACBasedIPv6/Enabled/");
   std::string ipv6_address = "2607:fc20:f340:1dc8:214:22ff:fe01:2345";
   std::string ipv6_mask = "FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF";
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(CreateEnvironment(&field_trials), &socket_server);
   manager.StartUpdating();
 
   // IPSec interface; name is in form "ipsec<index>".
@@ -1466,7 +1458,7 @@ TEST_F(NetworkTest, WebRTC_BindUsingInterfaceName) {
   // Sanity check that both interfaces are included by default.
   FakeNetworkMonitorFactory factory;
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server, &factory);
+  BasicNetworkManager manager(env_, &socket_server, &factory);
   manager.StartUpdating();
   CallConvertIfAddrs(manager, list, /*include_ignored=*/false, &result);
   EXPECT_EQ(2u, result.size());
@@ -1498,7 +1490,7 @@ TEST_F(NetworkTest, WebRTC_BindUsingInterfaceName) {
 TEST_F(NetworkTest, NetworkCostVpn_Default) {
   IPAddress ip1;
   EXPECT_TRUE(IPFromString("2400:4030:1:2c00:be30:0:0:1", &ip1));
-  ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
 
   Network* net1 = new Network("em1", "em1", TruncateIP(ip1, 64), 64);
   net1->set_type(ADAPTER_TYPE_VPN);
@@ -1513,7 +1505,8 @@ TEST_F(NetworkTest, NetworkCostVpn_Default) {
 }
 
 TEST_F(NetworkTest, NetworkCostVpn_VpnMoreExpensive) {
-  ScopedKeyValueConfig field_trials("WebRTC-AddNetworkCostToVpn/Enabled/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-AddNetworkCostToVpn/Enabled/");
 
   IPAddress ip1;
   EXPECT_TRUE(IPFromString("2400:4030:1:2c00:be30:0:0:1", &ip1));
@@ -1531,7 +1524,7 @@ TEST_F(NetworkTest, NetworkCostVpn_VpnMoreExpensive) {
 }
 
 TEST_F(NetworkTest, GuessAdapterFromNetworkCost) {
-  ScopedKeyValueConfig field_trials(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-AddNetworkCostToVpn/Enabled/"
       "WebRTC-UseDifferentiatedCellularCosts/Enabled/");
 
@@ -1572,10 +1565,9 @@ TEST_F(NetworkTest, GuessAdapterFromNetworkCost) {
 }
 
 TEST_F(NetworkTest, VpnList) {
-  const Environment env = CreateEnvironment();
   PhysicalSocketServer socket_server;
   {
-    BasicNetworkManager manager(env, &socket_server);
+    BasicNetworkManager manager(env_, &socket_server);
     manager.set_vpn_list({NetworkMask(IPFromString("192.168.0.0"), 16)});
     manager.StartUpdating();
     EXPECT_TRUE(manager.IsConfiguredVpn(IPFromString("192.168.1.1"), 32));
@@ -1587,7 +1579,7 @@ TEST_F(NetworkTest, VpnList) {
     EXPECT_FALSE(manager.IsConfiguredVpn(IPFromString("192.168.0.0"), 15));
   }
   {
-    BasicNetworkManager manager(env, &socket_server);
+    BasicNetworkManager manager(env_, &socket_server);
     manager.set_vpn_list({NetworkMask(IPFromString("192.168.0.0"), 24)});
     manager.StartUpdating();
     EXPECT_FALSE(manager.IsConfiguredVpn(IPFromString("192.168.1.1"), 32));
@@ -1599,7 +1591,7 @@ TEST_F(NetworkTest, VpnList) {
 // TODO(webrtc:13114): Implement the InstallIpv4Network for windows.
 TEST_F(NetworkTest, VpnListOverrideAdapterType) {
   PhysicalSocketServer socket_server;
-  BasicNetworkManager manager(CreateEnvironment(), &socket_server);
+  BasicNetworkManager manager(env_, &socket_server);
   manager.set_vpn_list({NetworkMask(IPFromString("192.168.0.0"), 16)});
   manager.StartUpdating();
 

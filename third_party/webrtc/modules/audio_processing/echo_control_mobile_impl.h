@@ -11,9 +11,9 @@
 #ifndef MODULES_AUDIO_PROCESSING_ECHO_CONTROL_MOBILE_IMPL_H_
 #define MODULES_AUDIO_PROCESSING_ECHO_CONTROL_MOBILE_IMPL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <vector>
 

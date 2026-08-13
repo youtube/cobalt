@@ -593,7 +593,7 @@ DEFINE_BOOL(maglev_inline_api_calls, false,
             "Inline CallApiCallback builtin into generated code")
 DEFINE_BOOL(maglev_cons_string_elision, true,
             "Native support for cons strings and their elision in maglev.")
-DEFINE_BOOL(maglev_pretenure_store_values, false,
+DEFINE_BOOL(maglev_pretenure_store_values, true,
             "Recursively pretenure values which are stored into pretenured "
             "allocation sites.")
 DEFINE_EXPERIMENTAL_FEATURE(maglev_licm, "loop invariant code motion")
@@ -601,7 +601,6 @@ DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_escape_analysis)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_licm)
-DEFINE_WEAK_IMPLICATION(maglev_future, maglev_pretenure_store_values)
 // This might be too big of a hammer but we must prohibit moving the C++
 // trampolines while we are executing a C++ code.
 DEFINE_NEG_IMPLICATION(maglev_inline_api_calls, compact_code_space_with_stack)
@@ -1205,7 +1204,7 @@ DEFINE_BOOL(maglev_overwrite_budget, false,
 DEFINE_WEAK_IMPLICATION(maglev, maglev_overwrite_budget)
 DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, maglev_overwrite_budget)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_overwrite_budget,
-                              invocation_count_for_turbofan, 10000)
+                              invocation_count_for_turbofan, 12000)
 DEFINE_BOOL(maglev_overwrite_osr_budget, false,
             "whether maglev resets the OSR interrupt budget")
 DEFINE_WEAK_IMPLICATION(maglev_osr, maglev_overwrite_osr_budget)
@@ -2100,6 +2099,19 @@ DEFINE_BOOL(wasm_allow_mixed_eh_for_testing, false,
 // instructions, and crashes if the module does not compile.
 // So always allow mixing old and new EH for fuzzing.
 DEFINE_IMPLICATION(fuzzing, wasm_allow_mixed_eh_for_testing)
+
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||   \
+    defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_RISCV64) ||    \
+    defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_LOONG64) || \
+    defined(V8_TARGET_ARCH_MIPS64)
+DEFINE_BOOL(wasm_code_coverage, false, "enable Wasm code coverage")
+#else
+DEFINE_BOOL_READONLY(wasm_code_coverage, false, "enable Wasm code coverage")
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
+        // V8_TARGET_ARCH_IA32
+DEFINE_NEG_IMPLICATION(wasm_code_coverage, wasm_loop_unrolling)
+DEFINE_NEG_IMPLICATION(wasm_code_coverage, wasm_inlining)
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 DEFINE_INT(stress_sampling_allocation_profiler, 0,
@@ -2346,8 +2358,10 @@ DEFINE_BOOL(flush_bytecode, true,
 DEFINE_INT(bytecode_old_age, 6, "number of gcs before we flush code")
 DEFINE_BOOL(flush_code_based_on_time, false,
             "Use time-base code flushing instead of age.")
+DEFINE_IMPLICATION(flush_code_based_on_time, late_heap_limit_check)
 DEFINE_BOOL(flush_code_based_on_tab_visibility, false,
             "Flush code when tab goes into the background.")
+DEFINE_IMPLICATION(flush_code_based_on_tab_visibility, late_heap_limit_check)
 DEFINE_INT(bytecode_old_time, 30, "number of seconds before we flush code")
 DEFINE_BOOL(stress_flush_code, false, "stress code flushing")
 DEFINE_WEAK_IMPLICATION(stress_flush_code, flush_baseline_code)
@@ -2359,6 +2373,11 @@ DEFINE_BOOL(stress_per_context_marking_worklist, false,
             "Use per-context worklist for marking")
 DEFINE_BOOL(stress_incremental_marking, false,
             "force incremental marking for small heaps and run it more often")
+DEFINE_BOOL(large_page_pool, false, "Add large pages to the page pool")
+DEFINE_SIZE_T(max_large_page_pool_size, 32,
+              "Maximum size of pooled large pages in MB.")
+DEFINE_INT(large_page_pool_timeout, 3,
+           "Release pooled large pages after X seconds.")
 
 DEFINE_BOOL(managed_zone_memory, false,
             "Manage zone memory in V8 instead of using malloc().")
@@ -2432,6 +2451,8 @@ DEFINE_FLOAT(memory_balancer_c_value, 3e-10,
              "The smaller the more memory it uses.")
 DEFINE_NEG_IMPLICATION(memory_balancer, memory_reducer)
 DEFINE_BOOL(trace_memory_balancer, false, "print memory balancer behavior.")
+DEFINE_BOOL(late_heap_limit_check, false,
+            "skips heap limit check for early GCs on allocation failure.")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-arm64.cc / assembler-x64.cc
 #ifdef V8_ENABLE_DEBUG_CODE

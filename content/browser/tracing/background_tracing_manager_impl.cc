@@ -31,8 +31,8 @@
 #include "components/variations/hashing.h"
 #include "content/browser/tracing/background_tracing_agent_client_impl.h"
 #include "content/browser/tracing/background_tracing_rule.h"
-#include "content/browser/tracing/trace_report/trace_report_database.h"
-#include "content/browser/tracing/trace_report/trace_upload_list.h"
+#include "content/browser/tracing/trace_report_database.h"
+#include "content/browser/tracing/trace_upload_list.h"
 #include "content/browser/tracing/tracing_controller_impl.h"
 #include "content/browser/tracing/triggers_data_source.h"
 #include "content/common/child_process.mojom.h"
@@ -621,11 +621,11 @@ std::vector<std::string> BackgroundTracingManagerImpl::AddPresetScenariosImpl(
   return added_scenarios;
 }
 
-std::vector<trace_report::mojom::ScenarioPtr>
+std::vector<traces_internals::mojom::ScenarioPtr>
 BackgroundTracingManagerImpl::GetAllScenarios() const {
-  std::vector<trace_report::mojom::ScenarioPtr> result;
+  std::vector<traces_internals::mojom::ScenarioPtr> result;
   auto toMojoScenario = [this](TracingScenario* scenario) {
-    auto new_scenario = trace_report::mojom::Scenario::New();
+    auto new_scenario = traces_internals::mojom::Scenario::New();
     new_scenario->scenario_name = scenario->scenario_name();
     new_scenario->description = scenario->description();
     new_scenario->is_local_scenario = scenario->is_local_scenario();
@@ -781,20 +781,21 @@ bool BackgroundTracingManagerImpl::HasActiveScenario() {
 
 bool BackgroundTracingManagerImpl::HasTraceToUpload() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  // Send the logs only when the trace size is within limits. If the connection
-  // type changes and we have a bigger than expected trace, then the next time
-  // service asks us when wifi is available, the trace will be sent. If we did
-  // collect a trace that is bigger than expected, then we will end up never
-  // uploading, and drop the trace. This should never happen because the trace
-  // buffer limits are set appropriately.
   if (!trace_report_to_upload_) {
     return false;
   }
-  if (trace_report_to_upload_->total_size <= GetTraceUploadLimitKb() * 1024) {
-    return true;
+#if BUILDFLAG(IS_ANDROID)
+  // Send the logs only when the trace size is within limits. If the connection
+  // type changes and we have a bigger than expected trace, then the next time
+  // service asks us when wifi is available, the trace will be sent.
+  auto type = net::NetworkChangeNotifier::GetConnectionType();
+  if (net::NetworkChangeNotifier::IsConnectionCellular(type) &&
+      trace_report_to_upload_->total_size > upload_limit_network_kb_ * 1000) {
+    RecordMetric(Metrics::LARGE_UPLOAD_WAITING_TO_RETRY);
+    return false;
   }
-  RecordMetric(Metrics::LARGE_UPLOAD_WAITING_TO_RETRY);
-  return false;
+#endif
+  return true;
 }
 
 void BackgroundTracingManagerImpl::GetTraceToUpload(
@@ -1167,16 +1168,6 @@ void BackgroundTracingManagerImpl::MaybeConstructPendingAgents() {
                                              std::move(pending_agent.second));
   }
   pending_agents_.clear();
-}
-
-size_t BackgroundTracingManagerImpl::GetTraceUploadLimitKb() const {
-#if BUILDFLAG(IS_ANDROID)
-  auto type = net::NetworkChangeNotifier::GetConnectionType();
-  if (net::NetworkChangeNotifier::IsConnectionCellular(type)) {
-    return upload_limit_network_kb_;
-  }
-#endif
-  return upload_limit_kb_;
 }
 
 }  // namespace content

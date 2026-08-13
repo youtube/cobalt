@@ -70,6 +70,7 @@ import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
 import org.chromium.chrome.browser.collaboration.messaging.MessagingBackendServiceFactory;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
+import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager;
 import org.chromium.chrome.browser.crash.ChromePureJavaExceptionReporter;
 import org.chromium.chrome.browser.customtabs.CustomTabActivity;
 import org.chromium.chrome.browser.data_sharing.DataSharingNotificationManager;
@@ -198,7 +199,6 @@ import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.components.collaboration.CollaborationService;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.components.feature_engagement.Tracker;
-import org.chromium.components.search_engines.SearchEnginesFeatures;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
@@ -1316,7 +1316,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                         mTabObscuringHandlerSupplier.get(),
                         mStatusBarColorController::getStatusBarColorWithoutStatusIndicator,
                         mCanAnimateBrowserControls,
-                        layoutManager::requestUpdate);
+                        layoutManager::requestUpdate,
+                        mTopControlsStacker);
         layoutManager.addSceneOverlay(mStatusIndicatorCoordinator.getSceneLayer());
         mStatusIndicatorObserver =
                 new StatusIndicatorCoordinator.StatusIndicatorObserver() {
@@ -1380,7 +1381,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                         mLayoutManager::requestUpdate,
                         mEdgeToEdgeControllerSupplier.get(),
                         mBottomControlsStacker,
-                        mFullscreenManager);
+                        mFullscreenManager,
+                        DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity));
         mSystemBarColorHelperSupplier.set(bottomChinColorHelper);
         return bottomChinColorHelper;
     }
@@ -1604,11 +1606,9 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
      * @return whether a prompt or promo is actually displayed.
      */
     private boolean maybeShowRequiredPromptsAndPromos(Profile profile, boolean intentWithEffect) {
-        if (SearchEnginesFeatures.isEnabled(SearchEnginesFeatures.CLAY_BLOCKING)) {
-            if (ChoiceDialogCoordinator.maybeShow(
-                    mActivity, mModalDialogManagerSupplier.get(), mActivityLifecycleDispatcher)) {
-                return true;
-            }
+        if (ChoiceDialogCoordinator.maybeShow(
+                mActivity, mModalDialogManagerSupplier.get(), mActivityLifecycleDispatcher)) {
+            return true;
         }
 
         if (maybeTriggerPrivacySandboxPrompt(profile)) {
@@ -1811,6 +1811,12 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         if (id == R.id.switch_keyboard_focus_row) {
             mKeyboardFocusRowManager.onKeyboardFocusRowSwitch();
             return true;
+        } else if (id == R.id.open_tab_strip_context_menu) {
+            @Nullable
+            StripLayoutHelperManager stripLayoutHelperManager =
+                    mLayoutManager.getStripLayoutHelperManager();
+            if (stripLayoutHelperManager == null) return false;
+            return stripLayoutHelperManager.openKeyboardFocusedContextMenu();
         } else if (id == R.id.focus_bookmarks) {
             if (mBookmarkBarCoordinator != null) mBookmarkBarCoordinator.requestFocus();
             return true;

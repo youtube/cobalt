@@ -8,11 +8,22 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <algorithm>
+#include <memory>
+#include <utility>
+
+#include "api/scoped_refptr.h"
 #include "modules/desktop_capture/cropping_window_capturer.h"
+#include "modules/desktop_capture/desktop_capture_options.h"
+#include "modules/desktop_capture/desktop_capture_types.h"
+#include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/desktop_capturer_differ_wrapper.h"
+#include "modules/desktop_capture/desktop_geometry.h"
+#include "modules/desktop_capture/full_screen_window_detector.h"
 #include "modules/desktop_capture/win/screen_capture_utils.h"
 #include "modules/desktop_capture/win/selected_window_context.h"
 #include "modules/desktop_capture/win/window_capture_utils.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/trace_event.h"
 #include "rtc_base/win/windows_version.h"

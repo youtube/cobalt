@@ -27,6 +27,10 @@
 #include <algorithm>
 #include <cmath>
 
+template <typename S, typename T> int min_count(SkSpan<S> a, SkSpan<T> b) {
+    return SkToInt(std::min(a.size(), b.size()));
+}
+
 void SkMatrix::doNormalizePerspective() {
     // If the bottom row of the matrix is [0, 0, not_one], we will treat the matrix as if it
     // is in perspective, even though it stills behaves like its affine. If we divide everything
@@ -767,16 +771,9 @@ bool SkMatrix::asAffine(SkScalar affine[6]) const {
     return true;
 }
 
-void SkMatrix::mapPoints(SkPoint dst[], const SkPoint src[], int count) const {
-    SkASSERT((dst && src && count > 0) || 0 == count);
-    // no partial overlap
-    SkASSERT(src == dst || &dst[count] <= &src[0] || &src[count] <= &dst[0]);
-    this->getMapPtsProc()(*this, dst, src, count);
-}
-
-void SkMatrix::mapXY(SkScalar x, SkScalar y, SkPoint* result) const {
-    SkASSERT(result);
-    this->getMapXYProc()(*this, x, y, result);
+void SkMatrix::mapPoints(SkSpan<SkPoint> dst, SkSpan<const SkPoint> src) const {
+    const auto count = min_count(dst, src);
+    this->getMapPtsProc()(*this, dst.data(), src.data(), count);
 }
 
 void SkMatrix::ComputeInv(SkScalar dst[9], const SkScalar src[9], double invDet, bool isPersp) {
@@ -892,6 +889,16 @@ bool SkMatrix::invertNonIdentity(SkMatrix* inv) const {
     }
 
     return true;
+}
+
+SkPoint SkMatrix::mapPointPerspective(SkPoint p) const {
+    SkScalar x = sdot(p.fX, fMat[kMScaleX], p.fY, fMat[kMSkewX])  + fMat[kMTransX];
+    SkScalar y = sdot(p.fX, fMat[kMSkewY],  p.fY, fMat[kMScaleY]) + fMat[kMTransY];
+    SkScalar z = sdot(p.fX, fMat[kMPersp0], p.fY, fMat[kMPersp1]) + fMat[kMPersp2];
+    if (z) {
+        z = 1 / z;
+    }
+    return {x * z, y * z};
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1075,12 +1082,15 @@ void SkMatrixPriv::MapHomogeneousPointsWithStride(const SkMatrix& mx, SkPoint3 d
     }
 }
 
-void SkMatrix::mapHomogeneousPoints(SkPoint3 dst[], const SkPoint3 src[], int count) const {
-    SkMatrixPriv::MapHomogeneousPointsWithStride(*this, dst, sizeof(SkPoint3), src,
+void SkMatrix::mapHomogeneousPoints(SkSpan<SkPoint3> dst, SkSpan<const SkPoint3> src) const {
+    const auto count = min_count(dst, src);
+    SkMatrixPriv::MapHomogeneousPointsWithStride(*this, dst.data(), sizeof(SkPoint3), src.data(),
                                                  sizeof(SkPoint3), count);
 }
 
-void SkMatrix::mapHomogeneousPoints(SkPoint3 dst[], const SkPoint src[], int count) const {
+void SkMatrix::mapPointsToHomogeneous(SkSpan<SkPoint3> dst, SkSpan<const SkPoint> src) const {
+    const auto count = min_count(dst, src);
+
     if (this->isIdentity()) {
         for (int i = 0; i < count; ++i) {
             dst[i] = { src[i].fX, src[i].fY, 1 };
@@ -1106,25 +1116,19 @@ void SkMatrix::mapHomogeneousPoints(SkPoint3 dst[], const SkPoint src[], int cou
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void SkMatrix::mapVectors(SkPoint dst[], const SkPoint src[], int count) const {
+void SkMatrix::mapVectors(SkSpan<SkPoint> dst, SkSpan<const SkPoint> src) const {
     if (this->hasPerspective()) {
-        SkPoint origin;
+        const SkPoint origin = this->mapPointPerspective({0, 0});
 
-        MapXYProc proc = this->getMapXYProc();
-        proc(*this, 0, 0, &origin);
-
-        for (int i = count - 1; i >= 0; --i) {
-            SkPoint tmp;
-
-            proc(*this, src[i].fX, src[i].fY, &tmp);
-            dst[i].set(tmp.fX - origin.fX, tmp.fY - origin.fY);
+        for (int i = min_count(dst, src) - 1; i >= 0; --i) {
+            dst[i] = this->mapPointPerspective(src[i]) - origin;
         }
     } else {
         SkMatrix tmp = *this;
 
         tmp.fMat[kMTransX] = tmp.fMat[kMTransY] = 0;
         tmp.clearTypeMask(kTranslate_Mask);
-        tmp.mapPoints(dst, src, count);
+        tmp.mapPoints(dst, src);
     }
 }
 
@@ -1173,8 +1177,8 @@ bool SkMatrix::mapRect(SkRect* dst, const SkRect& src, SkApplyPerspectiveClip pc
         SkPoint quad[4];
 
         src.toQuad(quad);
-        this->mapPoints(quad, quad, 4);
-        dst->setBoundsNoCheck(quad, 4);
+        this->mapPoints(quad);
+        dst->setBoundsNoCheck(quad);
         return this->rectStaysRect();   // might still return true if rotated by 90, etc.
     }
 }
@@ -1184,7 +1188,7 @@ SkScalar SkMatrix::mapRadius(SkScalar radius) const {
 
     vec[0].set(radius, 0);
     vec[1].set(0, radius);
-    this->mapVectors(vec, 2);
+    this->mapVectors(vec);
 
     SkScalar d0 = vec[0].length();
     SkScalar d1 = vec[1].length();
@@ -1192,88 +1196,6 @@ SkScalar SkMatrix::mapRadius(SkScalar radius) const {
     // return geometric mean
     return SkScalarSqrt(d0 * d1);
 }
-
-///////////////////////////////////////////////////////////////////////////////
-
-void SkMatrix::Persp_xy(const SkMatrix& m, SkScalar sx, SkScalar sy,
-                        SkPoint* pt) {
-    SkASSERT(m.hasPerspective());
-
-    SkScalar x = sdot(sx, m.fMat[kMScaleX], sy, m.fMat[kMSkewX])  + m.fMat[kMTransX];
-    SkScalar y = sdot(sx, m.fMat[kMSkewY],  sy, m.fMat[kMScaleY]) + m.fMat[kMTransY];
-    SkScalar z = sdot(sx, m.fMat[kMPersp0], sy, m.fMat[kMPersp1]) + m.fMat[kMPersp2];
-    if (z) {
-        z = 1 / z;
-    }
-    pt->fX = x * z;
-    pt->fY = y * z;
-}
-
-void SkMatrix::RotTrans_xy(const SkMatrix& m, SkScalar sx, SkScalar sy,
-                           SkPoint* pt) {
-    SkASSERT((m.getType() & (kAffine_Mask | kPerspective_Mask)) == kAffine_Mask);
-
-    pt->fX = sdot(sx, m.fMat[kMScaleX], sy, m.fMat[kMSkewX])  + m.fMat[kMTransX];
-    pt->fY = sdot(sx, m.fMat[kMSkewY],  sy, m.fMat[kMScaleY]) + m.fMat[kMTransY];
-}
-
-void SkMatrix::Rot_xy(const SkMatrix& m, SkScalar sx, SkScalar sy,
-                      SkPoint* pt) {
-    SkASSERT((m.getType() & (kAffine_Mask | kPerspective_Mask))== kAffine_Mask);
-    SkASSERT(0 == m.fMat[kMTransX]);
-    SkASSERT(0 == m.fMat[kMTransY]);
-
-    pt->fX = sdot(sx, m.fMat[kMScaleX], sy, m.fMat[kMSkewX])  + m.fMat[kMTransX];
-    pt->fY = sdot(sx, m.fMat[kMSkewY],  sy, m.fMat[kMScaleY]) + m.fMat[kMTransY];
-}
-
-void SkMatrix::ScaleTrans_xy(const SkMatrix& m, SkScalar sx, SkScalar sy,
-                             SkPoint* pt) {
-    SkASSERT((m.getType() & (kScale_Mask | kAffine_Mask | kPerspective_Mask))
-             == kScale_Mask);
-
-    pt->fX = sx * m.fMat[kMScaleX] + m.fMat[kMTransX];
-    pt->fY = sy * m.fMat[kMScaleY] + m.fMat[kMTransY];
-}
-
-void SkMatrix::Scale_xy(const SkMatrix& m, SkScalar sx, SkScalar sy,
-                        SkPoint* pt) {
-    SkASSERT((m.getType() & (kScale_Mask | kAffine_Mask | kPerspective_Mask))
-             == kScale_Mask);
-    SkASSERT(0 == m.fMat[kMTransX]);
-    SkASSERT(0 == m.fMat[kMTransY]);
-
-    pt->fX = sx * m.fMat[kMScaleX];
-    pt->fY = sy * m.fMat[kMScaleY];
-}
-
-void SkMatrix::Trans_xy(const SkMatrix& m, SkScalar sx, SkScalar sy,
-                        SkPoint* pt) {
-    SkASSERT(m.getType() == kTranslate_Mask);
-
-    pt->fX = sx + m.fMat[kMTransX];
-    pt->fY = sy + m.fMat[kMTransY];
-}
-
-void SkMatrix::Identity_xy(const SkMatrix& m, SkScalar sx, SkScalar sy,
-                           SkPoint* pt) {
-    SkASSERT(0 == m.getType());
-
-    pt->fX = sx;
-    pt->fY = sy;
-}
-
-const SkMatrix::MapXYProc SkMatrix::gMapXYProcs[] = {
-    SkMatrix::Identity_xy, SkMatrix::Trans_xy,
-    SkMatrix::Scale_xy,    SkMatrix::ScaleTrans_xy,
-    SkMatrix::Rot_xy,      SkMatrix::RotTrans_xy,
-    SkMatrix::Rot_xy,      SkMatrix::RotTrans_xy,
-    // repeat the persp proc 8 times
-    SkMatrix::Persp_xy,    SkMatrix::Persp_xy,
-    SkMatrix::Persp_xy,    SkMatrix::Persp_xy,
-    SkMatrix::Persp_xy,    SkMatrix::Persp_xy,
-    SkMatrix::Persp_xy,    SkMatrix::Persp_xy
-};
 
 ///////////////////////////////////////////////////////////////////////////////
 #if 0
@@ -1813,8 +1735,7 @@ SkScalar SkMatrixPriv::DifferentialAreaScale(const SkMatrix& m, const SkPoint& p
     //      [x     y     w    ]   [x   y   w  ]
     // J' = [dx/du dy/du dw/du] = [m00 m10 m20]
     //      [dx/dv dy/dv dw/dv]   [m01 m11 m21]
-    SkPoint3 xyw;
-    m.mapHomogeneousPoints(&xyw, &p, 1);
+    SkPoint3 xyw = m.mapPointToHomogeneous(p);
 
     if (xyw.fZ < SK_ScalarNearlyZero) {
         // Reaching the discontinuity of xy/w and where the point would clip to w >= 0
@@ -1844,7 +1765,7 @@ bool SkMatrixPriv::NearlyAffine(const SkMatrix& m,
     SkPoint quad[4];
     bounds.toQuad(quad);
     SkPoint3 xyw[4];
-    m.mapHomogeneousPoints(xyw, quad, 4);
+    m.mapPointsToHomogeneous(xyw, quad);
 
     // Since the Jacobian is a 3x3 matrix, the determinant is a scalar triple product,
     // and the initial cross product is constant across all four points.

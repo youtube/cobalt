@@ -231,8 +231,8 @@ class PeerConnection : public PeerConnectionInternal,
   PeerConnectionInterface::RTCConfiguration GetConfiguration() override;
   RTCError SetConfiguration(
       const PeerConnectionInterface::RTCConfiguration& configuration) override;
-  bool AddIceCandidate(const IceCandidateInterface* candidate) override;
-  void AddIceCandidate(std::unique_ptr<IceCandidateInterface> candidate,
+  bool AddIceCandidate(const IceCandidate* candidate) override;
+  void AddIceCandidate(std::unique_ptr<IceCandidate> candidate,
                        std::function<void(RTCError)> callback) override;
   bool RemoveIceCandidates(const std::vector<Candidate>& candidates) override;
 
@@ -501,7 +501,7 @@ class PeerConnection : public PeerConnectionInternal,
   void OnIceGatheringChange(IceGatheringState new_state)
       RTC_RUN_ON(signaling_thread());
   // New ICE candidate has been gathered.
-  void OnIceCandidate(std::unique_ptr<IceCandidateInterface> candidate)
+  void OnIceCandidate(std::unique_ptr<IceCandidate> candidate)
       RTC_RUN_ON(signaling_thread());
   // Gathering of an ICE candidate failed.
   void OnIceCandidateError(const std::string& address,

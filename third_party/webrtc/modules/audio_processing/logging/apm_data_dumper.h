@@ -11,16 +11,13 @@
 #ifndef MODULES_AUDIO_PROCESSING_LOGGING_APM_DATA_DUMPER_H_
 #define MODULES_AUDIO_PROCESSING_LOGGING_APM_DATA_DUMPER_H_
 
-#include <stdint.h>
-#include <stdio.h>
-
+#include <cstdint>
+#include <cstdio>
 #if WEBRTC_APM_DEBUG_DUMP == 1
 #include <memory>
 #include <string>
 #include <unordered_map>
 #endif
-
-#include <optional>
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"

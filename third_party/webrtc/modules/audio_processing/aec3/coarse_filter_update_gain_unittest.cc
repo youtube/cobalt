@@ -11,16 +11,25 @@
 #include "modules/audio_processing/aec3/coarse_filter_update_gain.h"
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
 #include <memory>
 #include <numeric>
 #include <string>
 #include <vector>
 
+#include "api/audio/echo_canceller3_config.h"
 #include "modules/audio_processing/aec3/adaptive_fir_filter.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/aec3_fft.h"
 #include "modules/audio_processing/aec3/aec_state.h"
+#include "modules/audio_processing/aec3/block.h"
+#include "modules/audio_processing/aec3/fft_buffer.h"
+#include "modules/audio_processing/aec3/fft_data.h"
 #include "modules/audio_processing/aec3/render_delay_buffer.h"
+#include "modules/audio_processing/aec3/render_signal_analyzer.h"
 #include "modules/audio_processing/test/echo_canceller_test_tools.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_minmax.h"
 #include "rtc_base/random.h"
 #include "rtc_base/strings/string_builder.h"

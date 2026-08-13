@@ -21,7 +21,6 @@
 #include "absl/strings/str_cat.h"
 #include "api/candidate.h"
 #include "api/jsep.h"
-#include "api/jsep_ice_candidate.h"
 #include "media/base/codec.h"
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/transport_description.h"
@@ -34,8 +33,8 @@
 #include "test/gtest.h"
 
 using ::testing::Values;
+using webrtc::IceCandidate;
 using webrtc::IceCandidateCollection;
-using webrtc::IceCandidateInterface;
 using webrtc::IceCandidateType;
 using webrtc::JsepIceCandidate;
 using webrtc::JsepSessionDescription;
@@ -175,12 +174,13 @@ TEST_F(JsepSessionDescriptionTest, AddCandidateWithoutMid) {
   const IceCandidateCollection* ice_candidates = jsep_desc_->candidates(0);
   ASSERT_TRUE(ice_candidates != nullptr);
   EXPECT_EQ(1u, ice_candidates->count());
-  const IceCandidateInterface* ice_candidate = ice_candidates->at(0);
+  const IceCandidate* ice_candidate = ice_candidates->at(0);
   ASSERT_TRUE(ice_candidate != nullptr);
   candidate_.set_username(kCandidateUfragVoice);
   candidate_.set_password(kCandidatePwdVoice);
   EXPECT_TRUE(ice_candidate->candidate().IsEquivalent(candidate_));
   EXPECT_EQ(0, ice_candidate->sdp_mline_index());
+  EXPECT_EQ("audio", ice_candidate->sdp_mid());
   EXPECT_EQ(0u, jsep_desc_->candidates(1)->count());
 }
 
@@ -195,7 +195,7 @@ TEST_F(JsepSessionDescriptionTest, AddAndRemoveCandidatesWithMid) {
   const IceCandidateCollection* ice_candidates = jsep_desc_->candidates(1);
   ASSERT_TRUE(ice_candidates != nullptr);
   EXPECT_EQ(1u, ice_candidates->count());
-  const IceCandidateInterface* ice_candidate = ice_candidates->at(0);
+  const IceCandidate* ice_candidate = ice_candidates->at(0);
   ASSERT_TRUE(ice_candidate != nullptr);
   candidate_.set_username(kCandidateUfragVideo);
   candidate_.set_password(kCandidatePwdVideo);
@@ -218,7 +218,7 @@ TEST_F(JsepSessionDescriptionTest, AddCandidateAlreadyHasUfrag) {
   const IceCandidateCollection* ice_candidates = jsep_desc_->candidates(0);
   ASSERT_TRUE(ice_candidates != nullptr);
   EXPECT_EQ(1u, ice_candidates->count());
-  const IceCandidateInterface* ice_candidate = ice_candidates->at(0);
+  const IceCandidate* ice_candidate = ice_candidates->at(0);
   ASSERT_TRUE(ice_candidate != nullptr);
   candidate_.set_username(kCandidateUfrag);
   candidate_.set_password(kCandidatePwd);

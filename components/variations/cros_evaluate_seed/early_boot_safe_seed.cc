@@ -15,8 +15,7 @@ EarlyBootSafeSeed::EarlyBootSafeSeed(
 EarlyBootSafeSeed::~EarlyBootSafeSeed() = default;
 
 base::Time EarlyBootSafeSeed::GetFetchTime() const {
-  return base::Time::FromDeltaSinceWindowsEpoch(
-      base::Milliseconds(safe_seed_details_.fetch_time()));
+  return GetCompressedSeed().client_fetch_time;
 }
 
 void EarlyBootSafeSeed::SetFetchTime(const base::Time& fetch_time) {}
@@ -26,19 +25,20 @@ int EarlyBootSafeSeed::GetMilestone() const {
 }
 
 base::Time EarlyBootSafeSeed::GetTimeForStudyDateChecks() const {
-  return base::Time::FromDeltaSinceWindowsEpoch(
-      base::Milliseconds(safe_seed_details_.date()));
+  return GetCompressedSeed().seed_date;
 }
-
-void EarlyBootSafeSeed::SetTimeForStudyDateChecks(
-    const base::Time& safe_seed_time) {}
 
 StoredSeed EarlyBootSafeSeed::GetCompressedSeed() const {
   return {
       .storage_format = StoredSeed::StorageFormat::kCompressedAndBase64Encoded,
       .data = safe_seed_details_.b64_compressed_data(),
       .signature = safe_seed_details_.signature(),
-      .milestone = safe_seed_details_.milestone()};
+      .milestone = safe_seed_details_.milestone(),
+      .seed_date = base::Time::FromDeltaSinceWindowsEpoch(
+          base::Milliseconds(safe_seed_details_.date())),
+      .client_fetch_time = base::Time::FromDeltaSinceWindowsEpoch(
+          base::Milliseconds(safe_seed_details_.fetch_time())),
+  };
 }
 
 void EarlyBootSafeSeed::SetCompressedSeed(ValidatedSeedInfo seed_info) {}

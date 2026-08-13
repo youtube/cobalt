@@ -47,6 +47,7 @@ _CONFIG = [
             'absl::Int128Low64',
             'absl::MakeInt128',
             'absl::MakeUint128',
+            'absl::Overload',
             'absl::uint128',
             'absl::Uint128High64',
             'absl::Uint128Low64',
@@ -114,7 +115,6 @@ _CONFIG = [
             'base::optional_ref',
             'base::OptionalFromPtr',
             'base::OptionalToPtr',
-            'base::Overloaded',
             'base::PassKey',
             'base::PersistentHash',
             'base::PlatformThread',
@@ -935,7 +935,7 @@ _CONFIG = [
             'third_party/blink/renderer/bindings/core/v8/serialization/',
             'third_party/blink/renderer/core/typed_arrays/',
         ],
-        'allowed': ['base::BufferIterator'],
+        'allowed': ['base::BufferIterator', 'gin::kEmbedderBlink'],
     },
     {
         'paths': [
@@ -1297,6 +1297,7 @@ _CONFIG = [
             'gfx::RectF',
             'gfx::Size',
             'gfx::SizeF',
+            'gfx::Vector2d',
             'gfx::Vector2dF',
 
             # The Blink public API is shared between non-Blink and Blink code
@@ -2005,6 +2006,7 @@ _CONFIG = [
             'third_party/blink/renderer/modules/ai/',
         ],
         'allowed': [
+            'base::DoNothingWithBoundArgs',
             'base::MakeFixedFlatSet',
         ],
     },

@@ -12,9 +12,9 @@
 
 #include "base/check.h"
 #include "base/containers/contains.h"
-#include "base/functional/overloaded.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/pickle.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "chrome/browser/web_applications/generated_icon_fix_util.h"
@@ -49,6 +49,7 @@
 #include "components/webapps/isolated_web_apps/update_channel.h"
 #include "services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
 #include "third_party/blink/public/common/permissions_policy/policy_helper_public.h"
 #include "third_party/blink/public/common/safe_url_pattern.h"
@@ -364,7 +365,7 @@ template <typename T>
 void IsolationDataLocationToProto(const IsolatedWebAppStorageLocation& location,
                                   T* proto) {
   std::visit(
-      base::Overloaded{
+      absl::Overload{
           [&proto](const IwaStorageOwnedBundle& bundle) {
             proto->mutable_owned_bundle()->set_dir_name_ascii(
                 bundle.dir_name_ascii());

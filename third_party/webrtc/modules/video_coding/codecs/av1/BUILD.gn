@@ -99,6 +99,7 @@ if (rtc_include_tests) {
       ":dav1d_decoder",
       "../..:video_codec_interface",
       "../../../../api:array_view",
+      "../../../../api:field_trials",
       "../../../../api/environment",
       "../../../../api/environment:environment_factory",
       "../../../../api/transport/rtp:dependency_descriptor",
@@ -112,6 +113,7 @@ if (rtc_include_tests) {
       "../../../../api/video_codecs:scalability_mode",
       "../../../../api/video_codecs:video_codecs_api",
       "../../../../rtc_base:checks",
+      "../../../../test:create_test_field_trials",
       "../../../../test:explicit_key_value_config",
       "../../../../test:test_support",
     ]

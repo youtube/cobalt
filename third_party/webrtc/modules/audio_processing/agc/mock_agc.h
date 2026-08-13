@@ -11,6 +11,8 @@
 #ifndef MODULES_AUDIO_PROCESSING_AGC_MOCK_AGC_H_
 #define MODULES_AUDIO_PROCESSING_AGC_MOCK_AGC_H_
 
+#include <cstdint>
+
 #include "api/array_view.h"
 #include "modules/audio_processing/agc/agc.h"
 #include "test/gmock.h"

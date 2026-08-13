@@ -173,6 +173,7 @@ android_library("content_full_java") {
     "//cc:cc_java",
     "//cc/mojom:mojom_java",
     "//components/download/public/common:public_java",
+    "//components/origin_matcher/android:java",
     "//components/payments/mojom:mojom_java",
     "//content/public/common:common_java",
     "//device/bluetooth:java",
@@ -443,6 +444,11 @@ android_library("content_full_java") {
     "java/src/org/chromium/content_public/browser/selection/SelectionDropdownMenuDelegate.java",
   ]
 
+  if (enable_screen_capture) {
+    sources += [ "java/src/org/chromium/content_public/browser/media/capture/ScreenCapture.java" ]
+    deps += [ "//third_party/androidx:androidx_activity_activity_java" ]
+  }
+
   # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
     sources -= [
@@ -555,6 +561,10 @@ generate_jni("content_jni_headers") {
     "java/src/org/chromium/content_public/browser/NavigationHandle.java",
     "java/src/org/chromium/content_public/browser/Page.java",
   ]
+
+  if (enable_screen_capture) {
+    sources += [ "java/src/org/chromium/content_public/browser/media/capture/ScreenCapture.java" ]
+  }
 
   # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {

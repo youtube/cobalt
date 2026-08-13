@@ -3712,6 +3712,27 @@ void MacroAssembler::Round_d(VRegister vdst, VRegister vsrc, Register scratch,
   RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RNE, false);
 }
 
+void MacroAssembler::FaddS(FPURegister dst, FPURegister lhs, FPURegister rhs) {
+  li(kScratchReg2, Operand(kSQuietNanMask));
+  feq_s(kScratchReg, lhs, lhs);
+  Label not_nan1, not_nan2, done;
+  BranchShort(&not_nan1, ne, kScratchReg, Operand(zero_reg));
+  fmv_x_w(kScratchReg, lhs);
+  Or(kScratchReg, kScratchReg, Operand(kScratchReg2));
+  fmv_w_x(dst, kScratchReg);
+  Branch(&done);
+  bind(&not_nan1);
+  feq_s(kScratchReg, rhs, rhs);
+  BranchShort(&not_nan2, ne, kScratchReg, Operand(zero_reg));
+  fmv_x_w(kScratchReg, rhs);
+  Or(kScratchReg, kScratchReg, Operand(kScratchReg2));
+  fmv_w_x(dst, kScratchReg);
+  Branch(&done);
+  bind(&not_nan2);
+  fadd_s(dst, lhs, rhs);
+  bind(&done);
+}
+
 #if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::Floor_d_d(FPURegister dst, FPURegister src,
                                FPURegister fpu_scratch) {
@@ -4951,6 +4972,9 @@ void MacroAssembler::LoadRootRegisterOffset(Register destination,
 
 void MacroAssembler::Jump(Register target, Condition cond, Register rs,
                           const Operand& rt) {
+  DCHECK_WITH_MSG(t0 != target,
+                  "don't use x5 as target for jumps to avoid RAS pollution");
+
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (cond == cc_always) {
     jr(target);
@@ -5021,6 +5045,8 @@ void MacroAssembler::Jump(const ExternalReference& reference) {
 // Note: To call gcc-compiled C code on riscv64, you must call through t6.
 void MacroAssembler::Call(Register target, Condition cond, Register rs,
                           const Operand& rt) {
+  DCHECK_WITH_MSG(t0 != target,
+                  "don't use x5 as target for calls to avoid RAS pollution");
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (cond == cc_always) {
     jalr(ra, target, 0);
@@ -6120,9 +6146,8 @@ void MacroAssembler::StoreLane(int sz, VRegister src, uint8_t laneidx,
 }
 // -----------------------------------------------------------------------------
 // Runtime calls.
-#if V8_TARGET_ARCH_RISCV64
-void MacroAssembler::AddOverflow64(Register dst, Register left,
-                                   const Operand& right, Register overflow) {
+void MacroAssembler::AddOverflowWord(Register dst, Register left,
+                                     const Operand& right, Register overflow) {
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Register right_reg = no_reg;
@@ -6151,8 +6176,8 @@ void MacroAssembler::AddOverflow64(Register dst, Register left,
   }
 }
 
-void MacroAssembler::SubOverflow64(Register dst, Register left,
-                                   const Operand& right, Register overflow) {
+void MacroAssembler::SubOverflowWord(Register dst, Register left,
+                                     const Operand& right, Register overflow) {
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Register right_reg = no_reg;
@@ -6180,6 +6205,72 @@ void MacroAssembler::SubOverflow64(Register dst, Register left,
     Xor(overflow, left, dst);
     Xor(scratch, left, right_reg);
     And(overflow, overflow, scratch);
+  }
+}
+#if V8_TARGET_ARCH_RISCV64
+void MacroAssembler::AddOverflow32(Register dst, Register left,
+                                   const Operand& right, Register overflow) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register right_reg = no_reg;
+  Register scratch = temps.Acquire();
+  Register scratch2 = temps.Acquire();
+  if (!right.is_reg()) {
+    li(scratch, Operand(right));
+    right_reg = scratch;
+  } else {
+    right_reg = right.rm();
+  }
+  DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
+         overflow != scratch2);
+  DCHECK(overflow != left && overflow != right_reg);
+  if (dst == left || dst == right_reg) {
+    Add32(scratch2, left, right_reg);
+    Xor(overflow, scratch2, left);
+    Xor(scratch, scratch2, right_reg);
+    And(overflow, overflow, scratch);
+    sext_w(overflow, overflow);
+    Mv(dst, scratch2);
+  } else {
+    Add32(dst, left, right_reg);
+    Xor(overflow, dst, left);
+    Xor(scratch, dst, right_reg);
+    And(overflow, overflow, scratch);
+    sext_w(overflow, overflow);
+  }
+}
+
+void MacroAssembler::SubOverflow32(Register dst, Register left,
+                                   const Operand& right, Register overflow) {
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register right_reg = no_reg;
+  Register scratch = temps.Acquire();
+  Register scratch2 = temps.Acquire();
+  if (!right.is_reg()) {
+    li(scratch, Operand(right));
+    right_reg = scratch;
+  } else {
+    right_reg = right.rm();
+  }
+
+  DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
+         overflow != scratch2);
+  DCHECK(overflow != left && overflow != right_reg);
+
+  if (dst == left || dst == right_reg) {
+    Sub32(scratch2, left, right_reg);
+    Xor(overflow, left, scratch2);
+    Xor(scratch, left, right_reg);
+    And(overflow, overflow, scratch);
+    sext_w(overflow, overflow);
+    Mv(dst, scratch2);
+  } else {
+    Sub32(dst, left, right_reg);
+    Xor(overflow, left, dst);
+    Xor(scratch, left, right_reg);
+    And(overflow, overflow, scratch);
+    sext_w(overflow, overflow);
   }
 }
 
@@ -6261,68 +6352,6 @@ void MacroAssembler::MulOverflow64(Register dst, Register left,
 }
 
 #elif V8_TARGET_ARCH_RISCV32
-void MacroAssembler::AddOverflow(Register dst, Register left,
-                                 const Operand& right, Register overflow) {
-  UseScratchRegisterScope temps(this);
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register right_reg = no_reg;
-  Register scratch = temps.Acquire();
-  Register scratch2 = temps.Acquire();
-  if (!right.is_reg()) {
-    li(scratch, Operand(right));
-    right_reg = scratch;
-  } else {
-    right_reg = right.rm();
-  }
-  DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
-         overflow != scratch2);
-  DCHECK(overflow != left && overflow != right_reg);
-  if (dst == left || dst == right_reg) {
-    AddWord(scratch2, left, right_reg);
-    Xor(overflow, scratch2, left);
-    Xor(scratch, scratch2, right_reg);
-    And(overflow, overflow, scratch);
-    Mv(dst, scratch2);
-  } else {
-    AddWord(dst, left, right_reg);
-    Xor(overflow, dst, left);
-    Xor(scratch, dst, right_reg);
-    And(overflow, overflow, scratch);
-  }
-}
-
-void MacroAssembler::SubOverflow(Register dst, Register left,
-                                 const Operand& right, Register overflow) {
-  UseScratchRegisterScope temps(this);
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register right_reg = no_reg;
-  Register scratch = temps.Acquire();
-  Register scratch2 = temps.Acquire();
-  if (!right.is_reg()) {
-    li(scratch, Operand(right));
-    right_reg = scratch;
-  } else {
-    right_reg = right.rm();
-  }
-
-  DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
-         overflow != scratch2);
-  DCHECK(overflow != left && overflow != right_reg);
-
-  if (dst == left || dst == right_reg) {
-    SubWord(scratch2, left, right_reg);
-    Xor(overflow, left, scratch2);
-    Xor(scratch, left, right_reg);
-    And(overflow, overflow, scratch);
-    Mv(dst, scratch2);
-  } else {
-    SubWord(dst, left, right_reg);
-    Xor(overflow, left, dst);
-    Xor(scratch, left, right_reg);
-    And(overflow, overflow, scratch);
-  }
-}
-
 void MacroAssembler::MulOverflow32(Register dst, Register left,
                                    const Operand& right, Register overflow,
                                    bool sign_extend_inputs) {

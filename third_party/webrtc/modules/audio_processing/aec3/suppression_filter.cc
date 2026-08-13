@@ -11,11 +11,16 @@
 #include "modules/audio_processing/aec3/suppression_filter.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
-#include <functional>
 #include <iterator>
+#include <vector>
 
+#include "api/array_view.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/block.h"
+#include "modules/audio_processing/aec3/fft_data.h"
 #include "modules/audio_processing/aec3/vector_math.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_minmax.h"

@@ -13,8 +13,8 @@
 #include <cmath>
 
 #include "absl/strings/string_view.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/numerics/safe_minmax.h"
 #include "rtc_base/strings/string_builder.h"
 #include "system_wrappers/include/metrics.h"
 

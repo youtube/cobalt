@@ -646,14 +646,14 @@ void AuthSessionAuthenticator::DoLoginAsPublicSession(
 void AuthSessionAuthenticator::LoginAsKioskAccount(
     const AccountId& app_account_id,
     bool ephemeral) {
-  LoginAsKioskImpl(app_account_id, user_manager::UserType::kKioskApp,
+  LoginAsKioskImpl(app_account_id, user_manager::UserType::kKioskChromeApp,
                    /*force_dircrypto=*/false, /*ephemeral=*/ephemeral);
 }
 
 void AuthSessionAuthenticator::LoginAsWebKioskAccount(
     const AccountId& app_account_id,
     bool ephemeral) {
-  LoginAsKioskImpl(app_account_id, user_manager::UserType::kWebKioskApp,
+  LoginAsKioskImpl(app_account_id, user_manager::UserType::kKioskWebApp,
                    /*force_dircrypto=*/false, /*ephemeral=*/ephemeral);
 }
 

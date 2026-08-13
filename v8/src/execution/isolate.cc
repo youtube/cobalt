@@ -468,6 +468,17 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
   // Hash data sections of builtin code objects.
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
+#if V8_ENABLE_GEARBOX
+    if (Builtins::IsGearboxPlaceholder(builtin)) {
+      // When v8 enables gearbox for builtins, there are 3 builtin objects for a
+      // builtin, one is generic variant, another one is ISX variant, and final
+      // one is a placeholder, it will be set as either generic or ISX variant
+      // at runtime. Therefore v8 will modify the contents of the placeholder
+      // code object when it is being launched, so we didn't take it into the
+      // hash calculation, otherwise it will cause hash check failed.
+      continue;
+    }
+#endif
     Tagged<Code> code = builtins()->code(builtin);
 
     DCHECK(Internals::HasHeapObjectTag(code.ptr()));
@@ -3931,7 +3942,7 @@ void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to) {
     // TODO(388533754): This check won't hold anymore with core stack-switching.
     // Instead, we will need to validate all the intermediate stacks and also
     // check that they don't hold central stack frames.
-    DCHECK_EQ(from->jmpbuf()->parent, to);
+    SBXCHECK_EQ(from->jmpbuf()->parent, to);
   }
   uintptr_t limit = reinterpret_cast<uintptr_t>(to->jmpbuf()->stack_limit);
   stack_guard()->SetStackLimitForStackSwitching(limit);

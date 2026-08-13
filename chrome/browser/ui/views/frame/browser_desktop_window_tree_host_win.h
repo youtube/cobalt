@@ -56,7 +56,6 @@ class BrowserDesktopWindowTreeHostWin
   DesktopWindowTreeHost* AsDesktopWindowTreeHost() override;
   int GetMinimizeButtonOffset() const override;
   bool UsesNativeSystemMenu() const override;
-  void ClientDestroyedWidget() override;
 
   // Overridden from DesktopWindowTreeHostWin:
   void Init(const views::Widget::InitParams& params) override;
@@ -79,7 +78,7 @@ class BrowserDesktopWindowTreeHostWin
   bool ShouldUseNativeFrame() const override;
   bool ShouldWindowContentsBeTransparent() const override;
   void HandleWindowMinimizedOrRestored(bool restored) override;
-  void HandleRequestClose() override;
+  void ClientDestroyedWidget() override;
 
   // ProfileAttributesStorage::Observer:
   void OnProfileAvatarChanged(const base::FilePath& profile_path) override;

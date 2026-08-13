@@ -28,6 +28,8 @@ blink_modules_sources("ml") {
     "webnn/ml_graph_transform/ml_graph_transformer.h",
     "webnn/ml_graph_transform/pipeline.cc",
     "webnn/ml_graph_transform/pipeline.h",
+    "webnn/ml_graph_transform/transpose_elimination_transformer.cc",
+    "webnn/ml_graph_transform/transpose_elimination_transformer.h",
     "webnn/ml_graph_type_converter.cc",
     "webnn/ml_graph_type_converter.h",
     "webnn/ml_graph_utils.cc",
@@ -44,6 +46,22 @@ blink_modules_sources("ml") {
     "//services/webnn/public/cpp",
     "//services/webnn/public/mojom:mojom_blink",
     "//third_party/blink/renderer/modules/webgpu",
+  ]
+
+  if (is_cobalt) {
+    # TODO(b/543717825): Cobalt excludes "ml" from the "modules" component's sub
+    #_modules, so it no longer gets modules_export.h via that target's
+    # allow_circular_includes_from. Depend on it directly instead.
+    deps += [ "//third_party/blink/renderer/modules" ]
+  }
+}
+
+source_set("operand_id_hash_traits") {
+  sources = [ "webnn/operand_id_hash_traits.h" ]
+
+  deps = [
+    "//services/webnn/public/cpp",
+    "//third_party/blink/renderer/platform/wtf",
   ]
 }
 
@@ -66,4 +84,11 @@ source_set("unit_tests") {
     "//third_party/blink/renderer/platform:test_support",
     "//third_party/blink/renderer/platform/wtf",
   ]
+
+  if (is_cobalt) {
+    # TODO(b/543717825): Cobalt excludes "ml" from the "modules" component's
+    # sub_modules, so depending on "modules" no longer transitively forwards
+    # ":ml"'s headers.
+    deps += [ ":ml" ]
+  }
 }

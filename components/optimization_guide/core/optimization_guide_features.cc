@@ -20,7 +20,6 @@
 #include "base/strings/to_string.h"
 #include "base/system/sys_info.h"
 #include "components/optimization_guide/core/feature_registry/mqls_feature_registry.h"
-#include "components/optimization_guide/core/insertion_ordered_set.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
@@ -116,7 +115,8 @@ BASE_FEATURE(kModelQualityLogging,
              "ModelQualityLogging",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables fetching personalized metadata from Optimization Guide Service.
+// Enables fetching personalized metadata from the Optimization Guide Service
+// (on-demand fetching).
 BASE_FEATURE(kOptimizationGuidePersonalizedFetching,
              "OptimizationPersonalizedHintsFetching",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -224,6 +224,12 @@ BASE_FEATURE(kOptimizationGuideIconView,
 
 BASE_FEATURE(kBrokerModelSessionsForUntrustedProcesses,
              "BrokerModelSessionsForUntrustedProcesses",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables proactively sending GAIA information to the Optimization Guide
+// Service.
+BASE_FEATURE(kOptimizationGuideProactivePersonalizedHintsFetching,
+             "OptimizationGuideProactivePersonalizedHintsFetching",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // The default value here is a bit of a guess.
@@ -487,6 +493,30 @@ RequestContextSet GetAllowedContextsForPersonalizedMetadata() {
     allowed_contexts.Put(proto::RequestContext::CONTEXT_PAGE_INSIGHTS_HUB);
   }
   return allowed_contexts;
+}
+
+OptimizationTypeSet GetAllowedOptimizationTypesForProactivePersonalization() {
+  OptimizationTypeSet allowed_optimization_types;
+  if (!base::FeatureList::IsEnabled(
+          kOptimizationGuideProactivePersonalizedHintsFetching)) {
+    return allowed_optimization_types;
+  }
+  base::FieldTrialParams params;
+  if (base::GetFieldTrialParamsByFeature(
+          kOptimizationGuideProactivePersonalizedHintsFetching, &params) &&
+      params.contains("allowed_optimization_types")) {
+    for (const auto& context_str : base::SplitString(
+             base::GetFieldTrialParamValueByFeature(
+                 kOptimizationGuideProactivePersonalizedHintsFetching,
+                 "allowed_optimization_types"),
+             ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
+      proto::OptimizationType optimization_type;
+      if (proto::OptimizationType_Parse(context_str, &optimization_type)) {
+        allowed_optimization_types.Put(optimization_type);
+      }
+    }
+  }
+  return allowed_optimization_types;
 }
 
 bool ShouldOverrideOptimizationTargetDecisionForMetricsPurposes(

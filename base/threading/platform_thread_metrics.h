@@ -105,7 +105,7 @@ class BASE_EXPORT PlatformThreadMetrics {
 
   // Previous measurements used to compute the CPU usage between calls to
   // GetCPUUsageProportion().
-  TimeTicks last_cpu_time_;
+  std::optional<TimeTicks> last_cpu_time_;
   TimeDelta last_cumulative_cpu_;
 };
 

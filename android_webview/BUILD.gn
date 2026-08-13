@@ -437,7 +437,6 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/android_webview/AwContentsIoThreadClient.java",
       "java/src/org/chromium/android_webview/AwContentsIoThreadClientImpl.java",
       "java/src/org/chromium/android_webview/AwContentsLifecycleNotifier.java",
-      "java/src/org/chromium/android_webview/AwContentsOriginMatcher.java",
       "java/src/org/chromium/android_webview/AwContentsStatics.java",
       "java/src/org/chromium/android_webview/AwCookieManager.java",
       "java/src/org/chromium/android_webview/AwCrashyClassUtils.java",
@@ -447,7 +446,6 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/android_webview/AwDevToolsServer.java",
       "java/src/org/chromium/android_webview/AwDisplayCutoutController.java",
       "java/src/org/chromium/android_webview/AwDisplayModeController.java",
-      "java/src/org/chromium/android_webview/AwFeatureMap.java",
       "java/src/org/chromium/android_webview/AwFrameMetricsListener.java",
       "java/src/org/chromium/android_webview/AwGeolocationPermissions.java",
       "java/src/org/chromium/android_webview/AwHistogramRecorder.java",
@@ -605,6 +603,7 @@ if (_is_default_toolchain) {
       "//components/ip_protection/android/android_auth_client_lib/client:ip_protection_auth_client_java",
       "//components/minidump_uploader:minidump_uploader_java",
       "//components/navigation_interception/android:navigation_interception_java",
+      "//components/origin_matcher/android:java",
       "//components/payments/content/android:feature_list_java",
       "//components/payments/content/android:full_java",
       "//components/payments/content/android:minimal_java",
@@ -754,6 +753,7 @@ if (_is_default_toolchain) {
 
   android_library("common_java") {
     sources = [
+      "java/src/org/chromium/android_webview/common/AwFeatureMap.java",
       "java/src/org/chromium/android_webview/common/AwResource.java",
       "java/src/org/chromium/android_webview/common/BackgroundThreadExecutor.java",
       "java/src/org/chromium/android_webview/common/BugTrackerConstants.java",
@@ -1150,6 +1150,7 @@ grit_strings("generate_components_strings") {
 
 generate_jni("common_jni") {
   sources = [
+    "java/src/org/chromium/android_webview/common/AwFeatureMap.java",
     "java/src/org/chromium/android_webview/common/AwResource.java",
     "java/src/org/chromium/android_webview/common/origin_trial/DisableOriginTrialsSafeModeUtils.java",
   ]
@@ -1167,13 +1168,11 @@ generate_jni("browser_jni_headers") {
     "java/src/org/chromium/android_webview/AwContentsClientBridge.java",
     "java/src/org/chromium/android_webview/AwContentsIoThreadClient.java",
     "java/src/org/chromium/android_webview/AwContentsLifecycleNotifier.java",
-    "java/src/org/chromium/android_webview/AwContentsOriginMatcher.java",
     "java/src/org/chromium/android_webview/AwContentsStatics.java",
     "java/src/org/chromium/android_webview/AwCookieManager.java",
     "java/src/org/chromium/android_webview/AwCrashyClassUtils.java",
     "java/src/org/chromium/android_webview/AwDarkMode.java",
     "java/src/org/chromium/android_webview/AwDevToolsServer.java",
-    "java/src/org/chromium/android_webview/AwFeatureMap.java",
     "java/src/org/chromium/android_webview/AwHttpAuthHandler.java",
     "java/src/org/chromium/android_webview/AwInterfaceRegistrar.java",
     "java/src/org/chromium/android_webview/AwNetLogsConnection.java",

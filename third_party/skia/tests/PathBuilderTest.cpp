@@ -262,7 +262,7 @@ DEF_TEST(pathbuilder_make, reporter) {
         pts[i] = {x, y}; vbs[i] = (uint8_t)SkPathVerb::kLine;
     }
     auto p0 = b.detach();
-    auto p1 = SkPath::Make(pts, N, vbs, N, nullptr, 0, p0.getFillType());
+    auto p1 = SkPath::Make(pts, vbs, {}, p0.getFillType());
     REPORTER_ASSERT(reporter, p0 == p1);
 }
 
@@ -297,7 +297,7 @@ DEF_TEST(pathbuilder_addPolygon, reporter) {
 
     for (bool isClosed : {false, true}) {
         for (size_t i = 0; i <= std::size(pts); ++i) {
-            auto path0 = SkPathBuilder().addPolygon(pts, i, isClosed).detach();
+            auto path0 = SkPathBuilder().addPolygon({pts, i}, isClosed).detach();
             auto path1 = addpoly(pts, i, isClosed);
             REPORTER_ASSERT(reporter, path0 == path1);
         }
@@ -518,7 +518,7 @@ DEF_TEST(pathbuilder_lastmoveindex, reporter) {
     const SkPoint pts[] = {
         {0, 1}, {2, 3}, {4, 5},
     };
-    constexpr int N = (int)std::size(pts);
+    const size_t N = std::size(pts);
 
     for (int ctrCount = 1; ctrCount < 4; ++ctrCount) {
         const int lastMoveToIndex = (ctrCount - 1) * N;
@@ -528,8 +528,8 @@ DEF_TEST(pathbuilder_lastmoveindex, reporter) {
 
             SkPathBuilder builder;
             for (int i = 0; i < ctrCount; ++i) {
-                builder.addPolygon(pts, N, isClosed);  // new-school way
-                b.addPoly(pts, N, isClosed);        // old-school way
+                builder.addPolygon(pts, isClosed);  // new-school way
+                b.addPoly(pts, isClosed);           // old-school way
             }
             a = builder.detach();
 
@@ -663,7 +663,7 @@ DEF_TEST(SkPathBuilder_transform, reporter) {
 
         SkPath p1 = SkPathBuilder(b.snapshot()).transform(matrix).detach();
         SkPoint pts1[kPtCount];
-        int count = p1.getPoints(pts1, kPtCount);
+        int count = p1.getPoints(pts1);
         REPORTER_ASSERT(reporter, kPtCount == count);
         for (int i = 0; i < count; ++i) {
             SkPoint newPt = SkPoint::Make(pts[i].fX * 2, pts[i].fY * 3);

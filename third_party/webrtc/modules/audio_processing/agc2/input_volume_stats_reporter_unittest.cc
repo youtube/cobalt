@@ -10,10 +10,13 @@
 
 #include "modules/audio_processing/agc2/input_volume_stats_reporter.h"
 
+#include <string>
+
 #include "absl/strings/string_view.h"
 #include "rtc_base/strings/string_builder.h"
 #include "system_wrappers/include/metrics.h"
 #include "test/gmock.h"
+#include "test/gtest.h"
 
 namespace webrtc {
 namespace {

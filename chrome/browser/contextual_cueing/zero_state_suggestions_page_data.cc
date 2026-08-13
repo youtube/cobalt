@@ -168,9 +168,7 @@ void ZeroStateSuggestionsPageData::InitiatePageContentExtraction() {
   if (kExtractAnnotatedPageContentForZeroStateSuggestions.Get()) {
     blink::mojom::AIPageContentOptionsPtr ai_page_content_options;
     ai_page_content_options = optimization_guide::DefaultAIPageContentOptions();
-    ai_page_content_options->include_geometry = false;
     ai_page_content_options->on_critical_path = true;
-    ai_page_content_options->include_hidden_searchable_content = false;
     optimization_guide::GetAIPageContent(
         web_contents, std::move(ai_page_content_options),
         base::BindOnce(
@@ -260,10 +258,11 @@ void ZeroStateSuggestionsPageData::OnReceivedAnnotatedPageContent(
   auto* pce = optimization_guide::PageContextEligibility::Get();
   bool is_eligible =
       content &&
-      (!pce || pce->api().IsPageContextEligible(
-                   url.host(), url.path(),
-                   optimization_guide::GetFrameMetadataFromPageContent(
-                       content.value())));
+      (!pce ||
+       optimization_guide::IsPageContextEligible(
+           url.host(), url.path(),
+           optimization_guide::GetFrameMetadataFromPageContent(content.value()),
+           pce));
 
   if (is_eligible) {
     annotated_page_content_ = std::move(content);

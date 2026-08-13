@@ -10,7 +10,9 @@
 
 #include "modules/audio_processing/aec3/block_delay_buffer.h"
 
+#include <cstddef>
 #include <string>
+#include <tuple>
 
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/audio_buffer.h"

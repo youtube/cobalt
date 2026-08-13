@@ -19,6 +19,7 @@
 #include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/numbers/double.h"
 #include "src/base/strong-alias.h"
 
 #define V8_INFINITY std::numeric_limits<double>::infinity()
@@ -99,6 +100,12 @@ namespace internal {
 #else
 #define COMPRESS_POINTERS_BOOL false
 #endif
+
+#if V8_TARGET_ARCH_X64 && V8_BUILTINS_GEARBOX
+#define V8_ENABLE_GEARBOX true
+#else
+#define V8_ENABLE_GEARBOX false
+#endif  // V8_TARGET_ARCH_X64 && V8_BUILTINS_GEARBOX
 
 #if COMPRESS_POINTERS_BOOL && V8_TARGET_ARCH_X64
 #define DECOMPRESS_POINTER_BY_ADDRESSING_MODE true
@@ -507,16 +514,6 @@ constexpr size_t kReservedCodeRangePages = 0;
 #endif  // V8_HOST_ARCH_64_BIT
 
 static_assert(kSystemPointerSize == (1 << kSystemPointerSizeLog2));
-
-#ifdef V8_COMPRESS_ZONES
-#define COMPRESS_ZONES_BOOL true
-#else
-#define COMPRESS_ZONES_BOOL false
-#endif  // V8_COMPRESS_ZONES
-
-// The flag controls whether zones pointer compression should be enabled for
-// TurboFan graphs or not.
-static constexpr bool kCompressGraphZone = COMPRESS_ZONES_BOOL;
 
 #ifdef V8_COMPRESS_POINTERS
 static_assert(
@@ -1417,6 +1414,8 @@ inline std::ostream& operator<<(std::ostream& os, AllocationType type) {
   return os << ToString(type);
 }
 
+enum class PerformHeapLimitCheck { kYes, kNo };
+
 class AllocationHint final {
  public:
   AllocationHint() = default;
@@ -1978,20 +1977,16 @@ constexpr uint64_t kHoleNanInt64 =
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 constexpr uint64_t kUndefinedNanInt64 =
     (static_cast<uint64_t>(kUndefinedNanUpper32) << 32) | kUndefinedNanLower32;
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 // TODO(nicohartmann): Use proper constants.
-inline bool IsUndefinedNan(double d) {
-  uint64_t b;
-  std::memcpy(&b, &d, sizeof(double));
-  return b == kUndefinedNanInt64;
+inline constexpr bool IsUndefinedNan(double d) {
+  return base::double_to_uint64(d) == kUndefinedNanInt64;
 }
-inline double UndefinedNan() {
-  uint64_t b = kUndefinedNanInt64;
-  double d;
-  std::memcpy(&d, &b, sizeof(double));
-  return d;
+inline constexpr double UndefinedNan() {
+  return base::uint64_to_double(kUndefinedNanInt64);
+}
+inline constexpr double HoleNan() {
+  return base::uint64_to_double(kHoleNanInt64);
 }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 

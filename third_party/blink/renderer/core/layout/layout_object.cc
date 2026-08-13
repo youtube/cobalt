@@ -2206,6 +2206,9 @@ String LayoutObject::DecoratedName() const {
   if (IsLayoutBlockFlow() && ChildrenInline() && SlowFirstChild()) {
     attributes.push_back("children-inline");
   }
+  if (IsMulticolContainer()) {
+    attributes.push_back("multicol");
+  }
   if (!attributes.empty()) {
     name.Append(" (");
     name.Append(attributes[0]);
@@ -3275,6 +3278,9 @@ void LayoutObject::StyleDidChange(StyleDifference diff,
   if (diff.NeedsFullLayout()) {
     // If the in-flow state of an element is changed, disable scroll
     // anchoring on the containing scroller.
+    //
+    // TODO(layout-dev): Move this code down to LayoutBox. Only those can become
+    // out-of-flow or spanners.
     if (old_style->HasOutOfFlowPosition() != style_->HasOutOfFlowPosition()) {
       SetScrollAnchorDisablingStyleChangedOnAncestor();
       MarkParentForSpannerOrOutOfFlowPositionedChange();
@@ -3284,7 +3290,11 @@ void LayoutObject::StyleDidChange(StyleDifference diff,
               box->DisplayLocksAffectedByAnchors(), nullptr);
         }
       }
-    } else if (old_style->GetColumnSpan() != style_->GetColumnSpan()) {
+    } else if (IsBox() &&
+               ((!RuntimeEnabledFeatures::FlowThreadLessEnabled() &&
+                 old_style->GetColumnSpan() != style_->GetColumnSpan()) ||
+                To<LayoutBox>(this)->IsValidColumnSpanner(*old_style) !=
+                    To<LayoutBox>(this)->IsValidColumnSpanner(*style_))) {
       MarkParentForSpannerOrOutOfFlowPositionedChange();
     }
 
@@ -3730,28 +3740,6 @@ gfx::QuadF LayoutObject::LocalToAncestorQuad(
   transform_state.Flatten();
 
   return transform_state.LastPlanarQuad();
-}
-
-void LayoutObject::LocalToAncestorRects(
-    Vector<PhysicalRect>& rects,
-    const LayoutBoxModelObject* ancestor,
-    const PhysicalOffset& pre_offset,
-    const PhysicalOffset& post_offset) const {
-  NOT_DESTROYED();
-  for (wtf_size_t i = 0; i < rects.size(); ++i) {
-    PhysicalRect& rect = rects[i];
-    rect.Move(pre_offset);
-    gfx::QuadF container_quad =
-        LocalToAncestorQuad(gfx::QuadF(gfx::RectF(rect)), ancestor);
-    PhysicalRect container_rect =
-        PhysicalRect::EnclosingRect(container_quad.BoundingBox());
-    if (container_rect.IsEmpty()) {
-      rects.EraseAt(i--);
-      continue;
-    }
-    container_rect.Move(post_offset);
-    rects[i] = container_rect;
-  }
 }
 
 gfx::Transform LayoutObject::LocalToAncestorTransform(

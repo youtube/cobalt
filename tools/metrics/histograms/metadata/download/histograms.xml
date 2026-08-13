@@ -133,6 +133,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Download.Android.WarningBypassDialog.Events"
+    enum="AndroidDownloadWarningBypassDialogEvent" expires_after="2025-11-30">
+  <owner>chlily@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    Records events and user interactions with the download warning bypass dialog
+    on Android. Records when the dialog is shown, or when the user takes an
+    action or dismisses the dialog.
+  </summary>
+</histogram>
+
 <histogram name="Download.AndroidDownload.FileExtension"
     enum="SBClientDownloadExtensions" expires_after="2025-10-17">
   <owner>chlily@chromium.org</owner>
@@ -218,7 +229,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Download.Bubble.Subpage.{DownloadDangerTypeString}.{ButtonType}ButtonActionTime"
-    units="ms" expires_after="2025-06-08">
+    units="ms" expires_after="2025-09-08">
   <owner>chlily@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -238,7 +249,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Download.Bubble.SubpageAction"
-    enum="DownloadBubbleSubpageAction" expires_after="2025-06-08">
+    enum="DownloadBubbleSubpageAction" expires_after="2025-09-08">
   <owner>chlily@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -356,7 +367,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Download.DOMEvent" enum="DownloadDOMEvent"
-    expires_after="2025-09-14">
+    expires_after="2025-12-07">
   <owner>dtrainor@chromium.org</owner>
   <owner>xinghuilu@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
@@ -1134,7 +1145,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Download.ShowedDownloadWarning.DownloadsPage"
-    enum="DownloadItem.DangerType" expires_after="2025-06-08">
+    enum="DownloadItem.DangerType" expires_after="2025-09-08">
   <owner>chlily@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>

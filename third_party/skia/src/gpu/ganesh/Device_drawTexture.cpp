@@ -389,9 +389,7 @@ void Device::drawEdgeAAImage(const SkImage* image,
         GrStyledShape shape;
         if (dstClip) {
             // Represent it as an SkPath formed from the dstClip
-            SkPath path;
-            path.addPoly(dstClip, 4, true);
-            shape = GrStyledShape(path);
+            shape = GrStyledShape(SkPath::Polygon({dstClip, 4}, true));
         } else {
             shape = GrStyledShape(dst);
         }
@@ -746,8 +744,7 @@ bool Device::drawBlurredRRect(const SkRRect& rrect, const SkPaint& paint, float 
             if (devRRectIsCircle) {
                 devBounds = devRRect.getBounds();
             } else {
-                SkPoint center = {rrect.getBounds().centerX(), rrect.getBounds().centerY()};
-                localToDevice.mapPoints(&center, 1);
+                SkPoint center = localToDevice.mapPoint(rrect.getBounds().center());
                 SkScalar radius = localToDevice.mapVector(0, rrect.width()/2.f).length();
                 devBounds = {center.x() - radius,
                               center.y() - radius,

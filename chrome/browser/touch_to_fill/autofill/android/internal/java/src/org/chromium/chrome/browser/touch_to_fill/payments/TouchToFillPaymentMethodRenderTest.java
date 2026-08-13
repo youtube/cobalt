@@ -359,8 +359,7 @@ public class TouchToFillPaymentMethodRenderTest {
                             AutofillTestHelper.getAutofillImageFetcherForLastUsedProfile(),
                             mBottomSheetController,
                             mDelegateMock,
-                            mBottomSheetFocusHelper,
-                            () -> {});
+                            mBottomSheetFocusHelper);
                 });
     }
 
@@ -686,7 +685,10 @@ public class TouchToFillPaymentMethodRenderTest {
     public void testShowsOneLoyaltyCard() throws IOException {
         runOnUiThreadBlocking(
                 () -> {
-                    mCoordinator.showLoyaltyCards(List.of(LOYALTY_CARD), List.of(LOYALTY_CARD));
+                    mCoordinator.showLoyaltyCards(
+                            List.of(LOYALTY_CARD),
+                            List.of(LOYALTY_CARD),
+                            /* firstTimeUsage= */ false);
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
 

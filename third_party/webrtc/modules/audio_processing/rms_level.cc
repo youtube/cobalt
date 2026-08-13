@@ -12,8 +12,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <numeric>
+#include <optional>
 
+#include "api/array_view.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {

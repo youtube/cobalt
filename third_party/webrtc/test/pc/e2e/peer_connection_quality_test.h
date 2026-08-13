@@ -92,9 +92,6 @@ class PeerConnectionE2EQualityTest
     ~PeerHandleImpl() override = default;
   };
 
-  // For some functionality some field trials have to be enabled, they will be
-  // enabled in Run().
-  std::string GetFieldTrials(const RunParams& run_params);
   void OnTrackCallback(absl::string_view peer_name,
                        VideoSubscription peer_subscription,
                        scoped_refptr<RtpTransceiverInterface> transceiver,

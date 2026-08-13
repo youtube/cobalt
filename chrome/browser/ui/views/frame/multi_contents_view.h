@@ -21,6 +21,7 @@ class ContentsWebView;
 class MultiContentsResizeArea;
 class MultiContentsViewDropTargetController;
 class MultiContentsViewMiniToolbar;
+class MultiContentsDropTargetView;
 
 namespace content {
 class WebContents;
@@ -33,10 +34,6 @@ class Canvas;
 namespace views {
 class WebView;
 }  // namespace views
-
-// TODO(crbug.com/394369035): The drop target view will eventually have its
-// own class. Move this declaration into the class once ready.
-DECLARE_ELEMENT_IDENTIFIER_VALUE(kMultiContentsViewDropTargetElementId);
 
 // MultiContentsView shows up to two contents web views side by side, and
 // manages their layout relative to each other.
@@ -174,6 +171,10 @@ class MultiContentsView : public views::View,
   // The handle responsible for resizing the two contents views as relative to
   // each other.
   raw_ptr<MultiContentsResizeArea> resize_area_ = nullptr;
+
+  // The view that is shown for entering split view. E.g., this is shown when
+  // the user drags a link to the edge of the contents view.
+  raw_ptr<MultiContentsDropTargetView> drop_target_view_ = nullptr;
 
   // Handles incoming drag events to show/hide the drop target for entering
   // split view.

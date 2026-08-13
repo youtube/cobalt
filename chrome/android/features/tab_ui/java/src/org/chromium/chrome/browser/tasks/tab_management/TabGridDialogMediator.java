@@ -49,6 +49,7 @@ import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tab_ui.RecyclerViewPosition;
+import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabClosureParamsUtils;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver;
@@ -699,7 +700,6 @@ public class TabGridDialogMediator
         mDialogController.postHiding();
         // Purge the bitmap reference in the animation.
         mModel.set(TabGridDialogProperties.ANIMATION_SOURCE_VIEW, null);
-        mModel.set(TabGridDialogProperties.BINDING_TOKEN, null);
     }
 
     /**
@@ -729,10 +729,6 @@ public class TabGridDialogMediator
             mModel.set(TabGridDialogProperties.SCRIMVIEW_CLICK_RUNNABLE, mScrimClickRunnable);
             updateDialogScrollPosition();
             mDialogController.prepareDialog();
-
-            // Do this after the dialog is updated so most attributes are not set with stale values
-            // when the binding token is set.
-            mModel.set(TabGridDialogProperties.BINDING_TOKEN, hashCode());
 
             mModel.set(TabGridDialogProperties.IS_DIALOG_VISIBLE, true);
 
@@ -1084,6 +1080,7 @@ public class TabGridDialogMediator
             TabUiUtils.closeTabGroup(
                     mCurrentTabGroupModelFilterSupplier.get(),
                     tabId,
+                    TabClosingSource.UNKNOWN,
                     allowUndo,
                     hideTabGroups,
                     /* didCloseCallback= */ null);
@@ -1196,13 +1193,6 @@ public class TabGridDialogMediator
             mModel.set(TabGridDialogProperties.SHOW_SHARE_BUTTON, shouldShowShareButton());
             mModel.set(TabGridDialogProperties.SHOW_IMAGE_TILES, false);
             mModel.set(TabGridDialogProperties.SHOW_SEND_FEEDBACK, false);
-        } else if (groupSharedState == GroupSharedState.COLLABORATION_ONLY) {
-            mModel.set(
-                    TabGridDialogProperties.SHARE_BUTTON_STRING_RES,
-                    R.string.tab_grid_manage_button_text);
-            mModel.set(TabGridDialogProperties.SHOW_SHARE_BUTTON, shouldShowShareButton());
-            mModel.set(TabGridDialogProperties.SHOW_IMAGE_TILES, false);
-            mModel.set(TabGridDialogProperties.SHOW_SEND_FEEDBACK, shouldShowSendFeedback());
         } else {
             mModel.set(TabGridDialogProperties.SHOW_SHARE_BUTTON, false);
             mModel.set(TabGridDialogProperties.SHOW_IMAGE_TILES, true);

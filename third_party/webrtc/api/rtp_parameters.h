@@ -251,6 +251,17 @@ struct RTC_EXPORT RtpHeaderExtensionCapability {
   bool operator!=(const RtpHeaderExtensionCapability& o) const {
     return !(*this == o);
   }
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink,
+                            const RtpHeaderExtensionCapability& cap) {
+    absl::Format(&sink, "%s", cap.uri);
+    if (cap.direction != RtpTransceiverDirection::kSendRecv) {
+      absl::Format(&sink, "/%v", cap.direction);
+    }
+    if (cap.preferred_encrypt) {
+      sink.Append(" (encrypt)");
+    }
+  }
 };
 
 // RTP header extension, see RFC8285.

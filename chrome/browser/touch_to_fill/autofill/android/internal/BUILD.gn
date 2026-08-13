@@ -5,10 +5,6 @@
 import("//build/config/android/rules.gni")
 import("//third_party/jni_zero/jni_zero.gni")
 
-generate_jni("jni") {
-  sources = [ "java/src/org/chromium/chrome/browser/touch_to_fill/payments/TouchToFillPaymentMethodControllerBridge.java" ]
-}
-
 android_library("java") {
   deps = [
     ":java_resources",
@@ -37,9 +33,7 @@ android_library("java") {
     "//url:gurl_java",
   ]
 
-  srcjar_deps = [ ":jni" ]
   sources = [
-    "java/src/org/chromium/chrome/browser/touch_to_fill/payments/TouchToFillPaymentMethodControllerBridge.java",
     "java/src/org/chromium/chrome/browser/touch_to_fill/payments/TouchToFillPaymentMethodCoordinator.java",
     "java/src/org/chromium/chrome/browser/touch_to_fill/payments/TouchToFillPaymentMethodMediator.java",
     "java/src/org/chromium/chrome/browser/touch_to_fill/payments/TouchToFillPaymentMethodProperties.java",
@@ -58,6 +52,7 @@ android_resources("java_resources") {
     "java/res/layout/touch_to_fill_payment_method_footer_item.xml",
     "java/res/layout/touch_to_fill_payment_method_header_item.xml",
     "java/res/layout/touch_to_fill_terms_label_sheet_item.xml",
+    "java/res/layout/touch_to_fill_wallet_settings_button.xml",
     "java/res/values/dimens.xml",
   ]
 }
@@ -133,6 +128,7 @@ android_library("javatests") {
     "//components/strings:components_strings_grd",
     "//content/public/test/android:content_java_test_support",
     "//third_party/android_deps:espresso_java",
+    "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_recyclerview_recyclerview_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/hamcrest:hamcrest_java",

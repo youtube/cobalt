@@ -985,10 +985,14 @@ void Heap::GarbageCollectionPrologue(
 #endif  // DEBUG
 }
 
-void Heap::GarbageCollectionPrologueInSafepoint() {
+void Heap::GarbageCollectionPrologueInSafepoint(GarbageCollector collector) {
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_PROLOGUE_SAFEPOINT);
   gc_count_++;
   new_space_allocation_counter_ = NewSpaceAllocationCounter();
+  if (v8_flags.large_page_pool_timeout == 0 &&
+      collector == GarbageCollector::MARK_COMPACTOR) {
+    memory_allocator()->pool()->ReleaseLargeImmediately();
+  }
 }
 
 size_t Heap::NewSpaceAllocationCounter() const {
@@ -1381,11 +1385,15 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
     gc_flags |= GCFlag::kForced;
   }
 
+  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
+                                            ? PerformHeapLimitCheck::kNo
+                                            : PerformHeapLimitCheck::kYes;
+
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
     const size_t roots_before = num_roots();
     current_gc_flags_ = gc_flags;
     CollectGarbage(OLD_SPACE, gc_reason, kNoGCCallbackFlags,
-                   PerformHeapLimitCheck::kNo);
+                   perform_heap_limit_check);
     DCHECK_EQ(GCFlags(GCFlag::kNoFlags), current_gc_flags_);
 
     // As long as we are at or above the heap limit, we need another GC to
@@ -2186,11 +2194,45 @@ bool Heap::CollectionRequested() {
   return collection_barrier_->WasGCRequested();
 }
 
+void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
+                                   GarbageCollectionReason gc_reason,
+                                   const GCCallbackFlags gc_callback_flags) {
+  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
+                                            ? PerformHeapLimitCheck::kNo
+                                            : PerformHeapLimitCheck::kYes;
+
+  if (space == NEW_SPACE) {
+    DCHECK_EQ(GCFlags(), gc_flags);
+
+    for (int i = 0; i < 2; i++) {
+      CollectGarbage(NEW_SPACE, gc_reason, gc_callback_flags,
+                     perform_heap_limit_check);
+
+      if (!ReachedHeapLimit()) {
+        return;
+      }
+    }
+  }
+
+  for (int i = 0; i < 2; i++) {
+    current_gc_flags_ = gc_flags;
+    CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags,
+                   perform_heap_limit_check);
+    DCHECK_EQ(GCFlags(), current_gc_flags_);
+
+    if (!ReachedHeapLimit()) {
+      return;
+    }
+  }
+
+  CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
+}
+
 void Heap::CollectGarbageForBackground(LocalHeap* local_heap) {
   CHECK(local_heap->is_main_thread());
-  CollectAllGarbage(current_gc_flags_,
-                    GarbageCollectionReason::kBackgroundAllocationFailure,
-                    current_gc_callback_flags_);
+  CollectGarbageWithRetry(OLD_SPACE, current_gc_flags_,
+                          GarbageCollectionReason::kBackgroundAllocationFailure,
+                          current_gc_callback_flags_);
 }
 
 void Heap::CheckCollectionRequested() {
@@ -2311,7 +2353,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 
   tracer()->StartInSafepoint(atomic_pause_start_time);
 
-  GarbageCollectionPrologueInSafepoint();
+  GarbageCollectionPrologueInSafepoint(collector);
 
   PerformHeapVerification();
 

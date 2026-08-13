@@ -10,14 +10,12 @@
 
 #include "modules/audio_processing/ns/noise_suppressor.h"
 
-#include <deque>
-#include <memory>
+#include <cstddef>
 #include <string>
-#include <utility>
-#include <vector>
 
+#include "modules/audio_processing/audio_buffer.h"
+#include "modules/audio_processing/ns/ns_config.h"
 #include "rtc_base/strings/string_builder.h"
-#include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {

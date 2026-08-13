@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <memory>
 
+#include "api/array_view.h"
 #include "test/gtest.h"
 #include "third_party/pffft/src/pffft.h"
 

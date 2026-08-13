@@ -159,7 +159,7 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
 
 @interface RecentTabsTableViewController () <
     SigninPromoViewConsumer,
-    SigninPresenter,
+    SigninPromoViewMediatorDelegate,
     SyncObserverModelBridge,
     SyncPresenter,
     TableViewURLDragDataSource,
@@ -748,7 +748,7 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
                               syncService:self.syncService
                               accessPoint:signin_metrics::AccessPoint::
                                               kRecentTabs
-                          signinPresenter:self
+                                 delegate:self
                  accountSettingsPresenter:nil
         changeProfileContinuationProvider:
             base::BindRepeating(&CreateChangeProfileRecentTabsContinuation)];
@@ -1791,10 +1791,6 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
   }
 }
 
-- (void)signinDidFinish {
-  [self.presentationDelegate showHistorySyncOptInAfterDedicatedSignIn:YES];
-}
-
 #pragma mark - SyncPresenter
 
 - (void)showPrimaryAccountReauth {
@@ -1855,17 +1851,28 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
   [_trustedVaultReauthenticationCoordinator start];
 }
 
-#pragma mark - SigninPresenter
+#pragma mark - SigninPromoViewMediatorDelegate
 
-- (void)showSignin:(ShowSigninCommand*)command {
+- (void)showSignin:(SigninPromoViewMediator*)mediator
+           command:(ShowSigninCommand*)command {
+  CHECK_EQ(mediator, self.signinPromoViewMediator);
   __weak __typeof(self) weakSelf = self;
-  [command addSigninCompletion:^(SigninCoordinatorResult, id<SystemIdentity>) {
-    [weakSelf stopSigninCoordinator];
+  [command addSigninCompletion:^(SigninCoordinatorResult result,
+                                 id<SystemIdentity>) {
+    [weakSelf signinDidCompleteWithResult:result];
   }];
   _signinCoordinator = [SigninCoordinator signinCoordinatorWithCommand:command
                                                                browser:_browser
                                                     baseViewController:self];
   [_signinCoordinator start];
+}
+
+#pragma mark - SigninPromoViewMediatorDelegate Helper
+
+- (void)signinDidCompleteWithResult:(SigninCoordinatorResult)result {
+  [self.signinPromoViewMediator signinDidCompleteWithResult:result];
+  [self stopSigninCoordinator];
+  [self.presentationDelegate showHistorySyncOptInAfterDedicatedSignIn:YES];
 }
 
 #pragma mark - UIAdaptivePresentationControllerDelegate

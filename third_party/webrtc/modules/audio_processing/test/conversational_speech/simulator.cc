@@ -10,11 +10,14 @@
 
 #include "modules/audio_processing/test/conversational_speech/simulator.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <map>
 #include <memory>
 #include <set>
+#include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -22,7 +25,9 @@
 #include "api/array_view.h"
 #include "common_audio/include/audio_util.h"
 #include "common_audio/wav_file.h"
+#include "modules/audio_processing/test/conversational_speech/multiend_call.h"
 #include "modules/audio_processing/test/conversational_speech/wavreader_interface.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "test/testsupport/file_utils.h"

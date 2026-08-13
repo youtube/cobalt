@@ -2845,7 +2845,7 @@ SerializedPacket MakePacketWithAckFrequencyFrame(
     int packet_number, int ack_frequency_sequence_number,
     QuicTime::Delta max_ack_delay) {
   auto* ack_frequency_frame = new QuicAckFrequencyFrame();
-  ack_frequency_frame->max_ack_delay = max_ack_delay;
+  ack_frequency_frame->requested_max_ack_delay = max_ack_delay;
   ack_frequency_frame->sequence_number = ack_frequency_sequence_number;
   SerializedPacket packet(QuicPacketNumber(packet_number),
                           PACKET_4BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
@@ -3074,13 +3074,13 @@ TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrame) {
       /*now=*/QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(24));
 
   auto frame = manager_.GetUpdatedAckFrequencyFrame();
-  EXPECT_EQ(frame.max_ack_delay,
+  EXPECT_EQ(frame.requested_max_ack_delay,
             std::max(rtt_stats->min_rtt() * 0.25,
                      QuicTime::Delta::FromMilliseconds(1u)));
 #if BUILDFLAG(IS_COBALT)
-  EXPECT_EQ(frame.packet_tolerance, kMaxRetransmittablePacketsBeforeAck);
+  EXPECT_EQ(frame.ack_eliciting_threshold, kMaxRetransmittablePacketsBeforeAck);
 #else
-  EXPECT_EQ(frame.packet_tolerance, 10u);
+  EXPECT_EQ(frame.ack_eliciting_threshold, 10u);
 #endif
 }
 
@@ -3220,7 +3220,7 @@ TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrameWithSRTT) {
       /*now=*/QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(24));
 
   auto frame = manager_.GetUpdatedAckFrequencyFrame();
-  EXPECT_EQ(frame.max_ack_delay,
+  EXPECT_EQ(frame.requested_max_ack_delay,
             std::max(rtt_stats->SmoothedOrInitialRtt() * 0.25,
                      QuicTime::Delta::FromMilliseconds(1u)));
 }
@@ -3558,6 +3558,30 @@ TEST_F(QuicSentPacketManagerTest, EcnAckedButNoMarksReported) {
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
                                    ENCRYPTION_FORWARD_SECURE, ecn_counts));
+}
+
+// Test that the path degrading delay is set correctly when the path degrading
+// connection option is set.
+TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelayUsingPTO) {
+  QuicConfig client_config;
+  QuicTagVector all_path_dergradation_options = {kPDE2, kPDE3, kPDE5};
+  uint8_t pto_count = 2;
+  for (QuicTag current_dergradation_option : all_path_dergradation_options) {
+    QuicTagVector client_options;
+    client_options.push_back(current_dergradation_option);
+    QuicSentPacketManagerPeer::SetPerspective(&manager_,
+                                              Perspective::IS_CLIENT);
+    client_config.SetClientConnectionOptions(client_options);
+    EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+    EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+    manager_.SetFromConfig(client_config);
+    QuicTime::Delta expected_delay = pto_count * manager_.GetPtoDelay();
+    EXPECT_EQ(expected_delay, manager_.GetPathDegradingDelay());
+    pto_count++;
+    if (pto_count == 4) {
+      pto_count++;
+    }
+  }
 }
 
 }  // namespace

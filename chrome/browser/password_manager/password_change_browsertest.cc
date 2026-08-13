@@ -794,7 +794,7 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
-                       FailureDialogDisplayedAutomatically) {
+                       FailureBubbleNotDisplayedAutomatically) {
   SetPrivacyNoticeAcceptedPref();
   const GURL main_url = WebContents()->GetLastCommittedURL();
   EXPECT_CALL(*affiliation_service(), GetChangePasswordURL(main_url))
@@ -813,12 +813,13 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
     return delegate->GetCurrentState() ==
            PasswordChangeDelegate::State::kPasswordChangeFailed;
   }));
-  // Now bubble should automatically appear.
-  EXPECT_TRUE(prompt_observer.IsBubbleDisplayedAutomatically());
+
+  // TODO(crbug.com/417388947): Check that dialog is displayed instead.
+  EXPECT_FALSE(prompt_observer.IsBubbleDisplayedAutomatically());
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
-                       LeakCheckBubbleDisplayedAutomatically) {
+                       LeakCheckBubbleNotDisplayedAutomatically) {
   const GURL main_url = WebContents()->GetLastCommittedURL();
   EXPECT_CALL(*affiliation_service(), GetChangePasswordURL(main_url))
       .WillOnce(testing::Return(embedded_test_server()->GetURL(
@@ -832,8 +833,9 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
       password_change_service()->GetPasswordChangeDelegate(WebContents());
   EXPECT_EQ(delegate->GetCurrentState(),
             PasswordChangeDelegate::State::kOfferingPasswordChange);
-  // Now bubble should automatically appear.
-  EXPECT_TRUE(prompt_observer.IsBubbleDisplayedAutomatically());
+
+  // TODO(crbug.com/417388947): Check that dialog is displayed instead.
+  EXPECT_FALSE(prompt_observer.IsBubbleDisplayedAutomatically());
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
@@ -931,6 +933,7 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest, OTPDetectionHaltsTheFlow) {
 
   EXPECT_EQ(PasswordChangeDelegate::State::kOtpDetected,
             delegate->GetCurrentState());
-  EXPECT_TRUE(prompt_observer.IsBubbleDisplayedAutomatically());
-  EXPECT_EQ(1, browser()->tab_strip_model()->count());
+  // TODO(crbug.com/417388947): Check that dialog is displayed instead.
+  EXPECT_FALSE(prompt_observer.IsBubbleDisplayedAutomatically());
+  EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
 }

@@ -9,21 +9,19 @@
  */
 
 #include <array>
+#include <cstdlib>
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "common_audio/resampler/push_sinc_resampler.h"
 #include "modules/audio_processing/agc2/cpu_features.h"
+#include "modules/audio_processing/agc2/rnn_vad/common.h"
 #include "modules/audio_processing/agc2/rnn_vad/features_extraction.h"
 #include "modules/audio_processing/agc2/rnn_vad/rnn.h"
 #include "modules/audio_processing/agc2/rnn_vad/test_utils.h"
 #include "modules/audio_processing/test/performance_timer.h"
-#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "test/gtest.h"
-#include "third_party/rnnoise/src/rnn_activations.h"
-#include "third_party/rnnoise/src/rnn_vad_weights.h"
 
 namespace webrtc {
 namespace rnn_vad {

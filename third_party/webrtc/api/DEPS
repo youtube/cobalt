@@ -107,6 +107,11 @@ specific_include_rules = {
     "+modules/include/module_fec_types.h",
   ],
 
+  "jsep\.h": [
+    "+absl/strings/has_absl_stringify.h",
+    "+absl/strings/str_format.h",
+  ],
+
   "packet_socket_factory\.h": [
     "+rtc_base/async_packet_socket.h",
     "+rtc_base/socket_address.h",

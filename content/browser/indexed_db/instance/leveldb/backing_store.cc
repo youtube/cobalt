@@ -43,8 +43,8 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/system/sys_info.h"
 #include "base/time/time.h"
-#include "base/trace_event/base_tracing.h"
 #include "base/trace_event/memory_dump_manager.h"
+#include "base/trace_event/trace_event.h"
 #include "base/types/expected_macros.h"
 #include "build/build_config.h"
 #include "components/services/storage/indexed_db/locks/partitioned_lock.h"
@@ -2170,6 +2170,19 @@ void BackingStore::FlushForTesting() {
   db_->CompactAll();
 }
 
+blink::mojom::IDBValuePtr BackingStore::Transaction::BuildMojoValue(
+    IndexedDBValue value) {
+  auto mojo_value = blink::mojom::IDBValue::New();
+  if (!value.empty()) {
+    mojo_value->bits = std::move(value.bits);
+  }
+  IndexedDBExternalObject::ConvertToMojo(value.external_objects,
+                                         &mojo_value->external_objects);
+  backing_store_->bucket_context_->CreateAllExternalObjects(
+      value.external_objects, &mojo_value->external_objects);
+  return mojo_value;
+}
+
 StatusOr<IndexedDBValue> BackingStore::Transaction::GetRecord(
     int64_t object_store_id,
     const IndexedDBKey& key) {
@@ -2969,42 +2982,39 @@ StatusOr<IndexedDBKey> BackingStore::Transaction::GetPrimaryKeyViaIndex(
   return base::unexpected(InvalidDBKeyStatus());
 }
 
-Status BackingStore::Transaction::KeyExistsInIndex(
+StatusOr<IndexedDBKey> BackingStore::Transaction::KeyExistsInIndex(
     int64_t object_store_id,
     int64_t index_id,
-    const IndexedDBKey& index_key,
-    std::unique_ptr<IndexedDBKey>* found_primary_key,
-    bool* exists) {
+    const IndexedDBKey& index_key) {
   TRACE_EVENT0("IndexedDB", "BackingStore::KeyExistsInIndex");
 
   if (!KeyPrefix::ValidIds(database_id(), object_store_id, index_id)) {
-    return InvalidDBKeyStatus();
+    return base::unexpected(InvalidDBKeyStatus());
   }
 
-  *exists = false;
+  bool exists = false;
   std::string found_encoded_primary_key;
   Status s = FindKeyInIndex(object_store_id, index_id, index_key,
-                            &found_encoded_primary_key, exists);
+                            &found_encoded_primary_key, &exists);
   if (!s.ok()) {
     INTERNAL_READ_ERROR(KEY_EXISTS_IN_INDEX);
-    return s;
+    return base::unexpected(s);
   }
-  if (!*exists) {
-    return Status::OK();
+  if (!exists) {
+    return IndexedDBKey();
   }
   if (found_encoded_primary_key.empty()) {
     INTERNAL_READ_ERROR(KEY_EXISTS_IN_INDEX);
-    return InvalidDBKeyStatus();
+    return base::unexpected(InvalidDBKeyStatus());
   }
 
   std::string_view slice(found_encoded_primary_key);
   if (IndexedDBKey primary_key = DecodeIDBKey(&slice);
       primary_key.IsValid() && slice.empty()) {
-    *found_primary_key = std::make_unique<IndexedDBKey>(std::move(primary_key));
-    return Status::OK();
+    return std::move(primary_key);
   }
 
-  return InvalidDBKeyStatus();
+  return base::unexpected(InvalidDBKeyStatus());
 }
 
 StatusOr<std::vector<std::u16string>> BackingStore::GetDatabaseNames() {
@@ -4056,6 +4066,7 @@ BackingStore::Transaction::Transaction(
 
 BackingStore::Transaction::~Transaction() {
   DCHECK(!committing_);
+  backing_store_->OnTransactionComplete(tombstone_threshold_exceeded_);
 }
 
 void BackingStore::Transaction::Begin(std::vector<PartitionedLock> locks) {
@@ -4588,12 +4599,6 @@ Status BackingStore::Transaction::WriteNewBlobs(BlobWriteCallback callback) {
     }
   }
   return Status::OK();
-}
-
-void BackingStore::Transaction::Reset() {
-  backing_store_->OnTransactionComplete(tombstone_threshold_exceeded_);
-  backing_store_.reset();
-  transaction_ = nullptr;
 }
 
 void BackingStore::Transaction::Rollback() {

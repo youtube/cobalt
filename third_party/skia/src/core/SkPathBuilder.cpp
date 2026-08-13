@@ -15,6 +15,7 @@
 #include "include/private/base/SkFloatingPoint.h"
 #include "include/private/base/SkSafe32.h"
 #include "include/private/base/SkTArray.h"
+#include "include/private/base/SkTo.h"
 #include "src/base/SkVx.h"
 #include "src/core/SkGeometry.h"
 #include "src/core/SkMatrixPriv.h"
@@ -25,7 +26,6 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <iterator>
 #include <utility>
 
 namespace {
@@ -122,9 +122,7 @@ std::tuple<SkPoint*, SkScalar*> SkPathBuilder::growForVerbsInPath(const SkPathRe
 }
 
 SkRect SkPathBuilder::computeBounds() const {
-    SkRect bounds;
-    bounds.setBounds(fPts.begin(), fPts.size());
-    return bounds;
+    return SkRect::BoundsOrEmpty(fPts);
 }
 
 /*
@@ -361,7 +359,7 @@ static int build_arc_conics(const SkRect& oval, const SkVector& start, const SkV
 
     int count = SkConic::BuildUnitArc(start, stop, dir, &matrix, conics);
     if (0 == count) {
-        matrix.mapXY(stop.x(), stop.y(), singlePt);
+        *singlePt = matrix.mapPoint(stop);
     }
     return count;
 }
@@ -504,7 +502,7 @@ SkPathBuilder& SkPathBuilder::arcTo(SkPoint rad, SkScalar angle, SkPathBuilder::
                                     SkPathDirection arcSweep, SkPoint endPt) {
     this->ensureMove();
 
-    SkPoint srcPts[2] = { fPts.back(), endPt };
+    const SkPoint srcPts[2] = { fPts.back(), endPt };
 
     // If rx = 0 or ry = 0 then this arc is treated as a straight line segment (a "lineto")
     // joining the endpoints.
@@ -525,8 +523,7 @@ SkPathBuilder& SkPathBuilder::arcTo(SkPoint rad, SkScalar angle, SkPathBuilder::
     SkMatrix pointTransform;
     pointTransform.setRotate(-angle);
 
-    SkPoint transformedMidPoint;
-    pointTransform.mapPoints(&transformedMidPoint, &midPointDistance, 1);
+    SkPoint transformedMidPoint = pointTransform.mapPoint(midPointDistance);
     SkScalar squareRx = rx * rx;
     SkScalar squareRy = ry * ry;
     SkScalar squareX = transformedMidPoint.fX * transformedMidPoint.fX;
@@ -545,7 +542,7 @@ SkPathBuilder& SkPathBuilder::arcTo(SkPoint rad, SkScalar angle, SkPathBuilder::
     pointTransform.preRotate(-angle);
 
     SkPoint unitPts[2];
-    pointTransform.mapPoints(unitPts, srcPts, (int) std::size(unitPts));
+    pointTransform.mapPoints(unitPts, srcPts);
     SkVector delta = unitPts[1] - unitPts[0];
 
     SkScalar d = delta.fX * delta.fX + delta.fY * delta.fY;
@@ -570,7 +567,7 @@ SkPathBuilder& SkPathBuilder::arcTo(SkPoint rad, SkScalar angle, SkPathBuilder::
         thetaArc -= SK_ScalarPI * 2;
     }
 
-    // Very tiny angles cause our subsequent math to go wonky (skbug.com/9272)
+    // Very tiny angles cause our subsequent math to go wonky (skbug.com/40040578)
     // so we do a quick check here. The precise tolerance amount is just made up.
     // PI/million happens to fix the bug in 9272, but a larger value is probably
     // ok too.
@@ -607,7 +604,7 @@ SkPathBuilder& SkPathBuilder::arcTo(SkPoint rad, SkScalar angle, SkPathBuilder::
         unitPts[0] = unitPts[1];
         unitPts[0].offset(t * sinEndTheta, -t * cosEndTheta);
         SkPoint mapped[2];
-        pointTransform.mapPoints(mapped, unitPts, (int) std::size(unitPts));
+        pointTransform.mapPoints(mapped, unitPts);
         /*
         Computing the arc width introduces rounding errors that cause arcs to start
         outside their marks. A round rect may lose convexity as a result. If the input
@@ -806,25 +803,26 @@ SkPathBuilder& SkPathBuilder::addCircle(SkScalar x, SkScalar y, SkScalar r, SkPa
     return *this;
 }
 
-SkPathBuilder& SkPathBuilder::addPolygon(const SkPoint pts[], int count, bool isClosed) {
-    if (count <= 0) {
+SkPathBuilder& SkPathBuilder::addPolygon(SkSpan<const SkPoint> pts, bool isClosed) {
+    if (pts.empty()) {
         return *this;
     }
 
     this->moveTo(pts[0]);
-    this->polylineTo(&pts[1], count - 1);
+    this->polylineTo(pts.last(pts.size() - 1));
     if (isClosed) {
         this->close();
     }
     return *this;
 }
 
-SkPathBuilder& SkPathBuilder::polylineTo(const SkPoint pts[], int count) {
-    if (count > 0) {
+SkPathBuilder& SkPathBuilder::polylineTo(SkSpan<const SkPoint> pts) {
+    if (!pts.empty()) {
         this->ensureMove();
 
+        const auto count = pts.size();
         this->incReserve(count, count);
-        memcpy(fPts.push_back_n(count), pts, count * sizeof(SkPoint));
+        memcpy(fPts.push_back_n(count), pts.data(), count * sizeof(SkPoint));
         memset(fVerbs.push_back_n(count), (uint8_t)SkPathVerb::kLine, count);
         fSegmentMask |= kLine_SkPathSegmentMask;
     }
@@ -869,7 +867,8 @@ SkPathBuilder& SkPathBuilder::addPath(const SkPath& src, const SkMatrix& matrix,
         }
 
         auto [newPts, newWeights] = this->growForVerbsInPath(*src.fPathRef);
-        matrix.mapPoints(newPts, src.fPathRef->points(), src.countPoints());
+        const auto count = src.countPoints();
+        matrix.mapPoints({newPts, count}, {src.fPathRef->points(), count});
         if (int numWeights = src.fPathRef->countWeights()) {
             memcpy(newWeights, src.fPathRef->conicWeights(), numWeights * sizeof(newWeights[0]));
         }
@@ -1071,7 +1070,7 @@ SkPathBuilder& SkPathBuilder::transform(const SkMatrix& matrix, SkApplyPerspecti
         }
     }
 
-    matrix.mapPoints(fPts.data(), fPts.size());
+    matrix.mapPoints(fPts);
 
     // TODO: handle bounds, convexity, and direction when added.
 

@@ -98,7 +98,7 @@ void WebRtcSessionDescriptionFactory::CopyCandidatesFromSessionDescription(
     return;
   }
   for (size_t n = 0; n < source_candidates->count(); ++n) {
-    const IceCandidateInterface* new_candidate = source_candidates->at(n);
+    const IceCandidate* new_candidate = source_candidates->at(n);
     if (!dest_candidates->HasCandidate(new_candidate)) {
       dest_desc->AddCandidate(source_candidates->at(n));
     }
