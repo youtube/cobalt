@@ -73,9 +73,7 @@ bool IsFeatureEnabledOrDefaultOnAndroidU(
 
 bool ShouldEnableFlushDuringSeek(
     const ExperimentalFeatures& experimental_features) {
-  return IsFeatureEnabledOrDefaultOnAndroidU(
-      features::kForceFlushDecoderDuringReset, experimental_features,
-      kMediaEnableFlushDuringSeek);
+  return false;
 }
 
 bool ShouldEnableResetAudioDecoder(
@@ -380,20 +378,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     bool enable_flush_during_seek = ShouldEnableFlushDuringSeek(
         creation_parameters.experimental_features());
-    if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
-        !creation_parameters.video_mime().empty()) {
-      auto video_mime_type = MimeType::Create(creation_parameters.video_mime());
-      if (video_mime_type &&
-          video_mime_type->ValidateBoolParameter("enableflushduringseek")) {
-        enable_flush_during_seek =
-            enable_flush_during_seek ||
-            video_mime_type->GetParamBoolValue("enableflushduringseek", false);
-      }
-    }
-    SB_LOG_IF(INFO, enable_flush_during_seek)
-        << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
-        << " audio passthrough decoder during Reset().";
-
+    SB_LOG(INFO) << "enable_flush_during_seek="
+                 << ToString(enable_flush_during_seek);
     SB_LOG(INFO) << "Creating passthrough components.";
     // TODO: Enable tunnel mode for passthrough
     auto audio_renderer = AudioRendererPassthrough::Create(
@@ -526,17 +512,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << ".";
 
     bool enable_flush_during_seek =
-        ShouldEnableFlushDuringSeek(experimental_features) ||
-        (video_mime_type &&
-         video_mime_type->GetParamBoolValue("enableflushduringseek", false));
-    SB_LOG_IF(INFO, enable_flush_during_seek)
-        << "`enable_flush_during_seek` is set to true, force flushing"
-        << " audio decoder during Reset(). Video mime parameter "
-        << "\"enableflushduringseek\" value: "
-        << (video_mime_type ? video_mime_type->GetParamStringValue(
-                                  "enableflushduringseek", "<not provided>")
-                            : "<not provided>")
-        << ".";
+        ShouldEnableFlushDuringSeek(experimental_features);
+    SB_LOG(INFO) << "enable_flush_during_seek="
+                 << ToString(enable_flush_during_seek);
 
     bool allow_flush_audio_track_during_seek =
         FeatureList::IsEnabled(features::kForceFlushAudioTrackDuringReset) ||
@@ -658,17 +636,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                                                  /*default=*/"little");
         force_big_endian_hdr_metadata = hdr_info_endianness == "big";
       }
-      if (video_mime_type &&
-          video_mime_type->ValidateBoolParameter("enableflushduringseek")) {
-        enable_flush_during_seek =
-            enable_flush_during_seek ||
-            video_mime_type->GetParamBoolValue("enableflushduringseek", false);
-      }
     }
 
-    SB_LOG_IF(INFO, enable_flush_during_seek)
-        << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
-        << " video decoder during Reset().";
+    SB_LOG(INFO) << "enable_flush_during_seek="
+                 << ToString(enable_flush_during_seek);
     SB_LOG_IF(INFO, flush_delay_usec > 0)
         << "`kFlushDelayUsec` is set to > 0, force a delay of "
         << flush_delay_usec << "us during Flush().";
