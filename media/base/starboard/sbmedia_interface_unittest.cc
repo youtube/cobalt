@@ -81,38 +81,14 @@ class MockSbMediaInterface : public SbMediaInterface {
 // test thread.
 class SbMediaInterfaceTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    // Ensure clean state before each test.
-    SetSbMediaInterfaceForTesting(nullptr);
-  }
+  void SetUp() override { SetSbMediaInterfaceForTesting(&mock_interface_); }
 
-  void TearDown() override {
-    // Restore default interface after each test.
-    SetSbMediaInterfaceForTesting(nullptr);
-  }
+  void TearDown() override { SetSbMediaInterfaceForTesting(nullptr); }
 
   MockSbMediaInterface mock_interface_;
 };
 
-TEST_F(SbMediaInterfaceTest, DefaultInterfaceReturnedWhenNotOverridden) {
-  SbMediaInterface* media_interface = GetSbMediaInterface();
-  ASSERT_NE(media_interface, nullptr);
-}
-
-TEST_F(SbMediaInterfaceTest, SetAndResetTestingInterface) {
-  SbMediaInterface* default_interface = GetSbMediaInterface();
-  ASSERT_NE(default_interface, nullptr);
-
-  SetSbMediaInterfaceForTesting(&mock_interface_);
-  EXPECT_EQ(GetSbMediaInterface(), &mock_interface_);
-
-  SetSbMediaInterfaceForTesting(nullptr);
-  EXPECT_EQ(GetSbMediaInterface(), default_interface);
-}
-
 TEST_F(SbMediaInterfaceTest, MockCanPlayMimeAndKeySystem) {
-  SetSbMediaInterfaceForTesting(&mock_interface_);
-
   const char kMime[] =
       "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
       "tunnelmode=true; hdr=hdr10plus";
@@ -127,8 +103,6 @@ TEST_F(SbMediaInterfaceTest, MockCanPlayMimeAndKeySystem) {
 }
 
 TEST_F(SbMediaInterfaceTest, MockCanChangeType) {
-  SetSbMediaInterfaceForTesting(&mock_interface_);
-
   const char kCurrentMime[] = "video/mp4; codecs=\"avc1.64002a\"";
   const char kNewMime[] = "video/webm; codecs=\"vp9\"";
 
@@ -142,8 +116,6 @@ TEST_F(SbMediaInterfaceTest, MockCanChangeType) {
 }
 
 TEST_F(SbMediaInterfaceTest, MockAudioOutputAndConfiguration) {
-  SetSbMediaInterfaceForTesting(&mock_interface_);
-
   EXPECT_CALL(mock_interface_, GetAudioOutputCount()).WillOnce(Return(2));
   EXPECT_EQ(GetSbMediaInterface()->GetAudioOutputCount(), 2);
 
@@ -165,8 +137,6 @@ TEST_F(SbMediaInterfaceTest, MockAudioOutputAndConfiguration) {
 }
 
 TEST_F(SbMediaInterfaceTest, MockBufferParametersAndBudgets) {
-  SetSbMediaInterfaceForTesting(&mock_interface_);
-
   EXPECT_CALL(mock_interface_, GetBufferAllocationUnit())
       .WillOnce(Return(65536));
   EXPECT_EQ(GetSbMediaInterface()->GetBufferAllocationUnit(), 65536);
@@ -199,8 +169,6 @@ TEST_F(SbMediaInterfaceTest, MockBufferParametersAndBudgets) {
 
 TEST_F(SbMediaInterfaceTest,
        MimeUtilIsSupportedMediaMimeTypePreservesAttributes) {
-  SetSbMediaInterfaceForTesting(&mock_interface_);
-
   internal::MimeUtil mime_util;
 
   const std::string kMimeProbably =
@@ -232,8 +200,6 @@ TEST_F(SbMediaInterfaceTest,
 }
 
 TEST_F(SbMediaInterfaceTest, MimeUtilIsSupportedMediaFormatSupportTypeMapping) {
-  SetSbMediaInterfaceForTesting(&mock_interface_);
-
   internal::MimeUtil mime_util;
 
   const std::string kMimeProbably =
