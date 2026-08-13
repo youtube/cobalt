@@ -51,12 +51,7 @@ declare_args() {
   # Apple platforms provide the intrinsics from a different library, and the
   # implementations in compiler-rt are outdated, so avoid building them in this
   # case.
-<<<<<<< HEAD
-  use_llvm_libatomic = !is_apple
-=======
-  use_llvm_libatomic = !is_apple && !is_nacl &&
-                       !(is_cobalt && is_partner_toolchain)
->>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  use_llvm_libatomic = !is_apple && !(is_cobalt && is_partner_toolchain)
 }
 
 use_custom_libcxx =
