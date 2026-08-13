@@ -301,8 +301,13 @@ TEST_F(StarboardRendererWrapperTest, InitializeWithBypassBridge) {
       base::DoNothing());
   AddStream(DemuxerStream::AUDIO, false);
   AddStream(DemuxerStream::VIDEO, false);
-  streams_[0]->set_mime_type("audio/mp4");
-  streams_[1]->set_mime_type("video/mp4");
+  AudioDecoderConfig audio_config = streams_[0]->audio_decoder_config();
+  audio_config.set_mime_type("audio/mp4");
+  streams_[0]->set_audio_decoder_config(audio_config);
+
+  VideoDecoderConfig video_config = streams_[1]->video_decoder_config();
+  video_config.set_mime_type("video/mp4");
+  streams_[1]->set_video_decoder_config(video_config);
   bypass_bridge->SetStreams(streams_[0].get(), streams_[1].get());
   uint32_t bridge_id = 12345;
   BypassBridgeRegistry::Register(bridge_id, bypass_bridge);
@@ -398,8 +403,13 @@ TEST_F(StarboardRendererWrapperTest, ProxyDemuxerStreamDelegation) {
       base::DoNothing());
   AddStream(DemuxerStream::AUDIO, false);
   AddStream(DemuxerStream::VIDEO, false);
-  streams_[0]->set_mime_type("audio/mp4");
-  streams_[1]->set_mime_type("video/mp4");
+  AudioDecoderConfig audio_config = streams_[0]->audio_decoder_config();
+  audio_config.set_mime_type("audio/mp4");
+  streams_[0]->set_audio_decoder_config(audio_config);
+
+  VideoDecoderConfig video_config = streams_[1]->video_decoder_config();
+  video_config.set_mime_type("video/mp4");
+  streams_[1]->set_video_decoder_config(video_config);
   bypass_bridge->SetStreams(streams_[0].get(), streams_[1].get());
 
   uint32_t bridge_id = 12345;
@@ -428,15 +438,14 @@ TEST_F(StarboardRendererWrapperTest, ProxyDemuxerStreamDelegation) {
 
   ASSERT_NE(captured_media_resource, nullptr);
 
-  // Verify delegation of mime_type() and EnableBitstreamConverter() through
-  // proxy streams.
+  // Verify delegation of EnableBitstreamConverter() through proxy streams.
   EXPECT_CALL(*streams_[0], EnableBitstreamConverter());
   EXPECT_CALL(*streams_[1], EnableBitstreamConverter());
 
   auto proxy_streams = captured_media_resource->GetAllStreams();
   ASSERT_EQ(proxy_streams.size(), 2u);
-  EXPECT_EQ(proxy_streams[0]->mime_type(), "audio/mp4");
-  EXPECT_EQ(proxy_streams[1]->mime_type(), "video/mp4");
+  EXPECT_EQ(proxy_streams[0]->audio_decoder_config().mime_type(), "audio/mp4");
+  EXPECT_EQ(proxy_streams[1]->video_decoder_config().mime_type(), "video/mp4");
   proxy_streams[0]->EnableBitstreamConverter();
   proxy_streams[1]->EnableBitstreamConverter();
 }
@@ -447,8 +456,13 @@ TEST_F(StarboardRendererWrapperTest, TimerLifecycle) {
       base::DoNothing());
   AddStream(DemuxerStream::AUDIO, false);
   AddStream(DemuxerStream::VIDEO, false);
-  streams_[0]->set_mime_type("audio/mp4");
-  streams_[1]->set_mime_type("video/mp4");
+  AudioDecoderConfig audio_config = streams_[0]->audio_decoder_config();
+  audio_config.set_mime_type("audio/mp4");
+  streams_[0]->set_audio_decoder_config(audio_config);
+
+  VideoDecoderConfig video_config = streams_[1]->video_decoder_config();
+  video_config.set_mime_type("video/mp4");
+  streams_[1]->set_video_decoder_config(video_config);
   bypass_bridge->SetStreams(streams_[0].get(), streams_[1].get());
 
   uint32_t bridge_id = 12345;

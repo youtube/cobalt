@@ -96,6 +96,13 @@ public class JavaSwitches {
   public static final String COBALT_BYPASS_BUFFERING_BYTES_CONSUMER =
       "CobaltBypassBufferingBytesConsumer";
 
+  /** flag to bypass ResourceLoadScheduler subresource queueing and throttling. */
+  public static final String COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER =
+      "CobaltBypassResourceLoadScheduler";
+
+  /** flag to bypass Blink HTMLPreloadScanner and HTMLResourcePreloader. */
+  public static final String COBALT_BYPASS_HTML_PRELOAD_SCANNER = "CobaltBypassHTMLPreloadScanner";
+
   /** flag to aggressively flush v8 bytecode after a configurable old time. */
   public static final String V8_SET_BYTECODE_OLD_TIME = "V8SetBytecodeOldTime";
 
@@ -110,6 +117,13 @@ public class JavaSwitches {
   /** flag to allow critical memory pressure handling in foreground for V8. */
   public static final String ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND =
       "AllowCriticalMemoryPressureHandlingInForeground";
+
+  /**
+   * Flag to disable LessAggressiveParkableString feature to unpause foreground compression and use
+   * a 2-second aging interval.
+   */
+  public static final String DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING =
+      "DisableLessAggressiveParkableString";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
@@ -264,9 +278,18 @@ public class JavaSwitches {
           "--enable-features=" + JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER);
     }
 
+    if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER)) {
+      extraCommandLineArgs.add(
+          "--enable-features=" + JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER);
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER)) {
+      extraCommandLineArgs.add(
+          "--enable-features=" + JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER);
+    }
+
     if (javaSwitches.containsKey(JavaSwitches.DIRECT_WINDOW_RENDERING)) {
       extraCommandLineArgs.add("--use-window-surface-for-ui");
-      extraCommandLineArgs.add("--enable-h5vcc-settings=Media.ForceClearSurfaceView=1");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
@@ -276,6 +299,10 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(
         JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)) {
       extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING)) {
+      extraCommandLineArgs.add("--disable-features=LessAggressiveParkableString");
     }
 
     return extraCommandLineArgs;

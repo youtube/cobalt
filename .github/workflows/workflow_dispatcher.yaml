@@ -4,7 +4,7 @@ on:
   pull_request_target:
     types: [labeled]
 
-permissions: read-all
+permissions: {}
 
 jobs:
   dispatch:
@@ -12,43 +12,29 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: write
+      pull-requests: write
     steps:
-      - name: Checkout Workflows
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          sparse-checkout: .github/workflows
-          sparse-checkout-cone-mode: false
       - name: Check label and trigger PR jobs
         uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require('fs');
-            const path = require('path');
-
             const pr = context.payload.pull_request;
             const labelName = context.payload.label.name;
-            let workflows = [];
 
+            const PLATFORM_WORKFLOWS = [
+              'android.yaml',
+              'aosp.yaml',
+              'evergreen.yaml',
+              'linux.yaml',
+              'tvos.yaml'
+            ];
+
+            let workflows = [];
             if (labelName === 'kokoro:run' || labelName === 'kokoro:force-run') {
               workflows = ['tvos.yaml'];
             } else {
-              const workflowsDir = path.join(process.env.GITHUB_WORKSPACE, '.github/workflows');
-              const files = fs.readdirSync(workflowsDir);
-
-              for (const file of files) {
-                if (file.endsWith('.yaml') || file.endsWith('.yml')) {
-                  if (file === 'workflow_dispatcher.yaml' || file === 'main.yaml') {
-                    continue;
-                  }
-                  const content = fs.readFileSync(path.join(workflowsDir, file), 'utf8');
-                  const regex = /uses:\s*['"]?\.\/\.github\/workflows\/main\.yaml['"]?/;
-                  if (regex.test(content)) {
-                    workflows.push(file);
-                  }
-                }
-              }
+              workflows = PLATFORM_WORKFLOWS;
             }
 
             console.log(`Triggering workflows for label ${labelName}:`, workflows);
@@ -75,5 +61,19 @@ jobs:
                 });
               } catch (error) {
                 console.error(`Failed to rerun ${workflow}:`, error);
+              }
+            }
+
+            // Remove runtest label after triggering all workflows
+            if (labelName === 'runtest') {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  name: 'runtest'
+                });
+              } catch (error) {
+                console.error('Failed to remove runtest label:', error);
               }
             }

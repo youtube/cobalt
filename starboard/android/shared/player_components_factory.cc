@@ -351,10 +351,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     MediaCodecVideoDecoder::SetVideoFramePoolEnabled(
         experimental_features.GetBool(kMediaVideoFrameImplPool));
 
-    if (experimental_features.GetBool(kMediaEnableAppProvisioning)) {
-      MediaCapabilitiesCache::GetInstance()->SetAppProvisioningEnabled(true);
-      SB_LOG(INFO) << "`enable_app_provisioning` is set to true.";
-    }
     if (experimental_features.GetBool(kMediaEnableAv1StartupOptimization)) {
       MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(true);
       SB_LOG(INFO) << "`enable_av1_startup_optimization` is set to true.";
@@ -644,7 +640,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       int max_video_input_size) {
     auto experimental_features = creation_parameters.experimental_features();
 
-    bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
         ShouldEnableFlushDuringSeek(experimental_features);
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
@@ -652,16 +647,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
-      // Use mime param to determine endianness of HDR metadata. If param is
-      // missing or invalid it defaults to Little Endian.
       auto video_mime_type = MimeType::Create(creation_parameters.video_mime());
-      if (video_mime_type && video_mime_type->ValidateStringParameter(
-                                 "hdrinfoendianness", "big|little")) {
-        const std::string& hdr_info_endianness =
-            video_mime_type->GetParamStringValue("hdrinfoendianness",
-                                                 /*default=*/"little");
-        force_big_endian_hdr_metadata = hdr_info_endianness == "big";
-      }
       if (video_mime_type &&
           video_mime_type->ValidateBoolParameter("enableflushduringseek")) {
         enable_flush_during_seek =
@@ -694,7 +680,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         {tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode},
         {max_video_input_size, enable_flush_during_seek, use_dual_threads,
          experimental_features},
-        {force_big_endian_hdr_metadata, reset_delay_usec, flush_delay_usec});
+        {reset_delay_usec, flush_delay_usec});
   }
 
   bool IsTunnelModeSupported(const CreationParameters& creation_parameters,
