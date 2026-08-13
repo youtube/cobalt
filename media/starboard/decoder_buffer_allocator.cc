@@ -21,9 +21,11 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/types/expected.h"
 #include "build/build_config.h"
 #include "media/base/media_switches.h"
+#include "media/base/starboard/sbmedia_interface.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/bidirectional_fit_decoder_buffer_allocator_strategy.h"
 #include "media/starboard/media_buffer_pool_decoder_buffer_allocator_strategy.h"
@@ -34,7 +36,6 @@
 #include "starboard/common/external_metadata_reuse_allocator_base.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/media.h"
 
 namespace media {
 
@@ -68,9 +69,10 @@ base::expected<void, std::string> ProcessEnableOnlySetting(
 }  // namespace
 
 DecoderBufferAllocator::DecoderBufferAllocator()
-    : DecoderBufferAllocator(SbMediaIsBufferPoolAllocateOnDemand(),
-                             SbMediaGetInitialBufferCapacity(),
-                             SbMediaGetBufferAllocationUnit()) {}
+    : DecoderBufferAllocator(
+          GetSbMediaInterface()->IsBufferPoolAllocateOnDemand(),
+          GetSbMediaInterface()->GetInitialBufferCapacity(),
+          GetSbMediaInterface()->GetBufferAllocationUnit()) {}
 
 DecoderBufferAllocator::DecoderBufferAllocator(
     bool is_memory_pool_allocated_on_demand,
@@ -81,6 +83,9 @@ DecoderBufferAllocator::DecoderBufferAllocator(
       allocation_unit_(allocation_unit) {
   DCHECK_GE(initial_capacity_, 0);
   DCHECK_GE(allocation_unit_, 0);
+
+  base::UmaHistogramBoolean("Cobalt.Media.IsBufferPoolAllocateOnDemand",
+                            is_memory_pool_allocated_on_demand_);
 
   if (is_memory_pool_allocated_on_demand_) {
     LOG(INFO) << "Allocated decoder buffer pool on demand.";
@@ -218,7 +223,7 @@ void DecoderBufferAllocator::Write(Handle handle,
 base::TimeDelta
 DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold() const {
   return base::Microseconds(
-      SbMediaGetBufferGarbageCollectionDurationThreshold());
+      GetSbMediaInterface()->GetBufferGarbageCollectionDurationThreshold());
 }
 
 size_t DecoderBufferAllocator::GetAllocatedMemory() const {

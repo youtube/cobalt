@@ -194,8 +194,7 @@ MediaCodecBridge::CreateVideoMediaCodec(
           mastering_metadata.white_point_chromaticity_x,
           mastering_metadata.white_point_chromaticity_y,
           mastering_metadata.luminance_max, mastering_metadata.luminance_min,
-          color_metadata->max_cll, color_metadata->max_fall,
-          platform_options.force_big_endian_hdr_metadata));
+          color_metadata->max_cll, color_metadata->max_fall));
     }
   }
 

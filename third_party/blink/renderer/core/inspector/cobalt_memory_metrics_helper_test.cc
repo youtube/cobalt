@@ -95,4 +95,46 @@ TEST_F(CobaltMemoryMetricsHelperTest, GetLiveMemoryBreakdownReturnsValidMetrics)
 #endif
 }
 
+TEST_F(CobaltMemoryMetricsHelperTest, GetPeakMemoryGuardrailsReturnsRecordedMetrics) {
+  const char* peak_metric_name =
+      "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.0to2min";
+  base::UmaHistogramMemoryMB(peak_metric_name, 150);  // 150 MiB
+
+  auto guardrails = GetPeakMemoryGuardrails();
+  ASSERT_TRUE(guardrails.has_value());
+
+  bool found_peak_0to2min = false;
+  for (const auto& entry : *guardrails) {
+    if (entry.name == peak_metric_name) {
+      found_peak_0to2min = true;
+      EXPECT_GE(entry.value_bytes, 100u * 1024u * 1024u);
+      EXPECT_LE(entry.value_bytes, 200u * 1024u * 1024u);
+    }
+  }
+  EXPECT_TRUE(found_peak_0to2min);
+}
+
+TEST_F(CobaltMemoryMetricsHelperTest,
+       HandlesOverflowBucketWithoutPetabyteCorruption) {
+  const char* peak_metric_name =
+      "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.2to4min";
+  // Emit a sample beyond the declared histogram max (1000 MiB) to land in the
+  // overflow bucket where max is INT_MAX.
+  base::UmaHistogramMemoryMB(peak_metric_name, 2000);  // 2000 MiB
+
+  auto guardrails = GetPeakMemoryGuardrails();
+  ASSERT_TRUE(guardrails.has_value());
+
+  bool found_peak_2to4min = false;
+  for (const auto& entry : *guardrails) {
+    if (entry.name == peak_metric_name) {
+      found_peak_2to4min = true;
+      // Should fall back to bucket min (~1000 MiB) rather than INT_MAX (~2.25 Petabytes).
+      EXPECT_GE(entry.value_bytes, 900u * 1024u * 1024u);
+      EXPECT_LE(entry.value_bytes, 2500u * 1024u * 1024u);
+    }
+  }
+  EXPECT_TRUE(found_peak_2to4min);
+}
+
 }  // namespace blink
