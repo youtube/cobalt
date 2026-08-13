@@ -62,27 +62,16 @@ int MaxMediaCodecOutputBuffersLookupTable::GetMaxOutputVideoBuffers(
   std::lock_guard scoped_lock(mutex_);
 
   auto iter = lookup_table_.find(format);
-  if (iter == lookup_table_.end() || !enable_) {
+  if (iter == lookup_table_.end()) {
     return -1;
-  } else {
-    return iter->second;
   }
-}
-
-void MaxMediaCodecOutputBuffersLookupTable::SetEnabled(bool enable) {
-  std::lock_guard scoped_lock(mutex_);
-
-  enable_ = enable;
+  return iter->second;
 }
 
 void MaxMediaCodecOutputBuffersLookupTable::UpdateMaxOutputBuffers(
     const VideoOutputFormat& format,
     int max_num_of_frames) {
   std::lock_guard scoped_lock(mutex_);
-
-  if (!enable_) {
-    return;
-  }
 
   int max_output_buffer_record = lookup_table_[format];
   if (max_num_of_frames > max_output_buffer_record) {
