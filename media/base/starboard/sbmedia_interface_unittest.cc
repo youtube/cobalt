@@ -203,20 +203,32 @@ TEST_F(SbMediaInterfaceTest,
 
   internal::MimeUtil mime_util;
 
-  const std::string kCustomMime =
+  const std::string kMimeProbably =
       "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
-      "tunnelmode=true; hdr=hdr10plus";
+      "tunnelmode=true; hdr=hdr10plus; test_id=1";
+  const std::string kMimeMaybe =
+      "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
+      "tunnelmode=true; hdr=hdr10plus; test_id=2";
+  const std::string kMimeNotSupported =
+      "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
+      "tunnelmode=true; hdr=hdr10plus; test_id=3";
 
   EXPECT_CALL(mock_interface_,
-              CanPlayMimeAndKeySystem(StrEq(kCustomMime.c_str()),
+              CanPlayMimeAndKeySystem(StrEq(kMimeProbably.c_str()),
                                       AnyOf(IsNull(), StrEq(""))))
-      .WillOnce(Return(kSbMediaSupportTypeProbably))
-      .WillOnce(Return(kSbMediaSupportTypeMaybe))
+      .WillOnce(Return(kSbMediaSupportTypeProbably));
+  EXPECT_CALL(mock_interface_,
+              CanPlayMimeAndKeySystem(StrEq(kMimeMaybe.c_str()),
+                                      AnyOf(IsNull(), StrEq(""))))
+      .WillOnce(Return(kSbMediaSupportTypeMaybe));
+  EXPECT_CALL(mock_interface_,
+              CanPlayMimeAndKeySystem(StrEq(kMimeNotSupported.c_str()),
+                                      AnyOf(IsNull(), StrEq(""))))
       .WillOnce(Return(kSbMediaSupportTypeNotSupported));
 
-  EXPECT_TRUE(mime_util.IsSupportedMediaMimeType(kCustomMime));
-  EXPECT_TRUE(mime_util.IsSupportedMediaMimeType(kCustomMime));
-  EXPECT_FALSE(mime_util.IsSupportedMediaMimeType(kCustomMime));
+  EXPECT_TRUE(mime_util.IsSupportedMediaMimeType(kMimeProbably));
+  EXPECT_TRUE(mime_util.IsSupportedMediaMimeType(kMimeMaybe));
+  EXPECT_FALSE(mime_util.IsSupportedMediaMimeType(kMimeNotSupported));
 }
 
 TEST_F(SbMediaInterfaceTest, MimeUtilIsSupportedMediaFormatSupportTypeMapping) {
@@ -224,25 +236,37 @@ TEST_F(SbMediaInterfaceTest, MimeUtilIsSupportedMediaFormatSupportTypeMapping) {
 
   internal::MimeUtil mime_util;
 
-  const std::string kCustomMime =
+  const std::string kMimeProbably =
       "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
-      "tunnelmode=true";
+      "tunnelmode=true; test_id=1";
+  const std::string kMimeMaybe =
+      "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
+      "tunnelmode=true; test_id=2";
+  const std::string kMimeNotSupported =
+      "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
+      "tunnelmode=true; test_id=3";
   const std::vector<std::string> kCodecs = {"avc1.64002a"};
 
   EXPECT_CALL(mock_interface_,
-              CanPlayMimeAndKeySystem(StrEq(kCustomMime.c_str()),
+              CanPlayMimeAndKeySystem(StrEq(kMimeProbably.c_str()),
                                       AnyOf(IsNull(), StrEq(""))))
-      .WillOnce(Return(kSbMediaSupportTypeProbably))
-      .WillOnce(Return(kSbMediaSupportTypeMaybe))
+      .WillOnce(Return(kSbMediaSupportTypeProbably));
+  EXPECT_CALL(mock_interface_,
+              CanPlayMimeAndKeySystem(StrEq(kMimeMaybe.c_str()),
+                                      AnyOf(IsNull(), StrEq(""))))
+      .WillOnce(Return(kSbMediaSupportTypeMaybe));
+  EXPECT_CALL(mock_interface_,
+              CanPlayMimeAndKeySystem(StrEq(kMimeNotSupported.c_str()),
+                                      AnyOf(IsNull(), StrEq(""))))
       .WillOnce(Return(kSbMediaSupportTypeNotSupported));
 
-  EXPECT_EQ(mime_util.IsSupportedMediaFormat(kCustomMime, kCodecs,
+  EXPECT_EQ(mime_util.IsSupportedMediaFormat(kMimeProbably, kCodecs,
                                              /*is_encrypted=*/false),
             SupportsType::kSupported);
-  EXPECT_EQ(mime_util.IsSupportedMediaFormat(kCustomMime, kCodecs,
+  EXPECT_EQ(mime_util.IsSupportedMediaFormat(kMimeMaybe, kCodecs,
                                              /*is_encrypted=*/false),
             SupportsType::kMaybeSupported);
-  EXPECT_EQ(mime_util.IsSupportedMediaFormat(kCustomMime, kCodecs,
+  EXPECT_EQ(mime_util.IsSupportedMediaFormat(kMimeNotSupported, kCodecs,
                                              /*is_encrypted=*/false),
             SupportsType::kNotSupported);
 }
