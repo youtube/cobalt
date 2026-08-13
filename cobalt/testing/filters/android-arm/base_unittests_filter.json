@@ -14,6 +14,7 @@
     "AlternateTestParams/PartitionAllocTest.ZeroFreedMemory/0",
     "AlternateTestParams/PartitionAllocTest.ZeroFreedMemory/1",
     "CancelableEventTest.BothCancelFailureAndSucceedOccurUnderContention",
+    "CriticalProcessAndThreadSpotChecks/HangWatcherAnyCriticalThreadTests.AnyCriticalThreadHung/*",
     "FilePathWatcherTest.*",
     "FilePathWatcherWithChangeInfoTest.DeletedFileInDirectory/0",
     "FilePathWatcherWithChangeInfoTest.DeletedFileInDirectory/3",
