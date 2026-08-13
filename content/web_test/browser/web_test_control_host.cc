@@ -51,7 +51,9 @@
 #include "content/browser/aggregation_service/aggregation_service.h"
 #include "content/browser/attribution_reporting/attribution_manager.h"
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/in_memory_federated_permission_context.h"
+#endif
 #include "content/browser/renderer_host/frame_tree.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/navigation_request.h"
@@ -766,9 +768,11 @@ void WebTestControlHost::ResetBrowserAfterWebTest() {
 #endif
   ShellBrowserContext* browser_context =
       ShellContentBrowserClient::Get()->browser_context();
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   static_cast<InMemoryFederatedPermissionContext*>(
       browser_context->GetFederatedIdentityPermissionContext())
       ->ResetForTesting();
+#endif
 
 #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
   // Delete any ScopedVirtualPressureSourceForDevTools and
