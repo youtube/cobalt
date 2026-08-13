@@ -601,6 +601,14 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
     // return EOS frame directly.
     first_buffer_timestamp_ = 0;
     decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
+    // With no input written, the MediaCodec produces no output, so the output
+    // loop that normally drives Tick()/sink_->Render() never runs.
+    // VideoRendererImpl only fires its ended callback from within Render(), so
+    // tick the sink once here, otherwise the player never reaches
+    // kSbPlayerStateEndOfStream for a stream that receives EOS before any input.
+    if (sink_) {
+      sink_->Render();
+    }
     return;
   }
 
