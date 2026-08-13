@@ -1081,28 +1081,20 @@ component("base") {
     "//third_party/modp_b64",
   ]
 
-<<<<<<< HEAD
   # Used by metrics/crc32
   deps += [ "//third_party/zlib" ]
 
-  deps += [
-    ":rust_logger",
-    "//third_party/rust/serde_json_lenient/v0_2/wrapper",
-  ]
-=======
-    if (!(is_cobalt && is_partner_toolchain)) {
+  if (!(is_cobalt && is_partner_toolchain)) {
     # NaCl does not support Rust.
     deps += [
       ":rust_logger",
       "//third_party/rust/serde_json_lenient/v0_2/wrapper",
     ]
-    }
   }
 
   if (is_cobalt_hermetic_build) {
     deps += [ "//starboard/common" ]
   }
->>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   # `raw_ptr` cannot be made a component due to CRT symbol issues.
   # Its gateway to being a component is through `//base`, so we have
@@ -1137,22 +1129,16 @@ component("base") {
     "//third_party/abseil-cpp:absl",
   ]
 
-<<<<<<< HEAD
-  sources += [
-    "containers/span_rust.h",
-    "strings/string_view_rust.h",
-  ]
-=======
-  if (!is_nacl && !(is_cobalt && is_partner_toolchain)) {
+  if (!(is_cobalt && is_partner_toolchain)) {
     sources += [
       "containers/span_rust.h",
       "strings/string_view_rust.h",
     ]
->>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
-  # Base provides conversions between CXX types and base types (e.g.
-  # std::string_view).
-  public_deps += [ "//build/rust:cxx_cppdeps" ]
+    # Base provides conversions between CXX types and base types (e.g.
+    # std::string_view).
+    public_deps += [ "//build/rust:cxx_cppdeps" ]
+  }
 
   # Needed for <atomic> if using newer C++ library than sysroot, except if
   # building inside the cros_sdk environment - use host_toolchain as a
@@ -1720,6 +1706,11 @@ component("base") {
       "profiler/thread_delegate_posix.cc",
       "profiler/thread_delegate_posix.h",
     ]
+
+    if (is_starboard) {
+      sources -= ["native_library_posix.cc"]
+      sources += ["native_library_starboard.cc"]
+    }
   }
 
   if (is_posix && !is_android) {
@@ -1760,7 +1751,6 @@ component("base") {
     }
   }
 
-<<<<<<< HEAD
   if (is_linux || is_chromeos) {
     sources += [
       "base_paths_posix.cc",
@@ -1784,122 +1774,13 @@ component("base") {
   }
   if (use_allocator_shim) {
     public_deps += [ "allocator/partition_allocator:allocator_shim" ]
-=======
-    if (is_posix || is_fuchsia) {
-      sources += [
-        "files/file_descriptor_watcher_posix.cc",
-        "files/file_descriptor_watcher_posix.h",
-        "files/file_enumerator_posix.cc",
-        "files/file_util_posix.cc",
-        "memory/page_size_posix.cc",
-      ]
+  }
 
-      if (!is_apple) {
-        sources += [ "files/drive_info_posix.cc" ]
-      }
-    }
-
-    if ((is_posix && !is_ios) || is_fuchsia) {
-      sources += [
-        "process/process_metrics_posix.cc",
-        "sync_socket_posix.cc",
-      ]
-    }
-
-    if (is_posix && !is_apple) {
-      sources += [
-        "native_library_posix.cc",
-        "posix/can_lower_nice_to.cc",
-        "posix/can_lower_nice_to.h",
-        "process/launch_posix.cc",
-        "profiler/module_cache_posix.cc",
-        "profiler/stack_base_address_posix.cc",
-        "profiler/stack_base_address_posix.h",
-        "profiler/stack_copier_signal.cc",
-        "profiler/stack_copier_signal.h",
-        "profiler/thread_delegate_posix.cc",
-        "profiler/thread_delegate_posix.h",
-      ]
-
-      if (is_starboard) {
-        sources -= ["native_library_posix.cc"]
-        sources += ["native_library_starboard.cc"]
-      }
-    }
-
-    if (is_posix && !is_android) {
-      sources += [ "debug/stack_trace_posix.cc" ]
-    }
-
-    if (is_posix && !is_ios) {
-      sources += [ "process/process_posix.cc" ]
-    }
-    if (!is_win && !is_chromeos && !is_android && !is_linux) {
-      sources += [ "synchronization/cancelable_event_default.cc" ]
-    }
-
-    if (is_linux || is_chromeos || is_android) {
-      sources += [ "synchronization/cancelable_event_posix.cc" ]
-    }
-
-    if (use_blink) {
-      sources += [
-        "memory/discardable_shared_memory.cc",
-        "memory/discardable_shared_memory.h",
-        "memory/shared_memory_switch.cc",
-        "memory/shared_memory_switch.h",
-        "metrics/histogram_shared_memory.cc",
-        "metrics/histogram_shared_memory.h",
-        "process/kill.cc",
-        "process/kill.h",
-        "process/launch.cc",
-        "process/launch.h",
-        "process/memory.cc",
-        "process/memory.h",
-        "process/process_iterator.cc",
-        "process/process_iterator.h",
-      ]
-
-      if (is_posix) {
-        sources += [ "process/kill_posix.cc" ]
-      }
-    }
-
-    if (is_linux || is_chromeos) {
-      sources += [
-        "base_paths_posix.cc",
-        "debug/elf_reader.cc",
-        "debug/elf_reader.h",
-        "stack_canary_linux.cc",
-        "stack_canary_linux.h",
-      ]
-    }
-    if (use_partition_alloc) {
-      # Add stuff that doesn't work in NaCl or other environments that disable
-      # partition_alloc.
-      sources += [
-        "allocator/dispatcher/memory_tagging.cc",
-        "allocator/dispatcher/memory_tagging.h",
-
-        # PartitionAlloc uses SpinLock, which doesn't work in NaCl (see below).
-        "allocator/miracle_parameter.cc",
-        "allocator/miracle_parameter.h",
-        "allocator/partition_alloc_features.cc",
-        "allocator/partition_alloc_features.h",
-        "allocator/partition_alloc_support.cc",
-        "allocator/partition_alloc_support.h",
-      ]
-    }
-    if (use_allocator_shim) {
-      public_deps += [ "allocator/partition_allocator:allocator_shim" ]
-    }
-
-    if (is_cobalt && is_partner_toolchain) {
-      sources -= [
-        "logging/rust_log_integration.cc",
-        "logging/rust_log_integration.h",
-      ]
-    }
+  if (is_cobalt && is_partner_toolchain) {
+    sources -= [
+      "logging/rust_log_integration.cc",
+      "logging/rust_log_integration.h",
+    ]
   }
 
   if (is_starboard) {
@@ -1954,7 +1835,6 @@ component("base") {
 
     # Find a way to fix the offending customizations instead.
     configs -= [ "//build/config/compiler:prevent_unsafe_narrowing" ]
->>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   # Windows.
@@ -4014,13 +3894,9 @@ test("base_unittests") {
     deps += [ "allocator/partition_allocator/src/partition_alloc:unittests" ]
   }
 
-<<<<<<< HEAD
-  deps += [ "//build/rust:cxx_cppdeps" ]
-=======
-  if (!is_nacl && !(is_cobalt && is_partner_toolchain)) {
+  if (!(is_cobalt && is_partner_toolchain)) {
     deps += [ "//build/rust:cxx_cppdeps" ]
   }
->>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   if (is_starboard) {
     deps += [
@@ -4230,16 +4106,12 @@ test("base_unittests") {
       "posix/file_descriptor_shuffle_unittest.cc",
       "posix/unix_domain_socket_unittest.cc",
     ]
-<<<<<<< HEAD
-    if (!is_apple) {
-=======
     if (is_starboard) {
       sources -= [
         "posix/unix_domain_socket_unittest.cc",
       ]
     }
-    if (!is_nacl && !is_apple && !is_starboard) {
->>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+    if (!is_apple && !is_starboard) {
       sources += [
         "profiler/stack_base_address_posix_unittest.cc",
         "profiler/stack_copier_signal_unittest.cc",
