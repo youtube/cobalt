@@ -730,8 +730,8 @@ source_set("unit_tests") {
       "starboard/starboard_renderer_config_unittest.cc",
     ]
     deps += [
-      "//starboard:starboard_group",
       "//starboard/common",
+      "//starboard:starboard_group",
     ]
   }
 }
