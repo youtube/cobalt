@@ -922,6 +922,20 @@ class MediaCodecBridge {
   }
 
   @CalledByNative
+  private boolean setSurface(Surface surface) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+      return false;
+    }
+    try {
+      mMediaCodec.get().setOutputSurface(surface);
+      return true;
+    } catch (IllegalArgumentException | IllegalStateException e) {
+      Log.e(TAG, "Cannot set output surface", e);
+      return false;
+    }
+  }
+
+  @CalledByNative
   private void releaseOutputBufferAtTimestamp(int index, long renderTimestampNs) {
     try {
       mMediaCodec.get().releaseOutputBuffer(index, renderTimestampNs);

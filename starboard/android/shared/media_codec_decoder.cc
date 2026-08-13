@@ -138,6 +138,7 @@ MediaCodecDecoder::CreateForVideo(
     bool use_dual_threads,
     bool skip_video_frames_over_60_fps,
     bool ignore_mediacodec_callbacks_during_flushing,
+    bool set_output_surface_on_flush,
     bool enable_ndk_video,
     bool enable_trivial_optimizations) {
   std::string error_message;
@@ -149,8 +150,8 @@ MediaCodecDecoder::CreateForVideo(
       enable_frame_renderer_listener, force_big_endian_hdr_metadata,
       max_video_input_size, flush_delay_usec, use_dual_threads,
       skip_video_frames_over_60_fps,
-      ignore_mediacodec_callbacks_during_flushing, enable_ndk_video,
-      enable_trivial_optimizations, &error_message);
+      ignore_mediacodec_callbacks_during_flushing, set_output_surface_on_flush,
+      enable_ndk_video, enable_trivial_optimizations, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -223,6 +224,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     bool use_dual_threads,
     bool skip_video_frames_over_60_fps,
     bool ignore_mediacodec_callbacks_during_flushing,
+    bool set_output_surface_on_flush,
     bool enable_ndk_video,
     bool enable_trivial_optimizations,
     std::string* error_message)
@@ -259,7 +261,8 @@ MediaCodecDecoder::MediaCodecDecoder(
        ignore_mediacodec_callbacks_during_flushing,
        enable_frame_renderer_listener, require_secured_decoder,
        require_software_codec, force_big_endian_hdr_metadata,
-       tunnel_mode_audio_session_id, enable_ndk_video});
+       tunnel_mode_audio_session_id, enable_ndk_video,
+       set_output_surface_on_flush});
 
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());

@@ -92,6 +92,8 @@ class MediaCodecBridge : public MediaCodec {
   std::optional<FrameSize> GetOutputSize() override;
   std::optional<AudioOutputFormatResult> GetAudioOutputFormat() override;
 
+  bool SetOutputSurface(const jni_zero::JavaRef<jobject>& j_surface) override;
+
   // JNI callback entry points
   void OnMediaCodecError(
       JNIEnv* env,
@@ -114,6 +116,8 @@ class MediaCodecBridge : public MediaCodec {
  private:
   Handler* const handler_;
   jni_zero::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
+  jni_zero::ScopedJavaGlobalRef<jobject> j_surface_ = NULL;
+  bool set_output_surface_on_flush_ = false;
 
   MediaCodecBridge(const MediaCodecBridge&) = delete;
   void operator=(const MediaCodecBridge&) = delete;
