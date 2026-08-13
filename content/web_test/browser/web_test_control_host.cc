@@ -52,12 +52,8 @@
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/aggregation_service/aggregation_service.h"
 #include "content/browser/attribution_reporting/attribution_manager.h"
-<<<<<<< HEAD
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-=======
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> e356a9a6b0 (Gate FedCM under ENABLE_PRIVACY_SANDBOX_APIS for 27.lts (#11535))
 #include "content/browser/in_memory_federated_permission_context.h"
 #endif
 #include "content/browser/renderer_host/frame_tree.h"
