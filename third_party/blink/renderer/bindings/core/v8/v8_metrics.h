@@ -73,6 +73,15 @@ class CORE_EXPORT V8MetricsRecorder : public v8::metrics::Recorder {
       ContextId context_id);
 
   v8::Isolate* isolate_;
+
+  std::unordered_map<
+      v8::Isolate::Priority,
+      std::array<uint64_t, v8::internal::kGarbageCollectionReasonMaxValue>>
+      garbage_collection_event_event_counters_full_;
+  std::unordered_map<
+      v8::Isolate::Priority,
+      std::array<uint64_t, v8::internal::kGarbageCollectionReasonMaxValue>>
+      garbage_collection_event_event_counters_young_;
 };
 
 }  // namespace blink
