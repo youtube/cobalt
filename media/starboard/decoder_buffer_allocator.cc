@@ -21,6 +21,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/types/expected.h"
 #include "build/build_config.h"
 #include "media/base/media_switches.h"
@@ -81,6 +82,9 @@ DecoderBufferAllocator::DecoderBufferAllocator(
       allocation_unit_(allocation_unit) {
   DCHECK_GE(initial_capacity_, 0);
   DCHECK_GE(allocation_unit_, 0);
+
+  base::UmaHistogramBoolean("Cobalt.Media.IsBufferPoolAllocateOnDemand",
+                            is_memory_pool_allocated_on_demand_);
 
   if (is_memory_pool_allocated_on_demand_) {
     LOG(INFO) << "Allocated decoder buffer pool on demand.";

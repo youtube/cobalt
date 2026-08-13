@@ -11,6 +11,7 @@
     "All/NavigationBrowserTestPaintHoldingSubframe.*",
     "PrivacySandboxDisabledBrowserTest.VerifyPrivacySandboxApisDisabled",
     "PrivacySandboxDisabledBrowserTest.FetchWithPrivateTokenParamIgnored",
+    "PrivacySandboxDisabledBrowserTest.FedCmAndCredentialApisNotExposed",
     "H5vccSchemeURLLoaderFactoryBrowserTest.*",
     "H5vccSchemeURLLoaderFactoryCacheBrowserTest.*",
     "H5vccRuntimeBrowserTest.*",
