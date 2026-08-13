@@ -58,6 +58,7 @@ public class CommandLineOverrideHelperTest {
     String overrides = CommandLineOverrideHelper.getDefaultDisableFeatureOverridesList().toString();
     assertThat(overrides.contains("PartitionAllocBackupRefPtr")).isTrue();
     assertThat(overrides.contains("UseAAudioInput")).isTrue();
+    assertThat(overrides.contains("DeferAudioFocusUntilAudible")).isTrue();
   }
 
   @Test

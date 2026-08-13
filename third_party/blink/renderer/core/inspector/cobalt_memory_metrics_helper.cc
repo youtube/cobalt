@@ -14,7 +14,9 @@
 
 #include "third_party/blink/renderer/core/inspector/cobalt_memory_metrics_helper.h"
 
+#include <algorithm>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -44,7 +46,25 @@ bool IsMiBHistogram(std::string_view metric_name) {
       return true;
     }
   }
+  for (const char* guardrail_name : kPeakMemoryGuardrailMetricNames) {
+    if (guardrail_name && metric_name == guardrail_name) {
+      return true;
+    }
+  }
   return false;
+}
+
+// Extracts a representative sample value from a histogram bucket. Uses `max`
+// (the upper bound) for normal buckets to represent the peak/median, but falls
+// back to `min` (the inclusive lower bound) if the sample is in the overflow
+// bucket where `max` is set to INT_MAX (which would otherwise report petabytes).
+// Also guards with std::max(..., 0) against negative underflow buckets.
+uint64_t GetSafeBucketValue(base::HistogramBase::Sample32 min, int64_t max) {
+  if (max >= std::numeric_limits<base::HistogramBase::Sample32>::max()) {
+    return static_cast<uint64_t>(
+        std::max<base::HistogramBase::Sample32>(min, 0));
+  }
+  return static_cast<uint64_t>(std::max<int64_t>(max, 0));
 }
 
 }  // namespace
@@ -63,6 +83,11 @@ std::optional<uint64_t> GetP50MetricValueBytes(std::string_view metric_name) {
     return std::nullopt;
   }
 
+  std::unique_ptr<base::SampleCountIterator> it = samples->Iterator();
+  if (!it) {
+    return std::nullopt;
+  }
+
   int64_t target_count = (total_count + 1) / 2;
   int64_t accumulated_count = 0;
   uint64_t p50_value = 0;
@@ -71,15 +96,14 @@ std::optional<uint64_t> GetP50MetricValueBytes(std::string_view metric_name) {
   // the field percentile calculation in
   // cobalt/tools/uma/interpret_uma_histogram.py (which uses the bucket upper
   // bound max/high).
-  for (std::unique_ptr<base::SampleCountIterator> it = samples->Iterator();
-       !it->Done(); it->Next()) {
+  for (; !it->Done(); it->Next()) {
     base::HistogramBase::Sample32 min;
     int64_t max;
     base::HistogramBase::Count32 count;
     it->Get(&min, &max, &count);
     accumulated_count += count;
     if (accumulated_count >= target_count) {
-      p50_value = static_cast<uint64_t>(max);
+      p50_value = GetSafeBucketValue(min, max);
       break;
     }
   }
@@ -163,6 +187,65 @@ std::optional<std::vector<MemoryBreakdownMetric>> GetLiveMemoryBreakdown() {
 
   return metrics;
 #endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+}
+
+std::optional<uint64_t> GetPeakHistogramValueBytes(
+    std::string_view metric_name) {
+  base::HistogramBase* histogram =
+      base::StatisticsRecorder::FindHistogram(metric_name);
+  if (!histogram) {
+    return std::nullopt;
+  }
+
+  std::unique_ptr<base::HistogramSamples> samples =
+      histogram->SnapshotSamples();
+  if (!samples || samples->TotalCount() <= 0) {
+    return std::nullopt;
+  }
+
+  std::unique_ptr<base::SampleCountIterator> it = samples->Iterator();
+  if (!it) {
+    return std::nullopt;
+  }
+
+  uint64_t peak_value = 0;
+  for (; !it->Done(); it->Next()) {
+    base::HistogramBase::Sample32 min;
+    int64_t max;
+    base::HistogramBase::Count32 count;
+    it->Get(&min, &max, &count);
+    uint64_t bucket_value = GetSafeBucketValue(min, max);
+    if (count > 0 && bucket_value > peak_value) {
+      peak_value = bucket_value;
+    }
+  }
+
+  if (IsMiBHistogram(metric_name)) {
+    return peak_value * kBytesPerMiB;
+  }
+
+  return peak_value;
+}
+
+std::optional<std::vector<MemoryBreakdownMetric>> GetPeakMemoryGuardrails() {
+  std::vector<MemoryBreakdownMetric> guardrails;
+  guardrails.reserve(std::size(kPeakMemoryGuardrailMetricNames));
+
+  for (const char* metric_name : kPeakMemoryGuardrailMetricNames) {
+    if (!metric_name) {
+      continue;
+    }
+    auto value = GetPeakHistogramValueBytes(metric_name);
+    if (value.has_value()) {
+      guardrails.push_back({metric_name, *value});
+    }
+  }
+
+  if (guardrails.empty()) {
+    return std::nullopt;
+  }
+
+  return guardrails;
 }
 
 }  // namespace blink

@@ -130,7 +130,7 @@
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/strings/string_util.h"
-#include "starboard/media.h"  // nogncheck
+#include "media/base/starboard/sbmedia_interface.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #ifndef LOG_MEDIA_EVENTS
@@ -306,8 +306,10 @@ bool CanLoadURL(const KURL& url, const String& content_type_str) {
   if (content_mime_type != "application/octet-stream" ||
       content_type_codecs.empty()) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+    auto ascii = content_type_str.Ascii();
     SbMediaSupportType support_type =
-        SbMediaCanPlayMimeAndKeySystem(content_type_str.Ascii().c_str(), "");
+        ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(ascii.c_str(),
+                                                                "");
     MIMETypeRegistry::SupportsType result;
     switch (support_type) {
       case kSbMediaSupportTypeNotSupported:
@@ -420,8 +422,10 @@ MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
               << "\' is unsupported.";
     result = MIMETypeRegistry::kNotSupported;
   } else {
-    const SbMediaSupportType support_type =
-        SbMediaCanPlayMimeAndKeySystem(content_type.Raw().Ascii().c_str(), "");
+    auto ascii = content_type.Raw().Ascii();
+    SbMediaSupportType support_type =
+        ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(ascii.c_str(),
+                                                                "");
     switch (support_type) {
       case kSbMediaSupportTypeNotSupported:
         result = MIMETypeRegistry::kNotSupported;
