@@ -65,12 +65,12 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
     MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
     MediaCodecVideoDecoder::PipelineConfig pipeline_config;
     pipeline_config.experimental_features = std::move(experimental_features);
-    MediaCodecVideoDecoder::PlatformOptions platform_options;
+    MediaCodecVideoDecoder::ResetConfig reset_config;
 
     auto result = MediaCodecVideoDecoder::CreateForTesting(
         std::move(factory),  // Transfer ownership
         &job_queue_, stream_config, tunnel_config, pipeline_config,
-        platform_options);
+        reset_config);
 
     ASSERT_TRUE(result);
     decoder_ = std::move(result.value());
