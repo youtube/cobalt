@@ -17,12 +17,15 @@
 #include "content/browser/devtools/dedicated_worker_devtools_agent_host.h"
 #include "content/browser/devtools/devtools_issue_storage.h"
 #include "content/browser/devtools/devtools_preload_storage.h"
+#include "build/buildflag.h"
 #include "content/browser/devtools/protocol/audits.h"
 #include "content/browser/devtools/protocol/audits_handler.h"
 #include "content/browser/devtools/protocol/browser_handler.h"
 #include "content/browser/devtools/protocol/device_access_handler.h"
 #include "content/browser/devtools/protocol/emulation_handler.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/devtools/protocol/fedcm_handler.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/devtools/protocol/fetch_handler.h"
 #include "content/browser/devtools/protocol/input_handler.h"
 #include "content/browser/devtools/protocol/log_handler.h"
@@ -2574,36 +2577,44 @@ void CleanUpDeviceRequestPrompt(RenderFrameHost* render_frame_host,
 void WillSendFedCmRequest(RenderFrameHost& render_frame_host,
                           bool* intercept,
                           bool* disable_delay) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   FrameTreeNode* ftn = FrameTreeNode::From(&render_frame_host);
   if (!ftn) {
     return;
   }
   DispatchToAgents(ftn, &protocol::FedCmHandler::WillSendRequest, intercept,
                    disable_delay);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void WillShowFedCmDialog(RenderFrameHost& render_frame_host, bool* intercept) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   FrameTreeNode* ftn = FrameTreeNode::From(&render_frame_host);
   if (!ftn) {
     return;
   }
   DispatchToAgents(ftn, &protocol::FedCmHandler::WillShowDialog, intercept);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void DidShowFedCmDialog(RenderFrameHost& render_frame_host) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   FrameTreeNode* ftn = FrameTreeNode::From(&render_frame_host);
   if (!ftn) {
     return;
   }
   DispatchToAgents(ftn, &protocol::FedCmHandler::DidShowDialog);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void DidCloseFedCmDialog(RenderFrameHost& render_frame_host) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   FrameTreeNode* ftn = FrameTreeNode::From(&render_frame_host);
   if (!ftn) {
     return;
   }
   DispatchToAgents(ftn, &protocol::FedCmHandler::DidCloseDialog);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void WillSendFedCmNetworkRequest(FrameTreeNodeId frame_tree_node_id,

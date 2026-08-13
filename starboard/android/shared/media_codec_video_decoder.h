@@ -80,7 +80,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   };
 
   struct PlatformOptions {
-    bool force_big_endian_hdr_metadata = false;
     int64_t reset_delay_usec = 0;
     int64_t flush_delay_usec = 0;
   };
@@ -185,9 +184,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Google's software decoders can work concurrently. So, we use HW decoder for
   // the main player and SW decoder for sub players.
   const bool require_software_codec_;
-
-  // Force endianness of HDR Metadata.
-  const bool force_big_endian_hdr_metadata_;
 
   const std::optional<int> tunnel_mode_audio_session_id_;
 

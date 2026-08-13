@@ -14,12 +14,15 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "components/content_settings/core/common/features.h"
 #include "content/browser/background_sync/background_sync_scheduler.h"
 #include "content/browser/browsing_data/browsing_data_remover_impl.h"
 #include "content/browser/btm/btm_service_impl.h"
 #include "content/browser/download/download_manager_impl.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/in_memory_federated_permission_context.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/permissions/permission_controller_impl.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
 #include "content/browser/renderer_host/navigation_transitions/navigation_entry_screenshot_cache.h"
@@ -364,6 +367,7 @@ PrefetchService* BrowserContextImpl::GetPrefetchService() {
   return prefetch_service_.get();
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 InMemoryFederatedPermissionContext*
 BrowserContextImpl::GetFederatedPermissionContext() {
   if (!federated_permission_context_) {
@@ -376,6 +380,7 @@ BrowserContextImpl::GetFederatedPermissionContext() {
 void BrowserContextImpl::ResetFederatedPermissionContext() {
   federated_permission_context_.reset();
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 void BrowserContextImpl::SetPrefetchServiceForTesting(
     std::unique_ptr<PrefetchService> prefetch_service) {

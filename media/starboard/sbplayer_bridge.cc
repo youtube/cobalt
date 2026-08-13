@@ -219,9 +219,7 @@ SbPlayerBridge::SbPlayerBridge(
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     const AudioDecoderConfig& audio_config,
-    const std::string& audio_mime_type,
     const VideoDecoderConfig& video_config,
-    const std::string& video_mime_type,
     SbWindow window,
     SbDrmSystem drm_system,
     Host* host,
@@ -291,10 +289,10 @@ SbPlayerBridge::SbPlayerBridge(
   video_stream_info_.codec = kSbMediaVideoCodecNone;
 
   if (audio_config.IsValidConfig()) {
-    UpdateAudioConfig(audio_config, audio_mime_type);
+    UpdateAudioConfig(audio_config);
   }
   if (video_config.IsValidConfig()) {
-    UpdateVideoConfig(video_config, video_mime_type);
+    UpdateVideoConfig(video_config);
     SendColorSpaceHistogram();
   }
 
@@ -327,8 +325,7 @@ SbPlayerBridge::~SbPlayerBridge() {
   }
 }
 
-void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
-                                       const std::string& mime_type) {
+void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(audio_config.IsValidConfig());
 
@@ -336,14 +333,12 @@ void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
             << audio_config.AsHumanReadableString();
 
   audio_config_ = audio_config;
-  audio_mime_type_ = mime_type;
   audio_stream_info_ = MediaAudioConfigToSbMediaAudioStreamInfo(
-      audio_config_, audio_mime_type_.c_str());
+      audio_config_, audio_config_.mime_type().c_str());
   LOG(INFO) << "Converted to SbMediaAudioStreamInfo -- " << audio_stream_info_;
 }
 
-void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
-                                       const std::string& mime_type) {
+void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(video_config.IsValidConfig());
 
@@ -357,11 +352,10 @@ void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
       static_cast<int>(video_config_.natural_size().height());
   video_stream_info_.codec =
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
-  video_stream_info_.color_metadata =
-      MediaToSbMediaColorMetadata(video_config_.color_space_info(),
-                                  video_config_.hdr_metadata(), mime_type);
-  video_mime_type_ = mime_type;
-  video_stream_info_.mime = video_mime_type_.c_str();
+  video_stream_info_.color_metadata = MediaToSbMediaColorMetadata(
+      video_config_.color_space_info(), video_config_.hdr_metadata(),
+      video_config_.mime_type());
+  video_stream_info_.mime = video_config_.mime_type().c_str();
   video_stream_info_.max_video_capabilities = max_video_capabilities_.c_str();
   LOG(INFO) << "Converted to SbMediaVideoStreamInfo -- " << video_stream_info_;
 }
