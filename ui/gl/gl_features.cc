@@ -191,32 +191,6 @@ bool UsePassthroughCommandDecoder() {
           build_info->android_build_fp(),
           kPassthroughCommandDecoderBlockListByAndroidBuildFP.Get()))
     return false;
-<<<<<<< HEAD
-=======
-
-  // Only check system info once and cache if the vendor is blocked.
-  static std::optional<bool> gpu_vendor_blocked;
-  if (!gpu_vendor_blocked.has_value()) {
-    angle::SystemInfo angle_system_info;
-    if (angle::GetSystemInfo(&angle_system_info) &&
-        !angle_system_info.gpus.empty()) {
-      angle::VendorID gpu_vendor_id =
-          angle_system_info.gpus[angle_system_info.activeGPUIndex].vendorId;
-      gpu_vendor_blocked = IsDeviceBlocked(
-          gpu_vendor_id,
-          kPassthroughCommandDecoderBlockListByGPUVendorId.Get());
-    } else {
-      // If system info collection fails, do not blocklist this device by GPU
-      // vendor ID. Instead rely on individual device model or device ID
-      // blocking.
-      gpu_vendor_blocked = false;
-    }
-  }
-
-  DCHECK(gpu_vendor_blocked.has_value());
-  if (gpu_vendor_blocked.value()) {
-    return false;
-  }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // TODO(crbug.com/41482978): Fix single process rendering on nvidia Shield.
@@ -224,7 +198,6 @@ bool UsePassthroughCommandDecoder() {
       base::MatchPattern(build_info->model(), "SHIELD*"))
     return false;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif  // BUILDFLAG(IS_ANDROID)
 
   return true;
