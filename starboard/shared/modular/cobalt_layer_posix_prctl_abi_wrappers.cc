@@ -70,6 +70,11 @@ int prctl(int op, ...) {
       result = __abi_wrap_prctl(op);
       break;
     }
+    case PR_SET_VMA:
+      result = __abi_wrap_prctl(op, va_arg(ap, long), va_arg(ap, unsigned long),
+                                va_arg(ap, unsigned long),
+                                va_arg(ap, const char* _Nullable));
+      break;
     // The given operation is not supported. Set errno to EINVAL and return
     // -1.
     default: {

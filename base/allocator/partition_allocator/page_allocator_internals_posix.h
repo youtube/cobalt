@@ -35,7 +35,7 @@
 #include <Security/Security.h>
 #include <mach/mach.h>
 #endif
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_STARBOARD))
 #include <sys/prctl.h>
 #endif
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -62,7 +62,7 @@ namespace partition_alloc::internal {
 
 namespace {
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_STARBOARD))
 #if defined(PR_SET_VMA) && defined(PR_SET_VMA_ANON_NAME)
 const char* PageTagToName(PageTag tag) {
   // Important: All the names should be string literals. As per prctl.h in
@@ -86,7 +86,7 @@ const char* PageTagToName(PageTag tag) {
   }
 }
 #endif
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_STARBOARD))
 
 #if BUILDFLAG(IS_MAC)
 // Tests whether the version of macOS supports the MAP_JIT flag and if the
@@ -197,7 +197,7 @@ uintptr_t SystemAllocPagesInternal(uintptr_t hint,
     ret = nullptr;
   }
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_STARBOARD))
 #if defined(PR_SET_VMA) && defined(PR_SET_VMA_ANON_NAME)
   // On Android and Linux, anonymous mappings can have a name attached to them.
   // This is useful for debugging, and double-checking memory attribution.
