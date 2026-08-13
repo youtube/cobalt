@@ -275,7 +275,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DIRECT_WINDOW_RENDERING)) {
       extraCommandLineArgs.add("--use-window-surface-for-ui");
-      extraCommandLineArgs.add("--enable-h5vcc-settings=Media.ForceClearSurfaceView=1");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
