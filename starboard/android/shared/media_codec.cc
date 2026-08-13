@@ -116,7 +116,7 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
   if (decoder_name.empty()) {
     return Failure(
         FormatString("Failed to find decoder: mime=%s, mustSupportSecure=%s",
-                     mime, ToString(!!j_media_crypto).data()));
+                     mime, ToString(!!j_media_crypto)));
   }
 
   if (CanUseNdkMediaCodec(platform_options, j_media_crypto, color_metadata)) {

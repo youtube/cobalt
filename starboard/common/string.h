@@ -66,7 +66,7 @@ inline std::string ToString(const std::string& val) {
   return val;
 }
 
-inline std::string ToString(bool val) {
+constexpr const char* ToString(bool val) {
   return val ? "true" : "false";
 }
 
