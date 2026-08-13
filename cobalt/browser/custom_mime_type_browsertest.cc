@@ -132,6 +132,12 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
   void SetUpOnMainThread() override {
     content::ContentBrowserTest::SetUpOnMainThread();
     media::SetSbMediaInterfaceForTesting(&test_media_interface_);
+
+    ASSERT_TRUE(embedded_test_server()->Start());
+    GURL url = embedded_test_server()->GetURL("/title1.html");
+    ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
+
+    test_media_interface_.ClearIntercepted();
   }
 
   void TearDownOnMainThread() override {
@@ -145,11 +151,6 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        MediaSourceIsTypeSupported_ForwardsRawCustomAttributes) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
-
-  test_media_interface_.ClearIntercepted();
   test_media_interface_.set_support_type(kSbMediaSupportTypeProbably);
 
   const char kCustomMime[] =
@@ -168,11 +169,6 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        MediaSourceIsTypeSupported_NotSupportedReturnsFalse) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
-
-  test_media_interface_.ClearIntercepted();
   test_media_interface_.set_support_type(kSbMediaSupportTypeNotSupported);
 
   const char kUnsupportedMime[] =
@@ -191,11 +187,6 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        CanPlayType_ForwardsRawCustomAttributesMaybe) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
-
-  test_media_interface_.ClearIntercepted();
   test_media_interface_.set_support_type(kSbMediaSupportTypeMaybe);
 
   const char kCustomMime[] =
@@ -216,11 +207,6 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        CanPlayType_ForwardsRawCustomAttributesProbably) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
-
-  test_media_interface_.ClearIntercepted();
   test_media_interface_.set_support_type(kSbMediaSupportTypeProbably);
 
   const char kCustomMime[] =
@@ -241,11 +227,6 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        CanPlayType_NotSupportedReturnsEmptyString) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
-
-  test_media_interface_.ClearIntercepted();
   test_media_interface_.set_support_type(kSbMediaSupportTypeNotSupported);
 
   const char kUnsupportedMime[] =
@@ -265,11 +246,6 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        AudioCanPlayType_ForwardsRawCustomAttributes) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
-
-  test_media_interface_.ClearIntercepted();
   test_media_interface_.set_support_type(kSbMediaSupportTypeProbably);
 
   const char kAudioCustomMime[] =
