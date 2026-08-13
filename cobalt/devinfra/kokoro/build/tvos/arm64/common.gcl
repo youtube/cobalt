@@ -30,7 +30,7 @@ build = common.build {
     {
       define_artifacts = {
         regex = [
-          'build_vars/dynamic_flags.txt',
+          '**/*.tar.gz',
         ]
       }
     },

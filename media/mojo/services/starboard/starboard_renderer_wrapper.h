@@ -16,6 +16,7 @@
 #define MEDIA_MOJO_SERVICES_STARBOARD_STARBOARD_RENDERER_WRAPPER_H_
 
 #include <functional>
+#include <optional>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -92,7 +93,7 @@ class StarboardRendererWrapper
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(float volume) override;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) override;
-  void SetLatencyHint(absl::optional<base::TimeDelta> latency_hint) override;
+  void SetLatencyHint(std::optional<base::TimeDelta> latency_hint) override;
   base::TimeDelta GetMediaTime() override;
   RendererType GetRendererType() override;
 

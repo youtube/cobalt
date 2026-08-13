@@ -18,11 +18,9 @@ import android.app.Activity;
 import android.app.Service;
 import android.view.Window;
 import android.view.WindowManager;
-
 import dev.cobalt.coat.StarboardBridge;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.util.Holder;
-
 import org.chromium.base.StrictModeContext;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
@@ -36,111 +34,108 @@ import org.chromium.ui.base.WindowAndroid;
 
 /** Activity for running browser tests inside Cobalt. */
 public abstract class CobaltBrowserTestActivity extends NativeBrowserTestActivity
-        implements StarboardBridge.HostApplication {
-    private static final String TAG = "native_test";
+    implements StarboardBridge.HostApplication {
+  private static final String TAG = "native_test";
 
-    private ShellManager mShellManager;
-    private WindowAndroid mWindowAndroid;
-    private StarboardBridge mStarboardBridge;
+  private ShellManager mShellManager;
+  private WindowAndroid mWindowAndroid;
+  private StarboardBridge mStarboardBridge;
 
-    @Override
-    public void setStarboardBridge(StarboardBridge starboardBridge) {
-        mStarboardBridge = starboardBridge;
+  @Override
+  public void setStarboardBridge(StarboardBridge starboardBridge) {
+    mStarboardBridge = starboardBridge;
+  }
+
+  @Override
+  public StarboardBridge getStarboardBridge() {
+    return mStarboardBridge;
+  }
+
+  @Override
+  protected void onDestroy() {
+    if (mShellManager != null) {
+      mShellManager.destroy();
+    }
+    super.onDestroy();
+  }
+
+  /**
+   * Initializes the browser process.
+   *
+   * <p>This generally includes loading native libraries and switching to the native command line,
+   * among other things.
+   */
+  @Override
+  protected void initializeBrowserProcess() {
+    try (StrictModeContext ignored = StrictModeContext.allowDiskReads()) {
+      LibraryLoader.getInstance().ensureInitialized();
     }
 
-    @Override
-    public StarboardBridge getStarboardBridge() {
-        return mStarboardBridge;
-    }
+    mShellManager = new ShellManager(this);
+    IntentRequestTracker intentRequestTracker = IntentRequestTracker.createFromActivity(this);
+    mWindowAndroid =
+        new ActivityWindowAndroid(
+            this,
+            /* listenToActivityState= */ true,
+            intentRequestTracker,
+            /* insetObserver= */ null,
+            /* trackOcclusion= */ true);
+    mShellManager.setWindow(mWindowAndroid);
 
-    @Override
-    protected void onDestroy() {
-        if (mShellManager != null) {
-            mShellManager.destroy();
-        }
-        super.onDestroy();
-    }
+    // Instantiate StarboardBridge. This is crucial for initializing the native Starboard
+    // environment that the storage migration relies on.
+    mStarboardBridge =
+        new StarboardBridge(
+            getApplicationContext(),
+            new Holder<Activity>(),
+            new Holder<Service>(), // Set to null below
+            null, // ArtworkDownloader is not needed for tests
+            new String[0], // args
+            ""); // startDeepLink
+    ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(mStarboardBridge);
 
-    /**
-     * Initializes the browser process.
-     *
-     * This generally includes loading native libraries and switching to the native command line,
-     * among other things.
-     */
-    @Override
-    protected void initializeBrowserProcess() {
-        try (StrictModeContext ignored = StrictModeContext.allowDiskReads()) {
-            LibraryLoader.getInstance().ensureInitialized();
-        }
+    Window wind = this.getWindow();
+    wind.addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
+    wind.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
+    wind.addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
 
-        mShellManager = new ShellManager(this);
-        IntentRequestTracker intentRequestTracker = IntentRequestTracker.createFromActivity(this);
-        mWindowAndroid =
-                new ActivityWindowAndroid(
-                        this,
-                        /* listenToActivityState= */ true,
-                        intentRequestTracker,
-                        /* insetObserver= */ null,
-                        /* trackOcclusion= */ true);
-        mShellManager.setWindow(mWindowAndroid);
+    BrowserStartupController.getInstance()
+        .setContentMainCallbackForTests(
+            () -> {
+              // This jumps into C++ to set up and run the test harness. The test
+              // harness runs ContentMain()-equivalent code, and then waits for
+              // javaStartupTasksComplete() to be called.
+              runTests();
+            });
+    BrowserStartupController.getInstance()
+        .startBrowserProcessesAsync(
+            LibraryProcessType.PROCESS_BROWSER,
+            false,
+            false,
+            new StartupCallback() {
+              @Override
+              public void onSuccess() {
+                // The C++ test harness is running thanks to runTests() above, but
+                // it waits for Java initialization to complete. This tells C++
+                // that it may continue now to finish running the tests.
+                NativeBrowserTest.javaStartupTasksComplete();
+              }
 
-        // Instantiate StarboardBridge. This is crucial for initializing the native Starboard
-        // environment that the storage migration relies on.
-        mStarboardBridge =
-                new StarboardBridge(
-                        getApplicationContext(),
-                        new Holder<Activity>(),
-                        new Holder<Service>(), // Set to null below
-                        null, // ArtworkDownloader is not needed for tests
-                        new String[0], // args
-                        ""); // startDeepLink
-        ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(mStarboardBridge);
+              @Override
+              public void onFailure() {
+                throw new RuntimeException("Failed to startBrowserProcessesAsync()");
+              }
+            });
+  }
 
-        Window wind = this.getWindow();
-        wind.addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
-        wind.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
-        wind.addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
-
-        BrowserStartupController.getInstance()
-                .setContentMainCallbackForTests(
-                        () -> {
-                            // This jumps into C++ to set up and run the test harness. The test
-                            // harness runs ContentMain()-equivalent code, and then waits for
-                            // javaStartupTasksComplete() to be called.
-                            runTests();
-                        });
-        BrowserStartupController.getInstance()
-                .startBrowserProcessesAsync(
-                        LibraryProcessType.PROCESS_BROWSER,
-                        false,
-                        false,
-                        new StartupCallback() {
-                            @Override
-                            public void onSuccess() {
-                                // The C++ test harness is running thanks to runTests() above, but
-                                // it waits for Java initialization to complete. This tells C++
-                                // that it may continue now to finish running the tests.
-                                NativeBrowserTest.javaStartupTasksComplete();
-                            }
-
-                            @Override
-                            public void onFailure() {
-                                throw new RuntimeException(
-                                        "Failed to startBrowserProcessesAsync()");
-                            }
-                        });
-    }
-
-    /**
-     * Ensure that the user data directory gets overridden to getPrivateDataDirectory() (which is
-     * cleared at the start of every run); the directory that ANDROID_APP_DATA_DIR is set to in the
-     * context of Java browsertests is not cleared as it also holds persistent state, which causes
-     * test failures due to state bleedthrough. See crbug.com/617734 for details.
-     */
-    @Override
-    protected String getUserDataDirectoryCommandLineSwitch() {
-        return "user-data-dir";
-    }
-
-
+  /**
+   * Ensure that the user data directory gets overridden to getPrivateDataDirectory() (which is
+   * cleared at the start of every run); the directory that ANDROID_APP_DATA_DIR is set to in the
+   * context of Java browsertests is not cleared as it also holds persistent state, which causes
+   * test failures due to state bleedthrough. See crbug.com/617734 for details.
+   */
+  @Override
+  protected String getUserDataDirectoryCommandLineSwitch() {
+    return "user-data-dir";
+  }
 }

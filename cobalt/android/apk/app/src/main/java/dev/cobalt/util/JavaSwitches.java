@@ -32,6 +32,9 @@ public class JavaSwitches {
   public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
   public static final String ENABLE_OPTIMIZED_V8_CODE_CACHE = "EnableOptimizedV8CodeCache";
 
+  /** flag to enable deferred V8 bytecode serialization in background/idle */
+  public static final String DEFER_V8_CODE_CACHE_WRITE = "DeferV8CodeCacheWrite";
+
   /** flag to allow caching CSS and WebAssembly resources in the HTTP disk cache. */
   public static final String ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE = "EnableCssAndWasmForHttpCache";
 
@@ -92,6 +95,10 @@ public class JavaSwitches {
   /** flag to bypass BufferingBytesConsumer Oilpan heap buffering. */
   public static final String COBALT_BYPASS_BUFFERING_BYTES_CONSUMER =
       "CobaltBypassBufferingBytesConsumer";
+
+  /** flag to bypass ResourceLoadScheduler subresource queueing and throttling. */
+  public static final String COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER =
+      "CobaltBypassResourceLoadScheduler";
 
   /** flag to aggressively flush v8 bytecode after a configurable old time. */
   public static final String V8_SET_BYTECODE_OLD_TIME = "V8SetBytecodeOldTime";
@@ -216,6 +223,10 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-optimized-v8-code-cache");
     }
 
+    if (javaSwitches.containsKey(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE)) {
+      extraCommandLineArgs.add("--defer-v8-code-cache-write");
+    }
+
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE)) {
       extraCommandLineArgs.add("--enable-gpu-shader-disk-cache");
     }
@@ -261,6 +272,11 @@ public class JavaSwitches {
           "--enable-features=" + JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER);
     }
 
+    if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER)) {
+      extraCommandLineArgs.add(
+          "--enable-features=" + JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER);
+    }
+
     if (javaSwitches.containsKey(JavaSwitches.DIRECT_WINDOW_RENDERING)) {
       extraCommandLineArgs.add("--use-window-surface-for-ui");
       extraCommandLineArgs.add("--enable-h5vcc-settings=Media.ForceClearSurfaceView=1");
@@ -270,7 +286,8 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=AreaBasedVideoBufferBudget");
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)) {
+    if (javaSwitches.containsKey(
+        JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)) {
       extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
     }
 

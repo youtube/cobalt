@@ -224,51 +224,51 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
 
   private MediaSessionObserver createMediaSessionObserver(MediaSession mediaSession) {
     return new MediaSessionObserver(mediaSession) {
-          @Override
-          public void mediaSessionDestroyed() {
-            // We always keep a MediaSession, so nothing to destroy here.
-            mMetadata = null;
-            mActions = null;
-            mPosition = null;
-            mArtworkImage = null;
-          }
+      @Override
+      public void mediaSessionDestroyed() {
+        // We always keep a MediaSession, so nothing to destroy here.
+        mMetadata = null;
+        mActions = null;
+        mPosition = null;
+        mArtworkImage = null;
+      }
 
-          @Override
-          public void mediaSessionStateChanged(boolean isControllable, boolean isPaused) {
-            mIsControllable = isControllable;
-            mIsPaused = isPaused;
-            updatePlaybackState();
-          }
+      @Override
+      public void mediaSessionStateChanged(boolean isControllable, boolean isPaused) {
+        mIsControllable = isControllable;
+        mIsPaused = isPaused;
+        updatePlaybackState();
+      }
 
-          @Override
-          public void mediaSessionMetadataChanged(MediaMetadata metadata) {
-            mMetadata = metadata;
-            updateMetadata();
-          }
+      @Override
+      public void mediaSessionMetadataChanged(MediaMetadata metadata) {
+        mMetadata = metadata;
+        updateMetadata();
+      }
 
-          @Override
-          public void mediaSessionActionsChanged(Set<Integer> actions) {
-            mActions = actions;
-            updatePlaybackState();
-          }
+      @Override
+      public void mediaSessionActionsChanged(Set<Integer> actions) {
+        mActions = actions;
+        updatePlaybackState();
+      }
 
-          @Override
-          public void mediaSessionArtworkChanged(List<MediaImage> images) {
-            if (!images.isEmpty()) {
-              Bitmap bitmap = mArtworkLoader.getOrLoadArtwork(images);
-              if (bitmap != null) {
-                onArtworkLoaded(bitmap);
-              }
-            }
+      @Override
+      public void mediaSessionArtworkChanged(List<MediaImage> images) {
+        if (!images.isEmpty()) {
+          Bitmap bitmap = mArtworkLoader.getOrLoadArtwork(images);
+          if (bitmap != null) {
+            onArtworkLoaded(bitmap);
           }
+        }
+      }
 
-          @Override
-          public void mediaSessionPositionChanged(@Nullable MediaPosition position) {
-            mPosition = position;
-            updateMetadata();
-            updatePlaybackState();
-          }
-        };
+      @Override
+      public void mediaSessionPositionChanged(@Nullable MediaPosition position) {
+        mPosition = position;
+        updateMetadata();
+        updatePlaybackState();
+      }
+    };
   }
 
   private void cleanupMediaSessionObserver() {
@@ -285,7 +285,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     }
 
     cleanupMediaSessionObserver();
-    if(mediaSession != null) {
+    if (mediaSession != null) {
       mMediaSessionObserver = createMediaSessionObserver(mediaSession);
     }
   }
