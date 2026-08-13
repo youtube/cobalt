@@ -213,6 +213,9 @@ class AppEventRunnerImpl : public AppEventRunner,
   void DoConceal() override {
     content::Shell::OnConceal();
     WaitForAck(PendingAck::kConceal);
+    base::MemoryPressureListener::NotifyMemoryPressure(
+        base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+    ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
   }
 
   void DoReveal() override {
