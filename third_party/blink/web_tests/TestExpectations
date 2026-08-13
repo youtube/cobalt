@@ -9266,7 +9266,6 @@ crbug.com/427523525 [ Linux ] virtual/threaded-prefer-compositing/external/wpt/c
 # Issues found with test suite 2025-06-21
 crbug.com/426602897 external/wpt/screen-capture/delegate-request.https.sub.html [ Failure Pass ]
 
-<<<<<<< HEAD
 # Until MediaRecorderSeekableWebm launches, this test won't pass.
 crbug.com/40482588 fast/mediarecorder/MediaRecorder-seekable-webm.html [ Failure ]
 
@@ -9286,7 +9285,7 @@ crbug.com/429440406 [ Win11-arm64 ] virtual/web-bluetooth-new-permissions-backen
 
 # Gardener 2025-07-04
 crbug.com/429413927 [ Linux ] inspector-protocol/dom/dom-issue-disallowed-select-descendants-delayed-display.js [ Failure Pass ]
-=======
+
 # Cobalt bug: b/461834934.
 wpt_internal/cobalt/HTMLVideoElementExtension/getAndSetMaxVideoCapabilities.html [ Timeout ]
 
@@ -9299,4 +9298,3 @@ wpt_internal/cobalt/h5vcc-system/h5vcc-system-exit.https.any.html [ Failure Time
 wpt_internal/cobalt/h5vcc-system/h5vcc-system-limitAdTracking.https.any.html [ Failure Timeout ]
 wpt_internal/cobalt/h5vcc-system/h5vcc-system-trackingAuthorizationStatus.https.any.html [ Failure Timeout ]
 wpt_internal/cobalt/h5vcc-system/h5vcc-system-userOnExitStrategy.https.any.html [ Failure Timeout ]
->>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
