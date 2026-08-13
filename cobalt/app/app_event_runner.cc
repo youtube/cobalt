@@ -25,6 +25,7 @@
 #include "base/allocator/partition_allocator/src/partition_alloc/memory_reclaimer.h"
 #include "base/at_exit.h"
 #include "base/command_line.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/memory_pressure_listener.h"
@@ -215,7 +216,10 @@ class AppEventRunnerImpl : public AppEventRunner,
     WaitForAck(PendingAck::kConceal);
     base::MemoryPressureListener::NotifyMemoryPressure(
         base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
-    ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce([] {
+          ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
+        }));
   }
 
   void DoReveal() override {
