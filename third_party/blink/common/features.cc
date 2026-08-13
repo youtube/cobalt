@@ -450,6 +450,12 @@ BASE_FEATURE(kClientHintsXRFormFactor,
 BASE_FEATURE(kCobaltBypassBufferingBytesConsumer,
              "CobaltBypassBufferingBytesConsumer",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Bypasses Blink ResourceLoadScheduler queueing and throttling for subresources
+// in Cobalt, dispatching requests immediately.
+BASE_FEATURE(kCobaltBypassResourceLoadScheduler,
+             "CobaltBypassResourceLoadScheduler",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_COBALT)
 
 // Enable legacy `viewport-width` client hint.
