@@ -105,13 +105,8 @@ ProcessedLocalAudioSource::ProcessedLocalAudioSource(
 #if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
       dependency_factory_(
           PeerConnectionDependencyFactory::From(*frame.DomWindow())),
-<<<<<<< HEAD
-      processing_layout_(processing_layout),
-=======
 #endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
-      audio_processing_properties_(audio_processing_properties),
-      num_requested_channels_(num_requested_channels),
->>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+      processing_layout_(processing_layout),
       started_callback_(std::move(started_callback)),
       allow_invalid_render_frame_id_for_testing_(false) {
   DCHECK(frame.DomWindow());
