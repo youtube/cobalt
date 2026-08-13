@@ -416,6 +416,7 @@ int UtilityMain(MainFunctionParams parameters) {
                             uncovered_hang_watcher_time);
     base::HangWatcher::GetInstance()->Start();
   }
+#endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #elif BUILDFLAG(IS_WIN)
   std::optional<base::win::ScopedCOMInitializer> scoped_com_initializer;
