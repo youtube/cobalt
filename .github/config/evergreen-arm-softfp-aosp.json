@@ -1,7 +1,7 @@
 {
   "docker_service": "linux",
   "platforms": [
-    "aosp-arm"
+    "evergreen-arm-softfp-aosp"
   ],
   "build_configs": [
     "debug",
@@ -20,8 +20,8 @@
   ],
   "includes": [
     {
-      "name": "arm",
-      "platform": "aosp-arm"
+      "name": "arm-softfp-aosp",
+      "platform": "evergreen-arm-softfp-aosp"
     }
   ]
 }
