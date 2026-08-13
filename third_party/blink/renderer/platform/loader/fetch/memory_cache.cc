@@ -409,14 +409,12 @@ void MemoryCache::OnMemoryPressure(
   }
 
 #if BUILDFLAG(IS_COBALT)
-  static const bool kEvictMemoryCacheOnCritical =
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "evict-memory-cache-on-critical-memory-pressure");
   if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL &&
-      kEvictMemoryCacheOnCritical) {
+      base::FeatureList::IsEnabled(
+          features::kEvictMemoryCacheOnCriticalMemoryPressure)) {
     EvictResources();
   }
-#endif
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void MemoryCache::SavePageResourceStrongReferences(

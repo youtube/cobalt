@@ -307,7 +307,7 @@ public class JavaSwitches {
     }
 
     if (javaSwitches.containsKey(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE)) {
-      extraCommandLineArgs.add("--evict-memory-cache-on-critical-memory-pressure");
+      extraCommandLineArgs.add("--enable-features=" + JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING)) {
