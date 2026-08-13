@@ -22,35 +22,43 @@ runs:
       if: inputs.symbolize == 'true'
       id: gcs-project
       run: |
-        echo "name=$(gcloud config get-value project)" >> $GITHUB_OUTPUT
+        echo "name=$(gcloud config get-value project)" >> "${GITHUB_OUTPUT}"
       shell: bash
     - name: Download Test Symbols
       if: inputs.symbolize == 'true'
       env:
         WORKFLOW: ${{ github.workflow }}
+        GCS_PROJECT_NAME: ${{ steps.gcs-project.outputs.name }}
+        PLATFORM: ${{ matrix.platform }}
+        CONFIG: ${{ matrix.config }}
       run: |
-        gsutil -m cp "gs://${{ steps.gcs-project.outputs.name }}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/symbols/*" \
-          "${GITHUB_WORKSPACE}/out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/
+        gsutil -m cp "gs://${GCS_PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}/symbols/*" \
+          "${GITHUB_WORKSPACE}/out/${PLATFORM}_${CONFIG}/lib.unstripped/"
       shell: bash
     - name: Print Logs and Test Summary
+      env:
+        LOG_GLOB: ${{ inputs.log_glob }}
+        SYMBOLIZE: ${{ inputs.symbolize }}
+        PLATFORM: ${{ matrix.platform }}
+        CONFIG: ${{ matrix.config }}
       run: |
         # Print logs and failing tests.
         # Enable globstar shell option for globstar paths e.g. /**/*.xml and
         # nullopt to returns empty string if the glob matches no files.
         shopt -s globstar nullglob
 
-        log_files=(${{ inputs.log_glob }})
+        log_files=(${LOG_GLOB})
         if [ ${#log_files[@]} -eq 0 ]; then
           echo "::error::No log files were collected. The tests probably failed to run."
           exit 1
         else
-          for log_file in ${log_files[@]}; do
-            if [ "${{ inputs.symbolize }}" == "true" ]; then
+          for log_file in "${log_files[@]}"; do
+            if [ "${SYMBOLIZE}" == "true" ]; then
               # TODO: stack.py fails import packages. Perhaps needs depot tools setup?
-              cat ../${log_file} | python3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/${{ matrix.platform }}_${{ matrix.config }}/
+              cat "../${log_file}" | python3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/"${PLATFORM}_${CONFIG}"/
             else
               echo "=== ${log_file} ==="
-              cat ${log_file}
+              cat "${log_file}"
             fi
           done
         fi
