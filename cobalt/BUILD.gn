@@ -384,10 +384,11 @@ test("cobalt_unittests") {
     ]
   }
 
+  sources += [ "//cobalt/shell/browser/shell_test_support.h" ]
+
   if (!is_android) {
     sources += [
       "//cobalt/shell/browser/lifecycle_unittest.cc",
-      "//cobalt/shell/browser/shell_test_support.h",
       "//cobalt/shell/browser/splash_screen_unittest.cc",
     ]
   }
