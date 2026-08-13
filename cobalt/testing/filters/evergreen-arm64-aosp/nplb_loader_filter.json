@@ -22,7 +22,7 @@
     "PosixUnistdSysconfTests/PosixUnistdSysconfOptionalValueTest.OptionalScValuesAreValidNames/78",
     "PosixUnistdSysconfTests/PosixUnistdSysconfOptionalValueTest.OptionalScValuesAreValidNames/79",
     "SbAudioSinkTest.ContinuousAppend",
-    "SbDrmSessionTest.*",
+    "SbDrmSessionTest.InvalidSessionUpdateRequestParams",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
     "SbTimeZoneGetNameTest.IsIANAFormat"
   ]

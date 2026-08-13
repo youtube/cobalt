@@ -81,6 +81,7 @@ DrmSystem::DrmSystem(PassKey<DrmSystem>,
   SB_CHECK(callbacks_.update_request);
   SB_CHECK(callbacks_.session_updated);
   SB_CHECK(callbacks_.key_statuses_changed);
+  SB_CHECK(callbacks_.session_closed);
 
   ON_INSTANCE_CREATED(AndroidDrmSystem);
 
@@ -140,6 +141,11 @@ void DrmSystem::CloseSession(std::string_view session_id) {
     return;
   }
   media_drm_bridge_->CloseSession(media_drm_session_id);
+
+  // Notify the client that the session has been closed. MediaDrm does not
+  // deliver a close event of its own, so do it here.
+  callbacks_.session_closed(this, context_, session_id.data(),
+                            session_id.size());
 }
 
 DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
