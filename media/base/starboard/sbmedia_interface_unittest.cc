@@ -25,8 +25,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
+using ::testing::AnyOf;
 using ::testing::DoAll;
 using ::testing::Eq;
+using ::testing::IsNull;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
@@ -34,6 +36,9 @@ using ::testing::StrEq;
 namespace media {
 namespace {
 
+// A mock implementation of SbMediaInterface for unit testing the media
+// pipeline's interaction with the Starboard media layer. This class is
+// thread-safe.
 class MockSbMediaInterface : public SbMediaInterface {
  public:
   MockSbMediaInterface() = default;
@@ -69,6 +74,8 @@ class MockSbMediaInterface : public SbMediaInterface {
               (const, override));
 };
 
+// Test fixture for testing SbMediaInterface and its integration with MimeUtil.
+// This class is thread-affine to the main test thread.
 class SbMediaInterfaceTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -202,7 +209,8 @@ TEST_F(SbMediaInterfaceTest,
       "tunnelmode=true; hdr=hdr10plus";
 
   EXPECT_CALL(mock_interface,
-              CanPlayMimeAndKeySystem(StrEq(kCustomMime.c_str()), StrEq("")))
+              CanPlayMimeAndKeySystem(StrEq(kCustomMime.c_str()),
+                                      AnyOf(IsNull(), StrEq(""))))
       .WillOnce(Return(kSbMediaSupportTypeProbably))
       .WillOnce(Return(kSbMediaSupportTypeMaybe))
       .WillOnce(Return(kSbMediaSupportTypeNotSupported));
@@ -224,7 +232,8 @@ TEST_F(SbMediaInterfaceTest, MimeUtilIsSupportedMediaFormatSupportTypeMapping) {
   const std::vector<std::string> kCodecs = {"avc1.64002a"};
 
   EXPECT_CALL(mock_interface,
-              CanPlayMimeAndKeySystem(StrEq(kCustomMime.c_str()), StrEq("")))
+              CanPlayMimeAndKeySystem(StrEq(kCustomMime.c_str()),
+                                      AnyOf(IsNull(), StrEq(""))))
       .WillOnce(Return(kSbMediaSupportTypeProbably))
       .WillOnce(Return(kSbMediaSupportTypeMaybe))
       .WillOnce(Return(kSbMediaSupportTypeNotSupported));
