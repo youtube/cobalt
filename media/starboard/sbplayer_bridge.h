@@ -104,9 +104,7 @@ class SbPlayerBridge {
                  const GetDecodeTargetGraphicsContextProviderFunc&
                      get_decode_target_graphics_context_provider_func,
                  const AudioDecoderConfig& audio_config,
-                 const std::string& audio_mime_type,
                  const VideoDecoderConfig& video_config,
-                 const std::string& video_mime_type,
                  SbWindow window,
                  SbDrmSystem drm_system,
                  Host* host,
@@ -129,10 +127,8 @@ class SbPlayerBridge {
 
   bool IsValid() const { return SbPlayerIsValid(player_); }
 
-  void UpdateAudioConfig(const AudioDecoderConfig& audio_config,
-                         const std::string& mime_type);
-  void UpdateVideoConfig(const VideoDecoderConfig& video_config,
-                         const std::string& mime_type);
+  void UpdateAudioConfig(const AudioDecoderConfig& audio_config);
+  void UpdateVideoConfig(const VideoDecoderConfig& video_config);
 
   void WriteBuffers(DemuxerStream::Type type,
                     const std::vector<scoped_refptr<DecoderBuffer>>& buffers);
@@ -352,10 +348,6 @@ class SbPlayerBridge {
   // Keep track of the output mode we are supposed to output to.
   SbPlayerOutputMode output_mode_;
 
-  // Keep copies of the mime type strings instead of using the ones in the
-  // DemuxerStreams to ensure that the strings are always valid.
-  std::string audio_mime_type_;
-  std::string video_mime_type_;
   // A string of video maximum capabilities.
   std::string max_video_capabilities_;
 
