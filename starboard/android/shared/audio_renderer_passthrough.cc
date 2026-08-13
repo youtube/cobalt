@@ -536,9 +536,17 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
     current_state.playback_rate = playback_rate_;
 
     if (!decoded_audio_writing_in_progress_ && !decoded_audios_.empty()) {
-      decoded_audio_writing_in_progress_ = std::move(decoded_audios_.front());
-      decoded_audios_.pop();
-      decoded_audio_writing_offset_ = 0;
+      // Drop frames before the seek target.
+      while (!decoded_audios_.empty() &&
+             !decoded_audios_.front().is_end_of_stream() &&
+             decoded_audios_.front().timestamp() < seek_to_time_) {
+        decoded_audios_.pop();
+      }
+      if (!decoded_audios_.empty()) {
+        decoded_audio_writing_in_progress_ = std::move(decoded_audios_.front());
+        decoded_audios_.pop();
+        decoded_audio_writing_offset_ = 0;
+      }
     }
   }
 
