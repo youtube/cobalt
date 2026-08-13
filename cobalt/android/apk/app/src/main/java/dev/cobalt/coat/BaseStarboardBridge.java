@@ -34,7 +34,9 @@ import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import dev.cobalt.media.AudioOutputManager;
+import dev.cobalt.media.ExoPlayerManager;
 import dev.cobalt.media.VideoSurfaceView;
+import dev.cobalt.media.ExoPlayerManager;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -87,6 +89,7 @@ public class BaseStarboardBridge {
   private final AudioPermissionRequester mAudioPermissionRequester;
   private final ResourceOverlay mResourceOverlay;
   private final AdvertisingId mAdvertisingId;
+  private final ExoPlayerManager mExoPlayerManager;
   private final Context mAppContext;
   protected final Holder<Activity> mActivityHolder;
   private final Holder<Service> mServiceHolder;
@@ -178,6 +181,7 @@ public class BaseStarboardBridge {
     mSysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, mStopRequester);
     mTtsHelper = new CobaltTextToSpeechHelper(appContext);
     mAudioOutputManager = new AudioOutputManager(appContext);
+    mExoPlayerManager = new ExoPlayerManager(appContext);
     mAudioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     mResourceOverlay = new ResourceOverlay(appContext);
     mAdvertisingId = new AdvertisingId(appContext);
@@ -733,6 +737,11 @@ public class BaseStarboardBridge {
       throw new IllegalArgumentException("mAudioOutputManager cannot be null for native code");
     }
     return mAudioOutputManager;
+  }
+
+  @CalledByNative
+  ExoPlayerManager getExoPlayerManager() {
+    return mExoPlayerManager;
   }
 
   /** Returns Java layer implementation for AudioPermissionRequester */
