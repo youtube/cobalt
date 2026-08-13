@@ -59,12 +59,6 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
     must_support_tunnel_mode =
         mime_type->GetParamBoolValue("tunnelmode", false);
 
-    // Override endianness on HDR Info header. Defaults to little.
-    if (!mime_type->ValidateStringParameter("hdrinfoendianness",
-                                            "big|little")) {
-      return false;
-    }
-
     // Allow the web app to control how software decoders should be used.
     if (!mime_type->ValidateStringParameter(
             "softwaredecoder",
