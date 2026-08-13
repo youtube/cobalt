@@ -157,13 +157,15 @@ jobs:
 
             1.  **Influence the Result:** Want to change the output? You can write **custom prompts or instructions** directly in the **Pull Request description**. The model uses that text to generate the message.
             2.  **Re-run the Generator:** Post a comment with: `/generate-commit-message`
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         with:
           script: |
             const body = process.env.COMMENT_BODY;
+            const issueNumber = Number(process.env.PR_NUMBER || process.env.ISSUE_NUMBER || context.issue.number);
             github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              // Logic: Concatenate numbers. One will be empty, leaving the correct ID.
-              issue_number: ${{ github.event.pull_request.number }}${{ github.event.issue.number }},
+              issue_number: issueNumber,
               body: body
             });
