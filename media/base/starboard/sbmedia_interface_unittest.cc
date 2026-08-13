@@ -237,5 +237,25 @@ TEST_F(SbMediaInterfaceTest, MimeUtilIsSupportedMediaFormatSupportTypeMapping) {
             SupportsType::kNotSupported);
 }
 
+TEST_F(SbMediaInterfaceTest,
+       MimeUtilIsSupportedMediaMimeTypePreservesAllCustomParametersCombined) {
+  internal::MimeUtil mime_util;
+
+  const std::string kAllParamsMime =
+      "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
+      "framerate=60; bitrate=20000000; hdr=hdr10plus; eotf=smpte2084; "
+      "color_primaries=bt2020; matrix=bt2020nc; tunnelmode=true; "
+      "softwaredecoder=false; disablecache=true; "
+      "disabledynamicprerollframecount=true; enableflushduringseek=true; "
+      "encryptionscheme=cenc;";
+
+  EXPECT_CALL(mock_interface_,
+              CanPlayMimeAndKeySystem(StrEq(kAllParamsMime.c_str()),
+                                      AnyOf(IsNull(), StrEq(""))))
+      .WillOnce(Return(kSbMediaSupportTypeProbably));
+
+  EXPECT_TRUE(mime_util.IsSupportedMediaMimeType(kAllParamsMime));
+}
+
 }  // namespace
 }  // namespace media
