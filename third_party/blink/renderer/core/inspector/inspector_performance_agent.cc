@@ -275,14 +275,22 @@ protocol::Response InspectorPerformanceAgent::getMetrics(
   }
 
 #if BUILDFLAG(IS_COBALT) && !defined(OFFICIAL_BUILD)
-  if (auto memory_breakdown = GetMemoryBreakdown()) {
-    for (const auto& entry : *memory_breakdown) {
-      if (entry.name) {
-        AppendMetric(result.get(), String::FromUTF8(entry.name),
-                     static_cast<double>(entry.value_bytes));
-      }
-    }
-  }
+  auto append_metrics =
+      [&result](const std::optional<std::vector<MemoryBreakdownMetric>>&
+                    metrics) {
+        if (metrics) {
+          for (const MemoryBreakdownMetric& entry : *metrics) {
+            if (!entry.name.empty()) {
+              AppendMetric(result.get(), String::FromUTF8(entry.name),
+                           static_cast<double>(entry.value_bytes));
+            }
+          }
+        }
+      };
+
+  append_metrics(GetLiveMemoryBreakdown());
+  append_metrics(GetP50MemoryBreakdown());
+  append_metrics(GetPeakMemoryGuardrails());
 #endif
 
   *out_result = std::move(result);

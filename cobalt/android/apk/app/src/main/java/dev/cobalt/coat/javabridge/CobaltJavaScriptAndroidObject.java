@@ -14,16 +14,14 @@
 
 package dev.cobalt.coat.javabridge;
 
-/**
- * Interface for Android objects that are exposed to JavaScript.
- */
+/** Interface for Android objects that are exposed to JavaScript. */
 public interface CobaltJavaScriptAndroidObject {
 
-    /**
-     * Gets the name used to expose this object to JavaScript.
-     * This name is used in the `addJavascriptInterface` method of the WebView.
-     *
-     * @return The JavaScript interface name.
-     */
-    public String getJavaScriptInterfaceName();
+  /**
+   * Gets the name used to expose this object to JavaScript. This name is used in the
+   * `addJavascriptInterface` method of the WebView.
+   *
+   * @return The JavaScript interface name.
+   */
+  public String getJavaScriptInterfaceName();
 }
