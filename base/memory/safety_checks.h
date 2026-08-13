@@ -5,12 +5,8 @@
 #ifndef BASE_MEMORY_SAFETY_CHECKS_H_
 #define BASE_MEMORY_SAFETY_CHECKS_H_
 
-<<<<<<< HEAD
 #include <stdint.h>
 
-=======
-#include <cstdint>
->>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include <new>
 #include <type_traits>
 
