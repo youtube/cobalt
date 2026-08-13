@@ -49,6 +49,9 @@ class NativeStabilityManager {
   // with it.
   void ArmCrashUuidAnnotation();
 
+  void RecordHangStarted(const std::string& hang_uuid);
+  void RecordHangRecovered(const std::string& hang_uuid);
+
   // Asynchronously reads and summarizes stability reports stored on disk that
   // have not previously been acknowledged.
   //

@@ -37,6 +37,8 @@ class CobaltHangWatcherDelegate : public base::HangWatcher::Delegate {
   std::optional<base::TimeDelta> GetHangWatchMonitoringPeriod() override;
   std::optional<bool> IsThreadDumpingEnabled(
       base::HangWatcher::ThreadType thread_type) override;
+  void RecordHangStarted(const std::string& hang_uuid) override;
+  void RecordHangRecovered(const std::string& hang_uuid) override;
 
  private:
   GlobalFeatures* GetGlobalFeatures();
