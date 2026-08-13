@@ -66,6 +66,13 @@ inline constexpr const char* kCanonicalMemoryMetricNames[kNumCobaltMemoryMetrics
     "Memory.Experimental.Browser2.JavaHeap",
     "Memory.GPU.PeakMemoryUsage2.PageLoad"};
 
+// Canonical UMA time-windowed peak private memory footprint guardrail metrics.
+inline constexpr const char* kPeakMemoryGuardrailMetricNames[] = {
+    "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.0to2min",
+    "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.2to4min",
+    "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.4to8min",
+    "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.8to16min"};
+
 // ============================================================================
 // 1. Session Median (P50) Memory Breakdown Metrics (UMA Histograms)
 // ============================================================================
@@ -90,6 +97,16 @@ std::optional<std::vector<MemoryBreakdownMetric>> GetP50MemoryBreakdown();
 
 // Queries all available live instantaneous memory breakdown metrics.
 std::optional<std::vector<MemoryBreakdownMetric>> GetLiveMemoryBreakdown();
+
+// ============================================================================
+// 3. Time-Windowed Peak Private Memory Footprint Guardrails
+// ============================================================================
+// Query the peak recorded value in bytes for a specific histogram.
+std::optional<uint64_t> GetPeakHistogramValueBytes(std::string_view metric_name);
+
+// Queries Cobalt's production guardrail peak private memory footprint metrics
+// across session lifecycle windows (0-2min, 2-4min, 4-8min, 8-16min).
+std::optional<std::vector<MemoryBreakdownMetric>> GetPeakMemoryGuardrails();
 
 }  // namespace blink
 
