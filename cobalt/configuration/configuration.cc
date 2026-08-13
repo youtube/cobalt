@@ -15,7 +15,9 @@
 #include "cobalt/configuration/configuration.h"
 
 #include <string>
+#include <string_view>
 
+#include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
@@ -43,10 +45,23 @@ Configuration::Configuration() {
 }
 
 Configuration::UserOnExitStrategy Configuration::CobaltUserOnExitStrategy() {
-// TODO(b/385357645): fix calling the configuratino extension function.
 #if BUILDFLAG(IS_ANDROID)
   return Configuration::UserOnExitStrategy::kMinimize;
 #else
+  if (configuration_api_ && configuration_api_->CobaltUserOnExitStrategy) {
+    const char* exit_strategy = configuration_api_->CobaltUserOnExitStrategy();
+    if (exit_strategy) {
+      std::string_view exit_strategy_str(exit_strategy);
+      if (exit_strategy_str == "stop") {
+        return Configuration::UserOnExitStrategy::kClose;
+      } else if (exit_strategy_str == "suspend") {
+        return Configuration::UserOnExitStrategy::kMinimize;
+      } else if (exit_strategy_str == "noexit") {
+        return Configuration::UserOnExitStrategy::kNoExit;
+      }
+      LOG(WARNING) << "Unknown CobaltUserOnExitStrategy: " << exit_strategy;
+    }
+  }
   return Configuration::UserOnExitStrategy::kClose;
 #endif
 }
