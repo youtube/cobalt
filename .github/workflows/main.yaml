@@ -334,7 +334,7 @@ jobs:
                     (.runs_on == "device" and $run_on_device_test == "true") or
                     (.runs_on == "host"  and $run_on_host_test == "true")
                   )
-                )
+                ) | .required = (if .required == false then false else true end)
               ]' "${test_targets_json_file}")
           fi
 
@@ -936,13 +936,13 @@ jobs:
       - name: Test Results
         if: steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/process_test_results
+        continue-on-error: ${{ matrix.test_info.required == false }}
         with:
           target_name: ${{ matrix.test_info.target }}
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
           datadog_api_key: ${{ secrets.datadog_api_key }}
-          expected_tests_json: ${{ needs.initialize.outputs.expected_tests_json }}
-          num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
+          num_gtest_shards: ${{ matrix.test_info.runs_on == 'host' && matrix.test_info.test_type == 'gtest' && needs.initialize.outputs.num_gtest_shards || 1 }}
       - name: ${{ matrix.test_info.target }} Device Logs
         if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true' && matrix.test_info.runs_on == 'device'
         continue-on-error: true
@@ -1003,7 +1003,6 @@ jobs:
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
           datadog_api_key: ${{ secrets.datadog_api_key }}
-          expected_tests_json: ${{ needs.initialize.outputs.expected_tests_json }}
           num_gtest_shards: 1
       - name: ${{ matrix.test_target }} Device Logs
         if: always() && needs.initialize.outputs.test_on_device == 'true'
@@ -1055,8 +1054,45 @@ jobs:
           path: results/
       - name: Failed Tests
         if: always() && (needs.test-results.result != 'skipped' || needs.browser-test-results.result != 'skipped')
+        env:
+          EXPECTED_TESTS: ${{ needs.initialize.outputs.expected_tests_json || '[]' }}
+          BROWSER_TESTS: ${{ needs.initialize.outputs.browser_test_targets || '[]' }}
+          NUM_GTEST_SHARDS: ${{ needs.initialize.outputs.num_gtest_shards || 1 }}
         run: |
-          # Print test result summary.
+          set -euo pipefail
           shopt -s globstar nullglob
-          python3 cobalt/tools/junit_mini_parser.py --expected-tests-json '${{ needs.initialize.outputs.expected_tests_json }}' results/**/*.xml
+
+          REQUIRED_TARGETS=$(jq -nr \
+            --argjson expected "$EXPECTED_TESTS" \
+            --argjson browser "$BROWSER_TESTS" \
+            --arg num_gtest_shards "$NUM_GTEST_SHARDS" \
+            '($expected + $browser)[] | select(.target != null and .required != false) |
+             "\(.target) \(if .runs_on == "host" and .test_type == "gtest" then $num_gtest_shards else 1 end)"')
+
+          missing_required=0
+          required_xmls=()
+
+          while read -r target expected_shards; do
+            [ -z "$target" ] && continue
+            target_name="${target##*:}"
+            files=(
+              results/**/"${target_name}"_result.xml
+              results/**/"${target_name}".xml
+              results/**/"${target_name}"_testoutput.xml
+            )
+            if [ ${#files[@]} -lt "$expected_shards" ]; then
+              echo "::error::Missing required test results for target: $target. Found ${#files[@]}, expected ${expected_shards}."
+              missing_required=1
+            else
+              required_xmls+=("${files[@]}")
+            fi
+          done <<< "$REQUIRED_TARGETS"
+
+          if [ $missing_required -ne 0 ]; then
+            exit 1
+          fi
+
+          if [ ${#required_xmls[@]} -gt 0 ]; then
+            python3 cobalt/tools/junit_mini_parser.py "${required_xmls[@]}"
+          fi
         shell: bash

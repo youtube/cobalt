@@ -16,10 +16,6 @@ inputs:
   num_gtest_shards:
     description: Number of gtest shards run.
     required: true
-  expected_tests_json:
-    description: "JSON array of expected test targets."
-    required: false
-    default: '[]'
 runs:
   using: "composite"
   steps:
@@ -47,7 +43,6 @@ runs:
         LOG_GLOB: ${{ inputs.log_glob }}
         TARGET_NAME: ${{ inputs.target_name }}
         GTEST_SHARDS: ${{ inputs.num_gtest_shards }}
-        EXPECTED_TESTS_JSON: ${{ inputs.expected_tests_json }}
       run: |
         # Check test status.
         if [ "$RUNNER_DEBUG" == "1" ]; then
@@ -88,10 +83,10 @@ runs:
           echo "  |_| |_____|____/ |_|   |____/ |_|/_/   \_\|_|  \___/ |____/ "
           echo
 
-          if ! python3 cobalt/tools/junit_mini_parser.py --expected-tests-json "${EXPECTED_TESTS_JSON}" ${RESULTS_GLOB}; then
-            echo "::error::${TARGET_NAME} has ${TESTS_FAILED} failed test(s)."
-            exit_code=1
-          fi
+          python3 cobalt/tools/junit_mini_parser.py ${RESULTS_GLOB}
+
+          echo "::error::${TARGET_NAME} has ${TESTS_FAILED} failed test(s)."
+          exit_code=1
         fi
 
         echo "${TESTS_PASSED} of ${TESTS_TOTAL} tests passed (${TESTS_SKIPPED} skipped)."

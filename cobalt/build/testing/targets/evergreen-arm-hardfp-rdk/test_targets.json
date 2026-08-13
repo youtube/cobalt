@@ -124,6 +124,6 @@
     "executable": "out/evergreen-arm-hardfp-rdk_devel/update_client_unittests_loader.py",
     "runs_on": "device",
     "test_type": "gtest",
-    "required_passing": false
+    "required": false
   }
 ]
