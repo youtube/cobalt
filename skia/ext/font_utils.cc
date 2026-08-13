@@ -72,9 +72,6 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
   return SkFontMgr_New_Cobalt();
 #else
 #if BUILDFLAG(IS_ANDROID)
-<<<<<<< HEAD
-  return SkFontMgr_New_Android(nullptr, SkFontScanner_Make_Fontations());
-=======
 #if BUILDFLAG(IS_COBALT)
   // When Cobalt optimized font loading is enabled, configure Skia to use hermetic custom
   // XML font fallbacks (`cobalt_android_fonts.xml`) extracted into the app data directory.
@@ -88,20 +85,11 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
       custom_fonts.fFontsXml = xml_path.c_str();
       custom_fonts.fFallbackFontsXml = nullptr;
       custom_fonts.fIsolated = true;
-      if (base::FeatureList::IsEnabled(skia::kFontationsAndroidSystemFonts)) {
-        return SkFontMgr_New_Android(&custom_fonts, SkFontScanner_Make_Fontations());
-      } else {
-        return SkFontMgr_New_Android(&custom_fonts);
-      }
+      return SkFontMgr_New_Android(&custom_fonts, SkFontScanner_Make_Fontations());
     }
   }
-#endif // BUILDFLAG (IS_COBALT)
-  if (base::FeatureList::IsEnabled(skia::kFontationsAndroidSystemFonts)) {
-    return SkFontMgr_New_Android(nullptr, SkFontScanner_Make_Fontations());
-  } else {
-    return SkFontMgr_New_Android(nullptr);
-  }
->>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#endif  // BUILDFLAG(IS_COBALT)
+  return SkFontMgr_New_Android(nullptr, SkFontScanner_Make_Fontations());
 #elif BUILDFLAG(IS_APPLE)
   return SkFontMgr_New_CoreText(nullptr);
 #elif BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
