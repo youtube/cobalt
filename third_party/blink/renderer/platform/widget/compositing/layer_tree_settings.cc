@@ -529,6 +529,12 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
   settings.decoded_image_working_set_budget_bytes =
       cc::ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
           /*for_renderer=*/true);
+#if BUILDFLAG(IS_COBALT)
+  settings.decoded_image_persistent_cache_budget_count =
+      cc::ImageDecodeCacheUtils::GetPersistentCacheBudgetCount();
+  settings.decoded_image_persistent_cache_budget_bytes =
+      cc::ImageDecodeCacheUtils::GetPersistentCacheBudgetBytes();
+#endif
 
   if (using_low_memory_policy) {
     // RGBA_4444 textures are only enabled:
