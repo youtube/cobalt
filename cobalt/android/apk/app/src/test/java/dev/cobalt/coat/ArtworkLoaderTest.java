@@ -24,7 +24,6 @@ import static org.mockito.Mockito.verify;
 import android.graphics.Bitmap;
 import android.util.Pair;
 import java.util.Collections;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -114,7 +113,7 @@ public class ArtworkLoaderTest {
 
   @Test
   public void testCropTo16x9_Null() {
-      assertThat(mArtworkLoader.cropTo16x9(null)).isNull();
+    assertThat(mArtworkLoader.cropTo16x9(null)).isNull();
   }
 
   @Test

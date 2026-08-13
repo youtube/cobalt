@@ -32,7 +32,7 @@ using ::starboard::StarboardBridge;
 namespace performance {
 
 PerformanceImpl::PerformanceImpl(
-    absl::optional<int64_t> app_startup_timestamp,
+    std::optional<int64_t> app_startup_timestamp,
     content::RenderFrameHost& render_frame_host,
     mojo::PendingReceiver<mojom::CobaltPerformance> receiver)
     : content::DocumentService<mojom::CobaltPerformance>(render_frame_host,
@@ -40,7 +40,7 @@ PerformanceImpl::PerformanceImpl(
       app_startup_timestamp_(app_startup_timestamp) {}
 
 void PerformanceImpl::Create(
-    absl::optional<int64_t> app_startup_timestamp,
+    std::optional<int64_t> app_startup_timestamp,
     content::RenderFrameHost* render_frame_host,
     mojo::PendingReceiver<mojom::CobaltPerformance> receiver) {
   new PerformanceImpl(app_startup_timestamp, *render_frame_host,
