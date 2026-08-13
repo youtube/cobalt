@@ -927,7 +927,10 @@ void GpuChannelManager::HandleMemoryPressure(
 gl::GLSurface* GpuChannelManager::default_offscreen_surface() {
   if (!default_offscreen_surface_) {
     gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
-    if (display && !display->IsInitialized()) {
+    if (!display) {
+      return nullptr;
+    }
+    if (!display->IsInitialized()) {
       gl::init::GetOrInitializeGLOneOffPlatformImplementation(
           /*fallback_to_software_gl=*/false,
           /*disable_gl_drawing=*/false,
@@ -935,7 +938,7 @@ gl::GLSurface* GpuChannelManager::default_offscreen_surface() {
           gl::GpuPreference::kDefault);
     }
     default_offscreen_surface_ = gl::init::CreateOffscreenGLSurface(
-        gl::GetDefaultDisplayEGL(), gfx::Size());
+        display, gfx::Size());
   }
   return default_offscreen_surface_.get();
 }
