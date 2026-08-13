@@ -131,13 +131,7 @@ template("write_build_config") {
   _deps = []
   _type = invoker.type
 
-<<<<<<< HEAD
-  if (current_toolchain == default_toolchain) {
-=======
   if (current_toolchain == android_toolchain) {
-    _type = invoker.type
-
->>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     # Ensure targets match naming patterns so that __assetres, __header, __host,
     # and __validate targets work properly.
     if (filter_exclude([ _type ], _java_resource_types) == []) {
