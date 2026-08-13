@@ -42,7 +42,6 @@ gclient_gn_args = [
   'checkout_android',
   'checkout_android_prebuilts_build_tools',
   'checkout_clang_coverage_tools',
-  'checkout_cobalt_internal',
   'checkout_copybara',
   'checkout_glic_e2e_tests',
   'checkout_ios_webkit',
@@ -79,9 +78,6 @@ vars = {
   # variables.
   # TODO(crbug.com/875037): Remove this once the problem in gclient is fixed.
   'checkout_fuchsia': False,
-
-  # By default, do not check out Cobalt internal.
-  'checkout_cobalt_internal': False,
 
   # For code related to internal Fuchsia images.
   'checkout_fuchsia_internal': False,
@@ -277,12 +273,7 @@ vars = {
   'screen_ai_windows_386': 'version:138.04',
 
   # siso CIPD package version.
-  # Cobalt: Update siso_version to milestone 141.0.7390.0, to support gcloud
-  # credentials. Remove after rebasing to 141.0.7390.0 or newer. Cobalt
-  # modifications to build/config/siso/configure_siso.py can also be removed
-  # in favor of setting the '--reapi_backend_config_path' argument to
-  # 'cobalt.star'
-  'siso_version': 'git_revision:8863265a67843154872be2be1fc0c37339691405',
+  'siso_version': 'git_revision:d704490133011610c402696584afedea80829dbd',
 
   # download libaom test data
   'download_libaom_testdata': False,
@@ -295,7 +286,6 @@ vars = {
   'boringssl_git': 'https://boringssl.googlesource.com',
   'chrome_git': 'https://chrome-internal.googlesource.com',
   'chromium_git': 'https://chromium.googlesource.com',
-  'cobalt_internal_git': 'https://lbshell-internal.googlesource.com',
   'dawn_git': 'https://dawn.googlesource.com',
   'pdfium_git': 'https://pdfium.googlesource.com',
   'quiche_git': 'https://quiche.googlesource.com',
@@ -393,7 +383,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling fuzztest
   # and whatever else without interference from each other.
-  'fuzztest_revision': '890b53c3485bf7e31ac8b6b637f9850e4d596ced',
+  'fuzztest_revision': 'f03aafb7516050ea73f617bf969f03eac641aefc',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling domato
   # and whatever else without interference from each other.
@@ -570,7 +560,6 @@ allowed_hosts = [
   'chrome-internal.googlesource.com',
   'chromium.googlesource.com',
   'dawn.googlesource.com',
-  'lbshell-internal.googlesource.com',
   'pdfium.googlesource.com',
   'quiche.googlesource.com',
   'skia.googlesource.com',
@@ -1197,11 +1186,10 @@ deps = {
     Var('chromium_git') +
     '/external/github.com/llvm/llvm-project/compiler-rt.git' + '@' +
     Var('compiler_rt_revision'),
-# Cobalt: imported
-#  'src/third_party/libc++/src':
-#    Var('chromium_git') +
-#    '/external/github.com/llvm/llvm-project/libcxx.git' + '@' +
-#    Var('libcxx_revision'),
+  'src/third_party/libc++/src':
+    Var('chromium_git') +
+    '/external/github.com/llvm/llvm-project/libcxx.git' + '@' +
+    Var('libcxx_revision'),
   'src/third_party/libc++abi/src':
     Var('chromium_git') +
     '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' +
@@ -1537,11 +1525,6 @@ deps = {
     'condition': 'checkout_android and checkout_src_internal',
   },
 
-  'src/cobalt/internal': {
-    'url': Var('cobalt_internal_git') + '/cobalt/internal.git' + '@' + 'main',
-    'condition': 'checkout_cobalt_internal',
-  },
-
   'src/docs/website': {
     'url': Var('chromium_git') + '/website.git' + '@' + 'cca89b4e2f007c21ff502adffd4339b01bf8730a',
   },
@@ -1630,9 +1613,8 @@ deps = {
       'condition': 'checkout_nacl',
   },
 
-# Cobalt: imported
-#  'src/net/third_party/quiche/src':
-#    Var('quiche_git') + '/quiche.git' + '@' +  Var('quiche_revision'),
+  'src/net/third_party/quiche/src':
+    Var('quiche_git') + '/quiche.git' + '@' +  Var('quiche_revision'),
 
   'src/testing/libfuzzer/fuzzers/wasm_corpus':
     Var('chromium_git') + '/v8/fuzzer_wasm_corpus.git' + '@' +  '1df5e50a45db9518a56ebb42cb020a94a090258b',
@@ -1847,14 +1829,8 @@ deps = {
       'dep_type': 'cipd',
   },
 
-# Cobalt: imported
-#  'src/third_party/angle':
-#    Var('chromium_git') + '/angle/angle.git' + '@' +  Var('angle_revision'),
-# Cobalt: Dependencies from angle's DEPS file.
-  'src/third_party/angle/third_party/rapidjson/src':
-    Var('chromium_git') + '/external/github.com/Tencent/rapidjson.git' + '@' + '781a4e667d84aeedbeb8184b7b62425ea66ec59f',
-  'src/third_party/angle/third_party/glmark2/src':
-    Var('chromium_git') + '/external/github.com/glmark2/glmark2.git' + '@' + '6edcf02205fd1e8979dc3f3964257a81959b80c8',
+  'src/third_party/angle':
+    Var('chromium_git') + '/angle/angle.git' + '@' +  Var('angle_revision'),
 
   'src/third_party/anonymous_tokens/src':
     Var('chromium_git') + '/external/github.com/google/anonymous-tokens.git' + '@' + 'd708a2602a5947ee068f784daa1594a673d47c4a',
@@ -1974,9 +1950,8 @@ deps = {
       ],
   },
 
-# Cobalt: imported
-#  'src/third_party/boringssl/src':
-#    Var('boringssl_git') + '/boringssl.git' + '@' +  Var('boringssl_revision'),
+  'src/third_party/boringssl/src':
+    Var('boringssl_git') + '/boringssl.git' + '@' +  Var('boringssl_revision'),
 
   'src/third_party/breakpad/breakpad':
     Var('chromium_git') + '/breakpad/breakpad.git' + '@' + Var('breakpad_revision'),
@@ -2024,9 +1999,8 @@ deps = {
   'src/third_party/cpu_features/src':
     Var('chromium_git') + '/external/github.com/google/cpu_features.git' + '@' + '936b9ab5515dead115606559502e3864958f7f6e',
 
-# Cobalt: imported
-#  'src/third_party/cpuinfo/src':
-#    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + '6c9eb84ba310f237cea13c478be50102e1128e9b',
+  'src/third_party/cpuinfo/src':
+    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + '6c9eb84ba310f237cea13c478be50102e1128e9b',
 
   'src/third_party/crc32c/src':
     Var('chromium_git') + '/external/github.com/google/crc32c.git' + '@' + 'd3d60ac6e0f16780bcfcc825385e1d338801a558',
@@ -2132,11 +2106,6 @@ deps = {
     'condition': 'checkout_instrumented_libraries',
   },
 
-  'src/third_party/internal': {
-    'url': Var('cobalt_internal_git') + '/third_party/internal.git' + '@' + 'main',
-    'condition': 'checkout_cobalt_internal',
-  },
-
   'src/third_party/jszip/src': {
     'url': Var('chromium_git') + '/external/github.com/Stuk/jszip.git' + '@' + '2ceb998e29d4171b4f3f2ecab1a2195c696543c0',
     'condition': 'checkout_ios',
@@ -2161,9 +2130,8 @@ deps = {
       'condition': 'checkout_android',
   },
 
-# Cobalt: imported
-#  'src/third_party/googletest/src':
-#    Var('chromium_git') + '/external/github.com/google/googletest.git' + '@' + Var('googletest_revision'),
+  'src/third_party/googletest/src':
+    Var('chromium_git') + '/external/github.com/google/googletest.git' + '@' + Var('googletest_revision'),
 
   'src/third_party/gperf': {
       'url': Var('chromium_git') + '/chromium/deps/gperf.git' + '@' + 'd892d79f64f9449770443fb06da49b5a1e5d33c1',
@@ -2231,9 +2199,8 @@ deps = {
   'src/third_party/hunspell_dictionaries':
     Var('chromium_git') + '/chromium/deps/hunspell_dictionaries.git' + '@' + '41cdffd71c9948f63c7ad36e1fb0ff519aa7a37e',
 
-# Cobalt: imported
-#  'src/third_party/icu':
-#    Var('chromium_git') + '/chromium/deps/icu.git' + '@' + 'b929596baebf0ab4ac7ec07f38365db4c50a559d',
+  'src/third_party/icu':
+    Var('chromium_git') + '/chromium/deps/icu.git' + '@' + 'b929596baebf0ab4ac7ec07f38365db4c50a559d',
 
   'src/third_party/icu4j/cipd': {
       'packages': [
@@ -2559,7 +2526,7 @@ deps = {
   'src/third_party/siso/cipd': {
     'packages': [
       {
-        'package': 'build/siso/${{platform}}',
+        'package': 'infra/build/siso/${{platform}}',
         'version': Var('siso_version'),
       }
     ],
@@ -2596,9 +2563,8 @@ deps = {
   'src/third_party/pdfium':
     Var('pdfium_git') + '/pdfium.git' + '@' +  Var('pdfium_revision'),
 
-# Cobalt: imported
-#  'src/third_party/perfetto':
-#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '0b3b20d3a1bcdf12b5635f467ca26962feea1955',
+  'src/third_party/perfetto':
+    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '0b3b20d3a1bcdf12b5635f467ca26962feea1955',
 
   'src/base/tracing/test/data': {
     'bucket': 'perfetto',
@@ -2823,9 +2789,8 @@ deps = {
     'condition': 'checkout_src_internal',
   },
 
-# Cobalt: imported
-#  'src/third_party/skia':
-#    Var('skia_git') + '/skia.git' + '@' +  Var('skia_revision'),
+  'src/third_party/skia':
+    Var('skia_git') + '/skia.git' + '@' +  Var('skia_revision'),
 
   'src/third_party/smhasher/src':
     Var('chromium_git') + '/external/smhasher.git' + '@' + '0ff96f7835817a27d0487325b6c16033e2992eb5',
@@ -2971,9 +2936,8 @@ deps = {
   'src/third_party/webpagereplay':
     Var('chromium_git') + '/webpagereplay.git' + '@' + Var('webpagereplay_revision'),
 
-# Cobalt: imported
-#  'src/third_party/webrtc':
-#    Var('webrtc_git') + '/src.git' + '@' + '7bb307e6805b30d591cebaffe2c96703b03e3aec',
+  'src/third_party/webrtc':
+    Var('webrtc_git') + '/src.git' + '@' + '7bb307e6805b30d591cebaffe2c96703b03e3aec',
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.
@@ -3058,9 +3022,8 @@ deps = {
       'condition': 'checkout_mac',
   },
 
-# Cobalt: imported
-#  'src/v8':
-#    Var('chromium_git') + '/v8/v8.git' + '@' +  Var('v8_revision'),
+  'src/v8':
+    Var('chromium_git') + '/v8/v8.git' + '@' +  Var('v8_revision'),
 
 # See checkout_src_internal_infra declaration.
 # LINT.IfChange
@@ -4983,7 +4946,6 @@ deps = {
         'e4bd19f95afa6483a54906c2a3e5d329d2d81690',
       'condition': 'checkout_src_internal',
   },
-
 }
 
 
@@ -5199,10 +5161,7 @@ hooks = [
     'name': 'lastchange',
     'pattern': '.',
     'action': ['python3', 'src/build/util/lastchange.py',
-               '-o', 'src/build/util/LASTCHANGE',
-               # Cobalt addition, don't look for Change-Id in commits.
-               '--filter=\(#[1-9][0-9]*\)'
-               ],
+               '-o', 'src/build/util/LASTCHANGE'],
   },
   {
     # Update lastchange_commit_position.h (only for CrOS).

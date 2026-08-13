@@ -160,23 +160,4 @@ TEST(VideoDecoderConfigStructTraitsTest,
       media::mojom::VideoDecoderConfig::Deserialize(std::move(data), &output));
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-TEST(VideoDecoderConfigStructTraitsTest, ConvertVideoDecoderConfig_MimeType) {
-  VideoDecoderConfig input(VideoCodec::kVP8, VP8PROFILE_ANY,
-                           VideoDecoderConfig::AlphaMode::kIsOpaque,
-                           VideoColorSpace(), kNoTransformation, kCodedSize,
-                           kVisibleRect, kNaturalSize, EmptyExtraData(),
-                           EncryptionScheme::kUnencrypted);
-  input.set_mime_type("video/mp4; codecs=\"av01.0.09M.08\"");
-
-  std::vector<uint8_t> data =
-      media::mojom::VideoDecoderConfig::Serialize(&input);
-  VideoDecoderConfig output;
-  EXPECT_TRUE(
-      media::mojom::VideoDecoderConfig::Deserialize(std::move(data), &output));
-  EXPECT_TRUE(output.Matches(input));
-  EXPECT_EQ(output.mime_type(), "video/mp4; codecs=\"av01.0.09M.08\"");
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 }  // namespace media

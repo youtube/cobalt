@@ -617,22 +617,4 @@ BASE_FEATURE_PARAM(size_t,
                    /*name=*/"max_size",
                    1'000'000);
 
-#if BUILDFLAG(IS_COBALT)
-BASE_FEATURE(kCobaltDynamicMojoPipeSizing,
-             "CobaltDynamicMojoPipeSizing",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE_PARAM(int,
-                   kCobaltDynamicMojoPipeSizingSubresourceSize,
-                   &kCobaltDynamicMojoPipeSizing,
-                   "subresource_size",
-                   512 * 1024);
-
-BASE_FEATURE_PARAM(int,
-                   kCobaltDynamicMojoPipeSizingMediaSize,
-                   &kCobaltDynamicMojoPipeSizing,
-                   "media_size",
-                   512 * 1024);
-#endif  // BUILDFLAG(IS_COBALT)
-
 }  // namespace network::features

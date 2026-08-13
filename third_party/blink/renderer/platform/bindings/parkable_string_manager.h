@@ -15,7 +15,6 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/memory_dump_provider.h"
-#include "build/buildflag.h"
 #include "third_party/blink/renderer/platform/bindings/parkable_string.h"
 #include "third_party/blink/renderer/platform/disk_data_allocator.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
@@ -81,9 +80,6 @@ class PLATFORM_EXPORT ParkableStringManager : public RAILModeObserver {
   static bool ShouldPark(const StringImpl& string);
 
   static base::TimeDelta AgingInterval();
-#if BUILDFLAG(IS_COBALT)
-  static base::TimeDelta FirstParkingDelay();
-#endif
 
   // According to UMA data (as of 2021-11-09) ~70% of renderers exist for less
   // than 60 seconds. Using this as a delay of the first parking attempts
@@ -95,16 +91,6 @@ class PLATFORM_EXPORT ParkableStringManager : public RAILModeObserver {
   // of a parkable string but it does not indicate a higher chance of the
   // renderer staying alive for a long time.
   constexpr static base::TimeDelta kFirstParkingDelay{base::Seconds(60)};
-
-#if BUILDFLAG(IS_COBALT)
-  // For Cobalt, the web application runs in a single dedicated process that is
-  // long-lived. Initial bootstrap scripts and page templates are loaded within
-  // the first few seconds of launch. Reducing the initial parking delay to 10
-  // seconds avoids CPU contention during bootstrap while allowing unreferenced
-  // startup string memory to be reclaimed promptly rather than lingering for a
-  // full minute.
-  constexpr static base::TimeDelta kCobaltFirstParkingDelay{base::Seconds(10)};
-#endif
 
   static const char* kAllocatorDumpName;
 

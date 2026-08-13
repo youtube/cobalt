@@ -16,7 +16,6 @@
 #include "base/android/jni_android.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/command_line.h"
 #include "base/threading/platform_thread_internal_posix.h"
 #include "base/threading/thread_id_name_manager.h"
 
@@ -120,15 +119,6 @@ void TerminateOnThread() {
 }
 
 size_t GetDefaultThreadStackSize(const pthread_attr_t& attributes) {
-#if BUILDFLAG(IS_COBALT)
-  if (base::CommandLine::InitializedForCurrentProcess() &&
-      base::CommandLine::ForCurrentProcess()
-          ->GetSwitchValueASCII("enable-features")
-          .find("ReduceAndroidThreadStackSize") != std::string::npos) {
-    return 256 * 1024;
-  }
-#endif
-
 #if !defined(ADDRESS_SANITIZER)
   return 0;
 #else

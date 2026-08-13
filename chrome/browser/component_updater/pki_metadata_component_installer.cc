@@ -33,6 +33,7 @@
 #include "chrome/browser/net/key_pinning.pb.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "content/public/browser/network_service_instance.h"
+#include "net/cert/root_store_proto_lite/root_store.pb.h"
 #include "net/net_buildflags.h"
 #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom.h"
 #include "services/network/public/cpp/network_service_buildflags.h"
@@ -51,7 +52,6 @@
 #include "mojo/public/cpp/base/proto_wrapper.h"
 #include "mojo/public/cpp/base/proto_wrapper_passkeys.h"
 #include "net/cert/internal/trust_store_chrome.h"
-#include "net/cert/root_store_proto_lite/root_store.pb.h"  // nogncheck
 #endif
 
 #if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)

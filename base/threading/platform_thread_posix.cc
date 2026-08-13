@@ -32,7 +32,7 @@
 #include "base/posix/can_lower_nice_to.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include <sys/syscall.h>
 
 #include <atomic>
@@ -166,7 +166,7 @@ bool CreateThread(size_t stack_size,
   return success;
 }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 // Store the thread ids in local storage since calling the SWI can be
 // expensive and PlatformThread::CurrentId is used liberally.
@@ -190,20 +190,18 @@ std::atomic<bool> g_main_thread_tid_cache_valid = false;
 // also updated by PlatformThread::CurrentId().
 thread_local bool g_is_main_thread = true;
 
-#if !BUILDFLAG(IS_STARBOARD)
 class InitAtFork {
  public:
   InitAtFork() {
     pthread_atfork(nullptr, nullptr, internal::InvalidateTidCache);
   }
 };
-#endif  // !BUILDFLAG(IS_STARBOARD)
 
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 namespace internal {
 
@@ -213,8 +211,7 @@ void InvalidateTidCache() {
 
 }  // namespace internal
 
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
-        // BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 // static
 PlatformThreadId PlatformThreadBase::CurrentId() {
@@ -224,15 +221,13 @@ PlatformThreadId PlatformThreadBase::CurrentId() {
   uint64_t tid;
   CHECK_EQ(pthread_threadid_np(nullptr, &tid), 0);
   return PlatformThreadId(tid);
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_STARBOARD)
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
   // https://github.com/google/sanitizers/issues/1265
   MSAN_UNPOISON(&g_thread_id, sizeof(pid_t));
   MSAN_UNPOISON(&g_is_main_thread, sizeof(bool));
-#if !BUILDFLAG(IS_STARBOARD)
   static InitAtFork init_at_fork;
-#endif
   if (g_thread_id == -1 ||
       (g_is_main_thread &&
        !g_main_thread_tid_cache_valid.load(std::memory_order_relaxed))) {
@@ -370,7 +365,7 @@ void PlatformThreadBase::Detach(PlatformThreadHandle thread_handle) {
 
 // static
 bool PlatformThreadBase::CanChangeThreadType(ThreadType from, ThreadType to) {
-#if BUILDFLAG(IS_NACL) || BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(IS_NACL)
   return false;
 #else
   if (from >= to) {
@@ -382,7 +377,7 @@ bool PlatformThreadBase::CanChangeThreadType(ThreadType from, ThreadType to) {
   }
 
   return internal::CanLowerNiceTo(internal::ThreadTypeToNiceValue(to));
-#endif  // BUILDFLAG(IS_NACL) || BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#endif  // BUILDFLAG(IS_NACL)
 }
 
 namespace internal {
