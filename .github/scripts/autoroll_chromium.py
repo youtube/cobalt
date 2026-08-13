@@ -202,7 +202,11 @@ def main():
   p.add_argument('--autoroll-file', required=True)
   p.add_argument('--max-commits', type=int, required=True)
   p.add_argument('--existing-pr-sha', required=True)
+  p.add_argument('--verbose', action='store_true')
   args = p.parse_args()
+
+  if args.verbose:
+    lib.VERBOSE = True
 
   autoroll_start = lib.get_start_sha('HEAD', args.autoroll_file)
 

@@ -3,9 +3,12 @@
 from collections import defaultdict
 import enum
 import re
+import shlex
 import shutil
 import subprocess
 import sys
+
+VERBOSE = False
 
 
 @enum.unique
@@ -27,6 +30,8 @@ def run(cmd, cwd=None):
 
 def git(*args, check=True, stdout=subprocess.PIPE, text=True, **kwargs):
   cmd = ['git'] + list(args)
+  if VERBOSE:
+    log(f'Running: {shlex.join(cmd)}')
   return subprocess.run(
       cmd, check=check, stdout=stdout, text=text, **kwargs).stdout
 
