@@ -175,6 +175,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   SbDecodeTargetGraphicsContextProvider* const
       decode_target_graphics_context_provider_;
   const std::string max_video_capabilities_;
+  std::optional<SbPlayerError> pending_error_;
+  std::string pending_error_message_;
 
   // Android doesn't officially support multi concurrent codecs. But the device
   // usually has at least one hardware decoder and Google's software decoders.

@@ -142,6 +142,14 @@ const DrmSystem::Callbacks kStubDrmSystemCallbacks = {
     StubDrmSessionUpdateRequestFunc, StubDrmSessionUpdatedFunc,
     StubDrmSessionKeyStatusesChangedFunc};
 
+bool IsFrameSizeExceedingCapabilities(const Size& frame_size,
+                                      const Size& max_frame_size) {
+  return std::max(frame_size.width, frame_size.height) >
+             std::max(max_frame_size.width, max_frame_size.height) ||
+         std::min(frame_size.width, frame_size.height) >
+             std::min(max_frame_size.width, max_frame_size.height);
+}
+
 }  // namespace
 
 // TODO: Merge this with VideoFrameTracker, maybe?
@@ -418,6 +426,15 @@ void MediaCodecVideoDecoder::Initialize(
 
   decoder_status_cb_ = decoder_status_cb;
   error_cb_ = error_cb;
+
+  if (pending_error_.has_value()) {
+    SbPlayerError error = pending_error_.value();
+    std::string error_message = pending_error_message_;
+    pending_error_ = std::nullopt;
+    pending_error_message_.clear();
+    ReportError(error, error_message);
+    return;
+  }
 
   // There's a race condition when suspending the app. If surface view is
   // destroyed before this function is called, |media_decoder_| could be null
@@ -793,6 +810,20 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   std::optional<Size> max_frame_size =
       ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_size);
 
+  // b/546122686: Raise kSbPlayerErrorCapabilityChanged if the stream resolution
+  // exceeds max_video_capabilities.
+  if (max_frame_size.has_value() &&
+      IsFrameSizeExceedingCapabilities(video_stream_info.frame_size,
+                                       max_frame_size.value())) {
+    SB_LOG(ERROR) << "Video frame size " << video_stream_info.frame_size
+                  << " exceeds max_video_capabilities "
+                  << max_frame_size.value()
+                  << ". Raising kSbPlayerErrorCapabilityChanged.";
+    ReportError(kSbPlayerErrorCapabilityChanged,
+                "Video frame size exceeds max_video_capabilities.");
+    return Failure("Video frame size exceeds max_video_capabilities.");
+  }
+
   auto result = MediaCodecDecoder::CreateForVideo(
       *media_codec_factory_, job_queue(), /*host=*/this,
       video_stream_info.codec, video_stream_info.frame_size, max_frame_size,
@@ -1113,13 +1144,15 @@ void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
 
 void MediaCodecVideoDecoder::ReportError(SbPlayerError error,
                                          const std::string& error_message) {
-  SB_DCHECK(error_cb_);
-
   if (!error_cb_) {
+    SB_LOG(WARNING) << "error_cb_ is not set yet. Storing pending error: "
+                    << error_message;
+    pending_error_ = error;
+    pending_error_message_ = error_message;
     return;
   }
 
-  error_cb_(kSbPlayerErrorDecode, error_message);
+  error_cb_(error, error_message);
 }
 
 void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
