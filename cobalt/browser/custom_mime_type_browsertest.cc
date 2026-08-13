@@ -74,16 +74,16 @@ class TestSbMediaInterface : public media::SbMediaInterface {
     return support_type_;
   }
 
-  bool CanChangeType(const char* current_mime,
-                     const char* new_mime) const override {
+  bool CanChangeType(const char* /*current_mime*/,
+                     const char* /*new_mime*/) const override {
     return true;
   }
 
   int GetAudioOutputCount() const override { return 1; }
 
   bool GetAudioConfiguration(
-      int output_index,
-      SbMediaAudioConfiguration* out_configuration) const override {
+      int /*output_index*/,
+      SbMediaAudioConfiguration* /*out_configuration*/) const override {
     return false;
   }
 
@@ -99,10 +99,10 @@ class TestSbMediaInterface : public media::SbMediaInterface {
 
   bool IsBufferPoolAllocateOnDemand() const override { return true; }
 
-  int GetVideoBufferBudget(SbMediaVideoCodec codec,
-                           int resolution_width,
-                           int resolution_height,
-                           int bits_per_pixel) const override {
+  int GetVideoBufferBudget(SbMediaVideoCodec /*codec*/,
+                           int /*resolution_width*/,
+                           int /*resolution_height*/,
+                           int /*bits_per_pixel*/) const override {
     return 20 * 1024 * 1024;
   }
 
@@ -186,6 +186,83 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
+                       MediaSourceIsTypeSupported_HighFramerateAndBitrate) {
+  test_media_interface_.set_support_type(kSbMediaSupportTypeProbably);
+
+  const char kCustomMime[] =
+      "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
+      "framerate=60; bitrate=25000000;";
+
+  std::string js_query =
+      std::string("MediaSource.isTypeSupported('") + kCustomMime + "');";
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
+
+  std::vector<std::string> intercepted =
+      test_media_interface_.GetInterceptedMimes();
+  ASSERT_FALSE(intercepted.empty());
+  EXPECT_EQ(intercepted.back(), kCustomMime);
+}
+
+IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
+                       MediaSourceIsTypeSupported_ColorimetryAndHdrAttributes) {
+  test_media_interface_.set_support_type(kSbMediaSupportTypeProbably);
+
+  const char kCustomMime[] =
+      "video/mp4; codecs=\"vp9\"; width=3840; height=2160; hdr=hdr10plus; "
+      "eotf=smpte2084; color_primaries=bt2020; matrix=bt2020nc;";
+
+  std::string js_query =
+      std::string("MediaSource.isTypeSupported('") + kCustomMime + "');";
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
+
+  std::vector<std::string> intercepted =
+      test_media_interface_.GetInterceptedMimes();
+  ASSERT_FALSE(intercepted.empty());
+  EXPECT_EQ(intercepted.back(), kCustomMime);
+}
+
+IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
+                       MediaSourceIsTypeSupported_PlaybackAndDecoderFlags) {
+  test_media_interface_.set_support_type(kSbMediaSupportTypeProbably);
+
+  const char kCustomMime[] =
+      "video/mp4; codecs=\"avc1.64002a\"; tunnelmode=true; "
+      "softwaredecoder=false; disablecache=true; "
+      "disabledynamicprerollframecount=true; enableflushduringseek=true;";
+
+  std::string js_query =
+      std::string("MediaSource.isTypeSupported('") + kCustomMime + "');";
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
+
+  std::vector<std::string> intercepted =
+      test_media_interface_.GetInterceptedMimes();
+  ASSERT_FALSE(intercepted.empty());
+  EXPECT_EQ(intercepted.back(), kCustomMime);
+}
+
+IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
+                       MediaSourceIsTypeSupported_AllCustomParametersCombined) {
+  test_media_interface_.set_support_type(kSbMediaSupportTypeProbably);
+
+  const char kCustomMime[] =
+      "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
+      "framerate=60; bitrate=20000000; hdr=hdr10plus; eotf=smpte2084; "
+      "color_primaries=bt2020; matrix=bt2020nc; tunnelmode=true; "
+      "softwaredecoder=false; disablecache=true; "
+      "disabledynamicprerollframecount=true; enableflushduringseek=true; "
+      "encryptionscheme=cenc;";
+
+  std::string js_query =
+      std::string("MediaSource.isTypeSupported('") + kCustomMime + "');";
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
+
+  std::vector<std::string> intercepted =
+      test_media_interface_.GetInterceptedMimes();
+  ASSERT_FALSE(intercepted.empty());
+  EXPECT_EQ(intercepted.back(), kCustomMime);
+}
+
+IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        CanPlayType_ForwardsRawCustomAttributesMaybe) {
   test_media_interface_.set_support_type(kSbMediaSupportTypeMaybe);
 
@@ -250,6 +327,26 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
   const char kAudioCustomMime[] =
       "audio/mp4; codecs=\"mp4a.40.2\"; channels=6; bitrate=384000;";
+
+  std::string js_query =
+      std::string("document.createElement('audio').canPlayType('") +
+      kAudioCustomMime + "');";
+  EXPECT_EQ("probably",
+            content::EvalJs(shell()->web_contents(), js_query).ExtractString());
+
+  std::vector<std::string> intercepted =
+      test_media_interface_.GetInterceptedMimes();
+  ASSERT_FALSE(intercepted.empty());
+  EXPECT_EQ(intercepted.back(), kAudioCustomMime);
+}
+
+IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
+                       AudioCanPlayType_PassthroughAndResetAttributes) {
+  test_media_interface_.set_support_type(kSbMediaSupportTypeProbably);
+
+  const char kAudioCustomMime[] =
+      "audio/mp4; codecs=\"mp4a.40.2\"; channels=8; bitrate=768000; "
+      "audiopassthrough=true; enableresetaudiodecoder=true;";
 
   std::string js_query =
       std::string("document.createElement('audio').canPlayType('") +
