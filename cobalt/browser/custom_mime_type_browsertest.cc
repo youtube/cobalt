@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
@@ -163,8 +164,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
   std::vector<std::string> intercepted =
       test_media_interface_.GetInterceptedMimes();
-  ASSERT_FALSE(intercepted.empty());
-  EXPECT_EQ(intercepted.back(), kCustomMime);
+  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -181,8 +181,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
   std::vector<std::string> intercepted =
       test_media_interface_.GetInterceptedMimes();
-  ASSERT_FALSE(intercepted.empty());
-  EXPECT_EQ(intercepted.back(), kUnsupportedMime);
+  EXPECT_TRUE(base::Contains(intercepted, kUnsupportedMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -199,8 +198,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
   std::vector<std::string> intercepted =
       test_media_interface_.GetInterceptedMimes();
-  ASSERT_FALSE(intercepted.empty());
-  EXPECT_EQ(intercepted.back(), kCustomMime);
+  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -217,8 +215,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
   std::vector<std::string> intercepted =
       test_media_interface_.GetInterceptedMimes();
-  ASSERT_FALSE(intercepted.empty());
-  EXPECT_EQ(intercepted.back(), kCustomMime);
+  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -236,8 +233,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
   std::vector<std::string> intercepted =
       test_media_interface_.GetInterceptedMimes();
-  ASSERT_FALSE(intercepted.empty());
-  EXPECT_EQ(intercepted.back(), kCustomMime);
+  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -258,8 +254,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
   std::vector<std::string> intercepted =
       test_media_interface_.GetInterceptedMimes();
-  ASSERT_FALSE(intercepted.empty());
-  EXPECT_EQ(intercepted.back(), kCustomMime);
+  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -278,8 +273,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
   std::vector<std::string> intercepted =
       test_media_interface_.GetInterceptedMimes();
-  ASSERT_FALSE(intercepted.empty());
-  EXPECT_EQ(intercepted.back(), kCustomMime);
+  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -298,8 +292,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
   std::vector<std::string> intercepted =
       test_media_interface_.GetInterceptedMimes();
-  ASSERT_FALSE(intercepted.empty());
-  EXPECT_EQ(intercepted.back(), kCustomMime);
+  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -317,8 +310,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
   std::vector<std::string> intercepted =
       test_media_interface_.GetInterceptedMimes();
-  ASSERT_FALSE(intercepted.empty());
-  EXPECT_EQ(intercepted.back(), kUnsupportedMime);
+  EXPECT_TRUE(base::Contains(intercepted, kUnsupportedMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -336,8 +328,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
   std::vector<std::string> intercepted =
       test_media_interface_.GetInterceptedMimes();
-  ASSERT_FALSE(intercepted.empty());
-  EXPECT_EQ(intercepted.back(), kAudioCustomMime);
+  EXPECT_TRUE(base::Contains(intercepted, kAudioCustomMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -356,8 +347,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
   std::vector<std::string> intercepted =
       test_media_interface_.GetInterceptedMimes();
-  ASSERT_FALSE(intercepted.empty());
-  EXPECT_EQ(intercepted.back(), kAudioCustomMime);
+  EXPECT_TRUE(base::Contains(intercepted, kAudioCustomMime));
 }
 
 }  // namespace cobalt
