@@ -105,7 +105,7 @@ jobs:
                 }
 
                 console.log(`Rerunning ${workflow} (run ${latestRun.id})...`);
-                await github.rest.actions.rerunWorkflow({
+                await github.rest.actions.reRunWorkflow({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   run_id: latestRun.id
