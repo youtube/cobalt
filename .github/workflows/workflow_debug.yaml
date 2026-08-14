@@ -18,41 +18,90 @@ permissions: {}
 jobs:
   debug:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      pull-requests: write
     steps:
-      - name: Dump GitHub context
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-        run: echo "${GITHUB_CONTEXT}"
-        shell: bash
-      - name: Dump job context
-        env:
-          JOB_CONTEXT: ${{ toJson(job) }}
-        run: echo "${JOB_CONTEXT}"
-        shell: bash
-      - name: Dump steps context
-        env:
-          STEPS_CONTEXT: ${{ toJson(steps) }}
-        run: echo "${STEPS_CONTEXT}"
-        shell: bash
-      - name: Dump runner context
-        env:
-          RUNNER_CONTEXT: ${{ toJson(runner) }}
-        run: echo "${RUNNER_CONTEXT}"
-        shell: bash
-      - name: Default environment variables
-        run: |
-          echo "The job_id is: ${GITHUB_JOB}"
-          echo "The id of this action is: ${GITHUB_ACTION}"
-          echo "The run id is: ${GITHUB_RUN_ID}"
-          echo "The GitHub Actor's username is: ${GITHUB_ACTOR}"
-          echo "GitHub SHA: ${GITHUB_SHA}"
-        shell: bash
-      - name: Rate limit info
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            /rate_limit
-        shell: bash
+      - name: Dispatcher Test Step
+        if: github.event.action == 'labeled' && (github.event.label.name == 'runtest' || github.event.label.name == 'yts_playback_test' || github.event.label.name == 'kokoro:run' || github.event.label.name == 'kokoro:force-run')
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const labelName = context.payload.label.name;
+
+            const PLATFORM_WORKFLOWS = [
+              'android.yaml',
+              'aosp.yaml',
+              'evergreen.yaml',
+              'linux.yaml',
+              'tvos.yaml'
+            ];
+
+            let workflows = [];
+            if (labelName === 'kokoro:run' || labelName === 'kokoro:force-run') {
+              workflows = ['tvos.yaml'];
+            } else {
+              workflows = PLATFORM_WORKFLOWS;
+            }
+
+            console.log(`Triggering workflows for label ${labelName} on PR #${pr.number}:`, workflows);
+
+            for (const workflow of workflows) {
+              try {
+                const runs = await github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: workflow,
+                  head_sha: pr.head.sha,
+                  event: 'pull_request'
+                });
+
+                if (runs.data.workflow_runs.length === 0) {
+                  console.log(`No runs found for ${workflow}`);
+                  continue;
+                }
+
+                const latestRun = runs.data.workflow_runs[0];
+                console.log(`Found latest run ${latestRun.id} for ${workflow} with status: ${latestRun.status}, conclusion: ${latestRun.conclusion}`);
+
+                // If the workflow is currently running or queued, cancel it first so it can be re-run
+                if (latestRun.status !== 'completed') {
+                  console.log(`Run ${latestRun.id} for ${workflow} is currently ${latestRun.status}. Cancelling...`);
+                  try {
+                    await github.rest.actions.cancelWorkflowRun({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      run_id: latestRun.id
+                    });
+                  } catch (cancelError) {
+                    console.log(`Cancel request note for ${workflow}:`, cancelError.message);
+                  }
+
+                  // Wait for run to reach 'completed' status before attempting to rerun
+                  for (let attempt = 0; attempt < 15; attempt++) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    const checkRun = await github.rest.actions.getWorkflowRun({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      run_id: latestRun.id
+                    });
+                    if (checkRun.data.status === 'completed') {
+                      console.log(`Run ${latestRun.id} for ${workflow} reached completed status (${checkRun.data.conclusion}).`);
+                      break;
+                    }
+                  }
+                }
+
+                console.log(`Rerunning ${workflow} (run ${latestRun.id})...`);
+                await github.rest.actions.rerunWorkflow({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: latestRun.id
+                });
+                console.log(`Successfully triggered rerun for ${workflow} (run ${latestRun.id})!`);
+              } catch (error) {
+                console.error(`Failed to rerun ${workflow}:`, error);
+              }
+            }
