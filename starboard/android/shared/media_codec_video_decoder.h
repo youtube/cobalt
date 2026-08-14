@@ -302,13 +302,14 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   enum class HotSwapState {
     kNone,
     kDraining,
+    kEosReceived,
     kHotSwapScheduled,
   };
 
   HotSwapState hot_swap_state_ = HotSwapState::kNone;
-  bool eos_received_in_draining_ = false;
   VideoStreamInfo pending_stream_info_;
 
+  void UpdateStreamConfigAndTeardown(const VideoStreamInfo& stream_info);
   void MaybeScheduleHotSwap();
   void PerformInternalDecoderHotSwap();
 };

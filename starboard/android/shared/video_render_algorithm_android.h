@@ -33,7 +33,6 @@ class VideoRenderAlgorithmAndroid : public VideoRenderAlgorithm {
               VideoRendererSink::DrawFrameCB draw_frame_cb) override;
   void Seek(int64_t seek_to_time) override;
   int GetDroppedFrames() override;
-  void OnCodecSwapped();
 
  private:
   class VideoFrameReleaseTimeHelper {
