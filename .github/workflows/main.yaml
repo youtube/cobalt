@@ -49,7 +49,7 @@ jobs:
   initialize:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
+      pull-requests: read
     env:
       # Tell gclient not to automatically update depot tools every time it runs.
       DEPOT_TOOLS_UPDATE: 0
@@ -79,8 +79,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -n "${EVENT_NUMBER}" ]; then
-            labels=$(gh pr view "${EVENT_NUMBER}" --json labels -q '[.labels[].name]' 2>/dev/null || echo "[]")
-            if [ -z "${labels}" ]; then
+            labels=$(gh pr view "${EVENT_NUMBER}" --json labels --jq '[.labels[].name]' 2>/dev/null | jq -c '.' 2>/dev/null || echo "[]")
+            if [ -z "${labels}" ] || [ "${labels}" = "null" ]; then
               labels="[]"
             fi
           else

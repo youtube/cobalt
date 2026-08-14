@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: write
-      pull-requests: write
+      pull-requests: read
     steps:
       - name: Check label and trigger PR jobs
         uses: actions/github-script@v8
@@ -59,7 +59,7 @@ jobs:
 
             console.log(`Triggering workflows for label ${labelName}:`, workflows);
 
-            for (const workflow of workflows) {
+            await Promise.all(workflows.map(async (workflow) => {
               try {
                 const runs = await github.rest.actions.listWorkflowRuns({
                   owner: context.repo.owner,
@@ -70,7 +70,7 @@ jobs:
                 });
 
                 if (runs.data.workflow_runs.length === 0) {
-                  continue;
+                  return;
                 }
 
                 const latestRun = runs.data.workflow_runs[0];
@@ -109,7 +109,8 @@ jobs:
                   repo: context.repo.repo,
                   run_id: latestRun.id
                 });
+                console.log(`Successfully triggered rerun for ${workflow} (run ${latestRun.id})!`);
               } catch (error) {
                 console.error(`Failed to rerun ${workflow}:`, error);
               }
-            }
+            }));
