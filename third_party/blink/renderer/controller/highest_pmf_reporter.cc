@@ -287,7 +287,6 @@ void HighestPmfReporter::OnReportMetrics() {
 void HighestPmfReporter::ReportMetrics() {
 #if BUILDFLAG(IS_COBALT)
   std::string metric_name = is_foreground_measuring_ ? metric_names_foregrounded_[report_count_].Utf8() : metric_names_[report_count_].Utf8();
-  LOG(ERROR) << "UmaHistogramMemoryMB CALLED WITH: " << metric_name << ", VAL: " << current_highest_pmf_;
   base::UmaHistogramMemoryMB(metric_name,
                              base::saturated_cast<base::Histogram::Sample32>(
                                  current_highest_pmf_ / 1024 / 1024));
