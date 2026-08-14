@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Cobalt Memory Breakdown",
+  "version": "1.0.0",
+  "description": "Real-time memory breakdown and session P50 telemetry inspection panel for Cobalt/Chrobalt on Android TV, RDK, and Linux.",
+  "devtools_page": "devtools.html",
+  "action": {
+    "default_title": "Open Cobalt Memory Breakdown"
+  },
+  "side_panel": {
+    "default_path": "panel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "sidePanel",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
