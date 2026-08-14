@@ -115,6 +115,7 @@ const char kCCScrollAnimationDurationForTesting[] =
 
 #if BUILDFLAG(IS_COBALT)
 const char kCCImageCacheLimitItems[] = "cc-image-cache-limit-items";
+const char kCCImageCacheLimitBytes[] = "cc-image-cache-limit-bytes";
 const char kDecodedImageWorkingSetBudgetBytes[] =
     "decoded-image-working-set-budget-bytes";
 // Avoid reuse resource.

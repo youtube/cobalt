@@ -118,6 +118,10 @@ public class JavaSwitches {
   public static final String ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND =
       "AllowCriticalMemoryPressureHandlingInForeground";
 
+  /** flag to evict blink memory cache on critical memory pressure. */
+  public static final String EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE =
+      "EvictMemoryCacheOnCriticalMemoryPressure";
+
   /**
    * Flag to disable LessAggressiveParkableString feature to unpause foreground compression and use
    * a 2-second aging interval.
@@ -290,7 +294,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DIRECT_WINDOW_RENDERING)) {
       extraCommandLineArgs.add("--use-window-surface-for-ui");
-      extraCommandLineArgs.add("--enable-h5vcc-settings=Media.ForceClearSurfaceView=1");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
@@ -300,6 +303,10 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(
         JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)) {
       extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE)) {
+      extraCommandLineArgs.add("--enable-features=" + JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING)) {

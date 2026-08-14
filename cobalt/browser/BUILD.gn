@@ -234,6 +234,7 @@ if (is_starboard || is_androidtv) {
     deps = [
       ":global_features",
       "//base",
+      "//cobalt/browser/h5vcc_native_stability:h5vcc_native_stability",
     ]
   }
 }
