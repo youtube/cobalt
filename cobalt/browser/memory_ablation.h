@@ -15,15 +15,17 @@
 #ifndef COBALT_BROWSER_MEMORY_ABLATION_H_
 #define COBALT_BROWSER_MEMORY_ABLATION_H_
 
-#include <stddef.h>
-
 namespace cobalt {
+
+// Maximum allowed native memory ablation size in Megabytes (256 MB) to prevent
+// extreme memory allocations or integer overflow on resource-constrained
+// devices.
+constexpr int kMaxAblationSizeMB = 256;
 
 // Checks if the native memory ablation Finch feature is enabled and,
 // if so, allocates and commits (dirties) the requested amount of native memory
-// to hold for the lifetime of the process.
-// Returns the number of Megabytes allocated, or 0 if disabled/not allocated.
-size_t MaybeApplyMemoryAblation();
+// on a background thread to hold for the lifetime of the process.
+void MaybeApplyMemoryAblation();
 
 }  // namespace cobalt
 

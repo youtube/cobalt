@@ -15,12 +15,16 @@
 #include "cobalt/browser/memory_ablation.h"
 
 #include <memory>
+#include <new>
 #include <vector>
 
 #include "base/feature_list.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "cobalt/browser/features.h"
 
 namespace cobalt {
@@ -33,35 +37,25 @@ std::vector<std::unique_ptr<char[]>>& GetAblatedMemoryStore() {
   return *store;
 }
 
-}  // namespace
+void StoreAblatedMemory(std::unique_ptr<char[]> buffer, int size_mb) {
+  GetAblatedMemoryStore().push_back(std::move(buffer));
+  LOG(INFO) << "Native memory ablation successfully allocated and dirtied "
+            << size_mb << " MB.";
+}
 
-size_t MaybeApplyMemoryAblation() {
-  const bool is_enabled =
-      base::FeatureList::IsEnabled(features::kCobaltNativeMemoryAblation);
-  base::UmaHistogramBoolean("Cobalt.Features.NativeMemoryAblation.Enabled",
-                            is_enabled);
-
-  if (!is_enabled) {
-    return 0;
-  }
-
-  const int size_mb = features::kMemoryAblationSizeMBParam.Get();
-  base::UmaHistogramMemoryLargeMB(
-      "Cobalt.Features.NativeMemoryAblation.AllocatedMB", size_mb);
-
-  if (size_mb <= 0) {
-    LOG(INFO) << "Native memory ablation is enabled but ablation_size_mb is "
-              << size_mb << ". No memory allocated.";
-    return 0;
-  }
-
-  LOG(WARNING) << "Applying native memory ablation: allocating and dirtying "
-               << size_mb << " MB of RAM.";
-
+void DoMemoryAblationInBackground(
+    int size_mb,
+    scoped_refptr<base::SequencedTaskRunner> reply_runner) {
   const size_t bytes_to_allocate = static_cast<size_t>(size_mb) * 1024 * 1024;
   constexpr size_t kPageSize = 4096;
 
-  auto buffer = std::make_unique<char[]>(bytes_to_allocate);
+  auto buffer =
+      std::unique_ptr<char[]>(new (std::nothrow) char[bytes_to_allocate]);
+  if (!buffer) {
+    LOG(ERROR) << "Failed to allocate " << size_mb
+               << " MB for native memory ablation (OOM).";
+    return;
+  }
 
   // Touch each 4096-byte page using a volatile pointer so the compiler does
   // not optimize away the writes and the OS actually commits physical RAM pages
@@ -71,10 +65,59 @@ size_t MaybeApplyMemoryAblation() {
     raw_ptr[i] = static_cast<char>(i & 0xFF);
   }
 
-  GetAblatedMemoryStore().push_back(std::move(buffer));
-  LOG(INFO) << "Native memory ablation successfully allocated " << size_mb
-            << " MB.";
-  return static_cast<size_t>(size_mb);
+  if (reply_runner && reply_runner->RunsTasksInCurrentSequence()) {
+    StoreAblatedMemory(std::move(buffer), size_mb);
+  } else if (reply_runner) {
+    reply_runner->PostTask(
+        FROM_HERE,
+        base::BindOnce(&StoreAblatedMemory, std::move(buffer), size_mb));
+  } else {
+    StoreAblatedMemory(std::move(buffer), size_mb);
+  }
+}
+
+}  // namespace
+
+void MaybeApplyMemoryAblation() {
+  const bool is_enabled =
+      base::FeatureList::IsEnabled(features::kCobaltNativeMemoryAblation);
+  base::UmaHistogramBoolean("Cobalt.Features.NativeMemoryAblation.Enabled",
+                            is_enabled);
+
+  if (!is_enabled) {
+    return;
+  }
+
+  const int size_mb = features::kMemoryAblationSizeMBParam.Get();
+  base::UmaHistogramMemoryLargeMB(
+      "Cobalt.Features.NativeMemoryAblation.AllocatedMB", size_mb);
+
+  if (size_mb <= 0) {
+    LOG(INFO) << "Native memory ablation is enabled but ablation_size_mb is "
+              << size_mb << ". No memory allocated.";
+    return;
+  }
+
+  if (size_mb > kMaxAblationSizeMB) {
+    LOG(ERROR) << "Requested ablation size " << size_mb
+               << " MB exceeds maximum allowable limit (" << kMaxAblationSizeMB
+               << " MB). Ablation skipped.";
+    return;
+  }
+
+  LOG(WARNING) << "Dispatching native memory ablation: allocating and dirtying "
+               << size_mb << " MB of RAM in background.";
+
+  scoped_refptr<base::SequencedTaskRunner> reply_runner =
+      base::SequencedTaskRunner::HasCurrentDefault()
+          ? base::SequencedTaskRunner::GetCurrentDefault()
+          : nullptr;
+
+  base::ThreadPool::PostTask(
+      FROM_HERE,
+      {base::TaskPriority::BEST_EFFORT,
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+      base::BindOnce(&DoMemoryAblationInBackground, size_mb, reply_runner));
 }
 
 }  // namespace cobalt
