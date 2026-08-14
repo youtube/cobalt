@@ -954,6 +954,7 @@ jobs:
           symbolize: 'false'
       - name: ${{ matrix.test_info.target }} Test Logs
         if: always() && steps.filter.outputs.skipped != 'true'
+        continue-on-error: ${{ matrix.test_info.required == false }}
         uses: ./.github/actions/print_logs
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
@@ -1075,6 +1076,11 @@ jobs:
           while read -r target expected_shards; do
             [ -z "$target" ] && continue
             target_name="${target##*:}"
+            test_filter_file="cobalt/testing/filters/${{ matrix.platform }}/${target_name}_filter.json"
+            if [ -f "${test_filter_file}" ] && [ "$(jq -cr '.failing_tests[0]' "${test_filter_file}")" = '*' ]; then
+              echo "Target ${target} was skipped due to test filter."
+              continue
+            fi
             files=(
               results/**/"${target_name}"_result.xml
               results/**/"${target_name}".xml
