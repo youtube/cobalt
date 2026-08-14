@@ -1000,7 +1000,15 @@ jobs:
           symbolize: 'false'
 
   validate-test-result:
-    needs: [initialize, build, test-results, browser-test-results]
+    needs:
+      - initialize
+      - build
+      - on-device-test
+      - on-host-test
+      - web-tests
+      - e2e-test
+      - yts-test
+      - yts-playback-test
     if: always() && needs.initialize.result == 'success'
     permissions: {}
     runs-on: ubuntu-latest
@@ -1020,22 +1028,67 @@ jobs:
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Download Unit Test Results
-        if: needs.test-results.result != 'skipped' && needs.test-results.result != ''
-        uses: actions/download-artifact@v5
-        with:
-          pattern: ${{ env.TEST_RESULTS_KEY }}*
-          path: results/
-      - name: Download Browser Test Results
-        if: needs.initialize.outputs.run_browser_tests == 'true' && needs.browser-test-results.result != 'skipped' && needs.browser-test-results.result != ''
         uses: actions/download-artifact@v5
         continue-on-error: true
         with:
-          pattern: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
+          pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
       - name: Failed Tests
-        if: always() && (needs.test-results.result != 'skipped' || needs.browser-test-results.result != 'skipped')
+        if: always()
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          ON_DEVICE_TEST_RESULT: ${{ needs.on-device-test.result }}
+          ON_HOST_TEST_RESULT: ${{ needs.on-host-test.result }}
+          WEB_TESTS_RESULT: ${{ needs.web-tests.result }}
+          E2E_TEST_RESULT: ${{ needs.e2e-test.result }}
+          YTS_TEST_RESULT: ${{ needs.yts-test.result }}
+          YTS_PLAYBACK_TEST_RESULT: ${{ needs.yts-playback-test.result }}
         run: |
-          # Print test result summary.
+          # Print test result summary if xml files exist.
           shopt -s globstar nullglob
-          python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
+          xml_files=(results/**/*.xml)
+          failed=false
+          if [[ ${#xml_files[@]} -gt 0 ]]; then
+            if ! python3 cobalt/tools/junit_mini_parser.py "${xml_files[@]}"; then
+              failed=true
+            fi
+          fi
+
+          if [[ "${BUILD_RESULT}" != "success" ]]; then
+            echo "::error::Build job failed with result: ${BUILD_RESULT}"
+            failed=true
+          fi
+
+          if [[ "${ON_DEVICE_TEST_RESULT}" == "failure" || "${ON_DEVICE_TEST_RESULT}" == "cancelled" ]]; then
+            echo "::error::On-device test job failed with result: ${ON_DEVICE_TEST_RESULT}"
+            failed=true
+          fi
+
+          if [[ "${ON_HOST_TEST_RESULT}" == "failure" || "${ON_HOST_TEST_RESULT}" == "cancelled" ]]; then
+            echo "::error::On-host test job failed with result: ${ON_HOST_TEST_RESULT}"
+            failed=true
+          fi
+
+          if [[ "${WEB_TESTS_RESULT}" == "failure" || "${WEB_TESTS_RESULT}" == "cancelled" ]]; then
+            echo "::error::Web tests job failed with result: ${WEB_TESTS_RESULT}"
+            failed=true
+          fi
+
+          if [[ "${E2E_TEST_RESULT}" == "failure" || "${E2E_TEST_RESULT}" == "cancelled" ]]; then
+            echo "::error::E2E test job failed with result: ${E2E_TEST_RESULT}"
+            failed=true
+          fi
+
+          if [[ "${YTS_TEST_RESULT}" == "failure" || "${YTS_TEST_RESULT}" == "cancelled" ]]; then
+            echo "::error::YTS test job failed with result: ${YTS_TEST_RESULT}"
+            failed=true
+          fi
+
+          if [[ "${YTS_PLAYBACK_TEST_RESULT}" == "failure" || "${YTS_PLAYBACK_TEST_RESULT}" == "cancelled" ]]; then
+            echo "::warning::YTS playback test job failed with result: ${YTS_PLAYBACK_TEST_RESULT} (non-blocking)"
+          fi
+
+          if [[ "${failed}" == "true" ]]; then
+            exit 1
+          fi
         shell: bash
