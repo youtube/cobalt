@@ -22,11 +22,8 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #import "starboard/tvos/shared/media/playback_capabilities.h"
-#if SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
-#import "starboard/tvos/shared/vpx_media/video_decoder.h"  // nogncheck
-#endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            const MimeType* mime_type,
@@ -41,24 +38,8 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            int64_t bitrate,
                            int fps,
                            bool decode_to_texture_required) {
-  bool experimental_allowed = false;
-
-  if (mime_type) {
-    if (!mime_type->is_valid()) {
-      return false;
-    }
-    // The "experimental" attribute can have three conditions:
-    // 1. Not present: only returns true when hardware decoder is present.
-    // 2. "allowed":   returns true if it is supported, either via a hardware
-    //                 or a software decoder.
-    // 3. "invalid":   always returns false.  Note that false is also returned
-    //                 for other unknown values that should never be present.
-    if (!mime_type->ValidateStringParameter("experimental", "allowed")) {
-      return false;
-    }
-    const std::string& experimental_value =
-        mime_type->GetParamStringValue("experimental", "");
-    experimental_allowed = experimental_value == "allowed";
+  if (video_codec == kSbMediaVideoCodecAv1) {
+    return false;
   }
 
   @autoreleasepool {
@@ -86,8 +67,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       return !is_hdr && frame_height <= 1080 && frame_width <= 1920;
     }
     if (video_codec == kSbMediaVideoCodecVp9) {
-      const bool kEnableHdrWithSoftwareVp9 = false;
-
+#if defined(COBALT_INTERNAL_BUILD)
       if (is_hdr) {
         if (transfer_id == kSbMediaTransferIdSmpteSt2084 ||
             transfer_id == kSbMediaTransferIdAribStdB67) {
@@ -103,9 +83,24 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       if (PlaybackCapabilities::IsHwVp9Supported()) {
         return frame_height <= 2160 && frame_width <= 3840;
       }
-#if SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
+
+      bool experimental_allowed = false;
+      if (mime_type) {
+        // This block checks if the "experimental" attribute is explicitly set
+        // to "allowed". If the attribute is not present or has an invalid
+        // value, `ValidateStringParameter` will cause an early return of
+        // `false` from the function. If present and "allowed",
+        // `experimental_allowed` is set to true.
+        if (!mime_type->ValidateStringParameter("experimental", "allowed")) {
+          return false;
+        }
+        const std::string& experimental_value =
+            mime_type->GetParamStringValue("experimental", "");
+        experimental_allowed = experimental_value == "allowed";
+      }
+
       if (experimental_allowed) {
-        if (is_hdr && !kEnableHdrWithSoftwareVp9) {
+        if (is_hdr) {
           return false;
         }
         if (PlaybackCapabilities::IsAppleTV4K()) {
@@ -129,11 +124,14 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
         }
         return false;
       }
-#endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
+#else
+      SB_LOG(INFO) << "Non-internal build, accepting all VP9";
+      return true;
+#endif  // defined(COBALT_INTERNAL_BUILD)
     }
   }  // @autoreleasepool
 
   return false;
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

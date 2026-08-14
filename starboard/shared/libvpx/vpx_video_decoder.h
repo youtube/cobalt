@@ -31,7 +31,6 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
-#include "starboard/thread.h"
 #include "third_party/libvpx/source/libvpx/vpx/vp8dx.h"
 #include "third_party/libvpx/source/libvpx/vpx/vpx_decoder.h"
 
@@ -39,7 +38,8 @@ namespace starboard {
 
 class VpxVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
-  VpxVideoDecoder(SbMediaVideoCodec video_codec,
+  VpxVideoDecoder(JobQueue* job_queue,
+                  SbMediaVideoCodec video_codec,
                   SbPlayerOutputMode output_mode,
                   SbDecodeTargetGraphicsContextProvider*
                       decode_target_graphics_context_provider);

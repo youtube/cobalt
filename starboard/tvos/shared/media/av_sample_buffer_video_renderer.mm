@@ -15,14 +15,15 @@
 #include "starboard/tvos/shared/media/av_sample_buffer_video_renderer.h"
 
 #import <AVKit/AVKit.h>
+#import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #include <libkern/OSByteOrder.h>
 
+#include "base/apple/foundation_util.h"
 #import "starboard/tvos/shared/defines.h"
 #include "starboard/tvos/shared/media/avutil/utils.h"
 #import "starboard/tvos/shared/media/player_manager.h"
 #import "starboard/tvos/shared/starboard_application.h"
-#import "starboard/tvos/shared/window_manager.h"
 
 static NSString* kAVSBDLStatusKeyPath = @"status";
 static NSString* kAVSBDLOutputObscuredKeyPath =
@@ -129,11 +130,29 @@ const size_t kCachedFramesLowWatermark = 16;
 const size_t kCachedFramesHighWatermark = 40;
 const int kRequiredBuffersInDisplayLayer = 16;
 
+UIWindow* GetPlatformWindow() {
+  // This function calls UIKit code that may only be invoked from the UI thread.
+  SB_DCHECK(NSThread.isMainThread);
+  NSSet<UIScene*>* connected_scenes =
+      UIApplication.sharedApplication.connectedScenes;
+  if (connected_scenes.count == 0) {
+    return nil;
+  }
+  // We don't expect multiple scenes on tvOS. This will assert if that
+  // assumption is violated.
+  SB_CHECK_EQ(connected_scenes.count, 1U);
+  UIWindowScene* scene =
+      base::apple::ObjCCastStrict<UIWindowScene>(connected_scenes.anyObject);
+  return scene.keyWindow;
+}
+
 }  // namespace
 
-AVSBVideoRenderer::AVSBVideoRenderer(const VideoStreamInfo& video_stream_info,
+AVSBVideoRenderer::AVSBVideoRenderer(JobQueue* job_queue,
+                                     const VideoStreamInfo& video_stream_info,
                                      SbDrmSystem drm_system)
-    : video_stream_info_(video_stream_info),
+    : JobOwner(job_queue),
+      video_stream_info_(video_stream_info),
       sample_buffer_builder_(
           AVVideoSampleBufferBuilder::CreateBuilder(video_stream_info)) {
   if (drm_system && DrmSystemPlatform::IsSupported(drm_system)) {
@@ -147,8 +166,7 @@ AVSBVideoRenderer::AVSBVideoRenderer(const VideoStreamInfo& video_stream_info,
     display_layer_.videoGravity = AVLayerVideoGravityResizeAspect;
 
     id<SBDStarboardApplication> application = SBDGetApplication();
-    SBDWindowManager* windowManager = application.windowManager;
-    [windowManager.currentApplicationWindow attachPlayerView:display_view_];
+    [application attachPlayerView:display_view_];
   });
 
   ObserverRegistry::RegisterObserver(&observer_);
@@ -203,14 +221,12 @@ AVSBVideoRenderer::~AVSBVideoRenderer() {
 
   SBDAVSampleBufferDisplayView* display_view = display_view_;
   AVSampleBufferDisplayLayer* display_layer = display_layer_;
-  dispatch_async(dispatch_get_main_queue(), ^{
+  onApplicationMainThread(^{
     [display_layer flush];
     [display_view removeFromSuperview];
 
     // Clear preferred display criteria.
-    SBDGetApplication()
-        .windowManager.currentApplicationWindow.avDisplayManager
-        .preferredDisplayCriteria = nil;
+    GetPlatformWindow().avDisplayManager.preferredDisplayCriteria = nil;
   });
 }
 
@@ -282,7 +298,7 @@ void AVSBVideoRenderer::Seek(int64_t seek_to_time) {
   }
   sample_buffer_builder_->Reset();
   CancelPendingJobs();
-  enqueue_sample_buffers_job_token_.ResetToInvalid();
+  enqueue_sample_buffers_job_token_ = JobQueue::JobToken::kUnscheduled;
 
   prerolled_frames_ = 0;
   pts_of_first_written_buffer_ = 0;
@@ -302,6 +318,7 @@ bool AVSBVideoRenderer::IsEndOfStreamWritten() const {
   SB_DCHECK(BelongsToCurrentThread());
   return eos_written_;
 }
+
 bool AVSBVideoRenderer::CanAcceptMoreData() const {
   SB_DCHECK(BelongsToCurrentThread());
   // The number returned by GetNumberOfCachedFrames() is not accruate. It's
@@ -310,17 +327,14 @@ bool AVSBVideoRenderer::CanAcceptMoreData() const {
          sample_buffer_builder_->GetMaxNumberOfCachedFrames();
 }
 
-void AVSBVideoRenderer::SetBounds(int z_index,
-                                  int x,
-                                  int y,
-                                  int width,
-                                  int height) {
+void AVSBVideoRenderer::SetBounds(int z_index, const Rect& rect) {
   SBDAVSampleBufferDisplayView* display_view = display_view_;
   AVSampleBufferDisplayLayer* display_layer = display_layer_;
-  dispatch_async(dispatch_get_main_queue(), ^{
+  onApplicationMainThread(^{
     float scale = [UIScreen mainScreen].scale;
     display_view.frame =
-        CGRectMake(x / scale, y / scale, width / scale, height / scale);
+        CGRectMake(rect.x / scale, rect.y / scale, rect.size.width / scale,
+                   rect.size.height / scale);
     display_layer.zPosition = z_index;
   });
 }
@@ -332,10 +346,14 @@ void AVSBVideoRenderer::SetMediaTimeOffset(int64_t media_time_offset) {
   // Flush |display_layer_| after AVSBSynchronizer set rate and time to zero in
   // AVSBSynchronizer::Seek().
   is_display_layer_flushing_ = true;
-  AVSampleBufferDisplayLayer* display_layer = display_layer_;
-  dispatch_async(dispatch_get_main_queue(), ^{
-    [display_layer flush];
-    is_display_layer_flushing_ = false;
+  base::WeakPtr<AVSBVideoRenderer> weak_this = weak_ptr_factory_.GetWeakPtr();
+  onApplicationMainThread(^{
+    AVSBVideoRenderer* strong_this = weak_this.get();
+    if (!strong_this) {
+      return;
+    }
+    [strong_this->display_layer_ flush];
+    strong_this->is_display_layer_flushing_ = false;
   });
 }
 
@@ -392,9 +410,10 @@ void AVSBVideoRenderer::ReportError(const std::string& message) {
 }
 
 void AVSBVideoRenderer::UpdatePreferredDisplayCriteria() {
-  AVDisplayManager* avDisplayManager =
-      SBDGetApplication()
-          .windowManager.currentApplicationWindow.avDisplayManager;
+  __block AVDisplayManager* avDisplayManager;
+  onApplicationMainThread(^{
+    avDisplayManager = GetPlatformWindow().avDisplayManager;
+  });
   if (avDisplayManager.isDisplayCriteriaMatchingEnabled == YES) {
     NSURL* url = [NSURL URLWithString:kDummyMasterPlaylistUrl];
 
@@ -410,7 +429,7 @@ void AVSBVideoRenderer::UpdatePreferredDisplayCriteria() {
     // delegate cannot be performed on the resource loader's queue thread.
     // Otherwise, it will cause deadlock.
     AVDisplayCriteria* criteria = asset.preferredDisplayCriteria;
-    dispatch_async(dispatch_get_main_queue(), ^{
+    onApplicationMainThread(^{
       avDisplayManager.preferredDisplayCriteria = criteria;
     });
   }
@@ -585,8 +604,7 @@ void AVSBVideoRenderer::EnqueueSampleBuffers() {
 
     UpdateCachedFramesWatermark();
 
-    if (!video_sample_buffers_.empty() &&
-        !enqueue_sample_buffers_job_token_.is_valid()) {
+    if (!video_sample_buffers_.empty() && !enqueue_sample_buffers_job_token_) {
       enqueue_sample_buffers_job_token_ = Schedule(
           std::bind(&AVSBVideoRenderer::DelayedEnqueueSampleBuffers, this),
           16000);
@@ -604,7 +622,7 @@ void AVSBVideoRenderer::EnqueueSampleBuffers() {
 }
 
 void AVSBVideoRenderer::DelayedEnqueueSampleBuffers() {
-  enqueue_sample_buffers_job_token_.ResetToInvalid();
+  enqueue_sample_buffers_job_token_ = JobQueue::JobToken::kUnscheduled;
   EnqueueSampleBuffers();
 }
 

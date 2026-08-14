@@ -17,7 +17,6 @@
 #include "starboard/player.h"
 #import "starboard/tvos/shared/media/player_manager.h"
 #import "starboard/tvos/shared/starboard_application.h"
-#import "starboard/tvos/shared/window_manager.h"
 
 SbPlayer SbUrlPlayerCreate(const char* url,
                            SbWindow window,
@@ -33,9 +32,6 @@ SbPlayer SbUrlPlayerCreate(const char* url,
 
   @autoreleasepool {
     id<SBDStarboardApplication> application = SBDGetApplication();
-    SBDWindowManager* windowManager = application.windowManager;
-    SBDApplicationWindow* applicationWindow =
-        [windowManager applicationWindowForStarboardWindow:window];
     SBDPlayerManager* playerManager = application.playerManager;
 
     NSString* urlString = [NSString stringWithCString:url
@@ -46,8 +42,7 @@ SbPlayer SbUrlPlayerCreate(const char* url,
                        playerContext:context
                     playerStatusFunc:player_status_func
               encryptedMediaCallback:encrypted_media_init_data_encountered_cb
-                     playerErrorFunc:player_error_func
-                            inWindow:applicationWindow];
+                     playerErrorFunc:player_error_func];
     return [playerManager starboardPlayerForApplicationPlayer:player];
   }
 }

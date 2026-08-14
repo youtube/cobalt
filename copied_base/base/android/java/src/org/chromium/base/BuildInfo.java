@@ -14,6 +14,7 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Build.VERSION_CODES;
+import android.os.Process;
 import android.text.TextUtils;
 
 import androidx.annotation.OptIn;
@@ -23,6 +24,7 @@ import androidx.core.os.BuildCompat;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.compat.ApiHelperForP;
 import org.chromium.build.BuildConfig;
+import org.chromium.build.NativeLibraries;
 
 /**
  * BuildInfo is a utility class providing easy access to {@link PackageInfo} information. This is
@@ -129,6 +131,20 @@ public class BuildInfo {
         } else {
             return pi.versionCode;
         }
+    }
+
+    /**
+     * @return CPU architecture name, see "arch:" in:
+     *     https://chromium.googlesource.com/chromium/src.git/+/master/docs/updater/protocol_3_1.md
+     */
+    public static String getArch() {
+        boolean is64Bit = Process.is64Bit();
+        if (NativeLibraries.sCpuFamily == NativeLibraries.CPU_FAMILY_ARM) {
+            return is64Bit ? "arm64" : "arm";
+        } else if (NativeLibraries.sCpuFamily == NativeLibraries.CPU_FAMILY_X86) {
+            return is64Bit ? "x86_64" : "x86";
+        }
+        return "";
     }
 
     /**

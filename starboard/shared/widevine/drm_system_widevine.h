@@ -15,10 +15,13 @@
 #ifndef STARBOARD_SHARED_WIDEVINE_DRM_SYSTEM_WIDEVINE_H_
 #define STARBOARD_SHARED_WIDEVINE_DRM_SYSTEM_WIDEVINE_H_
 
+#include <sys/types.h>
+
 #include <atomic>
 #include <limits>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -26,7 +29,6 @@
 #include "build/build_config.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
-#include "starboard/thread.h"
 #include "third_party/internal/ce_cdm/cdm/include/cdm.h"
 
 namespace starboard {
@@ -177,7 +179,7 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   // call to |GenerateKeyRequest| or |AddKey|, but CDM may invoke host's methods
   // spontaneously from the timer thread. In that case |GetTicket| need to
   // return |kSbDrmTicketInvalid|.
-  const SbThreadId ticket_thread_id_;
+  const pid_t ticket_thread_id_;
 
   std::vector<GenerateSessionUpdateRequestData>
       pending_generate_session_update_requests_;
@@ -186,8 +188,6 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   std::unique_ptr<::widevine::Cdm> cdm_;
 
   bool is_server_certificate_set_ = false;
-
-  volatile bool quitting_ = false;
 
   std::mutex unblock_key_retry_mutex_;
   std::optional<int64_t> unblock_key_retry_start_time_;

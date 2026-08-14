@@ -203,7 +203,8 @@ blink::CSPSourceListPtr ConvertToBlink(const CSPSourceListPtr& source_list) {
       source_list->allow_dynamic, source_list->allow_unsafe_hashes,
 #if BUILDFLAG(IS_COBALT)
       source_list->report_sample, source_list->report_hash_algorithm,
-      source_list->cobalt_insecure_local_network);
+      source_list->cobalt_insecure_local_network,
+      source_list->cobalt_insecure_private_range);
 #else
       source_list->report_sample, source_list->report_hash_algorithm);
 #endif

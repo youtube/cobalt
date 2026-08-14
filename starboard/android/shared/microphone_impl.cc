@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/shared/starboard/microphone/microphone_internal.h"
+// clang-format on
+
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
 
@@ -25,13 +29,12 @@
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/shared/starboard/microphone/microphone_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
+using jni_zero::AttachCurrentThread;
 
 namespace {
 
@@ -227,7 +230,13 @@ int SbMicrophoneImpl::Read(void* out_audio_data, int audio_data_size) {
     return -1;
   }
 
-  if (!out_audio_data || audio_data_size == 0 || state_ == kWaitPermission) {
+  // If reading audio_data_size bytes is expected, a null output
+  // buffer is an invalid argument.
+  if (audio_data_size > 0 && !out_audio_data) {
+    return -1;
+  }
+
+  if (audio_data_size == 0 || state_ == kWaitPermission) {
     // No data to be read.
     return 0;
   }

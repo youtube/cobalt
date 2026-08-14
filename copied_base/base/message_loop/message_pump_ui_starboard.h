@@ -18,6 +18,7 @@
 #include <set>
 
 #include "base/base_export.h"
+#include "base/functional/callback.h"
 #include "base/message_loop/message_pump.h"
 #include "base/message_loop/watchable_io_message_pump_posix.h"
 #include "base/run_loop.h"
@@ -70,6 +71,12 @@ class BASE_EXPORT MessagePumpUIStarboard : public MessagePump, public WatchableI
   // on be invoked by the native loop to process application tasks.
   virtual void Attach(Delegate* delegate);
 
+  // Mirrors the Android MessagePumpForUI interface expected by
+  // base/android/java_handler_thread.
+  void Abort() { should_abort_ = true; }
+  bool IsAborted() const { return should_abort_; }
+  void QuitWhenIdle(OnceClosure callback);
+
  protected:
   Delegate* SetDelegate(Delegate* delegate);
 
@@ -84,13 +91,19 @@ class BASE_EXPORT MessagePumpUIStarboard : public MessagePump, public WatchableI
   void CancelDelayedLocked();
 
   // If the delegate has been removed, Quit() has been called.
-  bool should_quit() const { return delegate_ == nullptr; }
+  bool should_quit() const { return should_abort_ || delegate_ == nullptr; }
 
   // Maintain a RunLoop attached to the starboard thread.
   std::unique_ptr<RunLoop> run_loop_;
 
+  // See Abort().
+  bool should_abort_ = false;
+
   // The MessagePump::Delegate configured in Start().
   Delegate* delegate_;
+
+  // If set, a callback to fire when the message pump quits.
+  OnceClosure on_quit_callback_;
 
   // Lock protecting outstanding scheduled callback events.
   base::Lock outstanding_events_lock_;

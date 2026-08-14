@@ -17,9 +17,9 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <memory>
 #include <vector>
 
-#include "starboard/thread.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -32,33 +32,31 @@ using ::testing::ElementsAre;
 // Require at least millisecond-level precision.
 const int64_t kPrecisionUsec = 1000;
 
-class JobQueueTest : public ::testing::Test, protected JobQueue::JobOwner {
+class JobQueueTest : public ::testing::Test {
  public:
-  JobQueueTest() : JobOwner(kDetached) {}
+  JobQueueTest() : job_owner_(&job_queue_) {}
   ~JobQueueTest() {}
-  // Create a JobQueue for use on the current thread.
+
   JobQueue job_queue_;
+  JobQueue::JobOwner job_owner_;
 };
 
 TEST_F(JobQueueTest, OwnedScheduledJobsAreExecutedInOrder) {
-  AttachToCurrentThread();
-
   std::vector<int> values;
-  Schedule([&]() { values.push_back(1); });
-  Schedule([&]() { values.push_back(2); });
-  Schedule([&]() { values.push_back(3); });
-  Schedule([&]() { values.push_back(4); }, 1 * kPrecisionUsec);
-  Schedule([&]() { values.push_back(5); }, 1 * kPrecisionUsec);
-  Schedule([&]() { values.push_back(6); }, 1 * kPrecisionUsec);
-  Schedule([&]() { values.push_back(7); }, 2 * kPrecisionUsec);
-  Schedule([&]() { values.push_back(8); }, 3 * kPrecisionUsec);
+  job_owner_.Schedule([&]() { values.push_back(1); });
+  job_owner_.Schedule([&]() { values.push_back(2); });
+  job_owner_.Schedule([&]() { values.push_back(3); });
+  job_owner_.Schedule([&]() { values.push_back(4); }, 1 * kPrecisionUsec);
+  job_owner_.Schedule([&]() { values.push_back(5); }, 1 * kPrecisionUsec);
+  job_owner_.Schedule([&]() { values.push_back(6); }, 1 * kPrecisionUsec);
+  job_owner_.Schedule([&]() { values.push_back(7); }, 2 * kPrecisionUsec);
+  job_owner_.Schedule([&]() { values.push_back(8); }, 3 * kPrecisionUsec);
 
   // Sleep past the last scheduled job.
   usleep(4 * kPrecisionUsec);
   job_queue_.RunUntilIdle();
 
   EXPECT_THAT(values, ElementsAre(1, 2, 3, 4, 5, 6, 7, 8));
-  DetachFromCurrentThread();
 }
 
 TEST_F(JobQueueTest, OwnedJobsAreRemovedWhenOwnerGoesOutOfScope) {
@@ -78,14 +76,13 @@ TEST_F(JobQueueTest, OwnedJobsAreRemovedWhenOwnerGoesOutOfScope) {
 }
 
 TEST_F(JobQueueTest, CancelPendingJobsCancelsPendingJobs) {
-  AttachToCurrentThread();
   std::atomic_bool job_1 = {false}, job_2 = {false};
 
-  Schedule([&]() { job_1 = true; });
-  job_queue_.Schedule([&]() { job_2 = true; });
+  job_owner_.Schedule([&] { job_1 = true; });
+  job_queue_.Schedule([&] { job_2 = true; });
 
   // Cancel the pending owned job (job 1).
-  CancelPendingJobs();
+  job_owner_.CancelPendingJobs();
 
   // Execute any remaining pending jobs.
   job_queue_.RunUntilIdle();
@@ -94,7 +91,6 @@ TEST_F(JobQueueTest, CancelPendingJobsCancelsPendingJobs) {
   EXPECT_FALSE(job_1);
   // Job 2 should have run.
   EXPECT_TRUE(job_2);
-  DetachFromCurrentThread();
 }
 
 TEST_F(JobQueueTest, RemovedJobsAreRemoved) {
@@ -103,7 +99,7 @@ TEST_F(JobQueueTest, RemovedJobsAreRemoved) {
   auto job_token_2 = job_queue_.Schedule([&]() { job_2 = true; });
 
   // Cancel job 1.
-  job_queue_.RemoveJobByToken(job_token_1);
+  job_queue_.RemoveJobByToken(&job_token_1);
 
   job_queue_.RunUntilIdle();
 
@@ -112,7 +108,7 @@ TEST_F(JobQueueTest, RemovedJobsAreRemoved) {
   EXPECT_TRUE(job_2);
 
   // Should be a no-op since job 2 already ran.
-  job_queue_.RemoveJobByToken(job_token_2);
+  job_queue_.RemoveJobByToken(&job_token_2);
 }
 
 TEST_F(JobQueueTest, RunUntilStoppedExecutesAllRemainingJobs) {
@@ -167,8 +163,26 @@ TEST_F(JobQueueTest, JobsAreMovedAndNotCopied) {
   EXPECT_TRUE(moved);
 }
 
+TEST_F(JobQueueTest, MoveOnlyLambdaIsAccepted) {
+  std::atomic_bool executed = false;
+  auto move_only_obj = std::make_unique<int>(42);
+
+  job_queue_.Schedule([ptr = std::move(move_only_obj), &executed]() {
+    EXPECT_EQ(*ptr, 42);
+    executed = true;
+  });
+  job_queue_.RunUntilIdle();
+
+  EXPECT_TRUE(executed);
+}
+
+TEST_F(JobQueueTest, NullFunctionPointerIsInvalidJob) {
+  void (*null_func)() = nullptr;
+  JobQueue::Job job(null_func);
+  EXPECT_FALSE(job);
+}
+
 TEST_F(JobQueueTest, QueueBelongsToCorrectThread) {
-  EXPECT_EQ(&job_queue_, JobQueue::current());
   EXPECT_TRUE(job_queue_.BelongsToCurrentThread());
 }
 

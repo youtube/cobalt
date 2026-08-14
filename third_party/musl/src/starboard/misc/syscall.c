@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #if defined(ENABLE_DEBUGGER)
 #include "starboard/log.h"
@@ -90,12 +91,14 @@ long syscall(long number, ...) {
       return libc_wrapper_SYS_lseek(fildes, offset, whence);
     }
 #endif
-#ifdef __NR_lstat
-    case __NR_lstat: {
-      const char *pathname = va_arg(ap, const char *);
-      struct stat * statbuf = va_arg(ap, struct stat *);
+#ifdef __NR_newfstatat
+    case __NR_newfstatat: {
+      int fildes = va_arg(ap, int);
+      const char* pathname = va_arg(ap, const char *);
+      struct stat* statbuf = va_arg(ap, struct stat *);
+      int flag = va_arg(ap, int);
       va_end(ap);
-      return libc_wrapper_SYS_lstat(pathname, statbuf);
+      return libc_wrapper_SYS_fstatat(fildes, pathname, statbuf, flag);
     }
 #endif
 #ifdef __NR_open
@@ -105,6 +108,16 @@ long syscall(long number, ...) {
       mode_t mode = va_arg(ap, mode_t);
       va_end(ap);
       return libc_wrapper_SYS_open(pathname, flags, mode);
+    }
+#endif
+#ifdef __NR_openat
+    case __NR_openat: {
+      int fildes = va_arg(ap, int);
+      const char* pathname = va_arg(ap, const char*);
+      int flags = va_arg(ap, int);
+      mode_t mode = va_arg(ap, mode_t);
+      va_end(ap);
+      return libc_wrapper_SYS_openat(fildes, pathname, flags, mode);
     }
 #endif
 #ifdef __NR_read
@@ -132,19 +145,20 @@ long syscall(long number, ...) {
       return libc_wrapper_SYS_rmdir(pathname);
     }
 #endif
-#ifdef __NR_stat
-    case __NR_stat: {
-      const char *pathname = va_arg(ap, const char *);
-      struct stat * statbuf = va_arg(ap, struct stat *);
-      va_end(ap);
-      return libc_wrapper_SYS_stat(pathname, statbuf);
-    }
-#endif
 #ifdef __NR_unlink
     case __NR_unlink: {
       const char* pathname = va_arg(ap, const char*);
       va_end(ap);
       return libc_wrapper_SYS_unlink(pathname);
+    }
+#endif
+#ifdef __NR_unlinkat
+    case __NR_unlinkat: {
+      int fildes = va_arg(ap, int);
+      const char* pathname = va_arg(ap, const char*);
+      int flag = va_arg(ap, int);
+      va_end(ap);
+      return libc_wrapper_SYS_unlinkat(fildes, pathname, flag);
     }
 #endif
 #ifdef __NR_write

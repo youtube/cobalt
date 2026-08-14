@@ -137,11 +137,13 @@ std::string HardwareManufacturerName() {
 
 namespace base {
 
+#if !BUILDFLAG(IS_STARBOARD)
 std::string SysInfo::HardwareModelName() {
   char device_model_str[PROP_VALUE_MAX];
   __system_property_get("ro.product.model", device_model_str);
   return std::string(device_model_str);
 }
+#endif  // !BUILDFLAG(IS_STARBOARD)
 
 std::string SysInfo::OperatingSystemName() {
   return "Android";
@@ -205,7 +207,7 @@ bool SysInfo::IsLowEndDeviceImpl() {
   // implementations which could give different results.
   // Also the Java code cannot depend on the native code
   // since it might not be loaded yet.
-  if (!base::android::IsVMInitialized())
+  if (!base::android::IsJavaAvailable())
     return false;
   return g_lazy_low_end_device.Get().value();
 }

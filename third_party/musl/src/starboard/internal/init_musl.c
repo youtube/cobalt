@@ -16,7 +16,14 @@
 #include "libc.h"
 #include <sys/auxv.h>
 
-void init_musl() {
+// Initialize musl automatically before program execution begins.
+// We use a constructor attribute with priority 101 (the highest user priority,
+// as 0-100 are reserved for the compiler implementation) to guarantee this runs
+// before any C++ static initializers or other application code.
+// This is critical because it generates the master TLS stack canary. If it
+// runs too late, thread-local storage pointers can become corrupted and
+// functions protected by stack canaries will crash.
+__attribute__((constructor(101))) void init_musl() {
 
   // Set __hwcap bitmask by getauxval.
   __hwcap = getauxval(AT_HWCAP);

@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/sanitizers.gni")
+
 config("compiler_flags") {
   cflags = []
   cflags_c = []
@@ -115,7 +117,8 @@ config("compiler_flags") {
     ]
     defines += [ "ADDRESS_SANITIZER" ]
     if (asan_symbolizer_path != "") {
-      defines += [ "ASAN_SYMBOLIZER_PATH=\"${asan_symbolizer_path}\"" ]
+      defines += [ "ASAN_SYMBOLIZER_PATH=\"" +
+                   rebase_path(asan_symbolizer_path, "") + "\"" ]
     }
   } else if (use_tsan) {
     cflags += [
@@ -166,29 +169,6 @@ config("libraries") {
     "Xcomposite",
     "Xrender",
   ]
-}
-
-config("speed") {
-  cflags = [ "-O2" ]
-
-  if (is_qa || is_gold) {
-    cflags += [
-      # Compile symbols in separate sections
-      "-ffunction-sections",
-      "-fdata-sections",
-    ]
-  }
-}
-
-config("size") {
-  cflags = [ "-Os" ]
-  if (is_qa || is_gold) {
-    cflags += [
-      # Compile symbols in separate sections
-      "-ffunction-sections",
-      "-fdata-sections",
-    ]
-  }
 }
 
 config("pedantic_warnings") {

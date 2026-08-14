@@ -321,10 +321,6 @@ if (is_cobalt) {
   }
 }
 
-# This include has been deliberately added after setting the default toolchain above.
-# as is_starboard depends on the _default_toolchain variable being set.
-import("//cobalt/build/configs/starboard.gni")
-
 # =============================================================================
 # OS DEFINITIONS
 # =============================================================================
@@ -374,6 +370,10 @@ is_posix = !is_win && !is_fuchsia
 # requirement and just need to add a config everywhere, reference it as a
 # sub-config of an existing one, most commonly the main "compiler" one.
 
+# This include has been deliberately added after setting the default toolchain
+# and is_* definitions above.
+import("//cobalt/build/configs/starboard.gni")
+
 # TODO: b/374301613 - Consolidate these imports and remove variables where possible.
 if (is_cobalt) {
   import("//cobalt/build/configs/initialize_variables.gni")
@@ -409,6 +409,11 @@ default_compiler_configs = [
   "//build/config/coverage:default_coverage",
   "//build/config/sanitizers:default_sanitizer_flags",
 ]
+
+# Add global defines shared by Cobalt and Chromium/Blink builds (e.g. milestone
+# version and Privacy Sandbox flags). This is applied unconditionally so that
+# standard Chromium builds in the Cobalt repository also compile correctly.
+default_compiler_configs += [ "//cobalt/build/configs/shared:global_defines_shared" ]
 
 if (is_cobalt) {
   default_compiler_configs += [ "//cobalt/build/configs:cobalt_config" ]

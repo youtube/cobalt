@@ -17,17 +17,17 @@
 #include <vector>
 
 #include "base/base_switches.h"
-#include "base/files/file_path.h"
+#include "build/buildflag.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt_switch_defaults.h"
 #include "content/public/common/content_switches.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gl/gl_switches.h"
-#include "ui/ozone/public/ozone_switches.h"
 
 namespace cobalt {
 namespace {
@@ -53,7 +53,25 @@ TEST(CobaltSwitchDefaultsTest, MergeDisabledFeatures) {
 
   std::string disabled_features =
       GetSwitchValue(cmd_line_pxr, ::switches::kDisableFeatures);
-  EXPECT_EQ(std::string("PersistentOriginTrials,Vulkan"), disabled_features);
+  EXPECT_EQ(
+      std::string("PersistentOriginTrials,Vulkan,MemoryCacheStrongReference"),
+      disabled_features);
+}
+
+TEST(CobaltSwitchDefaultsTest, MergeEnabledFeatures) {
+  const auto input_argv =
+      std::to_array<const char*>({"PROGRAM", "--enable-features=UseFoo"});
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  std::string enabled_features =
+      GetSwitchValue(cmd_line_pxr, ::switches::kEnableFeatures);
+  EXPECT_EQ(std::string("UseFoo,LimitImageDecodeCacheSize:mb/24, "
+                        "DefaultEnableANGLEValidation, "
+                        "SmallerInterestArea, "
+                        "ReclaimPrepaintTilesWhenIdle, "
+                        "ReclaimOldPrepaintTiles"),
+            enabled_features);
 }
 
 TEST(CobaltSwitchDefaultsTest, ConsistentWindowSizes) {
@@ -98,18 +116,30 @@ TEST(CobaltSwitchDefaultsTest, GfxAngleOverride) {
   // for running in Forge environments.
 }
 
+TEST(CobaltSwitchDefaultsTest, GpuMemorySwitchDefault) {
+  const auto input_argv = std::to_array<const char*>({"PROGRAM"});
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  std::string gpu_mem =
+      GetSwitchValue(cmd_line_pxr, ::switches::kForceGpuMemAvailableMb);
+  EXPECT_EQ(std::string("64"), gpu_mem);
+}
+
 TEST(CobaltSwitchDefaultsTest, AlwaysEnabledSwitches) {
   const auto input_argv = std::to_array<const char*>({"PROGRAM"});
   const int input_argc = static_cast<int>(input_argv.size());
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
   std::vector<const char*> always_on_switches{
-      ::switches::kForceVideoOverlays, ::switches::kSingleProcess,
+      ::switches::kForceVideoOverlays,
+      ::switches::kSingleProcess,
       ::switches::kIgnoreGpuBlocklist,
 #if BUILDFLAG(IS_ANDROID)
       ::switches::kUserLevelMemoryPressureSignalParams,
 #endif  // BUILDFLAG(IS_ANDROID)
-      sandbox::policy::switches::kNoSandbox};
+      sandbox::policy::switches::kNoSandbox,
+      ::switches::kHideScrollbars};
 
   for (const auto& switch_key : always_on_switches) {
     EXPECT_TRUE(HasSwitch(cmd_line_pxr, switch_key));
@@ -154,7 +184,7 @@ TEST(CobaltSwitchDefaultsTest, StartupURLDefault) {
   const int input_argc = static_cast<int>(input_argv.size());
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
-  EXPECT_EQ("https://www.youtube.com/tv/splash",
+  EXPECT_EQ("https://www.youtube.com/tv",
             cmd_line_pxr.get_startup_url_for_test());
   EXPECT_EQ("", GetSwitchValue(cmd_line_pxr, cobalt::switches::kInitialURL));
 }

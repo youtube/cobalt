@@ -16,16 +16,15 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
-import android.app.Activity;
 import android.content.Intent;
-import android.content.pm.ActivityInfo;
-import android.content.pm.PackageManager;
-import android.content.pm.PackageManager.NameNotFoundException;
-import android.media.AudioManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.text.TextUtils;
+import android.view.Display;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
@@ -33,51 +32,62 @@ import android.view.ViewParent;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
+import androidx.annotation.VisibleForTesting;
 import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
-import dev.cobalt.coat.javabridge.H5vccPlatformService;
 import dev.cobalt.coat.javabridge.HTMLMediaElementExtension;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
+import dev.cobalt.shell.ShellManagerJni;
+import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.DisplayUtil;
+import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
-import java.util.regex.Pattern;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
+import org.chromium.base.memory.MemoryPressureUma;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
-import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
-import org.chromium.net.NetworkChangeNotifier;
 
-/** Native activity that has the required JNI methods called by the Starboard implementation. */
-public abstract class CobaltActivity extends Activity {
-  private static final String URL_ARG = "--url=";
-  private static final String META_DATA_APP_URL = "cobalt.APP_URL";
+/* Abstract activity used by AndroidTV. Extends the base with the Chromium content-shell wiring. */
+public abstract class CobaltActivity extends BaseCobaltActivity {
+  private static final String META_DATA_ENABLE_SPLASH_SCREEN = "cobalt.ENABLE_SPLASH_SCREEN";
+  private static final String META_DATA_ENABLE_FEATURES = "cobalt.ENABLE_FEATURES";
+  private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
+  private static final String COBALT_USING_ANDROID_OVERLAY = "cobalt-using-android-overlay";
 
-  // This key differs in naming format for legacy reasons
-  public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
-
-  private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
+  // How many seconds before the app exits if it fails to land YouTube home page.
+  private static final int DEFAULT_HANG_APP_CRASH_TIMEOUT_SECONDS = 120;
 
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
   private List<CobaltJavaScriptAndroidObject> mJavaScriptAndroidObjectList = new ArrayList<>();
+  private Map<String, String> mJavaSwitches = new HashMap<>();
 
   @SuppressWarnings("unused")
   private CobaltA11yHelper mA11yHelper;
@@ -86,8 +96,6 @@ public abstract class CobaltActivity extends Activity {
 
   private boolean mForceCreateNewVideoSurfaceView;
 
-  private long mTimeInNanoseconds;
-
   private ShellManager mShellManager;
   private ActivityWindowAndroid mWindowAndroid;
   private Intent mLastSentIntent;
@@ -95,10 +103,76 @@ public abstract class CobaltActivity extends Activity {
   private IntentRequestTracker mIntentRequestTracker;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean mIsKeepScreenOnEnabled = false;
-  private CobaltConnectivityDetector mCobaltConnectivityDetector;
+  private Runnable mFreezeRunnable;
+  private final Handler mHandler = new Handler(Looper.getMainLooper());
+
+  private boolean mIsCobaltUsingAndroidOverlay;
+
+  private NetworkChangeNotifier.ConnectionTypeObserver mNetworkRecoveryObserver;
+  private boolean mIsNetworkRecoveryObserverRegistered = false;
+
+  private volatile boolean mHasHiddenSplashScreen = false;
+
+  private static final long MIN_RETRY_INTERVAL_MS = 1000L;
+  private long mLastRetryTimestampMs = 0L;
+
+  private static final String RETRY_PARAM_KEY = "netdialog_retry";
+  private static final AtomicInteger sRetryCount = new AtomicInteger(0);
+
+  private String mStartDeepLink;
+
+  private Object mBackInvokedCallback;
+
+  // Tracks if a physical/hardware back button press is currently in progress.
+  // On Android 13+ (API >= 33) with predictive back gesture enabled, the OS dispatches physical
+  // back button presses as both key events (onKeyDown/onKeyUp) and OnBackInvokedCallback.
+  // To prevent double-triggering back navigation in the web application (which maps back keys
+  // to Escape), this flag is used by OnBackInvokedCallback to detect physical key presses and
+  // bypass simulated key dispatching.
+  private boolean mPhysicalBackKeyPressed = false;
+  private final DisplayUtil.Listener mDisplayListener =
+      new DisplayUtil.Listener() {
+        @Override
+        public void onDisplayChanged(int displayId) {
+          if (displayId == Display.DEFAULT_DISPLAY) {
+            checkDisplayState();
+          }
+        }
+      };
+  private boolean mWasDisplayOn = true;
+
+  @VisibleForTesting
+  static String[] appendArgsFromMetaData(Bundle metaData, String[] commandLineArgs) {
+    if (metaData == null) {
+      return commandLineArgs;
+    }
+
+    List<String> args = new ArrayList<>();
+    if (commandLineArgs != null) {
+      args.addAll(Arrays.asList(commandLineArgs));
+    }
+
+    boolean enableSplashScreen = metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
+    if (!enableSplashScreen) {
+      args.add("--enable-features=DisableSplashScreen");
+    }
+
+    String enableFeatures = metaData.getString(META_DATA_ENABLE_FEATURES);
+    if (TextUtils.isEmpty(enableFeatures)) {
+      return args.toArray(new String[0]);
+    }
+
+    // CommandLineOverrideHelper will merge this with other --enable-features flags
+    // It also accepts semi-colon-separated list of features.
+    // https://github.com/youtube/cobalt/blob/6407cbdf6573f0b5fcae4a8fa6f46a3198b3d42b/cobalt/android/apk/app/src/main/java/dev/cobalt/coat/CommandLineOverrideHelper.java#L139-L167
+    args.add("--enable-features=" + enableFeatures);
+    return args.toArray(new String[0]);
+  }
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
+    StartupGuard.getInstance().setStartupMilestone(1);
+
     // Initializing the command line must occur before loading the library.
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
@@ -107,34 +181,60 @@ public abstract class CobaltActivity extends Activity {
       if (!VersionInfo.isReleaseBuild()) {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
+      commandLineArgs = appendArgsFromMetaData(getActivityMetaData(), commandLineArgs);
+
+      List<String> extraCommandLineArgs = JavaSwitches.getExtraCommandLineArgs(getJavaSwitches());
+
+      if (!extraCommandLineArgs.isEmpty()) {
+        if (commandLineArgs != null) {
+          extraCommandLineArgs.addAll(0, Arrays.asList(commandLineArgs));
+        }
+        commandLineArgs = extraCommandLineArgs.toArray(new String[0]);
+      }
+
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               VersionInfo.isOfficialBuild(), commandLineArgs));
     }
+    mIsCobaltUsingAndroidOverlay =
+        CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
 
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
 
+    StartupGuard.getInstance().setStartupMilestone(2);
     // This initializes JNI and ends up calling JNI_OnLoad in native code
     LibraryLoader.getInstance().ensureInitialized();
+    StartupGuard.getInstance().setStartupMilestone(3);
 
     // StarboardBridge initialization must happen right after library loading,
     // before Browser/Content module is started. It currently tracks its own JNI state
     // variables, and needs to set up an early copy.
 
     // TODO(b/374147993): how to handle deeplink in Chrobalt?
-    String startDeepLink = getIntentUrlAsString(getIntent());
-    if (startDeepLink == null) {
+    mStartDeepLink = getIntentUrlAsString(getIntent());
+    if (mStartDeepLink == null) {
       Log.w(TAG, "startDeepLink cannot be null, set it to empty string.");
-      startDeepLink = "";
+      mStartDeepLink = "";
     }
+
+    StartupGuard.getInstance().setStartupMilestone(4);
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
-      StarboardBridge starboardBridge = createStarboardBridge(getArgs(), startDeepLink);
+      RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", true);
+      if (CommandLine.getInstance().hasSwitch("enable-optimized-font-loading")
+          || getJavaSwitches().containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
+        FontUtil.copyFontsXml(getApplicationContext());
+      }
+      StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
-      getStarboardBridge().handleDeepLink(startDeepLink);
+      if (savedInstanceState == null) {
+        RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", false);
+      }
+      getStarboardBridge().handleDeepLink(mStartDeepLink);
     }
+    StartupGuard.getInstance().setStartupMilestone(7);
 
     mShellManager = new ShellManager(this);
     final boolean listenToActivityState = true;
@@ -151,9 +251,11 @@ public abstract class CobaltActivity extends Activity {
     // Set up the animation placeholder to be the SurfaceView. This disables the
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
-        mShellManager.getContentViewRenderView().getSurfaceView());
-    mA11yHelper = new CobaltA11yHelper(this,
-        mShellManager.getContentViewRenderView().getSurfaceView());
+        mShellManager.getContentViewRenderView().getAnchorView());
+    mA11yHelper =
+        new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getAnchorView());
+
+    maybeRegisterNetworkRecoveryObserver();
 
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
@@ -164,10 +266,17 @@ public abstract class CobaltActivity extends Activity {
               .map(arg -> arg.substring(arg.indexOf(URL_ARG) + URL_ARG.length()))
               .orElse(null);
     }
-    if (!TextUtils.isEmpty(mStartupUrl)) {
-      mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
+
+    // META_DATA_APP_URL is configured to be the same as hardcoded YOUTUBE_URL.
+    // If the app is used to start other web applications e.g google.com, because there will have no
+    // Kabuki web application code to call h5vcc.system.HideSplashScreen().
+    // We should disarm Startup Guard now.
+    if (TextUtils.isEmpty(mStartupUrl) || !mStartupUrl.startsWith(YOUTUBE_URL)) {
+      Log.i(TAG, "Non-Youtube startup URL detected.");
+      StartupGuard.getInstance().disarm();
     }
 
+    StartupGuard.getInstance().setStartupMilestone(8);
     // TODO(b/377025559): Bring back WebTests launch capability
     BrowserStartupController.getInstance()
         .startBrowserProcessesAsync(
@@ -178,7 +287,11 @@ public abstract class CobaltActivity extends Activity {
             new BrowserStartupController.StartupCallback() {
               @Override
               public void onSuccess() {
+                // NOTE: This log message is hard-coded in smoke tests to detect browser startup
+                // success.
+                // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test suite.
                 Log.i(TAG, "Browser process init succeeded");
+
                 finishInitialization(savedInstanceState);
                 getStarboardBridge().measureAppStartTimestamp();
               }
@@ -205,6 +318,7 @@ public abstract class CobaltActivity extends Activity {
     // that the webContents are correctly created not null.
     mShellManager.launchShell(
         "",
+        mStartDeepLink,
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {
@@ -213,8 +327,12 @@ public abstract class CobaltActivity extends Activity {
             getStarboardBridge().setWebContents(getActiveWebContents());
 
             // Load the `url` with the same shell we created above.
+            mStartupUrl = ShellManagerJni.get().appendMigrationStatus(mStartupUrl);
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
+
+            // Load splash screen.
+            mShellManager.getActiveShell().loadSplashScreenWebContents();
           }
         });
   }
@@ -242,9 +360,12 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
-    // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
-    // consumes the event as a VKEY_UNKNOWN
-    if (KeyEvent.isGamepadButton(keyCode)) {
+    if (keyCode == KeyEvent.KEYCODE_BACK) {
+      mPhysicalBackKeyPressed = true;
+    }
+    // Gamepad buttons and certain partner-handled keys should bypass IME. The IME incorrectly
+    // consumes the events as VKEY_UNKNOWN and prevent proper handling by the OS.
+    if (KeyEvent.isGamepadButton(keyCode) || KeyboardUtils.isPartnerFallbackKey(keyCode)) {
       return super.onKeyDown(keyCode, event);
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
@@ -252,8 +373,11 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
-    if (KeyEvent.isGamepadButton(keyCode)) {
+    if (KeyEvent.isGamepadButton(keyCode) || KeyboardUtils.isPartnerFallbackKey(keyCode)) {
       return super.onKeyUp(keyCode, event);
+    }
+    if (keyCode == KeyEvent.KEYCODE_BACK) {
+      mPhysicalBackKeyPressed = false;
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
   }
@@ -274,14 +398,6 @@ public abstract class CobaltActivity extends Activity {
 
   public Intent getLastSentIntent() {
     return mLastSentIntent;
-  }
-
-  private static String getUrlFromIntent(Intent intent) {
-    return intent != null ? intent.getDataString() : null;
-  }
-
-  private static String[] getCommandLineParamsFromIntent(Intent intent, String key) {
-    return intent != null ? intent.getStringArrayExtra(key) : null;
   }
 
   /**
@@ -315,26 +431,56 @@ public abstract class CobaltActivity extends Activity {
     return webContents != null ? ImeAdapterImpl.fromWebContents(webContents) : null;
   }
 
+  @VisibleForTesting
+  void setupStartupGuard() {
+    Map<String, String> switches = getJavaSwitches();
+    if (switches.containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
+      Log.i(TAG, "StartupGuard is disabled by Java switch.");
+      return;
+    }
+
+    long timeout = DEFAULT_HANG_APP_CRASH_TIMEOUT_SECONDS;
+    String intervalStr = switches.get(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS);
+    if (intervalStr != null) {
+      try {
+        long parsedTimeout = Long.parseLong(intervalStr);
+        if (parsedTimeout > 0) {
+          timeout = parsedTimeout;
+        } else {
+          Log.w(TAG, "Invalid StartupGuard interval (must be positive): " + intervalStr);
+        }
+      } catch (NumberFormatException e) {
+        Log.w(TAG, "Invalid StartupGuard interval string: " + intervalStr);
+      }
+    }
+    Log.i(TAG, "Arming StartupGuard with " + timeout + " second timeout.");
+    StartupGuard.getInstance().scheduleCrash(timeout);
+  }
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
-    // Record the application start timestamp.
-    mTimeInNanoseconds = System.nanoTime();
-
-    // To ensure that volume controls adjust the correct stream, make this call
-    // early in the app's lifecycle. This connects the volume controls to
-    // STREAM_MUSIC whenever the target activity or fragment is visible.
-    setVolumeControlStream(AudioManager.STREAM_MUSIC);
-
     super.onCreate(savedInstanceState);
-    mCobaltConnectivityDetector = new CobaltConnectivityDetector(this);
+
+    setupStartupGuard();
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
+    MemoryPressureUma.initializeForBrowser();
     NetworkChangeNotifier.init();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
-    mVideoSurfaceView = new VideoSurfaceView(this);
-    addContentView(
-        mVideoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    if (!mIsCobaltUsingAndroidOverlay) {
+      mVideoSurfaceView = new VideoSurfaceView(this);
+      addContentView(
+          mVideoSurfaceView,
+          new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    } else {
+      Log.i(TAG, "Do not create VideoSurfaceView.");
+    }
+    StartupGuard.getInstance().setStartupMilestone(9);
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      mBackInvokedCallback = OnBackInvokedHelper.register(this);
+    }
   }
 
   /**
@@ -354,7 +500,6 @@ public abstract class CobaltActivity extends Activity {
 
     // 1. Gather all Java objects that need to be exposed to JavaScript.
     // TODO(b/379701165): consider to refine the way to add JavaScript interfaces.
-    mJavaScriptAndroidObjectList.add(new H5vccPlatformService(this, getStarboardBridge()));
     mJavaScriptAndroidObjectList.add(new HTMLMediaElementExtension(this));
 
     // 2. Use JavascriptInjector to inject Java objects into the WebContents.
@@ -384,17 +529,16 @@ public abstract class CobaltActivity extends Activity {
     return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
   }
 
-  public CobaltConnectivityDetector getCobaltConnectivityDetector() {
-    return mCobaltConnectivityDetector;
-  }
-
   @Override
   protected void onStart() {
-    if (!isReleaseBuild()) {
+    StartupGuard.getInstance().setStartupMilestone(10);
+    if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
-    if (mForceCreateNewVideoSurfaceView) {
+    if (mIsCobaltUsingAndroidOverlay) {
+      Log.i(TAG, "Use AndroidOverlay for Video SurfaceView.");
+    } else if (mForceCreateNewVideoSurfaceView) {
       Log.w(TAG, "Force to create a new video surface.");
       createNewSurfaceView();
     }
@@ -403,36 +547,72 @@ public abstract class CobaltActivity extends Activity {
     DisplayUtil.addDisplayListener(this);
     AudioOutputManager.addAudioDeviceListener(this);
 
-    getStarboardBridge().onActivityStart(this);
+    if (isNvidiaShield()) {
+      mWasDisplayOn = isDisplayOn();
+      registerDisplayListener();
+    }
+
     super.onStart();
 
+    if (isNvidiaShield() && mFreezeRunnable != null) {
+      mHandler.removeCallbacks(mFreezeRunnable);
+      mFreezeRunnable = null;
+    }
     WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
+    if (webContents != null
+        && (isNvidiaShield() || getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
       // document.onresume event
       webContents.onResume();
-      // visibility:visible event
-      webContents.updateWebContentsVisibility(Visibility.VISIBLE);
+    }
+    // visibility:visible event
+    if (isNvidiaShield()) {
+      updateShellActivityVisible(mWasDisplayOn);
+    } else {
+      updateShellActivityVisible(true);
     }
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
+
+    StartupGuard.getInstance().setStartupMilestone(11);
   }
 
   @Override
   protected void onPause() {
+    mPhysicalBackKeyPressed = false;
     CobaltContentBrowserClient.dispatchBlur();
     super.onPause();
   }
 
   @Override
   protected void onStop() {
-    getStarboardBridge().onActivityStop(this);
+    if (isNvidiaShield()) {
+      unregisterDisplayListener();
+    }
     super.onStop();
 
+    // visibility:hidden event
+    updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
-      // visibility:hidden event
-      webContents.updateWebContentsVisibility(Visibility.HIDDEN);
-      // document.onfreeze event
-      webContents.onFreeze();
+      if (isNvidiaShield()) {
+        if (mFreezeRunnable != null) {
+          mHandler.removeCallbacks(mFreezeRunnable);
+        }
+        mFreezeRunnable =
+            new Runnable() {
+              @Override
+              public void run() {
+                WebContents currentWebContents = getActiveWebContents();
+                if (currentWebContents != null) {
+                  currentWebContents.onFreeze();
+                }
+                mFreezeRunnable = null;
+              }
+            };
+        mHandler.postDelayed(mFreezeRunnable, 1500);
+      } else if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
+        // If ENABLE_FREEZE is specified, fire freeze event immediately
+        webContents.onFreeze();
+      }
     }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
@@ -448,136 +628,186 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
-    mCobaltConnectivityDetector.activeNetworkCheck();
+    StartupGuard.getInstance().setStartupMilestone(12);
+    checkAndRetryOnNetworkOnline();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
       Log.i(TAG, "Request focus on the root view on resume.");
     }
     CobaltContentBrowserClient.dispatchFocus();
+    StartupGuard.getInstance().setStartupMilestone(13);
   }
 
   @Override
   protected void onDestroy() {
-    if (mCobaltConnectivityDetector != null) {
-      mCobaltConnectivityDetector.destroy();
+    unregisterNetworkRecoveryObserver();
+    if (isNvidiaShield()) {
+      unregisterDisplayListener();
+      if (mFreezeRunnable != null) {
+        mHandler.removeCallbacks(mFreezeRunnable);
+        mFreezeRunnable = null;
+      }
     }
     if (mShellManager != null) {
       mShellManager.destroy();
     }
     mWindowAndroid.destroy();
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      OnBackInvokedHelper.unregister(this, mBackInvokedCallback);
+      mBackInvokedCallback = null;
+    }
     super.onDestroy();
-    getStarboardBridge().onActivityDestroy(this);
   }
 
-  @Override
-  public boolean onSearchRequested() {
-    return getStarboardBridge().onSearchRequested();
+  private boolean isAutoRetryOnNetworkRecoveryEnabled() {
+    return getJavaSwitches().containsKey(JavaSwitches.ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY);
   }
 
-  /** Returns true if the argument list contains an arg starting with argName. */
-  private static boolean hasArg(List<String> args, String argName) {
-    for (String arg : args) {
-      if (arg.startsWith(argName)) {
-        return true;
-      }
-    }
-    return false;
+  public void onSplashScreenHidden() {
+    mHasHiddenSplashScreen = true;
+    unregisterNetworkRecoveryObserver();
   }
 
-  /**
-   * Get argv/argc style args, if any from intent extras. Returns empty array if there are none
-   *
-   * <p>To use, invoke application via, eg, adb shell am start --esa args arg1,arg2 \
-   * dev.cobalt.coat/dev.cobalt.app.MainActivity
-   */
-  protected String[] getArgs() {
-    ArrayList<String> args = new ArrayList<>();
-    String[] commandLineArgs = null;
-    if (!isReleaseBuild()) {
-      commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
+  private void maybeRegisterNetworkRecoveryObserver() {
+    if (!isAutoRetryOnNetworkRecoveryEnabled()) {
+      return;
     }
-    if (commandLineArgs != null) {
-      args.addAll(Arrays.asList(commandLineArgs));
+    if (mIsNetworkRecoveryObserverRegistered || mHasHiddenSplashScreen) {
+      return;
     }
-
-    // If the URL arg isn't specified, get it from AndroidManifest.xml.
-    boolean hasUrlArg = hasArg(args, URL_ARG);
-    if (!hasUrlArg) {
-      try {
-        ActivityInfo ai =
-            getPackageManager()
-                .getActivityInfo(getIntent().getComponent(), PackageManager.GET_META_DATA);
-        if (ai.metaData != null) {
-          if (!hasUrlArg) {
-            String url = ai.metaData.getString(META_DATA_APP_URL);
-            if (url != null) {
-              args.add(URL_ARG + url);
+    if (mNetworkRecoveryObserver == null) {
+      mNetworkRecoveryObserver =
+          new NetworkChangeNotifier.ConnectionTypeObserver() {
+            @Override
+            public void onConnectionTypeChanged(int connectionType) {
+              checkAndRetryOnNetworkOnline();
             }
-          }
-        }
-      } catch (NameNotFoundException e) {
-        throw new RuntimeException("Error getting activity info", e);
-      }
+          };
     }
-
-    Bundle extras = getIntent().getExtras();
-    CharSequence[] urlParams = (extras == null) ? null : extras.getCharSequenceArray("url_params");
-    if (urlParams != null) {
-      appendUrlParamsToUrl(args, urlParams);
-    }
-
-    return args.toArray(new String[0]);
+    NetworkChangeNotifier.init();
+    NetworkChangeNotifier.addConnectionTypeObserver(mNetworkRecoveryObserver);
+    mIsNetworkRecoveryObserverRegistered = true;
   }
 
-  private void appendUrlParamsToUrl(List<String> args, CharSequence[] urlParams) {
-    int idx = -1;
-    for (int i = 0; i < args.size(); i++) {
-      if (args.get(i).startsWith(URL_ARG)) {
-        idx = i;
-        break;
-      }
+  private void unregisterNetworkRecoveryObserver() {
+    if (!mIsNetworkRecoveryObserverRegistered || mNetworkRecoveryObserver == null) {
+      return;
+    }
+    mIsNetworkRecoveryObserverRegistered = false;
+    NetworkChangeNotifier.removeConnectionTypeObserver(mNetworkRecoveryObserver);
+  }
+
+  public void checkAndRetryOnNetworkOnline() {
+    if (mHasHiddenSplashScreen) {
+      unregisterNetworkRecoveryObserver();
+      return;
+    }
+    if (!isAutoRetryOnNetworkRecoveryEnabled() || !NetworkChangeNotifier.isOnline()) {
+      return;
+    }
+    WebContents webContents = getActiveWebContents();
+    if (webContents != null && webContents.isLoading()) {
+      return;
     }
 
-    if (idx >= 0) {
-      StringBuilder urlBuilder = new StringBuilder();
-      urlBuilder.append(args.get(idx));
-      // append & if ? is already in the url, otherwise append ?
-      if (urlBuilder.indexOf("?") > 0) {
-        urlBuilder.append("&");
-      } else {
-        urlBuilder.append("?");
-      }
+    long now = SystemClock.elapsedRealtime();
+    if (now - mLastRetryTimestampMs < MIN_RETRY_INTERVAL_MS) {
+      // Avoid Network Flapping Retry Storms
+      return;
+    }
+    mLastRetryTimestampMs = now;
 
-      for (int j = 0; j < urlParams.length; j++) {
-        // sanitize the input before append to the url.
-        String paramKeyValuePair = urlParams[j].toString();
-        if (URL_PARAM_PATTERN.matcher(paramKeyValuePair).matches()) {
-          urlBuilder.append(paramKeyValuePair);
-          urlBuilder.append('&');
-        }
-      }
-
-      urlBuilder.deleteCharAt(urlBuilder.length() - 1);
-      args.set(idx, urlBuilder.toString());
+    StarboardBridge bridge = getStarboardBridge();
+    if (bridge != null && bridge.getPlatformError() != null) {
+      Log.i(TAG, "Network is online and platform error is active; retrying URL load.");
+      bridge.getPlatformError().retry();
+    } else {
+      Log.i(TAG, "Network is online and splash screen never hidden; reloading URL.");
+      reloadUrl(null);
     }
   }
 
-  protected boolean isReleaseBuild() {
-    return StarboardBridge.isReleaseBuild();
-  }
+  /** Performs reload of the target/current URL or active WebContents. */
+  public void reloadUrl(@Nullable String targetUrl) {
+    if (Looper.myLooper() != Looper.getMainLooper()) {
+      mHandler.post(() -> reloadUrl(targetUrl));
+      return;
+    }
 
-  @Override
-  protected void onNewIntent(Intent intent) {
-    getStarboardBridge().handleDeepLink(getIntentUrlAsString(intent));
+    WebContents webContents = getActiveWebContents();
+    String currentUrl = targetUrl != null ? targetUrl : "";
+    if (currentUrl.isEmpty() && webContents != null && webContents.getVisibleUrl() != null) {
+      Log.i(TAG, "No URL provided, using visible URL");
+      currentUrl = webContents.getVisibleUrl().getSpec();
+    }
+
+    if ((currentUrl.isEmpty() || "about:blank".equals(currentUrl))
+        && !TextUtils.isEmpty(mStartupUrl)) {
+      Log.i(TAG, "URL is blank or empty, falling back to startup URL: " + mStartupUrl);
+      currentUrl = mStartupUrl;
+    }
+
+    int retryCount = sRetryCount.incrementAndGet();
+
+    if (currentUrl.isEmpty()) {
+      if (webContents != null) {
+        Log.i(TAG, "Visible URL and fallback URL are empty, reloading without adding retry param");
+        webContents.getNavigationController().reload(/* checkForRepost= */ true);
+      }
+    } else {
+      if (getActiveShell() != null) {
+        getActiveShell().loadUrl(addRetryUrlParam(currentUrl, retryCount));
+      }
+    }
   }
 
   /**
-   * Returns the URL from an Intent as a string. This may be overridden for additional processing.
+   * Adds a retry param to the URL if not already present to differentiate bootstrap requests that
+   * originate from a network dialog retry. Note: Uri.Builder handles appending query parameters
+   * before the fragment (hash) correctly.
    */
-  protected String getIntentUrlAsString(Intent intent) {
-    Uri intentUri = intent.getData();
-    return (intentUri == null) ? "" : intentUri.toString();
+  @VisibleForTesting
+  static String addRetryUrlParam(String url, int count) {
+    Uri parsedUri = Uri.parse(url);
+    if (!parsedUri.isHierarchical()) {
+      return url;
+    }
+    Uri.Builder uriBuilder = parsedUri.buildUpon();
+
+    uriBuilder.query(null);
+    boolean retryParamAdded = false;
+
+    for (String key : parsedUri.getQueryParameterNames()) {
+      if (RETRY_PARAM_KEY.equals(key)) {
+        if (!retryParamAdded) {
+          uriBuilder.appendQueryParameter(key, String.valueOf(count));
+          retryParamAdded = true;
+        }
+      } else {
+        for (String value : parsedUri.getQueryParameters(key)) {
+          uriBuilder.appendQueryParameter(key, value);
+        }
+      }
+    }
+
+    if (!retryParamAdded) {
+      uriBuilder.appendQueryParameter(RETRY_PARAM_KEY, String.valueOf(count));
+    }
+
+    String result = uriBuilder.build().toString();
+    Log.i(TAG, "Reloading URL with retry param: " + result);
+    return result;
+  }
+
+  @VisibleForTesting
+  static void resetRetryCount() {
+    sRetryCount.set(0);
+  }
+
+  /** Overridden by Kimono to provide specific Java switch configurations. */
+  protected Map<String, String> getJavaSwitches() {
+    return this.mJavaSwitches;
   }
 
   @Override
@@ -587,6 +817,9 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public void resetVideoSurface() {
+    if (mIsCobaltUsingAndroidOverlay) {
+      return;
+    }
     runOnUiThread(
         new Runnable() {
           @Override
@@ -597,6 +830,9 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
+    if (mIsCobaltUsingAndroidOverlay) {
+      return;
+    }
     if (width == 0 || height == 0) {
       // The SurfaceView should be covered by our UI layer in this case.
       return;
@@ -608,8 +844,8 @@ public abstract class CobaltActivity extends Activity {
             LayoutParams layoutParams = mVideoSurfaceView.getLayoutParams();
             // Since mVideoSurfaceView is added directly to the Activity's content view, which is a
             // FrameLayout, we expect its layout params to become FrameLayout.LayoutParams.
-            if (layoutParams instanceof FrameLayout.LayoutParams) {
-              ((FrameLayout.LayoutParams) layoutParams).setMargins(x, y, x + width, y + height);
+            if (layoutParams instanceof FrameLayout.LayoutParams frameLayoutParams) {
+              frameLayoutParams.setMargins(x, y, x + width, y + height);
             } else {
               Log.w(
                   TAG,
@@ -629,9 +865,11 @@ public abstract class CobaltActivity extends Activity {
   }
 
   private void createNewSurfaceView() {
+    if (mIsCobaltUsingAndroidOverlay) {
+      return;
+    }
     ViewParent parent = mVideoSurfaceView.getParent();
-    if (parent instanceof FrameLayout) {
-      FrameLayout frameLayout = (FrameLayout) parent;
+    if (parent instanceof FrameLayout frameLayout) {
       int index = frameLayout.indexOfChild(mVideoSurfaceView);
       frameLayout.removeView(mVideoSurfaceView);
       Log.i(TAG, "removed mVideoSurfaceView at index:" + index);
@@ -645,10 +883,6 @@ public abstract class CobaltActivity extends Activity {
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }
-  }
-
-  public long getAppStartTimestamp() {
-    return mTimeInNanoseconds;
   }
 
   public void evaluateJavaScript(String jsCode) {
@@ -681,6 +915,99 @@ public abstract class CobaltActivity extends Activity {
             }
           });
       mIsKeepScreenOnEnabled = keepOn;
+    }
+  }
+
+  private void updateShellActivityVisible(boolean isVisible) {
+    if (mShellManager != null) {
+      mShellManager.onActivityVisible(isVisible);
+    }
+  }
+
+  private static boolean isNvidiaShield() {
+    return "NVIDIA".equalsIgnoreCase(Build.MANUFACTURER)
+        || "NVIDIA".equalsIgnoreCase(Build.BRAND)
+        || (Build.MODEL != null && Build.MODEL.toLowerCase(Locale.US).contains("shield"));
+  }
+
+  private boolean isDisplayOn() {
+    Display defaultDisplay = DisplayUtil.getDefaultDisplay();
+    if (defaultDisplay == null) {
+      DisplayUtil.cacheDefaultDisplay(this);
+      defaultDisplay = DisplayUtil.getDefaultDisplay();
+    }
+    if (defaultDisplay == null) {
+      // Fail-safe: assume display is ON if we cannot query it
+      return true;
+    }
+    int state = defaultDisplay.getState();
+    // If the state is unknown, we fail-safe to true (display ON) to prevent
+    // rendering freezes or black screens on devices that do not report display state correctly.
+    return state == Display.STATE_ON || state == Display.STATE_UNKNOWN;
+  }
+
+  private void checkDisplayState() {
+    boolean isDisplayOn = isDisplayOn();
+    if (isDisplayOn != mWasDisplayOn) {
+      mWasDisplayOn = isDisplayOn;
+      Log.i(TAG, "Display state changed: isDisplayOn = " + isDisplayOn);
+      updateShellActivityVisible(isDisplayOn);
+    }
+  }
+
+  private void registerDisplayListener() {
+    DisplayUtil.registerListener(mDisplayListener);
+  }
+
+  private void unregisterDisplayListener() {
+    DisplayUtil.unregisterListener(mDisplayListener);
+  }
+
+  @RequiresApi(api = 33)
+  private static class OnBackInvokedHelper {
+    private static final Handler sHandler = new Handler(Looper.getMainLooper());
+
+    static Object register(final CobaltActivity activity) {
+      OnBackInvokedCallback callback =
+          new OnBackInvokedCallback() {
+            @Override
+            public void onBackInvoked() {
+              if (activity.mPhysicalBackKeyPressed) {
+                return; // Bypassed: physical key events are already driving this navigation
+              }
+
+              // 1. Dispatch keydown to initiate navigation immediately.
+              activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
+
+              // 2. Simulate physical key release with a 100ms delay.
+              // This mimics natural user latency and prevents the web page's focus manager
+              // from receiving 'keyup' prematurely during asynchronous page transitions
+              // (which would otherwise disrupt cursor/spatial navigation focus restoration).
+              sHandler.postDelayed(
+                  new Runnable() {
+                    @Override
+                    public void run() {
+                      if (activity.isDestroyed() || activity.isFinishing()) {
+                        return; // Avoid memory leaks or dispatching keyup to a destroyed activity
+                      }
+                      activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
+                    }
+                  },
+                  100);
+            }
+          };
+      activity
+          .getOnBackInvokedDispatcher()
+          .registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback);
+      return callback;
+    }
+
+    static void unregister(CobaltActivity activity, Object callback) {
+      if (callback instanceof OnBackInvokedCallback) {
+        activity
+            .getOnBackInvokedDispatcher()
+            .unregisterOnBackInvokedCallback((OnBackInvokedCallback) callback);
+      }
     }
   }
 }

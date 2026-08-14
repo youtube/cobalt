@@ -13,7 +13,7 @@
 #     │   │       └── dind_build.sh                             <= THIS SCRIPT
 #     │   └── run_package_release_pipeline (common.sh)
 #     └── dind_runner.sh
-#         ├── main_pull_image_and_run.py
+#         ├── main_build_image_and_run.py
 #         │   └── Specific Cobalt Image
 #         │       └── dind_build.sh                             <= THIS SCRIPT
 #         └── run_package_release_pipeline (common.sh)
@@ -52,9 +52,14 @@ pipeline () {
   cd "${gclient_root}"
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools
   export PATH="${PATH}:${gclient_root}/tools/depot_tools"
-  gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' "${git_url}"
-  if [[ "${TARGET_PLATFORM}" =~ "android" ]]; then
+  gclient config --name=src --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' "${git_url}"
+  if [[ "${TARGET_PLATFORM}" =~ android ]]; then
     echo "target_os=['android']" >> .gclient
+  fi
+  if [[ "${TARGET_PLATFORM}" =~ evergreen-arm64 ]]; then
+    echo "target_cpu=['x64', 'arm64']" >> .gclient
+  elif [[ "${TARGET_PLATFORM}" =~ evergreen-arm ]]; then
+    echo "target_cpu=['x64', 'arm']" >> .gclient
   fi
   # -D, --delete_unversioned_trees
   # -f, --force force update even for unchanged modules
@@ -76,6 +81,8 @@ pipeline () {
   for gn_arg in ${EXTRA_GN_ARGUMENTS:-}; do
     echo "${gn_arg}" >> "out/${TARGET_PLATFORM}_${CONFIG}/args.gn"
   done
+  export SISO_CREDENTIAL_HELPER="gcloud"
+  echo "Running autoninja build for ${TARGET_PLATFORM}_${CONFIG}..."
   autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${GN_TARGET}  # GN_TARGET may expand to multiple args
 
   # Build chromedriver used for testing.
@@ -107,6 +114,16 @@ pipeline () {
     ninja_build "${bootloader_out_dir}" "${BOOTLOADER_TARGET}"
   else
     echo "Evergreen Loader (or Bootloader) is not configured."
+  fi
+
+  # Copy libchrobalt.so to Kokoro Artifacts Directory for Android builds.
+  if [[ "${TARGET_PLATFORM}" =~ android ]] && [[ -n "${KOKORO_ARTIFACTS_DIR:-}" ]]; then
+    local build_out_dir="out/${TARGET_PLATFORM}_${CONFIG}"
+    if [[ -d "${build_out_dir}" ]]; then
+      echo "Copying libchrobalt.so to Kokoro Artifacts Directory..."
+      mkdir -p "${KOKORO_ARTIFACTS_DIR}/lib_export"
+      find "${build_out_dir}" -type f -name "libchrobalt.so" -exec cp {} "${KOKORO_ARTIFACTS_DIR}/lib_export/" \;
+    fi
   fi
 }
 pipeline

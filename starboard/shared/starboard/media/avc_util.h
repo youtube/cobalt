@@ -43,18 +43,10 @@ class AvcParameterSets {
     kHeadless,
   };
 
-  static const size_t kAnnexBHeaderSizeInBytes = 4;
-  static const uint8_t kIdrStartCode = 0x65;
-  static const uint8_t kSpsStartCode = 0x67;
-  static const uint8_t kPpsStartCode = 0x68;
-  // optional nalu types
-  static const uint8_t kAudStartCode = 0x09;
-
-  // Only |format == kAnnexB| is supported, which is checked in the ctor.
-  AvcParameterSets(Format format, const uint8_t* data, size_t size);
+  static std::optional<AvcParameterSets> CreateFromAnnexB(const uint8_t* data,
+                                                          size_t size);
 
   Format format() const { return format_; }
-  bool is_valid() const { return is_valid_; }
   bool has_sps_and_pps() const {
     return first_sps_index_ != -1 && first_pps_index_ != -1;
   }
@@ -97,13 +89,19 @@ class AvcParameterSets {
   bool operator!=(const AvcParameterSets& that) const;
 
  private:
-  Format format_ = kAnnexB;
-  bool is_valid_ = false;
-  int first_sps_index_ = -1;
-  int first_pps_index_ = -1;
-  std::vector<std::vector<uint8_t>> parameter_sets_;
-  size_t combined_size_in_bytes_ = 0;
-  size_t combined_size_with_optionals_in_bytes_ = 0;
+  AvcParameterSets(Format format,
+                   std::vector<std::vector<uint8_t>> parameter_sets,
+                   int first_sps_index,
+                   int first_pps_index,
+                   size_t combined_size_in_bytes,
+                   size_t combined_size_with_optionals_in_bytes);
+
+  const Format format_;
+  const int first_sps_index_;
+  const int first_pps_index_;
+  const std::vector<std::vector<uint8_t>> parameter_sets_;
+  const size_t combined_size_in_bytes_;
+  const size_t combined_size_with_optionals_in_bytes_;
 };
 
 // The function will fail only when the input doesn't start with an Annex B

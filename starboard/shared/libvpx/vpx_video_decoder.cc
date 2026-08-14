@@ -17,15 +17,16 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 
-VpxVideoDecoder::VpxVideoDecoder(SbMediaVideoCodec video_codec,
+VpxVideoDecoder::VpxVideoDecoder(JobQueue* job_queue,
+                                 SbMediaVideoCodec video_codec,
                                  SbPlayerOutputMode output_mode,
                                  SbDecodeTargetGraphicsContextProvider*
                                      decode_target_graphics_context_provider)
-    : stream_ended_(false),
+    : JobOwner(job_queue),
+      stream_ended_(false),
       error_occurred_(false),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
@@ -63,12 +64,12 @@ void VpxVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   if (!decoder_thread_) {
-    decoder_thread_.reset(new JobThread("vpx_video_decoder"));
+    decoder_thread_ = JobThread::Create("vpx_video_decoder");
     SB_DCHECK(decoder_thread_);
   }
 
   const auto& input_buffer = input_buffers[0];
-  decoder_thread_->job_queue()->Schedule(
+  decoder_thread_->Schedule(
       std::bind(&VpxVideoDecoder::DecodeOneBuffer, this, input_buffer));
 }
 
@@ -87,7 +88,7 @@ void VpxVideoDecoder::WriteEndOfStream() {
     return;
   }
 
-  decoder_thread_->job_queue()->Schedule(
+  decoder_thread_->Schedule(
       std::bind(&VpxVideoDecoder::DecodeEndOfStream, this));
 }
 
@@ -96,9 +97,10 @@ void VpxVideoDecoder::Reset() {
 
   if (decoder_thread_) {
     // Wait to ensure all tasks are done before decoder_thread_ reset.
-    decoder_thread_->job_queue()->ScheduleAndWait(
+    decoder_thread_->ScheduleAndWait(
         std::bind(&VpxVideoDecoder::TeardownCodec, this));
 
+    decoder_thread_->Stop();
     decoder_thread_.reset();
   }
 
@@ -111,28 +113,15 @@ void VpxVideoDecoder::Reset() {
   frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
 }
 
-void VpxVideoDecoder::UpdateDecodeTarget_Locked(
-    const scoped_refptr<CpuVideoFrame>& frame) {
-  SbDecodeTarget decode_target = DecodeTargetCreate(
-      decode_target_graphics_context_provider_, frame, decode_target_);
-
-  // Lock only after the post to the renderer thread, to prevent deadlock.
-  decode_target_ = decode_target;
-
-  if (!SbDecodeTargetIsValid(decode_target)) {
-    SB_LOG(ERROR) << "Could not acquire a decode target from provider.";
-  }
-}
-
 void VpxVideoDecoder::ReportError(const std::string& error_message) {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   error_occurred_ = true;
   Schedule(std::bind(error_cb_, kSbPlayerErrorDecode, error_message));
 }
 
 void VpxVideoDecoder::InitializeCodec() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   context_.reset(new vpx_codec_ctx);
   vpx_codec_dec_cfg_t vpx_config = {0};
@@ -151,7 +140,7 @@ void VpxVideoDecoder::InitializeCodec() {
 }
 
 void VpxVideoDecoder::TeardownCodec() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   if (context_) {
     vpx_codec_destroy(context_.get());
@@ -175,7 +164,7 @@ void VpxVideoDecoder::TeardownCodec() {
 
 void VpxVideoDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
 
   const auto& stream_info = input_buffer->video_stream_info();
@@ -259,7 +248,7 @@ void VpxVideoDecoder::DecodeOneBuffer(
 }
 
 void VpxVideoDecoder::DecodeEndOfStream() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   // TODO: Flush the frames inside the decoder, though this is not required
   //       for vp9 in most cases.
@@ -286,6 +275,19 @@ SbDecodeTarget VpxVideoDecoder::GetCurrentDecodeTarget() {
     return DecodeTargetCopy(decode_target_);
   } else {
     return kSbDecodeTargetInvalid;
+  }
+}
+
+void VpxVideoDecoder::UpdateDecodeTarget_Locked(
+    const scoped_refptr<CpuVideoFrame>& frame) {
+  SbDecodeTarget decode_target = DecodeTargetCreate(
+      decode_target_graphics_context_provider_, frame, decode_target_);
+
+  // Lock only after the post to the renderer thread, to prevent deadlock.
+  decode_target_ = decode_target;
+
+  if (!SbDecodeTargetIsValid(decode_target)) {
+    SB_LOG(ERROR) << "Could not acquire a decode target from provider.";
   }
 }
 

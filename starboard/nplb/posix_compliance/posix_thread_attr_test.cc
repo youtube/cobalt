@@ -20,7 +20,7 @@
 namespace nplb {
 namespace {
 
-constexpr int kStackSize = 4 * 1024 * 1024;
+constexpr int kStackSize = 1 * 1024 * 1024;
 
 TEST(PosixThreadAttrTest, InitAttr) {
   pthread_attr_t attr;

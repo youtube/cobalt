@@ -15,12 +15,27 @@
 #ifndef COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 #define COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 
+#include <optional>
+#include <string>
+
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
+#include "content/public/browser/browser_context.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 
 namespace content {
+
+// An enum for UMA histogram to indicate the state of retrieving splash screen
+enum class SplashScreenFetchedState {
+  kOkBuiltIn = 0,
+  kOkCache = 1,
+  kErrorOnCacheEmptyContent = 2,
+  kErrorOnCacheFileOversize = 3,
+  kErrorOnReadCache = 4,
+  kErrorOnResourceNotFound = 5,
+  kMaxValue = kErrorOnResourceNotFound,
+};
 
 // H5vccSchemeURLLoaderFactory is a URLLoaderFactory implementation that handles
 // requests for the custom kH5vccEmbeddedScheme. It is designed to serve
@@ -37,7 +52,7 @@ namespace content {
 class H5vccSchemeURLLoaderFactory final
     : public network::mojom::URLLoaderFactory {
  public:
-  H5vccSchemeURLLoaderFactory();
+  explicit H5vccSchemeURLLoaderFactory(BrowserContext* browser_context);
 
   H5vccSchemeURLLoaderFactory(const H5vccSchemeURLLoaderFactory&) = delete;
   H5vccSchemeURLLoaderFactory& operator=(const H5vccSchemeURLLoaderFactory&) =
@@ -59,10 +74,20 @@ class H5vccSchemeURLLoaderFactory final
       override;
 
   // Testing seam to inject a resource map.
-  void SetResourceMapForTesting(const GeneratedResourceMap* resource_map_test);
+  static void SetResourceMapForTesting(
+      const GeneratedResourceMap* resource_map_test);
+  static void SetSplashDomainForTesting(
+      const std::optional<std::string>& domain);
+  static void SetSplashContentSizeForTesting(const std::optional<int>& size);
 
  private:
-  const GeneratedResourceMap* resource_map_test_ = nullptr;
+  GeneratedResourceMap resource_map_;
+  static const GeneratedResourceMap* resource_map_test_;
+  std::string splash_domain_;
+  uint64_t splash_content_size_limit_;
+  static std::optional<std::string> global_splash_domain_test_;
+  static std::optional<int> global_splash_content_size_test_;
+  BrowserContext* browser_context_;
 };
 
 }  // namespace content

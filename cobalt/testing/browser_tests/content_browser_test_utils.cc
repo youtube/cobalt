@@ -24,6 +24,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
+#include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils_internal.h"
@@ -67,7 +68,7 @@ GURL GetTestUrl(const char* dir, const char* file) {
 }
 
 void NavigateToURLBlockUntilNavigationsComplete(
-    TestShell* window,
+    Shell* window,
     const GURL& url,
     int number_of_navigations,
     bool ignore_uncommitted_navigations) {
@@ -76,7 +77,7 @@ void NavigateToURLBlockUntilNavigationsComplete(
                                              ignore_uncommitted_navigations);
 }
 
-void ReloadBlockUntilNavigationsComplete(TestShell* window,
+void ReloadBlockUntilNavigationsComplete(Shell* window,
                                          int number_of_navigations) {
   WaitForLoadStop(window->web_contents());
   TestNavigationObserver same_tab_observer(window->web_contents(),
@@ -87,7 +88,7 @@ void ReloadBlockUntilNavigationsComplete(TestShell* window,
 }
 
 void ReloadBypassingCacheBlockUntilNavigationsComplete(
-    TestShell* window,
+    Shell* window,
     int number_of_navigations) {
   WaitForLoadStop(window->web_contents());
   TestNavigationObserver same_tab_observer(window->web_contents(),
@@ -97,17 +98,17 @@ void ReloadBypassingCacheBlockUntilNavigationsComplete(
   same_tab_observer.Wait();
 }
 
-bool NavigateToURL(TestShell* window, const GURL& url) {
+bool NavigateToURL(Shell* window, const GURL& url) {
   return NavigateToURL(window, url, url);
 }
 
-bool NavigateToURL(TestShell* window,
+bool NavigateToURL(Shell* window,
                    const GURL& url,
                    const GURL& expected_commit_url) {
   return NavigateToURL(window->web_contents(), url, expected_commit_url);
 }
 
-bool NavigateToURLAndExpectNoCommit(TestShell* window, const GURL& url) {
+bool NavigateToURLAndExpectNoCommit(Shell* window, const GURL& url) {
   NavigationEntry* old_entry =
       window->web_contents()->GetController().GetLastCommittedEntry();
   NavigateToURLBlockUntilNavigationsComplete(
@@ -119,7 +120,7 @@ bool NavigateToURLAndExpectNoCommit(TestShell* window, const GURL& url) {
   return old_entry == new_entry;
 }
 
-AppModalDialogWaiter::AppModalDialogWaiter(TestShell* shell) : shell_(shell) {
+AppModalDialogWaiter::AppModalDialogWaiter(Shell* shell) : shell_(shell) {
   Restart();
 }
 
@@ -149,7 +150,7 @@ void AppModalDialogWaiter::EarlyCallback() {
   was_dialog_request_callback_called_ = true;
 }
 
-RenderFrameHost* ConvertToRenderFrameHost(TestShell* shell) {
+RenderFrameHost* ConvertToRenderFrameHost(Shell* shell) {
   return shell->web_contents()->GetPrimaryMainFrame();
 }
 
@@ -190,13 +191,13 @@ void LookupAndLogNameAndIdOfFirstCamera() {
 }
 
 ShellAddedObserver::ShellAddedObserver() {
-  TestShell::SetShellCreatedCallback(base::BindOnce(
+  Shell::SetShellCreatedCallback(base::BindOnce(
       &ShellAddedObserver::ShellCreated, base::Unretained(this)));
 }
 
 ShellAddedObserver::~ShellAddedObserver() = default;
 
-TestShell* ShellAddedObserver::GetShell() {
+Shell* ShellAddedObserver::GetShell() {
   if (shell_) {
     return shell_;
   }
@@ -206,7 +207,7 @@ TestShell* ShellAddedObserver::GetShell() {
   return shell_;
 }
 
-void ShellAddedObserver::ShellCreated(TestShell* shell) {
+void ShellAddedObserver::ShellCreated(Shell* shell) {
   DCHECK(!shell_);
   shell_ = shell;
   if (runner_) {
@@ -267,18 +268,6 @@ void IsolateOriginsForTesting(
         false /* origin_requests_isolation */));
   }
 }
-
-#if BUILDFLAG(IS_WIN)
-
-void SetMockCursorPositionForTesting(WebContents* web_contents,
-                                     const gfx::Point& position) {
-  views::test::DesktopWindowTreeHostWinTestApi host(
-      static_cast<views::DesktopWindowTreeHostWin*>(
-          web_contents->GetNativeView()->GetHost()));
-  host.SetMockCursorPositionForTesting(position);
-}
-
-#endif  // BUILDFLAG(IS_WIN)
 
 // TODO(crbug.com/40278950): Use
 // `WebFrameWidgetImpl::NotifySwapAndPresentationTime` instead.

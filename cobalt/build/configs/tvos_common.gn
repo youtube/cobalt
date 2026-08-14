@@ -10,15 +10,20 @@ use_blink = true
 # tree.
 ios_build_chrome = false
 
-# Disable Chrome Remote Desktop
-enable_remoting = false
-
-# This flag comes from build/config/compiler/compiler.gni
-# TODO(b/432508012): Remove this flag after resolving build errors.
-treat_warnings_as_errors = false
-
 # These flags are disabled in common.gn but are required for the tvOS build to
 # work at the moment (iosurface_image_backing.mm depends on
 # dawn_shared_texture_cache.cc, for example).
 use_dawn = true
 skia_use_dawn = true
+
+# Disable AV1 decoder for tvOS
+enable_dav1d_decoder = false
+
+# TODO: b/376141256 - Decide if this flag is needed here or in .gclient file.
+chrome_pgo_phase = 0
+
+# Enable native on-screen keyboard support (for Kabuki's search page).
+enable_native_on_screen_keyboard = true
+
+# Enable custom Dial Web APIs and server.
+enable_in_app_dial = true

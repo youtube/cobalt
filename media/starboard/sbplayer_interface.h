@@ -16,17 +16,20 @@
 #define MEDIA_STARBOARD_SBPLAYER_INTERFACE_H_
 
 #include "base/time/time.h"
-#if COBALT_MEDIA_ENABLE_CVAL
-#include "cobalt/media/base/cval_stats.h"
-#endif  // COBALT_MEDIA_ENABLE_CVAL
-#if COBALT_MEDIA_ENABLE_UMA_METRICS
-#include "cobalt/media/base/metrics_provider.h"
-#endif  // COBALT_MEDIA_ENABLE_UMA_METRICS
+#include "build/build_config.h"
+#include "media/starboard/buildflags.h"
 #include "starboard/player.h"
 
-#if SB_HAS(PLAYER_WITH_URL)
-#include SB_URL_PLAYER_INCLUDE_PATH
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+#include "cobalt/media/base/cval_stats.h"
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_UMA_METRICS)
+#include "cobalt/media/base/metrics_provider.h"
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_UMA_METRICS)
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "starboard/tvos/shared/media/url_player.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace media {
 
@@ -71,7 +74,7 @@ class SbPlayerInterface {
 
   virtual SbDecodeTarget GetCurrentFrame(SbPlayer player) = 0;
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   virtual SbPlayer CreateUrlPlayer(const char* url,
                                    SbWindow window,
                                    SbPlayerStatusFunc player_status_func,
@@ -86,22 +89,22 @@ class SbPlayerInterface {
   virtual void GetUrlPlayerExtraInfo(
       SbPlayer player,
       SbUrlPlayerExtraInfo* out_url_player_info) = 0;
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   virtual bool GetAudioConfiguration(
       SbPlayer player,
       int index,
       SbMediaAudioConfiguration* out_audio_configuration) = 0;
 
-#if COBALT_MEDIA_ENABLE_CVAL
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   // disabled by default, but can be enabled via h5vcc setting.
   void EnableCValStats(bool should_enable) {
     cval_stats_.Enable(should_enable);
   }
   CValStats cval_stats_;
-#endif  // COBALT_MEDIA_ENABLE_CVAL
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
 
-#if !COBALT_MEDIA_ENABLE_UMA_METRICS
+#if !BUILDFLAG(COBALT_MEDIA_ENABLE_UMA_METRICS)
   enum class MediaAction {
     UNKNOWN_ACTION,
     WEBMEDIAPLAYER_SEEK,
@@ -128,10 +131,8 @@ class SbPlayerInterface {
     void StartTrackingAction(...) {}
     void EndTrackingAction(...) {}
   };
-#endif  // !COBALT_MEDIA_ENABLE_UMA_METRICS
+#endif  // !BUILDFLAG(COBALT_MEDIA_ENABLE_UMA_METRICS)
   MediaMetricsProvider media_metrics_provider_;
-
-  bool SetDecodeToTexturePreferred(bool preferred);
 };
 
 class DefaultSbPlayerInterface final : public SbPlayerInterface {
@@ -169,7 +170,7 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
   void GetInfo(SbPlayer player, SbPlayerInfo* out_player_info) override;
   SbDecodeTarget GetCurrentFrame(SbPlayer player) override;
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   SbPlayer CreateUrlPlayer(const char* url,
                            SbWindow window,
                            SbPlayerStatusFunc player_status_func,
@@ -182,7 +183,7 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
   void GetUrlPlayerExtraInfo(
       SbPlayer player,
       SbUrlPlayerExtraInfo* out_url_player_info) override;
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   bool GetAudioConfiguration(
       SbPlayer player,

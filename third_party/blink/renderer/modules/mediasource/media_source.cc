@@ -17,6 +17,7 @@
 #include "media/base/media_switches.h"
 #include "media/base/media_types.h"
 #include "media/base/mime_util.h"
+#include "media/base/stream_parser.h"
 #include "media/base/supported_types.h"
 #include "media/base/video_decoder_config.h"
 #include "media/media_buildflags.h"
@@ -61,7 +62,7 @@
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "starboard/media.h"  // nogncheck
+#include "media/base/starboard/sbmedia_interface.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 using blink::WebMediaSource;
@@ -425,6 +426,21 @@ void MediaSource::AddSourceBuffer_Locked(
   bool generate_timestamps_flag =
       web_source_buffer->GetGenerateTimestampsFlag();
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // TODO(b/484617192): Remove once the feature is launched.
+  // Code to allow collecting metrics in the same app instance with incremental
+  // parse look ahead enabled and disabled, to analize its statistical
+  // significance.
+  constexpr bool kEnableIncrementalParseLookAheadMetrics = false;
+  if (kEnableIncrementalParseLookAheadMetrics &&
+      source_buffers_->length() == 0) {
+    static bool enable = true;
+
+    media::StreamParser::SetEnableIncrementalParseLookAhead(enable);
+    enable = !enable;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   auto* buffer = MakeGarbageCollected<SourceBuffer>(
       std::move(web_source_buffer), this, async_event_queue_.Get());
   // 8. Add the new object to sourceBuffers and queue a simple task to fire a
@@ -585,8 +601,10 @@ bool MediaSource::IsTypeSupportedInternal(ExecutionContext* context,
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Interupt Chromium's IsTypeSupported() from here for better performance.
+  auto ascii = type.Ascii();
   SbMediaSupportType support_type =
-      SbMediaCanPlayMimeAndKeySystem(type.Ascii().c_str(), "");
+      ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(ascii.c_str(),
+                                                              "");
   return support_type != kSbMediaSupportTypeNotSupported;
 #else
   // 2. If type does not contain a valid MIME type string, then return false.

@@ -1,9 +1,5 @@
 {
   "failing_tests": [
-    "CobaltMetricsLogUploaderTest.UploadLogUmaServiceTypeSuccessfulUpload",
-    "GlobalFeaturesTest.ActiveExperimentIdsUnchangedAfterInitialization",
-    "GlobalFeaturesTest.*",
-    "CobaltMetricsServiceClientTest.*",
-    "CobaltMetricsServicesManagerClientTest.*"
+    "GlobalFeaturesTest.ActiveExperimentIdsUnchangedAfterInitialization"
   ]
 }

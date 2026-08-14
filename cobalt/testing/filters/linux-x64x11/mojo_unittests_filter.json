@@ -1,14 +1,15 @@
 {
   "failing_tests": [
+    "DirectReceiverTest.*",
+    "InvitationTest.SendInvitation",
+    "MessagePipeTest.DataPipeConsumerHandlePingPong",
+    "MessagePipeTest.DataPipeProducerHandlePingPong",
     "ValidationIntegrationTest.Receiver",
     "ValidationIntegrationTest.Remote",
     "ValidationTest.AssociatedConformace",
     "ValidationTest.BoundsCheck",
     "ValidationTest.Conformance",
     "ValidationTest.ResponseBoundsCheck",
-    "ValidationTest.ResponseConformance",
-    "MessagePipeTest.DataPipeConsumerHandlePingPong",
-    "MessagePipeTest.DataPipeProducerHandlePingPong",
-    "DirectReceiverTest.*"
+    "ValidationTest.ResponseConformance"
   ]
 }

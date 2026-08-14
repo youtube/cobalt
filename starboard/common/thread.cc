@@ -17,35 +17,80 @@
 #include "starboard/common/thread.h"
 
 #include <pthread.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 #include <atomic>
 #include <optional>
+#include <string>
+#include <string_view>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/thread_platform.h"
+#include "starboard/system.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/shared/starboard/features.h"
+#endif
 
 namespace starboard {
 
+int ThreadPriorityToNiceValue(ThreadPriority priority) {
+  // Nice value settings are shared between Android and Linux.
+  // They are selected from looking at:
+  // https://android.googlesource.com/platform/frameworks/native/+/jb-dev/include/utils/ThreadDefs.h#35
+  switch (priority) {
+    case ThreadPriority::kLowest:
+      return 19;
+    case ThreadPriority::kLow:
+      return 10;
+    case ThreadPriority::kNoPriority:
+    case ThreadPriority::kNormal:
+      return 0;
+    case ThreadPriority::kHigh:
+      return -8;
+    case ThreadPriority::kHighest:
+      return -16;
+    case ThreadPriority::kRealTime:
+      return -19;
+    default:
+      SB_NOTREACHED();
+      return 0;
+  }
+}
+
 struct Thread::Data {
-  std::string name_;
   pthread_t thread_ = 0;
   std::atomic_bool started_{false};
   std::atomic_bool join_called_{false};
   Semaphore join_sema_;
-  int64_t stack_size_;
 };
 
-Thread::Thread(const std::string& name, int64_t stack_size) {
-  d_.reset(new Thread::Data);
-  d_->name_ = name;
-  d_->stack_size_ = stack_size;
+std::optional<size_t> GetDefaultStackSize() {
+#if BUILDFLAG(IS_ANDROID)
+  if (features::FeatureList::IsEnabled(
+          features::kReduceStarboardThreadStackSize)) {
+    return 256 * 1024;
+  }
+#endif
+  return std::nullopt;
 }
 
+Thread::Thread(std::string_view name, const ThreadOptions& options)
+    : name_(name),
+      priority_(options.priority),
+      stack_size_(options.stack_size ? options.stack_size
+                                     : GetDefaultStackSize()),
+      d_(std::make_unique<Data>()) {}
+
 Thread::~Thread() {
-  SB_DCHECK(d_->join_called_.load()) << "Join not called on thread.";
+  // A started thread must be joined before destruction.
+  if (d_->started_.load()) {
+    SB_DCHECK(d_->join_called_.load())
+        << "Thread '" << name_ << "' was not joined before destruction.";
+  }
 }
 
 void Thread::Start() {
@@ -54,8 +99,13 @@ void Thread::Start() {
 
   pthread_attr_t attributes;
   pthread_attr_init(&attributes);
-  if (d_->stack_size_ > 0) {
-    pthread_attr_setstacksize(&attributes, d_->stack_size_);
+
+  if (stack_size_) {
+    if (int err = pthread_attr_setstacksize(&attributes, *stack_size_);
+        err != 0) {
+      SB_LOG(WARNING) << "Failed to set stack size to " << *stack_size_
+                      << ", error: " << err << ". Falling back to default.";
+    }
   }
 
   const int result =
@@ -90,15 +140,26 @@ std::atomic_bool* Thread::joined_bool() {
 
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
-#if defined(__APPLE__)
-  pthread_setname_np(this_ptr->d_->name_.c_str());
-#else
-  pthread_setname_np(pthread_self(), this_ptr->d_->name_.c_str());
-#endif
+
+  SetCurrentThreadName(this_ptr->name_.c_str());
+  bool priority_set = false;
+  if (this_ptr->priority_) {
+    priority_set = SetCurrentThreadPriority(*this_ptr->priority_);
+    if (!priority_set) {
+      SB_LOG(WARNING) << "Failed to set thread priority (unsupported on this "
+                         "platform): requested_priority="
+                      << static_cast<int>(*this_ptr->priority_);
+    }
+  }
+  SB_LOG(INFO) << "Thread started: name=" << this_ptr->name_ << ", priority="
+               << (this_ptr->priority_ && priority_set
+                       ? std::to_string(static_cast<int>(*this_ptr->priority_))
+                       : "(default)");
+
   this_ptr->Run();
 
   TerminateOnThread();
-  return NULL;
+  return nullptr;
 }
 
 void Thread::Join() {
@@ -107,8 +168,18 @@ void Thread::Join() {
   d_->join_called_.store(true);
   d_->join_sema_.Put();
 
-  if (pthread_join(d_->thread_, NULL) != 0) {
-    SB_DCHECK(false) << "Could not join thread.";
+  if (!d_->started_.load()) {
+    SB_LOG(WARNING) << "Join() called on thread '" << name_
+                    << "' which was not started. Ignoring.";
+    return;
+  }
+
+  int result = pthread_join(d_->thread_, /*retval=*/nullptr);
+  if (result != 0) {
+    char error_msg[256];
+    SbSystemGetErrorString(static_cast<SbSystemError>(result), error_msg,
+                           sizeof(error_msg));
+    SB_CHECK_EQ(result, 0) << "Could not join thread: " << error_msg;
   }
 }
 

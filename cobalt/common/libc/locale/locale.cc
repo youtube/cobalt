@@ -24,49 +24,33 @@
 #include <string>
 #include <vector>
 
+#include "cobalt/common/libc/locale/lconv_support.h"
 #include "cobalt/common/libc/locale/locale_support.h"
+#include "cobalt/common/libc/locale/nl_langinfo_support.h"
+#include "cobalt/common/libc/no_destructor.h"
+#include "starboard/common/log.h"
 
 namespace {
 constexpr char kLangEnv[] = "LANG";
 
+using cobalt::common::libc::NoDestructor;
 cobalt::LocaleImpl* GetGlobalLocale() {
-  static cobalt::LocaleImpl g_current_locale;
-  return &g_current_locale;
+  static NoDestructor<cobalt::LocaleImpl> g_current_locale;
+  return g_current_locale.get();
+}
+
+cobalt::LconvImpl* GetGlobalLconv() {
+  static NoDestructor<cobalt::LconvImpl> g_current_lconv;
+  return g_current_lconv.get();
+}
+
+std::string& GetNlLangInfoBuffer() {
+  thread_local NoDestructor<std::string> buffer;
+  return *buffer;
 }
 
 thread_local cobalt::LocaleImpl* g_current_thread_locale =
     reinterpret_cast<cobalt::LocaleImpl*>(LC_GLOBAL_LOCALE);
-
-// The default locale is the C locale.
-const lconv* GetCLocaleConv() {
-  static const lconv c_locale_conv = {
-      .decimal_point = const_cast<char*>("."),
-      .thousands_sep = const_cast<char*>(""),
-      .grouping = const_cast<char*>(""),
-      .int_curr_symbol = const_cast<char*>(""),
-      .currency_symbol = const_cast<char*>(""),
-      .mon_decimal_point = const_cast<char*>(""),
-      .mon_thousands_sep = const_cast<char*>(""),
-      .mon_grouping = const_cast<char*>(""),
-      .positive_sign = const_cast<char*>(""),
-      .negative_sign = const_cast<char*>(""),
-      .int_frac_digits = CHAR_MAX,
-      .frac_digits = CHAR_MAX,
-      .p_cs_precedes = CHAR_MAX,
-      .p_sep_by_space = CHAR_MAX,
-      .n_cs_precedes = CHAR_MAX,
-      .n_sep_by_space = CHAR_MAX,
-      .p_sign_posn = CHAR_MAX,
-      .n_sign_posn = CHAR_MAX,
-      .int_p_cs_precedes = CHAR_MAX,
-      .int_p_sep_by_space = CHAR_MAX,
-      .int_n_cs_precedes = CHAR_MAX,
-      .int_n_sep_by_space = CHAR_MAX,
-      .int_p_sign_posn = CHAR_MAX,
-      .int_n_sign_posn = CHAR_MAX,
-  };
-  return &c_locale_conv;
-}
 
 }  // namespace
 
@@ -227,138 +211,185 @@ locale_t duplocale(locale_t loc) {
 }
 
 struct lconv* localeconv(void) {
-  // TODO: b/461906423 - Properly implement localeconv.
-  return const_cast<lconv*>(GetCLocaleConv());
+  cobalt::LconvImpl* current_lconv = GetGlobalLconv();
+  cobalt::LocaleImpl* current_loc;
+  if (g_current_thread_locale !=
+      reinterpret_cast<cobalt::LocaleImpl*> LC_GLOBAL_LOCALE) {
+    current_loc = g_current_thread_locale;
+  } else {
+    current_loc = GetGlobalLocale();
+  }
+
+  std::string numeric_locale = current_loc->categories[LC_NUMERIC];
+  std::string monetary_locale = current_loc->categories[LC_MONETARY];
+
+  bool is_c_or_posix_numeric_locale = (numeric_locale == cobalt::kCLocale ||
+                                       numeric_locale == cobalt::kPosixLocale);
+  if (is_c_or_posix_numeric_locale) {
+    current_lconv->ResetNumericToC();
+  } else if (!cobalt::UpdateNumericLconv(numeric_locale, current_lconv)) {
+    SB_LOG(WARNING)
+        << "Failed to retrieve lconv numeric values. Returning C values.";
+    current_lconv->ResetNumericToC();
+  }
+
+  bool is_c_or_posix_monetary_locale =
+      (monetary_locale == cobalt::kCLocale ||
+       monetary_locale == cobalt::kPosixLocale);
+  if (is_c_or_posix_monetary_locale) {
+    current_lconv->ResetMonetaryToC();
+  } else if (!cobalt::UpdateMonetaryLconv(monetary_locale, current_lconv)) {
+    SB_LOG(WARNING)
+        << "Failed to retrieve lconv monetary values. Returning C values.";
+    current_lconv->ResetMonetaryToC();
+  }
+
+  return &(current_lconv->result);
 }
 
 char* nl_langinfo_l(nl_item item, locale_t locale) {
-  // TODO: b/461906423 - Properly implement nl_langinfo_l.
   if (locale == (locale_t)0) {
     // The behavior is undefined according to POSIX, but we will follow the
     // behavior of glibc and return an empty string.
     return const_cast<char*>("");
   }
 
+  cobalt::LocaleImpl* cur_locale;
+  if (locale == LC_GLOBAL_LOCALE) {
+    cur_locale = GetGlobalLocale();
+  } else {
+    cur_locale = reinterpret_cast<cobalt::LocaleImpl*>(locale);
+  }
+
+  std::string& langinfo_buffer = GetNlLangInfoBuffer();
   switch (item) {
     // Date and time formats
     case D_T_FMT:
-      return const_cast<char*>("%a %b %e %H:%M:%S %Y");
     case D_FMT:
-      return const_cast<char*>("%m/%d/%y");
     case T_FMT:
-      return const_cast<char*>("%H:%M:%S");
     case T_FMT_AMPM:
-      return const_cast<char*>("%I:%M:%S %p");
+      langinfo_buffer =
+          cobalt::GetPosixPattern(cur_locale->categories[LC_TIME], item);
+      break;
     case AM_STR:
-      return const_cast<char*>("AM");
     case PM_STR:
-      return const_cast<char*>("PM");
+      langinfo_buffer = cobalt::GetLocalizedDateSymbol(
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAmPm, item);
+      break;
 
     // Days
     case DAY_1:
-      return const_cast<char*>("Sunday");
     case DAY_2:
-      return const_cast<char*>("Monday");
     case DAY_3:
-      return const_cast<char*>("Tuesday");
     case DAY_4:
-      return const_cast<char*>("Wednesday");
     case DAY_5:
-      return const_cast<char*>("Thursday");
     case DAY_6:
-      return const_cast<char*>("Friday");
     case DAY_7:
-      return const_cast<char*>("Saturday");
+      langinfo_buffer = cobalt::GetLocalizedDateSymbol(
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kDay, item);
+      break;
 
     // Abbreviated days
     case ABDAY_1:
-      return const_cast<char*>("Sun");
     case ABDAY_2:
-      return const_cast<char*>("Mon");
     case ABDAY_3:
-      return const_cast<char*>("Tue");
     case ABDAY_4:
-      return const_cast<char*>("Wed");
     case ABDAY_5:
-      return const_cast<char*>("Thu");
     case ABDAY_6:
-      return const_cast<char*>("Fri");
     case ABDAY_7:
-      return const_cast<char*>("Sat");
+      langinfo_buffer = cobalt::GetLocalizedDateSymbol(
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAbbrevDay,
+          item);
+      break;
 
     // Months
     case MON_1:
-      return const_cast<char*>("January");
     case MON_2:
-      return const_cast<char*>("February");
     case MON_3:
-      return const_cast<char*>("March");
     case MON_4:
-      return const_cast<char*>("April");
     case MON_5:
-      return const_cast<char*>("May");
     case MON_6:
-      return const_cast<char*>("June");
     case MON_7:
-      return const_cast<char*>("July");
     case MON_8:
-      return const_cast<char*>("August");
     case MON_9:
-      return const_cast<char*>("September");
     case MON_10:
-      return const_cast<char*>("October");
     case MON_11:
-      return const_cast<char*>("November");
     case MON_12:
-      return const_cast<char*>("December");
+      langinfo_buffer = cobalt::GetLocalizedDateSymbol(
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kMonth, item);
+      break;
 
     // Abbreviated months
     case ABMON_1:
-      return const_cast<char*>("Jan");
     case ABMON_2:
-      return const_cast<char*>("Feb");
     case ABMON_3:
-      return const_cast<char*>("Mar");
     case ABMON_4:
-      return const_cast<char*>("Apr");
     case ABMON_5:
-      return const_cast<char*>("May");
     case ABMON_6:
-      return const_cast<char*>("Jun");
     case ABMON_7:
-      return const_cast<char*>("Jul");
     case ABMON_8:
-      return const_cast<char*>("Aug");
     case ABMON_9:
-      return const_cast<char*>("Sep");
     case ABMON_10:
-      return const_cast<char*>("Oct");
     case ABMON_11:
-      return const_cast<char*>("Nov");
     case ABMON_12:
-      return const_cast<char*>("Dec");
-
-    // Other
+      langinfo_buffer = cobalt::GetLocalizedDateSymbol(
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAbbrevMonth,
+          item);
+      break;
+    case RADIXCHAR:
+    case THOUSEP:
+      langinfo_buffer =
+          cobalt::NlGetNumericData(cur_locale->categories[LC_NUMERIC], item);
+      break;
+    // Our ICU build configuration only supports "UTF-8", so |CODESET|
+    // is set to always return "UTF-8".
     case CODESET:
-      return const_cast<char*>("US-ASCII");
+      langinfo_buffer = "UTF-8";
+      break;
+    // ICU has deprecated support for |YESEXPR| and |NOEXPR|. If these items are
+    // ever requested, we return the default "C" locale expressions.
     case YESEXPR:
-      return const_cast<char*>("^[yY]");
+      SB_LOG(WARNING) << "nl_item YESEXPR was requested, but is not supported "
+                         "by ICU. Returning ^[yY].";
+      langinfo_buffer = "^[yY]";
+      break;
     case NOEXPR:
-      return const_cast<char*>("^[nN]");
+      SB_LOG(WARNING) << "nl_item NOEXPR was requested, but is not supported "
+                         "by ICU. Returning ^[nN].";
+      langinfo_buffer = "^[nN]";
+      break;
 
-    // Some other values from POSIX
+    // For the following items, we currently do not implement them. If they are
+    // ever called, |SB_NOTIMPLEMENTED()| is called. See b/466160361 for more
+    // info.
+    case CRNCYSTR:
+      SB_NOTIMPLEMENTED()
+          << "CRNCYSTR is not supported. Returning the empty string.";
+      langinfo_buffer = "";
+      break;
     case ERA:
     case ERA_D_FMT:
     case ERA_D_T_FMT:
     case ERA_T_FMT:
+      SB_NOTIMPLEMENTED() << "ERA* items are currently not supported. "
+                             "Returning the empty string.";
+      langinfo_buffer = "";
+      break;
     case ALT_DIGITS:
-      return const_cast<char*>("");
-
+      SB_NOTIMPLEMENTED() << "ALT_DIGITS is currently not supported. Returning "
+                             "the empty string.";
+      langinfo_buffer = "";
+      break;
     default:
-      return const_cast<char*>("");
+      SB_LOG(ERROR) << "Received unknown nl_item for nl_langinfo. Returning "
+                       "the empty string.";
+      langinfo_buffer = "";
+      break;
   }
+  return const_cast<char*>(langinfo_buffer.c_str());
 }
 
 char* nl_langinfo(nl_item item) {
-  return nl_langinfo_l(item, reinterpret_cast<locale_t>(GetGlobalLocale()));
+  return nl_langinfo_l(item,
+                       reinterpret_cast<locale_t>(g_current_thread_locale));
 }

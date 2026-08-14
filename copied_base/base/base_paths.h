@@ -10,9 +10,6 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-#include "base/base_paths_starboard.h"
-#else
 #if BUILDFLAG(IS_WIN)
 #include "base/base_paths_win.h"
 #elif BUILDFLAG(IS_APPLE)
@@ -24,7 +21,10 @@
 #if BUILDFLAG(IS_POSIX)
 #include "base/base_paths_posix.h"
 #endif
-#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/base_paths_starboard.h"
+#endif
 
 namespace base {
 

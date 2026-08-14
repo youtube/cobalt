@@ -29,8 +29,7 @@ namespace starboard {
 
 namespace {
 
-template <typename StreamInfo>
-void Assign(const StreamInfo& source, AudioStreamInfo* dest) {
+void Assign(const SbMediaAudioStreamInfo& source, AudioStreamInfo* dest) {
   SB_DCHECK(dest);
 
   if (source.audio_specific_config_size > 0) {
@@ -57,8 +56,7 @@ void Assign(const StreamInfo& source, AudioStreamInfo* dest) {
       config, config + source.audio_specific_config_size);
 }
 
-template <typename StreamInfo>
-void Assign(const StreamInfo& source, VideoStreamInfo* dest) {
+void Assign(const SbMediaVideoStreamInfo& source, VideoStreamInfo* dest) {
   SB_DCHECK(dest);
 
   dest->codec = source.codec;
@@ -78,8 +76,7 @@ void Assign(const StreamInfo& source, VideoStreamInfo* dest) {
   dest->color_metadata = source.color_metadata;
 }
 
-template <typename StreamInfo>
-void Assign(const AudioStreamInfo& source, StreamInfo* dest) {
+void Assign(const AudioStreamInfo& source, SbMediaAudioStreamInfo* dest) {
   SB_DCHECK(dest);
 
   *dest = {};
@@ -96,8 +93,7 @@ void Assign(const AudioStreamInfo& source, StreamInfo* dest) {
   }
 }
 
-template <typename StreamInfo>
-void Assign(const VideoStreamInfo& source, StreamInfo* dest) {
+void Assign(const VideoStreamInfo& source, SbMediaVideoStreamInfo* dest) {
   SB_DCHECK(dest);
 
   *dest = {};
@@ -118,19 +114,8 @@ AudioStreamInfo& AudioStreamInfo::operator=(
   return *this;
 }
 
-AudioStreamInfo& AudioStreamInfo::operator=(
-    const CobaltExtensionEnhancedAudioMediaAudioStreamInfo& that) {
-  Assign(that, this);
-  return *this;
-}
-
 void AudioStreamInfo::ConvertTo(
     SbMediaAudioStreamInfo* audio_stream_info) const {
-  Assign(*this, audio_stream_info);
-}
-
-void AudioStreamInfo::ConvertTo(
-    CobaltExtensionEnhancedAudioMediaAudioStreamInfo* audio_stream_info) const {
   Assign(*this, audio_stream_info);
 }
 
@@ -169,28 +154,8 @@ AudioSampleInfo& AudioSampleInfo::operator=(
   return *this;
 }
 
-AudioSampleInfo& AudioSampleInfo::operator=(
-    const CobaltExtensionEnhancedAudioMediaAudioSampleInfo& that) {
-  stream_info = that.stream_info;
-  discarded_duration_from_front = that.discarded_duration_from_front;
-  discarded_duration_from_back = that.discarded_duration_from_back;
-  return *this;
-}
-
 void AudioSampleInfo::ConvertTo(
     SbMediaAudioSampleInfo* audio_sample_info) const {
-  SB_DCHECK(audio_sample_info);
-
-  *audio_sample_info = {};
-  stream_info.ConvertTo(&audio_sample_info->stream_info);
-  audio_sample_info->discarded_duration_from_front =
-      discarded_duration_from_front;
-  audio_sample_info->discarded_duration_from_back =
-      discarded_duration_from_back;
-}
-
-void AudioSampleInfo::ConvertTo(
-    CobaltExtensionEnhancedAudioMediaAudioSampleInfo* audio_sample_info) const {
   SB_DCHECK(audio_sample_info);
 
   *audio_sample_info = {};
@@ -207,19 +172,8 @@ VideoStreamInfo& VideoStreamInfo::operator=(
   return *this;
 }
 
-VideoStreamInfo& VideoStreamInfo::operator=(
-    const CobaltExtensionEnhancedAudioMediaVideoStreamInfo& that) {
-  Assign(that, this);
-  return *this;
-}
-
 void VideoStreamInfo::ConvertTo(
     SbMediaVideoStreamInfo* video_stream_info) const {
-  Assign(*this, video_stream_info);
-}
-
-void VideoStreamInfo::ConvertTo(
-    CobaltExtensionEnhancedAudioMediaVideoStreamInfo* video_stream_info) const {
   Assign(*this, video_stream_info);
 }
 
@@ -246,24 +200,8 @@ VideoSampleInfo& VideoSampleInfo::operator=(
   return *this;
 }
 
-VideoSampleInfo& VideoSampleInfo::operator=(
-    const CobaltExtensionEnhancedAudioMediaVideoSampleInfo& that) {
-  stream_info = that.stream_info;
-  is_key_frame = that.is_key_frame;
-  return *this;
-}
-
 void VideoSampleInfo::ConvertTo(
     SbMediaVideoSampleInfo* video_sample_info) const {
-  SB_DCHECK(video_sample_info);
-
-  *video_sample_info = {};
-  stream_info.ConvertTo(&video_sample_info->stream_info);
-  video_sample_info->is_key_frame = is_key_frame;
-}
-
-void VideoSampleInfo::ConvertTo(
-    CobaltExtensionEnhancedAudioMediaVideoSampleInfo* video_sample_info) const {
   SB_DCHECK(video_sample_info);
 
   *video_sample_info = {};
@@ -332,12 +270,12 @@ bool IsSDRVideo(const char* mime) {
     return true;
   }
 
-  MimeType mime_type(mime);
-  if (!mime_type.is_valid()) {
+  auto mime_type = MimeType::Create(mime);
+  if (!mime_type) {
     SB_LOG(WARNING) << mime << " is not a valid mime type, assuming sdr video.";
     return true;
   }
-  const std::vector<std::string> codecs = mime_type.GetCodecs();
+  const std::vector<std::string> codecs = mime_type->GetCodecs();
   if (codecs.empty()) {
     SB_LOG(WARNING) << mime << " contains no codecs, assuming sdr video.";
     return true;

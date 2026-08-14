@@ -5,6 +5,7 @@
 import("//build/buildflag_header.gni")
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
+import("//build/util/process_version.gni")
 import("//content/browser/devtools/features.gni")
 import("//content/public/common/features.gni")
 import("//content/public/common/zygote/features.gni")

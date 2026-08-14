@@ -47,9 +47,9 @@ void StubVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(!input_buffers.empty());
 
   if (!decoder_thread_) {
-    decoder_thread_.reset(new JobThread("stub_video_decoder"));
+    decoder_thread_ = JobThread::Create("stub_video_decoder");
   }
-  decoder_thread_->job_queue()->Schedule(
+  decoder_thread_->Schedule(
       std::bind(&StubVideoDecoder::DecodeBuffers, this, input_buffers));
 }
 
@@ -57,7 +57,7 @@ void StubVideoDecoder::WriteEndOfStream() {
   SB_CHECK(BelongsToCurrentThread());
 
   if (decoder_thread_) {
-    decoder_thread_->job_queue()->Schedule(
+    decoder_thread_->Schedule(
         std::bind(&StubVideoDecoder::DecodeEndOfStream, this));
     return;
   }
@@ -68,7 +68,10 @@ void StubVideoDecoder::Reset() {
   SB_CHECK(BelongsToCurrentThread());
 
   video_stream_info_ = VideoStreamInfo();
-  decoder_thread_.reset();
+  if (decoder_thread_) {
+    decoder_thread_->Stop();
+    decoder_thread_.reset();
+  }
   output_frame_timestamps_.clear();
   total_input_count_ = 0;
   CancelPendingJobs();
@@ -139,9 +142,8 @@ scoped_refptr<VideoFrame> StubVideoDecoder::CreateOutputFrame(
   std::string data(y_stride * video_stream_info_.frame_size.height, 0);
 
   return CpuVideoFrame::CreateYV12Frame(
-      bits_per_channel, video_stream_info_.frame_size.width,
-      video_stream_info_.frame_size.height, y_stride, uv_stride, timestamp,
-      reinterpret_cast<const uint8_t*>(data.data()),
+      bits_per_channel, video_stream_info_.frame_size, y_stride, uv_stride,
+      timestamp, reinterpret_cast<const uint8_t*>(data.data()),
       reinterpret_cast<const uint8_t*>(data.data()),
       reinterpret_cast<const uint8_t*>(data.data()));
 }

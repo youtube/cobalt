@@ -612,7 +612,7 @@ target(libcxx_target_type, "libc++") {
 
   if (!is_win) {
     defines += [ "LIBCXX_BUILDING_LIBCXXABI" ]
-    if (!export_libcxxabi_from_executables) {
+    if (!export_libcxxabi_from_executables || is_cobalt_hermetic_build) {
       deps += [ "//buildtools/third_party/libc++abi" ]
     }
   }

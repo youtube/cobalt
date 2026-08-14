@@ -25,7 +25,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <optional>
+#include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "starboard/configuration.h"
@@ -50,6 +53,29 @@ inline std::string FormatString(const char* format, ...) {
   vsnprintf(buffer.data(), buffer.size(), format, arguments);
   va_end(arguments);
   return std::string(buffer.data(), expected_size);
+}
+
+template <typename T>
+std::string ToString(const T& val) {
+  std::stringstream ss;
+  ss << val;
+  return ss.str();
+}
+
+inline std::string ToString(const std::string& val) {
+  return val;
+}
+
+inline std::string ToString(bool val) {
+  return val ? "true" : "false";
+}
+
+template <typename T>
+std::string ToString(const std::optional<T>& val) {
+  if (!val) {
+    return "(nullopt)";
+  }
+  return ToString(*val);
 }
 
 std::string HexEncode(const void* data,
@@ -120,6 +146,12 @@ inline std::vector<std::string> SplitString(const std::string& input,
   }
 
   return output;
+}
+
+// Returns true if `str` ends with `suffix`.
+inline bool EndsWith(std::string_view str, std::string_view suffix) {
+  return str.size() >= suffix.size() &&
+         str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
 }  // namespace starboard

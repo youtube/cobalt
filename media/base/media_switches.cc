@@ -507,29 +507,21 @@ const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal{
     &kCobaltAudioWriteDuration, "AudioWriteDurationLocal", base::Milliseconds(1000)};
 const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote{
     &kCobaltAudioWriteDuration, "AudioWriteDurationRemote", base::Microseconds(kSbPlayerWriteDurationRemote)};
-// When enabled, Cobalt stores allocation meta data in place for DecoderBuffers.
-BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
-             "CobaltDecoderBufferAllocatorWithInPlaceMetadata",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-// When enabled, Cobalt will notify memory pressure listeners before
-// video playback.
-BASE_FEATURE(kCobaltNotifyMemoryPressureBeforePlayback,
-             "CobaltNotifyMemoryPressureBeforePlayback",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-// When disabled, Cobalt rejects progressive video formats.
-BASE_FEATURE(kCobaltProgressivePlayback,
-             "CobaltProgressivePlayback",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-// When enabled, Cobalt reports buffering state during flush.
-BASE_FEATURE(kCobaltReportBufferingStateDuringFlush,
-             "CobaltReportBufferingStateDuringFlush",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, Cobalt uses AndroidOverlay for SbPlayer, otherwise it uses VideoSurfaceView.
 BASE_FEATURE(kCobaltUsingAndroidOverlay,
              "CobaltUsingAndroidOverlay",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+// Bypass Mojo for media pipeline in Cobalt single-process mode.
+BASE_FEATURE(kCobaltBypassMojoForMedia,
+             "CobaltBypassMojoForMedia",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, Cobalt routes media frame buffer allocations into Starboard's
+// media memory pool via Chromium M126+ ExternalMemoryAllocator interface.
+BASE_FEATURE(kCobaltUseExternalMediaMemoryPool,
+             "CobaltUseExternalMediaMemoryPool",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)

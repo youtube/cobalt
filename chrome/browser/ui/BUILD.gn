@@ -1968,6 +1968,14 @@ static_library("ui") {
         "webui/new_tab_page/foo/foo_handler.h",
       ]
     }
+
+    if (is_cobalt) {
+      deps -= [
+        "//services/on_device_model/public/cpp",
+        "//services/on_device_model/public/mojom",
+      ]
+      public_deps -= [ "//chrome/browser/ui/webui/on_device_internals" ]
+    }
   }
 
   if (enable_devtools_frontend) {

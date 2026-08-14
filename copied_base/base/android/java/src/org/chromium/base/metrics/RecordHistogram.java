@@ -8,14 +8,11 @@ import android.text.format.DateUtils;
 
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.build.annotations.MainDex;
-
 import java.util.List;
 
 /**
  * Java API for recording UMA histograms.
  * */
-@MainDex
 public class RecordHistogram {
     /**
      * Records a sample in a boolean UMA histogram of the given name. Boolean histogram has two
@@ -226,6 +223,19 @@ public class RecordHistogram {
      */
     public static void recordMemoryKBHistogram(String name, int sizeInKB) {
         UmaRecorderHolder.get().recordExponentialHistogram(name, sizeInKB, 1000, 500000, 50);
+    }
+
+    /**
+     * Records a sample in a histogram of sizes in MB. This is the Java equivalent of the
+     * UMA_HISTOGRAM_MEMORY_MEDIUM_MB C++ macro.
+     * <p>
+     * Good for sizes up to about 4000MB.
+     *
+     * @param name name of the histogram
+     * @param sizeInMB Sample to record in MB
+     */
+    public static void recordMemoryMediumMBHistogram(String name, int sizeInMB) {
+        UmaRecorderHolder.get().recordExponentialHistogram(name, sizeInMB, 1, 4000, 100);
     }
 
     /**

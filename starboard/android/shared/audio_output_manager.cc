@@ -29,10 +29,8 @@ namespace starboard {
 
 namespace {
 
-using base::android::AttachCurrentThread;
-using base::android::JavaParamRef;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
+using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaLocalRef;
 
 // Constants for output types from
 // https://developer.android.com/reference/android/media/AudioDeviceInfo.
@@ -141,13 +139,6 @@ SbMediaAudioConnector GetConnectorFromAndroidOutputType(
 }
 }  // namespace
 
-AudioOutputManager::AudioOutputManager() {
-  JNIEnv* env = AttachCurrentThread();
-  SB_DCHECK(env);
-  j_audio_output_manager_ =
-      StarboardBridge::GetInstance()->GetAudioOutputManager(env);
-}
-
 SB_EXPORT_ANDROID AudioOutputManager* AudioOutputManager::GetInstance() {
   return base::Singleton<AudioOutputManager>::get();
 }
@@ -157,13 +148,15 @@ ScopedJavaLocalRef<jobject> AudioOutputManager::CreateAudioTrackBridge(
     int sample_type,
     int sample_rate,
     int channel_count,
+    int max_samples_per_write,
     int preferred_buffer_size_in_bytes,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     jboolean is_web_audio) {
   SB_DCHECK(env);
   return Java_AudioOutputManager_createAudioTrackBridge(
       env, j_audio_output_manager_, sample_type, sample_rate, channel_count,
-      preferred_buffer_size_in_bytes, tunnel_mode_audio_session_id,
+      max_samples_per_write, preferred_buffer_size_in_bytes,
+      tunnel_mode_audio_session_id.value_or(TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
       is_web_audio);
 }
 
@@ -213,11 +206,16 @@ bool AudioOutputManager::GetAndResetHasAudioDeviceChanged(JNIEnv* env) {
              env, j_audio_output_manager_) == JNI_TRUE;
 }
 
-int AudioOutputManager::GenerateTunnelModeAudioSessionId(JNIEnv* env,
-                                                         int numberOfChannels) {
+std::optional<int> AudioOutputManager::GenerateTunnelModeAudioSessionId(
+    JNIEnv* env,
+    int numberOfChannels) {
   SB_DCHECK(env);
-  return Java_AudioOutputManager_generateTunnelModeAudioSessionId(
+  int session_id = Java_AudioOutputManager_generateTunnelModeAudioSessionId(
       env, j_audio_output_manager_, numberOfChannels);
+  if (session_id == TUNNEL_MODE_AUDIO_SESSION_ID_NONE) {
+    return std::nullopt;
+  }
+  return session_id;
 }
 
 bool AudioOutputManager::HasPassthroughSupportFor(JNIEnv* env, int encoding) {
@@ -255,6 +253,13 @@ bool AudioOutputManager::GetAudioConfiguration(
   }
 
   return true;
+}
+
+AudioOutputManager::AudioOutputManager() {
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  SB_DCHECK(env);
+  j_audio_output_manager_ =
+      StarboardBridge::GetInstance()->GetAudioOutputManager(env);
 }
 
 void JNI_AudioOutputManager_OnAudioDeviceChanged(JNIEnv* env) {

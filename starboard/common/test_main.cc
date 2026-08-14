@@ -17,12 +17,19 @@
 #include "starboard/configuration.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
+#include "starboard/testing/test_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
+
+int RunTests(int argc, char** argv) {
+  starboard::RegisterPlatformTestEnvironments(argc, argv);
+  return RUN_ALL_TESTS();
+}
+
 int InitAndRunAllTests(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  return starboard::RunPlatformTestSuite(argc, argv, &RunTests);
 }
 }  // namespace
 
@@ -36,7 +43,7 @@ int main(int argc, char** argv) {
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }
 #endif  // !SB_IS(EVERGREEN)
-#else
+#else   // BUILDFLAG(IS_STARBOARD)
 // If the OS is not Starboard use the regular main e.g. ATV.
 int main(int argc, char** argv) {
   return InitAndRunAllTests(argc, argv);

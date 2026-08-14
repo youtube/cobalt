@@ -482,15 +482,22 @@ source_set("base") {
 
   if (is_cobalt && use_starboard_media) {
     sources += [
-        "starboard/demuxer_memory_limit_starboard.cc",
-        "starboard/renderer_factory_traits.h",
-        "starboard/starboard_renderer_config.cc",
-        "starboard/starboard_renderer_config.h",
-        "starboard/starboard_rendering_mode.h"
+      "starboard/demuxer_memory_limit_starboard.cc",
+      "starboard/experimental_features.cc",
+      "starboard/experimental_features.h",
+      "starboard/ipc_param_traits.cc",
+      "starboard/ipc_param_traits.h",
+      "starboard/renderer_factory_traits.h",
+      "starboard/sbmedia_interface.cc",
+      "starboard/sbmedia_interface.h",
+      "starboard/starboard_renderer_config.cc",
+      "starboard/starboard_renderer_config.h",
+      "starboard/starboard_rendering_mode.h",
     ]
 
     deps += [
       "//starboard:starboard_group",
+      "//starboard/common",
     ]
   } else if (is_android) {
     sources += [ "demuxer_memory_limit_android.cc" ]
@@ -717,6 +724,8 @@ source_set("unit_tests") {
 
   if (is_cobalt && use_starboard_media) {
     sources += [
+      "starboard/experimental_features_unittest.cc",
+      "starboard/ipc_param_traits_unittest.cc",
       "starboard/starboard_renderer_config_unittest.cc"
     ]
   }

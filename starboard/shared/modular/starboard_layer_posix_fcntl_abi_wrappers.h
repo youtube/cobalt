@@ -36,7 +36,8 @@ static_assert(O_SYNC == 04010000,
               "The Starboard layer wrapper expects this value from musl");
 static_assert(O_ASYNC == 020000,
               "The Starboard layer wrapper expects this value from musl");
-#if defined(_GNU_SOURCE) || defined(_BSD_SOURCE)
+// FNONBLOCK, FASYNC, and FNDELAY are defined in musl but not in Bionic.
+#if (defined(_GNU_SOURCE) || defined(_BSD_SOURCE)) && !defined(__BIONIC__)
 static_assert(FASYNC == O_ASYNC,
               "The Starboard layer wrapper expects this value from musl");
 static_assert(FNONBLOCK == O_NONBLOCK,
@@ -100,7 +101,18 @@ struct musl_flock {
   musl_pid_t l_pid;
 };
 
+// Musl O_ mode constants
+#define MUSL_O_SEARCH 010000000
+#define MUSL_O_EXEC 010000000
+#define MUSL_O_RDONLY 00
+#define MUSL_O_WRONLY 01
+#define MUSL_O_RDWR 02
+
+#define MUSL_AT_REMOVEDIR 0x200
+
 SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, ...);
+
+SB_EXPORT int __abi_wrap_openat(int fildes, const char* path, int oflag, ...);
 
 #ifdef __cplusplus
 }  // extern "C"

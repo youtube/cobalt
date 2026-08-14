@@ -24,6 +24,7 @@
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
+#include "build/build_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
@@ -93,7 +94,7 @@ class MockSbPlayerInterface : public SbPlayerInterface {
     return kSbDecodeTargetInvalid;
   }
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   MOCK_METHOD6(CreateUrlPlayer,
                SbPlayer(const char*,
                         SbWindow,
@@ -106,9 +107,9 @@ class MockSbPlayerInterface : public SbPlayerInterface {
 
   bool GetUrlPlayerOutputModeSupported(
       SbPlayerOutputMode output_mode) override {
-    return true
+    return true;
   }
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   bool GetAudioConfiguration(
       SbPlayer player,
@@ -124,12 +125,19 @@ class StarboardRendererTest : public testing::Test {
     renderer_->SetSbPlayerInterfaceForTesting(&mock_sbplayer_interface_);
     renderer_->SetStarboardRendererCallbacks(
         /*paint_video_hole_frame_cb=*/base::DoNothing(),
-        /*update_starboard_rendering_mode_cb=*/base::DoNothing()
+        /*update_starboard_rendering_mode_cb=*/base::DoNothing(),
+        /*get_sb_window_handle_cb=*/base::NullCallback()
 #if BUILDFLAG(IS_ANDROID)
             ,
         /*request_overlay_info_cb=*/base::DoNothing()
 #endif  // BUILDFLAG(IS_ANDROID)
     );
+    StarboardRenderer::GetDecodeTargetGraphicsContextProviderFunc
+        get_decode_target_graphics_context_provider_func = base::BindRepeating(
+            &StarboardRendererTest::GetSbDecodeTargetGraphicsContextProvider,
+            base::Unretained(this));
+    renderer_->set_decode_target_graphics_context_provider(
+        get_decode_target_graphics_context_provider_func);
 
     EXPECT_CALL(media_resource_, GetAllStreams())
         .WillRepeatedly(Invoke(this, &StarboardRendererTest::GetAllStreams));
@@ -171,6 +179,11 @@ class StarboardRendererTest : public testing::Test {
     return player;
   }
 
+  SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider() {
+    return &decode_target_graphics_context_provider_;
+  }
+
   base::test::TaskEnvironment task_environment_;
   base::MockOnceCallback<void(bool)> set_cdm_cb_;
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
@@ -183,6 +196,8 @@ class StarboardRendererTest : public testing::Test {
   SbPlayerStatusFunc player_status_cb_ = nullptr;
   SbPlayerErrorFunc player_error_cb_ = nullptr;
   void* context_ = nullptr;
+  SbDecodeTargetGraphicsContextProvider
+      decode_target_graphics_context_provider_;
   const std::unique_ptr<StarboardRenderer> renderer_ =
       std::make_unique<StarboardRenderer>(
           task_environment_.GetMainThreadTaskRunner(),
@@ -191,6 +206,7 @@ class StarboardRendererTest : public testing::Test {
           /*audio_write_duration_local=*/base::Seconds(1),
           /*audio_write_duration_remote=*/base::Seconds(1),
           /*max_video_capabilities=*/"",
+          StarboardRendererConfig::ExperimentalFeatures{},
           /*viewport_size=*/gfx::Size()
 #if BUILDFLAG(IS_ANDROID)
               ,
@@ -200,7 +216,10 @@ class StarboardRendererTest : public testing::Test {
 };
 
 TEST_F(StarboardRendererTest, InitializeWithClearContent) {
-  InitializeWithAudioAndVideo();
+  SbPlayer player = InitializeWithAudioAndVideo();
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
 }
 
@@ -217,7 +236,10 @@ TEST_F(StarboardRendererTest, InitializeWaitsForCdm) {
 }
 
 TEST_F(StarboardRendererTest, SetCdmThenInitialize) {
-  InitializeWithAudioAndVideo(/*encrypted=*/true);
+  SbPlayer player = InitializeWithAudioAndVideo(/*encrypted=*/true);
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
 }
 
@@ -227,17 +249,23 @@ TEST_F(StarboardRendererTest, InitializeThenSetCdm) {
 
   SbPlayer player = new SbPlayerPrivate();
   EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
-      .WillOnce(Return(player));
+      .WillOnce(DoAll(SaveArg<3>(&decoder_status_cb_),
+                      SaveArg<4>(&player_status_cb_),
+                      SaveArg<5>(&player_error_cb_), SaveArg<6>(&context_),
+                      Return(player)));
   EXPECT_CALL(renderer_client_, OnWaiting(WaitingReason::kNoCdm));
   renderer_->Initialize(&media_resource_, &renderer_client_,
                         renderer_init_cb_.Get());
   task_environment_.RunUntilIdle();
 
   EXPECT_CALL(set_cdm_cb_, Run(true));
-  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
-
   renderer_->SetCdm(&cdm_context_, set_cdm_cb_.Get());
+  task_environment_.RunUntilIdle();
 
+  ASSERT_TRUE(player_status_cb_);
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
 }
 
@@ -295,10 +323,80 @@ TEST_F(StarboardRendererTest, OnPlayerStatusCallbacksEnded) {
 
 TEST_F(StarboardRendererTest, OnPlayerErrorCallback) {
   SbPlayer player = InitializeWithAudioAndVideo();
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+
   ASSERT_TRUE(player_error_cb_);
 
   EXPECT_CALL(renderer_client_, OnError(HasStatusCode(PIPELINE_ERROR_DECODE)));
   player_error_cb_(player, context_, kSbPlayerErrorDecode, "decoding failed");
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererTest, OnErrorDuringInitialization) {
+  AddStream(DemuxerStream::AUDIO, /*encrypted=*/false);
+  AddStream(DemuxerStream::VIDEO, /*encrypted=*/false);
+
+  SbPlayer player = new SbPlayerPrivate();
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(DoAll(SaveArg<3>(&decoder_status_cb_),
+                      SaveArg<4>(&player_status_cb_),
+                      SaveArg<5>(&player_error_cb_), SaveArg<6>(&context_),
+                      Return(player)));
+
+  // Expect renderer_init_cb_ to be called with an error.
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_ERROR_DECODE)));
+  // renderer_client_.OnError should NOT be called because init_cb_ is pending.
+  EXPECT_CALL(renderer_client_, OnError(_)).Times(0);
+
+  renderer_->Initialize(&media_resource_, &renderer_client_,
+                        renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+
+  ASSERT_TRUE(player_error_cb_);
+  // Trigger an error before initialization is complete.
+  player_error_cb_(player, context_, kSbPlayerErrorDecode, "decoding failed");
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererTest, OnDemuxerErrorDuringInitialization) {
+  AddStream(DemuxerStream::AUDIO, /*encrypted=*/false);
+  AddStream(DemuxerStream::VIDEO, /*encrypted=*/false);
+
+  SbPlayer player = new SbPlayerPrivate();
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(DoAll(SaveArg<3>(&decoder_status_cb_),
+                      SaveArg<4>(&player_status_cb_),
+                      SaveArg<5>(&player_error_cb_), SaveArg<6>(&context_),
+                      Return(player)));
+
+  // Expect renderer_init_cb_ to be called with an error.
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_ERROR_READ)));
+  // renderer_client_.OnError should NOT be called because init_cb_ is pending.
+  EXPECT_CALL(renderer_client_, OnError(_)).Times(0);
+
+  renderer_->Initialize(&media_resource_, &renderer_client_,
+                        renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+
+  // Now that the player is created (but not initialized), simulate the player
+  // asking for data.
+  DemuxerStream::ReadCB read_cb;
+  EXPECT_CALL(*streams_[0], OnRead(_))
+      .WillOnce(Invoke(
+          [&read_cb](DemuxerStream::ReadCB& cb) { read_cb = std::move(cb); }));
+  EXPECT_CALL(*streams_[1], OnRead(_)).Times(0);
+
+  // Trigger OnNeedData to start a read.
+  decoder_status_cb_(player, context_, kSbMediaTypeAudio,
+                     kSbPlayerDecoderStateNeedsData, SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+
+  ASSERT_FALSE(read_cb.is_null());
+  // Simulate a demuxer error.
+  std::move(read_cb).Run(DemuxerStream::kError, {});
   task_environment_.RunUntilIdle();
 }
 

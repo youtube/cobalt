@@ -19,6 +19,7 @@
 #include <algorithm>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 
 int __abi_wrap_readdir_r(musl_dir* dirp,
                          struct musl_dirent* musl_entry,
@@ -31,7 +32,17 @@ int __abi_wrap_readdir_r(musl_dir* dirp,
 
   struct dirent entry = {0};  // The type from platform toolchain.
   struct dirent* result = nullptr;
+// from POSIX.1-2008 readdir_r() was fully supported but emitting
+// a future deprecation warning. Marked as obsolecscent in POSIX.1-2024
+// TODO(b/374300500): add back posix emulation
+#if defined(_POSIX_VERSION) && (_POSIX_VERSION < 202406L) && defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
   int retval = readdir_r(dirp->dir, &entry, &result);
+#if defined(_POSIX_VERSION) && (_POSIX_VERSION < 202405L) && defined(__clang__)
+#pragma clang diagnostic pop
+#endif
   if (retval != 0) {
     return retval;
   }
@@ -142,10 +153,13 @@ struct musl_dirent* __abi_wrap_readdir(musl_dir* dirp) {
   dirp->musl_dir_entry->d_reclen = result_platform->d_reclen;
   dirp->musl_dir_entry->d_type = result_platform->d_type;
 
-  memset(dirp->musl_dir_entry->d_name, 0, sizeof(dirp->musl_dir_entry->d_name));
-  constexpr auto minlen = std::min(sizeof(dirp->musl_dir_entry->d_name),
-                                   sizeof(result_platform->d_name));
-  memcpy(dirp->musl_dir_entry->d_name, result_platform->d_name, minlen);
+  if (starboard::strlcpy(dirp->musl_dir_entry->d_name, result_platform->d_name,
+                         sizeof(dirp->musl_dir_entry->d_name)) >=
+      sizeof(dirp->musl_dir_entry->d_name)) {
+    SB_LOG(WARNING) << "Truncated d_name in readdir wrapper."
+                    << " src_size=" << sizeof(result_platform->d_name)
+                    << " dst_size=" << sizeof(dirp->musl_dir_entry->d_name);
+  }
 
   return dirp->musl_dir_entry;
 }

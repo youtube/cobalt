@@ -33,6 +33,10 @@ class LocaleFinder {
 const char* GetCommaDecimalSeparatorLocale();
 const char* GetNonDefaultLocale();
 
+// TODO: b/467701409 - Investigate why ICU doesn't return correct data for these
+// locales. The implementation is currently at parity with C25.
+bool ShouldSkipLocale(const char* locale_name);
+
 }  // namespace nplb
 }  // namespace starboard
 

@@ -91,6 +91,7 @@ struct CSPSourceList {
   bool report_sample = false;
   IntegrityAlgorithm? report_hash_algorithm;
   [EnableIf=cobalt_custom_csp]bool cobalt_insecure_local_network = false;
+  [EnableIf=cobalt_custom_csp]bool cobalt_insecure_private_range = false;
 };
 
 enum CSPDirectiveName {

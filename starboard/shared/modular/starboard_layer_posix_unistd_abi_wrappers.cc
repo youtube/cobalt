@@ -15,10 +15,15 @@
 #include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
 
 #include <errno.h>
+#include <fcntl.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_fcntl_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
 
 namespace {
 int musl_conf_to_platform_conf(int name) {
@@ -128,6 +133,18 @@ int access_helper(int musl_amode) {
     platform_amode |= X_OK;
   }
   return platform_amode;
+}
+
+int musl_unlink_flag_to_platform_flag(int musl_flag) {
+  switch (musl_flag) {
+    case 0:
+      return 0;
+    case MUSL_AT_REMOVEDIR:
+      return AT_REMOVEDIR;
+    default:
+      errno = EINVAL;
+      return -1;
+  }
 }
 }  // namespace
 
@@ -674,8 +691,20 @@ musl_uid_t __abi_wrap_geteuid() {
   return static_cast<musl_uid_t>(geteuid());
 }
 
+musl_uid_t __abi_wrap_getuid() {
+  return static_cast<musl_uid_t>(getuid());
+}
+
 musl_pid_t __abi_wrap_getpid() {
   return static_cast<musl_pid_t>(getpid());
+}
+
+musl_pid_t __abi_wrap_gettid() {
+#if defined(gettid)
+  return static_cast<musl_pid_t>(gettid());
+#else
+  return static_cast<musl_pid_t>(syscall(SYS_gettid));
+#endif
 }
 
 int __abi_wrap_access(const char* path, int amode) {
@@ -684,4 +713,24 @@ int __abi_wrap_access(const char* path, int amode) {
 
 int __abi_wrap_fchown(int fd, musl_uid_t owner, musl_gid_t group) {
   return fchown(fd, static_cast<uid_t>(owner), static_cast<gid_t>(group));
+}
+
+int __abi_wrap_unlinkat(int fildes, const char* path, int musl_flag) {
+  fildes = (fildes == MUSL_AT_FDCWD) ? AT_FDCWD : fildes;
+  int flag = musl_unlink_flag_to_platform_flag(musl_flag);
+  if (flag == -1) {
+    return -1;
+  }
+  return unlinkat(fildes, path, flag);
+}
+
+ssize_t __abi_wrap_pread(int fd, void* buf, size_t size, musl_off_t ofs) {
+  return pread(fd, buf, size, static_cast<off_t>(ofs));
+}
+
+ssize_t __abi_wrap_pwrite(int fd,
+                          const void* buf,
+                          size_t size,
+                          musl_off_t ofs) {
+  return pwrite(fd, buf, size, static_cast<off_t>(ofs));
 }

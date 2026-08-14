@@ -21,7 +21,6 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
-#include "starboard/extension/enhanced_audio.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "starboard/nplb/maximum_player_configuration_explorer.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
@@ -120,7 +119,7 @@ std::vector<SbPlayerTestConfig> GetAllPlayerTestConfigs() {
     return test_configs;
   }
 
-  for (auto key_system : kKeySystems) {
+  for (const auto& key_system : GetKeySystems()) {
     for (auto output_mode : kOutputModes) {
       // Add audio only tests.
       for (auto audio_filename : kAudioTestFiles) {
@@ -282,60 +281,6 @@ void CallSbPlayerWriteSamples(
     SB_DCHECK(discarded_durations_from_back.empty());
   }
 
-  static auto const* enhanced_audio_extension =
-      static_cast<const CobaltExtensionEnhancedAudioApi*>(
-          SbSystemGetExtension(kCobaltExtensionEnhancedAudioName));
-  ASSERT_FALSE(enhanced_audio_extension);
-
-  if (enhanced_audio_extension) {
-    ASSERT_STREQ(enhanced_audio_extension->name,
-                 kCobaltExtensionEnhancedAudioName);
-    ASSERT_EQ(enhanced_audio_extension->version, 1u);
-
-    std::vector<CobaltExtensionEnhancedAudioPlayerSampleInfo> sample_infos;
-    // We have to hold all intermediate sample infos to ensure that their member
-    // variables with allocated memory (like `std::string mime`) won't go out of
-    // scope before the call to `enhanced_audio_extension->PlayerWriteSamples`.
-    std::vector<AudioSampleInfo> audio_sample_infos;
-    std::vector<VideoSampleInfo> video_sample_infos;
-
-    for (int i = 0; i < number_of_samples_to_write; ++i) {
-      SbPlayerSampleInfo source =
-          dmp_reader->GetPlayerSampleInfo(sample_type, start_index++);
-      sample_infos.resize(sample_infos.size() + 1);
-      sample_infos.back().type = source.type;
-      sample_infos.back().buffer = source.buffer;
-      sample_infos.back().buffer_size = source.buffer_size;
-      sample_infos.back().timestamp = source.timestamp + timestamp_offset;
-      sample_infos.back().side_data = source.side_data;
-      sample_infos.back().side_data_count = source.side_data_count;
-      sample_infos.back().drm_info = source.drm_info;
-
-      if (sample_type == kSbMediaTypeAudio) {
-        audio_sample_infos.emplace_back(source.audio_sample_info);
-        audio_sample_infos.back().ConvertTo(
-            &sample_infos.back().audio_sample_info);
-        if (!discarded_durations_from_front.empty()) {
-          sample_infos.back().audio_sample_info.discarded_duration_from_front =
-              discarded_durations_from_front[i];
-        }
-        if (!discarded_durations_from_back.empty()) {
-          sample_infos.back().audio_sample_info.discarded_duration_from_back =
-              discarded_durations_from_back[i];
-        }
-      } else {
-        video_sample_infos.emplace_back(source.video_sample_info);
-        video_sample_infos.back().ConvertTo(
-            &sample_infos.back().video_sample_info);
-      }
-    }
-
-    enhanced_audio_extension->PlayerWriteSamples(
-        player, sample_type, sample_infos.data(), number_of_samples_to_write);
-
-    return;
-  }
-
   std::vector<SbPlayerSampleInfo> sample_infos;
   for (int i = 0; i < number_of_samples_to_write; ++i) {
     sample_infos.push_back(
@@ -385,10 +330,6 @@ bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
   return supported;
 }
 
-bool IsPartialAudioSupported() {
-  return kHasPartialAudioFramesSupport;
-}
-
 bool IsAudioPassthroughUsed(const SbPlayerTestConfig& config) {
   const char* audio_dmp_filename = config.audio_filename;
   SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
@@ -399,6 +340,68 @@ bool IsAudioPassthroughUsed(const SbPlayerTestConfig& config) {
   }
   return audio_codec == kSbMediaAudioCodecAc3 ||
          audio_codec == kSbMediaAudioCodecEac3;
+}
+
+TransitionSearchResult FindVideoTransitionTarget(
+    const char* initial_mime,
+    SbMediaVideoCodec initial_codec,
+    SbPlayerOutputMode output_mode,
+    const char* key_system) {
+  TransitionSearchResult result;
+  for (const char* candidate_filename : GetVideoTestFiles()) {
+    starboard::VideoDmpReader candidate_reader(
+        candidate_filename, starboard::VideoDmpReader::kEnableReadOnDemand);
+    SbMediaVideoCodec candidate_codec = candidate_reader.video_codec();
+
+    if (candidate_codec != initial_codec) {
+      if (SbMediaCanPlayMimeAndKeySystem(
+              candidate_reader.video_mime_type().c_str(), key_system) &&
+          IsOutputModeSupported(output_mode, kSbMediaAudioCodecNone,
+                                candidate_codec, key_system)) {
+        if (!SbMediaCanChangeType(initial_mime,
+                                  candidate_reader.video_mime_type().c_str())) {
+          result.transition_supported = false;
+          result.failed_target_mime = candidate_reader.video_mime_type();
+          continue;
+        }
+        result.target_filename = candidate_filename;
+        result.transition_supported = true;
+        return result;
+      }
+    }
+  }
+  return result;
+}
+
+TransitionSearchResult FindAudioTransitionTarget(
+    const char* initial_mime,
+    SbMediaAudioCodec initial_codec,
+    SbPlayerOutputMode output_mode,
+    const char* key_system) {
+  TransitionSearchResult result;
+  for (const char* candidate_filename : GetStereoAudioTestFiles()) {
+    starboard::VideoDmpReader candidate_reader(
+        candidate_filename, starboard::VideoDmpReader::kEnableReadOnDemand);
+    SbMediaAudioCodec candidate_codec = candidate_reader.audio_codec();
+
+    if (candidate_codec != initial_codec) {
+      if (SbMediaCanPlayMimeAndKeySystem(
+              candidate_reader.audio_mime_type().c_str(), key_system) &&
+          IsOutputModeSupported(output_mode, candidate_codec,
+                                kSbMediaVideoCodecNone, key_system)) {
+        if (!SbMediaCanChangeType(initial_mime,
+                                  candidate_reader.audio_mime_type().c_str())) {
+          result.transition_supported = false;
+          result.failed_target_mime = candidate_reader.audio_mime_type();
+          continue;
+        }
+        result.target_filename = candidate_filename;
+        result.transition_supported = true;
+        return result;
+      }
+    }
+  }
+  return result;
 }
 
 }  // namespace nplb

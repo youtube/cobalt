@@ -134,6 +134,11 @@ void ContentViewRenderView::DidSwapFrame(int pending_frames) {
 void ContentViewRenderView::InitCompositor() {
   if (!compositor_) {
     compositor_.reset(content::Compositor::Create(this, root_window_));
+    // The cc::slim compositor defaults to an opaque white background. We set it
+    // to transparent here so that the underlying Android window background
+    // (which automatically respects light/dark mode) shows through before the
+    // WebContents has finished loading and painting its own background.
+    compositor_->SetBackgroundColor(SK_ColorTRANSPARENT);
   }
 }
 

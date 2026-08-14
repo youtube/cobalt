@@ -20,6 +20,7 @@ import("//build/config/compiler/compiler.gni")
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
 import("//build/nocompile.gni")
+import("//cobalt/testing/browser_tests/cobalt_test_bundle_data.gni")
 import("//components/viz/common/debugger/viz_debugger.gni")
 import("//content/common/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
@@ -46,6 +47,7 @@ if (is_android) {
 }
 
 if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")
   import("//build/config/ios/bundle_data_from_filelist.gni")
 }
 
@@ -98,9 +100,11 @@ static_library("cobalt_browsertests_test_runner") {
     "//base:i18n",
     "//base/test:test_config",
     "//build:chromeos_buildflags",
+    "//cobalt/browser",
+    "//cobalt/common/features",
     "//cobalt/shell:cobalt_shell_app",
-    "//components/network_session_configurator/common:common",
-    "//components/services/storage:storage",
+    "//components/network_session_configurator/common",
+    "//components/services/storage",
     "//content/app:for_content_tests",
     "//content/browser:for_content_tests",
     "//content/test:test_support",
@@ -130,28 +134,35 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 
   content_browsertests_manifest =
-      "${target_gen_dir}/content_browsertests_manifest/AndroidManifest.xml"
+      "${target_gen_dir}/cobalt_browsertests_apk/AndroidManifest.xml"
 
-  jinja_template("content_browsertests_manifest") {
+  jinja_template("cobalt_browsertests_manifest_gen") {
     testonly = true
-    input = "//cobalt/testing/browser_tests/browsertests_apk/AndroidManifest.xml.jinja2"
+    input = "//cobalt/shell/android/javatests/AndroidManifest.xml"
     output = content_browsertests_manifest
+    includes = [ "//cobalt/shell/android/shell_apk/AndroidManifest.xml.jinja2" ]
+    variables = [
+      "debuggable=true",
+      "manifest_package=org.chromium.content_browsertests_apk",
+      "build_type=$build_type",
+    ]
   }
 
   android_library("content_browsertests_java") {
     testonly = true
-    resources_package = "dev.cobalt.coat"
+    resources_package = "org.chromium.content_browsertests_apk"
     sources = [
-      "browsertests_apk/src/dev/cobalt/coat/ContentBrowserTestsActivity.java",
-      "browsertests_apk/src/dev/cobalt/coat/ContentBrowserTestsApplication.java",
-      "browsertests_apk/src/dev/cobalt/coat/ContentShellBrowserTestActivity.java",
+      "browsertests_apk/src/org/chromium/content_browsertests_apk/CobaltBrowserTestActivity.java",
+      "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsActivity.java",
+      "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsApplication.java",
     ]
     deps = [
-      ":content_browsertests_manifest",
+      ":cobalt_browsertests_manifest_gen",
       ":content_browsertests_resources",
       "//base:base_java",
       "//base:base_java_test_support",
       "//base:content_uri_utils_java",
+      "//cobalt/android:cobalt_main_java",
       "//cobalt/shell/android:cobalt_shell_java",
       "//components/download/internal/common:internal_java",
       "//components/metrics:metrics_java",
@@ -166,10 +177,31 @@ if (is_android) {
 
   android_resources("content_browsertests_resources") {
     testonly = true
-    sources = [
-      "browsertests_apk/res/layout/test_activity.xml",
-      "browsertests_apk/res/xml/file_paths.xml",
-    ]
+    sources = [ "browsertests_apk/res/xml/file_paths.xml" ]
+  }
+}
+
+copy("cobalt_browsertests_runner_script") {
+  testonly = true
+  sources = [ "run_browser_tests.py" ]
+  outputs = [ "$root_out_dir/cobalt_browsertests_runner" ]
+}
+
+if (is_ios) {
+  bundle_data("cobalt_shell_pak_bundle_data") {
+    testonly = true
+    public_deps = [ "//cobalt/shell:pak" ]
+    sources = [ "$root_out_dir/cobalt_shell.pak" ]
+    outputs = [ "{{bundle_resources_dir}}/cobalt_shell.pak" ]
+  }
+  bundle_data_from_filelist("cobalt_test_bundle_data") {
+    testonly = true
+    filelist_name = "cobalt_test_bundle_data_ios.filelist"
+  }
+} else {
+  group("cobalt_test_bundle_data") {
+    testonly = true
+    data = cobalt_test_bundle_data_files
   }
 }
 
@@ -185,14 +217,27 @@ test("cobalt_browsertests") {
 
   sources = [
     # TODO(b/458665232): restore browser tests in M138.
-    #"content_main_runner_impl_browsertest.cc",
+    "//cobalt/browser/h5vcc_runtime_browsertest.cc",
+    "//cobalt/browser/h5vcc_system_browsertest.cc",
+
+    # TODO(b/511244766): separate target for perf test.
+    "//cobalt/browser/metrics/cobalt_memory_threshold_browsertest.cc",
+    "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
+    "//cobalt/browser/metrics/font_metrics_browsertest.cc",
+    "//cobalt/browser/metrics/highest_pmf_reporter_browsertest.cc",
+    "content_main_runner_impl_browsertest.cc",
+
     #"encrypted_media_browsertest.cc",
     #"frame_tree_browsertest.cc",
     #"media_browsertest.cc",
     #"media_browsertest.h",
     #"media_session_browsertest.cc",
     #"media_source_browsertest.cc",
-    #"navigation_browsertest.cc",
+    "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
+    "navigation_browsertest.cc",
+    "picture_in_picture_browsertest.cc",
+    "privacy_sandbox_disabled_browsertest.cc",
+
     #"session_history_browsertest.cc",
     #"site_per_process_browsertest.cc",
     #"site_per_process_browsertest.h",
@@ -202,6 +247,15 @@ test("cobalt_browsertests") {
 
   if (is_android) {
     sources += [ "browsertests_apk/content_browser_tests_jni_onload.cc" ]
+  }
+
+  if (is_starboard) {
+    sources += [ "cobalt_browser_tests_main.cc" ]
+  }
+
+  if (is_linux || is_android) {
+    # This currently tests Linux/Android-specific information and operations.
+    sources += [ "granular_memory_browsertest.cc" ]
   }
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
@@ -214,18 +268,34 @@ test("cobalt_browsertests") {
     "//content/test:web_ui_mojo_test_resources",
   ]
 
+  if (is_starboard) {
+    public_deps += [
+      "//cobalt:common",
+      "//cobalt/shell:cobalt_shell_lib",
+      "//ui/ozone/platform/starboard",
+    ]
+  }
+
   deps = [
     ":cobalt_browsertests_test_runner",
+    ":cobalt_shell_test_lib",
     "//base/test:test_support",
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
     "//cc/slim",
+    "//cobalt/browser",
+    "//cobalt/browser:global_features",
+    "//cobalt/browser:metrics",
+    "//cobalt/browser:switches",
+    "//cobalt/common/features",
+    "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//components/attribution_reporting:mojom",
     "//components/discardable_memory/client",
     "//components/discardable_memory/common",
     "//components/discardable_memory/service",
     "//components/favicon/content",
+    "//components/metrics_services_manager",
     "//components/network_session_configurator/common",
     "//components/payments/mojom",
     "//components/performance_manager",
@@ -233,7 +303,7 @@ test("cobalt_browsertests") {
     "//components/services/storage",
     "//components/services/storage/public/cpp",
     "//components/ukm:test_support",
-    "//components/url_formatter:url_formatter",
+    "//components/url_formatter",
     "//components/viz/host",
     "//components/viz/test:test_support",
     "//components/web_package",
@@ -245,11 +315,11 @@ test("cobalt_browsertests") {
     "//content/browser/background_sync:background_sync_proto",
     "//content/child:for_content_tests",
     "//content/gpu",
-    "//content/public/browser",
     "//content/public/gpu",
     "//content/renderer:for_content_tests",
     "//content/services/auction_worklet/public/mojom:for_content_tests",
     "//content/test:mojo_web_test_bindings",
+    "//content/test:test_support",
     "//content/test:web_ui_managed_interface_tests_bindings",
     "//content/test:web_ui_ts_test_mojo_bindings",
     "//device/base/synchronization",
@@ -280,13 +350,14 @@ test("cobalt_browsertests") {
     "//services/device/public/cpp/generic_sensor",
     "//services/device/public/mojom",
     "//services/device/public/mojom:generic_sensor",
-    "//services/image_annotation/public/cpp:cpp",
-    "//services/image_annotation/public/mojom:mojom",
+    "//services/image_annotation/public/cpp",
+    "//services/image_annotation/public/mojom",
     "//services/metrics",
     "//services/metrics/public/cpp:ukm_builders",
     "//services/network:test_support",
     "//services/network/public/mojom",
     "//services/network/trust_tokens:test_support",
+    "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//services/service_manager/public/cpp",
     "//services/tracing:privacy_check",
     "//services/video_capture/public/cpp",
@@ -297,6 +368,7 @@ test("cobalt_browsertests") {
     "//storage/browser",
     "//storage/browser:test_support",
     "//third_party/blink/public:blink",
+    "//third_party/blink/renderer/controller",
     "//third_party/leveldatabase",
     "//third_party/mesa_headers",
     "//third_party/re2",
@@ -313,7 +385,7 @@ test("cobalt_browsertests") {
     "//ui/display",
     "//ui/display:test_support",
     "//ui/events:test_support",
-    "//ui/events/blink:blink",
+    "//ui/events/blink",
     "//ui/gfx",
     "//ui/gfx:gfx_switches",
     "//ui/gfx/geometry",
@@ -327,16 +399,21 @@ test("cobalt_browsertests") {
     "//ui/webui:test_support",
   ]
 
-  data = [
-    "$root_build_dir/cobalt/testing/browser_tests/data",
-    "//media/test/data/",
-  ]
-
+  data = []
   data_deps = [
+    ":cobalt_test_bundle_data",
     "//cobalt/shell:pak",
     "//testing/buildbot/filters:content_browsertests_filters",
     "//third_party/mesa_headers",
   ]
+
+  if (is_ios && target_platform == "tvos") {
+    bundle_deps = [
+      ":cobalt_shell_pak_bundle_data",
+      ":cobalt_test_bundle_data",
+    ]
+    deps += [ "//starboard/common" ]
+  }
 
   if (is_android) {
     deps += [
@@ -348,12 +425,12 @@ test("cobalt_browsertests") {
       "//content/test:android_test_message_pump_support",
       "//services/data_decoder/public/cpp/android:safe_json_java",
       "//testing/android/native_test:native_test_support",
-      "//ui/android:android",
-      "//ui/touch_selection:touch_selection",
+      "//ui/android",
+      "//ui/touch_selection",
     ]
     android_manifest =
-        "${target_gen_dir}/content_browsertests_manifest/AndroidManifest.xml"
-    android_manifest_dep = ":content_browsertests_manifest"
+        "${target_gen_dir}/cobalt_browsertests_apk/AndroidManifest.xml"
+    android_manifest_dep = ":cobalt_browsertests_manifest_gen"
     use_default_launcher = false
   }
 
@@ -363,6 +440,21 @@ test("cobalt_browsertests") {
       "//net/tools/testserver/",
       "//third_party/pywebsocket3/src/mod_pywebsocket/",
     ]
+  }
+
+  if (is_starboard) {
+    deps += [
+      ":cobalt_shell_test_lib",
+      "//content/test:test_support",
+      "//starboard:starboard_headers_only",
+    ]
+    data_deps += [ ":cobalt_browsertests_runner_script" ]
+    data += [ "//content/test/data/title1.html" ]
+
+    # Modular build does not call generate_wrapper().
+    if (!use_custom_libc) {
+      custom_launcher = "$root_out_dir/cobalt_browsertests_runner"
+    }
   }
 
   if (is_posix) {
@@ -375,8 +467,8 @@ test("cobalt_browsertests") {
 
   if (is_linux && !is_tsan) {
     deps += [
-      "//components/variations:variations",
-      "//components/variations/field_trial_config:field_trial_config",
+      "//components/variations",
+      "//components/variations/field_trial_config",
       "//mojo/public/cpp/platform",
       "//mojo/public/mojom/base",
     ]
@@ -393,12 +485,16 @@ static_library("cobalt_shell_test_lib") {
     "app/shell_main_test_delegate.h",
     "browser/shell_browser_test_context.cc",
     "browser/shell_browser_test_context.h",
+    "browser/shell_browser_test_main_parts.cc",
+    "browser/shell_browser_test_main_parts.h",
     "browser/shell_content_browser_test_client.cc",
     "browser/shell_content_browser_test_client.h",
     "browser/test_shell.cc",
     "browser/test_shell.h",
     "common/shell_content_test_client.cc",
     "common/shell_content_test_client.h",
+    "gpu/shell_content_gpu_test_client.cc",
+    "gpu/shell_content_gpu_test_client.h",
     "renderer/shell_content_renderer_test_client.cc",
     "renderer/shell_content_renderer_test_client.h",
     "utility/shell_content_utility_client.cc",
@@ -407,13 +503,17 @@ static_library("cobalt_shell_test_lib") {
 
   deps = [
     ":cobalt_browsertests_support",
+    ":cobalt_browsertests_support_mojom",
     "//cc/base",
+    "//cobalt/media/service",
+    "//cobalt/media/service/mojom",
     "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/variations",
     "//components/variations/service",
+    "//components/viz/service",
     "//services/network/public/cpp",
   ]
 
@@ -426,21 +526,8 @@ static_library("cobalt_shell_test_lib") {
   }
 
   if (shell_use_toolkit_views) {
-    if (use_aura) {
-      sources += [
-        "browser/shell_test_platform_delegate.cc",
-        "browser/shell_test_platform_delegate.h",
-      ]
-
-      deps += [ "//ui/views:test_support" ]
-    }
+    deps += [ "//ui/views:test_support" ]
   }
-}
-
-action("copy_test_data") {
-  script = "data/update_build_gn.py"
-  outputs = [ "$target_gen_dir/copy_test_data.stamp" ]
-  args = [ rebase_path(root_out_dir, root_build_dir) ]
 }
 
 source_set("cobalt_browsertests_support") {
@@ -450,6 +537,8 @@ source_set("cobalt_browsertests_support") {
     "common/main_frame_counter_test_impl.h",
     "common/power_monitor_test_impl.cc",
     "common/power_monitor_test_impl.h",
+    "common/shell_test_switches.cc",
+    "common/shell_test_switches.h",
     "renderer/render_frame_test_helper.cc",
     "renderer/render_frame_test_helper.h",
     "renderer/shell_render_frame_observer.cc",
@@ -459,10 +548,11 @@ source_set("cobalt_browsertests_support") {
   public_deps = [
     ":cobalt_browsertests_support_mojom",
     ":shell_controller_mojom",
-    "//cobalt/shell:shell_test_switches_lib",
+    "//cobalt/renderer",
     "//components/custom_handlers:test_support",
     "//components/metrics:test_support",
     "//components/services/storage/test_api",
+    "//content/browser",
     "//content/common:main_frame_counter",
     "//content/public/child",
     "//content/public/common",

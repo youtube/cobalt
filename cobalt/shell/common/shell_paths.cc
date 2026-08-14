@@ -28,16 +28,39 @@
 #include "base/nix/xdg_util.h"
 #endif
 
+#if BUILDFLAG(IS_STARBOARD)
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include "base/command_line.h"
+#include "starboard/common/app_key.h"
+#include "starboard/configuration_constants.h"  // nogncheck
+#include "starboard/system.h"                   // nogncheck
+#endif
+
 namespace content {
 
 namespace {
 
 bool GetDefaultUserDataDirectory(base::FilePath* result) {
-#if BUILDFLAG(IS_LINUX)
-  std::unique_ptr<base::Environment> env(base::Environment::Create());
-  base::FilePath config_dir(base::nix::GetXDGDirectory(
-      env.get(), base::nix::kXdgConfigHomeEnvVar, base::nix::kDotConfigDir));
-  *result = config_dir.Append("content_shell");
+#if BUILDFLAG(IS_STARBOARD)
+  std::vector<char> path(kSbFileMaxPath, 0);
+  bool success =
+      SbSystemGetPath(kSbSystemPathFilesDirectory, path.data(), path.size());
+  CHECK(success) << "kSbSystemPathFilesDirectory not defined.";
+  *result = base::FilePath(path.data());
+
+  std::string url_str = starboard::kCobaltDefaultUrl;
+  base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
+  if (cmd_line->HasSwitch("url")) {
+    url_str = cmd_line->GetSwitchValueASCII("url");
+  }
+  std::string encoded_url = starboard::GetAppKey(url_str);
+  if (!encoded_url.empty()) {
+    *result = result->Append(encoded_url);
+    return base::CreateDirectory(*result);
+  }
 #elif BUILDFLAG(IS_APPLE)
   CHECK(base::PathService::Get(base::DIR_APP_DATA, result));
   *result = result->Append("Chromium Content Shell");

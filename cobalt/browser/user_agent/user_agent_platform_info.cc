@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 
+#include <algorithm>
 #include <map>
 #include <memory>
 
@@ -32,6 +33,11 @@
 #include "starboard/common/system_property.h"
 #include "starboard/extension/platform_info.h"
 #include "v8/include/v8-version-string.h"
+
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/updater/util.h"  //nogncheck
+#include "starboard/extension/installation_manager.h"
+#endif
 
 namespace cobalt {
 
@@ -185,7 +191,12 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsAndroid() {
 }
 #elif BUILDFLAG(IS_STARBOARD)
 void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
-  const std::string os_name = base::SysInfo::OperatingSystemName();
+  std::string os_name = base::SysInfo::OperatingSystemName();
+  const std::string os_friendly_name =
+      base::starboard::SbSysInfo::OSFriendlyName();
+  if (!os_friendly_name.empty()) {
+    os_name = os_friendly_name + "; " + os_name;
+  }
   const std::string os_version = base::SysInfo::OperatingSystemVersion();
   set_os_name_and_version(
       base::StringPrintf("%s %s", os_name.c_str(), os_version.c_str()));
@@ -193,15 +204,6 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
       starboard::GetSystemPropertyString(kSbSystemPropertyFirmwareVersion));
   // Rasterizer type is gles for both Linux and Android.
   set_rasterizer_type("gles");
-
-  // TODO(cobalt, b/374213479): Retrieve Evergreen
-  // #if BUILDFLAG(IS_EVERGREEN)
-  //   updater::EvergreenLibraryMetadata evergreen_library_metadata =
-  //       updater::GetCurrentEvergreenLibraryMetadata();
-  //   set_evergreen_version(evergreen_library_metadata.version);
-  //   set_evergreen_file_type(evergreen_library_metadata.file_type);
-  //   set_evergreen_type("Lite");
-  // #endif
 }
 
 #elif BUILDFLAG(IS_IOS_TVOS)
@@ -211,13 +213,37 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsTvOS() {
   set_os_name_and_version(
       base::StringPrintf("%s %s", os_name.c_str(), os_version.c_str()));
 
+  set_firmware_version(os_version);
+
   set_rasterizer_type("metal");
+
+  std::string formatted_model = base::SysInfo::HardwareModelName();
+#if TARGET_OS_SIMULATOR
+  // On simulator builds, base::SysInfo::HardwareModelName() returns a string in
+  // the format "iOS Simulator (MODEL)" rather than just "MODEL".
+  // Strip the prefix here, set_model() will remove the parentheses.
+  constexpr std::string_view kIOSSimulatorPrefix = "iOS Simulator ";
+  base::ReplaceFirstSubstringAfterOffset(&formatted_model, 0,
+                                         kIOSSimulatorPrefix, "");
+#endif
+  // The model name as returned by the platform looks like "14,1", which needs
+  // to be turned into "14-1" for it to be accepted.
+  std::ranges::replace(formatted_model, ',', '-');
+  set_model(formatted_model);
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)
 
 void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
-// TODO(b/443337017): Fix InitializePlatformDependentFields...() for AOSP
+  set_model(base::SysInfo::HardwareModelName());
+
+  set_original_design_manufacturer(
+      base::starboard::SbSysInfo::OriginalDesignManufacturer());
+  set_chipset_model_number(base::starboard::SbSysInfo::ChipsetModelNumber());
+  set_model_year(base::starboard::SbSysInfo::ModelYear());
+  set_brand(base::starboard::SbSysInfo::Brand());
+
+  // TODO(b/443337017): Fix InitializePlatformDependentFields...() for AOSP
 // platforms, which are IS_ANDROID but also IS_STARBOARD.
 #if BUILDFLAG(IS_ANDROID)
   InitializePlatformDependentFieldsAndroid();
@@ -241,20 +267,26 @@ void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-  set_model(base::SysInfo::HardwareModelName());
-
-  set_original_design_manufacturer(
-      base::starboard::SbSysInfo::OriginalDesignManufacturer());
-  set_chipset_model_number(base::starboard::SbSysInfo::ChipsetModelNumber());
-  set_model_year(base::starboard::SbSysInfo::ModelYear());
-  set_brand(base::starboard::SbSysInfo::Brand());
-
   // Below UA info fields can NOT be retrieved directly from platform's native
   // system properties.
 
   // We only support JIT for both Linux and Android.
   set_javascript_engine_version(
       base::StringPrintf("v8/%s-jit", V8_VERSION_STRING));
+
+#if BUILDFLAG(USE_EVERGREEN)
+  updater::EvergreenLibraryMetadata evergreen_library_metadata =
+      updater::GetCurrentEvergreenLibraryMetadata();
+  set_evergreen_version(evergreen_library_metadata.version);
+  set_evergreen_file_type(evergreen_library_metadata.file_type);
+  if (!SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
+    // If the installation manager is not initialized, the "evergreen_lite"
+    // command line parameter is specified and the system image is loaded.
+    set_evergreen_type("Lite");
+  } else {
+    set_evergreen_type("Full");
+  }
+#endif
 
   if (!avoid_access_to_starboard_for_testing_) {
     set_device_type(

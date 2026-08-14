@@ -14,9 +14,9 @@
 
 #include "starboard/extension/crash_handler.h"
 
-#include "base/android/jni_android.h"
 #include "starboard/android/shared/crash_handler.h"
 #include "starboard/android/shared/starboard_bridge.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -25,7 +25,7 @@ bool OverrideCrashpadAnnotations(CrashpadAnnotations* crashpad_annotations) {
 }
 
 bool SetString(const char* key, const char* value) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   StarboardBridge::GetInstance()->SetCrashContext(env, key, value);
   return true;
 }

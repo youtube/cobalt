@@ -24,6 +24,7 @@
 
 namespace starboard {
 
+// TODO: b/507074472 - add tests for AudioFrameTracker
 // This class helps on tracking how many audio frames have been played with
 // playback rate taking into account.
 //
@@ -36,23 +37,43 @@ class AudioFrameTracker {
   void Reset();
   void AddFrames(int number_of_frames, double playback_rate);
   void RecordPlayedFrames(int number_of_frames);
+
+  int64_t GetOverflowedFrames() const;
+  int64_t GetTotalOriginalFrames() const;
+
+  // Calculates the adjusted frame position after |number_of_frames| additional
+  // frames have been played. |playback_rate| is set to the playback rate of
+  // the last frame played.
   int64_t GetFutureFramesPlayedAdjustedToPlaybackRate(
       int number_of_frames,
       double* playback_rate) const;
-  int64_t GetOverflowedFrames() const { return overflowed_frames_; }
+
+  // Converts a position in the original media timeline (in frames) to the
+  // adjusted timeline that accounts for playback rate changes.
+  int64_t ConvertOriginalFramePositionToAdjustedFrames(
+      int64_t frame_position) const;
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  void DumpDebugInfo() const;
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
  private:
   struct FrameRecord {
-    int number_of_frames;
+    int64_t number_of_frames;
+    int64_t number_of_played_frames;
     double playback_rate;
   };
 
   // Usually there are very few elements, so std::vector<> is efficient enough.
   std::vector<FrameRecord> frame_records_;
-  int64_t frames_played_adjusted_to_playback_rate_ = 0;
   double last_playback_rate_ = 1.0;
-  // A record of overflowed frames.
   int64_t overflowed_frames_ = 0;
+
+  // Cumulative positions in the original and adjusted timelines, used to
+  // handle records that have been fully played and removed from
+  // |frame_records_|.
+  int64_t current_original_frame_head_position_ = 0;
+  int64_t current_adjusted_frame_head_position_ = 0;
 };
 
 }  // namespace starboard

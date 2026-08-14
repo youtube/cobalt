@@ -25,6 +25,8 @@ class MockH5vccSystem {
 
   STUB_KEY_ADVERTISING_ID = 'advertisingId';
   STUB_KEY_LIMIT_AD_TRACKING = 'limitAdTracking';
+  STUB_KEY_FRIENDLY_NAME = 'friendlyName';
+  STUB_KEY_SCREEN_DIAGONAL = 'screenDiagonal';
   STUB_KEY_TRACKING_AUTHORIZATION_STATUS = 'trackingAuthorizationStatus';
   STUB_KEY_USER_ON_EXIT_STRATEGY = 'userOnExitStrategy';
 
@@ -64,6 +66,14 @@ class MockH5vccSystem {
     this.stubResult(this.STUB_KEY_LIMIT_AD_TRACKING, limitAdTracking);
   }
 
+  stubFriendlyName(friendlyName) {
+    this.stubResult(this.STUB_KEY_FRIENDLY_NAME, friendlyName);
+  }
+
+  stubScreenDiagonal(diagonal) {
+    this.stubResult(this.STUB_KEY_SCREEN_DIAGONAL, diagonal);
+  }
+
   stubTrackingAuthorizationStatus(trackingAuthorizationStatus) {
     this.stubResult(this.STUB_KEY_TRACKING_AUTHORIZATION_STATUS, trackingAuthorizationStatus);
   }
@@ -87,24 +97,32 @@ class MockH5vccSystem {
     return Promise.resolve({ advertisingId: this.stub_result_.get(this.STUB_KEY_ADVERTISING_ID) });
   }
 
-  advertisingId() {
-    return this.stub_result_.get(this.STUB_KEY_ADVERTISING_ID);
+  getAdvertisingIdSync() {
+    return { advertisingId: this.stub_result_.get(this.STUB_KEY_ADVERTISING_ID) };
   }
 
   getLimitAdTracking() {
     return Promise.resolve({ limitAdTracking: this.stub_result_.get(this.STUB_KEY_LIMIT_AD_TRACKING) });
   }
 
-  limitAdTracking() {
-    return this.stub_result_.get(this.STUB_KEY_LIMIT_AD_TRACKING);
+  getLimitAdTrackingSync() {
+    return { limitAdTracking: this.stub_result_.get(this.STUB_KEY_LIMIT_AD_TRACKING) };
+  }
+
+  getFriendlyName() {
+    return Promise.resolve({ friendlyName: this.stub_result_.get(this.STUB_KEY_FRIENDLY_NAME) });
+  }
+
+  getScreenDiagonal() {
+    return Promise.resolve({ diagonal: this.stub_result_.get(this.STUB_KEY_SCREEN_DIAGONAL) });
   }
 
   getTrackingAuthorizationStatus() {
     return Promise.resolve({ trackingAuthorizationStatus: this.stub_result_.get(this.STUB_KEY_TRACKING_AUTHORIZATION_STATUS) });
   }
 
-  trackingAuthorizationStatus() {
-    return this.stub_result_.get(this.STUB_KEY_TRACKING_AUTHORIZATION_STATUS);
+  getTrackingAuthorizationStatusSync() {
+    return { trackingAuthorizationStatus: this.stub_result_.get(this.STUB_KEY_TRACKING_AUTHORIZATION_STATUS) };
   }
 
   getUserOnExitStrategy() {
@@ -114,6 +132,14 @@ class MockH5vccSystem {
   exit() {
     incrementExitCallCount();
   }
+
+  // --- Trivial MojoJS Mock Implementations ---
+  // MojoJS requires that an implementation be provided for all methods declared in the Mojom interface.
+  requestTrackingAuthorization() {
+    return Promise.resolve({ isTrackingAuthorizationSupported: false });
+  }
+
+  hideSplashScreen() {}
 }
 
 export const mockH5vccSystem = new MockH5vccSystem();

@@ -15,6 +15,7 @@
 #ifndef COBALT_UPDATER_UPDATER_MODULE_H_
 #define COBALT_UPDATER_UPDATER_MODULE_H_
 
+#include <atomic>
 #include <map>
 #include <memory>
 #include <string>
@@ -36,66 +37,6 @@
 
 namespace cobalt {
 namespace updater {
-
-using update_client::ComponentState;
-
-enum class UpdaterStatus {
-  kNewUpdate,
-  kChecking,
-  kUpdateAvailable,
-  kDownloadingDiff,
-  kDownloading,
-  kSlotLocked,
-  kDownloaded,
-  kUpdatingDiff,
-  kUpdating,
-  kUpdated,
-  kRolledForward,
-  kUpToDate,
-  kUpdateError,
-  kUninstalled,
-  kRun
-};
-
-// Mapping a component state to an updater status. Used when logging and
-// processing the updater status.
-// clang-format off
-const std::map<ComponentState, UpdaterStatus> component_to_updater_status_map = {
-    // clang-format on
-    {ComponentState::kNew, UpdaterStatus::kNewUpdate},
-    {ComponentState::kChecking, UpdaterStatus::kChecking},
-    {ComponentState::kCanUpdate, UpdaterStatus::kUpdateAvailable},
-    {ComponentState::kDownloadingDiff, UpdaterStatus::kDownloadingDiff},
-    {ComponentState::kDownloading, UpdaterStatus::kDownloading},
-    {ComponentState::kDownloaded, UpdaterStatus::kDownloaded},
-    {ComponentState::kUpdatingDiff, UpdaterStatus::kUpdatingDiff},
-    {ComponentState::kUpdating, UpdaterStatus::kUpdating},
-    {ComponentState::kUpdated, UpdaterStatus::kUpdated},
-    {ComponentState::kUpToDate, UpdaterStatus::kUpToDate},
-    {ComponentState::kUpdateError, UpdaterStatus::kUpdateError},
-    {ComponentState::kUninstalled, UpdaterStatus::kUninstalled},
-    {ComponentState::kRun, UpdaterStatus::kRun},
-};
-
-// Translating an updater status to a status string. Used when logging the
-// status and passing the status to the app to show in the UI.
-const std::map<UpdaterStatus, const char*> updater_status_string_map = {
-    {UpdaterStatus::kNewUpdate, "Will check for update soon"},
-    {UpdaterStatus::kChecking, "Checking for update"},
-    {UpdaterStatus::kUpdateAvailable, "Update is available"},
-    {UpdaterStatus::kDownloadingDiff, "Downloading delta update"},
-    {UpdaterStatus::kDownloading, "Downloading update"},
-    {UpdaterStatus::kSlotLocked, "Slot is locked"},
-    {UpdaterStatus::kDownloaded, "Update is downloaded"},
-    {UpdaterStatus::kUpdatingDiff, "Installing delta update"},
-    {UpdaterStatus::kUpdating, "Installing update"},
-    {UpdaterStatus::kUpdated, "Update installed, pending restart"},
-    {UpdaterStatus::kRolledForward, "Updated locally, pending restart"},
-    {UpdaterStatus::kUpToDate, "App is up to date"},
-    {UpdaterStatus::kUpdateError, "Failed to update"},
-    {UpdaterStatus::kUninstalled, "Update uninstalled"},
-    {UpdaterStatus::kRun, "Transitioning..."},
-};
 
 // Default delay the first update check.
 extern const base::TimeDelta kDefaultUpdateCheckDelay;
@@ -122,7 +63,7 @@ class Observer : public update_client::UpdateClient::Observer {
   }
 
   // Overrides for update_client::UpdateClient::Observer.
-  void OnEvent(Events event, const std::string& id) override;
+  void OnEvent(const update_client::CrxUpdateItem& item) override;
 
  private:
   scoped_refptr<update_client::UpdateClient> update_client_;
@@ -143,9 +84,15 @@ class Observer : public update_client::UpdateClient::Observer {
 // thread.
 class UpdaterModule {
  public:
-  explicit UpdaterModule(scoped_refptr<network::SharedURLLoaderFactory>,
-                         base::TimeDelta update_check_delay);
-  ~UpdaterModule();
+  static void CreateInstance(
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+      const std::string& user_agent,
+      base::TimeDelta update_check_delay);
+
+  static UpdaterModule* GetInstance();
+
+  UpdaterModule(const UpdaterModule&) = delete;
+  UpdaterModule& operator=(const UpdaterModule&) = delete;
 
   void Suspend();
   void Resume();
@@ -180,14 +127,21 @@ class UpdaterModule {
   void MarkSuccessful();
 
  private:
+  // Private constructor and destructor to enforce singleton pattern.
+  UpdaterModule(scoped_refptr<network::SharedURLLoaderFactory>,
+                const std::string& user_agent,
+                base::TimeDelta update_check_delay);
+  ~UpdaterModule();
+
   std::unique_ptr<base::Thread> updater_thread_;
   scoped_refptr<update_client::UpdateClient> update_client_;
   std::unique_ptr<Observer> updater_observer_;
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
   scoped_refptr<Configurator> updater_configurator_;
   int update_check_count_ = 0;
-  bool is_updater_running_;
+  std::atomic<bool> is_updater_running_;
   base::TimeDelta update_check_delay_ = kDefaultUpdateCheckDelay;
+  std::string user_agent_;
 
   int GetUpdateCheckCount() { return update_check_count_; }
   void IncrementUpdateCheckCount() { update_check_count_++; }
@@ -197,6 +151,10 @@ class UpdaterModule {
   void Finalize();
   void MarkSuccessfulImpl();
   void Update();
+
+  // TODO: b/513314330 Investigate alternatives to Singleton
+  // Holds the single instance of UpdaterModule.
+  static UpdaterModule* updater_module_;
 };
 
 }  // namespace updater

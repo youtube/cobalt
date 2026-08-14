@@ -24,16 +24,17 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "starboard/shared/starboard/player/filter/testing/video_decoder_test_fixture.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -85,11 +86,11 @@ std::string GetVideoDecoderTestConfigName(
 }
 
 TEST_P(VideoDecoderTest, PrerollFrameCount) {
-  EXPECT_GT(fixture_.video_decoder()->GetPrerollFrameCount(), 0);
+  EXPECT_GT(fixture_.video_decoder()->GetPrerollFrameCount(), 0u);
 }
 
 TEST_P(VideoDecoderTest, MaxNumberOfCachedFrames) {
-  EXPECT_GT(fixture_.video_decoder()->GetMaxNumberOfCachedFrames(), 1);
+  EXPECT_GT(fixture_.video_decoder()->GetMaxNumberOfCachedFrames(), 1u);
 }
 
 TEST_P(VideoDecoderTest, PrerollTimeout) {
@@ -103,7 +104,9 @@ TEST_P(VideoDecoderTest, OutputModeSupported) {
   SbMediaVideoCodec kVideoCodecs[] = {
       kSbMediaVideoCodecNone,  kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265,
       kSbMediaVideoCodecMpeg2, kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,
-      kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9};
+      kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9,
+      kSbMediaVideoCodecAv2,
+  };
   for (auto output_mode : kOutputModes) {
     for (auto video_codec : kVideoCodecs) {
       PlayerComponents::Factory::OutputModeSupported(output_mode, video_codec,
@@ -130,7 +133,9 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
   SbMediaVideoCodec kVideoCodecs[] = {
       kSbMediaVideoCodecNone,  kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265,
       kSbMediaVideoCodecMpeg2, kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,
-      kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9};
+      kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9,
+      kSbMediaVideoCodecAv2,
+  };
   int kMaxVideoInputSizes[] = {0, 777000, 3110500};
 
   for (auto output_mode : kOutputModes) {
@@ -139,36 +144,31 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
         if (PlayerComponents::Factory::OutputModeSupported(
                 output_mode, video_codec, kSbDrmSystemInvalid)) {
           SbPlayerPrivate players[kDecodersToCreate];
-          std::unique_ptr<VideoDecoder> video_decoders[kDecodersToCreate];
-          std::unique_ptr<VideoRenderAlgorithm>
-              video_render_algorithms[kDecodersToCreate];
-          scoped_refptr<VideoRendererSink>
-              video_renderer_sinks[kDecodersToCreate];
+          std::vector<PlayerComponents::Factory::VideoComponents>
+              video_components;
 
           for (int i = 0; i < kDecodersToCreate; ++i) {
-            SbMediaAudioSampleInfo dummy_audio_sample_info = {
-                kSbMediaAudioCodecNone};
             PlayerComponents::Factory::CreationParameters creation_parameters(
                 CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
                 &players[i], output_mode, max_video_input_size,
+                ExperimentalFeatures{},
+                /*surface_view=*/nullptr,
                 fake_graphics_context_provider_.decoder_target_provider(),
-                nullptr);
+                &job_queue_);
             ASSERT_EQ(creation_parameters.max_video_input_size(),
                       max_video_input_size);
 
-            std::string error_message;
-            ASSERT_TRUE(factory->CreateSubComponents(
-                creation_parameters, nullptr, nullptr, &video_decoders[i],
-                &video_render_algorithms[i], &video_renderer_sinks[i],
-                &error_message));
-            ASSERT_TRUE(video_decoders[i]);
+            auto sub_components =
+                factory->CreateSubComponents(creation_parameters);
+            ASSERT_TRUE(sub_components) << sub_components.error();
+            video_components.push_back(std::move(sub_components->video));
 
-            if (video_renderer_sinks[i]) {
-              video_renderer_sinks[i]->SetRenderCB(
+            if (video_components[i].renderer_sink) {
+              video_components[i].renderer_sink->SetRenderCB(
                   std::bind(&VideoDecoderTestFixture::Render, &fixture_, _1));
             }
 
-            video_decoders[i]->Initialize(
+            video_components[i].decoder->Initialize(
                 std::bind(&VideoDecoderTestFixture::OnDecoderStatusUpdate,
                           &fixture_, _1, _2),
                 std::bind(&VideoDecoderTestFixture::OnError, &fixture_));
@@ -338,7 +338,7 @@ TEST_P(VideoDecoderTest, ResetAfterInput) {
 TEST_P(VideoDecoderTest, MultipleResets) {
   const size_t max_inputs_to_write =
       std::min<size_t>(fixture_.dmp_reader().number_of_video_buffers(), 10);
-  for (int max_inputs = 1; max_inputs < max_inputs_to_write; ++max_inputs) {
+  for (size_t max_inputs = 1; max_inputs < max_inputs_to_write; ++max_inputs) {
     bool error_occurred = false;
     fixture_.WriteMultipleInputs(
         0, max_inputs, [&](const Event& event, bool* continue_process) {
@@ -389,7 +389,7 @@ TEST_P(VideoDecoderTest, MultipleInputs) {
   if (frames_decoded < number_of_expected_decoded_frames) {
     fixture_.WriteEndOfStream();
     ASSERT_NO_FATAL_FAILURE(fixture_.DrainOutputs(
-        &error_occurred, [=](const Event& event, bool* continue_process) {
+        &error_occurred, [this](const Event& event, bool* continue_process) {
           // Keep 1 decoded frame, assuming it's used by renderer.
           while (fixture_.GetDecodedFramesCount() > 1) {
             fixture_.PopDecodedFrame();
@@ -419,7 +419,7 @@ TEST_P(VideoDecoderTest, Preroll) {
         }
         if (CurrentMonotonicTime() - start >= preroll_timeout) {
           // After preroll timeout, we should get at least 1 decoded frame.
-          ASSERT_GT(fixture_.GetDecodedFramesCount(), 0);
+          ASSERT_GT(fixture_.GetDecodedFramesCount(), 0u);
           *continue_process = false;
           return;
         }
@@ -451,7 +451,7 @@ TEST_P(VideoDecoderTest, HoldFramesUntilFull) {
     return;
   }
   ASSERT_NO_FATAL_FAILURE(fixture_.DrainOutputs(
-      &error_occurred, [=](const Event& event, bool* continue_process) {
+      &error_occurred, [this](const Event& event, bool* continue_process) {
         *continue_process =
             fixture_.GetDecodedFramesCount() <
             fixture_.video_decoder()->GetMaxNumberOfCachedFrames();
@@ -460,7 +460,7 @@ TEST_P(VideoDecoderTest, HoldFramesUntilFull) {
 }
 
 TEST_P(VideoDecoderTest, DecodeFullGOP) {
-  int gop_size = 1;
+  size_t gop_size = 1;
   while (gop_size < fixture_.dmp_reader().number_of_video_buffers()) {
     if (fixture_.GetVideoInputBuffer(gop_size)
             ->video_sample_info()
@@ -488,7 +488,7 @@ TEST_P(VideoDecoderTest, DecodeFullGOP) {
   fixture_.WriteEndOfStream();
 
   ASSERT_NO_FATAL_FAILURE(fixture_.DrainOutputs(
-      &error_occurred, [=](const Event& event, bool* continue_process) {
+      &error_occurred, [this](const Event& event, bool* continue_process) {
         // Keep 1 decoded frame, assuming it's used by renderer.
         while (fixture_.GetDecodedFramesCount() > 1) {
           fixture_.PopDecodedFrame();
@@ -498,10 +498,10 @@ TEST_P(VideoDecoderTest, DecodeFullGOP) {
   ASSERT_FALSE(error_occurred);
 }
 
-INSTANTIATE_TEST_CASE_P(VideoDecoderTests,
-                        VideoDecoderTest,
-                        Combine(ValuesIn(GetSupportedVideoTests()), Bool()),
-                        GetVideoDecoderTestConfigName);
+INSTANTIATE_TEST_SUITE_P(VideoDecoderTests,
+                         VideoDecoderTest,
+                         Combine(ValuesIn(GetSupportedVideoTests()), Bool()),
+                         GetVideoDecoderTestConfigName);
 
 }  // namespace
 

@@ -176,9 +176,6 @@ TEST(PosixLocaleSetTest, NewLocaleInvalid) {
 }
 
 TEST(PosixLocaleSetTest, UseLocaleGlobal) {
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-  GTEST_SKIP() << "This test is curently skipped on hermetic builds";
-#endif
   ScopedLocale scoped_locale;
   setlocale(LC_ALL, kDefaultLocale);
   locale_t original_thread_locale = uselocale(LC_GLOBAL_LOCALE);

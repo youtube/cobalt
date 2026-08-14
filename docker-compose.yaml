@@ -4,11 +4,6 @@ services:
       context: cobalt/docker/linux
     image: "${DOCKER_COMPOSE_IMAGE:-linux}"
     platform: linux/amd64
-  raspi:
-    build:
-      context: cobalt/docker/raspi
-    image: "${DOCKER_COMPOSE_IMAGE:-raspi}"
-    platform: linux/amd64
   rdk:
     build:
       context: cobalt/docker/rdk
@@ -22,3 +17,7 @@ services:
     build:
       context: cobalt/docker/webtest
     image: "${DOCKER_COMPOSE_IMAGE:-webtest}"
+  pre-commit:
+    build:
+      context: cobalt/docker/pre-commit
+    image: "${DOCKER_COMPOSE_IMAGE:-pre-commit}"

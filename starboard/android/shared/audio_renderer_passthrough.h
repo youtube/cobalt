@@ -22,7 +22,9 @@
 
 #include "starboard/android/shared/audio_track_bridge.h"
 #include "starboard/android/shared/drm_system.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/result.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -45,12 +47,17 @@ class AudioRendererPassthrough : public AudioRenderer,
                                  public MediaTimeProvider,
                                  private JobQueue::JobOwner {
  public:
-  AudioRendererPassthrough(const AudioStreamInfo& audio_stream_info,
-                           SbDrmSystem drm_system,
-                           bool enable_flush_during_seek);
-  ~AudioRendererPassthrough() override;
+  static NonNullResult<std::unique_ptr<AudioRendererPassthrough>> Create(
+      JobQueue* job_queue,
+      const AudioStreamInfo& audio_stream_info,
+      SbDrmSystem drm_system,
+      bool enable_flush_during_seek);
 
-  bool is_valid() const { return decoder_ != nullptr; }
+  AudioRendererPassthrough(PassKey<AudioRendererPassthrough>,
+                           JobQueue* job_queue,
+                           const AudioStreamInfo& audio_stream_info,
+                           std::unique_ptr<AudioDecoder> decoder);
+  ~AudioRendererPassthrough() override;
 
   // AudioRenderer methods
   void Initialize(const ErrorCB& error_cb,
@@ -74,6 +81,10 @@ class AudioRendererPassthrough : public AudioRenderer,
                               bool* is_eos_played,
                               bool* is_underflow,
                               double* playback_rate) override;
+  int64_t GetAudioWriteHead() override { return 0; }
+  int64_t AdjustTimestampToAudioClock(int64_t timestamp) override {
+    return timestamp;
+  }
 
  private:
   struct AudioTrackState {
@@ -96,7 +107,7 @@ class AudioRendererPassthrough : public AudioRenderer,
   // TODO: Revisit to encapsulate the AudioDecoder as a SbDrmSystemPrivate
   //       instead.  This would need to turn SbDrmSystemPrivate::Decrypt() into
   //       asynchronous, which comes with extra risks.
-  std::unique_ptr<AudioDecoder> decoder_;
+  const std::unique_ptr<AudioDecoder> decoder_;
 
   // The following three variables are set in Initialize().
   ErrorCB error_cb_;
@@ -126,7 +137,8 @@ class AudioRendererPassthrough : public AudioRenderer,
   // after |audio_track_thread_| is destroyed (in Seek()).
   scoped_refptr<DecodedAudio> decoded_audio_writing_in_progress_;
   int decoded_audio_writing_offset_ = 0;
-  JobQueue::JobToken update_status_and_write_data_token_;
+  JobQueue::JobToken update_status_and_write_data_token_ =
+      JobQueue::JobToken::kUnscheduled;
   int64_t total_frames_written_on_audio_track_thread_ = 0;
 
   std::atomic_bool audio_track_paused_{true};

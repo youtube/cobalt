@@ -26,39 +26,44 @@
 
 namespace starboard {
 
-VideoConfig::VideoConfig(SbMediaVideoCodec video_codec,
-                         const Size& size,
-                         const uint8_t* data,
-                         size_t data_size)
-    : size_(size) {
-  if (video_codec == kSbMediaVideoCodecVp9) {
-    video_codec_ = video_codec;
-  } else if (video_codec == kSbMediaVideoCodecAv1) {
-    video_codec_ = video_codec;
+// static
+std::optional<VideoConfig> VideoConfig::Create(SbMediaVideoCodec video_codec,
+                                               const Size& size,
+                                               const uint8_t* data,
+                                               size_t data_size) {
+  if (video_codec == kSbMediaVideoCodecVp9 ||
+      video_codec == kSbMediaVideoCodecAv1) {
+    return VideoConfig(video_codec, size,
+                       /*avc_parameter_sets=*/std::nullopt);
   } else if (video_codec == kSbMediaVideoCodecH264) {
-    avc_parameter_sets_ =
-        AvcParameterSets(AvcParameterSets::kAnnexB, data, data_size);
-    if (avc_parameter_sets_->is_valid()) {
-      video_codec_ = video_codec;
+    auto avc_parameter_sets =
+        AvcParameterSets::CreateFromAnnexB(/*data=*/data, /*size=*/data_size);
+    if (avc_parameter_sets) {
+      return VideoConfig(video_codec, size, std::move(avc_parameter_sets));
     }
   } else {
     SB_NOTREACHED();
   }
+  return std::nullopt;
 }
 
-VideoConfig::VideoConfig(const VideoStreamInfo& video_stream_info,
-                         const uint8_t* data,
-                         size_t data_size)
-    : VideoConfig(video_stream_info.codec,
-                  video_stream_info.frame_size,
-                  data,
-                  data_size) {}
+// static
+std::optional<VideoConfig> VideoConfig::Create(
+    const VideoStreamInfo& video_stream_info,
+    const uint8_t* data,
+    size_t data_size) {
+  return Create(video_stream_info.codec, video_stream_info.frame_size, data,
+                data_size);
+}
+
+VideoConfig::VideoConfig(SbMediaVideoCodec video_codec,
+                         const Size& size,
+                         std::optional<AvcParameterSets> avc_parameter_sets)
+    : video_codec_(video_codec),
+      size_(size),
+      avc_parameter_sets_(std::move(avc_parameter_sets)) {}
 
 bool VideoConfig::operator==(const VideoConfig& that) const {
-  if (video_codec_ == kSbMediaVideoCodecNone &&
-      that.video_codec_ == kSbMediaVideoCodecNone) {
-    return true;
-  }
   return video_codec_ == that.video_codec_ &&
          avc_parameter_sets_ == that.avc_parameter_sets_ && size_ == that.size_;
 }
@@ -101,7 +106,7 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec,
   if (is_wav && strcmp(codec, "1") == 0) {
     return kSbMediaAudioCodecPcm;
   }
-  if (strcmp(codec, "iamf") == 0 || IamfMimeUtil(codec).is_valid()) {
+  if (strcmp(codec, "iamf") == 0 || IamfMimeUtil::Create(codec).has_value()) {
     return kSbMediaAudioCodecIamf;
   }
   return kSbMediaAudioCodecNone;

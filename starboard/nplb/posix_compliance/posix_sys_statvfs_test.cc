@@ -33,15 +33,17 @@ TEST(PosixStatvfsTest, SunnyDay) {
       SbSystemGetPath(kSbSystemPathCacheDirectory, cache_path, kSbFileMaxPath));
 
   struct statvfs buf;
+  memset(&buf, 0, sizeof(buf));
   errno = 0;
   int result = statvfs(cache_path, &buf);
 
   ASSERT_EQ(result, 0) << "statvfs failed with error: " << strerror(errno);
 
-  EXPECT_GT(buf.f_bsize, static_cast<SbSystemCapabilityId>(0));
-  EXPECT_GT(buf.f_frsize, static_cast<SbSystemCapabilityId>(0));
+  EXPECT_GT(buf.f_bsize, 0UL);
+  EXPECT_GT(buf.f_frsize, 0UL);
   EXPECT_GT(buf.f_blocks, static_cast<fsblkcnt_t>(0));
   EXPECT_GT(buf.f_files, static_cast<fsfilcnt_t>(0));
+  EXPECT_GT(buf.f_namemax, 0UL);
 }
 
 TEST(PosixStatvfsTest, RainyDayInvalidPath) {
@@ -114,7 +116,9 @@ TEST(PosixStatvfsTest, UsageChanges) {
       << "Filesystem did not reflect file creation.";
 
   EXPECT_EQ(buf_after_creation.f_blocks, buf_before.f_blocks);
-  EXPECT_EQ(buf_after_creation.f_files, buf_before.f_files);
+  // On some filesystems, f_files is not constant and may increase when new
+  // files are created. Only verify it doesn't decrease.
+  EXPECT_GE(buf_after_creation.f_files, buf_before.f_files);
 
   // Calculate the change in blocks after creation.
   const long long blocks_consumed =

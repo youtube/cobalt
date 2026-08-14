@@ -37,25 +37,26 @@ size_t ReadSize(const uint8_t* data, size_t bytes_of_size) {
 
 }  // namespace
 
-Vp9FrameParser::Vp9FrameParser(const void* vp9_frame, size_t size) {
-  const uint8_t* frame_in_uint8 = static_cast<const uint8_t*>(vp9_frame);
+Vp9FrameParser::Vp9FrameParser(Span<const uint8_t> vp9_frame) {
+  const uint8_t* frame_in_uint8 = vp9_frame.data();
+  size_t size = vp9_frame.size();
 
   // To determine whether a chunk of data has a superframe index, check the last
   // byte in the chunk for the marker 3 bits (0b110xxxxx).
   uint8_t last_byte = size == 0 ? 0 : frame_in_uint8[size - 1];
-  if ((last_byte >> 5) == 0b110 && ParseSuperFrame(frame_in_uint8, size)) {
+  if ((last_byte >> 5) == 0b110 && ParseSuperFrame(vp9_frame)) {
     return;
   }
   // Not a superframe, or ParseSuperFrame() fails, treat the whole input as a
   // single subframe.
-  subframes_[0].address = frame_in_uint8;
-  subframes_[0].size = size;
+  subframes_[0] = vp9_frame;
   number_of_subframes_ = 1;
 }
 
-bool Vp9FrameParser::ParseSuperFrame(const uint8_t* frame,
-                                     size_t size_of_superframe) {
-  uint8_t last_byte = frame[size_of_superframe - 1];
+bool Vp9FrameParser::ParseSuperFrame(Span<const uint8_t> frame) {
+  const uint8_t* frame_data = frame.data();
+  size_t size_of_superframe = frame.size();
+  uint8_t last_byte = frame_data[size_of_superframe - 1];
   // mask 2 bits (0bxxx11xxx) and add 1 to get the size in bytes for each frame
   // size.
   size_t bytes_of_size = ((last_byte & 0b00011000) >> 3) + 1;
@@ -79,7 +80,7 @@ bool Vp9FrameParser::ParseSuperFrame(const uint8_t* frame,
   // Go to the first byte of the superframe index, and check that it matches the
   // last byte of the superframe index.
   const uint8_t* first_byte =
-      frame + (size_of_superframe - total_bytes_of_superframe_index);
+      frame_data + (size_of_superframe - total_bytes_of_superframe_index);
   if (*first_byte != last_byte) {
     SB_LOG(WARNING) << "Vp9 superframe marker bytes doesn't match.";
     return false;
@@ -89,10 +90,10 @@ bool Vp9FrameParser::ParseSuperFrame(const uint8_t* frame,
   // Skip the first byte, which is a marker.
   const uint8_t* address_of_sizes = first_byte + 1;
   for (size_t i = 0; i < number_of_subframes_; ++i) {
-    subframes_[i].size = ReadSize(address_of_sizes, bytes_of_size);
-    subframes_[i].address = frame + accumulated_size_of_subframes;
+    size_t subframe_size = ReadSize(address_of_sizes, bytes_of_size);
+    subframes_[i] = {frame_data + accumulated_size_of_subframes, subframe_size};
     address_of_sizes += bytes_of_size;
-    accumulated_size_of_subframes += subframes_[i].size;
+    accumulated_size_of_subframes += subframe_size;
   }
 
   if (accumulated_size_of_subframes + total_bytes_of_superframe_index >

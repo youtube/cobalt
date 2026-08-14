@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y \
     libxkbcommon-x11-0 \
     xvfb \
     x11-utils \
+    fuse-overlayfs \
     && rm -rf /var/lib/apt/lists/*
 
 # This locale satisfies SbSystemGetLocaleIdTest.

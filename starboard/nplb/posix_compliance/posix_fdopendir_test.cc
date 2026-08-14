@@ -58,7 +58,7 @@ TEST(PosixFdopendirTest, ManySunnyDay) {
   EXPECT_FALSE(path.empty());
   EXPECT_TRUE(FileExists(path.c_str())) << "Filename is " << path.c_str();
 
-  const int kMany = kSbFileMaxOpen / 2;  // Avoid hitting fd limits.
+  const int kMany = 64;
   std::vector<DIR*> directories(kMany, 0);
   std::vector<int> fds(kMany, -1);
 

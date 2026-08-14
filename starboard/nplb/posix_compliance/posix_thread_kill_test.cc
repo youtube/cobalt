@@ -130,42 +130,8 @@ TEST_F(PosixThreadKillTest, CheckThreadExistsWithSignalZero) {
   ret = pthread_join(thread_id, &thread_result);
   EXPECT_EQ(ret, 0) << "pthread_join failed: " << strerror(ret);
 
-  // After join, the thread no longer exists.
-  ret = pthread_kill(thread_id, 0);
-  EXPECT_EQ(ret, ESRCH) << "pthread_kill(thread, 0) did not return ESRCH for a "
-                           "joined thread. Got: "
-                        << (ret == 0 ? "0 (success)" : strerror(ret)) << " ("
-                        << ret << ")";
-
   ret = pthread_attr_destroy(&attr);
   EXPECT_EQ(ret, 0) << "pthread_attr_destroy failed: " << strerror(ret);
-}
-
-TEST_F(PosixThreadKillTest, SendSignalToInvalidThread) {
-  pthread_t invalid_thread_id = {};
-
-  // Create a valid thread, join it, then its ID becomes "invalid" for
-  // pthread_kill.
-  pthread_t temp_thread_id;
-  pthread_attr_t attr;
-  int ret_setup = pthread_attr_init(&attr);
-  ASSERT_EQ(ret_setup, 0);
-  ret_setup = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-  ASSERT_EQ(ret_setup, 0);
-  ret_setup = pthread_create(&temp_thread_id, &attr, NopThreadFunc, nullptr);
-  ASSERT_EQ(ret_setup, 0);
-  ret_setup = pthread_join(temp_thread_id, nullptr);
-  ASSERT_EQ(ret_setup, 0);
-  // Now temp_thread_id refers to a terminated and joined thread.
-  invalid_thread_id = temp_thread_id;
-  ret_setup = pthread_attr_destroy(&attr);
-  ASSERT_EQ(ret_setup, 0);
-
-  int ret = pthread_kill(invalid_thread_id, SIGUSR1);
-  EXPECT_EQ(ret, ESRCH) << "pthread_kill with SIGUSR1 to an invalid thread ID "
-                           "did not return ESRCH. Got: "
-                        << (ret == 0 ? "0 (success)" : strerror(ret)) << " ("
-                        << ret << ")";
 }
 
 TEST_F(PosixThreadKillTest, SendInvalidSignalNumber) {

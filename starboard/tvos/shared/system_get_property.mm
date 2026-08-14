@@ -12,54 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#import <AdSupport/ASIdentifierManager.h>
-#import <AppTrackingTransparency/ATTrackingManager.h>
 #import <UIKit/UIKit.h>
 #include <sys/utsname.h>
 
+#include "base/numerics/safe_conversions.h"
+#include "base/system/sys_info_starboard.h"
 #include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/keyboxes/tvos/system_properties.h"
 #include "starboard/system.h"
 
+#if defined(COBALT_INTERNAL_BUILD)
+#include "starboard/keyboxes/tvos/system_properties.h"
+#endif
+
 namespace {
-struct AppleTVDevice {
-  const char* identifier;
-  const char* chipset;
-  const char* year;
-};
 
-// Array of chipset and model release year for known Apple TV devices.
-struct AppleTVDevice kDevices[] = {
-    {"AppleTV1,1", "Intel Pentium M", "2007"},
-    {"AppleTV2,1", "Apple A4", "2010"},
-    {"AppleTV3,1", "Apple A5", "2012"},
-    {"AppleTV3,2", "Apple A5", "2013"},
-    {"AppleTV5,3", "Apple A8", "2015"},
-    {"AppleTV6,2", "Apple A10X Fusion", "2017"},
-    {"AppleTV11,1", "Apple A12 Bionic", "2021"},
-    {"AppleTV14,1", "Apple A15 Bionic", "2022"},
-};
-
-// Year for unknown Apple TV devices. This assumes that they will be as
-// capable as the most recent known device.
-const char kUnknownModelYear[] = "2022";
-const char kUnknownChipset[] = "ChipsetUnknown";
-
-const char* kBrandName = "Apple";
-const char* kPlatformName = "Darwin";
-const char kSystemIntegrator[] = "YouTube";
+constexpr char kPlatformName[] = "Darwin";
 
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
                                 const char* from_value) {
-  if (strlen(from_value) + 1 > value_length) {
+  if (strlen(from_value) + 1 > base::saturated_cast<size_t>(value_length)) {
     return false;
   }
   starboard::strlcpy(out_value, from_value, value_length);
   return true;
 }
+
 }  // namespace
 
 bool SbSystemGetProperty(SbSystemPropertyId property_id,
@@ -72,7 +52,9 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
   @autoreleasepool {
     switch (property_id) {
       case kSbSystemPropertyBrandName:
-        return CopyStringAndTestIfSuccess(out_value, value_length, kBrandName);
+        return CopyStringAndTestIfSuccess(
+            out_value, value_length,
+            base::starboard::SbSysInfo::Brand().c_str());
       case kSbSystemPropertyFirmwareVersion:
         return CopyStringAndTestIfSuccess(
             out_value, value_length,
@@ -98,33 +80,18 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
         return CopyStringAndTestIfSuccess(out_value, value_length,
                                           [deviceType UTF8String]);
       }
-      case kSbSystemPropertyChipsetModelNumber: {
-        struct utsname systemInfo;
-        uname(&systemInfo);
-        for (auto& device : kDevices) {
-          if (!strcasecmp(device.identifier, systemInfo.machine)) {
-            return CopyStringAndTestIfSuccess(out_value, value_length,
-                                              device.chipset);
-          }
-        }
-        return CopyStringAndTestIfSuccess(out_value, value_length,
-                                          kUnknownChipset);
-      }
-      case kSbSystemPropertyModelYear: {
-        struct utsname systemInfo;
-        uname(&systemInfo);
-        for (auto& device : kDevices) {
-          if (!strcasecmp(device.identifier, systemInfo.machine)) {
-            return CopyStringAndTestIfSuccess(out_value, value_length,
-                                              device.year);
-          }
-        }
-        return CopyStringAndTestIfSuccess(out_value, value_length,
-                                          kUnknownModelYear);
-      }
+      case kSbSystemPropertyChipsetModelNumber:
+        return CopyStringAndTestIfSuccess(
+            out_value, value_length,
+            base::starboard::SbSysInfo::ChipsetModelNumber().c_str());
+      case kSbSystemPropertyModelYear:
+        return CopyStringAndTestIfSuccess(
+            out_value, value_length,
+            base::starboard::SbSysInfo::ModelYear().c_str());
       case kSbSystemPropertySystemIntegratorName:
-        return CopyStringAndTestIfSuccess(out_value, value_length,
-                                          kSystemIntegrator);
+        return CopyStringAndTestIfSuccess(
+            out_value, value_length,
+            base::starboard::SbSysInfo::OriginalDesignManufacturer().c_str());
       case kSbSystemPropertySpeechApiKey:
         return false;
 
@@ -146,39 +113,21 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
         return CopyStringAndTestIfSuccess(out_value, value_length,
                                           kPlatformName);
       case kSbSystemPropertyCertificationScope:
-        if (kCertificationScope[0] == '\0') {
-          return false;
-        }
-        return CopyStringAndTestIfSuccess(out_value, value_length,
-                                          kCertificationScope);
-
-      case kSbSystemPropertyAdvertisingId: {
-        NSString* advertisingId = [[ASIdentifierManager sharedManager]
-                                       .advertisingIdentifier UUIDString];
-        return CopyStringAndTestIfSuccess(out_value, value_length,
-                                          [advertisingId UTF8String]);
-      }
+        // TODO: b/460479616, b/464200271 - Reenable once the expected
+        // functionality is clear in Chrobalt.
+        SB_NOTIMPLEMENTED();
+        return false;
+      case kSbSystemPropertyAdvertisingId:
       case kSbSystemPropertyLimitAdTracking: {
-        // The assumption is we will limit ad tracking if the status from OS is
-        // not explicitly authorized (including if the API is not present on
-        // older OS versions).
-        bool limitAdTracking = true;
-        if (@available(tvOS 14.0, *)) {
-          ATTrackingManagerAuthorizationStatus status =
-              [ATTrackingManager trackingAuthorizationStatus];
-          if (status == ATTrackingManagerAuthorizationStatusAuthorized) {
-            limitAdTracking = false;
-          }
-        }
-        return CopyStringAndTestIfSuccess(out_value, value_length,
-                                          limitAdTracking ? "1" : "0");
+        SB_LOG(INFO) << "IFA is not supported via Starboard.";
+        return false;
       }
-
       case kSbSystemPropertyDeviceType:
         return CopyStringAndTestIfSuccess(
             out_value, value_length, starboard::kSystemDeviceTypeOverTheTopBox);
+      default:
+        SB_NOTIMPLEMENTED();
+        return false;
     }
   }
-
-  return false;
 }

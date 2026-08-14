@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/player.h"
+// clang-format on
+
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
-#include "starboard/player.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
 bool SbPlayerGetAudioConfiguration(

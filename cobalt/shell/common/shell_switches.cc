@@ -14,6 +14,10 @@
 
 #include "cobalt/shell/common/shell_switches.h"
 
+#include "base/command_line.h"
+#include "base/feature_list.h"
+#include "cobalt/browser/features.h"
+
 namespace switches {
 
 // Makes Content Shell use the given path for its data directory.
@@ -50,7 +54,20 @@ const char kOmitDeviceAuthenticationQueryParameters[] =
 // risk.
 const char kRemoteDebuggingAddress[] = "remote-debugging-address";
 
+// The delay in milliseconds before shutting down the splash screen.
+const char kSplashScreenShutdownDelayMs[] = "splash-screen-shutdown-delay-ms";
+
 // Register the provided scheme as a standard scheme.
 const char kTestRegisterStandardScheme[] = "test-register-standard-scheme";
+
+bool ShouldCreateSplashScreen() {
+  // If the FeatureList isn't available yet, fall back to the feature's default
+  // state. This may happen during early startup.
+  if (!base::FeatureList::GetInstance()) {
+    return cobalt::features::kDisableSplashScreen.default_state ==
+           base::FEATURE_DISABLED_BY_DEFAULT;
+  }
+  return !base::FeatureList::IsEnabled(cobalt::features::kDisableSplashScreen);
+}
 
 }  // namespace switches

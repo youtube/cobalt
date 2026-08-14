@@ -48,8 +48,7 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
       composition_pixmap(None),
       composition_picture(None),
       video_pixmap(None),
-      video_pixmap_width(0),
-      video_pixmap_height(0),
+      video_pixmap_size(),
       video_pixmap_gc(None),
       video_picture(None),
       gl_window(None),
@@ -173,16 +172,12 @@ void SbWindowPrivate::BeginComposite() {
 }
 
 void SbWindowPrivate::CompositeVideoFrame(
-    int bounds_x,
-    int bounds_y,
-    int bounds_width,
-    int bounds_height,
+    const starboard::Rect& rect,
     const starboard::scoped_refptr<starboard::CpuVideoFrame>& frame) {
   if (frame != nullptr &&
       frame->format() == starboard::CpuVideoFrame::kBGRA32 &&
-      frame->GetPlaneCount() > 0 && frame->width() > 0 && frame->height() > 0) {
-    if (frame->width() != video_pixmap_width ||
-        frame->height() != video_pixmap_height) {
+      frame->GetPlaneCount() > 0 && !frame->size().IsEmpty()) {
+    if (frame->size() != video_pixmap_size) {
       if (video_pixmap != None) {
         XRenderFreePicture(display, video_picture);
         video_picture = None;
@@ -194,10 +189,9 @@ void SbWindowPrivate::CompositeVideoFrame(
     }
 
     if (video_pixmap == None) {
-      video_pixmap_width = frame->width();
-      video_pixmap_height = frame->height();
-      video_pixmap = XCreatePixmap(display, window, video_pixmap_width,
-                                   video_pixmap_height, 32);
+      video_pixmap_size = frame->size();
+      video_pixmap = XCreatePixmap(display, window, video_pixmap_size.width,
+                                   video_pixmap_size.height, /*depth=*/32);
       SB_DCHECK_NE(video_pixmap, None);
 
       video_pixmap_gc = XCreateGC(display, video_pixmap, 0, NULL);
@@ -210,8 +204,8 @@ void SbWindowPrivate::CompositeVideoFrame(
     SB_CHECK_NE(video_picture, None);
 
     XImage image = {0};
-    image.width = frame->width();
-    image.height = frame->height();
+    image.width = frame->size().width;
+    image.height = frame->size().height;
     image.format = ZPixmap;
     image.data = const_cast<char*>(
         reinterpret_cast<const char*>(frame->GetPlane(0).data));
@@ -227,20 +221,21 @@ void SbWindowPrivate::CompositeVideoFrame(
               image.width, image.height);
 
     // Initially assume we don't have to center or scale.
-    if (bounds_width != width || bounds_height != height ||
-        frame->width() != width || frame->height() != height) {
+    if (rect.size.width != width || rect.size.height != height ||
+        frame->size().width != width || frame->size().height != height) {
       // This transform maps the destination pixel back to the source pixel.
-      double sx = static_cast<double>(frame->width()) / bounds_width;
-      double sy = static_cast<double>(frame->height()) / bounds_height;
+      double sx = static_cast<double>(frame->size().width) / rect.size.width;
+      double sy = static_cast<double>(frame->size().height) / rect.size.height;
       XTransform transform = {
           {{XDoubleToFixed(sx), XDoubleToFixed(0), XDoubleToFixed(0)},
            {XDoubleToFixed(0), XDoubleToFixed(sy), XDoubleToFixed(0)},
            {XDoubleToFixed(0), XDoubleToFixed(0), XDoubleToFixed(1)}}};
       XRenderSetPictureTransform(display, video_picture, &transform);
     }
-    XRenderComposite(display, PictOpSrc, video_picture, None,
-                     composition_picture, 0, 0, 0, 0, bounds_x, bounds_y,
-                     bounds_width, bounds_height);
+    XRenderComposite(
+        display, PictOpSrc, video_picture, None, composition_picture,
+        /*src_x=*/0, /*src_y=*/0, /*mask_x=*/0,
+        /*mask_y=*/0, rect.x, rect.y, rect.size.width, rect.size.height);
   }
 }
 

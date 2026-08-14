@@ -14,6 +14,7 @@
 
 #include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
 
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -108,7 +109,7 @@ class ShellControllerImpl : public mojom::ShellController {
     if (command_line.HasSwitch(name)) {
       std::move(callback).Run(command_line.GetSwitchValueASCII(name));
     } else {
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
     }
   }
 
@@ -191,8 +192,8 @@ void ShellContentBrowserTestClient::AppendExtraCommandLineSwitches(
   ShellContentBrowserClient::AppendExtraCommandLineSwitches(command_line,
                                                             child_process_id);
   static const char* kForwardTestSwitches[] = {
-      test_switches::kExposeInternalsForTesting,
-      test_switches::kRunWebTests,
+      switches::kExposeInternalsForTesting,
+      switches::kRunWebTests,
   };
 
   command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
@@ -266,7 +267,7 @@ void ShellContentBrowserTestClient::SetUpFieldTrials() {
   // Overrides for content/shell switches.
 
   // Overrides for --run-web-tests.
-  if (test_switches::IsRunWebTestsSwitchPresent()) {
+  if (switches::IsRunWebTestsSwitchPresent()) {
     // Disable artificial timeouts for PNA-only preflights in warning-only mode
     // for web tests. We do not exercise this behavior with web tests as it is
     // intended to be a temporary rollout stage, and the short timeout causes

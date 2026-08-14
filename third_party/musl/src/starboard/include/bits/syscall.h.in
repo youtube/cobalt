@@ -23,11 +23,9 @@
 #define __NR_fork SYS_fork
 #define __NR_read SYS_read
 #define __NR_write SYS_write
-#define __NR_open SYS_open
 #define __NR_close SYS_close
 #define __NR_creat SYS_creat
 #define __NR_link SYS_link
-#define __NR_unlink SYS_unlink
 #define __NR_execve SYS_execve
 #define __NR_chdir SYS_chdir
 #define __NR_mknod SYS_mknod
@@ -46,7 +44,6 @@
 #define __NR_kill SYS_kill
 #define __NR_rename SYS_rename
 #define __NR_mkdir SYS_mkdir
-#define __NR_rmdir SYS_rmdir
 #define __NR_dup SYS_dup
 #define __NR_pipe SYS_pipe
 #define __NR_times SYS_times
@@ -96,8 +93,6 @@
 #define __NR_syslog SYS_syslog
 #define __NR_setitimer SYS_setitimer
 #define __NR_getitimer SYS_getitimer
-#define __NR_stat SYS_stat
-#define __NR_lstat SYS_lstat
 #define __NR_fstat SYS_fstat
 #define __NR_vhangup SYS_vhangup
 #define __NR_wait4 SYS_wait4

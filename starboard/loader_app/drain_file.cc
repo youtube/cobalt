@@ -93,10 +93,8 @@ std::vector<std::string> FindAllWithPrefix(const std::string& dir,
     if (filename.size() < kSbFileMaxName || !directory || !filename.data()) {
       break;
     }
-    struct dirent dirent_buffer;
-    struct dirent* dirent;
-    int result = readdir_r(directory, &dirent_buffer, &dirent);
-    if (result || !dirent) {
+    struct dirent* dirent = readdir(directory);
+    if (!dirent) {
       break;
     }
     starboard::strlcpy(filename.data(), dirent->d_name, filename.size());
@@ -182,7 +180,9 @@ bool TryDrain(const char* dir, const char* app_key) {
   path.append(kSbFileSepString);
   path.append(filename);
 
-  int file = open(path.c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
+  // Silence the -wunused-variable warning for non-debug builds.
+  [[maybe_unused]] int file =
+      open(path.c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
 
   SB_DCHECK_GE(file, 0);
   SB_DCHECK_EQ(close(file), 0);

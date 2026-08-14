@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
+// clang-format on
+
 // This file implements the FFMPEGDispatch interface for a library linked
 // directly, or which the symbols are already available in the global namespace.
 
@@ -24,7 +28,6 @@
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
-#include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 
 namespace starboard {
@@ -38,7 +41,6 @@ void construct_ffmpeg_dispatch() {
 }
 
 void LoadSymbols(FFMPEGDispatch* ffmpeg) {
-  SB_DCHECK(ffmpeg->is_valid());
   // Load the desired symbols from the shared libraries. Note: If a symbol is
   // listed as a '.text' entry in the output of 'objdump -T' on the shared
   // library file, then it is directly available from it.
@@ -118,11 +120,6 @@ bool FFMPEGDispatch::RegisterSpecialization(int specialization,
                                             int avutil) {
   // There is always only a single version of the library linked to the
   // application, so there is no need to explicitly track multiple versions.
-  return true;
-}
-
-bool FFMPEGDispatch::is_valid() const {
-  // Loading of a linked library is always successful.
   return true;
 }
 

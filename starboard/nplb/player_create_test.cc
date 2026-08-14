@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "build/build_config.h"
 #include "starboard/common/media.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
@@ -26,7 +27,7 @@
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#include "starboard/testing/test_runner.h"
 
 namespace nplb {
 namespace {
@@ -114,8 +115,11 @@ class SbPlayerTest : public ::testing::Test {
       if (now > wait_end) {
         break;
       }
-      condition_variable_.wait_for(lock,
-                                   std::chrono::microseconds(wait_end - now));
+
+      starboard::RunTestBlockingAction([&] {
+        condition_variable_.wait_for(lock,
+                                     std::chrono::microseconds(wait_end - now));
+      });
     }
 
     SB_LOG(INFO) << "WaitForPlayerInitializedOrError() timed out.";
@@ -368,6 +372,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
       kSbMediaVideoCodecAv1,
       kSbMediaVideoCodecVp8,
       kSbMediaVideoCodecVp9,
+      kSbMediaVideoCodecAv2,
   };
   // clang-format on
 
@@ -386,6 +391,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
     case kVideoCodecs[6]:
     case kVideoCodecs[7]:
     case kVideoCodecs[8]:
+    case kVideoCodecs[9]:
       break;
   }
 

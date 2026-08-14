@@ -14,9 +14,11 @@
 
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 
+#include <optional>
 #include <string_view>
 
 #include "base/test/task_environment.h"
+#include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "content/public/common/content_client.h"
 
 namespace content {
@@ -49,6 +51,15 @@ void ContentBrowserTestContentBrowserClient::OnNetworkServiceCreated(
   // NetworkService::ConfigureStubHostResolver(), because some tests are flaky
   // when configuring the stub host resolver.
   // TODO(crbug.com/41494161): Remove this override once the flakiness is fixed.
+}
+
+void ContentBrowserTestContentBrowserClient::
+    RegisterBrowserInterfaceBindersForFrame(
+        RenderFrameHost* render_frame_host,
+        mojo::BinderMapWithContext<RenderFrameHost*>* map) {
+  cobalt::PopulateCobaltFrameBinders(std::nullopt, render_frame_host, map);
+  ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
+      render_frame_host, map);
 }
 
 }  // namespace content

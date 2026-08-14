@@ -50,7 +50,7 @@ config("platform_configuration") {
     # this macro.
     # TODO(b/444006168): Uncomment this once in-memory updates is fully
     # supported.
-    # "IN_MEMORY_UPDATES",
+    "IN_MEMORY_UPDATES",
   ]
 
   if (use_asan) {
@@ -62,12 +62,5 @@ config("platform_configuration") {
     ]
   } else if (use_tsan) {
     ldflags += [ "-fsanitize=thread" ]
-  }
-}
-
-config("size") {
-  configs = [ "//starboard/build/config/modular:size" ]
-  if (sb_is_evergreen && (is_qa || is_gold)) {
-    ldflags = [ "-Wl,--icf=safe" ]
   }
 }

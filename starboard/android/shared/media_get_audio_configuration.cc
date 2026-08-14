@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/media.h"
+// clang-format on
+
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
-#include "starboard/media.h"
 
 // TODO(b/284140486): Refine the implementation so it works when the audio
 // outputs are changed during the query.

@@ -35,7 +35,6 @@
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO: Implement AudioDecoderMock and refactor the test accordingly.
@@ -78,14 +77,14 @@ class AdaptiveAudioDecoderTest
   }
 
   void SetUp() override {
-    ASSERT_GT(dmp_readers_.size(), 0);
+    ASSERT_GT(dmp_readers_.size(), 0U);
     for (auto& dmp_reader : dmp_readers_) {
       ASSERT_NE(dmp_reader->audio_codec(), kSbMediaAudioCodecNone);
-      ASSERT_GT(dmp_reader->number_of_audio_buffers(), 0);
+      ASSERT_GT(dmp_reader->number_of_audio_buffers(), 0U);
     }
 
     std::unique_ptr<AudioRendererSink> audio_renderer_sink;
-    ASSERT_TRUE(CreateAudioComponents(using_stub_decoder_,
+    ASSERT_TRUE(CreateAudioComponents(using_stub_decoder_, &job_queue_,
                                       dmp_readers_[0]->audio_stream_info(),
                                       &audio_decoder_, &audio_renderer_sink));
     ASSERT_TRUE(audio_decoder_);
@@ -176,7 +175,8 @@ class AdaptiveAudioDecoderTest
       // StubAudioDecoder, because it is not actually doing any decoding work.
       return;
     }
-    ASSERT_LE(abs(expected_output_frames - num_of_output_frames_),
+    ASSERT_LE(static_cast<size_t>(
+                  std::abs(expected_output_frames - num_of_output_frames_)),
               dmp_readers_.size());
   }
 
@@ -374,8 +374,8 @@ vector<vector<const char*>> GetSupportedTests() {
 
   // Generate test cases. For example, we have |supported_files| [A, B, C].
   // Add tests A->A, A->B, A->C, B->A, B->B, B->C, C->A, C->B and C->C.
-  for (int i = 0; i < supported_files.size(); i++) {
-    for (int j = 0; j < supported_files.size(); j++) {
+  for (size_t i = 0; i < supported_files.size(); i++) {
+    for (size_t j = 0; j < supported_files.size(); j++) {
       test_params.push_back({supported_files[i], supported_files[j]});
     }
   }
@@ -396,10 +396,10 @@ vector<vector<const char*>> GetSupportedTests() {
   return test_params;
 }
 
-INSTANTIATE_TEST_CASE_P(AdaptiveAudioDecoderTests,
-                        AdaptiveAudioDecoderTest,
-                        Combine(ValuesIn(GetSupportedTests()), Bool()),
-                        GetAdaptiveAudioDecoderTestConfigName);
+INSTANTIATE_TEST_SUITE_P(AdaptiveAudioDecoderTests,
+                         AdaptiveAudioDecoderTest,
+                         Combine(ValuesIn(GetSupportedTests()), Bool()),
+                         GetAdaptiveAudioDecoderTestConfigName);
 
 }  // namespace
 

@@ -12,11 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
+// clang-format on
+
 // This file contains the creation of the specialized AudioDecoderImpl object
 // corresponding to the version of the dynamically loaded ffmpeg library.
 
+#include <memory>
+
 #include "starboard/player.h"
-#include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl_interface.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -24,43 +29,42 @@
 namespace starboard {
 
 // static
-FfmpegAudioDecoder* FfmpegAudioDecoder::Create(
+std::unique_ptr<FfmpegAudioDecoder> FfmpegAudioDecoder::Create(
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info) {
   FFMPEGDispatch* ffmpeg = FFMPEGDispatch::GetInstance();
-  if (!ffmpeg || !ffmpeg->is_valid()) {
-    return NULL;
+  if (!ffmpeg) {
+    return nullptr;
   }
 
-  FfmpegAudioDecoder* audio_decoder = NULL;
   switch (ffmpeg->specialization_version()) {
     case 540:
-      audio_decoder = FfmpegAudioDecoderImpl<540>::Create(audio_stream_info);
-      break;
+      return FfmpegAudioDecoderImpl<540>::Create(job_queue, audio_stream_info);
     case 550:
     case 560:
-      audio_decoder = FfmpegAudioDecoderImpl<560>::Create(audio_stream_info);
-      break;
+      return FfmpegAudioDecoderImpl<560>::Create(job_queue, audio_stream_info);
     case 571:
-      audio_decoder = FfmpegAudioDecoderImpl<571>::Create(audio_stream_info);
-      break;
+      return FfmpegAudioDecoderImpl<571>::Create(job_queue, audio_stream_info);
     case 581:
-      audio_decoder = FfmpegAudioDecoderImpl<581>::Create(audio_stream_info);
-      break;
+      return FfmpegAudioDecoderImpl<581>::Create(job_queue, audio_stream_info);
     case 591:
-      audio_decoder = FfmpegAudioDecoderImpl<591>::Create(audio_stream_info);
-      break;
+      return FfmpegAudioDecoderImpl<591>::Create(job_queue, audio_stream_info);
     case 601:
-      audio_decoder = FfmpegAudioDecoderImpl<601>::Create(audio_stream_info);
-      break;
+      return FfmpegAudioDecoderImpl<601>::Create(job_queue, audio_stream_info);
     case 611:
-      audio_decoder = FfmpegAudioDecoderImpl<611>::Create(audio_stream_info);
-      break;
+      return FfmpegAudioDecoderImpl<611>::Create(job_queue, audio_stream_info);
+    case 621:
+      // We reuse the 611 implementation because FFMPEG 6.2 (621) is
+      // API-compatible with 6.1 (611).
+      // TODO: b/508705038 - Use a dedicated 621 specialization once
+      // third_party/ffmpeg is updated.
+      return FfmpegAudioDecoderImpl<611>::Create(job_queue, audio_stream_info);
     default:
       SB_LOG(WARNING) << "Unsupported FFMPEG specialization "
                       << ffmpeg->specialization_version();
       break;
   }
-  return audio_decoder;
+  return nullptr;
 }
 
 }  // namespace starboard

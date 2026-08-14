@@ -15,13 +15,20 @@
 #ifndef MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
 #define MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
 
+#include <atomic>
 #include <memory>
 #include <sstream>
+#include <string>
 
 #include "base/compiler_specific.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
+#include "base/task/thread_pool.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
+#include "base/types/expected.h"
 #include "build/build_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/starboard/decoder_buffer_memory_info.h"
@@ -32,12 +39,6 @@ namespace media {
 class DecoderBufferAllocator : public DecoderBuffer::Allocator,
                                public DecoderBufferMemoryInfo {
  public:
-  enum class Type {
-    kGlobal,  // The global allocator calls `Allocator::Set(this)` to register
-              // itself in the ctor
-    kLocal,
-  };
-
   // Manages the details of the Allocate() and Free(), to allow
   // DecoderBufferAllocator to adopt different strategies at runtime.
   // The class isn't required to be thread safe, and relies on
@@ -46,63 +47,130 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   class Strategy {
    public:
     virtual ~Strategy() {}
-    virtual void* Allocate(DemuxerStream::Type type,
-                           size_t size,
-                           size_t alignment) = 0;
+    virtual void* Allocate(DemuxerStream::Type type, size_t size) = 0;
     virtual void Free(DemuxerStream::Type type, void* p) = 0;
+    virtual void Write(void* p, const void* data, size_t size) = 0;
 
     virtual size_t GetCapacity() const = 0;
     virtual size_t GetAllocated() const = 0;
+
+    virtual void DecommitAllDecommitableBlocks() = 0;
+    virtual void TryToDecommitOneBlock(int cadence) {}
   };
 
-  explicit DecoderBufferAllocator(Type type = Type::kGlobal);
-  DecoderBufferAllocator(Type type,
-                         bool is_memory_pool_allocated_on_demand,
+  using StrategyCreateCB =
+      base::RepeatingCallback<std::unique_ptr<Strategy>(int initial_capacity,
+                                                        int allocation_unit)>;
+
+  explicit DecoderBufferAllocator();
+  DecoderBufferAllocator(bool is_memory_pool_allocated_on_demand,
                          int initial_capacity,
                          int allocation_unit);
   ~DecoderBufferAllocator() override;
 
-  void Suspend();
-  void Resume();
+  static DecoderBufferAllocator* Get();
+
+  void ReleaseIdleMemory();
+  void DecommitAllDecommitableBlocks();
 
   // DecoderBuffer::Allocator methods.
-  void* Allocate(DemuxerStream::Type type,
-                 size_t size,
-                 size_t alignment) override;
-  void Free(void* p, size_t size) override;
+  Handle Allocate(DemuxerStream::Type type, size_t size) override;
+  void Free(DemuxerStream::Type type, Handle p, size_t size) override;
+  void Write(Handle handle, const void* data, size_t size) override;
 
-  int GetAudioBufferBudget() const override;
-  int GetBufferAlignment() const override;
-  int GetBufferPadding() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
-  int GetProgressiveBufferBudget(VideoCodec codec,
-                                 int resolution_width,
-                                 int resolution_height,
-                                 int bits_per_pixel) const override;
-  int GetVideoBufferBudget(VideoCodec codec,
-                           int resolution_width,
-                           int resolution_height,
-                           int bits_per_pixel) const override;
 
   // DecoderBufferMemoryInfo methods.
   size_t GetAllocatedMemory() const override LOCKS_EXCLUDED(mutex_);
   size_t GetCurrentMemoryCapacity() const override LOCKS_EXCLUDED(mutex_);
   size_t GetMaximumMemoryCapacity() const override LOCKS_EXCLUDED(mutex_);
 
+  void UpdateAllocatorStrategy(StrategyCreateCB create_cb);
+
+  // Utility function for h5vcc settings.
+  // TODO(b/460292554): To be deprecated with h5vcc settings.
+  static base::expected<void, std::string> SetSetting(const std::string& name,
+                                                      int value);
+
  private:
+  // Thread-safe state container for periodic decommit tasks running on
+  // ThreadPool.
+  //
+  // Holds a pointer to the owner DecoderBufferAllocator. Allows background
+  // tasks to run safely on ThreadPool without dangling pointer risks during
+  // teardown.
+  class PeriodicDecommitState final
+      : public base::RefCountedThreadSafe<PeriodicDecommitState> {
+   public:
+    explicit PeriodicDecommitState(DecoderBufferAllocator* allocator)
+        : allocator_(allocator) {}
+
+    PeriodicDecommitState(const PeriodicDecommitState&) = delete;
+    PeriodicDecommitState& operator=(const PeriodicDecommitState&) = delete;
+
+    void Detach() {
+      base::AutoLock lock(lock_);
+      allocator_ = nullptr;
+    }
+
+    template <typename Task>
+    void RunIfValid(Task task) {
+      base::AutoLock lock(lock_);
+      if (allocator_) {
+        task(allocator_);
+      }
+    }
+
+   private:
+    friend class base::RefCountedThreadSafe<PeriodicDecommitState>;
+    ~PeriodicDecommitState() = default;
+
+    base::Lock lock_;
+    raw_ptr<DecoderBufferAllocator> allocator_ GUARDED_BY(lock_) = nullptr;
+  };
+
+  static void OnPeriodicDecommitTask(
+      scoped_refptr<PeriodicDecommitState> state);
+
+  // Utility functions for h5vcc settings.
+  // TODO(b/460292554): To be deprecated with h5vcc settings.
+  static void EnableConfigurableDecommitStrategy(
+      int block_size,
+      int retain_blocks,
+      int conservative_decommit_blocks,
+      bool enable_decommit_on_suspend,
+      bool allocate_with_page_alignment,
+      bool aggressive_decommit_on_suspend,
+      bool memset_on_reclaim,
+      bool mark_as_cold_on_reclaim,
+      bool periodic_decommit);
+  static void EnableMediaBufferPoolStrategy();
+  static void EnableReleaseIdleMemory();
+
   void EnsureStrategyIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  void EnablePeriodicDecommitLoop();
+  void StopPeriodicDecommitLoop();
+  void SchedulePeriodicDecommitTask_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   void TryFlushAllocationLog_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-  const Type type_;
   const bool is_memory_pool_allocated_on_demand_;
   const int initial_capacity_;
   const int allocation_unit_;
 
   mutable base::Lock mutex_;
   std::unique_ptr<Strategy> strategy_ GUARDED_BY(mutex_);
+  bool is_strategy_switch_pending_ GUARDED_BY(mutex_) = false;
+  // ReleaseIdleMemory() can be called on the UI thread while buffers are still
+  // actively decoding on the media thread. We defer idle memory reclamation
+  // until buffers drain in Free().
+  bool has_pending_release_ GUARDED_BY(mutex_) = false;
+  bool should_release_idle_memory_ GUARDED_BY(mutex_) = false;
+  StrategyCreateCB experimental_strategy_create_cb_ GUARDED_BY(mutex_);
+  scoped_refptr<PeriodicDecommitState> periodic_decommit_state_
+      GUARDED_BY(mutex_);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // The following variables are used for comprehensive logging of allocation
@@ -111,6 +179,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   int pending_allocation_operations_count_ GUARDED_BY(mutex_) = 0;
   int allocation_operation_index_ GUARDED_BY(mutex_) = 0;
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  std::atomic<bool> decommit_on_suspend_enabled_{false};
 };
 
 }  // namespace media

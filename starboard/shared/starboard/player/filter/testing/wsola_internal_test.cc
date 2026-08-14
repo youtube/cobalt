@@ -56,22 +56,6 @@ scoped_refptr<DecodedAudio> CreateTestDecodedAudio(int frames,
   return audio;
 }
 
-// A helper to create a DecodedAudio object with specific data.
-scoped_refptr<DecodedAudio> CreateTestDecodedAudioWithData(
-    const std::vector<float>& data_values,
-    int channels) {
-  int frames = data_values.size() / channels;
-  const int kBytesPerFrame = channels * sizeof(float);
-  const int kBufferSize = frames * kBytesPerFrame;
-
-  scoped_refptr<DecodedAudio> audio = new DecodedAudio(
-      channels, kSbMediaAudioSampleTypeFloat32,
-      kSbMediaAudioFrameStorageTypeInterleaved, 0, kBufferSize);
-
-  memcpy(audio->data(), data_values.data(), kBufferSize);
-  return audio;
-}
-
 TEST(WsolaInternalTest, OptimalIndex_ExactMatch) {
   const int kFrames = 100;
   const int kChannels = 1;

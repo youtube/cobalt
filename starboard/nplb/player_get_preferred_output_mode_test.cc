@@ -66,6 +66,7 @@ TEST(SbPlayerGetPreferredOutputModeTest, AllCodecs) {
       kSbMediaVideoCodecAv1,
       kSbMediaVideoCodecVp8,
       kSbMediaVideoCodecVp9,
+      kSbMediaVideoCodecAv2,
   };
   const SbPlayerOutputMode kOutputModes[] = {
       kSbPlayerOutputModeDecodeToTexture,

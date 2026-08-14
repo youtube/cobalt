@@ -59,6 +59,11 @@ void RecordLoaderAppMetrics() {
     return;
   }
 
+  if (loader_app_metrics->version >= 3) {
+    base::UmaHistogramEnumeration("Cobalt.LoaderApp.SlotSelectionStatus",
+                                  loader_app_metrics->GetSlotSelectionStatus());
+  }
+
   if (!loader_app_metrics->GetElfLibraryStoredCompressed()) {
     LOG(INFO) << "LoaderAppMetrics: ELF was not stored compressed. Skipping "
                  "decompression metric.";

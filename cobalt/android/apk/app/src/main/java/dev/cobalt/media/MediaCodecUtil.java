@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 
 /** Utility functions for dealing with MediaCodec related things. */
 @JNINamespace("starboard")
@@ -451,7 +452,8 @@ public class MediaCodecUtil {
 
   /** Returns an array of CodecCapabilityInfo for all available decoders. */
   @CalledByNative
-  public static CodecCapabilityInfo[] getAllCodecCapabilityInfos() {
+  public static @JniType("std::vector<CodecCapabilityInfo>") CodecCapabilityInfo[]
+      getAllCodecCapabilityInfos() {
     List<CodecCapabilityInfo> codecCapabilityInfos = new ArrayList<>();
 
     for (MediaCodecInfo codecInfo : new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos()) {
@@ -531,7 +533,9 @@ public class MediaCodecUtil {
   /** Return true if and only if info belongs to a software decoder. */
   public static boolean isSoftwareDecoder(MediaCodecInfo codecInfo) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-      return !codecInfo.isHardwareAccelerated();
+      if (!codecInfo.isHardwareAccelerated() || codecInfo.isSoftwareOnly()) {
+        return true;
+      }
     }
     String name = codecInfo.getName().toLowerCase(Locale.ROOT);
     // This is taken from libstagefright/OMXCodec.cpp for pre codec2.

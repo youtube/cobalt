@@ -600,6 +600,12 @@ class CONTENT_EXPORT MediaStreamManager
   // needed.
   void SetUpRequest(const std::string& label);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void CompleteFastTrackSetUp(const std::string& label,
+                              base::WeakPtr<DeviceRequest> request,
+                              bool allowed);
+#endif
+
   // Prepare |request| of type MEDIA_DEVICE_AUDIO_CAPTURE and/or
   // MEDIA_DEVICE_VIDEO_CAPTURE for being posted to the UI by parsing
   // StreamControls for requested device IDs.

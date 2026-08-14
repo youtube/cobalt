@@ -414,4 +414,56 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
 #define LOGICALLY_CONST
 #endif
 
+// Annotates code indicating that it should be permanently exempted from
+// `-Wunsafe-buffer-usage`. For temporary cases such as migrating callers to
+// safer patterns, use `UNSAFE_TODO()` instead; see documentation there.
+//
+// All calls to functions annotated with `UNSAFE_BUFFER_USAGE` must be marked
+// with one of these two macros; they can also be used around pointer
+// arithmetic, pointer subscripting, and the like.
+//
+// ** USE OF THIS MACRO SHOULD BE VERY RARE.** Using this macro indicates that
+// the compiler cannot verify that the code avoids OOB, and manual review is
+// required. Even with manual review, it's easy for assumptions to change and
+// security bugs to creep in over time. Prefer safer patterns instead.
+//
+// Usage should wrap the minimum necessary code, and *must* include a
+// `// SAFETY: ...` comment that explains how the code guarantees safety or
+// meets the requirements of called `UNSAFE_BUFFER_USAGE` functions. Guarantees
+// must be manually verifiable by the Chrome security team using only local
+// invariants; contact security@chromium.org to schedule such a review. Valid
+// invariants include:
+// - Runtime conditions or `CHECK()`s nearby
+// - Invariants guaranteed by types in the surrounding code
+// - Invariants guaranteed by function calls in the surrounding code
+// - Caller requirements, if the containing function is itself annotated with
+//   `UNSAFE_BUFFER_USAGE`; this is less safe and should be a last resort
+//
+// See also:
+//   https://chromium.googlesource.com/chromium/src/+/main/docs/unsafe_buffers.md
+//   https://clang.llvm.org/docs/SafeBuffers.html
+//   https://clang.llvm.org/docs/DiagnosticsReference.html#wunsafe-buffer-usage
+//
+// Usage:
+// ```
+//   // The following call will not trigger a compiler warning even if `Func()`
+//   // is annotated `UNSAFE_BUFFER_USAGE`.
+//   return UNSAFE_BUFFERS(Func(input, end));
+// ```
+//
+// Test for `__clang__` directly, as there's no `__has_pragma` or similar (see
+// https://github.com/llvm/llvm-project/issues/51887).
+#if defined(__clang__)
+// Disabling `clang-format` allows each `_Pragma` to be on its own line, as
+// recommended by https://gcc.gnu.org/onlinedocs/cpp/Pragmas.html.
+// clang-format off
+#define UNSAFE_BUFFERS(...)                  \
+  _Pragma("clang unsafe_buffer_usage begin") \
+  __VA_ARGS__                                \
+  _Pragma("clang unsafe_buffer_usage end")
+// clang-format on
+#else
+#define UNSAFE_BUFFERS(...) __VA_ARGS__
+#endif
+
 #endif  // BASE_COMPILER_SPECIFIC_H_

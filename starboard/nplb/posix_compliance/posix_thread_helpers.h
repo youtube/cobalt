@@ -21,7 +21,6 @@
 #include <cstdint>
 
 #include "starboard/configuration.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
@@ -164,33 +163,18 @@ class AbstractTestThread {
   virtual void Run() = 0;
 
   // Calls pthread_create() with default parameters.
-  void Start() {
-    pthread_create(&thread_, NULL, ThreadEntryPoint, this);
-    if (0 == thread_) {
-      ADD_FAILURE_AT(__FILE__, __LINE__) << "Invalid thread.";
-    }
-    return;
-  }
+  void Start();
 
-  void Join() {
-    if (pthread_join(thread_, NULL) != 0) {
-      ADD_FAILURE_AT(__FILE__, __LINE__) << "Could not join thread.";
-    }
-  }
-
-  pthread_t GetThread() { return thread_; }
+  // A wrapper for Join() that, on tvOS, invokes it on a background GCD queue.
+  // This must be done to avoid a deadlock when the main thread is blocked on
+  // Join() and the worker thread is blocked attempting to invoke code in the
+  // main thread (in AVSBVideoRenderer).
+  void WaitForFinish();
 
  private:
-  static void* ThreadEntryPoint(void* ptr) {
-#if defined(__APPLE__)
-    pthread_setname_np("AbstractTestThread");
-#else
-    pthread_setname_np(pthread_self(), "AbstractTestThread");
-#endif
-    AbstractTestThread* this_ptr = static_cast<AbstractTestThread*>(ptr);
-    this_ptr->Run();
-    return NULL;
-  }
+  void Join();
+
+  static void* ThreadEntryPoint(void* ptr);
 
   pthread_t thread_;
 

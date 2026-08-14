@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <vector>
+
 #include "base/base_switches.h"
-#include "base/files/file_path.h"
+#include "build/buildflag.h"
+#include "cc/base/switches.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -24,10 +27,10 @@
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
 #include "third_party/blink/public/common/switches.h"
+#include "ui/base/ui_base_switches.h"
 #include "ui/gl/gl_switches.h"
 
 #if BUILDFLAG(IS_OZONE)
-#include "ui/ozone/public/ozone_switches.h"
 #endif
 
 namespace cobalt {
@@ -72,6 +75,10 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       // Cobalt doesn't use Chrome's accelerated video decoding/encoding.
       ::switches::kDisableAcceleratedVideoDecode,
       ::switches::kDisableAcceleratedVideoEncode,
+      // Force to use dark mode.
+      ::switches::kForceDarkMode,
+      // Hide scrollbars to avoid memory allocation.
+      ::switches::kHideScrollbars,
   };
   return kCobaltToggleSwitches;
 }
@@ -80,13 +87,18 @@ const base::CommandLine::SwitchMap&
 CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
   static const base::CommandLine::SwitchMap kCobaltSwitchDefaults{
       // Disable Vulkan.
-      {::switches::kDisableFeatures, "Vulkan"},
-      // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
-      // attribute EGL_CONTEXT_OPENGL_NO_ERROR_KHR is set during egl context
-      // creation, but egl extension required to support the attribute is
-      // missing and causes errors. So Enable it by default.
+      {::switches::kDisableFeatures, "Vulkan,MemoryCacheStrongReference"},
       {::switches::kEnableFeatures,
-       "LimitImageDecodeCacheSize:mb/24, DefaultEnableANGLEValidation"},
+       "LimitImageDecodeCacheSize:mb/24, "
+       // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
+       // attribute EGL_CONTEXT_OPENGL_NO_ERROR_KHR is set during egl context
+       // creation, but egl extension required to support the attribute is
+       // missing and causes errors. So Enable it by default. (More context in
+       // b/444042898)
+       "DefaultEnableANGLEValidation, "
+       "SmallerInterestArea, "
+       "ReclaimPrepaintTilesWhenIdle, "
+       "ReclaimOldPrepaintTiles"},
   // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
       {::switches::kUseGL, "angle"},
@@ -108,6 +120,24 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       // Enable autoplay video/audio, as Cobalt may launch directly into media
       // playback before user interaction.
       {::switches::kAutoplayPolicy, "no-user-gesture-required"},
+      {blink::switches::kJavaScriptFlags,
+       // Disable decommitting pooled pages to prevent virtual memory
+       // fragmentation.
+       "--no-decommit-pooled-pages "
+       // Enable memory saving mode with little v8 performance tradeoff.
+       "--optimize-for-size "
+       // Set initial old space size to 16MB and max old space size to 512MB.
+       "--initial-old-space-size=16 "
+       "--max-old-space-size=512 "
+       // Disable v8 optimizing compilers (turbofan, maglev, sparkplug).
+       "--disable-optimizing-compilers "
+       "--no-sparkplug "
+       // Disable v8 concurrent marking by default.
+       "--no-concurrent-marking"},
+      // Limit GPU memory available to 64MB.
+      {::switches::kForceGpuMemAvailableMb, "64"},
+      // Disable CC image cache items limit.
+      {::switches::kCCImageCacheLimitItems, "0"},
   };
   return kCobaltSwitchDefaults;
 }

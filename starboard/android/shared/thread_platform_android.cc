@@ -16,12 +16,27 @@
 
 #include "starboard/common/thread_platform.h"
 
-#include "base/android/jni_android.h"
+#include <pthread.h>
+#include <sys/resource.h>
+
+#include "starboard/common/thread.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
+void SetCurrentThreadName(const char* name) {
+  pthread_setname_np(pthread_self(), name);
+}
+
+bool SetCurrentThreadPriority(ThreadPriority priority) {
+  // setpriority returns 0 on success and -1 on failure. The default nice value
+  // is 0. See https://linux.die.net/man/2/setpriority
+  return setpriority(PRIO_PROCESS, /*who=*/0,
+                     ThreadPriorityToNiceValue(priority)) == 0;
+}
+
 void TerminateOnThread() {
-  base::android::DetachFromVM();
+  jni_zero::DetachFromVM();
 }
 
 }  // namespace starboard

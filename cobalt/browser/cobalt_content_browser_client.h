@@ -15,13 +15,21 @@
 #ifndef COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
-#include "base/threading/thread_checker.h"
+#include <optional>
+#include <string_view>
+
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
-#include "cobalt/browser/cobalt_web_contents_delegate.h"
-#include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/common/cobalt_thread_checker.h"
+#include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "content/public/browser/devtools_manager_delegate.h"
 #include "content/public/browser/generated_code_cache_settings.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "starboard/window.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "ui/ozone/platform/starboard/platform_window_starboard.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 class PrefService;
 
@@ -43,12 +51,12 @@ class BinderMapWithContext;
 
 namespace cobalt {
 
-namespace media {
-class VideoGeometrySetterService;
-}  // namespace media
-
+class GlobalFeatures;
 class CobaltMetricsServicesManagerClient;
 class CobaltWebContentsObserver;
+
+void ParseAndApplyH5vccSettingsForTesting(std::string_view settings_value,
+                                          GlobalFeatures* global_features);
 
 // This class allows Cobalt to inject specific logic in the business of the
 // browser (i.e. of Content), for example for startup or to override the UA.
@@ -57,7 +65,9 @@ class CobaltWebContentsObserver;
 // a demo around Content.
 class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  public:
-  CobaltContentBrowserClient();
+  explicit CobaltContentBrowserClient(std::optional<int64_t> startup_timestamp,
+                                      const std::string& deep_link,
+                                      bool is_visible = true);
 
   CobaltContentBrowserClient(const CobaltContentBrowserClient&) = delete;
   CobaltContentBrowserClient& operator=(const CobaltContentBrowserClient&) =
@@ -67,9 +77,19 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
   static CobaltContentBrowserClient* Get();
 
+#if BUILDFLAG(IS_ANDROID)
+  base::FilePath GetShaderDiskCacheDirectory() override;
+  base::FilePath GetGrShaderDiskCacheDirectory() override;
+#endif
+
   // ShellContentBrowserClient overrides.
+  std::unique_ptr<content::VideoOverlayWindow>
+  CreateWindowForVideoPictureInPicture(
+      content::VideoPictureInPictureWindowController* controller) override;
   std::unique_ptr<content::BrowserMainParts> CreateBrowserMainParts(
       bool is_integration_test) override;
+  std::unique_ptr<content::DevToolsManagerDelegate>
+  CreateDevToolsManagerDelegate() override;
   void CreateThrottlesForNavigation(
       content::NavigationThrottleRegistry& registry) override;
   content::GeneratedCodeCacheSettings GetGeneratedCodeCacheSettings(
@@ -99,7 +119,6 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       service_manager::BinderRegistry* registry,
       blink::AssociatedInterfaceRegistry* associated_registry,
       content::RenderProcessHost* render_process_host) override;
-  void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
 
   // Initializes all necessary parameters to create the feature list and calls
   // base::FeatureList::SetInstance() to set the global instance.
@@ -131,16 +150,33 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   void DispatchBlur();
   void DispatchFocus();
 
+  void AddPendingWindowReceiver(
+      mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>
+          receiver);
+  uint64_t GetSbWindowHandle() const { return cached_sb_window_; }
+
+#if !BUILDFLAG(IS_ANDROIDTV)
+  void SetUserAgentCrashAnnotation();
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
+
  private:
-  void CreateVideoGeometrySetterService();
   void DispatchEvent(const std::string&, base::OnceClosure);
+  void OnSbWindowCreated(SbWindow window);
+  void OnSbWindowDestroyed(SbWindow window);
+  const std::optional<int64_t> startup_timestamp_;
+  const std::string deep_link_;
+  bool is_visible_;
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
-  std::unique_ptr<CobaltWebContentsDelegate> web_contents_delegate_;
-  std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
-      video_geometry_setter_service_;
 
-  THREAD_CHECKER(thread_checker_);
+  uint64_t cached_sb_window_ = 0;
+  std::vector<
+      mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>>
+      pending_window_receivers_;
+
+  COBALT_THREAD_CHECKER(thread_checker_);
+
+  base::WeakPtrFactory<CobaltContentBrowserClient> weak_factory_{this};
 };
 
 }  // namespace cobalt

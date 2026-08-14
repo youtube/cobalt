@@ -13,12 +13,15 @@
 // limitations under the License.
 
 #include "base/android/jni_android.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "content/public/app/content_jni_onload.h"
 #include "content/public/app/content_main.h"
 
 // This is called by the VM when the shared library is first loaded.
 JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
+  base::memory::SetCurrentMemoryContext(
+      base::memory::MemoryContext::kBrowserMain);
   base::android::InitVM(vm);
   if (!content::android::OnJNIOnLoadInit()) {
     return -1;

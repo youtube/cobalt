@@ -16,7 +16,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/widevine/widevine_keybox_hash.h"
@@ -67,8 +69,16 @@ bool WriteFile(const std::string& path_name,
     return false;
   }
 
-  if (file.WriteAll(reinterpret_cast<const char*>(content.data()),
-                    static_cast<int>(content.size())) != content.size()) {
+  // Fail early if content size would overflow int.
+  if (content.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
+    SB_LOG(ERROR) << "Content size " << content.size()
+                  << " exceeds maximum writable size for " << path_name << '.';
+    return false;
+  }
+
+  const int size = static_cast<int>(content.size());
+  if (file.WriteAll(reinterpret_cast<const char*>(content.data()), size) !=
+      size) {
     SB_LOG(INFO) << "Failed to write content to " << path_name << '.';
     return false;
   }

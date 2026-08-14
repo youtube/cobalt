@@ -620,7 +620,9 @@ class MODULES_EXPORT WebGLRenderingContextBase
     Member<WebGLTexture> texture3d_binding_;
     Member<WebGLTexture> texture2d_array_binding_;
     Member<WebGLTexture> texture_video_image_binding_;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
     Member<WebGLTexture> texture_external_oes_binding_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     Member<WebGLTexture> texture_rectangle_arb_binding_;
 
     void Trace(Visitor*) const;
@@ -673,6 +675,9 @@ class MODULES_EXPORT WebGLRenderingContextBase
   friend class EXTTextureCompressionBPTC;
   friend class EXTTextureCompressionRGTC;
   friend class OESDrawBuffersIndexed;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  friend class OESEGLImageExternal;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   friend class OESTextureFloat;
   friend class OESVertexArrayObject;
   friend class OVRMultiview2;
@@ -2015,8 +2020,6 @@ class MODULES_EXPORT WebGLRenderingContextBase
   int number_of_user_allocated_multisampled_renderbuffers_;
 
   bool has_been_drawn_to_ = false;
-
-  uint32_t number_of_context_losses_ = 0;
 
   // Tracks if the context has ever called glBeginPixelLocalStorageANGLE. If it
   // has, we need to start using the pixel local storage interrupt mechanism

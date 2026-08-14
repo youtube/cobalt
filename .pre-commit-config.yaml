@@ -9,6 +9,7 @@ files: |
     (?x)^(
         (.*/)?cobalt/.*|
         (.*/)?starboard/.*|
+        .agent/.*|
         .github/.*|
         .pre-commit-config.yaml|
         .pylintrc|
@@ -18,33 +19,54 @@ exclude: |
     (?x)^(
         (
             starboard/contrib/RDK|
+            starboard/contrib/rdk|
         )/
     )
 
 repos:
+-   repo: https://github.com/google/keep-sorted
+    rev: ac58172d1655aa47a6f806e56ff0f269d6dbe637  # v0.8.0
+    hooks:
+    -   id: keep-sorted
 -   repo: https://cobalt.googlesource.com/pre-commit-hooks
     rev: v5.0.0
     hooks:
     -   id: check-case-conflict
+    -   id: check-json
+    -   id: check-merge-conflict
     -   id: check-xml
         exclude: |
             (?x)^(
                 cobalt/shell/android/javatests/AndroidManifest.xml
             )
     -   id: check-yaml
-    -   id: check-json
     -   id: end-of-file-fixer
     -   id: mixed-line-ending
     -   id: trailing-whitespace
+-   repo: https://github.com/rhysd/actionlint
+    rev: 03d0035246f3e81f36aed592ffb4bebf33a03106
+    hooks:
+    -   id: actionlint
+        files: ^.github/workflows
 -   repo: local
     hooks:
-    -   id: chromium-pre-commit # To test: pre-commit run --hook-stage manual chromium-pre-commit
+    -   id: autoroll-format
+        name: autoroll-format
+        entry: python3 ./cobalt/precommit/autoroll_check.py
+        language: python
+        files: ^.github/AUTOROLL$
+        pass_filenames: false
+    -   id: chromium-pre-commit
         name: Chromium presubmit bridge
         entry: ./third_party/depot_tools/vpython3 --vpython-spec=./third_party/depot_tools/.vpython3 ./cobalt/precommit/run_chromium_presubmits.py
         language: system
         types: [file]
+        exclude: |
+            (?x)^(
+                (.*/)?cobalt/.*|
+                (.*/)?starboard/.*|
+            )
         files: ^.*$ # Apply to all file paths
-        stages: [manual] # Require manual run for testing
     -   id: clang-format
         name: clang-format
         entry: clang-format
@@ -99,13 +121,6 @@ repos:
         language: python
         types: [java]
         args: [-i]
-        # (TODO:b/454687024) Re-enable. Temporarily disabled post m138 merge
-        # due to unintended update of java code formatting rules
-        exclude: |
-            (?x)^(
-                starboard/|
-                cobalt/
-            )
     -   id: gcheckstyle
         name: gcheckstyle
         entry: python3 ./cobalt/precommit/gcheckstyle_wrapper.py

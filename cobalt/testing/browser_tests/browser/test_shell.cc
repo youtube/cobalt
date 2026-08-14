@@ -29,9 +29,11 @@
 
 namespace content {
 
+// TODO(b/433354983): Figure out how to support splash webcontents in
+// cobalt_browsertests.
 TestShell::TestShell(std::unique_ptr<WebContents> web_contents,
                      bool should_set_delegate)
-    : Shell(std::move(web_contents), should_set_delegate) {}
+    : Shell(std::move(web_contents), nullptr, should_set_delegate) {}
 
 TestShell::~TestShell() {}
 
@@ -46,7 +48,7 @@ TestShell* TestShell::CreateShell(std::unique_ptr<WebContents> web_contents,
   // Note: Do not make RenderFrameHost or RenderViewHost specific state changes
   // here, because they will be forgotten after a cross-process navigation. Use
   // RenderFrameCreated or RenderViewCreated instead.
-  if (test_switches::IsRunWebTestsSwitchPresent()) {
+  if (switches::IsRunWebTestsSwitchPresent()) {
     raw_web_contents->GetMutableRendererPrefs()->use_custom_colors = false;
     raw_web_contents->SyncRendererPrefs();
   }
@@ -151,14 +153,14 @@ bool TestShell::DidAddMessageToConsole(
     const std::u16string& message,
     int32_t line_no,
     const std::u16string& source_id) {
-  return test_switches::IsRunWebTestsSwitchPresent();
+  return switches::IsRunWebTestsSwitchPresent();
 }
 
 PictureInPictureResult TestShell::EnterPictureInPicture(
     WebContents* web_contents) {
   // During tests, returning success to pretend the window was created and allow
   // tests to run accordingly.
-  if (test_switches::IsRunWebTestsSwitchPresent()) {
+  if (switches::IsRunWebTestsSwitchPresent()) {
     return PictureInPictureResult::kSuccess;
   }
   return PictureInPictureResult::kNotSupported;
@@ -168,7 +170,7 @@ void TestShell::SetContentsBounds(WebContents* source,
                                   const gfx::Rect& bounds) {
   DCHECK(source == web_contents());  // There's only one WebContents per Shell.
 
-  if (test_switches::IsRunWebTestsSwitchPresent()) {
+  if (switches::IsRunWebTestsSwitchPresent()) {
     // Note that chrome drops these requests on normal windows.
     // TODO(danakj): The position is dropped here but we use the size. Web tests
     // can't move the window in headless mode anyways, but maybe we should be

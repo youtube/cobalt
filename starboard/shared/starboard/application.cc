@@ -55,7 +55,6 @@ volatile std::atomic<int32_t> g_next_event_id{0};
 Application::Application(SbEventHandleCallback sb_event_handle_callback)
     : sb_event_handle_callback_(sb_event_handle_callback),
       error_level_(0),
-      thread_(pthread_self()),
       start_link_(nullptr),
       state_(kStateUnstarted) {
   SB_CHECK(sb_event_handle_callback_)
@@ -169,6 +168,10 @@ void Application::InjectOsNetworkConnectedEvent() {
   Inject(new Event(kSbEventTypeOsNetworkConnected, NULL, NULL));
 }
 
+void Application::InjectDateTimeConfigurationChangedEvent() {
+  Inject(new Event(kSbEventDateTimeConfigurationChanged, NULL, NULL));
+}
+
 void Application::WindowSizeChanged(void* context,
                                     EventHandledCallback callback) {
   Inject(new Event(kSbEventTypeWindowSizeChanged, context, callback));
@@ -189,11 +192,8 @@ void Application::Cancel(SbEventId id) {
 void Application::HandleFrame(SbPlayer player,
                               const scoped_refptr<VideoFrame>& frame,
                               int z_index,
-                              int x,
-                              int y,
-                              int width,
-                              int height) {
-  AcceptFrame(player, frame, z_index, x, y, width, height);
+                              const Rect& rect) {
+  AcceptFrame(player, frame, z_index, rect);
 }
 
 void Application::SetStartLink(const char* start_link) {

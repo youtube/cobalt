@@ -15,20 +15,25 @@
 #include "media/mojo/services/starboard/starboard_renderer_wrapper.h"
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
+#include "cobalt/media/service/video_geometry_setter_service.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
 #include "media/base/test_helpers.h"
 #include "media/gpu/starboard/starboard_gpu_factory_impl.h"
+#include "media/mojo/common/starboard/mojo_renderer_bypass_bridge.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
+#include "starboard/decode_target.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -52,6 +57,8 @@ class MockStarboardRenderer : public StarboardRenderer {
       TimeDelta audio_write_duration_local,
       TimeDelta audio_write_duration_remote,
       const std::string& max_video_capabilities,
+      const StarboardRendererConfig::ExperimentalFeatures&
+          experimental_features,
       const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
       ,
@@ -64,6 +71,7 @@ class MockStarboardRenderer : public StarboardRenderer {
                           audio_write_duration_local,
                           audio_write_duration_remote,
                           max_video_capabilities,
+                          experimental_features,
                           viewport_size
 #if BUILDFLAG(IS_ANDROID)
                           ,
@@ -87,7 +95,7 @@ class MockStarboardRenderer : public StarboardRenderer {
                void(MediaResource* media_resource,
                     RendererClient* client,
                     PipelineStatusCallback& init_cb));
-  MOCK_METHOD1(SetLatencyHint, void(absl::optional<TimeDelta>));
+  MOCK_METHOD1(SetLatencyHint, void(std::optional<TimeDelta>));
   MOCK_METHOD1(SetPreservesPitch, void(bool));
   MOCK_METHOD1(SetWasPlayedWithUserActivation, void(bool));
   void Flush(base::OnceClosure flush_cb) override { OnFlush(flush_cb); }
@@ -132,6 +140,34 @@ class MockStarboardGpuFactory : public StarboardGpuFactory {
     std::move(callback).Run();
   }
 
+  void RunSbDecodeTargetFunctionOnGpu(
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context,
+      base::WaitableEvent* done_event) override {
+    done_event->Signal();
+  }
+
+  void RunCallbackOnGpu(base::OnceCallback<void()> callback,
+                        base::WaitableEvent* done_event) override {
+    done_event->Signal();
+  }
+
+  void PostCallbackToGpu(base::OnceCallback<void()> callback) override {}
+
+  void CreateImageOnGpu(const gfx::Size& coded_size,
+                        const gfx::ColorSpace& color_space,
+                        viz::SharedImageFormat format,
+                        scoped_refptr<gpu::ClientSharedImage>& shared_image,
+                        const std::vector<uint32_t>& texture_service_ids,
+                        const std::vector<uint32_t>& texture_targets,
+                        uint64_t decode_target,
+#if BUILDFLAG(IS_ANDROID)
+                        scoped_refptr<gpu::RefCountedLock> drdc_lock,
+#endif  // BUILDFLAG(IS_ANDROID)
+                        base::WaitableEvent* done_event) override {
+    done_event->Signal();
+  }
+
  private:
   void OnWillDestroyStub(bool have_context) override {}
 };
@@ -149,13 +185,14 @@ class StarboardRendererWrapperTest : public testing::Test {
             base::Seconds(1),
             base::Seconds(1),
             std::string(),
+            StarboardRendererConfig::ExperimentalFeatures{},
             gfx::Size()
 #if BUILDFLAG(IS_ANDROID)
                 ,
             AndroidOverlayMojoFactoryCB()
 #endif  // BUILDFLAG(IS_ANDROID)
                 )),
-        mock_gpu_factory_(task_environment_.GetMainThreadTaskRunner()) {
+        mock_gpu_factory_(dedicated_task_runner) {
     // Setup MockStarboardGpuFactory as StarboardGpuFactory so
     // it can overwrite |gpu_factory_| in StarboardRendererWrapper
     // via SetGpuFactoryForTesting().
@@ -169,12 +206,18 @@ class StarboardRendererWrapperTest : public testing::Test {
     StarboardRendererTraits traits(
         task_environment_.GetMainThreadTaskRunner(),
         task_environment_.GetMainThreadTaskRunner(),
-        std::move(media_log_remote), base::UnguessableToken::Create(),
-        base::Seconds(1), base::Seconds(1), std::string(), gfx::Size(),
-        std::move(renderer_extension_receiver),
+        std::move(media_log_remote), &video_geometry_setter_service_,
+        base::UnguessableToken::Create(), base::Seconds(1), base::Seconds(1),
+        std::string(), StarboardRendererConfig::ExperimentalFeatures{},
+        gfx::Size(), std::move(renderer_extension_receiver),
         std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =
-        std::make_unique<StarboardRendererWrapper>(std::move(traits));
+        std::make_unique<StarboardRendererWrapper>(std::move(traits)
+#if BUILDFLAG(IS_ANDROID)
+                                                       ,
+                                                   /*ref_counted_lock=*/nullptr
+#endif  // BUILDFLAG(IS_ANDROID)
+        );
     renderer_wrapper_->SetRendererForTesting(mock_renderer_.get());
     renderer_wrapper_->SetGpuFactoryForTesting(&gpu_factory_);
 
@@ -201,6 +244,11 @@ class StarboardRendererWrapperTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
+  scoped_refptr<base::SequencedTaskRunner> dedicated_task_runner =
+      base::ThreadPool::CreateSingleThreadTaskRunner(
+          /*traits=*/{},
+          base::SingleThreadTaskRunnerThreadMode::DEDICATED);
+  cobalt::media::VideoGeometrySetterService video_geometry_setter_service_;
   std::unique_ptr<StrictMock<MockStarboardRenderer>> mock_renderer_;
   base::SequenceBound<StrictMock<MockStarboardGpuFactory>> mock_gpu_factory_;
   base::SequenceBound<StarboardGpuFactory> gpu_factory_;
@@ -245,6 +293,55 @@ TEST_F(StarboardRendererWrapperTest, InitializeWithGpuChannelToken) {
                                 renderer_init_cb_.Get());
 
   task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererWrapperTest, InitializeWithBypassBridge) {
+  auto bypass_bridge = base::MakeRefCounted<MojoRendererBypassBridge>(
+      task_environment_.GetMainThreadTaskRunner(), base::DoNothing(),
+      base::DoNothing());
+  AddStream(DemuxerStream::AUDIO, false);
+  AddStream(DemuxerStream::VIDEO, false);
+  AudioDecoderConfig audio_config = streams_[0]->audio_decoder_config();
+  audio_config.set_mime_type("audio/mp4");
+  streams_[0]->set_audio_decoder_config(audio_config);
+
+  VideoDecoderConfig video_config = streams_[1]->video_decoder_config();
+  video_config.set_mime_type("video/mp4");
+  streams_[1]->set_video_decoder_config(video_config);
+  bypass_bridge->SetStreams(streams_[0].get(), streams_[1].get());
+  uint32_t bridge_id = 12345;
+  BypassBridgeRegistry::Register(bridge_id, bypass_bridge);
+  base::ScopedClosureRunner unregister_runner(
+      base::BindOnce(&BypassBridgeRegistry::Unregister, bridge_id));
+
+  base::MockOnceCallback<void(bool)> bypass_init_cb;
+  EXPECT_CALL(bypass_init_cb, Run(true));
+  renderer_wrapper_->InitializeWithBypassBridge(bridge_id,
+                                                bypass_init_cb.Get());
+
+  EXPECT_CALL(*mock_renderer_, OnInitialize(_, _, _))
+      .WillOnce(RunOnceCallback<2>(PIPELINE_OK));
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  renderer_wrapper_->Initialize(&media_resource_, &renderer_client_,
+                                renderer_init_cb_.Get());
+
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererWrapperTest,
+       InitializeWithBypassBridge_NoValidStreams) {
+  auto bypass_bridge = base::MakeRefCounted<MojoRendererBypassBridge>(
+      task_environment_.GetMainThreadTaskRunner(), base::DoNothing(),
+      base::DoNothing());
+  uint32_t bridge_id = 12345;
+  BypassBridgeRegistry::Register(bridge_id, bypass_bridge);
+  base::ScopedClosureRunner unregister_runner(
+      base::BindOnce(&BypassBridgeRegistry::Unregister, bridge_id));
+
+  base::MockOnceCallback<void(bool)> bypass_init_cb;
+  EXPECT_CALL(bypass_init_cb, Run(false));
+  renderer_wrapper_->InitializeWithBypassBridge(bridge_id,
+                                                bypass_init_cb.Get());
 }
 
 TEST_F(StarboardRendererWrapperTest, Flush) {
@@ -297,6 +394,113 @@ TEST_F(StarboardRendererWrapperTest, GetCurrentVideoFrame) {
       callback;
   EXPECT_CALL(callback, Run(testing::IsNull()));
   renderer_wrapper_->GetCurrentVideoFrame(callback.Get());
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererWrapperTest, ProxyDemuxerStreamDelegation) {
+  auto bypass_bridge = base::MakeRefCounted<MojoRendererBypassBridge>(
+      task_environment_.GetMainThreadTaskRunner(), base::DoNothing(),
+      base::DoNothing());
+  AddStream(DemuxerStream::AUDIO, false);
+  AddStream(DemuxerStream::VIDEO, false);
+  AudioDecoderConfig audio_config = streams_[0]->audio_decoder_config();
+  audio_config.set_mime_type("audio/mp4");
+  streams_[0]->set_audio_decoder_config(audio_config);
+
+  VideoDecoderConfig video_config = streams_[1]->video_decoder_config();
+  video_config.set_mime_type("video/mp4");
+  streams_[1]->set_video_decoder_config(video_config);
+  bypass_bridge->SetStreams(streams_[0].get(), streams_[1].get());
+
+  uint32_t bridge_id = 12345;
+  BypassBridgeRegistry::Register(bridge_id, bypass_bridge);
+  base::ScopedClosureRunner unregister_runner(
+      base::BindOnce(&BypassBridgeRegistry::Unregister, bridge_id));
+
+  base::MockOnceCallback<void(bool)> bypass_init_cb;
+  EXPECT_CALL(bypass_init_cb, Run(true));
+  renderer_wrapper_->InitializeWithBypassBridge(bridge_id,
+                                                bypass_init_cb.Get());
+
+  MediaResource* captured_media_resource = nullptr;
+  EXPECT_CALL(*mock_renderer_, OnInitialize(_, _, _))
+      .WillOnce(
+          Invoke([&captured_media_resource](MediaResource* media_resource,
+                                            RendererClient* client,
+                                            PipelineStatusCallback& init_cb) {
+            captured_media_resource = media_resource;
+            std::move(init_cb).Run(PIPELINE_OK);
+          }));
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  renderer_wrapper_->Initialize(&media_resource_, &renderer_client_,
+                                renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+
+  ASSERT_NE(captured_media_resource, nullptr);
+
+  // Verify delegation of EnableBitstreamConverter() through proxy streams.
+  EXPECT_CALL(*streams_[0], EnableBitstreamConverter());
+  EXPECT_CALL(*streams_[1], EnableBitstreamConverter());
+
+  auto proxy_streams = captured_media_resource->GetAllStreams();
+  ASSERT_EQ(proxy_streams.size(), 2u);
+  EXPECT_EQ(proxy_streams[0]->audio_decoder_config().mime_type(), "audio/mp4");
+  EXPECT_EQ(proxy_streams[1]->video_decoder_config().mime_type(), "video/mp4");
+  proxy_streams[0]->EnableBitstreamConverter();
+  proxy_streams[1]->EnableBitstreamConverter();
+}
+
+TEST_F(StarboardRendererWrapperTest, TimerLifecycle) {
+  auto bypass_bridge = base::MakeRefCounted<MojoRendererBypassBridge>(
+      task_environment_.GetMainThreadTaskRunner(), base::DoNothing(),
+      base::DoNothing());
+  AddStream(DemuxerStream::AUDIO, false);
+  AddStream(DemuxerStream::VIDEO, false);
+  AudioDecoderConfig audio_config = streams_[0]->audio_decoder_config();
+  audio_config.set_mime_type("audio/mp4");
+  streams_[0]->set_audio_decoder_config(audio_config);
+
+  VideoDecoderConfig video_config = streams_[1]->video_decoder_config();
+  video_config.set_mime_type("video/mp4");
+  streams_[1]->set_video_decoder_config(video_config);
+  bypass_bridge->SetStreams(streams_[0].get(), streams_[1].get());
+
+  uint32_t bridge_id = 12345;
+  BypassBridgeRegistry::Register(bridge_id, bypass_bridge);
+  base::ScopedClosureRunner unregister_runner(
+      base::BindOnce(&BypassBridgeRegistry::Unregister, bridge_id));
+
+  base::MockOnceCallback<void(bool)> bypass_init_cb;
+  EXPECT_CALL(bypass_init_cb, Run(true));
+  renderer_wrapper_->InitializeWithBypassBridge(bridge_id,
+                                                bypass_init_cb.Get());
+
+  EXPECT_CALL(*mock_renderer_, OnInitialize(_, _, _))
+      .WillOnce(RunOnceCallback<2>(PIPELINE_OK));
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  renderer_wrapper_->Initialize(&media_resource_, &renderer_client_,
+                                renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+
+  // Start playing (sets playback_rate > 0 when SetPlaybackRate(1.0) is called).
+  EXPECT_CALL(*mock_renderer_, GetMediaTime())
+      .WillRepeatedly(Return(base::Seconds(0)));
+  EXPECT_CALL(*mock_renderer_, SetPlaybackRate(1.0));
+  renderer_wrapper_->SetPlaybackRate(1.0);
+  EXPECT_CALL(*mock_renderer_, StartPlayingFrom(base::Seconds(0)));
+  renderer_wrapper_->StartPlayingFrom(base::Seconds(0));
+
+  // Pause playback (playback_rate == 0).
+  EXPECT_CALL(*mock_renderer_, SetPlaybackRate(0.0));
+  renderer_wrapper_->SetPlaybackRate(0.0);
+
+  // Resume and Flush.
+  EXPECT_CALL(*mock_renderer_, SetPlaybackRate(1.0));
+  renderer_wrapper_->SetPlaybackRate(1.0);
+  base::MockOnceClosure flush_cb;
+  EXPECT_CALL(*mock_renderer_, OnFlush(_)).WillOnce(RunOnceCallback<0>());
+  EXPECT_CALL(flush_cb, Run());
+  renderer_wrapper_->Flush(flush_cb.Get());
   task_environment_.RunUntilIdle();
 }
 

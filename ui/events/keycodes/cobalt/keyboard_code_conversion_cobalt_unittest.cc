@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "ui/events/keycodes/keyboard_code_conversion_android.h"
+// clang-format on
+
 #include <android/keycodes.h>
 
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/events/keycodes/keyboard_code_conversion_android.h"
 
 namespace ui {
 namespace {

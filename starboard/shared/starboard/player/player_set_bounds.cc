@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/log.h"
+// clang-format off
 #include "starboard/player.h"
+// clang-format on
+
+#include "starboard/common/log.h"
+#include "starboard/common/rect.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
 void SbPlayerSetBounds(SbPlayer player,
@@ -26,5 +30,5 @@ void SbPlayerSetBounds(SbPlayer player,
     SB_DLOG(WARNING) << "player is invalid.";
     return;
   }
-  player->SetBounds(z_index, x, y, width, height);
+  player->SetBounds(z_index, starboard::Rect(x, y, width, height));
 }

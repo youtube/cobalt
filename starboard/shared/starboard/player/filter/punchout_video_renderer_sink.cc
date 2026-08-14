@@ -28,21 +28,14 @@ using std::placeholders::_2;
 
 PunchoutVideoRendererSink::PunchoutVideoRendererSink(SbPlayer player,
                                                      int64_t render_interval)
-    : player_(player),
-      render_interval_(render_interval),
-      thread_(0),
-      z_index_(0),
-      x_(0),
-      y_(0),
-      width_(0),
-      height_(0) {
+    : player_(player), render_interval_(render_interval), z_index_(0) {
   SB_DCHECK(SbPlayerIsValid(player));
 }
 
 PunchoutVideoRendererSink::~PunchoutVideoRendererSink() {
-  if (thread_ != 0) {
-    stop_requested_.store(true);
-    SB_CHECK_EQ(pthread_join(thread_, nullptr), 0);
+  stop_requested_.store(true);
+  if (job_thread_) {
+    job_thread_->Stop();
   }
 }
 
@@ -52,22 +45,15 @@ void PunchoutVideoRendererSink::SetRenderCB(RenderCB render_cb) {
 
   render_cb_ = render_cb;
 
-  pthread_create(&thread_, nullptr,
-                 &PunchoutVideoRendererSink::ThreadEntryPoint, this);
+  job_thread_ = JobThread::Create("punchoutvidsink");
+  job_thread_->Schedule([this] { RunLoop(); });
 }
 
-void PunchoutVideoRendererSink::SetBounds(int z_index,
-                                          int x,
-                                          int y,
-                                          int width,
-                                          int height) {
+void PunchoutVideoRendererSink::SetBounds(int z_index, const Rect& rect) {
   std::lock_guard lock(mutex_);
 
   z_index_ = z_index;
-  x_ = x;
-  y_ = y;
-  width_ = width;
-  height_ = height;
+  rect_ = rect;
 }
 
 void PunchoutVideoRendererSink::RunLoop() {
@@ -76,8 +62,8 @@ void PunchoutVideoRendererSink::RunLoop() {
     usleep(render_interval_);
   }
   std::lock_guard lock(mutex_);
-  Application::Get()->HandleFrame(player_, VideoFrame::CreateEOSFrame(), 0, 0,
-                                  0, 0, 0);
+  Application::Get()->HandleFrame(player_, VideoFrame::CreateEOSFrame(),
+                                  /*z_index=*/0, Rect());
 }
 
 PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(
@@ -86,22 +72,8 @@ PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(
   SB_DCHECK_EQ(release_time_in_nanoseconds, 0);
 
   std::lock_guard lock(mutex_);
-  Application::Get()->HandleFrame(player_, frame, z_index_, x_, y_, width_,
-                                  height_);
+  Application::Get()->HandleFrame(player_, frame, z_index_, rect_);
   return kNotReleased;
-}
-
-// static
-void* PunchoutVideoRendererSink::ThreadEntryPoint(void* context) {
-#if defined(__APPLE__)
-  pthread_setname_np("punchoutvidsink");
-#else
-  pthread_setname_np(pthread_self(), "punchoutvidsink");
-#endif
-  PunchoutVideoRendererSink* this_ptr =
-      static_cast<PunchoutVideoRendererSink*>(context);
-  this_ptr->RunLoop();
-  return NULL;
 }
 
 }  // namespace starboard

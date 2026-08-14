@@ -16,6 +16,4 @@ import("//starboard/android/shared/platform_configuration/configuration.gni")
 
 arm_float_abi = "softfp"
 
-sb_evergreen_compatible_package = true
-
 sabi_path = "//starboard/sabi/arm/softfp/sabi-v$sb_api_version.json"

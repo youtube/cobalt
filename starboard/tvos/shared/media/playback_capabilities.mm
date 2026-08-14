@@ -18,11 +18,14 @@
 #import <UIKit/UIKit.h>
 #import <VideoToolbox/VideoToolbox.h>
 
+#include <algorithm>
 #include <mutex>
+#include <string_view>
 #include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
+#include "starboard/common/system_property.h"
 #include "starboard/system.h"
 #include "starboard/tvos/shared/observer_registry.h"
 #include "starboard/tvos/shared/uikit_media_session_client.h"
@@ -34,19 +37,18 @@ namespace {
 const CMVideoCodecType kCMVideoCodecType_VP9 = 'vp09';
 
 bool IsAppleTVHDPriv() {
-  char model_name[128];
-  bool succeeded = SbSystemGetProperty(kSbSystemPropertyModelName, model_name,
-                                       sizeof(model_name));
-  SB_DCHECK(succeeded);
-  return succeeded && strcmp(model_name, "AppleTV5-3") == 0;
+  const std::string model =
+      starboard::GetSystemPropertyString(kSbSystemPropertyModelName);
+  return model == "AppleTV5-3";
 }
 
 bool IsAppleTV4KPriv() {
-  char model_name[128];
-  bool succeeded = SbSystemGetProperty(kSbSystemPropertyModelName, model_name,
-                                       sizeof(model_name));
-  SB_DCHECK(succeeded);
-  return succeeded && strcmp(model_name, "AppleTV6-2") == 0;
+  static constexpr std::string_view kAppleTV4KModels[] = {
+      "AppleTV6-2", "AppleTV11-1", "AppleTV14-1"};
+  const std::string model =
+      starboard::GetSystemPropertyString(kSbSystemPropertyModelName);
+  return std::ranges::find(kAppleTV4KModels, model) !=
+         std::ranges::end(kAppleTV4KModels);
 }
 
 SbMediaAudioConnector GetConnectorFromAVAudioSessionPort(

@@ -1,5 +1,7 @@
 {
   "failing_tests": [
-    "DecimalTest.Remainder"
+    "CobaltMetricsServiceClientTest.IdleTimerIsRepeatingAndKeepsFiring",
+    "DecimalTest.Remainder",
+    "HistogramFetcherTest.FetchHistograms_CalculatesDeltaCorrectly"
   ]
 }

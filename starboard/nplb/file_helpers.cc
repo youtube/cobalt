@@ -171,6 +171,29 @@ bool DirectoryExists(const char* path) {
   return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
 }
 
+bool PermissionsAreSubsetOf(mode_t st_mode, mode_t requested) {
+  const mode_t kPermissionMask = S_IRWXU | S_IRWXG | S_IRWXO;  // 0777
+  const mode_t actual = st_mode & kPermissionMask;
+  return (actual & requested) == actual;
+}
+
+ScopedTempDir::ScopedTempDir() {
+  std::string temp_dir = GetTempDir();
+  if (temp_dir.empty()) {
+    return;
+  }
+  path_ = temp_dir + kSbFileSepString + "scoped_dir_XXXXXX";
+  if (!mkdtemp(&path_[0])) {
+    path_.clear();
+  }
+}
+
+ScopedTempDir::~ScopedTempDir() {
+  if (IsValid()) {
+    RemoveFileOrDirectoryRecursively(path_);
+  }
+}
+
 // static
 std::string ScopedRandomFile::MakeRandomFilePath() {
   std::ostringstream filename_stream;

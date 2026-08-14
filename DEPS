@@ -42,6 +42,7 @@ gclient_gn_args = [
   'checkout_android',
   'checkout_android_prebuilts_build_tools',
   'checkout_clang_coverage_tools',
+  'checkout_cobalt_internal',
   'checkout_copybara',
   'checkout_glic_e2e_tests',
   'checkout_ios_webkit',
@@ -78,6 +79,9 @@ vars = {
   # variables.
   # TODO(crbug.com/875037): Remove this once the problem in gclient is fixed.
   'checkout_fuchsia': False,
+
+  # By default, do not check out Cobalt internal.
+  'checkout_cobalt_internal': False,
 
   # For code related to internal Fuchsia images.
   'checkout_fuchsia_internal': False,
@@ -273,7 +277,12 @@ vars = {
   'screen_ai_windows_386': 'version:138.01',
 
   # siso CIPD package version.
-  'siso_version': 'git_revision:df8adf712c5b5605b438fdfcd44235107811e5ef',
+  # Cobalt: Update siso_version to milestone 141.0.7390.0, to support gcloud
+  # credentials. Remove after rebasing to 141.0.7390.0 or newer. Cobalt
+  # modifications to build/config/siso/configure_siso.py can also be removed
+  # in favor of setting the '--reapi_backend_config_path' argument to
+  # 'cobalt.star'
+  'siso_version': 'git_revision:8863265a67843154872be2be1fc0c37339691405',
 
   # download libaom test data
   'download_libaom_testdata': False,
@@ -286,29 +295,29 @@ vars = {
   'boringssl_git': 'https://boringssl.googlesource.com',
   'chrome_git': 'https://chrome-internal.googlesource.com',
   'chromium_git': 'https://chromium.googlesource.com',
+  'cobalt_internal_git': 'https://lbshell-internal.googlesource.com',
   'dawn_git': 'https://dawn.googlesource.com',
   'pdfium_git': 'https://pdfium.googlesource.com',
   'quiche_git': 'https://quiche.googlesource.com',
   'skia_git': 'https://skia.googlesource.com',
   'swiftshader_git': 'https://swiftshader.googlesource.com',
   'webrtc_git': 'https://webrtc.googlesource.com',
-  'rdk_starboard_git': 'https://cobalt.googlesource.com',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'src_internal_revision': '69c6d51c06c154dd91ceeede1f36660a6a56e731',
+  'src_internal_revision': 'c07d7a57873da95a181eaae70ce34d6ad5ac7952',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Skia
   # and whatever else without interference from each other.
-  'skia_revision': '1676032e80246cdaa04f7e2187cb4e038c0fdd05',
+  'skia_revision': '9d9ac365fe4916c31b31935a062b869d097324c4',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'v8_revision': 'bfc0d4f8faa2d09c87d0571bd9ca3dbadeed2cd1',
+  'v8_revision': 'c6ef3038bf3c5c4d7cbfd17424e078606225e985',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling ANGLE
   # and whatever else without interference from each other.
-  'angle_revision': '2d08a9518d40ae1f84a7ab670a4c2703dd7efc08',
+  'angle_revision': '4664989d810d3614c0af32933ba28e10a949b420',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling SwiftShader
   # and whatever else without interference from each other.
@@ -316,7 +325,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling PDFium
   # and whatever else without interference from each other.
-  'pdfium_revision': 'cf433ae5520d061db56391155b59b34e67484f39',
+  'pdfium_revision': '6b490ca2247fd99fffaf9da344d88a26016cda0e',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling BoringSSL
   # and whatever else without interference from each other.
@@ -360,7 +369,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling HarfBuzz
   # and whatever else without interference from each other.
-  'harfbuzz_revision': '9f83bbbe64654b45ba5bb06927ff36c2e7588495',
+  'harfbuzz_revision': '15fdcf0395ff49d36069b808828fa5f06d7ec4d9',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Emoji Segmenter
   # and whatever else without interference from each other.
@@ -384,7 +393,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling fuzztest
   # and whatever else without interference from each other.
-  'fuzztest_revision': 'f03aafb7516050ea73f617bf969f03eac641aefc',
+  'fuzztest_revision': '890b53c3485bf7e31ac8b6b637f9850e4d596ced',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling domato
   # and whatever else without interference from each other.
@@ -561,6 +570,7 @@ allowed_hosts = [
   'chrome-internal.googlesource.com',
   'chromium.googlesource.com',
   'dawn.googlesource.com',
+  'lbshell-internal.googlesource.com',
   'pdfium.googlesource.com',
   'quiche.googlesource.com',
   'skia.googlesource.com',
@@ -1514,6 +1524,11 @@ deps = {
     'condition': 'checkout_android and checkout_src_internal',
   },
 
+  'src/cobalt/internal': {
+    'url': Var('cobalt_internal_git') + '/cobalt/internal.git' + '@' + 'main',
+    'condition': 'checkout_cobalt_internal',
+  },
+
   'src/docs/website': {
     'url': Var('chromium_git') + '/website.git' + '@' + 'd21d90790d8ea421b317c4cb52a0d94133422796',
   },
@@ -2101,6 +2116,11 @@ deps = {
     'condition': 'checkout_instrumented_libraries',
   },
 
+  'src/third_party/internal': {
+    'url': Var('cobalt_internal_git') + '/third_party/internal.git' + '@' + 'main',
+    'condition': 'checkout_cobalt_internal',
+  },
+
   'src/third_party/jszip/src': {
     'url': Var('chromium_git') + '/external/github.com/Stuk/jszip.git' + '@' + '2ceb998e29d4171b4f3f2ecab1a2195c696543c0',
     'condition': 'checkout_ios',
@@ -2523,7 +2543,7 @@ deps = {
   'src/third_party/siso/cipd': {
     'packages': [
       {
-        'package': 'infra/build/siso/${{platform}}',
+        'package': 'build/siso/${{platform}}',
         'version': Var('siso_version'),
       }
     ],
@@ -2787,8 +2807,9 @@ deps = {
     'condition': 'checkout_src_internal',
   },
 
-  'src/third_party/skia':
-    Var('skia_git') + '/skia.git' + '@' +  Var('skia_revision'),
+# Cobalt: imported
+#  'src/third_party/skia':
+#    Var('skia_git') + '/skia.git' + '@' +  Var('skia_revision'),
 
   'src/third_party/smhasher/src':
     Var('chromium_git') + '/external/smhasher.git' + '@' + '0ff96f7835817a27d0487325b6c16033e2992eb5',
@@ -2936,7 +2957,7 @@ deps = {
 
 # Cobalt: imported
 #  'src/third_party/webrtc':
-#    Var('webrtc_git') + '/src.git' + '@' + 'e4445e46a910eb407571ec0b0b8b7043562678cf',
+#    Var('webrtc_git') + '/src.git' + '@' + '7ad61a0a06fac695468b843e17b81a6ab19d0feb',
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.
@@ -4947,11 +4968,6 @@ deps = {
       'condition': 'checkout_src_internal',
   },
 
-  # Dependencies for RDK (starboard/contrib/rdk)
-  'src/starboard/contrib/rdk': {
-      'url': Var('rdk_starboard_git') + '/external/components/generic/cobalt' + '@' + '27.lts.youtube',
-      'condition': 'checkout_linux',
-  },
 }
 
 
@@ -5721,15 +5737,15 @@ hooks = [
                ],
   },
   # Configure Siso for developer builds.
-  # {
-  #   'name': 'configure_siso',
-  #   'pattern': '.',
-  #   'action': ['python3',
-  #              'src/build/config/siso/configure_siso.py',
-  #              '--rbe_instance',
-  #              Var('rbe_instance'),
-  #              ],
-  # },
+  {
+    'name': 'configure_siso',
+    'pattern': '.',
+    'action': ['python3',
+               'src/build/config/siso/configure_siso.py',
+               '--rbe_instance',
+               Var('rbe_instance'),
+               ],
+  },
   {
     'name': 'libaom_testdata',
     'pattern': '.',

@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/player.h"
+// clang-format on
+
 #include "starboard/common/log.h"
 #include "starboard/decode_target.h"
-#include "starboard/player.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
 SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player) {

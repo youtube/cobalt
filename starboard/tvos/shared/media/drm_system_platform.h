@@ -22,6 +22,7 @@
 
 namespace starboard {
 
+// DrmSystemPlatform is an abstract interface for tvOS DRM.
 class DrmSystemPlatform : public SbDrmSystemPrivate {
  public:
   static DrmSystemPlatform* Create(
@@ -31,43 +32,43 @@ class DrmSystemPlatform : public SbDrmSystemPrivate {
       SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
       SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
       SbDrmSessionClosedFunc session_closed_callback);
-  ~DrmSystemPlatform() override;
+  ~DrmSystemPlatform() override = default;
 
   static bool IsKeySystemSupported(const char* key_system);
   static bool IsSupported(SbDrmSystem drm_system);
   static std::string GetName();
   static std::string GetKeySystemName();
 
-  // SbDrmSystemPrivate impl.
+  // SbDrmSystemPrivate overrides
   void GenerateSessionUpdateRequest(int ticket,
                                     const char* type,
                                     const void* initialization_data,
-                                    int initialization_data_size) override;
+                                    int initialization_data_size) override = 0;
   void UpdateSession(int ticket,
                      const void* key,
                      int key_size,
                      const void* session_id,
-                     int session_id_size) override;
-  void CloseSession(const void* session_id, int session_id_size) override;
-  DecryptStatus Decrypt(InputBuffer* buffer) override;
-  bool IsServerCertificateUpdatable() override;
+                     int session_id_size) override = 0;
+  void CloseSession(const void* session_id, int session_id_size) override = 0;
+  DecryptStatus Decrypt(InputBuffer* buffer) override = 0;
+  bool IsServerCertificateUpdatable() override = 0;
   void UpdateServerCertificate(int ticket,
                                const void* certificate,
-                               int certificate_size) override;
-  const void* GetMetrics(int* size) override;
+                               int certificate_size) override = 0;
+  const void* GetMetrics(int* size) override = 0;
 
-  AVContentKey* GetContentKey(const uint8_t* key_id, int key_id_size)
-      API_AVAILABLE(tvos(14.5));
-  void OnOutputObscuredChanged(bool is_obscured);
+  virtual AVContentKey* GetContentKey(const uint8_t* key_id, int key_id_size)
+      API_AVAILABLE(tvos(14.5)) = 0;
+  virtual void OnOutputObscuredChanged(bool is_obscured) = 0;
 
- private:
+ protected:
   DrmSystemPlatform(
       void* context,
       SbDrmSessionUpdateRequestFunc update_request_callback,
       SbDrmSessionUpdatedFunc session_updated_callback,
       SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
       SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
-      SbDrmSessionClosedFunc session_closed_callback);
+      SbDrmSessionClosedFunc session_closed_callback) {}
 };
 
 }  // namespace starboard

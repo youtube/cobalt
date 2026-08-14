@@ -5,7 +5,7 @@
 #include "base/strings/stringprintf.h"
 #include "content/browser/interest_group/bidding_and_auction_serializer.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/fuzztest/src/fuzztest/fuzztest.h"  // nogncheck
+#include "third_party/fuzztest/src/fuzztest/fuzztest.h"
 
 namespace content {
 

@@ -17,22 +17,22 @@
 // Implement a macro to allow '__pthread_self()->tid' to
 // be used unchanged from musl internal code.
 
-// Include the necessary Starboard header for SbThreadGetId().
-#include "starboard/thread.h"
+#include <sys/types.h>
+#include <unistd.h>
 
 // Define a minimal stub structure that only has the 'tid' member.
 // The original code expects __pthread_self() to return a pointer
 // to a struct that has a 'tid' field.
 typedef struct {
-  SbThreadId tid;
+  pid_t tid;
 } StarboardPthreadStub;
 
 // Define the __pthread_self() macro.
 // This uses a C99 "compound literal" to create a temporary, anonymous
 // StarboardPthreadStub object on the stack and returns a pointer to it.
-// We initialize its 'tid' member by calling SbThreadGetId().
+// We initialize its 'tid' member by calling gettid().
 #define __pthread_self() \
-  (&(StarboardPthreadStub){ .tid = SbThreadGetId() })
+  (&(StarboardPthreadStub){ .tid = gettid() })
 
 typedef struct {
 	volatile int lock;
@@ -40,28 +40,19 @@ typedef struct {
 	pthread_cond_t cond;
 } StarboardPthreadCondMutex;
 
-static inline void __cond_mutex_pair_init(StarboardPthreadCondMutex* pair) {
-	pthread_mutexattr_t attr;
-	pthread_mutexattr_init(&attr);
-	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&pair->mutex, &attr);
-	pthread_mutexattr_destroy(&attr);
-	pthread_cond_init(&pair->cond, NULL);
-}
-
-static inline void __cond_mutex_pair_destroy(StarboardPthreadCondMutex* pair) {
-	pthread_cond_destroy(&pair->cond);
-	pthread_mutex_destroy(&pair->mutex);
-}
-
 static inline void __wake(volatile void *addr, int cnt, int priv)
 {
 	StarboardPthreadCondMutex* lock = (StarboardPthreadCondMutex*)(addr);
-	// Signal threads that are waiting on the condition variable. It is safe
-	// to call pthread_cond_broadcast without holding the associated mutex.
-	// Waiting threads will be woken up, and they will then attempt to
-	// re-acquire the mutex within their call to pthread_cond_wait.
-	pthread_cond_broadcast(&lock->cond);
+	// Ensure the waiter has entered the wait state (released the mutex)
+	// before we signal, by acquiring the mutex. We broadcast while holding
+	// the mutex to ensure no waiter can be in the "check-then-wait" window.
+	pthread_mutex_lock(&lock->mutex);
+	if (cnt == 1) {
+		pthread_cond_signal(&lock->cond);
+	} else {
+		pthread_cond_broadcast(&lock->cond);
+	}
+	pthread_mutex_unlock(&lock->mutex);
 }
 
 static inline void __futexwait(volatile void *addr, int val, int priv)

@@ -28,13 +28,14 @@ extern "C" {
 // A standard set of key codes, ordered by value, that represent each possible
 // input key across all kinds of devices. Starboard uses the semi-standard
 // Windows virtual key codes documented at:
-//   https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731%28v=vs.85%29.aspx
+// [MSDN Virtual key
+// codes](https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731%28v=vs.85%29.aspx)
 typedef enum SbKey {
   kSbKeyUnknown = 0,
   kSbKeyCancel = 0x03,
   kSbKeyBackspace = 0x08,
-  kSbKeyBack = kSbKeyBackspace,  // You probably want kSbKeyEscape for a
-                                 // semantic "back".
+  kSbKeyBack =
+      kSbKeyBackspace,  // You probably want kSbKeyEscape for a semantic "back".
   kSbKeyTab = 0x09,
   kSbKeyBacktab = 0x0A,
   kSbKeyClear = 0x0C,
@@ -209,7 +210,7 @@ typedef enum SbKey {
   kSbKeyMediaFastForward = 0xE4,
 
   // Key codes from the DTV Application Software Environment,
-  //   http://www.atsc.org/wp-content/uploads/2015/03/a_100_4.pdf
+  // [http://www.atsc.org/wp-content/uploads/2015/03/a_100_4.pdf](http://www.atsc.org/wp-content/uploads/2015/03/a_100_4.pdf)
   kSbKeyRed = 0x193,
   kSbKeyGreen = 0x194,
   kSbKeyYellow = 0x195,
@@ -225,7 +226,7 @@ typedef enum SbKey {
   kSbKeyGuide = 0x1CA,
 
   // Key codes from OCAP,
-  //   https://apps.cablelabs.com/specification/opencable-application-platform-ocap/
+  // [https://apps.cablelabs.com/specification/opencable-application-platform-ocap/](https://apps.cablelabs.com/specification/opencable-application-platform-ocap/)
   kSbKeyLast = 0x25f,
   kSbKeyPreviousChannel = kSbKeyLast,
 
@@ -234,13 +235,13 @@ typedef enum SbKey {
 
   // Custom Starboard-defined keycodes.
 
-  // A button that will directly launch the current application.
+  // A button that launches the application.
   kSbKeyLaunchThisApplication = 0x3000,
 
-  // A button that will switch between different available audio tracks.
+  // A button that switches between available audio tracks.
   kSbKeyMediaAudioTrack = 0x3001,
 
-  // A button that will trigger voice input.
+  // A button that triggers voice input.
   kSbKeyMicrophone = 0x3002,
 
   // Mouse buttons, starting with the left mouse button.
@@ -265,8 +266,8 @@ typedef enum SbKey {
   // Xbox Y, PS triangle, Switch Y
   kSbKeyGamepad4 = 0x8003,
 
-  // Pretty much every gamepad has bumpers at the top front of the controller,
-  // and triggers at the bottom front of the controller.
+  // Gamepads typically have bumpers at the top front and triggers at the bottom
+  // front.
   kSbKeyGamepadLeftBumper = 0x8004,
   kSbKeyGamepadRightBumper = 0x8005,
   kSbKeyGamepadLeftTrigger = 0x8006,
@@ -289,7 +290,7 @@ typedef enum SbKey {
   kSbKeyGamepadDPadLeft = 0x800E,
   kSbKeyGamepadDPadRight = 0x800F,
 
-  // The system key in the middle of the gamepad, if it exists.
+  // The system key in the middle of the gamepad (if available).
   kSbKeyGamepadSystem = 0x8010,
 
   // Codes for thumbstick to virtual dpad conversions.

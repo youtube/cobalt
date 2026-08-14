@@ -14,9 +14,16 @@
 
 #include "cobalt/browser/global_features.h"
 
+#include <string_view>
+#include <variant>
+
 #include "base/feature_list.h"
+#include "base/files/file_util.h"
+#include "base/json/string_escape.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
+#include "base/strings/string_util.h"
+#include "base/threading/hang_watcher.h"
 #include "base/time/time.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
@@ -28,6 +35,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
 #include "components/variations/pref_names.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 namespace cobalt {
 
@@ -87,15 +95,58 @@ void GlobalFeatures::set_accessor(
   accessor_ = std::move(accessor);
 }
 
+const absl::flat_hash_map<std::string, GlobalFeatures::SettingValue>&
+GlobalFeatures::GetSettings() const {
+  base::AutoLock auto_lock(lock_);
+  return settings_;
+}
+
+std::optional<GlobalFeatures::SettingValue> GlobalFeatures::GetSetting(
+    std::string_view key) const {
+  base::AutoLock auto_lock(lock_);
+  auto it = settings_.find(key);
+  if (it != settings_.end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}
+
+void GlobalFeatures::SetSettings(std::string_view key,
+                                 const SettingValue& value) {
+  {
+    base::AutoLock auto_lock(lock_);
+    settings_[key] = value;
+
+    LOG(INFO) << "SetSettings: key=" << key << ", value=" << [&value] {
+      if (const auto* s = std::get_if<std::string>(&value)) {
+        return base::GetQuotedJSONString(*s);
+      } else if (const auto* i = std::get_if<int64_t>(&value)) {
+        return base::NumberToString(*i);
+      }
+      NOTREACHED();
+    }();
+  }
+
+  base::HangWatcher::UpdateConfiguration();
+}
+
+void GlobalFeatures::ClearSetting(std::string_view key) {
+  {
+    base::AutoLock auto_lock(lock_);
+    settings_.erase(key);
+  }
+
+  base::HangWatcher::UpdateConfiguration();
+}
+
 void GlobalFeatures::CreateExperimentConfig() {
   DCHECK(!experiment_config_);
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
 
   RegisterPrefs(pref_registry.get());
 
-  base::FilePath path;
-  CHECK(base::PathService::Get(base::DIR_CACHE, &path));
-  path = path.Append(kExperimentConfigFilename);
+  base::FilePath path =
+      GetPrefFilePath(kExperimentConfigFilename, "experiment config");
 
   PrefServiceFactory pref_service_factory;
   pref_service_factory.set_user_prefs(
@@ -127,9 +178,8 @@ void GlobalFeatures::CreateMetricsLocalState() {
   // call, etc., this is the setting that's overridden).
   pref_registry->RegisterBooleanPref(metrics::prefs::kMetricsReportingEnabled,
                                      false);
-  base::FilePath path;
-  CHECK(base::PathService::Get(base::DIR_CACHE, &path));
-  path = path.Append(kMetricsConfigFilename);
+  base::FilePath path =
+      GetPrefFilePath(kMetricsConfigFilename, "metrics config");
 
   PrefServiceFactory pref_service_factory;
   // TODO(b/397929564): Investigate using a Chrome's memory-mapped file store
@@ -153,6 +203,19 @@ void GlobalFeatures::InitializeActiveConfigData() {
       (experiment_config_type == ExperimentConfigType::kSafeConfig)
           ? kSafeConfigActiveConfigData
           : kExperimentConfigActiveConfigData);
+}
+
+base::FilePath GlobalFeatures::GetPrefFilePath(
+    const base::FilePath::CharType filename[],
+    const char* label) {
+  base::FilePath path;
+  CHECK(base::PathService::Get(base::DIR_CACHE, &path));
+  path = path.Append(filename);
+
+  CHECK(base::CreateDirectory(path.DirName()))
+      << "Failed to create directory for " << label << ": "
+      << path.DirName().value();
+  return path;
 }
 
 void GlobalFeatures::Shutdown() {

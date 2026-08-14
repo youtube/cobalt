@@ -18,8 +18,6 @@
 #ifndef STARBOARD_SHARED_STARBOARD_APPLICATION_H_
 #define STARBOARD_SHARED_STARBOARD_APPLICATION_H_
 
-#include <pthread.h>
-
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -28,12 +26,14 @@
 
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
+#include "starboard/common/rect.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/time.h"
 #include "starboard/event.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
+#include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/window.h"
 
 namespace starboard {
@@ -252,6 +252,7 @@ class SB_EXPORT_ANDROID Application {
 
   void InjectOsNetworkDisconnectedEvent();
   void InjectOsNetworkConnectedEvent();
+  void InjectDateTimeConfigurationChangedEvent();
 
   // Inject a window size change event.
   //
@@ -274,10 +275,7 @@ class SB_EXPORT_ANDROID Application {
   void HandleFrame(SbPlayer player,
                    const scoped_refptr<VideoFrame>& frame,
                    int z_index,
-                   int x,
-                   int y,
-                   int width,
-                   int height);
+                   const Rect& rect);
 
   // Registers a |callback| function that will be called when |Teardown| is
   // called.
@@ -310,10 +308,7 @@ class SB_EXPORT_ANDROID Application {
   virtual void AcceptFrame(SbPlayer player,
                            const scoped_refptr<VideoFrame>& frame,
                            int z_index,
-                           int x,
-                           int y,
-                           int width,
-                           int height) {}
+                           const Rect& rect) {}
 
   // Blocks until the next event is available. Subclasses must implement this
   // method to provide events for the platform. Gives ownership to the caller.
@@ -364,9 +359,7 @@ class SB_EXPORT_ANDROID Application {
   void SetStartLink(const char* start_link);
 
   // Returns whether the current thread is the Application thread.
-  bool IsCurrentThread() const {
-    return pthread_equal(thread_, pthread_self());
-  }
+  bool IsCurrentThread() const { return thread_checker_.CalledOnValidThread(); }
 
   // Returns the current application state.
   State state() const { return state_; }
@@ -423,9 +416,8 @@ class SB_EXPORT_ANDROID Application {
   // The error_level set by the last call to Stop().
   int error_level_;
 
-  // The thread that this application was created on, which is assumed to be the
-  // main thread.
-  pthread_t thread_;
+  // To check if the current method is called on the main thread.
+  ThreadChecker thread_checker_;
 
   // CommandLine instance initialized in |Run|.
   std::unique_ptr<CommandLine> command_line_;
@@ -444,13 +436,6 @@ class SB_EXPORT_ANDROID Application {
   // Callbacks that must be called when Teardown is called.
   std::vector<TeardownCallback> teardown_callbacks_;
 };
-
-// Alias to prevent breaking the RDK build on CI.
-// See https://paste.googleplex.com/6310485490270208
-// TODO: b/441955897 - Remove this alias once RDK build on CI is updated
-namespace shared::starboard {
-using Application = ::starboard::Application;
-}
 
 }  // namespace starboard
 

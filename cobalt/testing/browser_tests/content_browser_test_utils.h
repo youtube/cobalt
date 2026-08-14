@@ -57,7 +57,7 @@ class EmbeddedTestServer;
 namespace content {
 class RenderFrameHost;
 class RenderWidgetHost;
-class TestShell;
+class Shell;
 class ToRenderFrameHost;
 class WebContents;
 
@@ -89,14 +89,14 @@ GURL GetTestUrl(const char* dir, const char* file);
 // version below which also takes the expected commit URL.  If the navigation
 // will not result in a commit, such as a download or a 204 response, use
 // NavigateToURLAndExpectNoCommit() instead.
-[[nodiscard]] bool NavigateToURL(TestShell* window, const GURL& url);
+[[nodiscard]] bool NavigateToURL(Shell* window, const GURL& url);
 
 // Same as above, but takes in an additional URL, |expected_commit_url|, to
 // which the navigation should eventually commit.  This is useful for cases
 // like redirects, where navigation starts on one URL but ends up committing a
 // different URL.  This function will return true if navigating to |url|
 // results in a successful commit to |expected_commit_url|.
-[[nodiscard]] bool NavigateToURL(TestShell* window,
+[[nodiscard]] bool NavigateToURL(Shell* window,
                                  const GURL& url,
                                  const GURL& expected_commit_url);
 
@@ -104,7 +104,7 @@ GURL GetTestUrl(const char* dir, const char* file);
 // finishes. If |ignore_uncommitted_navigations| is true, then an aborted
 // navigation also counts toward |number_of_navigations| being complete.
 void NavigateToURLBlockUntilNavigationsComplete(
-    TestShell* window,
+    Shell* window,
     const GURL& url,
     int number_of_navigations,
     bool ignore_uncommitted_navigations = true);
@@ -112,17 +112,17 @@ void NavigateToURLBlockUntilNavigationsComplete(
 // Navigates |window| to |url|, blocks until the navigation finishes, and
 // checks that the navigation did not commit (e.g., due to a crash or
 // download).
-[[nodiscard]] bool NavigateToURLAndExpectNoCommit(TestShell* window,
+[[nodiscard]] bool NavigateToURLAndExpectNoCommit(Shell* window,
                                                   const GURL& url);
 
 // Reloads |window|, blocking until the given number of navigations finishes.
-void ReloadBlockUntilNavigationsComplete(TestShell* window,
+void ReloadBlockUntilNavigationsComplete(Shell* window,
                                          int number_of_navigations);
 
 // Reloads |window| with bypassing cache flag, and blocks until the given number
 // of navigations finishes.
 void ReloadBypassingCacheBlockUntilNavigationsComplete(
-    TestShell* window,
+    Shell* window,
     int number_of_navigations);
 
 // A class to help with waiting for at least one javascript dialog to be
@@ -137,7 +137,7 @@ void ReloadBypassingCacheBlockUntilNavigationsComplete(
 // that could request a modal dialog.
 class AppModalDialogWaiter {
  public:
-  explicit AppModalDialogWaiter(TestShell* shell);
+  explicit AppModalDialogWaiter(Shell* shell);
   void Restart();
   void Wait();
 
@@ -148,11 +148,11 @@ class AppModalDialogWaiter {
  private:
   void EarlyCallback();
   bool was_dialog_request_callback_called_ = false;
-  raw_ptr<TestShell> shell_;
+  raw_ptr<Shell> shell_;
 };
 
 // Extends the ToRenderFrameHost mechanism to content::Shells.
-RenderFrameHost* ConvertToRenderFrameHost(TestShell* shell);
+RenderFrameHost* ConvertToRenderFrameHost(Shell* shell);
 
 // Writes an entry with the name and id of the first camera to the logs or
 // an entry indicating that no camera is available. This must be invoked from
@@ -173,12 +173,12 @@ class ShellAddedObserver {
 
   // Will run a message loop to wait for the new window if it hasn't been
   // created since the constructor.
-  TestShell* GetShell();
+  Shell* GetShell();
 
  private:
-  void ShellCreated(TestShell* shell);
+  void ShellCreated(Shell* shell);
 
-  raw_ptr<TestShell, AcrossTasksDanglingUntriaged> shell_ = nullptr;
+  raw_ptr<Shell, AcrossTasksDanglingUntriaged> shell_ = nullptr;
   std::unique_ptr<base::RunLoop> runner_;
 };
 
@@ -275,13 +275,6 @@ void IsolateOriginsForTesting(
     net::test_server::EmbeddedTestServer* embedded_test_server,
     WebContents* web_contents,
     std::vector<url::Origin> origins_to_isolate);
-
-#if BUILDFLAG(IS_WIN)
-
-void SetMockCursorPositionForTesting(WebContents* web_contents,
-                                     const gfx::Point& position);
-
-#endif  // BUILDFLAG(IS_WIN)
 
 // Blocks the current execution until the renderer main thread in the main frame
 // is in a steady state, so the caller can issue an `viz::CopyOutputRequest`

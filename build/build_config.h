@@ -283,6 +283,15 @@
 #define BUILDFLAG_INTERNAL_IS_COBALT() (0)
 #endif
 
+// TODO(b/505811196): Remove this argument once Cobalt rebased
+// to the milestone where the privacy sandbox components are fully
+// removed.
+#if defined(ENABLE_BUILDFLAG_ENABLE_PRIVACY_SANDBOX_APIS)
+#define BUILDFLAG_INTERNAL_ENABLE_PRIVACY_SANDBOX_APIS() (1)
+#else
+#define BUILDFLAG_INTERNAL_ENABLE_PRIVACY_SANDBOX_APIS() (0)
+#endif
+
 #if defined(OS_STARBOARD)
 #define BUILDFLAG_INTERNAL_IS_STARBOARD() (1)
 #else
@@ -331,10 +340,10 @@
 #define BUILDFLAG_INTERNAL_IS_ANDROIDTV() (0)
 #endif
 
-#if defined(ENABLE_BUILDFLAG_IS_NATIVE_TARGET_BUILD)
-#define BUILDFLAG_INTERNAL_IS_NATIVE_TARGET_BUILD() (1)
+#if defined(ENABLE_BUILDFLAG_IS_NATIVE_TOOLCHAIN)
+#define BUILDFLAG_INTERNAL_IS_NATIVE_TOOLCHAIN() (1)
 #else
-#define BUILDFLAG_INTERNAL_IS_NATIVE_TARGET_BUILD() (0)
+#define BUILDFLAG_INTERNAL_IS_NATIVE_TOOLCHAIN() (0)
 #endif
 
 #if defined(ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17)
@@ -347,6 +356,14 @@
 #define BUILDFLAG_INTERNAL_IS_STARBOARD_TOOLCHAIN() (1)
 #else
 #define BUILDFLAG_INTERNAL_IS_STARBOARD_TOOLCHAIN() (0)
+#endif
+
+// TODO(b/492704919): remove when the AOSP workaround to remove cobalt deps from
+// starboard is fixed.
+#if defined(ENABLE_BUILDFLAG_IS_PARTNER_TOOLCHAIN)
+#define BUILDFLAG_INTERNAL_IS_PARTNER_TOOLCHAIN() (1)
+#else
+#define BUILDFLAG_INTERNAL_IS_PARTNER_TOOLCHAIN() (0)
 #endif
 
 // Compiler detection. Note: clang masquerades as GCC on POSIX and as MSVC on

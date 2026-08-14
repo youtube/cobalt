@@ -29,11 +29,10 @@ typedef enum CobaltExtensionUpdaterNotificationState {
   kCobaltExtensionUpdaterNotificationStateChecking = 1,
   kCobaltExtensionUpdaterNotificationStateUpdateAvailable = 2,
   kCobaltExtensionUpdaterNotificationStateDownloading = 3,
-  kCobaltExtensionUpdaterNotificationStateDownloaded = 4,
-  kCobaltExtensionUpdaterNotificationStateInstalling = 5,
-  kCobaltExtensionUpdaterNotificationStateUpdated = 6,
-  kCobaltExtensionUpdaterNotificationStateUpToDate = 7,
-  kCobaltExtensionUpdaterNotificationStateUpdateFailed = 8,
+  kCobaltExtensionUpdaterNotificationStateInstalling = 4,
+  kCobaltExtensionUpdaterNotificationStateUpdated = 5,
+  kCobaltExtensionUpdaterNotificationStateUpToDate = 6,
+  kCobaltExtensionUpdaterNotificationStateUpdateFailed = 7,
 
 } CobaltExtensionUpdaterNotificationState;
 

@@ -26,6 +26,7 @@
 #include <mutex>
 
 #include "starboard/android/shared/file_internal.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
@@ -74,6 +75,77 @@ std::string FallbackPath(const std::string& path) {
 // static
 SB_ONCE_INITIALIZE_FUNCTION(AssetManager, AssetManager::GetInstance)
 
+int AssetManager::Open(const char* path, int oflag) {
+  if (!path) {
+    return -1;
+  }
+
+  AAsset* asset = OpenAndroidAsset(path);
+  if (!asset) {
+    std::string fallback_path = FallbackPath(path);
+    if (!fallback_path.empty()) {
+      return open(fallback_path.c_str(), oflag);
+    }
+    SB_LOG(WARNING) << "Asset path not found within package: " << path;
+    return -1;
+  }
+
+  // Create temporary POSIX file for the asset
+  uint64_t internal_fd = AcquireInternalFd();
+  std::string filepath = TempFilepath(internal_fd);
+  int fd =
+      open(filepath.c_str(), O_RDWR | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
+  if (fd < 0) {
+    std::lock_guard lock(mutex_);
+    in_use_internal_fd_set_.erase(internal_fd);
+    return -1;
+  }
+
+  // Copy contents of asset into temporary file and then seek to start of file.
+  const off_t size = AAsset_getLength(asset);
+  const void* const data = AAsset_getBuffer(asset);
+  if (write(fd, data, size) != size || lseek(fd, 0, SEEK_SET) != 0) {
+    SB_LOG(WARNING) << "Failed to write temporary file for asset: " << path;
+    {
+      std::lock_guard lock(mutex_);
+      in_use_internal_fd_set_.erase(internal_fd);
+    }  // Can't hold lock when calling close();
+    close(fd);
+    return -1;
+  }
+  AAsset_close(asset);
+
+  // Keep track of the internal fd so we can delete its file on close();
+  {
+    std::lock_guard scoped_lock(mutex_);
+    fd_to_internal_fd_map_[fd] = internal_fd;
+  }
+  return fd;
+}
+
+int AssetManager::Close(int fd) {
+  std::unique_lock lock(mutex_);
+  if (auto search = fd_to_internal_fd_map_.find(fd);
+      search != fd_to_internal_fd_map_.end()) {
+    uint64_t internal_fd = search->second;
+    fd_to_internal_fd_map_.erase(search);
+    in_use_internal_fd_set_.erase(internal_fd);
+    lock.unlock();  // Can't hold lock when calling close();
+    int retval = close(fd);
+    std::string filepath = TempFilepath(internal_fd);
+    if (unlink(filepath.c_str()) != 0) {
+      SB_LOG(WARNING) << "Failed to delete temporary file: " << filepath;
+    }
+    return retval;
+  }
+  return -1;
+}
+
+bool AssetManager::IsAssetFd(int fd) const {
+  std::lock_guard scoped_lock(mutex_);
+  return fd_to_internal_fd_map_.count(fd) == 1;
+}
+
 AssetManager::AssetManager() {
   const int kPathSize = PATH_MAX / 2;
   char path[kPathSize] = {0};
@@ -96,77 +168,6 @@ uint64_t AssetManager::AcquireInternalFd() {
 
 std::string AssetManager::TempFilepath(uint64_t internal_fd) const {
   return tmp_root_ + "/" + std::to_string(internal_fd);
-}
-
-int AssetManager::Open(const char* path, int oflag) {
-  if (!path) {
-    return -1;
-  }
-
-  AAsset* asset = OpenAndroidAsset(path);
-  if (!asset) {
-    std::string fallback_path = FallbackPath(path);
-    if (!fallback_path.empty()) {
-      return open(fallback_path.c_str(), oflag);
-    }
-    SB_LOG(WARNING) << "Asset path not found within package: " << path;
-    return -1;
-  }
-
-  // Create temporary POSIX file for the asset
-  uint64_t internal_fd = AcquireInternalFd();
-  std::string filepath = TempFilepath(internal_fd);
-  int fd =
-      open(filepath.c_str(), O_RDWR | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
-  if (fd < 0) {
-    mutex_.Acquire();
-    in_use_internal_fd_set_.erase(internal_fd);
-    mutex_.Release();
-    return -1;
-  }
-
-  // Copy contents of asset into temporary file and then seek to start of file.
-  const off_t size = AAsset_getLength(asset);
-  const void* const data = AAsset_getBuffer(asset);
-  if (write(fd, data, size) != size || lseek(fd, 0, SEEK_SET) != 0) {
-    SB_LOG(WARNING) << "Failed to write temporary file for asset: " << path;
-    mutex_.Acquire();
-    in_use_internal_fd_set_.erase(internal_fd);
-    mutex_.Release();  // Can't hold lock when calling close();
-    close(fd);
-    return -1;
-  }
-  AAsset_close(asset);
-
-  // Keep track of the internal fd so we can delete its file on close();
-  mutex_.Acquire();
-  fd_to_internal_fd_map_[fd] = internal_fd;
-  mutex_.Release();
-  return fd;
-}
-
-bool AssetManager::IsAssetFd(int fd) const {
-  std::lock_guard scoped_lock(mutex_);
-  return fd_to_internal_fd_map_.count(fd) == 1;
-}
-
-int AssetManager::Close(int fd) {
-  mutex_.Acquire();
-  if (auto search = fd_to_internal_fd_map_.find(fd);
-      search != fd_to_internal_fd_map_.end()) {
-    uint64_t internal_fd = search->second;
-    fd_to_internal_fd_map_.erase(search);
-    in_use_internal_fd_set_.erase(internal_fd);
-    mutex_.Release();  // Can't hold lock when calling close();
-    int retval = close(fd);
-    std::string filepath = TempFilepath(internal_fd);
-    if (unlink(filepath.c_str()) != 0) {
-      SB_LOG(WARNING) << "Failed to delete temporary file: " << filepath;
-    }
-    return retval;
-  }
-  mutex_.Release();
-  return -1;
 }
 
 void AssetManager::ClearTempDir() {

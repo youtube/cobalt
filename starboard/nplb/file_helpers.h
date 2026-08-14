@@ -16,6 +16,7 @@
 #define STARBOARD_NPLB_FILE_HELPERS_H_
 
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <string>
@@ -25,6 +26,15 @@ namespace nplb {
 
 constexpr mode_t kUserRwx = S_IRUSR | S_IWUSR | S_IXUSR;
 constexpr mode_t kUserRw = S_IRUSR | S_IWUSR;
+
+// Returns whether the permission bits reported by stat() in st_mode are a
+// subset of the requested creation mode.
+// The comparison is restricted to the standard rw permission bits (0777)
+// because extra mode bits may be set independently of the requested mode.
+// e.g.: on Android the app's data/cache directory tree carries the setgid
+// bit, so the kernel propagates S_ISGID to every directory created under it
+// (fs/inode.c:inode_init_owner()), on top of the mode passed to mkdir().
+bool PermissionsAreSubsetOf(mode_t st_mode, mode_t requested);
 
 // Gets the temporary directory in which ScopedRandomFile places its files.
 std::string GetTempDir();
@@ -46,6 +56,26 @@ bool RemoveFileOrDirectoryRecursively(const std::string& path);
 bool FileExists(const char* path);
 
 bool DirectoryExists(const char* path);
+
+// Creates a random directory, and deletes it and its contents when the instance
+// falls out of scope.
+class ScopedTempDir {
+ public:
+  ScopedTempDir();
+  ~ScopedTempDir();
+
+  ScopedTempDir(const ScopedTempDir&) = delete;
+  ScopedTempDir& operator=(const ScopedTempDir&) = delete;
+
+  // Returns the path to the created directory.
+  const std::string& path() const { return path_; }
+
+  // Returns whether the directory was successfully created.
+  bool IsValid() const { return !path_.empty(); }
+
+ private:
+  std::string path_;
+};
 
 // Creates a random file of the given length, and deletes it when the instance
 // falls out of scope.

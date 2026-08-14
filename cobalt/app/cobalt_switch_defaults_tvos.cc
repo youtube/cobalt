@@ -47,6 +47,9 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       // Cobalt doesn't use Chrome's accelerated video decoding/encoding.
       ::switches::kDisableAcceleratedVideoDecode,
       ::switches::kDisableAcceleratedVideoEncode,
+      // b/507534015 - Prevent scrollbars from being shown briefly whenever a
+      // carousel is loading (e.g., showing a horizontal list of videos).
+      ::switches::kHideScrollbars,
   };
 
   return kCobaltToggleSwitches;

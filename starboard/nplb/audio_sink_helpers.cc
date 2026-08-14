@@ -96,7 +96,18 @@ void AudioSinkTestFrameBuffers::Init() {
   }
 }
 
+std::unique_ptr<AudioSinkTestEnvironment> AudioSinkTestEnvironment::Create(
+    const AudioSinkTestFrameBuffers& frame_buffers) {
+  auto environment = std::make_unique<AudioSinkTestEnvironment>(
+      starboard::PassKey<AudioSinkTestEnvironment>(), frame_buffers);
+  if (!SbAudioSinkIsValid(environment->sink_)) {
+    return nullptr;
+  }
+  return environment;
+}
+
 AudioSinkTestEnvironment::AudioSinkTestEnvironment(
+    starboard::PassKey<AudioSinkTestEnvironment>,
     const AudioSinkTestFrameBuffers& frame_buffers)
     : frame_buffers_(frame_buffers) {
   sink_ = SbAudioSinkCreate(

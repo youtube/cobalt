@@ -12,22 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/system.h"
+// clang-format on
+
 #include <linux/limits.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include <cstring>
 
+#include "build/build_config.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/system.h"
+#include "starboard/elf_loader/evergreen_config.h"
+#include "third_party/jni_zero/jni_zero.h"
 
-using ::base::android::ScopedJavaGlobalRef;
 using ::starboard::g_app_assets_dir;
 using ::starboard::g_app_cache_dir;
 using ::starboard::g_app_files_dir;
 using ::starboard::g_app_lib_dir;
+
+#if BUILDFLAG(IS_STARBOARD)
+namespace {
+
+// Returns the base content path, which is the Evergreen content path when one
+// is configured, or the app's asset directory otherwise.
+const char* GetContentPath() {
+  const elf_loader::EvergreenConfig* evergreen_config =
+      elf_loader::EvergreenConfig::GetInstance();
+  if (evergreen_config && !evergreen_config->content_path_.empty()) {
+    return evergreen_config->content_path_.c_str();
+  }
+  return g_app_assets_dir;
+}
+
+}  // namespace
+#endif
 
 bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
   if (!out_path || !path_size) {
@@ -49,14 +71,34 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
 
     case kSbSystemPathFontConfigurationDirectory:
     case kSbSystemPathFontDirectory:
+#if BUILDFLAG(IS_STARBOARD)
+      if (starboard::strlcpy(path, GetContentPath(), kPathSize) >= kPathSize) {
+        return false;
+      }
+      if (starboard::strlcat(path, "/fonts", kPathSize) >= kPathSize) {
+        return false;
+      }
+      break;
+#else
       SB_NOTIMPLEMENTED();
       return false;
+#endif
 
     case kSbSystemPathStorageDirectory: {
       if (starboard::strlcpy(path, g_app_files_dir, kPathSize) >= kPathSize) {
         return false;
       }
       if (starboard::strlcat(path, "/storage", kPathSize) >= kPathSize) {
+        return false;
+      }
+      mkdir(path, 0700);
+      break;
+    }
+    case kSbSystemPathFilesDirectory: {
+      if (starboard::strlcpy(path, g_app_files_dir, kPathSize) >= kPathSize) {
+        return false;
+      }
+      if (starboard::strlcat(path, "/files", kPathSize) >= kPathSize) {
         return false;
       }
       mkdir(path, 0700);

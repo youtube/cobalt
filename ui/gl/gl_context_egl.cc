@@ -228,7 +228,10 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
     context_attributes.push_back(attribs.bind_generates_resource ? EGL_TRUE
                                                                  : EGL_FALSE);
   } else {
+    // TODO: b/486053854 - Cobalt: Reset unsupported attribs to EGL defaults
+  #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     DCHECK(attribs.bind_generates_resource);
+  #endif
   }
 
   if (gl_display_->ext->b_EGL_ANGLE_create_context_webgl_compatibility) {
@@ -236,7 +239,10 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
     context_attributes.push_back(
         attribs.webgl_compatibility_context ? EGL_TRUE : EGL_FALSE);
   } else {
+    // TODO: b/486053854 - Cobalt: Reset unsupported attribs to EGL defaults
+  #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     DCHECK(!attribs.webgl_compatibility_context);
+  #endif
   }
 
   if (gl_display_->IsEGLContextPrioritySupported()) {
@@ -259,7 +265,10 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
     context_attributes.push_back(global_texture_share_group_ ? EGL_TRUE
                                                              : EGL_FALSE);
   } else {
+    // TODO: b/486053854 - Cobalt: Reset unsupported attribs to EGL defaults
+  #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     DCHECK(!global_texture_share_group_);
+  #endif
   }
 
   if (gl_display_->ext->b_EGL_ANGLE_display_semaphore_share_group) {
@@ -267,7 +276,10 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
     context_attributes.push_back(
         attribs.global_semaphore_share_group ? EGL_TRUE : EGL_FALSE);
   } else {
+    // TODO: b/486053854 - Cobalt: Reset unsupported attribs to EGL defaults
+  #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     DCHECK(!attribs.global_semaphore_share_group);
+  #endif
   }
 
   if (gl_display_->ext->b_EGL_ANGLE_create_context_client_arrays) {
@@ -278,7 +290,11 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
     // Client arrays are allowed by default without
     // ANGLE_create_context_client_arrays to control it. Verify that's the
     // requested behavior.
+
+    // TODO: b/486053854 - Cobalt: Reset unsupported attribs to EGL defaults
+  #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     DCHECK(attribs.allow_client_arrays);
+  #endif
   }
 
   if (gl_display_->ext->b_EGL_ANGLE_robust_resource_initialization ||
@@ -288,7 +304,10 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
         (attribs.robust_resource_initialization || is_swangle) ? EGL_TRUE
                                                                : EGL_FALSE);
   } else {
+    // TODO: b/486053854 - Cobalt: Reset unsupported attribs to EGL defaults
+  #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     DCHECK(!attribs.robust_resource_initialization);
+  #endif
   }
 
   if (gl_display_->ext->b_EGL_ANGLE_create_context_backwards_compatible) {

@@ -4,11 +4,16 @@
     "android-arm"
   ],
   "test_package": true,
+  "test_on_host": true,
   "test_on_device": true,
   "test_device_family": "android",
   "test_e2e": true,
+  "test_yts": true,
+  "test_yts_playback": true,
+  "comment_test_browser": "test_browser controls desktop browser tests on host. Set to false for Android because browser tests run on physical devices via test_on_device.",
+  "test_browser": false,
+  "test_yts_wpt": true,
   "test_root_target": "//cobalt/android:cobalt_apk",
-  "test_attempts": "3",
   "e2e_test_targets": [
     {
       "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_sabrina",
@@ -29,6 +34,70 @@
     {
       "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_bravia",
       "test_attempts": "6"
+    },
+    {
+      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_login_test_custom_coat_kirkwood",
+      "test_attempts": "6"
+    },
+    {
+      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_home_test_custom_coat_kirkwood",
+      "test_attempts": "6"
+    },
+    {
+      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_watch_test_custom_coat_kirkwood",
+      "test_attempts": "6"
+    },
+    {
+      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_login_test_custom_coat_sabrina",
+      "test_attempts": "6"
+    },
+    {
+      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_home_test_custom_coat_sabrina",
+      "test_attempts": "6"
+    },
+    {
+      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_watch_test_custom_coat_sabrina",
+      "test_attempts": "6"
+    }
+  ],
+  "yts_test_targets": [
+    {
+      "target": "testing/maneki/cobalt/kimono_tests:yts_dom_document_sabrina_custom_test",
+      "test_attempts": "6"
+    },
+    {
+      "target": "testing/maneki/cobalt/kimono_tests:yts_html_dom_element_sabrina_custom_test",
+      "test_attempts": "6"
+    },
+    {
+      "target": "testing/maneki/cobalt/kimono_tests:yts_html_dom_element_kirkwood_custom_test",
+      "test_attempts": "6"
+    },
+    {
+      "target": "testing/maneki/cobalt/kimono_tests:yts_dom_document_boreal_custom_test",
+      "test_attempts": "6"
+    },
+    {
+      "target": "testing/maneki/cobalt/kimono_tests:yts_html_dom_element_boreal_custom_test",
+      "test_attempts": "6"
+    }
+  ],
+  "yts_playback_test_targets": [
+    {
+      "target": "testing/maneki/cobalt/kimono_tests:ATV_KIMONO_YTS_PLAYBACK_TESTS_ARM_DEVICES",
+      "test_attempts": "3"
+    }
+  ],
+  "browser_test_targets": [
+    {
+      "target": "cobalt/testing/browser_tests:cobalt_browsertests",
+      "test_attempts": "3"
+    }
+  ],
+  "yts_wpt_test_targets": [
+    {
+      "target": "testing/container/wpt:yts_wpt_test_android_arm_devices",
+      "test_attempts": "2"
     }
   ],
   "test_dimensions": {

@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/shared/starboard/player/filter/audio_channel_layout_mixer.h"
+// clang-format on
+
 #include <limits>
 #include <vector>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
-#include "starboard/shared/starboard/player/filter/audio_channel_layout_mixer.h"
 
 namespace starboard {
 

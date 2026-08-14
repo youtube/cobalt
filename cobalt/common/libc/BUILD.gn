@@ -19,10 +19,14 @@ static_library("libc") {
   ]
   if (is_cobalt_hermetic_build) {
     sources += [
+      "locale/lconv_support.cc",
+      "locale/lconv_support.h",
       "locale/locale.cc",
       "locale/locale.h",
       "locale/locale_support.cc",
       "locale/locale_support.h",
+      "locale/nl_langinfo_support.cc",
+      "locale/nl_langinfo_support.h",
       "stdlib/environment.cc",
       "time/gmtime.cc",
       "time/icu_time_support.cc",
@@ -52,6 +56,7 @@ source_set("libc_test") {
 
   if (is_cobalt_hermetic_build) {
     sources = [
+      "locale/lconv_support_test.cc",
       "locale/locale_support_test.cc",
       "time/icu_time_support_test.cc",
       "time/time_zone_state_test.cc",

@@ -68,6 +68,7 @@ class ContentBrowserTest : public BrowserTestBase {
   void TearDown() override;
 
   // BrowserTestBase:
+  void SetUpCommandLine(base::CommandLine* command_line) override;
   void PreRunTestOnMainThread() override;
   void PostRunTestOnMainThread() override;
 

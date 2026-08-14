@@ -58,22 +58,29 @@ void AvcAVVideoSampleBufferBuilder::WriteInputBuffer(
   const uint8_t* source_data = input_buffer->data();
   size_t data_size = input_buffer->size();
   if (sample_info.is_key_frame) {
-    VideoConfig new_config(input_buffer->video_stream_info(),
-                           input_buffer->data(), input_buffer->size());
-    if (!new_config.is_valid()) {
+    auto new_config =
+        VideoConfig::Create(input_buffer->video_stream_info(),
+                            input_buffer->data(), input_buffer->size());
+    if (!new_config) {
       ReportError("Failed to parse video config.");
       return;
     }
-    const auto& parameter_sets = new_config.avc_parameter_sets();
-    if (!video_config_ || video_config_.value() != new_config) {
-      video_config_ = new_config;
+    const auto& parameter_sets = new_config->avc_parameter_sets();
+    if (!video_config_ || video_config_.value() != *new_config) {
+      video_config_.emplace(*new_config);
       if (!RefreshAVCFormatDescription(parameter_sets)) {
         return;
       }
     }
     SB_DCHECK(parameter_sets.format() == AvcParameterSets::kAnnexB);
-    source_data += parameter_sets.combined_size_in_bytes();
-    data_size -= parameter_sets.combined_size_in_bytes();
+    size_t bytes_to_skip =
+        parameter_sets.combined_size_in_bytes_with_optionals();
+    if (bytes_to_skip > data_size) {
+      ReportError("Invalid parameter set size exceeds buffer size.");
+      return;
+    }
+    source_data += bytes_to_skip;
+    data_size -= bytes_to_skip;
   }
 
   CMBlockBufferRef block;

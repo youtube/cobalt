@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/features.h"
 
+#include "cobalt/build/configs/buildflags.h"
+
 namespace cobalt {
 namespace features {
 
@@ -21,6 +23,60 @@ namespace features {
 BASE_FEATURE(kExperimentConfigExpiration,
              "ExperimentConfigExpiration",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Test feature, does not enable any features.
+BASE_FEATURE(kTestFinchFeature,
+             "TestFinchFeature",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<std::string> kTestFinchFeatureParam{
+    &kTestFinchFeature, "TestFinchFeatureParam", ""};
+
+BASE_FEATURE(kHangReporting,
+             "HangReporting",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltMetricsIntervalFeature,
+             "CobaltMetricsInterval",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kCpuMetricsIntervalParam{
+    &kCobaltMetricsIntervalFeature, "cpu-metrics-interval", 300};
+
+const base::FeatureParam<int> kMemoryMetricsIntervalParam{
+    &kCobaltMetricsIntervalFeature, "memory-metrics-interval", 300};
+
+BASE_FEATURE(kCobaltMemoryAttributionManager,
+             "CobaltMemoryAttributionManager",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kCobaltMemoryAttributionReportIntervalParam{
+    &kCobaltMemoryAttributionManager, "report-interval", 600};
+
+// Enables custom memory buffer size for in-memory updates.
+BASE_FEATURE(kInMemoryUpdatesMemoryBuffer,
+             "InMemoryUpdatesMemoryBuffer",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kInMemoryUpdatesMemoryBufferParam{
+    &kInMemoryUpdatesMemoryBuffer, "memory_buffer_bytes", 35 * 1024 * 1024};
+
+BASE_FEATURE(kDisableSplashScreen,
+             "DisableSplashScreen",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kForceVideoSplashScreen,
+             "ForceVideoSplashScreen",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kEnablePictureInPicture,
+             "PictureInPicture",
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else   // BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif  // BUILDFLAG(IS_ANDROID)
+);
 
 }  // namespace features
 }  // namespace cobalt

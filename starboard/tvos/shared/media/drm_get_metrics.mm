@@ -15,6 +15,8 @@
 #include "starboard/drm.h"
 #include "starboard/shared/widevine/drm_system_widevine.h"
 
+using starboard::DrmSystemWidevine;
+
 const void* SbDrmGetMetrics(SbDrmSystem drm_system, int* size) {
   if (size == NULL) {
     SB_DLOG(WARNING) << "|size| cannot be NULL.";
@@ -28,7 +30,6 @@ const void* SbDrmGetMetrics(SbDrmSystem drm_system, int* size) {
     return NULL;
   }
 
-  using starboard::shared::widevine::DrmSystemWidevine;
   if (DrmSystemWidevine::IsDrmSystemWidevine(drm_system)) {
     return drm_system->GetMetrics(size);
   }

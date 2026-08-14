@@ -43,7 +43,7 @@ void RenderFrameTestHelper::OnDestruct() {
 RenderFrameTestHelper::RenderFrameTestHelper(
     RenderFrame& render_frame,
     mojo::PendingReceiver<mojom::RenderFrameTestHelper> receiver)
-    : RenderFrameObserver(&render_frame),
+    : CobaltRenderFrameObserver(&render_frame),
       receiver_(this, std::move(receiver)) {}
 
 }  // namespace content

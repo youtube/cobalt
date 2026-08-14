@@ -25,14 +25,14 @@ class RunLoop;
 
 // This class implements a MessagePump needed for TYPE_UI MessageLoops on
 // OS_ANDROID platform.
-class BASE_EXPORT MessagePumpForUI : public MessagePump {
+class BASE_EXPORT MessagePumpAndroid : public MessagePump {
  public:
-  MessagePumpForUI();
+  MessagePumpAndroid();
 
-  MessagePumpForUI(const MessagePumpForUI&) = delete;
-  MessagePumpForUI& operator=(const MessagePumpForUI&) = delete;
+  MessagePumpAndroid(const MessagePumpAndroid&) = delete;
+  MessagePumpAndroid& operator=(const MessagePumpAndroid&) = delete;
 
-  ~MessagePumpForUI() override;
+  ~MessagePumpAndroid() override;
 
   void Run(Delegate* delegate) override;
   void Quit() override;

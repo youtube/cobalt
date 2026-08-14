@@ -121,8 +121,10 @@ class AudioChannelLayoutMixerTest
 
     if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
       float* output_buffer = reinterpret_cast<float*>(output->data());
-      for (size_t i = 0; i < output->frames() * output_num_of_channels; i++) {
-        int src_index = i;
+      for (size_t i = 0;
+           i < static_cast<size_t>(output->frames()) * output_num_of_channels;
+           i++) {
+        size_t src_index = i;
         if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar) {
           src_index = i % output->frames() * output_num_of_channels +
                       i / output->frames();
@@ -138,8 +140,10 @@ class AudioChannelLayoutMixerTest
       }
     } else {
       int16_t* output_buffer = reinterpret_cast<int16_t*>(output->data());
-      for (size_t i = 0; i < output->frames() * output_num_of_channels; i++) {
-        int src_index = i;
+      for (size_t i = 0;
+           i < static_cast<size_t>(output->frames()) * output_num_of_channels;
+           i++) {
+        size_t src_index = i;
         if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar) {
           src_index = i % output->frames() * output_num_of_channels +
                       i / output->frames();
@@ -342,13 +346,14 @@ TEST_P(AudioChannelLayoutMixerTest, MixToFivePointOne) {
                                kExpectedFivePointOneToFivePointOneOutput);
 }
 
-INSTANTIATE_TEST_CASE_P(AudioChannelLayoutMixerTests,
-                        AudioChannelLayoutMixerTest,
-                        Combine(Values(kSbMediaAudioSampleTypeInt16Deprecated,
-                                       kSbMediaAudioSampleTypeFloat32),
-                                Values(kSbMediaAudioFrameStorageTypeInterleaved,
-                                       kSbMediaAudioFrameStorageTypePlanar)),
-                        GetAudioChannelLayoutMixerTestConfigName);
+INSTANTIATE_TEST_SUITE_P(
+    AudioChannelLayoutMixerTests,
+    AudioChannelLayoutMixerTest,
+    Combine(Values(kSbMediaAudioSampleTypeInt16Deprecated,
+                   kSbMediaAudioSampleTypeFloat32),
+            Values(kSbMediaAudioFrameStorageTypeInterleaved,
+                   kSbMediaAudioFrameStorageTypePlanar)),
+    GetAudioChannelLayoutMixerTestConfigName);
 
 }  // namespace
 

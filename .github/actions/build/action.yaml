@@ -10,6 +10,11 @@ inputs:
   test_targets_json_file:
     description: "The path to the file the test targets are written to."
     required: true
+  enable_sccache:
+    description: Use sccache for build acceleration.
+    default: 'false'
+  sccache_gcs_key:
+    description: GCS SA key to read/write to bucket
 runs:
   using: "composite"
   steps:
@@ -17,15 +22,39 @@ runs:
         run: |
           rm -rf cobalt/src/out
         shell: bash
+      - name: Install sccache
+        if: inputs.enable_sccache == 'true'
+        uses: ./.github/actions/sccache
+        with:
+          sccache_gcs_key: ${{ inputs.sccache_gcs_key }}
       - name: GN gen
+        env:
+          ENABLE_SCCACHE: ${{ inputs.enable_sccache }}
+          PLATFORM: ${{ matrix.platform }}
+          CONFIG: ${{ matrix.config }}
+        working-directory: cobalt/src
         run: |
-          cd cobalt/src
-          cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }}
+          gn_flags=()
+          if [[ "${PLATFORM}" == *"tvos"* ]]; then
+            # TvOS does not use RBE unless it's sccache
+            gn_flags+=(--no-rbe)
+          fi
+          if [[ "${ENABLE_SCCACHE}" == "true" ]]; then
+            gn_flags+=(--use-sccache)
+          fi
+          cobalt/build/gn.py -p "${PLATFORM}" -C "${CONFIG}" "${gn_flags[@]}"
         shell: bash
-      - name: List GN args
+      - name: Configure Siso Credential Helper
+        shell: bash
         run: |
-          cd cobalt/src
-          gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
+          echo "SISO_CREDENTIAL_HELPER=gcloud" >> "${GITHUB_ENV}"
+      - name: List GN args
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          CONFIG: ${{ matrix.config }}
+        working-directory: cobalt/src
+        run: |
+          gn args --list --short --overrides-only out/"${PLATFORM}_${CONFIG}"
         shell: bash
       - name: Get list of changed files
         if: github.event_name == 'pull_request'
@@ -40,8 +69,9 @@ runs:
           # of the code as if the pull request had been merged into the base branch.
           # Setting fetch-depth to 2 effectively gets a merge commit (i.e. HEAD) and the
           # HEAD commit from the base branch (i.e. HEAD~1).
-          git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST}
-          cat ${CHANGED_FILES_LIST}
+          # TODO(b/382508397): Disabled for now.
+          # git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST}
+          # cat ${CHANGED_FILES_LIST}
         shell: bash
       - name: Calculate test targets
         # TODO(b/382508397): Ignore test_root_target until test target listing is dynamic.
@@ -53,20 +83,21 @@ runs:
           STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
           # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
           DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
+          TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+        working-directory: cobalt/src
         run: |
           set -x
-          cd cobalt/src
 
           if [[ ! -f "${STATIC_TEST_TARGETS_JSON_FILE}" ]]; then
             echo "Static test targets file not found at ${STATIC_TEST_TARGETS_JSON_FILE}. Skipping step."
-            echo "test_targets_count=0" >> $GITHUB_OUTPUT
+            echo "test_targets_count=0" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
           # TODO: b/382508397 - Currently, override with static test targets
-          cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${{ inputs.test_targets_json_file }}"
+          cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${TEST_TARGETS_JSON_FILE}"
 
-          # gn desc out/${{ matrix.platform }}_${{ matrix.config }}/ "*" --format=json > gn_desc.json
+          # gn desc out/${PLATFORM}_${CONFIG}/ "*" --format=json > gn_desc.json
           # # Trim any warning gn printed before the json (all lines above the first curly brace).
           # sed -n '/^{/,$p' -i gn_desc.json
 
@@ -85,11 +116,11 @@ runs:
           #     --json-output > "${DYN_TEST_TARGETS_JSON_FILE}"
 
 
-          test_targets_json=$(cat ${{ inputs.test_targets_json_file }} | jq -cr '.test_targets')
-          echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
+          test_targets_json=$(jq -cr '[.[] | select(.target != null) | .target]' "${TEST_TARGETS_JSON_FILE}")
+          echo "test_targets_json=${test_targets_json}" >> "${GITHUB_OUTPUT}"
 
-          test_targets_count=$(echo ${test_targets_json} | jq -cr 'length')
-          echo "test_targets_count=${test_targets_count}" >> $GITHUB_OUTPUT
+          test_targets_count=$(echo "${test_targets_json}" | jq -cr 'length')
+          echo "test_targets_count=${test_targets_count}" >> "${GITHUB_OUTPUT}"
         shell: bash
       - name: Archive test target JSON
         uses: actions/upload-artifact@v4
@@ -99,23 +130,33 @@ runs:
       - name: Ninja build test targets
         if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
         id: build-test-targets
+        working-directory: cobalt/src
+        env:
+          TEST_TARGETS_JSON: ${{ steps.calculate-test-targets.outputs.test_targets_json }}
+          PLATFORM: ${{ matrix.platform }}
+          CONFIG: ${{ matrix.config }}
         run: |
           set -ex
-          cd cobalt/src
-          test_targets=$(echo '${{ steps.calculate-test-targets.outputs.test_targets_json }}' | jq -cr 'join(" ")')
-          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
+          readarray -t test_targets < <(echo "${TEST_TARGETS_JSON:-[]}" | jq -r '.[]')
+          time autoninja -C out/"${PLATFORM}_${CONFIG}" "${test_targets[@]}"
         shell: bash
       - name: Ninja build
+        working-directory: cobalt/src
         env:
           TARGETS_JSON: ${{ inputs.targets }}
+          USE_SCCACHE: ${{ inputs.enable_sccache }}
+          PLATFORM: ${{ matrix.platform }}
+          CONFIG: ${{ matrix.config }}
         run: |
           set -ex
-          cd cobalt/src
-          TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
-          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
+          readarray -t targets < <(echo "${TARGETS_JSON:-[]}" | jq -r '.[]')
+          time autoninja -C out/"${PLATFORM}_${CONFIG}" "${targets[@]}"
+          if [[ "${USE_SCCACHE}" == "true" ]]; then
+            sccache --show-stats
+          fi
         shell: bash
       - name: Archive Android APKs
-        if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
+        if: (startsWith(matrix.platform, 'android') || startsWith(matrix.platform, 'aosp')) && matrix.config == 'qa'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }} APKs
@@ -123,11 +164,3 @@ runs:
             cobalt/src/out/${{ matrix.platform }}_qa/apks/*.apk
             cobalt/src/out/${{ matrix.platform }}_qa/*_apk/*.apk
             cobalt/src/out/${{ matrix.platform }}_qa/gen/build_info.json
-      - name: Upload Test Artifacts
-        if: steps.build-test-targets.outcome == 'success'
-        uses: ./cobalt/src/.github/actions/upload_test_artifacts
-        with:
-          test_artifacts_key: ${{ inputs.test_artifacts_key }}
-          upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_web_test_artifacts == 'true' }}
-          upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
-          test_targets_json_file: ${{ inputs.test_targets_json_file }}

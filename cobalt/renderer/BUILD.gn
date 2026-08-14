@@ -15,8 +15,6 @@ import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
 
 source_set("renderer") {
-  testonly = true
-
   sources = [
     "cobalt_content_renderer_client.cc",
     "cobalt_content_renderer_client.h",
@@ -26,7 +24,10 @@ source_set("renderer") {
 
   deps = [
     "//cobalt/browser:switches",
+    "//cobalt/browser/mojom",
     "//cobalt/media/audio:webaudio",
+    "//cobalt/media/service/mojom",
+    "//cobalt/shell:cobalt_shell_lib",
     "//components/cdm/renderer",
     "//components/js_injection/renderer:renderer",
     "//components/network_hints/renderer",
@@ -47,13 +48,18 @@ source_set("renderer") {
 
 test("cobalt_renderer_unittests") {
   testonly = true
-  sources = [ "cobalt_render_frame_observer_unittest.cc" ]
+  sources = [
+    "cobalt_content_renderer_client_unittest.cc",
+    "cobalt_render_frame_observer_unittest.cc",
+  ]
   deps = [
     ":renderer",
     "//base/test:run_all_unittests",
     "//base/test:test_support",
+    "//media",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/blink/renderer/modules/exported:test_support",
+    "//v8",
   ]
 }

@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/log.h"
+// clang-format off
 #include "starboard/system.h"
+// clang-format on
+
+#include "starboard/common/log.h"
 
 bool SbSystemHasCapability(SbSystemCapabilityId capability_id) {
   switch (capability_id) {

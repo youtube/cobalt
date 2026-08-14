@@ -32,13 +32,13 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 
 class De265VideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
-  De265VideoDecoder(SbMediaVideoCodec video_codec,
+  De265VideoDecoder(JobQueue* job_queue,
+                    SbMediaVideoCodec video_codec,
                     SbPlayerOutputMode output_mode,
                     SbDecodeTargetGraphicsContextProvider*
                         decode_target_graphics_context_provider);

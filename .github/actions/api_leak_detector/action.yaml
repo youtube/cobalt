@@ -6,11 +6,13 @@ runs:
   steps:
     - name: Run Detector
       shell: bash
+      env:
+        SB_API_VERSION: ${{ matrix.sb_api_version }}
+        PLATFORM: ${{ matrix.platform }}
+        CONFIG: ${{ matrix.config }}
       run: |
         set -x
-        if [ -z "${{matrix.sb_api_version}}"]; then
-          SB_API_VERSION_FLAG=""
-        else
-          SB_API_VERSION_FLAG="--sb_api_version=${{matrix.sb_api_version}}"
+        python3 cobalt/src/starboard/tools/api_leak_detector/api_leak_detector.py -p "${PLATFORM}" -c "${CONFIG}" --submit-check ${SB_API_VERSION:+--sb_api_version=${SB_API_VERSION}}
+        if [ "${CONFIG}" == "devel" ]; then
+          python3 cobalt/src/starboard/tools/api_leak_detector/api_leak_detector.py -p "${PLATFORM}" -c "${CONFIG}" --submit-check ${SB_API_VERSION:+--sb_api_version=${SB_API_VERSION}} -t nplb
         fi
-        python3 cobalt/src/starboard/tools/api_leak_detector/api_leak_detector.py -p ${{ matrix.platform }} -c ${{matrix.config}} --submit-check ${SB_API_VERSION_FLAG}

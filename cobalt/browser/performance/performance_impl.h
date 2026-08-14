@@ -15,6 +15,8 @@
 #ifndef COBALT_BROWSER_PERFORMANCE_PERFORMANCE_IMPL_H_
 #define COBALT_BROWSER_PERFORMANCE_PERFORMANCE_IMPL_H_
 
+#include <optional>
+
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "content/public/browser/document_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -25,7 +27,7 @@ class RenderFrameHost;
 
 namespace performance {
 
-// Implements the H5vccSystem Mojo interface and extends
+// Implements the CobaltPerformance Mojo interface and extends
 // DocumentService so that an object's lifetime is scoped to the corresponding
 // document / RenderFrameHost (see DocumentService for details).
 class PerformanceImpl
@@ -33,7 +35,8 @@ class PerformanceImpl
  public:
   // Creates a PerformanceImpl. The PerformanceImpl is bound to the
   // receiver and its lifetime is scoped to the render_frame_host.
-  static void Create(content::RenderFrameHost* render_frame_host,
+  static void Create(std::optional<int64_t> app_startup_timestamp,
+                     content::RenderFrameHost* render_frame_host,
                      mojo::PendingReceiver<mojom::CobaltPerformance> receiver);
 
   PerformanceImpl(const PerformanceImpl&) = delete;
@@ -41,11 +44,16 @@ class PerformanceImpl
 
   void MeasureAvailableCpuMemory(MeasureAvailableCpuMemoryCallback) override;
   void MeasureUsedCpuMemory(MeasureAvailableCpuMemoryCallback) override;
-  void GetAppStartupTime(GetAppStartupTimeCallback) override;
+  void MeasureUsedSwapMemory(MeasureUsedSwapMemoryCallback) override;
+  void MeasureReservedVirtualMemory(
+      MeasureReservedVirtualMemoryCallback) override;
+  void GetAppStartupTimeStamp(GetAppStartupTimeStampCallback callback) override;
 
  private:
-  PerformanceImpl(content::RenderFrameHost& render_frame_host,
+  PerformanceImpl(std::optional<int64_t> app_startup_timestamp,
+                  content::RenderFrameHost& render_frame_host,
                   mojo::PendingReceiver<mojom::CobaltPerformance> receiver);
+  std::optional<int64_t> app_startup_timestamp_;
 };
 
 }  // namespace performance

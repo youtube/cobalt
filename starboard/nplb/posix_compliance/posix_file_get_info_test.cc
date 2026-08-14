@@ -86,11 +86,10 @@ TEST(PosixFileGetInfoTest, WorksOnStaticContentFiles) {
 }
 
 TEST(PosixFileGetInfoTest, WorksOnADirectory) {
-  char dir_template[] = "/tmp/fstat_test_dir.XXXXXX";
-  char* dir_path = mkdtemp(dir_template);
-  ASSERT_NE(dir_path, nullptr);
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
 
-  int fd = open(dir_path, O_RDONLY);
+  int fd = open(temp_dir.path().c_str(), O_RDONLY);
   ASSERT_NE(fd, -1);
 
   struct stat info;
@@ -98,7 +97,6 @@ TEST(PosixFileGetInfoTest, WorksOnADirectory) {
   EXPECT_TRUE(S_ISDIR(info.st_mode));
 
   EXPECT_EQ(close(fd), 0);
-  EXPECT_EQ(rmdir(dir_path), 0);
 }
 
 TEST(PosixFileGetInfoTest, FollowsSymbolicLink) {
@@ -106,11 +104,10 @@ TEST(PosixFileGetInfoTest, FollowsSymbolicLink) {
   ScopedRandomFile target_file(file_size);
   std::string target_path = target_file.filename();
 
-  char dir_template[] = "/tmp/fstat_test_dir.XXXXXX";
-  char* dir_path = mkdtemp(dir_template);
-  ASSERT_NE(dir_path, nullptr);
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
 
-  std::string link_path = std::string(dir_path) + "/symlink";
+  std::string link_path = temp_dir.path() + "/symlink";
   ASSERT_EQ(symlink(target_path.c_str(), link_path.c_str()), 0);
 
   // Open the symbolic link.
@@ -124,19 +121,16 @@ TEST(PosixFileGetInfoTest, FollowsSymbolicLink) {
   EXPECT_TRUE(S_ISREG(info.st_mode));  // Should be a regular file.
 
   EXPECT_EQ(close(fd), 0);
-  EXPECT_EQ(unlink(link_path.c_str()), 0);
-  EXPECT_EQ(rmdir(dir_path), 0);
 }
 
 TEST(PosixFileGetInfoTest, ReportsHardLinkCount) {
   ScopedRandomFile file;
   std::string path1 = file.filename();
 
-  char dir_template[] = "/tmp/fstat_test_dir.XXXXXX";
-  char* dir_path = mkdtemp(dir_template);
-  ASSERT_NE(dir_path, nullptr);
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
 
-  std::string path2 = std::string(dir_path) + "/hardlink";
+  std::string path2 = temp_dir.path() + "/hardlink";
 
   // Create a hard link.
   ASSERT_EQ(link(path1.c_str(), path2.c_str()), 0);
@@ -150,8 +144,6 @@ TEST(PosixFileGetInfoTest, ReportsHardLinkCount) {
   EXPECT_EQ(info.st_nlink, 2u);
 
   EXPECT_EQ(close(fd), 0);
-  EXPECT_EQ(unlink(path2.c_str()), 0);
-  EXPECT_EQ(rmdir(dir_path), 0);
 }
 
 }  // namespace

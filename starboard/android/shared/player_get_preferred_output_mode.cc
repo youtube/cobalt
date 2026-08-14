@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/player.h"
+// clang-format on
+
 #include <algorithm>
 
 #include "starboard/configuration.h"
-#include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
@@ -65,17 +68,24 @@ SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
   }
 
   if (max_video_capabilities && strlen(max_video_capabilities) > 0) {
-    // Sub players must use "decode-to-texture" on Android.
-    // Since hdr videos are not supported under "decode-to-texture" mode, reject
-    // it for sub players.
+    if (!is_sdr) {
+      SB_LOG(INFO)
+          << "Returning kSbPlayerOutputModeInvalid as HDR videos are not "
+             "supported for secondary player.";
+      return kSbPlayerOutputModeInvalid;
+    }
+    // Sub players prefer "decode-to-texture" on Android.
+    // If decode-to-texture is supported, use decode-to-texture.
     if (PlayerComponents::Factory::OutputModeSupported(
-            kSbPlayerOutputModeDecodeToTexture, codec, drm_system) &&
-        is_sdr) {
+            kSbPlayerOutputModeDecodeToTexture, codec, drm_system)) {
       return kSbPlayerOutputModeDecodeToTexture;
     }
-    SB_LOG_IF(INFO, !is_sdr)
-        << "Returning kSbPlayerOutputModeInvalid as HDR videos are not "
-           "supported under decode-to-texture.";
+    // Fall back to punch-out mode if supported (e.g., for Widevine L1 DRM).
+    if (PlayerComponents::Factory::OutputModeSupported(
+            kSbPlayerOutputModePunchOut, codec, drm_system)) {
+      SB_LOG(INFO) << "Falling back to punch out mode";
+      return kSbPlayerOutputModePunchOut;
+    }
     return kSbPlayerOutputModeInvalid;
   }
 

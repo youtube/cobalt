@@ -15,6 +15,7 @@
 #include "content/browser/web_contents/web_contents_impl.h"
 
 #include <array>
+#include <optional>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -69,7 +70,6 @@
 #include "content/common/frame.mojom.h"
 #include "content/public/browser/back_forward_cache.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/file_select_listener.h"
 #include "content/public/browser/host_zoom_map.h"
 #include "content/public/browser/invalidate_type.h"
 #include "content/public/browser/javascript_dialog_manager.h"
@@ -117,7 +117,6 @@
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/web_client_hints_types.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/client_hints/client_hints.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
@@ -3055,7 +3054,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTestClientHintsEnabled,
   blink::UserAgentOverride ua_override;
   ua_override.ua_string_override = "x";
   // Do NOT set `ua_metadata_override`, so the UA-CH headers are *removed*
-  ua_override.ua_metadata_override = absl::nullopt;
+  ua_override.ua_metadata_override = std::nullopt;
   UserAgentInjector injector(shell()->web_contents(), ua_override);
   EXPECT_TRUE(NavigateToURL(shell(), http2_server.GetURL("/empty.html")));
 
@@ -3109,7 +3108,7 @@ class WebContentsImplBrowserTestReduceAcceptLanguageOn
   void VerifyPersistAndGetReduceAcceptLanguage(
       const GURL& url,
       const std::string& persist_lang,
-      const absl::optional<std::string>& expect_lang) {
+      const std::optional<std::string>& expect_lang) {
     ReduceAcceptLanguageControllerDelegate* delegate =
         ShellContentBrowserClient::Get()
             ->browser_context()
@@ -3117,7 +3116,7 @@ class WebContentsImplBrowserTestReduceAcceptLanguageOn
 
     url::Origin origin = url::Origin::Create(url);
     delegate->PersistReducedLanguage(origin, persist_lang);
-    const absl::optional<std::string>& language =
+    const std::optional<std::string>& language =
         delegate->GetReducedLanguage(origin);
     EXPECT_EQ(expect_lang, language);
 
@@ -3154,7 +3153,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTestReduceAcceptLanguageOn,
                                           /*expect_lang=*/test_lang);
   VerifyPersistAndGetReduceAcceptLanguage(/*url=*/GURL("ws://example.com/"),
                                           /*persist_lang=*/test_lang,
-                                          /*expect_lang=*/absl::nullopt);
+                                          /*expect_lang=*/std::nullopt);
 }
 
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
@@ -3438,7 +3437,7 @@ class UpdateTargetURLWaiter : public WebContentsDelegate {
     }
   }
 
-  absl::optional<GURL> updated_target_url_;
+  std::optional<GURL> updated_target_url_;
   scoped_refptr<MessageLoopRunner> runner_;
 };
 
@@ -3719,8 +3718,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_TitleUpdateOnRestore) {
   std::unique_ptr<NavigationEntryImpl> restored_entry =
       NavigationEntryImpl::FromNavigationEntry(
           NavigationController::CreateNavigationEntry(
-              main_url, Referrer(), /* initiator_origin= */ absl::nullopt,
-              /* initiator_base_url= */ absl::nullopt,
+              main_url, Referrer(), /* initiator_origin= */ std::nullopt,
+              /* initiator_base_url= */ std::nullopt,
               ui::PAGE_TRANSITION_RELOAD, false, std::string(),
               controller.GetBrowserContext(),
               nullptr /* blob_url_loader_factory */));
@@ -5379,7 +5378,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   EXPECT_EQ(shell()->web_contents()->GetThemeColor(), 0xFFFF0000u);
 
   EXPECT_TRUE(NavigateToURL(shell(), url_b));
-  EXPECT_EQ(shell()->web_contents()->GetThemeColor(), absl::nullopt);
+  EXPECT_EQ(shell()->web_contents()->GetThemeColor(), std::nullopt);
 
   shell()->web_contents()->GetController().GoBack();
   EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
@@ -5701,7 +5700,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
       clipboard_paste_data,
       base::BindLambdaForTesting(
           [&web_contents](
-              absl::optional<ClipboardPasteData> clipboard_paste_data) {
+              std::optional<ClipboardPasteData> clipboard_paste_data) {
             EXPECT_TRUE(clipboard_paste_data.has_value());
             EXPECT_TRUE(web_contents->ShouldIgnoreUnresponsiveRenderer());
           }));
@@ -6184,7 +6183,7 @@ class MediaWaiter : public WebContentsObserver {
   void WaitForMediaDestroyed() { media_destroyed_loop_.Run(); }
 
  private:
-  absl::optional<MediaPlayerId> started_media_id_;
+  std::optional<MediaPlayerId> started_media_id_;
   base::RunLoop media_started_playing_loop_;
   base::RunLoop media_destroyed_loop_;
 };
@@ -6328,6 +6327,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsPrerenderBrowserTest,
   close_observer.Wait();
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 class WebContentsFencedFrameBrowserTest : public WebContentsImplBrowserTest {
  public:
   WebContentsFencedFrameBrowserTest() = default;
@@ -6523,6 +6523,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsFencedFrameBrowserTest,
     test_recorder_.ExpectEntryMetric(entry, UkmEntry::kIsTopFrameName, false);
   }
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 #if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && BUILDFLAG(USE_STARSCAN)
 

@@ -34,7 +34,6 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // This has to be defined in the global namespace as its instance will be used
@@ -132,7 +131,7 @@ class VideoDecoderTestFixture {
   void ClearDecodedFrames() { decoded_frames_.clear(); }
 
  protected:
-  JobQueue* job_queue_;
+  JobQueue* const job_queue_;
 
   std::mutex mutex_;
   std::deque<Event> event_queue_;

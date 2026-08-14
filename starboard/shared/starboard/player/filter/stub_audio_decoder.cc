@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/filter/stub_audio_decoder.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
@@ -75,8 +76,10 @@ scoped_refptr<DecodedAudio> CreateDecodedAudio(
 
 }  // namespace
 
-StubAudioDecoder::StubAudioDecoder(const AudioStreamInfo& audio_stream_info)
-    : codec_(audio_stream_info.codec),
+StubAudioDecoder::StubAudioDecoder(JobQueue* job_queue,
+                                   const AudioStreamInfo& audio_stream_info)
+    : JobOwner(job_queue),
+      codec_(audio_stream_info.codec),
       number_of_channels_(audio_stream_info.number_of_channels),
       samples_per_second_(audio_stream_info.samples_per_second),
       sample_type_(GetSupportedSampleType()) {
@@ -103,16 +106,16 @@ void StubAudioDecoder::Decode(const InputBuffers& input_buffers,
   }
 
   if (!decoder_thread_) {
-    decoder_thread_.reset(new JobThread("stub_audio_decoder"));
+    decoder_thread_ = JobThread::Create("stub_audio_decoder");
   }
-  decoder_thread_->job_queue()->Schedule(std::bind(
-      &StubAudioDecoder::DecodeBuffers, this, input_buffers, consumed_cb));
+  decoder_thread_->Schedule(std::bind(&StubAudioDecoder::DecodeBuffers, this,
+                                      input_buffers, consumed_cb));
 }
 
 void StubAudioDecoder::WriteEndOfStream() {
   SB_CHECK(BelongsToCurrentThread());
   if (decoder_thread_) {
-    decoder_thread_->job_queue()->Schedule(
+    decoder_thread_->Schedule(
         std::bind(&StubAudioDecoder::DecodeEndOfStream, this));
     return;
   }
@@ -136,7 +139,10 @@ scoped_refptr<DecodedAudio> StubAudioDecoder::Read(int* samples_per_second) {
 void StubAudioDecoder::Reset() {
   SB_CHECK(BelongsToCurrentThread());
 
-  decoder_thread_.reset();
+  if (decoder_thread_) {
+    decoder_thread_->Stop();
+    decoder_thread_.reset();
+  }
   last_input_buffer_ = NULL;
   total_input_count_ = 0;
   while (!decoded_audios_.empty()) {
@@ -180,7 +186,7 @@ void StubAudioDecoder::DecodeOneBuffer(
 
     if (total_input_count_ % kMaxInputBeforeMultipleDecodedAudios != 0) {
       std::lock_guard lock(decoded_audios_mutex_);
-      decoded_audios_.push(decoded_audio);
+      decoded_audios_.push(std::move(decoded_audio));
       Schedule(output_cb_);
     } else {
       // Divide the content of `decoded_audio` as multiple DecodedAudio objects
@@ -221,7 +227,7 @@ void StubAudioDecoder::DecodeOneBuffer(
         offset_in_bytes += size_in_bytes_of_output;
 
         std::lock_guard lock(decoded_audios_mutex_);
-        decoded_audios_.push(current_decoded_audio);
+        decoded_audios_.push(std::move(current_decoded_audio));
         Schedule(output_cb_);
       }
     }
@@ -267,7 +273,7 @@ void StubAudioDecoder::DecodeEndOfStream() {
                                                discarded_duration_from_back);
 
     std::lock_guard lock(decoded_audios_mutex_);
-    decoded_audios_.push(decoded_audio);
+    decoded_audios_.push(std::move(decoded_audio));
     Schedule(output_cb_);
   }
   std::lock_guard lock(decoded_audios_mutex_);

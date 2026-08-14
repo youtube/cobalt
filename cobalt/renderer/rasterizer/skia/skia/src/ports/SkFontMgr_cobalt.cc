@@ -236,7 +236,7 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onMatchFamilyStyle(
     typeface = family->matchStyle(style);
   }
 
-  if (typeface == NULL) {
+  if (typeface == NULL && family_name == NULL) {
     typeface = default_families_[0]->matchStyle(style);
   }
 

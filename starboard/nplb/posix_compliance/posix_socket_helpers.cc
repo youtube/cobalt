@@ -26,7 +26,6 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/posix/handle_eintr.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {

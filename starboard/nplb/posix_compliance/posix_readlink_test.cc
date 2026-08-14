@@ -43,26 +43,20 @@ namespace {
 class PosixReadlinkTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    char template_name[] = "/tmp/readlink_test_XXXXXX";
-    char* dir_name = mkdtemp(template_name);
-    ASSERT_NE(dir_name, nullptr) << "mkdtemp failed: " << strerror(errno);
-    test_dir_ = dir_name;
+    ASSERT_TRUE(temp_dir_.IsValid())
+        << "ScopedTempDir failed to create directory";
 
     link_target_content_ = "a/relative/path/to/a/file.txt";
-    link_path_ = test_dir_ + "/the_link";
+    link_path_ = temp_dir_.path() + "/the_link";
 
     int res = symlink(link_target_content_.c_str(), link_path_.c_str());
     ASSERT_EQ(res, 0) << "Failed to create symlink in setup: "
                       << strerror(errno);
   }
 
-  void TearDown() override {
-    if (!test_dir_.empty()) {
-      ASSERT_TRUE(RemoveFileOrDirectoryRecursively(test_dir_.c_str()));
-    }
-  }
+  void TearDown() override {}
 
-  std::string test_dir_;
+  ScopedTempDir temp_dir_;
   std::string link_path_;
   std::string link_target_content_;
 };
@@ -98,7 +92,7 @@ TEST_F(PosixReadlinkTest, DoesNotNullTerminate) {
 }
 
 TEST_F(PosixReadlinkTest, PathIsNotSymlinkFails) {
-  std::string regular_file = test_dir_ + "/regular.txt";
+  std::string regular_file = temp_dir_.path() + "/regular.txt";
   int fd = open(regular_file.c_str(), O_CREAT | O_WRONLY, kUserRw);
   ASSERT_NE(fd, -1) << "Failed to create test file: " << strerror(errno);
   ASSERT_EQ(write(fd, "hello", 5), 5);
@@ -111,7 +105,7 @@ TEST_F(PosixReadlinkTest, PathIsNotSymlinkFails) {
 }
 
 TEST_F(PosixReadlinkTest, NonExistentPathFails) {
-  std::string non_existent_path = test_dir_ + "/does_not_exist";
+  std::string non_existent_path = temp_dir_.path() + "/does_not_exist";
   char buf[PATH_MAX];
   errno = 0;
   EXPECT_EQ(readlink(non_existent_path.c_str(), buf, sizeof(buf)), -1);
@@ -126,7 +120,7 @@ TEST_F(PosixReadlinkTest, EmptyPathFails) {
 }
 
 TEST_F(PosixReadlinkTest, PathComponentNotDirectoryFails) {
-  std::string file_as_dir = test_dir_ + "/file_as_dir";
+  std::string file_as_dir = temp_dir_.path() + "/file_as_dir";
   int fd = open(file_as_dir.c_str(), O_CREAT | O_WRONLY, kUserRw);
   ASSERT_NE(fd, -1);
   close(fd);
@@ -146,7 +140,7 @@ TEST_F(PosixReadlinkTest, PermissionDeniedFails) {
   }
 
   constexpr mode_t user_rwx = S_IRUSR | S_IWUSR | S_IXUSR;
-  std::string protected_dir = test_dir_ + "/protected";
+  std::string protected_dir = temp_dir_.path() + "/protected";
   std::string link_in_protected = protected_dir + "/inner_link";
 
   ASSERT_EQ(mkdir(protected_dir.c_str(), user_rwx), 0);
@@ -177,8 +171,8 @@ TEST_F(PosixReadlinkTest, InvalidBufferSizeFails) {
 }
 
 TEST_F(PosixReadlinkTest, SymlinkLoopFails) {
-  std::string link_a_path = test_dir_ + "/link_a";
-  std::string link_b_path = test_dir_ + "/link_b";
+  std::string link_a_path = temp_dir_.path() + "/link_a";
+  std::string link_b_path = temp_dir_.path() + "/link_b";
 
   ASSERT_EQ(symlink(link_b_path.c_str(), link_a_path.c_str()), 0);
   ASSERT_EQ(symlink(link_a_path.c_str(), link_b_path.c_str()), 0);
@@ -196,7 +190,7 @@ TEST_F(PosixReadlinkTest, SymlinkLoopFails) {
 
 TEST_F(PosixReadlinkTest, PathTooLongFails) {
   std::string long_name(PATH_MAX + 1, 'a');
-  std::string long_path = test_dir_ + "/" + long_name;
+  std::string long_path = temp_dir_.path() + "/" + long_name;
 
   char buf[PATH_MAX];
   errno = 0;

@@ -39,7 +39,8 @@ namespace starboard {
 
 class OpenH264VideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
-  OpenH264VideoDecoder(SbMediaVideoCodec video_codec,
+  OpenH264VideoDecoder(JobQueue* job_queue,
+                       SbMediaVideoCodec video_codec,
                        SbPlayerOutputMode output_mode,
                        SbDecodeTargetGraphicsContextProvider*
                            decode_target_graphics_context_provider);

@@ -20,12 +20,7 @@ sb_static_contents_output_data_dir = "$root_out_dir"
 
 sb_enable_benchmark = true
 
-install_target_path = "//starboard/build/install/install_target.gni"
-
 sb_enable_opus_sse = false
-
-speed_config_path = "//starboard/linux/shared/platform_configuration:speed"
-size_config_path = "//starboard/linux/shared/platform_configuration:size"
 
 pedantic_warnings_config_path =
     "//starboard/linux/shared/platform_configuration:pedantic_warnings"
@@ -36,8 +31,5 @@ sb_widevine_platform = "linux"
 
 platform_tests_path =
     "//starboard/linux/shared:starboard_platform_tests($starboard_toolchain)"
-
-# TODO(b/330364592): re-enable when in-app-dial is fixed.
-enable_in_app_dial = true
 
 sb_enable_cast_codec_tests = true

@@ -34,8 +34,8 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/trace_event/trace_log.h"
 #include "build/build_config.h"
-#include "cobalt/shell/app/shell_crash_reporter_client.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "cobalt/shell/buildflags.h"
 #include "cobalt/shell/common/shell_content_client.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -62,8 +62,7 @@
   content::RegisterIPCLogger(msg_id, logger)
 #endif
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
-    !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
 #include "content/web_test/browser/web_test_browser_main_runner.h"  // nogncheck
 #include "content/web_test/browser/web_test_content_browser_client.h"  // nogncheck
 #include "content/web_test/renderer/web_test_content_renderer_client.h"  // nogncheck
@@ -88,10 +87,6 @@
 #include "v8/include/v8-wasm-trap-handler-posix.h"
 #endif
 
-#if BUILDFLAG(IS_IOS)
-#include "cobalt/shell/app/ios/shell_application_ios.h"
-#endif
-
 namespace {
 
 enum class LoggingDest {
@@ -102,79 +97,10 @@ enum class LoggingDest {
 #endif
 };
 
-#if !BUILDFLAG(IS_ANDROIDTV)
-base::LazyInstance<content::ShellCrashReporterClient>::Leaky
-    g_shell_crash_client = LAZY_INSTANCE_INITIALIZER;  // NOLINT
-#endif
-
 void InitLogging(const base::CommandLine& command_line) {
-  LoggingDest dest = LoggingDest::kFile;
-
-  if (command_line.GetSwitchValueASCII(switches::kEnableLogging) == "stderr") {
-    dest = LoggingDest::kStderr;
-  }
-
-#if BUILDFLAG(IS_WIN)
-  // On Windows child process may be given a handle in the --log-file switch.
-  base::win::ScopedHandle log_handle;
-  if (command_line.GetSwitchValueASCII(switches::kEnableLogging) == "handle") {
-    auto handle_str = command_line.GetSwitchValueNative(switches::kLogFile);
-    uint32_t handle_value = 0;
-    if (base::StringToUint(handle_str, &handle_value)) {
-      // This handle is owned by the logging framework and is closed when the
-      // process exits.
-      HANDLE duplicate = nullptr;
-      if (::DuplicateHandle(GetCurrentProcess(),
-                            base::win::Uint32ToHandle(handle_value),
-                            GetCurrentProcess(), &duplicate, 0, FALSE,
-                            DUPLICATE_SAME_ACCESS)) {
-        log_handle.Set(duplicate);
-        dest = LoggingDest::kHandle;
-      }
-    }
-  }
-#endif  // BUILDFLAG(IS_WIN)
-
-  base::FilePath log_filename;
-  if (dest == LoggingDest::kFile) {
-    log_filename = command_line.GetSwitchValuePath(switches::kLogFile);
-    if (log_filename.empty()) {
-#if BUILDFLAG(IS_IOS)
-      base::PathService::Get(base::DIR_TEMP, &log_filename);
-#else
-      base::PathService::Get(base::DIR_EXE, &log_filename);
-#endif
-#if BUILDFLAG(IS_ANDROID)
-      log_filename = log_filename.AppendASCII("cobalt_shell.log");
-#else
-      log_filename = log_filename.AppendASCII("content_shell.log");
-#endif
-    }
-  }
-
   logging::LoggingSettings settings;
-#if BUILDFLAG(IS_WIN)
-  if (dest == LoggingDest::kHandle) {
-    // TODO(crbug.com/328285906) Use a ScopedHandle in logging settings.
-    settings.log_file = log_handle.release();
-  } else {
-    settings.log_file = nullptr;
-  }
-#endif  // BUILDFLAG(IS_WIN)
-
-  if (dest == LoggingDest::kFile) {
-    settings.log_file_path = log_filename.value();
-  }
-
-  if (dest == LoggingDest::kStderr) {
-    settings.logging_dest =
-        logging::LOG_TO_STDERR | logging::LOG_TO_SYSTEM_DEBUG_LOG;
-  } else {
-    // Includes both handle or provided filename on Windows.
-    settings.logging_dest = logging::LOG_TO_ALL;
-  }
-
-  settings.delete_old = logging::DELETE_OLD_LOG_FILE;
+  settings.logging_dest =
+      logging::LOG_TO_SYSTEM_DEBUG_LOG | logging::LOG_TO_STDERR;
   logging::InitLogging(settings);
   logging::SetLogItems(true /* Process ID */, true /* Thread ID */,
                        true /* Timestamp */, false /* Tick count */);
@@ -197,8 +123,7 @@ std::optional<int> ShellMainDelegate::BasicStartupComplete() {
 
   InitLogging(command_line);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
-    !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
   if (switches::IsRunWebTestsSwitchPresent()) {
     const bool browser_process =
         command_line.GetSwitchValueASCII(switches::kProcessType).empty();
@@ -234,27 +159,6 @@ bool ShellMainDelegate::ShouldInitializeMojo(InvokedIn invoked_in) {
 }
 
 void ShellMainDelegate::PreSandboxStartup() {
-// Disable platform crash handling and initialize the crash reporter, if
-// requested.
-// TODO(crbug.com/40188745): Implement crash reporter integration for Fuchsia.
-#if !BUILDFLAG(IS_ANDROIDTV)
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kEnableCrashReporter)) {
-    std::string process_type =
-        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-            switches::kProcessType);
-    crash_reporter::SetCrashReporterClient(g_shell_crash_client.Pointer());
-    // Reporting for sub-processes will be initialized in ZygoteForked.
-    if (process_type != switches::kZygoteProcess) {
-      crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
-#if BUILDFLAG(IS_LINUX)
-      crash_reporter::SetFirstChanceExceptionHandler(
-          v8::TryHandleWebAssemblyTrapPosix);
-#endif
-    }
-  }
-#endif  // !BUILDFLAG(IS_ANDROIDTV)
-
 #if !BUILDFLAG(IS_ANDROIDTV)
   crash_reporter::InitializeCrashKeys();
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
@@ -273,8 +177,7 @@ std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_BROWSER);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
-    !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
   if (switches::IsRunWebTestsSwitchPresent()) {
     // Web tests implement their own BrowserMain() replacement.
     web_test_runner_->RunBrowserMain(std::move(main_function_params));
@@ -406,11 +309,13 @@ std::optional<int> ShellMainDelegate::PostEarlyInitialization(
   // PoissonAllocationSampler we have in the ContentShell. Do we really need to
   // enforce it?
   memory_system::Initializer()
-      .SetDispatcherParameters(memory_system::DispatcherParameters::
-                                   PoissonAllocationSamplerInclusion::kEnforce,
-                               memory_system::DispatcherParameters::
-                                   AllocationTraceRecorderInclusion::kIgnore,
-                               process_type)
+      .SetDispatcherParameters(
+          memory_system::DispatcherParameters::
+              PoissonAllocationSamplerInclusion::kEnforce,
+          memory_system::DispatcherParameters::
+              AllocationTraceRecorderInclusion::kIgnore,
+          process_type,
+          memory_system::CobaltMemoryAttributionInclusion::kInclude)
       .Initialize(memory_system_);
 
   return std::nullopt;
@@ -422,8 +327,7 @@ ContentClient* ShellMainDelegate::CreateContentClient() {
 }
 
 ContentBrowserClient* ShellMainDelegate::CreateContentBrowserClient() {
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
-    !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
   if (switches::IsRunWebTestsSwitchPresent()) {
     browser_client_ = std::make_unique<WebTestContentBrowserClient>();
     return browser_client_.get();
@@ -434,8 +338,7 @@ ContentBrowserClient* ShellMainDelegate::CreateContentBrowserClient() {
 }
 
 ContentRendererClient* ShellMainDelegate::CreateContentRendererClient() {
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
-    !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
   if (switches::IsRunWebTestsSwitchPresent()) {
     renderer_client_ = std::make_unique<WebTestContentRendererClient>();
     return renderer_client_.get();

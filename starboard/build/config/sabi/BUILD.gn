@@ -83,7 +83,7 @@ config("sabi") {
   if (signedness_of_enum == "signed") {
     defines += [ "SB_HAS_SIGNED_ENUM=1" ]
   } else {
-    defines += [ "SB_HAS_SIGNED_ENUM=1" ]
+    defines += [ "SB_HAS_SIGNED_ENUM=0" ]
   }
 
   not_needed("*")

@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/system.h"
+// clang-format on
+
 // Adapted from base/rand_util_posix.cc
 
 #include <fcntl.h>
@@ -21,7 +25,6 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
-#include "starboard/system.h"
 
 namespace {
 

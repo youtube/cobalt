@@ -35,11 +35,14 @@ class ShellMainTestDelegate : public ShellMainDelegate {
 
   // ContentMainDelegate implementation:
   ContentClient* CreateContentClient() override;
+  ContentRendererClient* CreateContentRendererClient() override;
+  ContentGpuClient* CreateContentGpuClient() override;
   std::optional<int> BasicStartupComplete() override;
   ContentUtilityClient* CreateContentUtilityClient() override;
 
  private:
   std::unique_ptr<ShellContentUtilityClient> utility_client_;
+  std::unique_ptr<ContentGpuClient> gpu_client_;
 };
 
 }  // namespace content

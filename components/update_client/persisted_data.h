@@ -61,31 +61,31 @@ class PersistedData {
   // Returns the starboard version of the last successfully installed update
   // for the specified |id|. "" indicates that there is no recorded version value
   // for the |id|.
-  virtual std::string GetLastInstalledSbVersion(const std::string& id) const;
+  virtual std::string GetLastInstalledSbVersion(const std::string& id) const = 0;
 
   // Returns the version of the update that was last successfully installed for
   // the specified |id|. "" indicates that there is no recorded version value
   // for the |id|.
-  virtual std::string GetLastInstalledVersion(const std::string& id) const;
+  virtual std::string GetLastInstalledVersion(const std::string& id) const = 0;
 
   // Returns the updater channel that is set for the specified |id|. ""
   // indicates that there is no recorded updater channel value for the |id|.
-  virtual std::string GetUpdaterChannel(const std::string& id) const;
+  virtual std::string GetUpdaterChannel(const std::string& id) const = 0;
 
   // Returns the updater channel for the previous app startup.
-  virtual std::string GetLatestChannel() const;
+  virtual std::string GetLatestChannel() const = 0;
 
   // Records the Evergreen version and the starboard version of the update that
   // is successfully installed for the specified |id|.
   virtual void SetLastInstalledEgAndSbVersion(const std::string& id,
                                               const std::string& eg_version,
-                                              const std::string& sb_version);
+                                              const std::string& sb_version) = 0;
 
   // Records the updater channel that is set for the specified |id|.
-  virtual void SetUpdaterChannel(const std::string& id, const std::string& channel);
+  virtual void SetUpdaterChannel(const std::string& id, const std::string& channel) = 0;
 
   // Records the latest channel the app is on.
-  virtual void SetLatestChannel(const std::string& channel);
+  virtual void SetLatestChannel(const std::string& channel) = 0;
 #endif
 
   // Returns the PingFreshness (a random token that is written into the profile

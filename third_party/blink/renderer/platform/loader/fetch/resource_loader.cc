@@ -377,6 +377,14 @@ void ResourceLoader::Start() {
     throttle_option =
         ResourceLoadScheduler::ThrottleOption::kCanNotBeStoppedOrThrottled;
   }
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltBypassResourceLoadScheduler)) {
+    scheduler_client_id_ = 1;
+    StartFetch();
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   scheduler_->Request(this, throttle_option, request.Priority(),
                       request.IntraPriorityValue(), &scheduler_client_id_);
 }
@@ -452,6 +460,14 @@ void ResourceLoader::StartFetch() {
 void ResourceLoader::Release(
     ResourceLoadScheduler::ReleaseOption option,
     const ResourceLoadScheduler::TrafficReportHints& hints) {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltBypassResourceLoadScheduler)) {
+    scheduler_client_id_ = ResourceLoadScheduler::kInvalidClientId;
+    feature_handle_for_scheduler_.reset();
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   DCHECK_NE(ResourceLoadScheduler::kInvalidClientId, scheduler_client_id_);
   bool released = scheduler_->Release(scheduler_client_id_, option, hints);
   DCHECK(released);
@@ -514,6 +530,17 @@ void ResourceLoader::SetDefersLoading(LoaderFreezeMode mode) {
 
 void ResourceLoader::DidChangePriority(ResourceLoadPriority load_priority,
                                        int intra_priority_value) {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltBypassResourceLoadScheduler)) {
+    if (loader_) {
+      loader_->DidChangePriority(
+          static_cast<WebURLRequest::Priority>(load_priority),
+          intra_priority_value);
+    }
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   if (scheduler_->IsRunning(scheduler_client_id_)) {
     DCHECK_NE(ResourceLoadScheduler::kInvalidClientId, scheduler_client_id_);
     if (loader_) {
@@ -1011,7 +1038,11 @@ void ResourceLoader::DidReceiveResponseInternal(
   // A response should not serve partial content if it was not requested via a
   // Range header: https://fetch.spec.whatwg.org/#main-fetch
   if (response.GetType() == network::mojom::FetchResponseType::kOpaque &&
-      response.HttpStatusCode() == 206 && response.HasRangeRequested() &&
+      (response.HttpStatusCode() == 206 ||
+       (base::FeatureList::IsEnabled(
+            features::kBlockPartialResponseWithoutRange) &&
+        response.HttpStatusCode() == 416)) &&
+      response.HasRangeRequested() &&
       !initial_request.HttpHeaderFields().Contains(http_names::kRange)) {
     HandleError(ResourceError::CancelledDueToAccessCheckError(
         response.CurrentRequestUrl(), ResourceRequestBlockedReason::kOther));

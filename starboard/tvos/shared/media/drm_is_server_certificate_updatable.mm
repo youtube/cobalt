@@ -20,6 +20,9 @@
 #include "starboard/tvos/shared/media/drm_system_platform.h"
 #import "starboard/tvos/shared/starboard_application.h"
 
+using starboard::DrmSystemPlatform;
+using starboard::DrmSystemWidevine;
+
 bool SbDrmIsServerCertificateUpdatable(SbDrmSystem drm_system) {
   if (!SbDrmSystemIsValid(drm_system)) {
     SB_DLOG(ERROR) << "Invalid DRM system.";
@@ -33,8 +36,6 @@ bool SbDrmIsServerCertificateUpdatable(SbDrmSystem drm_system) {
     }
   }
 
-  using starboard::shared::uikit::DrmSystemPlatform;
-  using starboard::shared::widevine::DrmSystemWidevine;
   SB_DCHECK(DrmSystemWidevine::IsDrmSystemWidevine(drm_system) ||
             DrmSystemPlatform::IsSupported(drm_system));
   return drm_system->IsServerCertificateUpdatable();

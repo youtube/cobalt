@@ -12,37 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "cobalt/shell/browser/shell_platform_delegate.h"
+// clang-format on
+
 #include "base/containers/contains.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_platform_data_aura.h"
-#include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/aura/env.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
+#include "ui/aura/window_tree_host_platform.h"
+#include "ui/platform_window/platform_window.h"
 
 namespace content {
 
 struct ShellPlatformDelegate::ShellData {
   gfx::NativeWindow window;
+  gfx::Size initial_size_;
 };
 
 struct ShellPlatformDelegate::PlatformData {
   std::unique_ptr<ShellPlatformDataAura> aura;
+  gfx::Size default_window_size;
 };
 
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
 ShellPlatformDelegate::~ShellPlatformDelegate() = default;
 
-ShellPlatformDataAura* ShellPlatformDelegate::GetShellPlatformDataAura() {
-  return platform_->aura.get();
-}
-
-void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
+void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
+                                       bool is_visible) {
+  is_visible_ = is_visible;
   platform_ = std::make_unique<PlatformData>();
-  platform_->aura =
-      std::make_unique<ShellPlatformDataAura>(default_window_size);
+  platform_->default_window_size = default_window_size;
+  platform_->aura = nullptr;
 }
 
 void ShellPlatformDelegate::CreatePlatformWindow(
@@ -51,8 +56,25 @@ void ShellPlatformDelegate::CreatePlatformWindow(
   DCHECK(!base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
+  shell_data.initial_size_ = initial_size;
+
+  if (IsVisible()) {
+    CreatePlatformWindowInternal(shell, initial_size);
+  } else {
+    shell_data.window = nullptr;
+  }
+}
+
+void ShellPlatformDelegate::CreatePlatformWindowInternal(
+    Shell* shell,
+    const gfx::Size& initial_size) {
+  if (!platform_->aura) {
+    platform_->aura =
+        std::make_unique<ShellPlatformDataAura>(platform_->default_window_size);
+  }
   platform_->aura->ResizeWindow(initial_size);
 
+  ShellData& shell_data = shell_data_map_.at(shell);
   shell_data.window = platform_->aura->host()->window();
 }
 
@@ -69,13 +91,52 @@ void ShellPlatformDelegate::CleanUp(Shell* shell) {
 
 void ShellPlatformDelegate::SetContents(Shell* shell) {
   aura::Window* content = shell->web_contents()->GetNativeView();
+  if (!platform_ || !platform_->aura) {
+    return;
+  }
   aura::Window* parent = platform_->aura->host()->window();
-  if (!parent->Contains(content)) {
+  if (parent && !parent->Contains(content)) {
     parent->AddChild(content);
   }
 
   content->Show();
 }
+
+void ShellPlatformDelegate::RevealShell(Shell* shell) {
+  ShellData& shell_data = shell_data_map_.at(shell);
+  if (!shell_data.window) {
+    CreatePlatformWindowInternal(shell, shell_data.initial_size_);
+    SetContents(shell);
+  }
+}
+void ShellPlatformDelegate::MapWindowShell(Shell* shell) {
+  if (!platform_ || !platform_->aura || !platform_->aura->host()) {
+    return;
+  }
+  auto* host =
+      static_cast<aura::WindowTreeHostPlatform*>(platform_->aura->host());
+  if (host && host->platform_window()) {
+    host->platform_window()->Show(true);
+  }
+}
+
+void ShellPlatformDelegate::ConcealShell(Shell* shell) {
+  if (!platform_ || !platform_->aura || !platform_->aura->host()) {
+    return;
+  }
+  platform_->aura->host()->Hide();
+}
+void ShellPlatformDelegate::DidCreateOrAttachWebContents(
+    Shell* shell,
+    WebContents* web_contents) {
+  if (!is_visible_) {
+    TrackPreviouslyVisibleWebContents(web_contents);
+  }
+}
+
+void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}
+
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {}
 
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
                                              const gfx::Size& content_size) {

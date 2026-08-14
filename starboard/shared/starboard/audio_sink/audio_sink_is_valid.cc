@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/audio_sink.h"
+// clang-format on
+
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 bool SbAudioSinkIsValid(SbAudioSink audio_sink) {

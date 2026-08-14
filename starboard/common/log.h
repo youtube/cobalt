@@ -81,8 +81,6 @@ std::ostream& operator<<(std::ostream& out, const std::optional<T>& v) {
   return out << "(nullopt)";
 }
 
-std::string_view to_string(bool val);
-
 const SbLogPriority SB_LOG_INFO = kSbLogPriorityInfo;
 const SbLogPriority SB_LOG_WARNING = kSbLogPriorityWarning;
 const SbLogPriority SB_LOG_ERROR = kSbLogPriorityError;
@@ -116,16 +114,16 @@ class LogMessageVoidify {
   void operator&(std::ostream&);
 };
 
-// Aliases not to break CI tests.
-// See https://paste.googleplex.com/4527409416241152
-// TODO: b/441955897 - Update CI test to use flattened namespace
-namespace logging {
-using ::starboard::SB_LOG_0;
-using ::starboard::SB_LOG_ERROR;
-using ::starboard::SB_LOG_FATAL;
-using ::starboard::SB_LOG_INFO;
-using ::starboard::SB_LOG_WARNING;
-}  // namespace logging
+// Copied from base/check.h.
+// Class used to explicitly ignore an ostream, and optionally a boolean value.
+class VoidifyStream {
+ public:
+  VoidifyStream() = default;
+  explicit VoidifyStream(bool) {}
+
+  // Binary & has lower precedence than << but higher than ?:
+  void operator&(std::ostream&) {}
+};
 
 }  // namespace starboard
 
@@ -146,8 +144,7 @@ using ::starboard::SB_LOG_WARNING;
 #define SB_LAZY_STREAM(stream, condition) \
   !(condition) ? (void)0 : ::starboard::LogMessageVoidify() & (stream)
 
-#if SB_LOGGING_IS_OFFICIAL_BUILD && !SB_IS(MODULAR) && \
-    !SB_IS(EVERGREEN_COMPATIBLE)
+#if SB_LOGGING_IS_OFFICIAL_BUILD && !SB_IS(MODULAR) && !BUILDFLAG(IS_STARBOARD)
 #define SB_LOG_IS_ON(severity)                                               \
   ((::starboard::SB_LOG_##severity >= ::starboard::SB_LOG_FATAL)             \
        ? ((::starboard::SB_LOG_##severity) >= ::starboard::GetMinLogLevel()) \
@@ -161,6 +158,8 @@ using ::starboard::SB_LOG_WARNING;
   SB_LAZY_STREAM(SB_LOG_STREAM(severity), SB_LOG_IS_ON(severity) && (condition))
 #define SB_LOG(severity) SB_LOG_IF(severity, true)
 #define SB_EAT_STREAM_PARAMETERS SB_LOG_IF(INFO, false)
+#define SB_EAT_CHECK_STREAM_PARAMS(expr) \
+  true ? (void)0 : ::starboard::VoidifyStream(expr) & SB_LOG_STREAM(INFO)
 #define SB_STACK_IF(severity, condition) \
   SB_LOG_IF(severity, condition) << "\n" << ::starboard::Stack(0)
 #define SB_STACK(severity) SB_STACK_IF(severity, true)
@@ -187,14 +186,7 @@ using ::starboard::SB_LOG_WARNING;
 
 #if SB_LOGGING_IS_OFFICIAL_BUILD || \
     (defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON))
-class SbDcheckNoOpStream {
- public:
-  template <typename T>
-  const SbDcheckNoOpStream& operator<<(const T&) const {
-    return *this;
-  }
-};
-#define SB_DCHECK(condition) (void)sizeof(bool(condition)), SbDcheckNoOpStream()
+#define SB_DCHECK(condition) SB_EAT_CHECK_STREAM_PARAMS(!(condition))
 #define SB_DCHECK_ENABLED 0
 #else
 #define SB_DCHECK(condition) SB_CHECK(condition)

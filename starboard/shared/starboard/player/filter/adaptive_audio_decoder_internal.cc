@@ -33,11 +33,13 @@ T ResetAndReturn(T* t) {
 }
 
 AdaptiveAudioDecoder::AdaptiveAudioDecoder(
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system,
     const AudioDecoderCreator& audio_decoder_creator,
     const OutputFormatAdjustmentCallback& output_adjustment_callback)
-    : initial_samples_per_second_(audio_stream_info.samples_per_second),
+    : JobOwner(job_queue),
+      initial_samples_per_second_(audio_stream_info.samples_per_second),
       drm_system_(drm_system),
       audio_decoder_creator_(audio_decoder_creator),
       output_adjustment_callback_(output_adjustment_callback),
@@ -46,12 +48,14 @@ AdaptiveAudioDecoder::AdaptiveAudioDecoder(
 }
 
 AdaptiveAudioDecoder::AdaptiveAudioDecoder(
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system,
     const AudioDecoderCreator& audio_decoder_creator,
     bool enable_reset_audio_decoder,
     const OutputFormatAdjustmentCallback& output_adjustment_callback)
-    : AdaptiveAudioDecoder(audio_stream_info,
+    : AdaptiveAudioDecoder(job_queue,
+                           audio_stream_info,
                            drm_system,
                            audio_decoder_creator,
                            output_adjustment_callback) {
@@ -208,20 +212,6 @@ void AdaptiveAudioDecoder::TeardownAudioDecoder() {
   first_input_written_ = false;
 }
 
-void AdaptiveAudioDecoder::ResetInternal() {
-  CancelPendingJobs();
-  while (!decoded_audios_.empty()) {
-    decoded_audios_.pop();
-  }
-  pending_input_buffers_.clear();
-  pending_consumed_cb_ = nullptr;
-  flushing_ = false;
-  stream_ended_ = false;
-  first_output_received_ = false;
-  first_input_written_ = false;
-  output_format_checked_ = false;
-}
-
 void AdaptiveAudioDecoder::OnDecoderOutput() {
   if (!BelongsToCurrentThread()) {
     Schedule(std::bind(&AdaptiveAudioDecoder::OnDecoderOutput, this));
@@ -311,9 +301,23 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     if (channel_mixer_) {
       decoded_audio = channel_mixer_->Mix(decoded_audio);
     }
-    decoded_audios_.push(decoded_audio);
+    decoded_audios_.push(std::move(decoded_audio));
     Schedule(output_cb_);
   }
+}
+
+void AdaptiveAudioDecoder::ResetInternal() {
+  CancelPendingJobs();
+  while (!decoded_audios_.empty()) {
+    decoded_audios_.pop();
+  }
+  pending_input_buffers_.clear();
+  pending_consumed_cb_ = nullptr;
+  flushing_ = false;
+  stream_ended_ = false;
+  first_output_received_ = false;
+  first_input_written_ = false;
+  output_format_checked_ = false;
 }
 
 }  // namespace starboard

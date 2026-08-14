@@ -25,6 +25,7 @@ class BASE_EXPORT MeminfoDumpProvider
   static constexpr char kIsStaleName[] = "is_stale";
   static constexpr char kPssMetricName[] = "other_pss";
   static constexpr char kPrivateDirtyMetricName[] = "other_private_dirty";
+  static constexpr char kGraphicsMetricName[] = "graphics";
 
  private:
   friend class base::NoDestructor<MeminfoDumpProvider>;

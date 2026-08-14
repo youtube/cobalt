@@ -15,11 +15,14 @@
 #ifndef STARBOARD_TESTING_FAKE_GRAPHICS_CONTEXT_PROVIDER_H_
 #define STARBOARD_TESTING_FAKE_GRAPHICS_CONTEXT_PROVIDER_H_
 
-#include <pthread.h>
+#include <sys/types.h>
 
+#include <atomic>
 #include <functional>
+#include <memory>
 
 #include "starboard/common/queue.h"
+#include "starboard/common/thread.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/egl.h"
@@ -47,7 +50,16 @@ class FakeGraphicsContextProvider {
   void Render();
 
  private:
-  static void* ThreadEntryPoint(void* context);
+  class GlesContextThread : public Thread {
+   public:
+    explicit GlesContextThread(FakeGraphicsContextProvider* provider)
+        : Thread("dt_context"), provider_(provider) {}
+    void Run() override { provider_->RunLoop(); }
+
+   private:
+    FakeGraphicsContextProvider* provider_;
+  };
+
   void RunLoop();
 
   void InitializeEGL();
@@ -69,7 +81,9 @@ class FakeGraphicsContextProvider {
   SbEglSurface surface_;
   SbEglContext context_;
   Queue<std::function<void()>> functor_queue_;
-  pthread_t decode_target_context_thread_;
+
+  std::unique_ptr<GlesContextThread> gles_context_thread_;
+  std::atomic<pid_t> gles_context_thread_id_{0};
 
   SbDecodeTargetGraphicsContextProvider decoder_target_provider_;
 };

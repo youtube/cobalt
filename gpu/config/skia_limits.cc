@@ -94,7 +94,8 @@ void DetermineGrCacheLimitsFromAvailableMemory(
 #if !BUILDFLAG(IS_NACL)
   if (base::SysInfo::IsLowEndDevice()) {
 #if BUILDFLAG(IS_COBALT)
-    *max_resource_cache_bytes = 0;
+    constexpr size_t kLowEndCobaltMaxResourceCacheBytes = 2 * 1024 * 1024;
+    *max_resource_cache_bytes = kLowEndCobaltMaxResourceCacheBytes;
 #else
     *max_resource_cache_bytes = GetMaxLowEndGaneshResourceCacheBytes();
 #endif

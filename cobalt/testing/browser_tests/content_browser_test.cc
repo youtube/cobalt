@@ -29,6 +29,7 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
+#include "components/metrics/clean_exit_beacon.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/common/content_paths.h"
@@ -93,7 +94,13 @@ ContentBrowserTest::ContentBrowserTest() {
 
 ContentBrowserTest::~ContentBrowserTest() {}
 
+void ContentBrowserTest::SetUpCommandLine(base::CommandLine* command_line) {
+  // Cobalt UI does not need nor support Toolbar.
+  command_line->AppendSwitch(switches::kContentShellHideToolbar);
+}
+
 void ContentBrowserTest::SetUp() {
+  metrics::CleanExitBeacon::SkipCleanShutdownStepsForTesting();
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   SetUpCommandLine(command_line);
 
@@ -228,7 +235,7 @@ ContentBrowserTest::CreateTestBrowserContext() {
 }
 
 base::FilePath ContentBrowserTest::GetTestDataFilePath() {
-  return base::FilePath(FILE_PATH_LITERAL("cobalt/testing/browser_tests/data"));
+  return base::FilePath(FILE_PATH_LITERAL("content/test/data"));
 }
 
 }  // namespace content

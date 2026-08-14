@@ -147,12 +147,12 @@ TEST_F(PathServiceTest, Get) {
                                                  : &ReturnsValidPath,
                  key);
   }
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(IS_STARBOARD)
   // In the three Starboard custom directories, DIR_CACHE should always be
   // valid while DIR_SYSTEM_FONTS and DIR_SYSTEM_FONTS_CONFIGURATION
   // can be invalid on some platforms.
   EXPECT_PRED1(ReturnsValidPath, DIR_CACHE);
-#else  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#else  // BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_WIN)
   for (int key = PATH_WIN_START + 1; key < PATH_WIN_END; ++key) {
     if (key == DIR_SYSTEM_TEMP) {
@@ -179,7 +179,7 @@ TEST_F(PathServiceTest, Get) {
     EXPECT_PRED1(ReturnsValidPath, key);
   }
 #endif  // BUILDFLAG(IS_WIN)
-#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#endif  // BUILDFLAG(IS_STARBOARD)
 }
 
 // Tests that CheckedGet returns the same path as Get.

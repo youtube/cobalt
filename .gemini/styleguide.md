@@ -1,4 +1,4 @@
-# Cobalt projet code review style guide
+# Cobalt project code review style guide
 
 All code submitted to this repository must adhere to the established upstream Chromium style guides.
 
@@ -25,11 +25,12 @@ To ensure high-quality Mojo changes, refer to these resources for best practices
 *   **Mojo Testing**: /docs/mojo_testing.md
 *   **Mojo Security**: /docs/security/mojo.md
 
-# JNI Best Practices
+# JNI Zero Best Practices
 
-For JNI (Java Native Interface) code, please adhere to the following best practices.
+For JNI (Java Native Interface) code, please adhere to the JNI Zero best practices.
 
-*   **JNI Best Practices**: /base/android/jni_generator/README.md#Best-Practices
+When reviewing pull requests that modify JNI code or use JNI Zero to call between C++ and Java, the changes **must** strictly observe the JNI conversion processes, coding guidelines, and rules documented in the project's dedicated guide: **[JNI Zero Skill Guide (SKILL.md)](/third_party/jni_zero/skills/jni-zero/SKILL.md)**.
+
 *   **JNI Zero**: /third_party/jni_zero/README.md
 *   **Android JNI Ownership Best Practices**: /docs/android_jni_ownership_best_practices.md
 *   **Android Accessing Cpp Features in Java**: /docs/android_accessing_cpp_features_in_java.md
@@ -44,3 +45,18 @@ For changes involving Web IDL, refer to the following guides for API design prin
 *   **Chromium IDL Extended Attributes**: /third_party/blink/renderer/bindings/IDLExtendedAttributes.md
 *   **Web IDL Interfaces**: /docs/website/site/developers/web-idl-interfaces/index.md
 
+# Class comments
+
+Every new added class should have a meaningful class comment, in particular
+that should explain:
+* The reason for its existence (the "why").
+* The expected lifetime and ownership.
+* The threading model, in particular whether objects of the class can be used
+from any Thread/TaskRunner, or if it's Thread/TaskRunner-affine.
+
+# Feature Gating & Removal (Binary Size Optimization)
+
+When reviewing pull requests that surgically remove, disable, or gate any web API or feature in Cobalt/Chrobalt to optimize binary size, the changes **must** strictly observe the corresponding guidelines:
+
+*   **Surgical Feature Gating**: For general gating of features, custom build flags, IWYU preprocessor rules, targets pruning, C++ integration gating, and exposed binders, follow the guidelines and check the PR audit checklist in **[Surgical Feature Gating Rules](/cobalt/tools/binary_size/surgical_feature_gating_rules.md)**.
+*   **Hybrid Feature Removal & Stubbing**: For Blink/Renderer-side component exclusions, Web IDL modularity (Partial IDL patterns), and centralized C++ & V8 stubbing, follow the guidelines and check the PR audit checklist in **[Hybrid Feature Removal Rules](/cobalt/tools/binary_size/hybrid_feature_removal_rules.md)**.

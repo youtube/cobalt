@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <string.h>
-
+// clang-format off
 #include "starboard/window.h"
+// clang-format on
+
+#include <string.h>
 
 void SbWindowSetDefaultOptions(SbWindowOptions* options) {
   memset(options, 0, sizeof(*options));

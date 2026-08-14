@@ -1,0 +1,120 @@
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "cobalt/browser/h5vcc_updater/h5vcc_updater_sideloading_impl.h"
+
+#include "base/functional/callback.h"
+#include "build/build_config.h"
+#include "cobalt/updater/util.h"
+
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/updater/updater_module.h"
+#endif
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "cobalt/configuration/configuration.h"
+#include "starboard/common/system_property.h"
+#include "starboard/system.h"
+#endif
+
+// Note: these APIs are only bound to mojo if sideloading is enabled.
+namespace h5vcc_updater {
+
+H5vccUpdaterSideloadingImpl::H5vccUpdaterSideloadingImpl(
+    content::RenderFrameHost& render_frame_host,
+    mojo::PendingReceiver<mojom::H5vccUpdaterSideloading> receiver)
+    : content::DocumentService<mojom::H5vccUpdaterSideloading>(
+          render_frame_host,
+          std::move(receiver)) {
+  DETACH_FROM_THREAD(thread_checker_);
+}
+
+H5vccUpdaterSideloadingImpl::~H5vccUpdaterSideloadingImpl() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+}
+
+void H5vccUpdaterSideloadingImpl::Create(
+    content::RenderFrameHost* render_frame_host,
+    mojo::PendingReceiver<mojom::H5vccUpdaterSideloading> receiver) {
+  new H5vccUpdaterSideloadingImpl(*render_frame_host, std::move(receiver));
+}
+
+void H5vccUpdaterSideloadingImpl::SetAllowSelfSignedPackages(
+    bool allow_self_signed_packages,
+    SetAllowSelfSignedPackagesCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
+  if (updater_module) {
+    updater_module->SetAllowSelfSignedPackages(allow_self_signed_packages);
+  }
+  std::move(callback).Run();
+}
+
+void H5vccUpdaterSideloadingImpl::GetAllowSelfSignedPackages(
+    GetAllowSelfSignedPackagesCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
+  if (!updater_module) {
+    std::move(callback).Run(false);
+    return;
+  }
+  std::move(callback).Run(updater_module->GetAllowSelfSignedPackages());
+}
+
+void H5vccUpdaterSideloadingImpl::SetUpdateServerUrl(
+    const std::string& update_server_url,
+    SetUpdateServerUrlCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
+  if (updater_module) {
+    updater_module->SetUpdateServerUrl(update_server_url);
+  }
+  std::move(callback).Run();
+}
+
+void H5vccUpdaterSideloadingImpl::GetUpdateServerUrl(
+    GetUpdateServerUrlCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  auto updater_module = cobalt::updater::UpdaterModule::GetInstance();
+  if (updater_module) {
+    std::string url = updater_module->GetUpdateServerUrl();
+    std::move(callback).Run(url);
+  } else {
+    std::move(callback).Run("");
+  }
+}
+
+void H5vccUpdaterSideloadingImpl::SetRequireNetworkEncryption(
+    bool require_network_encryption,
+    SetRequireNetworkEncryptionCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
+  if (updater_module) {
+    updater_module->SetRequireNetworkEncryption(require_network_encryption);
+  }
+  std::move(callback).Run();
+}
+
+void H5vccUpdaterSideloadingImpl::GetRequireNetworkEncryption(
+    GetRequireNetworkEncryptionCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
+  if (!updater_module) {
+    std::move(callback).Run(false);
+    return;
+  }
+  std::move(callback).Run(updater_module->GetRequireNetworkEncryption());
+}
+
+}  // namespace h5vcc_updater

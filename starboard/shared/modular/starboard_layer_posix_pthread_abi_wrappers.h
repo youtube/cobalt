@@ -25,9 +25,7 @@
 extern "C" {
 #endif
 
-#if SB_IS(ARCH_ARM)
-#define MUSL_REDIR_TIME64 1
-#endif
+#define MUSL_REDIR_TIME64 0
 
 #define MUSL_PTHREAD_CREATE_JOINABLE 0
 #define MUSL_PTHREAD_CREATE_DETACHED 1
@@ -46,6 +44,8 @@ extern "C" {
 #define MUSL_SCHED_OTHER 0
 #define MUSL_SCHED_FIFO 1
 #define MUSL_SCHED_RR 2
+#define MUSL_SCHED_BATCH 3
+#define MUSL_SCHED_IDLE 5
 
 // Max size of the native mutex type.
 #define MUSL_MUTEX_MAX_SIZE 80

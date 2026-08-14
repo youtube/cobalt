@@ -20,8 +20,8 @@
 #include <utility>
 #include <vector>
 
+#include "starboard/common/rect.h"
 #include "starboard/decode_target.h"
-#include "starboard/extension/enhanced_audio.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -30,7 +30,7 @@
 #include "starboard/window.h"
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
-#include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
+#include "starboard/shared/starboard/player/video_dmp_writer.h"  // nogncheck
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
 struct SbPlayerPrivate {
@@ -46,7 +46,7 @@ struct SbPlayerPrivate {
   virtual void WriteSamples(const SbPlayerSampleInfo* sample_infos,
                             int number_of_sample_infos) = 0;
   virtual void WriteEndOfStream(SbMediaType stream_type) = 0;
-  virtual void SetBounds(int z_index, int x, int y, int width, int height) = 0;
+  virtual void SetBounds(int z_index, const starboard::Rect& rect) = 0;
 
   virtual void GetInfo(SbPlayerInfo* out_player_info) = 0;
   virtual void SetPause(bool pause) = 0;
@@ -63,7 +63,7 @@ namespace starboard {
 
 class SbPlayerPrivateImpl final : public SbPlayerPrivate {
  public:
-  static SbPlayerPrivate* CreateInstance(
+  SbPlayerPrivateImpl(
       SbMediaAudioCodec audio_codec,
       SbMediaVideoCodec video_codec,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
@@ -77,7 +77,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   void WriteSamples(const SbPlayerSampleInfo* sample_infos,
                     int number_of_sample_infos) final;
   void WriteEndOfStream(SbMediaType stream_type) final;
-  void SetBounds(int z_index, int x, int y, int width, int height) final;
+  void SetBounds(int z_index, const Rect& rect) final;
   void GetInfo(SbPlayerInfo* out_player_info) final;
 
   // TODO (b/456786219): as SbPlayer doesn't support pause, we should remove
@@ -95,16 +95,6 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   ~SbPlayerPrivateImpl() final;
 
  private:
-  SbPlayerPrivateImpl(
-      SbMediaAudioCodec audio_codec,
-      SbMediaVideoCodec video_codec,
-      SbPlayerDeallocateSampleFunc sample_deallocate_func,
-      SbPlayerDecoderStatusFunc decoder_status_func,
-      SbPlayerStatusFunc player_status_func,
-      SbPlayerErrorFunc player_error_func,
-      void* context,
-      std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
-
   void UpdateMediaInfo(int64_t media_time,
                        int dropped_video_frames,
                        int ticket,
@@ -127,7 +117,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   // we may extrapolate the media time in GetInfo().
   bool is_progressing_ = false;
 
-  std::unique_ptr<PlayerWorker> worker_;
+  const std::unique_ptr<PlayerWorker> worker_;
 
   std::mutex audio_configurations_mutex_;
   std::vector<SbMediaAudioConfiguration> audio_configurations_;

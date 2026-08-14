@@ -17,6 +17,8 @@
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
 #include "base/system/sys_info.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -30,48 +32,95 @@ using ::starboard::StarboardBridge;
 namespace performance {
 
 PerformanceImpl::PerformanceImpl(
+    std::optional<int64_t> app_startup_timestamp,
     content::RenderFrameHost& render_frame_host,
     mojo::PendingReceiver<mojom::CobaltPerformance> receiver)
     : content::DocumentService<mojom::CobaltPerformance>(render_frame_host,
-                                                         std::move(receiver)) {}
+                                                         std::move(receiver)),
+      app_startup_timestamp_(app_startup_timestamp) {}
 
 void PerformanceImpl::Create(
+    std::optional<int64_t> app_startup_timestamp,
     content::RenderFrameHost* render_frame_host,
     mojo::PendingReceiver<mojom::CobaltPerformance> receiver) {
-  new PerformanceImpl(*render_frame_host, std::move(receiver));
+  new PerformanceImpl(app_startup_timestamp, *render_frame_host,
+                      std::move(receiver));
 }
 
 void PerformanceImpl::MeasureAvailableCpuMemory(
     MeasureAvailableCpuMemoryCallback callback) {
-  std::move(callback).Run(base::SysInfo::AmountOfAvailablePhysicalMemory());
+  // Use lambda to resolve overload resolution ambiguity on platforms like
+  // Android.
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(
+          [] { return base::SysInfo::AmountOfAvailablePhysicalMemory(); }),
+      std::move(callback));
 }
 
 void PerformanceImpl::MeasureUsedCpuMemory(
     MeasureAvailableCpuMemoryCallback callback) {
-  auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
-      base::GetCurrentProcessHandle());
-  auto info = process_metrics->GetMemoryInfo();
-  auto used_memory = info.has_value() ? info->resident_set_bytes : 0;
-  std::move(callback).Run(used_memory);
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t {
+        auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
+            base::GetCurrentProcessHandle());
+        if (!process_metrics) {
+          return 0;
+        }
+        auto info = process_metrics->GetMemoryInfo();
+        return info.has_value() ? info->resident_set_bytes : 0;
+      }),
+      std::move(callback));
 }
 
-void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
-#if BUILDFLAG(IS_ANDROIDTV)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
-  auto startup_duration = starboard_bridge->GetAppStartDuration(env);
-#elif BUILDFLAG(IS_STARBOARD)
-  // TODO: b/389132127 - Startup time for 3P needs a place to be saved.
-  NOTIMPLEMENTED();
-  int64_t startup_duration = 0;
-#elif BUILDFLAG(IS_IOS_TVOS)
-  // TODO: b/447135715 - Implement app startup time measurement for tvOS.
-  NOTIMPLEMENTED();
-  int64_t startup_duration = 0;
+void PerformanceImpl::MeasureUsedSwapMemory(
+    MeasureUsedSwapMemoryCallback callback) {
+#if BUILDFLAG(IS_IOS_TVOS)
+  // TODO: b/497682329 - vm_swap_bytes does not exist on tvOS.
+  std::move(callback).Run(0);
 #else
-#error Unsupported platform.
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t {
+        auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
+            base::GetCurrentProcessHandle());
+        if (!process_metrics) {
+          return 0;
+        }
+        auto info = process_metrics->GetMemoryInfo();
+        return info.has_value() ? info->vm_swap_bytes : 0;
+      }),
+      std::move(callback));
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+}
+
+void PerformanceImpl::MeasureReservedVirtualMemory(
+    MeasureReservedVirtualMemoryCallback callback) {
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t {
+        auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
+            base::GetCurrentProcessHandle());
+        if (!process_metrics) {
+          return 0;
+        }
+        auto info = process_metrics->GetMemoryInfo();
+        return info.has_value() ? info->vm_size_bytes : 0;
+      }),
+      std::move(callback));
+}
+
+void PerformanceImpl::GetAppStartupTimeStamp(
+    GetAppStartupTimeStampCallback callback) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (!app_startup_timestamp_.has_value()) {
+    JNIEnv* env = base::android::AttachCurrentThread();
+    app_startup_timestamp_ =
+        StarboardBridge::GetInstance()->GetAppStartTimestamp(env);
+  }
 #endif
-  std::move(callback).Run(startup_duration);
+  std::move(callback).Run(app_startup_timestamp_.value_or(0));
 }
 
 }  // namespace performance

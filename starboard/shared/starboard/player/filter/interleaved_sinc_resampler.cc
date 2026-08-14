@@ -91,60 +91,6 @@ InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
   InitializeKernel();
 }
 
-void InterleavedSincResampler::InitializeKernel() {
-  // Blackman window parameters.
-  const double kAlpha = 0.16;
-  const double kA0 = 0.5 * (1.0 - kAlpha);
-  const double kA1 = 0.5;
-  const double kA2 = 0.5 * kAlpha;
-
-  // |sinc_scale_factor| is basically the normalized cutoff frequency of the
-  // low-pass filter.
-  double sinc_scale_factor =
-      io_sample_rate_ratio_ > 1.0 ? 1.0 / io_sample_rate_ratio_ : 1.0;
-
-  // The sinc function is an idealized brick-wall filter, but since we're
-  // windowing it the transition from pass to stop does not happen right away.
-  // So we should adjust the low pass filter cutoff slightly downward to avoid
-  // some aliasing at the very high-end.
-  // TODO: this value is empirical and to be more exact should vary depending
-  // on kKernelSize.
-  sinc_scale_factor *= 0.9;
-
-  // Generates a set of windowed sinc() kernels.
-  // We generate a range of sub-sample offsets from 0.0 to 1.0.
-  for (int offset_idx = 0; offset_idx <= kKernelOffsetCount; ++offset_idx) {
-    double subsample_offset =
-        static_cast<double>(offset_idx) / kKernelOffsetCount;
-
-    for (int i = 0; i < kKernelSize; ++i) {
-      // Compute the sinc with offset.
-      double s =
-          sinc_scale_factor * M_PI * (i - kKernelSize / 2 - subsample_offset);
-      double sinc = (!s ? 1.0 : sin(s) / s) * sinc_scale_factor;
-
-      // Compute Blackman window, matching the offset of the sinc().
-      double x = (i - subsample_offset) / kKernelSize;
-      double window =
-          kA0 - kA1 * cos(2.0 * M_PI * x) + kA2 * cos(4.0 * M_PI * x);
-
-      // Window the sinc() function and store at the correct offset.
-      kernel_storage_[i + offset_idx * kKernelSize] = sinc * window;
-    }
-  }
-}
-
-int InterleavedSincResampler::GetNumberOfCachedFrames() const {
-  if (pending_buffers_.empty()) {
-    return 0;
-  }
-
-  SB_DCHECK(frames_queued_ - kBufferSize >
-            frames_resampled_ * io_sample_rate_ratio_);
-  return frames_queued_ - kBufferSize -
-         frames_resampled_ * io_sample_rate_ratio_;
-}
-
 void InterleavedSincResampler::QueueBuffer(const float* data, int frames) {
   SB_DCHECK(CanQueueBuffer());
 
@@ -256,6 +202,60 @@ bool InterleavedSincResampler::HasEnoughData(int frames_to_resample) const {
   // for an extra Read().
   return (frames_resampled_ + frames_to_resample) * io_sample_rate_ratio_ <
          frames_queued_ - kBufferSize;
+}
+
+int InterleavedSincResampler::GetNumberOfCachedFrames() const {
+  if (pending_buffers_.empty()) {
+    return 0;
+  }
+
+  SB_DCHECK(frames_queued_ - kBufferSize >
+            frames_resampled_ * io_sample_rate_ratio_);
+  return frames_queued_ - kBufferSize -
+         frames_resampled_ * io_sample_rate_ratio_;
+}
+
+void InterleavedSincResampler::InitializeKernel() {
+  // Blackman window parameters.
+  const double kAlpha = 0.16;
+  const double kA0 = 0.5 * (1.0 - kAlpha);
+  const double kA1 = 0.5;
+  const double kA2 = 0.5 * kAlpha;
+
+  // |sinc_scale_factor| is basically the normalized cutoff frequency of the
+  // low-pass filter.
+  double sinc_scale_factor =
+      io_sample_rate_ratio_ > 1.0 ? 1.0 / io_sample_rate_ratio_ : 1.0;
+
+  // The sinc function is an idealized brick-wall filter, but since we're
+  // windowing it the transition from pass to stop does not happen right away.
+  // So we should adjust the low pass filter cutoff slightly downward to avoid
+  // some aliasing at the very high-end.
+  // TODO: this value is empirical and to be more exact should vary depending
+  // on kKernelSize.
+  sinc_scale_factor *= 0.9;
+
+  // Generates a set of windowed sinc() kernels.
+  // We generate a range of sub-sample offsets from 0.0 to 1.0.
+  for (int offset_idx = 0; offset_idx <= kKernelOffsetCount; ++offset_idx) {
+    double subsample_offset =
+        static_cast<double>(offset_idx) / kKernelOffsetCount;
+
+    for (int i = 0; i < kKernelSize; ++i) {
+      // Compute the sinc with offset.
+      double s =
+          sinc_scale_factor * M_PI * (i - kKernelSize / 2 - subsample_offset);
+      double sinc = (!s ? 1.0 : sin(s) / s) * sinc_scale_factor;
+
+      // Compute Blackman window, matching the offset of the sinc().
+      double x = (i - subsample_offset) / kKernelSize;
+      double window =
+          kA0 - kA1 * cos(2.0 * M_PI * x) + kA2 * cos(4.0 * M_PI * x);
+
+      // Window the sinc() function and store at the correct offset.
+      kernel_storage_[i + offset_idx * kKernelSize] = sinc * window;
+    }
+  }
 }
 
 void InterleavedSincResampler::Read(float* destination, int frames) {
