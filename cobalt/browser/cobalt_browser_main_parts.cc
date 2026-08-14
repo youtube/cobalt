@@ -238,13 +238,13 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 #if BUILDFLAG(USE_EVERGREEN)
-  // It would probably be harmless but confusing to add this annotation on
-  // platforms that do not support native stability tracking.
+  auto* native_stability_manager =
+      h5vcc_native_stability::NativeStabilityManager::GetInstance();
 
   // TODO: b/528362453 - Consider moving this to an earlier startup stage (e.g.
   // PreEarlyInitialization) to ensure early startup crashes are also tagged.
-  h5vcc_native_stability::NativeStabilityManager::GetInstance()
-      ->ArmCrashUuidAnnotation();
+  native_stability_manager->ArmCrashUuidAnnotation();
+  native_stability_manager->PruneStorage();
 #endif  // BUILDFLAG(USE_EVERGREEN)
 
   int result = ShellBrowserMainParts::PreMainMessageLoopRun();
