@@ -141,11 +141,10 @@ UrlPlayerDemuxer::GetContainerForMetrics() const {
   return std::nullopt;
 }
 
-void UrlPlayerDemuxer::OnTracksChanged(
-    DemuxerStream::Type track_type,
-    std::optional<MediaTrack::Id> track_id,
-    base::TimeDelta curr_time,
-    TrackChangeCB change_completed_cb) {
+void UrlPlayerDemuxer::OnTracksChanged(DemuxerStream::Type track_type,
+                                       std::optional<MediaTrack::Id> track_id,
+                                       base::TimeDelta curr_time,
+                                       TrackChangeCB change_completed_cb) {
   std::move(change_completed_cb).Run(nullptr);
   DLOG(WARNING) << "Track changes are not supported by UrlPlayerDemuxer.";
 }
