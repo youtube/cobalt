@@ -3,8 +3,6 @@ description: Archives and uploads nightly artifacts to GCS bucket.
 runs:
   using: "composite"
   steps:
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
     - name: Set env vars
       env:
         WORKFLOW: ${{github.workflow}}
@@ -35,4 +33,4 @@ runs:
       shell: bash
       run: |
         set -uex
-        gsutil -d cp "${ARCHIVE_PATH}" "gs://${PROJECT_NAME}-build-artifacts/${WORKFLOW}/${TODAY}/${GITHUB_RUN_NUMBER}/"
+        gcloud storage cp "${ARCHIVE_PATH}" "gs://${PROJECT_NAME}-build-artifacts/${WORKFLOW}/${TODAY}/${GITHUB_RUN_NUMBER}/"
