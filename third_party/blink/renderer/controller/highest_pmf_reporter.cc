@@ -17,7 +17,11 @@
 #include "build/buildflag.h"
 
 #if BUILDFLAG(IS_COBALT)
+#include <array>
+#include <string>
+
 #include "base/feature_list.h"
+#include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "third_party/blink/public/common/features.h"
@@ -35,6 +39,12 @@ constexpr std::array<const char*, kBaselineReportCount> kBaselineMetricNames = {
     "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.2to4min",
     "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.4to8min",
     "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.8to16min"};
+
+constexpr std::array<const char*, kBaselineReportCount> kPeakResidentSetMetricNames = {
+    "Memory.Experimental.Renderer.PeakResidentSet.AtHighestPrivateMemoryFootprint.0to2min",
+    "Memory.Experimental.Renderer.PeakResidentSet.AtHighestPrivateMemoryFootprint.2to4min",
+    "Memory.Experimental.Renderer.PeakResidentSet.AtHighestPrivateMemoryFootprint.4to8min",
+    "Memory.Experimental.Renderer.PeakResidentSet.AtHighestPrivateMemoryFootprint.8to16min"};
 
 constexpr std::array<base::TimeDelta, kBaselineReportCount>
     kBaselineTimeToReport = {base::Minutes(2), base::Minutes(4),
@@ -226,6 +236,9 @@ void HighestPmfReporter::ReportMetrics() {
   base::UmaHistogramMemoryMB(metric_name,
                              base::saturated_cast<base::Histogram::Sample32>(
                                  current_highest_pmf_ / 1024 / 1024));
+  base::UmaHistogramMemoryMB(kPeakResidentSetMetricNames[report_count_],
+                             base::saturated_cast<base::Histogram::Sample32>(
+                                 peak_resident_bytes_at_current_highest_pmf_ / 1024 / 1024));
 #else
   base::UmaHistogramMemoryMB(kHighestPmfMetricNames[report_count_],
                              base::saturated_cast<base::Histogram::Sample32>(

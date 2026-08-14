@@ -30,9 +30,9 @@ jobs:
           PUSH_SHA: ${{ github.sha }}
         run: |
           if [ "${EVENT_NAME}" = "pull_request" ]; then
-            echo "sha=${PR_SHA}" >> "$GITHUB_OUTPUT"
+            echo "sha=${PR_SHA}" >> "${GITHUB_OUTPUT}"
           else
-            echo "sha=${PUSH_SHA}" >> "$GITHUB_OUTPUT"
+            echo "sha=${PUSH_SHA}" >> "${GITHUB_OUTPUT}"
           fi
 
   get-targets:
@@ -56,10 +56,12 @@ jobs:
 
       - name: Convert Targets to Short Names
         id: short-targets
+        env:
+          TEST_TARGETS_JSON: ${{ steps.parse-targets.outputs.test_targets_json }}
         run: |
-          targets=$(echo '${{ steps.parse-targets.outputs.test_targets_json }}' | jq -cr 'map(split(":")[-1])')
+          targets=$(echo "${TEST_TARGETS_JSON}" | jq -cr 'map(split(":")[-1])')
           echo "Targets found: ${targets}"
-          echo "targets=${targets}" >> "$GITHUB_OUTPUT"
+          echo "targets=${targets}" >> "${GITHUB_OUTPUT}"
 
   wait-for-kokoro-build:
     needs: get-sha
@@ -99,7 +101,7 @@ jobs:
 
               if [[ "${state}" == "success" ]]; then
                 echo "Kokoro build succeeded!"
-                echo "invocation_id=${invocation_id}" >> "$GITHUB_OUTPUT"
+                echo "invocation_id=${invocation_id}" >> "${GITHUB_OUTPUT}"
                 exit 0
               elif [[ "${state}" == "failure" || "${state}" == "error" ]]; then
                 echo "Kokoro build failed with state: ${state}"
@@ -117,13 +119,11 @@ jobs:
           exit 1
 
   download-artifacts:
-    # TODO(b/519669027): consider odt-runner for fetching the artifacts.
     needs: [get-sha, wait-for-kokoro-build, get-targets]
-    runs-on: [self-hosted, chrobalt-linux-runner]
+    runs-on: [self-hosted, odt-runner]
+    container:
+      image: ghcr.io/youtube/cobalt/linux:main
     steps:
-      - name: Set Up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
       - name: Download Artifacts from GCS
         env:
           INVOCATION_ID: ${{ needs.wait-for-kokoro-build.outputs.invocation_id }}
@@ -169,19 +169,21 @@ jobs:
 
       - name: Filter
         id: filter
+        env:
+          TARGET: ${{ matrix.target }}
         run: |
           test_filter=""
-          filter_file="cobalt/testing/filters/tvos-arm64-simulator/${{ matrix.target }}_filter.json"
+          filter_file="cobalt/testing/filters/tvos-arm64-simulator/${TARGET}_filter.json"
           if [[ -f "${filter_file}" ]]; then
             test_filter="$(jq -cr '.failing_tests[0]' "${filter_file}")"
             if [[ "${test_filter}" == '*' ]]; then
-              echo "${{ matrix.target }} was skipped due to test filter."
-              echo "skipped=true" >> "$GITHUB_OUTPUT"
+              echo "${TARGET} was skipped due to test filter."
+              echo "skipped=true" >> "${GITHUB_OUTPUT}"
             else
-              echo "skipped=false" >> "$GITHUB_OUTPUT"
+              echo "skipped=false" >> "${GITHUB_OUTPUT}"
             fi
           else
-            echo "skipped=false" >> "$GITHUB_OUTPUT"
+            echo "skipped=false" >> "${GITHUB_OUTPUT}"
           fi
         shell: bash
 
@@ -248,11 +250,13 @@ jobs:
     name: tvos_tests_passing
     steps:
       - name: Check test results
+        env:
+          RUN_TESTS_RESULT: ${{ needs.run-tests.result }}
         run: |
-          if [[ "${{ needs.run-tests.result }}" == "success" ]]; then
+          if [[ "${RUN_TESTS_RESULT}" == "success" ]]; then
             echo "All tvOS tests passed successfully!"
             exit 0
           else
-            echo "tvOS test job failed with result: ${{ needs.run-tests.result }}"
+            echo "tvOS test job failed with result: ${RUN_TESTS_RESULT}"
             exit 1
           fi
