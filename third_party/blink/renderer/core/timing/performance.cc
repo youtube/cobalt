@@ -1283,11 +1283,10 @@ bool Performance::CanExposeNode(Node* node) {
 }
 
 void Performance::AddPaintTiming(PerformancePaintTiming::PaintType type,
-                                 const DOMPaintTimingInfo& paint_timing_info,
-                                 bool is_triggered_by_soft_navigation) {
+                                 const DOMPaintTimingInfo& paint_timing_info) {
   PerformancePaintTiming* entry = MakeGarbageCollected<PerformancePaintTiming>(
-      type, paint_timing_info, DynamicTo<LocalDOMWindow>(GetExecutionContext()),
-      is_triggered_by_soft_navigation);
+      type, paint_timing_info,
+      DynamicTo<LocalDOMWindow>(GetExecutionContext()));
   DCHECK((type == PerformancePaintTiming::PaintType::kFirstPaint) ||
          (type == PerformancePaintTiming::PaintType::kFirstContentfulPaint));
 
@@ -1430,14 +1429,6 @@ void Performance::SetClocksForTesting(const base::Clock* clock,
 
 void Performance::ResetTimeOriginForTesting(base::TimeTicks time_origin) {
   time_origin_ = time_origin;
-}
-
-// TODO(https://crbug.com/1457049): remove this once visited links are
-// partitioned.
-bool Performance::softNavPaintMetricsSupported() const {
-  CHECK(
-      RuntimeEnabledFeatures::SoftNavigationHeuristicsExposeFPAndFCPEnabled());
-  return true;
 }
 
 }  // namespace blink

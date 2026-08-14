@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
+#include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials_view.h"
@@ -54,6 +55,7 @@
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "system_wrappers/include/metrics.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/scoped_key_value_config.h"
@@ -105,6 +107,16 @@ static const int kInfiniteLifetime = -1;
 static const int kHighCostPortKeepaliveLifetimeMs = 2 * 60 * 1000;
 
 constexpr uint64_t kTiebreakerDefault = 44444;
+
+struct IPAddressTypeTestConfig {
+  absl::string_view address;
+  webrtc::IPAddressType address_type;
+};
+
+// Used by the test framework to print the param value for parameterized tests.
+std::string PrintToString(const IPAddressTypeTestConfig& param) {
+  return std::string(param.address);
+}
 
 class FakeMdnsResponder : public webrtc::MdnsResponderInterface {
  public:
@@ -717,9 +729,58 @@ TEST_F(StunPortTest, TestStunBindingRequestLongLifetime) {
       webrtc::IsRtcOk());
 }
 
+class StunPortIPAddressTypeMetricsTest
+    : public StunPortWithMockDnsResolverTest,
+      public ::testing::WithParamInterface<IPAddressTypeTestConfig> {};
+
+TEST_P(StunPortIPAddressTypeMetricsTest, TestIPAddressTypeMetrics) {
+  SetDnsResolverExpectations(
+      [](webrtc::MockAsyncDnsResolver* resolver,
+         webrtc::MockAsyncDnsResolverResult* resolver_result) {
+        EXPECT_CALL(*resolver, Start(SocketAddress("localhost", 5000),
+                                     /*family=*/AF_INET, _))
+            .WillOnce([](const webrtc::SocketAddress& /* addr */,
+                         int /* family */,
+                         absl::AnyInvocable<void()> callback) { callback(); });
+
+        EXPECT_CALL(*resolver, result)
+            .WillRepeatedly(ReturnPointee(resolver_result));
+        EXPECT_CALL(*resolver_result, GetError).WillOnce(Return(0));
+        EXPECT_CALL(*resolver_result, GetResolvedAddress(AF_INET, _))
+            .WillOnce(DoAll(SetArgPointee<1>(SocketAddress("127.0.0.1", 5000)),
+                            Return(true)));
+      });
+
+  webrtc::metrics::Reset();
+
+  CreateStunPort({GetParam().address, 5000});
+  PrepareAddress();
+  EXPECT_THAT(
+      webrtc::WaitUntil([&] { return done(); }, IsTrue(),
+                        {.timeout = webrtc::TimeDelta::Millis(kTimeoutMs),
+                         .clock = &fake_clock}),
+      webrtc::IsRtcOk());
+
+  auto samples =
+      webrtc::metrics::Samples("WebRTC.PeerConnection.Stun.ServerAddressType");
+  ASSERT_EQ(samples.size(), 1u);
+  EXPECT_EQ(samples[static_cast<int>(GetParam().address_type)], 1);
+}
+
+static const IPAddressTypeTestConfig kAllIPAddressTypeTestConfigs[] = {
+    {"127.0.0.1", webrtc::IPAddressType::kLoopback},
+    {"localhost", webrtc::IPAddressType::kLoopback},
+    {"10.0.0.3", webrtc::IPAddressType::kPrivate},
+    {"1.1.1.1", webrtc::IPAddressType::kPublic},
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         StunPortIPAddressTypeMetricsTest,
+                         ::testing::ValuesIn(kAllIPAddressTypeTestConfigs));
+
 class MockAsyncPacketSocket : public webrtc::AsyncPacketSocket {
  public:
-  ~MockAsyncPacketSocket() = default;
+  ~MockAsyncPacketSocket() override = default;
 
   MOCK_METHOD(SocketAddress, GetLocalAddress, (), (const, override));
   MOCK_METHOD(SocketAddress, GetRemoteAddress, (), (const, override));
@@ -943,5 +1004,36 @@ TEST_F(StunIPv6PortTestWithMockDnsResolver,
   EXPECT_EQ(kIPv6StunCandidatePriority + (webrtc::kMaxTurnServers << 8),
             port()->Candidates()[0].priority());
 }
+
+class StunIPv6PortIPAddressTypeMetricsTest
+    : public StunIPv6PortTestWithMockDnsResolver,
+      public ::testing::WithParamInterface<IPAddressTypeTestConfig> {};
+
+TEST_P(StunIPv6PortIPAddressTypeMetricsTest, TestIPAddressTypeMetrics) {
+  webrtc::metrics::Reset();
+
+  CreateStunPort({GetParam().address, 5000});
+  PrepareAddress();
+  EXPECT_THAT(
+      webrtc::WaitUntil([&] { return done(); }, IsTrue(),
+                        {.timeout = webrtc::TimeDelta::Millis(kTimeoutMs),
+                         .clock = &fake_clock}),
+      webrtc::IsRtcOk());
+
+  auto samples =
+      webrtc::metrics::Samples("WebRTC.PeerConnection.Stun.ServerAddressType");
+  ASSERT_EQ(samples.size(), 1u);
+  EXPECT_EQ(samples[static_cast<int>(GetParam().address_type)], 1);
+}
+
+static const IPAddressTypeTestConfig kAllIPv6AddressTypeTestConfigs[] = {
+    {"::1", webrtc::IPAddressType::kLoopback},
+    {"fd00:4860:4860::8844", webrtc::IPAddressType::kPrivate},
+    {"2001:4860:4860::8888", webrtc::IPAddressType::kPublic},
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         StunIPv6PortIPAddressTypeMetricsTest,
+                         ::testing::ValuesIn(kAllIPv6AddressTypeTestConfigs));
 
 }  // namespace

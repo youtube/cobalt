@@ -9,9 +9,18 @@
  */
 #include "test/time_controller/real_time_controller.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "api/field_trials_view.h"
 #include "api/task_queue/default_task_queue_factory.h"
+#include "api/task_queue/task_queue_factory.h"
+#include "api/units/time_delta.h"
 #include "rtc_base/null_socket_server.h"
+#include "rtc_base/socket_server.h"
+#include "rtc_base/thread.h"
+#include "system_wrappers/include/clock.h"
 
 namespace webrtc {
 namespace {
@@ -22,7 +31,7 @@ class MainThread : public Thread {
         current_setter_(this) {
     DoInit();
   }
-  ~MainThread() {
+  ~MainThread() override {
     Stop();
     DoDestroy();
   }

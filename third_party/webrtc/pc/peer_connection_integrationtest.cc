@@ -1288,6 +1288,120 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan, NoStreamsMsidLineMissing) {
             callee_receivers[1]->streams()[0]);
 }
 
+// Used by the CSRC tests below.
+MATCHER_P(IsCsrcWithId, csrc, "") {
+  return arg.source_type() == RtpSourceType::CSRC && arg.source_id() == csrc;
+}
+
+// Test that CSRCs can be set upon adding tracks and that they are received by
+// the other side.
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan, EndToEndCallForwardsCsrcs) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+
+  constexpr uint32_t kAudioCsrc = 1234;
+  constexpr uint32_t kVideoCsrc = 5678;
+  RtpEncodingParameters audio_encoding;
+  RtpEncodingParameters video_encoding;
+  audio_encoding.csrcs = {kAudioCsrc};
+  video_encoding.csrcs = {kVideoCsrc};
+  ASSERT_THAT(caller()->pc()->AddTrack(caller()->CreateLocalAudioTrack(), {},
+                                       {audio_encoding}),
+              IsRtcOk());
+  ASSERT_THAT(caller()->pc()->AddTrack(caller()->CreateLocalVideoTrack(), {},
+                                       {video_encoding}),
+              IsRtcOk());
+
+  caller()->CreateAndSetAndSignalOffer();
+
+  // Wait for some packets to arrive.
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  ASSERT_THAT(WaitUntil(
+                  [&] {
+                    return callee()->audio_frames_received() > 0 &&
+                           callee()->min_video_frames_received_per_track() > 0;
+                  },
+                  ::testing::IsTrue(), {.timeout = kMaxWaitForFrames}),
+              IsRtcOk());
+
+  std::vector<scoped_refptr<RtpReceiverInterface>> audio_receivers =
+      callee()->GetReceiversOfType(webrtc::MediaType::AUDIO);
+  ASSERT_EQ(audio_receivers.size(), 1u);
+  std::vector<scoped_refptr<RtpReceiverInterface>> video_receivers =
+      callee()->GetReceiversOfType(webrtc::MediaType::VIDEO);
+  ASSERT_EQ(video_receivers.size(), 1u);
+
+  EXPECT_THAT(audio_receivers[0]->GetSources(),
+              Contains(IsCsrcWithId(kAudioCsrc)));
+  EXPECT_THAT(video_receivers[0]->GetSources(),
+              Contains(IsCsrcWithId(kVideoCsrc)));
+}
+
+// Test that CSRCs can be updated on active tracks.
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan, EndToEndCallCanUpdateCsrcs) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+
+  RtpEncodingParameters audio_encoding;
+  RtpEncodingParameters video_encoding;
+  audio_encoding.csrcs = {1234};
+  video_encoding.csrcs = {5678};
+
+  scoped_refptr<RtpSenderInterface> audio_sender =
+      caller()
+          ->pc()
+          ->AddTrack(caller()->CreateLocalAudioTrack(), {}, {audio_encoding})
+          .MoveValue();
+  scoped_refptr<RtpSenderInterface> video_sender =
+      caller()
+          ->pc()
+          ->AddTrack(caller()->CreateLocalVideoTrack(), {}, {video_encoding})
+          .MoveValue();
+
+  caller()->CreateAndSetAndSignalOffer();
+
+  // Wait for some packets to arrive.
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  ASSERT_THAT(WaitUntil(
+                  [&] {
+                    return callee()->audio_frames_received() > 0 &&
+                           callee()->min_video_frames_received_per_track() > 0;
+                  },
+                  ::testing::IsTrue(), {.timeout = kMaxWaitForFrames}),
+              IsRtcOk());
+
+  // Update the CSRCs.
+  constexpr uint32_t kUpdatedAudioCsrc = 4321;
+  constexpr uint32_t kUpdatedVideoCsrc = 8765;
+  RtpParameters audio_parameters = audio_sender->GetParameters();
+  RtpParameters video_parameters = video_sender->GetParameters();
+  audio_parameters.encodings[0].csrcs = {kUpdatedAudioCsrc};
+  video_parameters.encodings[0].csrcs = {kUpdatedVideoCsrc};
+  ASSERT_THAT(audio_sender->SetParameters(audio_parameters), IsRtcOk());
+  ASSERT_THAT(video_sender->SetParameters(video_parameters), IsRtcOk());
+
+  std::vector<scoped_refptr<RtpReceiverInterface>> audio_receivers =
+      callee()->GetReceiversOfType(webrtc::MediaType::AUDIO);
+  ASSERT_EQ(audio_receivers.size(), 1u);
+  std::vector<scoped_refptr<RtpReceiverInterface>> video_receivers =
+      callee()->GetReceiversOfType(webrtc::MediaType::VIDEO);
+  ASSERT_EQ(video_receivers.size(), 1u);
+
+  // Ensure that the new CSRCs are used.
+  EXPECT_THAT(WaitUntil([&] { return audio_receivers[0]->GetSources(); },
+                        Contains(IsCsrcWithId(kUpdatedAudioCsrc)),
+                        {.timeout = kMaxWaitForFrames}),
+              IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return video_receivers[0]->GetSources(); },
+                        Contains(IsCsrcWithId(kUpdatedVideoCsrc)),
+                        {.timeout = kMaxWaitForFrames}),
+              IsRtcOk());
+}
+
 // Test that if two video tracks are sent (from caller to callee, in this test),
 // they're transmitted correctly end-to-end.
 TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithTwoVideoTracks) {

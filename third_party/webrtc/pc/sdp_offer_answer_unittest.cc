@@ -20,11 +20,11 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
+#include "absl/strings/string_view.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/create_peerconnection_factory.h"
 #include "api/field_trials.h"
-#include "api/field_trials_view.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
@@ -53,6 +53,7 @@
 #include "pc/test/mock_peer_connection_observers.h"
 #include "rtc_base/thread.h"
 #include "system_wrappers/include/metrics.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -111,18 +112,19 @@ class SdpOfferAnswerTest : public ::testing::Test {
   }
 
   std::unique_ptr<PeerConnectionWrapper> CreatePeerConnection(
-      std::unique_ptr<FieldTrialsView> field_trials = nullptr) {
+      absl::string_view field_trials = "") {
     RTCConfiguration config;
     config.sdp_semantics = SdpSemantics::kUnifiedPlan;
-    return CreatePeerConnection(config, std::move(field_trials));
+    return CreatePeerConnection(config, field_trials);
   }
 
   std::unique_ptr<PeerConnectionWrapper> CreatePeerConnection(
       const RTCConfiguration& config,
-      std::unique_ptr<FieldTrialsView> field_trials) {
+      absl::string_view field_trials) {
     auto observer = std::make_unique<MockPeerConnectionObserver>();
     PeerConnectionDependencies pc_deps(observer.get());
-    pc_deps.trials = std::move(field_trials);
+    pc_deps.trials =
+        std::make_unique<FieldTrials>(CreateTestFieldTrials(field_trials));
     auto result =
         pc_factory_->CreatePeerConnectionOrError(config, std::move(pc_deps));
     EXPECT_TRUE(result.ok());
@@ -648,8 +650,7 @@ TEST_F(SdpOfferAnswerTest, SimulcastAnswerWithNoRidsIsRejected) {
 }
 
 TEST_F(SdpOfferAnswerTest, SimulcastOfferWithMixedCodec) {
-  auto pc = CreatePeerConnection(
-      FieldTrials::CreateNoGlobal("WebRTC-MixedCodecSimulcast/Enabled/"));
+  auto pc = CreatePeerConnection("WebRTC-MixedCodecSimulcast/Enabled/");
 
   std::optional<RtpCodecCapability> vp8_codec_capability =
       FindFirstSendCodecWithName(MediaType::VIDEO, kVp8CodecName);
@@ -702,8 +703,7 @@ TEST_F(SdpOfferAnswerTest, SimulcastOfferWithMixedCodec) {
 }
 
 TEST_F(SdpOfferAnswerTest, SimulcastAnswerWithPayloadType) {
-  auto pc = CreatePeerConnection(
-      FieldTrials::CreateNoGlobal("WebRTC-MixedCodecSimulcast/Enabled/"));
+  auto pc = CreatePeerConnection("WebRTC-MixedCodecSimulcast/Enabled/");
 
   // A SDP offer with recv simulcast with payload type
   std::string sdp =

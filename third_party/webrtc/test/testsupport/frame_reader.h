@@ -11,8 +11,7 @@
 #ifndef TEST_TESTSUPPORT_FRAME_READER_H_
 #define TEST_TESTSUPPORT_FRAME_READER_H_
 
-#include <stdio.h>
-
+#include <cstdio>
 #include <memory>
 #include <optional>
 #include <string>

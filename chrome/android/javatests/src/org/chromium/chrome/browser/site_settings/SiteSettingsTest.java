@@ -176,7 +176,8 @@ import java.util.concurrent.TimeoutException;
 })
 @EnableFeatures({
     ChromeFeatureList.PRIVACY_SANDBOX_RELATED_WEBSITE_SETS_UI,
-    DeviceFeatureList.BLUETOOTH_RFCOMM_ANDROID
+    DeviceFeatureList.BLUETOOTH_RFCOMM_ANDROID,
+    ChromeFeatureList.DISPLAY_WILDCARD_CONTENT_SETTINGS
 })
 // TODO(crbug.com/370008370): Update individual tests after launch.
 @DisableFeatures({
@@ -252,6 +253,9 @@ public class SiteSettingsTest {
         "anti_abuse_things_to_consider_header",
         "anti_abuse_things_to_consider_section_one"
     };
+
+    private static final String PRIMARY_PATTERN_WITH_WILDCARD = "http://[*.]primary.com";
+    private static final String SECONDARY_PATTERN_WITH_WILDCARD = "http://[*.]secondary.com";
 
     @Before
     public void setUp() throws TimeoutException {
@@ -376,6 +380,24 @@ public class SiteSettingsTest {
                             getBrowserContextHandle(),
                             ContentSettingsType.COOKIES,
                             "primary.com",
+                            "*",
+                            ContentSettingValues.ALLOW);
+                });
+    }
+
+    private void createCookieExceptionsWithWildcards() {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    WebsitePreferenceBridge.setContentSettingCustomScope(
+                            getBrowserContextHandle(),
+                            ContentSettingsType.COOKIES,
+                            "*",
+                            SECONDARY_PATTERN_WITH_WILDCARD,
+                            ContentSettingValues.ALLOW);
+                    WebsitePreferenceBridge.setContentSettingCustomScope(
+                            getBrowserContextHandle(),
+                            ContentSettingsType.COOKIES,
+                            PRIMARY_PATTERN_WITH_WILDCARD,
                             "*",
                             ContentSettingValues.ALLOW);
                 });
@@ -1849,6 +1871,29 @@ public class SiteSettingsTest {
     @Test
     @SmallTest
     @Feature({"Preferences"})
+    public void shouldShowWildcardsInExceptionsOnThirdPartyCookiesPage() {
+        createCookieExceptionsWithWildcards();
+        SiteSettingsTestUtils.startSiteSettingsCategory(
+                SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
+
+        onView(withText(PRIMARY_PATTERN_WITH_WILDCARD)).check(doesNotExist());
+        onView(withText(SECONDARY_PATTERN_WITH_WILDCARD)).check(matches(isDisplayed()));
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Preferences"})
+    public void shouldShowWildcardsInExceptionsOnSiteDataPage() {
+        createCookieExceptionsWithWildcards();
+        SiteSettingsTestUtils.startSiteSettingsCategory(SiteSettingsCategory.Type.SITE_DATA);
+
+        onView(withText(PRIMARY_PATTERN_WITH_WILDCARD)).check(matches(isDisplayed()));
+        onView(withText(SECONDARY_PATTERN_WITH_WILDCARD)).check(doesNotExist());
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Preferences"})
     @DisableFeatures(ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON)
     public void testOnlyExpectedPreferencesStorageAccessWithToggle() {
         testExpectedPreferences(
@@ -2638,7 +2683,7 @@ public class SiteSettingsTest {
     @Feature({"Preferences"})
     @EnableFeatures(ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON)
     @CommandLineFlags.Add(ContentSwitches.USE_FAKE_DEVICE_FOR_MEDIA_STREAM)
-    @DisableIf.Device(DeviceFormFactor.TABLET) // crbug.com/41490094
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // crbug.com/41490094
     public void testCameraBlocked() throws Exception {
         new TwoStatePermissionTestCaseWithRadioButton(
                         "Camera",
@@ -2665,7 +2710,7 @@ public class SiteSettingsTest {
     @Feature({"Preferences"})
     @EnableFeatures(ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON)
     @CommandLineFlags.Add({ContentSwitches.USE_FAKE_DEVICE_FOR_MEDIA_STREAM})
-    @DisableIf.Device(DeviceFormFactor.TABLET) // crbug.com/41490094
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // crbug.com/41490094
     public void testCameraNotBlocked() throws Exception {
         new TwoStatePermissionTestCaseWithRadioButton(
                         "Camera",
@@ -2717,7 +2762,7 @@ public class SiteSettingsTest {
     @Feature({"Preferences"})
     @EnableFeatures(ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON)
     @CommandLineFlags.Add({ContentSwitches.USE_FAKE_DEVICE_FOR_MEDIA_STREAM})
-    @DisableIf.Device(DeviceFormFactor.TABLET) // crbug.com/41490094
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // crbug.com/41490094
     public void testMicNotBlocked() throws Exception {
         new TwoStatePermissionTestCaseWithRadioButton(
                         "Mic",
@@ -3886,7 +3931,7 @@ public class SiteSettingsTest {
     @DisableIf.Build(
             message = "https://crbug.com/1269556,https://crbug.com/1414569",
             sdk_is_greater_than = Build.VERSION_CODES.N_MR1)
-    @DisableIf.Device(DeviceFormFactor.TABLET) // https://crbug.com/1234530
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // https://crbug.com/1234530
     public void testProtectedContentAllowThenBlock() throws Exception {
         initializeUpdateWaiter(/* expectGranted= */ true);
         mPermissionRule.runNoPromptTest(

@@ -81,7 +81,7 @@ class AsyncStunTCPSocketTest : public ::testing::Test,
   AsyncStunTCPSocketTest()
       : vss_(new VirtualSocketServer()), thread_(vss_.get()) {}
 
-  virtual void SetUp() { CreateSockets(); }
+  void SetUp() override { CreateSockets(); }
 
   void CreateSockets() {
     std::unique_ptr<Socket> server =

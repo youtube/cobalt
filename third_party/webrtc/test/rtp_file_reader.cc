@@ -10,15 +10,21 @@
 
 #include "test/rtp_file_reader.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <map>
+#include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/array_view.h"
 #include "modules/rtp_rtcp/source/rtp_util.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/system/arch.h"
 #include "rtc_base/time_utils.h"
 
 namespace {

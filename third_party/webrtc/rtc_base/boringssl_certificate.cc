@@ -10,17 +10,6 @@
 
 #include "rtc_base/boringssl_certificate.h"
 
-#include <cstdint>
-#include <cstring>
-#include <memory>
-#include <string>
-#include <utility>
-
-#if defined(WEBRTC_WIN)
-// Must be included first before openssl headers.
-#include "rtc_base/win32.h"  // NOLINT
-#endif                       // WEBRTC_WIN
-
 #include <openssl/asn1.h>
 #include <openssl/base.h>
 #include <openssl/bytestring.h>
@@ -29,7 +18,13 @@
 #include <openssl/mem.h>
 #include <openssl/pool.h>
 #include <openssl/rand.h>
-#include <time.h>
+
+#include <cstdint>
+#include <cstring>
+#include <ctime>
+#include <memory>
+#include <string>
+#include <utility>
 
 #include "absl/strings/string_view.h"
 #include "rtc_base/buffer.h"

@@ -39,7 +39,7 @@
 namespace blink {
 
 class ExceptionState;
-class IDBGetAllRecordsOptions;
+class IDBGetAllOptions;
 class IDBObjectStore;
 
 class IDBIndex final : public ScriptWrappable {
@@ -76,21 +76,23 @@ class IDBIndex final : public ScriptWrappable {
                             ExceptionState&);
   IDBRequest* count(ScriptState*, const ScriptValue& range, ExceptionState&);
   IDBRequest* get(ScriptState*, const ScriptValue& key, ExceptionState&);
-  IDBRequest* getAll(ScriptState*, const ScriptValue& range, ExceptionState&);
   IDBRequest* getAll(ScriptState*,
-                     const ScriptValue& range,
+                     const ScriptValue& range_or_options,
+                     ExceptionState&);
+  IDBRequest* getAll(ScriptState*,
+                     const ScriptValue& range_or_options,
                      uint32_t max_count,
                      ExceptionState&);
   IDBRequest* getKey(ScriptState*, const ScriptValue& key, ExceptionState&);
   IDBRequest* getAllKeys(ScriptState*,
-                         const ScriptValue& range,
+                         const ScriptValue& range_or_options,
                          ExceptionState&);
   IDBRequest* getAllKeys(ScriptState*,
-                         const ScriptValue& range,
+                         const ScriptValue& range_or_options,
                          uint32_t max_count,
                          ExceptionState&);
   IDBRequest* getAllRecords(ScriptState*,
-                            const IDBGetAllRecordsOptions* options,
+                            const IDBGetAllOptions* options,
                             ExceptionState&);
 
   void MarkDeleted() {
@@ -134,10 +136,8 @@ class IDBIndex final : public ScriptWrappable {
                           IDBRequest::AsyncTraceState metrics);
   IDBRequest* CreateGetAllRequest(IDBRequest::TypeForMetrics,
                                   ScriptState*,
-                                  const ScriptValue& range,
+                                  const IDBGetAllOptions& options,
                                   mojom::blink::IDBGetAllResultType result_type,
-                                  uint32_t max_count,
-                                  mojom::blink::IDBCursorDirection direction,
                                   ExceptionState&);
 
   scoped_refptr<IDBIndexMetadata> metadata_;

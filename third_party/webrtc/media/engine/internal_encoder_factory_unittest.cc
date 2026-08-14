@@ -113,7 +113,7 @@ TEST(InternalEncoderFactoryTest, QueryCodecSupportWithScalabilityMode) {
 TEST(InternalEncoderFactoryTest, Av1) {
   InternalEncoderFactory factory;
   EXPECT_THAT(factory.GetSupportedFormats(),
-              Contains(Field(&SdpVideoFormat::name, webrtc::kAv1CodecName)));
+              Contains(Field(&SdpVideoFormat::name, kAv1CodecName)));
   EXPECT_TRUE(
       factory.Create(CreateEnvironment(), SdpVideoFormat::AV1Profile0()));
 }

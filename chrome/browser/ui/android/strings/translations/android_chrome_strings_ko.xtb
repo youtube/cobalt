@@ -109,6 +109,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="1419753403124156396">Chrome을 다시 시작하시겠습니까?</translation>
 <translation id="1428770807407000502">동기화를 사용 중지하시겠습니까?</translation>
 <translation id="1430915738399379752">인쇄</translation>
+<translation id="1433478348197382180">읽기 모드</translation>
 <translation id="1435593198351412143">자동으로 PDF 열기</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" />에서 실행 중</translation>
 <translation id="1448440926884431741">추적 중인 제품을 북마크로 정리하세요.</translation>
@@ -331,6 +332,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="2524132927880411790">Google 앱 음성 검색으로 이동</translation>
 <translation id="2527209463677295330">페이지 텍스트를 더 많이 포함하면 더 나은 검색결과를 확인할 수 있습니다.</translation>
 <translation id="2527779675047087889">클립보드 내용 숨기기</translation>
+<translation id="2531209299761896527">새 창에서 탭을 열려면 손가락을 모은 상태에서 누른 후 드래그하세요.</translation>
 <translation id="2532336938189706096">웹 보기</translation>
 <translation id="253498598929009420">사이트에서 화면의 콘텐츠를 볼 수 있습니다.</translation>
 <translation id="2535807170289627159">모든 탭</translation>
@@ -544,7 +546,6 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="3513019849832307207">참여하고 열기</translation>
 <translation id="3513704683820682405">증강 현실</translation>
 <translation id="3516053221628030540">Google Play로 이동</translation>
-<translation id="351672147489633468">{NUM_REVOKED_PERMISSIONS,plural, =1{최근에 방문하지 않은 사이트 1개의 알림 권한이 삭제됨}other{최근에 방문하지 않은 사이트 #개의 알림 권한이 삭제됨}}</translation>
 <translation id="3518985090088779359">동의하고 계속</translation>
 <translation id="3519014757432845220">알림 콘텐츠와 사이트 URL을 Google과 공유하여 스팸 보호 기능을 개선하는 데 도움을 주세요. 콘텐츠가 사람에 의해 검토될 수 있습니다.</translation>
 <translation id="3521388823983121502">ID 공급업체(<ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" />)로 계속할 수 없음</translation>
@@ -713,6 +714,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="4298388696830689168">연결된 사이트</translation>
 <translation id="4300632303535881174">이전 페이지로 이동</translation>
 <translation id="4303044213806199882">chrome_screenshot_<ph name="CURRENT_TIMESTAMP_MS" /></translation>
+<translation id="4306489587293957491">입력</translation>
 <translation id="4307992518367153382">기본설정</translation>
 <translation id="4311652497846705514">PDF를 여시겠습니까?</translation>
 <translation id="4320177379694898372">인터넷에 연결되지 않음</translation>
@@ -1079,7 +1081,6 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="5956665950594638604">새 탭에서 Chrome 고객센터 열기</translation>
 <translation id="59577092665511740">계정을 선택합니다.</translation>
 <translation id="5958275228015807058">다운로드에서 파일 및 페이지를 찾아보세요.</translation>
-<translation id="5958994127112619898">페이지 단순화</translation>
 <translation id="5962718611393537961">탭하여 접기</translation>
 <translation id="5964869237734432770">이미지 설명 중지</translation>
 <translation id="5975083100439434680">축소</translation>
@@ -1628,7 +1629,6 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="8137562778192957619">비밀번호를 기억하지 않아도 됩니다. 비밀번호가 Google 비밀번호 관리자에 저장됩니다</translation>
 <translation id="8152331954420209374">렌즈로 이동</translation>
 <translation id="8163820386638255770">Google 계정에서 비밀번호를 사용하고 저장하려면 본인 인증을 완료하세요</translation>
-<translation id="8179976553408161302">Enter</translation>
 <translation id="8186512483418048923">파일 <ph name="FILES" />개가 남았습니다.</translation>
 <translation id="8190358571722158785">1일 남음</translation>
 <translation id="8192765420340770300">로그인 하단 시트가 전체 높이로 열렸습니다</translation>
@@ -1650,7 +1650,6 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="8244387390464017490">새 탭 페이지 맞춤설정</translation>
 <translation id="8250920743982581267">문서</translation>
 <translation id="8255617931166444521">사이트에서 사용자의 사이트 내 탐색 활동을 보기 위해서만 쿠키를 사용할 수 있습니다.</translation>
-<translation id="8256087213273124136">Chrome에서 알림을 수신 거부했습니다</translation>
 <translation id="8258999165172757081">추가됨</translation>
 <translation id="8259179246279078674">미리 로드된 페이지는 암호화되어 있으므로 Google에서는 미리 로드된 페이지의 콘텐츠에 관해 어떠한 정보도 알 수 없습니다. Google 서버는 어떤 사이트가 비공개로 미리 로드되었는지 파악하게 됩니다. 이 정보는 페이지를 미리 로드하는 데에만 사용되며, Google 계정의 다른 정보와 연결되지 않습니다.</translation>
 <translation id="8260126382462817229">다시 로그인해 주세요.</translation>

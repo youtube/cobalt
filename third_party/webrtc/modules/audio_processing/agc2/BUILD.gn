@@ -92,7 +92,6 @@ rtc_library("biquad_filter") {
   deps = [
     "../../../api:array_view",
     "../../../rtc_base:checks",
-    "../../../rtc_base:macromagic",
   ]
 }
 

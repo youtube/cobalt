@@ -98,11 +98,11 @@ class StunRequestThunker : public StunRequest {
   }
 
  private:
-  virtual void OnResponse(StunMessage* res) { test_->OnResponse(res); }
-  virtual void OnErrorResponse(StunMessage* res) {
+  void OnResponse(StunMessage* res) override { test_->OnResponse(res); }
+  void OnErrorResponse(StunMessage* res) override {
     test_->OnErrorResponse(res);
   }
-  virtual void OnTimeout() { test_->OnTimeout(); }
+  void OnTimeout() override { test_->OnTimeout(); }
 
   StunRequestTest* test_;
 };

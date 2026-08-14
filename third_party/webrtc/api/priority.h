@@ -27,7 +27,7 @@ enum class Priority {
 };
 
 class RTC_EXPORT PriorityValue
-    : public webrtc::StrongAlias<class PriorityValueTag, uint16_t> {
+    : public StrongAlias<class PriorityValueTag, uint16_t> {
  public:
   explicit PriorityValue(Priority priority);
   explicit PriorityValue(uint16_t priority) : StrongAlias(priority) {}

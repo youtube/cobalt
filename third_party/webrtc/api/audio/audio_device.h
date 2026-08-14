@@ -21,7 +21,7 @@ namespace webrtc {
 
 class AudioDeviceModuleForTest;
 
-class AudioDeviceModule : public webrtc::RefCountInterface {
+class AudioDeviceModule : public RefCountInterface {
  public:
   enum AudioLayer {
     kPlatformDefaultAudio = 0,

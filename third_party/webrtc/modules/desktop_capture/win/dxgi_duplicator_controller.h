@@ -84,7 +84,7 @@ class RTC_EXPORT DxgiDuplicatorController {
   static std::string ResultName(Result result);
 
   // Returns the singleton instance of DxgiDuplicatorController.
-  static webrtc::scoped_refptr<DxgiDuplicatorController> Instance();
+  static scoped_refptr<DxgiDuplicatorController> Instance();
 
   // See ScreenCapturerWinDirectx::IsCurrentSessionSupported().
   static bool IsCurrentSessionSupported();
@@ -134,7 +134,7 @@ class RTC_EXPORT DxgiDuplicatorController {
 
   // scoped_refptr<DxgiDuplicatorController> accesses private AddRef() and
   // Release() functions.
-  friend class webrtc::scoped_refptr<DxgiDuplicatorController>;
+  friend class scoped_refptr<DxgiDuplicatorController>;
 
   // A private constructor to ensure consumers to use
   // DxgiDuplicatorController::Instance().

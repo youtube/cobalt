@@ -79,7 +79,7 @@ class SessionData : public SignalingInterface {
   }
 
   void OnIceCandidate(
-      std::function<void(std::unique_ptr<::webrtc::IceCandidate> candidate)>
+      std::function<void(std::unique_ptr<webrtc::IceCandidate> candidate)>
           callback) override {
     RTC_LOG(LS_INFO) << "OnIceCandidate";
     ice_candidate_callback_ = callback;
@@ -89,7 +89,7 @@ class SessionData : public SignalingInterface {
 
   std::function<void(std::unique_ptr<webrtc::IceCandidate>)>
       ice_candidate_callback_;
-  std::function<void(std::unique_ptr<webrtc::SessionDescriptionInterface>)>
+  std::function<void(std::unique_ptr<SessionDescriptionInterface>)>
       remote_description_callback_;
 };
 
@@ -106,7 +106,7 @@ void ProcessMessages(StreamReader* stream, SessionData* session) {
     switch (message.Content_case()) {
       case SignalingMessage::ContentCase::kCandidate: {
         SdpParseError error;
-        auto jsep_candidate = JsepIceCandidate::Create(
+        auto jsep_candidate = ::webrtc::IceCandidate::Create(
             message.candidate().mid(), message.candidate().mline_index(),
             message.candidate().description(), &error);
         if (!jsep_candidate) {

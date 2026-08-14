@@ -41,10 +41,8 @@ ci.defaults.set(
             "fail_build_on_clang_warnings": True,
         },
     },
-    reclient_enabled = False,
     service_account = ci.DEFAULT_SERVICE_ACCOUNT,
     shadow_service_account = ci.DEFAULT_SHADOW_SERVICE_ACCOUNT,
-    siso_enabled = True,
     siso_project = siso.project.DEFAULT_TRUSTED,
 )
 
@@ -778,6 +776,7 @@ ci.builder(
             "no_treat_warnings_as_errors",
             "cast_receiver_size_optimized",
             "x64",
+            "dcheck_always_on",
         ],
     ),
     targets = targets.bundle(
@@ -872,6 +871,7 @@ ci.builder(
             "static",
             "arm64_host",
             "cast_receiver_size_optimized",
+            "dcheck_always_on",
         ],
     ),
     targets = targets.bundle(

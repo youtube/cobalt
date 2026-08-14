@@ -102,9 +102,9 @@ class ClippingEventPredictor : public ClippingPredictor {
 
   ClippingEventPredictor(const ClippingEventPredictor&) = delete;
   ClippingEventPredictor& operator=(const ClippingEventPredictor&) = delete;
-  ~ClippingEventPredictor() {}
+  ~ClippingEventPredictor() override {}
 
-  void Reset() {
+  void Reset() override {
     const int num_channels = ch_buffers_.size();
     for (int i = 0; i < num_channels; ++i) {
       ch_buffers_[i]->Reset();
@@ -113,7 +113,7 @@ class ClippingEventPredictor : public ClippingPredictor {
 
   // Analyzes a frame of audio and stores the framewise metrics in
   // `ch_buffers_`.
-  void Analyze(const AudioFrameView<const float>& frame) {
+  void Analyze(const AudioFrameView<const float>& frame) override {
     const int num_channels = frame.num_channels();
     RTC_DCHECK_EQ(num_channels, ch_buffers_.size());
     const int samples_per_channel = frame.samples_per_channel();
@@ -136,11 +136,12 @@ class ClippingEventPredictor : public ClippingPredictor {
   // if at least `GetMinFramesProcessed()` frames have been processed since the
   // last reset and a clipping event is predicted. `level`, `min_mic_level`, and
   // `max_mic_level` are limited to [0, 255] and `default_step` to [1, 255].
-  std::optional<int> EstimateClippedLevelStep(int channel,
-                                              int level,
-                                              int default_step,
-                                              int min_mic_level,
-                                              int max_mic_level) const {
+  std::optional<int> EstimateClippedLevelStep(
+      int channel,
+      int level,
+      int default_step,
+      int min_mic_level,
+      int max_mic_level) const override {
     RTC_CHECK_GE(channel, 0);
     RTC_CHECK_LT(channel, ch_buffers_.size());
     RTC_DCHECK_GE(level, 0);
@@ -241,9 +242,9 @@ class ClippingPeakPredictor : public ClippingPredictor {
 
   ClippingPeakPredictor(const ClippingPeakPredictor&) = delete;
   ClippingPeakPredictor& operator=(const ClippingPeakPredictor&) = delete;
-  ~ClippingPeakPredictor() {}
+  ~ClippingPeakPredictor() override {}
 
-  void Reset() {
+  void Reset() override {
     const int num_channels = ch_buffers_.size();
     for (int i = 0; i < num_channels; ++i) {
       ch_buffers_[i]->Reset();
@@ -252,7 +253,7 @@ class ClippingPeakPredictor : public ClippingPredictor {
 
   // Analyzes a frame of audio and stores the framewise metrics in
   // `ch_buffers_`.
-  void Analyze(const AudioFrameView<const float>& frame) {
+  void Analyze(const AudioFrameView<const float>& frame) override {
     const int num_channels = frame.num_channels();
     RTC_DCHECK_EQ(num_channels, ch_buffers_.size());
     const int samples_per_channel = frame.samples_per_channel();
@@ -276,11 +277,12 @@ class ClippingPeakPredictor : public ClippingPredictor {
   // least `GetMinFramesProcessed()` frames have been processed since the last
   // reset and a clipping event is predicted. `level`, `min_mic_level`, and
   // `max_mic_level` are limited to [0, 255] and `default_step` to [1, 255].
-  std::optional<int> EstimateClippedLevelStep(int channel,
-                                              int level,
-                                              int default_step,
-                                              int min_mic_level,
-                                              int max_mic_level) const {
+  std::optional<int> EstimateClippedLevelStep(
+      int channel,
+      int level,
+      int default_step,
+      int min_mic_level,
+      int max_mic_level) const override {
     RTC_DCHECK_GE(channel, 0);
     RTC_DCHECK_LT(channel, ch_buffers_.size());
     RTC_DCHECK_GE(level, 0);

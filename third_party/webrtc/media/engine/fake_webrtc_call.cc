@@ -20,6 +20,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
 #include "api/adaptation/resource.h"
+#include "api/array_view.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/call/audio_sink.h"
 #include "api/crypto/frame_decryptor_interface.h"
@@ -46,7 +47,6 @@
 #include "call/video_send_stream.h"
 #include "media/base/media_channel.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
-#include "modules/rtp_rtcp/source/rtp_util.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
@@ -293,6 +293,8 @@ void FakeVideoSendStream::SetStats(const VideoSendStream::Stats& stats) {
 VideoSendStream::Stats FakeVideoSendStream::GetStats() {
   return stats_;
 }
+
+void FakeVideoSendStream::SetCsrcs(ArrayView<const uint32_t> csrcs) {}
 
 void FakeVideoSendStream::ReconfigureVideoEncoder(VideoEncoderConfig config) {
   ReconfigureVideoEncoder(std::move(config), nullptr);

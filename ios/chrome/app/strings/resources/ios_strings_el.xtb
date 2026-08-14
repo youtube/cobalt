@@ -611,7 +611,6 @@
 <translation id="3557336313807607643">Προσθήκη στις επαφές</translation>
 <translation id="355765753469272474">Αναίρεση</translation>
 <translation id="3565930036634619844">Καρτέλα. <ph name="TAB_INDEX" /> από <ph name="NUMBER_OF_TABS" />.</translation>
-<translation id="3570693105179140209">Πατήστε δύο φορές για περισσότερους κωδικούς πρόσβασης.</translation>
 <translation id="3572607909481582402">Στον Λογαριασμό σας Google</translation>
 <translation id="3575234738189584619">Αναζήτηση με το Lens</translation>
 <translation id="3575426792457739946">Αυτή η λίστα περιέχει όλα τα φορτωμένα προφίλ.</translation>
@@ -624,6 +623,7 @@
 <translation id="3596414637720633074">Αποκλεισμός cookie τρίτων μερών στην Ανώνυμη περιήγηση</translation>
 <translation id="3602260545951981695">Επιλέξτε Βελτιωμένη προστασία</translation>
 <translation id="3608436266458100337">Λειτουργία ανάγνωσης</translation>
+<translation id="3610041351087301930">Απόκρυψη αναγνώστη</translation>
 <translation id="3622175633937495219">Ιστορικό αναζήτησης (Βρέθηκαν <ph name="COUNT" />)</translation>
 <translation id="3625008969091706597">Μπορείτε να σύρετε την άκρη για μετάβαση προς τα πίσω.</translation>
 <translation id="362709345066740529">Προσαρμόστε εδώ τις κάρτες, τη ροή και άλλα</translation>
@@ -654,7 +654,6 @@
 <translation id="3779810277399252432">Δεν υπάρχει σύνδεση στο διαδίκτυο.</translation>
 <translation id="3782614601387961027">Παράβλεψη ειδοποίησης</translation>
 <translation id="3789841737615482174">Εγκατάσταση</translation>
-<translation id="3795478177331815672">Ανοικτές καρτέλες και ομάδες καρτελών</translation>
 <translation id="380329542618494757">Όνομα</translation>
 <translation id="3803696231112616155">Πρόταση για μετάφραση αυτού του ιστοτόπου</translation>
 <translation id="3808311849069021992">Εμφάνιση λεπτομερειών μηχανής αναζήτησης</translation>
@@ -700,7 +699,6 @@
 <translation id="3955740319737378355">Τέλος</translation>
 <translation id="3955822496205734389">Έχετε ασθενείς κωδικούς πρόσβασης.</translation>
 <translation id="3958312024468322930">Σύρετέ το στη γραμμή εφαρμογών στο κάτω μέρος της αρχικής οθόνης</translation>
-<translation id="3960218941754097036">Αναζητήστε οτιδήποτε στην οθόνη σας με το Google Lens</translation>
 <translation id="3962326069546168954">Αποθήκευση</translation>
 <translation id="3967327056943561740">Σελιδοδείκτες</translation>
 <translation id="3967822245660637423">Ολοκλήρωση λήψης</translation>
@@ -967,7 +965,6 @@
 <translation id="4979397965658815378">Συνδεθείτε στον Λογαριασμό σας Google για να λάβετε τους σελιδοδείκτες, τους κωδικούς πρόσβασης, το ιστορικό και άλλες ρυθμίσεις σε όλες τις συσκευές σας.</translation>
 <translation id="4985921635659180565">Εάν ένα αρχείο έχει προγραμματιστεί για διαγραφή, δεν είναι δυνατή η ακύρωσή της.</translation>
 <translation id="498624032394115435">Όποιος διαθέτει τον σύνδεσμο μπορεί να επεξεργαστεί όλες τις καρτέλες.</translation>
-<translation id="4989065233040279145">Επιλέξτε τοποθεσία αποθήκευσης για το αρχείο <ph name="FILENAME" /></translation>
 <translation id="499122600724363620"><ph name="NAME" />, <ph name="EMAIL" />, υπό τη διαχείριση του οργανισμού σας.</translation>
 <translation id="4992255726304765516">Χρώμα ομάδας καρτελών <ph name="COLOR" /></translation>
 <translation id="5005498671520578047">Αντιγραφή κωδικού πρόσβασης</translation>
@@ -1067,6 +1064,7 @@
 <translation id="5431252637281434233">Θα αποσυνδεθείτε</translation>
 <translation id="543338862236136125">Επεξεργασία κωδικού πρόσβασης</translation>
 <translation id="5433691172869980887">Το όνομα χρήστη αντιγράφηκε</translation>
+<translation id="5437480232219631455">Μπορείτε να ανοίξετε το Gemini εδώ</translation>
 <translation id="5439618055789623719">Έχετε συνδεθεί ως <ph name="USER_EMAIL" /></translation>
 <translation id="5443636120437209490">Καλύτερη περιήγηση από προεπιλογή</translation>
 <translation id="5444892875087332195">Σελιδοδείκτες</translation>
@@ -1654,7 +1652,6 @@
 <translation id="7724085059277147439">{count,plural, =1{Το στοιχείο αποθηκεύτηκε στον Λογαριασμό σας Google, {email}}other{Τα στοιχεία αποθηκεύτηκαν στον Λογαριασμό σας Google, {email}}}</translation>
 <translation id="7729458878441927652">Για να δείτε τις καρτέλες από τις άλλες συσκευές σας, συγχρονίστε τις καρτέλες και το ιστορικό.</translation>
 <translation id="7730020510075123961">Όχι, να γίνει συγχώνευση δεδομένων</translation>
-<translation id="7730973429297233609">Επιλέξτε τον λογαριασμό που θέλετε να χρησιμοποιήσετε για την αποθήκευση του αρχείου <ph name="FILENAME" /> - <ph name="FILESIZE" /></translation>
 <translation id="7733646263819020771"><ph name="BOOKMRK_NAME" />. Μόνο σε αυτήν τη συσκευή.</translation>
 <translation id="7744192722284567281">Βρέθηκε σε παραβίαση δεδομένων</translation>
 <translation id="7749790401023484470">Δεν επιλέξατε κείμενο.</translation>
@@ -1815,6 +1812,7 @@
 <translation id="8343993175958086504">Δημιουργήστε αντίγραφα ασφαλείας των δεδομένων σας και χρησιμοποιήστε τα σε οποιαδήποτε συσκευή.</translation>
 <translation id="8348530355586151720">Πατήστε το μενού με τρεις κουκκίδες</translation>
 <translation id="8349305172487531364">Γραμμή σελιδοδεικτών</translation>
+<translation id="8363484128299778310">Προσωρινή ανάκτηση σε περίπτωση προβλημάτων</translation>
 <translation id="8364563001733875155">Για να αλλάξετε το PIN, ορίστε πρώτα έναν κωδικό πρόσβασης στη συσκευή σας.</translation>
 <translation id="8366466717204352506">Δεν εκτελέστηκε έλεγχος ποτέ</translation>
 <translation id="8368001212524806591">Παρακολούθηση τιμής</translation>
@@ -1837,7 +1835,6 @@
 <translation id="8428045167754449968">Πόλη / Κωμόπολη</translation>
 <translation id="8428213095426709021">Ρυθμίσεις</translation>
 <translation id="8428634594422941299">Το κατάλαβα</translation>
-<translation id="8430694217306051839">Επιλέξτε τοποθεσία αποθήκευσης για το αρχείο <ph name="FILENAME" /> (<ph name="FILE_SIZE" />)</translation>
 <translation id="8434837876193928924">Λεπτομέρειες ομάδας καρτελών</translation>
 <translation id="8438566539970814960">Βελτιώστε τις αναζητήσεις και την περιήγηση</translation>
 <translation id="8439758443371991593">Απόκρυψη της επιλογής Προσθήκη στη λίστα ανάγνωσης</translation>

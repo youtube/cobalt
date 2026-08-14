@@ -12,29 +12,8 @@
 
 #include <fcntl.h>
 #include <libdrm/drm_fourcc.h>
-#include <pipewire/context.h>
-#include <pipewire/core.h>
-#include <pipewire/loop.h>
 #include <pipewire/pipewire.h>
-#include <pipewire/port.h>
-#include <pipewire/properties.h>
-#include <pipewire/stream.h>
-#include <pipewire/thread-loop.h>
-#include <pipewire/version.h>
-#include <spa/buffer/buffer.h>
-#include <spa/buffer/meta.h>
-#include <spa/param/buffers.h>
-#include <spa/param/format.h>
-#include <spa/param/param.h>
-#include <spa/param/video/raw-utils.h>
-#include <spa/param/video/raw.h>
-#include <spa/pod/builder.h>
-#include <spa/pod/iter.h>
-#include <spa/pod/vararg.h>
-#include <spa/support/loop.h>
-#include <spa/utils/defs.h>
-#include <spa/utils/hook.h>
-#include <spa/utils/type.h>
+#include <spa/param/video/format-utils.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 
@@ -119,10 +98,10 @@ class SharedScreenCastStreamPrivate {
   DesktopSize stream_size_ = {};
   DesktopSize frame_size_;
 
-  webrtc::Mutex queue_lock_;
+  Mutex queue_lock_;
   ScreenCaptureFrameQueue<SharedDesktopFrame> queue_
       RTC_GUARDED_BY(&queue_lock_);
-  webrtc::Mutex latest_frame_lock_ RTC_ACQUIRED_AFTER(queue_lock_);
+  Mutex latest_frame_lock_ RTC_ACQUIRED_AFTER(queue_lock_);
   SharedDesktopFrame* latest_available_frame_
       RTC_GUARDED_BY(&latest_frame_lock_) = nullptr;
   std::unique_ptr<MouseCursor> mouse_cursor_;
@@ -623,11 +602,11 @@ void SharedScreenCastStreamPrivate::StopAndCleanupStream() {
     pw_stream_ = nullptr;
 
     {
-      webrtc::MutexLock lock(&queue_lock_);
+      MutexLock lock(&queue_lock_);
       queue_.Reset();
     }
     {
-      webrtc::MutexLock latest_frame_lock(&latest_frame_lock_);
+      MutexLock latest_frame_lock(&latest_frame_lock_);
       latest_available_frame_ = nullptr;
     }
   }
@@ -648,7 +627,7 @@ void SharedScreenCastStreamPrivate::StopAndCleanupStream() {
 
 std::unique_ptr<SharedDesktopFrame>
 SharedScreenCastStreamPrivate::CaptureFrame() {
-  webrtc::MutexLock latest_frame_lock(&latest_frame_lock_);
+  MutexLock latest_frame_lock(&latest_frame_lock_);
 
   if (!pw_stream_ || !latest_available_frame_) {
     return std::unique_ptr<SharedDesktopFrame>{};
@@ -710,7 +689,7 @@ void SharedScreenCastStreamPrivate::UpdateFrameUpdatedRegions(
 
 RTC_NO_SANITIZE("cfi-icall")
 void SharedScreenCastStreamPrivate::ProcessBuffer(pw_buffer* buffer) {
-  int64_t capture_start_time_nanos = webrtc::TimeNanos();
+  int64_t capture_start_time_nanos = TimeNanos();
   if (callback_) {
     callback_->OnFrameCaptureStart();
   }
@@ -849,7 +828,7 @@ void SharedScreenCastStreamPrivate::ProcessBuffer(pw_buffer* buffer) {
           : 0;
   DesktopVector offset = DesktopVector(x_offset, y_offset);
 
-  webrtc::MutexLock lock(&queue_lock_);
+  MutexLock lock(&queue_lock_);
 
   queue_.MoveToNextFrame();
   if (queue_.current_frame() && queue_.current_frame()->IsShared()) {
@@ -879,7 +858,7 @@ void SharedScreenCastStreamPrivate::ProcessBuffer(pw_buffer* buffer) {
     if (observer_) {
       observer_->OnFailedToProcessBuffer();
     }
-    webrtc::MutexLock latest_frame_lock(&latest_frame_lock_);
+    MutexLock latest_frame_lock(&latest_frame_lock_);
     latest_available_frame_ = nullptr;
     return;
   }
@@ -901,7 +880,7 @@ void SharedScreenCastStreamPrivate::ProcessBuffer(pw_buffer* buffer) {
 
   std::unique_ptr<SharedDesktopFrame> frame;
   {
-    webrtc::MutexLock latest_frame_lock(&latest_frame_lock_);
+    MutexLock latest_frame_lock(&latest_frame_lock_);
 
     UpdateFrameUpdatedRegions(spa_buffer, *queue_.current_frame());
     queue_.current_frame()->set_may_contain_cursor(is_cursor_embedded_);
@@ -914,9 +893,8 @@ void SharedScreenCastStreamPrivate::ProcessBuffer(pw_buffer* buffer) {
 
     frame = latest_available_frame_->Share();
     frame->set_capturer_id(DesktopCapturerId::kWaylandCapturerLinux);
-    frame->set_capture_time_ms(
-        (webrtc::TimeNanos() - capture_start_time_nanos) /
-        webrtc::kNumNanosecsPerMillisec);
+    frame->set_capture_time_ms((TimeNanos() - capture_start_time_nanos) /
+                               kNumNanosecsPerMillisec);
     if (use_damage_region_) {
       frame->mutable_updated_region()->Swap(&damage_region_);
       damage_region_.Clear();
@@ -1028,8 +1006,7 @@ SharedScreenCastStream::~SharedScreenCastStream() {}
 webrtc::scoped_refptr<SharedScreenCastStream>
 SharedScreenCastStream::CreateDefault() {
   // Explicit new, to access non-public constructor.
-  return webrtc::scoped_refptr<SharedScreenCastStream>(
-      new SharedScreenCastStream());
+  return scoped_refptr<SharedScreenCastStream>(new SharedScreenCastStream());
 }
 
 bool SharedScreenCastStream::StartScreenCastStream(uint32_t stream_node_id) {

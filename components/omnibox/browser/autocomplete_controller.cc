@@ -1110,6 +1110,14 @@ bool AutocompleteController::ShouldRunProvider(
   }
 #endif
 
+  // Always let the `ContextualSearchProvider` generate the toolbelt match,
+  // even when in keyword modes. Note this comes after above checks
+  // only because Lens searchboxes don't yet fully support toolbelt UI.
+  if (omnibox_feature_configs::Toolbelt::Get().enabled &&
+      provider->type() == AutocompleteProvider::TYPE_CONTEXTUAL_SEARCH) {
+    return true;
+  }
+
   if (input_.InKeywordMode()) {
     // Only a subset of providers are run when we're in a starter pack keyword
     // mode. Try to grab the TemplateURL to determine if we're in starter pack
@@ -1472,7 +1480,7 @@ void AutocompleteController::UpdateResult(UpdateType update_type,
       autocomplete_provider_client()->IsPagePaywalled());
   const bool mia_enabled =
       omnibox_feature_configs::MiaZPS::Get().enabled &&
-      !omnibox::IsMiaDisabledByPolicy(provider_client_->GetPrefs());
+      omnibox::IsMiaAllowedByPolicy(provider_client_->GetPrefs());
 
   if (update_type == UpdateType::kSyncPass ||
       update_type == UpdateType::kAsyncPass ||
@@ -1744,7 +1752,26 @@ void AutocompleteController::UpdateAssociatedKeywords(
                          const std::u16string& keyword_text,
                          const std::u16string& keyword) {
     // There shouldn't be duplicate keywords.
-    CHECK(!added_keywords.count(keyword));
+    if (added_keywords.count(keyword)) {
+      std::string debug_string = base::StringPrintf(
+          "Input [%s]. Duplicate keyword attached, "
+          "([contents] [description] [provider] [keyword]) : "
+          "([%s] [%s] [%s] [%s]). "
+          "Existing matches and keywords are: ",
+          base::UTF16ToUTF8(input_.text()).c_str(),
+          base::UTF16ToUTF8(match.contents).c_str(),
+          base::UTF16ToUTF8(match.description).c_str(),
+          match.provider ? match.provider->GetName() : "null",
+          base::UTF16ToUTF8(keyword).c_str());
+      for (const AutocompleteMatch& m : *result) {
+        debug_string += base::StringPrintf(
+            "([%s] [%s] [%s] [%s]), ", base::UTF16ToUTF8(m.contents).c_str(),
+            base::UTF16ToUTF8(m.description).c_str(),
+            m.provider ? m.provider->GetName() : "null",
+            base::UTF16ToUTF8(m.fill_into_edit).c_str());
+      }
+      CHECK(!added_keywords.count(keyword)) << debug_string;
+    }
     added_keywords.insert(keyword);
     match.associated_keyword = std::make_unique<AutocompleteMatch>(
         keyword_provider_->CreateVerbatimMatch(keyword_text, keyword, input_));

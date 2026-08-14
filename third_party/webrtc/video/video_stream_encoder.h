@@ -92,10 +92,9 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
       const VideoStreamEncoderSettings& settings,
       std::unique_ptr<OveruseFrameDetector> overuse_detector,
       std::unique_ptr<FrameCadenceAdapterInterface> frame_cadence_adapter,
-      std::unique_ptr<webrtc::TaskQueueBase, webrtc::TaskQueueDeleter>
-          encoder_queue,
+      std::unique_ptr<TaskQueueBase, TaskQueueDeleter> encoder_queue,
       BitrateAllocationCallbackType allocation_cb_type,
-      webrtc::VideoEncoderFactory::EncoderSelectorInterface* encoder_selector =
+      VideoEncoderFactory::EncoderSelectorInterface* encoder_selector =
           nullptr);
   ~VideoStreamEncoder() override;
 
@@ -287,7 +286,7 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
   const BitrateAllocationCallbackType allocation_cb_type_;
   const RateControlSettings rate_control_settings_;
 
-  webrtc::VideoEncoderFactory::EncoderSelectorInterface* const
+  VideoEncoderFactory::EncoderSelectorInterface* const
       encoder_selector_from_constructor_;
   std::unique_ptr<VideoEncoderFactory::EncoderSelectorInterface> const
       encoder_selector_from_factory_;

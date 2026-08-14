@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "api/candidate.h"
+#include "api/field_trials.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
@@ -54,13 +55,11 @@
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 
 namespace webrtc {
 namespace {
-
-using test::ScopedKeyValueConfig;
 
 static const char kIceUfrag1[] = "U001";
 static const char kIcePwd1[] = "TESTICEPWD00000000000001";
@@ -198,7 +197,7 @@ class JsepTransport2Test : public ::testing::Test, public sigslot::has_slots<> {
   // for testing.
   SrtpTransport* sdes_transport_ = nullptr;
 
-  ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_ = CreateTestFieldTrials();
   PayloadTypePicker payload_type_picker_;
 };
 

@@ -183,7 +183,20 @@ enum DrawTypeFlags : uint16_t {
     //    MiddleOutFanRenderStep[*] for [EvenOdd], [Winding]
     kNonSimpleShape   = 1 << 10,
 
-    kLast = kNonSimpleShape,
+    // This draw type covers all the methods Skia uses to draw drop shadows. It can be used to
+    // generate Pipelines which, as part of their labels, have:
+    //     the AnalyticBlurRenderStep
+    //     VerticesRenderStep[TrisColor] with a GaussianColorFilter
+    // For this draw type the PaintOptions parameter to Precompile() will be ignored.
+    kDropShadows      = 1 << 11,
+
+    // kAnalyticClip should be combined with the primary drawType for Pipelines that contain
+    // either of the following sub-strings:
+    //    AnalyticClip
+    //    AnalyticAndAtlasClip
+    kAnalyticClip     = 1 << 12,
+
+    kLast = kAnalyticClip,
 };
 
 } // namespace skgpu::graphite

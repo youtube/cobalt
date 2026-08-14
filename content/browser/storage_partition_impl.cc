@@ -35,6 +35,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "base/timer/elapsed_timer.h"
 #include "base/threading/sequence_local_storage_slot.h"
 #include "base/types/optional_util.h"
 #include "build/build_config.h"
@@ -933,6 +934,7 @@ class StoragePartitionImpl::DataDeletionHelper {
       CdmStorageManager* cdm_storage_manager,
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
       network::mojom::DeviceBoundSessionManager* device_bound_session_manager,
+      KeepAliveURLLoaderService* keep_alive_url_loader_service,
       bool perform_storage_cleanup,
       const base::Time begin,
       const base::Time end);
@@ -1030,15 +1032,34 @@ class StoragePartitionImpl::ServiceWorkerCookieAccessObserver
   void OnCookiesAccessed(std::vector<network::mojom::CookieAccessDetailsPtr>
                              details_vector) override {
     DCHECK_CURRENTLY_ON(BrowserThread::UI);
+    // TODO(https://crbug.com/423472677): Group multiple cookie access details
+    // with the same RenderFrameHost. This UMA metrics is to decide whether to
+    // optimize this method or not.
+    base::UmaHistogramCounts1M(
+        "Cookie.OnCookiesAccessed.BatchSize.CookieAccessObserver",
+        details_vector.size());
+    std::optional<base::ElapsedTimer> timer;
+    if (base::ShouldRecordSubsampledMetric(0.01)) {
+      timer.emplace();
+    }
     for (auto& details : details_vector) {
       for (GlobalRenderFrameHostId frame_id : GetRoutingIdsForOrigin(
                storage_partition_, url::Origin::Create(details->url))) {
         if (RenderFrameHostImpl* rfh = RenderFrameHostImpl::FromID(frame_id)) {
+          std::vector<network::mojom::CookieAccessDetailsPtr> details_list;
+          details_list.reserve(1);
+          details_list.push_back(mojo::Clone(details));
           rfh->NotifyCookiesAccessed(
-              mojo::Clone(details_vector),
+              std::move(details_list),
               CookieAccessDetails::Source::kNonNavigation);
         }
       }
+    }
+    if (timer) {
+      base::UmaHistogramCustomMicrosecondsTimes(
+          "Browser.CookieAccessObserver.StoragePartitionImpl.Duration."
+          "Subsampled",
+          timer->Elapsed(), base::Microseconds(1), base::Seconds(1), 100);
     }
   }
 
@@ -1598,13 +1619,15 @@ void StoragePartitionImpl::Initialize(
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
-void StoragePartitionImpl::OnStorageServiceDisconnected() {
-  // This will be lazily re-bound on next use.
-  remote_partition_.reset();
-
-  dom_storage_context_->RecoverFromStorageServiceCrash();
+void StoragePartitionImpl::ResetSessionStorageConnections() {
   for (const auto& client : dom_storage_clients_) {
-    client.second->ResetStorageAreaAndNamespaceConnections();
+    client.second->ResetSessionStorageConnections();
+  }
+}
+
+void StoragePartitionImpl::ResetLocalStorageConnections() {
+  for (const auto& client : dom_storage_clients_) {
+    client.second->ResetLocalStorageConnections();
   }
 }
 
@@ -2568,10 +2591,6 @@ void StoragePartitionImpl::OnAdAuctionEventRecordHeaderReceived(
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
-bool StoragePartitionImpl::IsStorageServiceRemoteValid() const {
-  return GetStorageServiceRemoteStorage().is_bound();
-}
-
 void StoragePartitionImpl::Clone(
     mojo::PendingReceiver<network::mojom::URLLoaderNetworkServiceObserver>
         observer) {
@@ -2852,7 +2871,8 @@ void StoragePartitionImpl::ClearDataImpl(
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
       cdm_storage_manager_.get(),
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
-      GetDeviceBoundSessionManager(), perform_storage_cleanup, begin, end);
+      GetDeviceBoundSessionManager(), GetKeepAliveURLLoaderService(),
+      perform_storage_cleanup, begin, end);
 }
 
 void StoragePartitionImpl::DeletionHelperDone(base::OnceClosure callback) {
@@ -3038,6 +3058,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
     CdmStorageManager* cdm_storage_manager,
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
     network::mojom::DeviceBoundSessionManager* device_bound_session_manager,
+    KeepAliveURLLoaderService* keep_alive_url_loader_service,
     bool perform_storage_cleanup,
     const base::Time begin,
     const base::Time end) {
@@ -3287,6 +3308,11 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
         mojo::WrapCallbackWithDefaultInvokeIfNotRun(CreateTaskCompletionClosure(
             TracingDataType::kDeviceBoundSessions)));
   }
+
+  if (remove_mask_ & REMOVE_KEEPALIVE_LOADS_ATTEMPTING_RETRY &&
+      keep_alive_url_loader_service) {
+    keep_alive_url_loader_service->ClearKeepAliveURLLoadersAttemptingRetry();
+  }
 }
 
 void StoragePartitionImpl::ClearDataForOrigin(
@@ -3524,25 +3550,17 @@ BrowserContext* StoragePartitionImpl::browser_context() const {
   return browser_context_;
 }
 
-storage::mojom::Partition* StoragePartitionImpl::GetStorageServicePartition() {
-  if (!remote_partition_) {
-    std::optional<base::FilePath> storage_path;
-    if (!is_in_memory()) {
-      storage_path =
-          browser_context_->GetPath().Append(relative_partition_path_);
-    }
-    GetStorageServiceRemote()->BindPartition(
-        storage_path, remote_partition_.BindNewPipeAndPassReceiver());
-    remote_partition_.set_disconnect_handler(
-        base::BindOnce(&StoragePartitionImpl::OnStorageServiceDisconnected,
-                       base::Unretained(this)));
+std::optional<base::FilePath> StoragePartitionImpl::GetStoragePartitionPath()
+    const {
+  if (is_in_memory()) {
+    return std::nullopt;
   }
-  return remote_partition_.get();
+  return browser_context_->GetPath().Append(relative_partition_path_);
 }
 
 // static
 mojo::Remote<storage::mojom::StorageService>&
-StoragePartitionImpl::GetStorageServiceForTesting() {
+StoragePartitionImpl::GetStorageService() {
   return GetStorageServiceRemote();
 }
 

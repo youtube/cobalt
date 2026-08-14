@@ -1290,8 +1290,9 @@ void AutocompleteMatch::GetKeywordUIState(
       *is_keyword_hint
           ? associated_keyword->keyword
           : GetSubstitutingExplicitlyInvokedKeyword(template_url_service));
-  *keyword_placeholder_out = GetKeywordPlaceholder(
-      template_url_service, is_history_embeddings_enabled);
+  *keyword_placeholder_out =
+      GetKeywordPlaceholder(GetTemplateURL(template_url_service, false),
+                            is_history_embeddings_enabled);
 }
 
 std::u16string AutocompleteMatch::GetSubstitutingExplicitlyInvokedKeyword(
@@ -1308,24 +1309,23 @@ std::u16string AutocompleteMatch::GetSubstitutingExplicitlyInvokedKeyword(
              : std::u16string();
 }
 
+// static
 std::u16string AutocompleteMatch::GetKeywordPlaceholder(
-    TemplateURLService* template_url_service,
-    bool is_history_embeddings_enabled) const {
+    const TemplateURL* template_url,
+    bool is_history_embeddings_enabled) {
 #if BUILDFLAG(IS_IOS)
   // `kOmniboxScoped` isn't defined on iOS and all history embedding subfeatures
   // are disabled on iOS.
   return u"";
 #else
+  if (!template_url) {
+    return u"";
+  }
   if (!history_embeddings::GetFeatureParameters().omnibox_scoped) {
     return u"";
   }
-
-  const TemplateURL* t_url = GetTemplateURL(template_url_service, false);
-  if (!t_url) {
-    return u"";
-  }
   int message_id;
-  switch (t_url->starter_pack_id()) {
+  switch (template_url->starter_pack_id()) {
     case TemplateURLStarterPackData::kBookmarks:
       message_id = IDS_OMNIBOX_BOOKMARKS_SCOPE_PLACEHOLDER_TEXT;
       break;
@@ -1443,6 +1443,10 @@ AutocompleteMatch::GetOmniboxEventResultType(int action_index) const {
       case OmniboxActionId::CONTEXTUAL_SEARCH_FULFILLMENT:
         // Preserve existing behavior by continuing on to use the match `type`.
         break;
+      case OmniboxActionId::STARTER_PACK_BOOKMARKS:
+      case OmniboxActionId::STARTER_PACK_HISTORY:
+      case OmniboxActionId::STARTER_PACK_TABS:
+        return OmniboxEventProto::Suggestion::STARTER_PACK;
       case OmniboxActionId::UNKNOWN:
       case OmniboxActionId::LAST:
         NOTREACHED();
@@ -1610,11 +1614,17 @@ int AutocompleteMatch::GetSortingOrder() const {
     return 2;
   }
 
-  if (type == AutocompleteMatchType::HISTORY_EMBEDDINGS_ANSWER)
+  if (type == AutocompleteMatchType::HISTORY_EMBEDDINGS_ANSWER) {
     return 8;
+  }
 
-  if (IsIPHSuggestion())
+  if (IsIPHSuggestion()) {
     return 9;
+  }
+
+  if (IsToolbelt()) {
+    return 10;
+  }
 
   return 4;
 }
@@ -1717,6 +1727,11 @@ bool AutocompleteMatch::IsIPHSuggestion() const {
 
 bool AutocompleteMatch::IsContextualSearchSuggestion() const {
   return subtypes.contains(omnibox::SuggestSubtype::SUBTYPE_CONTEXTUAL_SEARCH);
+}
+
+bool AutocompleteMatch::IsToolbelt() const {
+  return type == AutocompleteMatchType::NULL_RESULT_MESSAGE &&
+         !actions.empty() && omnibox_feature_configs::Toolbelt::Get().enabled;
 }
 
 void AutocompleteMatch::FilterOmniboxActions(

@@ -71,6 +71,7 @@ namespace {
 using ::testing::_;
 using ::testing::AllOf;
 using ::testing::AnyNumber;
+using ::testing::ElementsAreArray;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::Invoke;
@@ -124,6 +125,7 @@ class MockRtpVideoSender : public RtpVideoSenderInterface {
   MOCK_METHOD(uint32_t, GetPayloadBitrateBps, (), (const, override));
   MOCK_METHOD(uint32_t, GetProtectionBitrateBps, (), (const, override));
   MOCK_METHOD(void, SetEncodingData, (size_t, size_t, size_t), (override));
+  MOCK_METHOD(void, SetCsrcs, (ArrayView<const uint32_t> csrcs), (override));
   MOCK_METHOD(std::vector<RtpSequenceNumberMap::Info>,
               GetSentRtpPacketInfos,
               (uint32_t ssrc, ArrayView<const uint16_t> sequence_numbers),
@@ -168,7 +170,7 @@ class VideoSendStreamImplTest : public ::testing::Test {
     ON_CALL(rtp_video_sender_, SetSending)
         .WillByDefault(SaveArg<0>(&rtp_sending_));
   }
-  ~VideoSendStreamImplTest() {}
+  ~VideoSendStreamImplTest() override {}
 
   VideoEncoderConfig TestVideoEncoderConfig(
       VideoEncoderConfig::ContentType content_type =
@@ -1001,6 +1003,13 @@ TEST_F(VideoSendStreamImplTest, CallsVideoStreamEncoderOnBitrateUpdate) {
               OnBitrateUpdated(DataRate::Zero(), DataRate::Zero(),
                                DataRate::Zero(), 0, 0, 0));
   vss_impl->Stop();
+}
+
+TEST_F(VideoSendStreamImplTest, ForwardsCsrcsToRtpVideoSender) {
+  auto vss_impl = CreateVideoSendStreamImpl(TestVideoEncoderConfig());
+  std::vector<uint32_t> csrcs = {1, 2, 3};
+  EXPECT_CALL(rtp_video_sender_, SetCsrcs(ElementsAreArray(csrcs)));
+  vss_impl->SetCsrcs(csrcs);
 }
 
 TEST_F(VideoSendStreamImplTest, DisablesPaddingOnPausedEncoder) {

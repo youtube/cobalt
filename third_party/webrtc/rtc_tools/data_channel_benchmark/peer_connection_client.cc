@@ -307,7 +307,7 @@ void PeerConnectionClient::AddIceCandidate(
   RTC_LOG(LS_INFO) << "AddIceCandidate";
 
   peer_connection_->AddIceCandidate(
-      std::move(candidate), [](const webrtc::RTCError& error) {
+      std::move(candidate), [](const RTCError& error) {
         RTC_LOG(LS_INFO) << "Failed to add candidate: " << error.message();
       });
 }

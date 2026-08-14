@@ -10,17 +10,17 @@
 
 #include "test/fake_vp8_decoder.h"
 
-#include <stddef.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 
 #include "api/scoped_refptr.h"
+#include "api/video/encoded_image.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/video_frame.h"
-#include "api/video/video_frame_buffer.h"
 #include "api/video/video_rotation.h"
+#include "api/video_codecs/video_decoder.h"
 #include "modules/video_coding/include/video_error_codes.h"
-#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 namespace test {

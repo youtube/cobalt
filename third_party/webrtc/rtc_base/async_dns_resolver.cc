@@ -30,7 +30,7 @@ namespace {
 #ifdef __native_client__
 int ResolveHostname(absl::string_view hostname,
                     int family,
-                    std::vector<webrtc::IPAddress>* addresses) {
+                    std::vector<IPAddress>* addresses) {
   RTC_DCHECK_NOTREACHED();
   RTC_LOG(LS_WARNING) << "ResolveHostname() is not implemented for NaCl";
   return -1;

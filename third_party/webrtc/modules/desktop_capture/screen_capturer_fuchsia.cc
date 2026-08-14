@@ -93,7 +93,7 @@ void ScreenCapturerFuchsia::CaptureFrame() {
     return;
   }
 
-  int64_t capture_start_time_nanos = webrtc::TimeNanos();
+  int64_t capture_start_time_nanos = TimeNanos();
 
   zx::event event;
   zx::event dup;
@@ -148,8 +148,8 @@ void ScreenCapturerFuchsia::CaptureFrame() {
                       << release_result.err();
   }
 
-  int capture_time_ms = (webrtc::TimeNanos() - capture_start_time_nanos) /
-                        webrtc::kNumNanosecsPerMillisec;
+  int capture_time_ms =
+      (TimeNanos() - capture_start_time_nanos) / kNumNanosecsPerMillisec;
   frame->set_capture_time_ms(capture_time_ms);
   callback_->OnCaptureResult(Result::SUCCESS, std::move(frame));
 }

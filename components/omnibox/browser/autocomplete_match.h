@@ -537,6 +537,10 @@ struct AutocompleteMatch {
   // by lens in the side panel.
   bool IsContextualSearchSuggestion() const;
 
+  // Checks if this match is a specialized toolbelt match with actions on
+  // a button row.
+  bool IsToolbelt() const;
+
   // Returns true if this match may attach one or more `actions`.
   // This method is used to keep actions off of matches with types that don't
   // mix well with Pedals or other actions (e.g. entities).
@@ -577,11 +581,13 @@ struct AutocompleteMatch {
   std::u16string GetSubstitutingExplicitlyInvokedKeyword(
       TemplateURLService* template_url_service) const;
 
-  // Returns the placeholder text to display for the currently selected keyword
-  // match, returned for both hint and non-hint keyword modes.
-  std::u16string GetKeywordPlaceholder(
-      TemplateURLService* template_url_service,
-      bool is_history_embeddings_enabled) const;
+  // Returns the placeholder text to display for the given starter pack keyword
+  // TemplateURL, returned for both hint and non-hint keyword modes.
+  // The `template_url` may be nullptr and this method often defaults to
+  // returning the empty string.
+  static std::u16string GetKeywordPlaceholder(
+      const TemplateURL* template_url,
+      bool is_history_embeddings_enabled);
 
   // Returns the TemplateURL associated with this match.  This may be NULL if
   // the match has no keyword OR if the keyword no longer corresponds to a valid

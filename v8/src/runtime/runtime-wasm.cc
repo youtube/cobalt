@@ -1343,12 +1343,12 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   isolate->isolate_data()->set_active_stack(target_stack.get());
 
   // Update the suspender state.
-  FullObjectSlot active_suspender_slot =
-      isolate->roots_table().slot(RootIndex::kActiveSuspender);
-  suspender->set_parent(
-      Cast<UnionOf<Undefined, WasmSuspenderObject>>(*active_suspender_slot));
+  if (!isolate->isolate_data()->active_suspender().IsSmi()) {
+    suspender->set_parent(
+        Cast<WasmSuspenderObject>(isolate->isolate_data()->active_suspender()));
+  }
   suspender->set_stack(isolate, target_stack.get());
-  active_suspender_slot.store(*suspender);
+  isolate->isolate_data()->set_active_suspender(*suspender);
 
   target_stack->set_index(isolate->wasm_stacks().size());
   isolate->wasm_stacks().emplace_back(std::move(target_stack));
@@ -1361,6 +1361,19 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   active_stack->jmpbuf()->state = wasm::JumpBuffer::Inactive;
 
   return *suspender;
+}
+
+// Helper function needed for the stress stack switching mode.
+// This is a runtime function to avoid writing trusted space memory from
+// generated code.
+RUNTIME_FUNCTION(Runtime_ClearWasmSuspenderResumeField) {
+  // Should only be used in stress stack switching mode.
+  CHECK(v8_flags.stress_wasm_stack_switching);
+
+  DCHECK_EQ(1, args.length());
+  Tagged<WasmSuspenderObject> suspender = Cast<WasmSuspenderObject>(args[0]);
+  suspender->set_resume(ReadOnlyRoots(isolate).undefined_value());
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 #define RETURN_RESULT_OR_TRAP(call)                                            \

@@ -9,8 +9,7 @@
  */
 #include "test/pc/e2e/analyzer/video/video_dumping.h"
 
-#include <stdio.h>
-
+#include <cstdio>
 #include <memory>
 #include <string>
 #include <utility>

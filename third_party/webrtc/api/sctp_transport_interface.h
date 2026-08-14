@@ -75,7 +75,7 @@ class SctpTransportObserverInterface {
 // accessed on that thread, except for functions explicitly marked otherwise.
 // References can be held by other threads, and destruction can therefore
 // be initiated by other threads.
-class SctpTransportInterface : public webrtc::RefCountInterface {
+class SctpTransportInterface : public RefCountInterface {
  public:
   // This function can be called from other threads.
   virtual scoped_refptr<DtlsTransportInterface> dtls_transport() const = 0;

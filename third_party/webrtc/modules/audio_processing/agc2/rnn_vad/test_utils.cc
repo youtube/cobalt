@@ -46,7 +46,7 @@ class FloatFileReader : public FileReader {
   }
   FloatFileReader(const FloatFileReader&) = delete;
   FloatFileReader& operator=(const FloatFileReader&) = delete;
-  ~FloatFileReader() = default;
+  ~FloatFileReader() override = default;
 
   int size() const override { return size_; }
   bool ReadChunk(ArrayView<float> dst) override {

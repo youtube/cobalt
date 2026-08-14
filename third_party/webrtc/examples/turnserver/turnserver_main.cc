@@ -33,9 +33,9 @@ class TurnFileAuth : public webrtc::TurnAuthInterface {
   explicit TurnFileAuth(std::map<std::string, std::string> name_to_key)
       : name_to_key_(std::move(name_to_key)) {}
 
-  virtual bool GetKey(absl::string_view username,
-                      absl::string_view realm,
-                      std::string* key) {
+  bool GetKey(absl::string_view username,
+              absl::string_view realm,
+              std::string* key) override {
     // File is stored as lines of <username>=<HA1>.
     // Generate HA1 via "echo -n "<username>:<realm>:<password>" | md5sum"
     auto it = name_to_key_.find(std::string(username));

@@ -31,7 +31,6 @@
 #include "ui/base/ui_base_types.h"
 #include "ui/color/color_provider.h"
 #include "ui/gfx/color_palette.h"
-#include "ui/gfx/color_utils.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/views/accessibility/view_accessibility.h"
@@ -363,24 +362,7 @@ void ContentAnalysisDialogController::UpdateDialog() {
     return;
   }
 
-  DCHECK(is_result());
-
-  int height_before = contents_view_->GetPreferredSize().height();
-
-  UpdateViews();
-
-  // Resize the dialog's height. This is needed since the text might take more
-  // lines after changing.
-  int height_after = contents_view_->GetHeightForWidth(contents_view_->width());
-
-  int height_to_add = std::max(height_after - height_before, 0);
-  if (height_to_add > 0 && GetWidget()) {
-    Resize(height_to_add);
-  }
-
-  // Update the dialog.
-  DialogDelegate::DialogModelChanged();
-  contents_view_->InvalidateLayout();
+  UpdateDialogAppearance();
 
   // Schedule the dialog to close itself in the success case.
   if (is_success()) {
@@ -418,11 +400,6 @@ std::unique_ptr<views::View> ContentAnalysisDialogController::CreateSideIcon() {
   }
 
   return icon;
-}
-
-bool ContentAnalysisDialogController::ShouldUseDarkTopImage() const {
-  return color_utils::IsDark(
-      contents_view_->GetColorProvider()->GetColor(ui::kColorDialogBackground));
 }
 
 void ContentAnalysisDialogController::CancelDialogAndDelete() {

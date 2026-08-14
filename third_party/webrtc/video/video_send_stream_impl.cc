@@ -22,6 +22,7 @@
 
 #include "absl/algorithm/container.h"
 #include "api/adaptation/resource.h"
+#include "api/array_view.h"
 #include "api/call/bitrate_allocation.h"
 #include "api/crypto/crypto_options.h"
 #include "api/environment/environment.h"
@@ -578,6 +579,11 @@ VideoSendStream::Stats VideoSendStreamImpl::GetStats() {
 void VideoSendStreamImpl::SetStats(const Stats& stats) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   stats_proxy_.SetStats(stats);
+}
+
+void VideoSendStreamImpl::SetCsrcs(ArrayView<const uint32_t> csrcs) {
+  RTC_DCHECK_RUN_ON(&thread_checker_);
+  rtp_video_sender_->SetCsrcs(csrcs);
 }
 
 std::optional<float> VideoSendStreamImpl::GetPacingFactorOverride() const {

@@ -140,7 +140,7 @@ class VideoQualityTestFixtureInterface {
   virtual void RunWithAnalyzer(const Params& params) = 0;
   virtual void RunWithRenderers(const Params& params) = 0;
 
-  virtual const std::map<uint8_t, webrtc::MediaType>& payload_type_map() = 0;
+  virtual const std::map<uint8_t, MediaType>& payload_type_map() = 0;
 };
 
 }  // namespace webrtc

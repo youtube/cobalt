@@ -75,7 +75,7 @@ std::optional<RtpGeneratorOptions> ParseRtpGeneratorOptionsFromFile(
 // to a file instead of out of the network. It then uses this sender
 // configuration to generate a mirror receiver configuration that can be read by
 // the video_replay program.
-class RtpGenerator final : public webrtc::Transport {
+class RtpGenerator final : public Transport {
  public:
   // Construct a new RtpGenerator using the specified options.
   explicit RtpGenerator(const RtpGeneratorOptions& options);
@@ -90,7 +90,7 @@ class RtpGenerator final : public webrtc::Transport {
   void GenerateRtpDump(const std::string& rtp_dump_path);
 
  private:
-  // webrtc::Transport implementation
+  // Transport implementation
   // Captured RTP packets are written to the RTPDump file instead of over the
   // network.
   bool SendRtp(ArrayView<const uint8_t> packet,

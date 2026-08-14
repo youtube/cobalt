@@ -37,8 +37,7 @@ class DtlsStunPiggybackController {
   // dtls_data_callback will be called with any DTLS packets received
   // piggybacked.
   DtlsStunPiggybackController(
-      absl::AnyInvocable<void(webrtc::ArrayView<const uint8_t>)>
-          dtls_data_callback);
+      absl::AnyInvocable<void(ArrayView<const uint8_t>)> dtls_data_callback);
   ~DtlsStunPiggybackController();
 
   enum class State {

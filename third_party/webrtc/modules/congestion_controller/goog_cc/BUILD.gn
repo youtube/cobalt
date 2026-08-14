@@ -143,31 +143,12 @@ rtc_library("loss_based_bwe_v2") {
   ]
 }
 
-rtc_library("loss_based_bwe_v1") {
-  sources = [
-    "loss_based_bandwidth_estimation.cc",
-    "loss_based_bandwidth_estimation.h",
-  ]
-  deps = [
-    "../../../api:field_trials_view",
-    "../../../api/transport:network_control",
-    "../../../api/units:data_rate",
-    "../../../api/units:time_delta",
-    "../../../api/units:timestamp",
-    "../../../rtc_base:checks",
-    "../../../rtc_base/experiments:field_trial_parser",
-    "//third_party/abseil-cpp/absl/strings",
-    "//third_party/abseil-cpp/absl/strings:string_view",
-  ]
-}
-
 rtc_library("send_side_bwe") {
   sources = [
     "send_side_bandwidth_estimation.cc",
     "send_side_bandwidth_estimation.h",
   ]
   deps = [
-    ":loss_based_bwe_v1",
     ":loss_based_bwe_v2",
     "../../../api:field_trials_view",
     "../../../api/rtc_event_log",

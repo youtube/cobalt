@@ -133,7 +133,7 @@ class TestRunningJitterBuffer : public ::testing::Test {
  protected:
   enum { kDataBufferSize = 10 };
 
-  virtual void SetUp() {
+  void SetUp() override {
     clock_.reset(new SimulatedClock(0));
     max_nack_list_size_ = 150;
     oldest_packet_to_nack_ = 250;
@@ -146,7 +146,7 @@ class TestRunningJitterBuffer : public ::testing::Test {
     memset(data_buffer_, 0, kDataBufferSize);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     jitter_buffer_->Stop();
     delete stream_generator_;
     delete jitter_buffer_;
@@ -230,9 +230,9 @@ class TestRunningJitterBuffer : public ::testing::Test {
 class TestJitterBufferNack : public TestRunningJitterBuffer {
  protected:
   TestJitterBufferNack() {}
-  virtual void SetUp() { TestRunningJitterBuffer::SetUp(); }
+  void SetUp() override { TestRunningJitterBuffer::SetUp(); }
 
-  virtual void TearDown() { TestRunningJitterBuffer::TearDown(); }
+  void TearDown() override { TestRunningJitterBuffer::TearDown(); }
 };
 
 TEST_F(TestBasicJitterBuffer, StopRunning) {

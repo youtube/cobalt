@@ -91,6 +91,10 @@ BASE_FEATURE(kAvoidDuplicateDelayBeginFrame,
              "AvoidDuplicateDelayBeginFrame",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kTransferableResourcePassAlphaTypeDirectly,
+             "TransferableResourcePassAlphaTypeDirectly",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 const char kDrawQuadSplit[] = "num_of_splits";
 
 // If enabled, overrides the maximum number (exclusive) of quads one draw quad
@@ -263,11 +267,6 @@ BASE_FEATURE(kAllowUndamagedNonrootRenderPassToSkip,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
-// If enabled, complex occluders are generated for quads with rounded corners,
-BASE_FEATURE(kComplexOccluderForQuadsWithRoundedCorners,
-             "ComplexOccluderForQuadsWithRoundedCorners",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Allow SurfaceAggregator to merge render passes when they contain quads that
 // require overlay (e.g. protected video). See usage in |EmitSurfaceContent|.
 BASE_FEATURE(kAllowForceMergeRenderPassWithRequireOverlayQuads,
@@ -417,6 +416,13 @@ BASE_FEATURE(kBatchResourceRelease,
              "BatchResourceRelease",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, BeginFrameSource will not send a `BeginFrameArgs::MISSED` in
+// response to `AddObserver`. As these consistently miss deadlines, and increase
+// latency and jank. Instead the client will receive the next BeginFrame.
+BASE_FEATURE(kNoLateBeginFrames,
+             "NoLateBeginFrames",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Stops BeginFrame issue to use |last_vsync_interval_| instead of the current
 // set of BeginFrameArgs.
 // TODO(b/333940735): Should be removed if the issue isn't fixed.
@@ -526,12 +532,6 @@ int MaxOverlaysConsidered() {
 
 bool ShouldOnBeginFrameThrottleVideo() {
   return base::FeatureList::IsEnabled(features::kOnBeginFrameThrottleVideo);
-}
-
-bool IsComplexOccluderForQuadsWithRoundedCornersEnabled() {
-  static bool enabled = base::FeatureList::IsEnabled(
-      features::kComplexOccluderForQuadsWithRoundedCorners);
-  return enabled;
 }
 
 bool ShouldDrawImmediatelyWhenInteractive() {

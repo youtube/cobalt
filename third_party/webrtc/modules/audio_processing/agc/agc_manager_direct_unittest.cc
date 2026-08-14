@@ -71,7 +71,7 @@ constexpr AnalogAgcConfig kDefaultAnalogConfig{};
 
 class MockGainControl : public GainControl {
  public:
-  virtual ~MockGainControl() {}
+  ~MockGainControl() override {}
   MOCK_METHOD(int, set_stream_analog_level, (int level), (override));
   MOCK_METHOD(int, stream_analog_level, (), (const, override));
   MOCK_METHOD(int, set_mode, (Mode mode), (override));

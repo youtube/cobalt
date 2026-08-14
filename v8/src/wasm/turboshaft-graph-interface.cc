@@ -353,7 +353,8 @@ void WasmGraphBuilderBase::BuildSetNewStackLimit(V<WordPtr> old_limit,
   __ AtomicCompareExchange(
       __ IsolateField(IsolateFieldId::kJsLimitAddress), __ UintPtrConstant(0),
       old_limit, new_limit, RegisterRepresentation::WordPtr(),
-      MemoryRepresentation::UintPtr(), compiler::MemoryAccessKind::kNormal);
+      MemoryRepresentation::UintPtr(), compiler::MemoryAccessKind::kNormal,
+      RegisterRepresentation::WordPtr());
   __ Store(__ LoadRootRegister(), new_limit, StoreOp::Kind::RawAligned(),
            MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
            IsolateData::real_jslimit_offset());
@@ -4230,12 +4231,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       if (info.bin_op == Binop::kCompareExchange) {
         result->op = __ AtomicCompareExchange(
             MemBuffer(imm.memory->index, imm.offset), index, args[1].op,
-            args[2].op, info.in_out_rep, info.memory_rep, access_kind);
+            args[2].op, info.in_out_rep, info.memory_rep, access_kind,
+            RegisterRepresentation::WordPtr());
         return;
       }
       result->op = __ AtomicRMW(MemBuffer(imm.memory->index, imm.offset), index,
                                 args[1].op, info.bin_op, info.in_out_rep,
-                                info.memory_rep, access_kind);
+                                info.memory_rep, access_kind,
+                                RegisterRepresentation::WordPtr());
       return;
     }
     if (info.op_type == kStore) {
@@ -4320,9 +4323,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     __ TrapIfNot(result, TrapId::kTrapMemOutOfBounds);
   }
 
-  void InlineMemCopy(const WasmMemory* dst_memory, const WasmMemory* src_memory,
-                     V<WordPtr> dst_offset, V<WordPtr> src_offset,
-                     V<WordPtr> size_op, int32_t bytes_to_copy) {
+  void MemCopyBoundsCheck(const WasmMemory* dst_memory,
+                          const WasmMemory* src_memory, V<WordPtr> dst_offset,
+                          V<WordPtr> src_offset, V<WordPtr> size_op) {
     if (dst_memory->index == src_memory->index) {
       // Bounds check the read and write from the same memory.
       V<WordPtr> mem_size = MemSize(src_memory->index);
@@ -4347,7 +4350,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       BoundsCheck(src_memory, src_offset, size_op);
       BoundsCheck(dst_memory, dst_offset, size_op);
     }
+  }
 
+  void InlineMemCopy(const WasmMemory* dst_memory, const WasmMemory* src_memory,
+                     V<WordPtr> dst_offset, V<WordPtr> src_offset,
+                     V<WordPtr> size_op, int32_t bytes_to_copy) {
+    MemCopyBoundsCheck(dst_memory, src_memory, dst_offset, src_offset, size_op);
     // We've performed the bounds check above.
     constexpr auto strategy = compiler::BoundsCheckResult::kDynamicallyChecked;
 
@@ -4446,6 +4454,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
     }
 #endif  // V8_TARGET_ARCH_64_BIT
+
+#if V8_TARGET_ARCH_ARM64
+    if (CpuFeatures::IsSupported(MOPS)) {
+      MemCopyBoundsCheck(dst_memory, src_memory, dst_offset, src_offset,
+                         size_op);
+      // Calculate the effective addresses of src and dst.
+      V<WordPtr> src_mem_start = MemStart(src_memory->index);
+      V<WordPtr> dst_mem_start = MemStart(dst_memory->index);
+      V<WordPtr> src_base = __ WordPtrAdd(src_mem_start, src_offset);
+      V<WordPtr> dst_base = __ WordPtrAdd(dst_mem_start, dst_offset);
+      __ MemoryCopy(dst_base, src_base, size_op);
+      return;
+    }
+#endif  // V8_TARGET_ARCH_ARM64
 
     auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
                    .Params(MachineType::Pointer(), MachineType::Uint32(),
@@ -4774,7 +4796,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                            : compiler::kWithoutNullCheck,
           {});
       result->op = old_value;
-      V<Word> new_value;
+      V<Any> new_value;
       if (field_kind == ValueKind::kI32) {
         V<Word32> old = V<Word32>::Cast(old_value);
         switch (opcode) {
@@ -4855,8 +4877,51 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
     })(opcode);
     result->op = __ StructAtomicRMW(
-        struct_object.op, field_value.op, op, field.struct_imm.struct_type,
-        field.struct_imm.index, field.field_imm.index,
+        struct_object.op, field_value.op, OpIndex::Invalid(), op,
+        field.struct_imm.struct_type, field.struct_imm.index,
+        field.field_imm.index,
+        struct_object.type.is_nullable() ? compiler::kWithNullCheck
+                                         : compiler::kWithoutNullCheck,
+        memory_order);
+  }
+
+  void StructAtomicCompareExchange(
+      FullDecoder* decoder, WasmOpcode opcode, const Value& struct_object,
+      const FieldImmediate& field, const Value& expected_value,
+      const Value& new_value, AtomicMemoryOrder memory_order, Value* result) {
+    const StructType* struct_type = field.struct_imm.struct_type;
+    ValueKind field_kind = struct_type->field(field.field_imm.index).kind();
+
+    if (field_kind == ValueKind::kRef || field_kind == ValueKind::kRefNull) {
+      UNIMPLEMENTED();
+    }
+
+    if (!field.struct_imm.shared && field_kind == ValueKind::kI64) {
+      // On some architectures atomic operations require aligned accesses while
+      // unshared objects don't have the required alignment. For simplicity we
+      // do the same on all platforms.
+      // TODO(mliedtke): Reconsider this if atomic operations on unshared
+      // objects remain part of the spec proposal.
+      V<Word64> old_value = V<Word64>::Cast(__ StructGet(
+          struct_object.op, struct_type, field.struct_imm.index,
+          field.field_imm.index, true,
+          struct_object.type.is_nullable() ? compiler::kWithNullCheck
+                                           : compiler::kWithoutNullCheck,
+          {}));
+      result->op = old_value;
+      IF (__ Word64Equal(old_value, expected_value.op)) {
+        __ StructSet(struct_object.op, new_value.op, struct_type,
+                     field.struct_imm.index, field.field_imm.index,
+                     compiler::kWithoutNullCheck, {});
+      }
+      return;
+    }
+
+    result->op = __ StructAtomicRMW(
+        struct_object.op, new_value.op, expected_value.op,
+        compiler::turboshaft::StructAtomicRMWOp::BinOp::kCompareExchange,
+        field.struct_imm.struct_type, field.struct_imm.index,
+        field.field_imm.index,
         struct_object.type.is_nullable() ? compiler::kWithNullCheck
                                          : compiler::kWithoutNullCheck,
         memory_order);
@@ -5012,8 +5077,46 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     })(opcode);
     auto array_value = V<WasmArrayNullable>::Cast(array_obj.op);
     BoundsCheckArray(array_value, index.op, array_obj.type);
-    result->op = __ ArrayAtomicRMW(array_value, index.op, value.op, op,
-                                   imm.array_type->element_type(), order);
+    result->op =
+        __ ArrayAtomicRMW(array_value, index.op, value.op, OpIndex::Invalid(),
+                          op, imm.array_type->element_type(), order);
+  }
+
+  void ArrayAtomicCompareExchange(FullDecoder* decoder, WasmOpcode opcode,
+                                  const Value& array_obj,
+                                  const ArrayIndexImmediate& imm,
+                                  const Value& index,
+                                  const Value& expected_value,
+                                  const Value& new_value,
+                                  AtomicMemoryOrder order, Value* result) {
+    auto array_value = V<WasmArrayNullable>::Cast(array_obj.op);
+    BoundsCheckArray(array_value, index.op, array_obj.type);
+
+    if (imm.array_type->element_type().is_reference()) {
+      UNIMPLEMENTED();
+    }
+
+    if (!array_obj.type.is_shared() &&
+        imm.array_type->element_type() == kWasmI64) {
+      // On some architectures atomic operations require aligned accesses while
+      // unshared objects don't have the required alignment. For simplicity we
+      // do the same on all platforms.
+      // TODO(mliedtke): Reconsider this if atomic operations on unshared
+      // objects remain part of the spec proposal.
+      V<Word64> old_value = V<Word64>::Cast(
+          __ ArrayGet(array_value, index.op, imm.array_type, true, {}));
+      result->op = old_value;
+      IF (__ Word64Equal(old_value, expected_value.op)) {
+        __ ArraySet(array_value, index.op, new_value.op,
+                    imm.array_type->element_type(), {});
+      }
+      return;
+    }
+
+    result->op = __ ArrayAtomicRMW(
+        array_value, index.op, new_value.op, expected_value.op,
+        compiler::turboshaft::ArrayAtomicRMWOp::BinOp::kCompareExchange,
+        imm.array_type->element_type(), order);
   }
 
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {

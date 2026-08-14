@@ -131,6 +131,8 @@ chromium-metrics-reviews@google.com.
       summary="User chose to fill a field with a compose suggestion."/>
   <variant name="CreditCard"
       summary="User chose to fill a form or field with a credit card profile."/>
+  <variant name="DataList"
+      summary="User chose to fill a field with a datalist suggestion."/>
   <variant name="Iban" summary="User chose to fill a field with an iban."/>
   <variant name="IdentityCredential"
       summary="User chose to fill a field with an identity credential."/>
@@ -145,7 +147,7 @@ chromium-metrics-reviews@google.com.
       summary="User chose to fill a field with a plus addresses suggestion."/>
 </variants>
 
-<!-- LINT.ThenChange(/components/autofill/core/browser/filling_product.cc:FillingProductToString) -->
+<!-- LINT.ThenChange(/components/autofill/core/browser/filling/filling_product.cc:FillingProductToString) -->
 
 <variants name="Autofill.FormEventWithMetadata">
   <variant name="FilledWithMetadata" summary="A card with metadata was filled"/>
@@ -399,47 +401,6 @@ chromium-metrics-reviews@google.com.
   <variant name="OptedOut" summary="FIDO authentication disabled"/>
 </variants>
 
-<variants name="AutofillFieldFillingStats">
-  <variant name=".Accepted"
-      summary="The field was autofilled without subsequent corrections."/>
-  <variant name=".CorrectedToDifferentType"
-      summary="The field was autofilled but the value was edited into another
-               non-empty value that was detected to be of different type."/>
-  <variant name=".CorrectedToEmpty"
-      summary="The field was autofilled but the value was corrected into the
-               empty type."/>
-  <variant name=".CorrectedToSameType"
-      summary="The field was autofilled but the value was edited into another
-               non-empty value that was detected to have the same type."/>
-  <variant name=".CorrectedToUnknownType"
-      summary="The field was autofilled but the value was edited into another
-               non-empty value with an unknown type."/>
-  <variant name=".LeftEmpty" summary="The field was not filled at all."/>
-  <variant name=".ManuallyFilledToDifferentType"
-      summary="The field was not autofilled but the user manually entered a
-               value that was detected to have a different type than the type
-               the field was predicted to have."/>
-  <variant name=".ManuallyFilledToSameType"
-      summary="The field was not autofilled but the user manually entered a
-               value that was detected to have the same type than the field
-               was predicted to."/>
-  <variant name=".ManuallyFilledToUnknownType"
-      summary="The field was not autofilled but the user manually entered a
-               value that was detected to have no known type."/>
-  <variant name=".Total" summary="The total number of fields."/>
-  <variant name=".TotalCorrected"
-      summary="The field was autofilled and subsequently corrected by the
-               user."/>
-  <variant name=".TotalFilled"
-      summary="The field was autofilled and either accepted or subsequently
-               corrected by the user."/>
-  <variant name=".TotalManuallyFilled"
-      summary="The field was not autofilled and manually filled by the user."/>
-  <variant name=".TotalUnfilled"
-      summary="The field was not autofilled and either manually filled by the
-               user or left empty."/>
-</variants>
-
 <variants name="AutofillFieldPredictionSource">
   <variant name=".Heuristic"
       summary="Field type predictions using local heuristics."/>
@@ -610,6 +571,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <variant name="Address" summary="Address form"/>
   <variant name="CreditCard" summary="Credit card form"/>
   <variant name="EmailOnly" summary="Email-only form"/>
+  <variant name="LoyaltyCard" summary="Loyalty card form"/>
   <variant name="PostalAddress" summary="Postal address form"/>
   <variant name="StandaloneCvc"
       summary="Standalone CVC form for a card saved on file"/>
@@ -1186,7 +1148,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.Ai.{PromptType}.AllEntities"
-    enum="AutofillAiSaveOrUpdatePromptResult" expires_after="2025-12-12">
+    enum="EntitySaveOrUpdatePromptResult" expires_after="2025-12-12">
   <owner>brunobraga@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -1198,7 +1160,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.Ai.{PromptType}{EntityType}"
-    enum="AutofillAiSaveOrUpdatePromptResult" expires_after="2025-12-12">
+    enum="EntitySaveOrUpdatePromptResult" expires_after="2025-12-12">
   <owner>brunobraga@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -2948,25 +2910,6 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </token>
 </histogram>
 
-<histogram name="Autofill.FieldFillingStats{AutofillFormType}{FillingStatus}"
-    units="fields" expires_after="2025-11-16">
-  <owner>koerber@google.com</owner>
-  <owner>chrome-autofill-alerts@google.com</owner>
-  <summary>
-    For {AutofillFormType} logs an histogram of the number of fields with the
-    {FillingStatus} at submission time. The non-aggregated FillingStatuses are
-    mutually exclusive and each field can only contribute to one of
-    corresponding histograms. However, the combined histograms that are prefixed
-    with Total are not mutually exclusive and a single field can contribute to
-    multiple of those.
-
-    For an alternative to Autofill.FieldFillingStats.*.TotalFilled that is
-    recorded per autofill operation, see Autofill.NumberOfFieldsPerAutofill.
-  </summary>
-  <token key="AutofillFormType" variants="AutofillFormType"/>
-  <token key="FillingStatus" variants="AutofillFieldFillingStats"/>
-</histogram>
-
 <histogram name="Autofill.FieldPrediction.PhoneNumberGrammarUsage2"
     enum="PhoneNumberGrammarUsage2" expires_after="2025-10-26">
   <owner>battre@google.com</owner>
@@ -3198,6 +3141,35 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     Hiragana to Katakana. It will be true if conversion is required and false
     otherwise. Recorded during the preview and field filling moment.
   </summary>
+</histogram>
+
+<histogram name="Autofill.FormEvents.CreditCard.Benefits"
+    enum="CardBenefitFormEvent" expires_after="2026-06-01">
+  <owner>ferny@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Autofill form events for credit card forms that contain at least one
+    suggestion where a card benefit is available. This includes logging for when
+    card suggestions with benefits are shown, selected, filled, and submitted,
+    and logs at each of those times. Log emission pertains to all credit cards
+    with card benefits available. Each CardBenefitFormEvent metric can be
+    recorded once per page load.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.FormEvents.CreditCard.Benefits.{CardBenefitSource}"
+    enum="CardBenefitFormEvent" expires_after="2026-06-01">
+  <owner>ferny@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Autofill form events for credit card forms that contain at least one
+    suggestion where a card benefit is available. This includes logging for when
+    card suggestions with benefits are shown, selected, filled, and submitted,
+    and logs at each of those times. Log emission pertains to credit cards where
+    the benefit source is {CardBenefitSource}. Each CardBenefitFormEvent metric
+    can be recorded once per page load.
+  </summary>
+  <token key="CardBenefitSource" variants="Autofill.CreditCardBenefitSource"/>
 </histogram>
 
 <histogram name="Autofill.FormEvents.CreditCard.Bnpl" enum="BnplFormEvent"
@@ -3546,6 +3518,20 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <token key="FormType" variants="AutofillFormType.Fillable"/>
 </histogram>
 
+<histogram name="Autofill.HomeWorkProfiles.ProfileFiltered"
+    enum="BooleanFiltered" expires_after="2025-12-20">
+  <owner>jsobiech@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Tracks whether a Home/Work profile was filtered out due to incompleteness.
+    Emitted the moment Home/Work profiles are received or updated via sync.
+
+    Since the server already checks completeness on a best-effort basis, this
+    metric is not representative of the total fraction of incomplete Home/Work
+    addresses.
+  </summary>
+</histogram>
+
 <histogram name="Autofill.Iban.CountryOfSaveAcceptedIban" enum="IbanCountry"
     expires_after="2026-06-01">
   <owner>qihuizhao@google.com</owner>
@@ -3784,7 +3770,19 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </summary>
 </histogram>
 
-<histogram name="Autofill.iOS.FormSubmission.Outcome"
+<histogram name="Autofill.iOS.FormSubmission.Outcome.InvalidFormReason"
+    enum="InvalidSubmittedFormReasonIOS" expires_after="2025-11-16">
+  <owner>eic@google.com</owner>
+  <owner>vincb@google.com</owner>
+  <owner>bling-transactions@google.com</owner>
+  <summary>
+    Records the reason why a submitted form data was found invalid by the
+    browser process. Recorded when the browser process receives a form
+    submission message from the renderer. iOS only.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.iOS.FormSubmission.OutcomeV2"
     enum="FormSubmissionOutcomeIOS" expires_after="2025-11-16">
   <owner>eic@google.com</owner>
   <owner>vincb@google.com</owner>
@@ -3795,18 +3793,6 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     process from the renderer may be invalid or successfully handled. Recorded
     when the browser process receives a form submission message from the
     renderer. iOS only.
-  </summary>
-</histogram>
-
-<histogram name="Autofill.iOS.FormSubmission.Outcome.InvalidFormReason"
-    enum="InvalidSubmittedFormReasonIOS" expires_after="2025-11-16">
-  <owner>eic@google.com</owner>
-  <owner>vincb@google.com</owner>
-  <owner>bling-transactions@google.com</owner>
-  <summary>
-    Records the reason why a submitted form data was found invalid by the
-    browser process. Recorded when the browser process receives a form
-    submission message from the renderer. iOS only.
   </summary>
 </histogram>
 
@@ -4194,10 +4180,6 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     no undo, no autocomplete, no IBANs, for example, but email-only forms
     because they are treated as address forms even if they contain a single
     field). Recorded in Chrome on all platforms.
-
-    For an alternative metric that is recorded on submission time and aggregates
-    potentially multiple autofill operations, see
-    Autofill.FieldFillingStats.*.TotalFilled.
   </summary>
 </histogram>
 
@@ -4209,10 +4191,6 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     Records the number of autofilled fields per {FillTypeData} autofill
     operation. Only filling operations are logged (that is, no preview, no
     undo). Recorded in Chrome on all platforms.
-
-    For an alternative metric that is recorded on submission time and aggregates
-    potentially multiple autofill operations, see
-    Autofill.FieldFillingStats.*.TotalFilled.
   </summary>
   <token key="FillTypeData">
     <variant name="AutofillProfile" summary="AutofillProfile (address)"/>

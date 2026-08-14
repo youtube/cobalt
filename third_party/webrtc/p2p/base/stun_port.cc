@@ -43,6 +43,7 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/time_utils.h"
+#include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
 
@@ -471,23 +472,30 @@ void UDPPort::OnResolveResult(const SocketAddress& input, int error) {
 void UDPPort::SendStunBindingRequest(const SocketAddress& stun_addr) {
   if (stun_addr.IsUnresolvedIP()) {
     ResolveStunAddress(stun_addr);
-
-  } else if (socket_->GetState() == AsyncPacketSocket::STATE_BOUND) {
-    // Check if `server_addr_` is compatible with the port's ip.
-    if (IsCompatibleAddress(stun_addr)) {
-      request_manager_.Send(
-          new StunBindingRequest(this, stun_addr, TimeMillis()));
-    } else {
-      // Since we can't send stun messages to the server, we should mark this
-      // port ready. This is not an error but similar to ignoring
-      // a mismatch of th address family when pairing candidates.
-      RTC_LOG(LS_WARNING) << ToString()
-                          << ": STUN server address is incompatible.";
-      OnStunBindingOrResolveRequestFailed(
-          stun_addr, STUN_ERROR_NOT_AN_ERROR,
-          "STUN server address is incompatible.");
-    }
+    return;
   }
+
+  if (socket_->GetState() != AsyncPacketSocket::STATE_BOUND) {
+    return;
+  }
+
+    // Check if `server_addr_` is compatible with the port's ip.
+  if (!IsCompatibleAddress(stun_addr)) {
+    // Since we can't send stun messages to the server, we should mark this
+    // port ready. This is not an error but similar to ignoring
+    // a mismatch of the address family when pairing candidates.
+    RTC_LOG(LS_WARNING) << ToString()
+                        << ": STUN server address is incompatible.";
+    OnStunBindingOrResolveRequestFailed(stun_addr, STUN_ERROR_NOT_AN_ERROR,
+                                        "STUN server address is incompatible.");
+    return;
+  }
+
+  RTC_HISTOGRAM_ENUMERATION("WebRTC.PeerConnection.Stun.ServerAddressType",
+                            static_cast<int>(stun_addr.GetIPAddressType()),
+                            static_cast<int>(IPAddressType::kMaxValue));
+
+  request_manager_.Send(new StunBindingRequest(this, stun_addr, TimeMillis()));
 }
 
 bool UDPPort::MaybeSetDefaultLocalAddress(SocketAddress* addr) const {

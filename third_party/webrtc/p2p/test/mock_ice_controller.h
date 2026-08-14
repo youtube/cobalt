@@ -31,16 +31,10 @@ class MockIceController : public IceControllerInterface {
   explicit MockIceController(const IceControllerFactoryArgs& /* args */) {}
   ~MockIceController() override = default;
 
-  MOCK_METHOD(void, SetIceConfig, (const webrtc::IceConfig&), (override));
-  MOCK_METHOD(void,
-              SetSelectedConnection,
-              (const webrtc::Connection*),
-              (override));
-  MOCK_METHOD(void, AddConnection, (const webrtc::Connection*), (override));
-  MOCK_METHOD(void,
-              OnConnectionDestroyed,
-              (const webrtc::Connection*),
-              (override));
+  MOCK_METHOD(void, SetIceConfig, (const IceConfig&), (override));
+  MOCK_METHOD(void, SetSelectedConnection, (const Connection*), (override));
+  MOCK_METHOD(void, AddConnection, (const Connection*), (override));
+  MOCK_METHOD(void, OnConnectionDestroyed, (const Connection*), (override));
   MOCK_METHOD(ArrayView<const Connection* const>,
               GetConnections,
               (),
@@ -53,22 +47,17 @@ class MockIceController : public IceControllerInterface {
               (override));
   MOCK_METHOD(bool,
               GetUseCandidateAttr,
-              (const webrtc::Connection*,
-               webrtc::NominationMode,
-               webrtc::IceMode),
+              (const Connection*, NominationMode, IceMode),
               (const, override));
   MOCK_METHOD(const Connection*, FindNextPingableConnection, (), (override));
-  MOCK_METHOD(void,
-              MarkConnectionPinged,
-              (const webrtc::Connection*),
-              (override));
+  MOCK_METHOD(void, MarkConnectionPinged, (const Connection*), (override));
   MOCK_METHOD(IceControllerInterface::SwitchResult,
               ShouldSwitchConnection,
-              (webrtc::IceSwitchReason, const webrtc::Connection*),
+              (IceSwitchReason, const Connection*),
               (override));
   MOCK_METHOD(IceControllerInterface::SwitchResult,
               SortAndSwitchConnection,
-              (webrtc::IceSwitchReason),
+              (IceSwitchReason),
               (override));
   MOCK_METHOD(std::vector<const Connection*>, PruneConnections, (), (override));
 };

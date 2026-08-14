@@ -176,7 +176,7 @@ class AudioChecksumWithOutput : public AudioChecksum {
  public:
   explicit AudioChecksumWithOutput(std::string* output_str)
       : output_str_(*output_str) {}
-  ~AudioChecksumWithOutput() { output_str_ = Finish(); }
+  ~AudioChecksumWithOutput() override { output_str_ = Finish(); }
 
  private:
   std::string& output_str_;

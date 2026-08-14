@@ -83,8 +83,8 @@ class DummySetSessionDescriptionObserver
   static webrtc::scoped_refptr<DummySetSessionDescriptionObserver> Create() {
     return webrtc::make_ref_counted<DummySetSessionDescriptionObserver>();
   }
-  virtual void OnSuccess() { RTC_LOG(LS_INFO) << __FUNCTION__; }
-  virtual void OnFailure(webrtc::RTCError error) {
+  void OnSuccess() override { RTC_LOG(LS_INFO) << __FUNCTION__; }
+  void OnFailure(webrtc::RTCError error) override {
     RTC_LOG(LS_INFO) << __FUNCTION__ << " " << ToString(error.type()) << ": "
                      << error.message();
   }

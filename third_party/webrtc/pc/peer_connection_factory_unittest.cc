@@ -110,7 +110,7 @@ static const char kTurnIceServerWithIPv6Address[] = "turn:[2401:fa00:4::]:1234";
 
 class NullPeerConnectionObserver : public PeerConnectionObserver {
  public:
-  virtual ~NullPeerConnectionObserver() = default;
+  ~NullPeerConnectionObserver() override = default;
   void OnSignalingChange(
       PeerConnectionInterface::SignalingState new_state) override {}
   void OnAddStream(scoped_refptr<MediaStreamInterface> stream) override {}
@@ -143,7 +143,7 @@ class PeerConnectionFactoryTest : public ::testing::Test {
         main_thread_(socket_server_.get()) {}
 
  private:
-  void SetUp() {
+  void SetUp() override {
 #ifdef WEBRTC_ANDROID
     InitializeAndroidObjects();
 #endif
@@ -665,8 +665,7 @@ TEST_F(PeerConnectionFactoryTest, LocalRendering) {
 
 TEST(PeerConnectionFactoryDependenciesTest,
      CanInjectFieldTrialsWithEnvironment) {
-  std::unique_ptr<FieldTrialsView> field_trials =
-      FieldTrials::CreateNoGlobal("");
+  std::unique_ptr<FieldTrialsView> field_trials = FieldTrials::Create("");
   ASSERT_THAT(field_trials, NotNull());
   FieldTrialsView* raw_field_trials = field_trials.get();
 
@@ -678,29 +677,6 @@ TEST(PeerConnectionFactoryDependenciesTest,
   scoped_refptr<PeerConnectionFactory> pcf =
       PeerConnectionFactory::Create(std::move(pcf_dependencies));
   EXPECT_EQ(&pcf->field_trials(), raw_field_trials);
-}
-
-TEST(PeerConnectionFactoryDependenciesTest,
-     PreferFieldTrialsInjectedExplicetly) {
-  std::unique_ptr<FieldTrialsView> env_field_trials =
-      FieldTrials::CreateNoGlobal("");
-  std::unique_ptr<FieldTrialsView> explicit_field_trials =
-      FieldTrials::CreateNoGlobal("");
-  ASSERT_FALSE(env_field_trials.get() == explicit_field_trials.get());
-  FieldTrialsView* raw_explicit_field_trials = explicit_field_trials.get();
-
-  PeerConnectionFactoryDependencies pcf_dependencies;
-  pcf_dependencies.env = CreateEnvironment(std::move(env_field_trials));
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  pcf_dependencies.trials = std::move(explicit_field_trials);
-#pragma clang diagnostic pop
-  pcf_dependencies.adm = FakeAudioCaptureModule::Create();
-  EnableMediaWithDefaults(pcf_dependencies);
-
-  scoped_refptr<PeerConnectionFactory> pcf =
-      PeerConnectionFactory::Create(std::move(pcf_dependencies));
-  EXPECT_EQ(&pcf->field_trials(), raw_explicit_field_trials);
 }
 
 TEST(PeerConnectionFactoryDependenciesTest, UsesNetworkManager) {

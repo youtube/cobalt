@@ -10,8 +10,6 @@
 
 #include "test/pc/e2e/analyzer/video/video_quality_analyzer_injection_helper.h"
 
-#include <stdio.h>
-
 #include <cstdint>
 #include <memory>
 #include <string>

@@ -617,6 +617,10 @@ BASE_FEATURE_PARAM(size_t,
                    /*name=*/"max_size",
                    1'000'000);
 
+BASE_FEATURE(kNetworkServiceScheduler,
+             "NetworkServiceScheduler",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltDynamicMojoPipeSizing,
              "CobaltDynamicMojoPipeSizing",

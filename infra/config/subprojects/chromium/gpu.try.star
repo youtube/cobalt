@@ -20,9 +20,7 @@ try_.defaults.set(
     # Max. pending time for builds. CQ considers builds pending >2h as timed
     # out: http://shortn/_8PaHsdYmlq. Keep this in sync.
     expiration_timeout = 2 * time.hour,
-    reclient_enabled = False,
     service_account = "chromium-try-gpu-builder@chops-service-accounts.iam.gserviceaccount.com",
-    siso_enabled = True,
     siso_project = siso.project.DEFAULT_UNTRUSTED,
     subproject_list_view = "luci.chromium.try",
     task_template_canary_percentage = 5,
@@ -72,7 +70,7 @@ gpu_android_builder(
 )
 
 gpu_android_builder(
-    name = "gpu-fyi-try-android-p-pixel-2-32",
+    name = "gpu-fyi-try-android-q-pixel-2-32",
     mirrors = [
         "ci/GPU FYI Android arm Builder",
         "ci/Android FYI Release (Pixel 2)",

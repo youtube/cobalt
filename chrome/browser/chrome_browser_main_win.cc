@@ -134,6 +134,10 @@
 #include "ui/gfx/win/crash_id_helper.h"
 #include "ui/strings/grit/app_locale_settings.h"
 
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+#include "chrome/browser/platform_experience/installer/installer_win.h"
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+
 namespace {
 
 typedef HRESULT (STDAPICALLTYPE* RegisterApplicationRestartProc)(
@@ -467,87 +471,6 @@ void ReportParentProcessName() {
   }
 }
 
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-// Switch used to install platform_experience_helper
-const char kPlatformExperienceHelperForceInstallSwitch[] = "force-install";
-// Directory under which platform_experience_helper is installed
-const wchar_t kPlatformExperienceHelperDir[] = L"PlatformExperienceHelper";
-// Name of the platform_experience_helper executable
-const wchar_t kPlatformExperienceHelperExe[] =
-    L"platform_experience_helper.exe";
-
-// This function might block.
-// Returns true if the platform_experience_helper is installed.
-// Returns true if it can't determine whether it's installed or not.
-bool PlatformExperienceHelperMightBeInstalled() {
-  // Currently only implemented for user-level installs.
-  CHECK(!install_static::IsSystemInstall());
-
-  base::FilePath user_data_dir;
-  if (!base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir)) {
-    return true;
-  }
-
-  base::FilePath peh_exe_path =
-      user_data_dir.Append(kPlatformExperienceHelperDir)
-          .Append(kPlatformExperienceHelperExe);
-  return base::PathExists(peh_exe_path);
-}
-
-// This function might block. Returns nullopt if it can't find an existing path.
-std::optional<base::FilePath> GetPlatformExperienceHelperInstallerPath() {
-  base::FilePath chrome_dir;
-  if (!base::PathService::Get(base::DIR_EXE, &chrome_dir)) {
-    return std::nullopt;
-  }
-
-  const wchar_t kOsUpdateHandlerExe[] = L"os_update_handler.exe";
-  base::FilePath exe_path = chrome_dir.AppendASCII(chrome::kChromeVersion)
-                                .Append(kOsUpdateHandlerExe);
-  if (base::PathExists(exe_path)) {
-    return exe_path;
-  }
-  // In dev builds, the launcher will be in the executable directory.
-  exe_path = chrome_dir.Append(kOsUpdateHandlerExe);
-  if (base::PathExists(exe_path)) {
-    return exe_path;
-  }
-  return std::nullopt;
-}
-
-// This function might block.
-void MaybeInstallPlatformExperienceHelper() {
-  // TODO(crbug.com/393626337): remove this check once we implement PEH
-  // installation for system-level installs.
-  if (install_static::IsSystemInstall()) {
-    return;
-  }
-
-  if (PlatformExperienceHelperMightBeInstalled()) {
-    return;
-  }
-
-  std::optional<base::FilePath> peh_installer_path =
-      GetPlatformExperienceHelperInstallerPath();
-  if (!peh_installer_path.has_value()) {
-    return;
-  }
-  base::CommandLine install_cmd(peh_installer_path.value());
-  install_cmd.AppendSwitch(kPlatformExperienceHelperForceInstallSwitch);
-  InstallUtil::AppendModeAndChannelSwitches(&install_cmd);
-
-  base::LaunchOptions launch_options;
-  launch_options.feedback_cursor_off = true;
-  launch_options.force_breakaway_from_job_ = true;
-  ::SetLastError(ERROR_SUCCESS);
-  base::Process process = base::LaunchProcess(install_cmd, launch_options);
-  if (!process.IsValid()) {
-    PLOG(ERROR) << "Failed to launch \"" << install_cmd.GetCommandLineString()
-                << "\"";
-  }
-}
-#endif  // GOOGLE_CHROME_BRANDING
-
 // This error message is not localized because we failed to load the
 // localization data files.
 const char kMissingLocaleDataTitle[] = "Missing File Error";
@@ -822,8 +745,11 @@ void ChromeBrowserMainPartsWin::PostBrowserStart() {
   if (base::FeatureList::IsEnabled(
           features::kInstallPlatformExperienceHelperWin)) {
     base::ThreadPool::PostTask(
-        FROM_HERE, {base::TaskPriority::BEST_EFFORT, base::MayBlock()},
-        base::BindOnce(&MaybeInstallPlatformExperienceHelper));
+        FROM_HERE,
+        {base::TaskPriority::BEST_EFFORT, base::MayBlock(),
+         base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+        base::BindOnce(
+            &platform_experience::MaybeInstallPlatformExperienceHelper));
   }
 #endif  // GOOGLE_CHROME_BRANDING
 

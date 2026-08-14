@@ -56,6 +56,7 @@
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
+#include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
 
@@ -168,7 +169,7 @@ class TurnEntry : public sigslot::has_slots<> {
  public:
   enum BindState { STATE_UNBOUND, STATE_BINDING, STATE_BOUND };
   TurnEntry(TurnPort* port, Connection* conn, int channel_id);
-  ~TurnEntry();
+  ~TurnEntry() override;
 
   TurnPort* port() { return port_; }
 
@@ -369,39 +370,45 @@ void TurnPort::PrepareAddress() {
                     "Attempt to start allocation to a disallowed port");
     return;
   }
+
   if (server_address_.address.IsUnresolvedIP()) {
     ResolveTurnAddress(server_address_.address);
-  } else {
-    // If protocol family of server address doesn't match with local, return.
-    if (!IsCompatibleAddress(server_address_.address)) {
-      RTC_LOG(LS_ERROR) << ToString()
-                        << ": IP address family does not match. Server: "
-                        << server_address_.address.family()
-                        << " local: " << Network()->GetBestIP().family();
-      OnAllocateError(STUN_ERROR_NOT_AN_ERROR,
-                      "TURN server address is incompatible.");
-      return;
-    }
+    return;
+  }
 
-    // Insert the current address to prevent redirection pingpong.
-    attempted_server_addresses_.insert(server_address_.address);
+  // If protocol family of server address doesn't match with local, return.
+  if (!IsCompatibleAddress(server_address_.address)) {
+    RTC_LOG(LS_ERROR) << ToString()
+                      << ": IP address family does not match. Server: "
+                      << server_address_.address.family()
+                      << " local: " << Network()->GetBestIP().family();
+    OnAllocateError(STUN_ERROR_NOT_AN_ERROR,
+                    "TURN server address is incompatible.");
+    return;
+  }
 
-    RTC_LOG(LS_INFO)
-        << ToString() << ": Trying to connect to TURN server via "
-        << ProtoToString(server_address_.proto) << " @ "
-        << server_address_.address.ToSensitiveNameAndAddressString();
-    if (!CreateTurnClientSocket()) {
-      RTC_LOG(LS_ERROR) << ToString()
-                        << ": Failed to create TURN client socket";
-      OnAllocateError(STUN_ERROR_SERVER_NOT_REACHABLE,
-                      "Failed to create TURN client socket.");
-      return;
-    }
-    if (server_address_.proto == PROTO_UDP) {
-      // If its UDP, send AllocateRequest now.
-      // For TCP and TLS AllcateRequest will be sent by OnSocketConnect.
-      SendRequest(new TurnAllocateRequest(this), 0);
-    }
+  RTC_HISTOGRAM_ENUMERATION(
+      "WebRTC.PeerConnection.Turn.ServerAddressType",
+      static_cast<int>(server_address_.address.GetIPAddressType()),
+      static_cast<int>(IPAddressType::kMaxValue));
+
+  // Insert the current address to prevent redirection pingpong.
+  attempted_server_addresses_.insert(server_address_.address);
+
+  RTC_LOG(LS_INFO) << ToString() << ": Trying to connect to TURN server via "
+                   << ProtoToString(server_address_.proto) << " @ "
+                   << server_address_.address.ToSensitiveNameAndAddressString();
+  if (!CreateTurnClientSocket()) {
+    RTC_LOG(LS_ERROR) << ToString() << ": Failed to create TURN client socket";
+    OnAllocateError(STUN_ERROR_SERVER_NOT_REACHABLE,
+                    "Failed to create TURN client socket.");
+    return;
+  }
+
+  if (server_address_.proto == PROTO_UDP) {
+    // If its UDP, send AllocateRequest now.
+    // For TCP and TLS AllcateRequest will be sent by OnSocketConnect.
+    SendRequest(new TurnAllocateRequest(this), 0);
   }
 }
 

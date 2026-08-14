@@ -54,7 +54,7 @@ class UniqueNumberGenerator {
 
  private:
   RTC_NO_UNIQUE_ADDRESS SequenceChecker sequence_checker_{
-      webrtc::SequenceChecker::kDetached};
+      SequenceChecker::kDetached};
   static_assert(std::is_integral<TIntegral>::value, "Must be integral type.");
   TIntegral counter_ RTC_GUARDED_BY(sequence_checker_);
   std::set<TIntegral> known_ids_ RTC_GUARDED_BY(sequence_checker_);

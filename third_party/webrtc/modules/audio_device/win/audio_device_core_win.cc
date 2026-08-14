@@ -1849,9 +1849,8 @@ int32_t AudioDeviceWindowsCore::InitPlayout() {
   if (SUCCEEDED(hr)) {
     RTC_LOG(LS_VERBOSE) << "Audio Engine's current rendering mix format:";
     // format type
-    RTC_LOG(LS_VERBOSE) << "wFormatTag     : 0x"
-                        << webrtc::ToHex(pWfxOut->wFormatTag) << " ("
-                        << pWfxOut->wFormatTag << ")";
+    RTC_LOG(LS_VERBOSE) << "wFormatTag     : 0x" << ToHex(pWfxOut->wFormatTag)
+                        << " (" << pWfxOut->wFormatTag << ")";
     // number of channels (i.e. mono, stereo...)
     RTC_LOG(LS_VERBOSE) << "nChannels      : " << pWfxOut->nChannels;
     // sample rate
@@ -1924,9 +1923,8 @@ int32_t AudioDeviceWindowsCore::InitPlayout() {
     _playChannels = Wfx.nChannels;
 
     RTC_LOG(LS_VERBOSE) << "VoE selected this rendering format:";
-    RTC_LOG(LS_VERBOSE) << "wFormatTag         : 0x"
-                        << webrtc::ToHex(Wfx.wFormatTag) << " ("
-                        << Wfx.wFormatTag << ")";
+    RTC_LOG(LS_VERBOSE) << "wFormatTag         : 0x" << ToHex(Wfx.wFormatTag)
+                        << " (" << Wfx.wFormatTag << ")";
     RTC_LOG(LS_VERBOSE) << "nChannels          : " << Wfx.nChannels;
     RTC_LOG(LS_VERBOSE) << "nSamplesPerSec     : " << Wfx.nSamplesPerSec;
     RTC_LOG(LS_VERBOSE) << "nAvgBytesPerSec    : " << Wfx.nAvgBytesPerSec;
@@ -2094,8 +2092,8 @@ int32_t AudioDeviceWindowsCore::InitRecordingDMO() {
         << "AudioDeviceBuffer must be attached before streaming can start";
   }
 
-  _mediaBuffer = webrtc::make_ref_counted<MediaBufferImpl>(_recBlockSize *
-                                                           _recAudioFrameSize);
+  _mediaBuffer =
+      make_ref_counted<MediaBufferImpl>(_recBlockSize * _recAudioFrameSize);
 
   // Optional, but if called, must be after media types are set.
   hr = _dmo->AllocateStreamingResources();
@@ -2166,9 +2164,8 @@ int32_t AudioDeviceWindowsCore::InitRecording() {
   if (SUCCEEDED(hr)) {
     RTC_LOG(LS_VERBOSE) << "Audio Engine's current capturing mix format:";
     // format type
-    RTC_LOG(LS_VERBOSE) << "wFormatTag     : 0x"
-                        << webrtc::ToHex(pWfxIn->wFormatTag) << " ("
-                        << pWfxIn->wFormatTag << ")";
+    RTC_LOG(LS_VERBOSE) << "wFormatTag     : 0x" << ToHex(pWfxIn->wFormatTag)
+                        << " (" << pWfxIn->wFormatTag << ")";
     // number of channels (i.e. mono, stereo...)
     RTC_LOG(LS_VERBOSE) << "nChannels      : " << pWfxIn->nChannels;
     // sample rate
@@ -2240,7 +2237,7 @@ int32_t AudioDeviceWindowsCore::InitRecording() {
 
     RTC_LOG(LS_VERBOSE) << "VoE selected this capturing format:";
     RTC_LOG(LS_VERBOSE) << "wFormatTag        : 0x"
-                        << webrtc::ToHex(Wfx.Format.wFormatTag) << " ("
+                        << ToHex(Wfx.Format.wFormatTag) << " ("
                         << Wfx.Format.wFormatTag << ")";
     RTC_LOG(LS_VERBOSE) << "nChannels         : " << Wfx.Format.nChannels;
     RTC_LOG(LS_VERBOSE) << "nSamplesPerSec    : " << Wfx.Format.nSamplesPerSec;
@@ -2661,7 +2658,7 @@ DWORD AudioDeviceWindowsCore::DoRenderThread() {
     return 1;
   }
 
-  webrtc::SetCurrentThreadName("webrtc_core_audio_render_thread");
+  SetCurrentThreadName("webrtc_core_audio_render_thread");
 
   // Use Multimedia Class Scheduler Service (MMCSS) to boost the thread
   // priority.
@@ -2923,7 +2920,7 @@ Exit:
 DWORD AudioDeviceWindowsCore::InitCaptureThreadPriority() {
   _hMmTask = NULL;
 
-  webrtc::SetCurrentThreadName("webrtc_core_audio_capture_thread");
+  SetCurrentThreadName("webrtc_core_audio_capture_thread");
 
   // Use Multimedia Class Scheduler Service (MMCSS) to boost the thread
   // priority.
@@ -3300,7 +3297,7 @@ DWORD AudioDeviceWindowsCore::DoCaptureThread() {
         // client.
         RTC_LOG(LS_ERROR) << "IAudioCaptureClient::GetBuffer returned"
                              " AUDCLNT_E_BUFFER_ERROR, hr = 0x"
-                          << webrtc::ToHex(hr);
+                          << ToHex(hr);
         goto Exit;
       }
 
@@ -3384,7 +3381,7 @@ int AudioDeviceWindowsCore::SetDMOProperties() {
   HRESULT hr = S_OK;
   RTC_DCHECK(_dmo);
 
-  webrtc::scoped_refptr<IPropertyStore> ps;
+  scoped_refptr<IPropertyStore> ps;
   {
     IPropertyStore* ptrPS = NULL;
     hr = _dmo->QueryInterface(IID_IPropertyStore,
@@ -3763,7 +3760,7 @@ int32_t AudioDeviceWindowsCore::_GetDefaultDeviceIndex(EDataFlow dir,
   *index = -1;
   for (UINT i = 0; i < count; i++) {
     memset(szDeviceID, 0, sizeof(szDeviceID));
-    webrtc::scoped_refptr<IMMDevice> device;
+    scoped_refptr<IMMDevice> device;
     {
       IMMDevice* ptrDevice = NULL;
       hr = collection->Item(i, &ptrDevice);
@@ -3816,7 +3813,7 @@ int32_t AudioDeviceWindowsCore::_GetDeviceName(IMMDevice* pDevice,
     hr = pDevice->OpenPropertyStore(STGM_READ, &pProps);
     if (FAILED(hr)) {
       RTC_LOG(LS_ERROR) << "IMMDevice::OpenPropertyStore failed, hr = 0x"
-                        << webrtc::ToHex(hr);
+                        << ToHex(hr);
     }
   }
 
@@ -3828,7 +3825,7 @@ int32_t AudioDeviceWindowsCore::_GetDeviceName(IMMDevice* pDevice,
     hr = pProps->GetValue(PKEY_Device_FriendlyName, &varName);
     if (FAILED(hr)) {
       RTC_LOG(LS_ERROR) << "IPropertyStore::GetValue failed, hr = 0x"
-                        << webrtc::ToHex(hr);
+                        << ToHex(hr);
     }
   }
 
@@ -3836,7 +3833,7 @@ int32_t AudioDeviceWindowsCore::_GetDeviceName(IMMDevice* pDevice,
     hr = E_FAIL;
     RTC_LOG(LS_ERROR) << "IPropertyStore::GetValue returned no value,"
                          " hr = 0x"
-                      << webrtc::ToHex(hr);
+                      << ToHex(hr);
   }
 
   if ((SUCCEEDED(hr)) && (VT_LPWSTR != varName.vt)) {
@@ -3844,7 +3841,7 @@ int32_t AudioDeviceWindowsCore::_GetDeviceName(IMMDevice* pDevice,
     hr = E_UNEXPECTED;
     RTC_LOG(LS_ERROR) << "IPropertyStore::GetValue returned unexpected"
                          " type, hr = 0x"
-                      << webrtc::ToHex(hr);
+                      << ToHex(hr);
   }
 
   if (SUCCEEDED(hr) && (varName.pwszVal != NULL)) {
@@ -4035,17 +4032,13 @@ int32_t AudioDeviceWindowsCore::_EnumerateEndpointDevicesAll(
     hr = pEndpoint->GetState(&dwState);
     CONTINUE_ON_ERROR(hr);
     if (dwState & DEVICE_STATE_ACTIVE)
-      RTC_LOG(LS_VERBOSE) << "state (0x" << webrtc::ToHex(dwState)
-                          << ")  : *ACTIVE*";
+      RTC_LOG(LS_VERBOSE) << "state (0x" << ToHex(dwState) << ")  : *ACTIVE*";
     if (dwState & DEVICE_STATE_DISABLED)
-      RTC_LOG(LS_VERBOSE) << "state (0x" << webrtc::ToHex(dwState)
-                          << ")  : DISABLED";
+      RTC_LOG(LS_VERBOSE) << "state (0x" << ToHex(dwState) << ")  : DISABLED";
     if (dwState & DEVICE_STATE_NOTPRESENT)
-      RTC_LOG(LS_VERBOSE) << "state (0x" << webrtc::ToHex(dwState)
-                          << ")  : NOTPRESENT";
+      RTC_LOG(LS_VERBOSE) << "state (0x" << ToHex(dwState) << ")  : NOTPRESENT";
     if (dwState & DEVICE_STATE_UNPLUGGED)
-      RTC_LOG(LS_VERBOSE) << "state (0x" << webrtc::ToHex(dwState)
-                          << ")  : UNPLUGGED";
+      RTC_LOG(LS_VERBOSE) << "state (0x" << ToHex(dwState) << ")  : UNPLUGGED";
 
     // Check the hardware volume capabilities.
     DWORD dwHwSupportMask = 0;
@@ -4056,15 +4049,15 @@ int32_t AudioDeviceWindowsCore::_EnumerateEndpointDevicesAll(
     CONTINUE_ON_ERROR(hr);
     if (dwHwSupportMask & ENDPOINT_HARDWARE_SUPPORT_VOLUME)
       // The audio endpoint device supports a hardware volume control
-      RTC_LOG(LS_VERBOSE) << "hwmask (0x" << webrtc::ToHex(dwHwSupportMask)
+      RTC_LOG(LS_VERBOSE) << "hwmask (0x" << ToHex(dwHwSupportMask)
                           << ") : HARDWARE_SUPPORT_VOLUME";
     if (dwHwSupportMask & ENDPOINT_HARDWARE_SUPPORT_MUTE)
       // The audio endpoint device supports a hardware mute control
-      RTC_LOG(LS_VERBOSE) << "hwmask (0x" << webrtc::ToHex(dwHwSupportMask)
+      RTC_LOG(LS_VERBOSE) << "hwmask (0x" << ToHex(dwHwSupportMask)
                           << ") : HARDWARE_SUPPORT_MUTE";
     if (dwHwSupportMask & ENDPOINT_HARDWARE_SUPPORT_METER)
       // The audio endpoint device supports a hardware peak meter
-      RTC_LOG(LS_VERBOSE) << "hwmask (0x" << webrtc::ToHex(dwHwSupportMask)
+      RTC_LOG(LS_VERBOSE) << "hwmask (0x" << ToHex(dwHwSupportMask)
                           << ") : HARDWARE_SUPPORT_METER";
 
     // Check the channel count (#channels in the audio stream that enters or

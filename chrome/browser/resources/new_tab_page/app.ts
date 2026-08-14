@@ -165,6 +165,8 @@ export class AppElement extends AppElementBase {
 
       showWallpaperSearch_: {type: Boolean},
 
+      isFooterVisible_: {type: Boolean},
+
       selectedCustomizeDialogPage_: {type: String},
       showVoiceSearchOverlay_: {type: Boolean},
 
@@ -201,6 +203,9 @@ export class AppElement extends AppElementBase {
         notify: true,
       },
 
+      composeboxEnabled: {type: Boolean},
+      composeButtonEnabled: {type: Boolean},
+
       realboxShown_: {type: Boolean},
       logoEnabled_: {type: Boolean},
       oneGoogleBarEnabled_: {type: Boolean},
@@ -225,7 +230,10 @@ export class AppElement extends AppElementBase {
        */
       promoAndModulesLoaded_: {type: Boolean},
 
-      showComposeBox_: {type: Boolean},
+      showComposebox_: {
+        type: Boolean,
+        reflect: true,
+      },
 
       showLensUploadDialog_: {type: Boolean},
 
@@ -265,7 +273,7 @@ export class AppElement extends AppElementBase {
   accessor realboxHadSecondarySide: boolean = false;
   protected accessor realboxShown_: boolean = false;
   protected accessor showLensUploadDialog_: boolean = false;
-  protected accessor showComposeBox_: boolean = false;
+  protected accessor showComposebox_: boolean = false;
   protected accessor logoEnabled_: boolean =
       loadTimeData.getBoolean('logoEnabled');
   protected accessor oneGoogleBarEnabled_: boolean =
@@ -291,6 +299,11 @@ export class AppElement extends AppElementBase {
   protected accessor wallpaperSearchButtonEnabled_: boolean =
       loadTimeData.getBoolean('wallpaperSearchButtonEnabled');
   protected accessor showWallpaperSearchButton_: boolean = false;
+  accessor composeButtonEnabled: boolean =
+      loadTimeData.getBoolean('searchboxShowComposeEntrypoint');
+  accessor composeboxEnabled: boolean =
+      loadTimeData.getBoolean('searchboxShowComposebox');
+  protected accessor isFooterVisible_: boolean = false;
 
   private callbackRouter_: PageCallbackRouter;
   private pageHandler_: PageHandlerRemote;
@@ -302,6 +315,7 @@ export class AppElement extends AppElementBase {
   private setThemeListenerId_: number|null = null;
   private setCustomizeChromeSidePanelVisibilityListener_: number|null = null;
   private setWallpaperSearchButtonVisibilityListener_: number|null = null;
+  private footerVisibilityUpdatedListener_: number|null = null;
   private eventTracker_: EventTracker = new EventTracker();
   private shouldPrintPerformance_: boolean = false;
   private backgroundImageLoadStartEpoch_: number = 0;
@@ -417,6 +431,13 @@ export class AppElement extends AppElementBase {
               }
             });
 
+    this.footerVisibilityUpdatedListener_ =
+        this.callbackRouter_.footerVisibilityUpdated.addListener(
+            (visible: boolean) => {
+              this.isFooterVisible_ = visible;
+            });
+    this.pageHandler_.updateFooterVisibility();
+
     // Open Customize Chrome if there are Customize Chrome URL params.
     if (this.showCustomize_) {
       this.setCustomizeChromeSidePanelVisible_(this.showCustomize_);
@@ -459,6 +480,11 @@ export class AppElement extends AppElementBase {
           });
     }
     FocusOutlineManager.forDocument(document);
+    if (this.composeButtonEnabled) {
+      chrome.metricsPrivate.recordBoolean(
+          'NewTabPage.ComposeEntrypoint.Shown', true);
+      this.pageHandler_.incrementComposeButtonShownCount();
+    }
   }
 
   override disconnectedCallback() {
@@ -473,6 +499,7 @@ export class AppElement extends AppElementBase {
         this.setWallpaperSearchButtonVisibilityListener_!);
     this.customizeButtonsCallbackRouter_.removeListener(
         this.setCustomizeChromeSidePanelVisibilityListener_!);
+    this.callbackRouter_.removeListener(this.footerVisibilityUpdatedListener_!);
     this.eventTracker_.removeAll();
   }
 
@@ -588,7 +615,8 @@ export class AppElement extends AppElementBase {
 
   private computeRealboxShown_(): boolean {
     // Do not show the realbox if the upload dialog is showing.
-    return !!this.theme_ && !this.showLensUploadDialog_;
+    return !!this.theme_ && !this.showLensUploadDialog_ &&
+        !this.showComposebox_;
   }
 
   private computePromoAndModulesLoaded_(): boolean {
@@ -612,6 +640,10 @@ export class AppElement extends AppElementBase {
     if (this.showWallpaperSearchButton_) {
       this.customizeButtonsHandler_.incrementWallpaperSearchButtonShownCount();
     }
+  }
+
+  protected toggleComposebox_() {
+    this.showComposebox_ = !this.showComposebox_;
   }
 
   protected onOpenVoiceSearch_() {

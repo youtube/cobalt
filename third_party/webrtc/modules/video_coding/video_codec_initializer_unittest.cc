@@ -61,7 +61,7 @@ static const uint32_t kHighScreenshareTl1Bps = 1200000;
 class VideoCodecInitializerTest : public ::testing::Test {
  public:
   VideoCodecInitializerTest() {}
-  virtual ~VideoCodecInitializerTest() {}
+  ~VideoCodecInitializerTest() override {}
 
  protected:
   void SetUpFor(VideoCodecType type,

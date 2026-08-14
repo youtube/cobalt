@@ -121,7 +121,7 @@ class SendTransport : public Transport,
     time_controller_->Register(this);
   }
 
-  ~SendTransport() { time_controller_->Unregister(this); }
+  ~SendTransport() override { time_controller_->Unregister(this); }
 
   void SetRtpRtcpModule(ModuleRtpRtcpImpl2* receiver) { receiver_ = receiver; }
   void SimulateNetworkDelay(TimeDelta delay) { delay_ = delay; }

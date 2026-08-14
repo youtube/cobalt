@@ -230,6 +230,22 @@ bool SocketAddress::IsUnresolvedIP() const {
   return IPIsUnspec(ip_) && !literal_ && !hostname_.empty();
 }
 
+IPAddressType SocketAddress::GetIPAddressType() const {
+  if (IsUnresolvedIP()) {
+    return IPAddressType::kUnknown;
+  }
+  if (IsAnyIP()) {
+    return IPAddressType::kAny;
+  }
+  if (IsLoopbackIP()) {
+    return IPAddressType::kLoopback;
+  }
+  if (IsPrivateIP()) {
+    return IPAddressType::kPrivate;
+  }
+  return IPAddressType::kPublic;
+}
+
 bool SocketAddress::operator==(const SocketAddress& addr) const {
   return EqualIPs(addr) && EqualPorts(addr);
 }

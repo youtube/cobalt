@@ -583,7 +583,7 @@ class MockTrackObserver : public ObserverInterface {
     notifier_->RegisterObserver(this);
   }
 
-  ~MockTrackObserver() { Unregister(); }
+  ~MockTrackObserver() override { Unregister(); }
 
   void Unregister() {
     if (notifier_) {

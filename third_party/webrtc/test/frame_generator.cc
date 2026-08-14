@@ -9,18 +9,25 @@
  */
 #include "test/frame_generator.h"
 
-#include <string.h>
-
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
+#include <limits>
 #include <memory>
+#include <optional>
+#include <vector>
 
+#include "api/scoped_refptr.h"
+#include "api/test/frame_generator_interface.h"
 #include "api/video/i010_buffer.h"
 #include "api/video/nv12_buffer.h"
-#include "api/video/video_rotation.h"
+#include "api/video/video_frame_buffer.h"
 #include "common_video/include/video_frame_buffer.h"
 #include "common_video/libyuv/include/webrtc_libyuv.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/synchronization/mutex.h"
+#include "system_wrappers/include/clock.h"
 #include "test/frame_utils.h"
 
 namespace webrtc {

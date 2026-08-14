@@ -42,7 +42,7 @@ class RouteEndpoint {
 
   // Used by tests.
   static RouteEndpoint CreateWithNetworkId(uint16_t network_id) {
-    return RouteEndpoint(webrtc::ADAPTER_TYPE_UNKNOWN,
+    return RouteEndpoint(ADAPTER_TYPE_UNKNOWN,
                          /* adapter_id = */ 0, network_id,
                          /* uses_turn = */ false);
   }
@@ -58,7 +58,7 @@ class RouteEndpoint {
   bool operator==(const RouteEndpoint& other) const;
 
  private:
-  AdapterType adapter_type_ = webrtc::ADAPTER_TYPE_UNKNOWN;
+  AdapterType adapter_type_ = ADAPTER_TYPE_UNKNOWN;
   uint16_t adapter_id_ = 0;
   uint16_t network_id_ = 0;
   bool uses_turn_ = false;
@@ -78,10 +78,10 @@ struct NetworkRoute {
     StringBuilder oss;
     oss << "[ connected: " << connected << " local: [ " << local.adapter_id()
         << "/" << local.network_id() << " "
-        << webrtc::AdapterTypeToString(local.adapter_type())
+        << AdapterTypeToString(local.adapter_type())
         << " turn: " << local.uses_turn() << " ] remote: [ "
         << remote.adapter_id() << "/" << remote.network_id() << " "
-        << webrtc::AdapterTypeToString(remote.adapter_type())
+        << AdapterTypeToString(remote.adapter_type())
         << " turn: " << remote.uses_turn()
         << " ] packet_overhead_bytes: " << packet_overhead << " ]";
     return oss.Release();

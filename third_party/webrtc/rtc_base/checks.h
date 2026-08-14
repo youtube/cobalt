@@ -60,10 +60,9 @@ RTC_NORETURN void rtc_FatalMessage(const char* file, int line, const char* msg);
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "api/scoped_refptr.h"
-#include "rtc_base/numerics/safe_compare.h"
+#include "rtc_base/numerics/safe_compare.h"  // IWYU pragma: keep
 #include "rtc_base/system/inline.h"
 #include "rtc_base/system/rtc_export.h"
-#include "rtc_base/type_traits.h"
 
 // The macros here print a message to stderr and abort under various
 // conditions. All will accept additional stream messages. For example:

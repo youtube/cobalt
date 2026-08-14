@@ -23,7 +23,7 @@ namespace webrtc {
 
 class AudioVectorTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // Populate test array.
     for (size_t i = 0; i < array_length(); ++i) {
       array_[i] = checked_cast<int16_t>(i);

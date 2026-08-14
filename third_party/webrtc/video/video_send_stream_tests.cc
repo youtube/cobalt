@@ -862,7 +862,7 @@ class FlexfecObserver : public test::EndToEndTest {
     return SEND_PACKET;
   }
 
-  BuiltInNetworkBehaviorConfig GetSendTransportConfig() const {
+  BuiltInNetworkBehaviorConfig GetSendTransportConfig() const override {
     // At low RTT (< kLowRttNackMs) -> NACK only, no FEC.
     // Therefore we need some network delay.
     const int kNetworkDelayMs = 100;
@@ -872,7 +872,7 @@ class FlexfecObserver : public test::EndToEndTest {
     return config;
   }
 
-  BuiltInNetworkBehaviorConfig GetReceiveTransportConfig() const {
+  BuiltInNetworkBehaviorConfig GetReceiveTransportConfig() const override {
     // We need the RTT to be >200 ms to send FEC and the network delay for the
     // send transport is 100 ms, so add 100 ms (but no loss) on the return link.
     BuiltInNetworkBehaviorConfig config;
@@ -1667,7 +1667,7 @@ TEST_F(VideoSendStreamTest, ChangingNetworkRoute) {
       extensions_.Register<TransportSequenceNumber>(kExtensionId);
     }
 
-    ~ChangingNetworkRouteTest() {
+    ~ChangingNetworkRouteTest() override {
       // Block until all already posted tasks run to avoid 'use after free'
       // when such task accesses `this`.
       SendTask(task_queue_, [] {});
@@ -1786,7 +1786,7 @@ TEST_F(VideoSendStreamTest, DISABLED_RelayToDirectRoute) {
       task_queue_thread_.Detach();
     }
 
-    ~RelayToDirectRouteTest() {
+    ~RelayToDirectRouteTest() override {
       // Block until all already posted tasks run to avoid 'use after free'
       // when such task accesses `this`.
       SendTask(task_queue_, [] {});
@@ -1957,7 +1957,7 @@ class MaxPaddingSetTest : public test::SendTest {
     task_queue_thread_.Detach();
   }
 
-  ~MaxPaddingSetTest() {
+  ~MaxPaddingSetTest() override {
     // Block until all already posted tasks run to avoid 'use after free'
     // when such task accesses `this`.
     SendTask(task_queue_, [] {});

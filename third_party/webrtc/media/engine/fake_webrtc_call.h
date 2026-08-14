@@ -31,11 +31,13 @@
 
 #include "absl/strings/string_view.h"
 #include "api/adaptation/resource.h"
+#include "api/array_view.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/environment/environment.h"
+#include "api/field_trials_view.h"
 #include "api/frame_transformer_interface.h"
 #include "api/media_types.h"
 #include "api/rtp_headers.h"
@@ -90,7 +92,7 @@ class FakeAudioSendStream final : public AudioSendStream {
   bool muted() const { return muted_; }
 
  private:
-  // webrtc::AudioSendStream implementation.
+  // AudioSendStream implementation.
   void Reconfigure(const AudioSendStream::Config& config,
                    SetParametersCallback callback) override;
   void Start() override { sending_ = true; }
@@ -205,6 +207,7 @@ class FakeVideoSendStream final : public VideoSendStream,
   int GetLastHeight() const;
   int64_t GetLastTimestamp() const;
   void SetStats(const VideoSendStream::Stats& stats);
+  void SetCsrcs(ArrayView<const uint32_t> csrcs) override;
   int num_encoder_reconfigurations() const {
     return num_encoder_reconfigurations_;
   }
@@ -222,10 +225,10 @@ class FakeVideoSendStream final : public VideoSendStream,
   }
 
  private:
-  // webrtc::VideoSinkInterface<VideoFrame> implementation.
+  // VideoSinkInterface<VideoFrame> implementation.
   void OnFrame(const VideoFrame& frame) override;
 
-  // webrtc::VideoSendStream implementation.
+  // VideoSendStream implementation.
   void Start() override;
   void Stop() override;
   bool started() override { return IsSending(); }

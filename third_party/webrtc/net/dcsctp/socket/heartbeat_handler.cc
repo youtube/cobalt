@@ -9,12 +9,10 @@
  */
 #include "net/dcsctp/socket/heartbeat_handler.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -22,6 +20,7 @@
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
 #include "net/dcsctp/packet/chunk/heartbeat_ack_chunk.h"
@@ -33,6 +32,7 @@
 #include "net/dcsctp/public/dcsctp_socket.h"
 #include "net/dcsctp/socket/context.h"
 #include "net/dcsctp/timer/timer.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
 namespace dcsctp {

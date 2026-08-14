@@ -20,6 +20,15 @@
 
 @implementation SeparateProfilesRollbackTestCase
 
++ (void)setUpForTestCase {
+  [SigninEarlGrey setUseFakeResponsesForProfileSeparationPolicyRequests];
+}
+
++ (void)tearDown {
+  [SigninEarlGrey clearUseFakeResponsesForProfileSeparationPolicyRequests];
+  [super tearDown];
+}
+
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config = [super appConfigurationForTestCase];
 
@@ -108,8 +117,7 @@
              @"Separate profiles should be disabled now");
 }
 
-// TODO(crbug.com/411035267): Fix this flaky test.
-- (void)FLAKY_testRollbackWithManagedProfile {
+- (void)testRollbackWithManagedProfile {
   // Separate profiles are only available in iOS 17+.
   if (!@available(iOS 17, *)) {
     return;
@@ -203,8 +211,7 @@
       @"Should be in the managed profile again");
 }
 
-// TODO(crbug.com/411035267): Fix this flaky test.
-- (void)FLAKY_testRollbackWithManagedProfile_ManagedAccountRemoved {
+- (void)testRollbackWithManagedProfile_ManagedAccountRemoved {
   // Separate profiles are only available in iOS 17+.
   if (!@available(iOS 17, *)) {
     return;
@@ -295,8 +302,7 @@
              @"Separate profiles should still be enabled");
 }
 
-// TODO(crbug.com/411035267): Fix this flaky test.
-- (void)FLAKY_testRollbackWithManagedProfile_KillSwitch {
+- (void)testRollbackWithManagedProfile_KillSwitch {
   // Separate profiles are only available in iOS 17+.
   if (!@available(iOS 17, *)) {
     return;

@@ -38,6 +38,7 @@ rtc_library("fuzz_data_helper") {
   deps = [
     "../../api:array_view",
     "../../modules/rtp_rtcp:rtp_rtcp_format",
+    "../../rtc_base:checks",
   ]
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 }
@@ -351,7 +352,7 @@ webrtc_fuzzer_test("audio_decoder_opus_fuzzer") {
   sources = [ "audio_decoder_opus_fuzzer.cc" ]
   deps = [
     ":audio_decoder_fuzzer",
-    "..:explicit_key_value_config",
+    "../../api:field_trials",
     "../../modules/audio_coding:webrtc_opus",
   ]
 }
@@ -360,7 +361,7 @@ webrtc_fuzzer_test("audio_decoder_opus_redundant_fuzzer") {
   sources = [ "audio_decoder_opus_redundant_fuzzer.cc" ]
   deps = [
     ":audio_decoder_fuzzer",
-    "..:explicit_key_value_config",
+    "../../api:field_trials",
     "../../modules/audio_coding:webrtc_opus",
   ]
 }
@@ -710,7 +711,10 @@ webrtc_fuzzer_test("frame_buffer_fuzzer") {
 
 webrtc_fuzzer_test("field_trial_fuzzer") {
   sources = [ "field_trial_fuzzer.cc" ]
-  deps = [ "../../system_wrappers:field_trial" ]
+  deps = [
+    "../../api:field_trials",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
   seed_corpus = "corpora/field_trial-corpus"
 }
 

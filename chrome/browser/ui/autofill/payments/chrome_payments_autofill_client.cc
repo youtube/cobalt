@@ -13,6 +13,7 @@
 #include "chrome/browser/autofill/autofill_offer_manager_factory.h"
 #include "chrome/browser/autofill/iban_manager_factory.h"
 #include "chrome/browser/autofill/merchant_promo_code_manager_factory.h"
+#include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/keyboard_accessory/android/manual_filling_controller.h"
 #include "chrome/browser/keyboard_accessory/android/manual_filling_controller_impl.h"
 #include "chrome/browser/profiles/profile.h"
@@ -65,6 +66,8 @@
 #include "components/autofill/core/browser/ui/payments/select_bnpl_issuer_dialog_controller_impl.h"
 #include "components/autofill/core/browser/ui/payments/select_bnpl_issuer_view.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
+#include "components/feature_engagement/public/feature_constants.h"
+#include "components/feature_engagement/public/tracker.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/user_prefs/user_prefs.h"
@@ -101,7 +104,7 @@
 #include "chrome/browser/ui/autofill/payments/webauthn_dialog_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/webauthn_dialog_state.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"  // nogncheck
 #include "chrome/browser/ui/promos/ios_promos_utils.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
@@ -917,6 +920,7 @@ bool ChromePaymentsAutofillClient::ShowTouchToFillIban(
 #endif
 }
 
+// TODO(crbug.com/423866731): Add unit tests for this method.
 bool ChromePaymentsAutofillClient::ShowTouchToFillLoyaltyCard(
     base::WeakPtr<TouchToFillDelegate> delegate,
     std::vector<autofill::LoyaltyCard> loyalty_cards_to_suggest) {
@@ -930,10 +934,23 @@ bool ChromePaymentsAutofillClient::ShowTouchToFillLoyaltyCard(
                          return card.HasMatchingMerchantDomain(current_domain);
                        });
 
-  return GetTouchToFillPaymentMethodController()->ShowLoyaltyCards(
-      std::make_unique<TouchToFillPaymentMethodViewImpl>(web_contents()),
-      delegate, std::move(affiliated_loyalty_cards),
-      std::move(loyalty_cards_to_suggest));
+  feature_engagement::Tracker* tracker =
+      feature_engagement::TrackerFactory::GetForBrowserContext(
+          Profile::FromBrowserContext(web_contents()->GetBrowserContext()));
+  const bool first_time_usage =
+      tracker && tracker->IsInitialized() &&
+      tracker->WouldTriggerHelpUI(
+          feature_engagement::kIPHAutofillEnableLoyaltyCardsFeature);
+
+  const bool loyalty_cards_shown =
+      GetTouchToFillPaymentMethodController()->ShowLoyaltyCards(
+          std::make_unique<TouchToFillPaymentMethodViewImpl>(web_contents()),
+          delegate, std::move(affiliated_loyalty_cards),
+          std::move(loyalty_cards_to_suggest), first_time_usage);
+  if (first_time_usage && loyalty_cards_shown) {
+    tracker->NotifyEvent("keyboard_accessory_loyalty_cards_autofilled");
+  }
+  return loyalty_cards_shown;
 #else
   // Touch To Fill is not supported on Desktop.
   NOTREACHED();

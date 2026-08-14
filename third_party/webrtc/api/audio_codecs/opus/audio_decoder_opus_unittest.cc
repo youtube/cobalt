@@ -17,14 +17,14 @@
 #include "api/audio_codecs/audio_format.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
-#include "test/explicit_key_value_config.h"
+#include "api/field_trials.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 namespace {
 
-using test::ExplicitKeyValueConfig;
 using ::testing::Field;
 using ::testing::Optional;
 using Config = AudioDecoderOpus::Config;
@@ -89,8 +89,8 @@ TEST(AudioDecoderOpusTest, MakeAudioDecoderCannotForceDefaultNumChannels) {
 
 TEST(AudioDecoderOpusTest, MakeAudioDecoderForcesStereo) {
   const Environment env =
-      CreateEnvironment(std::make_unique<ExplicitKeyValueConfig>(
-          "WebRTC-Audio-OpusDecodeStereoByDefault/Enabled/"));
+      CreateEnvironment(std::make_unique<FieldTrials>(CreateTestFieldTrials(
+          "WebRTC-Audio-OpusDecodeStereoByDefault/Enabled/")));
   auto decoder = AudioDecoderOpus::MakeAudioDecoder(
       env,
       /*config=*/{.num_channels = std::nullopt});
@@ -100,8 +100,8 @@ TEST(AudioDecoderOpusTest, MakeAudioDecoderForcesStereo) {
 
 TEST(AudioDecoderOpusTest, MakeAudioDecoderCannotForceStereo) {
   const Environment env =
-      CreateEnvironment(std::make_unique<ExplicitKeyValueConfig>(
-          "WebRTC-Audio-OpusDecodeStereoByDefault/Enabled/"));
+      CreateEnvironment(std::make_unique<FieldTrials>(CreateTestFieldTrials(
+          "WebRTC-Audio-OpusDecodeStereoByDefault/Enabled/")));
   auto decoder =
       AudioDecoderOpus::MakeAudioDecoder(env, /*config=*/{.num_channels = 1});
 

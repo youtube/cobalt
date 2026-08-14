@@ -5,7 +5,6 @@
 <translation id="1178581264944972037">Tauko</translation>
 <translation id="1246424317317450637">Lihavoitu</translation>
 <translation id="1357114957607379632">Luodaan AI-toistoa…</translation>
-<translation id="1370273601702151510">Tykkään</translation>
 <translation id="1483137792530497944">Joki</translation>
 <translation id="1586836055630070874">Rauhoittava</translation>
 <translation id="1639239467298939599">Ladataan</translation>
@@ -19,7 +18,6 @@
 <translation id="2575502321843437554">Ei tarpeeksi kiinnostava</translation>
 <translation id="2611765907167846862">Rauhallinen</translation>
 <translation id="3023502830214299618">Valitettavasti toisto ei ole juuri nyt käytettävissä tällä sivulla. Yritä myöhemmin uudelleen.</translation>
-<translation id="3457812538570616687">En tykkää</translation>
 <translation id="3493899379487634969">Mikä meni pieleen?</translation>
 <translation id="3730775656877876887">Luodaan AI-toistoa</translation>
 <translation id="3778044272390020426">Negatiivisen palautteen valikko</translation>
@@ -33,6 +31,7 @@
 <translation id="4525525184005340968">Laakso</translation>
 <translation id="4710974520964166851">Rento</translation>
 <translation id="4773921449011281499">Leppoisa</translation>
+<translation id="4867493576811701175">Tykkään-painike, valitse tämä, jos haluat lähettää palautetta, että pidät tästä ominaisuudesta</translation>
 <translation id="4872475766448853257">Siirry <ph name="NUMBER_OF_SECONDS" /> sekuntia taaksepäin</translation>
 <translation id="4967513477347430212">Rannikko</translation>
 <translation id="5026371835667036198">Kirkas</translation>
@@ -63,6 +62,7 @@
 <translation id="8136852699834914183">Toisto ei ole käytettävissä tällä sivulla.</translation>
 <translation id="8198036737896977997">Ilma</translation>
 <translation id="8264989794233974275">Lisää/vähennä nopeutta <ph name="PLAYBACK_SPEED" />-kertaiseksi.</translation>
+<translation id="837054959055425654">En tykkää ‐painike, valitse tämä avataksesi lomakkeen, jolla voit antaa yksityiskohtaista palautetta tähän ominaisuuteen liittyvästä ongelmasta</translation>
 <translation id="8407011429883244666">Sulje soitin.</translation>
 <translation id="8462210863277153423">URL-osoitteesi ladataan palautteen mukana laadun ja tutkimuksen parantamiseksi.</translation>
 <translation id="8481839122437406573">Tyyni</translation>

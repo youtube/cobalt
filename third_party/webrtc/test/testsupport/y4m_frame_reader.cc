@@ -8,17 +8,18 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <stdio.h>
-
 #include <charconv>
+#include <cstdio>
+#include <cstring>
+#include <memory>
 #include <string>
+#include <vector>
 
-#include "api/scoped_refptr.h"
-#include "api/video/i420_buffer.h"
+#include "absl/strings/string_view.h"
+#include "api/video/resolution.h"
 #include "common_video/libyuv/include/webrtc_libyuv.h"
-#include "rtc_base/logging.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/string_encode.h"
-#include "rtc_base/strings/string_builder.h"
 #include "test/testsupport/file_utils.h"
 #include "test/testsupport/frame_reader.h"
 

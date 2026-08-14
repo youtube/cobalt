@@ -99,8 +99,7 @@ struct RTC_EXPORT Codec {
 
   // Video only
   std::optional<std::string> packetization;
-  absl::InlinedVector<webrtc::ScalabilityMode, webrtc::kScalabilityModeCount>
-      scalability_modes;
+  absl::InlinedVector<ScalabilityMode, kScalabilityModeCount> scalability_modes;
 
   // H.265 only
   std::optional<std::string> tx_mode;
@@ -108,7 +107,7 @@ struct RTC_EXPORT Codec {
   // Non key-value parameters such as the telephone-event "0‐15" are
   // represented using an empty string as key, i.e. {"": "0-15"}.
   // The equivalent of fmtp in SDP.
-  webrtc::CodecParameterMap params;
+  CodecParameterMap params;
   // The equivalent of rtcp-fb in SDP.
   FeedbackParams feedback_params;
 
@@ -138,7 +137,7 @@ struct RTC_EXPORT Codec {
   // - parameters is compared element-wise, not as a string comparison.
   // This method should only be used to compare input on our end to something we
   // generated, done e.g. by setCodecPreferences or setParameters.
-  bool MatchesRtpCodec(const webrtc::RtpCodec& capability) const;
+  bool MatchesRtpCodec(const RtpCodec& capability) const;
 
   // Find the parameter for `key` and write the value to `out`.
   bool GetParam(const std::string& key, std::string* out) const;
@@ -158,7 +157,7 @@ struct RTC_EXPORT Codec {
   // and `other` are kept.
   void IntersectFeedbackParams(const Codec& other);
 
-  virtual webrtc::RtpCodecParameters ToCodecParameters() const;
+  virtual RtpCodecParameters ToCodecParameters() const;
 
   // The codec represent an actual media codec, and not a resiliency codec.
   bool IsMediaCodec() const;
@@ -213,18 +212,18 @@ struct RTC_EXPORT Codec {
         int clockrate,
         size_t channels);
 
-  explicit Codec(const webrtc::SdpAudioFormat& c);
-  explicit Codec(const webrtc::SdpVideoFormat& c);
+  explicit Codec(const SdpAudioFormat& c);
+  explicit Codec(const SdpVideoFormat& c);
 
   friend Codec CreateAudioCodec(int id,
                                 const std::string& name,
                                 int clockrate,
                                 size_t channels);
-  friend Codec CreateAudioCodec(const webrtc::SdpAudioFormat& c);
+  friend Codec CreateAudioCodec(const SdpAudioFormat& c);
   friend Codec CreateAudioRtxCodec(int rtx_payload_type,
                                    int associated_payload_type);
   friend Codec CreateVideoCodec(int id, const std::string& name);
-  friend Codec CreateVideoCodec(const webrtc::SdpVideoFormat& c);
+  friend Codec CreateVideoCodec(const SdpVideoFormat& c);
   friend Codec CreateVideoRtxCodec(int rtx_payload_type,
                                    int associated_payload_type);
 };
@@ -235,12 +234,12 @@ Codec CreateAudioCodec(int id,
                        const std::string& name,
                        int clockrate,
                        size_t channels);
-Codec CreateAudioCodec(const webrtc::SdpAudioFormat& c);
+Codec CreateAudioCodec(const SdpAudioFormat& c);
 Codec CreateAudioRtxCodec(int rtx_payload_type, int associated_payload_type);
 Codec CreateVideoCodec(const std::string& name);
 Codec CreateVideoCodec(int id, const std::string& name);
-Codec CreateVideoCodec(const webrtc::SdpVideoFormat& c);
-Codec CreateVideoCodec(int id, const webrtc::SdpVideoFormat& sdp);
+Codec CreateVideoCodec(const SdpVideoFormat& c);
+Codec CreateVideoCodec(int id, const SdpVideoFormat& sdp);
 Codec CreateVideoRtxCodec(int rtx_payload_type, int associated_payload_type);
 
 // Get the codec setting associated with `payload_type`. If there
@@ -263,7 +262,7 @@ std::vector<const Codec*> FindAllMatchingCodecs(
     const Codec& codec);
 
 RTC_EXPORT void AddH264ConstrainedBaselineProfileToSupportedFormats(
-    std::vector<webrtc::SdpVideoFormat>* supported_formats);
+    std::vector<SdpVideoFormat>* supported_formats);
 }  // namespace webrtc
 
 // Re-export symbols from the webrtc namespace for backwards compatibility.

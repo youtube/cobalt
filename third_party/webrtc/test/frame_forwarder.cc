@@ -9,7 +9,11 @@
  */
 #include "test/frame_forwarder.h"
 
+#include "api/video/video_frame.h"
+#include "api/video/video_sink_interface.h"
+#include "api/video/video_source_interface.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/synchronization/mutex.h"
 
 namespace webrtc {
 namespace test {

@@ -88,7 +88,7 @@ class RTC_EXPORT ScreenCapturerWinDirectx : public DesktopCapturer {
   bool SelectSource(SourceId id) override;
 
  private:
-  const webrtc::scoped_refptr<DxgiDuplicatorController> controller_;
+  const scoped_refptr<DxgiDuplicatorController> controller_;
   DesktopCaptureOptions options_;
 
   // The underlying DxgiDuplicators may retain a reference to the frames that

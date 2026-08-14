@@ -32,14 +32,13 @@ class DtlsStunPiggybackCallbacks {
       // - an optional DTLS_IN_STUN_ACK attribute
       absl::AnyInvocable<std::pair<std::optional<absl::string_view>,
                                    std::optional<absl::string_view>>(
-          /* request-type */ webrtc::StunMessageType)>&& send_data,
+          /* request-type */ StunMessageType)>&& send_data,
 
       // Function invoked when receiving a STUN_BINDING { REQUEST / RESPONSE }
       // contains the (nullable) DTLS_IN_STUN and DTLS_IN_STUN_ACK attributes.
-      absl::AnyInvocable<
-          void(const webrtc::StunByteStringAttribute* /* DTLS_IN_STUN */,
-               const webrtc::StunByteStringAttribute* /* DTLS_IN_STUN_ACK */)>&&
-          recv_data)
+      absl::AnyInvocable<void(
+          const StunByteStringAttribute* /* DTLS_IN_STUN */,
+          const StunByteStringAttribute* /* DTLS_IN_STUN_ACK */)>&& recv_data)
       : send_data_(std::move(send_data)), recv_data_(std::move(recv_data)) {
     RTC_DCHECK(
         // either all set
@@ -69,11 +68,11 @@ class DtlsStunPiggybackCallbacks {
  private:
   absl::AnyInvocable<std::pair<std::optional<absl::string_view>,
                                std::optional<absl::string_view>>(
-      /* request-type */ webrtc::StunMessageType)>
+      /* request-type */ StunMessageType)>
       send_data_;
   absl::AnyInvocable<void(
-      const webrtc::StunByteStringAttribute* /* DTLS_IN_STUN */,
-      const webrtc::StunByteStringAttribute* /* DTLS_IN_STUN_ACK */)>
+      const StunByteStringAttribute* /* DTLS_IN_STUN */,
+      const StunByteStringAttribute* /* DTLS_IN_STUN_ACK */)>
       recv_data_;
 };
 

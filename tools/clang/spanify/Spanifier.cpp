@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 #include "RawPtrHelpers.h"
@@ -78,11 +79,11 @@ enum Precedence {
   kNeutralPrecedence = 0,
 
   // Lower priority (weaker ties to the target)
+  kAppendDataCallPrecedence,
   kDecaySpanToPointerPrecedence,
   kAdaptBinaryOperationPrecedence,
   kEmitSingleVariableSpanPrecedence,
   kAdaptBinaryPlusEqOperationPrecedence,
-  kAppendDataCallPrecedence,
   // Higher priority (stronger ties to the target)
 };
 
@@ -832,6 +833,59 @@ static clang::SourceLocation GetBinaryOperationOperatorLoc(
   assert(false && "Unexpected binaryOperation Node");
 }
 
+struct RangedReplacement {
+  clang::SourceRange range;
+  std::string text;
+};
+
+// Specifies an edit: `base::checked_cast<size_t>(...)`
+struct CheckedCastReplacement {
+  RangedReplacement opener;
+  RangedReplacement closer;
+};
+
+// There are three possible subspan expr replacements, respectively:
+// 1. No replacement (leave as is)
+// 2. Append a `u` to an integer literal.
+// 3. Wrap the expression in `base::checked_cast<size_t>(...)`.
+using SubspanExprReplacement =
+    std::variant<std::monostate, RangedReplacement, CheckedCastReplacement>;
+
+static SubspanExprReplacement GetSubspanExprReplacement(
+    const clang::Expr* expr,
+    const MatchFinder::MatchResult& result,
+    std::string_view key) {
+  clang::QualType type = expr->getType();
+  const clang::ASTContext& ast_context = *result.Context;
+
+  const uint64_t size_t_bits =
+      ast_context.getTypeSize(ast_context.getSizeType());
+  const bool is_unsigned_type =
+      type == ast_context.getCorrespondingUnsignedType(type);
+  if (is_unsigned_type && ast_context.getTypeSize(type) <= size_t_bits) {
+    return {};
+  }
+
+  const clang::SourceManager& source_manager = *result.SourceManager;
+  const clang::SourceRange range =
+      getExprRange(expr, source_manager, result.Context->getLangOpts());
+
+  if (const auto* integer_literal =
+          clang::dyn_cast<clang::IntegerLiteral>(expr)) {
+    assert(integer_literal->getValue().isNonNegative());
+    return RangedReplacement{.range = range.getEnd(), .text = "u"};
+  }
+
+  EmitReplacement(key, GetIncludeDirective(range, source_manager,
+                                           "base/numerics/safe_conversions.h"));
+  EmitReplacement(key, GetIncludeDirective(range, source_manager, "cstdint",
+                                           /*is_system_include_path=*/true));
+  return CheckedCastReplacement{
+      .opener = {.range = range.getBegin(),
+                 .text = "base::checked_cast<size_t>("},
+      .closer = {.range = range.getEnd(), .text = ")"}};
+}
+
 // When a binary operation and rhs expr appear inside a macro expansion,
 // this function produces an expression like:
 //     UNSAFE_TODO(MACRO(will_be_span.data()))
@@ -878,14 +932,42 @@ static void AdaptBinaryOpInMacro(const MatchFinder::MatchResult& result,
                                    ")", source_manager));
 }
 
+// Closes an open `base::span(` if present.
+// Returns a `.subspan(` opener.
+// Opens a `base::checked_cast(` if necessary.
+static std::string CreateSubspanOpener(
+    const clang::ArrayTypeLoc* rhs_array_type,
+    const SubspanExprReplacement* subspan_expr_replacement) {
+  std::string_view maybe_base_span_closer = rhs_array_type ? ")" : "";
+  std::string_view maybe_checked_cast_opener = "";
+  if (const auto* replacement =
+          std::get_if<CheckedCastReplacement>(subspan_expr_replacement)) {
+    maybe_checked_cast_opener = replacement->opener.text;
+  }
+  return llvm::formatv("{0}.subspan({1}", maybe_base_span_closer,
+                       maybe_checked_cast_opener);
+}
+
+// Returns a `.subspan(` closer.
+// Closes an open `base::checked_cast(` if necessary,
+// or appends a `u` to the integer literal expression.
+static std::string CreateSubspanCloser(
+    const SubspanExprReplacement* subspan_expr_replacement) {
+  std::string_view maybe_closer = "";
+  if (const auto* replacement =
+          std::get_if<RangedReplacement>(subspan_expr_replacement)) {
+    maybe_closer = replacement->text;
+  } else if (const auto* replacement = std::get_if<CheckedCastReplacement>(
+                 subspan_expr_replacement)) {
+    maybe_closer = replacement->closer.text;
+  }
+  return llvm::formatv("{0})", maybe_closer);
+}
+
 static void AdaptBinaryOperation(const MatchFinder::MatchResult& result) {
   const clang::SourceManager& source_manager = *result.SourceManager;
-  const clang::ASTContext& ast_context = *result.Context;
-  const auto& lang_opts = ast_context.getLangOpts();
   const auto* binary_operation =
       GetNodeOrCrash<clang::Expr>(result, "binary_operation", __FUNCTION__);
-  const auto* binary_op_RHS =
-      GetNodeOrCrash<clang::Expr>(result, "binary_op_rhs", __FUNCTION__);
   const auto* rhs_expr =
       GetNodeOrCrash<clang::Expr>(result, "rhs_expr", __FUNCTION__);
   const std::string key = GetRHS(result);
@@ -903,7 +985,8 @@ static void AdaptBinaryOperation(const MatchFinder::MatchResult& result) {
   // a `base::span` of it before calling `.subspan()`.
   //
   // Emit a replacement to that effect:
-  // `base::span( <binary operation lhs> )`
+  // `base::span( <binary operation lhs> `
+  // ...but leave the closing right-parenthesis for the `).subspan()` call.
   const auto* rhs_array_type =
       result.Nodes.getNodeAs<clang::ArrayTypeLoc>("rhs_array_type_loc");
   if (rhs_array_type) {
@@ -912,45 +995,57 @@ static void AdaptBinaryOperation(const MatchFinder::MatchResult& result) {
             result, "binary_operation",
             "C-style array should not involve `CXXOperatorCallExpr` or "
             "`CXXRewrittenBinaryOperator`");
-    const clang::SourceRange opener_range =
-        concrete_binary_operation->getLHS()->getExprLoc();
     EmitReplacement(
         key, GetReplacementDirective(
-                 opener_range,
+                 concrete_binary_operation->getLHS()->getBeginLoc(),
                  llvm::formatv("base::span<{0}>(",
                                GetTypeAsString(rhs_array_type->getInnerType(),
-                                               ast_context)),
+                                               *result.Context)),
                  source_manager, kAdaptBinaryOperationPrecedence));
     // Emit the closing `)` of `base::span(...)` below.
   }
 
-  const auto source_range = clang::SourceRange(
-      GetBinaryOperationOperatorLoc(binary_operation, result),
-      getExprRange(binary_op_RHS, source_manager, lang_opts).getEnd());
-
-  std::string initial_text =
-      clang::Lexer::getSourceText(
-          clang::CharSourceRange::getCharRange(source_range), source_manager,
-          lang_opts)
-          .str();
-
-  // initial_text includes the binary operator as the first character.
-  // We make sure to trim it from the replacement string.
+  // Rather than emit a pure "insertion" replacement (zero-length
+  // range), assume that the binary operation is a single char and
+  // manually construct a `SourceRange` that overwrites exactly that.
+  // `git cl format` later takes care of the errant whitespace. E.g.:
   //
-  // If we wrapped the span-to-be in `base::span(`, emit the closing `)`
-  // now.
+  // a + b
+  //   ^
+  //
+  // becomes
+  //
+  // a .subspan( b
+  const auto* binary_op_RHS =
+      GetNodeOrCrash<clang::Expr>(result, "binary_op_rhs", __FUNCTION__);
+  const auto subspan_expr_replacement =
+      GetSubspanExprReplacement(binary_op_RHS, result, key);
+
+  std::string subspan_opener =
+      CreateSubspanOpener(rhs_array_type, &subspan_expr_replacement);
+
+  const clang::SourceLocation binary_operator_begin =
+      GetBinaryOperationOperatorLoc(binary_operation, result);
   EmitReplacement(
-      key, GetReplacementDirective(
-               source_range,
-               llvm::formatv("{0}.subspan({1})", rhs_array_type ? ")" : "",
-                             initial_text.substr(1)),
-               source_manager, -kAdaptBinaryOperationPrecedence));
+      key,
+      GetReplacementDirective(
+          {binary_operator_begin, binary_operator_begin.getLocWithOffset(1)},
+          subspan_opener, source_manager, -kAdaptBinaryOperationPrecedence));
+
+  const clang::SourceRange operator_rhs_range = getExprRange(
+      binary_op_RHS, source_manager, result.Context->getLangOpts());
+
+  std::string subspan_closer = CreateSubspanCloser(&subspan_expr_replacement);
+  EmitReplacement(key, GetReplacementDirective(
+                           operator_rhs_range.getEnd(), subspan_closer,
+                           source_manager, -kAdaptBinaryOperationPrecedence));
 
   // It's possible we emitted a rewrite that creates a temporary but
   // unnamed `base::span` (issue 408018846). This could end up being
   // the only reference in the file, and so it has to carry the
   // `#include` directive itself.
-  EmitReplacement(key, GetIncludeDirective(source_range, source_manager));
+  EmitReplacement(key, GetIncludeDirective(binary_operation->getBeginLoc(),
+                                           source_manager));
 }
 
 static void AdaptBinaryPlusEqOperation(const MatchFinder::MatchResult& result) {
@@ -1084,35 +1179,29 @@ void AppendDataCall(const MatchFinder::MatchResult& result) {
 void RewriteExprForSubspan(const clang::Expr* expr,
                            const MatchFinder::MatchResult& result,
                            std::string_view key) {
-  clang::QualType type = expr->getType();
-  const clang::ASTContext& ast_context = *result.Context;
-
-  // This logic isn't perfect: an unsigned type wider than `size_t`
-  // will pop us out of this function, but will fail the `strict_cast`
-  // imposed by `subspan()`.
-  if (type == ast_context.getCorrespondingUnsignedType(type)) {
+  const auto replacement = GetSubspanExprReplacement(expr, result, key);
+  if (const auto* u_suffix = std::get_if<RangedReplacement>(&replacement)) {
+    EmitReplacement(key,
+                    GetReplacementDirective(u_suffix->range, u_suffix->text,
+                                            *result.SourceManager));
     return;
   }
 
-  const clang::SourceManager& source_manager = *result.SourceManager;
-  const clang::SourceRange range =
-      getExprRange(expr, source_manager, result.Context->getLangOpts());
-
-  if (clang::dyn_cast<clang::IntegerLiteral>(expr)) {
-    EmitReplacement(
-        key, GetReplacementDirective(range.getEnd(), "u", source_manager));
+  if (const auto* checked_cast_replacement =
+          std::get_if<CheckedCastReplacement>(&replacement)) {
+    const auto& [opener, closer] = *checked_cast_replacement;
+    EmitReplacement(key, GetReplacementDirective(opener.range, opener.text,
+                                                 *result.SourceManager));
+    EmitReplacement(key, GetReplacementDirective(closer.range, closer.text,
+                                                 *result.SourceManager));
     return;
   }
 
-  EmitReplacement(key, GetReplacementDirective(range.getBegin(),
-                                               "base::checked_cast<size_t>(",
-                                               source_manager));
-  EmitReplacement(key,
-                  GetReplacementDirective(range.getEnd(), ")", source_manager));
-  EmitReplacement(key, GetIncludeDirective(range, source_manager,
-                                           "base/numerics/safe_conversions.h"));
-  EmitReplacement(key, GetIncludeDirective(range, source_manager, "cstdint",
-                                           /*is_system_include_path=*/true));
+  if (!std::get_if<std::monostate>(&replacement)) {
+    llvm::errs() << "Unexpected variant in `RewriteExprForSubspan()`.";
+    DumpMatchResult(result);
+    return;
+  }
 }
 
 // Handle the case where we match `&container[<offset>]` being used as a buffer.
@@ -1415,7 +1504,8 @@ static std::string getNodeFromSizeExpr(const clang::Expr* size_expr,
 // Rewrite:
 //   `sizeof(c_array)`
 // Into:
-//  `std_array.size() * sizeof(element_size)`.
+//   `base::SpanificationSizeofForStdArray(std_array)`
+// Tests are in: array-tests-original.cc
 void RewriteArraySizeof(const MatchFinder::MatchResult& result) {
   clang::SourceManager& source_manager = *result.SourceManager;
 
@@ -1440,18 +1530,19 @@ void RewriteArraySizeof(const MatchFinder::MatchResult& result) {
     end_offset = name.getAsString().length();
   }
 
+  const std::string& key = GetRHS(result);
   const clang::SourceRange replacement_range = {
       sizeof_expr->getBeginLoc(),
       sizeof_expr->getEndLoc().getLocWithOffset(end_offset)};
-
-  // The outer-most parentheses are redundant for most cases. But it's
-  // necessary in cases like "x / sizeof(c_array)", which is unlikely though.
-  std::string replacement_text = llvm::formatv(
-      "({0}.size() * sizeof(decltype({0})::value_type))", array_decl_as_string);
-  std::string replacement_directive = GetReplacementDirective(
-      replacement_range, std::move(replacement_text), source_manager);
-
-  EmitReplacement(GetRHS(result), replacement_directive);
+  EmitReplacement(key,
+                  GetReplacementDirective(
+                      replacement_range,
+                      llvm::formatv("base::SpanificationSizeofForStdArray({0})",
+                                    array_decl_as_string),
+                      source_manager));
+  EmitReplacement(key,
+                  GetIncludeDirective(replacement_range, source_manager,
+                                      kBaseAutoSpanificationHelperIncludePath));
 }
 
 // Add `.data()` at the frontier of a span change. This is applied if the node
@@ -2678,14 +2769,15 @@ class Spanifier {
     // not. Investigate?
     const auto reinterpret_cast_wrapper = optionally(hasParent(
         cxxReinterpretCastExpr(
-            cxxReinterpretCastExpr(hasDestinationType(qualType(pointsTo(
+            hasDestinationType(qualType(pointsTo(
                 qualType(anyOf(qualType(asString("uint8_t"))
                                    .bind("reinterpret_cast_to_bytes"),
                                qualType(isAnyCharacter())
                                    .bind("reinterpret_cast_to_bytes"),
                                qualType(isInteger())
                                    .bind("reinterpret_cast_to_integral_type")))
-                    .bind("target_type"))))))
+                    .bind("target_type")))),
+            unless(raw_ptr_plugin::isInMacroLocation()))
             .bind("reinterpret_cast")));
 
     // Defines nodes that contain size information, these include:
@@ -3040,6 +3132,11 @@ class Spanifier {
             expr(conditionalOperator(hasFalseExpression(rhs_expr_variations))),
             lhs_param)));
     Match(var_passed_in_constructor2, MatchAdjacency);
+
+    // Handles member field initializers.
+    auto field_init = fieldDecl(lhs_field, has(rhs_expr_variations),
+                                unless(isExpansionInSystemHeader()));
+    Match(field_init, MatchAdjacency);
 
     // handles Obj o{temp} when Obj has no constructor.
     // This creates a link between the expr and the underlying field.

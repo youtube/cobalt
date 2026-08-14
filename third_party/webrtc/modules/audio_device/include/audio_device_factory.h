@@ -27,7 +27,7 @@ namespace webrtc {
 // Example (assuming webrtc namespace):
 //
 //  public:
-//   webrtc::scoped_refptr<AudioDeviceModule> CreateAudioDevice() {
+//   scoped_refptr<AudioDeviceModule> CreateAudioDevice() {
 //     task_queue_factory_ = CreateDefaultTaskQueueFactory();
 //     // Tell COM that this thread shall live in the MTA.
 //     com_initializer_ = std::make_unique<ScopedCOMInitializer>(

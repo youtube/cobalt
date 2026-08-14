@@ -28,7 +28,7 @@ class RawVideoSinkInterface {
 
   virtual int32_t OnRawFrame(uint8_t* videoFrame,
                              size_t videoFrameLength,
-                             const webrtc::VideoCaptureCapability& frameInfo,
+                             const VideoCaptureCapability& frameInfo,
                              VideoRotation rotation,
                              int64_t captureTime) = 0;
 };

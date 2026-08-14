@@ -217,11 +217,7 @@ static void LookupForRead(LookupIterator* it, bool is_has_property) {
       }
       case LookupIterator::ACCESS_CHECK:
         // ICs know how to perform access checks on global proxies.
-        if (it->GetHolder<JSObject>().is_identical_to(
-                it->isolate()->global_proxy()) &&
-            !it->isolate()->global_object()->IsDetached(it->isolate())) {
-          continue;
-        }
+        if (!IsAccessCheckNeeded(*it->GetHolder<JSObject>())) continue;
         return;
       case LookupIterator::ACCESSOR:
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
@@ -1662,8 +1658,9 @@ bool StoreIC::LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
         continue;
       }
       case LookupIterator::ACCESS_CHECK:
-        if (IsAccessCheckNeeded(*it->GetHolder<JSObject>())) return false;
-        continue;
+        // ICs know how to perform access checks on global proxies.
+        if (!IsAccessCheckNeeded(*it->GetHolder<JSObject>())) continue;
+        return false;
       case LookupIterator::ACCESSOR:
         return !it->IsReadOnly();
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
@@ -2416,15 +2413,6 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 Handle<Object> KeyedStoreIC::StoreElementHandler(
     DirectHandle<Map> receiver_map, KeyedAccessStoreMode store_mode,
     MaybeDirectHandle<UnionOf<Smi, Cell>> prev_validity_cell) {
-  // The only case when could keep using non-slow element store handler for
-  // a fast array with potentially read-only elements is when it's an
-  // initializing store to array literal.
-  DCHECK_IMPLIES(
-      !receiver_map->has_dictionary_elements() &&
-          receiver_map->ShouldCheckForReadOnlyElementsInPrototypeChain(
-              isolate()),
-      IsStoreInArrayLiteralIC());
-
   if (!IsJSObjectMap(*receiver_map)) {
     // DefineKeyedOwnIC, which is used to define computed fields in instances,
     // should handled by the slow stub below instead of the proxy stub.
@@ -2442,6 +2430,15 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
     return StoreHandler::StoreSlow(isolate(), store_mode);
   }
+
+  // The only case when could keep using non-slow element store handler for
+  // a fast array with potentially read-only elements is when it's an
+  // initializing store to array literal.
+  DCHECK_IMPLIES(
+      !receiver_map->has_dictionary_elements() &&
+          receiver_map->ShouldCheckForReadOnlyElementsInPrototypeChain(
+              isolate()),
+      IsStoreInArrayLiteralIC());
 
   // TODO(ishell): move to StoreHandler::StoreElement().
   Handle<Code> code;
@@ -2485,7 +2482,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     validity_cell =
         Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   }
-  if (IsSmi(*validity_cell)) {
+  if (*validity_cell == Map::kNoValidityCellSentinel) {
     // There's no prototype validity cell to check, so we can just use the stub.
     return code;
   }
@@ -2700,6 +2697,15 @@ MaybeDirectHandle<Object> KeyedStoreIC::Store(Handle<JSAny> object,
       } else if (key_is_valid_index) {
         if (old_receiver_map->is_abandoned_prototype_map()) {
           set_slow_stub_reason("receiver with prototype map");
+#if V8_ENABLE_WEBASSEMBLY
+        } else if (IsWasmObjectMap(*old_receiver_map)) {
+          // Handle object types for which we don't need to check for
+          // read-only prototype elements because we'll use the slow handler
+          // anyway.
+          DirectHandle<HeapObject> receiver = Cast<HeapObject>(object);
+          UpdateStoreElement(old_receiver_map, store_mode,
+                             handle(receiver->map(), isolate()));
+#endif  // V8_ENABLE_WEBASSEMBLY
         } else if (old_receiver_map->has_dictionary_elements() ||
                    !old_receiver_map
                         ->ShouldCheckForReadOnlyElementsInPrototypeChain(
@@ -3601,8 +3607,8 @@ Tagged<Object> GetCloneTargetMap(Isolate* isolate, DirectHandle<Map> source_map,
           Tagged<Object> validity_cell = transitions.GetSideStepTransition(
               SideStepTransition::Kind::kObjectAssignValidityCell);
           is_valid = validity_cell.IsHeapObject() &&
-                     Cast<Cell>(validity_cell)->value().ToSmi().value() ==
-                         Map::kPrototypeChainValid;
+                     Cast<Cell>(validity_cell)->maybe_value() !=
+                         Map::kPrototypeChainInvalid;
         }
       }
       if (V8_LIKELY(is_valid)) {

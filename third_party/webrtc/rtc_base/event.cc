@@ -55,10 +55,9 @@ void Event::Reset() {
 
 bool Event::Wait(TimeDelta give_up_after, TimeDelta /*warn_after*/) {
   ScopedYieldPolicy::YieldExecution();
-  const DWORD ms =
-      give_up_after.IsPlusInfinity()
-          ? INFINITE
-          : give_up_after.RoundUpTo(webrtc::TimeDelta::Millis(1)).ms();
+  const DWORD ms = give_up_after.IsPlusInfinity()
+                       ? INFINITE
+                       : give_up_after.RoundUpTo(TimeDelta::Millis(1)).ms();
   return (WaitForSingleObject(event_handle_, ms) == WAIT_OBJECT_0);
 }
 
@@ -123,7 +122,7 @@ timespec GetTimespec(TimeDelta duration_from_now) {
   timeval tv;
   gettimeofday(&tv, nullptr);
   ts.tv_sec = tv.tv_sec;
-  ts.tv_nsec = tv.tv_usec * webrtc::kNumNanosecsPerMicrosec;
+  ts.tv_nsec = tv.tv_usec * kNumNanosecsPerMicrosec;
 #endif
 
   // Add the specified number of milliseconds to it.

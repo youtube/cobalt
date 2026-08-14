@@ -17,6 +17,7 @@
 #include "absl/strings/str_cat.h"
 #include "api/crypto/crypto_options.h"
 #include "api/dtls_transport_interface.h"
+#include "api/field_trials.h"
 #include "api/scoped_refptr.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/units/time_delta.h"
@@ -38,9 +39,9 @@
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 #include "test/wait_until.h"
 
 const int kRtpAuthTagLen = 10;
@@ -72,7 +73,7 @@ class DtlsSrtpTransportIntegrationTest : public ::testing::Test {
     srtp_transport_.RegisterRtpDemuxerSink(demuxer_criteria,
                                            &srtp_transport_observer_);
   }
-  ~DtlsSrtpTransportIntegrationTest() {
+  ~DtlsSrtpTransportIntegrationTest() override {
     dtls_srtp_transport_.UnregisterRtpDemuxerSink(
         &dtls_srtp_transport_observer_);
     srtp_transport_.UnregisterRtpDemuxerSink(&srtp_transport_observer_);
@@ -219,7 +220,7 @@ class DtlsSrtpTransportIntegrationTest : public ::testing::Test {
  private:
   webrtc::AutoThread main_thread_;
   webrtc::ScopedFakeClock fake_clock_;
-  webrtc::test::ScopedKeyValueConfig field_trials_;
+  webrtc::FieldTrials field_trials_ = webrtc::CreateTestFieldTrials();
 
   std::unique_ptr<webrtc::FakeIceTransport> client_ice_transport_;
   std::unique_ptr<webrtc::FakeIceTransport> server_ice_transport_;

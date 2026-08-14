@@ -60,11 +60,14 @@ class PaymentApp {
   };
 
   // Describes a PaymentEntityLogo composed of the accessibility label, and the
-  // icon.
+  // icon and its url.
   struct PaymentEntityLogo {
     std::u16string label;
     std::unique_ptr<SkBitmap> icon;
-    PaymentEntityLogo(std::u16string string, std::unique_ptr<SkBitmap> icon);
+    GURL url;
+    PaymentEntityLogo(std::u16string string,
+                      std::unique_ptr<SkBitmap> icon,
+                      GURL url);
 
     // PaymentEntityLogo is a move-only type:
     PaymentEntityLogo(const PaymentEntityLogo&) = delete;
@@ -114,7 +117,7 @@ class PaymentApp {
   virtual const SkBitmap* issuer_bitmap() const;
   virtual const SkBitmap* network_bitmap() const;
   // Returns the payment entities logos to be displayed to the user.
-  virtual const std::vector<PaymentEntityLogo>& GetPaymentEntitiesLogos() const;
+  virtual std::vector<PaymentEntityLogo*> GetPaymentEntitiesLogos();
 
   // Returns the identifier for another payment app that should be hidden when
   // this payment app is present.

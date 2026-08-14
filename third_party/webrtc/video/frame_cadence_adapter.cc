@@ -111,7 +111,7 @@ class ZeroHertzAdapterMode : public AdapterMode {
                        double max_fps,
                        std::atomic<int>& frames_scheduled_for_processing,
                        bool zero_hertz_queue_overload);
-  ~ZeroHertzAdapterMode() { refresh_frame_requester_.Stop(); }
+  ~ZeroHertzAdapterMode() override { refresh_frame_requester_.Stop(); }
 
   // Reconfigures according to parameters.
   // All spatial layer trackers are initialized as unconverged by this method.
@@ -350,7 +350,7 @@ class FrameCadenceAdapterImpl : public FrameCadenceAdapterInterface {
                           Metronome* metronome,
                           TaskQueueBase* worker_queue,
                           const FieldTrialsView& field_trials);
-  ~FrameCadenceAdapterImpl();
+  ~FrameCadenceAdapterImpl() override;
 
   // FrameCadenceAdapterInterface overrides.
   void Initialize(Callback* callback) override;

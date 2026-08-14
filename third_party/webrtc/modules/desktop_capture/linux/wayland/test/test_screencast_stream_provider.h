@@ -11,12 +11,8 @@
 #ifndef MODULES_DESKTOP_CAPTURE_LINUX_WAYLAND_TEST_TEST_SCREENCAST_STREAM_PROVIDER_H_
 #define MODULES_DESKTOP_CAPTURE_LINUX_WAYLAND_TEST_TEST_SCREENCAST_STREAM_PROVIDER_H_
 
-#include <pipewire/context.h>
-#include <pipewire/core.h>
-#include <pipewire/stream.h>
-#include <pipewire/thread-loop.h>
-#include <spa/param/video/raw.h>
-#include <spa/utils/hook.h>
+#include <pipewire/pipewire.h>
+#include <spa/param/video/format-utils.h>
 
 #include <cstdint>
 

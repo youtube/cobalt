@@ -5,7 +5,6 @@
 <translation id="1178581264944972037">Pausar</translation>
 <translation id="1246424317317450637">Negra</translation>
 <translation id="1357114957607379632">Xerando reprodución de IA...</translation>
-<translation id="1370273601702151510">Gústame</translation>
 <translation id="1483137792530497944">Río</translation>
 <translation id="1586836055630070874">Reconfortante</translation>
 <translation id="1639239467298939599">Cargando</translation>
@@ -19,7 +18,6 @@
 <translation id="2575502321843437554">O contido non era suficientemente interesante</translation>
 <translation id="2611765907167846862">Serea</translation>
 <translation id="3023502830214299618">A reprodución non está dispoñible para esta páxina neste momento. Téntao de novo máis tarde.</translation>
-<translation id="3457812538570616687">Non me gusta</translation>
 <translation id="3493899379487634969">Cal foi o problema?</translation>
 <translation id="3730775656877876887">Xerando reprodución de IA</translation>
 <translation id="3778044272390020426">Menú de opcións de comentarios negativos</translation>
@@ -33,6 +31,7 @@
 <translation id="4525525184005340968">Val</translation>
 <translation id="4710974520964166851">Relaxada</translation>
 <translation id="4773921449011281499">Tranquila</translation>
+<translation id="4867493576811701175">Botón Gústame; seleccionar para indicar que che gusta esta función</translation>
 <translation id="4872475766448853257">Retroceder <ph name="NUMBER_OF_SECONDS" /> segundos</translation>
 <translation id="4967513477347430212">Costa</translation>
 <translation id="5026371835667036198">Alegre</translation>
@@ -63,6 +62,7 @@
 <translation id="8136852699834914183">A reprodución non está dispoñible para esta páxina.</translation>
 <translation id="8198036737896977997">Aire</translation>
 <translation id="8264989794233974275">Aumentar ou diminuír a velocidade a <ph name="PLAYBACK_SPEED" />x.</translation>
+<translation id="837054959055425654">Botón Non me gusta; seleccionar para abrir un formulario e fornecer comentarios detallados sobre un problema con esta función</translation>
 <translation id="8407011429883244666">Pechar o reprodutor.</translation>
 <translation id="8462210863277153423">O URL cargarase cos comentarios para mellorar a calidade e a investigación.</translation>
 <translation id="8481839122437406573">Queda</translation>

@@ -588,6 +588,11 @@ const char kFullscreenSmoothScrollingDescription[] =
     "When enabled, the web view's insets are updated for scoll events. If "
     "disabled, the the web view's frame are updated.";
 
+const char kFullscreenScrollThresholdName[] = "Fullscreen Scroll Threshold";
+const char kFullscreenScrollThresholdDescription[] =
+    "When enabled, scrolling must exceed a small threshold before the web view "
+    "begins to enter or exit fullscreen.";
+
 const char kHomeMemoryImprovementsName[] = "Home Memory Improvements";
 const char kHomeMemoryImprovementsDescription[] =
     "When enabled, uses code that aims to improve the memory footprint in "
@@ -763,6 +768,10 @@ const char kNotificationCollisionManagementName[] =
 const char kNotificationCollisionManagementDescription[] =
     "Enables delays to notifications to space them out more";
 
+const char kNTPMIAEntrypointName[] = "Entrypoint for MIA in the new tab page";
+const char kNTPMIAEntrypointDescription[] =
+    "Selects which variant of the MIA entrypoint is used in the new tab page";
+
 const char kIOSSharedHighlightingColorChangeName[] =
     "IOS Shared Highlighting color change";
 const char kIOSSharedHighlightingColorChangeDescription[] =
@@ -847,12 +856,6 @@ const char kLensLoadAIMInLensResultPageName[] =
     "Enable loading AIM in the Lens result page";
 const char kLensLoadAIMInLensResultPageDescription[] =
     "Opens in Lens result page rather than a new tab.";
-
-extern const char kLensOverlayAlternativeOnboardingName[] =
-    "Lens Overlay Onboarding";
-extern const char kLensOverlayAlternativeOnboardingDescription[] =
-    "Selects which lens overlay onboarding/entrypoint treatment is active. "
-    "No-op if lens overlay is off.";
 
 extern const char kLensOverlayDisableIPHPanGestureName[] =
     "Disable Lens Overlay IPH Pan Dismissal";
@@ -1355,6 +1358,12 @@ const char kSeparateProfilesForManagedAccountsDescription[] =
     "If enabled, each managed account will be assigned to its own separate "
     "profile.";
 
+const char kShareExtensionForMultiprofileName[] =
+    "Enable Share Extension for multiprofile";
+const char kShareExtensionForMultiprofileDescription[] =
+    "When enabled, returning users will see the new per-account share "
+    "extension implementation";
+
 const char kSharedHighlightingIOSName[] = "Enable Shared Highlighting features";
 const char kSharedHighlightingIOSDescription[] =
     "Adds a Link to Text option in the Edit Menu which generates URLs with a "
@@ -1481,11 +1490,6 @@ const char kEnableLensViewFinderUnifiedExperienceName[] =
     "Enable LVF Unified Experience";
 const char kEnableLensViewFinderUnifiedExperienceDescription[] =
     "Enables Lens View Finder unified experience";
-
-const char kEnableLensContextMenuUnifiedExperienceName[] =
-    "Enable Lens Context Menu Unified Experience";
-const char kEnableLensContextMenuUnifiedExperienceDescription[] =
-    "Enables unified native experience for Lens Context Menu";
 
 const char kTabGridNewTransitionsName[] = "Enable new TabGrid transitions";
 const char kTabGridNewTransitionsDescription[] =

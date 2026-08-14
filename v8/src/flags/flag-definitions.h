@@ -525,6 +525,14 @@ DEFINE_BOOL_READONLY(local_off_stack_check,
                      V8_ENABLE_LOCAL_OFF_STACK_CHECK_BOOL,
                      "check for off-stack allocation of v8::Local")
 
+// This flag implies experimental features for our fuzzers without needing to
+// stage them yet. Once sufficiently stable, they should be moved to
+// --future, --wasm-staging or a similar flag that indicates its readiness
+// for staging.
+DEFINE_BOOL(experimental_fuzzing, false,
+            "Implies all experimental pre-staged features that can already be "
+            "fuzzed but are not ready for staging yet.")
+
 #ifdef V8_ENABLE_FUTURE
 #define FUTURE_BOOL true
 #else
@@ -596,11 +604,15 @@ DEFINE_BOOL(maglev_cons_string_elision, true,
 DEFINE_BOOL(maglev_pretenure_store_values, true,
             "Recursively pretenure values which are stored into pretenured "
             "allocation sites.")
+DEFINE_BOOL(maglev_poly_calls, false, "Support (inlining) polymorphic calls")
+DEFINE_EXPERIMENTAL_FEATURE(maglev_truncation, "Enable Maglev truncation pass")
+DEFINE_BOOL(trace_maglev_truncation, false, "Trace Maglev truncation pass")
 DEFINE_EXPERIMENTAL_FEATURE(maglev_licm, "loop invariant code motion")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_escape_analysis)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_licm)
+DEFINE_WEAK_IMPLICATION(maglev_future, maglev_truncation)
 // This might be too big of a hammer but we must prohibit moving the C++
 // trampolines while we are executing a C++ code.
 DEFINE_NEG_IMPLICATION(maglev_inline_api_calls, compact_code_space_with_stack)
@@ -703,10 +715,6 @@ DEFINE_BOOL(maglev_stats_nvp, false,
 // TODO(v8:7700): Remove once stable.
 DEFINE_BOOL(maglev_function_context_specialization, true,
             "enable function context specialization in maglev")
-
-DEFINE_BOOL(maglev_skip_migration_check_for_polymorphic_access, false,
-            "skip generating a migration check when some maps of polymorphic "
-            "property access are migration targets")
 
 #ifdef V8_ENABLE_SPARKPLUG
 DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
@@ -948,7 +956,11 @@ DEFINE_BOOL(
     zero_unused_memory, true,
     "Zero unused memory (except for memory which was discarded) on memory "
     "reducing GCs.")
-DEFINE_BOOL(high_end_android, false, "Enables high-end mode for Android.")
+DEFINE_BOOL(high_end_android, false,
+            "Enables high-end mode unconditionally for Android.")
+DEFINE_UINT(high_end_android_physical_memory_threshold, UINT_MAX,
+            "Enables high-end mode for devices with more than X GB of physical "
+            "memory (if X greater than 0).")
 
 #ifdef V8_MINORMS_STRING_SHORTCUTTING
 DEFINE_BOOL(minor_ms_shortcut_strings, false,
@@ -1417,8 +1429,7 @@ DEFINE_NEG_VALUE_IMPLICATION(use_osr, maglev_osr, false)
 DEFINE_NEG_VALUE_IMPLICATION(turbofan, osr_from_maglev, false)
 DEFINE_BOOL(concurrent_osr, true, "enable concurrent OSR")
 
-DEFINE_INT(maglev_allocation_folding, 1, "maglev allocation folding level")
-DEFINE_WEAK_VALUE_IMPLICATION(maglev_future, maglev_allocation_folding, 2)
+DEFINE_INT(maglev_allocation_folding, 2, "maglev allocation folding level")
 DEFINE_BOOL(maglev_escape_analysis, true,
             "avoid inlined allocation of objects that cannot escape")
 DEFINE_BOOL(trace_maglev_escape_analysis, false, "trace maglev escape analysis")
@@ -1636,6 +1647,8 @@ DEFINE_BOOL(turboshaft_trace_peeling, false,
             "trace Turboshaft's loop peeling reducer")
 DEFINE_BOOL(turboshaft_trace_load_elimination, false,
             "trace Turboshaft's late load elimination")
+DEFINE_BOOL(turboshaft_trace_if_else_to_switch, false,
+            "trace Turboshaft's if-else to switch reducer")
 #else
 DEFINE_BOOL_READONLY(turboshaft_trace_reduction, false,
                      "trace individual Turboshaft reduction steps")
@@ -1645,6 +1658,8 @@ DEFINE_BOOL_READONLY(turboshaft_trace_intermediate_reductions, false,
                      "trace intermediate Turboshaft reduction steps")
 DEFINE_BOOL_READONLY(turboshaft_trace_load_elimination, false,
                      "trace Turboshaft's late load elimination")
+DEFINE_BOOL_READONLY(turboshaft_trace_if_else_to_switch, false,
+                     "trace Turboshaft's if-else to switch reducer")
 #endif  // DEBUG
 
 DEFINE_BOOL(profile_guided_optimization, true, "profile guided optimization")
@@ -1844,6 +1859,7 @@ DEFINE_SIZE_T(wasm_deopts_per_function_limit, 10,
 // Experimental wasm features imply --experimental and get the " (experimental)"
 // suffix.
 FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(DECL_EXPERIMENTAL_WASM_FLAG)
+FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(DECL_EXPERIMENTAL_WASM_FLAG)
 // Staging and shipped features do not imply --experimental.
 FOREACH_WASM_STAGING_FEATURE_FLAG(DECL_WASM_FLAG)
 FOREACH_WASM_SHIPPED_FEATURE_FLAG(DECL_WASM_FLAG)
@@ -1876,6 +1892,11 @@ DEFINE_BOOL(wasm_explicit_prototypes, true,
 DEFINE_BOOL(wasm_implicit_prototypes, true,
             "enable support for engine-created 'invisible' JS Prototypes "
             "(only with --experimental-wasm-custom-descriptors)")
+
+#define WASM_PRE_STAGING_IMPLICATION(feat, desc, val) \
+  DEFINE_IMPLICATION(experimental_fuzzing, experimental_wasm_##feat)
+FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(WASM_PRE_STAGING_IMPLICATION)
+#undef WASM_PRE_STAGING_IMPLICATION
 
 DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
 
@@ -2139,6 +2160,7 @@ DEFINE_SIZE_T(initial_heap_size, 0, "initial size of the heap (in Mbytes)")
 DEFINE_SIZE_T(initial_old_space_size, 0, "initial old space size (in Mbytes)")
 DEFINE_SIZE_T(preconfigured_old_space_size, 0,
               "preconfigured old space size (in Mbytes)")
+DEFINE_WEAK_VALUE_IMPLICATION(future, preconfigured_old_space_size, size_t{32})
 DEFINE_BOOL(gc_global, false, "always perform global GCs")
 
 // TODO(12950): The next three flags only have an effect if
@@ -2373,12 +2395,19 @@ DEFINE_BOOL(stress_per_context_marking_worklist, false,
             "Use per-context worklist for marking")
 DEFINE_BOOL(stress_incremental_marking, false,
             "force incremental marking for small heaps and run it more often")
+
+DEFINE_BOOL(
+    memory_pool_share_memory_on_teardown, true,
+    "Share memory on Isolate teardown using other Isolate's task runners")
+DEFINE_BOOL(memory_pool_release_before_memory_pressure_gcs, true,
+            "discard the memory pool before invoking the GC on memory pressure "
+            "or last resort GCs")
 DEFINE_BOOL(large_page_pool, false, "Add large pages to the page pool")
+DEFINE_WEAK_IMPLICATION(future, large_page_pool)
 DEFINE_SIZE_T(max_large_page_pool_size, 32,
               "Maximum size of pooled large pages in MB.")
 DEFINE_INT(large_page_pool_timeout, 3,
            "Release pooled large pages after X seconds.")
-
 DEFINE_BOOL(managed_zone_memory, false,
             "Manage zone memory in V8 instead of using malloc().")
 
@@ -2398,9 +2427,6 @@ DEFINE_BOOL(
     "reclaim otherwise unreachable unmodified wrapper objects when possible")
 DEFINE_BOOL(parallel_reclaim_unmodified_wrappers, true,
             "reclaim wrapper objects in parallel")
-DEFINE_BOOL(discard_memory_pool_before_memory_pressure_gcs, true,
-            "discard the memory pool before invoking the GC on memory pressure "
-            "or last resort GCs")
 
 // These flags will be removed after experiments. Do not rely on them.
 DEFINE_BOOL(gc_experiment_less_compaction, false,
@@ -2865,6 +2891,11 @@ DEFINE_INT(random_seed, 0,
 DEFINE_INT(fuzzer_random_seed, 0,
            "Default seed for initializing fuzzer random generator "
            "(0, the default, means to use v8's random number generator seed).")
+#if V8_HASHES_COLLIDE
+DEFINE_BOOL(hashes_collide, false,
+            "Create more hash collisions by making certain hash functions "
+            "always return the same constant")
+#endif  // V8_HASHES_COLLIDE
 DEFINE_BOOL(trace_rail, false, "trace RAIL mode")
 DEFINE_BOOL(print_all_exceptions, false,
             "print exception object and stack trace on each thrown exception")

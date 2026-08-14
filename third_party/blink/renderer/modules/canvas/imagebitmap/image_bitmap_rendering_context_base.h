@@ -63,6 +63,10 @@ class MODULES_EXPORT ImageBitmapRenderingContextBase
 
   void Stop() override;
 
+  scoped_refptr<StaticBitmapImage> PaintRenderingResultsToSnapshot(
+      SourceDrawingBuffer source_buffer,
+      FlushReason reason) override;
+
   bool IsPaintable() const final;
 
  protected:

@@ -33,10 +33,10 @@
 #include "modules/video_coding/utility/vp9_uncompressed_header_parser.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "vpx/vp8dx.h"
-#include "vpx/vpx_decoder.h"
-#include "vpx/vpx_encoder.h"
-#include "vpx/vpx_image.h"
+#include "third_party/libvpx/source/libvpx/vpx/vp8dx.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_decoder.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_encoder.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_image.h"
 
 namespace webrtc {
 namespace {

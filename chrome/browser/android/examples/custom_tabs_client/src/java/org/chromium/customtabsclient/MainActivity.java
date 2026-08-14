@@ -517,7 +517,7 @@ public class MainActivity extends AppCompatActivity
         } else {
             // TODO(crbug.com/40240792) Refactor the way ordering is stored so it's not mixed with
             // URLs
-            savedUrlSet = new HashSet<String>();
+            savedUrlSet = new HashSet<>();
             if (!TextUtils.isEmpty(url)) {
                 savedUrlSet.add("1" + url);
                 editor.putStringSet(SHARED_PREF_SITES, savedUrlSet);
@@ -581,7 +581,7 @@ public class MainActivity extends AppCompatActivity
 
     private void initializeColorSpinner() {
         Spinner colorSpinner = (Spinner) findViewById(R.id.color_spinner);
-        HashMap<String, String> colors = new HashMap<String, String>();
+        HashMap<String, String> colors = new HashMap<>();
         colors.put("Default", "");
         colors.put("White (AGA Light)", "#ffffff");
         colors.put("Orange", "#ef6c00");
@@ -602,7 +602,7 @@ public class MainActivity extends AppCompatActivity
         }
 
         final ArrayAdapter<String> colorAdapter =
-                new ArrayAdapter<String>(this, 0, colorsArr) {
+                new ArrayAdapter<>(this, 0, colorsArr) {
                     @Override
                     public View getView(
                             int position, @Nullable View convertView, ViewGroup parent) {
@@ -804,7 +804,7 @@ public class MainActivity extends AppCompatActivity
         }
 
         final ArrayAdapter<String> cctAdapter =
-                new ArrayAdapter<String>(this, 0, cctOptions) {
+                new ArrayAdapter<>(this, 0, cctOptions) {
                     @Override
                     public View getView(
                             int position, @Nullable View convertView, ViewGroup parent) {

@@ -40,7 +40,7 @@ void EnableFakeMedia(
 
     std::unique_ptr<MediaEngineInterface> CreateMediaEngine(
         const Environment& /*env*/,
-        PeerConnectionFactoryDependencies& /*dependencies*/) {
+        PeerConnectionFactoryDependencies& /*dependencies*/) override {
       RTC_CHECK(fake_ != nullptr)
           << "CreateMediaEngine can be called at most once.";
       return std::move(fake_);

@@ -186,7 +186,7 @@ bool MatchesWithReferenceAttributesAndComparator(
           split(red_parameters_1->second, '/');
       std::vector<absl::string_view> redundant_payloads_2 =
           split(red_parameters_2->second, '/');
-      // note: webrtc::split returns at least 1 string even on empty strings.
+      // note: split returns at least 1 string even on empty strings.
       size_t smallest_size =
           std::min(redundant_payloads_1.size(), redundant_payloads_2.size());
       // If the smaller list is equivalent to the longer list, we consider them

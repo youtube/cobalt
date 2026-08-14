@@ -65,7 +65,6 @@
 #include "test/gtest.h"
 #include "test/network/simulated_network.h"
 #include "test/rtp_rtcp_observer.h"
-#include "test/testsupport/file_utils.h"
 #include "test/video_test_constants.h"
 #include "video/config/video_encoder_config.h"
 

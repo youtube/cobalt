@@ -141,7 +141,7 @@ ui::GestureEvent CreateTestGestureEvent(const ui::GestureEventDetails& details,
 
 std::unique_ptr<NativeFrameView> CreateMinimumSizeFrameView(Widget* frame) {
   auto frame_view = std::make_unique<ConfigurableTestFrameView>(frame);
-  frame_view->SetMinimumSize(gfx::Size(300, 400));
+  frame_view->set_minimum_size(gfx::Size(300, 400));
   return std::move(frame_view);
 }
 
@@ -2636,7 +2636,7 @@ TEST_F(DesktopWidgetTest, MinimumSizeConstraints) {
 
   if (!widget->ShouldUseNativeFrame()) {
     // The test environment may have dwm disabled on Windows. In this case,
-    // CustomFrameView is used instead of the NativeFrameView, which will
+    // DefaultFrameView is used instead of the NativeFrameView, which will
     // provide a minimum size that includes frame decorations.
     minimum_size = widget->non_client_view()
                        ->GetWindowBoundsForClientBounds(gfx::Rect(minimum_size))
@@ -5807,7 +5807,10 @@ class WidgetSetAspectRatioTest
     Widget::InitParams params = CreateParams(Widget::InitParams::TYPE_WINDOW);
     native_widget_ = std::make_unique<MockNativeWidget>(widget());
     ON_CALL(*native_widget(), CreateNonClientFrameView).WillByDefault([this]() {
-      return std::make_unique<NonClientFrameViewWithFixedMargin>(margin());
+      auto frame_view_with_fixed_margin =
+          std::make_unique<test::ConfigurableTestFrameView>(widget_.get());
+      frame_view_with_fixed_margin->set_client_view_margin(margin());
+      return frame_view_with_fixed_margin;
     });
     params.native_widget = native_widget();
     widget()->Init(std::move(params));
@@ -5836,24 +5839,6 @@ class WidgetSetAspectRatioTest
   const gfx::Size margin_;
   std::unique_ptr<Widget> widget_;
   std::unique_ptr<MockNativeWidget> native_widget_;
-
-  // `NonClientFrameView` that pads the client view with a fixed-size margin,
-  // to leave room for drawing that's not included in the aspect ratio.
-  class NonClientFrameViewWithFixedMargin : public NonClientFrameView {
-   public:
-    // `margin` is the margin that we'll provide to our client view.
-    explicit NonClientFrameViewWithFixedMargin(const gfx::Size& margin)
-        : margin_(margin) {}
-
-    // NonClientFrameView
-    gfx::Rect GetBoundsForClientView() const override {
-      gfx::Rect r = bounds();
-      return gfx::Rect(r.x(), r.y(), r.width() - margin_.width(),
-                       r.height() - margin_.height());
-    }
-
-    const gfx::Size margin_;
-  };
 };
 
 TEST_P(WidgetSetAspectRatioTest, SetAspectRatioIncludesMargin) {

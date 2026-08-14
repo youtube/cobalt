@@ -90,7 +90,7 @@ void BrowserAccessibilityManagerMac::FireBlinkEvent(ax::mojom::Event event_type,
   NSString* mac_notification = nullptr;
   switch (event_type) {
     case ax::mojom::Event::kAutocorrectionOccured:
-      mac_notification = NSAccessibilityAutocorrectionOccurredNotification;
+      mac_notification = CrNSAccessibilityAutocorrectionOccurredNotification;
       break;
     case ax::mojom::Event::kLoadComplete:
       if (!ShouldFireLoadCompleteNotification())
@@ -369,6 +369,10 @@ void BrowserAccessibilityManagerMac::FireGeneratedEvent(
       mac_notification = NSAccessibilityTitleChangedNotification;
       break;
 
+    case AXEventGenerator::Event::CHILDREN_CHANGED:
+      [native_node childrenChanged];
+      return;
+
     // Currently unused events on this platform.
     case AXEventGenerator::Event::NONE:
     case AXEventGenerator::Event::ACCESS_KEY_CHANGED:
@@ -379,7 +383,6 @@ void BrowserAccessibilityManagerMac::FireGeneratedEvent(
     case AXEventGenerator::Event::AUTOFILL_AVAILABILITY_CHANGED:
     case AXEventGenerator::Event::CARET_BOUNDS_CHANGED:
     case AXEventGenerator::Event::CHECKED_STATE_DESCRIPTION_CHANGED:
-    case AXEventGenerator::Event::CHILDREN_CHANGED:
     case AXEventGenerator::Event::CONTROLS_CHANGED:
     case AXEventGenerator::Event::DETAILS_CHANGED:
     case AXEventGenerator::Event::DESCRIBED_BY_CHANGED:
@@ -528,13 +531,12 @@ void BrowserAccessibilityManagerMac::OnNodeDataChanged(
   BrowserAccessibilityMac* node =
       static_cast<BrowserAccessibilityMac*>(GetFromID(new_node_data.id));
   CHECK(node);
-  if (!features::IsMacAccessibilityOptimizeChildrenChangedEnabled() ||
-      (old_node_data.child_ids == new_node_data.child_ids &&
-       !node->node()->GetExtraMacNodes())) {
-    return;
+  if (old_node_data.GetIntListAttribute(
+          ax::mojom::IntListAttribute::kIndirectChildIds) !=
+      new_node_data.GetIntListAttribute(
+          ax::mojom::IntListAttribute::kIndirectChildIds)) {
+    [node->GetNativeWrapper() childrenChanged];
   }
-
-  [node->GetNativeWrapper() childrenChanged];
 }
 
 NSDictionary* BrowserAccessibilityManagerMac::

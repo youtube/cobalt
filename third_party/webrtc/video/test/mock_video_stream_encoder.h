@@ -34,7 +34,7 @@ class MockVideoStreamEncoder : public VideoStreamEncoderInterface {
  public:
   MOCK_METHOD(void,
               AddAdaptationResource,
-              (webrtc::scoped_refptr<Resource>),
+              (scoped_refptr<Resource>),
               (override));
   MOCK_METHOD(std::vector<scoped_refptr<Resource>>,
               GetAdaptationResources,
@@ -42,8 +42,7 @@ class MockVideoStreamEncoder : public VideoStreamEncoderInterface {
               (override));
   MOCK_METHOD(void,
               SetSource,
-              (webrtc::VideoSourceInterface<VideoFrame>*,
-               const DegradationPreference&),
+              (VideoSourceInterface<VideoFrame>*, const DegradationPreference&),
               (override));
   MOCK_METHOD(void, SetSink, (EncoderSink*, bool), (override));
   MOCK_METHOD(void, SetStartBitrate, (int), (override));

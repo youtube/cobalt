@@ -10,12 +10,15 @@
 
 #include "test/frame_utils.h"
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
 
+#include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/nv12_buffer.h"
 #include "api/video/video_frame.h"
+#include "api/video/video_frame_buffer.h"
 
 namespace webrtc {
 namespace test {

@@ -41,7 +41,6 @@ namespace webrtc {
 struct GoogCcConfig {
   std::unique_ptr<NetworkStateEstimator> network_state_estimator = nullptr;
   std::unique_ptr<NetworkStatePredictor> network_state_predictor = nullptr;
-  bool feedback_only = false;
 };
 
 class GoogCcNetworkController : public NetworkControllerInterface {
@@ -86,7 +85,6 @@ class GoogCcNetworkController : public NetworkControllerInterface {
   void SetNetworkStateEstimate(std::optional<NetworkStateEstimate> estimate);
 
   const Environment env_;
-  const bool packet_feedback_only_;
   FieldTrialFlag safe_reset_on_route_change_;
   FieldTrialFlag safe_reset_acknowledged_rate_;
   const bool use_min_allocatable_as_lower_bound_;
@@ -118,10 +116,6 @@ class GoogCcNetworkController : public NetworkControllerInterface {
   bool first_packet_sent_ = false;
 
   std::optional<NetworkStateEstimate> estimate_;
-
-  Timestamp next_loss_update_ = Timestamp::MinusInfinity();
-  int lost_packets_since_last_loss_update_ = 0;
-  int expected_packets_since_last_loss_update_ = 0;
 
   std::deque<int64_t> feedback_max_rtts_;
 

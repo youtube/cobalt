@@ -28,7 +28,7 @@ class MockTransformableAudioFrame : public TransformableAudioFrameInterface {
   MockTransformableAudioFrame() : TransformableAudioFrameInterface(Passkey()) {}
 
   MOCK_METHOD(ArrayView<const uint8_t>, GetData, (), (const, override));
-  MOCK_METHOD(void, SetData, (webrtc::ArrayView<const uint8_t>), (override));
+  MOCK_METHOD(void, SetData, (ArrayView<const uint8_t>), (override));
   MOCK_METHOD(void, SetRTPTimestamp, (uint32_t), (override));
   MOCK_METHOD(uint8_t, GetPayloadType, (), (const, override));
   MOCK_METHOD(bool, CanSetPayloadType, (), (const, override));

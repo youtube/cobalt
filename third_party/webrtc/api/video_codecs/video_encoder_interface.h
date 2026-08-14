@@ -75,7 +75,7 @@ class VideoEncoderInterface {
     std::unique_ptr<FrameOutput> frame_output;
   };
 
-  virtual void Encode(scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer,
+  virtual void Encode(scoped_refptr<VideoFrameBuffer> frame_buffer,
                       const TemporalUnitSettings& settings,
                       std::vector<FrameEncodeSettings> frame_settings) = 0;
 };

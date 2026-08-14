@@ -43,6 +43,9 @@
 #include "components/autofill/core/browser/filling/field_filling_skip_reason.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_import_utils.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_suggestions.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_utils.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
 #include "components/autofill/core/browser/ml_model/autofill_ai/autofill_ai_model_executor.h"
 #include "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h"
@@ -61,11 +64,7 @@
 #include "components/autofill/core/common/logging/log_macros.h"
 #include "components/autofill/core/common/signatures.h"
 #include "components/autofill/core/common/unique_ids.h"
-#include "components/autofill_ai/core/browser/autofill_ai_client.h"
-#include "components/autofill_ai/core/browser/autofill_ai_import_utils.h"
-#include "components/autofill_ai/core/browser/autofill_ai_utils.h"
 #include "components/autofill_ai/core/browser/metrics/autofill_ai_logger.h"
-#include "components/autofill_ai/core/browser/suggestion/autofill_ai_suggestions.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 
@@ -191,7 +190,7 @@ std::vector<std::string> GetAttributeStrikeKeys(const EntityInstance& entity,
 
 }  // namespace
 
-AutofillAiManager::AutofillAiManager(AutofillAiClient* client,
+AutofillAiManager::AutofillAiManager(autofill::AutofillClient* client,
                                      autofill::StrikeDatabase* strike_database)
     : client_(CHECK_DEREF(client)) {
   if (strike_database) {
@@ -264,16 +263,15 @@ bool AutofillAiManager::OnFormSubmitted(const FormStructure& form,
           form.fields(), [](const std::unique_ptr<AutofillField>& field) {
             return field->GetAutofillAiServerTypePredictions() != std::nullopt;
           })) {
-    logger_.RecordFormMetrics(
-        form, ukm_source_id, /*submission_state=*/true,
-        autofill::GetAutofillAiOptInStatus(client_->GetAutofillClient()));
+    logger_.RecordFormMetrics(form, ukm_source_id, /*submission_state=*/true,
+                              autofill::GetAutofillAiOptInStatus(*client_));
   }
   return MaybeImportForm(form);
 }
 
 bool AutofillAiManager::MaybeImportForm(const FormStructure& form) {
   if (!autofill::MayPerformAutofillAiAction(
-          client_->GetAutofillClient(), autofill::AutofillAiAction::kImport)) {
+          *client_, autofill::AutofillAiAction::kImport)) {
     return false;
   }
 
@@ -285,8 +283,8 @@ bool AutofillAiManager::MaybeImportForm(const FormStructure& form) {
     return false;
   }
   std::vector<EntityInstance> entity_instances_from_form =
-      GetPossibleEntitiesFromSubmittedForm(
-          form.fields(), client_->GetAutofillClient().GetAppLocale());
+      GetPossibleEntitiesFromSubmittedForm(form.fields(),
+                                           client_->GetAppLocale());
   if (entity_instances_from_form.empty()) {
     return false;
   }
@@ -303,9 +301,9 @@ bool AutofillAiManager::MaybeImportForm(const FormStructure& form) {
       auto prompt_result_callback =
           BindOnce(&AutofillAiManager::HandleSavePromptResult, GetWeakPtr(),
                    form.source_url(), entity);
-      client_->ShowSaveOrUpdateBubble(std::move(entity),
-                                      /*old_entity=*/std::nullopt,
-                                      std::move(prompt_result_callback));
+      client_->ShowEntitySaveOrUpdateBubble(std::move(entity),
+                                            /*old_entity=*/std::nullopt,
+                                            std::move(prompt_result_callback));
       return true;
     }
     if (std::optional<std::pair<EntityInstance, EntityInstance>>
@@ -317,9 +315,9 @@ bool AutofillAiManager::MaybeImportForm(const FormStructure& form) {
       auto prompt_result_callback =
           BindOnce(&AutofillAiManager::HandleUpdatePromptResult, GetWeakPtr(),
                    old_entity.guid());
-      client_->ShowSaveOrUpdateBubble(std::move(new_entity),
-                                      std::move(old_entity),
-                                      std::move(prompt_result_callback));
+      client_->ShowEntitySaveOrUpdateBubble(std::move(new_entity),
+                                            std::move(old_entity),
+                                            std::move(prompt_result_callback));
       return true;
     }
   }
@@ -329,7 +327,7 @@ bool AutofillAiManager::MaybeImportForm(const FormStructure& form) {
 void AutofillAiManager::HandleSavePromptResult(
     const GURL& form_url,
     const autofill::EntityInstance& entity,
-    AutofillAiClient::SaveOrUpdatePromptResult result) {
+    autofill::AutofillClient::EntitySaveOrUpdatePromptResult result) {
   if (!result.entity) {
     if (result.did_user_decline) {
       AddStrikeForSaveAttempt(form_url, entity);
@@ -348,7 +346,7 @@ void AutofillAiManager::HandleSavePromptResult(
 
 void AutofillAiManager::HandleUpdatePromptResult(
     const base::Uuid& entity_uuid,
-    AutofillAiClient::SaveOrUpdatePromptResult result) {
+    autofill::AutofillClient::EntitySaveOrUpdatePromptResult result) {
   if (!result.entity) {
     if (result.did_user_decline) {
       AddStrikeForUpdateAttempt(entity_uuid);
@@ -366,11 +364,10 @@ void AutofillAiManager::HandleUpdatePromptResult(
 }
 
 std::vector<autofill::Suggestion> AutofillAiManager::GetSuggestions(
-    autofill::FormGlobalId form_global_id,
+    const FormStructure& form,
     const autofill::FormFieldData& trigger_field) {
-  const AutofillClient& autofill_client = client_->GetAutofillClient();
   if (!autofill::MayPerformAutofillAiAction(
-          autofill_client, autofill::AutofillAiAction::kFilling)) {
+          *client_, autofill::AutofillAiAction::kFilling)) {
     return {};
   }
 
@@ -385,51 +382,36 @@ std::vector<autofill::Suggestion> AutofillAiManager::GetSuggestions(
     return {};
   }
 
-  FormStructure* form_structure =
-      client_->GetCachedFormStructure(form_global_id);
-  if (!form_structure) {
-    return {};
-  }
-
   const AutofillField* autofill_field =
-      form_structure->GetFieldById(trigger_field.global_id());
+      form.GetFieldById(trigger_field.global_id());
   if (!autofill_field ||
       !autofill_field->GetAutofillAiServerTypePredictions()) {
     return {};
   }
 
-  return CreateFillingSuggestions(*form_structure, trigger_field, entities,
-                                  autofill_client.GetAppLocale());
+  return autofill::CreateFillingSuggestions(form, trigger_field, entities,
+                                            client_->GetAppLocale());
 }
 
-bool AutofillAiManager::ShouldDisplayIph(autofill::FormGlobalId form,
+bool AutofillAiManager::ShouldDisplayIph(const autofill::FormStructure& form,
                                          autofill::FieldGlobalId field) const {
-  const autofill::AutofillClient& autofill_client =
-      client_->GetAutofillClient();
   if (!autofill::MayPerformAutofillAiAction(
-          autofill_client, autofill::AutofillAiAction::kIphForOptIn)) {
+          *client_, autofill::AutofillAiAction::kIphForOptIn)) {
     return false;
   }
 
   // The user must have at least one address or payments instrument to indicate
   // that they are an active Autofill user.
   const autofill::AddressDataManager& adm =
-      autofill_client.GetPersonalDataManager().address_data_manager();
+      client_->GetPersonalDataManager().address_data_manager();
   const autofill::PaymentsDataManager& paydm =
-      autofill_client.GetPersonalDataManager().payments_data_manager();
+      client_->GetPersonalDataManager().payments_data_manager();
   if (adm.GetProfiles().empty() && paydm.GetCreditCards().empty() &&
       paydm.GetIbans().empty() && !paydm.HasEwalletAccounts() &&
       !paydm.HasMaskedBankAccounts()) {
     return false;
   }
-
-  const FormStructure* const form_structure =
-      client_->GetCachedFormStructure(form);
-  if (!form_structure) {
-    return false;
-  }
-  const AutofillField* const focused_field =
-      form_structure->GetFieldById(field);
+  const AutofillField* const focused_field = form.GetFieldById(field);
   if (!focused_field) {
     return false;
   }
@@ -442,8 +424,7 @@ bool AutofillAiManager::ShouldDisplayIph(autofill::FormGlobalId form,
   // Submitting the form should lead to an import if the user fills all of the
   // currently focused section's fields that are related to AutofillAI
   std::map<EntityType, DenseSet<AttributeType>> attributes_in_form;
-  for (const std::unique_ptr<AutofillField>& current_field :
-       form_structure->fields()) {
+  for (const std::unique_ptr<AutofillField>& current_field : form.fields()) {
     if (current_field->section() != focused_field->section()) {
       continue;
     }
@@ -471,7 +452,7 @@ bool AutofillAiManager::ShouldDisplayIph(autofill::FormGlobalId form,
 }
 
 autofill::LogManager* AutofillAiManager::GetCurrentLogManager() {
-  return client_->GetAutofillClient().GetCurrentLogManager();
+  return client_->GetCurrentLogManager();
 }
 
 void AutofillAiManager::AddStrikeForSaveAttempt(const GURL& url,
@@ -482,8 +463,8 @@ void AutofillAiManager::AddStrikeForSaveAttempt(const GURL& url,
             entity.type().name_as_string(), url.host()));
   }
   if (save_strike_db_by_attribute_) {
-    for (const std::string& key : GetAttributeStrikeKeys(
-             entity, client_->GetAutofillClient().GetAppLocale())) {
+    for (const std::string& key :
+         GetAttributeStrikeKeys(entity, client_->GetAppLocale())) {
       save_strike_db_by_attribute_->AddStrike(key);
     }
   }
@@ -505,8 +486,8 @@ void AutofillAiManager::ClearStrikesForSave(
             entity.type().name_as_string(), url.host()));
   }
   if (save_strike_db_by_attribute_) {
-    for (const std::string& key : GetAttributeStrikeKeys(
-             entity, client_->GetAutofillClient().GetAppLocale())) {
+    for (const std::string& key :
+         GetAttributeStrikeKeys(entity, client_->GetAppLocale())) {
       save_strike_db_by_attribute_->ClearStrikes(key);
     }
   }
@@ -530,8 +511,7 @@ bool AutofillAiManager::IsSaveBlockedByStrikeDatabase(
 
   if (!save_strike_db_by_attribute_ ||
       std::ranges::any_of(
-          GetAttributeStrikeKeys(entity,
-                                 client_->GetAutofillClient().GetAppLocale()),
+          GetAttributeStrikeKeys(entity, client_->GetAppLocale()),
           [&](const std::string& key) {
             return save_strike_db_by_attribute_->ShouldBlockFeature(key);
           })) {

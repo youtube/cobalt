@@ -16,6 +16,7 @@
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
@@ -609,6 +610,36 @@ DawnSharedContext::~DawnSharedContext() {
   }
 }
 
+namespace {
+// Dawn Graphite adapter feature level for metrics.
+//
+// See also: webgpu.h:WGPUFeatureLevel
+//
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(DawnAdapterFeatureLevel)
+enum class DawnAdapterFeatureLevel {
+  kUnknown = 0,
+  kCompatibility = 1,
+  kCore = 2,
+  kMaxValue = kCore,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/gpu/enums.xml:DawnAdapterFeatureLevel)
+
+DawnAdapterFeatureLevel DawnAdapterFeatureLevelFromWGPU(
+    wgpu::FeatureLevel level) {
+  switch (level) {
+    case wgpu::FeatureLevel::Compatibility:
+      return DawnAdapterFeatureLevel::kCompatibility;
+    case wgpu::FeatureLevel::Core:
+      return DawnAdapterFeatureLevel::kCore;
+    default:
+      return DawnAdapterFeatureLevel::kUnknown;
+  }
+}
+}  // namespace
+
 bool DawnSharedContext::Initialize(
     wgpu::BackendType backend_type,
     bool force_fallback_adapter,
@@ -848,6 +879,9 @@ bool DawnSharedContext::Initialize(
                                                 /*is_thread_safe=*/true);
   }
 
+  base::UmaHistogramEnumeration(
+      "GPU.Dawn.AdapterFeatureLevel",
+      DawnAdapterFeatureLevelFromWGPU(adapter_options.featureLevel));
   return true;
 }
 
@@ -999,12 +1033,18 @@ bool DawnSharedContext::OnMemoryDump(
     // `allocated_size` is memory allocated from the device, used is what is
     // actually used.
     dump->AddScalar("allocated_size", MemoryAllocatorDump::kUnitsBytes,
-                    allocator_usage.totalAllocatedMemory);
-    dump->AddScalar("used_size", MemoryAllocatorDump::kUnitsBytes,
-                    allocator_usage.totalUsedMemory);
+                    allocator_usage.totalAllocatedMemory -
+                        allocator_usage.totalLazyAllocatedMemory);
+    dump->AddScalar(
+        "used_size", MemoryAllocatorDump::kUnitsBytes,
+        allocator_usage.totalUsedMemory - allocator_usage.totalLazyUsedMemory);
     dump->AddScalar(
         "fragmentation_size", MemoryAllocatorDump::kUnitsBytes,
         allocator_usage.totalAllocatedMemory - allocator_usage.totalUsedMemory);
+    dump->AddScalar("lazy_allocated_size", MemoryAllocatorDump::kUnitsBytes,
+                    allocator_usage.totalLazyAllocatedMemory);
+    dump->AddScalar("lazy_used_size", MemoryAllocatorDump::kUnitsBytes,
+                    allocator_usage.totalLazyUsedMemory);
   }
 
   return true;

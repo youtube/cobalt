@@ -278,22 +278,21 @@ static bool ParseMediaDescription(
     size_t* pos,
     const SocketAddress& session_connection_addr,
     SessionDescription* desc,
-    std::vector<std::unique_ptr<JsepIceCandidate>>* candidates,
+    std::vector<std::unique_ptr<IceCandidate>>* candidates,
     SdpParseError* error);
-static bool ParseContent(
-    absl::string_view message,
-    const MediaType media_type,
-    int mline_index,
-    absl::string_view protocol,
-    const std::vector<int>& payload_types,
-    size_t* pos,
-    std::string* content_name,
-    bool* bundle_only,
-    int* msid_signaling,
-    MediaContentDescription* media_desc,
-    TransportDescription* transport,
-    std::vector<std::unique_ptr<JsepIceCandidate>>* candidates,
-    SdpParseError* error);
+static bool ParseContent(absl::string_view message,
+                         const MediaType media_type,
+                         int mline_index,
+                         absl::string_view protocol,
+                         const std::vector<int>& payload_types,
+                         size_t* pos,
+                         std::string* content_name,
+                         bool* bundle_only,
+                         int* msid_signaling,
+                         MediaContentDescription* media_desc,
+                         TransportDescription* transport,
+                         std::vector<std::unique_ptr<IceCandidate>>* candidates,
+                         SdpParseError* error);
 static bool ParseGroupAttribute(absl::string_view line,
                                 SessionDescription* desc,
                                 SdpParseError* error);
@@ -948,7 +947,7 @@ bool SdpDeserialize(absl::string_view message,
   }
 
   // Media Description
-  std::vector<std::unique_ptr<JsepIceCandidate>> candidates;
+  std::vector<std::unique_ptr<IceCandidate>> candidates;
   if (!ParseMediaDescription(message, session_td, session_extmaps, &current_pos,
                              session_connection_addr, desc.get(), &candidates,
                              error)) {
@@ -2548,7 +2547,7 @@ static std::unique_ptr<MediaContentDescription> ParseContentDescription(
     bool* bundle_only,
     int* msid_signaling,
     TransportDescription* transport,
-    std::vector<std::unique_ptr<JsepIceCandidate>>* candidates,
+    std::vector<std::unique_ptr<IceCandidate>>* candidates,
     SdpParseError* error) {
   std::unique_ptr<MediaContentDescription> media_desc;
   if (media_type == MediaType::AUDIO) {
@@ -2608,7 +2607,7 @@ bool ParseMediaDescription(
     size_t* pos,
     const SocketAddress& session_connection_addr,
     SessionDescription* desc,
-    std::vector<std::unique_ptr<JsepIceCandidate>>* candidates,
+    std::vector<std::unique_ptr<IceCandidate>>* candidates,
     SdpParseError* error) {
   RTC_DCHECK(desc != nullptr);
   int mline_index = -1;
@@ -2950,7 +2949,7 @@ bool ParseContent(absl::string_view message,
                   int* msid_signaling,
                   MediaContentDescription* media_desc,
                   TransportDescription* transport,
-                  std::vector<std::unique_ptr<JsepIceCandidate>>* candidates,
+                  std::vector<std::unique_ptr<IceCandidate>>* candidates,
                   SdpParseError* error) {
   RTC_DCHECK(media_desc != nullptr);
   RTC_DCHECK(content_name != nullptr);
@@ -3357,7 +3356,7 @@ bool ParseContent(absl::string_view message,
     RTC_DCHECK(candidate.password().empty());
     candidate.set_password(transport->ice_pwd);
     candidates->push_back(
-        std::make_unique<JsepIceCandidate>(mline_id, mline_index, candidate));
+        std::make_unique<IceCandidate>(mline_id, mline_index, candidate));
   }
 
   return true;

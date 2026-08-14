@@ -94,6 +94,7 @@
 #include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "system_wrappers/include/metrics.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
@@ -1468,11 +1469,12 @@ class PeerConnectionIntegrationBaseTest : public ::testing::Test {
     if (it != field_trials_overrides_.end()) {
       field_trials = it->second;
     }
-    if (!client->Init(options, &modified_config, std::move(dependencies),
-                      fss_.get(), network_thread_.get(), worker_thread_.get(),
-                      FieldTrials::CreateNoGlobal(field_trials),
-                      std::move(event_log_factory), reset_encoder_factory,
-                      reset_decoder_factory, create_media_engine)) {
+    if (!client->Init(
+            options, &modified_config, std::move(dependencies), fss_.get(),
+            network_thread_.get(), worker_thread_.get(),
+            std::make_unique<FieldTrials>(CreateTestFieldTrials(field_trials)),
+            std::move(event_log_factory), reset_encoder_factory,
+            reset_decoder_factory, create_media_engine)) {
       return nullptr;
     }
     return client;

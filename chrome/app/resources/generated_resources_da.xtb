@@ -786,7 +786,6 @@ De tilladelser, du har givet til apps, gælder muligvis for denne konto. Du kan 
 <translation id="1542524755306892917">Dette giver Google Assistent mulighed for at give dig tilpassede svar, når <ph name="SUPERVISED_USER_NAME" /> stiller spørgsmål.</translation>
 <translation id="1543284117603151572">Importeret fra Edge</translation>
 <translation id="1543538514740974167">Få hurtig adgang</translation>
-<translation id="154420222899071768">Din adgangskode blev ikke opdateret, men du bør stadig kunne tilgå websitet med din gamle adgangskode</translation>
 <translation id="1544588554445317666">Prøv at bruge et kortere filnavn eller gemme i en anden mappe</translation>
 <translation id="1545177026077493356">Automatisk terminaltilstand</translation>
 <translation id="1545749641540134597">Scan QR-kode</translation>
@@ -2339,7 +2338,6 @@ Du kan administrere indstillingerne for denne konto ved at installere Family Lin
 <translation id="2588636910004461974">Enheder fra <ph name="VENDOR_NAME" /></translation>
 <translation id="2589658397149952302">Vis aldrig Drev-filer</translation>
 <translation id="2593499352046705383">Før du går i gang, skal du sørge for, at du har sikkerhedskopieret dine data. Hvis du installerer <ph name="DEVICE_OS" />, overskrives din harddisk. Få flere oplysninger på g.co/flex/InstallGuide.</translation>
-<translation id="2594832159966169099">Administrer V8-sikkerhed</translation>
 <translation id="2597073208962000830">"Deling tæt på" anvender Bluetooth-scanning til at registrere enheder i nærheden.</translation>
 <translation id="2598136842498757793">Tilpas værktøjslinjeknapper</translation>
 <translation id="2598710988533271874">En ny Chrome-opdatering er tilgængelig</translation>
@@ -4785,6 +4783,7 @@ Vil du starte <ph name="CONTROL_PANEL_APPLET_NAME" />?</translation>
 <translation id="4305402730127028764">Kopiér til <ph name="DEVICE_NAME" /></translation>
 <translation id="4305817255990598646">Skift</translation>
 <translation id="4306119971288449206">Apps skal downloades med indholdstypen "<ph name="CONTENT_TYPE" />"</translation>
+<translation id="4306489587293957491">Angiv</translation>
 <translation id="4306810703452026910">Chrome stopper med at markere notifikationer fra dette website som spam</translation>
 <translation id="4307992518367153382">Grundlæggende valgmuligheder</translation>
 <translation id="4309165024397827958">Tillad, at Android-apps og -tjenester med lokationstilladelse kan bruge din enheds lokation. Google kan med jævne mellemrum indsamle lokationsdata og bruge oplysningerne anonymt til at forbedre lokationsnøjagtigheden og lokationsbaserede tjenester.</translation>
@@ -4842,6 +4841,7 @@ Vil du starte <ph name="CONTROL_PANEL_APPLET_NAME" />?</translation>
 <translation id="4350230709416545141">Giv aldrig <ph name="HOST" /> adgang til din lokation</translation>
 <translation id="4350782034419308508">Hey Google</translation>
 <translation id="435185728237714178">Gå til appen "<ph name="APP_NAME" />" for at administrere installerede og streamede apps</translation>
+<translation id="4352913519324947509">Din adgangskode blev ikke opdateret, men du bør stadig kunne tilgå websitet med din aktuelle adgangskode</translation>
 <translation id="4354073718307267720">Spørg, når et website gerne vil oprette et 3D-kort over dine omgivelser eller registrere kamerapositionen</translation>
 <translation id="4354344420232759511">Her vises de websites, du besøger</translation>
 <translation id="435527878592612277">Vælg dit billede</translation>
@@ -5541,7 +5541,7 @@ Brug Ctrl+Alt+Lysstyrke ned for at zoome ud.</translation>
 <translation id="485053257961878904">Synkronisering af notifikationer kunne ikke konfigureres</translation>
 <translation id="4850548109381269495">Tjek din internetforbindelse på begge enheder, og aktivér Bluetooth. Prøv derefter igen.</translation>
 <translation id="4850669014075537160">Rulning</translation>
-<translation id="4850886885716139402">Vis</translation>
+<translation id="4850886885716139402">Se</translation>
 <translation id="485088796993065002">Websites kan afspille lyd for at levere lyd til musik, videoer og andre medier</translation>
 <translation id="4850919322897956733">Dataene er slettet.</translation>
 <translation id="4852383141291180386">Administrer appnotifikationer</translation>
@@ -6000,7 +6000,6 @@ Brug Ctrl+Alt+Lysstyrke ned for at zoome ud.</translation>
 <translation id="5186381005592669696">Tilpas visningssproget for understøttede apps</translation>
 <translation id="5186788525428341874">Du kan bruge denne adgangsnøgle til at logge hurtigere ind på dine enheder. Den gemmes i Googles Adgangskodeadministrator for <ph name="ACCOUNT_NAME" />.</translation>
 <translation id="5187641678926990264">&amp;Installer siden som en app…</translation>
-<translation id="5187671830619031922">Føj fane til opdelt visning</translation>
 <translation id="5187826826541650604"><ph name="KEY_NAME" /> (<ph name="DEVICE" />)</translation>
 <translation id="5188242000716462162">Delt af <ph name="USER_NAME" /></translation>
 <translation id="5188648870018555788">Brug lokation. Tillad, at ChromeOS- og Android-apps, -websites og -tjenester med lokationstilladelse kan bruge din enheds lokation. Lokationsnøjagtighed giver Android-apps og -tjenester mere nøjagtige lokationer. Google muliggør dette ved jævnligt at behandle oplysninger om enhedssensorer og trådløse signaler fra din enhed for at crowdsource lokationer med trådløse signaler. Disse signaler anvendes uden at identificere dig med henblik på at forbedre lokationsnøjagtighed og lokationsbaserede tjenester samt for at forbedre, levere og vedligeholde Googles tjenester baseret på Googles og tredjeparters legitime interesser i at opfylde brugernes behov. <ph name="BEGIN_LINK1" />Få flere oplysninger om lokationstilladelse<ph name="END_LINK1" /></translation>
@@ -7031,7 +7030,6 @@ Flere kontakter kan tildeles denne handling.</translation>
 <translation id="594221546068848596">Søg på siden med <ph name="VISUAL_SEARCH_PROVIDER" /></translation>
 <translation id="5942779427914696408">Enhedens synlighed</translation>
 <translation id="5943127421590245687">Verificering er gennemført. Angiv din gamle <ph name="DEVICE_TYPE" /> adgangskode for at låse op for og gendanne dine lokale data.</translation>
-<translation id="5943209617717087975"><ph name="THIRD_PARTY_NTP_MANAGER" /> administrerer siden Ny fane</translation>
 <translation id="5945002094477276055"><ph name="FILE_NAME" /> kan være skadelig. Skal Google Beskyttet browsing scanne den?</translation>
 <translation id="5945192511027649793">Deaktiver touchplade</translation>
 <translation id="5945363896952315544">Din sikkerhedsnøgle kan ikke gemme flere fingeraftryk. Hvis du vil tilføje et nyt, skal du først slette et eksisterende fingeraftryk.</translation>
@@ -8333,6 +8331,7 @@ Du har # andre kompromitterede adgangskoder. Google Adgangs­kode­admin­istrat
 <translation id="686831807558000905">Log ikke ind</translation>
 <translation id="686839242150793617">Har tilladelse til automatisk at åbne integreret billede</translation>
 <translation id="6868934826811377550">Se oplysninger</translation>
+<translation id="6870470066213933201">Administrer JavaScript-optimering og -sikkerhed</translation>
 <translation id="6871644448911473373">OCSP-responder: <ph name="LOCATION" /></translation>
 <translation id="6871860225073478239">Sprog…</translation>
 <translation id="6873571253135628430">Rediger websitetilladelser</translation>
@@ -9028,6 +9027,7 @@ Du har # andre kompromitterede adgangskoder. Google Adgangs­kode­admin­istrat
 <translation id="7387951778417998929">Hvis du vil bruge en søgemaskine, der ikke er din standardsøgemaskine, skal du angive genvejen til den i adresselinjen efterfulgt af din foretrukne tastaturgenvej. Du kan også ændre din standardsøgemaskine her.</translation>
 <translation id="7388615499319468910">Websites og annoncører kan få indblik i, hvordan annoncer klarer sig. Denne indstilling er deaktiveret.</translation>
 <translation id="738903649531469042">Føj fane til Læseliste</translation>
+<translation id="7389615853658756494">Skift det på websitet</translation>
 <translation id="7392118418926456391">Virusscanningen mislykkedes</translation>
 <translation id="7392915005464253525">G&amp;enåbn lukkede faner</translation>
 <translation id="7393073300870882456">{COUNT,plural, =1{1 element blev kopieret}one{{COUNT} element blev kopieret}other{{COUNT} elementer blev kopieret}}</translation>
@@ -9157,6 +9157,7 @@ Du har # andre kompromitterede adgangskoder. Google Adgangs­kode­admin­istrat
 <translation id="7474043404939621342">Tilpas din værktøjslinje</translation>
 <translation id="747459581954555080">Gendan alle</translation>
 <translation id="747507174130726364">{NUM_DAYS,plural, =1{Kræver omgående returnering}one{Returner <ph name="DEVICE_TYPE" /> inden for {NUM_DAYS} dag}other{Returner <ph name="DEVICE_TYPE" /> inden for {NUM_DAYS} dage}}</translation>
+<translation id="747557463733380256">Få flere oplysninger om, hvordan din browser administreres</translation>
 <translation id="7475671414023905704">Netscape-webadresse til mistet adgangskode</translation>
 <translation id="7475742997309661417">Skærmlæseren i ChromeOS, dvs. ChromeVox, bruges primært af personer, som er blinde eller har stærkt nedsat syn, til at læse tekst, der vises på skærmen, med en talesynthesizer eller brailleskærm. Hold begge lydstyrkeknapper nede i fem sekunder for at aktivere ChromeVox. Når ChromeVox er aktiveret, får du en hurtig gennemgang af skærmlæseren.</translation>
 <translation id="7476454130948140105">Batteriniveauet er for lavt til at opdatere (<ph name="BATTERY_PERCENT" /> %)</translation>
@@ -10305,6 +10306,7 @@ Opbevar din nøglefil på et sikkert sted. Du skal bruge den til at oprette nye 
 <translation id="8265018477030547118">Kun på denne enhed</translation>
 <translation id="826511437356419340">Tilstanden for vinduesoversigt blev åbnet. Stryg for at navigere, eller tryk på Tab-tasten, hvis du bruger et tastatur.</translation>
 <translation id="8265671588726449108">{COUNT,plural, =1{Dit inkognitovindue åbnes ikke igen, når du har genstartet}one{Du har {COUNT} åbent inkognitovindue. Dette åbnes ikke igen, når du har genstartet}other{Du har {COUNT} åbne inkognitovinduer. Disse åbnes ikke igen, når du har genstartet}}</translation>
+<translation id="8266430295499893285">Du skal verificere din identitet, før du kan få adgang til dine adgangskoder</translation>
 <translation id="8266947622852630193">Alle indtastningsmetoder</translation>
 <translation id="8267539814046467575">Tilføj printer</translation>
 <translation id="8267961145111171918"><ph name="BEGIN_PARAGRAPH1" />Dette er generelle oplysninger om din enhed og brugen af den (f.eks. batteriniveau, system- og appaktivitet og fejl). Dataene bruges til at forbedre Android, og visse samlede oplysninger kan også hjælpe Google-apps og -partnere som f.eks. Android-udviklere med at forbedre deres apps og produkter.<ph name="END_PARAGRAPH1" />
@@ -11116,7 +11118,6 @@ Dette kan omfatte oplysninger om installeret software, filer, din browser, enhed
 <translation id="8827125715368568315">Adgangen til <ph name="PERMISSION" /> og <ph name="COUNT" /> yderligere blev blokeret</translation>
 <translation id="8827289157496676362">Fastgør udvidelse</translation>
 <translation id="8828933418460119530">DNS-navn</translation>
-<translation id="8829979393064090868">Føj fane til opdelt visning</translation>
 <translation id="8830479210602243906">Øg produktiviteten</translation>
 <translation id="883062543841130884">Erstatninger</translation>
 <translation id="8830779999439981481">Genstarter for at anvende opdateringer</translation>

@@ -12,9 +12,12 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
+#include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
 #include "api/jsep.h"
 #include "api/jsep_session_description.h"
 #include "api/peer_connection_interface.h"
@@ -34,6 +37,7 @@
 #include "rtc_base/fake_mdns_responder.h"
 #include "rtc_base/fake_network.h"
 #include "rtc_base/gunit.h"
+#include "rtc_base/ip_address.h"
 #include "rtc_base/network.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/thread.h"
@@ -44,6 +48,25 @@
 #include "test/wait_until.h"
 
 namespace webrtc {
+
+namespace {
+
+static constexpr const char kBasicRemoteDescription[] = R"(v=0
+o=- 0 0 IN IP4 127.0.0.1
+s=-
+t=0 0
+m=audio 9 UDP/TLS/RTP/SAVPF 101
+c=IN IP4 0.0.0.0
+a=ice-ufrag:fooUfrag
+a=ice-pwd:someRemotePasswordGeneratedString
+a=fingerprint:sha-256 0A:B1:C2:D3:E4:F5:06:07:08:09:0A:0B:0C:0D:0E:0F:10:11:12:13:14:15:16:17:18:19:1A:1B:1C:1D:1E:1F
+a=candidate:1 1 UDP 2130706431 %s 57892 typ host generation 0
+a=setup:active
+a=mid:0
+a=sendrecv
+a=rtcp-mux
+a=rtpmap:101 fake_audio_codec/8000
+)";
 
 using RTCConfiguration = PeerConnectionInterface::RTCConfiguration;
 using RTCOfferAnswerOptions = PeerConnectionInterface::RTCOfferAnswerOptions;
@@ -581,6 +604,58 @@ TEST_F(PeerConnectionUsageHistogramTest, FingerprintWithPrivateIpv6Callee) {
       1, metrics::NumEvents(kUsagePatternMetric, expected_fingerprint_callee));
 }
 
+static struct IPAddressTypeTestConfig {
+  absl::string_view address;
+  IPAddressType address_type;
+} const kAllCandidateIPAddressTypeTestConfigs[] = {
+    {"127.0.0.1", IPAddressType::kLoopback},
+    {"::1", IPAddressType::kLoopback},
+    {"localhost", IPAddressType::kLoopback},
+    {"10.0.0.3", IPAddressType::kPrivate},
+    {"FE80::3", IPAddressType::kPrivate},
+    {"1.1.1.1", IPAddressType::kPublic},
+    {"2001:4860:4860::8888", IPAddressType::kPublic},
+};
+
+// Used by the test framework to print the param value for parameterized tests.
+std::string PrintToString(const IPAddressTypeTestConfig& param) {
+  return std::string(param.address);
+}
+
+class PeerConnectionCandidateIPAddressTypeHistogramTest
+    : public PeerConnectionUsageHistogramTest,
+      public ::testing::WithParamInterface<IPAddressTypeTestConfig> {};
+
+// Tests that the correct IPAddressType is logged when adding candidates.
+TEST_P(PeerConnectionCandidateIPAddressTypeHistogramTest,
+       CandidateAddressType) {
+  auto caller = CreatePeerConnection();
+
+  caller->AddAudioTrack("audio");
+  ASSERT_TRUE(caller->SetLocalDescription(caller->CreateOffer()));
+
+  // Set the remote description which includes a candidate using the IP Address
+  // from the test's params.
+  EXPECT_TRUE(caller->SetRemoteDescription(CreateSessionDescription(
+      SdpType::kAnswer,
+      absl::StrFormat(kBasicRemoteDescription, GetParam().address))));
+
+  ASSERT_THAT(
+      WaitUntil([&] { return caller->ice_gathering_state(); },
+                ::testing::Eq(PeerConnectionInterface::kIceGatheringComplete)),
+      IsRtcOk());
+  ASSERT_TRUE(caller->observer()->candidate_gathered());
+
+  auto samples = metrics::Samples("WebRTC.PeerConnection.CandidateAddressType");
+  ASSERT_EQ(samples.size(), 1u);
+  EXPECT_EQ(samples[static_cast<int>(GetParam().address_type)], 1);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    PeerConnectionCandidateIPAddressTypeHistogramTest,
+    ::testing::ValuesIn(kAllCandidateIPAddressTypeTestConfigs));
+
 #ifndef WEBRTC_ANDROID
 #ifdef WEBRTC_HAVE_SCTP
 // Test that the usage pattern bits for adding remote (private IPv6) candidates
@@ -734,5 +809,7 @@ TEST_F(PeerConnectionUsageHistogramTest,
 }
 #endif
 #endif
+
+}  // namespace
 
 }  // namespace webrtc

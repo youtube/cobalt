@@ -195,14 +195,6 @@ BASE_FEATURE(kDataLeakPreventionFilesRestriction,
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-// Enables a revamped Delete Browsing Data dialog. This includes UI changes and
-// removal of the bulk password deletion option from the dialog.
-BASE_FEATURE(kDbdRevampDesktop,
-             "DbdRevampDesktop",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // !BUILDFLAG(IS_ANDROID)
-
-#if !BUILDFLAG(IS_ANDROID)
 // Whether to allow installed-by-default web apps to be installed or not.
 BASE_FEATURE(kPreinstalledWebAppInstallation,
              "DefaultWebAppInstallation",
@@ -282,6 +274,13 @@ BASE_FEATURE(kDisplayEdgeToEdgeFullscreen,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
+// Enables Exclusive Access Mnager on Android platform
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kEnableExclusiveAccessManager,
+             "EnableExclusiveAccessManager",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 // Controls whether Chrome Apps are supported. See https://crbug.com/1221251.
 // If the feature is disabled, Chrome Apps continue to work. If enabled, Chrome
@@ -329,8 +328,15 @@ BASE_FEATURE(kGeoLanguage, "GeoLanguage", base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether the actor component of Glic is enabled.
 BASE_FEATURE(kGlicActor, "GlicActor", base::FEATURE_ENABLED_BY_DEFAULT);
-const base::FeatureParam<base::TimeDelta> kGlicActorActorObservationDelay{
-    &kGlicActor, "glic-actor-observation-delay", base::Seconds(3)};
+
+// Controls renderer tool observation timeout when waiting on local
+// (non-network) work.
+const base::FeatureParam<base::TimeDelta> kGlicActorPageStabilityLocalTimeout{
+    &kGlicActor, "glic-actor-page-stability-local-timeout", base::Seconds(3)};
+
+// The overall observation timeout when waiting on a renderer tool to complete.
+const base::FeatureParam<base::TimeDelta> kGlicActorPageStabilityTimeout{
+    &kGlicActor, "glic-actor-page-stability-timeout", base::Seconds(10)};
 
 #if BUILDFLAG(ENABLE_GLIC)
 // Controls whether the Glic feature is enabled.
@@ -502,6 +508,10 @@ const base::FeatureParam<int> kGlicClientUnresponsiveUiMaxTimeMs{
     &kGlicClientResponsivenessCheck, "glic-client-unresponsive-ui-max-time-ms",
     5000};
 
+BASE_FEATURE(kGlicUseShaderCache,
+             "GlicUseShaderCache",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kGlicKeyboardShortcutNewBadge,
              "GlicKeyboardShortcutNewBadge",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -563,13 +573,6 @@ BASE_FEATURE(kGlicClosedCaptioning,
              "GlicClosedCaptioning",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicPageContextEligibility,
-             "GlicPageContextEligibility",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-const base::FeatureParam<bool> kGlicPageContextEligibilityAllowNoMetadata{
-    &kGlicPageContextEligibility,
-    "glic-page-context-eligibility-allow-no-metadata", true};
-
 BASE_FEATURE(kGlicUnloadOnClose,
              "GlicUnloadOnClose",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -614,6 +617,8 @@ const base::FeatureParam<int> kGlicPanelResetOnSessionTimeoutDelayH{
 BASE_FEATURE(kGlicWebClientUnresponsiveMetrics,
              "GlicWebClientUnresponsiveMetrics",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicTabGlow, "GlicTabGlow", base::FEATURE_DISABLED_BY_DEFAULT);
 
 #endif  // BUILDFLAG(ENABLE_GLIC)
 

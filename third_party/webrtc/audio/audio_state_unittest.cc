@@ -132,13 +132,9 @@ struct ConfigHelper {
 
 class FakeAudioSource : public AudioMixer::Source {
  public:
-  // TODO(aleloi): Valid overrides commented out, because the gmock
-  // methods don't use any override declarations, and we want to avoid
-  // warnings from -Winconsistent-missing-override. See
-  // http://crbug.com/428099.
-  int Ssrc() const /*override*/ { return 0; }
+  int Ssrc() const override { return 0; }
 
-  int PreferredSampleRate() const /*override*/ { return kSampleRate; }
+  int PreferredSampleRate() const override { return kSampleRate; }
 
   MOCK_METHOD(AudioFrameInfo,
               GetAudioFrameWithInfo,

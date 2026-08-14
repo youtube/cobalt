@@ -13,18 +13,15 @@
 #include "modules/audio_coding/neteq/delay_manager.h"
 
 #include "api/neteq/tick_timer.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 namespace {
 
-using test::ExplicitKeyValueConfig;
-
 TEST(DelayManagerTest, UpdateNormal) {
   TickTimer tick_timer;
-  DelayManager dm(DelayManager::Config(ExplicitKeyValueConfig("")),
-                  &tick_timer);
+  DelayManager dm(DelayManager::Config(CreateTestFieldTrials()), &tick_timer);
   for (int i = 0; i < 50; ++i) {
     dm.Update(0, false);
     tick_timer.Increment(2);

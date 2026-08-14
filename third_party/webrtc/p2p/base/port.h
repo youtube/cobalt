@@ -386,7 +386,7 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
   void OnReadPacket(const ReceivedIpPacket& packet, ProtocolType proto);
 
   [[deprecated(
-      "Use OnReadPacket(const webrtc::ReceivedIpPacket& packet, ProtocolType "
+      "Use OnReadPacket(const ReceivedIpPacket& packet, ProtocolType "
       "proto)")]] void
   OnReadPacket(const char* data,
                size_t size,

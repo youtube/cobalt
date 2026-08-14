@@ -823,8 +823,11 @@
   <message name="IDS_SETTINGS_CLEAR_BROWSING_DATA_MORE" translateable="false">
     More
   </message>
-  <message name="IDS_SETTINGS_CLEAR_PERIOD_15_MINUTES" desc="The option to delete browsing data from the last 15 minutes." translateable="false">
+  <message name="IDS_SETTINGS_CLEAR_PERIOD_15_MIN" desc="The option in the 'Delete browsing data' settings page time picker to delete browsing data from the last 15 minutes. The 'minutes' is shortened to 'min' to allow the time options in the time picker to fit in the screen." translateable="false">
     Last 15 min
+  </message>
+  <message name="IDS_SETTINGS_CLEAR_PERIOD_15_MINUTES" desc="The option to delete browsing data from the last 15 minutes." translateable="false">
+    Last 15 minutes
   </message>
   <message name="IDS_SETTINGS_MANAGE_IN_GOOGLE_PASSWORD_MANAGER" desc="Description for the 'Passwords and Passkeys' option in 'Other Google Data' page." translateable="false">
     Manage in Google Password Manager
@@ -846,6 +849,12 @@
   </message>
   <message name="IDS_SETTINGS_DELETE_DATA_FROM_DEVICE" translateable="false">
     Delete from this device
+  </message>
+  <message name="IDS_SETTINGS_DELETION_CONFIRMATION_TOAST_LABEL" translateable="false">
+    <ph name="TIME_PERIOD">$1<ex>Last 15 minutes</ex></ph> deleted
+  </message>
+  <message name="IDS_SETTINGS_DELETION_CONFIRMATION_ALL_TIME_TOAST_LABEL" translateable="false">
+    Deleted
   </message>
 
   <!-- Downloads Page -->
@@ -1517,7 +1526,7 @@
     Web &#38; App Activity
   </message>
   <message name="IDS_SETTINGS_PRIVACY_GUIDE_COMPLETION_CARD_AI_SETTINGS_LABEL" desc="Text of the AI Innovations sublabel in the completion card of the 'Privacy Guide'.">
-    Explore how AI shapes your experience and make informed choices about your privacy
+    Learn more about how AI shapes your experience and the controls provided by Chrome
   </message>
   <message name="IDS_SETTINGS_PRIVACY_GUIDE_MSBB_CARD_HEADER" desc="Header of the 'make searches and browsing better' card in the 'Privacy Guide'.">
     Choose your search and browsing quality
@@ -1958,8 +1967,8 @@
   <message name="IDS_SETTINGS_SECURE_DNS_CUSTOM_CONNECTION_ERROR" desc="Error text for a custom secure DNS provider entry to which a probe connection fails">
     Please verify that this is a valid provider or try again later
   </message>
-  <message name="IDS_SETTINGS_SECURITY_V8_LINK_TITLE" desc="Title for the link row to the V8 security settings.">
-    Manage V8 security
+  <message name="IDS_SETTINGS_SECURITY_JAVASCRIPT_OPTIMIZATION_LINK_TITLE" desc="Title for the link row to the V8 security settings.">
+    Manage JavaScript optimization &amp; security
   </message>
   <message name="IDS_SETTINGS_CONTENT_SETTINGS" desc="Text of the button that takes a user to settings page thats allows users to modify site settings. Also the title of that settings page.">
     Content settings
@@ -1990,6 +1999,9 @@
   </message>
   <message name="IDS_SETTINGS_SYNC_AND_GOOGLE_SERVICES_PRIVACY_DESC_UNIFIED_CONSENT" desc="The description of the 'Sync and Google services' row in the privacy section">
     More settings that relate to privacy, security, and data collection
+  </message>
+  <message name="IDS_SETTINGS_SEARCH_AGGREGATOR_PREF" desc="The label of the checkbox to enable/disable sending omnibox input to the user's organization's search aggregator to get additional suggestions. Note that this setting is controlled by enterprise policy and, while a checkbox is shown, it is always enabled and cannot be disabled.">
+    Show suggestions and results from your organization
   </message>
   <message name="IDS_SETTINGS_RECENT_PERMISSIONS_NO_CHANGES" desc="Text shown to a user when they have not changed any site permissions instead of showing recently changed permissions">
     No recently changed permissions

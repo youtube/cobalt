@@ -214,7 +214,7 @@ void RuleData::ComputeBloomFilterHashes(const StyleScope* style_scope,
   }
   bloom_hash_pos_ = bloom_hash_backing.size();
   SelectorFilter::CollectIdentifierHashes(Selector(), style_scope,
-                                          bloom_hash_backing);
+                                          bloom_hash_backing, subject_filter_);
 
   // The clamp here is purely for safety; a real rule would never have
   // as many as 255 descendant selectors.
@@ -356,7 +356,6 @@ static bool ExtractSelectorValues(const CSSSelector* selector,
                                   AtomicString& part_name,
                                   AtomicString& picker_name,
                                   CSSSelector::PseudoType& pseudo_type) {
-  is_exact_attr = false;
   switch (selector->Match()) {
     case CSSSelector::kId:
       id = selector->Value();
@@ -463,13 +462,12 @@ static bool ExtractSelectorValues(const CSSSelector* selector,
       attr_value = g_empty_atom;
       break;
     case CSSSelector::kAttributeExact:
-      is_exact_attr = true;
-      [[fallthrough]];
     case CSSSelector::kAttributeHyphen:
     case CSSSelector::kAttributeList:
     case CSSSelector::kAttributeContain:
     case CSSSelector::kAttributeBegin:
     case CSSSelector::kAttributeEnd:
+      is_exact_attr = (selector->Match() == CSSSelector::kAttributeExact);
       attr_name = selector->Attribute().LocalName();
       attr_value = selector->Value();
       break;
@@ -569,13 +567,41 @@ void RuleSet::FindBestRuleSetAndAdd(CSSSelector& component,
   all_rules_.push_back(rule_data);
 #endif  // DCHECK_IS_ON()
 
-  bool is_exact_attr;
+  bool is_exact_attr = false;
   const CSSSelector* it = ExtractBestSelectorValues(
       component, style_scope, id, class_name, attr_name, attr_value,
       is_exact_attr, custom_pseudo_element_name, tag_name, part_name,
       picker_name, pseudo_type);
 
   // Prefer rule sets in order of most likely to apply infrequently.
+
+  // NOTE: For ::part:focus and similar, we need to go into the ::part bucket
+  // (see below). This isn't a problem for #id::part and similar, since there is
+  // a hidden combinator that stops ExtractBestSelectorValues() before it finds
+  // the #id.
+  if (part_name.empty()) {
+    if (pseudo_type == CSSSelector::kPseudoFocus) {
+      if (bucket_coverage == BucketCoverage::kCompute) {
+        MarkAsCoveredByBucketing(component, [](const CSSSelector& selector) {
+          return selector.Match() == CSSSelector::kPseudoClass &&
+                 selector.GetPseudoType() == CSSSelector::kPseudoFocus;
+        });
+      }
+      AddToRuleSet(focus_pseudo_class_rules_, rule_data);
+      return;
+    }
+    if (pseudo_type == CSSSelector::kPseudoFocusVisible) {
+      if (bucket_coverage == BucketCoverage::kCompute) {
+        MarkAsCoveredByBucketing(component, [](const CSSSelector& selector) {
+          return selector.Match() == CSSSelector::kPseudoClass &&
+                 selector.GetPseudoType() == CSSSelector::kPseudoFocusVisible;
+        });
+      }
+      AddToRuleSet(focus_visible_pseudo_class_rules_, rule_data);
+      return;
+    }
+  }
+
   if (!id.empty()) {
     if (bucket_coverage == BucketCoverage::kCompute) {
       MarkAsCoveredByBucketing(component, [&id](const CSSSelector& selector) {
@@ -599,6 +625,25 @@ void RuleSet::FindBestRuleSetAndAdd(CSSSelector& component,
   }
 
   if (!attr_name.empty()) {
+    // input[type="<foo>"] have their own RuleMap.
+    if (tag_name == html_names::kInputTag.LocalName() &&
+        attr_name == html_names::kTypeAttr.LocalName() && is_exact_attr) {
+      // Same logic as tag_name below. Note that this will not
+      // mark the rules in the UA stylesheet as covered by bucketing
+      // (because they only match elements in the HTML namespace),
+      // even though they are the most common input[type="<foo>"] rules.
+      if (bucket_coverage == BucketCoverage::kCompute) {
+        MarkAsCoveredByBucketing(component, [](const CSSSelector& selector) {
+          return selector.Match() == CSSSelector::kTag &&
+                 selector.TagQName().LocalName() ==
+                     html_names::kInputTag.LocalName() &&
+                 selector.TagQName().NamespaceURI() == g_star_atom;
+        });
+      }
+      AddToRuleSet(attr_value.LowerASCII(), input_rules_, rule_data);
+      return;
+    }
+
     AddToRuleSet(attr_name, attr_rules_, rule_data);
     if (attr_name == html_names::kStyleAttr) {
       has_bucket_for_style_attr_ = true;
@@ -697,25 +742,12 @@ void RuleSet::FindBestRuleSetAndAdd(CSSSelector& component,
       AddToRuleSet(link_pseudo_class_rules_, rule_data);
       return;
     case CSSSelector::kPseudoFocus:
-      if (bucket_coverage == BucketCoverage::kCompute) {
-        MarkAsCoveredByBucketing(component, [](const CSSSelector& selector) {
-          return selector.Match() == CSSSelector::kPseudoClass &&
-                 selector.GetPseudoType() == CSSSelector::kPseudoFocus;
-        });
-      }
-      AddToRuleSet(focus_pseudo_class_rules_, rule_data);
+    case CSSSelector::kPseudoFocusVisible:
+      // Was handled above.
+      NOTREACHED();
       return;
     case CSSSelector::kPseudoSelectorFragmentAnchor:
       AddToRuleSet(selector_fragment_anchor_rules_, rule_data);
-      return;
-    case CSSSelector::kPseudoFocusVisible:
-      if (bucket_coverage == BucketCoverage::kCompute) {
-        MarkAsCoveredByBucketing(component, [](const CSSSelector& selector) {
-          return selector.Match() == CSSSelector::kPseudoClass &&
-                 selector.GetPseudoType() == CSSSelector::kPseudoFocusVisible;
-        });
-      }
-      AddToRuleSet(focus_visible_pseudo_class_rules_, rule_data);
       return;
     case CSSSelector::kPseudoHost:
     case CSSSelector::kPseudoHostContext:
@@ -1163,6 +1195,8 @@ void RuleSet::AddFilteredRulesFromOtherSet(
     // NOTE: attr_substring_matchers_ will be rebuilt in CompactRules().
     tag_rules_.AddFilteredRulesFromOtherSet(other.tag_rules_, only_include,
                                             other, *this);
+    input_rules_.AddFilteredRulesFromOtherSet(other.input_rules_, only_include,
+                                              other, *this);
     ua_shadow_pseudo_element_rules_.AddFilteredRulesFromOtherSet(
         other.ua_shadow_pseudo_element_rules_, only_include, other, *this);
     AddFilteredRulesFromOtherBucket(other, other.link_pseudo_class_rules_,
@@ -1447,7 +1481,7 @@ void RuleSet::CreateSubstringMatchers(
       AtomicString tag_name;
       AtomicString part_name;
       AtomicString picker_name;
-      bool is_exact_attr;
+      bool is_exact_attr = false;
       CSSSelector::PseudoType pseudo_type = CSSSelector::kPseudoUnknown;
       const StyleScope* style_scope = scope_seeker.Seek(rule.GetPosition());
       ExtractBestSelectorValues(rule.Selector(), style_scope, id, class_name,
@@ -1509,6 +1543,7 @@ void RuleSet::CompactRules() {
   CreateSubstringMatchers(attr_rules_, scope_intervals_,
                           attr_substring_matchers_);
   tag_rules_.Compact();
+  input_rules_.Compact();
   ua_shadow_pseudo_element_rules_.Compact();
   link_pseudo_class_rules_.shrink_to_fit();
   cue_pseudo_rules_.shrink_to_fit();
@@ -1579,6 +1614,9 @@ void RuleSet::AssertRuleListsSorted() const {
   for (const auto& item : tag_rules_) {
     DCHECK(IsRuleListSorted(item.value));
   }
+  for (const auto& item : input_rules_) {
+    DCHECK(IsRuleListSorted(item.value));
+  }
   for (const auto& item : ua_shadow_pseudo_element_rules_) {
     DCHECK(IsRuleListSorted(item.value));
   }
@@ -1626,6 +1664,7 @@ void RuleSet::Trace(Visitor* visitor) const {
   visitor->Trace(class_rules_);
   visitor->Trace(attr_rules_);
   visitor->Trace(tag_rules_);
+  visitor->Trace(input_rules_);
   visitor->Trace(ua_shadow_pseudo_element_rules_);
   visitor->Trace(link_pseudo_class_rules_);
   visitor->Trace(cue_pseudo_rules_);

@@ -38,9 +38,9 @@ class AudioMultiVectorTest : public ::testing::TestWithParam<size_t> {
       : num_channels_(GetParam()),  // Get the test parameter.
         array_interleaved_(num_channels_ * array_length()) {}
 
-  ~AudioMultiVectorTest() = default;
+  ~AudioMultiVectorTest() override = default;
 
-  virtual void SetUp() {
+  void SetUp() override {
     // Populate test arrays.
     for (size_t i = 0; i < array_length(); ++i) {
       array_[i] = static_cast<int16_t>(i);

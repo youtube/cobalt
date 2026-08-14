@@ -110,7 +110,7 @@ class DtlsTransportObserverInterface {
 // accessed on that thread, except for functions explicitly marked otherwise.
 // References can be held by other threads, and destruction can therefore
 // be initiated by other threads.
-class DtlsTransportInterface : public webrtc::RefCountInterface {
+class DtlsTransportInterface : public RefCountInterface {
  public:
   // Returns a pointer to the ICE transport that is owned by the DTLS transport.
   virtual scoped_refptr<IceTransportInterface> ice_transport() = 0;

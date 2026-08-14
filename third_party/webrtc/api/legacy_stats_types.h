@@ -244,7 +244,7 @@ class RTC_EXPORT StatsReport {
     kStatsValueNameLocalCandidateRelayProtocol,
   };
 
-  class RTC_EXPORT IdBase : public webrtc::RefCountInterface {
+  class RTC_EXPORT IdBase : public RefCountInterface {
    public:
     ~IdBase() override;
     StatsType type() const;
@@ -356,7 +356,7 @@ class RTC_EXPORT StatsReport {
 #endif
 
    private:
-    webrtc::SequenceChecker thread_checker_{webrtc::SequenceChecker::kDetached};
+    SequenceChecker thread_checker_{SequenceChecker::kDetached};
     mutable int ref_count_ RTC_GUARDED_BY(thread_checker_) = 0;
 
     const Type type_;
@@ -474,7 +474,7 @@ class StatsCollection {
 
  private:
   Container list_;
-  webrtc::SequenceChecker thread_checker_{SequenceChecker::kDetached};
+  SequenceChecker thread_checker_{SequenceChecker::kDetached};
 };
 
 }  // namespace webrtc

@@ -160,7 +160,7 @@ class PeerConnectionRampUpTest : public ::testing::Test {
     virtual_socket_server_.set_bandwidth(kNetworkBandwidth / 8);
   }
 
-  virtual ~PeerConnectionRampUpTest() {
+  ~PeerConnectionRampUpTest() override {
     SendTask(network_thread(), [this] { turn_servers_.clear(); });
   }
 

@@ -353,6 +353,8 @@ enum cpuinfo_uarch {
 	cpuinfo_uarch_palm_cove = 0x0010020B,
 	/** Intel Sunny Cove microarchitecture (10 nm, Ice Lake). */
 	cpuinfo_uarch_sunny_cove = 0x0010020C,
+	/** Intel Willow Cove microarchitecture (10 nm, Tiger Lake). */
+	cpuinfo_uarch_willow_cove = 0x0010020D,
 
 	/** Pentium 4 with Willamette, Northwood, or Foster cores. */
 	cpuinfo_uarch_willamette = 0x00100300,
@@ -384,6 +386,8 @@ enum cpuinfo_uarch {
 	cpuinfo_uarch_knights_hill = 0x00100503,
 	/** Intel Knights Mill Xeon Phi. */
 	cpuinfo_uarch_knights_mill = 0x00100504,
+	/** Intel Darkmont microarchitecture (e-core used in Clearwater Forest). */
+	cpuinfo_uarch_darkmont = 0x00100505,
 
 	/** Intel/Marvell XScale series. */
 	cpuinfo_uarch_xscale = 0x00100600,

@@ -867,6 +867,7 @@
             <ph name="LIST_ITEM" />फॉर्ममध्ये एंटर केलेली माहिती
           <ph name="END_LIST" /></translation>
 <translation id="2448295565072560657">तुम्ही लॉग इन केलेले असताना या डिव्हाइसला अटॅच केलेली उपकरणे</translation>
+<translation id="2450019289047528273">पेमेंट पद्धत आणि Google Wallet मधील इतर माहिती</translation>
 <translation id="2451607499823206582">ट्रॅक करणे</translation>
 <translation id="2452098632681057184">जैवपरिस्थितिशास्त्र आणि पर्यावरण</translation>
 <translation id="2452837234288608067">त्याबाबतीत मदत करू शकत नाही. पुन्हा प्रयत्न करा.</translation>
@@ -936,6 +937,7 @@
 <translation id="2546283357679194313">कुकीज आणि साइट डेटा</translation>
 <translation id="254947805923345898">धोरण मूल्य वैध नाही.</translation>
 <translation id="2549836668759467704">बांधकामासंबंधित सल्ला देणे आणि करार करणे</translation>
+<translation id="2549919488151689436"><ph name="TOPIC_1" />, <ph name="TOPIC_2" /> आणि आणखी</translation>
 <translation id="255002559098805027"><ph name="HOST_NAME" /> नी एक चुकीचे प्रतिसाद पाठविला.</translation>
 <translation id="2551608178605132291">पत्ता: <ph name="ADDRESS" />.</translation>
 <translation id="2552246211866555379">हगाकी</translation>
@@ -1046,6 +1048,7 @@
 <translation id="2743934314332613923">ड्रायव्हरच्या परवान्यासंबंधित माहिती अपडेट करायची आहे का?</translation>
 <translation id="2759299890026163685">पुन्हा प्रयत्न करण्यापूर्वी तुमच्याकडे स्थिर इंटरनेट कनेक्शन असल्याची खात्री करा</translation>
 <translation id="2759825833388495838"><ph name="APP_NAME" /> मध्ये तुमचा पासवर्ड भरा</translation>
+<translation id="2760805590727089264">MM / YY</translation>
 <translation id="2764001903315068341">कॉमिक</translation>
 <translation id="2765217105034171413">लहान</translation>
 <translation id="2768397283109119044">तुम्ही <ph name="DOMAIN" /> पर्यंत पोहोचण्याचा प्रयत्न केला, पण सर्व्हरने त्या नावासाठी जारी केलेले अवैध सर्टिफिकेट सादर केले आहे. नाव हा एक राखीव आयपी अ‍ॅड्रेस किंवा अंतर्गत होस्ट नाव आहे.</translation>
@@ -1386,6 +1389,7 @@
 <translation id="3362968246557010467">हे धोरण कालबाह्य झालेल्या <ph name="OLD_POLICY" /> धोरणावरून आपोआप कॉपी केले गेले. तुम्ही त्याऐवजी हे धोरण वापरले पाहिजे.</translation>
 <translation id="3364869320075768271"><ph name="URL" /> ला तुमचे आभासी वास्तविकता डिव्हाइस आणि डेटा वापरायचा आहे</translation>
 <translation id="3369192424181595722">घड्याळ एरर</translation>
+<translation id="3370855919511944393">Wallet सेटिंग्ज</translation>
 <translation id="3371064404604898522">Chrome ला डीफॉल्ट ब्राउझर म्हणून सेट करा</translation>
 <translation id="3371186787117738282"><ph name="ATTRIBUTE_NAME" /> जोडला आहे</translation>
 <translation id="337363190475750230">तरतूद रद्द केली</translation>
@@ -1560,6 +1564,7 @@
 <translation id="3641116835972736297">अमेरिकन फुटबॉल</translation>
 <translation id="3642196846309122856">तुमच्या फाइल पुन्हा डाउनलोड करण्याचा प्रयत्न करा</translation>
 <translation id="3642638418806704195">ॲप्लिकेशन:</translation>
+<translation id="3644768007456662469">पेमेंट आयटम आयकन</translation>
 <translation id="3646643500201740985">जाहिरात किती चांगल्या पद्धतीने परफॉर्म करते हे मोजणे</translation>
 <translation id="3647286794400715637">प्रत्येक URLs स्ट्रिंग एंट्रीमध्ये एक ते दोन URLs असणे आवश्यक आहे.</translation>
 <translation id="3647400963805615193">Chrome टीप डिसमिस करण्यासाठी बटण, डिसमिस करण्यासाठी एंटर प्रेस करा, <ph name="REMOVE_BUTTON_FOCUSED_FRIENDLY_MATCH_TEXT" /></translation>
@@ -2096,11 +2101,13 @@
 <translation id="4530347922939905757">एसएमएस</translation>
 <translation id="4531477351494678589">व्हर्च्युअल कार्ड नंबर:</translation>
 <translation id="4535523368173457420">ही शोध इंजीन तुमच्या प्रदेशात लोकप्रिय आहेत आणि रँडम क्रमाने दाखवली आहेत</translation>
+<translation id="4539931187424170595">{NUM_YEARS,plural, =1{१ वर्षापूर्वी तयार केला आहे}other{{NUM_YEARS} वर्षांपूर्वी तयार केला आहे}}</translation>
 <translation id="4541810033354695636">ऑगमेंटेड रीअ‍ॅलिटी</translation>
 <translation id="4542971377163063093">ट्रे ६</translation>
 <translation id="4543072026714825470">पुढील वेळेस आणखी जलद पेमेंट करण्यासाठी, तुमच्या Google खाते मध्ये तुमचे कार्ड आणि बिलिंग पत्ता स्टोअर करा</translation>
 <translation id="454441086898495030"><ph name="SET" /> मध्ये जोडायचे आहे का?</translation>
 <translation id="4546730006268514143">ट्रान्सफर करणे टाइम आउट झाले</translation>
+<translation id="4548974025982531828">{NUM_DAYS,plural, =1{१ दिवसापूर्वी तयार केला आहे}other{{NUM_DAYS} दिवसांपूर्वी तयार केला आहे}}</translation>
 <translation id="455113658016510503">A9</translation>
 <translation id="4556069465387849460">पासवर्ड भरण्यासाठी तुम्ही तुमचे स्क्रीन लॉक वापरत आहात</translation>
 <translation id="4557573143631562971">गृह विमा</translation>
@@ -2894,6 +2901,7 @@
 <translation id="5938153366081463283">व्हर्च्युअल कार्ड जोडा</translation>
 <translation id="5938793338444039872">ट्रॉय</translation>
 <translation id="5938866385061293322">ही माहिती Trustpilot, ScamAdviser, Google आणि यांसारख्या आणखी बऱ्याच स्वतंत्र परीक्षण वेबसाइटवरून येते. सारांश हे AI वापरून तयार केले जातात.</translation>
+<translation id="5943775258256265106">{NUM_MINS,plural, =1{१ मिनिटापूर्वी तयार केला आहे}other{{NUM_MINS} मिनिटांपूर्वी तयार केला आहे}}</translation>
 <translation id="5944297261866530437">पेपर (हाय-ग्लॉस)</translation>
 <translation id="5950901984834744590">रेझर आणि शेव्हर</translation>
 <translation id="5951495562196540101">उपभोक्ता खात्याने नोंदणी करू शकत नाही (पॅकेज केलेला परवाना उपलब्ध).</translation>
@@ -3042,6 +3050,7 @@
 <translation id="6177531123306197852">एन्व्हलप सी२</translation>
 <translation id="6180316780098470077">दोन प्रयत्नांमधील मध्यांतर</translation>
 <translation id="6182972682129119950">A4x5</translation>
+<translation id="6184099524311454384">टॅब शोधा</translation>
 <translation id="6184868291074982484">Chrome हे तृतीय पक्ष कुकीना आपोआप मर्यादित करते</translation>
 <translation id="6190518157737269631">तुमच्या कीबोर्डवरील Esc सारख्या काही की ओव्हरराइड करा</translation>
 <translation id="6194209731893739467">तुमची सर्व माग ठेवलेली उत्पादने येथे पहा</translation>
@@ -3600,6 +3609,7 @@
 <translation id="7130775116821607281">अपलोड करणे ब्लॉक केले आहे</translation>
 <translation id="7132939140423847331">तुमच्या ॲडमिनने हा डेटा कॉपी करण्यापासून प्रतिबंधित केले आहे.</translation>
 <translation id="7135130955892390533">स्थिती दाखवा</translation>
+<translation id="7135814714616751706">शॉर्टकट शोधा</translation>
 <translation id="7136009930065337683">गुप्त मोडबद्दल अधिक जाणून घ्या</translation>
 <translation id="7138472120740807366">वितरण पद्धत</translation>
 <translation id="7138678301420049075">इतर</translation>
@@ -4056,6 +4066,7 @@
 <translation id="7894280532028510793">शब्दलेखन योग्य असल्यास, <ph name="BEGIN_LINK" />नेटवर्क निदान रन करून पहा<ph name="END_LINK" />.</translation>
 <translation id="7901831439558593470">एन्व्हलप ७ x ९ इंच</translation>
 <translation id="7905064834449738336">तुम्ही पासवर्ड वापरता, तेव्हा तो ऑनलाइन प्रकाशित झाला असल्यास Chromium तुम्हाला चेतावणी देते. हे करत असताना, तुमचे पासवर्ड आणि वापरकर्ता नावे या गोष्टी एंक्रिप्ट केल्या जातात, जेणेकरून Google च्या समावेशासह इतर कोणीही त्या वाचू शकणार नाही.</translation>
+<translation id="7906177144646315659">{NUM_HOURS,plural, =1{१ तासापूर्वी तयार केला आहे}other{{NUM_HOURS} तासांपूर्वी तयार केला आहे}}</translation>
 <translation id="7908648876066812348">व्हर्च्युअल कार्ड सुरू करत आहे</translation>
 <translation id="7909498058929404306"><ph name="RUN_CHROME_SAFETY_CHECK_FOCUSED_FRIENDLY_MATCH_TEXT" />, सेटिंग्जमध्ये Chrome सुरक्षितता तपासणी पेजवर जाण्यासाठी टॅब आणि त्यानंतर एंटर प्रेस करा</translation>
 <translation id="791107458486222637">परिणाम पुन्हा जनरेट करत आहे</translation>
@@ -4172,6 +4183,7 @@
 <translation id="8092254339843485299">६ x ८ इं</translation>
 <translation id="8092774999298748321">गडद जांभळा</translation>
 <translation id="8094917007353911263">तुम्ही वापरत असलेल्या नेटवर्कला तुम्ही <ph name="BEGIN_BOLD" /><ph name="LOGIN_URL" /><ph name="END_BOLD" /> ला भेट देण्याची आवश्यकता आहे.</translation>
+<translation id="809543534949702122">शोध इतिहास</translation>
 <translation id="8098855213644561659">A3 अतिरिक्त</translation>
 <translation id="809898108652741896">A6</translation>
 <translation id="8103161714697287722">पेमेंट पद्धत</translation>
@@ -4190,6 +4202,7 @@
 <translation id="8134058435519644366">भरती आणि कर्मचारी नेमणूक</translation>
 <translation id="8135546115396015134">लेफ्ट की</translation>
 <translation id="8137456439814903304">ऊर्जा आणि सुविधा पुरवठादार</translation>
+<translation id="814432316791813431">{NUM_MONTHS,plural, =1{१ महिन्यापूर्वी तयार केला आहे}other{{NUM_MONTHS} महिन्यांपूर्वी तयार केला आहे}}</translation>
 <translation id="8148608574971654810">पीडीएफ आवृत्ती:</translation>
 <translation id="8149426793427495338">तुमचा कॉंप्युटर निष्क्रीय झाला.</translation>
 <translation id="8150722005171944719"><ph name="URL" /> येथील फाइल वाचनीय नाही. ती काढून टाकलेली, हलविलेली असू शकते किंवा फाइल परवानग्या ॲक्सेस प्रतिबंधित करत असू शकतात.</translation>
@@ -4810,6 +4823,7 @@
 <translation id="9219103736887031265">इमेज</translation>
 <translation id="922152298093051471">Chrome कस्टमाइझ करा</translation>
 <translation id="9222403027701923763">प्राथमिक आणि माध्‍यमिक शिक्षण (K-12)</translation>
+<translation id="9222463428840654067">कार्डचा नंबर चुकीचा आहे</translation>
 <translation id="922849469395748170">लॉयल्‍टी कार्ड</translation>
 <translation id="93020190163435405">इंटर्नशिप</translation>
 <translation id="931598121743515856"><ph name="CHECKOUT_AMOUNT_MINIMUM" /> हून अधिक किमतीची खरेदी करणे आवश्यक आहे</translation>

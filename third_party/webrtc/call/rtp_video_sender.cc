@@ -625,7 +625,7 @@ EncodedImageCallback::Result RtpVideoSender::OnEncodedImage(
           encoded_image,
           params_[simulcast_index].GetRtpVideoHeader(
               encoded_image, codec_specific_info, frame_id),
-          expected_retransmission_time);
+          expected_retransmission_time, csrcs_);
   if (frame_count_observer_) {
     FrameCounts& counts = frame_counts_[simulcast_index];
     if (encoded_image._frameType == VideoFrameType::kVideoFrameKey) {
@@ -1029,6 +1029,12 @@ void RtpVideoSender::SetEncodingData(size_t width,
                                      size_t num_temporal_layers) {
   fec_controller_->SetEncodingData(width, height, num_temporal_layers,
                                    rtp_config_.max_packet_size);
+}
+
+void RtpVideoSender::SetCsrcs(ArrayView<const uint32_t> csrcs) {
+  MutexLock lock(&mutex_);
+  csrcs_.assign(csrcs.begin(),
+                csrcs.begin() + std::min<size_t>(csrcs.size(), kRtpCsrcSize));
 }
 
 DataRate RtpVideoSender::CalculateOverheadRate(DataRate data_rate,

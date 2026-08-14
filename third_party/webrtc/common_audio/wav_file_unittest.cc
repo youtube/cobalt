@@ -8,15 +8,19 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-// MSVC++ requires this to be set before any other includes to get M_PI.
-#define _USE_MATH_DEFINES
-
 #include "common_audio/wav_file.h"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <limits>
+#include <numbers>
+#include <string>
 
 #include "common_audio/wav_header.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
@@ -135,12 +139,13 @@ TEST(WavWriterTest, LargeFile) {
           const double t =
               static_cast<double>(i) / (kNumChannels * kSampleRate);
           const double x = std::numeric_limits<int16_t>::max() *
-                           std::sin(t * kToneHz * 2 * M_PI);
-          samples[i] = std::pow(std::sin(t * 2 * 2 * M_PI), 10) * x;
-          samples[i + 1] = std::pow(std::cos(t * 2 * 2 * M_PI), 10) * x;
+                           std::sin(t * kToneHz * 2 * std::numbers::pi);
+          samples[i] = std::pow(std::sin(t * 2 * 2 * std::numbers::pi), 10) * x;
+          samples[i + 1] =
+              std::pow(std::cos(t * 2 * 2 * std::numbers::pi), 10) * x;
           // See https://issues.webrtc.org/issues/379973428
-          RTC_CHECK(isfinite(samples[i]));
-          RTC_CHECK(isfinite(samples[i + 1]));
+          RTC_CHECK(std::isfinite(samples[i]));
+          RTC_CHECK(std::isfinite(samples[i + 1]));
         }
         {
           WavWriter w(outfile, kSampleRate, kNumChannels, wav_format);
@@ -177,7 +182,7 @@ TEST(WavWriterTest, LargeFile) {
             EXPECT_EQ(kNumSamples, r.ReadSamples(kNumSamples, read_samples));
             for (size_t i = 0; i < kNumSamples; ++i) {
               EXPECT_NEAR(samples[i], read_samples[i], 1);
-              if (!isfinite(samples[i])) {
+              if (!std::isfinite(samples[i])) {
                 // See https://issues.webrtc.org/issues/379973428
                 RTC_LOG(LS_ERROR)
                     << "samples[" << i << "] is not finite. "
@@ -192,7 +197,7 @@ TEST(WavWriterTest, LargeFile) {
             EXPECT_EQ(kNumSamples, r.ReadSamples(kNumSamples, read_samples));
             for (size_t i = 0; i < kNumSamples; ++i) {
               EXPECT_NEAR(samples[i], static_cast<float>(read_samples[i]), 1);
-              if (!isfinite(samples[i])) {
+              if (!std::isfinite(samples[i])) {
                 // See https://issues.webrtc.org/issues/379973428
                 RTC_LOG(LS_ERROR)
                     << "samples[" << i << "] is not finite. "

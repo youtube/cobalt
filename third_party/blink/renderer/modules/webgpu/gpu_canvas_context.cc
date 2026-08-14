@@ -191,11 +191,11 @@ scoped_refptr<StaticBitmapImage> GPUCanvasContext::GetImage(FlushReason) {
 CanvasResourceProvider* GPUCanvasContext::PaintRenderingResultsToCanvas(
     SourceDrawingBuffer source_buffer) {
   if (!swap_buffers_) {
-    return Host()->ResourceProvider();
+    return Host()->GetResourceProviderForWebGPU();
   }
 
-  if (Host()->ResourceProvider() &&
-      Host()->ResourceProvider()->Size() != swap_buffers_->Size()) {
+  if (Host()->GetResourceProviderForWebGPU() &&
+      Host()->GetResourceProviderForWebGPU()->Size() != swap_buffers_->Size()) {
     Host()->DiscardResourceProvider();
   }
 
@@ -242,6 +242,16 @@ CanvasResourceProvider* GPUCanvasContext::PaintRenderingResultsToCanvas(
 
   CopyTextureToResourceProvider(texture, resource_provider);
   return resource_provider;
+}
+
+scoped_refptr<StaticBitmapImage>
+GPUCanvasContext::PaintRenderingResultsToSnapshot(
+    SourceDrawingBuffer source_buffer,
+    FlushReason reason) {
+  CanvasResourceProvider* provider =
+      PaintRenderingResultsToCanvas(source_buffer);
+
+  return provider ? provider->Snapshot(reason) : nullptr;
 }
 
 bool GPUCanvasContext::CopyRenderingResultsToVideoFrame(

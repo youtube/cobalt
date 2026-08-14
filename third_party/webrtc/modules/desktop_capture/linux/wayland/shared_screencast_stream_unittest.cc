@@ -43,7 +43,7 @@ class PipeWireStreamTest : public ::testing::Test,
                            public SharedScreenCastStream::Observer {
  public:
   PipeWireStreamTest() = default;
-  ~PipeWireStreamTest() = default;
+  ~PipeWireStreamTest() override = default;
 
   // FakeScreenCastPortal::Observer
   MOCK_METHOD(void, OnBufferAdded, (), (override));
@@ -79,15 +79,15 @@ class PipeWireStreamTest : public ::testing::Test,
   bool streaming_ = false;
   std::unique_ptr<TestScreenCastStreamProvider>
       test_screencast_stream_provider_;
-  webrtc::scoped_refptr<SharedScreenCastStream> shared_screencast_stream_;
+  scoped_refptr<SharedScreenCastStream> shared_screencast_stream_;
 };
 
 TEST_F(PipeWireStreamTest, TestPipeWire) {
   // Set expectations for PipeWire to successfully connect both streams
-  webrtc::Event waitConnectEvent;
-  webrtc::Event waitStartStreamingEvent;
-  webrtc::Event waitStreamParamChangedEvent1;
-  webrtc::Event waitStreamParamChangedEvent2;
+  Event waitConnectEvent;
+  Event waitStartStreamingEvent;
+  Event waitStreamParamChangedEvent1;
+  Event waitStreamParamChangedEvent2;
 
   EXPECT_CALL(*this, OnStreamReady(_))
       .WillOnce(Invoke(this, &PipeWireStreamTest::StartScreenCastStream));
@@ -107,7 +107,7 @@ TEST_F(PipeWireStreamTest, TestPipeWire) {
   // Wait until we start streaming
   waitStartStreamingEvent.Wait(kShortWait);
 
-  webrtc::Event frameRetrievedEvent;
+  Event frameRetrievedEvent;
   EXPECT_CALL(*this, OnFrameRecorded).Times(6);
   EXPECT_CALL(*this, OnDesktopFrameChanged)
       .Times(3)
@@ -149,7 +149,7 @@ TEST_F(PipeWireStreamTest, TestPipeWire) {
   EXPECT_NE(frame->data(), frame2->data());
 
   // This should result into overwriting a frame in use
-  webrtc::Event frameRecordedEvent;
+  Event frameRecordedEvent;
   RgbaColor blue_color(255, 0, 0);
   EXPECT_CALL(*this, OnFailedToProcessBuffer).WillOnce([&frameRecordedEvent] {
     frameRecordedEvent.Set();
@@ -163,7 +163,7 @@ TEST_F(PipeWireStreamTest, TestPipeWire) {
   EXPECT_EQ(RgbaColor(frame->data()), blue_color);
 
   // Check we don't process faulty buffers
-  webrtc::Event corruptedMetadataFrameEvent;
+  Event corruptedMetadataFrameEvent;
   EXPECT_CALL(*this, OnBufferCorruptedMetadata)
       .WillOnce([&corruptedMetadataFrameEvent] {
         corruptedMetadataFrameEvent.Set();
@@ -173,7 +173,7 @@ TEST_F(PipeWireStreamTest, TestPipeWire) {
       blue_color, TestScreenCastStreamProvider::CorruptedMetadata);
   corruptedMetadataFrameEvent.Wait(kShortWait);
 
-  webrtc::Event corruptedDataFrameEvent;
+  Event corruptedDataFrameEvent;
   EXPECT_CALL(*this, OnBufferCorruptedData)
       .WillOnce([&corruptedDataFrameEvent] { corruptedDataFrameEvent.Set(); });
 
@@ -181,7 +181,7 @@ TEST_F(PipeWireStreamTest, TestPipeWire) {
       blue_color, TestScreenCastStreamProvider::CorruptedData);
   corruptedDataFrameEvent.Wait(kShortWait);
 
-  webrtc::Event emptyFrameEvent;
+  Event emptyFrameEvent;
   EXPECT_CALL(*this, OnEmptyBuffer).WillOnce([&emptyFrameEvent] {
     emptyFrameEvent.Set();
   });

@@ -26,7 +26,6 @@ if (rtc_include_tests) {
       "../..:array_view",
       "../../../modules/audio_processing:aec3_config_json",
       "../../../rtc_base:checks",
-      "../../../rtc_base:macromagic",
       "../../../test:test_support",
     ]
   }

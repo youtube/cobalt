@@ -565,7 +565,10 @@
             "third_party/fiat/curve25519_64_msvc.h",
             "third_party/fiat/p256_32.h",
             "third_party/fiat/p256_64.h",
-            "third_party/fiat/p256_64_msvc.h"
+            "third_party/fiat/p256_64_msvc.h",
+            "third_party/fiat/p256_bedrock.c.inc",
+            "third_party/fiat/bedrock_unverified_bareminimum.c.inc",
+            "third_party/fiat/bedrock_unverified_platform.c.inc"
         ],
         "err_data": [
             "crypto/err/*.errordata"
@@ -881,7 +884,9 @@
             "crypto/trust_token/trust_token_test.cc",
             "crypto/x509/x509_test.cc",
             "crypto/x509/x509_time_test.cc",
-            "crypto/xwing/xwing_test.cc"
+            "crypto/xwing/xwing_test.cc",
+            "third_party/fiat/bedrock_platform_test.cc",
+            "third_party/fiat/bedrock_polyfill_platform.c.inc"
         ],
         "data": [
             "crypto/blake2/blake2b256_tests.txt",

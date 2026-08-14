@@ -10,14 +10,15 @@
 #ifndef TEST_LAYER_FILTERING_TRANSPORT_H_
 #define TEST_LAYER_FILTERING_TRANSPORT_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstdint>
 #include <map>
 #include <memory>
 
+#include "api/array_view.h"
 #include "api/call/transport.h"
 #include "api/media_types.h"
+#include "api/rtp_parameters.h"
+#include "api/task_queue/task_queue_base.h"
 #include "call/call.h"
 #include "call/simulated_packet_receiver.h"
 #include "modules/rtp_rtcp/source/video_rtp_depacketizer.h"

@@ -36,7 +36,7 @@ using ::testing::NiceMock;
 
 class RtpDemuxerTest : public ::testing::Test {
  protected:
-  ~RtpDemuxerTest() {
+  ~RtpDemuxerTest() override {
     for (auto* sink : sinks_to_tear_down_) {
       demuxer_.RemoveSink(sink);
     }

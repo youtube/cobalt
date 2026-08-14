@@ -269,7 +269,7 @@ class LatencyAudioStream : public AudioStream {
       PRINTD("(%zu, %zu)", max, index_of_max);
       int64_t now_time = TimeMillis();
       int extra_delay = IndexToMilliseconds(index_of_max, source.size());
-      PRINTD("[%d]", webrtc::checked_cast<int>(now_time - pulse_time_));
+      PRINTD("[%d]", checked_cast<int>(now_time - pulse_time_));
       PRINTD("[%d]", extra_delay);
       // Total latency is the difference between transmit time and detection
       // tome plus the extra delay within the buffer in which we detected the
@@ -339,7 +339,7 @@ class LatencyAudioStream : public AudioStream {
 class MockAudioTransport : public test::MockAudioTransport {
  public:
   explicit MockAudioTransport(TransportType type) : type_(type) {}
-  ~MockAudioTransport() {}
+  ~MockAudioTransport() override {}
 
   // Set default actions of the mock object. We are delegating to fake
   // implementation where the number of callbacks is counted and an event
@@ -572,7 +572,7 @@ class MAYBE_AudioDeviceTest
   // An alternative would be for the mock to outlive audio_device.
   void PreTearDown() { EXPECT_EQ(0, audio_device_->Terminate()); }
 
-  virtual ~MAYBE_AudioDeviceTest() {
+  ~MAYBE_AudioDeviceTest() override {
     if (audio_device_) {
       EXPECT_EQ(0, audio_device_->Terminate());
     }

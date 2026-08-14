@@ -109,6 +109,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="1419753403124156396">Chrome を再起動しますか？</translation>
 <translation id="1428770807407000502">同期を OFF にしますか？</translation>
 <translation id="1430915738399379752">印刷</translation>
+<translation id="1433478348197382180">リーディング モード</translation>
 <translation id="1435593198351412143">PDF を自動的に開く</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" /> で実行中</translation>
 <translation id="1448440926884431741">ブックマークでトラッキングしている商品を整理できます</translation>
@@ -545,7 +546,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="3513019849832307207">参加して開く</translation>
 <translation id="3513704683820682405">拡張現実（AR）</translation>
 <translation id="3516053221628030540">Google Play に移動</translation>
-<translation id="351672147489633468">{NUM_REVOKED_PERMISSIONS,plural, =1{最近アクセスしていない 1 件のサイトから通知権限を削除しました}other{最近アクセスしていない # 件のサイトから通知権限を削除しました}}</translation>
 <translation id="3518985090088779359">同意して続行</translation>
 <translation id="3519014757432845220">通知の内容とサイトの URL を Google と共有して、スパム対策の改善にご協力ください。人間のレビュアーがコンテンツを確認する場合があります。</translation>
 <translation id="3521388823983121502"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> で続行できません</translation>
@@ -714,6 +714,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="4298388696830689168">リンク済みのサイト</translation>
 <translation id="4300632303535881174">前のページに移動</translation>
 <translation id="4303044213806199882">chrome_screenshot_<ph name="CURRENT_TIMESTAMP_MS" /></translation>
+<translation id="4306489587293957491">入力</translation>
 <translation id="4307992518367153382">基本設定</translation>
 <translation id="4311652497846705514">PDF を開きますか？</translation>
 <translation id="4320177379694898372">インターネットに接続されていません</translation>
@@ -1080,7 +1081,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="5956665950594638604">Chrome ヘルプセンターを新しいタブで開く</translation>
 <translation id="59577092665511740">アカウントを選択してください。</translation>
 <translation id="5958275228015807058">[ダウンロード] で自分のファイルやページを探すことができます</translation>
-<translation id="5958994127112619898">簡易版ページ</translation>
 <translation id="5962718611393537961">タップして折りたたむ</translation>
 <translation id="5964869237734432770">画像の説明文の取得を停止する</translation>
 <translation id="5975083100439434680">縮小する</translation>
@@ -1629,7 +1629,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8137562778192957619">このパスワードを覚えておく必要はありません。パスワードは Google パスワード マネージャーに保存されます。</translation>
 <translation id="8152331954420209374">レンズに移動</translation>
 <translation id="8163820386638255770">Google アカウントでパスワードを使用、保存するには、本人確認を行ってください</translation>
-<translation id="8179976553408161302">Enter</translation>
 <translation id="8186512483418048923">残り <ph name="FILES" /> ファイル</translation>
 <translation id="8190358571722158785">残り 1 日</translation>
 <translation id="8192765420340770300">ログインのボトムシートが画面全体に表示されています</translation>
@@ -1651,7 +1650,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8244387390464017490">新しいタブページをカスタマイズ</translation>
 <translation id="8250920743982581267">ドキュメント</translation>
 <translation id="8255617931166444521">サイトは、そのサイトにおけるあなたの閲覧アクティビティの確認のみに Cookie を使用できます</translation>
-<translation id="8256087213273124136">Chrome で通知の配信を停止しました</translation>
 <translation id="8258999165172757081">追加済み</translation>
 <translation id="8259179246279078674">プリロードされたページは暗号化されているため、Google はプリロードされたページのコンテンツを一切把握できません。Google サーバーは、どのサイトが非公開でプリロードされたかを把握します。この情報はページをプリロードするためにのみ使用され、Google アカウントから他の情報にリンクされることはありません。</translation>
 <translation id="8260126382462817229">もう一度ログインしてみてください</translation>

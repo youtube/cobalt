@@ -10,16 +10,21 @@
 
 #include "test/testsupport/perf_test_histogram_writer.h"
 
-#include <stdlib.h>
-
+#include <cstdlib>
 #include <map>
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "absl/strings/string_view.h"
-#include "api/numerics/samples_stats_counter.h"
+#include "api/array_view.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
+#include "test/testsupport/perf_test.h"
+#include "test/testsupport/perf_test_result_writer.h"
 #include "third_party/catapult/tracing/tracing/value/diagnostics/reserved_infos.h"
 #include "third_party/catapult/tracing/tracing/value/histogram.h"
 

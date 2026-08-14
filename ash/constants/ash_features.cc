@@ -141,6 +141,11 @@ BASE_FEATURE(kAutozoomNudgeSessionReset,
              "AutozoomNudgeSessionReset",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables a settings option to set an explicit charge limit for Chromebooks.
+BASE_FEATURE(kBatteryChargeLimit,
+             "CrosBatteryChargeLimit",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Make Battery Saver available.
 BASE_FEATURE(kBatterySaver,
              "CrosBatterySaver",
@@ -309,7 +314,7 @@ BASE_FEATURE(kBocaCaptionToggle,
 // client for Spotlight within the Boca SWA.
 BASE_FEATURE(kBocaSpotlightRobotRequester,
              "BocaSpotlightRobotRequester",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables or disables enforcing sequential execution for Boca insert activity.
 BASE_FEATURE(kBocaSequentialInsertActivity,
@@ -824,6 +829,11 @@ BASE_FEATURE(kEnableTouchscreensInDiagnosticsApp,
              "EnableTouchscreensInDiagnosticsApp",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, touchscreen calibration will be shown in settings.
+BASE_FEATURE(kEnableTouchscreenCalibration,
+             "EnableTouchscreenCalibration",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Enables rollback routine which will delete client keys and certificates
 // from the software backed Chaps storage. Copies of keys and certificates will
 // will continue to exist in NSS DB.
@@ -1107,6 +1117,12 @@ BASE_FEATURE(kFirstPartyVietnameseInput,
 
 // Controls if the Fjord variant of OOBE is shown.
 BASE_FEATURE(kFjordOobe, "FjordOobe", base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Force flag for the Fjord variant of OOBE. This is to make testing easier
+// because the Fjord OOBE variant is buildflag dependent.
+BASE_FEATURE(kFjordOobeForceEnabled,
+             "FjordOobeForceEnabled",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables or disables the Flex Auto-Enrollment feature on ChromeOS
 BASE_FEATURE(kFlexAutoEnrollment,
@@ -2030,12 +2046,6 @@ BASE_FEATURE(kNearbyPresence,
 // Enables a limit on the number of notifications that can show.
 BASE_FEATURE(kNotificationLimit,
              "NotificationLimit",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables Notifier Collision to allow popup notifications and tray bubbles not
-// overlap when showing on a display.
-BASE_FEATURE(kNotifierCollision,
-             "NotifierCollision",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables a bugfix for devices with a null custom top row property.
@@ -2360,12 +2370,6 @@ BASE_FEATURE(kOsSyncConsentRevamp,
              "OsSyncConsentRevamp",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// If enabled, the os feedback dialog will be used on OOBE and the login
-// screeen.
-BASE_FEATURE(kOsFeedbackDialog,
-             "OsFeedbackDialog",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables Jelly colors and components to appear in the Parent Access Widget
 // if jelly-colors is also enabled.
 BASE_FEATURE(kParentAccessJelly,
@@ -2580,7 +2584,7 @@ BASE_FEATURE(kResetShortcutCustomizations,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables ChromeOS scalable IPH.
-BASE_FEATURE(kScalableIph, "ScalableIph", base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kScalableIph, "ScalableIph", base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables debug feature of ChromeOS Scalable Iph.
 BASE_FEATURE(kScalableIphDebug,
@@ -2935,6 +2939,11 @@ BASE_FEATURE(kUseAndroidStagingSmds,
              "UseAndroidStagingSmds",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// This feature toggles which dhcpcd version is used for IPv4 provisioning.
+// If it is enabled, dhcpcd10 will be used, otherwise the legacy dhcpcd7 will be
+// used. Note that IPv6 (DHCPv6-PD) always uses dhcpcd10.
+BASE_FEATURE(kUseDHCPCD10, "UseDHCPCD10", base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, the new `TokenHandleStoreImpl` will be used instead of
 // `TokenHandleUtil`.
 BASE_FEATURE(kUseTokenHandleStore,
@@ -2959,13 +2968,6 @@ BASE_FEATURE(kUseAuthPanelInSession,
 BASE_FEATURE(kAuthPanelUsingAuthHub,
              "AuthPanelUsingAuthHub",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// This feature toggles which dhcpcd version is used for IPv4 provisioning.
-// If it is enabled, the legacy dhcpcd7 is used, otherwise the latest dhcpcd is
-// used. Note that IPv6 (DHCPv6-PD) always uses the latest dhcpcd.
-BASE_FEATURE(kUseLegacyDHCPCD,
-             "UseLegacyDHCPCD",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // This features controls whether or not passwordless setup is enabled, such as
 // having a pin-only config.
@@ -3209,6 +3211,18 @@ BASE_FEATURE(kWifiSyncAndroid,
              "WifiSyncAndroid",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Controls whether to enable syncing of proxy configurations on
+// Wi-Fi networks that are uploaded to Chrome Sync.
+BASE_FEATURE(kWifiSyncUploadProxyConfigs,
+             "WifiSyncUploadProxyConfigs",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Controls whether to enable syncing of proxy configurations on
+// Wi-Fi networks that are received from Chrome Sync.
+BASE_FEATURE(kWifiSyncApplyProxyConfigs,
+             "WifiSyncApplyProxyConfigs",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Controls whether to apply incoming Wi-Fi configuration delete events from
 // the Chrome Sync server.
 BASE_FEATURE(kWifiSyncApplyDeletes,
@@ -3337,14 +3351,6 @@ bool ArePromiseIconsForWebAppsEnabled() {
          ArePromiseIconsEnabled();
 }
 
-bool AreSideAlignedToastsEnabled() {
-  // Side aligned toasts are launching together with Notifier Collision.
-  // TODO(b/342455518): Remove `kSideAlignedToasts` and its usage and just use
-  // kNotifierCollision to avoid confusions.
-  return IsNotifierCollisionEnabled() ||
-         base::FeatureList::IsEnabled(kSideAlignedToasts);
-}
-
 bool ForceOnDeviceAppControlsForAllRegions() {
   return base::FeatureList::IsEnabled(kForceOnDeviceAppControlsForAllRegions);
 }
@@ -3426,6 +3432,10 @@ bool IsBackgroundBlurEnabled() {
 
 bool IsBabelOrcaAvailable() {
   return base::FeatureList::IsEnabled(kBabelOrca);
+}
+
+bool IsBatteryChargeLimitAvailable() {
+  return base::FeatureList::IsEnabled(kBatteryChargeLimit);
 }
 
 bool IsBatterySaverAvailable() {
@@ -3787,6 +3797,10 @@ bool IsFirmwareUpdateUIV2Enabled() {
 
 bool IsFjordOobeEnabled() {
   return base::FeatureList::IsEnabled(kFjordOobe);
+}
+
+bool IsFjordOobeForceEnabled() {
+  return base::FeatureList::IsEnabled(kFjordOobeForceEnabled);
 }
 
 bool IsFlexAutoEnrollmentEnabled() {
@@ -4204,10 +4218,6 @@ bool IsNotificationLimitEnabled() {
   return base::FeatureList::IsEnabled(kNotificationLimit);
 }
 
-bool IsNotifierCollisionEnabled() {
-  return base::FeatureList::IsEnabled(kNotifierCollision);
-}
-
 bool IsOAuthIppEnabled() {
   return base::FeatureList::IsEnabled(kEnableOAuthIpp);
 }
@@ -4336,10 +4346,6 @@ bool IsOobeInputMethodsEnabled() {
 
 bool IsOobeSplitModifierKeyboardInfoEnabled() {
   return base::FeatureList::IsEnabled(kOobeSplitModifierKeyboardInfo);
-}
-
-bool IsOsFeedbackDialogEnabled() {
-  return base::FeatureList::IsEnabled(kOsFeedbackDialog);
 }
 
 bool IsOsSyncConsentRevampEnabled() {
@@ -4637,6 +4643,10 @@ bool IsTouchpadInDiagnosticsAppEnabled() {
 
 bool IsTouchscreenInDiagnosticsAppEnabled() {
   return base::FeatureList::IsEnabled(kEnableTouchscreensInDiagnosticsApp);
+}
+
+bool IsTouchscreenCalibrationEnabled() {
+  return base::FeatureList::IsEnabled(kEnableTouchscreenCalibration);
 }
 
 bool IsTrafficCountersEnabled() {

@@ -31,7 +31,7 @@ namespace {
 
 template <typename T>
 void Store(absl_nonnull std::unique_ptr<T> value,
-           scoped_refptr<const webrtc::RefCountedBase>& leaf) {
+           scoped_refptr<const RefCountedBase>& leaf) {
   class StorageNode : public RefCountedBase {
    public:
     StorageNode(scoped_refptr<const RefCountedBase> parent,

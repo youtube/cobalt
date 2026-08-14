@@ -64,7 +64,7 @@ struct DtmfEvent;
 struct ExpandFactory;
 struct PreemptiveExpandFactory;
 
-class NetEqImpl : public webrtc::NetEq {
+class NetEqImpl : public NetEq {
  public:
   enum class OutputType {
     kNormalSpeech,

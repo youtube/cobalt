@@ -84,6 +84,7 @@ BASE_DECLARE_FEATURE(kCCTEarlyNav);
 BASE_DECLARE_FEATURE(kCCTEphemeralMediaViewerExperiment);
 BASE_DECLARE_FEATURE(kCCTEphemeralMode);
 BASE_DECLARE_FEATURE(kCCTExtendTrustedCdnPublisher);
+BASE_DECLARE_FEATURE(kCCTFixWarmup);
 BASE_DECLARE_FEATURE(kCCTFreInSameTask);
 BASE_DECLARE_FEATURE(kCCTIncognitoAvailableToThirdParty);
 BASE_DECLARE_FEATURE(kCCTIntentFeatureOverrides);
@@ -224,6 +225,7 @@ BASE_DECLARE_FEATURE(kTabGroupEntryPointsAndroid);
 BASE_DECLARE_FEATURE(kTabGroupParityBottomSheetAndroid);
 BASE_DECLARE_FEATURE(kTabletTabStripAnimation);
 BASE_DECLARE_FEATURE(kToolbarPhoneCleanup);
+BASE_DECLARE_FEATURE(kTabFreezeOnUndoableClosureKillSwitch);
 BASE_DECLARE_FEATURE(kTabStateFlatBuffer);
 BASE_DECLARE_FEATURE(kTabStripContextMenuAndroid);
 BASE_DECLARE_FEATURE(kTabStripDensityChangeAndroid);
@@ -243,6 +245,7 @@ BASE_DECLARE_FEATURE(kHideTabletToolbarDownloadButton);
 BASE_DECLARE_FEATURE(kTestDefaultDisabled);
 BASE_DECLARE_FEATURE(kTestDefaultEnabled);
 BASE_DECLARE_FEATURE(kTopControlsRefactor);
+BASE_DECLARE_FEATURE(kTouchToSearchCallout);
 BASE_DECLARE_FEATURE(kTraceBinderIpc);
 BASE_DECLARE_FEATURE(kStartSurfaceReturnTime);
 BASE_DECLARE_FEATURE(kUmaBackgroundSessions);
@@ -297,6 +300,11 @@ constexpr base::FeatureParam<std::string> kQuickDeleteAndroidSurveyTriggerId(
     &kQuickDeleteAndroidSurvey,
     "trigger_id",
     /*default_value=*/"");
+
+constexpr base::FeatureParam<bool> kTouchToSearchCalloutTextVariant(
+    &kTouchToSearchCallout,
+    "text_variant",
+    /*default_value=*/false);
 
 }  // namespace android
 }  // namespace chrome

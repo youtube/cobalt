@@ -906,7 +906,7 @@ AutoThread::AutoThread()
     : Thread(CreateDefaultSocketServer(), /*do_init=*/false) {
   if (!ThreadManager::Instance()->CurrentThread()) {
     // DoInit registers with ThreadManager. Do that only if we intend to
-    // be webrtc::Thread::Current(), otherwise ProcessAllMessageQueuesInternal
+    // be Thread::Current(), otherwise ProcessAllMessageQueuesInternal
     // will post a message to a queue that no running thread is serving.
     DoInit();
     ThreadManager::Instance()->SetCurrentThread(this);

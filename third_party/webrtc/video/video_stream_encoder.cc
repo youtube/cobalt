@@ -1094,7 +1094,7 @@ void VideoStreamEncoder::ReconfigureEncoder() {
   // Stream dimensions may be not equal to given because of a simulcast
   // restrictions.
   auto highest_stream = absl::c_max_element(
-      streams, [](const webrtc::VideoStream& a, const webrtc::VideoStream& b) {
+      streams, [](const VideoStream& a, const VideoStream& b) {
         return std::tie(a.width, a.height) < std::tie(b.width, b.height);
       });
   int highest_stream_width = static_cast<int>(highest_stream->width);
@@ -2084,7 +2084,7 @@ void VideoStreamEncoder::EncodeVideoFrame(const VideoFrame& video_frame,
       << send_codec_.height << " received a too small frame "
       << out_frame.width() << "x" << out_frame.height();
 
-  TRACE_EVENT2("webrtc", "webrtc::VideoEncoder::Encode", "rtp_timestamp",
+  TRACE_EVENT2("webrtc", "VideoEncoder::Encode", "rtp_timestamp",
                out_frame.rtp_timestamp(), "storage_representation",
                out_frame.video_frame_buffer()->storage_representation());
 

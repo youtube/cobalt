@@ -12,24 +12,8 @@
 #include "modules/desktop_capture/linux/wayland/test/test_screencast_stream_provider.h"
 
 #include <fcntl.h>
-#include <pipewire/context.h>
-#include <pipewire/core.h>
 #include <pipewire/pipewire.h>
-#include <pipewire/port.h>
-#include <pipewire/stream.h>
-#include <pipewire/thread-loop.h>
-#include <spa/buffer/buffer.h>
-#include <spa/buffer/meta.h>
-#include <spa/param/buffers.h>
-#include <spa/param/format.h>
-#include <spa/param/param.h>
-#include <spa/param/video/raw-utils.h>
-#include <spa/param/video/raw.h>
-#include <spa/pod/builder.h>
-#include <spa/pod/pod.h>
-#include <spa/pod/vararg.h>
-#include <spa/utils/defs.h>
-#include <spa/utils/type.h>
+#include <spa/param/video/format-utils.h>
 #include <sys/mman.h>
 #include <unistd.h>
 

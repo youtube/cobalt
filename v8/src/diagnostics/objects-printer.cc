@@ -2906,7 +2906,12 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
 void WasmSuspenderObject::WasmSuspenderObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmSuspenderObject");
   os << "\n - stack: " << (stack() == nullptr ? -1 : stack()->id());
-  os << "\n - parent: " << parent();
+  os << "\n - parent: ";
+  if (has_parent()) {
+    os << Brief(parent());
+  } else {
+    os << "<empty>";
+  }
   os << "\n - promise: " << promise();
   os << "\n - resume: " << resume();
   os << "\n - reject: " << reject();
@@ -3041,7 +3046,9 @@ void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {
 
 void WasmResumeData::WasmResumeDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmResumeData");
-  os << "\n - suspender: " << Brief(suspender());
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  os << "\n - suspender: " << Brief(trusted_suspender(isolate));
+  os << "\n - on_resume: " << on_resume();
   os << '\n';
 }
 
@@ -3056,7 +3063,7 @@ void WasmImportData::WasmImportDataPrint(std::ostream& os) {
     os << "<empty>";
   }
   os << "\n - suspend: " << static_cast<int>(suspend());
-  os << "\n - wrapper_budget: " << wrapper_budget();
+  os << "\n - wrapper_budget: " << wrapper_budget()->value();
   if (has_call_origin()) {
     os << "\n - call_origin: " << Brief(call_origin());
   }
@@ -3885,7 +3892,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << "<Cell value= ";
       HeapStringAllocator allocator;
       StringStream accumulator(&allocator);
-      ShortPrint(Cast<Cell>(*this)->value(), &accumulator);
+      ShortPrint(Cast<Cell>(*this)->maybe_value(), &accumulator);
       os << accumulator.ToCString().get();
       os << '>';
       break;
@@ -4050,7 +4057,7 @@ void Map::MapPrint(std::ostream& os) {
   } else {
     os << "\n - back pointer: " << Brief(GetBackPointer());
   }
-  os << "\n - prototype_validity cell: "
+  os << "\n - prototype_validity_cell: "
      << Brief(prototype_validity_cell(kRelaxedLoad));
   os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
      << "#" << NumberOfOwnDescriptors() << ": "

@@ -174,6 +174,7 @@ import org.chromium.components.browser_ui.util.ComposedBrowserControlsVisibility
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
+import org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.messages.DismissReason;
@@ -312,7 +313,11 @@ public class RootUiCoordinator
     protected StatusBarColorController mStatusBarColorController;
     protected final Supplier<SnackbarManager> mSnackbarManagerSupplier;
     protected final ObservableSupplierImpl<EdgeToEdgeController> mEdgeToEdgeControllerSupplier;
-    private final EdgeToEdgeDebuggingInfo mEdgeToEdgeDebuggingInfo = new EdgeToEdgeDebuggingInfo();
+    private final EdgeToEdgeDebuggingInfo mEdgeToEdgeDebuggingInfo =
+            new EdgeToEdgeDebuggingInfo(
+                    (info) ->
+                            ChromePureJavaExceptionReporter.reportJavaExceptionFromMsg(
+                                    info, /* isWarning= */ true));
     protected Destroyable mEdgeToEdgeBottomChin;
     protected final @ActivityType int mActivityType;
     protected final Supplier<Boolean> mIsInOverviewModeSupplier;
@@ -341,6 +346,7 @@ public class RootUiCoordinator
     private final @NonNull EdgeToEdgeManager mEdgeToEdgeManager;
     private AutomotiveBackButtonToolbarCoordinator mAutomotiveBackButtonToolbarCoordinator;
     protected AdaptiveToolbarUiCoordinator mAdaptiveToolbarUiCoordinator;
+    private final @Nullable ObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
 
     /**
      * Create a new {@link RootUiCoordinator} for the given activity.
@@ -384,6 +390,8 @@ public class RootUiCoordinator
      * @param savedInstanceState The saved bundle for the last recorded state.
      * @param overviewColorSupplier Notifies when the overview color changes.
      * @param edgeToEdgeManager Manages core edge-to-edge state and logic.
+     * @param xrSpaceModeObservableSupplier Supplies current XR space mode status. True for XR full
+     *     space mode, false otherwise.
      */
     public RootUiCoordinator(
             @NonNull AppCompatActivity activity,
@@ -424,7 +432,8 @@ public class RootUiCoordinator
             @Nullable BackPressManager backPressManager,
             @Nullable Bundle savedInstanceState,
             @NonNull ObservableSupplier<Integer> overviewColorSupplier,
-            @NonNull EdgeToEdgeManager edgeToEdgeManager) {
+            @NonNull EdgeToEdgeManager edgeToEdgeManager,
+            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
         mCallbackController = new CallbackController();
         mActivity = activity;
         mWindowAndroid = windowAndroid;
@@ -556,6 +565,7 @@ public class RootUiCoordinator
         mBottomControlsStacker =
                 new BottomControlsStacker(mBrowserControlsManager, mActivity, mWindowAndroid);
         mTopControlsStacker = new TopControlsStacker();
+        mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
     }
 
     // TODO(pnoland, crbug.com/865801): remove this in favor of wiring it directly.
@@ -855,7 +865,7 @@ public class RootUiCoordinator
     }
 
     public void onResumeWithNative() {
-        dumpEdgeToEdgeDebuggingInfo("onResumeWithNative");
+        addToEdgeToEdgeDebuggingInfo("onResumeWithNative");
     }
 
     protected boolean showWebSearchInActionMode() {
@@ -1524,7 +1534,9 @@ public class RootUiCoordinator
                             getDesktopWindowStateManager(),
                             getMultiInstanceManager(),
                             mTabBookmarkerSupplier,
-                            getMenuButtonVisibilityDelegate());
+                            getMenuButtonVisibilityDelegate(),
+                            mTopControlsStacker,
+                            mXrSpaceModeObservableSupplier);
             if (!mSupportsAppMenuSupplier.getAsBoolean()) {
                 mToolbarManager.getToolbar().disableMenuButton();
             }
@@ -1551,7 +1563,8 @@ public class RootUiCoordinator
      */
     protected ScrimManager buildScrimWidget() {
         ViewGroup coordinator = mActivity.findViewById(R.id.coordinator);
-        ScrimManager scrimManager = new ScrimManager(mActivity, coordinator);
+        ScrimManager scrimManager =
+                new ScrimManager(mActivity, coordinator, ScrimClient.ROOT_UI_COORDINATOR);
         scrimManager
                 .getStatusBarColorSupplier()
                 .addObserver(RootUiCoordinator.this::onScrimColorChanged);
@@ -1792,7 +1805,12 @@ public class RootUiCoordinator
                         sheetInitializedCallback,
                         mActivity.getWindow(),
                         mWindowAndroid.getKeyboardDelegate(),
-                        () -> mActivity.findViewById(R.id.sheet_container),
+                        () -> {
+                            if (mActivity != null) {
+                                return mActivity.findViewById(R.id.sheet_container);
+                            }
+                            return null;
+                        },
                         () -> {
                             return mEdgeToEdgeControllerSupplier.get() == null
                                     ? 0
@@ -1840,7 +1858,7 @@ public class RootUiCoordinator
         UmaSessionStats.registerSyntheticFieldTrial(
                 "EdgeToEdgeChinEligibility", eligible ? "Eligible" : "Not Eligible");
 
-        if (supportsEdgeToEdge() && EdgeToEdgeUtils.isEdgeToEdgeBottomChinEnabled()) {
+        if (supportsEdgeToEdge()) {
             assert eligible
                     : "The edge-to-edge controller is being initialized, though it should not be"
                             + " eligible!";
@@ -1852,7 +1870,8 @@ public class RootUiCoordinator
                             mEdgeToEdgeManager,
                             mBrowserControlsManager,
                             mLayoutManagerSupplier,
-                            mFullscreenManager);
+                            mFullscreenManager,
+                            mEdgeToEdgeDebuggingInfo);
             mEdgeToEdgeControllerSupplier.set(mEdgeToEdgeController);
             mEdgeToEdgeBottomChin = createEdgeToEdgeBottomChin();
 
@@ -1896,24 +1915,20 @@ public class RootUiCoordinator
         mEdgeToEdgeDebuggingInfo.setMissingNavBarInsetsReason(reason);
     }
 
-    private void dumpEdgeToEdgeDebuggingInfo(String callSite) {
+    private void addToEdgeToEdgeDebuggingInfo(String callSite) {
         if (!ChromeFeatureList.sEdgeToEdgeDebugging.isEnabled()
                 || mEdgeToEdgeDebuggingInfo.isUsed()) {
             return;
         }
 
         boolean hasEdgeToEdgeController = mEdgeToEdgeControllerSupplier.get() != null;
-        boolean isSupportedConfiguration =
-                EdgeToEdgeControllerFactory.isSupportedConfiguration(mActivity);
-        mEdgeToEdgeDebuggingInfo.buildDebugReport(
-                mActivity.getWindow(),
-                mWindowAndroid,
+        boolean isSupportedConfiguration = EdgeToEdgeUtils.isEdgeToEdgeBottomChinEnabled(mActivity);
+        mEdgeToEdgeDebuggingInfo.addToDebugReport(
+                callSite,
                 hasEdgeToEdgeController,
                 isSupportedConfiguration,
-                callSite,
-                (info) ->
-                        ChromePureJavaExceptionReporter.reportJavaExceptionFromMsg(
-                                info, /* isWarning= */ true));
+                mActivity != null ? mActivity.getWindow() : null,
+                mWindowAndroid);
     }
 
     /** Create a bottom chin for Edge-to-Edge. */

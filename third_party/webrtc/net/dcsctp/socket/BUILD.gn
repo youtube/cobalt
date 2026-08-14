@@ -25,6 +25,7 @@ rtc_library("heartbeat_handler") {
     ":context",
     "../../../api:array_view",
     "../../../api/units:time_delta",
+    "../../../api/units:timestamp",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
     "../packet:bounded_io",

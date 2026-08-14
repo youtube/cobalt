@@ -255,9 +255,19 @@ class RTC_EXPORT SessionDescriptionInterface {
   // `candidate.sdp_mline_index()`.
   virtual bool AddCandidate(const IceCandidate* candidate) = 0;
 
+  // Removes the first matching candidate (at most 1) from the description
+  // that meets the `Candidate::MatchesForRemoval()` requirement and matches
+  // either the `IceCandidate::sdp_mid()` property or
+  // `IceCandidate::sdp_mline_index()`.
+  //
+  // Returns false if no matching candidate was found (and removed).
+  virtual bool RemoveCandidate(const IceCandidate* candidate) = 0;
+
   // Removes the candidates from the description, if found.
   //
   // Returns the number of candidates removed.
+  // TODO: webrtc:42233526 - Deprecate and eventually remove this method in
+  // favor of the IceCandidate version.
   virtual size_t RemoveCandidates(const std::vector<Candidate>& candidates);
 
   // Returns the number of m= sections in the session description.
@@ -317,8 +327,7 @@ std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
     std::unique_ptr<SessionDescription> description);
 
 // CreateOffer and CreateAnswer callback interface.
-class RTC_EXPORT CreateSessionDescriptionObserver
-    : public webrtc::RefCountInterface {
+class RTC_EXPORT CreateSessionDescriptionObserver : public RefCountInterface {
  public:
   // This callback transfers the ownership of the `desc`.
   // TODO(deadbeef): Make this take an std::unique_ptr<> to avoid confusion
@@ -337,8 +346,7 @@ class RTC_EXPORT CreateSessionDescriptionObserver
 };
 
 // SetLocalDescription and SetRemoteDescription callback interface.
-class RTC_EXPORT SetSessionDescriptionObserver
-    : public webrtc::RefCountInterface {
+class RTC_EXPORT SetSessionDescriptionObserver : public RefCountInterface {
  public:
   virtual void OnSuccess() = 0;
   // See description in CreateSessionDescriptionObserver for OnFailure.

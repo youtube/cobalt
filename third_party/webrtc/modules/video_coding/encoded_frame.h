@@ -37,8 +37,8 @@ class RTC_EXPORT VCMEncodedFrame : public EncodedImage {
   /**
    *   Get the encoded image
    */
-  const webrtc::EncodedImage& EncodedImage() const {
-    return static_cast<const webrtc::EncodedImage&>(*this);
+  const EncodedImage& EncodedImage() const {
+    return static_cast<const ::webrtc::EncodedImage&>(*this);
   }
 
   using EncodedImage::ColorSpace;
@@ -90,7 +90,7 @@ class RTC_EXPORT VCMEncodedFrame : public EncodedImage {
   uint8_t _payloadType;
   bool _missingFrame;
   CodecSpecificInfo _codecSpecificInfo;
-  webrtc::VideoCodecType _codec;
+  VideoCodecType _codec;
 };
 
 }  // namespace webrtc

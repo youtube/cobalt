@@ -1676,10 +1676,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         pc_offset = __ CallCFunction(ref, num_gp_parameters + num_fp_parameters,
                                      set_isolate_data_slots, &return_location);
       } else {
+        // When the input is a register, we assume here that the target is
+        // always code that should be run in sandboxed execution mode (for
+        // example because we're calling runtime-generated code). This is
+        // currently for example used for calling compiled regexp code. If this
+        // assumption ever turns out to be wrong, we could for example
+        // introduce dedicated opcodes for calling a register and switching the
+        // sandboxing mode.
         Register func = i.InputRegister(0);
-        pc_offset =
-            __ CallCFunction(func, num_gp_parameters + num_fp_parameters,
-                             set_isolate_data_slots, &return_location);
+        pc_offset = __ CallCFunction(
+            func, num_gp_parameters + num_fp_parameters, set_isolate_data_slots,
+            &return_location, CodeSandboxingMode::kSandboxed);
       }
 
       RecordSafepoint(instr->reference_map(), pc_offset);
@@ -2923,38 +2930,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case kL32: {
             // F32x8Neg
-            YMMRegister dst = i.OutputSimd256Register();
-            YMMRegister src = i.InputSimd256Register(0);
-            CpuFeatureScope avx2_scope(masm(), AVX2);
-            if (dst == src) {
-              __ vpcmpeqd(kScratchSimd256Reg, kScratchSimd256Reg,
-                          kScratchSimd256Reg);
-              __ vpslld(kScratchSimd256Reg, kScratchSimd256Reg, uint8_t{31});
-              __ vpxor(dst, dst, kScratchSimd256Reg);
-            } else {
-              CpuFeatureScope avx_scope(masm(), AVX);
-              __ vpcmpeqd(dst, dst, dst);
-              __ vpslld(dst, dst, uint8_t{31});
-              __ vxorps(dst, dst, src);
-            }
+            __ Negps(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                     kScratchSimd256Reg);
             break;
           }
           case kL64: {
             // F64x4Neg
-            YMMRegister dst = i.OutputSimd256Register();
-            YMMRegister src = i.InputSimd256Register(0);
-            CpuFeatureScope avx2_scope(masm(), AVX2);
-            if (dst == src) {
-              __ vpcmpeqq(kScratchSimd256Reg, kScratchSimd256Reg,
-                          kScratchSimd256Reg);
-              __ vpsllq(kScratchSimd256Reg, kScratchSimd256Reg, uint8_t{63});
-              __ vpxor(dst, dst, kScratchSimd256Reg);
-            } else {
-              CpuFeatureScope avx_scope(masm(), AVX);
-              __ vpcmpeqq(dst, dst, dst);
-              __ vpsllq(dst, dst, uint8_t{31});
-              __ vxorpd(dst, dst, src);
-            }
+            __ Negpd(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                     kScratchSimd256Reg);
             break;
           }
           default:

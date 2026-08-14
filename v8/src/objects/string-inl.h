@@ -11,7 +11,7 @@
 #include <optional>
 #include <type_traits>
 
-#include "src/base/template-utils.h"
+#include "absl/functional/overload.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-utils.h"
@@ -749,7 +749,7 @@ bool String::IsEqualToImpl(
   Tagged<String> string = this;
   const Char* data = str.data();
   while (true) {
-    auto ret = string->DispatchToSpecificType(base::overloaded{
+    auto ret = string->DispatchToSpecificType(absl::Overload{
         [&](Tagged<SeqOneByteString> s) {
           return CompareCharsEqual(
               s->GetChars(no_gc, access_guard) + slice_offset, data, len);
@@ -998,7 +998,7 @@ std::optional<String::FlatContent> String::TryGetFlatContentFromDirectString(
     const SharedStringAccessGuardIfNeeded& access_guard) {
   DCHECK_LE(offset + length, string->length());
 
-  return string->DispatchToSpecificType(base::overloaded{
+  return string->DispatchToSpecificType(absl::Overload{
       [&](Tagged<SeqOneByteString> s) {
         return FlatContent(s->GetChars(no_gc, access_guard) + offset, length,
                            no_gc);
@@ -1173,7 +1173,7 @@ Tagged<ConsString> String::VisitFlat(
   DCHECK_LE(offset, length);
   while (true) {
     std::optional<Tagged<ConsString>> ret =
-        string->DispatchToSpecificType(base::overloaded{
+        string->DispatchToSpecificType(absl::Overload{
             [&](Tagged<SeqOneByteString> s) {
               visitor->VisitOneByteString(
                   s->GetChars(no_gc, access_guard) + slice_offset,
@@ -1647,6 +1647,16 @@ class StringCharacterStream {
   inline void VisitOneByteString(const uint8_t* chars, int length);
   inline void VisitTwoByteString(const uint16_t* chars, int length);
 
+  // Counts the number of UTF-8 bytes for `length` characters,
+  // advancing the stream
+  inline size_t CountUtf8Bytes(uint32_t n_chars);
+  // Counts the number of UTF-8 bytes for `length` characters,
+  // advancing the stream
+  //
+  // Returns the number of UTF-8 bytes written
+  inline size_t WriteUtf8Bytes(uint32_t n_chars, char* output,
+                               size_t output_capacity);
+
  private:
   ConsStringIterator iter_;
   bool is_one_byte_;
@@ -1711,6 +1721,47 @@ void StringCharacterStream::VisitTwoByteString(const uint16_t* chars,
   is_one_byte_ = false;
   buffer16_ = chars;
   end_ = reinterpret_cast<const uint8_t*>(chars + length);
+}
+
+inline size_t StringCharacterStream::CountUtf8Bytes(uint32_t n_chars) {
+  size_t utf8_bytes = 0;
+  uint32_t remaining_chars = n_chars;
+  uint16_t last = unibrow::Utf16::kNoPreviousCharacter;
+  while (HasMore() && remaining_chars-- != 0) {
+    uint16_t character = GetNext();
+    utf8_bytes += unibrow::Utf8::Length(character, last);
+    last = character;
+  }
+  return utf8_bytes;
+}
+
+inline size_t StringCharacterStream::WriteUtf8Bytes(uint32_t n_chars,
+                                                    char* output,
+                                                    size_t output_capacity) {
+  size_t pos = 0;
+  uint32_t remaining_chars = n_chars;
+  uint16_t last = unibrow::Utf16::kNoPreviousCharacter;
+  while (HasMore() && remaining_chars-- != 0) {
+    uint16_t character = GetNext();
+    if (character == 0) {
+      character = ' ';
+    }
+
+    // Ensure that there's sufficient space for this character.
+    //
+    // This should normally always be the case, unless there is
+    // in-sandbox memory corruption.
+    // Alternatively, we could also over-allocate the output buffer by three
+    // bytes (the maximum we can write OOB) or consider allocating it inside
+    // the sandbox, but it's not clear if that would be worth the effort as the
+    // performance overhead of this check appears to be negligible in practice.
+    SBXCHECK_LE(unibrow::Utf8::Length(character, last), output_capacity - pos);
+
+    pos += unibrow::Utf8::Encode(output + pos, character, last);
+
+    last = character;
+  }
+  return pos;
 }
 
 bool String::AsArrayIndex(uint32_t* index) {

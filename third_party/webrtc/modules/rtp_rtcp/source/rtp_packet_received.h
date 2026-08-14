@@ -30,7 +30,7 @@ class RtpPacketReceived : public RtpPacket {
   RtpPacketReceived();
   explicit RtpPacketReceived(
       const ExtensionManager* extensions,
-      webrtc::Timestamp arrival_time = webrtc::Timestamp::MinusInfinity());
+      webrtc::Timestamp arrival_time = Timestamp::MinusInfinity());
   RtpPacketReceived(const RtpPacketReceived& packet);
   RtpPacketReceived(RtpPacketReceived&& packet);
 

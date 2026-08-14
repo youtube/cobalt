@@ -22,8 +22,10 @@
 #include "chrome/renderer/actor/tool_utils.h"
 #include "chrome/renderer/actor/type_tool.h"
 #include "content/public/renderer/render_frame.h"
+#include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_node.h"
 
+using blink::WebLocalFrame;
 using content::RenderFrame;
 
 namespace actor {
@@ -36,6 +38,21 @@ ToolExecutor::~ToolExecutor() = default;
 void ToolExecutor::InvokeTool(mojom::ToolInvocationPtr request,
                               ToolExecutorCallback callback) {
   CHECK(!completion_callback_);
+  completion_callback_ = std::move(callback);
+  journal_entry_ =
+      journal_->CreatePendingAsyncEntry(request->task_id, "InvokeTool", "");
+
+  WebLocalFrame* web_frame = frame_->GetWebFrame();
+  // Check LocalRoot in case the frame is a subframe.
+  if (!web_frame || !web_frame->LocalRoot()->FrameWidget()) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&ToolExecutor::ToolFinished,
+                       weak_ptr_factory_.GetWeakPtr(),
+                       MakeResult(mojom::ActionResultCode::kFrameWentAway)));
+    return;
+  }
+
   std::unique_ptr<ToolBase> tool;
   switch (request->action->which()) {
     case actor::mojom::ToolAction::Tag::kClick: {
@@ -85,22 +102,24 @@ void ToolExecutor::InvokeTool(mojom::ToolInvocationPtr request,
       NOTREACHED();
   }
 
-  journal_->Log(request->task_id, "Renderer InvokeTool", tool->DebugString());
+  page_stability_monitor_ = std::make_unique<PageStabilityMonitor>(*frame_);
 
-  completion_callback_ = std::move(callback);
-
-  page_stability_monitor_ =
-      std::make_unique<PageStabilityMonitor>(frame_.get());
-
+  auto execute_journal = journal_->CreatePendingAsyncEntry(
+      request->task_id, "ExecuteTool", tool->DebugString());
   mojom::ActionResultPtr result = tool->Execute();
+  execute_journal.reset();
 
-  page_stability_monitor_->WaitForStable(base::BindOnce(
-      &ToolExecutor::ToolFinished, base::Unretained(this), std::move(result)));
+  page_stability_monitor_->WaitForStable(
+      request->task_id, *journal_,
+      base::BindOnce(&ToolExecutor::ToolFinished, base::Unretained(this),
+                     std::move(result)));
 }
 
 void ToolExecutor::ToolFinished(mojom::ActionResultPtr result) {
   CHECK(completion_callback_);
+  page_stability_monitor_.reset();
   std::move(completion_callback_).Run(std::move(result));
+  journal_entry_.reset();
 }
 
 }  // namespace actor

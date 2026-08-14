@@ -10,8 +10,6 @@
 
 #include "test/network/cross_traffic.h"
 
-#include <math.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstddef>

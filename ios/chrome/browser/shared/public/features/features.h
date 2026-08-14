@@ -288,9 +288,6 @@ extern const base::NotFatalUntil kLensOverlayNotFatalUntil;
 // Feature flag to enable the Lens View Finder Unified experience
 BASE_DECLARE_FEATURE(kEnableLensViewFinderUnifiedExperience);
 
-// Feature flag to enable the Lens Context Menu Unified experience
-BASE_DECLARE_FEATURE(kEnableLensContextMenuUnifiedExperience);
-
 // Whether to enable loading AIM in the lens result page.
 BASE_DECLARE_FEATURE(kLensLoadAIMInLensResultPage);
 
@@ -327,17 +324,17 @@ BASE_DECLARE_FEATURE(kLensOverlayEnableSameTabNavigation);
 // Feature to enable force showing the lens overlay onboarding screen.
 BASE_DECLARE_FEATURE(kLensOverlayForceShowOnboardingScreen);
 
-// Types of lens overlay onboarding.
-extern const char kLensOverlayOnboardingParam[];
-extern const char kLensOverlayOnboardingParamSpeedbumpMenu[];
-extern const char kLensOverlayOnboardingParamUpdatedStrings[];
-extern const char kLensOverlayOnboardingParamUpdatedStringsAndVisuals[];
-
-// Feature flag to change the onboariding experience of Lens Overlay.
-BASE_DECLARE_FEATURE(kLensOverlayAlternativeOnboarding);
-
 // Feature flag to add lens overlay navigation to history.
 BASE_DECLARE_FEATURE(kLensOverlayNavigationHistory);
+
+// Variations of MIA NTP entrypoint.
+extern const char kNTPMIAEntrypointParam[];
+extern const char kNTPMIAEntrypointParamOmniboxContainedSingleButton[];
+extern const char kNTPMIAEntrypointParamOmniboxContainedInline[];
+extern const char kNTPMIAEntrypointParamOmniboxContainedEnlargedFakebox[];
+
+// Feature flag to change the MIA entrypoint in NTP.
+BASE_DECLARE_FEATURE(kNTPMIAEntrypoint);
 
 // Feature flag to enable UITraitCollection workaround for fixing incorrect
 // trait propagation.
@@ -810,6 +807,10 @@ BASE_DECLARE_FEATURE(kChromeStartupParametersAsync);
 // Feature flag to enable the opening of links from Youtube Incognito in Chrome
 // incognito.
 BASE_DECLARE_FEATURE(kYoutubeIncognito);
+
+// Feature flag to have share extension item shared per profile.
+// DO NOT CHECK DIRECTLY, use IsShareExtensionForMultiprofileEnabled().
+BASE_DECLARE_FEATURE(kShareExtensionForMultiprofile);
 
 // Feature param to specify whether the youtube incognito handling is done
 // without the incognito interstitial.

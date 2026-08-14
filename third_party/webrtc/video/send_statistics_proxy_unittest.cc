@@ -87,10 +87,10 @@ class SendStatisticsProxyTest : public ::testing::Test {
       : override_field_trials_(field_trials),
         fake_clock_(Timestamp::Seconds(1234)),
         config_(GetTestConfig()) {}
-  virtual ~SendStatisticsProxyTest() {}
+  ~SendStatisticsProxyTest() override {}
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     metrics::Reset();
     statistics_proxy_.reset(
         new SendStatisticsProxy(&fake_clock_, GetTestConfig(),
@@ -471,10 +471,10 @@ TEST_F(SendStatisticsProxyTest,
 
   // SendStatisticsProxy uses a RateTracker internally. SendStatisticsProxy uses
   // `fake_clock_` for testing, but the RateTracker relies on a global clock.
-  // This test relies on webrtc::ScopedFakeClock to synchronize these two
+  // This test relies on ScopedFakeClock to synchronize these two
   // clocks.
   // TODO(https://crbug.com/webrtc/10640): When the RateTracker uses a Clock
-  // this test can stop relying on webrtc::ScopedFakeClock.
+  // this test can stop relying on ScopedFakeClock.
   ScopedFakeClock fake_global_clock;
   fake_global_clock.SetTime(
       Timestamp::Millis(fake_clock_.TimeInMilliseconds()));

@@ -702,17 +702,13 @@ BASE_FEATURE(kPrefetchPrerenderIntegration,
              "PrefetchPrerenderIntegration",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If explicitly disabled, prefetch proxy is not used.
+BASE_FEATURE(kPrefetchProxy, "PrefetchProxy", base::FEATURE_ENABLED_BY_DEFAULT);
+
 // If enabled, browser-initiated prefetch is allowed.
 // Please see crbug.com/40946257 for more details.
 BASE_FEATURE(kPrefetchBrowserInitiatedTriggers,
              "PrefetchBrowserInitiatedTriggers",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// This was used for enabling a new limit and scheduler for prerender triggers
-// (crbug.com/40275452). Now the new implementation is used by default and this
-// flag is just for injecting parameters through field trials.
-BASE_FEATURE(kPrerender2NewLimitAndScheduler,
-             "Prerender2NewLimitAndScheduler",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables exposure of ads APIs in the renderer: Attribution Reporting,
@@ -1347,10 +1343,18 @@ BASE_FEATURE(kWebPermissionsApi,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
-// When enabled, will no longer cache java side AccessibilityNodeInfo objects.
 BASE_FEATURE(kAccessibilityDeprecateJavaNodeCache,
              "AccessibilityDeprecateJavaNodeCache",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, will optimize scrolling.
+const base::FeatureParam<bool>
+    kAccessibilityDeprecateJavaNodeCacheOptimizeScroll{
+        &kAccessibilityDeprecateJavaNodeCache, "optimize_scroll", false};
+
+// When enabled, will no longer cache java side AccessibilityNodeInfo objects.
+const base::FeatureParam<bool> kAccessibilityDeprecateJavaNodeCacheDisableCache{
+    &kAccessibilityDeprecateJavaNodeCache, "disable_cache", false};
 
 // When enabled, TYPE_ANNOUNCE events will no longer be sent for live regions in
 // the web contents.

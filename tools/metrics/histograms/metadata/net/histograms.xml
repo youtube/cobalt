@@ -1377,13 +1377,14 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Net.CertVerifier.Qwac.2Qwac" enum="NetCertVerifier2QwacResult"
-    expires_after="2026-03-18">
+<histogram name="Net.CertVerifier.Qwac.2QwacBinding"
+    enum="NetCertVerifier2QwacBindingResult" expires_after="2026-03-18">
   <owner>mattm@chromium.org</owner>
   <owner>nharper@chromium.org</owner>
   <summary>
-    Result of attempting to verify if a certificate is a valid 2-QWAC (EU
-    qualified website authentication certificate).
+    Result of attempting to verify if a 2-QWAC (EU qualified website
+    authentication certificate) binding is valid and binds the specified TLS
+    certificate.
 
     This will be emitted only when the VerifyQWACs feature flag is enabled,
     Chrome Root Store is being used, the site's TLS certificate validates
@@ -3208,7 +3209,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Net.HttpStreamPool.AttemptManagerAliveTime" units="ms"
+<histogram name="Net.HttpStreamPool.AttemptManagerAliveTime2" units="ms"
     expires_after="2025-12-02">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
@@ -3235,7 +3236,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpStreamPool.InitialAttemptState2"
-    enum="HttpStreamPoolInitialAttemptState" expires_after="2025-11-16">
+    enum="HttpStreamPoolInitialAttemptState" expires_after="2025-12-02">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3245,8 +3246,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Net.HttpStreamPool.JobCompleteTime2.{Result}" units="ms"
-    expires_after="2025-11-16">
+<histogram name="Net.HttpStreamPool.JobCompleteTime3.{Result}" units="ms"
+    expires_after="2025-12-02">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3322,7 +3323,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.HttpStreamPool.TcpBasedAttemptCanceledInitialAttemptState.{Reason}"
-    enum="HttpStreamPoolInitialAttemptState" expires_after="2025-09-14">
+    enum="HttpStreamPoolInitialAttemptState" expires_after="2025-12-02">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3339,7 +3340,7 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="Net.HttpStreamPool.TcpBasedAttemptCanceledTime.{Reason}"
+<histogram name="Net.HttpStreamPool.TcpBasedAttemptCanceledTime2.{Reason}"
     units="ms" expires_after="2025-12-02">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
@@ -3357,7 +3358,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpStreamPool.TcpBasedAttemptCancelReason"
-    enum="StreamSocketCloseReason" expires_after="2025-09-14">
+    enum="StreamSocketCloseReason" expires_after="2025-12-02">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3367,7 +3368,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpStreamPool.TcpBasedAttemptDelay" units="ms"
-    expires_after="2025-11-16">
+    expires_after="2025-12-02">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3376,7 +3377,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Net.HttpStreamPool.TcpBasedAttemptSSLConfigWaitTime"
+<histogram name="Net.HttpStreamPool.TcpBasedAttemptSSLConfigWaitTime2"
     units="ms" expires_after="2025-12-02">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
@@ -3386,8 +3387,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Net.HttpStreamPool.TcpBasedAttemptTime.{Result}" units="ms"
-    expires_after="2025-09-14">
+<histogram name="Net.HttpStreamPool.TcpBasedAttemptTime2.{Result}" units="ms"
+    expires_after="2025-12-02">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -7668,6 +7669,17 @@ chromium-metrics-reviews@google.com.
     connection. It is time just before the OnAcceptCHFrameReceived() IPC call
     until the IPC callback is called. Refer
     AcceptCHFrameInterceptor::OnConnected() for details.
+  </summary>
+</histogram>
+
+<histogram name="Net.URLLoader.ProportionOfWritesBlockedByMojo" units="%"
+    expires_after="2025-12-04">
+  <owner>yoichio@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records the proportion of writes when URLLoader was blocked by
+    MOJO_RESULT_SHOULD_WAIT where the renderer process seems to be busy. Lower
+    is better. Logged every time a URLLoader completes a load.
   </summary>
 </histogram>
 

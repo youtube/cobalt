@@ -72,7 +72,7 @@ TEST(NoiseSuppressor, IdenticalChannelEffects) {
         SCOPED_TRACE(ProduceDebugText(rate, num_channels, level));
 
         const size_t num_bands = rate / 16000;
-        // const int frame_length = webrtc::CheckedDivExact(rate, 100);
+        // const int frame_length = CheckedDivExact(rate, 100);
         AudioBuffer audio(rate, num_channels, rate, num_channels, rate,
                           num_channels);
         NsConfig cfg;

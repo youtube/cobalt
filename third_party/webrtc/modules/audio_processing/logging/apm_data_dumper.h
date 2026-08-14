@@ -90,7 +90,7 @@ class ApmDataDumper {
       [[maybe_unused]] absl::string_view output_dir) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
     RTC_CHECK_LT(output_dir.size(), kOutputDirMaxLength);
-    webrtc::strcpyn(output_dir_, kOutputDirMaxLength, output_dir);
+    strcpyn(output_dir_, kOutputDirMaxLength, output_dir);
 #endif
   }
 

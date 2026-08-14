@@ -1617,6 +1617,55 @@ TEST_F(RtpSenderVideoWithFrameTransformerTest,
                                      kDefaultExpectedRetransmissionTime);
 }
 
+TEST_F(RtpSenderVideoTest, SendEncodedImageIncludesProvidedCsrcs) {
+  std::vector<uint32_t> expected_csrcs = {1, 2, 3};
+  std::unique_ptr<EncodedImage> encoded_image = CreateDefaultEncodedImage();
+  RTPVideoHeader video_header;
+  video_header.frame_type = VideoFrameType::kVideoFrameKey;
+
+  ASSERT_TRUE(rtp_sender_video_->SendEncodedImage(
+      0, kType, kTimestamp, *encoded_image, video_header,
+      kDefaultExpectedRetransmissionTime, expected_csrcs));
+
+  ASSERT_GT(transport_.packets_sent(), 0);
+  std::vector<uint32_t> csrcs = transport_.last_sent_packet().Csrcs();
+  EXPECT_EQ(csrcs, expected_csrcs);
+}
+
+TEST_F(RtpSenderVideoWithFrameTransformerTest,
+       SendEncodedImageIncludesProvidedCsrcs) {
+  auto mock_frame_transformer =
+      make_ref_counted<NiceMock<MockFrameTransformer>>();
+  scoped_refptr<TransformedFrameCallback> callback;
+  EXPECT_CALL(*mock_frame_transformer, RegisterTransformedFrameSinkCallback)
+      .WillOnce(SaveArg<0>(&callback));
+  std::unique_ptr<RTPSenderVideo> rtp_sender_video =
+      CreateSenderWithFrameTransformer(mock_frame_transformer);
+  ASSERT_TRUE(callback);
+  ON_CALL(*mock_frame_transformer, Transform)
+      .WillByDefault(
+          [&callback](std::unique_ptr<TransformableFrameInterface> frame) {
+            callback->OnTransformedFrame(std::move(frame));
+          });
+
+  auto encoded_image = CreateDefaultEncodedImage();
+  std::vector<uint32_t> expected_csrcs = {1, 2, 3};
+  RTPVideoHeader video_header;
+  video_header.frame_type = VideoFrameType::kVideoFrameKey;
+  auto encoder_queue = time_controller_.GetTaskQueueFactory()->CreateTaskQueue(
+      "encoder_queue", TaskQueueFactory::Priority::NORMAL);
+  encoder_queue->PostTask([&] {
+    rtp_sender_video->SendEncodedImage(
+        kPayloadType, kType, kTimestamp, *encoded_image, video_header,
+        kDefaultExpectedRetransmissionTime, expected_csrcs);
+  });
+  time_controller_.AdvanceTime(TimeDelta::Zero());
+
+  ASSERT_GT(transport_.packets_sent(), 0);
+  std::vector<uint32_t> csrcs = transport_.last_sent_packet().Csrcs();
+  EXPECT_EQ(csrcs, expected_csrcs);
+}
+
 #if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
 TEST_F(RtpSenderVideoWithFrameTransformerTest, ValidPayloadTypes) {
   auto mock_frame_transformer =

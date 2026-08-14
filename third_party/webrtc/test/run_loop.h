@@ -14,6 +14,9 @@
 
 #include "absl/functional/any_invocable.h"
 #include "api/task_queue/task_queue_base.h"
+#include "api/units/time_delta.h"
+#include "rtc_base/socket.h"
+#include "rtc_base/socket_server.h"
 #include "rtc_base/thread.h"
 
 namespace webrtc {

@@ -27,7 +27,6 @@
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/create_peerconnection_factory.h"
 #include "api/field_trials.h"
-#include "api/field_trials_view.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
@@ -60,6 +59,7 @@
 #include "rtc_base/strings/string_format.h"
 #include "rtc_base/thread.h"
 #include "system_wrappers/include/metrics.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
@@ -116,7 +116,7 @@ class SdpMungingTest : public ::testing::Test {
   }
 
   std::unique_ptr<PeerConnectionWrapper> CreatePeerConnection(
-      std::unique_ptr<FieldTrialsView> field_trials = nullptr) {
+      absl::string_view field_trials = "") {
     RTCConfiguration config;
     config.sdp_semantics = SdpSemantics::kUnifiedPlan;
     return CreatePeerConnection(config, std::move(field_trials));
@@ -124,10 +124,11 @@ class SdpMungingTest : public ::testing::Test {
 
   std::unique_ptr<PeerConnectionWrapper> CreatePeerConnection(
       const RTCConfiguration& config,
-      std::unique_ptr<FieldTrialsView> field_trials) {
+      absl::string_view field_trials) {
     auto observer = std::make_unique<MockPeerConnectionObserver>();
     PeerConnectionDependencies pc_deps(observer.get());
-    pc_deps.trials = std::move(field_trials);
+    pc_deps.trials =
+        std::make_unique<FieldTrials>(CreateTestFieldTrials(field_trials));
     auto result =
         pc_factory_->CreatePeerConnectionOrError(config, std::move(pc_deps));
     EXPECT_TRUE(result.ok());
@@ -207,7 +208,7 @@ TEST_F(SdpMungingTest, InitialSetLocalDescriptionWithoutCreateOffer) {
   RTCConfiguration config;
   config.certificates.push_back(
       FakeRTCCertificateGenerator::GenerateCertificate());
-  auto pc = CreatePeerConnection(config, nullptr);
+  auto pc = CreatePeerConnection(config, /*field_trials=*/"");
   std::string sdp =
       "v=0\r\n"
       "o=- 0 3 IN IP4 127.0.0.1\r\n"
@@ -230,7 +231,7 @@ TEST_F(SdpMungingTest, InitialSetLocalDescriptionWithoutCreateAnswer) {
   RTCConfiguration config;
   config.certificates.push_back(
       FakeRTCCertificateGenerator::GenerateCertificate());
-  auto pc = CreatePeerConnection(config, nullptr);
+  auto pc = CreatePeerConnection(config, /*field_trials=*/"");
   std::string sdp =
       "v=0\r\n"
       "o=- 0 3 IN IP4 127.0.0.1\r\n"
@@ -261,8 +262,7 @@ TEST_F(SdpMungingTest, InitialSetLocalDescriptionWithoutCreateAnswer) {
 }
 
 TEST_F(SdpMungingTest, IceUfrag) {
-  auto pc = CreatePeerConnection(
-      FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleUfrag/Enabled/"));
+  auto pc = CreatePeerConnection("WebRTC-NoSdpMangleUfrag/Enabled/");
   pc->AddAudioTrack("audio_track", {});
 
   auto offer = pc->CreateOffer();
@@ -285,8 +285,7 @@ TEST_F(SdpMungingTest, IceUfrag) {
 }
 
 TEST_F(SdpMungingTest, IceUfragCheckDisabledByFieldTrial) {
-  auto pc = CreatePeerConnection(
-      FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleUfrag/Disabled/"));
+  auto pc = CreatePeerConnection("WebRTC-NoSdpMangleUfrag/Disabled/");
   pc->AddAudioTrack("audio_track", {});
 
   auto offer = pc->CreateOffer();
@@ -326,8 +325,7 @@ TEST_F(SdpMungingTest, IceUfragWithCheckDisabledForTesting) {
 }
 
 TEST_F(SdpMungingTest, IcePwdCheckDisabledByFieldTrial) {
-  auto pc = CreatePeerConnection(
-      FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleUfrag/Disabled/"));
+  auto pc = CreatePeerConnection("WebRTC-NoSdpMangleUfrag/Disabled/");
   pc->AddAudioTrack("audio_track", {});
 
   auto offer = pc->CreateOffer();
@@ -348,8 +346,7 @@ TEST_F(SdpMungingTest, IcePwdCheckDisabledByFieldTrial) {
 }
 
 TEST_F(SdpMungingTest, IcePwd) {
-  auto pc = CreatePeerConnection(
-      FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleUfrag/Enabled/"));
+  auto pc = CreatePeerConnection("WebRTC-NoSdpMangleUfrag/Enabled/");
   pc->AddAudioTrack("audio_track", {});
 
   auto offer = pc->CreateOffer();
@@ -373,10 +370,10 @@ TEST_F(SdpMungingTest, IceUfragRestrictedAddresses) {
   RTCConfiguration config;
   config.certificates.push_back(
       FakeRTCCertificateGenerator::GenerateCertificate());
-  auto caller = CreatePeerConnection(
-      config,
-      FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleUfragRestrictedAddresses/"
-                                  "127.0.0.1:12345|127.0.0.*:23456|*:34567/"));
+  auto caller =
+      CreatePeerConnection(config,
+                           "WebRTC-NoSdpMangleUfragRestrictedAddresses/"
+                           "127.0.0.1:12345|127.0.0.*:23456|*:34567/");
   auto callee = CreatePeerConnection();
   caller->AddAudioTrack("audio_track", {});
   auto offer = caller->CreateOffer();
@@ -440,11 +437,11 @@ TEST_F(SdpMungingTest, IceUfragSdpRejectedAndRestrictedAddresses) {
   RTCConfiguration config;
   config.certificates.push_back(
       FakeRTCCertificateGenerator::GenerateCertificate());
-  auto caller = CreatePeerConnection(
-      config,
-      FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleUfragRestrictedAddresses/"
-                                  "127.0.0.1:12345|127.0.0.*:23456|*:34567/"
-                                  "WebRTC-NoSdpMangleUfrag/Enabled/"));
+  auto caller =
+      CreatePeerConnection(config,
+                           "WebRTC-NoSdpMangleUfragRestrictedAddresses/"
+                           "127.0.0.1:12345|127.0.0.*:23456|*:34567/"
+                           "WebRTC-NoSdpMangleUfrag/Enabled/");
   auto callee = CreatePeerConnection();
   caller->AddAudioTrack("audio_track", {});
   auto offer = caller->CreateOffer();
@@ -555,8 +552,8 @@ TEST_F(SdpMungingTest, RemoveContentDefault) {
 }
 
 TEST_F(SdpMungingTest, RemoveContentKillswitch) {
-  auto pc = CreatePeerConnection(FieldTrials::CreateNoGlobal(
-      "WebRTC-NoSdpMangleNumberOfContents/Disabled/"));
+  auto pc =
+      CreatePeerConnection("WebRTC-NoSdpMangleNumberOfContents/Disabled/");
   pc->AddAudioTrack("audio_track", {});
 
   auto offer = pc->CreateOffer();

@@ -130,6 +130,31 @@ std::string GetRequestTypeName(
   }
 }
 
+safe_browsing::mojom::ClientSideDetectionType GetClientSideDetectionMojomType(
+    ClientSideDetectionType client_side_detection_type) {
+  switch (client_side_detection_type) {
+    case safe_browsing::ClientSideDetectionType::FORCE_REQUEST:
+      return safe_browsing::mojom::ClientSideDetectionType::kForceRequest;
+    case safe_browsing::ClientSideDetectionType::NOTIFICATION_PERMISSION_PROMPT:
+      return safe_browsing::mojom::ClientSideDetectionType::
+          kNotificationPermissionPrompt;
+    case safe_browsing::ClientSideDetectionType::TRIGGER_MODELS:
+      return safe_browsing::mojom::ClientSideDetectionType::kTriggerModels;
+    case safe_browsing::ClientSideDetectionType::KEYBOARD_LOCK_REQUESTED:
+      return safe_browsing::mojom::ClientSideDetectionType::kKeyboardLock;
+    case safe_browsing::ClientSideDetectionType::POINTER_LOCK_REQUESTED:
+      return safe_browsing::mojom::ClientSideDetectionType::kPointerLock;
+    case safe_browsing::ClientSideDetectionType::VIBRATION_API:
+      return safe_browsing::mojom::ClientSideDetectionType::kVibrationApi;
+    case safe_browsing::ClientSideDetectionType::FULLSCREEN_API:
+      return safe_browsing::mojom::ClientSideDetectionType::kFullscreen;
+    case safe_browsing::ClientSideDetectionType::
+        CLIENT_SIDE_DETECTION_TYPE_UNSPECIFIED:
+    default:
+      NOTREACHED();
+  }
+}
+
 PhishingDetectorResult GetPhishingDetectorResult(
     mojom::PhishingDetectorResult result) {
   switch (result) {
@@ -898,7 +923,7 @@ void ClientSideDetectionHost::OnPhishingPreClassificationDone(
     if (phishing_detector_.is_bound()) {
       phishing_detection_start_time_ = tick_clock_->NowTicks();
       phishing_detector_->StartPhishingDetection(
-          current_url_,
+          current_url_, GetClientSideDetectionMojomType(request_type),
           base::BindOnce(&ClientSideDetectionHost::PhishingDetectionDone,
                          weak_factory_.GetWeakPtr(), request_type,
                          is_sample_ping, did_match_high_confidence_allowlist));
@@ -1283,7 +1308,8 @@ void ClientSideDetectionHost::MaybeInquireOnDeviceForScamDetection(
       return;
     }
 
-    bool on_device_model_available = csd_service_->IsOnDeviceModelAvailable();
+    bool on_device_model_available = csd_service_->IsOnDeviceModelAvailable(
+        /*log_failed_eligibility_reason=*/true);
 
     base::UmaHistogramBoolean(
         "SBClientPhishing.IsOnDeviceModelAvailableAtInquiryTime",
@@ -1294,10 +1320,6 @@ void ClientSideDetectionHost::MaybeInquireOnDeviceForScamDetection(
         on_device_model_available);
 
     if (!on_device_model_available) {
-      // When the model is not available at the time of inquiry, we want to log
-      // the current status of the model fetch.
-      csd_service_->LogOnDeviceModelEligibilityReason();
-
       IntelligentScanInfo intelligent_scan_info;
       intelligent_scan_info.set_no_info_reason(
           IntelligentScanInfo::ON_DEVICE_MODEL_UNAVAILABLE);
@@ -1356,13 +1378,15 @@ void ClientSideDetectionHost::OnInquireOnDeviceModelDone(
       "SBClientPhishing.OnDeviceModelHasSuccessfulResponse." +
           GetRequestTypeName(verdict->client_side_detection_type()),
       response.has_value());
+  IntelligentScanInfo intelligent_scan_info;
   if (response.has_value()) {
-    IntelligentScanInfo intelligent_scan_info;
     intelligent_scan_info.set_brand(response->brand());
     intelligent_scan_info.set_intent(response->intent());
-    *verdict->mutable_intelligent_scan_info() =
-        std::move(intelligent_scan_info);
+  } else {
+    intelligent_scan_info.set_no_info_reason(
+        IntelligentScanInfo::ON_DEVICE_MODEL_OUTPUT_MISSING);
   }
+  *verdict->mutable_intelligent_scan_info() = std::move(intelligent_scan_info);
 
   MaybeGetAccessToken(std::move(verdict), did_match_high_confidence_allowlist);
 }

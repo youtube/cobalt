@@ -5,7 +5,6 @@
 <translation id="1178581264944972037">暫停</translation>
 <translation id="1246424317317450637">粗體</translation>
 <translation id="1357114957607379632">正在生成 AI 播放內容…</translation>
-<translation id="1370273601702151510">喜歡</translation>
 <translation id="1483137792530497944">河流</translation>
 <translation id="1586836055630070874">撫慰心靈</translation>
 <translation id="1639239467298939599">載入中</translation>
@@ -19,7 +18,6 @@
 <translation id="2575502321843437554">吸引力不足</translation>
 <translation id="2611765907167846862">穩重</translation>
 <translation id="3023502830214299618">很抱歉，目前無法播放此頁面。請稍後再試。</translation>
-<translation id="3457812538570616687">不喜歡</translation>
 <translation id="3493899379487634969">出現什麼問題？</translation>
 <translation id="3730775656877876887">正在生成 AI 播放內容</translation>
 <translation id="3778044272390020426">負面意見選項選單</translation>
@@ -33,6 +31,7 @@
 <translation id="4525525184005340968">峽谷</translation>
 <translation id="4710974520964166851">輕鬆</translation>
 <translation id="4773921449011281499">靜謐</translation>
+<translation id="4867493576811701175">鍾意掣，揀就可以俾意見，表示你鍾意呢個功能</translation>
 <translation id="4872475766448853257">倒播 <ph name="NUMBER_OF_SECONDS" /> 秒</translation>
 <translation id="4967513477347430212">海岸</translation>
 <translation id="5026371835667036198">明亮</translation>
@@ -63,6 +62,7 @@
 <translation id="8136852699834914183">無法播放此頁面的內容。</translation>
 <translation id="8198036737896977997">空氣</translation>
 <translation id="8264989794233974275"><ph name="PLAYBACK_SPEED" /> 倍加/減速。</translation>
+<translation id="837054959055425654">唔鍾意掣，揀就可以打開表格，針對呢個功能嘅問題俾詳細意見</translation>
 <translation id="8407011429883244666">閂播放器。</translation>
 <translation id="8462210863277153423">你的網址和意見會一併上載，以改善品質及作研究用途。</translation>
 <translation id="8481839122437406573">平靜</translation>

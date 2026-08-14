@@ -12,7 +12,10 @@
 #import "ios/chrome/browser/incognito_reauth/ui_bundled/incognito_reauth_view_label.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
+#import "ios/chrome/common/ui/colors/semantic_color_names.h"
+#import "ios/chrome/common/ui/util/button_util.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
+#import "ios/chrome/common/ui/util/pointer_interaction_util.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util.h"
 
@@ -26,6 +29,8 @@ const CGFloat kAuthenticateButtonBagroundMaxCornerRadius = 30.0f;
 const CGFloat kVerticalContentPadding = 70.0f;
 // Distance from the Logo to the primary button.
 const CGFloat kLogoToPrimaryButtonMargin = 54.0f;
+// Optimal content width to use for button sizing.
+const CGFloat kContentOptimalWidth = 327;
 }  // namespace
 
 @interface IncognitoReauthView () <IncognitoReauthViewLabelOwner>
@@ -44,20 +49,24 @@ const CGFloat kLogoToPrimaryButtonMargin = 54.0f;
 - (instancetype)init {
   self = [super init];
   if (self) {
-    // Increase blur intensity by layering some blur views to make
-    // content behind really not recognizeable.
-    for (int i = 0; i < 3; i++) {
-      UIBlurEffect* blurEffect =
-          [UIBlurEffect effectWithStyle:UIBlurEffectStyleLight];
-      UIVisualEffectView* blurView =
-          [[UIVisualEffectView alloc] initWithEffect:blurEffect];
-      [self addSubview:blurView];
-      blurView.translatesAutoresizingMaskIntoConstraints = NO;
-      AddSameConstraints(self, blurView);
+    if (!IsIOSSoftLockEnabled()) {
+      // Increase blur intensity by layering some blur views to make
+      // content behind really not recognizeable.
+      for (int i = 0; i < 3; i++) {
+        UIBlurEffect* blurEffect =
+            [UIBlurEffect effectWithStyle:UIBlurEffectStyleLight];
+        UIVisualEffectView* blurView =
+            [[UIVisualEffectView alloc] initWithEffect:blurEffect];
+        [self addSubview:blurView];
+        blurView.translatesAutoresizingMaskIntoConstraints = NO;
+        AddSameConstraints(self, blurView);
+      }
     }
 
-    UIBlurEffect* blurEffect =
-        [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
+    UIBlurEffect* blurEffect = [UIBlurEffect
+        effectWithStyle:IsIOSSoftLockEnabled()
+                            ? UIBlurEffectStyleSystemThickMaterialDark
+                            : UIBlurEffectStyleDark];
     UIVisualEffectView* blurBackgroundView =
         [[UIVisualEffectView alloc] initWithEffect:blurEffect];
     [self addSubview:blurBackgroundView];
@@ -77,11 +86,17 @@ const CGFloat kLogoToPrimaryButtonMargin = 54.0f;
     [blurBackgroundView.contentView addSubview:_secondaryButton];
     AddSameCenterXConstraint(_secondaryButton, blurBackgroundView);
 
-    UIView* authButtonContainer =
-        [self buildAuthenticateButtonWithBlurEffect:blurEffect];
-    [blurBackgroundView.contentView addSubview:authButtonContainer];
-    AddSameCenterConstraints(blurBackgroundView, authButtonContainer);
-    _authenticateButtonBackgroundView = authButtonContainer;
+    if (IsIOSSoftLockEnabled()) {
+      _authenticateButton = [self buildAuthenticateButton];
+      [blurBackgroundView.contentView addSubview:_authenticateButton];
+      AddSameCenterXConstraint(blurBackgroundView, _authenticateButton);
+    } else {
+      UIView* authButtonContainer =
+          [self buildAuthenticateButtonWithBlurEffect:blurEffect];
+      [blurBackgroundView.contentView addSubview:authButtonContainer];
+      AddSameCenterConstraints(blurBackgroundView, authButtonContainer);
+      _authenticateButtonBackgroundView = authButtonContainer;
+    }
 
     // Setup Constraints
     NSMutableArray<NSLayoutConstraint*>* constraints =
@@ -95,13 +110,28 @@ const CGFloat kLogoToPrimaryButtonMargin = 54.0f;
         ]];
 
     if (IsIOSSoftLockEnabled()) {
+      NSLayoutConstraint* authenticateButtonPreferredWidthConstraint =
+          [_authenticateButton.widthAnchor
+              constraintEqualToConstant:kContentOptimalWidth];
+      NSLayoutConstraint* secondaryButtonPreferredWidthConstraint =
+          [_authenticateButton.widthAnchor
+              constraintEqualToConstant:kContentOptimalWidth];
+      authenticateButtonPreferredWidthConstraint.priority =
+          UILayoutPriorityDefaultHigh;
+      secondaryButtonPreferredWidthConstraint.priority =
+          UILayoutPriorityDefaultHigh;
+
       [constraints addObjectsFromArray:@[
+        [_authenticateButton.centerYAnchor
+            constraintEqualToAnchor:self.centerYAnchor],
         [_secondaryButton.topAnchor
-            constraintEqualToAnchor:authButtonContainer.bottomAnchor
+            constraintEqualToAnchor:_authenticateButton.bottomAnchor
                            constant:kButtonPaddingV],
         [_logoView.bottomAnchor
             constraintEqualToAnchor:_authenticateButton.topAnchor
-                           constant:-kLogoToPrimaryButtonMargin]
+                           constant:-kLogoToPrimaryButtonMargin],
+        authenticateButtonPreferredWidthConstraint,
+        secondaryButtonPreferredWidthConstraint,
       ]];
     } else {
       [constraints addObjectsFromArray:@[
@@ -124,8 +154,7 @@ const CGFloat kLogoToPrimaryButtonMargin = 54.0f;
       [self registerForTraitChanges:traits
                         withHandler:^(id<UITraitEnvironment> traitEnvironment,
                                       UITraitCollection* previousCollection) {
-                          [weakSelf setNeedsLayout];
-                          [weakSelf layoutIfNeeded];
+                          [weakSelf relayoutView];
                         }];
     }
   }
@@ -135,8 +164,7 @@ const CGFloat kLogoToPrimaryButtonMargin = 54.0f;
 
 - (void)didMoveToSuperview {
   [super didMoveToSuperview];
-  [self setNeedsLayout];
-  [self layoutIfNeeded];
+  [self relayoutView];
 }
 
 #if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
@@ -146,8 +174,7 @@ const CGFloat kLogoToPrimaryButtonMargin = 54.0f;
     return;
   }
 
-  [self setNeedsLayout];
-  [self layoutIfNeeded];
+  [self relayoutView];
 }
 #endif
 
@@ -155,15 +182,21 @@ const CGFloat kLogoToPrimaryButtonMargin = 54.0f;
 
 - (void)setAuthenticateButtonText:(NSString*)text
                accessibilityLabel:(NSString*)accessibilityLabel {
-  _authenticateButtonLabel.text = text;
+  if (IsIOSSoftLockEnabled()) {
+    SetConfigurationTitle(self.authenticateButton, text);
+  } else {
+    _authenticateButtonLabel.text = text;
+  }
   self.authenticateButton.accessibilityLabel = accessibilityLabel;
 }
 
-#pragma mark - voiceover
+#pragma mark - UIAccessibility
 
 - (BOOL)accessibilityViewIsModal {
   return YES;
 }
+
+#pragma mark - UIAccessibilityAction
 
 - (BOOL)accessibilityPerformMagicTap {
   [self.authenticateButton
@@ -172,6 +205,39 @@ const CGFloat kLogoToPrimaryButtonMargin = 54.0f;
 }
 
 #pragma mark - private
+
+// Create a rounded blue background, white text button, used as the authenticate
+// button.
+- (UIButton*)buildAuthenticateButton {
+  UIButtonConfiguration* buttonConfiguration =
+      [UIButtonConfiguration plainButtonConfiguration];
+  buttonConfiguration.background.backgroundColor =
+      [UIColor colorNamed:kBlue300Color];
+  buttonConfiguration.background.cornerRadius = kPrimaryButtonCornerRadius;
+  buttonConfiguration.baseForegroundColor = [UIColor whiteColor];
+  buttonConfiguration.contentInsets = NSDirectionalEdgeInsetsMake(
+      kButtonVerticalInsets, 0, kButtonVerticalInsets, 0);
+
+  UIFont* font = [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
+  NSDictionary* attributes = @{NSFontAttributeName : font};
+  NSMutableAttributedString* string =
+      [[NSMutableAttributedString alloc] initWithString:@" "];
+  [string addAttributes:attributes range:NSMakeRange(0, string.length)];
+  buttonConfiguration.attributedTitle = string;
+  buttonConfiguration.titleLineBreakMode = NSLineBreakByTruncatingTail;
+
+  UIButton* button = [UIButton buttonWithConfiguration:buttonConfiguration
+                                         primaryAction:nil];
+  button.configuration = buttonConfiguration;
+  button.translatesAutoresizingMaskIntoConstraints = NO;
+  button.titleLabel.adjustsFontSizeToFitWidth = YES;
+  button.titleLabel.adjustsFontForContentSizeCategory = YES;
+
+  button.pointerInteractionEnabled = YES;
+  button.pointerStyleProvider = CreateOpaqueButtonPointerStyleProvider();
+
+  return button;
+}
 
 // Creates _authenticateButton.
 // Returns a "decoration" pill-shaped view containing _authenticateButton.
@@ -254,13 +320,15 @@ const CGFloat kLogoToPrimaryButtonMargin = 54.0f;
     [button setTitle:l10n_util::GetNSString(
                          IDS_IOS_INCOGNITO_REAUTH_CLOSE_INCOGNITO_TABS)
             forState:UIControlStateNormal];
+    button.titleLabel.font =
+        [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
   } else {
     [button setTitle:l10n_util::GetNSString(
                          IDS_IOS_INCOGNITO_REAUTH_GO_TO_NORMAL_TABS)
             forState:UIControlStateNormal];
+    button.titleLabel.font =
+        [UIFont preferredFontForTextStyle:UIFontTextStyleTitle2];
   }
-  button.titleLabel.font =
-      [UIFont preferredFontForTextStyle:UIFontTextStyleTitle2];
   button.titleLabel.adjustsFontSizeToFitWidth = YES;
   button.titleLabel.adjustsFontForContentSizeCategory = YES;
   button.pointerInteractionEnabled = YES;
@@ -281,9 +349,18 @@ const CGFloat kLogoToPrimaryButtonMargin = 54.0f;
                    }];
 }
 
+- (void)relayoutView {
+  if (IsIOSSoftLockEnabled()) {
+    return;
+  }
+  [self setNeedsLayout];
+  [self layoutIfNeeded];
+}
+
 #pragma mark - IncognitoReauthViewLabelOwner
 
 - (void)labelDidLayout {
+  CHECK(!IsIOSSoftLockEnabled());
   CGFloat cornerRadius =
       std::min(kAuthenticateButtonBagroundMaxCornerRadius,
                _authenticateButtonBackgroundView.frame.size.height / 2);

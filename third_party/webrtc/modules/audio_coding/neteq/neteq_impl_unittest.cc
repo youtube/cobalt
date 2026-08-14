@@ -173,7 +173,7 @@ class NetEqImplTest : public ::testing::Test {
     use_mock_payload_splitter_ = false;
   }
 
-  virtual ~NetEqImplTest() {
+  ~NetEqImplTest() override {
     if (use_mock_decoder_database_) {
       EXPECT_CALL(*mock_decoder_database_, Die()).Times(1);
     }
@@ -1790,7 +1790,7 @@ class Decoder120ms : public AudioDecoder {
 class NetEqImplTest120ms : public NetEqImplTest {
  protected:
   NetEqImplTest120ms() : NetEqImplTest() {}
-  virtual ~NetEqImplTest120ms() {}
+  ~NetEqImplTest120ms() override {}
 
   void CreateInstanceNoMocks() {
     UseNoMocks();

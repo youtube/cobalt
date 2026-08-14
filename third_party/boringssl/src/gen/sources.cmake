@@ -679,6 +679,8 @@ set(
   crypto/spake2plus/internal.h
   crypto/trust_token/internal.h
   crypto/x509/internal.h
+  third_party/fiat/bedrock_unverified_bareminimum.c.inc
+  third_party/fiat/bedrock_unverified_platform.c.inc
   third_party/fiat/curve25519_32.h
   third_party/fiat/curve25519_64.h
   third_party/fiat/curve25519_64_adx.h
@@ -686,6 +688,7 @@ set(
   third_party/fiat/p256_32.h
   third_party/fiat/p256_64.h
   third_party/fiat/p256_64_msvc.h
+  third_party/fiat/p256_bedrock.c.inc
 )
 
 set(
@@ -806,6 +809,8 @@ set(
   crypto/x509/x509_test.cc
   crypto/x509/x509_time_test.cc
   crypto/xwing/xwing_test.cc
+  third_party/fiat/bedrock_platform_test.cc
+  third_party/fiat/bedrock_polyfill_platform.c.inc
 )
 
 set(

@@ -5,7 +5,6 @@
 <translation id="1178581264944972037">ផ្អាក</translation>
 <translation id="1246424317317450637">ដិត</translation>
 <translation id="1357114957607379632">កំពុង​បង្កើត​ការចាក់​សំឡេង AI...</translation>
-<translation id="1370273601702151510">លើកមេដៃ</translation>
 <translation id="1483137792530497944">ទន្លេ</translation>
 <translation id="1586836055630070874">បែបបន្ធូរអារម្មណ៍</translation>
 <translation id="1639239467298939599">កំពុងដំណើរការ</translation>
@@ -19,7 +18,6 @@
 <translation id="2575502321843437554">គ្មានភាព​ទាក់ទាញ​គ្រប់គ្រាន់</translation>
 <translation id="2611765907167846862">ស្ងប់ស្ងាត់</translation>
 <translation id="3023502830214299618">គួរឱ្យ​សោកស្ដាយ មិនអាច​ចាក់វីដេអូ​សម្រាប់​ទំព័រនេះ​នៅពេលនេះបានទេ។ សូមព្យាយាម​ម្ដងទៀត​នៅពេលក្រោយ។</translation>
-<translation id="3457812538570616687">ឱ្យមេដៃចុះ</translation>
 <translation id="3493899379487634969">តើមាន​អ្វីខុស​ប្រក្រតី?</translation>
 <translation id="3730775656877876887">កំពុង​បង្កើត​ការចាក់​សំឡេង AI</translation>
 <translation id="3778044272390020426">ម៉ឺនុយ​ជម្រើស​មតិកែលម្អ​អវិជ្ជមាន</translation>
@@ -33,6 +31,7 @@
 <translation id="4525525184005340968">ជ្រលងភ្នំ</translation>
 <translation id="4710974520964166851">ធូលស្រាល</translation>
 <translation id="4773921449011281499">ស្ងប់ស្ងៀម</translation>
+<translation id="4867493576811701175">ប៊ូតុង​លើកមេដៃ, ជ្រើសរើស​ដើម្បី​ដាក់បញ្ជូន​មតិកែលម្អ​ដែលប្រាប់ថា អ្នក​ចូលចិត្ត​មុខងារនេះ</translation>
 <translation id="4872475766448853257">ខា​ថយ​ក្រោយ <ph name="NUMBER_OF_SECONDS" /> វិនាទី</translation>
 <translation id="4967513477347430212">ឆ្នេរ</translation>
 <translation id="5026371835667036198">ច្បាស់</translation>
@@ -63,6 +62,7 @@
 <translation id="8136852699834914183">មិនអាចចាក់សម្រាប់ទំព័រនេះបានទេ។</translation>
 <translation id="8198036737896977997">ខ្យល់</translation>
 <translation id="8264989794233974275">បង្កើន/បន្ថយល្បឿន <ph name="PLAYBACK_SPEED" />x។</translation>
+<translation id="837054959055425654">ប៊ូតុង​ឱ្យមេដៃ​ចុះ, ជ្រើសរើស​ដើម្បី​បើកទម្រង់​បែបបទ ដើម្បី​ផ្ដល់​មតិកែលម្អ​លម្អិត​អំពី​បញ្ហា​ពាក់ព័ន្ធនឹង​មុខងារនេះ</translation>
 <translation id="8407011429883244666">បិទ​កម្មវិធី​ចាក់។</translation>
 <translation id="8462210863277153423">URL របស់អ្នក​នឹងត្រូវបាន​បង្ហោះ​ជាមួយ​មតិកែលម្អ ដើម្បី​កែលម្អ​គុណភាព និង​ការស្រាវជ្រាវ។</translation>
 <translation id="8481839122437406573">ស្ងប់</translation>

@@ -140,4 +140,4 @@ TEST(TestAcknowledgedBitrateEstimator, ReturnBitrate) {
   EXPECT_EQ(return_value, states.acknowledged_bitrate_estimator->bitrate());
 }
 
-}  // namespace webrtc*/
+}  // namespace webrtc

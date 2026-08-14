@@ -49,7 +49,7 @@ class AudioRtpReceiverTest : public ::testing::Test {
     EXPECT_CALL(receive_channel_, SetBaseMinimumPlayoutDelayMs(kSsrc, _));
   }
 
-  ~AudioRtpReceiverTest() {
+  ~AudioRtpReceiverTest() override {
     EXPECT_CALL(receive_channel_, SetOutputVolume(kSsrc, kVolumeMuted));
     receiver_->SetMediaChannel(nullptr);
   }

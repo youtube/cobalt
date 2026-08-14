@@ -12,9 +12,10 @@
 
 #include <stddef.h>
 
+#include <vector>
+
+#include "api/audio/channel_layout.h"
 #include "audio/utility/channel_mixer.h"
-#include "rtc_base/arraysize.h"
-#include "rtc_base/logging.h"
 #include "rtc_base/strings/string_builder.h"
 #include "test/gtest.h"
 
@@ -358,9 +359,7 @@ TEST(ChannelMixingMatrixTest, DiscreteToDiscrete) {
       {5, 2},
   };
 
-  for (size_t n = 0; n < arraysize(test_case); n++) {
-    int input_channels = test_case[n].input_channels;
-    int output_channels = test_case[n].output_channels;
+  for (auto [input_channels, output_channels] : test_case) {
     ChannelMixingMatrix matrix_builder(CHANNEL_LAYOUT_DISCRETE, input_channels,
                                        CHANNEL_LAYOUT_DISCRETE,
                                        output_channels);

@@ -20,7 +20,7 @@
 #include <fcntl.h>
 #include <gbm.h>
 #include <libdrm/drm_fourcc.h>
-#include <spa/param/video/raw.h>
+#include <spa/param/video/format-utils.h>
 #include <unistd.h>
 #include <xf86drm.h>
 
@@ -509,7 +509,7 @@ bool EglDmaBuf::GetClientExtensions(EGLDisplay dpy, EGLint name) {
   }
 
   std::vector<absl::string_view> client_extensions =
-      webrtc::split(client_extensions_cstring, ' ');
+      split(client_extensions_cstring, ' ');
   for (const auto& extension : client_extensions) {
     egl_.extensions.push_back(std::string(extension));
   }

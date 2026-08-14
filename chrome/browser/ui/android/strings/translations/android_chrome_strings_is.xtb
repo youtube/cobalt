@@ -109,6 +109,7 @@ Til að skoða fleiri stillingar sem nota gögn til að bæta Chrome-upplifunina
 <translation id="1419753403124156396">Endurræsa Chrome?</translation>
 <translation id="1428770807407000502">Slökkva á samstillingu?</translation>
 <translation id="1430915738399379752">Prenta</translation>
+<translation id="1433478348197382180">Lesstilling</translation>
 <translation id="1435593198351412143">Opna PDF-skrár sjálfkrafa</translation>
 <translation id="1437543266176261764">Keyrt í <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Notaðu bókamerki til að flokka vörur sem þú vaktar</translation>
@@ -331,6 +332,7 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="2524132927880411790">Fara í raddleit Google-forrits</translation>
 <translation id="2527209463677295330">Hægt er að fá betri niðurstöður með því að setja inn meira af texta síðunnar</translation>
 <translation id="2527779675047087889">Fela innihald klippiborðs</translation>
+<translation id="2531209299761896527">Færðu fingur saman, haltu inni og dragðu til að opna flipa í nýjum glugga</translation>
 <translation id="2532336938189706096">Vefyfirlit</translation>
 <translation id="253498598929009420">Vefsvæðið mun get séð það sem er á skjánum hjá þér</translation>
 <translation id="2535807170289627159">Allir flipar</translation>
@@ -544,7 +546,6 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="3513019849832307207">Taka þátt og opna</translation>
 <translation id="3513704683820682405">Aukinn veruleiki</translation>
 <translation id="3516053221628030540">Opna Google Play</translation>
-<translation id="351672147489633468">{NUM_REVOKED_PERMISSIONS,plural, =1{Tilkynningaheimildir eins vefsvæðis sem þú hefur ekki skoðað nýlega voru fjarlægðar}one{Tilkynningaheimildir # vefsvæðis sem þú hefur ekki skoðað nýlega voru fjarlægðar}other{Tilkynningaheimildir # vefsvæða sem þú hefur ekki skoðað nýlega voru fjarlægðar}}</translation>
 <translation id="3518985090088779359">Samþykkja og áfram</translation>
 <translation id="3519014757432845220">Hjálpaðu til við að bæta ruslefnisvörnina með því að deila efni tilkynninga og slóðinni á vefsvæðið með Google. Mennskir yfirlesarar kunna að fara yfir efni.</translation>
 <translation id="3521388823983121502">Ekki er hægt að halda áfram með <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
@@ -713,6 +714,7 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="4298388696830689168">Tengd vefsvæði</translation>
 <translation id="4300632303535881174">Fara á fyrri síðu</translation>
 <translation id="4303044213806199882">chrome_screenshot_<ph name="CURRENT_TIMESTAMP_MS" /></translation>
+<translation id="4306489587293957491">Sláðu inn</translation>
 <translation id="4307992518367153382">Grunnatriði</translation>
 <translation id="4311652497846705514">Opna PDF-skrá?</translation>
 <translation id="4320177379694898372">Engin nettenging</translation>
@@ -1079,7 +1081,6 @@ Google reikningurinn þinn kann að vera með annars konar vefskoðunarferil, sv
 <translation id="5956665950594638604">Opna hjálparmiðstöð Chrome í nýjum flipa</translation>
 <translation id="59577092665511740">Veldu reikning.</translation>
 <translation id="5958275228015807058">Þú finnur skrár og síður í Niðurhali</translation>
-<translation id="5958994127112619898">Einfalda síðu</translation>
 <translation id="5962718611393537961">Ýttu til að draga saman</translation>
 <translation id="5964869237734432770">Slökkva á myndlýsingum</translation>
 <translation id="5975083100439434680">Minnka aðdrátt</translation>
@@ -1628,7 +1629,6 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="8137562778192957619">Þú þarft ekki að muna þetta aðgangsorð. Það verður vistað í Google-aðgangsorðastjórnun.</translation>
 <translation id="8152331954420209374">Fara í Linsu</translation>
 <translation id="8163820386638255770">Staðfestu að þetta sért þú til að nota og vista aðgangsorð á Google-reikningnum þínum</translation>
-<translation id="8179976553408161302">Enter</translation>
 <translation id="8186512483418048923"><ph name="FILES" /> skrár eftir</translation>
 <translation id="8190358571722158785">Einn dagur eftir</translation>
 <translation id="8192765420340770300">Innskráningarblað neðst opið í fullri hæð</translation>
@@ -1650,7 +1650,6 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="8244387390464017490">Sérsníða síðu nýrra flipa</translation>
 <translation id="8250920743982581267">Skjöl</translation>
 <translation id="8255617931166444521">Vefsvæði geta einungis notað fótspor frá þér til að sjá vafranotkun þína á umræddu vefsvæði</translation>
-<translation id="8256087213273124136">Chrome skráði þig úr áskrift að tilkynningum</translation>
 <translation id="8258999165172757081">Bætt við</translation>
 <translation id="8259179246279078674">Vegna þess að forhlaðnar síður eru dulkóðaðar mun Google ekki fá upplýsingar um efni þeirra. Netþjónar Google fá upplýsingar um hvaða vefsvæðum er forhlaðið á lokaðan hátt. Þær upplýsingar eru eingöngu notaðar til að forhlaða síðum og þær eru ekki tengdar við aðrar upplýsingar á Google reikningnum þínum.</translation>
 <translation id="8260126382462817229">Reyndu að skrá þig inn aftur</translation>

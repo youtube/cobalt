@@ -31,11 +31,14 @@ public class ClipDrawableProgressBar extends ImageView {
     public static class DrawingInfo {
         public final Rect progressBarRect = new Rect();
         public final Rect progressBarBackgroundRect = new Rect();
+        public final Rect progressBarStaticBackgroundRect = new Rect();
         public final Rect progressBarEndIndicator = new Rect();
 
         public int progressBarColor;
         public int progressBarBackgroundColor;
+        public int progressBarStaticBackgroundColor;
         public float cornerRadius;
+        public boolean progressBarVisualUpdateAvailable;
     }
 
     /** An observer for visible progress updates. */
@@ -59,7 +62,7 @@ public class ClipDrawableProgressBar extends ImageView {
      * Defines a small transparent gap between the foreground and background drawables when using
      * gradient drawables. The gap is a percentage of the max progress level 1.0f.
      */
-    private static final float TRANSPARENT_GAP_SIZE = 0.01f;
+    private static final float GAP_SIZE = 0.01f;
 
     @Nullable private ColorDrawable mForegroundColorDrawable;
     @Nullable private GradientDrawable mForegroundGradientDrawable;
@@ -67,13 +70,14 @@ public class ClipDrawableProgressBar extends ImageView {
     @Nullable private GradientDrawable mEndCapCircleDrawable;
     private int mForegroundColor;
     private int mBackgroundColor;
+    private int mStaticBackgroundColor;
     protected final int mProgressBarHeight;
     private float mProgress;
     private int mDesiredVisibility;
     /**
      * The width of the moving background drawable in pixels.
      * This is used when {@link #useGradientDrawable()} is true, where the background
-     * drawable scales with the inverse of the progress, leaving a small transparent
+     * drawable scales with the inverse of the progress, leaving a small
      * gap between the two drawables.
      */
     private int mScaledBackgroundWidth;
@@ -223,7 +227,7 @@ public class ClipDrawableProgressBar extends ImageView {
         if (layerDrawable.getNumberOfLayers() >= 2) {
             ScaleDrawable backgroundScale = (ScaleDrawable) layerDrawable.getDrawable(1);
             if (progress > 0.0f) {
-                float backgroundProgressLevel = (1.0f - progress - TRANSPARENT_GAP_SIZE);
+                float backgroundProgressLevel = (1.0f - progress - GAP_SIZE);
                 mScaledBackgroundWidth = (int) (getWidth() * backgroundProgressLevel);
                 backgroundScale.setLevel(Math.round(backgroundProgressLevel * DRAWABLE_MAX_LEVEL));
             } else {
@@ -254,9 +258,12 @@ public class ClipDrawableProgressBar extends ImageView {
         float effectiveAlpha = getVisibility() == VISIBLE ? getAlpha() : 0.0f;
         drawingInfoOut.progressBarColor = applyAlpha(mForegroundColor, effectiveAlpha);
         drawingInfoOut.progressBarBackgroundColor = applyAlpha(mBackgroundColor, effectiveAlpha);
+        // Defaults to Color.TRANSPARENT
+        drawingInfoOut.progressBarStaticBackgroundColor = applyAlpha(mStaticBackgroundColor, effectiveAlpha);
 
         drawingInfoOut.cornerRadius = 0;
         if (useGradientDrawable()) {
+            drawingInfoOut.progressBarVisualUpdateAvailable = true;
             drawingInfoOut.cornerRadius = (float) (getBottom() - getTop()) / 2;
             if (mProgress == 0.0f) {
                 // Ensure the background drawable is fully visible when the progress is 0.
@@ -266,6 +273,8 @@ public class ClipDrawableProgressBar extends ImageView {
 
         int endIndicatorSize = getBottom() - getTop();
         if (ViewCompat.getLayoutDirection(this) == LAYOUT_DIRECTION_LTR) {
+            drawingInfoOut.progressBarStaticBackgroundRect.set(
+                    getLeft(), getTop(), getRight(), getBottom());
             drawingInfoOut.progressBarRect.set(
                     getLeft(),
                     getTop(),
@@ -290,6 +299,8 @@ public class ClipDrawableProgressBar extends ImageView {
                     getRight(),
                     getBottom());
         } else {
+            drawingInfoOut.progressBarStaticBackgroundRect.set(
+                    getRight(), getTop(), getLeft(), getBottom());
             drawingInfoOut.progressBarRect.set(
                     getRight() - Math.round(mProgress * getWidth()),
                     getTop(),
@@ -359,7 +370,6 @@ public class ClipDrawableProgressBar extends ImageView {
                 // moving background clip.
                 mBackgroundGradientDrawable.setColor(color);
                 mBackgroundColor = color;
-                super.setBackgroundColor(Color.TRANSPARENT);
             }
         } else if (color == Color.TRANSPARENT) {
             setBackground(null);
@@ -384,6 +394,19 @@ public class ClipDrawableProgressBar extends ImageView {
             mForegroundColorDrawable.setColor(color);
         }
         mForegroundColor = color;
+    }
+
+    /**
+     * Sets the background color of the Progress bar view.
+     * When {@link #useGradientDrawable()} is true, this color is used to fill the gap between the
+     * loaded and unloaded portion, preventing the background from being visible.
+     * Otherwise, this sets the general background of the progress bar.
+     *
+     * @param color The color to set for the background/gap.
+     */
+    public void setProgressGapBackgroundColor(int color) {
+        super.setBackgroundColor(color);
+        mStaticBackgroundColor = color;
     }
 
     @Override

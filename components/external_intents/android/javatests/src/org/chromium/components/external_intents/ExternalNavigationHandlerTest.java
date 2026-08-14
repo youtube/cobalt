@@ -420,7 +420,7 @@ public class ExternalNavigationHandlerTest {
     @SmallTest
     public void testIgnore() {
         // Ensure the following URLs are not broadcast for external navigation.
-        String urlsToIgnore[] =
+        String[] urlsToIgnore =
                 new String[] {
                     "about:test",
                     "content:test", // Content URLs should not be exposed outside of Chrome.
@@ -2513,7 +2513,7 @@ public class ExternalNavigationHandlerTest {
     @SmallTest
     public void testIsPackageSpecializedHandler_NoResolveInfo() {
         String packageName = "";
-        List<ResolveInfo> resolveInfos = new ArrayList<ResolveInfo>();
+        List<ResolveInfo> resolveInfos = new ArrayList<>();
         Assert.assertEquals(
                 0,
                 ExternalNavigationHandler.getSpecializedHandlersWithFilter(
@@ -2650,7 +2650,7 @@ public class ExternalNavigationHandlerTest {
     public void testUrlIntentToOtherBrowser() {
         mDelegate.setResolvesToOtherBrowser(true);
 
-        String unsafeUrls[] =
+        String[] unsafeUrls =
                 new String[] {
                     "intent:#Intent;S.EXTRA_HIDDEN_URL=encodedUrl;action=CUSTOM.ACTION;end",
                     "intent:#Intent;S.EXTRA_HIDDEN_URL=encodedUrl;end",
@@ -3495,7 +3495,7 @@ public class ExternalNavigationHandlerTest {
 
         private String mReferrerWebappPackageName;
 
-        private final ArrayList<IntentActivity> mIntentActivities = new ArrayList<IntentActivity>();
+        private final ArrayList<IntentActivity> mIntentActivities = new ArrayList<>();
         private boolean mCanResolveActivityForExternalSchemes = true;
         private boolean mCanResolveActivityForMarket = true;
         public boolean mIsChromeAppInForeground = true;
@@ -3629,7 +3629,7 @@ public class ExternalNavigationHandlerTest {
             mUrlHandler.reset();
 
             Callback<AsyncActionTakenParams> callback =
-                    new Callback<AsyncActionTakenParams>() {
+                    new Callback<>() {
                         @Override
                         public void onResult(AsyncActionTakenParams params) {
                             if (params.actionType == AsyncActionTakenType.NAVIGATE) {

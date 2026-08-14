@@ -56,7 +56,8 @@ void CheckDelaysValid(TimeDelta min_delay, TimeDelta max_delay) {
 VCMTiming::VCMTiming(Clock* clock, const FieldTrialsView& field_trials)
     : clock_(clock),
       ts_extrapolator_(
-          std::make_unique<TimestampExtrapolator>(clock_->CurrentTime())),
+          std::make_unique<TimestampExtrapolator>(clock_->CurrentTime(),
+                                                  field_trials)),
       decode_time_filter_(std::make_unique<DecodeTimePercentileFilter>()),
       render_delay_(kDefaultRenderDelay),
       min_playout_delay_(TimeDelta::Zero()),

@@ -140,7 +140,7 @@ class RTC_EXPORT StreamInterface {
   }
 
   RTC_NO_UNIQUE_ADDRESS SequenceChecker callback_sequence_{
-      webrtc::SequenceChecker::kDetached};
+      SequenceChecker::kDetached};
 
  private:
   absl::AnyInvocable<void(int, int)> callback_

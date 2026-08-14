@@ -163,6 +163,7 @@ void FormatLabel(views::Label& label,
     case FillingProduct::kIban:
     case FillingProduct::kMerchantPromoCode:
     case FillingProduct::kPassword:
+    case FillingProduct::kDataList:
     case FillingProduct::kNone:
       break;
   }
@@ -296,7 +297,8 @@ std::unique_ptr<PopupRowContentView> CreateFooterPopupRowContentView(
   }
   main_text_label->SetEnabled(!suggestion.is_loading);
 
-  if (suggestion.type == SuggestionType::kPendingStateSignin) {
+  if (suggestion.type == SuggestionType::kPendingStateSignin ||
+      suggestion.type == SuggestionType::kFreeformFooter) {
     main_text_label->SetMultiLine(true);
     main_text_label->SetHorizontalAlignment(gfx::ALIGN_TO_HEAD);
   }
@@ -414,7 +416,9 @@ std::unique_ptr<PopupRowContentView> CreatePasswordPopupRowContentView(
   }
 
   std::vector<std::unique_ptr<views::View>> subtext_views;
-  subtext_views.push_back(CreatePasswordSubtextView(suggestion));
+  if (!suggestion.labels.empty()) {
+    subtext_views.push_back(CreatePasswordSubtextView(suggestion));
+  }
   popup_cell_utils::AddSuggestionContentToView(
       suggestion, std::move(main_text_label), CreateMinorTextLabels(suggestion),
       CreatePasswordDescriptionLabel(suggestion), std::move(subtext_views),
@@ -678,6 +682,8 @@ std::unique_ptr<PopupRowView> CreatePopupRowView(
     case SuggestionType::kInsecureContextPaymentDisabledMessage:
       NOTREACHED();
     case SuggestionType::kPasswordEntry:
+    case SuggestionType::kBackupPasswordEntry:
+    case SuggestionType::kTroubleSigningInEntry:
     case SuggestionType::kAccountStoragePasswordEntry:
       return std::make_unique<PopupRowView>(
           a11y_selection_delegate, selection_delegate, controller, line_number,

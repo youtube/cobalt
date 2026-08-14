@@ -38,6 +38,7 @@
   'wasm/gc-js-interop-helpers': [SKIP],
   'wasm/gc-js-interop-export': [SKIP],
   'wasm/wasm-module-builder': [SKIP],
+  'sandbox/wasm-jspi': [SKIP],
   'compiler/fast-api-helpers': [SKIP],
   'typedarray-helpers': [SKIP],
 
@@ -2609,12 +2610,6 @@
 ['not js_shared_memory', {
   'shared-memory/*': [SKIP],
 }],  # 'not js_shared_memory'
-
-##############################################################################
-['arch == arm and variant == always_sparkplug_and_stress_regexp_jit', {
-  # crbug.com/422947546
-  'maglev/yes-deopt-deprecated-map': [SKIP],
-}], # variant == always_sparkplug_and_stress_regexp_jit
 
 ##############################################################################
 ['variant == always_sparkplug or variant == always_sparkplug_and_stress_regexp_jit', {

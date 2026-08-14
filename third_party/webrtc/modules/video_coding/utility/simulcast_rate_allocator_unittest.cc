@@ -72,7 +72,7 @@ class SimulcastRateAllocatorTest : public ::testing::TestWithParam<bool> {
     codec_.active = true;
     CreateAllocator();
   }
-  virtual ~SimulcastRateAllocatorTest() {}
+  ~SimulcastRateAllocatorTest() override {}
 
   template <size_t S>
   void ExpectEqual(uint32_t (&expected)[S],

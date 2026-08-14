@@ -46,7 +46,7 @@ class MockPacketRequestCallback : public VCMPacketRequestCallback {
 class MockVCMReceiveCallback : public VCMReceiveCallback {
  public:
   MockVCMReceiveCallback() {}
-  virtual ~MockVCMReceiveCallback() {}
+  ~MockVCMReceiveCallback() override {}
 
   MOCK_METHOD(int32_t, OnFrameToRender, (const FrameToRender&), (override));
   MOCK_METHOD(void, OnIncomingPayloadType, (int), (override));
@@ -67,7 +67,7 @@ class TestVideoReceiver : public ::testing::Test {
         timing_(&clock_, field_trials_),
         receiver_(&clock_, &timing_, field_trials_) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     // Register decoder.
     receiver_.RegisterExternalDecoder(&decoder_, kUnusedPayloadType);
     VideoDecoder::Settings settings;

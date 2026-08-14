@@ -86,7 +86,7 @@ aom_superblock_size_t GetSuperblockSize(int width, int height, int threads) {
 class LibaomAv1Encoder final : public VideoEncoder {
  public:
   LibaomAv1Encoder(const Environment& env, LibaomAv1EncoderSettings settings);
-  ~LibaomAv1Encoder();
+  ~LibaomAv1Encoder() override;
 
   int InitEncode(const VideoCodec* codec_settings,
                  const Settings& settings) override;

@@ -62,10 +62,8 @@ std::string SelectTool::DebugString() const {
 }
 
 SelectTool::ValidatedResult SelectTool::Validate() const {
-  if (!frame_->GetWebFrame()->FrameWidget()) {
-    return base::unexpected(
-        MakeResult(mojom::ActionResultCode::kFrameWentAway));
-  }
+  CHECK(frame_->GetWebFrame());
+  CHECK(frame_->GetWebFrame()->LocalRoot()->FrameWidget());
 
   mojom::ToolTargetPtr& target = action_->target;
 

@@ -31,10 +31,11 @@
 #include "rtc_base/network.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
+#include "system_wrappers/include/metrics.h"
 #include "test/gmock.h"
 #include "test/wait_until.h"
 #if defined(WEBRTC_POSIX)
-#include <dirent.h>
+#include <dirent.h>  // IWYU pragma: keep
 
 #include "absl/strings/string_view.h"
 #endif
@@ -196,7 +197,7 @@ class TestConnectionWrapper : public sigslot::has_slots<> {
         this, &TestConnectionWrapper::OnConnectionDestroyed);
   }
 
-  ~TestConnectionWrapper() {
+  ~TestConnectionWrapper() override {
     if (connection_) {
       connection_->SignalDestroyed.disconnect(this);
     }
@@ -1008,7 +1009,7 @@ class TurnLoggingIdValidator : public StunMessageObserver {
  public:
   explicit TurnLoggingIdValidator(const char* expect_val)
       : expect_val_(expect_val) {}
-  ~TurnLoggingIdValidator() {}
+  ~TurnLoggingIdValidator() override {}
   void ReceivedMessage(const TurnMessage* msg) override {
     if (msg->type() == STUN_ALLOCATE_REQUEST) {
       const StunByteStringAttribute* attr =
@@ -1187,7 +1188,7 @@ TEST_F(TurnPortTest, TurnTcpAllocationNotDiscardedIfNotBoundToBestIP) {
 }
 
 // Regression test for crbug.com/webrtc/8972, caused by buggy comparison
-// between webrtc::IPAddress and webrtc::InterfaceAddress.
+// between IPAddress and InterfaceAddress.
 TEST_F(TurnPortTest, TCPPortNotDiscardedIfBoundToTemporaryIP) {
   networks_.emplace_back("unittest", "unittest", kLocalIPv6Addr.ipaddr(), 32);
   networks_.back().AddIP(
@@ -1939,7 +1940,7 @@ class MessageObserver : public StunMessageObserver {
       : message_counter_(message_counter),
         channel_data_counter_(channel_data_counter),
         attr_counter_(attr_counter) {}
-  virtual ~MessageObserver() {}
+  ~MessageObserver() override {}
   void ReceivedMessage(const TurnMessage* msg) override {
     if (message_counter_ != nullptr) {
       (*message_counter_)++;
@@ -2146,10 +2147,10 @@ class TurnPortWithMockDnsResolverTest : public TurnPortTest {
 TEST_F(TurnPortWithMockDnsResolverTest, TestHostnameResolved) {
   CreateTurnPort(kTurnUsername, kTurnPassword, kTurnPortValidHostnameProtoAddr);
   SetDnsResolverExpectations(
-      [](webrtc::MockAsyncDnsResolver* resolver,
-         webrtc::MockAsyncDnsResolverResult* resolver_result) {
+      [](MockAsyncDnsResolver* resolver,
+         MockAsyncDnsResolverResult* resolver_result) {
         EXPECT_CALL(*resolver, Start(kTurnValidAddr, /*family=*/AF_INET, _))
-            .WillOnce([](const webrtc::SocketAddress& addr, int family,
+            .WillOnce([](const SocketAddress& addr, int family,
                          absl::AnyInvocable<void()> callback) { callback(); });
         EXPECT_CALL(*resolver, result)
             .WillRepeatedly(ReturnPointee(resolver_result));
@@ -2167,10 +2168,10 @@ TEST_F(TurnPortWithMockDnsResolverTest, TestHostnameResolvedIPv6Network) {
   CreateTurnPort(kLocalIPv6Addr, kTurnUsername, kTurnPassword,
                  kTurnPortValidHostnameProtoAddr);
   SetDnsResolverExpectations(
-      [](webrtc::MockAsyncDnsResolver* resolver,
-         webrtc::MockAsyncDnsResolverResult* resolver_result) {
+      [](MockAsyncDnsResolver* resolver,
+         MockAsyncDnsResolverResult* resolver_result) {
         EXPECT_CALL(*resolver, Start(kTurnValidAddr, /*family=*/AF_INET6, _))
-            .WillOnce([](const webrtc::SocketAddress& addr, int family,
+            .WillOnce([](const SocketAddress& addr, int family,
                          absl::AnyInvocable<void()> callback) { callback(); });
         EXPECT_CALL(*resolver, result)
             .WillRepeatedly(ReturnPointee(resolver_result));
@@ -2181,5 +2182,66 @@ TEST_F(TurnPortWithMockDnsResolverTest, TestHostnameResolvedIPv6Network) {
       });
   TestTurnAllocateSucceeds(kSimulatedRtt * 2);
 }
+
+static struct IPAddressTypeTestConfig {
+  absl::string_view address;
+  IPAddressType address_type;
+} kAllIPAddressTypeTestConfigs[] = {
+    {"127.0.0.1", IPAddressType::kLoopback},
+    {"localhost", IPAddressType::kLoopback},
+    {"::1", IPAddressType::kLoopback},
+    {"10.0.0.3", IPAddressType::kPrivate},
+    {"fd00:4860:4860::8844", IPAddressType::kPrivate},
+    {"1.1.1.1", IPAddressType::kPublic},
+    {"2001:4860:4860::8888", IPAddressType::kPublic},
+};
+
+// Used by the test framework to print the param value for parameterized tests.
+std::string PrintToString(const IPAddressTypeTestConfig& param) {
+  return std::string(param.address);
+}
+
+class TurnPortIPAddressTypeMetricsTest
+    : public TurnPortWithMockDnsResolverTest,
+      public ::testing::WithParamInterface<IPAddressTypeTestConfig> {};
+
+TEST_P(TurnPortIPAddressTypeMetricsTest, TestIPAddressTypeMetrics) {
+  metrics::Reset();
+
+  SetDnsResolverExpectations(
+      [](webrtc::MockAsyncDnsResolver* resolver,
+         webrtc::MockAsyncDnsResolverResult* resolver_result) {
+        EXPECT_CALL(*resolver, Start(SocketAddress("localhost", 5000),
+                                     /*family=*/AF_INET, _))
+            .WillOnce([](const webrtc::SocketAddress& /* addr */,
+                         int /* family */,
+                         absl::AnyInvocable<void()> callback) { callback(); });
+        EXPECT_CALL(*resolver, result)
+            .WillRepeatedly(ReturnPointee(resolver_result));
+        EXPECT_CALL(*resolver_result, GetError).WillRepeatedly(Return(0));
+        EXPECT_CALL(*resolver_result, GetResolvedAddress(AF_INET, _))
+            .WillOnce(DoAll(SetArgPointee<1>(SocketAddress("127.0.0.1", 5000)),
+                            Return(true)));
+      });
+
+  ProtocolAddress server_address({GetParam().address, 5000}, PROTO_UDP);
+  SocketAddress local_address = server_address.address.family() == AF_INET6
+                                    ? kLocalIPv6Addr
+                                    : kLocalAddr1;
+  CreateTurnPort(local_address, kTurnUsername, kTurnPassword, server_address);
+  turn_port_->PrepareAddress();
+
+  ASSERT_THAT(WaitUntil([&] { return turn_port_->HasRequests(); }, IsTrue()),
+              IsRtcOk());
+
+  auto samples =
+      metrics::Samples("WebRTC.PeerConnection.Turn.ServerAddressType");
+  ASSERT_EQ(samples.size(), 1u);
+  EXPECT_EQ(samples[static_cast<int>(GetParam().address_type)], 1);
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         TurnPortIPAddressTypeMetricsTest,
+                         ::testing::ValuesIn(kAllIPAddressTypeTestConfigs));
 
 }  // namespace webrtc

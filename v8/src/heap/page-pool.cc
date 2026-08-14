@@ -37,7 +37,7 @@ std::optional<PoolEntry> PagePool::PoolImpl<PoolEntry>::Get(Isolate* isolate) {
   auto it = local_pools_.find(isolate);
 
   if (it == local_pools_.end()) {
-    // Pages in this pool will be flushed soon. Take them first.
+    // Pages in this pool will be flushed soon, reuse them.
     if (!shared_pool_.empty()) {
       auto& shared_entries = shared_pool_.back().second;
       if (!shared_entries.empty()) {
@@ -49,9 +49,6 @@ std::optional<PoolEntry> PagePool::PoolImpl<PoolEntry>::Get(Isolate* isolate) {
         return {std::move(shared_entry)};
       }
     }
-
-    // Otherwise steal from some other isolate's local pool.
-    it = local_pools_.begin();
   }
 
   if (it != local_pools_.end()) {
@@ -294,6 +291,11 @@ class PagePool::ReleasePooledChunksTask final : public CancelableTask {
 };
 
 void PagePool::ReleaseOnTearDown(Isolate* isolate) {
+  if (!v8_flags.memory_pool_share_memory_on_teardown) {
+    ReleaseImmediately(isolate);
+    return;
+  }
+
   const InternalTime time = next_time_.fetch_add(1, std::memory_order_relaxed);
 
   const bool shared_page_pool_populate =
@@ -327,14 +329,6 @@ void PagePool::ReleaseOnTearDown(Isolate* isolate) {
 void PagePool::ReleaseImmediately(Isolate* isolate) {
   page_pool_.ReleaseLocal(isolate);
   zone_pool_.ReleaseLocal(isolate);
-  large_pool_.ReleaseAll();
-}
-
-void PagePool::ReleaseImmediately() {
-  page_pool_.ReleaseLocal();
-  page_pool_.ReleaseShared();
-  zone_pool_.ReleaseLocal();
-  page_pool_.ReleaseShared();
   large_pool_.ReleaseAll();
 }
 
@@ -420,9 +414,14 @@ void PagePool::AddLarge(Isolate* isolate,
         base::TimeDelta::FromSeconds(timeout);
     auto task =
         std::make_unique<ReleasePooledLargeChunksTask>(isolate, this, time);
-    V8::GetCurrentPlatform()->PostDelayedTaskOnWorkerThread(
-        TaskPriority::kBestEffort, std::move(task),
-        large_page_release_task_delay.InSecondsF());
+    if (v8_flags.single_threaded) {
+      isolate->task_runner()->PostDelayedTask(
+          std::move(task), large_page_release_task_delay.InSecondsF());
+    } else {
+      V8::GetCurrentPlatform()->PostDelayedTaskOnWorkerThread(
+          TaskPriority::kBestEffort, std::move(task),
+          large_page_release_task_delay.InSecondsF());
+    }
   }
 }
 

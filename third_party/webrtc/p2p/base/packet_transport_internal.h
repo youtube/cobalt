@@ -83,8 +83,8 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
   // Callback is invoked each time a packet is received on this channel.
   void RegisterReceivedPacketCallback(
       void* id,
-      absl::AnyInvocable<void(webrtc::PacketTransportInternal*,
-                              const webrtc::ReceivedIpPacket&)> callback);
+      absl::AnyInvocable<void(PacketTransportInternal*,
+                              const ReceivedIpPacket&)> callback);
 
   void DeregisterReceivedPacketCallback(void* id);
 

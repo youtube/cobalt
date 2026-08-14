@@ -53,7 +53,7 @@ void SnapshotTabHelper::SetDelegate(id<SnapshotGeneratorDelegate> delegate) {
 void SnapshotTabHelper::SetSnapshotStorage(SnapshotStorageWrapper* wrapper) {
   if (base::FeatureList::IsEnabled(kSnapshotInSwift)) {
     CHECK(snapshot_manager_);
-    SnapshotStorage* storage = nil;
+    id<SnapshotStorage> storage = nil;
     // `wrapper` is nil when a WebState is detached.
     if (wrapper) {
       storage = wrapper.snapshotStorage;
@@ -113,13 +113,20 @@ void SnapshotTabHelper::RetrieveGreySnapshot(void (^callback)(UIImage*)) {
 void SnapshotTabHelper::UpdateSnapshotWithCallback(void (^callback)(UIImage*)) {
   was_loading_during_last_snapshot_ = web_state_->IsLoading();
 
+  // `wrapped_callback` is possibly called multiple times as a completion
+  // handler in `takeSnapshotWithConfiguration:completionHandler:`.
+  __block void (^block_callback)(UIImage*) = callback;
   base::TimeTicks start_time = base::TimeTicks::Now();
   void (^wrapped_callback)(UIImage*) = ^(UIImage* image) {
     base::TimeTicks end_time = base::TimeTicks::Now();
     base::UmaHistogramTimes("IOS.Snapshots.UpdateSnapshotTime",
                             end_time - start_time);
-    if (callback) {
-      callback(image);
+
+    if (block_callback) {
+      block_callback(image);
+      // Nullify the callback to ensure that the original callback is called
+      // only once.
+      block_callback = nil;
     }
   };
 
@@ -149,16 +156,6 @@ UIImage* SnapshotTabHelper::GenerateSnapshotWithoutOverlays() {
   } else {
     CHECK(legacy_snapshot_manager_);
     return [legacy_snapshot_manager_ generateUIViewSnapshot];
-  }
-}
-
-void SnapshotTabHelper::RemoveSnapshot() {
-  if (base::FeatureList::IsEnabled(kSnapshotInSwift)) {
-    CHECK(snapshot_manager_);
-    [snapshot_manager_ removeSnapshot];
-  } else {
-    CHECK(legacy_snapshot_manager_);
-    [legacy_snapshot_manager_ removeSnapshot];
   }
 }
 

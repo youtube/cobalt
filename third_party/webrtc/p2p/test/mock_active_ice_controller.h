@@ -29,41 +29,24 @@ class MockActiveIceController : public ActiveIceControllerInterface {
       const ActiveIceControllerFactoryArgs& /* args */) {}
   ~MockActiveIceController() override = default;
 
-  MOCK_METHOD(void, SetIceConfig, (const webrtc::IceConfig&), (override));
-  MOCK_METHOD(void, OnConnectionAdded, (const webrtc::Connection*), (override));
-  MOCK_METHOD(void,
-              OnConnectionSwitched,
-              (const webrtc::Connection*),
-              (override));
-  MOCK_METHOD(void,
-              OnConnectionDestroyed,
-              (const webrtc::Connection*),
-              (override));
-  MOCK_METHOD(void,
-              OnConnectionPinged,
-              (const webrtc::Connection*),
-              (override));
-  MOCK_METHOD(void,
-              OnConnectionUpdated,
-              (const webrtc::Connection*),
-              (override));
+  MOCK_METHOD(void, SetIceConfig, (const IceConfig&), (override));
+  MOCK_METHOD(void, OnConnectionAdded, (const Connection*), (override));
+  MOCK_METHOD(void, OnConnectionSwitched, (const Connection*), (override));
+  MOCK_METHOD(void, OnConnectionDestroyed, (const Connection*), (override));
+  MOCK_METHOD(void, OnConnectionPinged, (const Connection*), (override));
+  MOCK_METHOD(void, OnConnectionUpdated, (const Connection*), (override));
   MOCK_METHOD(bool,
               GetUseCandidateAttribute,
-              (const webrtc::Connection*,
-               webrtc::NominationMode,
-               webrtc::IceMode),
+              (const Connection*, NominationMode, IceMode),
               (const, override));
-  MOCK_METHOD(void,
-              OnSortAndSwitchRequest,
-              (webrtc::IceSwitchReason),
-              (override));
+  MOCK_METHOD(void, OnSortAndSwitchRequest, (IceSwitchReason), (override));
   MOCK_METHOD(void,
               OnImmediateSortAndSwitchRequest,
-              (webrtc::IceSwitchReason),
+              (IceSwitchReason),
               (override));
   MOCK_METHOD(bool,
               OnImmediateSwitchRequest,
-              (webrtc::IceSwitchReason, const webrtc::Connection*),
+              (IceSwitchReason, const Connection*),
               (override));
   MOCK_METHOD(const Connection*, FindNextPingableConnection, (), (override));
 };

@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 
+#include <cstdio>
 #include <iterator>
 #include <optional>
 #include <string>
@@ -21,6 +22,8 @@
 #include "rtc_base/strings/string_builder.h"
 
 #if defined(WEBRTC_WIN)
+#include <Shlwapi.h>
+#include <WinDef.h>
 #include <direct.h>
 #include <tchar.h>
 #include <windows.h>
@@ -28,8 +31,6 @@
 #include <algorithm>
 #include <locale>
 
-#include "Shlwapi.h"
-#include "WinDef.h"
 #include "rtc_base/string_utils.h"
 #include "rtc_base/win32.h"
 

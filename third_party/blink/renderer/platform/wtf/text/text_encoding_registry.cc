@@ -161,28 +161,28 @@ static void BuildBaseTextCodecMaps() {
   g_text_codec_map = new TextCodecMap;
   g_text_encoding_name_map = new TextEncodingNameMap;
 
-  TextCodecLatin1::RegisterEncodingNames(AddToTextEncodingNameMap);
-  TextCodecLatin1::RegisterCodecs(AddToTextCodecMap);
+  blink::TextCodecLatin1::RegisterEncodingNames(AddToTextEncodingNameMap);
+  blink::TextCodecLatin1::RegisterCodecs(AddToTextCodecMap);
 
-  TextCodecUTF8::RegisterEncodingNames(AddToTextEncodingNameMap);
-  TextCodecUTF8::RegisterCodecs(AddToTextCodecMap);
+  blink::TextCodecUtf8::RegisterEncodingNames(AddToTextEncodingNameMap);
+  blink::TextCodecUtf8::RegisterCodecs(AddToTextCodecMap);
 
-  TextCodecUTF16::RegisterEncodingNames(AddToTextEncodingNameMap);
-  TextCodecUTF16::RegisterCodecs(AddToTextCodecMap);
+  blink::TextCodecUtf16::RegisterEncodingNames(AddToTextEncodingNameMap);
+  blink::TextCodecUtf16::RegisterCodecs(AddToTextCodecMap);
 
-  TextCodecUserDefined::RegisterEncodingNames(AddToTextEncodingNameMap);
-  TextCodecUserDefined::RegisterCodecs(AddToTextCodecMap);
+  blink::TextCodecUserDefined::RegisterEncodingNames(AddToTextEncodingNameMap);
+  blink::TextCodecUserDefined::RegisterCodecs(AddToTextCodecMap);
 }
 
 static void ExtendTextCodecMaps() {
-  TextCodecReplacement::RegisterEncodingNames(AddToTextEncodingNameMap);
-  TextCodecReplacement::RegisterCodecs(AddToTextCodecMap);
+  blink::TextCodecReplacement::RegisterEncodingNames(AddToTextEncodingNameMap);
+  blink::TextCodecReplacement::RegisterCodecs(AddToTextCodecMap);
 
-  TextCodecCJK::RegisterEncodingNames(AddToTextEncodingNameMap);
-  TextCodecCJK::RegisterCodecs(AddToTextCodecMap);
+  blink::TextCodecCjk::RegisterEncodingNames(AddToTextEncodingNameMap);
+  blink::TextCodecCjk::RegisterCodecs(AddToTextCodecMap);
 
-  TextCodecICU::RegisterEncodingNames(AddToTextEncodingNameMap);
-  TextCodecICU::RegisterCodecs(AddToTextCodecMap);
+  blink::TextCodecIcu::RegisterEncodingNames(AddToTextEncodingNameMap);
+  blink::TextCodecIcu::RegisterCodecs(AddToTextCodecMap);
 }
 
 std::unique_ptr<TextCodec> NewTextCodec(const TextEncoding& encoding) {

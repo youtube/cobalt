@@ -723,6 +723,12 @@ void ANGLETestBase::ANGLETestSetUp()
         return;
     }
 
+    // WGL tests are currently disabled.
+    if (mFixture->wglWindow)
+    {
+        FAIL() << "Unsupported driver.";
+    }
+
     // Resize the window before creating the context so that the first make current
     // sets the viewport and scissor box to the right size.
     bool needSwap = false;
@@ -752,58 +758,72 @@ void ANGLETestBase::ANGLETestSetUp()
         }
         needSwap = true;
     }
-    // WGL tests are currently disabled.
-    if (mFixture->wglWindow)
+
+    Library *driverLib = ANGLETestEnvironment::GetDriverLibrary(mCurrentParams->driver);
+
+    // Overriding ANGLE features requires the extension EGL_ANGLE_feature_control.
+    // Only allow skipping tests due to unsupported ANGLE extensions when testing the system EGL,
+    // since we want it to be obvious if ANGLE itself stops exposing them.
+    // Must be checked before initializing the Display, since
+    if (mCurrentParams->driver == GLESDriverType::SystemEGL)
     {
-        FAIL() << "Unsupported driver.";
+        if ((!mCurrentParams->eglParameters.enabledFeatureOverrides.empty() ||
+             !mCurrentParams->eglParameters.disabledFeatureOverrides.empty()) &&
+            !IsEGLClientExtensionEnabled("EGL_ANGLE_feature_control"))
+        {
+            GTEST_SKIP() << "Test skipped because EGL_ANGLE_feature_control is not available.";
+        }
     }
-    else
+
+    if (mForceNewDisplay || !mFixture->eglWindow->isDisplayInitialized())
     {
-        Library *driverLib = ANGLETestEnvironment::GetDriverLibrary(mCurrentParams->driver);
-
-        if (mForceNewDisplay || !mFixture->eglWindow->isDisplayInitialized())
+        mFixture->eglWindow->destroyGL();
+        if (!mFixture->eglWindow->initializeDisplay(mFixture->osWindow, driverLib,
+                                                    mCurrentParams->driver,
+                                                    mCurrentParams->eglParameters))
         {
-            mFixture->eglWindow->destroyGL();
-            if (!mFixture->eglWindow->initializeDisplay(mFixture->osWindow, driverLib,
-                                                        mCurrentParams->driver,
-                                                        mCurrentParams->eglParameters))
-            {
-                FAIL() << "EGL Display init failed.";
-            }
+            FAIL() << "EGL Display init failed.";
         }
-        else if (mCurrentParams->eglParameters != mFixture->eglWindow->getPlatform())
-        {
-            FAIL() << "Internal parameter conflict error.";
-        }
+    }
+    else if (mCurrentParams->eglParameters != mFixture->eglWindow->getPlatform())
+    {
+        FAIL() << "Internal parameter conflict error.";
+    }
 
-        const GLWindowResult windowResult = mFixture->eglWindow->initializeSurface(
-            mFixture->osWindow, driverLib, mFixture->configParams);
+    // Skip tests that require unsupported ANGLE extensions.
+    checkUnsupportedExtensions();
+    if (IsSkipped())
+    {
+        return;
+    }
 
-        if (windowResult != GLWindowResult::NoError)
-        {
-            if (windowResult != GLWindowResult::Error)
-            {
-                // If the test requests an extension that isn't supported, automatically skip the
-                // test.
-                GTEST_SKIP() << "Test skipped due to missing extension";
-            }
-            else if (mFixture->configParams.multisample)
-            {
-                // If the test requests a multisampled window that isn't supported, automatically
-                // skip the test.
-                GTEST_SKIP() << "Test skipped due to no multisampled configs available";
-            }
-            else
-            {
-                // Otherwise fail the test.
-                FAIL() << "egl surface init failed.";
-            }
-        }
+    const GLWindowResult windowResult = mFixture->eglWindow->initializeSurface(
+        mFixture->osWindow, driverLib, mFixture->configParams);
 
-        if (!mDeferContextInit && !mFixture->eglWindow->initializeContext())
+    if (windowResult != GLWindowResult::NoError)
+    {
+        if (windowResult != GLWindowResult::Error)
         {
-            FAIL() << "GL Context init failed.";
+            // If the test requests an extension that isn't supported, automatically skip the
+            // test.
+            GTEST_SKIP() << "Test skipped due to missing extension";
         }
+        else if (mFixture->configParams.multisample)
+        {
+            // If the test requests a multisampled window that isn't supported, automatically
+            // skip the test.
+            GTEST_SKIP() << "Test skipped due to no multisampled configs available";
+        }
+        else
+        {
+            // Otherwise fail the test.
+            FAIL() << "egl surface init failed.";
+        }
+    }
+
+    if (!mDeferContextInit && !mFixture->eglWindow->initializeContext())
+    {
+        FAIL() << "GL Context init failed.";
     }
 
     if (needSwap)
@@ -822,6 +842,57 @@ void ANGLETestBase::ANGLETestSetUp()
     mIsSetUp = true;
 
     mRenderDoc.startFrame();
+}
+
+void ANGLETestBase::checkUnsupportedExtensions()
+{
+    // Only allow skipping tests due to unsupported ANGLE extensions when testing the system EGL,
+    // since we want it to be obvious if ANGLE itself stops exposing them.
+    if (mCurrentParams->driver != GLESDriverType::SystemEGL)
+    {
+        return;
+    }
+
+    if (mFixture->configParams.webGLCompatibility &&
+        !IsEGLDisplayExtensionEnabled(mFixture->eglWindow->getDisplay(),
+                                      "EGL_ANGLE_create_context_webgl_compatibility"))
+    {
+        GTEST_SKIP()
+            << "Test skipped due to EGL_ANGLE_create_context_webgl_compatibility not available";
+    }
+    if (mFixture->configParams.robustResourceInit &&
+        !IsEGLDisplayExtensionEnabled(mFixture->eglWindow->getDisplay(),
+                                      "EGL_ANGLE_robust_resource_initialization"))
+    {
+        GTEST_SKIP()
+            << "Test skipped due to EGL_ANGLE_robust_resource_initialization not available";
+    }
+    if (!mFixture->configParams.extensionsEnabled &&
+        !IsEGLDisplayExtensionEnabled(mFixture->eglWindow->getDisplay(),
+                                      "EGL_ANGLE_create_context_extensions_enabled"))
+    {
+        GTEST_SKIP()
+            << "Test skipped due to EGL_ANGLE_create_context_extensions_enabled not available";
+    }
+    if (!mFixture->configParams.bindGeneratesResource &&
+        !IsEGLDisplayExtensionEnabled(mFixture->eglWindow->getDisplay(),
+                                      "EGL_CHROMIUM_create_context_bind_generates_resource"))
+    {
+        GTEST_SKIP() << "Test skipped due to "
+                        "EGL_CHROMIUM_create_context_bind_generates_resource not available";
+    }
+    if (!mFixture->configParams.clientArraysEnabled &&
+        !IsEGLDisplayExtensionEnabled(mFixture->eglWindow->getDisplay(),
+                                      "EGL_ANGLE_create_context_client_arrays"))
+    {
+        GTEST_SKIP() << "Test skipped due to EGL_ANGLE_create_context_client_arrays not available";
+    }
+    if (!mFixture->configParams.contextProgramCacheEnabled &&
+        !IsEGLDisplayExtensionEnabled(mFixture->eglWindow->getDisplay(),
+                                      "EGL_ANGLE_program_cache_control"))
+    {
+        GTEST_SKIP() << "Test skipped due to EGL_ANGLE_program_cache_control not available";
+    }
 }
 
 void ANGLETestBase::ANGLETestPreTearDown()
@@ -1153,8 +1224,8 @@ void ANGLETestBase::drawIndexedQuad(GLuint program,
                                     GLfloat positionAttribZ,
                                     GLfloat positionAttribXYScale)
 {
-    ASSERT(!mFixture || !mFixture->configParams.webGLCompatibility.valid() ||
-           !mFixture->configParams.webGLCompatibility.value());
+    ASSERT(!mFixture || !mFixture->configParams.webGLCompatibility ||
+           !mFixture->configParams.webGLCompatibility);
     drawIndexedQuad(program, positionAttribName, positionAttribZ, positionAttribXYScale, false);
 }
 

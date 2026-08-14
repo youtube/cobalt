@@ -61,6 +61,7 @@
 <translation id="178701303897325119">इस एक्सटेंशन का इस्तेमाल अब नहीं किया जा सकता. Chrome का सुझाव है कि आप इसे अनइंस्टाॅल कर दें.</translation>
 <translation id="1812689907177901597">इसे बंद करने पर, Chrome में साइन इन किए बिना Gmail जैसी Google साइटों में साइन इन किया जा सकता है</translation>
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{Chrome का सुझाव है कि आप उस टैब को रोक दें जो आपके ब्राउज़र की स्पीड को धीमा कर रहा है}one{Chrome का सुझाव है कि आप उस टैब को रोक दें जो आपके ब्राउज़र की स्पीड को धीमा कर रहा है}other{Chrome का सुझाव है कि आप उन टैब को रोक दें जो आपके ब्राउज़र की स्पीड को धीमा कर रहे हैं}}</translation>
+<translation id="1832046143430087831">Chrome के V8 इंजन की मदद से, साइटों के काम करने की स्पीड तेज़ करें. हालांकि, इससे सुरक्षा से जुड़े खतरों की संभावना बढ़ जाती है. यह सेटिंग बंद है.</translation>
 <translation id="1838374766361614909">खोज साफ़ करें</translation>
 <translation id="1860536484129686729">Chrome को इस साइट के लिए आपका कैमरा एक्सेस करने की अनुमति चाहिए</translation>
 <translation id="1873233029667955273">Google Chrome आपका डिफ़ॉल्ट ब्राउज़र नहीं है</translation>
@@ -219,6 +220,7 @@
 <translation id="3716540481907974026">ChromeOS Flex का वर्शन</translation>
 <translation id="3718181793972440140">ऐसा करने से इस डिवाइस से 1 आइटम मिट जाएगा. बाद में अपना डेटा पाने के लिए, Chrome में <ph name="USER_EMAIL" /> के रूप में साइन इन करें.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome का सुझाव है कि आप यह एक्सटेंशन हटा दें. <ph name="BEGIN_LINK" />Chrome पर इस्तेमाल किए जा सकने वाले एक्सटेंशन के बारे में ज़्यादा जानें<ph name="END_LINK" />}one{Chrome का सुझाव है कि आप यह एक्सटेंशन हटा दें. <ph name="BEGIN_LINK" />Chrome पर इस्तेमाल किए जा सकने वाले एक्सटेंशन के बारे में ज़्यादा जानें<ph name="END_LINK" />}other{Chrome का सुझाव है कि आप ये एक्सटेंशन हटा दें. <ph name="BEGIN_LINK" />Chrome पर इस्तेमाल किए जा सकने वाले एक्सटेंशन के बारे में ज़्यादा जानें<ph name="END_LINK" />}}</translation>
+<translation id="3756724684201900923">Chrome इंस्टॉल करने के बारे में ज़्यादा जानें</translation>
 <translation id="3780814664026482060">Chrome - <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">ChromeOS Flex आपके डेटा को सिंक नहीं कर सका, क्योंकि साइन इन करने के दौरान कोई गड़बड़ी हुई है.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
@@ -445,12 +447,12 @@ Google Chrome आपकी सेटिंग बहाल नहीं कर �
 <translation id="6718739135284199302">Chrome को ज़्यादा तेज़ बनाएं</translation>
 <translation id="6735387454586646204">ChromeOS Flex सिस्टम</translation>
 <translation id="6750954913813541382">स्पेलिंग की गलती को ठीक करने के लिए, ब्राउज़र में जो कुछ भी लिखा जाता है, Chrome उसे Google को भेज देता है</translation>
+<translation id="6760235774835597023">Chrome के V8 इंजन की मदद से, साइटों के काम करने की स्पीड तेज़ करें. हालांकि, इससे सुरक्षा से जुड़े खतरों की संभावना बढ़ जाती है. यह सेटिंग चालू है.</translation>
 <translation id="677276454032249905">फिर भी Chrome से बाहर निकलें?</translation>
 <translation id="6794858689789885890">Chrome बंद करने पर, अपने डिवाइस से साइट डेटा मिटाना कभी न भूलें</translation>
 <translation id="6831043979455480757">Translate</translation>
 <translation id="683440813066116847">mDNS ट्रैफ़िक की अनुमति देने के लिए Google Chrome Canary के लिए इनबाउंड नियम.</translation>
 <translation id="684888714667046800">इंटरनेट से कनेक्ट नहीं किया जा सका. अगर आपने फ़ायरवॉल का इस्तेमाल किया है, तो कृपया पक्का करें कि <ph name="PRODUCT_EXE_NAME" /> को अनुमति वाली सूची में शामिल किया गया हो.</translation>
-<translation id="6851981911629679515">Chrome के JavaScript और WebAssembly इंजन में अतिरिक्त सुरक्षा चालू करें</translation>
 <translation id="6877155553248388166">खोज वाली जगह में सबसे नीचे का दायां कोना: दाईं ओर से <ph name="RIGHT" />%, सबसे नीचे से <ph name="BOTTOM" />%</translation>
 <translation id="6881299373831449287">Chrome को अपडेट किया जा रहा है</translation>
 <translation id="6885412569789873916">Chrome बीटा ऐप्लिकेशन</translation>

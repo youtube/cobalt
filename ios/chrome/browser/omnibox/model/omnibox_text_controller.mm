@@ -151,10 +151,6 @@ const char kOmniboxFocusResultedInNavigation[] =
                         _omniboxTextModel->focus_resulted_in_navigation);
   if (_omniboxTextModel->HasFocus()) {
     _omniboxTextModel->KillFocus();
-    if (self.client) {
-      self.client->OnFocusChanged(_omniboxTextModel->focus_state,
-                                  OMNIBOX_FOCUS_CHANGE_EXPLICIT);
-    }
   }
 
   [self.textField exitPreEditState];
@@ -316,7 +312,7 @@ const char kOmniboxFocusResultedInNavigation[] =
   }
 
   if (_omniboxEditModel) {
-    _omniboxEditModel->OnSetFocus();
+    _omniboxTextModel->OnSetFocus();
 
     if (_inLensOverlay) {
       if (textField.userText.length) {
@@ -481,12 +477,7 @@ const char kOmniboxFocusResultedInNavigation[] =
 }
 
 - (void)hideKeyboard {
-  // This check is a tentative fix for a crash that happens when calling
-  // `resignFirstResponder`. TODO(crbug.com/375429786): Verify the crash rate
-  // and remove the comment or check if needed.
-  if (self.textField.window) {
-    [self.textField resignFirstResponder];
-  }
+  [self.textField endEditing:YES];
 }
 
 - (void)refineWithText:(const std::u16string&)text {

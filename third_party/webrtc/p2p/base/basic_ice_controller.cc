@@ -128,7 +128,7 @@ IceControllerInterface::PingResult BasicIceController::SelectConnectionToPing(
   // active connection has not been pinged enough times, use the weak ping
   // interval.
   bool need_more_pings_at_weak_interval =
-      absl::c_any_of(connections_, [](const webrtc::Connection* conn) {
+      absl::c_any_of(connections_, [](const Connection* conn) {
         return conn->active() &&
                conn->num_pings_sent() < MIN_PINGS_AT_WEAK_PING_INTERVAL;
       });
@@ -180,7 +180,7 @@ const Connection* BasicIceController::FindNextPingableConnection() {
                     });
     auto iter = absl::c_min_element(
         pingable_selectable_connections,
-        [](const webrtc::Connection* conn1, const webrtc::Connection* conn2) {
+        [](const Connection* conn1, const Connection* conn2) {
           return conn1->last_ping_sent() < conn2->last_ping_sent();
         });
     if (iter != pingable_selectable_connections.end()) {

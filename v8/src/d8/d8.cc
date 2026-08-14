@@ -117,6 +117,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/wasm-code-manager.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifndef DCHECK
@@ -1063,7 +1064,7 @@ bool IsAbsolutePath(const std::string& path) {
 #if defined(V8_OS_WIN)
   // This is an incorrect approximation, but should
   // work for all our test-running cases.
-  return path.find(':') != std::string::npos;
+  return path.find(":/") == 1 || path.find(":\\") == 1;
 #else
   return path[0] == '/';
 #endif
@@ -1086,6 +1087,7 @@ std::string GetWorkingDirectory() {
 
 // Returns the directory part of path, without the trailing '/'.
 std::string DirName(const std::string& path) {
+  if (path.starts_with(kDataURLPrefix)) return GetWorkingDirectory();
   DCHECK(IsAbsolutePath(path));
   size_t last_slash = path.find_last_of('/');
   DCHECK(last_slash != std::string::npos);
@@ -1097,6 +1099,7 @@ std::string DirName(const std::string& path) {
 // and replacing backslashes with slashes).
 std::string NormalizePath(const std::string& path,
                           const std::string& dir_name) {
+  DCHECK(!path.starts_with(kDataURLPrefix));
   std::string absolute_path;
   if (IsAbsolutePath(path)) {
     absolute_path = path;
@@ -1109,21 +1112,40 @@ std::string NormalizePath(const std::string& path,
   std::string segment;
   while (std::getline(segment_stream, segment, '/')) {
     if (segment == "..") {
+#if defined(V8_OS_WIN)
+      if (segments.size() > 1) segments.pop_back();
+#else
       if (!segments.empty()) segments.pop_back();
-    } else if (segment != ".") {
+#endif
+    } else if (segment != "" && segment != ".") {
       segments.push_back(segment);
     }
   }
   // Join path segments.
   std::ostringstream os;
+#if defined(V8_OS_WIN)
+  // The drive letter should be present in an absolute path.
+  DCHECK(!segments.empty());
+  DCHECK_EQ(2UL, segments[0].size());
+  DCHECK_EQ(':', segments[0][1]);
+  os << segments[0] << "/";
+  if (segments.size() > 2) {
+    std::copy(segments.begin() + 1, segments.end() - 1,
+              std::ostream_iterator<std::string>(os, "/"));
+    os << *segments.rbegin();
+  } else if (segments.size() == 2) {
+    os << segments[1];
+  }
+#else
+  os << "/";
   if (segments.size() > 1) {
     std::copy(segments.begin(), segments.end() - 1,
               std::ostream_iterator<std::string>(os, "/"));
     os << *segments.rbegin();
-  } else {
-    os << "/";
-    if (!segments.empty()) os << segments[0];
+  } else if (segments.size() == 1) {
+    os << segments[0];
   }
+#endif
   return os.str();
 }
 
@@ -1131,12 +1153,28 @@ std::string NormalizePath(const std::string& path,
 // normalization (eliding references to the current directory
 // and replacing backslashes with slashes).
 //
-// If specifier is a data url, returns it unchanged.
+// If specifier is a data URL or a regular URL, it is returned unchanged.
 std::string NormalizeModuleSpecifier(const std::string& specifier,
                                      const std::string& dir_name) {
-  if (specifier.starts_with(kDataURLPrefix)) return specifier;
+  if (specifier.starts_with(kDataURLPrefix) ||
+      specifier.starts_with("http://") || specifier.starts_with("https://"))
+    return specifier;
   return NormalizePath(specifier, dir_name);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+std::string RemoveExtension(const std::string& file_path) {
+  size_t last_slash = file_path.find_last_of("/\\");
+  size_t last_dot = file_path.find_last_of('.');
+
+  // Check that the dot is part of the file name.
+  if (last_dot != std::string::npos &&
+      (last_slash == std::string::npos || last_dot > last_slash)) {
+    return file_path.substr(0, last_dot);
+  }
+  return file_path;  // No extension to remove
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
                                          Local<String> specifier,
@@ -1170,7 +1208,6 @@ MaybeLocal<Object> ResolveModuleSourceCallback(
   ModuleType module_type =
       ModuleEmbedderData::ModuleTypeFromImportSpecifierAndAttributes(
           context, stl_specifier, import_attributes, true);
-
   return module_data->GetModuleSource(
       std::make_pair(absolute_path, module_type));
 }
@@ -1182,11 +1219,24 @@ MaybeLocal<Object> Shell::FetchModuleSource(Local<Module> referrer,
                                             const std::string& module_specifier,
                                             ModuleType module_type) {
   Isolate* isolate = Isolate::GetCurrent();
-  DCHECK(IsAbsolutePath(module_specifier));
-  auto file = ReadFileData(isolate, module_specifier.c_str());
-
   std::shared_ptr<ModuleEmbedderData> module_data =
       GetModuleDataFromContext(context);
+
+  // Loading modules is only allowed for local absolute paths.
+  if (!IsAbsolutePath(module_specifier)) {
+    std::string msg =
+        "d8: Reading module from " + module_specifier + " is not supported.";
+    if (!referrer.IsEmpty()) {
+      std::string referrer_specifier =
+          module_data->GetModuleSpecifier(referrer);
+      msg += "\n    imported by " + referrer_specifier;
+    }
+    ThrowError(isolate,
+               v8::String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked());
+    return MaybeLocal<Object>();
+  }
+
+  auto file = ReadFileData(isolate, module_specifier.c_str());
   if (!file) {
     std::string msg = "d8: Error reading module from " + module_specifier;
     if (!referrer.IsEmpty()) {
@@ -1236,13 +1286,13 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
                                           const std::string& module_specifier,
                                           ModuleType module_type) {
   Isolate* isolate = Isolate::GetCurrent();
-  const bool is_data_url = module_specifier.starts_with(kDataURLPrefix);
+  std::shared_ptr<ModuleEmbedderData> module_data =
+      GetModuleDataFromContext(context);
   MaybeLocal<String> source_text;
-  if (is_data_url) {
+  if (module_specifier.starts_with(kDataURLPrefix)) {
     source_text = String::NewFromUtf8(
         isolate, module_specifier.c_str() + strlen(kDataURLPrefix));
-  } else {
-    DCHECK(IsAbsolutePath(module_specifier));
+  } else if (IsAbsolutePath(module_specifier)) {
     source_text = ReadFile(isolate, module_specifier.c_str(), false);
     if (source_text.IsEmpty() && options.fuzzy_module_file_extensions) {
       std::string fallback_file_name = module_specifier + ".js";
@@ -1252,10 +1302,20 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
         source_text = ReadFile(isolate, fallback_file_name.c_str());
       }
     }
+  } else {
+    // Loading modules is only allowed for local absolute paths.
+    std::string msg =
+        "d8: Reading module from " + module_specifier + " is not supported.";
+    if (!referrer.IsEmpty()) {
+      std::string referrer_specifier =
+          module_data->GetModuleSpecifier(referrer);
+      msg += "\n    imported by " + referrer_specifier;
+    }
+    ThrowError(isolate,
+               v8::String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked());
+    return MaybeLocal<Module>();
   }
 
-  std::shared_ptr<ModuleEmbedderData> module_data =
-      GetModuleDataFromContext(context);
   if (source_text.IsEmpty()) {
     std::string msg = "d8: Error reading module from " + module_specifier;
     if (!referrer.IsEmpty()) {
@@ -1313,9 +1373,6 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
             .insert(std::make_pair(Global<Module>(isolate, module),
                                    module_specifier))
             .second);
-
-  // data URLs don't support further imports, so we're done.
-  if (is_data_url) return module;
 
   std::string dir_name = DirName(module_specifier);
 
@@ -4391,9 +4448,134 @@ void WriteLcovDataForNamedRange(std::ostream& sink,
 }
 }  // namespace
 
+#if V8_ENABLE_WEBASSEMBLY
+void WriteWasmLcovData(v8::Isolate* isolate, const char* file) {
+  HandleScope handle_scope(isolate);
+  debug::Coverage coverage = debug::Coverage::CollectWasmData(isolate);
+
+#if defined(V8_OS_WIN)
+  constexpr size_t kMaxPath = MAX_PATH;
+#else
+  constexpr size_t kMaxPath = PATH_MAX;
+#endif
+
+  std::string normalized_js_lcov_file =
+      NormalizePath(file, GetWorkingDirectory());
+  std::string folder_path = DirName(normalized_js_lcov_file);
+  std::string wasm_lcov_file =
+      RemoveExtension(normalized_js_lcov_file) + "-wasm.lcov";
+  if (wasm_lcov_file.length() >= kMaxPath) {
+    fprintf(stderr, "Invalid wasm-lcov filename '%s', the path is too long.\n",
+            wasm_lcov_file.c_str());
+    return;
+  }
+  std::ofstream sink(wasm_lcov_file.c_str(), std::ofstream::app);
+
+  for (size_t i_script = 0; i_script < coverage.ScriptCount(); i_script++) {
+    debug::Coverage::ScriptData script_data = coverage.GetScriptData(i_script);
+    Local<debug::Script> script = script_data.GetScript();
+    auto wasm_script = Utils::OpenDirectHandle(*script);
+    i::wasm::NativeModule* native_module = wasm_script->wasm_native_module();
+    const i::wasm::WasmModule* wasm_module = native_module->module();
+
+    constexpr int kMaxDisasmFileNameSize = 33;
+    char disasm_file_name[kMaxDisasmFileNameSize];
+    snprintf(disasm_file_name, kMaxDisasmFileNameSize, "wasm-%zu.disasm",
+             i_script);
+    std::string disasm_file_path = folder_path + "/" + disasm_file_name;
+    if (disasm_file_path.length() >= kMaxPath) {
+      fprintf(stderr,
+              "Invalid wasm disassembly filename '%s', the path is too long.\n",
+              disasm_file_path.c_str());
+      return;
+    }
+    std::ofstream disasm_file(disasm_file_path.c_str());
+
+    std::vector<int> function_body_offsets;
+    std::map<uint32_t, uint32_t> bytecode_disasm_offsets;
+    uint32_t lines_count = native_module->DisassembleForLcov(
+        disasm_file, function_body_offsets, bytecode_disasm_offsets);
+
+    std::vector<uint32_t> lines;
+    lines.resize(lines_count);
+
+    sink << "SF:";
+    sink << disasm_file_path << std::endl;
+
+    DCHECK_EQ(script_data.FunctionCount(), wasm_module->num_declared_functions);
+
+    for (size_t declared_function_index = 0;
+         declared_function_index < wasm_module->num_declared_functions;
+         declared_function_index++) {
+      debug::Coverage::FunctionData function_data =
+          script_data.GetFunctionData(declared_function_index);
+      const i::wasm::WasmFunction& function =
+          wasm_module->functions[wasm_module->num_imported_functions +
+                                 declared_function_index];
+
+      // Write function stats.
+      {
+        // {function_body_offsets} contains 2 * num_defined_functions entries,
+        // for each not imported function it contains the bytecode offset of the
+        // first instruction in the function, followed by the end offset.
+        int start_line = bytecode_disasm_offsets[function.code.offset()];
+        uint32_t first_instruction_offset =
+            function_body_offsets[declared_function_index * 2];
+        int first_instruction_line =
+            bytecode_disasm_offsets[first_instruction_offset];
+        uint32_t block_count = function_data.BlockCount() == 0
+                                   ? 0
+                                   : function_data.GetBlockData(0).Count();
+
+        Local<String> function_name;
+        std::stringstream name_stream;
+        if (function_data.Name().ToLocal(&function_name)) {
+          name_stream << ToSTLString(isolate, function_name);
+        } else {
+          name_stream << "<" << start_line << ">";
+        }
+
+        // Function header.
+        WriteLcovDataForNamedRange(sink, &lines, name_stream.str(), start_line,
+                                   first_instruction_line, block_count);
+      }
+
+      // Process inner blocks.
+      for (size_t i_block = 0; i_block < function_data.BlockCount();
+           i_block++) {
+        debug::Coverage::BlockData block_data =
+            function_data.GetBlockData(i_block);
+        int start_offset = block_data.StartOffset() + function.code.offset();
+        auto it = bytecode_disasm_offsets.upper_bound(start_offset);
+        DCHECK_NE(it, bytecode_disasm_offsets.begin());
+        int start_line = (--it)->second;
+        int end_offset = block_data.EndOffset() + function.code.offset();
+        it = bytecode_disasm_offsets.upper_bound(end_offset);
+        DCHECK_NE(it, bytecode_disasm_offsets.begin());
+        int end_line = (--it)->second;
+        WriteLcovDataForRange(&lines, start_line, end_line, block_data.Count());
+      }
+    }
+    // Write per-line coverage. LCOV uses 1-based line numbers.
+    for (size_t j = 0; j < lines.size(); j++) {
+      sink << "DA:" << (j + 1) << "," << lines[j] << std::endl;
+    }
+    sink << "end_of_record" << std::endl;
+  }
+  printf("Wrote WebAssembly LCOV data to %s\n", wasm_lcov_file.c_str());
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 // Write coverage data in LCOV format. See man page for geninfo(1).
 void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
   if (!file) return;
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (i::v8_flags.wasm_code_coverage) {
+    WriteWasmLcovData(isolate, file);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   HandleScope handle_scope(isolate);
   debug::Coverage coverage = debug::Coverage::CollectPrecise(isolate);
   std::ofstream sink(file, std::ofstream::app);

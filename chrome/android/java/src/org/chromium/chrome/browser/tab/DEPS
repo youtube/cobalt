@@ -145,6 +145,7 @@ specific_include_rules = {
   ],
   'TabUtils\.java' : [
     "+chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java",
+    "+chrome/android/java/src/org/chromium/chrome/browser/media/MediaCaptureDevicesDispatcherAndroid.java",
     "+chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BrowserControlsStateProvider.java",
   ],
   'TabViewManagerImpl\.java': [
@@ -169,6 +170,6 @@ specific_include_rules = {
   ],
   'TabHelpers\.java': [
     "+chrome/android/java/src/org/chromium/chrome/browser/display_cutout/DisplayCutoutTabHelper.java",
-    "+chrome/browser/ui/android/edge_to_edge/internal/java/src/org/chromium/chrome/browser/ui/edge_to_edge/EdgeToEdgeControllerFactory.java"
+    "+chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/EdgeToEdgeUtils.java"
   ]
 }

@@ -170,7 +170,7 @@ void BaseCapturerPipeWire::CaptureFrame() {
     return;
   }
 
-  int64_t capture_start_time_nanos = webrtc::TimeNanos();
+  int64_t capture_start_time_nanos = TimeNanos();
   std::unique_ptr<DesktopFrame> frame =
       options_.screencast_stream()->CaptureFrame();
 
@@ -183,8 +183,8 @@ void BaseCapturerPipeWire::CaptureFrame() {
   // the frame, see ScreenCapturerX11::CaptureFrame.
 
   frame->set_capturer_id(DesktopCapturerId::kWaylandCapturerLinux);
-  frame->set_capture_time_ms((webrtc::TimeNanos() - capture_start_time_nanos) /
-                             webrtc::kNumNanosecsPerMillisec);
+  frame->set_capture_time_ms((TimeNanos() - capture_start_time_nanos) /
+                             kNumNanosecsPerMillisec);
   callback_->OnCaptureResult(Result::SUCCESS, std::move(frame));
 }
 

@@ -69,15 +69,18 @@
     <div id="subpageDescription">$i18n{otherDataDescription}
     </div>
     <div class="link-rows-block">
-      <cr-link-row sub-label="$i18n{manageInGooglePasswordManager}" external
+      <cr-link-row sub-label="$i18n{manageInGooglePasswordManager}"
+          id="passwordManagerLink" on-click="onPasswordManagerClick_" external
           using-slotted-label>
         <div slot="label">$i18n{passwordsAndPasskeys}</div>
       </cr-link-row>
-      <cr-link-row sub-label="$i18n{manageInYourGoogleAccount}" external
+      <cr-link-row sub-label="$i18n{manageInYourGoogleAccount}"
+          id="myActivityLink" on-click="onMyActivityClick_" external
           using-slotted-label>
         <div slot="label">$i18n{myActivity}</div>
       </cr-link-row>
-      <cr-link-row external using-slotted-label>
+      <cr-link-row id="searchHistoryLink" on-click="onSearchHistoryClick_"
+          external using-slotted-label>
         <div slot="label">$i18n{searchHistory}</div>
       </cr-link-row>
     </div>

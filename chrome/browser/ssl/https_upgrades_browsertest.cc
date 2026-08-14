@@ -64,8 +64,10 @@
 #include "net/test/test_data_directory.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_source.h"
+#include "services/network/public/cpp/ip_address_space_overrides_test_utils.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "services/network/public/cpp/url_loader_completion_status.h"
+#include "services/network/public/mojom/ip_address_space.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -325,8 +327,8 @@ class HttpsUpgradesBrowserTest
 
     http_server_.AddDefaultHandlers(GetChromeTestDataDir());
     https_server_.AddDefaultHandlers(GetChromeTestDataDir());
-    http_server_.StartAcceptingConnections();
-    https_server_.StartAcceptingConnections();
+    ASSERT_TRUE(http_server_.Start());
+    ASSERT_TRUE(https_server_.Start());
 
     HttpsUpgradesInterceptor::SetHttpsPortForTesting(https_server()->port());
     HttpsUpgradesInterceptor::SetHttpPortForTesting(http_server()->port());
@@ -367,19 +369,6 @@ class HttpsUpgradesBrowserTest
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     mock_cert_verifier_.SetUpCommandLine(command_line);
-
-    ASSERT_TRUE(http_server_.InitializeAndListen());
-    ASSERT_TRUE(https_server_.InitializeAndListen());
-
-    // Treat the test server as public to bypass Local Network Access checks.
-    //
-    // TODO(crbug.com/422956041): figure out why we need to do this, there may
-    // be a bug where IP address spaces are not being set correctly.
-    command_line->AppendSwitchASCII(
-        network::switches::kIpAddressSpaceOverrides,
-        base::StringPrintf("%s=public,%s=public",
-                           http_server_.host_port_pair().ToString().c_str(),
-                           https_server_.host_port_pair().ToString().c_str()));
   }
 
   void SetUpInProcessBrowserTestFixture() override {
@@ -2718,6 +2707,8 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest, BadHttpsFollowedByGoodHttps) {
   // Load "logo.gif" as an image on the page.
   GURL image = https_server()->GetURL("foo.com", "/ssl/google_files/logo.gif");
 
+  // TODO(crbug.com/422956041): this fetch generates an LNA request, its unclear
+  // why. Investigation is required to see if this is an LNA bug or not.
   EXPECT_EQ(
       true,
       EvalJs(tab,

@@ -33,6 +33,7 @@ import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthManager.Incog
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.IncognitoTabModel;
 import org.chromium.chrome.browser.tabmodel.IncognitoTabModelObserver;
+import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
@@ -110,7 +111,7 @@ public class IncognitoTabSwitcherPane extends TabSwitcherPaneBase {
     private final TabModelObserver mTabModelObserver =
             new TabModelObserver() {
                 @Override
-                public void onFinishingTabClosure(Tab tab) {
+                public void onFinishingTabClosure(Tab tab, @TabClosingSource int closingSource) {
                     mLastClosedTabId = tab.getId();
                 }
             };
@@ -140,6 +141,8 @@ public class IncognitoTabSwitcherPane extends TabSwitcherPaneBase {
      * @param edgeToEdgeSupplier Supplier to the {@link EdgeToEdgeController} instance.
      * @param compositorViewHolderSupplier Supplier to the {@link CompositorViewHolder} instance.
      * @param tabGroupCreationUiDelegate Orchestrates the tab group creation UI flow.
+     * @param xrSpaceModeObservableSupplier Supplies current XR space mode status. True for XR full
+     *     space mode, false otherwise.
      */
     IncognitoTabSwitcherPane(
             @NonNull Context context,
@@ -151,7 +154,8 @@ public class IncognitoTabSwitcherPane extends TabSwitcherPaneBase {
             @NonNull UserEducationHelper userEducationHelper,
             @NonNull ObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier,
             @NonNull ObservableSupplier<CompositorViewHolder> compositorViewHolderSupplier,
-            @NonNull TabGroupCreationUiDelegate tabGroupCreationUiDelegate) {
+            @NonNull TabGroupCreationUiDelegate tabGroupCreationUiDelegate,
+            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
         super(
                 context,
                 factory,
@@ -160,7 +164,8 @@ public class IncognitoTabSwitcherPane extends TabSwitcherPaneBase {
                 userEducationHelper,
                 edgeToEdgeSupplier,
                 compositorViewHolderSupplier,
-                tabGroupCreationUiDelegate);
+                tabGroupCreationUiDelegate,
+                xrSpaceModeObservableSupplier);
 
         mIncognitoTabGroupModelFilterSupplier = incognitoTabGroupModelFilterSupplier;
         mLastClosedTabId = Tab.INVALID_TAB_ID;

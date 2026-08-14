@@ -9,9 +9,9 @@
  */
 #include "net/dcsctp/packet/error_cause/out_of_resource_error_cause.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "api/array_view.h"

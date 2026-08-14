@@ -85,6 +85,8 @@
 #include "components/autofill/core/browser/integrators/plus_addresses/mock_autofill_plus_address_delegate.h"
 #include "components/autofill/core/browser/metrics/form_events/form_events.h"
 #include "components/autofill/core/browser/metrics/log_event.h"
+#include "components/autofill/core/browser/metrics/payments/offers_metrics.h"
+#include "components/autofill/core/browser/metrics/ukm_metrics_test_utils.h"
 #include "components/autofill/core/browser/ml_model/autofill_ai/mock_autofill_ai_model_cache.h"
 #include "components/autofill/core/browser/ml_model/autofill_ai/mock_autofill_ai_model_executor.h"
 #include "components/autofill/core/browser/payments/amount_extraction_manager.h"
@@ -189,6 +191,7 @@ using upload_contents_matchers::FieldAutofillTypeIs;
 using upload_contents_matchers::FieldsAre;
 using upload_contents_matchers::FormSignatureIs;
 using upload_contents_matchers::ObservedSubmissionIs;
+using UkmAutofillKeyMetricsType = ukm::builders::Autofill_KeyMetrics;
 
 constexpr Suggestion::Icon kAddressEntryIcon = Suggestion::Icon::kAccount;
 constexpr char kPlusAddress[] = "plus+remote@plus.plus";
@@ -972,9 +975,7 @@ class TestBrowserAutofillManager : public autofill::TestBrowserAutofillManager {
         MockTouchToFillDelegate::Create(&*manager));
     manager->set_fast_checkout_delegate(MockFastCheckoutDelegate::Create());
     test_api(*manager).SetExternalDelegate(
-        std::make_unique<TestAutofillExternalDelegate>(
-            &*manager,
-            /*call_parent_methods=*/true));
+        std::make_unique<TestAutofillExternalDelegate>(&*manager));
     test_api(*manager).set_credit_card_access_manager(
         std::make_unique<NiceMock<MockCreditCardAccessManager>>(&*manager));
     test_api(*manager).set_amount_extraction_manager(
@@ -2093,9 +2094,14 @@ TEST_F(BrowserAutofillManagerTestValuables, GetSuggestions_LoyaltyCards) {
 
   FormData form =
       test::GetFormData({.fields = {{.role = LOYALTY_MEMBERSHIP_ID}}});
+  form.set_main_frame_origin(
+      url::Origin::Create(GURL("https://example.test/")));
 
   FormsSeen({form});
   OnAskForValuesToFill(form, form.fields()[0]);
+  // This ensures that the event loggers are notified about suggestions shown.
+  external_delegate()->OnSuggestionsShown(external_delegate()->suggestions());
+  FormSubmitted(form);
 
   external_delegate()->CheckSuggestions(
       form.fields()[0].global_id(),
@@ -2105,6 +2111,32 @@ TEST_F(BrowserAutofillManagerTestValuables, GetSuggestions_LoyaltyCards) {
        Suggestion(l10n_util::GetStringUTF8(IDS_AUTOFILL_MANAGE_LOYALTY_CARDS),
                   "", Suggestion::Icon::kSettings,
                   SuggestionType::kManageLoyaltyCard)});
+
+  FormInteractionsFlowId flow_id =
+      test_api(manager()).loyalty_card_form_interactions_flow_id();
+
+  // Make sure key metrics are logged.
+  base::HistogramTester histogram_tester;
+  test_api(client().GetAutofillDriverFactory()).Reset(driver());
+  histogram_tester.ExpectBucketCount(
+      "Autofill.KeyMetrics.FillingReadiness.LoyaltyCard", 1, 1);
+  histogram_tester.ExpectBucketCount(
+      "Autofill.KeyMetrics.FillingAcceptance.LoyaltyCard", 0, 1);
+  histogram_tester.ExpectTotalCount(
+      "Autofill.KeyMetrics.FillingCorrectness.LoyaltyCard", 0);
+  histogram_tester.ExpectBucketCount(
+      "Autofill.KeyMetrics.FillingAssistance.LoyaltyCard", 0, 1);
+  autofill_metrics::VerifyUkm(
+      client().GetUkmRecorder(), form, UkmAutofillKeyMetricsType::kEntryName,
+      {{{UkmAutofillKeyMetricsType::kFillingReadinessName, 1},
+        {UkmAutofillKeyMetricsType::kFillingAcceptanceName, 0},
+        {UkmAutofillKeyMetricsType::kFillingAssistanceName, 0},
+        {UkmAutofillKeyMetricsType::kAutofillFillsName, 0},
+        {UkmAutofillKeyMetricsType::kFormElementUserModificationsName, 0},
+        {UkmAutofillKeyMetricsType::kFlowIdName, flow_id.value()},
+        {UkmAutofillKeyMetricsType::kFormTypesName,
+         AutofillMetrics::FormTypesToBitVector(
+             {FormTypeNameForLogging::kLoyaltyCardForm})}}});
 }
 
 // Tests that when both email and loyalty card suggestions are available, they
@@ -5893,6 +5925,29 @@ TEST_F(BrowserAutofillManagerTest,
               1)));
 }
 
+TEST_F(BrowserAutofillManagerTest,
+       DidShowSuggestions_LogPromoCodeSuggestionsShownMetric) {
+  FormData form = test::CreateTestMerchantPromoCodeFormData();
+  FormsSeen({form});
+
+  base::HistogramTester histogram_tester;
+  manager().DidShowSuggestions(
+      {Suggestion(SuggestionType::kMerchantPromoCodeEntry)}, form,
+      form.fields().back().global_id(), {});
+  manager().DidShowSuggestions(
+      {Suggestion(SuggestionType::kMerchantPromoCodeEntry)}, form,
+      form.fields().back().global_id(), {});
+
+  EXPECT_THAT(
+      histogram_tester.GetAllSamples("Autofill.Offer.SuggestionsPopupShown2"),
+      BucketsAre(base::Bucket(autofill_metrics::OffersSuggestionsPopupEvent::
+                                  kOffersSuggestionsPopupShown,
+                              2),
+                 base::Bucket(autofill_metrics::OffersSuggestionsPopupEvent::
+                                  kOffersSuggestionsPopupShownOnce,
+                              1)));
+}
+
 TEST_F(BrowserAutofillManagerTest, DidShowSuggestions_LogByType_AddressOnly) {
   // Create a form with name and address fields.
   FormData form;
@@ -8192,8 +8247,6 @@ class BrowserAutofillManagerPlusAddressTest
     ON_CALL(*plus_address_delegate, GetManagePlusAddressSuggestion)
         .WillByDefault(Return(Suggestion(SuggestionType::kManagePlusAddress)));
     ON_CALL(*plus_address_delegate, IsPlusAddressFillingEnabled)
-        .WillByDefault(Return(true));
-    ON_CALL(*plus_address_delegate, IsPlusAddressFullFormFillingEnabled)
         .WillByDefault(Return(true));
     client().set_plus_address_delegate(std::move(plus_address_delegate));
   }

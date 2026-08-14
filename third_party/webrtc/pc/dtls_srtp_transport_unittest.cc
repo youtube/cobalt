@@ -16,6 +16,7 @@
 #include <memory>
 #include <vector>
 
+#include "api/field_trials.h"
 #include "call/rtp_demuxer.h"
 #include "media/base/fake_rtp.h"
 #include "p2p/base/p2p_constants.h"
@@ -34,14 +35,16 @@
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 
-using webrtc::DtlsSrtpTransport;
+using ::webrtc::CreateTestFieldTrials;
+using ::webrtc::DtlsSrtpTransport;
 using ::webrtc::FakeDtlsTransport;
 using ::webrtc::FakeIceTransport;
-using webrtc::RtpTransport;
-using webrtc::SrtpTransport;
+using ::webrtc::FieldTrials;
+using ::webrtc::RtpTransport;
+using ::webrtc::SrtpTransport;
 
 const int kRtpAuthTagLen = 10;
 
@@ -50,7 +53,7 @@ class DtlsSrtpTransportTest : public ::testing::Test,
  protected:
   DtlsSrtpTransportTest() {}
 
-  ~DtlsSrtpTransportTest() {
+  ~DtlsSrtpTransportTest() override {
     if (dtls_srtp_transport1_) {
       dtls_srtp_transport1_->UnregisterRtpDemuxerSink(&transport_observer1_);
     }
@@ -270,7 +273,7 @@ class DtlsSrtpTransportTest : public ::testing::Test,
   webrtc::TransportObserver transport_observer2_;
 
   int sequence_number_ = 0;
-  webrtc::test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_ = CreateTestFieldTrials();
 };
 
 // Tests that if RTCP muxing is enabled and transports are set after RTP

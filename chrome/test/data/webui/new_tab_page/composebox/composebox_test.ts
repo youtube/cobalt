@@ -2,54 +2,129 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ComposeboxElement} from 'chrome://new-tab-page/lazy_load.js';
+import {ComposeboxPageHandlerRemote} from 'chrome://new-tab-page/composebox.mojom-webui.js';
+import {ComposeboxElement, ComposeboxProxyImpl} from 'chrome://new-tab-page/lazy_load.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {microtasksFinished} from 'chrome://webui-test/test_util.js';
+import type {TestMock} from 'chrome://webui-test/test_mock.js';
+import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
+
+import {installMock} from '../test_support.js';
 
 
 suite('NewTabPageComposeboxTest', () => {
   let composeboxElement: ComposeboxElement;
+  let handler: TestMock<ComposeboxPageHandlerRemote>;
 
   setup(() => {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    composeboxElement = new ComposeboxElement();
-    document.body.appendChild(composeboxElement);
+    handler = installMock(
+        ComposeboxPageHandlerRemote,
+        mock => ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(mock)));
   });
 
+  function createComposeboxElement() {
+    composeboxElement = new ComposeboxElement();
+    document.body.appendChild(composeboxElement);
+  }
+
   test('upload image', async () => {
+    createComposeboxElement();
+
     // Assert no files.
-    assertEquals(composeboxElement.files.length, 0);
+    assertEquals(composeboxElement.$.carousel.files.length, 0);
 
     // Act.
     const dataTransfer = new DataTransfer();
     dataTransfer.items.add(new File(['foo'], 'foo.jpg', {type: 'image/jpeg'}));
-    composeboxElement.$.imageUploader.files = dataTransfer.files;
-    composeboxElement.$.imageUploader.dispatchEvent(new Event('change'));
+    composeboxElement.$.imageInput.files = dataTransfer.files;
+    composeboxElement.$.imageInput.dispatchEvent(new Event('change'));
     await microtasksFinished();
 
     // Assert one image file.
-    assertEquals(composeboxElement.files.length, 1);
-    assertEquals(composeboxElement.files[0]!.type, 'image/jpeg');
-    assertEquals(composeboxElement.files[0]!.name, 'foo.jpg');
-    assertTrue(!!composeboxElement.files[0]!.objectUrl);
+    const files = composeboxElement.$.carousel.files;
+    assertEquals(files.length, 1);
+    assertEquals(files[0]!.type, 'image/jpeg');
+    assertEquals(files[0]!.name, 'foo.jpg');
+    assertTrue(!!files[0]!.objectUrl);
   });
 
   test('upload pdf', async () => {
-    // Assert no files.
-    assertEquals(composeboxElement.files.length, 0);
+    createComposeboxElement();
 
-    // Act.
+    // Assert no files.
+    assertEquals(composeboxElement.$.carousel.files.length, 0);
+
+    // Arrange.
     const dataTransfer = new DataTransfer();
     dataTransfer.items.add(
         new File(['foo'], 'foo.pdf', {type: 'application/pdf'}));
-    composeboxElement.$.attachmentUploader.files = dataTransfer.files;
-    composeboxElement.$.attachmentUploader.dispatchEvent(new Event('change'));
+    composeboxElement.$.fileInput.files = dataTransfer.files;
+    composeboxElement.$.fileInput.dispatchEvent(new Event('change'));
     await microtasksFinished();
 
     // Assert one pdf file.
-    assertEquals(composeboxElement.files.length, 1);
-    assertEquals(composeboxElement.files[0]!.type, 'application/pdf');
-    assertEquals(composeboxElement.files[0]!.name, 'foo.pdf');
-    assertFalse(!!composeboxElement.files[0]!.objectUrl);
+    const files = composeboxElement.$.carousel.files;
+    assertEquals(files.length, 1);
+    assertEquals(files[0]!.type, 'application/pdf');
+    assertEquals(files[0]!.name, 'foo.pdf');
+    assertFalse(!!files[0]!.objectUrl);
+  });
+
+  test('delete file', async () => {
+    createComposeboxElement();
+
+    // Arrange.
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(
+        new File(['foo1'], 'foo1.pdf', {type: 'application/pdf'}));
+    dataTransfer.items.add(
+        new File(['foo2'], 'foo2.pdf', {type: 'application/pdf'}));
+    composeboxElement.$.fileInput.files = dataTransfer.files;
+    composeboxElement.$.fileInput.dispatchEvent(new Event('change'));
+    await microtasksFinished();
+
+    // Assert two files.
+    assertEquals(composeboxElement.$.carousel.files.length, 2);
+
+    // Act.
+    composeboxElement.$.carousel.dispatchEvent(new CustomEvent('delete-file', {
+      detail: {
+        uuid: composeboxElement.$.carousel.files[0]!.uuid,
+      },
+      bubbles: true,
+      composed: true,
+    }));
+    await microtasksFinished();
+
+    // Assert.
+    assertEquals(composeboxElement.$.carousel.files.length, 1);
+  });
+
+  test('NotifySessionStarted called on composebox created', () => {
+    // Assert call has not occurred.
+    assertEquals(handler.getCallCount('notifySessionStarted'), 0);
+
+    createComposeboxElement();
+
+    // Assert call occurs.
+    assertEquals(handler.getCallCount('notifySessionStarted'), 1);
+  });
+
+  test('image upload button clicks file input', async () => {
+    const imageUploadEventPromise =
+        eventToPromise('click', composeboxElement.$.imageInput);
+    composeboxElement.$.imageUploadButton.click();
+
+    // Assert.
+    await imageUploadEventPromise;
+  });
+
+  test('file upload button clicks file input', async () => {
+    const fileUploadClickEventPromise =
+        eventToPromise('click', composeboxElement.$.fileInput);
+    composeboxElement.$.fileUploadButton.click();
+
+    // Assert.
+    await fileUploadClickEventPromise;
   });
 });

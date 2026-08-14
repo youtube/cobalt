@@ -9,9 +9,8 @@
  */
 #include "test/pc/e2e/analyzer/video/analyzing_video_sink.h"
 
-#include <stdio.h>
-
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <optional>
 #include <string>

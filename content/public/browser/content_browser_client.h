@@ -264,6 +264,7 @@ class RenderFrameHost;
 class RenderProcessHost;
 class ResponsivenessCalculatorDelegate;
 class SerialDelegate;
+class ServiceWorkerContext;
 class SiteInstance;
 class SpeculationHostDelegate;
 class SpeechRecognitionManagerDelegate;
@@ -1287,6 +1288,12 @@ class CONTENT_EXPORT ContentBrowserClient {
       content::BrowserContext* browser_context,
       content::WebContents* web_contents);
 
+  // Prewarms the ServiceWorker registration of the DefaultSearchEngine (DSE) by
+  // prefetching it from the database.
+  virtual void PrewarmServiceWorkerRegistrationForDSE(
+      BrowserContext* browser_context,
+      ServiceWorkerContext& service_worker_context);
+
   // Allows the embedder to implement policy for whether an SCT auditing report
   // should be sent.
   virtual bool CanSendSCTAuditingReport(BrowserContext* browser_context);
@@ -1587,7 +1594,6 @@ class CONTENT_EXPORT ContentBrowserClient {
       const GURL& site_url);
 
   // Creates a new TracingDelegate. The caller owns the returned value.
-  // It's valid to return nullptr.
   virtual std::unique_ptr<TracingDelegate> CreateTracingDelegate();
 
   // Whether system-wide performance trace collection using the external system

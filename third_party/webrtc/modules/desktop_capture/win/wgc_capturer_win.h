@@ -74,7 +74,7 @@ class ScreenEnumerator final : public SourceEnumerator {
   ~ScreenEnumerator() override = default;
 
   bool FindAllSources(DesktopCapturer::SourceList* sources) override {
-    return webrtc::GetScreenList(sources);
+    return GetScreenList(sources);
   }
 };
 

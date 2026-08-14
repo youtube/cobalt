@@ -67,7 +67,7 @@ class FieldTrialsCombiner : public FieldTrialsView {
                       absl_nonnull std::unique_ptr<FieldTrials> field_trials)
       : trials_(std::move(trials)), field_trials_(std::move(field_trials)) {}
 
-  std::string Lookup(absl::string_view key) const {
+  std::string Lookup(absl::string_view key) const override {
     if (trials_ != nullptr) {
       if (std::string value = trials_->Lookup(key); !value.empty()) {
         return value;

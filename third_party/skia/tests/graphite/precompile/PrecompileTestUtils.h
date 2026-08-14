@@ -11,6 +11,7 @@
 #include "include/gpu/graphite/GraphiteTypes.h"
 #include "include/gpu/graphite/precompile/PaintOptions.h"
 #include "include/gpu/graphite/precompile/Precompile.h"
+#include "src/base/SkEnumBitMask.h"
 
 // Print out a final report that includes missed cases in 'kCases'
 //#define FINAL_REPORT
@@ -25,9 +26,12 @@
 
 namespace PrecompileTestUtils {
 
+SK_MAKE_BITMASK_OPS(skgpu::graphite::DrawTypeFlags);
+
 struct PrecompileSettings {
     skgpu::graphite::PaintOptions fPaintOptions;
-    skgpu::graphite::DrawTypeFlags fDrawTypeFlags = skgpu::graphite::DrawTypeFlags::kNone;
+    SkEnumBitMask<skgpu::graphite::DrawTypeFlags> fDrawTypeFlags =
+            skgpu::graphite::DrawTypeFlags::kNone;
     skgpu::graphite::RenderPassProperties fRenderPassProps;
 
     bool isSubsetOf(const PrecompileSettings& superSet) const;
@@ -113,7 +117,6 @@ skgpu::graphite::PaintOptions YUVImageSRGBNoCubicSrcover();
 skgpu::graphite::PaintOptions YUVImageSRGBSrcover2();
 skgpu::graphite::PaintOptions ImagePremulNoCubicSrcSrcover();
 skgpu::graphite::PaintOptions ImageSRGBNoCubicSrc();
-skgpu::graphite::PaintOptions BlendPorterDuffCFSrcover();
 skgpu::graphite::PaintOptions ImageAlphaHWOnlySrcover();
 skgpu::graphite::PaintOptions ImageAlphaPremulHWOnlyMatrixCFSrcover();
 skgpu::graphite::PaintOptions ImageAlphaSRGBHWOnlyMatrixCFSrcover();
@@ -150,6 +153,7 @@ skgpu::graphite::PaintOptions LinearEffect(const char* parameterStr,
 
 #if defined(SK_VULKAN)
 skgpu::graphite::PaintOptions ImagePremulYCbCr238Srcover();
+skgpu::graphite::PaintOptions TransparentPaintImagePremulYCbCr238Srcover();
 skgpu::graphite::PaintOptions ImagePremulYCbCr240Srcover();
 skgpu::graphite::PaintOptions TransparentPaintImagePremulYCbCr240Srcover();
 skgpu::graphite::PaintOptions MouriMapCrosstalkAndChunk16x16YCbCr247();
@@ -289,12 +293,12 @@ const skgpu::graphite::RenderPassProperties kRGBA16F_1_D_SRGB {
         /* fRequiresMSAA= */ false
 };
 
-constexpr skgpu::graphite::DrawTypeFlags kRRectAndNonAARect =
-        static_cast<skgpu::graphite::DrawTypeFlags>(skgpu::graphite::DrawTypeFlags::kAnalyticRRect |
-                                                    skgpu::graphite::DrawTypeFlags::kNonAAFillRect);
-constexpr skgpu::graphite::DrawTypeFlags kQuadAndNonAARect =
-        static_cast<skgpu::graphite::DrawTypeFlags>(skgpu::graphite::DrawTypeFlags::kPerEdgeAAQuad |
-                                                    skgpu::graphite::DrawTypeFlags::kNonAAFillRect);
+constexpr SkEnumBitMask<skgpu::graphite::DrawTypeFlags> kRRectAndNonAARect =
+        skgpu::graphite::DrawTypeFlags::kAnalyticRRect |
+        skgpu::graphite::DrawTypeFlags::kNonAAFillRect;
+constexpr SkEnumBitMask<skgpu::graphite::DrawTypeFlags> kQuadAndNonAARect =
+        skgpu::graphite::DrawTypeFlags::kPerEdgeAAQuad |
+        skgpu::graphite::DrawTypeFlags::kNonAAFillRect;
 
 } // namespace PrecompileTestUtils
 

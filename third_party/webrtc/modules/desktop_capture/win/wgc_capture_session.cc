@@ -102,8 +102,7 @@ bool SizeHasChanged(ABI::Windows::Graphics::SizeInt32 size_new,
 }
 
 bool DoesWgcSkipStaticFrames() {
-  return (webrtc::rtc_win::GetVersion() >=
-          webrtc::rtc_win::Version::VERSION_WIN11_24H2);
+  return (rtc_win::GetVersion() >= rtc_win::Version::VERSION_WIN11_24H2);
 }
 
 }  // namespace

@@ -99,7 +99,7 @@ ModuleRtpRtcpImpl::ModuleRtpRtcpImpl(const Environment& env,
 
   // Set default packet size limit.
   // TODO(nisse): Kind-of duplicates
-  // webrtc::VideoSendStream::Config::Rtp::kDefaultMaxPacketSize.
+  // VideoSendStream::Config::Rtp::kDefaultMaxPacketSize.
   const size_t kTcpOverIpv4HeaderSize = 40;
   SetMaxRtpPacketSize(IP_PACKET_SIZE - kTcpOverIpv4HeaderSize);
 }

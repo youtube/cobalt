@@ -24,7 +24,7 @@ class SctpTransportInternal;
 
 // Factory class which can be used to allow fake SctpTransports to be injected
 // for testing. An application is not intended to implement this interface nor
-// 'webrtc::SctpTransportInternal' because SctpTransportInternal is not
+// 'SctpTransportInternal' because SctpTransportInternal is not
 // guaranteed to remain stable in future WebRTC versions.
 class SctpTransportFactoryInterface {
  public:

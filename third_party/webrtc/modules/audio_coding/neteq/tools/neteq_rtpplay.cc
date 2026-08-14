@@ -27,7 +27,6 @@
 #include "modules/audio_coding/neteq/tools/neteq_test_factory.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
-#include "system_wrappers/include/field_trial.h"
 
 using TestConfig = webrtc::test::NetEqTestFactory::Config;
 
@@ -352,13 +351,8 @@ int main(int argc, char* argv[]) {
   RTC_CHECK(ValidateExtensionId(absl::GetFlag(FLAGS_video_content_type)));
   RTC_CHECK(ValidateExtensionId(absl::GetFlag(FLAGS_video_timing)));
 
-  // Make force_fieldtrials persistent string during entire program live as
-  // absl::GetFlag creates temporary string and c_str() will point to
-  // deallocated string.
-  const std::string force_fieldtrials = absl::GetFlag(FLAGS_force_fieldtrials);
-  webrtc::field_trial::InitFieldTrialsFromString(force_fieldtrials.c_str());
-
   webrtc::test::NetEqTestFactory::Config config;
+  config.field_trial_string = absl::GetFlag(FLAGS_force_fieldtrials);
   config.pcmu = absl::GetFlag(FLAGS_pcmu);
   config.pcma = absl::GetFlag(FLAGS_pcma);
   config.isac = absl::GetFlag(FLAGS_isac);

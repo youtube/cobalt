@@ -49,7 +49,7 @@ class WindowFinder {
     XAtomCache* cache = nullptr;
 #endif
 #if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
-    webrtc::scoped_refptr<DesktopConfigurationMonitor> configuration_monitor;
+    scoped_refptr<DesktopConfigurationMonitor> configuration_monitor;
 #endif
   };
 

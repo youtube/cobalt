@@ -11,15 +11,16 @@
 // Modified from the Chromium original:
 // src/media/base/sinc_resampler_unittest.cc
 
-// MSVC++ requires this to be set before any other includes to get M_PI.
-#define _USE_MATH_DEFINES
-
 #include "common_audio/resampler/sinc_resampler.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <memory>
+#include <numbers>
 #include <tuple>
 
 #include "common_audio/resampler/sinusoidal_linear_chirp_source.h"
@@ -227,7 +228,7 @@ class SincResamplerTest
         rms_error_(std::get<2>(GetParam())),
         low_freq_error_(std::get<3>(GetParam())) {}
 
-  virtual ~SincResamplerTest() {}
+  ~SincResamplerTest() override {}
 
  protected:
   int input_rate_;
@@ -261,7 +262,7 @@ TEST_P(SincResamplerTest, Resample) {
   std::unique_ptr<float[]> kernel(new float[SincResampler::kKernelStorageSize]);
   memcpy(kernel.get(), resampler.get_kernel_for_testing(),
          SincResampler::kKernelStorageSize);
-  resampler.SetRatio(M_PI);
+  resampler.SetRatio(std::numbers::pi_v<float>);
   ASSERT_NE(0, memcmp(kernel.get(), resampler.get_kernel_for_testing(),
                       SincResampler::kKernelStorageSize));
   resampler.SetRatio(io_ratio);

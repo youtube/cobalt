@@ -8,12 +8,11 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#define _USE_MATH_DEFINES
-
 #include "common_audio/window_generator.h"
 
 #include <cmath>
 #include <complex>
+#include <cstddef>
 #include <numbers>
 
 #include "rtc_base/checks.h"

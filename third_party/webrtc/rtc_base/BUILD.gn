@@ -115,11 +115,8 @@ rtc_source_set("swap_queue") {
 }
 
 rtc_source_set("macromagic") {
-  sources = [
-    "arraysize.h",
-    "thread_annotations.h",
-  ]
-  deps = [ "system:arch" ]
+  sources = [ "thread_annotations.h" ]
+  deps = []
 }
 
 rtc_library("bit_buffer") {

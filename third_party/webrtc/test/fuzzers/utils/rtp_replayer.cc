@@ -18,6 +18,7 @@
 #include "absl/memory/memory.h"
 #include "api/environment/environment_factory.h"
 #include "api/units/timestamp.h"
+#include "media/engine/internal_decoder_factory.h"
 #include "modules/rtp_rtcp/source/rtp_packet.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/strings/json.h"

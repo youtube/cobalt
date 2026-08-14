@@ -22,7 +22,7 @@ using ::testing::MockFunction;
 
 class MockAsyncPacketSocket : public AsyncPacketSocket {
  public:
-  ~MockAsyncPacketSocket() = default;
+  ~MockAsyncPacketSocket() override = default;
 
   MOCK_METHOD(SocketAddress, GetLocalAddress, (), (const, override));
   MOCK_METHOD(SocketAddress, GetRemoteAddress, (), (const, override));

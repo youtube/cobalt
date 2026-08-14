@@ -201,15 +201,14 @@ bool ShouldAdapterChangeTriggerNetworkChange(AdapterType old_type,
 }
 
 #if defined(WEBRTC_WIN)
-bool IpAddressAttributesEnabled(const webrtc::FieldTrialsView* field_trials) {
+bool IpAddressAttributesEnabled(const FieldTrialsView* field_trials) {
   // Field trial key reserved in bugs.webrtc.org/14334
   if (field_trials &&
       field_trials->IsEnabled("WebRTC-IPv6NetworkResolutionFixes")) {
-    webrtc::FieldTrialParameter<bool> ip_address_attributes_enabled(
+    FieldTrialParameter<bool> ip_address_attributes_enabled(
         "IpAddressAttributesEnabled", false);
-    webrtc::ParseFieldTrial(
-        {&ip_address_attributes_enabled},
-        field_trials->Lookup("WebRTC-IPv6NetworkResolutionFixes"));
+    ParseFieldTrial({&ip_address_attributes_enabled},
+                    field_trials->Lookup("WebRTC-IPv6NetworkResolutionFixes"));
     return ip_address_attributes_enabled;
   }
   return false;
@@ -628,7 +627,7 @@ void BasicNetworkManager::ConvertIfAddrs(
       continue;
     }
     // Convert to InterfaceAddress.
-    // TODO(webrtc:13114): Convert ConvertIfAddrs to use webrtc::Netmask.
+    // TODO(webrtc:13114): Convert ConvertIfAddrs to use Netmask.
     if (!ifaddrs_converter->ConvertIfAddrsToIPAddress(cursor, &ip, &mask)) {
       continue;
     }
@@ -887,7 +886,7 @@ bool BasicNetworkManager::CreateNetworks(
             adapter_type = ADAPTER_TYPE_VPN;
           }
           if (adapter_type != ADAPTER_TYPE_VPN &&
-              IsVpnMacAddress(webrtc::ArrayView<const uint8_t>(
+              IsVpnMacAddress(ArrayView<const uint8_t>(
                   reinterpret_cast<const uint8_t*>(
                       adapter_addrs->PhysicalAddress),
                   adapter_addrs->PhysicalAddressLength))) {

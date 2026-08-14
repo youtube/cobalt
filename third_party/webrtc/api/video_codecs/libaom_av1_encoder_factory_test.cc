@@ -86,7 +86,7 @@ class Av1Decoder : public DecodedImageCallback {
     }
   }
 
-  ~Av1Decoder() {
+  ~Av1Decoder() override {
     if (raw_out_file_) {
       fclose(raw_out_file_);
     }

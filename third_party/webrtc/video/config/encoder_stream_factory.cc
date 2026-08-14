@@ -581,7 +581,7 @@ std::vector<Resolution> EncoderStreamFactory::GetStreamResolutions(
     }
 
     const bool has_scale_resolution_down_by = absl::c_any_of(
-        encoder_config.simulcast_layers, [](const webrtc::VideoStream& layer) {
+        encoder_config.simulcast_layers, [](const VideoStream& layer) {
           return layer.scale_resolution_down_by != -1.;
         });
 

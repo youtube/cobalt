@@ -44,8 +44,8 @@ class NV12BufferInterface;
 // correct subclass in custom video sinks. The purpose of this is to improve
 // performance by providing an optimized path without intermediate conversions.
 // Frame metadata such as rotation and timestamp are stored in
-// webrtc::VideoFrame, and not here.
-class RTC_EXPORT VideoFrameBuffer : public webrtc::RefCountInterface {
+// VideoFrame, and not here.
+class RTC_EXPORT VideoFrameBuffer : public RefCountInterface {
  public:
   // New frame buffer types will be added conservatively when there is an
   // opportunity to optimize the path between some pair of video source and

@@ -31,6 +31,7 @@
 #include "base/test/test_timeouts.h"
 #include "base/test/values_test_util.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/time/time.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
 #include "cc/test/pixel_test_utils.h"
@@ -177,6 +178,7 @@ class RenderFrameHostImplForHistoryBackInterceptor
 
   void GoToEntryAtOffset(int32_t offset,
                          bool has_user_gesture,
+                         base::TimeTicks actual_navigation_start,
                          std::optional<blink::scheduler::TaskAttributionId>
                              soft_navigation_heuristics_task_id) override {
     if (quit_handler_) {
@@ -5023,8 +5025,16 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, OriginToCommitSandboxFromFrame) {
   EXPECT_NE(origin_to_commit, origin_committed);
 }
 
+// TODO(crbug.com/424764870): Fix flakiness.
+#if BUILDFLAG(IS_FUCHSIA)
+#define MAYBE_NavigateToAboutBlankWhileFirstNavigationPending \
+  DISABLED_NavigateToAboutBlankWhileFirstNavigationPending
+#else
+#define MAYBE_NavigateToAboutBlankWhileFirstNavigationPending \
+  NavigateToAboutBlankWhileFirstNavigationPending
+#endif  // BUILDFLAG(IS_FUCHSIA)
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       NavigateToAboutBlankWhileFirstNavigationPending) {
+                       MAYBE_NavigateToAboutBlankWhileFirstNavigationPending) {
   GURL url_a = embedded_test_server()->GetURL("a.com", "/empty.html");
   GURL url_b = embedded_test_server()->GetURL("b.com", "/empty.html");
 

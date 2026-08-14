@@ -57,12 +57,9 @@
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/task_utils/repeating_task.h"
 #include "rtc_base/thread.h"
-#include "system_wrappers/include/field_trial.h"
 #include "test/gtest.h"
 #include "test/pc/e2e/analyzer/audio/default_audio_quality_analyzer.h"
 #include "test/pc/e2e/analyzer/video/default_video_quality_analyzer.h"
-#include "test/pc/e2e/analyzer/video/single_process_encoded_image_data_injector.h"
-#include "test/pc/e2e/analyzer/video/video_frame_tracking_id_injector.h"
 #include "test/pc/e2e/analyzer/video/video_quality_analyzer_injection_helper.h"
 #include "test/pc/e2e/analyzer/video/video_quality_metrics_reporter.h"
 #include "test/pc/e2e/cross_media_metrics_reporter.h"
@@ -182,18 +179,10 @@ PeerConnectionE2EQualityTest::PeerConnectionE2EQualityTest(
     video_quality_analyzer = std::make_unique<DefaultVideoQualityAnalyzer>(
         time_controller_.GetClock(), metrics_logger_);
   }
-  if (field_trial::IsEnabled("WebRTC-VideoFrameTrackingIdAdvertised")) {
-    encoded_image_data_propagator_ =
-        std::make_unique<VideoFrameTrackingIdInjector>();
-  } else {
-    encoded_image_data_propagator_ =
-        std::make_unique<SingleProcessEncodedImageDataInjector>();
-  }
   video_quality_analyzer_injection_helper_ =
       std::make_unique<VideoQualityAnalyzerInjectionHelper>(
           time_controller_.GetClock(), std::move(video_quality_analyzer),
-          encoded_image_data_propagator_.get(),
-          encoded_image_data_propagator_.get());
+          &encoded_image_data_propagator_, &encoded_image_data_propagator_);
 
   if (audio_quality_analyzer == nullptr) {
     audio_quality_analyzer =

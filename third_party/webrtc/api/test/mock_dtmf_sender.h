@@ -53,8 +53,7 @@ class MockDtmfSender : public DtmfSenderInterface {
   MockDtmfSender() = default;
 };
 
-static_assert(!std::is_abstract_v<webrtc::RefCountedObject<MockDtmfSender>>,
-              "");
+static_assert(!std::is_abstract_v<RefCountedObject<MockDtmfSender>>, "");
 
 }  // namespace webrtc
 

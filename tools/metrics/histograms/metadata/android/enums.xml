@@ -387,6 +387,13 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="TOKEN_REQUEST_MISSING_RESPONSE_PORT"/>
 </enum>
 
+<enum name="AndroidWebViewMediaIntegrityNonRecoverableErrorReason">
+  <int value="0" label="MISMATCHED_ORIGINS"/>
+  <int value="1" label="GET_PROVIDER_SECURITY_EXCEPTION"/>
+  <int value="2" label="AOSP_BUILD"/>
+  <int value="3" label="MAPPED_SERVICE_RESPONSE"/>
+</enum>
+
 <enum name="AndroidWebViewMediaIntegrityStatus">
   <int value="0" label="NO_ERROR"/>
   <int value="1" label="UNKNOWN_ERROR"/>
@@ -652,6 +659,10 @@ chromium-metrics-reviews@google.com.
   <int value="149"
       label="ServiceWorkerWebSettingsCompat.getIncludeCookiesOnIntercept"/>
   <int value="150" label="Profile.warmUpRendererProcess"/>
+  <int value="151" label="Profile.setOriginMatchedHeader"/>
+  <int value="152" label="Profile.hasOriginMatchedHeader"/>
+  <int value="153" label="Profile.clearOriginMatchedHeader"/>
+  <int value="154" label="Profile.clearAllOriginMatchedHeaders"/>
 <!-- LINT.ThenChange(/android_webview/support_library/java/src/org/chromium/support_lib_glue/SupportLibWebViewChromiumFactory.java:ApiCall) -->
 
 </enum>
@@ -1025,6 +1036,18 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="UNKNOWN_TO_NEW_INSTANCE"/>
 </enum>
 
+<enum name="EdgeToEdgeConfigurationSwitchOutcome">
+  <summary>
+    When edge to edge changed into unsupported configuration, what's the outcome
+  </summary>
+  <int value="0" label="ADD_PADDING_NEW_INSETS"/>
+  <int value="1" label="ADD_PADDING_ORIGINAL_INSETS"/>
+  <int value="2" label="ERROR_ADD_PADDING_BOTH_INSETS_EMPTY"/>
+  <int value="3" label="NO_PADDING_BOTH_INSETS_EMPTY"/>
+  <int value="4" label="NO_PADDING_NO_NEW_INSETS"/>
+  <int value="5" label="ERROR_NO_PADDING_WITH_NEW_INSETS"/>
+</enum>
+
 <enum name="ExifOrientation">
   <int value="0" label="Normal"/>
   <int value="1" label="Rotate 90"/>
@@ -1226,6 +1249,7 @@ chromium-metrics-reviews@google.com.
   <int value="58" label="CctAccountMismatchNotice"/>
   <int value="59" label="PromptHatsClearBrowsingData"/>
   <int value="60" label="OsAdvancedProtectionSettingChangedMessage"/>
+  <int value="61" label="MultiInstanceRestorationOnDowngradedLimit"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/messages/android/message_enums.h:MessageIdentifier) -->
@@ -1476,6 +1500,20 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Root View was Not Focused (calls Focus())"/>
 </enum>
 
+<!-- LINT.IfChange(ScrimClient) -->
+
+<enum name="ScrimClient">
+  <int value="0" label="NONE"/>
+  <int value="1" label="CREATOR_COORDINATOR"/>
+  <int value="2" label="SIGNIN_ACCOUNT_PICKER_COORDINATOR"/>
+  <int value="3" label="ROOT_UI_COORDINATOR"/>
+  <int value="4" label="TABBED_ROOT_UI_COORDINATOR"/>
+  <int value="5" label="HISTORY_ACTIVITY"/>
+  <int value="6" label="SETTINGS_ACTIVITY"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/browser_ui/widget/android/java/src/org/chromium/components/browser_ui/widget/scrim/ScrimManager.java:ScrimClient) -->
+
 <!-- LINT.IfChange(IntentOrigin) -->
 
 <enum name="SearchActivityIntentOrigin">
@@ -1629,6 +1667,16 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Rare"/>
   <int value="4" label="Restricted"/>
   <int value="5" label="Exempted"/>
+</enum>
+
+<enum name="SupportedConfigurationStrangeInsetsState">
+  <summary>
+    The state of insets that don't seem to align with a configuration that
+    supports edge-to-edge.
+  </summary>
+  <int value="0" label="TAPPABLE_ELEMENT_NOT_GESTURE_NAV"/>
+  <int value="1" label="NO_TAPPABLE_ELEMENT_NOT_GESTURE_NAV"/>
+  <int value="2" label="ERROR_TAPPABLE_ELEMENT_GESTURE_NAV"/>
 </enum>
 
 <enum name="SupportedConfigurationSwitch">

@@ -46,7 +46,7 @@ const int kProcessTimeUs = 5 * kNumMicrosecsPerMillisec;
 class MockCpuOveruseObserver : public OveruseFrameDetectorObserverInterface {
  public:
   MockCpuOveruseObserver() {}
-  virtual ~MockCpuOveruseObserver() {}
+  ~MockCpuOveruseObserver() override {}
 
   MOCK_METHOD(void, AdaptUp, (), (override));
   MOCK_METHOD(void, AdaptDown, (), (override));
@@ -55,7 +55,7 @@ class MockCpuOveruseObserver : public OveruseFrameDetectorObserverInterface {
 class CpuOveruseObserverImpl : public OveruseFrameDetectorObserverInterface {
  public:
   CpuOveruseObserverImpl() : overuse_(0), normaluse_(0) {}
-  virtual ~CpuOveruseObserverImpl() {}
+  ~CpuOveruseObserverImpl() override {}
 
   void AdaptDown() override { ++overuse_; }
   void AdaptUp() override { ++normaluse_; }
@@ -70,7 +70,7 @@ class OveruseFrameDetectorUnderTest : public OveruseFrameDetector {
       const Environment& env,
       CpuOveruseMetricsObserver* metrics_observer)
       : OveruseFrameDetector(env, metrics_observer) {}
-  ~OveruseFrameDetectorUnderTest() {}
+  ~OveruseFrameDetectorUnderTest() override {}
 
   using OveruseFrameDetector::CheckForOveruse;
   using OveruseFrameDetector::SetOptions;

@@ -23,8 +23,8 @@ class FakeAudioDeviceModule
   // references using scoped_refptr. Current code doesn't always use refcounting
   // for this class.
   void AddRef() const override {}
-  webrtc::RefCountReleaseStatus Release() const override {
-    return webrtc::RefCountReleaseStatus::kDroppedLastRef;
+  RefCountReleaseStatus Release() const override {
+    return RefCountReleaseStatus::kDroppedLastRef;
   }
 };
 

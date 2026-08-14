@@ -23,23 +23,6 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-namespace {
-
-NodeType GetNodeType(compiler::JSHeapBroker* broker, LocalIsolate* isolate,
-                     const KnownNodeAspects& aspects, ValueNode* node) {
-  // We first check the KnownNodeAspects in order to return the most precise
-  // type possible.
-  NodeType type = aspects.NodeTypeFor(node);
-  if (type != NodeType::kUnknown) {
-    return type;
-  }
-  // If this node has no NodeInfo (or not known type in its NodeInfo), we fall
-  // back to its static type.
-  return StaticTypeForNode(broker, isolate, node);
-}
-
-}  // namespace
-
 void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
   bool any_merged_map_is_unstable = false;
   DestructivelyIntersect(node_infos, other.node_infos,
@@ -106,9 +89,8 @@ bool CheckAllPhiInputsAreContextType(compiler::JSHeapBroker* broker,
   for (Input& input : *phi) {
     if (!input.node()) continue;
     if (phi->is_loop_phi() && &phi->backedge_input() == &input) continue;
-    if (NodeTypeIs(
-            GetNodeType(broker, local_isolate, node_aspects, input.node()),
-            NodeType::kContext)) {
+    if (NodeTypeIs(node_aspects.GetType(broker, input.node()),
+                   NodeType::kContext)) {
       continue;
     }
     // OSR values can leak a context with InitialValue that we are unable to
@@ -162,14 +144,12 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
       may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
           may_have_aliasing_contexts_,
           ContextSlotLoadsAlias::kOnlyLoadsRelativeToConstant);
-      DCHECK(NodeTypeIs(GetNodeType(broker, local_isolate, *this, context),
-                        NodeType::kContext));
+      DCHECK(NodeTypeIs(GetType(broker, context), NodeType::kContext));
       break;
     case Opcode::kCreateFunctionContext:
     case Opcode::kInlinedAllocation:
       // These can be precisely tracked.
-      DCHECK(NodeTypeIs(GetNodeType(broker, local_isolate, *this, context),
-                        NodeType::kContext));
+      DCHECK(NodeTypeIs(GetType(broker, context), NodeType::kContext));
       break;
     case Opcode::kLoadTaggedField: {
       LoadTaggedField* load = context->Cast<LoadTaggedField>();
@@ -179,13 +159,11 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
       DCHECK(load->offset() == JSFunction::kContextOffset ||
              load->offset() == JSGeneratorObject::kContextOffset);
       may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
-      DCHECK(NodeTypeIs(GetNodeType(broker, local_isolate, *this, context),
-                        NodeType::kContext));
+      DCHECK(NodeTypeIs(GetType(broker, context), NodeType::kContext));
       break;
     }
     case Opcode::kCallRuntime:
-      DCHECK(NodeTypeIs(GetNodeType(broker, local_isolate, *this, context),
-                        NodeType::kContext));
+      DCHECK(NodeTypeIs(GetType(broker, context), NodeType::kContext));
       may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
       break;
     case Opcode::kGeneratorRestoreRegister:
@@ -590,13 +568,12 @@ MergePointInterpreterFrameState::MergePointInterpreterFrameState(
                     frame_state_.size(info))) {}
 
 namespace {
-void PrintBeforeMerge(const MaglevCompilationUnit& compilation_unit,
-                      ValueNode* current_value, ValueNode* unmerged_value,
-                      interpreter::Register reg, KnownNodeAspects* kna) {
+void PrintBeforeMerge(MaglevGraphLabeller* labeller, ValueNode* current_value,
+                      ValueNode* unmerged_value, interpreter::Register reg,
+                      KnownNodeAspects* kna) {
   if (!v8_flags.trace_maglev_graph_building) return;
   std::cout << "  " << reg.ToString() << ": "
-            << PrintNodeLabel(compilation_unit.graph_labeller(), current_value)
-            << "<";
+            << PrintNodeLabel(labeller, current_value) << "<";
   if (kna) {
     if (auto cur_info = kna->TryGetInfoFor(current_value)) {
       std::cout << cur_info->type();
@@ -605,9 +582,7 @@ void PrintBeforeMerge(const MaglevCompilationUnit& compilation_unit,
       }
     }
   }
-  std::cout << "> <- "
-            << PrintNodeLabel(compilation_unit.graph_labeller(), unmerged_value)
-            << "<";
+  std::cout << "> <- " << PrintNodeLabel(labeller, unmerged_value) << "<";
   if (kna) {
     if (auto in_info = kna->TryGetInfoFor(unmerged_value)) {
       std::cout << in_info->type();
@@ -618,14 +593,11 @@ void PrintBeforeMerge(const MaglevCompilationUnit& compilation_unit,
   }
   std::cout << ">";
 }
-void PrintAfterMerge(const MaglevCompilationUnit& compilation_unit,
-                     ValueNode* merged_value, KnownNodeAspects* kna) {
+void PrintAfterMerge(MaglevGraphLabeller* labeller, ValueNode* merged_value,
+                     KnownNodeAspects* kna) {
   if (!v8_flags.trace_maglev_graph_building) return;
-  std::cout << " => "
-            << PrintNodeLabel(compilation_unit.graph_labeller(), merged_value)
-            << ": "
-            << PrintNode(compilation_unit.graph_labeller(), merged_value)
-            << "<";
+  std::cout << " => " << PrintNodeLabel(labeller, merged_value) << ": "
+            << PrintNode(labeller, merged_value) << "<";
 
   if (kna) {
     if (auto out_info = kna->TryGetInfoFor(merged_value)) {
@@ -653,12 +625,12 @@ void MergePointInterpreterFrameState::MergePhis(
   int i = 0;
   frame_state_.ForEachValue(
       compilation_unit, [&](ValueNode*& value, interpreter::Register reg) {
-        PrintBeforeMerge(compilation_unit, value, unmerged.get(reg), reg,
-                         known_node_aspects_);
+        PrintBeforeMerge(builder->graph_labeller(), value, unmerged.get(reg),
+                         reg, known_node_aspects_);
         value = MergeValue(builder, reg, *unmerged.known_node_aspects(), value,
                            unmerged.get(reg), &per_predecessor_alternatives_[i],
                            optimistic_loop_phis);
-        PrintAfterMerge(compilation_unit, value, known_node_aspects_);
+        PrintAfterMerge(builder->graph_labeller(), value, known_node_aspects_);
         ++i;
       });
 }
@@ -675,11 +647,9 @@ void MergePointInterpreterFrameState::MergeVirtualObject(
 
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << " - Merging VOS: "
-              << PrintNodeLabel(builder->compilation_unit()->graph_labeller(),
-                                merged)
+              << PrintNodeLabel(builder->graph_labeller(), merged)
               << "(merged) and "
-              << PrintNodeLabel(builder->compilation_unit()->graph_labeller(),
-                                unmerged)
+              << PrintNodeLabel(builder->graph_labeller(), unmerged)
               << "(unmerged)" << std::endl;
   }
 
@@ -707,7 +677,8 @@ void MergePointInterpreterFrameState::MergeVirtualObjects(
 
   frame_state_.virtual_objects().Snapshot();
 
-  PrintVirtualObjects(compilation_unit, unmerged_vos, "VOs before merge:");
+  PrintVirtualObjects(builder->graph_labeller(), unmerged_vos,
+                      "VOs before merge:");
 
   SmallZoneMap<InlinedAllocation*, VirtualObject*, 10> unmerged_map(
       builder->zone());
@@ -759,7 +730,8 @@ void MergePointInterpreterFrameState::MergeVirtualObjects(
     }
   }
 
-  PrintVirtualObjects(compilation_unit, unmerged_vos, "VOs after merge:");
+  PrintVirtualObjects(builder->graph_labeller(), unmerged_vos,
+                      "VOs after merge:");
 }
 
 void MergePointInterpreterFrameState::InitializeLoop(
@@ -845,11 +817,11 @@ void MergePointInterpreterFrameState::MergeLoop(
   }
   frame_state_.ForEachValue(
       compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
-        PrintBeforeMerge(compilation_unit, value, loop_end_state.get(reg), reg,
-                         known_node_aspects_);
+        PrintBeforeMerge(builder->graph_labeller(), value,
+                         loop_end_state.get(reg), reg, known_node_aspects_);
         MergeLoopValue(builder, reg, *loop_end_state.known_node_aspects(),
                        value, loop_end_state.get(reg));
-        PrintAfterMerge(compilation_unit, value, known_node_aspects_);
+        PrintAfterMerge(builder->graph_labeller(), value, known_node_aspects_);
       });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
@@ -903,12 +875,10 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
     Phi* phi = value->Cast<Phi>();
     if (!phi->is_loop_phi()) return;
     if (phi->merge_state() != this) return;
-    NodeType old_type = GetNodeType(builder->broker(), builder->local_isolate(),
-                                    *known_node_aspects_, phi);
+    NodeType old_type = known_node_aspects_->GetType(builder->broker(), phi);
     if (old_type != NodeType::kUnknown) {
-      NodeType new_type = GetNodeType(
-          builder->broker(), builder->local_isolate(),
-          *loop_end_state.known_node_aspects(), loop_end_state.get(reg));
+      NodeType new_type = loop_end_state.known_node_aspects()->GetType(
+          builder->broker(), loop_end_state.get(reg));
       if (!NodeTypeIs(new_type, old_type)) {
         if (v8_flags.trace_maglev_loop_speeling) {
           std::cout << "Cannot merge " << new_type << " into " << old_type
@@ -934,11 +904,11 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
 
   frame_state_.ForEachValue(
       compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
-        PrintBeforeMerge(compilation_unit, value, loop_end_state.get(reg), reg,
-                         known_node_aspects_);
+        PrintBeforeMerge(builder->graph_labeller(), value,
+                         loop_end_state.get(reg), reg, known_node_aspects_);
         MergeLoopValue(builder, reg, *loop_end_state.known_node_aspects(),
                        value, loop_end_state.get(reg));
-        PrintAfterMerge(compilation_unit, value, known_node_aspects_);
+        PrintAfterMerge(builder->graph_labeller(), value, known_node_aspects_);
       });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
@@ -975,7 +945,7 @@ void MergePointInterpreterFrameState::MergeThrow(
 
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << "- Merging into exception handler @" << this << std::endl;
-    PrintVirtualObjects(*handler_unit, virtual_objects);
+    PrintVirtualObjects(builder->graph_labeller(), virtual_objects);
   }
 
   if (known_node_aspects_ == nullptr) {
@@ -991,19 +961,19 @@ void MergePointInterpreterFrameState::MergeThrow(
 
   frame_state_.ForEachParameter(
       *handler_unit, [&](ValueNode*& value, interpreter::Register reg) {
-        PrintBeforeMerge(*handler_unit, value, builder_frame.get(reg), reg,
-                         known_node_aspects_);
+        PrintBeforeMerge(builder->graph_labeller(), value,
+                         builder_frame.get(reg), reg, known_node_aspects_);
         value = MergeValue(builder, reg, known_node_aspects, value,
                            builder_frame.get(reg), nullptr);
-        PrintAfterMerge(*handler_unit, value, known_node_aspects_);
+        PrintAfterMerge(builder->graph_labeller(), value, known_node_aspects_);
       });
   frame_state_.ForEachLocal(
       *handler_unit, [&](ValueNode*& value, interpreter::Register reg) {
-        PrintBeforeMerge(*handler_unit, value, builder_frame.get(reg), reg,
-                         known_node_aspects_);
+        PrintBeforeMerge(builder->graph_labeller(), value,
+                         builder_frame.get(reg), reg, known_node_aspects_);
         value = MergeValue(builder, reg, known_node_aspects, value,
                            builder_frame.get(reg), nullptr);
-        PrintAfterMerge(*handler_unit, value, known_node_aspects_);
+        PrintAfterMerge(builder->graph_labeller(), value, known_node_aspects_);
       });
 
   // Pick out the context value from the incoming registers.
@@ -1011,13 +981,13 @@ void MergePointInterpreterFrameState::MergeThrow(
   // the identity for generator-restored context. If generator value restores
   // were handled differently, we could avoid emitting a Phi here.
   ValueNode*& context = frame_state_.context(*handler_unit);
-  PrintBeforeMerge(*handler_unit, context,
+  PrintBeforeMerge(builder->graph_labeller(), context,
                    builder_frame.get(catch_block_context_register_),
                    catch_block_context_register_, known_node_aspects_);
   context = MergeValue(
       builder, catch_block_context_register_, known_node_aspects, context,
       builder_frame.get(catch_block_context_register_), nullptr);
-  PrintAfterMerge(*handler_unit, context, known_node_aspects_);
+  PrintAfterMerge(builder->graph_labeller(), context, known_node_aspects_);
 
   predecessors_so_far_++;
 }
@@ -1035,7 +1005,7 @@ ValueNode* FromInt32ToTagged(const MaglevGraphBuilder* builder,
   if (value->Is<Int32Constant>()) {
     int32_t constant = value->Cast<Int32Constant>()->value();
     if (Smi::IsValid(constant)) {
-      return builder->GetSmiConstant(constant);
+      return builder->graph()->GetSmiConstant(constant);
     }
   }
 
@@ -1239,8 +1209,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     }
 
     NodeType unmerged_type =
-        GetNodeType(builder->broker(), builder->local_isolate(),
-                    unmerged_aspects, unmerged);
+        unmerged_aspects.GetType(builder->broker(), unmerged);
     if (result->is_loop_phi()) {
       UpdateLoopPhiType(result, unmerged_type);
     } else {
@@ -1308,8 +1277,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     }
   }
 
-  NodeType merged_type =
-      StaticTypeForNode(builder->broker(), builder->local_isolate(), merged);
+  NodeType merged_type = merged->GetStaticType(builder->broker());
 
   bool is_tagged = merged->properties().value_representation() ==
                    ValueRepresentation::kTagged;
@@ -1332,11 +1300,11 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
   }
   DCHECK_EQ(i, predecessors_so_far_);
 
-  // Note: it's better to call GetNodeType on {unmerged} before updating it with
+  // Note: it's better to call GetType on {unmerged} before updating it with
   // EnsureTagged, since untagged nodes have a higher chance of having a
   // StaticType.
-  NodeType unmerged_type = GetNodeType(
-      builder->broker(), builder->local_isolate(), unmerged_aspects, unmerged);
+  NodeType unmerged_type =
+      unmerged_aspects.GetType(builder->broker(), unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   result->set_input(predecessors_so_far_, unmerged);
@@ -1362,8 +1330,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
   Phi* result = merged->TryCast<Phi>();
   if (result != nullptr && result->merge_state() == this) {
     NodeType unmerged_type =
-        GetNodeType(builder->broker(), builder->local_isolate(),
-                    unmerged_aspects, unmerged);
+        unmerged_aspects.GetType(builder->broker(), unmerged);
     unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                             predecessors_[predecessors_so_far_]);
     for (uint32_t i = predecessors_so_far_; i < predecessor_count_; i++) {
@@ -1410,8 +1377,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
     }
   }
 
-  NodeType merged_type =
-      StaticTypeForNode(builder->broker(), builder->local_isolate(), merged);
+  NodeType merged_type = merged->GetStaticType(builder->broker());
 
   // We must have seen the same value so far.
   DCHECK_NOT_NULL(known_node_aspects_);
@@ -1421,8 +1387,8 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
     result->set_input(i, tagged_merged);
   }
 
-  NodeType unmerged_type = GetNodeType(
-      builder->broker(), builder->local_isolate(), unmerged_aspects, unmerged);
+  NodeType unmerged_type =
+      unmerged_aspects.GetType(builder->broker(), unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   for (uint32_t i = predecessors_so_far_; i < predecessor_count_; i++) {
@@ -1445,8 +1411,7 @@ void MergePointInterpreterFrameState::MergeLoopValue(
     return;
   }
   DCHECK_EQ(result->owner(), owner);
-  NodeType type = GetNodeType(builder->broker(), builder->local_isolate(),
-                              unmerged_aspects, unmerged);
+  NodeType type = unmerged_aspects.GetType(builder->broker(), unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   result->set_input(predecessor_count_ - 1, unmerged);

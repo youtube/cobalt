@@ -207,10 +207,6 @@ BASE_FEATURE(kEnableLensViewFinderUnifiedExperience,
              "EnableLensViewFinderUnifiedExperience",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kEnableLensContextMenuUnifiedExperience,
-             "EnableLensContextMenuUnifiedExperience",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Update to the correct milestone after launch.
 // Also update in components/omnibox/browser/autocomplete_result.cc.
 const base::NotFatalUntil kLensOverlayNotFatalUntil = base::NotFatalUntil::M200;
@@ -255,20 +251,22 @@ BASE_FEATURE(kLensOverlayForceShowOnboardingScreen,
              "EnableLensOverlayForceShowOnboardingScreen",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-const char kLensOverlayOnboardingParam[] = "kLensOverlayOnboardingParam";
-const char kLensOverlayOnboardingParamSpeedbumpMenu[] =
-    "kLensOverlayOnboardingParamSpeedbumpMenu";
-const char kLensOverlayOnboardingParamUpdatedStrings[] =
-    "kLensOverlayOnboardingParamUpdatedStrings";
-const char kLensOverlayOnboardingParamUpdatedStringsAndVisuals[] =
-    "kLensOverlayOnboardingParamUpdatedStringsAndVisuals";
-
-BASE_FEATURE(kLensOverlayAlternativeOnboarding,
-             "LensOverlayAlternativeOnboarding",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kLensOverlayNavigationHistory,
              "LensOverlayNavigationHistory",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Variations of MIA NTP entrypoint.
+const char kNTPMIAEntrypointParam[] = "kNTPMIAEntrypointParam";
+const char kNTPMIAEntrypointParamOmniboxContainedSingleButton[] =
+    "kNTPMIAEntrypointParamOmniboxContainedSingleButton";
+const char kNTPMIAEntrypointParamOmniboxContainedInline[] =
+    "kNTPMIAEntrypointParamOmniboxContainedInline";
+const char kNTPMIAEntrypointParamOmniboxContainedEnlargedFakebox[] =
+    "kNTPMIAEntrypointParamOmniboxContainedEnlargedFakebox";
+
+// Feature flag to change the MIA entrypoint in NTP.
+BASE_FEATURE(kNTPMIAEntrypoint,
+             "kNTPMIAEntrypoint",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableTraitCollectionWorkAround,

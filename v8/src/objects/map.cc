@@ -460,8 +460,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       return kVisitWasmStruct;
     case WASM_DESCRIPTOR_OPTIONS_TYPE:
       return kVisitWasmDescriptorOptions;
-    case WASM_SUSPENDER_OBJECT_TYPE:
-      return kVisitWasmSuspenderObject;
     case WASM_CONTINUATION_OBJECT_TYPE:
       return kVisitWasmContinuationObject;
     case WASM_SUSPENDING_OBJECT_TYPE:
@@ -2435,7 +2433,7 @@ Handle<UnionOf<Smi, Cell>> Map::GetOrCreatePrototypeChainValidityCell(
     Tagged<Map> holder_map;
     if (!TryGetValidityCellHolderMap(*map, isolate, &holder_map)) {
       // Prototype value is not a JSObject.
-      return handle(Map::kPrototypeChainValidSmi, isolate);
+      return handle(Map::kNoValidityCellSentinel, isolate);
     }
     validity_cell_holder_map = direct_handle(holder_map, isolate);
   }
@@ -2453,28 +2451,23 @@ Handle<UnionOf<Smi, Cell>> Map::GetOrCreatePrototypeChainValidityCell(
         validity_cell_holder_map->prototype_validity_cell(kRelaxedLoad);
 
     // Return existing cell if it's still valid.
-    if (IsCell(maybe_cell)) {
+    if (maybe_cell != Map::kNoValidityCellSentinel) {
       Tagged<Cell> cell = Cast<Cell>(maybe_cell);
-      if (cell->value() == Map::kPrototypeChainValidSmi) {
+      if (cell->maybe_value() != Map::kPrototypeChainInvalid) {
         return handle(cell, isolate);
       }
     }
   }
   // Otherwise create a new cell.
-  Handle<Cell> cell = isolate->factory()->NewCell(Map::kPrototypeChainValidSmi);
+  Handle<Cell> cell = isolate->factory()->NewCell();
+  {
+    Tagged<Map> meta_map = validity_cell_holder_map->map();
+    DCHECK(IsMapMap(meta_map));
+    Tagged<NativeContext> native_context = meta_map->native_context();
+    cell->set_maybe_value(MakeWeak(native_context));
+  }
   validity_cell_holder_map->set_prototype_validity_cell(*cell, kRelaxedStore);
   return cell;
-}
-
-// static
-bool Map::IsPrototypeChainInvalidated(Tagged<Map> map) {
-  DCHECK(map->is_prototype_map());
-  Tagged<Object> maybe_cell = map->prototype_validity_cell(kRelaxedLoad);
-  if (IsCell(maybe_cell)) {
-    Tagged<Cell> cell = Cast<Cell>(maybe_cell);
-    return cell->value() != Map::kPrototypeChainValidSmi;
-  }
-  return true;
 }
 
 // static

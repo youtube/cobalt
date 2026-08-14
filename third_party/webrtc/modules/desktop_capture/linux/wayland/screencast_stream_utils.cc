@@ -11,14 +11,8 @@
 #include "modules/desktop_capture/linux/wayland/screencast_stream_utils.h"
 
 #include <libdrm/drm_fourcc.h>
-#include <pipewire/version.h>
-#include <spa/param/format.h>
-#include <spa/param/param.h>
-#include <spa/pod/builder.h>
-#include <spa/pod/iter.h>
-#include <spa/pod/pod.h>
-#include <spa/pod/vararg.h>
-#include <spa/utils/type.h>
+#include <pipewire/pipewire.h>
+#include <spa/param/video/format-utils.h>
 
 #include <cstdint>
 #include <optional>
@@ -39,15 +33,15 @@
 namespace webrtc {
 
 PipeWireVersion PipeWireVersion::Parse(const absl::string_view& version) {
-  std::vector<absl::string_view> parsed_version = webrtc::split(version, '.');
+  std::vector<absl::string_view> parsed_version = split(version, '.');
 
   if (parsed_version.size() != 3) {
     return {};
   }
 
-  std::optional<int> major = webrtc::StringToNumber<int>(parsed_version.at(0));
-  std::optional<int> minor = webrtc::StringToNumber<int>(parsed_version.at(1));
-  std::optional<int> micro = webrtc::StringToNumber<int>(parsed_version.at(2));
+  std::optional<int> major = StringToNumber<int>(parsed_version.at(0));
+  std::optional<int> minor = StringToNumber<int>(parsed_version.at(1));
+  std::optional<int> micro = StringToNumber<int>(parsed_version.at(2));
 
   // Return invalid version if we failed to parse it
   if (!major || !minor || !micro) {

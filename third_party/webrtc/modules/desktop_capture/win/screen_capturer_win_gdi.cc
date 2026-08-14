@@ -81,7 +81,7 @@ void ScreenCapturerWinGdi::SetSharedMemoryFactory(
 
 void ScreenCapturerWinGdi::CaptureFrame() {
   TRACE_EVENT0("webrtc", "ScreenCapturerWinGdi::CaptureFrame");
-  int64_t capture_start_time_nanos = webrtc::TimeNanos();
+  int64_t capture_start_time_nanos = TimeNanos();
 
   queue_.MoveToNextFrame();
   if (queue_.current_frame() && queue_.current_frame()->IsShared()) {
@@ -104,8 +104,8 @@ void ScreenCapturerWinGdi::CaptureFrame() {
   frame->mutable_updated_region()->SetRect(
       DesktopRect::MakeSize(frame->size()));
 
-  int capture_time_ms = (webrtc::TimeNanos() - capture_start_time_nanos) /
-                        webrtc::kNumNanosecsPerMillisec;
+  int capture_time_ms =
+      (TimeNanos() - capture_start_time_nanos) / kNumNanosecsPerMillisec;
   RTC_HISTOGRAM_COUNTS_1000(
       "WebRTC.DesktopCapture.Win.ScreenGdiCapturerFrameTime", capture_time_ms);
   frame->set_capture_time_ms(capture_time_ms);
@@ -114,7 +114,7 @@ void ScreenCapturerWinGdi::CaptureFrame() {
 }
 
 bool ScreenCapturerWinGdi::GetSourceList(SourceList* sources) {
-  return webrtc::GetScreenList(sources);
+  return GetScreenList(sources);
 }
 
 bool ScreenCapturerWinGdi::SelectSource(SourceId id) {

@@ -105,7 +105,7 @@ class RTC_EXPORT Candidate {
   absl::string_view type_name() const;
 
   // Setting the type requires a constant string (e.g.
-  // webrtc::LOCAL_PORT_TYPE). The type should really be an enum rather than a
+  // LOCAL_PORT_TYPE). The type should really be an enum rather than a
   // string, but until we make that change the lifetime attribute helps us lock
   // things down. See also the `Port` class.
   void set_type(IceCandidateType type) { type_ = type; }
@@ -159,10 +159,10 @@ class RTC_EXPORT Candidate {
 
   // `network_cost` measures the cost/penalty of using this candidate. A network
   // cost of 0 indicates this candidate can be used freely. A value of
-  // webrtc::kNetworkCostMax indicates it should be used only as the last
+  // kNetworkCostMax indicates it should be used only as the last
   // resort.
   void set_network_cost(uint16_t network_cost) {
-    RTC_DCHECK_LE(network_cost, webrtc::kNetworkCostMax);
+    RTC_DCHECK_LE(network_cost, kNetworkCostMax);
     network_cost_ = network_cost;
   }
   uint16_t network_cost() const { return network_cost_; }

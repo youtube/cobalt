@@ -25,7 +25,6 @@
 #include "chrome/browser/sync_file_system/local/local_file_sync_service.h"
 #include "chrome/browser/sync_file_system/logger.h"
 #include "chrome/browser/sync_file_system/sync_direction.h"
-#include "chrome/browser/sync_file_system/sync_event_observer.h"
 #include "chrome/browser/sync_file_system/sync_file_metadata.h"
 #include "chrome/browser/sync_file_system/sync_file_status.h"
 #include "chrome/browser/sync_file_system/sync_process_runner.h"
@@ -293,15 +292,6 @@ void SyncFileSystemService::GetFileSyncStatus(const FileSystemURL& url,
                           weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
 
-void SyncFileSystemService::AddSyncEventObserver(SyncEventObserver* observer) {
-  observers_.AddObserver(observer);
-}
-
-void SyncFileSystemService::RemoveSyncEventObserver(
-    SyncEventObserver* observer) {
-  observers_.RemoveObserver(observer);
-}
-
 LocalChangeProcessor* SyncFileSystemService::GetLocalChangeProcessor(
     const GURL& origin) {
   return remote_service_->GetLocalChangeProcessor();
@@ -411,7 +401,6 @@ void SyncFileSystemService::Initialize(
       &GetLocalChangeProcessorAdapter, weak_ptr_factory_.GetWeakPtr()));
 
   remote_service_->AddServiceObserver(remote_syncer.get());
-  remote_service_->AddFileStatusObserver(this);
   remote_service_->SetRemoteChangeProcessor(local_service_.get());
 
   local_sync_runners_.push_back(std::move(local_syncer));
@@ -504,11 +493,7 @@ void SyncFileSystemService::OnRemoteServiceStateUpdated(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   util::Log(logging::LOGGING_VERBOSE, FROM_HERE,
             "OnRemoteServiceStateChanged: %d %s", state, description.c_str());
-
-  for (auto& observer : observers_) {
-    observer.OnSyncStateUpdated(GURL(), RemoteStateToSyncServiceState(state),
-                                description);
-  }
+  // TODO(crbug.com/396460818): Cleanup, file syncing is deprecated.
 
   RunForEachSyncRunners(&SyncProcessRunner::Schedule);
 }
@@ -586,16 +571,6 @@ void SyncFileSystemService::OnExtensionLoaded(
 
 void SyncFileSystemService::OnStateChanged(syncer::SyncService* sync) {
   UpdateSyncEnabledStatus(sync);
-}
-
-void SyncFileSystemService::OnFileStatusChanged(
-    const FileSystemURL& url,
-    SyncFileType file_type,
-    SyncFileStatus sync_status,
-    SyncAction action_taken,
-    SyncDirection direction) {
-  for (auto& observer : observers_)
-    observer.OnFileSynced(url, file_type, sync_status, action_taken, direction);
 }
 
 void SyncFileSystemService::UpdateSyncEnabledStatus(

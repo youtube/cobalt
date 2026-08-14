@@ -27,8 +27,8 @@ namespace webrtc {
 
 // RTC_DISALLOW_WAIT() utility
 //
-// Sets a stack-scoped flag that disallows use of `webrtc::Event::Wait` by means
-// of raising a DCHECK when a call to `webrtc::Event::Wait()` is made..
+// Sets a stack-scoped flag that disallows use of `Event::Wait` by means
+// of raising a DCHECK when a call to `Event::Wait()` is made..
 // This is useful to guard synchronization-free scopes against regressions.
 //
 // Example of what this would catch (`ScopeToProtect` calls `Foo`):
@@ -99,7 +99,7 @@ class Event {
 };
 
 // These classes are provided for compatibility with Chromium.
-// The webrtc::Event implementation is overriden inside of Chromium for the
+// The Event implementation is overriden inside of Chromium for the
 // purposes of detecting when threads are blocked that shouldn't be as well as
 // to use the more accurate event implementation that's there than is provided
 // by default on some platforms (e.g. Windows).
@@ -128,7 +128,7 @@ class ScopedDisallowWait {
    public:
     void YieldExecution() override { RTC_DCHECK_NOTREACHED(); }
   } handler_;
-  webrtc::ScopedYieldPolicy policy{&handler_};
+  ScopedYieldPolicy policy{&handler_};
 };
 #endif
 

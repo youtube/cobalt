@@ -174,6 +174,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".GeneratedPasswordSaved"/>
   <variant name=".InstallableAmbientBadge"/>
   <variant name=".MerchantTrust"/>
+  <variant name=".MultiInstanceRestorationOnDowngradedLimit"/>
   <variant name=".NearOomReduction"/>
   <variant name=".NotificationBlocked"/>
   <variant name=".OfferNotification"/>
@@ -1942,6 +1943,32 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.EdgeToEdge.Debugging.ConfigurationSwitchOutcome"
+    enum="EdgeToEdgeConfigurationSwitchOutcome" expires_after="2025-11-23">
+  <owner>clhager@google.com</owner>
+  <owner>wenyufu@chromium.org</owner>
+  <owner>edge-to-edge@chromium.org</owner>
+  <summary>
+    Records when the EdgeToEdgeControllerImpl notices a change when edge-to-edge
+    is changed from a supported configuration into unsupported. Record the
+    outcome combination of the original window insets, new window insets, and
+    paddings applied to the content view.
+  </summary>
+</histogram>
+
+<histogram
+    name="Android.EdgeToEdge.Debugging.SupportedConfigurationStrangeInsets"
+    enum="SupportedConfigurationStrangeInsetsState" expires_after="2025-12-01">
+  <owner>clhager@google.com</owner>
+  <owner>wenyufu@chromium.org</owner>
+  <owner>edge-to-edge@chromium.org</owner>
+  <summary>
+    Records when the EdgeToEdgeControllerImpl handles insets and observes that
+    the configuration seems to support edge-to-edge, but other inset signals
+    (other than the supported configuration check) seem to disagree.
+  </summary>
+</histogram>
+
 <histogram name="Android.EdgeToEdge.DrawToEdgeInUnsupportedConfiguration"
     enum="Boolean" expires_after="2025-11-23">
   <owner>clhager@google.com</owner>
@@ -2572,6 +2599,17 @@ chromium-metrics-reviews@google.com.
     pointer to some of the API calls made, input receiver creation API call
     cannot be issued. This histogram tracks if input receiver creation was
     successful or failed due to some reason.
+  </summary>
+</histogram>
+
+<histogram name="Android.InputOnViz.Viz.DroppedNonTouchActions"
+    enum="MotionEventAction" expires_after="2025-11-23">
+  <owner>kartarsingh@google.com</owner>
+  <owner>woa-performance-team@google.com</owner>
+  <summary>
+    Records the actions of input events that were dropped on Viz due to lack of
+    implementation. Viz expects to only handle touch events which means it
+    doesn't expect to see actions like button down/release.
   </summary>
 </histogram>
 
@@ -4947,6 +4985,31 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.Scrim.MissingParent.Client" enum="ScrimClient"
+    expires_after="2026-06-11">
+  <owner>skym@chromium.org</owner>
+  <owner>ckitagawa@chromium.org</owner>
+  <summary>
+    Scrims are placed into the view heirarchy by walking up from the anchor view
+    looking for the parent. This is supposed to always work, but we're currently
+    seeing failures in the wild. This histogram aims to narrow down which scrim
+    clients are having problems to inform the investigation.
+  </summary>
+</histogram>
+
+<histogram name="Android.Scrim.ShowRequest.Client" enum="ScrimClient"
+    expires_after="2026-06-11">
+  <owner>skym@chromium.org</owner>
+  <owner>ckitagawa@chromium.org</owner>
+  <summary>
+    Emitted when a scrim is actaully triggered. Should help narrow down which
+    clients that have code depedencies on the scrim systme actaully use it. It's
+    possible some are legacy and just dead code. Additionally, will help give a
+    ratio of usages to problems encountered when compared to the other scrim
+    histograms.
+  </summary>
+</histogram>
+
 <histogram name="Android.SearchEngineChoice.ChosenSearchEngine"
     enum="OmniboxSearchEngineType" expires_after="never">
 <!-- expires-never: Continuously monitored by Android partner team. -->
@@ -5813,6 +5876,42 @@ chromium-metrics-reviews@google.com.
     logged each time an AndroidX API is called through the &quot;boundary
     interface&quot; code path (see //android_webview/support_library/README.md
     for more details).
+  </summary>
+</histogram>
+
+<histogram name="Android.WebView.AndroidX.Profile.ExtraHeaderAttached"
+    enum="BooleanUsage" expires_after="2026-05-01">
+  <owner>pbirk@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    This histogram is logged every time a header configured through the AndroidX
+    Profile.setExtraHeaderForOrigins API matches an outgoing request, whether it
+    is the original request or a redirect. The histogram records whether the
+    header was ultimately attached to the request (Used) or skipped because it
+    would have overwritten an existing header on the request (Not Used).
+
+    The histogram is emitted once for each matching header on each request or
+    redirect.
+
+    The histogram is intended to provide data on how often headers configured
+    through this API collides with existing headers, as input for potential
+    future changes to the AndroidX API.
+  </summary>
+</histogram>
+
+<histogram
+    name="Android.WebView.AndroidX.Profile.ExtraHeaderTargetsCorsPreflight"
+    enum="Boolean" expires_after="2026-05-01">
+  <owner>pbirk@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    This histogram is logged every time a header configured through the AndroidX
+    Profile.setExtraHeaderForOrigins API matches an outgoing CORS preflight
+    request, and is emitted once per request, even if multiple headers match.
+
+    The histogram is intended to provide data on how often headers configured
+    through this API applies to CORS preflight, to inform if and how to handle
+    preflight request.
   </summary>
 </histogram>
 
@@ -7218,17 +7317,21 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Android.WebView.MediaIntegrity.GetTokenProviderResponseTime"
-    units="ms" expires_after="2025-09-01">
+<histogram name="Android.WebView.MediaIntegrity.GetTokenProviderResponseTimeV2"
+    units="ms" expires_after="2025-12-31">
   <owner>pbirk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
-    Records the end-to-end time for a GetTokenProvider call to a successfull
+    Records the end-to-end time for a GetTokenProvider call to a successful
     response. This will be the time observed by a JavaScript client waiting for
     a new token provider.
 
     This includes both responses served from the cache and responses that go to
     Play. This histogram is not logged if the call results in an error.
+
+    This histogram replaces
+    Android.WebView.MediaIntegrity.GetTokenProviderResponseTime by extending the
+    range of valid values from 10 seconds to 3 minutes.
   </summary>
 </histogram>
 
@@ -7284,6 +7387,21 @@ chromium-metrics-reviews@google.com.
 
     This histogram will be used to understand the extend to which clients are
     bypassing the JavaScript client API and sending unexpected requests to Java.
+  </summary>
+</histogram>
+
+<histogram name="Android.WebView.MediaIntegrity.NonRecoverableErrorReason"
+    enum="AndroidWebViewMediaIntegrityNonRecoverableErrorReason"
+    expires_after="2025-12-31">
+  <owner>pbirk@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    Records the reason for returning a &quot;Non-recoverable Error&quot; from
+    the Android WebView Media Integrity API, to aid in investigating why clients
+    are seeing a relatively high proportion of this error code.
+
+    The histogram is emitted every time this error code is produced by the
+    implementation.
   </summary>
 </histogram>
 
@@ -7390,14 +7508,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Android.WebView.MediaIntegrity.TokenProviderCreationTime"
-    units="ms" expires_after="2025-09-01">
+<histogram name="Android.WebView.MediaIntegrity.TokenProviderCreationTimeV2"
+    units="ms" expires_after="2025-12-31">
   <owner>pbirk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
     Records the time from requesting a new token provider from Play to receiving
     a successful response. This histogram is not emitted if the call results in
     an error.
+
+    This histogram replaces
+    Android.WebView.MediaIntegrity.TokenProviderCreationTimeV2 by extending the
+    range of valid values from 10 seconds to 3 minutes.
   </summary>
 </histogram>
 

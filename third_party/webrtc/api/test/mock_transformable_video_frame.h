@@ -25,23 +25,16 @@
 
 namespace webrtc {
 
-class MockTransformableVideoFrame
-    : public webrtc::TransformableVideoFrameInterface {
+class MockTransformableVideoFrame : public TransformableVideoFrameInterface {
  public:
   MockTransformableVideoFrame() : TransformableVideoFrameInterface(Passkey()) {}
   MOCK_METHOD(ArrayView<const uint8_t>, GetData, (), (const, override));
-  MOCK_METHOD(void,
-              SetData,
-              (webrtc::ArrayView<const uint8_t> data),
-              (override));
+  MOCK_METHOD(void, SetData, (ArrayView<const uint8_t> data), (override));
   MOCK_METHOD(uint32_t, GetTimestamp, (), (const, override));
   MOCK_METHOD(void, SetRTPTimestamp, (uint32_t), (override));
   MOCK_METHOD(uint32_t, GetSsrc, (), (const, override));
   MOCK_METHOD(bool, IsKeyFrame, (), (const, override));
-  MOCK_METHOD(void,
-              SetMetadata,
-              (const webrtc::VideoFrameMetadata&),
-              (override));
+  MOCK_METHOD(void, SetMetadata, (const VideoFrameMetadata&), (override));
   MOCK_METHOD(uint8_t, GetPayloadType, (), (const, override));
   MOCK_METHOD(bool, CanSetPayloadType, (), (const, override));
   MOCK_METHOD(void, SetPayloadType, (uint8_t), (override));

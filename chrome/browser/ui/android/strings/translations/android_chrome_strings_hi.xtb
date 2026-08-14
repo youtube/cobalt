@@ -109,6 +109,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="1419753403124156396">क्या Chrome को रीस्टार्ट करना है?</translation>
 <translation id="1428770807407000502">क्या आपको सिंक करने की सुविधा बंद करनी है?</translation>
 <translation id="1430915738399379752">प्रिंट करें</translation>
+<translation id="1433478348197382180">रीडिंग मोड</translation>
 <translation id="1435593198351412143">PDF फ़ाइलें अपने-आप खुलें</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" /> में चल रही है</translation>
 <translation id="1448440926884431741">ट्रैक किए गए प्रॉडक्ट को Bookmarks में व्यवस्थित करें</translation>
@@ -545,7 +546,6 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="3513019849832307207">ग्रुप में शामिल हों और टैब खोलें</translation>
 <translation id="3513704683820682405">ऑगमेंटेड रिएलिटी (AR)</translation>
 <translation id="3516053221628030540">Google Play पर जाएं</translation>
-<translation id="351672147489633468">{NUM_REVOKED_PERMISSIONS,plural, =1{उस 1 साइट से सूचनाएं पाने की अनुमतियां हटा दी गई हैं जिस पर आपने कुछ समय से विज़िट नहीं किया है}one{उस # साइट से सूचनाएं पाने की अनुमतियां हटा दी गई हैं जिस पर आपने कुछ समय से विज़िट नहीं किया है}other{उन # साइटों से सूचनाएं पाने की अनुमतियां हटा दी गई हैं जिन पर आपने कुछ समय से विज़िट नहीं किया है}}</translation>
 <translation id="3518985090088779359">स्‍वीकार करें और जारी रखें</translation>
 <translation id="3519014757432845220">Google को सूचना में मौजूद कॉन्टेंट और साइट का यूआरएल भेजकर, स्पैम से सुरक्षा देने वाली सुविधा को बेहतर बनाने में मदद करें. इस कॉन्टेंट की समीक्षा मैन्युअल तरीके से की जा सकती है.</translation>
 <translation id="3521388823983121502"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> के साथ जारी नहीं रखा जा सकता</translation>
@@ -714,6 +714,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="4298388696830689168">लिंक की हुई साइटें</translation>
 <translation id="4300632303535881174">पिछले पेज पर जाएं</translation>
 <translation id="4303044213806199882">chrome_screenshot_<ph name="CURRENT_TIMESTAMP_MS" /></translation>
+<translation id="4306489587293957491">डालें</translation>
 <translation id="4307992518367153382">बुनियादी चीज़ें</translation>
 <translation id="4311652497846705514">क्या आपको PDF फ़ाइल खोलनी है?</translation>
 <translation id="4320177379694898372">कोई इंटरनेट कनेक्‍शन नहीं</translation>
@@ -1080,7 +1081,6 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="5956665950594638604">Chrome सहायता केंद्र को नए टैब में खोलें</translation>
 <translation id="59577092665511740">खाता चुनें.</translation>
 <translation id="5958275228015807058">डाउनलोड में जाकर अपनी फ़ाइलें और पेज पाएं</translation>
-<translation id="5958994127112619898">पृष्‍ठ को सरल बनाएं</translation>
 <translation id="5962718611393537961">छोटा करने के लिए टैप करें</translation>
 <translation id="5964869237734432770">इमेज की जानकारी पाना बंद करें</translation>
 <translation id="5975083100439434680">ज़ूम आउट</translation>
@@ -1629,7 +1629,6 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="8137562778192957619">आपको यह पासवर्ड याद नहीं रखना पड़ेगा. यह Google Password Manager में सेव हो जाएगा.</translation>
 <translation id="8152331954420209374">Lens पर जाएं</translation>
 <translation id="8163820386638255770">अपने Google खाते में पासवर्ड इस्तेमाल करने और सेव करने के लिए, अपनी पहचान की पुष्टि करें</translation>
-<translation id="8179976553408161302">Enter</translation>
 <translation id="8186512483418048923"><ph name="FILES" /> फ़ाइलें बची हैं</translation>
 <translation id="8190358571722158785">1 दिन शेष</translation>
 <translation id="8192765420340770300">साइन इन करने के लिए, खातों की सूची पूरी स्क्रीन पर खुली है</translation>
@@ -1651,7 +1650,6 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="8244387390464017490">'नया टैब' पेज कस्टमाइज़ करें</translation>
 <translation id="8250920743982581267">दस्तावेज़</translation>
 <translation id="8255617931166444521">साइटें सिर्फ़ आपकी कुकी का इस्तेमाल कर सकती हैं, ताकि वे अपनी साइटों पर आपकी ब्राउज़िंग गतिविधि देख सकें</translation>
-<translation id="8256087213273124136">Chrome ने आपके लिए, सूचनाएं पाने की सुविधा बंद कर दी है</translation>
 <translation id="8258999165172757081">जोड़ा गया</translation>
 <translation id="8259179246279078674">अगर पहले से लोड किए गए पेज एन्क्रिप्ट (सुरक्षित) किए गए हैं, तो Google को पहले से लोड किए गए पेज के कॉन्टेंट के बारे में पता नहीं चलेगा. हालांकि, Google के सर्वर को निजी तौर पर पहले से लोड की गई साइटों के बारे में पता होगा. इस जानकारी का इस्तेमाल सिर्फ़ पेजों को पहले से लोड करने के लिए किया जाता है. यह आपके Google खाते की किसी दूसरी जानकारी से जुड़ी नहीं होती.</translation>
 <translation id="8260126382462817229">फिर से प्रवेश करके देखें</translation>

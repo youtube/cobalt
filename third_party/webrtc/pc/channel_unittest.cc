@@ -23,6 +23,7 @@
 #include "api/array_view.h"
 #include "api/audio_options.h"
 #include "api/crypto/crypto_options.h"
+#include "api/field_trials.h"
 #include "api/jsep.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
@@ -60,9 +61,9 @@
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/unique_id_generator.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 
 namespace {
 
@@ -70,9 +71,11 @@ using ::testing::AllOf;
 using ::testing::ElementsAre;
 using ::testing::Field;
 using ::webrtc::ArrayView;
+using ::webrtc::CreateTestFieldTrials;
 using ::webrtc::DtlsTransportInternal;
 using ::webrtc::FakeVoiceMediaReceiveChannel;
 using ::webrtc::FakeVoiceMediaSendChannel;
+using ::webrtc::FieldTrials;
 using ::webrtc::RidDescription;
 using ::webrtc::RidDirection;
 using ::webrtc::RtpTransceiverDirection;
@@ -161,7 +164,7 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
     RTC_DCHECK(network_thread_);
   }
 
-  ~ChannelTest() {
+  ~ChannelTest() override {
     if (network_thread_) {
       SendTask(network_thread_, [this]() {
         network_thread_safety_->SetNotAlive();
@@ -1592,7 +1595,7 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
   webrtc::Buffer rtcp_packet_;
   webrtc::CandidatePairInterface* last_selected_candidate_pair_;
   webrtc::UniqueRandomIdGenerator ssrc_generator_;
-  webrtc::test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_ = CreateTestFieldTrials();
 };
 
 template <>

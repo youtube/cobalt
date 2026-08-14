@@ -269,7 +269,7 @@ class MockVideoEncoder : public VideoEncoder {
 
   MOCK_METHOD(int32_t, Release, (), (override));
 
-  void SetRates(const RateControlParameters& parameters) {
+  void SetRates(const RateControlParameters& parameters) override {
     last_set_rates_ = parameters;
   }
 
@@ -290,7 +290,7 @@ class MockVideoEncoder : public VideoEncoder {
     return info;
   }
 
-  virtual ~MockVideoEncoder() { factory_->DestroyVideoEncoder(this); }
+  ~MockVideoEncoder() override { factory_->DestroyVideoEncoder(this); }
 
   const VideoCodec& codec() const { return codec_; }
 
@@ -478,7 +478,7 @@ class TestSimulcastEncoderAdapterFake : public ::testing::Test,
  public:
   TestSimulcastEncoderAdapterFake() : use_fallback_factory_(false) {}
 
-  virtual ~TestSimulcastEncoderAdapterFake() {
+  ~TestSimulcastEncoderAdapterFake() override {
     if (adapter_) {
       adapter_->Release();
     }

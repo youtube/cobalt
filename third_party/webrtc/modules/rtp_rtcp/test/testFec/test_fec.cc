@@ -39,7 +39,7 @@
 namespace webrtc {
 namespace fec_private_tables {
 extern const uint8_t** kPacketMaskBurstyTbl[12];
-}
+}  // namespace fec_private_tables
 namespace test {
 using fec_private_tables::kPacketMaskBurstyTbl;
 

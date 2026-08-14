@@ -158,7 +158,7 @@ class MultiCodecReceiveTest : public test::CallTest {
     });
   }
 
-  virtual ~MultiCodecReceiveTest() {
+  ~MultiCodecReceiveTest() override {
     SendTask(task_queue(), [this]() {
       send_transport_.reset();
       receive_transport_.reset();

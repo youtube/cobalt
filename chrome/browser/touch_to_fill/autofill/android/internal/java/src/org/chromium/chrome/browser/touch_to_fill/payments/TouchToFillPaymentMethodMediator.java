@@ -67,6 +67,7 @@ import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMeth
 import org.chromium.components.autofill.AutofillSuggestion;
 import org.chromium.components.autofill.IbanRecordType;
 import org.chromium.components.autofill.LoyaltyCard;
+import org.chromium.components.autofill.PaymentsPayload;
 import org.chromium.components.autofill.SuggestionType;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.StateChangeReason;
@@ -136,14 +137,16 @@ class TouchToFillPaymentMethodMediator {
      */
     @IntDef({
         TouchToFillLoyaltyCardOutcome.LOYALTY_CARD,
-        TouchToFillLoyaltyCardOutcome.MANAGE_PASSES,
+        TouchToFillLoyaltyCardOutcome.WALLET_SETTINGS,
+        TouchToFillLoyaltyCardOutcome.MANAGE_LOYALTY_CARDS,
         TouchToFillLoyaltyCardOutcome.DISMISS
     })
     @Retention(RetentionPolicy.SOURCE)
     @interface TouchToFillLoyaltyCardOutcome {
         int LOYALTY_CARD = 0;
-        int MANAGE_PASSES = 1;
-        int DISMISS = 2;
+        int WALLET_SETTINGS = 1;
+        int MANAGE_LOYALTY_CARDS = 2;
+        int DISMISS = 3;
         int MAX_VALUE = DISMISS;
     }
 
@@ -223,7 +226,9 @@ class TouchToFillPaymentMethodMediator {
                             new FillableItemCollectionInfo(i + 1, mSuggestions.size()),
                             cardImageFunction);
             sheetItems.add(new ListItem(CREDIT_CARD, model));
-            cardBenefitsTermsAvailable |= suggestion.shouldDisplayTermsAvailable();
+            // TODO(crbug.com/423849651): Add null checks.
+            PaymentsPayload paymentsPayload = (PaymentsPayload) suggestion.getPayload();
+            cardBenefitsTermsAvailable |= paymentsPayload.shouldDisplayTermsAvailable();
         }
 
         if (cardBenefitsTermsAvailable) {
@@ -381,17 +386,26 @@ class TouchToFillPaymentMethodMediator {
         }
     }
 
+    public void showGoogleWalletSettings() {
+        assert mLoyaltyCards != null;
+        recordTouchToFillLoyaltyCardOutcomeHistogram(TouchToFillLoyaltyCardOutcome.WALLET_SETTINGS);
+        mDelegate.showGoogleWalletSettings();
+    }
+
     public void showManageLoyaltyCards() {
         assert mLoyaltyCards != null;
         mDelegate.openPassesManagementUi();
-        recordTouchToFillLoyaltyCardOutcomeHistogram(TouchToFillLoyaltyCardOutcome.MANAGE_PASSES);
+        recordTouchToFillLoyaltyCardOutcomeHistogram(
+                TouchToFillLoyaltyCardOutcome.MANAGE_LOYALTY_CARDS);
     }
 
     private void onSelectedCreditCard(AutofillSuggestion suggestion) {
         if (!mInputProtector.shouldInputBeProcessed()) return;
         boolean is_virtual_card =
                 suggestion.getSuggestionType() == SuggestionType.VIRTUAL_CREDIT_CARD_ENTRY;
-        mDelegate.creditCardSuggestionSelected(suggestion.getGuid(), is_virtual_card);
+        // TODO(crbug.com/423849651): Add null checks.
+        PaymentsPayload payload = (PaymentsPayload) suggestion.getPayload();
+        mDelegate.creditCardSuggestionSelected(payload.getGuid(), is_virtual_card);
         recordTouchToFillCreditCardOutcomeHistogram(
                 is_virtual_card
                         ? TouchToFillCreditCardOutcome.VIRTUAL_CARD
@@ -433,15 +447,15 @@ class TouchToFillPaymentMethodMediator {
                                         == SuggestionType.VIRTUAL_CREDIT_CARD_ENTRY)
                         ? suggestion.getCustomIconUrl()
                         : new GURL("");
+        // TODO(crbug.com/423849651): Add null checks.
+        PaymentsPayload payload = (PaymentsPayload) suggestion.getPayload();
         TouchToFillPaymentMethodProperties.CardImageMetaData cardImageMetaData =
                 new TouchToFillPaymentMethodProperties.CardImageMetaData(drawableId, artUrl);
         PropertyModel.Builder creditCardSuggestionModelBuilder =
                 new PropertyModel.Builder(NON_TRANSFORMING_CREDIT_CARD_SUGGESTION_KEYS)
                         .withTransformingKey(CARD_IMAGE, cardImageFunction, cardImageMetaData)
                         .with(MAIN_TEXT, suggestion.getLabel())
-                        .with(
-                                MAIN_TEXT_CONTENT_DESCRIPTION,
-                                suggestion.getLabelContentDescription())
+                        .with(MAIN_TEXT_CONTENT_DESCRIPTION, payload.getLabelContentDescription())
                         .with(MINOR_TEXT, suggestion.getSecondaryLabel())
                         // For virtual cards, show the "Virtual card" label on the second
                         // line, and for non-virtual cards, show the expiration date.
@@ -492,7 +506,7 @@ class TouchToFillPaymentMethodMediator {
     private PropertyModel createWalletSettingsButtonModel() {
         return new PropertyModel.Builder(ButtonProperties.ALL_KEYS)
                 .with(TEXT_ID, R.string.autofill_loyalty_card_wallet_settings_button)
-                .with(ON_CLICK_ACTION, mDelegate::showGoogleWalletSettings)
+                .with(ON_CLICK_ACTION, this::showGoogleWalletSettings)
                 .build();
     }
 
@@ -580,7 +594,9 @@ class TouchToFillPaymentMethodMediator {
 
     private static boolean hasOnlyLocalCards(List<AutofillSuggestion> suggestions) {
         for (AutofillSuggestion suggestion : suggestions) {
-            if (!suggestion.isLocalPaymentsMethod()) return false;
+            // TODO(crbug.com/423849651): Add null checks.
+            PaymentsPayload payload = (PaymentsPayload) suggestion.getPayload();
+            if (!payload.isLocalPaymentsMethod()) return false;
         }
         return true;
     }

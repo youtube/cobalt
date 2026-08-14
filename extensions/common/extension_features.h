@@ -246,6 +246,10 @@ BASE_DECLARE_FEATURE(kSilentDebuggerExtensionAPI);
 // nothing breaks.
 BASE_DECLARE_FEATURE(kRemoveCoreSiteInstance);
 
+// Disables loading extensions via the `--disable-extensions-except` command
+// line switch.
+BASE_DECLARE_FEATURE(kDisableDisableExtensionsExceptCommandLineSwitch);
+
 // Disables loading extensions via the `--load-extension` command line switch.
 BASE_DECLARE_FEATURE(kDisableLoadExtensionCommandLineSwitch);
 
@@ -262,6 +266,11 @@ BASE_DECLARE_FEATURE(kDebuggerAPIRestrictedToDevMode);
 // extension APIs are available. It does not include non-extension APIs like
 // `loadTimes` , `csi`, etc. or deprecated APIs (e.g. `app`).
 BASE_DECLARE_FEATURE(kExtensionBrowserNamespaceAlternative);
+
+// Supports chrome.runtime.onMessage() returning a JS Promise to reply to sender
+// response callbacks. Promise resolve or rejection value will be sent to the
+// sender response callbacks.
+BASE_DECLARE_FEATURE(kRuntimeOnMessagePromiseReturnSupport);
 
 }  // namespace extensions_features
 

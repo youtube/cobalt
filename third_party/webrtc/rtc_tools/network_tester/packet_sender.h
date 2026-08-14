@@ -33,8 +33,8 @@ class TestController;
 class PacketSender {
  public:
   PacketSender(TestController* test_controller,
-               webrtc::TaskQueueBase* worker_queue,
-               scoped_refptr<webrtc::PendingTaskSafetyFlag> task_safety_flag,
+               TaskQueueBase* worker_queue,
+               scoped_refptr<PendingTaskSafetyFlag> task_safety_flag,
                const std::string& config_file_path);
   ~PacketSender();
 
@@ -58,8 +58,8 @@ class PacketSender {
   bool sending_ RTC_GUARDED_BY(worker_queue_checker_);
   const std::string config_file_path_;
   TestController* const test_controller_;
-  webrtc::TaskQueueBase* worker_queue_;
-  scoped_refptr<webrtc::PendingTaskSafetyFlag> task_safety_flag_;
+  TaskQueueBase* worker_queue_;
+  scoped_refptr<PendingTaskSafetyFlag> task_safety_flag_;
 };
 
 }  // namespace webrtc

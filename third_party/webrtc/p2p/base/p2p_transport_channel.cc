@@ -74,6 +74,7 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
+#include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
 namespace {
@@ -1303,6 +1304,12 @@ void P2PTransportChannel::AddRemoteCandidateWithResult(
 void P2PTransportChannel::FinishAddingRemoteCandidate(
     const Candidate& new_remote_candidate) {
   RTC_DCHECK_RUN_ON(network_thread_);
+
+  RTC_HISTOGRAM_ENUMERATION(
+      "WebRTC.PeerConnection.CandidateAddressType",
+      static_cast<int>(new_remote_candidate.address().GetIPAddressType()),
+      static_cast<int>(IPAddressType::kMaxValue));
+
   // If this candidate matches what was thought to be a peer reflexive
   // candidate, we need to update the candidate priority/etc.
   for (Connection* conn : connections_) {

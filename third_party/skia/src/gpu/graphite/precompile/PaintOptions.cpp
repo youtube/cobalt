@@ -18,6 +18,7 @@
 #include "src/gpu/graphite/PaintParamsKey.h"
 #include "src/gpu/graphite/PipelineData.h"
 #include "src/gpu/graphite/PrecompileInternal.h"
+#include "src/gpu/graphite/RenderPassDesc.h"
 #include "src/gpu/graphite/Renderer.h"
 #include "src/gpu/graphite/ShaderCodeDictionary.h"
 #include "src/gpu/graphite/precompile/PaintOption.h"
@@ -151,10 +152,12 @@ int PaintOptions::numCombinations() const {
 }
 
 void PaintOptions::createKey(const KeyContext& keyContext,
+                             TextureFormat targetFormat,
                              PaintParamsKeyBuilder* keyBuilder,
                              PipelineDataGatherer* gatherer,
                              int desiredCombination,
                              bool addPrimitiveBlender,
+                             bool addAnalyticClip,
                              Coverage coverage) const {
     SkDEBUGCODE(keyBuilder->checkReset();)
     SkASSERT(desiredCombination < this->numCombinations());
@@ -200,11 +203,14 @@ void PaintOptions::createKey(const KeyContext& keyContext,
                        PrecompileBase::SelectOption(SkSpan(fColorFilterOptions),
                                                     desiredColorFilterCombination),
                        addPrimitiveBlender,
+                       fPrimitiveBlendMode,
                        clipShader,
                        /*dstReadRequired=*/!CanUseHardwareBlending(keyContext.caps(),
+                                                                   targetFormat,
                                                                    blendMode,
                                                                    coverage),
-                       fDither);
+                       fDither,
+                       addAnalyticClip);
 
     option.toKey(keyContext, keyBuilder, gatherer);
 }
@@ -310,7 +316,9 @@ void PaintOptions::buildCombinations(
             // the exact layout doesn't matter
             gatherer->resetWithNewLayout(Layout::kMetal);
 
-            this->createKey(keyContext, &builder, gatherer, i, withPrimitiveBlender, coverage);
+            this->createKey(keyContext, renderPassDesc.fColorAttachment.fFormat,
+                            &builder, gatherer, i, withPrimitiveBlender,
+                            SkToBool(drawTypes & DrawTypeFlags::kAnalyticClip), coverage);
 
             // The 'findOrCreate' calls lockAsKey on builder and then destroys the returned
             // PaintParamsKey. This serves to reset the builder.

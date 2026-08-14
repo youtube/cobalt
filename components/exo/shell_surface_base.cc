@@ -11,7 +11,6 @@
 #include "ash/display/screen_orientation_controller.h"
 #include "ash/frame/non_client_frame_view_ash.h"
 #include "ash/metrics/login_unlock_throughput_recorder.h"
-#include "ash/public/cpp/rounded_corner_utils.h"
 #include "ash/public/cpp/window_properties.h"
 #include "ash/shell.h"
 #include "ash/wm/desks/desks_controller.h"
@@ -152,20 +151,13 @@ class CustomFrameView : public ash::NonClientFrameViewAsh {
       return;
     }
 
-    aura::Window* window = GetWidget()->GetNativeWindow();
-    const ash::WindowState* window_state = ash::WindowState::Get(window);
-
-    if (!chromeos::features::IsRoundedWindowsEnabled()) {
-      if (GetFrameEnabled()) {
-        header_view_->SetHeaderCornerRadius(
-            window_state->GetWindowRoundedCorners().upper_left());
-      }
-    }
-
     std::optional<gfx::RoundedCornersF> window_radii =
         shell_surface_->window_corners_radii();
     std::optional<gfx::RoundedCornersF> shadow_radii =
         shell_surface_->shadow_corner_radii();
+
+    aura::Window* window = GetWidget()->GetNativeWindow();
+    const ash::WindowState* window_state = ash::WindowState::Get(window);
 
     std::optional<gfx::RoundedCornersF> rounded_corners;
     if (window_state->IsPip()) {

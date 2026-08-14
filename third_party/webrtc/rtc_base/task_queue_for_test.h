@@ -52,21 +52,19 @@ class TaskQueueForTest {
   // Returns non-owning pointer to the task queue implementation.
   TaskQueueBase* Get() { return impl_.get(); }
 
-  void PostTask(
-      absl::AnyInvocable<void() &&> task,
-      const webrtc::Location& location = webrtc::Location::Current()) {
+  void PostTask(absl::AnyInvocable<void() &&> task,
+                const Location& location = Location::Current()) {
     impl_->PostTask(std::move(task), location);
   }
-  void PostDelayedTask(
-      absl::AnyInvocable<void() &&> task,
-      webrtc::TimeDelta delay,
-      const webrtc::Location& location = webrtc::Location::Current()) {
+  void PostDelayedTask(absl::AnyInvocable<void() &&> task,
+                       TimeDelta delay,
+                       const Location& location = Location::Current()) {
     impl_->PostDelayedTask(std::move(task), delay, location);
   }
   void PostDelayedHighPrecisionTask(
       absl::AnyInvocable<void() &&> task,
-      webrtc::TimeDelta delay,
-      const webrtc::Location& location = webrtc::Location::Current()) {
+      TimeDelta delay,
+      const Location& location = Location::Current()) {
     impl_->PostDelayedHighPrecisionTask(std::move(task), delay, location);
   }
 

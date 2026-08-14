@@ -112,7 +112,7 @@ class DtlsTestClient : public sigslot::has_slots<> {
     dtls_transport_ = nullptr;
     fake_ice_transport_ = nullptr;
 
-    webrtc::CryptoOptions crypto_options;
+    CryptoOptions crypto_options;
     if (pqc_) {
       FieldTrials field_trials("WebRTC-EnableDtlsPqc/Enabled/");
       crypto_options.ephemeral_key_exchange_cipher_groups.Update(&field_trials);

@@ -151,8 +151,7 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
 
   // Register as a recipient of received packets. There can only be one.
   void RegisterReceivedPacketCallback(
-      absl::AnyInvocable<void(webrtc::Connection*,
-                              const webrtc::ReceivedIpPacket&)>
+      absl::AnyInvocable<void(Connection*, const ReceivedIpPacket&)>
           received_packet_callback);
   void DeregisterReceivedPacketCallback();
 
@@ -160,7 +159,7 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
 
   // Called when a packet is received on this connection.
   void OnReadPacket(const ReceivedIpPacket& packet);
-  [[deprecated("Pass a webrtc::ReceivedIpPacket")]] void
+  [[deprecated("Pass a ReceivedIpPacket")]] void
   OnReadPacket(const char* data, size_t size, int64_t packet_time_us);
 
   // Called when the socket is currently able to send.
@@ -350,8 +349,8 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
 
   void SetStunDictConsumer(
       std::function<std::unique_ptr<StunAttribute>(
-          const webrtc::StunByteStringAttribute*)> goog_delta_consumer,
-      std::function<void(RTCErrorOr<const webrtc::StunUInt64Attribute*>)>
+          const StunByteStringAttribute*)> goog_delta_consumer,
+      std::function<void(RTCErrorOr<const StunUInt64Attribute*>)>
           goog_delta_ack_consumer) {
     goog_delta_consumer_ = std::move(goog_delta_consumer);
     goog_delta_ack_consumer_ = std::move(goog_delta_ack_consumer);
@@ -513,12 +512,11 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
       RTC_GUARDED_BY(network_thread_);
 
   std::optional<std::function<std::unique_ptr<StunAttribute>(
-      const webrtc::StunByteStringAttribute*)>>
+      const StunByteStringAttribute*)>>
       goog_delta_consumer_;
-  std::optional<
-      std::function<void(RTCErrorOr<const webrtc::StunUInt64Attribute*>)>>
+  std::optional<std::function<void(RTCErrorOr<const StunUInt64Attribute*>)>>
       goog_delta_ack_consumer_;
-  absl::AnyInvocable<void(webrtc::Connection*, const webrtc::ReceivedIpPacket&)>
+  absl::AnyInvocable<void(Connection*, const ReceivedIpPacket&)>
       received_packet_callback_;
 
   void MaybeAddDtlsPiggybackingAttributes(StunMessage* msg);

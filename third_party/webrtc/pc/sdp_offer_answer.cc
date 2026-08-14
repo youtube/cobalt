@@ -34,7 +34,6 @@
 #include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
 #include "api/jsep.h"
-#include "api/jsep_ice_candidate.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
@@ -3022,7 +3021,7 @@ bool SdpOfferAnswerHandler::RemoveIceCandidates(
 }
 
 void SdpOfferAnswerHandler::AddLocalIceCandidate(
-    const JsepIceCandidate* candidate) {
+    const IceCandidate* candidate) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   if (local_description()) {
     mutable_local_description()->AddCandidate(candidate);

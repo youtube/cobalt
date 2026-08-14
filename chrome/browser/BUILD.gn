@@ -1205,6 +1205,14 @@ static_library("browser") {
     "predictors/resource_prefetch_predictor.h",
     "predictors/resource_prefetch_predictor_tables.cc",
     "predictors/resource_prefetch_predictor_tables.h",
+    "preloading/autocomplete_dictionary_preload_service.cc",
+    "preloading/autocomplete_dictionary_preload_service.h",
+    "preloading/autocomplete_dictionary_preload_service_factory.cc",
+    "preloading/autocomplete_dictionary_preload_service_factory.h",
+    "preloading/bookmarkbar_preload/bookmarkbar_preload_pipeline.cc",
+    "preloading/bookmarkbar_preload/bookmarkbar_preload_pipeline.h",
+    "preloading/bookmarkbar_preload/bookmarkbar_preload_pipeline_manager.cc",
+    "preloading/bookmarkbar_preload/bookmarkbar_preload_pipeline_manager.h",
     "preloading/chrome_preloading.cc",
     "preloading/chrome_preloading.h",
     "preloading/prefetch/chrome_prefetch_manager.cc",
@@ -2252,6 +2260,7 @@ static_library("browser") {
     "//components/offline_pages/core/background:background_offliner",
     "//components/offline_pages/core/request_header",
     "//components/omnibox/browser",
+    "//components/omnibox/composebox",
     "//components/onc",
     "//components/open_from_clipboard",
     "//components/optimization_guide/content/browser",
@@ -2944,6 +2953,8 @@ static_library("browser") {
       "browsing_data/counters/tabs_counter.h",
       "chrome_browser_main_android.cc",
       "chrome_browser_main_android.h",
+      "chrome_content_browser_client_android.cc",
+      "chrome_content_browser_client_android.h",
       "collaboration/android/collaboration_controller_delegate_android.cc",
       "collaboration/android/collaboration_controller_delegate_android.h",
       "collaboration/android/collaboration_service_factory_android.cc",
@@ -3472,7 +3483,6 @@ static_library("browser") {
       "//components/image_fetcher/core:metrics",
       "//components/infobars/android",
       "//components/installedapp/android",
-      "//components/invalidation/impl:feature_list",
       "//components/javascript_dialogs/android:jni_headers",
       "//components/language/android:language_bridge",
       "//components/location/android:settings",
@@ -3640,8 +3650,6 @@ static_library("browser") {
       "apps/intent_helper/intent_chip_display_prefs.h",
       "autocomplete/tab_matcher_desktop.cc",
       "autocomplete/tab_matcher_desktop.h",
-      "autofill_ai/chrome_autofill_ai_client.cc",
-      "autofill_ai/chrome_autofill_ai_client.h",
       "badging/badge_manager.cc",
       "badging/badge_manager.h",
       "badging/badge_manager_delegate.h",
@@ -4174,6 +4182,8 @@ static_library("browser") {
       "resources_integrity.h",
       "safe_browsing/generated_safe_browsing_pref.cc",
       "safe_browsing/generated_safe_browsing_pref.h",
+      "safe_browsing/generated_security_settings_bundle_pref.cc",
+      "safe_browsing/generated_security_settings_bundle_pref.h",
       "send_tab_to_self/desktop_notification_handler.cc",
       "send_tab_to_self/desktop_notification_handler.h",
       "serial/web_serial_chooser_desktop.cc",
@@ -4250,8 +4260,6 @@ static_library("browser") {
       "upgrade_detector/build_state.cc",
       "upgrade_detector/build_state.h",
       "upgrade_detector/upgrade_detector.cc",
-      "upgrade_detector/upgrade_detector.h",
-      "upgrade_detector/upgrade_observer.h",
       "upgrade_detector/version_history_client.cc",
       "upgrade_detector/version_history_client.h",
       "usb/usb_connection_tracker.cc",
@@ -4470,6 +4478,7 @@ static_library("browser") {
       "//chrome/browser/ui/webui/top_chrome:impl",
       "//chrome/browser/ui/webui/whats_new",
       "//chrome/browser/ui/webui/whats_new:impl",
+      "//chrome/browser/upgrade_detector",
       "//chrome/browser/upgrade_detector:build_state_observer",
       "//chrome/browser/web_applications",
       "//chrome/browser/web_applications:features",
@@ -4758,6 +4767,10 @@ static_library("browser") {
         "component_updater/hyphenation_component_installer.h",
       ]
     }
+  }
+
+  if (!is_android || is_desktop_android) {
+    deps += [ "//chrome/browser/ui/browser_window" ]
   }
 
   if (enable_screen_capture) {
@@ -6466,7 +6479,10 @@ static_library("browser") {
     all_dependent_configs = [ ":browser_win_linker_flags" ]
 
     if (is_chrome_branded) {
-      deps += [ "//chrome/updater/app/server/win:updater_legacy_idl" ]
+      deps += [
+        "//chrome/browser/platform_experience/installer:installer_win",
+        "//chrome/updater/app/server/win:updater_legacy_idl",
+      ]
       sources += [
         "policy/status_provider/updater_status_and_value_provider.cc",
         "policy/status_provider/updater_status_and_value_provider.h",
@@ -7647,7 +7663,6 @@ static_library("browser") {
       "sync_file_system/drive_backend/uninstall_app_task.h",
       "sync_file_system/file_change.cc",
       "sync_file_system/file_change.h",
-      "sync_file_system/file_status_observer.h",
       "sync_file_system/local/local_file_change_tracker.cc",
       "sync_file_system/local/local_file_change_tracker.h",
       "sync_file_system/local/local_file_sync_context.cc",
@@ -7677,7 +7692,6 @@ static_library("browser") {
       "sync_file_system/sync_action.h",
       "sync_file_system/sync_callbacks.h",
       "sync_file_system/sync_direction.h",
-      "sync_file_system/sync_event_observer.h",
       "sync_file_system/sync_file_metadata.cc",
       "sync_file_system/sync_file_metadata.h",
       "sync_file_system/sync_file_status.h",
@@ -7768,6 +7782,15 @@ static_library("browser") {
         "//services/accessibility:buildflags",
         "//services/accessibility/public/mojom",
         "//ui/events/ozone/layout:layout",
+
+        # TODO(crbug.com/40227502): Currently EnterpriseDeviceAttributes
+        # internally uses profile manager. We should get rid of it.
+        "//chrome/browser/extensions/api/enterprise_device_attributes",
+      ]
+      allow_circular_includes_from += [
+        # TODO(crbug.com/40227502): Currently EnterpriseDeviceAttributes
+        # internally uses profile manager. We should get rid of it.
+        "//chrome/browser/extensions/api/enterprise_device_attributes",
       ]
     }
   }

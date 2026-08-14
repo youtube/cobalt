@@ -1943,7 +1943,6 @@ test("content_browsertests") {
     "//device/fido",
     "//device/fido:test_support",
     "//gin",
-    "//gpu",
     "//gpu/ipc/host",
     "//ipc",
     "//ipc:test_sink",
@@ -1977,6 +1976,8 @@ test("content_browsertests") {
     "//services/metrics",
     "//services/metrics/public/cpp:ukm_builders",
     "//services/network:test_support",
+    "//services/network/public/cpp:flags_and_switches",
+    "//services/network/public/cpp:ip_address_space_overrides_test_utils",
     "//services/network/public/mojom",
     "//services/network/trust_tokens:test_support",
     "//services/service_manager/public/cpp",
@@ -2018,6 +2019,7 @@ test("content_browsertests") {
     "//ui/gfx:gfx_switches",
     "//ui/gfx/geometry",
     "//ui/gl",
+    "//ui/gl:gl_headers",
     "//ui/gl:test_support",
     "//ui/latency",
     "//ui/native_theme",
@@ -2035,10 +2037,7 @@ test("content_browsertests") {
     deps -= [ "//device/bluetooth:mocks" ]
   }
 
-  data_deps = [
-    "//content/shell:pak",
-    "//third_party/mesa_headers",
-  ]
+  data_deps = [ "//content/shell:pak" ]
 
   data = [
     "data/",
@@ -2246,8 +2245,6 @@ test("content_browsertests") {
     ]
     sources -= [
       "../browser/media/session/audio_focus_delegate_default_browsertest.cc",
-      "../browser/pointer_lock_browsertest.cc",
-      "../browser/pointer_lock_browsertest.h",
     ]
     deps += [
       ":android_test_message_pump_support",
@@ -3149,6 +3146,7 @@ test("content_unittests") {
 
   if (is_android) {
     sources += [
+      "../browser/accessibility/ax_style_data_unittest.cc",
       "../browser/accessibility/browser_accessibility_android_unittest.cc",
       "../browser/android/nfc_host_unittest.cc",
       "../browser/attribution_reporting/attribution_input_event_tracker_android_unittest.cc",
@@ -3311,7 +3309,6 @@ test("content_unittests") {
     "//device/gamepad:test_helpers",
     "//device/gamepad/public/cpp:shared_with_blink",
     "//gin",
-    "//gpu",
     "//gpu:test_support",
     "//gpu/ipc/common:test_support",
     "//gpu/ipc/host",
@@ -3396,6 +3393,7 @@ test("content_unittests") {
     "//ui/gfx/ipc",
     "//ui/gfx/ipc/skia",
     "//ui/gl",
+    "//ui/gl:gl_headers",
     "//ui/gl:test_support",
     "//ui/latency:test_support",
     "//ui/shell_dialogs:shell_dialogs",
@@ -3414,10 +3412,7 @@ test("content_unittests") {
     ]
   }
 
-  data_deps = [
-    "//testing/buildbot/filters:content_unittests_filters",
-    "//third_party/mesa_headers",
-  ]
+  data_deps = [ "//testing/buildbot/filters:content_unittests_filters" ]
 
   if (!is_ios) {
     data_deps += [
@@ -3626,9 +3621,11 @@ test("content_unittests") {
       "../browser/speech/network_speech_recognition_engine_impl_unittest.cc",
       "../browser/speech/speech_recognizer_impl_unittest.cc",
       "../browser/tracing/tracing_ui_unittest.cc",
+      "../web_test/renderer/test_runner_utils_unittest.cc",
     ]
     deps += [
       "//components/speech:speech",
+      "//content/web_test:test_support",
       "//device/fido:cablev2_authenticator",
       "//device/fido:cablev2_test_util",
       "//media/mojo/mojom:web_speech_recognition",

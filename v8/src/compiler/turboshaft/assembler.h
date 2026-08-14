@@ -2120,6 +2120,11 @@ class TurboshaftAssemblerOpInterface
   V<Word32> Float64IsHole(V<Float64> input) {
     return Float64Is(input, NumericKind::kFloat64Hole);
   }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  V<Word32> Float64IsUndefined(V<Float64> input) {
+    return Float64Is(input, NumericKind::kFloat64Undefined);
+  }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   // Float64IsSmi returns true if {input} is an integer in smi range.
   V<Word32> Float64IsSmi(V<Float64> input) {
     return Float64Is(input, NumericKind::kSmi);
@@ -2672,25 +2677,27 @@ class TurboshaftAssemblerOpInterface
                              ~MemoryChunk::GetAlignmentMaskForAssembler());
   }
 
-  OpIndex AtomicRMW(V<WordPtr> base, V<WordPtr> index, OpIndex value,
+  OpIndex AtomicRMW(V<Any> base, V<WordPtr> index, OpIndex value,
                     AtomicRMWOp::BinOp bin_op,
                     RegisterRepresentation in_out_rep,
                     MemoryRepresentation memory_rep,
-                    MemoryAccessKind memory_access_kind) {
+                    MemoryAccessKind memory_access_kind,
+                    RegisterRepresentation base_rep) {
     DCHECK_NE(bin_op, AtomicRMWOp::BinOp::kCompareExchange);
     return ReduceIfReachableAtomicRMW(base, index, value, OpIndex::Invalid(),
                                       bin_op, in_out_rep, memory_rep,
-                                      memory_access_kind);
+                                      memory_access_kind, base_rep);
   }
 
-  OpIndex AtomicCompareExchange(V<WordPtr> base, V<WordPtr> index,
-                                OpIndex expected, OpIndex new_value,
+  OpIndex AtomicCompareExchange(V<Any> base, V<WordPtr> index, OpIndex expected,
+                                OpIndex new_value,
                                 RegisterRepresentation result_rep,
                                 MemoryRepresentation input_rep,
-                                MemoryAccessKind memory_access_kind) {
+                                MemoryAccessKind memory_access_kind,
+                                RegisterRepresentation base_rep) {
     return ReduceIfReachableAtomicRMW(
         base, index, new_value, expected, AtomicRMWOp::BinOp::kCompareExchange,
-        result_rep, input_rep, memory_access_kind);
+        result_rep, input_rep, memory_access_kind, base_rep);
   }
 
   OpIndex AtomicWord32Pair(V<WordPtr> base, OptionalV<WordPtr> index,
@@ -3198,6 +3205,11 @@ class TurboshaftAssemblerOpInterface
 #if V8_ENABLE_WEBASSEMBLY
   void WasmStackCheck(WasmStackCheckOp::Kind kind) {
     ReduceIfReachableWasmStackCheck(kind);
+  }
+
+  void MemoryCopy(V<WordPtr> dst_base, V<WordPtr> src_base,
+                  V<WordPtr> num_bytes) {
+    ReduceIfReachableMemoryCopy(dst_base, src_base, num_bytes);
   }
 #endif
 
@@ -4949,23 +4961,25 @@ class TurboshaftAssemblerOpInterface
                                null_check, memory_order);
   }
 
-  V<Word> StructAtomicRMW(V<WasmStructNullable> object, V<Word> value,
-                          StructAtomicRMWOp::BinOp bin_op,
-                          const wasm::StructType* type,
-                          wasm::ModuleTypeIndex type_index, int field_index,
-                          CheckForNull null_check,
-                          AtomicMemoryOrder memory_order) {
-    return ReduceIfReachableStructAtomicRMW(object, value, bin_op, type,
-                                            type_index, field_index, null_check,
-                                            memory_order);
+  V<Any> StructAtomicRMW(V<WasmStructNullable> object, V<Any> value,
+                         OptionalV<Any> expected,
+                         StructAtomicRMWOp::BinOp bin_op,
+                         const wasm::StructType* type,
+                         wasm::ModuleTypeIndex type_index, int field_index,
+                         CheckForNull null_check,
+                         AtomicMemoryOrder memory_order) {
+    return ReduceIfReachableStructAtomicRMW(object, value, expected, bin_op,
+                                            type, type_index, field_index,
+                                            null_check, memory_order);
   }
 
-  V<Word> ArrayAtomicRMW(V<WasmArrayNullable> array, V<Word32> index,
-                         V<Word> value, ArrayAtomicRMWOp::BinOp bin_op,
-                         wasm::ValueType element_type,
-                         AtomicMemoryOrder memory_order) {
-    return ReduceIfReachableArrayAtomicRMW(array, index, value, bin_op,
-                                           element_type, memory_order);
+  V<Any> ArrayAtomicRMW(V<WasmArrayNullable> array, V<Word32> index,
+                        V<Any> value, OptionalV<Any> expected,
+                        ArrayAtomicRMWOp::BinOp bin_op,
+                        wasm::ValueType element_type,
+                        AtomicMemoryOrder memory_order) {
+    return ReduceIfReachableArrayAtomicRMW(array, index, value, expected,
+                                           bin_op, element_type, memory_order);
   }
 
   V<Any> ArrayGet(V<WasmArrayNullable> array, V<Word32> index,

@@ -48,7 +48,6 @@
 #include "rtc_base/event.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/string_builder.h"
-#include "system_wrappers/include/field_trial.h"
 #include "test/logging/log_writer.h"
 #include "test/scenario/column_printer.h"
 #include "test/scenario/network_node.h"
@@ -237,14 +236,7 @@ CallClient::CallClient(
     CallClientConfig config)
     : time_controller_(time_controller),
       env_(CreateEnvironment(
-          [&] {
-            // TODO: bugs.webrtc.org/419453427 - Remove reading the global field
-            // trial string when users of this framework stop setting it.
-            auto field_trials = std::make_unique<FieldTrials>(
-                field_trial::GetFieldTrialString());
-            field_trials->Merge(config.field_trials);
-            return field_trials;
-          }(),
+          std::make_unique<FieldTrials>(std::move(config.field_trials)),
           time_controller_->CreateTaskQueueFactory(),
           time_controller_->GetClock())),
       log_writer_factory_(std::move(log_writer_factory)),

@@ -204,6 +204,13 @@ class TabGroupSyncServiceTest : public testing::Test {
                                                      base::Value::Dict());
     pref_service_.registry()->RegisterDictionaryPref(
         prefs::kLocallyClosedRemoteTabGroupIds, base::Value::Dict());
+    pref_service_.registry()->RegisterBooleanPref(
+        prefs::kDataSharingHasShownVersionUpdatedMessage, false);
+    pref_service_.registry()->RegisterBooleanPref(
+        prefs::kDataSharingHasShownVersionOutOfDateInstantMessage, false);
+    pref_service_.registry()->RegisterBooleanPref(
+        prefs::kDataSharingHasDismissedVersionOutOfDatePersistentMessage,
+        false);
 
     auto metrics_logger =
         std::make_unique<TabGroupSyncMetricsLoggerImpl>(&device_info_tracker_);
@@ -406,6 +413,7 @@ class TabGroupSyncServiceTest : public testing::Test {
 
 TEST_F(TabGroupSyncServiceTest, ServiceConstruction) {
   EXPECT_TRUE(tab_group_sync_service_->GetSavedTabGroupControllerDelegate());
+  EXPECT_TRUE(tab_group_sync_service_->GetVersioningMessageController());
 }
 
 TEST_F(TabGroupSyncServiceTest, GetAllGroups) {
@@ -2944,6 +2952,51 @@ TEST_F(EmptyTabGroupSyncServiceTest,
   // Verify that all GUIDs were found for shared tab groups.
   EXPECT_TRUE(expected_guids.empty())
       << "Not all GUIDs were found: " << base::JoinString(guid_strings, ", ");
+}
+
+TEST_F(EmptyTabGroupSyncServiceTest,
+       TestHadSharedTabGroupsOnStartup_OpenGroups) {
+  SavedTabGroup shared_group_1(test::CreateTestSavedTabGroup());
+  shared_group_1.SetCollaborationId(CollaborationId("collaboration"));
+  shared_group_1.SetLocalGroupId(test::GenerateRandomTabGroupID());
+
+  model_->LoadStoredEntries(
+      /*groups=*/{shared_group_1},
+      /*tabs=*/{});
+  task_environment_.RunUntilIdle();
+
+  EXPECT_TRUE(tab_group_sync_service_->HadSharedTabGroupsLastSession(
+      /*open_shared_tab_groups=*/false));
+  EXPECT_TRUE(tab_group_sync_service_->HadSharedTabGroupsLastSession(
+      /*open_shared_tab_groups=*/true));
+}
+
+TEST_F(EmptyTabGroupSyncServiceTest,
+       TestHadSharedTabGroupsOnStartup_NoOpenGroups) {
+  SavedTabGroup shared_group_1(test::CreateTestSavedTabGroup());
+  shared_group_1.SetCollaborationId(CollaborationId("collaboration"));
+
+  model_->LoadStoredEntries(
+      /*groups=*/{shared_group_1},
+      /*tabs=*/{});
+  task_environment_.RunUntilIdle();
+
+  EXPECT_TRUE(tab_group_sync_service_->HadSharedTabGroupsLastSession(
+      /*open_shared_tab_groups=*/false));
+  EXPECT_FALSE(tab_group_sync_service_->HadSharedTabGroupsLastSession(
+      /*open_shared_tab_groups=*/true));
+}
+
+TEST_F(EmptyTabGroupSyncServiceTest, TestHadSharedTabGroupsOnStartup_NoGroups) {
+  model_->LoadStoredEntries(
+      /*groups=*/{},
+      /*tabs=*/{});
+  task_environment_.RunUntilIdle();
+
+  EXPECT_FALSE(tab_group_sync_service_->HadSharedTabGroupsLastSession(
+      /*open_shared_tab_groups=*/false));
+  EXPECT_FALSE(tab_group_sync_service_->HadSharedTabGroupsLastSession(
+      /*open_shared_tab_groups=*/true));
 }
 
 }  // namespace tab_groups

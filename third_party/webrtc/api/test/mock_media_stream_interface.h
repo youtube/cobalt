@@ -102,19 +102,19 @@ class MockMediaStream : public MediaStreamInterface {
               (override));
   MOCK_METHOD(bool,
               AddTrack,
-              (webrtc::scoped_refptr<AudioTrackInterface> track),
+              (scoped_refptr<AudioTrackInterface> track),
               (override));
   MOCK_METHOD(bool,
               AddTrack,
-              (webrtc::scoped_refptr<VideoTrackInterface> track),
+              (scoped_refptr<VideoTrackInterface> track),
               (override));
   MOCK_METHOD(bool,
               RemoveTrack,
-              (webrtc::scoped_refptr<AudioTrackInterface> track),
+              (scoped_refptr<AudioTrackInterface> track),
               (override));
   MOCK_METHOD(bool,
               RemoveTrack,
-              (webrtc::scoped_refptr<VideoTrackInterface> track),
+              (scoped_refptr<VideoTrackInterface> track),
               (override));
   MOCK_METHOD(void,
               RegisterObserver,
@@ -126,8 +126,7 @@ class MockMediaStream : public MediaStreamInterface {
               (override));
 };
 
-static_assert(!std::is_abstract_v<webrtc::RefCountedObject<MockMediaStream>>,
-              "");
+static_assert(!std::is_abstract_v<RefCountedObject<MockMediaStream>>, "");
 
 }  // namespace webrtc
 

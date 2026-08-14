@@ -105,7 +105,7 @@ class SaturationProtectorImpl : public SaturationProtector {
   }
   SaturationProtectorImpl(const SaturationProtectorImpl&) = delete;
   SaturationProtectorImpl& operator=(const SaturationProtectorImpl&) = delete;
-  ~SaturationProtectorImpl() = default;
+  ~SaturationProtectorImpl() override = default;
 
   float HeadroomDb() override { return headroom_db_; }
 

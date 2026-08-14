@@ -54,7 +54,7 @@ class RefCountedObject : public T {
  protected:
   ~RefCountedObject() override {}
 
-  mutable webrtc::webrtc_impl::RefCounter ref_count_{0};
+  mutable webrtc_impl::RefCounter ref_count_{0};
 };
 
 template <class T>
@@ -81,7 +81,7 @@ class FinalRefCountedObject final : public T {
  private:
   ~FinalRefCountedObject() = default;
 
-  mutable webrtc::webrtc_impl::RefCounter ref_count_{0};
+  mutable webrtc_impl::RefCounter ref_count_{0};
 };
 
 }  // namespace webrtc

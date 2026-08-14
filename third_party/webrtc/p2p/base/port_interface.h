@@ -121,7 +121,7 @@ class PortInterface {
   // Signaled when this port decides to delete itself because it no longer has
   // any usefulness.
   virtual void SubscribePortDestroyed(
-      std::function<void(webrtc::PortInterface*)> callback) = 0;
+      std::function<void(PortInterface*)> callback) = 0;
 
   // Signaled when Port discovers ice role conflict with the peer.
   sigslot::signal1<PortInterface*> SignalRoleConflict;

@@ -148,7 +148,7 @@ class RtpSenderReceiverTest
         StreamParams::CreateLegacy(kVideoSsrc2));
   }
 
-  ~RtpSenderReceiverTest() {
+  ~RtpSenderReceiverTest() override {
     audio_rtp_sender_ = nullptr;
     video_rtp_sender_ = nullptr;
     audio_rtp_receiver_ = nullptr;

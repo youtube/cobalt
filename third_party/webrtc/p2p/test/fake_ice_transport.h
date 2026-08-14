@@ -168,8 +168,8 @@ class FakeIceTransport : public IceTransportInternal {
 
   void SetCandidatesGatheringComplete() {
     RTC_DCHECK_RUN_ON(network_thread_);
-    if (gathering_state_ != webrtc::kIceGatheringComplete) {
-      gathering_state_ = webrtc::kIceGatheringComplete;
+    if (gathering_state_ != kIceGatheringComplete) {
+      gathering_state_ = kIceGatheringComplete;
       SendGatheringStateEvent();
     }
   }
@@ -264,8 +264,8 @@ class FakeIceTransport : public IceTransportInternal {
 
   void MaybeStartGathering() override {
     RTC_DCHECK_RUN_ON(network_thread_);
-    if (gathering_state_ == webrtc::kIceGatheringNew) {
-      gathering_state_ = webrtc::kIceGatheringGathering;
+    if (gathering_state_ == kIceGatheringNew) {
+      gathering_state_ = kIceGatheringGathering;
       SendGatheringStateEvent();
     }
   }
@@ -353,7 +353,7 @@ class FakeIceTransport : public IceTransportInternal {
       }
     }
 
-    SentPacketInfo sent_packet(options.packet_id, webrtc::TimeMillis());
+    SentPacketInfo sent_packet(options.packet_id, TimeMillis());
     SignalSentPacket(this, sent_packet);
     return static_cast<int>(len);
   }
@@ -398,7 +398,7 @@ class FakeIceTransport : public IceTransportInternal {
   void set_packet_send_filter(
       absl::AnyInvocable<bool(const char* data,
                               size_t len,
-                              const webrtc::AsyncSocketPacketOptions& options,
+                              const AsyncSocketPacketOptions& options,
                               int /* flags */)> func) {
     RTC_DCHECK_RUN_ON(network_thread_);
     packet_send_filter_func_ = std::move(func);
@@ -436,7 +436,7 @@ class FakeIceTransport : public IceTransportInternal {
   bool SendIcePing() {
     RTC_DCHECK_RUN_ON(network_thread_);
     RTC_DLOG(LS_INFO) << name_ << ": SendIcePing()";
-    last_sent_ping_timestamp_ = webrtc::TimeMicros();
+    last_sent_ping_timestamp_ = TimeMicros();
     auto msg = std::make_unique<IceMessage>(STUN_BINDING_REQUEST);
     MaybeAddDtlsPiggybackingAttributes(msg.get());
     msg->AddFingerprint();
@@ -564,7 +564,7 @@ class FakeIceTransport : public IceTransportInternal {
 
   void ReceivePacketInternal(const CopyOnWriteBuffer& packet) {
     RTC_DCHECK_RUN_ON(network_thread_);
-    auto now = webrtc::TimeMicros();
+    auto now = TimeMicros();
     if (auto msg = GetStunMessage(packet)) {
       RTC_LOG(LS_INFO) << name_ << ": RECV STUN message: "
                        << ", data[0]: "
@@ -634,7 +634,7 @@ class FakeIceTransport : public IceTransportInternal {
   std::optional<IceTransportStateInternal> legacy_transport_state_
       RTC_GUARDED_BY(network_thread_);
   IceGatheringState gathering_state_ RTC_GUARDED_BY(network_thread_) =
-      webrtc::kIceGatheringNew;
+      kIceGatheringNew;
   bool had_connection_ RTC_GUARDED_BY(network_thread_) = false;
   bool writable_ RTC_GUARDED_BY(network_thread_) = false;
   bool receiving_ RTC_GUARDED_BY(network_thread_) = false;

@@ -35,11 +35,11 @@
 #include "rtc_base/numerics/exp_filter.h"
 #include "rtc_base/time_utils.h"
 #include "system_wrappers/include/metrics.h"
+#include "third_party/libvpx/source/libvpx/vpx/vp8.h"
+#include "third_party/libvpx/source/libvpx/vpx/vp8dx.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_decoder.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_image.h"
 #include "third_party/libyuv/include/libyuv/convert.h"
-#include "vpx/vp8.h"
-#include "vpx/vp8dx.h"
-#include "vpx/vpx_decoder.h"
-#include "vpx/vpx_image.h"
 
 namespace webrtc {
 namespace {

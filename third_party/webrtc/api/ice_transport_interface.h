@@ -35,7 +35,7 @@ class IceTransportInterface : public RefCountInterface {
   // The returned object can only be safely used on the signalling thread.
   // TODO(crbug.com/907849): Add API calls for the functions that have to
   // be exposed to clients, and stop allowing access to the
-  // webrtc::IceTransportInternal API.
+  // IceTransportInternal API.
   virtual IceTransportInternal* internal() = 0;
 };
 

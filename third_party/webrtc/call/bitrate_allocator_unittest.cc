@@ -127,7 +127,7 @@ class BitrateAllocatorTest : public ::testing::Test {
     allocator_->OnNetworkEstimateChanged(
         CreateTargetRateMessage(300000u, 0, 0, kDefaultProbingIntervalMs));
   }
-  ~BitrateAllocatorTest() {}
+  ~BitrateAllocatorTest() override {}
   void AddObserver(
       BitrateAllocatorObserver* observer,
       uint32_t min_bitrate_bps,
@@ -327,7 +327,7 @@ class BitrateAllocatorTestNoEnforceMin : public ::testing::Test {
     allocator_->OnNetworkEstimateChanged(
         CreateTargetRateMessage(300000u, 0, 0, kDefaultProbingIntervalMs));
   }
-  ~BitrateAllocatorTestNoEnforceMin() {}
+  ~BitrateAllocatorTestNoEnforceMin() override {}
   void AddObserver(BitrateAllocatorObserver* observer,
                    uint32_t min_bitrate_bps,
                    uint32_t max_bitrate_bps,

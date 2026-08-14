@@ -106,6 +106,10 @@ class ExceptionHandlerInfo;
 
 #define INT32_OPERATIONS_NODE_LIST(V) \
   V(Int32AbsWithOverflow)             \
+  V(Int32Add)                         \
+  V(Int32Subtract)                    \
+  V(Int32Multiply)                    \
+  V(Int32Divide)                      \
   V(Int32AddWithOverflow)             \
   V(Int32SubtractWithOverflow)        \
   V(Int32MultiplyWithOverflow)        \
@@ -144,7 +148,6 @@ class ExceptionHandlerInfo;
 
 #define CONSTANT_VALUE_NODE_LIST(V) \
   V(Constant)                       \
-  V(ExternalConstant)               \
   V(Float64Constant)                \
   V(Int32Constant)                  \
   V(Uint32Constant)                 \
@@ -279,7 +282,7 @@ class ExceptionHandlerInfo;
   V(Int32ToNumber)                                  \
   V(Uint32ToNumber)                                 \
   V(Int32CountLeadingZeros)                         \
-  V(SmiCountLeadingZeros)                           \
+  V(TaggedCountLeadingZeros)                        \
   V(Float64CountLeadingZeros)                       \
   V(IntPtrToBoolean)                                \
   V(IntPtrToNumber)                                 \
@@ -406,21 +409,22 @@ class ExceptionHandlerInfo;
   NON_VALUE_NODE_LIST(V) \
   VALUE_NODE_LIST(V)
 
-#define BRANCH_CONTROL_NODE_LIST(V) \
-  V(BranchIfSmi)                    \
-  V(BranchIfRootConstant)           \
-  V(BranchIfToBooleanTrue)          \
-  V(BranchIfInt32ToBooleanTrue)     \
-  V(BranchIfIntPtrToBooleanTrue)    \
-  V(BranchIfFloat64ToBooleanTrue)   \
-  V(BranchIfFloat64IsHole)          \
-  V(BranchIfReferenceEqual)         \
-  V(BranchIfInt32Compare)           \
-  V(BranchIfUint32Compare)          \
-  V(BranchIfFloat64Compare)         \
-  V(BranchIfUndefinedOrNull)        \
-  V(BranchIfUndetectable)           \
-  V(BranchIfJSReceiver)             \
+#define BRANCH_CONTROL_NODE_LIST(V)          \
+  V(BranchIfSmi)                             \
+  V(BranchIfRootConstant)                    \
+  V(BranchIfToBooleanTrue)                   \
+  V(BranchIfInt32ToBooleanTrue)              \
+  V(BranchIfIntPtrToBooleanTrue)             \
+  V(BranchIfFloat64ToBooleanTrue)            \
+  V(BranchIfFloat64IsHole)                   \
+  IF_UD(V, BranchIfFloat64IsUndefinedOrHole) \
+  V(BranchIfReferenceEqual)                  \
+  V(BranchIfInt32Compare)                    \
+  V(BranchIfUint32Compare)                   \
+  V(BranchIfFloat64Compare)                  \
+  V(BranchIfUndefinedOrNull)                 \
+  V(BranchIfUndetectable)                    \
+  V(BranchIfJSReceiver)                      \
   V(BranchIfTypeOf)
 
 #define CONDITIONAL_CONTROL_NODE_LIST(V) \
@@ -516,10 +520,12 @@ constexpr bool IsCommutativeNode(Opcode opcode) {
     case Opcode::kFloat64Add:
     case Opcode::kFloat64Multiply:
     case Opcode::kGenericStrictEqual:
+    case Opcode::kInt32Add:
     case Opcode::kInt32AddWithOverflow:
     case Opcode::kInt32BitwiseAnd:
     case Opcode::kInt32BitwiseOr:
     case Opcode::kInt32BitwiseXor:
+    case Opcode::kInt32Multiply:
     case Opcode::kInt32MultiplyWithOverflow:
     case Opcode::kStringEqual:
     case Opcode::kTaggedEqual:
@@ -2780,6 +2786,15 @@ class ValueNode : public Node {
     }
   }
 
+  compiler::OptionalHeapObjectRef TryGetConstant(
+      compiler::JSHeapBroker* broker);
+
+  NodeType GetStaticType(compiler::JSHeapBroker* broker);
+
+  bool StaticTypeIs(compiler::JSHeapBroker* broker, NodeType type) {
+    return NodeTypeIs(GetStaticType(broker), type);
+  }
+
   void InitializeRegisterData() {
     if (use_double_register()) {
       double_registers_with_result_ = kEmptyDoubleRegList;
@@ -3207,6 +3222,10 @@ class Int32BinaryNode : public FixedInputValueNodeT<2, Derived> {
 
 #define DEF_INT32_BINARY_NODE(Name) \
   DEF_OPERATION_NODE(Int32##Name, Int32BinaryNode, Name)
+DEF_INT32_BINARY_NODE(Add)
+DEF_INT32_BINARY_NODE(Subtract)
+DEF_INT32_BINARY_NODE(Multiply)
+DEF_INT32_BINARY_NODE(Divide)
 DEF_INT32_BINARY_NODE(BitwiseAnd)
 DEF_INT32_BINARY_NODE(BitwiseOr)
 DEF_INT32_BINARY_NODE(BitwiseXor)
@@ -3950,6 +3969,9 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
   explicit Float64Constant(uint64_t bitfield, Float64 value)
       : Base(bitfield), value_(value) {}
 
+  explicit Float64Constant(uint64_t bitfield, uint64_t bitpattern)
+      : Base(bitfield), value_(Float64::FromBits(bitpattern)) {}
+
   static constexpr OpProperties kProperties = OpProperties::Float64();
 
   Float64 value() const { return value_; }
@@ -4452,12 +4474,12 @@ class Int32CountLeadingZeros
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class SmiCountLeadingZeros
-    : public FixedInputValueNodeT<1, SmiCountLeadingZeros> {
-  using Base = FixedInputValueNodeT<1, SmiCountLeadingZeros>;
+class TaggedCountLeadingZeros
+    : public FixedInputValueNodeT<1, TaggedCountLeadingZeros> {
+  using Base = FixedInputValueNodeT<1, TaggedCountLeadingZeros>;
 
  public:
-  explicit SmiCountLeadingZeros(uint64_t bitfield) : Base(bitfield) {}
+  explicit TaggedCountLeadingZeros(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::Int32();
 
@@ -5516,8 +5538,10 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
  public:
   using OutputRegister = Register;
 
-  explicit SmiConstant(uint64_t bitfield, Tagged<Smi> value)
-      : Base(bitfield), value_(value) {}
+  explicit SmiConstant(uint64_t bitfield, int32_t value)
+      : Base(bitfield), value_(Smi::FromInt(value)) {
+    DCHECK(Smi::IsValid(value));
+  }
 
   Tagged<Smi> value() const { return value_; }
 
@@ -5543,8 +5567,10 @@ class TaggedIndexConstant
  public:
   using OutputRegister = Register;
 
-  explicit TaggedIndexConstant(uint64_t bitfield, Tagged<TaggedIndex> value)
-      : Base(bitfield), value_(value) {}
+  explicit TaggedIndexConstant(uint64_t bitfield, int value)
+      : Base(bitfield), value_(TaggedIndex::FromIntptr(value)) {
+    DCHECK(TaggedIndex::IsValid(value));
+  }
 
   Tagged<TaggedIndex> value() const { return value_; }
 
@@ -5559,34 +5585,6 @@ class TaggedIndexConstant
 
  private:
   const Tagged<TaggedIndex> value_;
-};
-
-class ExternalConstant : public FixedInputValueNodeT<0, ExternalConstant> {
-  using Base = FixedInputValueNodeT<0, ExternalConstant>;
-
- public:
-  using OutputRegister = Register;
-
-  explicit ExternalConstant(uint64_t bitfield,
-                            const ExternalReference& reference)
-      : Base(bitfield), reference_(reference) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::Pure() | OpProperties::ExternalReference();
-
-  ExternalReference reference() const { return reference_; }
-
-  bool ToBoolean(LocalIsolate* local_isolate) const { UNREACHABLE(); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
-  void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
-
- private:
-  const ExternalReference reference_;
 };
 
 class Constant : public FixedInputValueNodeT<0, Constant> {
@@ -11682,6 +11680,28 @@ class BranchIfFloat64ToBooleanTrue
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+class BranchIfFloat64IsUndefinedOrHole
+    : public BranchControlNodeT<1, BranchIfFloat64IsUndefinedOrHole> {
+  using Base = BranchControlNodeT<1, BranchIfFloat64IsUndefinedOrHole>;
+
+ public:
+  explicit BranchIfFloat64IsUndefinedOrHole(uint64_t bitfield,
+                                            BasicBlockRef* if_true_refs,
+                                            BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& condition_input() { return input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
 class BranchIfFloat64IsHole
     : public BranchControlNodeT<1, BranchIfFloat64IsHole> {
   using Base = BranchControlNodeT<1, BranchIfFloat64IsHole>;
@@ -11882,9 +11902,6 @@ inline void NodeBase::ForAllInputsInRegallocAssignmentOrder(Function&& f) {
   iterate_inputs(InputAllocationPolicy::kArbitraryRegister);
   iterate_inputs(InputAllocationPolicy::kAny);
 }
-
-NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
-                           LocalIsolate* isolate, ValueNode* node);
 
 }  // namespace maglev
 }  // namespace internal

@@ -10,16 +10,20 @@
 
 #include "test/testsupport/video_frame_writer.h"
 
-#include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 
+#include <cstdio>
+#include <cstring>
 #include <memory>
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "api/scoped_refptr.h"
 #include "api/test/video/video_frame_writer.h"
 #include "api/video/i420_buffer.h"
+#include "api/video/resolution.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_frame_buffer.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 #include "test/testsupport/frame_reader.h"

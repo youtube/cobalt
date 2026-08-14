@@ -140,7 +140,7 @@ class CaptureTransportVerificationProcessor : public BlockProcessor {
 
   void SetAudioBufferDelay(int /* delay_ms */) override {}
 
-  void SetCaptureOutputUsage(bool /* capture_output_used */) {}
+  void SetCaptureOutputUsage(bool /* capture_output_used */) override {}
 };
 
 // Class for testing that the render data is properly received by the block
@@ -176,7 +176,7 @@ class RenderTransportVerificationProcessor : public BlockProcessor {
 
   void SetAudioBufferDelay(int /* delay_ms */) override {}
 
-  void SetCaptureOutputUsage(bool /* capture_output_used */) {}
+  void SetCaptureOutputUsage(bool /* capture_output_used */) override {}
 
  private:
   std::deque<Block> received_render_blocks_;

@@ -152,6 +152,12 @@ class RtpVideoSender : public RtpVideoSenderInterface,
   void SetEncodingData(size_t width, size_t height, size_t num_temporal_layers)
       RTC_LOCKS_EXCLUDED(mutex_) override;
 
+  // Sets the list of CSRCs to be included in every packet. If more than
+  // kRtpCsrcSize CSRCs are provided, only the first kRtpCsrcSize elements are
+  // kept.
+  void SetCsrcs(ArrayView<const uint32_t> csrcs)
+      RTC_LOCKS_EXCLUDED(mutex_) override;
+
   std::vector<RtpSequenceNumberMap::Info> GetSentRtpPacketInfos(
       uint32_t ssrc,
       ArrayView<const uint16_t> sequence_numbers) const
@@ -200,6 +206,9 @@ class RtpVideoSender : public RtpVideoSenderInterface,
       rtp_streams_;
   const RtpConfig rtp_config_;
   RtpTransportControllerSendInterface* const transport_;
+
+  // The list of CSRCs to be included when sending an encoded image.
+  std::vector<uint32_t> csrcs_ RTC_GUARDED_BY(mutex_);
 
   // When using the generic descriptor we want all simulcast streams to share
   // one frame id space (so that the SFU can switch stream without having to

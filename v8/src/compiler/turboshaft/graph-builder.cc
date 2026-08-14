@@ -261,6 +261,16 @@ std::optional<BailoutReason> GraphBuilder::Run() {
         }
       }
     }
+
+    // Provisionally store the incoming frame state here as the block's final
+    // frame state, such that the successor blocks can still compute their
+    // dominating_frame_state even if this block terminates prematurely due to
+    // `Unreachable` or `DeadValue`. In this block contains a new Checkpoint, we
+    // will overwrite this block's `final_frame_state` after visiting all
+    // operations.
+    block_mapping[block->rpo_number()].final_frame_state =
+        dominating_frame_state;
+
     std::optional<BailoutReason> bailout = std::nullopt;
     for (Node* node : *block->nodes()) {
       if (V8_UNLIKELY(node->InputCount() >=
@@ -1400,7 +1410,7 @@ OpIndex GraphBuilder::Process(
     }
 
     case IrOpcode::kCall: {
-      auto call_descriptor = CallDescriptorOf(op);
+      const CallDescriptor* call_descriptor = CallDescriptorOf(op);
       const JSWasmCallParameters* wasm_call_parameters = nullptr;
 #if V8_ENABLE_WEBASSEMBLY
       if (call_descriptor->IsAnyWasmFunctionCall() &&
@@ -2563,7 +2573,7 @@ OpIndex GraphBuilder::Process(
     return __ AtomicRMW(base, offset, value, AtomicRMWOp::BinOp::k##binop, \
                         RegisterRepresentation::Word##size(),              \
                         MemoryRepresentation::FromMachineType(p.type()),   \
-                        p.kind());
+                        p.kind(), RegisterRepresentation::WordPtr());
         BINOP(Add, 32)
         BINOP(Sub, 32)
         BINOP(And, 32)
@@ -2580,11 +2590,13 @@ OpIndex GraphBuilder::Process(
         case IrOpcode::kWord32AtomicCompareExchange:
           return __ AtomicCompareExchange(
               base, offset, expected, value, RegisterRepresentation::Word32(),
-              MemoryRepresentation::FromMachineType(p.type()), p.kind());
+              MemoryRepresentation::FromMachineType(p.type()), p.kind(),
+              RegisterRepresentation::WordPtr());
         case IrOpcode::kWord64AtomicCompareExchange:
           return __ AtomicCompareExchange(
               base, offset, expected, value, RegisterRepresentation::Word64(),
-              MemoryRepresentation::FromMachineType(p.type()), p.kind());
+              MemoryRepresentation::FromMachineType(p.type()), p.kind(),
+              RegisterRepresentation::WordPtr());
         default:
           UNREACHABLE();
       }

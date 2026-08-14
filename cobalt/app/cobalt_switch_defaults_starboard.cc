@@ -23,7 +23,6 @@
 #include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
-#include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
 #include "third_party/blink/public/common/switches.h"
@@ -135,7 +134,7 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        // Disable v8 concurrent marking by default.
        "--no-concurrent-marking"},
       // Limit GPU memory available to 64MB.
-      {::switches::kForceGpuMemAvailableMb, "64"},
+      {blink::switches::kForceGpuMemAvailableMb, "64"},
       // Disable CC image cache items limit.
       {::switches::kCCImageCacheLimitItems, "0"},
   };

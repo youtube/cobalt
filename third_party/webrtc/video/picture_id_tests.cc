@@ -240,7 +240,7 @@ class PictureIdTest : public test::CallTest,
  public:
   PictureIdTest() : num_temporal_layers_(GetParam()) {}
 
-  virtual ~PictureIdTest() {
+  ~PictureIdTest() override {
     SendTask(task_queue(), [this]() {
       send_transport_.reset();
       receive_transport_.reset();

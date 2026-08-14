@@ -30,8 +30,7 @@ class RTCCertificateGeneratorInterface {
  public:
   // Functor that will be called when certificate is generated asynchroniosly.
   // Called with nullptr as the parameter on failure.
-  using Callback =
-      absl::AnyInvocable<void(scoped_refptr<webrtc::RTCCertificate>) &&>;
+  using Callback = absl::AnyInvocable<void(scoped_refptr<RTCCertificate>) &&>;
 
   virtual ~RTCCertificateGeneratorInterface() = default;
 

@@ -2863,9 +2863,13 @@ void RenderPassDesc::packStencilUnresolveAttachment()
     mUnresolveStencil = true;
 }
 
-void RenderPassDesc::removeDepthStencilUnresolveAttachment()
+void RenderPassDesc::removeDepthUnresolveAttachment()
 {
-    mUnresolveDepth   = false;
+    mUnresolveDepth = false;
+}
+
+void RenderPassDesc::removeStencilUnresolveAttachment()
+{
     mUnresolveStencil = false;
 }
 
@@ -5640,6 +5644,7 @@ void SamplerDesc::reset()
     mBorderColor.blue  = 0.0f;
     mBorderColor.alpha = 0.0f;
     mReserved          = 0;
+    mUsesSecondComponentForStencil = 0;
 }
 
 void SamplerDesc::update(Renderer *renderer,
@@ -5752,6 +5757,15 @@ void SamplerDesc::update(Renderer *renderer,
     const vk::Format &vkFormat = renderer->getFormat(intendedFormatID);
     gl::ColorGeneric adjustedBorderColor =
         AdjustBorderColor(samplerState.getBorderColor(), vkFormat.getIntendedFormat(), stencilMode);
+
+    // As per the spec, for custom borders for textures with a stencil component, the implementation
+    // is required to use either the first or the second component of the border color. Although it
+    // is recommended to use the first, using the second is also valid.
+    mUsesSecondComponentForStencil =
+        vkFormat.getIntendedFormat().hasDepthOrStencilBits() && stencilMode &&
+                renderer->getFeatures().usesSecondComponentForStencilBorderColor.enabled
+            ? 1
+            : 0;
     mBorderColor = adjustedBorderColor.colorF;
 
     mReserved = 0;
@@ -5805,14 +5819,13 @@ angle::Result SamplerDesc::init(ContextVk *contextVk, Sampler *sampler) const
         createInfo.addressModeV == VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER ||
         createInfo.addressModeW == VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER)
     {
-        ASSERT((contextVk->getFeatures().supportsCustomBorderColor.enabled));
+        ASSERT(contextVk->getFeatures().supportsCustomBorderColor.enabled);
         customBorderColorInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT;
 
-        customBorderColorInfo.customBorderColor.float32[0] = mBorderColor.red;
-        customBorderColorInfo.customBorderColor.float32[1] = mBorderColor.green;
-        customBorderColorInfo.customBorderColor.float32[2] = mBorderColor.blue;
-        customBorderColorInfo.customBorderColor.float32[3] = mBorderColor.alpha;
-
+        // Currently it is not required to set the format in customBorderColorInfo, because the
+        // feature supportsCustomBorderColor currently requires customBorderColorWithoutFormat to
+        // be enabled.
+        angle::ColorF customColor = mBorderColor;
         if (mBorderColorType == static_cast<uint32_t>(angle::ColorGeneric::Type::Float))
         {
             createInfo.borderColor = VK_BORDER_COLOR_FLOAT_CUSTOM_EXT;
@@ -5820,7 +5833,16 @@ angle::Result SamplerDesc::init(ContextVk *contextVk, Sampler *sampler) const
         else
         {
             createInfo.borderColor = VK_BORDER_COLOR_INT_CUSTOM_EXT;
+            if (mUsesSecondComponentForStencil)
+            {
+                customColor.green = customColor.red;
+            }
         }
+
+        customBorderColorInfo.customBorderColor.float32[0] = customColor.red;
+        customBorderColorInfo.customBorderColor.float32[1] = customColor.green;
+        customBorderColorInfo.customBorderColor.float32[2] = customColor.blue;
+        customBorderColorInfo.customBorderColor.float32[3] = customColor.alpha;
 
         vk::AddToPNextChain(&createInfo, &customBorderColorInfo);
     }
@@ -5945,6 +5967,13 @@ void WriteDescriptorDescs::updateShaderBuffers(
     const std::vector<gl::InterfaceBlock> &blocks,
     VkDescriptorType descriptorType)
 {
+    std::vector<uint32_t> *blockIndexToDescriptorDescIndexMap =
+        IsUniformBuffer(descriptorType) ? &mUniformBlockIndexToDescriptorDescIndex
+                                        : &mStorageBlockIndexToDescriptorDescIndex;
+    ASSERT(blockIndexToDescriptorDescIndexMap != nullptr);
+    ASSERT(blockIndexToDescriptorDescIndexMap->empty());
+    blockIndexToDescriptorDescIndexMap->resize(blocks.size(), kInvalidDescriptorDescIndex);
+
     // Initialize the descriptor writes in a first pass. This ensures we can pack the structures
     // corresponding to array elements tightly.
     for (uint32_t blockIndex = 0; blockIndex < blocks.size(); ++blockIndex)
@@ -5959,8 +5988,9 @@ void WriteDescriptorDescs::updateShaderBuffers(
         const gl::ShaderType firstShaderType = block.getFirstActiveShaderType();
         const ShaderInterfaceVariableInfo &info =
             variableInfoMap.getVariableById(firstShaderType, block.getId(firstShaderType));
+        uint32_t arrayElement = block.pod.isArray ? block.pod.arrayElement : 0;
 
-        if (block.pod.isArray && block.pod.arrayElement > 0)
+        if (arrayElement > 0)
         {
             incrementDescriptorCount(info.binding, 1);
             mCurrentInfoIndex++;
@@ -5969,6 +5999,10 @@ void WriteDescriptorDescs::updateShaderBuffers(
         {
             updateWriteDesc(info.binding, descriptorType, 1);
         }
+
+        // Cache DescriptorDesc index
+        blockIndexToDescriptorDescIndexMap->at(blockIndex) =
+            mDescs[info.binding].descriptorInfoIndex + arrayElement;
     }
 }
 
@@ -6485,30 +6519,24 @@ template <typename CommandBufferT>
 void DescriptorSetDescBuilder::updateOneShaderBuffer(
     Context *context,
     CommandBufferT *commandBufferHelper,
-    const ShaderInterfaceVariableInfoMap &variableInfoMap,
-    const gl::BufferVector &buffers,
+    const size_t blockIndex,
     const gl::InterfaceBlock &block,
-    uint32_t bufferIndex,
+    const gl::OffsetBindingPointer<gl::Buffer> &bufferBinding,
     VkDescriptorType descriptorType,
     VkDeviceSize maxBoundBufferRange,
     const BufferHelper &emptyBuffer,
     const WriteDescriptorDescs &writeDescriptorDescs,
     const GLbitfield memoryBarrierBits)
 {
-    if (block.activeShaders().none())
+    uint32_t infoDescIndex =
+        writeDescriptorDescs.getDescriptorDescIndexForBufferBlockIndex(descriptorType, blockIndex);
+    if (infoDescIndex == kInvalidDescriptorDescIndex)
     {
         return;
     }
 
-    const gl::ShaderType firstShaderType = block.getFirstActiveShaderType();
-    const ShaderInterfaceVariableInfo &info =
-        variableInfoMap.getVariableById(firstShaderType, block.getId(firstShaderType));
+    ASSERT(infoDescIndex != kInvalidDescriptorDescIndex && infoDescIndex < mDesc.size());
 
-    uint32_t binding       = info.binding;
-    uint32_t arrayElement  = block.pod.isArray ? block.pod.arrayElement : 0;
-    uint32_t infoDescIndex = writeDescriptorDescs[binding].descriptorInfoIndex + arrayElement;
-
-    const gl::OffsetBindingPointer<gl::Buffer> &bufferBinding = buffers[bufferIndex];
     if (bufferBinding.get() == nullptr)
     {
         setEmptyBuffer(infoDescIndex, descriptorType, emptyBuffer);
@@ -6527,9 +6555,7 @@ void DescriptorSetDescBuilder::updateOneShaderBuffer(
     BufferVk *bufferVk         = vk::GetImpl(bufferBinding.get());
     BufferHelper &bufferHelper = bufferVk->getBuffer();
 
-    const bool isUniformBuffer = descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
-                                 descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-    if (isUniformBuffer)
+    if (IsUniformBuffer(descriptorType))
     {
         commandBufferHelper->bufferRead(context, VK_ACCESS_UNIFORM_READ_BIT, block.activeShaders(),
                                         &bufferHelper);
@@ -6590,21 +6616,18 @@ void DescriptorSetDescBuilder::updateOneShaderBuffer(
 }
 
 template <typename CommandBufferT>
-void DescriptorSetDescBuilder::updateShaderBuffers(
-    Context *context,
-    CommandBufferT *commandBufferHelper,
-    const gl::ProgramExecutable &executable,
-    const ShaderInterfaceVariableInfoMap &variableInfoMap,
-    const gl::BufferVector &buffers,
-    const std::vector<gl::InterfaceBlock> &blocks,
-    VkDescriptorType descriptorType,
-    VkDeviceSize maxBoundBufferRange,
-    const BufferHelper &emptyBuffer,
-    const WriteDescriptorDescs &writeDescriptorDescs,
-    const GLbitfield memoryBarrierBits)
+void DescriptorSetDescBuilder::updateShaderBuffers(Context *context,
+                                                   CommandBufferT *commandBufferHelper,
+                                                   const gl::ProgramExecutable &executable,
+                                                   const gl::BufferVector &buffers,
+                                                   const std::vector<gl::InterfaceBlock> &blocks,
+                                                   VkDescriptorType descriptorType,
+                                                   VkDeviceSize maxBoundBufferRange,
+                                                   const BufferHelper &emptyBuffer,
+                                                   const WriteDescriptorDescs &writeDescriptorDescs,
+                                                   const GLbitfield memoryBarrierBits)
 {
-    const bool isUniformBuffer = descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
-                                 descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    const bool isUniformBuffer = IsUniformBuffer(descriptorType);
 
     // Now that we have the proper array elements counts, initialize the info structures.
     for (uint32_t blockIndex = 0; blockIndex < blocks.size(); ++blockIndex)
@@ -6612,9 +6635,10 @@ void DescriptorSetDescBuilder::updateShaderBuffers(
         const GLuint binding = isUniformBuffer
                                    ? executable.getUniformBlockBinding(blockIndex)
                                    : executable.getShaderStorageBlockBinding(blockIndex);
-        updateOneShaderBuffer(context, commandBufferHelper, variableInfoMap, buffers,
-                              blocks[blockIndex], binding, descriptorType, maxBoundBufferRange,
-                              emptyBuffer, writeDescriptorDescs, memoryBarrierBits);
+
+        updateOneShaderBuffer(context, commandBufferHelper, blockIndex, blocks[blockIndex],
+                              buffers[binding], descriptorType, maxBoundBufferRange, emptyBuffer,
+                              writeDescriptorDescs, memoryBarrierBits);
     }
 }
 
@@ -6695,10 +6719,9 @@ void DescriptorSetDescBuilder::updateAtomicCounters(
 template void DescriptorSetDescBuilder::updateOneShaderBuffer<vk::RenderPassCommandBufferHelper>(
     Context *context,
     RenderPassCommandBufferHelper *commandBufferHelper,
-    const ShaderInterfaceVariableInfoMap &variableInfoMap,
-    const gl::BufferVector &buffers,
+    const size_t blockIndex,
     const gl::InterfaceBlock &block,
-    uint32_t bufferIndex,
+    const gl::OffsetBindingPointer<gl::Buffer> &bufferBinding,
     VkDescriptorType descriptorType,
     VkDeviceSize maxBoundBufferRange,
     const BufferHelper &emptyBuffer,
@@ -6708,10 +6731,9 @@ template void DescriptorSetDescBuilder::updateOneShaderBuffer<vk::RenderPassComm
 template void DescriptorSetDescBuilder::updateOneShaderBuffer<OutsideRenderPassCommandBufferHelper>(
     Context *context,
     OutsideRenderPassCommandBufferHelper *commandBufferHelper,
-    const ShaderInterfaceVariableInfoMap &variableInfoMap,
-    const gl::BufferVector &buffers,
+    const size_t blockIndex,
     const gl::InterfaceBlock &block,
-    uint32_t bufferIndex,
+    const gl::OffsetBindingPointer<gl::Buffer> &bufferBinding,
     VkDescriptorType descriptorType,
     VkDeviceSize maxBoundBufferRange,
     const BufferHelper &emptyBuffer,
@@ -6722,7 +6744,6 @@ template void DescriptorSetDescBuilder::updateShaderBuffers<OutsideRenderPassCom
     Context *context,
     OutsideRenderPassCommandBufferHelper *commandBufferHelper,
     const gl::ProgramExecutable &executable,
-    const ShaderInterfaceVariableInfoMap &variableInfoMap,
     const gl::BufferVector &buffers,
     const std::vector<gl::InterfaceBlock> &blocks,
     VkDescriptorType descriptorType,
@@ -6735,7 +6756,6 @@ template void DescriptorSetDescBuilder::updateShaderBuffers<RenderPassCommandBuf
     Context *context,
     RenderPassCommandBufferHelper *commandBufferHelper,
     const gl::ProgramExecutable &executable,
-    const ShaderInterfaceVariableInfoMap &variableInfoMap,
     const gl::BufferVector &buffers,
     const std::vector<gl::InterfaceBlock> &blocks,
     VkDescriptorType descriptorType,

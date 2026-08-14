@@ -10,13 +10,15 @@
 #ifndef TEST_TIME_CONTROLLER_REAL_TIME_CONTROLLER_H_
 #define TEST_TIME_CONTROLLER_REAL_TIME_CONTROLLER_H_
 
-#include <functional>
 #include <memory>
+#include <string>
 
 #include "api/field_trials_view.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/test/time_controller.h"
 #include "api/units/time_delta.h"
+#include "rtc_base/socket_server.h"
+#include "rtc_base/thread.h"
 #include "system_wrappers/include/clock.h"
 
 namespace webrtc {

@@ -41,6 +41,10 @@ BASE_DECLARE_FEATURE(kAutofillDynamicallyLoadsFieldsForAddressInput);
 // enabled.
 BASE_DECLARE_FEATURE(kAutofillFixXhrForXframe);
 
+// Listen to form submission events in capture mode before the events are
+// propagated.
+BASE_DECLARE_FEATURE(kAutofillFormSubmissionEventsInCaptureMode);
+
 // Controls whether to use the isolated content world instead of the page
 // content world for the Autofill JS feature scripts.
 // TODO(crbug.com/40747550) Remove once the isolated content world is launched
@@ -60,6 +64,9 @@ BASE_DECLARE_FEATURE(kAutofillPaymentsSheetV3Ios);
 // Enables the refill functionality to allow autofilling of dynamically
 // expanding forms.
 BASE_DECLARE_FEATURE(kAutofillRefillForFormsIos);
+
+// Reports JS errors that occur upon handling form submission in the renderer.
+BASE_DECLARE_FEATURE(kAutofillReportFormSubmissionErrors);
 
 // Makes the autofill and password infobars sticky on iOS. The sticky infobar
 // sticks there until navigating from an explicit user gesture (e.g. reload or

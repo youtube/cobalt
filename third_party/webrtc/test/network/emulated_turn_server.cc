@@ -93,7 +93,7 @@ class EmulatedTURNServer::AsyncPacketSocketWrapper : public AsyncPacketSocket {
       : turn_server_(turn_server),
         endpoint_(endpoint),
         local_address_(SocketAddress(endpoint_->GetPeerLocalAddress(), port)) {}
-  ~AsyncPacketSocketWrapper() { turn_server_->Unbind(local_address_); }
+  ~AsyncPacketSocketWrapper() override { turn_server_->Unbind(local_address_); }
 
   SocketAddress GetLocalAddress() const override { return local_address_; }
   SocketAddress GetRemoteAddress() const override { return SocketAddress(); }

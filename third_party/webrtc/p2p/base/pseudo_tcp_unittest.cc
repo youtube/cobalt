@@ -72,7 +72,7 @@ class PseudoTcpTestBase : public ::testing::Test,
     // this test would occasionally get really unlucky loss and time out.
     webrtc::SetRandomTestMode(true);
   }
-  ~PseudoTcpTestBase() {
+  ~PseudoTcpTestBase() override {
     // Put it back for the next test.
     webrtc::SetRandomTestMode(false);
   }
@@ -133,7 +133,7 @@ class PseudoTcpTestBase : public ::testing::Test,
     UpdateLocalClock();
   }
 
-  virtual void OnTcpOpen(PseudoTcp* tcp) {
+  void OnTcpOpen(PseudoTcp* tcp) override {
     // Consider ourselves connected when the local side gets OnTcpOpen.
     // OnTcpWriteable isn't fired at open, so we trigger it now.
     RTC_LOG(LS_VERBOSE) << "Opened";
@@ -146,7 +146,7 @@ class PseudoTcpTestBase : public ::testing::Test,
   //   virtual void OnTcpReadable(PseudoTcp* tcp)
   // and
   //   virtual void OnTcpWritable(PseudoTcp* tcp)
-  virtual void OnTcpClosed(PseudoTcp* tcp, uint32_t error) {
+  void OnTcpClosed(PseudoTcp* tcp, uint32_t error) override {
     // Consider ourselves closed when the remote side gets OnTcpClosed.
     // TODO(?): OnTcpClosed is only ever notified in case of error in
     // the current implementation.  Solicited close is not (yet) supported.
@@ -156,9 +156,9 @@ class PseudoTcpTestBase : public ::testing::Test,
       have_disconnected_ = true;
     }
   }
-  virtual WriteResult TcpWritePacket(PseudoTcp* tcp,
-                                     const char* buffer,
-                                     size_t len) {
+  WriteResult TcpWritePacket(PseudoTcp* tcp,
+                             const char* buffer,
+                             size_t len) override {
     // Drop a packet if the test called DropNextPacket.
     if (drop_next_packet_) {
       drop_next_packet_ = false;
@@ -278,7 +278,7 @@ class PseudoTcpTest : public PseudoTcpTestBase {
  private:
   // IPseudoTcpNotify interface
 
-  virtual void OnTcpReadable(PseudoTcp* tcp) {
+  void OnTcpReadable(PseudoTcp* tcp) override {
     // Stream bytes to the recv stream as they arrive.
     if (tcp == &remote_) {
       ReadData();
@@ -293,7 +293,7 @@ class PseudoTcpTest : public PseudoTcpTestBase {
         OnTcpClosed(&remote_, 0);
     }
   }
-  virtual void OnTcpWriteable(PseudoTcp* tcp) {
+  void OnTcpWriteable(PseudoTcp* tcp) override {
     // Write bytes from the send stream when we can.
     // Shut down when we've sent everything.
     if (tcp == &local_) {
@@ -399,7 +399,7 @@ class PseudoTcpTestPingPong : public PseudoTcpTestBase {
  private:
   // IPseudoTcpNotify interface
 
-  virtual void OnTcpReadable(PseudoTcp* tcp) {
+  void OnTcpReadable(PseudoTcp* tcp) override {
     if (tcp != receiver_) {
       RTC_LOG_F(LS_ERROR) << "unexpected OnTcpReadable";
       return;
@@ -426,7 +426,7 @@ class PseudoTcpTestPingPong : public PseudoTcpTestBase {
       OnTcpWriteable(sender_);
     }
   }
-  virtual void OnTcpWriteable(PseudoTcp* tcp) {
+  void OnTcpWriteable(PseudoTcp* tcp) override {
     if (tcp != sender_)
       return;
     // Write bytes from the send stream when we can.
@@ -545,9 +545,9 @@ class PseudoTcpTestReceiveWindow : public PseudoTcpTestBase {
 
  private:
   // IPseudoTcpNotify interface
-  virtual void OnTcpReadable(PseudoTcp* /* tcp */) {}
+  void OnTcpReadable(PseudoTcp* /* tcp */) override {}
 
-  virtual void OnTcpWriteable(PseudoTcp* /* tcp */) {}
+  void OnTcpWriteable(PseudoTcp* /* tcp */) override {}
 
   void ReadUntilIOPending() {
     char block[kBlockSize];

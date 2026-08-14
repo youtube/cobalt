@@ -55,6 +55,7 @@ source_set("lib") {
       "ble_scan_parser_impl.cc",
       "ble_scan_parser_impl.h",
     ]
+    deps += [ "//services/data_decoder/ble_scan_parser:parser" ]
   }
 
   if (use_blink) {
@@ -167,6 +168,11 @@ fuzzer_test("xml_parser_fuzzer") {
 if (is_chromeos) {
   fuzzer_test("ble_scan_parser_fuzzer") {
     sources = [ "ble_scan_parser_impl_fuzzer.cc" ]
-    deps = [ ":lib" ]
+    deps = [
+      ":lib",
+      "//services/data_decoder/ble_scan_parser:parser",
+    ]
+
+    seed_corpus = "//services/data_decoder/ble_scan_parser/data"
   }
 }

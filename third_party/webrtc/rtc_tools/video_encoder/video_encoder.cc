@@ -302,7 +302,7 @@ class BitstreamProcessor final : public EncodedImageCallback,
     return true;
   }
 
-  ~BitstreamProcessor() = default;
+  ~BitstreamProcessor() override = default;
 
  private:
   // DecodedImageCallback

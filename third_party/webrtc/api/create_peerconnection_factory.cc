@@ -52,7 +52,7 @@ scoped_refptr<PeerConnectionFactoryInterface> CreatePeerConnectionFactory(
   dependencies.env = CreateEnvironment(std::move(field_trials));
 
   if (network_thread) {
-    // TODO(bugs.webrtc.org/13145): Add an webrtc::SocketFactory* argument.
+    // TODO(bugs.webrtc.org/13145): Add an SocketFactory* argument.
     dependencies.socket_factory = network_thread->socketserver();
   }
   dependencies.adm = std::move(default_adm);

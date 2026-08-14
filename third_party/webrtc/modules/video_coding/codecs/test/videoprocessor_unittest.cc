@@ -64,7 +64,7 @@ class VideoProcessorTest : public ::testing::Test {
     });
   }
 
-  ~VideoProcessorTest() {
+  ~VideoProcessorTest() override {
     q_.SendTask([this] { video_processor_.reset(); });
   }
 

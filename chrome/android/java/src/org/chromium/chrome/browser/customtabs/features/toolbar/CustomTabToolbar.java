@@ -68,12 +68,14 @@ import org.chromium.base.supplier.Supplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.app.appmenu.AppMenuPropertiesDelegateImpl;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.CustomTabProfileType;
 import org.chromium.chrome.browser.browserservices.intents.CustomButtonParams.ButtonType;
 import org.chromium.chrome.browser.customtabs.CustomTabFeatureOverridesManager;
 import org.chromium.chrome.browser.customtabs.CustomTabIntentDataProvider.CustomTabsButtonState;
+import org.chromium.chrome.browser.customtabs.CustomTabsConnection;
 import org.chromium.chrome.browser.customtabs.features.CustomTabDimensionUtils;
 import org.chromium.chrome.browser.customtabs.features.branding.ToolbarBrandingDelegate;
 import org.chromium.chrome.browser.customtabs.features.branding.ToolbarBrandingOverlayCoordinator;
@@ -107,6 +109,7 @@ import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.toolbar.LocationBarModel;
 import org.chromium.chrome.browser.toolbar.ToolbarProgressBar;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
+import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarFeatures;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButton;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
 import org.chromium.chrome.browser.toolbar.optional_button.OptionalButtonCoordinator;
@@ -117,6 +120,8 @@ import org.chromium.chrome.browser.toolbar.top.ToolbarLayout;
 import org.chromium.chrome.browser.toolbar.top.ToolbarPhone;
 import org.chromium.chrome.browser.toolbar.top.ToolbarSnapshotDifference;
 import org.chromium.chrome.browser.toolbar.top.TopToolbarCoordinator.ToolbarColorObserver;
+import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
+import org.chromium.chrome.browser.ui.appmenu.AppMenuObserver;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityExtras.ResolutionType;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
@@ -186,6 +191,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
     private boolean mShouldHighlightCookieControlsIcon;
     private int mBlockingStatus3pcd;
     private BrowserServicesIntentDataProvider mIntentDataProvider;
+    private Supplier<AppMenuHandler> mAppMenuHandler;
 
     private final Handler mTaskHandler = new Handler();
     private final ButtonVisibilityRule mButtonVisibilityRule =
@@ -407,15 +413,19 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
     }
 
     /**
-     * Calculate toolbar with before {@link onMeasure(int, int)} is called.
+     * initialize the toolbar with menu,.
      *
      * @param activity The {@link Activity} that the toolbar is attached to.
+     * @param appMenuHandler Supplief of {@link AppMenuHandler}.
      * @param intentDataProvider {@link BrowserServicesIntentDataProvider} for accessing CCT intent
      *     data.
      */
     @ExperimentalOpenInBrowser
-    public void calculateToolbarWidthBeforeMeasure(
-            Activity activity, BrowserServicesIntentDataProvider intentDataProvider) {
+    public void initVisibilityRule(
+            Activity activity,
+            Supplier<AppMenuHandler> appMenuHandler,
+            BrowserServicesIntentDataProvider intentDataProvider) {
+        mAppMenuHandler = appMenuHandler;
         if (mIntentDataProvider == null) {
             mIntentDataProvider = intentDataProvider;
             @CustomTabsButtonState
@@ -529,10 +539,10 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
 
     @Override
     protected void updateCustomActionButton(int index, Drawable drawable, String description) {
-        ImageButton button =
-                (ImageButton)
-                        mCustomActionButtons.getChildAt(
-                                mCustomActionButtons.getChildCount() - 1 - index);
+        // |index| -> childIndex should ignore the optional button always present at the end.
+        int childIndex = mCustomActionButtons.getChildCount() - 2 - index;
+        assert 0 <= childIndex && childIndex <= mCustomActionButtons.getChildCount() - 2;
+        ImageButton button = (ImageButton) mCustomActionButtons.getChildAt(childIndex);
         assert button != null;
         updateCustomActionButtonVisuals(button, drawable, description);
     }
@@ -738,8 +748,8 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         if (hasMultipleDevButtons()) return false;
 
         // 2) Optional button view may be made hidden due to width constraint.
-        View optionalButtonWrapper = findViewById(R.id.optional_toolbar_button_wrapper);
-        return optionalButtonWrapper.getVisibility() == View.VISIBLE;
+        View optionalButtonContainer = findViewById(R.id.optional_toolbar_button_container);
+        return optionalButtonContainer.getVisibility() == View.VISIBLE;
     }
 
     private boolean hasMultipleDevButtons() {
@@ -1401,7 +1411,8 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
 
             if (!ChromeFeatureList.sCctAdaptiveButton.isEnabled()
                     || hasMultipleDevButtons()
-                    || ChromeFeatureList.sSearchInCCT.isEnabled()) {
+                    || CustomTabsConnection.getInstance()
+                            .shouldEnableOmniboxForIntent(mIntentDataProvider)) {
                 // We disable the optional button when omnibox in CCT is on.
                 return false;
             }
@@ -1411,7 +1422,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
 
             optionalButtonStub.setLayoutResource(R.layout.optional_button_layout);
             View optionalButton = optionalButtonStub.inflate();
-            var lp = (FrameLayout.LayoutParams) optionalButton.getLayoutParams();
+            var lp = (LinearLayout.LayoutParams) optionalButton.getLayoutParams();
             lp.width = getResources().getDimensionPixelSize(R.dimen.toolbar_button_width);
             optionalButton.setLayoutParams(lp);
 
@@ -1471,9 +1482,13 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                         }
                         CustomTabToolbar.this.requestLayout();
                     });
-            View optionalButtonWrapper = findViewById(R.id.optional_toolbar_button_wrapper);
-            optionalButtonWrapper.setVisibility(View.VISIBLE);
-            mButtonVisibilityRule.addButton(ButtonId.MTB, optionalButtonWrapper, true);
+            View optionalButtonContainer = findViewById(R.id.optional_toolbar_button_container);
+            optionalButtonContainer.setVisibility(View.VISIBLE);
+            mButtonVisibilityRule.addButtonWithCallback(
+                    ButtonId.MTB,
+                    optionalButtonContainer,
+                    true,
+                    mOptionalButtonCoordinator::setCanChangeVisibility);
             return true;
         }
 
@@ -1490,12 +1505,12 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         }
 
         private void updateOptionalButton(ButtonData buttonData) {
-            if (mOptionalButtonCoordinator == null && !initializeOptionalButton()) {
+            if ((mOptionalButtonCoordinator == null && !initializeOptionalButton())
+                    || mButtonVisibilityRule.isSuppressed(ButtonId.MTB)) {
                 // See if we should show an indicator if optional button cannot be shown. This check
                 // needs to be invoked _after_ optional button initialization is attempted, in order
                 // to determine its visibility in case it gets hidden due to toolbar width/button
-                // count
-                // constraints.
+                // count constraints.
                 maybeShowActionMenuIndicator(buttonData.getButtonSpec().getButtonVariant());
                 return;
             }
@@ -1509,10 +1524,57 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         // Display a (blue) dot on the overflow menu icon for the optional button that cannot be
         // shown on the toolbar to indicate that the action is available through the menu.
         private void maybeShowActionMenuIndicator(@AdaptiveToolbarButtonVariant int buttonVariant) {
-            if (ChromeFeatureList.sSearchInCCT.isEnabled()) return;
+            if (CustomTabsConnection.getInstance()
+                    .shouldEnableOmniboxForIntent(mIntentDataProvider)) {
+                return;
+            }
 
-            boolean show = buttonVariant != AdaptiveToolbarButtonVariant.READER_MODE;
+            boolean show =
+                    AdaptiveToolbarFeatures.isDynamicAction(buttonVariant)
+                            && buttonVariant != AdaptiveToolbarButtonVariant.READER_MODE;
             mMenuButton.findViewById(R.id.menu_dot).setVisibility(show ? View.VISIBLE : View.GONE);
+            if (!show) return;
+
+            int menuId = getHighlightMenuId(buttonVariant);
+            if (menuId < 0) return;
+
+            mAppMenuHandler.get().setMenuHighlight(menuId, false);
+            AppMenuObserver menuObserver =
+                    new AppMenuObserver() {
+                        @Override
+                        public void onMenuVisibilityChanged(boolean isVisible) {
+                            // TODO(crbug.com/424807997): Do this toggling in MenuButton MVC. Do it
+                            // upon page navigation as well.
+                            if (isVisible) {
+                                mMenuButton.findViewById(R.id.menu_dot).setVisibility(View.GONE);
+                                mAppMenuHandler.get().removeObserver(this);
+                            }
+                        }
+
+                        @Override
+                        public void onMenuHighlightChanged(boolean highlighting) {}
+                    };
+            mAppMenuHandler.get().addObserver(menuObserver);
+        }
+
+        private int getHighlightMenuId(@AdaptiveToolbarButtonVariant int buttonVariant) {
+            return switch (buttonVariant) {
+                case AdaptiveToolbarButtonVariant.PRICE_TRACKING -> {
+                    // Figure out which of the two menu items (enable/disable) appears and needs
+                    // highlighting.
+                    // TODO(crbug.com/424807997): Avoid casting.
+                    var appMenuDelegate =
+                            (AppMenuPropertiesDelegateImpl)
+                                    mAppMenuHandler.get().getMenuPropertiesDelegate();
+                    var showEnabled = appMenuDelegate.getPriceTrackingMenuItemInfo(getCurrentTab());
+                    if (showEnabled == null) yield -1;
+                    yield showEnabled
+                            ? R.id.enable_price_tracking_menu_id
+                            : R.id.disable_price_tracking_menu_id;
+                }
+                case AdaptiveToolbarButtonVariant.PRICE_INSIGHTS -> R.id.price_insights_menu_id;
+                default -> -1;
+            };
         }
 
         private void updateOptionalButtonTint() {

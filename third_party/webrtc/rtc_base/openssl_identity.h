@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "rtc_base/openssl_certificate.h"
 #include "rtc_base/openssl_key_pair.h"
 #include "rtc_base/ssl_certificate.h"

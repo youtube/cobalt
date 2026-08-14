@@ -30,7 +30,7 @@
 #include "modules/video_coding/utility/simulcast_rate_allocator.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "vpx/vp8cx.h"
+#include "third_party/libvpx/source/libvpx/vpx/vp8cx.h"
 
 // TODO(bugs.webrtc.org/10582): Test the behavior of UpdateConfiguration().
 
@@ -388,7 +388,7 @@ class TemporalLayersReferenceTest : public TemporalLayersTest,
       : timestamp_(1),
         last_sync_timestamp_(timestamp_),
         tl0_reference_(nullptr) {}
-  virtual ~TemporalLayersReferenceTest() {}
+  ~TemporalLayersReferenceTest() override {}
 
  protected:
   static const int kMaxPatternLength = 32;

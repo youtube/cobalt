@@ -80,7 +80,7 @@ class MediaChannelUtil {
   void SetPreferredDscp(DiffServCodePoint new_dscp);
 
  private:
-  // Implementation of the webrtc::Transport interface required
+  // Implementation of the Transport interface required
   // by Call().
   class TransportForMediaChannels : public Transport {
    public:
@@ -88,13 +88,13 @@ class MediaChannelUtil {
 
     virtual ~TransportForMediaChannels();
 
-    // Implementation of webrtc::Transport
+    // Implementation of Transport
     bool SendRtp(ArrayView<const uint8_t> packet,
                  const PacketOptions& options) override;
     bool SendRtcp(ArrayView<const uint8_t> packet,
                   const PacketOptions& options) override;
 
-    // Not implementation of webrtc::Transport
+    // Not implementation of Transport
     void SetInterface(MediaChannelNetworkInterface* iface);
 
     int SetOption(MediaChannelNetworkInterface::SocketType type,
@@ -139,7 +139,7 @@ class MediaChannelUtil {
     MediaChannelNetworkInterface* network_interface_
         RTC_GUARDED_BY(network_thread_) = nullptr;
     DiffServCodePoint preferred_dscp_ RTC_GUARDED_BY(network_thread_) =
-        webrtc::DSCP_DEFAULT;
+        DSCP_DEFAULT;
   };
 
   bool extmap_allow_mixed_ = false;

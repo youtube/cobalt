@@ -110,9 +110,10 @@ rtc_library("unittests") {
   deps = [
     ":audio_decoder_opus",
     "..:audio_codecs_api",
-    "../../../api/environment",
-    "../../../api/environment:environment_factory",
-    "../../../test:explicit_key_value_config",
+    "../..:field_trials",
+    "../../../test:create_test_field_trials",
     "../../../test:test_support",
+    "../../environment",
+    "../../environment:environment_factory",
   ]
 }

@@ -256,6 +256,12 @@ PROCESS_LOOPBACK_MODE GetProcessLoopbackMode(std::string_view device_id) {
   return PROCESS_LOOPBACK_MODE_EXCLUDE_TARGET_PROCESS_TREE;
 }
 
+bool IsEndpointLoopbackCapture(std::string_view device_id,
+                               bool is_process_loopback) {
+  return AudioDeviceDescription::IsLoopbackDevice(device_id) &&
+         !is_process_loopback;
+}
+
 }  // namespace
 
 // Counts how often an OS capture callback reports a data discontinuity and logs
@@ -648,6 +654,10 @@ WASAPIAudioInputStream::WASAPIAudioInputStream(
          params.channel_layout() == CHANNEL_LAYOUT_DISCRETE);
   SendLogMessage("%s({device_id=%s}, {params=[%s]})", __func__,
                  device_id.c_str(), params.AsHumanReadableString().c_str());
+  if (AudioDeviceDescription::IsLoopbackDevice(device_id_)) {
+    SendLogMessage("%s => (audio loopback device is of type: %s)", __func__,
+                   is_process_loopback_capture_ ? "PROCESS" : "ENDPOINT");
+  }
   SendLogMessage("%s => (AEC is requested=[%s])", __func__,
                  aec_config_ ? "true" : "false");
 
@@ -854,15 +864,6 @@ void WASAPIAudioInputStream::Start(AudioInputCallback* callback) {
   // using SetAutomaticGainControl().
   StartAgc();
 
-  // TODO(https://crbug.com/411452039): Waiting for the first audio sample ready
-  // event to be signaled is only needed for process loopback devices. We need
-  // to do it because, due to a Windows bug, the value returned by
-  // IAudioClient::GetBufferSize() can not be trusted until we get the first
-  // sample.
-  if (!is_process_loopback_capture_) {
-    CreateFifoIfNeeded();
-  }
-
   // Create and start the thread that will drive the capturing by waiting for
   // capture events.
   DCHECK(!capture_thread_.get());
@@ -876,6 +877,15 @@ void WASAPIAudioInputStream::Start(AudioInputCallback* callback) {
   if (FAILED(hr)) {
     SendLogMessage("%s => (ERROR: IAudioClient::Start=[%s])", __func__,
                    ErrorToString(hr).c_str());
+  }
+
+  if (SUCCEEDED(hr) && audio_render_client_for_loopback_.Get()) {
+    hr = audio_render_client_for_loopback_->Start();
+    if (FAILED(hr)) {
+      SendLogMessage(
+          "%s => (ERROR: IAudioClient::Start=[%s] (endpoint loopback))",
+          __func__, ErrorToString(hr).c_str());
+    }
   }
 
   started_ = SUCCEEDED(hr);
@@ -1062,9 +1072,9 @@ void WASAPIAudioInputStream::
   GetActivateAudioInterfaceAsyncCallback() = callback;
 }
 
-void WASAPIAudioInputStream::CreateFifoIfNeeded() {
+HRESULT WASAPIAudioInputStream::CreateFifoIfNeeded() {
   if (fifo_) {
-    return;
+    return S_OK;
   }
 
   // Retrieve the length of the endpoint buffer shared between the client
@@ -1074,7 +1084,7 @@ void WASAPIAudioInputStream::CreateFifoIfNeeded() {
   uint32_t endpoint_buffer_size_frames = 0;
   HRESULT hr = audio_client_->GetBufferSize(&endpoint_buffer_size_frames);
   if (FAILED(hr)) {
-    return;
+    return hr;
   }
 
   // Allocate a buffer with a size that enables us to take care of cases like:
@@ -1099,6 +1109,7 @@ void WASAPIAudioInputStream::CreateFifoIfNeeded() {
   fifo_ = std::make_unique<AudioBlockFifo>(
       input_format_.Format.nChannels, packet_size_frames_, buffers_required);
   DVLOG(1) << "AudioBlockFifo buffer count: " << buffers_required;
+  return S_OK;
 }
 
 void WASAPIAudioInputStream::Run() {
@@ -1808,10 +1819,17 @@ HRESULT WASAPIAudioInputStream::InitializeAudioEngine() {
   DCHECK_EQ(OPEN_RESULT_OK, open_result_);
   SendLogMessage("%s()", __func__);
 
-  // Use event-driven mode for regular input devices and for loopback.
-  DWORD flags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
+  // Use event-driven mode only for regular input devices or process loopback.
+  // Loopback devices capturing from an endpoint device does not support event-
+  // driven mode since it requires active output audio to trigger the event.
+  // For endpoint loopback devices, EVENTCALLBACK flag is specified when
+  // initializing the extra |audio_render_client_for_loopback_|.
+  DWORD flags =
+      IsEndpointLoopbackCapture(device_id_, is_process_loopback_capture_)
+          ? 0
+          : AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
   if (!is_process_loopback_capture_) {
-    // Application loopback capture does not support the
+    // Process loopback capture does not support the
     // AUDCLNT_STREAMFLAGS_NOPERSIST flag.
     flags |= AUDCLNT_STREAMFLAGS_NOPERSIST;
   }
@@ -1847,6 +1865,19 @@ HRESULT WASAPIAudioInputStream::InitializeAudioEngine() {
     return hr;
   }
 
+  // TODO(https://crbug.com/411452039): Waiting for the first audio sample ready
+  // event to be signaled is only needed for process loopback devices. We need
+  // to do it because, due to a Windows bug, the value returned by
+  // IAudioClient::GetBufferSize() can not be trusted until we get the first
+  // sample.
+  if (!is_process_loopback_capture_) {
+    hr = CreateFifoIfNeeded();
+    if (FAILED(hr)) {
+      open_result_ = OPEN_RESULT_GET_BUFFER_SIZE_FAILED;
+      return hr;
+    }
+  }
+
 #ifndef NDEBUG
   // The period between processing passes by the audio engine is fixed for a
   // particular audio endpoint device and represents the smallest processing
@@ -1874,7 +1905,46 @@ HRESULT WASAPIAudioInputStream::InitializeAudioEngine() {
 
   // Set the event handle that the audio engine will signal each time a buffer
   // becomes ready to be processed by the client.
-  hr = audio_client_->SetEventHandle(audio_samples_ready_event_.Get());
+  //
+  // In endpoint loopback mode the capture device is not running in an event-
+  // driven mode so we need to create a separate playback client to get
+  // notifications.
+  if (IsEndpointLoopbackCapture(device_id_, is_process_loopback_capture_)) {
+    SendLogMessage("%s => (WARNING: endpoint loopback mode is selected)",
+                   __func__);
+    hr = endpoint_device_->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr,
+                                    &audio_render_client_for_loopback_);
+    if (FAILED(hr)) {
+      open_result_ = OPEN_RESULT_LOOPBACK_ACTIVATE_FAILED;
+      return hr;
+    }
+
+    // To ensure that we can deliver a loopback stream capturing an audio
+    // endpoint also when no output audio is playing, we initialize a render
+    // stream in event-driven mode. Each time the client receives an event for
+    // the render stream, it must signal the capture client to run the capture
+    // thread that reads the next set of samples from the capture endpoint
+    // buffer. Note that |input_format_| corresponds to the preferred parameters
+    // of the default output device in loopback mode.
+    // http://msdn.microsoft.com/en-us/library/windows/desktop/dd316551(v=vs.85).aspx
+    hr = audio_render_client_for_loopback_->Initialize(
+        AUDCLNT_SHAREMODE_SHARED,
+        AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_NOPERSIST, 0, 0,
+        reinterpret_cast<const WAVEFORMATEX*>(&input_format_),
+        AudioDeviceDescription::IsCommunicationsDevice(device_id_)
+            ? &kCommunicationsSessionId
+            : nullptr);
+    if (FAILED(hr)) {
+      open_result_ = OPEN_RESULT_LOOPBACK_INIT_FAILED;
+      return hr;
+    }
+
+    hr = audio_render_client_for_loopback_->SetEventHandle(
+        audio_samples_ready_event_.Get());
+  } else {
+    hr = audio_client_->SetEventHandle(audio_samples_ready_event_.Get());
+  }
+
   if (FAILED(hr)) {
     open_result_ = OPEN_RESULT_SET_EVENT_HANDLE;
     return hr;

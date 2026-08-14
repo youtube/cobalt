@@ -33,7 +33,6 @@ import android.view.WindowManager;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 import androidx.lifecycle.Lifecycle;
@@ -71,6 +70,7 @@ import org.chromium.base.supplier.UnownedUserDataSupplier;
 import org.chromium.base.supplier.UnwrapObservableSupplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.UsedByReflection;
 import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.R;
@@ -230,6 +230,7 @@ import org.chromium.chrome.browser.tabmodel.IncognitoTabHostRegistry;
 import org.chromium.chrome.browser.tabmodel.IncognitoTabHostUtils;
 import org.chromium.chrome.browser.tabmodel.MismatchedIndicesHandler;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
+import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabClosureParamsUtils;
 import org.chromium.chrome.browser.tabmodel.TabGroupColorUtils;
@@ -314,7 +315,6 @@ import org.chromium.ui.dragdrop.DragDropMetricUtils.UrlIntentSource;
 import org.chromium.ui.util.XrUtils;
 import org.chromium.ui.widget.Toast;
 import org.chromium.ui.xr.scenecore.XrSceneCoreSessionManager;
-import org.chromium.ui.xr.scenecore.XrSceneCoreSessionManagerProvider;
 import org.chromium.url.GURL;
 
 import java.lang.annotation.Retention;
@@ -331,8 +331,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * This is the main activity for ChromeMobile when not running in document mode. All the tabs are
  * accessible via a chrome specific tab switching UI.
  */
-public class ChromeTabbedActivity extends ChromeActivity
-        implements XrSceneCoreSessionManagerProvider {
+public class ChromeTabbedActivity extends ChromeActivity {
     // Name of the ChromeTabbedActivity alias that handles MAIN intents.
     public static final String MAIN_LAUNCHER_ACTIVITY_NAME = "com.google.android.apps.chrome.Main";
 
@@ -561,7 +560,10 @@ public class ChromeTabbedActivity extends ChromeActivity
 
     @Nullable private ExtensionKeybindingRegistry mExtensionKeybindingRegistry;
 
-    private @Nullable XrSceneCoreSessionManager mXrSceneCoreSessionManager;
+    private final LazyOneshotSupplier<@Nullable XrSceneCoreSessionManager>
+            mXrSceneCoreSessionManagerSupplier =
+                    LazyOneshotSupplier.fromSupplier(this::createXrSceneCoreSessionManager);
+    private final Callback<Boolean> mOnXrSpaceModeChanged = this::onXrSpaceModeChanged;
 
     /** Constructs a ChromeTabbedActivity. */
     public ChromeTabbedActivity() {
@@ -742,20 +744,20 @@ public class ChromeTabbedActivity extends ChromeActivity
                     new TabModelSelectorTabModelObserver(mTabModelSelector) {
                         @Override
                         public void onFinishingTabClosure(
-                                Tab tab, boolean shouldRemoveWindowWithZeroTabs) {
-                            closeIfNoTabsAndHomepageEnabled(false, shouldRemoveWindowWithZeroTabs);
-
-                            // On XR Devices when the last tab is closed then the Chrome instance is
-                            // also closed.
-                            if (XrUtils.isXrDevice()) {
-                                mMultiInstanceManager.closeChromeWindowIfEmpty(mWindowId);
-                            }
+                                Tab tab, @TabClosingSource int closingSource) {
+                            closeIfNoTabsAndHomepageEnabled(
+                                    false,
+                                    /* shouldRemoveWindowWithZeroTabs= */ closingSource
+                                            == TabClosingSource.TABLET_TAB_STRIP);
                         }
 
                         @Override
                         public void tabPendingClosure(
-                                Tab tab, boolean shouldRemoveWindowWithZeroTabs) {
-                            closeIfNoTabsAndHomepageEnabled(true, shouldRemoveWindowWithZeroTabs);
+                                Tab tab, @TabClosingSource int closingSource) {
+                            closeIfNoTabsAndHomepageEnabled(
+                                    true,
+                                    /* shouldRemoveWindowWithZeroTabs= */ closingSource
+                                            == TabClosingSource.TABLET_TAB_STRIP);
                         }
 
                         @Override
@@ -858,7 +860,8 @@ public class ChromeTabbedActivity extends ChromeActivity
                         mRootUiCoordinator.getScrimManager(),
                         rootViewSupplier::get,
                         incognitoSupplier,
-                        adaptOnOverviewColorAlphaChange());
+                        adaptOnOverviewColorAlphaChange(),
+                        mXrSceneCoreSessionManagerSupplier.get());
 
         return hubLayoutDependencyHolder;
     }
@@ -930,7 +933,8 @@ public class ChromeTabbedActivity extends ChromeActivity
                             actionConfirmationManager,
                             mRootUiCoordinator.getDataSharingTabManager(),
                             mRootUiCoordinator.getBottomSheetController(),
-                            mRootUiCoordinator.getShareDelegateSupplier());
+                            mRootUiCoordinator.getShareDelegateSupplier(),
+                            getXrSpaceModeObservableSupplier());
             mLayoutStateProviderSupplier.set(mLayoutManager);
         }
     }
@@ -952,7 +956,8 @@ public class ChromeTabbedActivity extends ChromeActivity
                         getTabModelSelectorSupplier(),
                         () -> getToolbarManager().getOverviewModeMenuButtonCoordinator(),
                         mEdgeToEdgeControllerSupplier,
-                        mHubSearchClient);
+                        mHubSearchClient,
+                        getXrSpaceModeObservableSupplier());
         var builder = mHubProvider.getPaneListBuilder();
         builder.registerPane(
                 PaneId.TAB_SWITCHER,
@@ -1041,7 +1046,10 @@ public class ChromeTabbedActivity extends ChromeActivity
                         () ->
                                 ((TabbedRootUiCoordinator) mRootUiCoordinator)
                                         .getTabGroupSyncController(),
-                        mLayoutStateProviderSupplier);
+                        mLayoutStateProviderSupplier,
+                        getXrSpaceModeObservableSupplier(),
+                        mMultiInstanceManager,
+                        mDragDropDelegate);
         if (didFinishNativeInitialization()) {
             result.first.initWithNative();
         }
@@ -1119,9 +1127,10 @@ public class ChromeTabbedActivity extends ChromeActivity
     }
 
     private void onTabSwitcherClicked() {
-        if (mXrSceneCoreSessionManager != null) {
+        var xrSceneCoreSessionManager = mXrSceneCoreSessionManagerSupplier.get();
+        if (xrSceneCoreSessionManager != null) {
             // Do nothing if space mode switch is already started.
-            mXrSceneCoreSessionManager.startSpaceModeChange(
+            xrSceneCoreSessionManager.startSpaceModeChange(
                     true, this::onTabSwitcherClickedInternal);
         } else {
             onTabSwitcherClickedInternal();
@@ -1546,7 +1555,18 @@ public class ChromeTabbedActivity extends ChromeActivity
             if (shouldHideOverviewMode
                     && IntentHandler.wasIntentSenderChrome(intent)
                     && isInOverviewMode()) {
-                hideOverview();
+                // Request switching to Home Space mode on XR.
+                var xrSceneCoreSessionManager = mXrSceneCoreSessionManagerSupplier.get();
+                if (xrSceneCoreSessionManager != null) {
+                    boolean isFsm =
+                            xrSceneCoreSessionManager.getXrSpaceModeObservableSupplier().get();
+                    if (isFsm) {
+                        xrSceneCoreSessionManager.startSpaceModeChange(
+                                /* fsmModeRequested= */ false,
+                                () -> xrSceneCoreSessionManager.finishSpaceModeChange());
+                    }
+                }
+                hideOverview(/* animate= */ true);
             }
             // Launch history on an already running instance of Chrome.
             maybeLaunchHistory();
@@ -2384,7 +2404,7 @@ public class ChromeTabbedActivity extends ChromeActivity
 
         if (tabModel.getCount() > 0 && isInOverviewMode() && !isTablet()) {
             // Hides the overview page to ensure proper layout change signals are sent.
-            hideOverview();
+            hideOverview(/* animate= */ false);
         }
         return resultTab;
     }
@@ -2526,7 +2546,6 @@ public class ChromeTabbedActivity extends ChromeActivity
         mStartupPaintPreviewHelperSupplier.attach(getWindowAndroid().getUnownedUserDataHost());
         mDseNewTabUrlManager = new DseNewTabUrlManager(mTabModelProfileSupplier);
 
-        initializeXrSceneCoreSessionManager();
         initHub();
     }
 
@@ -2581,7 +2600,8 @@ public class ChromeTabbedActivity extends ChromeActivity
                 initHubOverviewColorSupplier(),
                 mManualFillingComponentSupplier,
                 getEdgeToEdgeManager(),
-                mBookmarkManagerOpenerSupplier);
+                mBookmarkManagerOpenerSupplier,
+                getXrSpaceModeObservableSupplier());
     }
 
     @Override
@@ -2591,7 +2611,7 @@ public class ChromeTabbedActivity extends ChromeActivity
                     new TabbedSystemBarColorHelper(
                             ensureEdgeToEdgeLayoutCoordinator(), mBottomChinSupplier));
             return mSystemBarColorHelperSupplier;
-        } else if (EdgeToEdgeUtils.isEdgeToEdgeBottomChinEnabled()) {
+        } else if (EdgeToEdgeUtils.isEdgeToEdgeBottomChinEnabled(this)) {
             // If isEdgeToEdgeBottomChinEnabled() && !isEdgeToEdgeEverywhereEnabled()
             return mBottomChinSupplier;
         }
@@ -2626,6 +2646,10 @@ public class ChromeTabbedActivity extends ChromeActivity
 
         mContentContainer = findViewById(android.R.id.content);
         mControlContainer = findViewById(R.id.control_container);
+        if (mControlContainer != null) {
+            mControlContainer.setXrSpaceModeObservableSupplierMaybe(
+                    getXrSpaceModeObservableSupplier());
+        }
 
         Supplier<Boolean> dialogVisibilitySupplier =
                 () -> {
@@ -3336,6 +3360,7 @@ public class ChromeTabbedActivity extends ChromeActivity
                                         .get()
                                         .showBookmarkManager(
                                                 ChromeTabbedActivity.this,
+                                                currentTab,
                                                 getCurrentTabModel().getProfile());
                             });
             if (currentTabIsNtp) {
@@ -3360,7 +3385,7 @@ public class ChromeTabbedActivity extends ChromeActivity
             if (currentTab == null || (ChromeFeatureList.sAndroidNativePagesInNewTab.isEnabled()
                     && ChromeFeatureList.sAndroidNativePagesInNewTabRecentTabsEnabled.getValue())) {
                 getTabCreator(getCurrentTabModel().isIncognito())
-                        .createNewTab(params, TabLaunchType.FROM_CHROME_UI, null);
+                        .createNewTab(params, TabLaunchType.FROM_CHROME_UI, currentTab);
             } else {
                 currentTab.loadUrl(params);
             }
@@ -3372,6 +3397,17 @@ public class ChromeTabbedActivity extends ChromeActivity
                 NewTabPageUma.recordAction(NewTabPageUma.ACTION_OPENED_RECENT_TABS_MANAGER);
             }
             RecordUserAction.record("MobileMenuRecentTabs");
+        } else if (id == R.id.extensions_menu_id) {
+            LoadUrlParams params =
+                    new LoadUrlParams(
+                            UrlConstants.CHROME_EXTENSIONS_URL, PageTransition.AUTO_TOPLEVEL);
+            if (currentTab == null) {
+                getTabCreator(getCurrentTabModel().isIncognito())
+                        .createNewTab(params, TabLaunchType.FROM_CHROME_UI, null);
+            } else {
+                currentTab.loadUrl(params);
+            }
+            RecordUserAction.record("MobileMenuExtensions");
         } else if (id == R.id.close_tab) {
             // TODO(crbug.com/375468032): use triggeringMotion to decide
             // TabClosureParams.allowUndo.
@@ -3732,7 +3768,16 @@ public class ChromeTabbedActivity extends ChromeActivity
             }
 
             ChromeTabCreator tabCreator = getTabCreator(isIncognito);
-            Tab firstTab = tabCreator.createNewTab(loadUrlParams, launchType, null, intent);
+            Tab parentTab = null;
+            if (launchType == TabLaunchType.FROM_CHROME_UI) {
+                int parentIdFromIntent = IntentUtils.safeGetIntExtra(
+                        intent, IntentHandler.EXTRA_PARENT_TAB_ID, Tab.INVALID_TAB_ID);
+                if (parentIdFromIntent != Tab.INVALID_TAB_ID && mTabModelSelector != null) {
+                    parentTab = mTabModelSelector.getTabById(parentIdFromIntent);
+                }
+            }
+
+            Tab firstTab = tabCreator.createNewTab(loadUrlParams, launchType, parentTab, intent);
 
             List<String> additionalUrls =
                     IntentUtils.safeGetSerializableExtra(
@@ -3800,11 +3845,11 @@ public class ChromeTabbedActivity extends ChromeActivity
         }
     }
 
-    private void hideOverview() {
+    private void hideOverview(boolean animate) {
         assert isInOverviewMode();
         if (getCurrentTabModel().getCount() != 0) {
             // Don't hide overview if current tab stack is empty()
-            mLayoutManager.showLayout(LayoutType.BROWSING, false);
+            mLayoutManager.showLayout(LayoutType.BROWSING, animate);
         }
     }
 
@@ -3938,9 +3983,13 @@ public class ChromeTabbedActivity extends ChromeActivity
             mExtensionKeybindingRegistry = null;
         }
 
-        if (mXrSceneCoreSessionManager != null) {
-            mXrSceneCoreSessionManager.destroy();
-            mXrSceneCoreSessionManager = null;
+        if (mXrSceneCoreSessionManagerSupplier.hasValue()
+                && mXrSceneCoreSessionManagerSupplier.get() != null) {
+            var xrSceneCoreSessionManager = mXrSceneCoreSessionManagerSupplier.get();
+            xrSceneCoreSessionManager
+                    .getXrSpaceModeObservableSupplier()
+                    .removeObserver(mOnXrSpaceModeChanged);
+            xrSceneCoreSessionManager.destroy();
         }
 
         super.onDestroyInternal();
@@ -4313,19 +4362,6 @@ public class ChromeTabbedActivity extends ChromeActivity
         }
     }
 
-    private void initializeXrSceneCoreSessionManager() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            // TODO(crbug.com/422134376): To detect "Android XR" query OS instead of device's
-            // properties.
-            if (XrUtils.isXrDevice()) {
-                mXrSceneCoreSessionManager = new XrSceneCoreSessionManagerImpl(this);
-                mXrSceneCoreSessionManager
-                        .getXrSpaceModeObservableSupplier()
-                        .addSyncObserver(this::onXrSpaceModeChanged);
-            }
-        }
-    }
-
     /**
      * Hide/show web content, make background opaque or transparent when switching to/from XR full
      * space mode.
@@ -4349,8 +4385,27 @@ public class ChromeTabbedActivity extends ChromeActivity
         }
     }
 
-    @Override
-    public @Nullable XrSceneCoreSessionManager getXrSceneCoreSessionManager() {
-        return mXrSceneCoreSessionManager;
+    private @Nullable XrSceneCoreSessionManager createXrSceneCoreSessionManager() {
+        assert !mXrSceneCoreSessionManagerSupplier.hasValue();
+
+        XrSceneCoreSessionManager xrSceneCoreSessionManager = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            // TODO(crbug.com/422134376): To detect "Android XR" query OS instead of device's
+            // properties.
+            if (XrUtils.isXrDevice()) {
+                xrSceneCoreSessionManager = new XrSceneCoreSessionManagerImpl(this);
+                xrSceneCoreSessionManager
+                        .getXrSpaceModeObservableSupplier()
+                        .addSyncObserver(mOnXrSpaceModeChanged);
+            }
+        }
+        return xrSceneCoreSessionManager;
+    }
+
+    private @Nullable ObservableSupplier<Boolean> getXrSpaceModeObservableSupplier() {
+        var xrSceneCoreSessionManager = mXrSceneCoreSessionManagerSupplier.get();
+        return xrSceneCoreSessionManager != null
+                ? xrSceneCoreSessionManager.getXrSpaceModeObservableSupplier()
+                : null;
     }
 }

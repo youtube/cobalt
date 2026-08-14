@@ -900,33 +900,12 @@ TEST_F(ContactInfoSyncUtilTest,
 }
 
 // Tests that specifics without valid GUIDs are rejected.
-TEST_F(ContactInfoSyncUtilTest, AreContactInfoSpecificsValid_GUID) {
+TEST_F(ContactInfoSyncUtilTest, AreContactInfoSpecificsValid) {
   ContactInfoSpecifics specifics;
   specifics.set_guid(kInvalidGuid);
   EXPECT_FALSE(AreContactInfoSpecificsValid(specifics));
   specifics.set_guid(kGuid);
   EXPECT_TRUE(AreContactInfoSpecificsValid(specifics));
-}
-
-// Tests that for H/W addresses, minimum address requirements need to be met.
-TEST_F(ContactInfoSyncUtilTest, AreContactInfoSpecificsValid_Completeness) {
-  base::test::ScopedFeatureList feature(
-      features::kAutofillEnableSupportForHomeAndWork);
-
-  ContactInfoSpecifics specifics = ConstructBaseSpecifics();
-  EXPECT_TRUE(AreContactInfoSpecificsValid(specifics));
-  specifics.set_address_type(ContactInfoSpecifics::HOME);
-  EXPECT_TRUE(AreContactInfoSpecificsValid(specifics));
-  specifics.set_address_type(ContactInfoSpecifics::WORK);
-  EXPECT_TRUE(AreContactInfoSpecificsValid(specifics));
-
-  specifics.clear_address_city();
-  specifics.set_address_type(ContactInfoSpecifics::REGULAR);
-  EXPECT_TRUE(AreContactInfoSpecificsValid(specifics));
-  specifics.set_address_type(ContactInfoSpecifics::HOME);
-  EXPECT_FALSE(AreContactInfoSpecificsValid(specifics));
-  specifics.set_address_type(ContactInfoSpecifics::HOME);
-  EXPECT_FALSE(AreContactInfoSpecificsValid(specifics));
 }
 
 // Tests that if a token's `value` changes by external means, its observations

@@ -37,10 +37,10 @@ const int kProcessIntervalMs = 2000;
 class SendDelayStatsTest : public ::testing::Test {
  public:
   SendDelayStatsTest() : clock_(1234), config_(CreateConfig()) {}
-  virtual ~SendDelayStatsTest() {}
+  ~SendDelayStatsTest() override {}
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     stats_.reset(new SendDelayStats(&clock_));
     stats_->AddSsrcs(config_);
   }

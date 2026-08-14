@@ -1597,7 +1597,7 @@ TEST_F(BasicPortAllocatorTest, TestGetAllPortsNoUdpAllowed) {
   EXPECT_TRUE(
       HasCandidate(candidates_, IceCandidateType::kHost, "tcp", kClientAddr));
   // We wait at least for a full STUN timeout, which
-  // webrtc::STUN_TOTAL_TIMEOUT seconds.
+  // STUN_TOTAL_TIMEOUT seconds.
   EXPECT_THAT(WaitUntil([&] { return candidate_allocation_done_; }, IsTrue(),
                         {.timeout = TimeDelta::Millis(STUN_TOTAL_TIMEOUT),
                          .clock = &fake_clock}),
@@ -2524,7 +2524,7 @@ TEST_F(
                  .clock = &fake_clock}),
       IsRtcOk());
   EXPECT_TRUE(candidates_.back().is_local());
-  // We use a shared socket and webrtc::UDPPort handles the srflx candidate.
+  // We use a shared socket and UDPPort handles the srflx candidate.
   EXPECT_EQ(2u, ports_.size());
 }
 

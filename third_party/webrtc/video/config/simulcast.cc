@@ -303,7 +303,7 @@ std::vector<VideoStream> GetScreenshareLayers(size_t max_layers,
   std::vector<VideoStream> layers(num_simulcast_layers);
   // For legacy screenshare in conference mode, tl0 and tl1 bitrates are
   // piggybacked on the VideoCodec struct as target and max bitrates,
-  // respectively. See eg. webrtc::LibvpxVp8Encoder::SetRates().
+  // respectively. See eg. LibvpxVp8Encoder::SetRates().
   layers[0].width = width;
   layers[0].height = height;
   layers[0].max_framerate = 5;

@@ -59,7 +59,7 @@ class EmulatedClock {
 class EmulatedMonotoneousClock : public EmulatedClock {
  public:
   explicit EmulatedMonotoneousClock(int seed) : EmulatedClock(seed) {}
-  ~EmulatedMonotoneousClock() = default;
+  ~EmulatedMonotoneousClock() override = default;
 
   int64_t Query(int64_t time_us) {
     int64_t skip_us = UpdateClock(time_us);
@@ -112,7 +112,7 @@ class EmulatedNonMonotoneousClock : public EmulatedClock {
       : EmulatedClock(seed, drift) {
     Pregenerate(duration_us);
   }
-  ~EmulatedNonMonotoneousClock() = default;
+  ~EmulatedNonMonotoneousClock() override = default;
 
   void Pregenerate(int64_t duration_us) {
     int64_t time_since_reset_us = kMinTimeBetweenResetsUs;

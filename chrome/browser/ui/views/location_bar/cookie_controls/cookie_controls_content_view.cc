@@ -23,6 +23,7 @@
 #include "ui/base/ui_base_features.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/button/md_text_button.h"
+#include "ui/views/controls/button/md_text_button_with_spinner.h"
 #include "ui/views/controls/button/toggle_button.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
@@ -174,6 +175,11 @@ void CookieControlsContentView::SetTrackingProtectionsButtonVisible(
   tracking_protections_button_->SetVisible(visible);
 }
 
+void CookieControlsContentView::UpdateFeedbackButtonSubtitle(
+    const std::u16string& subtitle) {
+  feedback_button_->SetSubtitleText(subtitle);
+}
+
 void CookieControlsContentView::SetTrackingProtectionsButtonLabel(
     const std::u16string& label) {
   tracking_protections_button_->SetText(label);
@@ -186,7 +192,7 @@ void CookieControlsContentView::AddTrackingProtectionsButton() {
   button_container->SetCrossAxisAlignment(
       views::BoxLayout::CrossAxisAlignment::kStart);
   tracking_protections_button_ = button_container->AddChildView(
-      std::make_unique<views::MdTextButton>(base::BindRepeating(
+      std::make_unique<views::MdTextButtonWithSpinner>(base::BindRepeating(
           &CookieControlsContentView::
               NotifyTrackingProtectionsButtonPressedCallback,
           base::Unretained(this))));
@@ -242,7 +248,7 @@ void CookieControlsContentView::AddFeedbackSection() {
 
   feedback_section_->AddChildView(CreatePaddedSeparator());
 
-  auto* feedback_button =
+  feedback_button_ =
       feedback_section_->AddChildView(std::make_unique<RichHoverButton>(
           base::BindRepeating(
               &CookieControlsContentView::NotifyFeedbackButtonPressedCallback,
@@ -254,9 +260,16 @@ void CookieControlsContentView::AddFeedbackSection() {
               IDS_COOKIE_CONTROLS_BUBBLE_SEND_FEEDBACK_BUTTON_DESCRIPTION),
           launch_icon));
 
-  feedback_button->SetProperty(views::kElementIdentifierKey, kFeedbackButton);
-  feedback_button->SetTooltipText(l10n_util::GetStringUTF16(
+  feedback_button_->SetProperty(views::kElementIdentifierKey, kFeedbackButton);
+  feedback_button_->SetTooltipText(l10n_util::GetStringUTF16(
       IDS_COOKIE_CONTROLS_BUBBLE_SEND_FEEDBACK_BUTTON_TITLE));
+}
+
+void CookieControlsContentView::SetTrackingProtectionsButtonReloadingState() {
+  tracking_protections_button_->SetSpinnerVisible(true);
+  tracking_protections_button_->SetText(l10n_util::GetStringUTF16(
+      IDS_TRACKING_PROTECTIONS_BUBBLE_RELOADING_SITE_LABEL));
+  tracking_protections_button_->SetEnabled(false);
 }
 
 void CookieControlsContentView::UpdateContentLabels(

@@ -10,27 +10,23 @@
 
 #include "rtc_base/openssl_utility.h"
 
+#include <openssl/err.h>
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
+
 #include <cstddef>
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
-
-#if defined(WEBRTC_WIN)
-// Must be included first before openssl headers.
-#include "rtc_base/win32.h"  // NOLINT
-#endif                       // WEBRTC_WIN
+#include "rtc_base/openssl.h"
+#include "rtc_base/ssl_identity.h"
 
 #ifdef OPENSSL_IS_BORINGSSL
 #include <openssl/pool.h>
 #endif
-#include <openssl/err.h>
-#include <openssl/x509.h>
-#include <openssl/x509v3.h>
 
-#include "rtc_base/openssl.h"
-#include "rtc_base/ssl_identity.h"
 #ifndef WEBRTC_EXCLUDE_BUILT_IN_SSL_ROOT_CERTS
 #include "rtc_base/ssl_roots.h"
 #endif  // WEBRTC_EXCLUDE_BUILT_IN_SSL_ROOT_CERTS

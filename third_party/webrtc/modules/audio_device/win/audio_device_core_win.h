@@ -238,8 +238,8 @@ class AudioDeviceWindowsCore : public AudioDeviceGeneric {
   ISimpleAudioVolume* _ptrRenderSimpleVolume;
 
   // DirectX Media Object (DMO) for the built-in AEC.
-  webrtc::scoped_refptr<IMediaObject> _dmo;
-  webrtc::scoped_refptr<IMediaBuffer> _mediaBuffer;
+  scoped_refptr<IMediaObject> _dmo;
+  scoped_refptr<IMediaBuffer> _mediaBuffer;
   bool _builtInAecEnabled;
 
   HANDLE _hRenderSamplesReadyEvent;

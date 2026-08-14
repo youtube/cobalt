@@ -10,15 +10,13 @@
 
 #include "rtc_base/experiments/stable_target_rate_experiment.h"
 
-#include "test/explicit_key_value_config.h"
+#include "api/field_trials.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 
-using test::ExplicitKeyValueConfig;
-
 TEST(StableBweExperimentTest, Default) {
-  ExplicitKeyValueConfig field_trials("");
+  FieldTrials field_trials("");
   StableTargetRateExperiment config(field_trials);
   EXPECT_FALSE(config.IsEnabled());
   EXPECT_EQ(config.GetVideoHysteresisFactor(), 1.2);
@@ -26,7 +24,7 @@ TEST(StableBweExperimentTest, Default) {
 }
 
 TEST(StableBweExperimentTest, EnabledNoHysteresis) {
-  ExplicitKeyValueConfig field_trials("WebRTC-StableTargetRate/enabled:true/");
+  FieldTrials field_trials("WebRTC-StableTargetRate/enabled:true/");
 
   StableTargetRateExperiment config(field_trials);
   EXPECT_TRUE(config.IsEnabled());
@@ -35,7 +33,7 @@ TEST(StableBweExperimentTest, EnabledNoHysteresis) {
 }
 
 TEST(StableBweExperimentTest, EnabledWithHysteresis) {
-  ExplicitKeyValueConfig field_trials(
+  FieldTrials field_trials(
       "WebRTC-StableTargetRate/"
       "enabled:true,"
       "video_hysteresis_factor:1.1,"
@@ -48,7 +46,7 @@ TEST(StableBweExperimentTest, EnabledWithHysteresis) {
 }
 
 TEST(StableBweExperimentTest, HysteresisOverrideVideoRateHystersis) {
-  ExplicitKeyValueConfig field_trials(
+  FieldTrials field_trials(
       "WebRTC-StableTargetRate/"
       "enabled:true,"
       "video_hysteresis_factor:1.1,"

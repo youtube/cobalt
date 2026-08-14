@@ -11,7 +11,7 @@ import UIKit
   private let snapshotGenerator: SnapshotGenerator
 
   // The snapshot storage which is used to store and retrieve snapshots.
-  var snapshotStorage: Optional<SnapshotStorage>
+  var snapshotStorage: SnapshotStorage?
 
   // The unique ID for WebState's snapshot.
   let snapshotID: SnapshotIDWrapper
@@ -32,7 +32,8 @@ import UIKit
   // Invokes `completion` with nil if a snapshot does not exist.
   func retrieveSnapshot(completion: @escaping (UIImage?) -> Void) {
     if let storage = snapshotStorage {
-      storage.retrieveImage(snapshotID: snapshotID, completion: completion)
+      storage.retrieveImage(
+        snapshotID: snapshotID, snapshotKind: SnapshotKind.color, completion: completion)
     } else {
       completion(nil)
     }
@@ -47,7 +48,8 @@ import UIKit
     }
 
     if let storage = snapshotStorage {
-      storage.retrieveGreyImage(snapshotID: snapshotID, completion: wrappedCompletion)
+      storage.retrieveImage(
+        snapshotID: snapshotID, snapshotKind: SnapshotKind.greyscale, completion: wrappedCompletion)
     } else {
       wrappedCompletion(nil)
     }
@@ -80,11 +82,6 @@ import UIKit
     return snapshotGenerator.generateUIViewSnapshot()
   }
 
-  // Requests deletion of the current page snapshot from disk and memory.
-  func removeSnapshot() {
-    snapshotStorage?.removeImage(snapshotID: snapshotID)
-  }
-
   // Sets the delegate to SnapshotGenerator. Generating snapshots before setting a delegate will
   // fail. The delegate is not owned by the tab helper.
   func setDelegate(_ delegate: SnapshotGeneratorDelegate) {
@@ -115,7 +112,7 @@ import UIKit
     guard timestamp > latestCommitedTimestamp else { return }
 
     latestCommitedTimestamp = timestamp
-    snapshotStorage?.setImage(image, snapshotID: snapshotID)
+    snapshotStorage?.setImage(image, withSnapshotID: snapshotID)
   }
 
   // Helper method used to retrieve a grey snapshot.

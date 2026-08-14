@@ -321,6 +321,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   IF_WASM(V, TrapIf)                         \
   IF_WASM(V, LoadStackPointer)               \
   IF_WASM(V, SetStackPointer)                \
+  IF_WASM(V, MemoryCopy)                     \
   V(Phi)                                     \
   V(FrameState)                              \
   V(Call)                                    \
@@ -1347,6 +1348,7 @@ class V8_EXPORT_PRIVATE SupportedOperations {
   static void Initialize();
   static bool IsUnalignedLoadSupported(MemoryRepresentation repr);
   static bool IsUnalignedStoreSupported(MemoryRepresentation repr);
+  // Unaligned Load and Store support for all MemoryRepresentations.
   static bool HasFullUnalignedSupport();
   SUPPORTED_OPERATIONS_LIST(DECLARE_GETTER)
 
@@ -3100,6 +3102,8 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
   RegisterRepresentation in_out_rep;
   MemoryRepresentation memory_rep;
   MemoryAccessKind memory_access_kind;
+  RegisterRepresentation base_rep;
+
   OpEffects Effects() const {
     OpEffects effects =
         OpEffects().CanWriteMemory().CanDependOnChecks().CanReadMemory();
@@ -3116,16 +3120,16 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     if (bin_op == BinOp::kCompareExchange) {
-      return InitVectorOf(
-          storage, {RegisterRepresentation::WordPtr(),
-                    RegisterRepresentation::WordPtr(), in_out_rep, in_out_rep});
+      return InitVectorOf(storage, {base_rep, RegisterRepresentation::WordPtr(),
+                                    in_out_rep, in_out_rep});
     }
-    return InitVectorOf(storage,
-                        {RegisterRepresentation::WordPtr(),
-                         RegisterRepresentation::WordPtr(), in_out_rep});
+    return InitVectorOf(
+        storage, {base_rep, RegisterRepresentation::WordPtr(), in_out_rep});
   }
 
-  V<WordPtr> base() const { return input<WordPtr>(0); }
+  V<Any> base() const { return input<Any>(0); }
+  // The offset from base. Note that for tagged bases this offset does include
+  // the pointer untagging, differently to e.g. loads and stores!
   V<WordPtr> index() const { return input<WordPtr>(1); }
   OpIndex value() const { return input(2); }
   OptionalOpIndex expected() const {
@@ -3134,17 +3138,21 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
 
   void Validate(const Graph& graph) const {
     DCHECK_EQ(bin_op == BinOp::kCompareExchange, expected().valid());
+    DCHECK(base_rep == RegisterRepresentation::WordPtr() ||
+           base_rep == RegisterRepresentation::Tagged());
   }
 
   AtomicRMWOp(OpIndex base, OpIndex index, OpIndex value,
               OptionalOpIndex expected, BinOp bin_op,
               RegisterRepresentation in_out_rep,
-              MemoryRepresentation memory_rep, MemoryAccessKind kind)
+              MemoryRepresentation memory_rep, MemoryAccessKind kind,
+              RegisterRepresentation base_rep)
       : Base(3 + expected.valid()),
         bin_op(bin_op),
         in_out_rep(in_out_rep),
         memory_rep(memory_rep),
-        memory_access_kind(kind) {
+        memory_access_kind(kind),
+        base_rep(base_rep) {
     input(0) = base;
     input(1) = index;
     input(2) = value;
@@ -3157,16 +3165,16 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
     return fn(mapper.Map(base()), mapper.Map(index()), mapper.Map(value()),
               mapper.Map(expected()), bin_op, in_out_rep, memory_rep,
-              memory_access_kind);
+              memory_access_kind, base_rep);
   }
 
-  static AtomicRMWOp& New(Graph* graph, OpIndex base, OpIndex index,
+  static AtomicRMWOp& New(Graph* graph, OpIndex base, V<WordPtr> index,
                           OpIndex value, OptionalOpIndex expected, BinOp bin_op,
                           RegisterRepresentation result_rep,
-                          MemoryRepresentation input_rep,
-                          MemoryAccessKind kind) {
+                          MemoryRepresentation input_rep, MemoryAccessKind kind,
+                          RegisterRepresentation base_rep) {
     return Base::New(graph, 3 + expected.valid(), base, index, value, expected,
-                     bin_op, result_rep, input_rep, kind);
+                     bin_op, result_rep, input_rep, kind, base_rep);
   }
 
   void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const;
@@ -3174,7 +3182,8 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
   void PrintOptions(std::ostream& os) const;
 
   auto options() const {
-    return std::tuple{bin_op, in_out_rep, memory_rep, memory_access_kind};
+    return std::tuple{bin_op, in_out_rep, memory_rep, memory_access_kind,
+                      base_rep};
   }
 };
 DEFINE_MULTI_SWITCH_INTEGRAL(AtomicRMWOp::BinOp, 8)
@@ -3924,6 +3933,30 @@ struct TrapIfOp : OperationT<TrapIfOp> {
   }
   auto options() const { return std::tuple{negated, trap_id}; }
 };
+
+struct MemoryCopyOp : FixedArityOperationT<3, MemoryCopyOp> {
+  // Depends on one or more bounds checks.
+  static constexpr OpEffects effects =
+      OpEffects().CanReadMemory().CanWriteMemory().CanDependOnChecks();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::WordPtr(),
+                          MaybeRegisterRepresentation::WordPtr(),
+                          MaybeRegisterRepresentation::WordPtr()>();
+  }
+
+  MemoryCopyOp(OpIndex dst_base, OpIndex src_base, OpIndex num_bytes)
+      : Base(dst_base, src_base, num_bytes) {}
+
+  std::tuple<> options() const { return {}; }
+
+  V<WordPtr> dst_base() const { return input<WordPtr>(0); }
+  V<WordPtr> src_base() const { return input<WordPtr>(1); }
+  V<WordPtr> num_bytes() const { return input<WordPtr>(2); }
+};
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 struct StaticAssertOp : FixedArityOperationT<1, StaticAssertOp> {
@@ -4657,6 +4690,9 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(
 
 enum class NumericKind : uint8_t {
   kFloat64Hole,
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  kFloat64Undefined,
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   kFinite,
   kInteger,
   kSafeInteger,
@@ -7226,7 +7262,7 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   void PrintOptions(std::ostream& os) const;
 };
 
-struct StructAtomicRMWOp : FixedArityOperationT<2, StructAtomicRMWOp> {
+struct StructAtomicRMWOp : OperationT<StructAtomicRMWOp> {
   using BinOp = AtomicRMWOp::BinOp;
   BinOp bin_op;
   CheckForNull null_check;
@@ -7249,19 +7285,47 @@ struct StructAtomicRMWOp : FixedArityOperationT<2, StructAtomicRMWOp> {
     return result;
   }
 
-  StructAtomicRMWOp(V<WasmStructNullable> object, V<Word> value, BinOp bin_op,
+  StructAtomicRMWOp(V<WasmStructNullable> object, OpIndex value,
+                    OptionalOpIndex expected, BinOp bin_op,
                     const wasm::StructType* type,
                     wasm::ModuleTypeIndex type_index, int field_index,
                     CheckForNull null_check, AtomicMemoryOrder memory_order)
-      : Base(object, value),
+      : Base(2 + expected.valid()),
         bin_op(bin_op),
         null_check(null_check),
         type(type),
         type_index(type_index),
         field_index(field_index),
-        memory_order(memory_order) {}
+        memory_order(memory_order) {
+    input(0) = object;
+    input(1) = value;
+    if (expected.valid()) {
+      input(2) = expected.value();
+    }
+  }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(object()), mapper.Map(value()), mapper.Map(expected()),
+              bin_op, type, type_index, field_index, null_check, memory_order);
+  }
+
+  static StructAtomicRMWOp& New(Graph* graph, V<WasmStructNullable> object,
+                                V<Any> value, OptionalOpIndex expected,
+                                BinOp bin_op, const wasm::StructType* type,
+                                wasm::ModuleTypeIndex type_index,
+                                int field_index, CheckForNull null_check,
+                                AtomicMemoryOrder memory_order) {
+    return Base::New(graph, 2 + expected.valid(), object, value, expected,
+                     bin_op, type, type_index, field_index, null_check,
+                     memory_order);
+  }
 
   V<WasmStructNullable> object() const { return input<WasmStructNullable>(0); }
+  V<Any> value() const { return input(1); }
+  OptionalOpIndex expected() const {
+    return input_count == 3 ? input(2) : OpIndex::Invalid();
+  }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return base::VectorOf(&RepresentationFor(type->field(field_index)), 1);
@@ -7269,6 +7333,12 @@ struct StructAtomicRMWOp : FixedArityOperationT<2, StructAtomicRMWOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    if (bin_op == BinOp::kCompareExchange) {
+      return InitVectorOf(storage,
+                          {RegisterRepresentation::Tagged(),
+                           RepresentationFor(type->field(field_index)),
+                           RepresentationFor(type->field(field_index))});
+    }
     return InitVectorOf(storage, {RegisterRepresentation::Tagged(),
                                   RepresentationFor(type->field(field_index))});
   }
@@ -7279,6 +7349,7 @@ struct StructAtomicRMWOp : FixedArityOperationT<2, StructAtomicRMWOp> {
            type->field(field_index) == wasm::kWasmI64 ||
            (type->field(field_index).is_reference() &&
             bin_op == BinOp::kExchange));
+    DCHECK_EQ(bin_op == BinOp::kCompareExchange, expected().valid());
   }
 
   auto options() const {
@@ -7361,7 +7432,7 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
   void PrintOptions(std::ostream& os) const;
 };
 
-struct ArrayAtomicRMWOp : FixedArityOperationT<3, ArrayAtomicRMWOp> {
+struct ArrayAtomicRMWOp : OperationT<ArrayAtomicRMWOp> {
   using BinOp = AtomicRMWOp::BinOp;
   BinOp bin_op;
   wasm::ValueType element_type;
@@ -7375,17 +7446,42 @@ struct ArrayAtomicRMWOp : FixedArityOperationT<3, ArrayAtomicRMWOp> {
         .CanWriteMemory();
   }
 
-  ArrayAtomicRMWOp(V<WasmArrayNullable> array, V<Word32> index, V<Word> value,
-                   BinOp bin_op, wasm::ValueType element_type,
-                   AtomicMemoryOrder memory_order)
-      : Base(array, index, value),
+  ArrayAtomicRMWOp(V<WasmArrayNullable> array, V<Word32> index, OpIndex value,
+                   OptionalV<Any> expected, BinOp bin_op,
+                   wasm::ValueType element_type, AtomicMemoryOrder memory_order)
+      : Base(3 + expected.valid()),
         bin_op(bin_op),
         element_type(element_type),
-        memory_order(memory_order) {}
+        memory_order(memory_order) {
+    input(0) = array;
+    input(1) = index;
+    input(2) = value;
+    if (expected.valid()) {
+      input(3) = expected.value();
+    }
+  }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(array()), mapper.Map(index()), mapper.Map(value()),
+              mapper.Map(expected()), bin_op, element_type, memory_order);
+  }
+
+  static ArrayAtomicRMWOp& New(Graph* graph, V<WasmArrayNullable> array,
+                               V<Word32> index, OpIndex value,
+                               OptionalV<Any> expected, BinOp bin_op,
+                               wasm::ValueType element_type,
+                               AtomicMemoryOrder memory_order) {
+    return Base::New(graph, 3 + expected.valid(), array, index, value, expected,
+                     bin_op, element_type, memory_order);
+  }
 
   V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
   V<Word32> index() const { return input<Word32>(1); }
-  V<Word> value() const { return input<Word>(2); }
+  V<Any> value() const { return input<Any>(2); }
+  OptionalV<Any> expected() const {
+    return input_count == 4 ? input(3) : OpIndex::Invalid();
+  }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return base::VectorOf(&RepresentationFor(element_type), 1);
@@ -7393,6 +7489,12 @@ struct ArrayAtomicRMWOp : FixedArityOperationT<3, ArrayAtomicRMWOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    if (bin_op == BinOp::kCompareExchange) {
+      return InitVectorOf(
+          storage,
+          {RegisterRepresentation::Tagged(), RegisterRepresentation::Word32(),
+           RepresentationFor(element_type), RepresentationFor(element_type)});
+    }
     return InitVectorOf(storage, {RegisterRepresentation::Tagged(),
                                   RegisterRepresentation::Word32(),
                                   RepresentationFor(element_type)});
@@ -7401,6 +7503,7 @@ struct ArrayAtomicRMWOp : FixedArityOperationT<3, ArrayAtomicRMWOp> {
   void Validate(const Graph& graph) const {
     DCHECK(element_type == wasm::kWasmI32 || element_type == wasm::kWasmI64 ||
            (element_type.is_reference() && bin_op == BinOp::kExchange));
+    DCHECK_EQ(bin_op == BinOp::kCompareExchange, expected().valid());
   }
 
   auto options() const {

@@ -109,6 +109,7 @@ Chromeni yaxshilashda ishlatiladigan maʼlumotlar qoʻshimcha sozlamalarini <ph 
 <translation id="1419753403124156396">Chrome qayta ishga tushirilsinmi?</translation>
 <translation id="1428770807407000502">Sinxronizatsiya qilinsinmi?</translation>
 <translation id="1430915738399379752">Chop etish</translation>
+<translation id="1433478348197382180">Oʻqish rejimi</translation>
 <translation id="1435593198351412143">PDF fayllar avtomatik ochilsin</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" /> ilovasida ochilgan</translation>
 <translation id="1448440926884431741">Kuzatiladigan mahsulotlarni bukmarklarda tartiblang</translation>
@@ -545,7 +546,6 @@ Shifrlangan maʼlumotlarni faqatgina kodli ibora yordamida oʻqish mumkin. Kodli
 <translation id="3513019849832307207">Qoʻshilish va ochish</translation>
 <translation id="3513704683820682405">Boyitilgan reallik</translation>
 <translation id="3516053221628030540">Google Playni ochish</translation>
-<translation id="351672147489633468">{NUM_REVOKED_PERMISSIONS,plural, =1{Yaqinda ochilmagan bitta saytdan bildirishnomalar ruxsati olib tashlandi}other{Yaqinda ochilmagan # saytdan bildirishnomalar ruxsati olib tashlandi}}</translation>
 <translation id="3518985090088779359">Davom etish</translation>
 <translation id="3519014757432845220">Googlega saytning URL manzili va bildirishnoma kontentini ulashish orqali Spamdan himoyani yaxshilashga yordam bering. Kontent xodimlar tomonidan tekshirilishi mumkin.</translation>
 <translation id="3521388823983121502"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> bilan kirish imkonsiz</translation>
@@ -714,6 +714,7 @@ Shifrlangan maʼlumotlarni faqatgina kodli ibora yordamida oʻqish mumkin. Kodli
 <translation id="4298388696830689168">Aloqador saytlar</translation>
 <translation id="4300632303535881174">Avvalgi sahifaga</translation>
 <translation id="4303044213806199882">chrome_screenshot_<ph name="CURRENT_TIMESTAMP_MS" /></translation>
+<translation id="4306489587293957491">Kiritish</translation>
 <translation id="4307992518367153382">Asosiy</translation>
 <translation id="4311652497846705514">PDF faylni ochilsinmi?</translation>
 <translation id="4320177379694898372">Internet aloqasi yo‘q</translation>
@@ -1080,7 +1081,6 @@ Google hisobingiz orqali amalga oshirgan qidiruvlaringiz, brauzer tarixi va bosh
 <translation id="5956665950594638604">Chrome yordam markazini yangi varaqda ochish</translation>
 <translation id="59577092665511740">Hisobni tanlang.</translation>
 <translation id="5958275228015807058">Fayl va sahiflarni “Yuklanmalar” jildidan topish mumkin</translation>
-<translation id="5958994127112619898">Sahifani soddalashtirish</translation>
 <translation id="5962718611393537961">Bosib yig‘ish</translation>
 <translation id="5964869237734432770">Rasm tavsiflari yuklanmasin</translation>
 <translation id="5975083100439434680">Kichiklashtirish</translation>
@@ -1629,7 +1629,6 @@ Bu sozlamani oʻzgartirish uchun <ph name="BEGIN_LINK" />hisobingizda Chrome ma�
 <translation id="8137562778192957619">Bu parolni eslab qolishingiz shart emas. U Google Parollar menejeri xotirasida saqlanadi.</translation>
 <translation id="8152331954420209374">Lensni ochish</translation>
 <translation id="8163820386638255770">Parollarni Google hisobiga saqlashda va ulardan foydalanish uchun shaxsingizni tasdiqlang</translation>
-<translation id="8179976553408161302">Enter</translation>
 <translation id="8186512483418048923"><ph name="FILES" /> ta fayl qoldi</translation>
 <translation id="8190358571722158785">1 kun qoldi</translation>
 <translation id="8192765420340770300">Kirish oynasi quyi ekranda toʻliq hajmda ochildi</translation>
@@ -1651,7 +1650,6 @@ Bu sozlamani oʻzgartirish uchun <ph name="BEGIN_LINK" />hisobingizda Chrome ma�
 <translation id="8244387390464017490">Yangi varaqni moslash</translation>
 <translation id="8250920743982581267">Hujjatlar</translation>
 <translation id="8255617931166444521">Saytlar cookie fayllarni faqatgina u saytni kezish vaqtingizda koʻradi</translation>
-<translation id="8256087213273124136">Chrome bildirishnomalar obunasini bekor qildi</translation>
 <translation id="8258999165172757081">Qo‘shildi</translation>
 <translation id="8259179246279078674">Oldindan yuklanadigan sahifalar shifrlanadi. Google bunday sahifalar tarkibi haqida hech narsani bila olmaydi. Google serverlari qaysi saytlar maxfiy tarzda oldindan yuklanganligini biladi. Bu maʼlumot faqat saytlarni oldindan yuklash uchun ishlatiladi va Google hisobingizdagi boshqa maʼlumotlarga ulanmaydi.</translation>
 <translation id="8260126382462817229">Qaytadan kirib ko‘ring</translation>

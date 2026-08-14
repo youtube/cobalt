@@ -87,16 +87,16 @@ void LogDirtyRegionSupport() {
   }
 
   HSTRING dirty_region_mode;
-  hr = webrtc::CreateHstring(kDirtyRegionMode, wcslen(kDirtyRegionMode),
-                             &dirty_region_mode);
+  hr = CreateHstring(kDirtyRegionMode, wcslen(kDirtyRegionMode),
+                     &dirty_region_mode);
   if (FAILED(hr)) {
-    webrtc::DeleteHstring(dirty_region_mode);
+    DeleteHstring(dirty_region_mode);
     return;
   }
 
   HSTRING wgc_session_type;
-  hr = webrtc::CreateHstring(kWgcSessionType, wcslen(kWgcSessionType),
-                             &wgc_session_type);
+  hr = CreateHstring(kWgcSessionType, wcslen(kWgcSessionType),
+                     &wgc_session_type);
   if (SUCCEEDED(hr)) {
     boolean is_dirty_region_mode_supported =
         api_info_statics->IsPropertyPresent(wgc_session_type, dirty_region_mode,
@@ -104,8 +104,8 @@ void LogDirtyRegionSupport() {
     RTC_HISTOGRAM_BOOLEAN("WebRTC.DesktopCapture.Win.WgcDirtyRegionSupport",
                           !!is_dirty_region_mode_supported);
   }
-  webrtc::DeleteHstring(dirty_region_mode);
-  webrtc::DeleteHstring(wgc_session_type);
+  DeleteHstring(dirty_region_mode);
+  DeleteHstring(wgc_session_type);
 }
 
 }  // namespace
@@ -121,7 +121,7 @@ bool IsWgcSupported(CaptureType capture_type) {
     // There is a bug in the DWM (Desktop Window Manager) that prevents it from
     // providing image data if there are no displays attached. This was fixed in
     // Windows 11.
-    if (webrtc::rtc_win::GetVersion() < webrtc::rtc_win::Version::VERSION_WIN11)
+    if (rtc_win::GetVersion() < rtc_win::Version::VERSION_WIN11)
       return false;
   }
 
@@ -130,8 +130,7 @@ bool IsWgcSupported(CaptureType capture_type) {
   // we can't assert that we won't be asked to capture the entire virtual
   // screen, we report unsupported so we can fallback to another capturer.
   if (capture_type == CaptureType::kScreen &&
-      webrtc::rtc_win::GetVersion() <
-          webrtc::rtc_win::Version::VERSION_WIN10_20H1) {
+      rtc_win::GetVersion() < rtc_win::Version::VERSION_WIN10_20H1) {
     return false;
   }
 
@@ -150,26 +149,26 @@ bool IsWgcSupported(CaptureType capture_type) {
     return false;
 
   HSTRING api_contract;
-  hr = webrtc::CreateHstring(kApiContract, wcslen(kApiContract), &api_contract);
+  hr = CreateHstring(kApiContract, wcslen(kApiContract), &api_contract);
   if (FAILED(hr))
     return false;
 
   boolean is_api_present;
   hr = api_info_statics->IsApiContractPresentByMajor(
       api_contract, kRequiredApiContractVersion, &is_api_present);
-  webrtc::DeleteHstring(api_contract);
+  DeleteHstring(api_contract);
   if (FAILED(hr) || !is_api_present)
     return false;
 
   HSTRING wgc_session_type;
-  hr = webrtc::CreateHstring(kWgcSessionType, wcslen(kWgcSessionType),
-                             &wgc_session_type);
+  hr = CreateHstring(kWgcSessionType, wcslen(kWgcSessionType),
+                     &wgc_session_type);
   if (FAILED(hr))
     return false;
 
   boolean is_type_present;
   hr = api_info_statics->IsTypePresent(wgc_session_type, &is_type_present);
-  webrtc::DeleteHstring(wgc_session_type);
+  DeleteHstring(wgc_session_type);
   if (FAILED(hr) || !is_type_present)
     return false;
 
@@ -334,7 +333,7 @@ void WgcCapturerWin::CaptureFrame() {
     }
   }
 
-  int64_t capture_start_time_nanos = webrtc::TimeNanos();
+  int64_t capture_start_time_nanos = TimeNanos();
 
   WgcCaptureSession* capture_session = nullptr;
   std::map<SourceId, WgcCaptureSession>::iterator session_iter =
@@ -392,8 +391,8 @@ void WgcCapturerWin::CaptureFrame() {
     return;
   }
 
-  int capture_time_ms = (webrtc::TimeNanos() - capture_start_time_nanos) /
-                        webrtc::kNumNanosecsPerMillisec;
+  int capture_time_ms =
+      (TimeNanos() - capture_start_time_nanos) / kNumNanosecsPerMillisec;
   RTC_HISTOGRAM_COUNTS_1000("WebRTC.DesktopCapture.Win.WgcCapturerFrameTime",
                             capture_time_ms);
   frame->set_capture_time_ms(capture_time_ms);

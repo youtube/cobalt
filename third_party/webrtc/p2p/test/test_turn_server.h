@@ -64,7 +64,7 @@ class TestTurnServer : public TurnAuthInterface {
                  SocketFactory* socket_factory,
                  const SocketAddress& int_addr,
                  const SocketAddress& udp_ext_addr,
-                 ProtocolType int_protocol = webrtc::PROTO_UDP,
+                 ProtocolType int_protocol = PROTO_UDP,
                  bool ignore_bad_cert = true,
                  absl::string_view common_name = "test turn server")
       : server_(thread), socket_factory_(socket_factory) {
@@ -103,23 +103,23 @@ class TestTurnServer : public TurnAuthInterface {
                          bool ignore_bad_cert = true,
                          absl::string_view common_name = "test turn server") {
     RTC_DCHECK(thread_checker_.IsCurrent());
-    if (proto == webrtc::PROTO_UDP) {
+    if (proto == PROTO_UDP) {
       server_.AddInternalSocket(
           AsyncUDPSocket::Create(socket_factory_, int_addr), proto);
-    } else if (proto == webrtc::PROTO_TCP || proto == webrtc::PROTO_TLS) {
+    } else if (proto == PROTO_TCP || proto == PROTO_TLS) {
       // For TCP we need to create a server socket which can listen for incoming
       // new connections.
       Socket* socket = socket_factory_->CreateSocket(AF_INET, SOCK_STREAM);
       socket->Bind(int_addr);
       socket->Listen(5);
-      if (proto == webrtc::PROTO_TLS) {
+      if (proto == PROTO_TLS) {
         // For TLS, wrap the TCP socket with an SSL adapter. The adapter must
         // be configured with a self-signed certificate for testing.
         // Additionally, the client will not present a valid certificate, so we
         // must not fail when checking the peer's identity.
         std::unique_ptr<SSLAdapterFactory> ssl_adapter_factory =
             SSLAdapterFactory::Create();
-        ssl_adapter_factory->SetRole(webrtc::SSL_SERVER);
+        ssl_adapter_factory->SetRole(SSL_SERVER);
         ssl_adapter_factory->SetIdentity(
             SSLIdentity::Create(common_name, KeyParams()));
         ssl_adapter_factory->SetIgnoreBadCert(ignore_bad_cert);

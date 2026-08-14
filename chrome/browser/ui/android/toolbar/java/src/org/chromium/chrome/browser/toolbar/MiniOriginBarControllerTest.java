@@ -235,6 +235,19 @@ public class MiniOriginBarControllerTest {
     }
 
     @Test
+    public void testSkipAnimation() {
+        doReturn(ControlsPosition.BOTTOM).when(mBrowserControlsSizer).getControlsPosition();
+        mMiniOriginBarController.onControlsPositionChanged(ControlsPosition.BOTTOM);
+        mIsFormFieldFocused.onNodeAttributeUpdated(true, false);
+        mKeyboardVisibilityDelegate.setVisibilityForTests(true);
+
+        Assert.assertEquals(
+                MiniOriginState.SHOWING, mMiniOriginBarController.getCurrentStateForTesting());
+        verify(mLocationBarView).setScaleX(MiniOriginBarController.LOCATION_BAR_FINAL_SCALE);
+        verify(mLocationBarView).setScaleY(MiniOriginBarController.LOCATION_BAR_FINAL_SCALE);
+    }
+
+    @Test
     public void testAnimateWithKeyboard() {
         doReturn(ControlsPosition.BOTTOM).when(mBrowserControlsSizer).getControlsPosition();
         mMiniOriginBarController.onControlsPositionChanged(ControlsPosition.BOTTOM);
@@ -298,6 +311,7 @@ public class MiniOriginBarControllerTest {
                                 - mImeAnimation.getFraction()
                                         / MiniOriginBarController.LOCATION_BAR_SCALE_DENOMINATOR);
         verify(mLocationBarView).setPivotY(urlBarHeight / 2);
+        verify(mLocationBarView).setPivotX(0.0f);
 
         currentKeyboardHeight = 40;
         insets =

@@ -34,7 +34,7 @@ class MonoVadImpl : public VoiceActivityDetectorWrapper::MonoVad {
       : features_extractor_(cpu_features), rnn_vad_(cpu_features) {}
   MonoVadImpl(const MonoVadImpl&) = delete;
   MonoVadImpl& operator=(const MonoVadImpl&) = delete;
-  ~MonoVadImpl() = default;
+  ~MonoVadImpl() override = default;
 
   int SampleRateHz() const override { return rnn_vad::kSampleRate24kHz; }
   void Reset() override { rnn_vad_.Reset(); }

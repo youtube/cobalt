@@ -47,6 +47,8 @@ config("webgpu_implementation") {
 }
 
 component("gpu") {
+  # Do not depend on this component directly, depend on relevant gpu/{config,ipc,command_buffer}/{client,common,service} targets.
+  visibility = [ "//gpu/*" ]
   public_deps = [
     "//gpu/command_buffer/client:client_sources",
     "//gpu/command_buffer/common:common_sources",
@@ -310,7 +312,6 @@ test("gl_tests") {
 
   deps = [
     ":gles2",
-    ":gpu",
     ":test_support",
     "//base",
     "//base/test:test_support",
@@ -635,7 +636,6 @@ test("gpu_unittests") {
 
   deps = [
     ":gles2",
-    ":gpu",
     ":test_support",
     "//base",
     "//base/test:test_support",
@@ -720,7 +720,6 @@ test("gpu_perftests") {
   }
 
   deps = [
-    ":gpu",
     "//base",
     "//base/test:test_support",
     "//gpu/command_buffer/client:gles2_implementation",
@@ -792,9 +791,9 @@ if (enable_validating_command_decoder || is_linux) {
 
     deps = [
       ":gles2",
-      ":gpu",
       "//base",
       "//base:i18n",
+      "//gpu/command_buffer/service",
       "//ui/gfx/geometry",
       "//ui/gl",
       "//ui/gl:test_support",
@@ -818,8 +817,8 @@ fuzzer_test("gpu_angle_passthrough_fuzzer") {
 
   deps = [
     ":gles2",
-    ":gpu",
     "//base",
+    "//gpu/command_buffer/service",
     "//ui/gfx/geometry",
     "//ui/gl",
     "//ui/gl:test_support",
@@ -843,8 +842,8 @@ fuzzer_test("gpu_swangle_passthrough_fuzzer") {
 
   deps = [
     ":gles2",
-    ":gpu",
     "//base",
+    "//gpu/command_buffer/service",
     "//ui/gfx/geometry",
     "//ui/gl",
     "//ui/gl:test_support",
@@ -865,8 +864,8 @@ if (is_linux || is_chromeos) {
 
     deps = [
       ":gles2",
-      ":gpu",
       "//base",
+      "//gpu/command_buffer/service",
       "//ui/gfx/geometry",
       "//ui/gl",
       "//ui/gl:test_support",
@@ -890,8 +889,8 @@ if (is_linux || is_chromeos) {
 
     deps = [
       ":gles2",
-      ":gpu",
       "//base",
+      "//gpu/command_buffer/service",
       "//ui/gfx/geometry",
       "//ui/gl",
       "//ui/gl:test_support",
@@ -916,8 +915,8 @@ if (is_linux || is_chromeos) {
 
     deps = [
       ":gles2",
-      ":gpu",
       "//base",
+      "//gpu/command_buffer/service",
       "//ui/gfx/geometry",
       "//ui/gl",
       "//ui/gl:test_support",

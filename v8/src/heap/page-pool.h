@@ -34,7 +34,6 @@ class PagePool final {
   // Tries to get page from the pool. Order of priority for pools:
   //   (1) Local pool for the isolate.
   //   (2) Shared pool.
-  //   (3) Steal from another isolate.
   MutablePageMetadata* Remove(Isolate* isolate);
 
   void AddLarge(Isolate* isolate, std::vector<LargePageMetadata*>& pages);
@@ -54,8 +53,6 @@ class PagePool final {
 
   // Releases the pooled pages of a specific isolate immediately.
   V8_EXPORT_PRIVATE void ReleaseImmediately(Isolate* isolate);
-  // Releases pooled pages of all isolates.
-  void ReleaseImmediately();
 
   // Releases large poold pages immediately.
   void ReleaseLargeImmediately();

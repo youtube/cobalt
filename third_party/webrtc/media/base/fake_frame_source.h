@@ -43,7 +43,7 @@ class FakeFrameSource {
   const int height_;
   const int interval_us_;
 
-  VideoRotation rotation_ = webrtc::kVideoRotation_0;
+  VideoRotation rotation_ = kVideoRotation_0;
   int64_t next_timestamp_us_;
 };
 

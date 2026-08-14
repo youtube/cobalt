@@ -9134,7 +9134,7 @@ bool NavigationRequest::IsInPrimaryMainFrame() const {
   return GetNavigatingFrameType() == FrameType::kPrimaryMainFrame;
 }
 
-bool NavigationRequest::IsInOutermostMainFrame() {
+bool NavigationRequest::IsInOutermostMainFrame() const {
   switch (GetNavigatingFrameType()) {
     case FrameType::kPrimaryMainFrame:
     case FrameType::kPrerenderMainFrame:

@@ -158,6 +158,12 @@ struct ContextualSearch : Config<ContextualSearch> {
   // (non-contextual) zero suggest matches altogether.
   bool contextual_suggestions_ablate_search_only;
 
+  // Whether to restrict the ablation logic, triggered via
+  // `contextual_suggestions_ablate_others_when_present`, such that we only
+  // remove URL suggestions, instead of removing all (non-contextual) zero
+  // suggest matches altogether.
+  bool contextual_suggestions_ablate_url_only;
+
   // Whether the starter pack page scope is enabled.
   bool starter_pack_page;
 
@@ -228,8 +234,9 @@ struct Toolbelt : Config<Toolbelt> {
   // Whether the toolbelt is to be included in the omnibox.
   bool enabled;
 
-  // Whether the toolbelt will be preserved after zero suggest when user types.
-  bool keep_toolbelt_after_zps;
+  // Whether the toolbelt will be preserved after user types (after
+  // input clears the zero suggest).
+  bool keep_toolbelt_after_input;
 
   // Whether the lens entrypoint action should stay unconditionally on the
   // toolbelt. When this is false, the regular triggering conditions apply

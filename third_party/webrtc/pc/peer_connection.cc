@@ -36,7 +36,6 @@
 #include "api/dtls_transport_interface.h"
 #include "api/environment/environment.h"
 #include "api/jsep.h"
-#include "api/jsep_ice_candidate.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
@@ -2417,8 +2416,8 @@ void PeerConnection::OnTransportControllerCandidatesGathered(
   for (Candidates::const_iterator citer = candidates.begin();
        citer != candidates.end(); ++citer) {
     // Use transport_name as the candidate media id.
-    std::unique_ptr<JsepIceCandidate> candidate(
-        new JsepIceCandidate(transport_name, sdp_mline_index, *citer));
+    std::unique_ptr<IceCandidate> candidate(
+        new IceCandidate(transport_name, sdp_mline_index, *citer));
     sdp_handler_->AddLocalIceCandidate(candidate.get());
     OnIceCandidate(std::move(candidate));
   }

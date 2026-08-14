@@ -111,6 +111,7 @@
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/resize_observer/resize_observer_size.h"
 #include "third_party/blink/renderer/core/scroll/scroll_into_view_util.h"
+#include "third_party/blink/renderer/core/scroll/scrollbar_theme.h"
 #include "third_party/blink/renderer/core/style/computed_style_base_constants.h"
 #include "third_party/blink/renderer/core/style/shadow_list.h"
 #include "third_party/blink/renderer/core/style/style_overflow_clip_margin.h"
@@ -422,28 +423,20 @@ void ApplyOverflowClip(OverflowClipAxes overflow_clip_axes,
 }
 
 int HypotheticalScrollbarThickness(const LayoutBox& box,
-                                   ScrollbarOrientation scrollbar_orientation,
-                                   bool should_include_overlay_thickness) {
-  box.CheckIsNotDestroyed();
-
+                                   ScrollbarOrientation scrollbar_orientation) {
   if (PaintLayerScrollableArea* scrollable_area = box.GetScrollableArea()) {
     return scrollable_area->HypotheticalScrollbarThickness(
-        scrollbar_orientation, should_include_overlay_thickness);
-  } else {
-    Page* page = box.GetFrame()->GetPage();
-    ScrollbarTheme& theme = page->GetScrollbarTheme();
-
-    if (theme.UsesOverlayScrollbars() && !should_include_overlay_thickness) {
-      return 0;
-    } else {
-      ChromeClient& chrome_client = page->GetChromeClient();
-      Document& document = box.GetDocument();
-      float scale_from_dip =
-          chrome_client.WindowToViewportScalar(document.GetFrame(), 1.0f);
-      return theme.ScrollbarThickness(scale_from_dip,
-                                      box.StyleRef().UsedScrollbarWidth());
-    }
+        scrollbar_orientation, /* should_include_overlay_thickness */ true);
   }
+  Page* page = box.GetFrame()->GetPage();
+  ScrollbarTheme& theme = page->GetScrollbarTheme();
+
+  ChromeClient& chrome_client = page->GetChromeClient();
+  Document& document = box.GetDocument();
+  float scale_from_dip =
+      chrome_client.WindowToViewportScalar(document.GetFrame(), 1.0f);
+  return theme.ScrollbarThickness(scale_from_dip,
+                                  box.StyleRef().UsedScrollbarWidth());
 }
 
 void RecalcFragmentScrollableOverflow(RecalcScrollableOverflowResult& result,
@@ -1571,8 +1564,8 @@ PhysicalBoxStrut LayoutBox::ComputeScrollbarsInternal(
 
   if (include_scrollbar_gutter == kIncludeScrollbarGutter &&
       HasScrollbarGutters(kVerticalScrollbar)) {
-    LayoutUnit gutter_size = LayoutUnit(HypotheticalScrollbarThickness(
-        *this, kVerticalScrollbar, /* include_overlay_thickness */ true));
+    LayoutUnit gutter_size =
+        LayoutUnit(HypotheticalScrollbarThickness(*this, kVerticalScrollbar));
     if (ShouldPlaceVerticalScrollbarOnLeft()) {
       scrollbars.left = gutter_size;
       if (StyleRef().IsScrollbarGutterBothEdges())
@@ -1594,9 +1587,8 @@ PhysicalBoxStrut LayoutBox::ComputeScrollbarsInternal(
 
   if (include_scrollbar_gutter == kIncludeScrollbarGutter &&
       HasScrollbarGutters(kHorizontalScrollbar)) {
-    LayoutUnit gutter_size = LayoutUnit(
-        HypotheticalScrollbarThickness(*this, kHorizontalScrollbar,
-                                       /* include_overlay_thickness */ true));
+    LayoutUnit gutter_size =
+        LayoutUnit(HypotheticalScrollbarThickness(*this, kHorizontalScrollbar));
     scrollbars.bottom = gutter_size;
     if (StyleRef().IsScrollbarGutterBothEdges())
       scrollbars.top = gutter_size;
@@ -3207,7 +3199,9 @@ PhysicalRect LayoutBox::LocalCaretRect(int caret_offset,
   // They never refer to children.
   // FIXME: Paint the carets inside empty blocks differently than the carets
   // before/after elements.
-  LayoutUnit caret_width = GetFrameView()->CaretWidth();
+  // TODO(crbug.com/353713061): Add support for caret-shape: underscore and
+  // caret-shape: block cases.
+  LayoutUnit caret_width = GetFrameView()->BarCaretWidth();
   LogicalSize size(LogicalWidth(), LogicalHeight());
 
   LayoutUnit caret_block_size = size.block_size;

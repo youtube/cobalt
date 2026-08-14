@@ -26,12 +26,12 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
-#include "src/compiler/turboshaft/maglev-early-lowering-reducer-inl.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/sidetable.h"
+#include "src/compiler/turboshaft/turbolev-early-lowering-reducer-inl.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
@@ -482,7 +482,7 @@ constexpr bool TooManyArgumentsForCall(size_t arguments_count) {
 class GraphBuildingNodeProcessor {
  public:
   using AssemblerT =
-      TSAssembler<BlockOriginTrackingReducer, MaglevEarlyLoweringReducer,
+      TSAssembler<BlockOriginTrackingReducer, TurbolevEarlyLoweringReducer,
                   MachineOptimizationReducer, VariableReducer,
                   RequiredOptimizationReducer, ValueNumberingReducer>;
 
@@ -3689,6 +3689,17 @@ class GraphBuildingNodeProcessor {
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  maglev::ProcessResult Process(maglev::BranchIfFloat64IsUndefinedOrHole* node,
+                                const maglev::ProcessingState& state) {
+    V<Float64> input = Map(node->condition_input());
+    V<Word32> undefined_condition = __ Float64IsUndefined(input);
+    __ GotoIf(undefined_condition, Map(node->if_true()));
+    V<Word32> hole_condition = __ Float64IsHole(Map(node->condition_input()));
+    __ Branch(hole_condition, Map(node->if_true()), Map(node->if_false()));
+    return maglev::ProcessResult::kContinue;
+  }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   maglev::ProcessResult Process(maglev::BranchIfReferenceEqual* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> condition =
@@ -3914,6 +3925,37 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::Int32Add* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ Word32Add(Map(node->left_input()), Map(node->right_input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Int32Subtract* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ Word32Sub(Map(node->left_input()), Map(node->right_input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Int32Multiply* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ Word32Mul(Map(node->left_input()), Map(node->right_input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Int32Divide* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> lhs = Map(node->left_input());
+    V<Word32> rhs = Map(node->right_input());
+    ScopedVar<Word32, AssemblerT> result(this);
+    IF (UNLIKELY(__ Word32Equal(rhs, 0))) {
+      result = __ Word32Constant(0);
+    } ELSE {
+      result = __ Int32Div(lhs, rhs);
+    }
+    SetMap(node, result);
+    return maglev::ProcessResult::kContinue;
+  }
 #define PROCESS_BINOP_WITH_OVERFLOW(MaglevName, TurboshaftName,                \
                                     minus_zero_mode)                           \
   maglev::ProcessResult Process(maglev::Int32##MaglevName##WithOverflow* node, \
@@ -3970,9 +4012,33 @@ class GraphBuildingNodeProcessor {
     SetMap(node, __ Word32CountLeadingZeros(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::SmiCountLeadingZeros* node,
+  maglev::ProcessResult Process(maglev::TaggedCountLeadingZeros* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ Word32CountLeadingZeros(__ UntagSmi(Map(node->input()))));
+    ScopedVar<Word32, AssemblerT> result(this);
+    V<Object> value = Map(node->input());
+    IF (__ IsSmi(value)) {
+      result = __ Word32CountLeadingZeros(__ UntagSmi(V<Smi>::Cast(value)));
+    } ELSE {
+#ifdef DEBUG
+      Label<> abort(this);
+      Label<> heap_number(this);
+
+      V<i::Map> map = __ LoadMapField(value);
+      V<Word32> is_heap_number = __ TaggedEqual(
+          map, __ HeapConstant(local_factory_->heap_number_map()));
+      GOTO_IF_NOT(is_heap_number, abort);
+      GOTO(heap_number);
+
+      BIND(abort);
+      __ RuntimeAbort(AbortReason::kUnexpectedValue);
+      __ Unreachable();
+
+      BIND(heap_number);
+#endif
+      result = __ Word32CountLeadingZeros(__ JSTruncateFloat64ToWord32(
+          __ LoadHeapNumberValue(V<HeapNumber>::Cast(value))));
+    }
+    SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Float64CountLeadingZeros* node,
@@ -4867,10 +4933,6 @@ class GraphBuildingNodeProcessor {
   }
 
   // Nodes unused by maglev but still existing.
-  maglev::ProcessResult Process(maglev::ExternalConstant*,
-                                const maglev::ProcessingState&) {
-    UNREACHABLE();
-  }
   maglev::ProcessResult Process(maglev::CallCPPBuiltin*,
                                 const maglev::ProcessingState&) {
     UNREACHABLE();
@@ -5231,7 +5293,7 @@ class GraphBuildingNodeProcessor {
       // simply NumberConstant), because they could be mutable HeapNumber
       // fields, in which case we don't want GVN to merge them.
       constexpr int kNumberOfField = 2;  // map + value
-      builder.AddDematerializedObject(deduplicator_.CreateFreshId().id,
+      builder.AddDematerializedObject(deduplicator_.CreateUnduplicatableId().id,
                                       kNumberOfField);
       builder.AddInput(MachineType::AnyTagged(),
                        __ HeapConstant(local_factory_->heap_number_map()));
@@ -5349,7 +5411,6 @@ class GraphBuildingNodeProcessor {
           break;
 
         case maglev::Opcode::kTaggedIndexConstant:
-        case maglev::Opcode::kExternalConstant:
         default:
           UNREACHABLE();
       }
@@ -5383,28 +5444,28 @@ class GraphBuildingNodeProcessor {
       bool duplicated;
     };
     DuplicatedId GetDuplicatedId(const maglev::VirtualObject* object) {
+      DCHECK_NOT_NULL(object);
       // TODO(dmercadier): do better than a linear search here.
       for (uint32_t idx = 0; idx < object_ids_.size(); idx++) {
         if (object_ids_[idx] == object) {
           return {idx, true};
         }
       }
-      object_ids_.push_back(object);
-      return {next_id_++, false};
+      return CreateFreshId(object);
     }
 
-    DuplicatedId CreateFreshId() { return {next_id_++, false}; }
+    DuplicatedId CreateUnduplicatableId() { return CreateFreshId(nullptr); }
 
-    void Reset() {
-      object_ids_.clear();
-      next_id_ = 0;
-    }
-
-    static const uint32_t kNotDuplicated = -1;
+    void Reset() { object_ids_.clear(); }
 
    private:
+    DuplicatedId CreateFreshId(const maglev::VirtualObject* object) {
+      uint32_t next_id = static_cast<uint32_t>(object_ids_.size());
+      object_ids_.push_back(object);
+      return {next_id, false};
+    }
+
     std::vector<const maglev::VirtualObject*> object_ids_;
-    uint32_t next_id_ = 0;
   };
 
   OutputFrameStateCombine ComputeCombine(maglev::InterpretedDeoptFrame& frame,
@@ -6245,12 +6306,11 @@ void PrintBytecode(PipelineData& data,
 }
 
 void PrintMaglevGraph(PipelineData& data,
-                      maglev::MaglevCompilationInfo* compilation_info,
                       maglev::Graph* maglev_graph, const char* msg) {
   CodeTracer* code_tracer = data.GetCodeTracer();
   CodeTracer::StreamScope tracing_scope(code_tracer);
   tracing_scope.stream() << "\n----- " << msg << " -----" << std::endl;
-  maglev::PrintGraph(tracing_scope.stream(), compilation_info, maglev_graph);
+  maglev::PrintGraph(tracing_scope.stream(), maglev_graph);
 }
 
 // TODO(dmercadier, nicohartmann): consider doing some of these optimizations on
@@ -6261,11 +6321,10 @@ void PrintMaglevGraph(PipelineData& data,
 // analysis...).
 void RunMaglevOptimizations(PipelineData* data,
                             maglev::MaglevCompilationInfo* compilation_info,
-                            maglev::MaglevGraphBuilder& maglev_graph_builder,
                             maglev::Graph* maglev_graph) {
   // Non-eager inlining.
   if (v8_flags.turbolev_non_eager_inlining) {
-    maglev::MaglevInliner inliner(compilation_info, maglev_graph);
+    maglev::MaglevInliner inliner(maglev_graph);
     inliner.Run(data->info()->trace_turbo_graph());
 
     maglev::GraphProcessor<maglev::SweepIdentityNodes,
@@ -6274,16 +6333,25 @@ void RunMaglevOptimizations(PipelineData* data,
     sweep.ProcessGraph(maglev_graph);
   }
 
-  // Phi untagging.
-  {
-    maglev::GraphProcessor<maglev::MaglevPhiRepresentationSelector> processor(
-        &maglev_graph_builder);
+  // Truncation pass.
+  if (v8_flags.maglev_truncation) {
+    maglev::GraphProcessor<maglev::TruncationProcessor> processor(maglev_graph);
     processor.ProcessGraph(maglev_graph);
   }
 
   if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
-    PrintMaglevGraph(*data, compilation_info, maglev_graph,
-                     "After phi untagging");
+    PrintMaglevGraph(*data, maglev_graph, "After truncation");
+  }
+
+  // Phi untagging.
+  {
+    maglev::GraphProcessor<maglev::MaglevPhiRepresentationSelector> processor(
+        maglev_graph);
+    processor.ProcessGraph(maglev_graph);
+  }
+
+  if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
+    PrintMaglevGraph(*data, maglev_graph, "After phi untagging");
   }
 
   // Escape analysis.
@@ -6301,20 +6369,19 @@ void RunMaglevOptimizations(PipelineData* data,
   // Dead nodes elimination (which, amongst other things, cleans up the left
   // overs of escape analysis).
   {
-    maglev::GraphMultiProcessor<maglev::DeadNodeSweepingProcessor> processor(
-        maglev::DeadNodeSweepingProcessor{compilation_info});
+    maglev::GraphMultiProcessor<maglev::DeadNodeSweepingProcessor> processor;
     processor.ProcessGraph(maglev_graph);
   }
 
   if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
-    PrintMaglevGraph(*data, compilation_info, maglev_graph,
+    PrintMaglevGraph(*data, maglev_graph,
                      "After escape analysis and dead node sweeping");
   }
 }
 
-std::optional<BailoutReason> MaglevGraphBuildingPhase::Run(PipelineData* data,
-                                                           Zone* temp_zone,
-                                                           Linkage* linkage) {
+std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
+                                                             Zone* temp_zone,
+                                                             Linkage* linkage) {
   JSHeapBroker* broker = data->broker();
   UnparkedScopeIfNeeded unparked_scope(broker);
 
@@ -6336,8 +6403,7 @@ std::optional<BailoutReason> MaglevGraphBuildingPhase::Run(PipelineData* data,
   }
 
   LocalIsolate* local_isolate = broker->local_isolate_or_isolate();
-  maglev::Graph* maglev_graph =
-      maglev::Graph::New(temp_zone, data->info()->is_osr());
+  maglev::Graph* maglev_graph = maglev::Graph::New(compilation_info.get());
 
   // We always create a MaglevGraphLabeller in order to record source positions.
   compilation_info->set_graph_labeller(new maglev::MaglevGraphLabeller());
@@ -6348,12 +6414,10 @@ std::optional<BailoutReason> MaglevGraphBuildingPhase::Run(PipelineData* data,
   maglev_graph_builder.Build();
 
   if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
-    PrintMaglevGraph(*data, compilation_info.get(), maglev_graph,
-                     "After graph building");
+    PrintMaglevGraph(*data, maglev_graph, "After graph building");
   }
 
-  RunMaglevOptimizations(data, compilation_info.get(), maglev_graph_builder,
-                         maglev_graph);
+  RunMaglevOptimizations(data, compilation_info.get(), maglev_graph);
 
   // TODO(nicohartmann): Should we have source positions here?
   data->InitializeGraphComponent(nullptr);

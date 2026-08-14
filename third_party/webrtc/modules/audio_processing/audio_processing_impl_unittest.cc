@@ -121,7 +121,7 @@ class TestEchoDetector : public EchoDetector {
 class TestRenderPreProcessor : public CustomProcessing {
  public:
   TestRenderPreProcessor() = default;
-  ~TestRenderPreProcessor() = default;
+  ~TestRenderPreProcessor() override = default;
   void Initialize(int /* sample_rate_hz */, int /* num_channels */) override {}
   void Process(AudioBuffer* audio) override {
     for (size_t k = 0; k < audio->num_channels(); ++k) {

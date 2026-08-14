@@ -1230,6 +1230,10 @@ config("features") {
     defines += [ "V8_ENABLE_ALLOCATION_TIMEOUT" ]
     defines += [ "V8_ENABLE_FORCE_SLOW_PATH" ]
     defines += [ "V8_ENABLE_DOUBLE_CONST_STORE_CHECK" ]
+
+    # Expose the runtime flag --hashes-collide for fuzzing purposes (to create
+    # hash collisions all the time).
+    defines += [ "V8_HASHES_COLLIDE" ]
   }
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]
@@ -3625,6 +3629,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/graph-builder.h",
     "src/compiler/turboshaft/graph-visualizer.h",
     "src/compiler/turboshaft/graph.h",
+    "src/compiler/turboshaft/if-else-cascade-to-switch-reducer.h",
     "src/compiler/turboshaft/index.h",
     "src/compiler/turboshaft/instruction-selection-normalization-reducer.h",
     "src/compiler/turboshaft/instruction-selection-phase.h",
@@ -3641,7 +3646,6 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/machine-lowering-phase.h",
     "src/compiler/turboshaft/machine-lowering-reducer-inl.h",
     "src/compiler/turboshaft/machine-optimization-reducer.h",
-    "src/compiler/turboshaft/maglev-early-lowering-reducer-inl.h",
     "src/compiler/turboshaft/memory-optimization-reducer.h",
     "src/compiler/turboshaft/operation-matcher.h",
     "src/compiler/turboshaft/operations.h",
@@ -3665,8 +3669,8 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/store-store-elimination-reducer-inl.h",
     "src/compiler/turboshaft/string-escape-analysis-reducer.h",
     "src/compiler/turboshaft/string-view.h",
-    "src/compiler/turboshaft/structural-optimization-reducer.h",
     "src/compiler/turboshaft/tracing.h",
+    "src/compiler/turboshaft/turbolev-early-lowering-reducer-inl.h",
     "src/compiler/turboshaft/turbolev-graph-builder.h",
     "src/compiler/turboshaft/type-assertions-phase.h",
     "src/compiler/turboshaft/type-inference-analysis.h",
@@ -4266,6 +4270,7 @@ v8_header_set("v8_internal_headers") {
     "src/sandbox/code-pointer-table-inl.h",
     "src/sandbox/code-pointer-table.h",
     "src/sandbox/code-pointer.h",
+    "src/sandbox/code-sandboxing-mode.h",
     "src/sandbox/compactible-external-entity-table-inl.h",
     "src/sandbox/compactible-external-entity-table.h",
     "src/sandbox/cppheap-pointer-inl.h",
@@ -5184,6 +5189,7 @@ if (!v8_enable_maglev) {
     "src/maglev/maglev-compilation-unit.cc",
     "src/maglev/maglev-graph-builder.cc",
     "src/maglev/maglev-graph-printer.cc",
+    "src/maglev/maglev-graph.cc",
     "src/maglev/maglev-interpreter-frame-state.cc",
     "src/maglev/maglev-ir.cc",
     "src/maglev/maglev-phi-representation-selector.cc",
@@ -5918,6 +5924,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/maglev/maglev-concurrent-dispatcher.cc",
       "src/maglev/maglev-graph-builder.cc",
       "src/maglev/maglev-graph-printer.cc",
+      "src/maglev/maglev-graph.cc",
       "src/maglev/maglev-interpreter-frame-state.cc",
       "src/maglev/maglev-ir.cc",
       "src/maglev/maglev-phi-representation-selector.cc",

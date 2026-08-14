@@ -504,7 +504,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   uint32_t selected_candidate_pair_changes_ = 0;
 
   // When was last data received on a existing connection,
-  // from connection->last_data_received() that uses webrtc::TimeMillis().
+  // from connection->last_data_received() that uses TimeMillis().
   int64_t last_data_received_ms_ = 0;
 
   // Parsed field trials.

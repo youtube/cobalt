@@ -36,7 +36,7 @@ class AudioBuffer {
  public:
   static const int kSplitBandSize = 160;
   // TODO(tommi): Remove this (`AudioBuffer::kMaxSampleRate`) constant.
-  static const int kMaxSampleRate = webrtc::kMaxSampleRateHz;
+  static const int kMaxSampleRate = kMaxSampleRateHz;
   AudioBuffer(size_t input_rate,
               size_t input_num_channels,
               size_t buffer_rate,

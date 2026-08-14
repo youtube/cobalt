@@ -83,7 +83,7 @@ class TestController {
   SocketAddress remote_address_;
   std::unique_ptr<PacketSender> packet_sender_
       RTC_GUARDED_BY(packet_sender_thread_);
-  scoped_refptr<webrtc::PendingTaskSafetyFlag> task_safety_flag_;
+  scoped_refptr<PendingTaskSafetyFlag> task_safety_flag_;
 };
 
 }  // namespace webrtc

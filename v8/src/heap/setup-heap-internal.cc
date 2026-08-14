@@ -286,7 +286,7 @@ void InitializePartialMap(Isolate* isolate, Tagged<Map> map,
   map->set_visitor_id(Map::GetVisitorId(map));
   map->set_inobject_properties_start_or_constructor_function_index(0);
   DCHECK(!IsJSObjectMap(map));
-  map->set_prototype_validity_cell(Map::kPrototypeChainValidSmi, kRelaxedStore);
+  map->set_prototype_validity_cell(Map::kNoValidityCellSentinel, kRelaxedStore);
   map->SetInObjectUnusedPropertyFields(0);
   map->set_bit_field(0);
   map->set_bit_field2(0);
@@ -674,13 +674,13 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     ALLOCATE_MAP(CELL_TYPE, Cell::kSize, cell);
     {
       // The invalid_prototype_validity_cell is needed for JSObject maps.
-      Tagged<Smi> value = Smi::FromInt(Map::kPrototypeChainInvalid);
       AllocationResult alloc =
           AllocateRaw(Cell::kSize, AllocationType::kReadOnly);
       if (!alloc.To(&obj)) return false;
       obj->set_map_after_allocation(isolate(), roots.cell_map(),
                                     SKIP_WRITE_BARRIER);
-      Cast<Cell>(obj)->set_value(value);
+      Cast<Cell>(obj)->set_maybe_value(Map::kPrototypeChainInvalid,
+                                       SKIP_WRITE_BARRIER);
       set_invalid_prototype_validity_cell(Cast<Cell>(obj));
     }
 
@@ -1438,7 +1438,6 @@ void Heap::CreateInitialMutableObjects() {
   set_shared_wasm_memories(roots.empty_weak_array_list());
   set_locals_block_list_cache(roots.undefined_value());
 #ifdef V8_ENABLE_WEBASSEMBLY
-  set_active_suspender(roots.undefined_value());
   set_js_to_wasm_wrappers(roots.empty_weak_fixed_array());
   set_wasm_canonical_rtts(roots.empty_weak_fixed_array());
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -6392,7 +6392,6 @@ void Context::bindBufferRange(BufferBinding target,
     if (target == BufferBinding::Uniform)
     {
         mUniformBufferObserverBindings[index].bind(object);
-        mState.onUniformBufferStateChange(index);
         mStateCache.onUniformBufferStateChange(this);
     }
     else if (target == BufferBinding::AtomicCounter)

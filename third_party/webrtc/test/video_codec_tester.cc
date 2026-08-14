@@ -536,7 +536,7 @@ class VideoCodecAnalyzer : public VideoCodecTester::VideoCodecStats {
     }
   }
 
-  std::vector<Frame> Slice(Filter filter, bool merge) const {
+  std::vector<Frame> Slice(Filter filter, bool merge) const override {
     std::vector<Frame> slice;
     for (const auto& [timestamp_rtp, temporal_unit_frames] : frames_) {
       if (temporal_unit_frames.empty()) {
@@ -614,7 +614,7 @@ class VideoCodecAnalyzer : public VideoCodecTester::VideoCodecStats {
     return slice;
   }
 
-  Stream Aggregate(Filter filter) const {
+  Stream Aggregate(Filter filter) const override {
     std::vector<Frame> frames = Slice(filter, /*merge=*/true);
     Stream stream;
     LeakyBucket leaky_bucket;
@@ -708,7 +708,7 @@ class VideoCodecAnalyzer : public VideoCodecTester::VideoCodecStats {
 
   void LogMetrics(absl::string_view csv_path,
                   std::vector<Frame> frames,
-                  std::map<std::string, std::string> metadata) const {
+                  std::map<std::string, std::string> metadata) const override {
     RTC_LOG(LS_INFO) << "Write metrics to " << csv_path;
     FILE* csv_file = fopen(csv_path.data(), "w");
     const std::string delimiter = ";";

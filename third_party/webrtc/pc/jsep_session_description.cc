@@ -264,6 +264,20 @@ bool JsepSessionDescription::AddCandidate(const IceCandidate* candidate) {
   return true;
 }
 
+bool JsepSessionDescription::RemoveCandidate(const IceCandidate* candidate) {
+  size_t mediasection_index = 0u;
+  if (!GetMediasectionIndex(candidate, &mediasection_index)) {
+    return false;
+  }
+  if (!candidate_collection_[mediasection_index].remove(candidate)) {
+    return false;
+  }
+  UpdateConnectionAddress(
+      candidate_collection_[mediasection_index],
+      description_->contents()[mediasection_index].media_description());
+  return true;
+}
+
 size_t JsepSessionDescription::RemoveCandidates(
     const std::vector<Candidate>& candidates) {
   size_t num_removed = 0;

@@ -10,25 +10,6 @@
 
 #include "rtc_base/openssl_utility.h"
 
-#include <cstddef>
-#include <cstdint>
-#include <string>
-#include <vector>
-
-#include "rtc_base/checks.h"
-#include "rtc_base/numerics/safe_conversions.h"
-#include "rtc_base/openssl.h"
-#include "test/gtest.h"
-
-#if defined(WEBRTC_POSIX)
-#include <unistd.h>
-#endif
-
-#if defined(WEBRTC_WIN)
-// Must be included first before openssl headers.
-#include "rtc_base/win32.h"  // NOLINT
-#endif                       // WEBRTC_WIN
-
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
 #include <openssl/evp.h>
@@ -39,6 +20,16 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #endif
+
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <vector>
+
+#include "rtc_base/checks.h"
+#include "rtc_base/numerics/safe_conversions.h"
+#include "rtc_base/openssl.h"
+#include "test/gtest.h"
 
 namespace webrtc {
 namespace {

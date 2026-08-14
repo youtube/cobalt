@@ -10,6 +10,12 @@
 
 #include "test/scoped_key_value_config.h"
 
+#include <functional>
+#include <map>
+#include <memory>
+#include <string>
+
+#include "absl/strings/string_view.h"
 #include "rtc_base/checks.h"
 #include "system_wrappers/include/field_trial.h"
 #include "test/field_trial.h"

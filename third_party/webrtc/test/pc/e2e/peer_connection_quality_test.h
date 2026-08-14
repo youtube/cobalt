@@ -36,7 +36,7 @@
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
-#include "test/pc/e2e/analyzer/video/encoded_image_data_injector.h"
+#include "test/pc/e2e/analyzer/video/single_process_encoded_image_data_injector.h"
 #include "test/pc/e2e/analyzer/video/video_quality_analyzer_injection_helper.h"
 #include "test/pc/e2e/analyzer_helper.h"
 #include "test/pc/e2e/media/media_helper.h"
@@ -119,7 +119,7 @@ class PeerConnectionE2EQualityTest
   std::unique_ptr<VideoQualityAnalyzerInjectionHelper>
       video_quality_analyzer_injection_helper_;
   std::unique_ptr<MediaHelper> media_helper_;
-  std::unique_ptr<EncodedImageDataPropagator> encoded_image_data_propagator_;
+  SingleProcessEncodedImageDataInjector encoded_image_data_propagator_;
   std::unique_ptr<AudioQualityAnalyzerInterface> audio_quality_analyzer_;
   std::unique_ptr<TestActivitiesExecutor> executor_;
   test::MetricsLogger* const metrics_logger_;

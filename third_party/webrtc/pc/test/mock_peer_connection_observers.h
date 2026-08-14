@@ -27,7 +27,6 @@
 #include "api/candidate.h"
 #include "api/data_channel_interface.h"
 #include "api/jsep.h"
-#include "api/jsep_ice_candidate.h"
 #include "api/legacy_stats_types.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
@@ -138,7 +137,7 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
   }
   void OnIceCandidate(const IceCandidate* candidate) override {
     RTC_DCHECK(pc_);
-    candidates_.push_back(std::make_unique<JsepIceCandidate>(
+    candidates_.push_back(std::make_unique<IceCandidate>(
         candidate->sdp_mid(), candidate->sdp_mline_index(),
         candidate->candidate()));
     callback_triggered_ = true;

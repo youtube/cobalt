@@ -80,6 +80,8 @@ static const char* uarch_to_string(enum cpuinfo_uarch uarch) {
 			return "Palm Cove";
 		case cpuinfo_uarch_sunny_cove:
 			return "Sunny Cove";
+		case cpuinfo_uarch_willow_cove:
+			return "Willow Cove";
 		case cpuinfo_uarch_willamette:
 			return "Willamette";
 		case cpuinfo_uarch_prescott:
@@ -98,6 +100,8 @@ static const char* uarch_to_string(enum cpuinfo_uarch uarch) {
 			return "Goldmont";
 		case cpuinfo_uarch_goldmont_plus:
 			return "Goldmont Plus";
+		case cpuinfo_uarch_darkmont:
+			return "Darkmont";
 		case cpuinfo_uarch_knights_ferry:
 			return "Knights Ferry";
 		case cpuinfo_uarch_knights_corner:

@@ -24,7 +24,7 @@ namespace webrtc {
 class MdnsResponderInterface {
  public:
   using NameCreatedCallback =
-      std::function<void(const webrtc::IPAddress&, absl::string_view)>;
+      std::function<void(const IPAddress&, absl::string_view)>;
   using NameRemovedCallback = std::function<void(bool)>;
 
   MdnsResponderInterface() = default;

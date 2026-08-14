@@ -20,6 +20,7 @@ import androidx.credentials.GetCredentialRequest;
 import androidx.credentials.GetCredentialResponse;
 import androidx.credentials.PasswordCredential;
 import androidx.credentials.exceptions.CreateCredentialException;
+import androidx.credentials.exceptions.CreateCredentialNoCreateOptionException;
 import androidx.credentials.exceptions.GetCredentialException;
 
 import org.junit.Before;
@@ -35,10 +36,11 @@ import org.mockito.junit.MockitoRule;
 import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.HistogramWatcher;
+import org.chromium.url.GURL;
 
 import java.util.ArrayList;
 import java.util.concurrent.Executor;
-import org.chromium.url.GURL;
 
 /** Tests for the ThirdPartyCredentialManagerBridge. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -52,7 +54,6 @@ public class ThirdPartyCredentialManagerBridgeTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
     @Mock private CredentialManager mCredentialManager;
     @Mock private GetCredentialException mGetCredentialException;
-    @Mock private CreateCredentialException mCreateCredentialException;
     @Mock private Callback<PasswordCredentialResponse> mCredentialResponseCallback;
     @Mock private Callback<Boolean> mStoreCallback;
 
@@ -66,6 +67,10 @@ public class ThirdPartyCredentialManagerBridgeTest {
 
     @Test
     public void testOnPasswordCredentialReceivedCalled() {
+        HistogramWatcher histogramWatcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        ThirdPartyCredentialManagerMetricsRecorder.GET_RESULT_HISTOGRAM_NAME,
+                        CredentialManagerAndroidGetResult.SUCCESS);
         PasswordCredential passwordCredential = new PasswordCredential(USERNAME, PASSWORD);
         GetCredentialResponse response = new GetCredentialResponse(passwordCredential);
 
@@ -92,10 +97,15 @@ public class ThirdPartyCredentialManagerBridgeTest {
                         argThat(
                                 new PasswordCredentialResponseMatcher(
                                         new PasswordCredentialResponse(true, USERNAME, PASSWORD))));
+        histogramWatcher.assertExpected();
     }
 
     @Test
     public void testOnGetCredentialErrorCalled() {
+        HistogramWatcher histogramWatcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        ThirdPartyCredentialManagerMetricsRecorder.GET_RESULT_HISTOGRAM_NAME,
+                        CredentialManagerAndroidGetResult.UNEXPECTED_ERROR);
         doAnswer(invocation -> respondToGetCallback(invocation, null, mGetCredentialException))
                 .when(mCredentialManager)
                 .getCredentialAsync(
@@ -119,10 +129,15 @@ public class ThirdPartyCredentialManagerBridgeTest {
                         argThat(
                                 new PasswordCredentialResponseMatcher(
                                         new PasswordCredentialResponse(false, "", ""))));
+        histogramWatcher.assertExpected();
     }
 
     @Test
     public void testOnCreateCredentialSucceeds() {
+        HistogramWatcher histogramWatcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        ThirdPartyCredentialManagerMetricsRecorder.STORE_RESULT_HISTOGRAM_NAME,
+                        CredentialManagerStoreResult.SUCCESS);
         CreateCredentialResponse response = new CreatePasswordResponse();
         doAnswer(invocation -> respondToStoreCallback(invocation, response, null))
                 .when(mCredentialManager)
@@ -143,11 +158,21 @@ public class ThirdPartyCredentialManagerBridgeTest {
                         any(Executor.class),
                         any(CredentialManagerCallback.class));
         verify(mStoreCallback).onResult(true);
+        histogramWatcher.assertExpected();
     }
 
     @Test
     public void testonCreateCredentialFails() {
-        doAnswer(invocation -> respondToStoreCallback(invocation, null, mCreateCredentialException))
+        HistogramWatcher histogramWatcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        ThirdPartyCredentialManagerMetricsRecorder.STORE_RESULT_HISTOGRAM_NAME,
+                        CredentialManagerStoreResult.NO_CREATE_OPTIONS);
+        doAnswer(
+                        invocation ->
+                                respondToStoreCallback(
+                                        invocation,
+                                        null,
+                                        new CreateCredentialNoCreateOptionException()))
                 .when(mCredentialManager)
                 .createCredentialAsync(
                         any(Context.class),
@@ -166,6 +191,7 @@ public class ThirdPartyCredentialManagerBridgeTest {
                         any(Executor.class),
                         any(CredentialManagerCallback.class));
         verify(mStoreCallback).onResult(false);
+        histogramWatcher.assertExpected();
     }
 
     private Object respondToGetCallback(

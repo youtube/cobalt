@@ -1842,7 +1842,7 @@ class RepresentationSelector {
         return VisitUnused<T>(node);
       }
 
-      if (truncation.IsUsedAsWord32()) {
+      if (truncation.IsUsedAsWord32() && !TypeOf(node).IsNone()) {
         // This case handles addition where the result might be truncated to
         // word32. Even if the inputs might be larger than 2^32, we can safely
         // perform 32-bit addition *here* if the inputs are in the additive
@@ -2484,7 +2484,7 @@ class RepresentationSelector {
           }
         }
       } else {
-        InsertUnreachableIfNecessary<T>(node);
+        bool is_dead = false;
         if (node->op()->ValueOutputCount() > 0 &&
             node->op()->ControlOutputCount() == 0 &&
             node->opcode() != IrOpcode::kPhi &&
@@ -2492,18 +2492,20 @@ class RepresentationSelector {
             node->opcode() != IrOpcode::kFrameState) {
           for (int i = 0; i < node->op()->ValueInputCount(); i++) {
             Node* input = node->InputAt(i);
-            // If one of the node's inputs produces a None-type, we don't need
-            // to lower the node.
+            // If one of the node's inputs produces a None-type, then this node
+            // cannot produce a value itself.
             if (TypeOf(input).IsNone()) {
-              DisconnectFromEffectAndControl(node);
-              node->TrimInputCount(node->op()->ValueInputCount());
-              ChangeOp(node,
-                       common()->DeadValue(GetInfo(node)->representation(),
-                                           node->op()->ValueInputCount()));
-              return;
+              GetInfo(node)->set_feedback_type(Type::None());
+              is_dead = true;
+              break;
             }
           }
         }
+
+        InsertUnreachableIfNecessary<T>(node);
+        // If the node is dead, we don't wont to lower it to avoid breaking
+        // effect chains.
+        if (is_dead) return;
       }
     }
 
@@ -5241,14 +5243,21 @@ void RepresentationSelector::VisitInputs<LOWER>(Node* node) {
 
 template <>
 void RepresentationSelector::InsertUnreachableIfNecessary<LOWER>(Node* node) {
+  Node* control = nullptr;
+  if (node->op()->ControlOutputCount() > 0) {
+    control = NodeProperties::FindSuccessfulControlProjection(node);
+  } else if (node->op()->ControlInputCount() > 0) {
+    control = NodeProperties::GetControlInput(node, 0);
+  } else {
+    // Without a control edge, we cannot insert an unreachable node.
+    return;
+  }
+
   // If the node is effectful and it produces an impossible value, then we
   // insert Unreachable node after it.
   if (node->op()->ValueOutputCount() > 0 &&
       node->op()->EffectOutputCount() > 0 &&
       node->opcode() != IrOpcode::kUnreachable && TypeOf(node).IsNone()) {
-    Node* control = (node->op()->ControlOutputCount() == 0)
-                        ? NodeProperties::GetControlInput(node, 0)
-                        : NodeProperties::FindSuccessfulControlProjection(node);
 
     Node* unreachable =
         graph()->NewNode(common()->Unreachable(), node, control);

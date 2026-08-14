@@ -41,7 +41,7 @@
 namespace webrtc {
 
 // SimulcastEncoderAdapter implements simulcast support by creating multiple
-// webrtc::VideoEncoder instances with the given VideoEncoderFactory.
+// VideoEncoder instances with the given VideoEncoderFactory.
 // The object is created and destroyed on the worker thread, but all public
 // interfaces should be called from the encoder task queue.
 class RTC_EXPORT SimulcastEncoderAdapter : public VideoEncoder {
@@ -158,11 +158,11 @@ class RTC_EXPORT SimulcastEncoderAdapter : public VideoEncoder {
   std::unique_ptr<EncoderContext> FetchOrCreateEncoderContext(
       bool is_lowest_quality_stream) const;
 
-  webrtc::VideoCodec MakeStreamCodec(const webrtc::VideoCodec& codec,
-                                     int stream_idx,
-                                     uint32_t start_bitrate_kbps,
-                                     bool is_lowest_quality_stream,
-                                     bool is_highest_quality_stream);
+  VideoCodec MakeStreamCodec(const VideoCodec& codec,
+                             int stream_idx,
+                             uint32_t start_bitrate_kbps,
+                             bool is_lowest_quality_stream,
+                             bool is_highest_quality_stream);
 
   EncodedImageCallback::Result OnEncodedImage(
       size_t stream_idx,

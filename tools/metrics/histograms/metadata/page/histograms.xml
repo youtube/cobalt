@@ -713,7 +713,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.AMP.Experimental.PageTiming.InputToNavigation.Subframe"
-    units="ms" expires_after="2025-11-30">
+    units="ms" expires_after="2026-07-03">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -730,7 +730,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.AMP.InteractiveTiming.NumInteractions.Subframe"
-    units="Count" expires_after="2025-11-09">
+    units="Count" expires_after="2026-07-03">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -743,7 +743,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.AMP.InteractiveTiming.{NormalizedResponsivenessMetric}.{UserInteractionLatency}.Subframe{FullNavigation}"
-    units="ms" expires_after="2025-07-03">
+    units="ms" expires_after="2026-07-03">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -802,7 +802,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.AMP.LayoutInstability.MaxCumulativeShiftScore.Subframe.{Navigation}{Window}.Gap{Gap}.Max{MaxWindowSize}"
-    units="scorex10" expires_after="2025-07-03">
+    units="scorex10" expires_after="2026-07-03">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -834,7 +834,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.AMP.PaintTiming.InputToFirstContentfulPaint.Subframe"
-    units="ms" expires_after="2025-11-09">
+    units="ms" expires_after="2026-07-03">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -850,7 +850,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.AMP.PaintTiming.InputToFirstContentfulPaint.Subframe.FullNavigation"
-    units="ms" expires_after="2025-07-03">
+    units="ms" expires_after="2026-07-03">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -865,7 +865,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.AMP.PaintTiming.InputToLargestContentfulPaint.Subframe"
-    units="ms" expires_after="2025-09-07">
+    units="ms" expires_after="2026-07-03">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -887,7 +887,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.AMP.PaintTiming.InputToLargestContentfulPaint.Subframe.FullNavigation"
-    units="ms" expires_after="2025-07-03">
+    units="ms" expires_after="2026-07-03">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -1500,6 +1500,7 @@ chromium-metrics-reviews@google.com.
     units="ms" expires_after="2025-12-07">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     Measures the time from navigation start to the time {MileStone}, for Google
     Search page loads. The actual value is recorded via `startTime` in
@@ -2298,7 +2299,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.PrivacySandboxAds.LayoutInstability.MaxCumulativeShiftScore.SessionWindow.Gap1000ms.Max5000ms2.{PrivacySandboxAdsApi}"
-    units="ms" expires_after="2025-07-06">
+    units="ms" expires_after="2025-12-02">
   <owner>linnan@chromium.org</owner>
   <owner>measurement-api-dev+metrics@google.com</owner>
   <summary>
@@ -2608,6 +2609,7 @@ chromium-metrics-reviews@google.com.
     expires_after="2025-10-12">
   <owner>chikamune@chromium.org</owner>
   <owner>loading-dev@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>{MetricName}, but recorded only for {Origin} navigations.</summary>
   <token key="Origin">
     <variant name="CrossOrigin" summary="cross-origin"/>

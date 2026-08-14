@@ -60,12 +60,20 @@ _IWYU_MAPPING = {
 
     # IWYU does not refer to the complete third_party/ path.
     '"libyuv/': '"third_party/libyuv/include/libyuv/',
-    '"aom/': '"third_party/libaom/source/libaom/',
-    '"vpx/': '"third_party/libvpx/source/libvpx/',
+    '"aom/': '"third_party/libaom/source/libaom/aom/',
+    '"vpx/': '"third_party/libvpx/source/libvpx/vpx/',
 }
 
 # Supported file suffices.
 _SUFFICES = [".cc", ".h"]
+
+# Ignored headers, used with `clang-include-cleaner --ignore-headers=`
+_IGNORED_HEADERS = [
+    ".pb.h",  # generated protobuf files.
+    "pipewire/.*.h",  # pipewire.
+    "spa/.*.h",  # pipewire.
+    "openssl/.*.h",  # openssl/boringssl.
+]
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -238,8 +246,8 @@ def main() -> None:
 
     # Build the execution command
     cmd = [str(_CLEANER_BINARY_PATH), "-p", str(args.work_dir)]
-    # Ignore generated .pb.h files.
-    cmd.append("--ignore-headers=.pb.h")
+    # Ignore some headers.
+    cmd.append("--ignore-headers=" + ",".join(_IGNORED_HEADERS))
     for extra_arg in _EXTRA_ARGS:
         cmd.append(f"--extra-arg={extra_arg}")
     if args.print or args.check_for_changes:

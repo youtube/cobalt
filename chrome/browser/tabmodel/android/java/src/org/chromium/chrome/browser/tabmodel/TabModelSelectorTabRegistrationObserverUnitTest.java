@@ -23,6 +23,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
+import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.price_tracking.PriceTrackingFeatures;
@@ -91,7 +92,7 @@ public class TabModelSelectorTabRegistrationObserverUnitTest {
                         selector,
                         normalTabRemover,
                         /* supportUndo= */ true,
-                        /* isArchivedTabModel= */ true);
+                        /* isArchivedTabModel= */ false);
         TabRemover incognitoTabRemover =
                 new PassthroughTabRemover(
                         () ->
@@ -112,10 +113,9 @@ public class TabModelSelectorTabRegistrationObserverUnitTest {
                         /* supportUndo= */ false,
                         /* trackInNativeModelList= */ true);
 
-        TabUngrouperFactory factory =
-                (isIncognitoBranded, tabGroupModelFilterSupplier) ->
-                        new PassthroughTabUngrouper(tabGroupModelFilterSupplier);
-        selector.initialize(normalTabModel, incognitoTabModel, factory);
+        selector.initialize(
+                TabModelHolderFactory.createTabModelHolderForTesting(normalTabModel),
+                TabModelHolderFactory.createIncognitoTabModelHolderForTesting(incognitoTabModel));
 
         return selector;
     }
@@ -384,8 +384,8 @@ public class TabModelSelectorTabRegistrationObserverUnitTest {
         public void requestToShowTab(Tab tab, int type) {}
 
         @Override
-        public boolean isSessionRestoreInProgress() {
-            return false;
+        public boolean isTabModelRestored() {
+            return true;
         }
     }
 
@@ -418,6 +418,9 @@ public class TabModelSelectorTabRegistrationObserverUnitTest {
                     supportUndo,
                     trackInNativeModelList);
         }
+
+        @Override
+        public void addDelegateModelObserver(Callback<TabModelInternal> callback) {}
 
         @Override
         public void addIncognitoObserver(IncognitoTabModelObserver observer) {}

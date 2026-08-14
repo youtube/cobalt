@@ -75,7 +75,7 @@ DxgiOutputDuplicator::DxgiOutputDuplicator(const D3dDevice& device,
                                            const DXGI_OUTPUT_DESC& desc)
     : device_(device),
       output_(output),
-      device_name_(webrtc::ToUtf8(desc.DeviceName)),
+      device_name_(ToUtf8(desc.DeviceName)),
       desktop_rect_(RECTToDesktopRect(desc.DesktopCoordinates)),
       monitor_(desc.Monitor) {
   RTC_DCHECK(output_);

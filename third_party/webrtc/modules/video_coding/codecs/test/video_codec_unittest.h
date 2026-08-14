@@ -47,7 +47,7 @@ class VideoCodecUnitTest : public ::testing::Test {
         last_input_frame_timestamp_(0) {}
 
  protected:
-  class FakeEncodeCompleteCallback : public webrtc::EncodedImageCallback {
+  class FakeEncodeCompleteCallback : public EncodedImageCallback {
    public:
     explicit FakeEncodeCompleteCallback(VideoCodecUnitTest* test)
         : test_(test) {}
@@ -59,7 +59,7 @@ class VideoCodecUnitTest : public ::testing::Test {
     VideoCodecUnitTest* const test_;
   };
 
-  class FakeDecodeCompleteCallback : public webrtc::DecodedImageCallback {
+  class FakeDecodeCompleteCallback : public DecodedImageCallback {
    public:
     explicit FakeDecodeCompleteCallback(VideoCodecUnitTest* test)
         : test_(test) {}

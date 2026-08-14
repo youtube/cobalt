@@ -122,10 +122,10 @@ class FakePortAllocatorSession : public PortAllocatorSession {
 
   void StartGettingPorts() override {
     if (!port_) {
-      Network& network = (webrtc::HasIPv6Enabled() &&
-                          (flags() & webrtc::PORTALLOCATOR_ENABLE_IPV6))
-                             ? ipv6_network_
-                             : ipv4_network_;
+      Network& network =
+          (HasIPv6Enabled() && (flags() & PORTALLOCATOR_ENABLE_IPV6))
+              ? ipv6_network_
+              : ipv4_network_;
       port_.reset(TestUDPPort::Create({.env = env_,
                                        .network_thread = network_thread_,
                                        .socket_factory = factory_,
@@ -220,7 +220,7 @@ class FakePortAllocatorSession : public PortAllocatorSession {
   bool is_cleared = false;
   ServerAddresses stun_servers_;
   std::vector<RelayServerConfig> turn_servers_;
-  uint32_t candidate_filter_ = webrtc::CF_ALL;
+  uint32_t candidate_filter_ = CF_ALL;
   int transport_info_update_count_ = 0;
   bool running_ = false;
 };

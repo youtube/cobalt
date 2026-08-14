@@ -61,7 +61,7 @@ class VideoQualityTest : public test::CallTest,
   void RunWithAnalyzer(const Params& params) override;
   void RunWithRenderers(const Params& params) override;
 
-  const std::map<uint8_t, webrtc::MediaType>& payload_type_map() override {
+  const std::map<uint8_t, MediaType>& payload_type_map() override {
     return payload_type_map_;
   }
 

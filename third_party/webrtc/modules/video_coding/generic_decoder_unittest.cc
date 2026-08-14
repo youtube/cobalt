@@ -73,7 +73,7 @@ class ReceiveCallback : public VCMReceiveCallback {
 
   ArrayView<const VideoFrame> GetAllFrames() const { return frames_; }
 
-  void OnDroppedFrames(uint32_t frames_dropped) {
+  void OnDroppedFrames(uint32_t frames_dropped) override {
     frames_dropped_ += frames_dropped;
   }
 

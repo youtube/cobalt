@@ -163,7 +163,7 @@ class CroppingWindowCapturerWin : public CroppingWindowCapturer {
 
   bool enumerate_current_process_windows_;
 
-  webrtc::scoped_refptr<FullScreenWindowDetector> full_screen_window_detector_;
+  scoped_refptr<FullScreenWindowDetector> full_screen_window_detector_;
 
   // Used to make sure that we only log the usage of fullscreen detection once.
   mutable bool fullscreen_usage_logged_ = false;
@@ -187,7 +187,7 @@ void CroppingWindowCapturerWin::CaptureFrame() {
                     ? GetWindowListFlags::kNone
                     : GetWindowListFlags::kIgnoreCurrentProcessWindows;
 
-            if (!webrtc::GetWindowList(window_list_flags, &result))
+            if (!GetWindowList(window_list_flags, &result))
               return false;
 
             // Filter out windows not visible on current desktop
@@ -210,7 +210,7 @@ void CroppingWindowCapturerWin::CaptureFrame() {
 }
 
 bool CroppingWindowCapturerWin::ShouldUseScreenCapturer() {
-  if (webrtc::rtc_win::GetVersion() < webrtc::rtc_win::Version::VERSION_WIN8 &&
+  if (rtc_win::GetVersion() < rtc_win::Version::VERSION_WIN8 &&
       window_capture_helper_.IsAeroEnabled()) {
     return false;
   }

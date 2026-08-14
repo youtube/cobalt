@@ -10,8 +10,8 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/types/optional_ref.h"
+#include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_delegate.h"
-#include "components/autofill_ai/core/browser/autofill_ai_client.h"
 #include "content/public/browser/web_contents.h"
 
 namespace autofill {
@@ -79,10 +79,11 @@ class SaveOrUpdateAutofillAiDataController {
   // Shows a save or update Autofill AI data bubble which the user can accept or
   // decline. `old_entity` is used in the update case to give users an overview
   // of what was changed.
-  virtual void ShowPrompt(autofill::EntityInstance new_entity,
-                          std::optional<autofill::EntityInstance> old_entity,
-                          AutofillAiClient::SaveOrUpdatePromptResultCallback
-                              save_prompt_acceptance_callback) = 0;
+  virtual void ShowPrompt(
+      autofill::EntityInstance new_entity,
+      std::optional<autofill::EntityInstance> old_entity,
+      autofill::AutofillClient::EntitySaveOrUpdatePromptResultCallback
+          save_prompt_acceptance_callback) = 0;
 
   // Called when the user accepts to save or update Autofill AI data.
   virtual void OnSaveButtonClicked() = 0;

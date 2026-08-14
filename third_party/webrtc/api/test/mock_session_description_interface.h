@@ -36,9 +36,10 @@ class MockSessionDescriptionInterface : public SessionDescriptionInterface {
   MOCK_METHOD(SdpType, GetType, (), (const, override));
   MOCK_METHOD(std::string, type, (), (const, override));
   MOCK_METHOD(bool, AddCandidate, (const IceCandidate*), (override));
+  MOCK_METHOD(bool, RemoveCandidate, (const IceCandidate*), (override));
   MOCK_METHOD(size_t,
               RemoveCandidates,
-              (const std::vector<webrtc::Candidate>&),
+              (const std::vector<Candidate>&),
               (override));
   MOCK_METHOD(size_t, number_of_mediasections, (), (const, override));
   MOCK_METHOD(const IceCandidateCollection*,

@@ -9,9 +9,9 @@
  */
 #include "net/dcsctp/packet/error_cause/cookie_received_while_shutting_down_cause.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "api/array_view.h"

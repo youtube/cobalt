@@ -18,10 +18,11 @@
 
 class BrowserView;
 class ContentsWebView;
+class MultiContentsDropTargetView;
 class MultiContentsResizeArea;
+class MultiContentsViewDelegate;
 class MultiContentsViewDropTargetController;
 class MultiContentsViewMiniToolbar;
-class MultiContentsDropTargetView;
 
 namespace content {
 class WebContents;
@@ -45,23 +46,18 @@ class MultiContentsView : public views::View,
  public:
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kMultiContentsViewElementId);
 
-  using WebContentsFocusedCallback =
-      base::RepeatingCallback<void(content::WebContents*)>;
-
-  using WebContentsResizeCallback = base::RepeatingCallback<void(double)>;
-
   struct ViewWidths {
     double start_width = 0;
     double resize_width = 0;
     double end_width = 0;
+
+    double drop_target_width = 0;
   };
 
   static constexpr int kSplitViewContentInset = 8;
 
-  MultiContentsView(
-      BrowserView* browser_view,
-      WebContentsFocusedCallback inactive_contents_focused_callback,
-      WebContentsResizeCallback contents_resize_callback);
+  MultiContentsView(BrowserView* browser_view,
+                    std::unique_ptr<MultiContentsViewDelegate> delegate);
   MultiContentsView(const MultiContentsView&) = delete;
   MultiContentsView& operator=(const MultiContentsView&) = delete;
   ~MultiContentsView() override;
@@ -158,6 +154,7 @@ class MultiContentsView : public views::View,
   void UpdateContentsBorderAndOverlay();
 
   raw_ptr<BrowserView> browser_view_;
+  std::unique_ptr<MultiContentsViewDelegate> delegate_;
 
   // Holds ContentsContainerViews, when not in a split view the second
   // ContentsContainerView is not visible.
@@ -172,7 +169,7 @@ class MultiContentsView : public views::View,
   // each other.
   raw_ptr<MultiContentsResizeArea> resize_area_ = nullptr;
 
-  // The view that is shown for entering split view. E.g., this is shown when
+  // The views that are shown for entering split view. E.g., this is shown when
   // the user drags a link to the edge of the contents view.
   raw_ptr<MultiContentsDropTargetView> drop_target_view_ = nullptr;
 
@@ -183,12 +180,6 @@ class MultiContentsView : public views::View,
 
   // The index in contents_views_ of the active contents view.
   int active_index_ = 0;
-
-  // Callback to be executed when the user focuses the inactive contents view.
-  WebContentsFocusedCallback inactive_contents_focused_callback_;
-
-  // Callback to be executed when the user resizes the contents.
-  WebContentsResizeCallback contents_resize_callback_;
 
   // Current ratio of |contents_views_|'s first ContentsContainerView's width /
   // overall contents view width.

@@ -60,10 +60,10 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/trace_event.h"
-#include "vpx/vp8cx.h"
-#include "vpx/vpx_codec.h"
-#include "vpx/vpx_encoder.h"
-#include "vpx/vpx_image.h"
+#include "third_party/libvpx/source/libvpx/vpx/vp8cx.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_codec.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_encoder.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_image.h"
 
 #if (defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64)) && \
     (defined(WEBRTC_ANDROID) || defined(WEBRTC_IOS))

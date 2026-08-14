@@ -879,7 +879,7 @@ const CGFloat kClearButtonWidthAndHeight = 40;
   _tabsCount = tabsCount;
 }
 
-#pragma mark - Accessibility
+#pragma mark - UIAccessibilityAction
 
 - (BOOL)accessibilityPerformEscape {
   [self dismissViewController];
@@ -899,7 +899,7 @@ const CGFloat kClearButtonWidthAndHeight = 40;
 }
 
 - (void)keyCommand_close {
-  base::RecordAction(base::UserMetricsAction("MobileKeyCommandClose"));
+  base::RecordAction(base::UserMetricsAction(kMobileKeyCommandClose));
   [self dismissViewController];
 }
 

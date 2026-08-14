@@ -192,7 +192,7 @@ std::unique_ptr<Candidate> CreateFakeCandidate(
 class FakeAudioProcessor : public AudioProcessorInterface {
  public:
   FakeAudioProcessor() {}
-  ~FakeAudioProcessor() {}
+  ~FakeAudioProcessor() override {}
 
  private:
   AudioProcessorInterface::AudioProcessorStatistics GetStats(
@@ -3759,8 +3759,8 @@ class FakeRTCStatsCollector : public RTCStatsCollector,
   // give to scoped_refptr.
   // Satisfying the implementation of these methods and associating them with a
   // reference counter, will be done by RefCountedObject.
-  virtual void AddRef() const = 0;
-  virtual RefCountReleaseStatus Release() const = 0;
+  void AddRef() const override = 0;
+  RefCountReleaseStatus Release() const override = 0;
 
   // RTCStatsCollectorCallback implementation.
   void OnStatsDelivered(

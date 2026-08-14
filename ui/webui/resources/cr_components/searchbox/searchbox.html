@@ -219,7 +219,8 @@
   }
 
   :host([compose-button-enabled]) .searchbox-icon-button.lens {
-   right: calc(16px + var(--cr-compose-button-width) + var(--cr-searchbox-icon-spacing));
+   /* Since there is a 4px padding because of the glow effect, add 12px to right instead of 16px. */
+   right: calc(12px + var(--cr-compose-button-width) + var(--cr-searchbox-icon-spacing));
   }
 
   /* When voice/lens icons are monochrome, they are webkit mask images.
@@ -242,7 +243,6 @@
     box-shadow: var(--ntp-focus-shadow);
   }
 
-
   :host(:not([searchbox-chrome-refresh-theming])) #voiceSearchButton {
     background-image: url(//resources/cr_components/searchbox/icons/mic.svg);
   }
@@ -251,17 +251,7 @@
     background-image: url(//resources/cr_components/searchbox/icons/camera.svg);
   }
 
-  :host(:not([searchbox-chrome-refresh-theming])) #composeButton {
-   background-color: #F3F5F6;
-   color:#1F1F1F;
-   font-weight: 400;
-   border: none;
-   position: absolute;
-   padding: 8px 20px;
- }
-
   :host([searchbox-chrome-refresh-theming]:not([color-source-is-baseline])) #voiceSearchButton,
-  :host([searchbox-chrome-refresh-theming]:not([color-source-is-baseline])) #composeButton,
   :host([searchbox-chrome-refresh-theming]:not([color-source-is-baseline])) #lensSearchButton {
     -webkit-mask-position: center;
     -webkit-mask-repeat: no-repeat;
@@ -288,10 +278,6 @@
   :host([searchbox-lens-search-enabled_]):host-context([dir='rtl']) #voiceSearchButton {
     left: var(--cr-searchbox-voice-icon-offset);
     right: unset;
-  }
-
-  :host {
-    --cr-searchbox-voice-icon-offset: 16px;
   }
 
   :host([searchbox-lens-search-enabled_]) #voiceSearchButton {
@@ -361,19 +347,6 @@
     inset-inline-start: 16px;
   }
 
-  :host([enable-compose-button]) #composeButton{
-    position: absolute;
-    right: 10px;
-    top: 5px;
-  }
-
-  .compose-container {
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 100;
-}
-
 </style>
 <div id="inputWrapper" on-focusout=onInputWrapperFocusout_
     on-keydown="onInputWrapperKeydown_">
@@ -435,9 +408,10 @@
       </button>
     </template>
     <template is="dom-if" if="[[composeButtonEnabled]]">
-      <cr-button on-click="onComposeButtonClick_"  id="composeButton" class="compose-container">
-         Compose
-       </cr-button>
+      <cr-searchbox-compose-button
+        id="composeButton"
+        on-compose-click="onComposeButtonClick_">
+      </cr-searchbox-compose-button>
     </template>
   </template>
   <cr-searchbox-dropdown id="matches" part="searchbox-dropdown"

@@ -50,15 +50,6 @@ PaintOptions SolidSrcover() {
     return paintOptions;
 }
 
-PaintOptions SolidMatrixCFSrcover() {
-    PaintOptions paintOptions;
-
-    paintOptions.setColorFilters({ PrecompileColorFilters::Matrix() });
-    paintOptions.setBlendModes({ SkBlendMode::kSrcOver });
-
-    return paintOptions;
-}
-
 PaintOptions LinearGradSmSrcover() {
     PaintOptions paintOptions;
     paintOptions.setShaders({ PrecompileShaders::LinearGradient(GradientShaderFlags::kSmall) });
@@ -287,16 +278,6 @@ PaintOptions ImageSRGBNoCubicSrc() {
                                                        { &ci, 1 },
                                                        {}) });
     paintOptions.setBlendModes({ SkBlendMode::kSrc });
-    return paintOptions;
-}
-
-PaintOptions BlendPorterDuffCFSrcover() {
-    PaintOptions paintOptions;
-    // kSrcOver will trigger the PorterDuffBlender
-    paintOptions.setColorFilters(
-            { PrecompileColorFilters::Blend({ SkBlendMode::kSrcOver }) });
-    paintOptions.setBlendModes({ SkBlendMode::kSrcOver });
-
     return paintOptions;
 }
 
@@ -719,6 +700,19 @@ PaintOptions ImagePremulYCbCr240Srcover() {
     return paintOptions;
 }
 
+PaintOptions TransparentPaintImagePremulYCbCr238Srcover() {
+    PaintOptions paintOptions;
+
+    // HardwareImage(3: kHoAAO4AAAAAAAAA)
+    paintOptions.setShaders({ vulkan_ycbcr_image_shader(238,
+                                                        VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709,
+                                                        VK_SAMPLER_YCBCR_RANGE_ITU_NARROW,
+                                                        VK_CHROMA_LOCATION_MIDPOINT) });
+    paintOptions.setBlendModes({ SkBlendMode::kSrcOver });
+    paintOptions.setPaintColorIsOpaque(false);
+    return paintOptions;
+}
+
 PaintOptions TransparentPaintImagePremulYCbCr240Srcover() {
     PaintOptions paintOptions;
 
@@ -947,6 +941,9 @@ DrawTypeFlags get_draw_type_flags(const char* str) {
         const char* fStr;
         DrawTypeFlags fFlags;
     } kDrawTypeFlagsMapping[] = {
+        { "AnalyticBlurRenderStep",                      DrawTypeFlags::kDropShadows },
+        { "GaussianColorFilter",                         DrawTypeFlags::kDropShadows },
+
         { "BitmapTextRenderStep[Mask]",                  DrawTypeFlags::kBitmapText_Mask  },
         { "BitmapTextRenderStep[LCD]",                   DrawTypeFlags::kBitmapText_LCD   },
         { "BitmapTextRenderStep[Color]",                 DrawTypeFlags::kBitmapText_Color },
@@ -1031,7 +1028,7 @@ std::string rm_whitespace(const std::string& s) {
 } // anonymous namespace
 
 bool PrecompileSettings::isSubsetOf(const PrecompileSettings& superSet) const {
-    SkASSERT(SkPopCount(static_cast<uint32_t>(fDrawTypeFlags)) == 1);
+    SkASSERT(SkPopCount(fDrawTypeFlags.value()) == 1);
 
     // 'superSet' may have a wider range of DrawTypeFlags
     return (fDrawTypeFlags & superSet.fDrawTypeFlags) &&
@@ -1140,7 +1137,7 @@ void RunTest(skgpu::graphite::PrecompileContext* precompileContext,
 
     Precompile(precompileContext,
                settings.fPaintOptions,
-               settings.fDrawTypeFlags,
+               static_cast<DrawTypeFlags>(settings.fDrawTypeFlags.value()),
                { &settings.fRenderPassProps, 1 });
 
     std::set<std::string> generatedLabels;

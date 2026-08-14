@@ -31,6 +31,7 @@
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -258,7 +259,7 @@ constexpr auto kAcceptLanguageList = base::MakeFixedFlatSet<std::string_view>({
 });
 
 // The list of locales that expected on the current platform, generated from the
-// |locales| variable in GN (defined in build/config/locales.gni). This is
+// `locales` variable in GN (defined in build/config/locales.gni). This is
 // equivalently the list of locales that we expect to have translation strings
 // for on the current platform. Guaranteed to be in sorted order and guaranteed
 // to have no duplicates.
@@ -267,9 +268,9 @@ constexpr auto kAcceptLanguageList = base::MakeFixedFlatSet<std::string_view>({
 // - On Android, locale files are dynamically shipped in app bundles which are
 //   only downloaded when needed - so the |locales| variable does not accurately
 //   reflect the UI strings that are currently available on disk.
-//   See the comment at the top of |LoadLocaleResources| in
+//   See the comment at the top of `LoadLocaleResources` in
 //   ui/base/resource/resource_bundle_android.cc for more information.
-// - On iOS, some locales aren't shipped (|ios_unsupported_locales|) as they are
+// - On iOS, some locales aren't shipped (`ios_unsupported_locales`) as they are
 //   not supported by the operating system. These locales are included in this
 //   variable.
 //
@@ -284,32 +285,29 @@ constexpr auto kPlatformLocales = base::MakeFixedFlatSet<std::string_view>({
 #undef PLATFORM_LOCALE
 });
 
-// Returns true if |locale_name| has an alias in the ICU data file.
-bool IsDuplicateName(const std::string& locale_name) {
-  static const char* const kDuplicateNames[] = {
-    "ar_001",
-    "en",
-    "en_001",
-    "en_150",
-    "pt",  // pt-BR and pt-PT are used.
-    "zh",
-    "zh_hans_cn",
-    "zh_hant_hk",
-    "zh_hant_mo",
-    "zh_hans_sg",
-    "zh_hant_tw"
-  };
+// Returns true if `locale_name` has an alias in the ICU data file.
+bool IsDuplicateName(std::string_view locale_name) {
+  static constexpr auto kDuplicateNames =
+      base::MakeFixedFlatSet<std::string_view>({
+          "ar_001",
+          "en",
+          "en_001",
+          "en_150",
+          "pt",  // pt-BR and pt-PT are used.
+          "zh",
+          "zh_hans_cn",
+          "zh_hant_hk",
+          "zh_hant_mo",
+          "zh_hans_sg",
+          "zh_hant_tw",
+      });
 
   // Skip all the es_Foo other than es_419 for now.
   if (base::StartsWith(locale_name, "es_",
                        base::CompareCase::INSENSITIVE_ASCII)) {
     return !locale_name.ends_with("419");
   }
-  for (const char* duplicate_name : kDuplicateNames) {
-    if (base::EqualsCaseInsensitiveASCII(duplicate_name, locale_name))
-      return true;
-  }
-  return false;
+  return kDuplicateNames.contains(base::ToLowerASCII(locale_name));
 }
 
 // We added 30+ minimally populated locales with only a few entries
@@ -328,8 +326,8 @@ bool IsLocalePartiallyPopulated(const std::string& locale_name) {
 // positives on Android and iOS. See the `kPlatformLocales` documentation for
 // more information.
 bool HasStringsForLocale(std::string_view locale,
-                         const bool perform_io = true) {
-  if (!perform_io) {
+                         l10n_util::CheckLocaleMode mode) {
+  if (mode == l10n_util::CheckLocaleMode::kUseKnownLocalesList) {
     return kPlatformLocales.contains(locale);
   }
   // If locale has any illegal characters in it, we don't want to try to
@@ -400,42 +398,39 @@ base::LazyInstance<std::vector<std::string>, AvailableLocalesTraits>
 
 namespace l10n_util {
 
-std::string GetLanguage(std::string_view locale) {
-  return std::string(locale, 0, locale.find('-'));
+std::string_view GetLanguage(std::string_view locale) {
+  return locale.substr(0, locale.find('-'));
 }
 
-std::string GetCountry(std::string_view locale) {
+std::string_view GetCountry(std::string_view locale) {
   size_t hyphen_pos = locale.find('-');
-  return (hyphen_pos == std::string::npos)
-             ? std::string()
-             : std::string(locale).substr(hyphen_pos + 1);
+  return (hyphen_pos == std::string::npos) ? std::string_view()
+                                           : locale.substr(hyphen_pos + 1);
 }
 
 // TODO(jshin): revamp this function completely to use a more systematic
 // and generic locale fallback based on ICU/CLDR.
-bool CheckAndResolveLocale(const std::string& locale,
-                           std::string* resolved_locale,
-                           const bool perform_io) {
-  if (HasStringsForLocale(locale, perform_io)) {
-    *resolved_locale = locale;
-    return true;
+std::optional<std::string> CheckAndResolveLocale(std::string_view locale,
+                                                 CheckLocaleMode mode) {
+  if (HasStringsForLocale(locale, mode)) {
+    return std::optional<std::string>(locale);
   }
 
   // If there's a variant, skip over it so we can try without the region
   // code.  For example, ca_ES@valencia should cause us to try ca@valencia
   // before ca.
-  std::string::size_type variant_pos = locale.find('@');
-  if (variant_pos != std::string::npos)
-    return false;
+  if (locale.find('@') != std::string::npos) {
+    return std::nullopt;
+  }
 
   // If the locale matches language but not country, use that instead.
   // TODO(jungshik) : Nothing is done about languages that Chrome
   // does not support but available on Windows. We fall
   // back to en-US in GetApplicationLocale so that it's a not critical,
   // but we can do better.
-  const std::string lang(GetLanguage(locale));
+  const std::string_view lang = GetLanguage(locale);
   if (lang.size() < locale.size()) {
-    std::string region(locale, lang.size() + 1);
+    const std::string_view region = locale.substr(lang.size() + 1);
     std::string tmp_locale(lang);
     // Map es-RR other than es-ES to es-419 (Chrome's Latin American
     // Spanish locale).
@@ -473,9 +468,8 @@ bool CheckAndResolveLocale(const std::string& locale,
         tmp_locale.append("-GB");
       }
     }
-    if (HasStringsForLocale(tmp_locale, perform_io)) {
-      resolved_locale->swap(tmp_locale);
-      return true;
+    if (HasStringsForLocale(tmp_locale, mode)) {
+      return tmp_locale;
     }
   }
 
@@ -490,20 +484,13 @@ bool CheckAndResolveLocale(const std::string& locale,
   };
   for (const auto& alias : kAliasMap) {
     if (base::EqualsCaseInsensitiveASCII(lang, alias.source)) {
-      std::string tmp_locale(alias.dest);
-      if (HasStringsForLocale(tmp_locale, perform_io)) {
-        resolved_locale->swap(tmp_locale);
-        return true;
+      if (HasStringsForLocale(alias.dest, mode)) {
+        return std::optional<std::string>(alias.dest);
       }
     }
   }
 
-  return false;
-}
-
-bool CheckAndResolveLocale(const std::string& locale,
-                           std::string* resolved_locale) {
-  return CheckAndResolveLocale(locale, resolved_locale, /*perform_io=*/true);
+  return std::nullopt;
 }
 
 #if BUILDFLAG(IS_APPLE)
@@ -525,7 +512,6 @@ std::string GetApplicationLocaleInternalMac(const std::string& pref_locale) {
 
 #if !BUILDFLAG(IS_APPLE)
 std::string GetApplicationLocaleInternalNonMac(const std::string& pref_locale) {
-  std::string resolved_locale;
   std::vector<std::string> candidates;
 
   // We only use --lang and the app pref on Windows.  On Linux, we only
@@ -577,15 +563,18 @@ std::string GetApplicationLocaleInternalNonMac(const std::string& pref_locale) {
 
   std::vector<std::string>::const_iterator i = candidates.begin();
   for (; i != candidates.end(); ++i) {
-    if (CheckAndResolveLocale(*i, &resolved_locale)) {
-      return resolved_locale;
+    if (std::optional<std::string> resolved_locale =
+            CheckAndResolveLocale(*i)) {
+      return *resolved_locale;
     }
   }
 
   // Fallback on en-US.
   const std::string fallback_locale("en-US");
-  if (HasStringsForLocale(fallback_locale))
+  if (HasStringsForLocale(fallback_locale,
+                          CheckLocaleMode::kVerifyLocalizationDataExists)) {
     return fallback_locale;
+  }
 
   return std::string();
 }
@@ -711,15 +700,15 @@ std::u16string GetDisplayNameForLocale(std::string_view locale,
   return display_name;
 }
 
-std::u16string GetDisplayNameForCountry(const std::string& country_code,
-                                        const std::string& display_locale) {
-  return GetDisplayNameForLocale("_" + country_code, display_locale, false);
+std::u16string GetDisplayNameForCountry(std::string_view country_code,
+                                        std::string_view display_locale) {
+  return GetDisplayNameForLocale(base::StrCat({"_", country_code}),
+                                 display_locale, false);
 }
 
-std::string NormalizeLocale(const std::string& locale) {
+std::string NormalizeLocale(std::string_view locale) {
   std::string normalized_locale(locale);
-  std::replace(normalized_locale.begin(), normalized_locale.end(), '-', '_');
-
+  std::ranges::replace(normalized_locale, '-', '_');
   return normalized_locale;
 }
 
@@ -739,7 +728,7 @@ void GetParentLocales(const std::string& current_locale,
   }
 }
 
-bool IsValidLocaleSyntax(const std::string& locale) {
+bool IsValidLocaleSyntax(std::string_view locale) {
   // Check that the length is plausible.
   if (locale.size() < 2 || locale.size() >= ULOC_FULLNAME_CAPACITY)
     return false;
@@ -750,9 +739,9 @@ bool IsValidLocaleSyntax(const std::string& locale) {
   // equals sign in a plausible place. Normalize the prefix so that hyphens
   // are changed to underscores.
   std::string prefix = NormalizeLocale(locale);
-  size_t split_point = locale.find("@");
+  const size_t split_point = locale.find("@");
   if (split_point != std::string::npos) {
-    std::string keywords = locale.substr(split_point + 1);
+    const std::string_view keywords = locale.substr(split_point + 1);
     prefix = locale.substr(0, split_point);
 
     size_t equals_loc = keywords.find("=");
@@ -980,12 +969,13 @@ const std::vector<std::string>& GetAvailableICULocales() {
 }
 
 bool IsUserFacingUILocale(const std::string& locale) {
-  std::string resolved_locale;
   // As there are many callers of IsUserFacingUILocale and
   // GetUserFacingUILocaleList from threads where I/O is prohibited, do not
   // perform I/O here.
-  if (!l10n_util::CheckAndResolveLocale(locale, &resolved_locale,
-                                        /*perform_io=*/false)) {
+  const std::optional<std::string> resolved_locale =
+      l10n_util::CheckAndResolveLocale(locale,
+                                       CheckLocaleMode::kUseKnownLocalesList);
+  if (!resolved_locale) {
     return false;
   }
 
@@ -994,7 +984,7 @@ bool IsUserFacingUILocale(const std::string& locale) {
     return true;
   }
 
-  const std::string& language = l10n_util::GetLanguage(locale);
+  const std::string_view language = l10n_util::GetLanguage(locale);
 
   // Chinese locales (other than the ones that have strings on disk) should not
   // be shown.

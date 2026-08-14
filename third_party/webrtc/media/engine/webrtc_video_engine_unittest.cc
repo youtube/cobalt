@@ -1278,7 +1278,7 @@ TEST_F(WebRtcVideoEngineTest, Flexfec03LowerPayloadTypeRange) {
   auto send_codecs = engine_.LegacySendCodecs();
   auto it = std::find_if(
       send_codecs.begin(), send_codecs.end(),
-      [](const webrtc::Codec& codec) { return codec.name == "flexfec-03"; });
+      [](const Codec& codec) { return codec.name == "flexfec-03"; });
   ASSERT_NE(it, send_codecs.end());
   EXPECT_LE(35, it->id);
   EXPECT_GE(65, it->id);
@@ -2749,7 +2749,7 @@ class WebRtcVideoChannelTest : public WebRtcVideoEngineTest {
     return static_cast<WebRtcVideoSendChannel*>(send_channel_.get());
   }
 
-  // Casts a shim channel to a webrtc::Transport. Used once.
+  // Casts a shim channel to a Transport. Used once.
   Transport* ChannelImplAsTransport(VideoMediaSendChannelInterface* channel) {
     return static_cast<WebRtcVideoSendChannel*>(channel)->transport();
   }
@@ -3854,7 +3854,7 @@ class Vp9SettingsTest : public WebRtcVideoChannelTest {
       : WebRtcVideoChannelTest(field_trials) {
     encoder_factory_->AddSupportedVideoCodecType("VP9");
   }
-  virtual ~Vp9SettingsTest() {}
+  ~Vp9SettingsTest() override {}
 
  protected:
   void TearDown() override {
@@ -7623,7 +7623,7 @@ TEST_F(WebRtcVideoChannelTest, ReceiveDifferentUnsignaledSsrc) {
   parameters.codecs.push_back(GetEngineCodec("VP9"));
 
 #if defined(WEBRTC_USE_H264)
-  webrtc::Codec H264codec = webrtc::CreateVideoCodec(126, "H264");
+  Codec H264codec = CreateVideoCodec(126, "H264");
   parameters.codecs.push_back(H264codec);
 #endif
 
@@ -7682,12 +7682,12 @@ TEST_F(WebRtcVideoChannelTest, ReceiveDifferentUnsignaledSsrc) {
   recv_stream = fake_call_->GetVideoReceiveStreams()[0];
   EXPECT_EQ(rtp_packet.Ssrc(), recv_stream->GetConfig().rtp.remote_ssrc);
   // Verify that the receive stream sinks to a renderer.
-  webrtc::VideoFrame video_frame3 =
-      webrtc::VideoFrame::Builder()
+  VideoFrame video_frame3 =
+      VideoFrame::Builder()
           .set_video_frame_buffer(CreateBlackFrameBuffer(4, 4))
           .set_rtp_timestamp(300)
           .set_timestamp_us(0)
-          .set_rotation(webrtc::kVideoRotation_0)
+          .set_rotation(kVideoRotation_0)
           .build();
   recv_stream->InjectFrame(video_frame3);
   EXPECT_EQ(3, renderer.num_rendered_frames());

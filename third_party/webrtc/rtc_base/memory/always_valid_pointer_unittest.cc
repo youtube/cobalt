@@ -32,7 +32,7 @@ TEST(AlwaysValidPointerTest, DefaultToSubclass) {
   struct B : public A {
     int b = 0;
     explicit B(int val) : b(val) {}
-    virtual ~B() {}
+    ~B() override {}
     int f() override { return b; }
   };
   AlwaysValidPointer<A, B> ptr(nullptr, 3);

@@ -71,11 +71,6 @@ int CountBandwidthDips(std::queue<DataRate> bandwidth_history,
   }
   return dips;
 }
-GoogCcNetworkControllerFactory CreateFeedbackOnlyFactory() {
-  GoogCcFactoryConfig config;
-  config.feedback_only = true;
-  return GoogCcNetworkControllerFactory(std::move(config));
-}
 
 const uint32_t kInitialBitrateKbps = 60;
 const DataRate kInitialBitrate = DataRate::KilobitsPerSec(kInitialBitrateKbps);
@@ -158,31 +153,11 @@ std::optional<DataRate> PacketTransmissionAndFeedbackBlock(
   return target_bitrate;
 }
 
-// Create transport packets feedback with a built-up delay.
-TransportPacketsFeedback CreateTransportPacketsFeedback(
-    TimeDelta per_packet_network_delay,
-    TimeDelta one_way_delay,
-    Timestamp send_time) {
-  TimeDelta delay_buildup = one_way_delay;
-  constexpr int kFeedbackSize = 3;
-  constexpr size_t kPayloadSize = 1000;
-  TransportPacketsFeedback feedback;
-  for (int i = 0; i < kFeedbackSize; ++i) {
-    PacketResult packet = CreatePacketResult(
-        /*arrival_time=*/send_time + delay_buildup, send_time, kPayloadSize,
-        PacedPacketInfo());
-    delay_buildup += per_packet_network_delay;
-    feedback.feedback_time = packet.receive_time + one_way_delay;
-    feedback.packet_feedbacks.push_back(packet);
-  }
-  return feedback;
-}
-
 // Scenarios:
 
 void UpdatesTargetRateBasedOnLinkCapacity(absl::string_view test_name = "",
                                           absl::string_view field_trials = "") {
-  auto factory = CreateFeedbackOnlyFactory();
+  GoogCcNetworkControllerFactory factory;
   Scenario s("googcc_unit/target_capacity" + std::string(test_name), false);
   CallClientConfig config;
   config.field_trials.Merge(FieldTrials(field_trials));
@@ -474,7 +449,7 @@ TEST(GoogCcNetworkControllerTest, LimitPacingFactorToUpperLinkCapacity) {
 
 // Test congestion window pushback on network delay happens.
 TEST(GoogCcScenario, CongestionWindowPushbackOnNetworkDelay) {
-  auto factory = CreateFeedbackOnlyFactory();
+  GoogCcNetworkControllerFactory factory;
   Scenario s("googcc_unit/cwnd_on_delay", false);
   auto send_net =
       s.CreateMutableSimulationNode([=](NetworkSimulationConfig* c) {
@@ -508,7 +483,7 @@ TEST(GoogCcScenario, CongestionWindowPushbackOnNetworkDelay) {
 
 // Test congestion window pushback on network delay happens.
 TEST(GoogCcScenario, CongestionWindowPushbackDropFrameOnNetworkDelay) {
-  auto factory = CreateFeedbackOnlyFactory();
+  GoogCcNetworkControllerFactory factory;
   Scenario s("googcc_unit/cwnd_on_delay", false);
   auto send_net =
       s.CreateMutableSimulationNode([=](NetworkSimulationConfig* c) {
@@ -616,7 +591,7 @@ TEST(GoogCcScenario, UpdatesTargetRateBasedOnLinkCapacity) {
 }
 
 TEST(GoogCcScenario, StableEstimateDoesNotVaryInSteadyState) {
-  auto factory = CreateFeedbackOnlyFactory();
+  GoogCcNetworkControllerFactory factory;
   Scenario s("googcc_unit/stable_target", false);
   CallClientConfig config;
   config.transport.cc_factory = &factory;
@@ -652,17 +627,9 @@ TEST(GoogCcScenario, StableEstimateDoesNotVaryInSteadyState) {
   EXPECT_GE(min_stable_target / max_stable_target, min_target / max_target);
 }
 
-TEST(GoogCcScenario, LossBasedControlUpdatesTargetRateBasedOnLinkCapacity) {
-  // TODO(srte): Should the behavior be unaffected at low loss rates?
-  UpdatesTargetRateBasedOnLinkCapacity(
-      /*test_name=*/"_loss_based",
-      /*field_trials=*/"WebRTC-Bwe-LossBasedControl/Enabled/");
-}
-
 TEST(GoogCcScenario, LossBasedControlDoesModestBackoffToHighLoss) {
   Scenario s("googcc_unit/high_loss_channel", false);
   CallClientConfig config;
-  config.field_trials.Set("WebRTC-Bwe-LossBasedControl", "Enabled");
   config.transport.rates.min_rate = DataRate::KilobitsPerSec(10);
   config.transport.rates.max_rate = DataRate::KilobitsPerSec(1500);
   config.transport.rates.start_rate = DataRate::KilobitsPerSec(300);
@@ -677,7 +644,6 @@ TEST(GoogCcScenario, LossBasedControlDoesModestBackoffToHighLoss) {
   auto* client = CreateVideoSendingClient(&s, config, {send_net}, {ret_net});
 
   s.RunFor(TimeDelta::Seconds(120));
-  // Without LossBasedControl trial, bandwidth drops to ~10 kbps.
   EXPECT_GT(client->target_rate().kbps(), 100);
 }
 
@@ -1028,46 +994,6 @@ TEST(GoogCcScenario, FallbackToLossBasedBweWithoutPacketFeedback) {
   // Bandwidth decreases thanks to loss based bwe v0.
   EXPECT_LE(client->target_rate().kbps(), 300);
 }
-
-class GoogCcRttTest : public ::testing::TestWithParam<bool> {
- protected:
-  GoogCcFactoryConfig Config(bool feedback_only) {
-    GoogCcFactoryConfig config;
-    config.feedback_only = feedback_only;
-    return config;
-  }
-};
-
-TEST_P(GoogCcRttTest, CalculatesRttFromTransporFeedback) {
-  GoogCcFactoryConfig config(Config(/*feedback_only=*/GetParam()));
-  if (!GetParam()) {
-    // TODO(diepbp): understand the usage difference between
-    // UpdatePropagationRtt and UpdateRtt
-    GTEST_SKIP() << "This test should run only if "
-                    "feedback_only is enabled";
-  }
-  NetworkControllerTestFixture fixture(std::move(config));
-  std::unique_ptr<NetworkControllerInterface> controller =
-      fixture.CreateController();
-  Timestamp current_time = Timestamp::Millis(123);
-  TimeDelta one_way_delay = TimeDelta::Millis(10);
-  std::optional<TimeDelta> rtt = std::nullopt;
-
-  TransportPacketsFeedback feedback = CreateTransportPacketsFeedback(
-      /*per_packet_network_delay=*/TimeDelta::Millis(50), one_way_delay,
-      /*send_time=*/current_time);
-  NetworkControlUpdate update =
-      controller->OnTransportPacketsFeedback(feedback);
-  current_time += TimeDelta::Millis(50);
-  update = controller->OnProcessInterval({.at_time = current_time});
-  if (update.target_rate) {
-    rtt = update.target_rate->network_estimate.round_trip_time;
-  }
-  ASSERT_TRUE(rtt.has_value());
-  EXPECT_EQ(rtt->ms(), 2 * one_way_delay.ms());
-}
-
-INSTANTIATE_TEST_SUITE_P(GoogCcRttTests, GoogCcRttTest, ::testing::Bool());
 
 }  // namespace test
 }  // namespace webrtc

@@ -772,6 +772,7 @@ rtc_library("stun_port") {
     "../rtc_base/network:received_packet",
     "../rtc_base/network:sent_packet",
     "../rtc_base/system:rtc_export",
+    "../system_wrappers:metrics",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
@@ -922,6 +923,7 @@ rtc_library("turn_port") {
     "../rtc_base/network:received_packet",
     "../rtc_base/network:sent_packet",
     "../rtc_base/third_party/sigslot",
+    "../system_wrappers:metrics",
     "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",

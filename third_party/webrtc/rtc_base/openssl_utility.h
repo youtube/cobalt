@@ -13,7 +13,7 @@
 
 #include <openssl/ossl_typ.h>
 
-#include <string>
+#include <cstdint>
 
 #include "absl/strings/string_view.h"
 

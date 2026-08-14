@@ -63,7 +63,7 @@ std::string WindowText(HWND window) {
   if (copied == 0) {
     return std::string();
   }
-  return webrtc::ToUtf8(buffer.data(), copied);
+  return ToUtf8(buffer.data(), copied);
 }
 
 DWORD WindowProcessId(HWND window) {
