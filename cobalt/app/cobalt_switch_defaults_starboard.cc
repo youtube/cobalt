@@ -128,9 +128,6 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        // Set initial old space size to 16MB and max old space size to 512MB.
        "--initial-old-space-size=16 "
        "--max-old-space-size=512 "
-       // Disable v8 optimizing compilers (turbofan, maglev, sparkplug).
-       "--disable-optimizing-compilers "
-       "--no-sparkplug "
        // Disable v8 concurrent marking by default.
        "--no-concurrent-marking"},
       // Limit GPU memory available to 64MB.
