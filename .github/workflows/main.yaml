@@ -895,7 +895,7 @@ jobs:
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
-    if: always() && needs.initialize.outputs.expected_tests_json != '[]'
+    if: always() && needs.build.result == 'success' && needs.initialize.outputs.expected_tests_json != '[]'
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_info.target }}
