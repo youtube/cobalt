@@ -15,7 +15,9 @@ on:
         type: boolean
         default: false
 
-permissions: read-all
+permissions:
+  contents: read
+  statuses: read
 
 jobs:
   get-sha:
