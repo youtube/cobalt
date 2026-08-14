@@ -463,6 +463,11 @@ BASE_FEATURE(kCobaltBypassHTMLPreloadScanner,
 BASE_FEATURE(kCobaltBypassResourceLoadScheduler,
              "CobaltBypassResourceLoadScheduler",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables full memory cache eviction on critical memory pressure in Cobalt.
+BASE_FEATURE(kEvictMemoryCacheOnCriticalMemoryPressure,
+             "EvictMemoryCacheOnCriticalMemoryPressure",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_COBALT)
 
 // Enable legacy `viewport-width` client hint.
