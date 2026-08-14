@@ -3,9 +3,6 @@ description: Builds Cobalt targets
 runs:
   using: "composite"
   steps:
-    - name: Set up Cloud SDK
-      if: startsWith(${{matrix.target_platform}}, 'android')
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Set Android env vars
       if: startsWith(${{matrix.target_platform}}, 'android')
       run: |
