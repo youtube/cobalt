@@ -154,7 +154,7 @@ runs:
         exit ${exit_code}
       shell: bash
     - name: Archive Test Results
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@60a2fc5886a02c4161741443f6c8115d21d4505d # v4.6.0
       if: always()
       with:
         name: ${{ inputs.test_results_key }}

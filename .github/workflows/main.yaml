@@ -944,7 +944,7 @@ jobs:
         shell: bash
       - name: Download Test Results
         if: steps.filter.outputs.skipped != 'true'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@cc2066a23131d85cd0823354d21dbcbd9f2ca6e3 # v4.1.8
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
@@ -1005,7 +1005,7 @@ jobs:
         run: echo "test_target=${test_target_with_path#*:}" >> "${GITHUB_OUTPUT}"
         shell: bash
       - name: Download Test Results
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@cc2066a23131d85cd0823354d21dbcbd9f2ca6e3 # v4.1.8
         continue-on-error: true
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}
@@ -1062,7 +1062,7 @@ jobs:
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Download Unit Test Results
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@cc2066a23131d85cd0823354d21dbcbd9f2ca6e3 # v4.1.8
         continue-on-error: true
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*

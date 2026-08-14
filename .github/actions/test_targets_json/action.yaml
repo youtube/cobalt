@@ -18,7 +18,7 @@ runs:
   steps:
     - name: Download Test Targets Json
       if: inputs.test_targets_json_file == 'test_targets.json'
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      uses: actions/download-artifact@cc2066a23131d85cd0823354d21dbcbd9f2ca6e3 # v4.1.8
       with:
         name: ${{ matrix.platform }}_test_targets_json
         path:
