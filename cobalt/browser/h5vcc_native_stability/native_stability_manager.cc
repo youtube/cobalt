@@ -308,4 +308,16 @@ void NativeStabilityManager::AcknowledgeReportsOnTaskRunner(
   std::move(callback).Run();
 }
 
+void NativeStabilityManager::RecordHangStarted(const std::string& hang_uuid) {
+  // TODO(b/528362453): Implement persistent storage layer.
+  LOG(INFO) << "Mock NativeStabilityManager::RecordHangStarted for UUID: "
+            << hang_uuid;
+}
+
+void NativeStabilityManager::RecordHangRecovered(const std::string& hang_uuid) {
+  // TODO(b/528362453): Implement persistent storage layer.
+  LOG(INFO) << "Mock NativeStabilityManager::RecordHangRecovered for UUID: "
+            << hang_uuid;
+}
+
 }  // namespace h5vcc_native_stability
