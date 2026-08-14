@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "base/debug/debugger.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "starboard/system.h"
 

@@ -15,6 +15,7 @@
 #include "base/functional/bind.h"
 #include "base/i18n/icu_util.h"
 #include "base/memory/unsafe_shared_memory_region.h"
+#include "base/notimplemented.h"
 #include "base/process/launch.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"

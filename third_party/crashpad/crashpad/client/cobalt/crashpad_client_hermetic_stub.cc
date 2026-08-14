@@ -14,6 +14,7 @@
 
 #include "client/crashpad_client.h"
 
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 
 namespace crashpad {

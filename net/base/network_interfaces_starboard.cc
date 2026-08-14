@@ -14,6 +14,8 @@
 
 #include "net/base/network_interfaces.h"
 
+#include "base/notimplemented.h"
+
 namespace net {
 
 bool GetNetworkList(NetworkInterfaceList* networks, int policy) {

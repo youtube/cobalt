@@ -15,6 +15,7 @@
 #include "sandbox/policy/linux/sandbox_linux.h"
 #include "sandbox/linux/suid/client/setuid_sandbox_client.h"  // nogncheck
 
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 
 namespace sandbox {
