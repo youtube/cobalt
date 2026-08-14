@@ -157,6 +157,10 @@ int VideoRenderAlgorithmAndroid::GetDroppedFrames() {
   return dropped_frames_;
 }
 
+void VideoRenderAlgorithmAndroid::OnCodecSwapped() {
+  first_frame_released_ = false;
+}
+
 VideoRenderAlgorithmAndroid::VideoFrameReleaseTimeHelper::
     VideoFrameReleaseTimeHelper() {
   JNIEnv* env = AttachCurrentThread();

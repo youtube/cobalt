@@ -298,13 +298,16 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   const std::unique_ptr<VideoSurfaceTextureBridge> surface_texture_bridge_;
 
-  // Mid-stream seamless codec change draining variables
-  bool draining_codec_ = false;
+  // Mid-stream seamless codec change state tracking
+  enum class HotSwapState {
+    kNone,
+    kDraining,
+    kHotSwapScheduled,
+  };
+
+  HotSwapState hot_swap_state_ = HotSwapState::kNone;
   bool eos_received_in_draining_ = false;
-  bool hot_swap_scheduled_ = false;
-  SbMediaVideoCodec pending_video_codec_ = kSbMediaVideoCodecNone;
-  VideoStreamInfo pending_video_stream_info_;
-  bool just_reset_ = false;
+  VideoStreamInfo pending_stream_info_;
 
   void MaybeScheduleHotSwap();
   void PerformInternalDecoderHotSwap();

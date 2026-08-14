@@ -501,6 +501,9 @@ size_t MediaCodecVideoDecoder::GetPrerollFrameCount() const {
   if (tunnel_mode_audio_session_id_) {
     return 0;
   }
+  if (hot_swap_state_ != HotSwapState::kNone) {
+    return number_of_preroll_frames_;
+  }
   if (input_buffer_written_ > 0 && first_buffer_timestamp_ != 0) {
     return kNonInitialPrerollFrameCount;
   }
@@ -546,10 +549,9 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
                              (!new_mime.empty() && new_mime != video_mime_) ||
                              color_metadata_changed;
 
-  if (stream_info_changed && !draining_codec_) {
+  if (stream_info_changed && hot_swap_state_ == HotSwapState::kNone) {
     bool can_recreate_immediately =
-        just_reset_ || !media_decoder_ || input_buffer_written_ == 0;
-    just_reset_ = false;
+        !media_decoder_ || input_buffer_written_ == 0;
 
     if (can_recreate_immediately) {
       SB_LOG(INFO) << "Stream info change detected (empty decoder). "
@@ -566,9 +568,9 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     } else {
       SB_LOG(INFO) << "Stream info change detected during active decoding. "
                       "Initiating codec draining...";
-      draining_codec_ = true;
-      pending_video_codec_ = new_codec;
-      pending_video_stream_info_ = input_buffers.front()->video_stream_info();
+      hot_swap_state_ = HotSwapState::kDraining;
+      eos_received_in_draining_ = false;
+      pending_stream_info_ = input_buffers.front()->video_stream_info();
       pending_input_buffers_.insert(pending_input_buffers_.end(),
                                     input_buffers.begin(), input_buffers.end());
       media_decoder_->WriteEndOfStream();
@@ -576,7 +578,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     }
   }
 
-  if (draining_codec_) {
+  if (hot_swap_state_ != HotSwapState::kNone) {
     pending_input_buffers_.insert(pending_input_buffers_.end(),
                                   input_buffers.begin(), input_buffers.end());
     return;
@@ -1044,7 +1046,7 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
   bool is_end_of_stream =
       dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream;
 
-  if (is_end_of_stream && draining_codec_) {
+  if (is_end_of_stream && hot_swap_state_ == HotSwapState::kDraining) {
     SB_LOG(INFO) << "EOS received during codec draining.";
     eos_received_in_draining_ = true;
     media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
@@ -1302,11 +1304,9 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   tunnel_mode_prerolled_frames_.store(0);
   end_of_stream_written_ = false;
   pending_input_buffers_.clear();
-  just_reset_ = true;
-  draining_codec_ = false;
+  hot_swap_state_ = HotSwapState::kNone;
   eos_received_in_draining_ = false;
-  hot_swap_scheduled_ = false;
-  pending_video_codec_ = kSbMediaVideoCodecNone;
+  pending_stream_info_ = {};
 
   // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
@@ -1315,9 +1315,9 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
 }
 
 void MediaCodecVideoDecoder::MaybeScheduleHotSwap() {
-  if (draining_codec_ && eos_received_in_draining_ &&
-      buffered_output_frames_ == 0 && !hot_swap_scheduled_) {
-    hot_swap_scheduled_ = true;
+  if (hot_swap_state_ == HotSwapState::kDraining && eos_received_in_draining_ &&
+      buffered_output_frames_ == 0) {
+    hot_swap_state_ = HotSwapState::kHotSwapScheduled;
     SB_LOG(INFO) << "Old video fully rendered on screen. Scheduling "
                     "internal hot-swap on worker thread.";
     Schedule(std::bind(&MediaCodecVideoDecoder::PerformInternalDecoderHotSwap,
@@ -1327,29 +1327,37 @@ void MediaCodecVideoDecoder::MaybeScheduleHotSwap() {
 
 void MediaCodecVideoDecoder::PerformInternalDecoderHotSwap() {
   SB_CHECK(BelongsToCurrentThread());
-  hot_swap_scheduled_ = false;
-  if (!draining_codec_) {
+  if (hot_swap_state_ != HotSwapState::kHotSwapScheduled) {
     return;
   }
 
   SB_LOG(INFO) << "Performing internal decoder hot-swap from "
                << GetMediaVideoCodecName(video_codec_) << " to "
-               << GetMediaVideoCodecName(pending_video_codec_);
+               << GetMediaVideoCodecName(pending_stream_info_.codec);
 
   TeardownCodec();
 
-  video_codec_ = pending_video_codec_;
-  video_mime_ = pending_video_stream_info_.mime;
-  color_metadata_ = pending_video_stream_info_.color_metadata;
+  video_codec_ = pending_stream_info_.codec;
+  video_mime_ = pending_stream_info_.mime;
+  color_metadata_ = pending_stream_info_.color_metadata;
   needs_fps_to_initialize_codec_ =
       (video_codec_ == kSbMediaVideoCodecAv1 &&
        MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30());
 
+  if (video_frame_tracker_ && !pending_input_buffers_.empty()) {
+    video_frame_tracker_->Seek(pending_input_buffers_.front()->timestamp());
+  }
+
+  first_buffer_timestamp_ = 0;
   input_buffer_written_ = 0;
   video_fps_ = 0;
-  draining_codec_ = false;
+  hot_swap_state_ = HotSwapState::kNone;
   eos_received_in_draining_ = false;
-  pending_video_codec_ = kSbMediaVideoCodecNone;
+  pending_stream_info_ = {};
+
+  if (decoder_status_cb_) {
+    decoder_status_cb_(kReleaseAllFrames, NULL);
+  }
 
   if (!pending_input_buffers_.empty()) {
     InputBuffers buffers_to_write;
