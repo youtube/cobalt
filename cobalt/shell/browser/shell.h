@@ -17,6 +17,7 @@
 
 #include <stdint.h>
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -224,6 +225,9 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   GetPlatformOnScreenKeyboard();
 #endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
 
+  static void MaybeHideSystemSplashScreen();
+  static void ResetSystemSplashScreenForTesting();
+
  private:
   class DevToolsWebContentsObserver;
 
@@ -277,6 +281,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void TitleWasSet(NavigationEntry* entry) override;
   void RenderFrameCreated(RenderFrameHost* frame_host) override;
   void PrimaryMainDocumentElementAvailable() override;
+  void DidFirstVisuallyNonEmptyPaint() override;
   void DidFinishLoad(RenderFrameHost* render_frame_host,
                      const GURL& validated_url) override;
   void DidStartNavigation(NavigationHandle* navigation_handle) override;
@@ -328,6 +333,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   static std::vector<Shell*> windows_;
 
   static base::OnceCallback<void(Shell*)> shell_created_callback_;
+
+  static std::atomic<bool> s_has_hidden_system_splash_screen_;
 
   // NOTE: Do not add member variables after weak_factory_
   // It should be the first one destroyed among all members.

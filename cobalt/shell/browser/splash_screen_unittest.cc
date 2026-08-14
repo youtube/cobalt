@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/browser/features.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
+#include "cobalt/shell/common/shell_switches.h"
+#include "content/browser/aggregation_service/aggregatable_report.h"
 #include "content/test/test_web_contents.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -21,6 +24,9 @@
 using testing::_;
 
 namespace content {
+
+void AggregatableReport::Provider::SetDisableEncryptionForTestingTool(
+    bool should_disable) {}
 
 class SplashScreenTest : public ShellTestBase {
  public:
@@ -48,6 +54,10 @@ class SplashScreenTest : public ShellTestBase {
 
   void CallOnSplashScreenLoadComplete(Shell* shell) {
     shell->OnSplashScreenLoadComplete();
+  }
+
+  void CallDidFirstVisuallyNonEmptyPaint(Shell* shell) {
+    shell->DidFirstVisuallyNonEmptyPaint();
   }
 
   Shell::State GetSplashState(Shell* shell) { return shell->splash_state_; }
@@ -437,6 +447,72 @@ TEST_F(SplashScreenTest, SplashTimerStartsOnLoadComplete) {
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
   task_environment_.FastForwardBy(base::Milliseconds(1600));
   EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest,
+       HideSystemSplashScreenOnSplashDidFirstVisuallyNonEmptyPaint) {
+  Shell::ResetSystemSplashScreenForTesting();
+  WebContents::CreateParams create_params(browser_context());
+  create_params.desired_renderer_state =
+      WebContents::CreateParams::kNoRendererProcess;
+  std::unique_ptr<WebContents> splash_contents(
+      TestWebContents::Create(create_params));
+  SplashScreenWebContentsObserver observer(splash_contents.get(),
+                                           base::DoNothing());
+
+  // First paint of splash screen should trigger system splash dismissal.
+  observer.DidFirstVisuallyNonEmptyPaint();
+
+  // Subsequent calls should be safe no-ops.
+  observer.DidFirstVisuallyNonEmptyPaint();
+}
+
+TEST_F(
+    SplashScreenTest,
+    HideSystemSplashScreenOnMainDidFirstVisuallyNonEmptyPaintWhenSplashSkipped) {
+  Shell::ResetSystemSplashScreenForTesting();
+  WebContents::CreateParams create_params(browser_context());
+  create_params.desired_renderer_state =
+      WebContents::CreateParams::kNoRendererProcess;
+  std::unique_ptr<WebContents> web_contents(
+      TestWebContents::Create(create_params));
+  Shell* shell = CreateShell(std::move(web_contents), nullptr);
+
+  // When splash is omitted, first paint on the main page dismisses the system
+  // splash.
+  CallDidFirstVisuallyNonEmptyPaint(shell);
+
+  // Subsequent calls should be safe no-ops.
+  CallDidFirstVisuallyNonEmptyPaint(shell);
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest,
+       HideSystemSplashScreenWhenSplashScreenFeatureDisabled) {
+  Shell::ResetSystemSplashScreenForTesting();
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      cobalt::features::kDisableSplashScreen);
+  EXPECT_FALSE(switches::ShouldCreateSplashScreen());
+
+  EXPECT_CALL(*platform_, SetContents(_));
+  Shell* shell =
+      Shell::CreateNewWindow(browser_context(), GURL("about:blank"), nullptr,
+                             gfx::Size(), switches::ShouldCreateSplashScreen());
+
+  ASSERT_NE(shell->web_contents(), nullptr);
+  EXPECT_EQ(shell->splash_screen_web_contents(), nullptr);
+
+  // When splash is disabled by feature/flag, first paint on the main page
+  // dismisses the system splash.
+  CallDidFirstVisuallyNonEmptyPaint(shell);
+
+  // Subsequent calls should be safe no-ops.
+  CallDidFirstVisuallyNonEmptyPaint(shell);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
 }
 

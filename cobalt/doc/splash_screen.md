@@ -17,6 +17,26 @@ the HTML content shown immediately upon loading the web application (this may
 resemble a typical splash screen, but it really can be whatever the application
 chooses to show on starting).
 
+## Splash screen lifecycle and dismissal signals
+
+The table below illustrates the distinct phases and dismissal signals during application startup:
+
+| Phase | Visible UI | Owner | Dismissal API | Trigger Timing |
+| :--- | :--- | :--- | :--- | :--- |
+| **1. Platform / System Boot** | Host OS / platform splash screen (e.g. system app launch icon or boot splash) | Host OS / firmware | N/A (shown on process start) | Platform launches Cobalt binary |
+| **2. Cobalt First Frame Rendered** | Cobalt splash screen (e.g. animated logo / local splash asset) | Cobalt core / engine | `SbSystemHideSplashScreen()` | Cobalt renders its first visually non-empty paint (`WebContentsObserver::DidFirstVisuallyNonEmptyPaint`) |
+| **3. Web Application Ready** | Web application main UI (e.g. home page) | Web application JavaScript | `window.h5vcc.system.hideSplashScreen()` | Web application finishes document loading and initialization |
+
+### Architectural Distinction: `SbSystemHideSplashScreen()` vs. `h5vcc.system.hideSplashScreen()`
+
+It is critical not to conflate the system/platform splash screen with the Cobalt splash screen:
+
+* **`SbSystemHideSplashScreen()` (Starboard System API):**
+  Notifies the underlying Starboard platform to dismiss the host system/platform splash overlay. This is called automatically by Cobalt's browser shell upon the very first visually non-empty paint (`WebContentsObserver::DidFirstVisuallyNonEmptyPaint()`). Calling this immediately ensures that the platform splash is hidden as soon as Cobalt renders visible content, revealing Cobalt's animated splash screen without occlusion (or seamlessly revealing the main web application UI if the Cobalt splash screen is omitted or skipped).
+
+* **`window.h5vcc.system.hideSplashScreen()` (Cobalt Web API):**
+  Invoked from JavaScript by the web application once the application document has loaded, parsed, and initialized its UI. Cobalt handles this call by tearing down its splash screen WebContents and transitioning to the main web application WebContents.
+
 ## Cobalt splash screen priority order
 
 The Cobalt splash screen must be specified as a URL to a document. The document

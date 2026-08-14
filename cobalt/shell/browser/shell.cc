@@ -97,6 +97,8 @@ using ::starboard::StarboardBridge;
 #include "cobalt/android/oom_intervention/oom_intervention_tab_helper.h"
 #endif
 
+#include "starboard/system.h"
+
 namespace content {
 
 namespace {
@@ -212,6 +214,17 @@ ShellPlatformDelegate* g_platform = nullptr;
 
 std::vector<Shell*> Shell::windows_;
 base::OnceCallback<void(Shell*)> Shell::shell_created_callback_;
+std::atomic<bool> Shell::s_has_hidden_system_splash_screen_{false};
+
+void Shell::MaybeHideSystemSplashScreen() {
+  if (!s_has_hidden_system_splash_screen_.exchange(true)) {
+    SbSystemHideSplashScreen();
+  }
+}
+
+void Shell::ResetSystemSplashScreenForTesting() {
+  s_has_hidden_system_splash_screen_.store(false);
+}
 
 Shell::Shell(std::unique_ptr<WebContents> web_contents,
              std::unique_ptr<WebContents> splash_screen_web_contents,
@@ -550,6 +563,10 @@ void Shell::PrimaryMainDocumentElementAvailable() {
     updater_module->MarkSuccessful();
   }
 #endif
+}
+
+void Shell::DidFirstVisuallyNonEmptyPaint() {
+  MaybeHideSystemSplashScreen();
 }
 
 void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
