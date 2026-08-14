@@ -674,9 +674,7 @@ void LocalStorageImpl::OnDatabaseOpened(DbStatus status) {
     // If we failed to open the database, try to delete and recreate the
     // database, or ultimately fallback to an in-memory database.
 #if BUILDFLAG(IS_COBALT)
-    base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseOpenError",
-                                  leveldb_env::GetLevelDBStatusUMAValue(status),
-                                  leveldb_env::LEVELDB_STATUS_MAX);
+    LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseOpenError", status);
 #endif
     DeleteAndRecreateDatabase();
     return;
@@ -714,9 +712,8 @@ void LocalStorageImpl::OnGotDatabaseVersion(DbStatus status,
         db_version < kMinSchemaVersion ||
         db_version > kCurrentLocalStorageSchemaVersion) {
 #if BUILDFLAG(IS_COBALT)
-      base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseVersionMismatch",
-                                  leveldb_env::GetLevelDBStatusUMAValue(status),
-                                  leveldb_env::LEVELDB_STATUS_MAX);
+      LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseVersionMismatch",
+                                status);
 #endif
       DeleteAndRecreateDatabase();
       return;
@@ -726,9 +723,7 @@ void LocalStorageImpl::OnGotDatabaseVersion(DbStatus status,
   } else {
     // Other read error. Possibly database corruption.
 #if BUILDFLAG(IS_COBALT)
-    base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseReadError",
-                                  leveldb_env::GetLevelDBStatusUMAValue(status),
-                                  leveldb_env::LEVELDB_STATUS_MAX);
+    LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseReadError", status);
 #endif
     DeleteAndRecreateDatabase();
     return;
@@ -986,9 +981,8 @@ void LocalStorageImpl::OnCommitResult(DbStatus status) {
     // errors), but those commits won't reach OnCommitResult because the area
     // will have been deleted before the commit finishes.
 #if BUILDFLAG(IS_COBALT)
-    base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseCommitError",
-                                  leveldb_env::GetLevelDBStatusUMAValue(status),
-                                  leveldb_env::LEVELDB_STATUS_MAX);
+    LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseCommitError",
+                              status);
 #endif
     DeleteAndRecreateDatabase();
   }
