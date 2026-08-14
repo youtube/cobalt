@@ -206,7 +206,8 @@ int CobaltBrowserMainParts::PreCreateThreads() {
   // This is required because Cobalt bypasses
   // ContentMainRunnerImpl::RunBrowser() which normally initializes tracing in
   // standard Chromium.
-  tracing::InitTracingPostFeatureList(/*enable_consumer=*/true);
+  tracing::InitTracingPostFeatureList(/*enable_consumer=*/true,
+                                      /*will_trace_thread_restart=*/false);
   InitializeCobaltHeapProfiler();
 #endif
 
