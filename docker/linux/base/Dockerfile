@@ -44,3 +44,6 @@ RUN apt update -qqy \
     && echo "Done"
 
 CMD ["/usr/bin/python","--version"]
+
+ARG GCLOUD=google-cloud-cli-linux-x86_64.tar.gz
+RUN cd /tmp     && curl -L -O "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/"     && tar xf "" -C /usr/local --strip-components=1 google-cloud-sdk/bin google-cloud-sdk/lib     && rm ""     && gcloud --version
