@@ -52,8 +52,8 @@ __attribute__((weak)) void  wgpuDawnDrmFormatCapabilitiesFreeMembers(WGPUDawnDrm
     procs.dawnDrmFormatCapabilitiesFreeMembers(value);
 }
 DAWN_NO_SANITIZE("cfi-icall")
-__attribute__((weak)) WGPUStatus  wgpuGetInstanceCapabilities(WGPUInstanceCapabilities * capabilities) {
-return     procs.getInstanceCapabilities(capabilities);
+__attribute__((weak)) WGPUStatus  wgpuGetInstanceLimits(WGPUInstanceLimits * capabilities) {
+return     procs.getInstanceLimits(capabilities);
 }
 DAWN_NO_SANITIZE("cfi-icall")
 __attribute__((weak)) WGPUProc  wgpuGetProcAddress(WGPUStringView procName) {
