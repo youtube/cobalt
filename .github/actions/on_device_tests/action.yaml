@@ -17,11 +17,15 @@ runs:
       run: |
         python -m grpc_tools.protoc -Itools/ --python_out=tools/ --grpc_python_out=tools/ tools/on_device_tests_gateway.proto
       shell: bash
-    - name: Set Up Cloud SDK
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@f0990588f1e5b5af6827153b93673613abdc6ec7 # v2.1.1
     - name: Set env vars
       run: |
-        echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
+        PROJECT_NAME=$(gcloud config get-value project 2>/dev/null)
+        if [ -z "$PROJECT_NAME" ]; then
+          PROJECT_NAME=$(curl -sS -f --connect-timeout 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+        fi
+        echo "PROJECT_NAME=${PROJECT_NAME}" >> $GITHUB_ENV
 
         # Test results and logs
         echo "GCS_RESULTS_PATH=gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}_${{ matrix.shard }}" >> $GITHUB_ENV
@@ -124,9 +128,9 @@ runs:
           COBALT_INFO_LOG_FILENAME="webDriverTestLog.INFO"
 
           # This command will fail until the results have been uploaded.
-          gsutil cp "${GCS_RESULTS_PATH}/${COBALT_ERROR_LOG_FILENAME}" .
-          gsutil cp "${GCS_RESULTS_PATH}/${COBALT_INFO_LOG_FILENAME}" .
-          gsutil cp "${GCS_RESULTS_PATH}/${COBALT_XMLS_FILENAME}" .
+          gcloud storage cp "${GCS_RESULTS_PATH}/${COBALT_ERROR_LOG_FILENAME}" .
+          gcloud storage cp "${GCS_RESULTS_PATH}/${COBALT_INFO_LOG_FILENAME}" .
+          gcloud storage cp "${GCS_RESULTS_PATH}/${COBALT_XMLS_FILENAME}" .
 
           # Break if all files were downloaded.
           if [[ -f "${COBALT_XMLS_FILENAME}" && -f "${COBALT_ERROR_LOG_FILENAME}" && -f "${COBALT_INFO_LOG_FILENAME}" ]]; then

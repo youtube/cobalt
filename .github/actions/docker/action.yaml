@@ -50,12 +50,6 @@ runs:
       if: ${{ (steps.changed-files.outputs.any_changed == 'false') && (github.event_name == 'pull_request') }}
       run: echo "DOCKER_TAG=ghcr.io/${REPO}/${{inputs.docker_image}}:${GITHUB_BASE_REF%.1+}" >> $GITHUB_ENV
       shell: bash
-    - name: Set up Cloud SDK
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-    - name: Configure Docker auth for GCloud
-      shell: bash
-      run: |
-        gcloud auth configure-docker
     - name: Set Docker Tag
       id: set-docker-tag-presubmit-fork
       env:
@@ -63,7 +57,7 @@ runs:
       if: ${{ (steps.changed-files.outputs.any_changed == 'true') && (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.fork) }}
       run: |
         # Need to login to GCR to be able to push images created by fork based PR workflows.
-        PROJECT_NAME=$(gcloud config get-value project)
+        PROJECT_NAME=$(curl -sS -f --connect-timeout 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
         METADATA="http://metadata.google.internal./computeMetadata/v1"
         SVC_ACCT="${METADATA}/instance/service-accounts/default"
         ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${SVC_ACCT}/token | cut -d'"' -f 4)
