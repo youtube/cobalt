@@ -8,7 +8,6 @@ on:
       pr_number:
         description: 'PR number to test'
         required: true
-        default: '843'
       label_name:
         description: 'Label name'
         required: true
