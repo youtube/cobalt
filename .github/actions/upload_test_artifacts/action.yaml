@@ -10,8 +10,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up Cloud SDK
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Configure Environment
       env:
         WORKFLOW: ${{ github.workflow }}
@@ -75,4 +73,4 @@ runs:
       shell: bash
       run: |
         set -eux
-        gsutil -d cp "${ARCHIVE_PATH}" "gs://${DESTINATION}"
+        gcloud storage cp "${ARCHIVE_PATH}" "gs://${DESTINATION}"
