@@ -13,9 +13,11 @@
 // limitations under the License.
 
 /**
- * Cobalt Memory Breakdown DevTools Extension Panel Controller (PR 3.1).
- * Connects to Cobalt's active CDP port via WebSocket and renders the
- * primary Session Median Telemetry table (P50 breakdown).
+ * Cobalt Memory Breakdown DevTools Extension Panel Controller.
+ * Connects to Cobalt's active CDP port via WebSocket and renders:
+ * 1. Proportional Memory Footprint Distribution Bar (10 Canonical Allocators).
+ * 2. Primary Session P50 Memory Breakdown table (12 continuous P50 allocators).
+ * 3. Lifecycle Peak Memory scorecard (time-windowed PMF & Peak GPU).
  */
 
 // 12 Continuous UMA memory breakdown metrics grouped by Process Totals and Allocator Breakdown
@@ -30,22 +32,56 @@ const METRIC_GROUPS = [
   {
     groupTitle: "Subsystem & Allocator Breakdown",
     metrics: [
-      { umaName: "Memory.Experimental.Browser2.PartitionAlloc", cdpKey: "Memory.Experimental.Browser2.PartitionAlloc.P50", label: "PartitionAlloc C++ Heap" },
-      { umaName: "Memory.Experimental.Browser2.Malloc", cdpKey: "Memory.Experimental.Browser2.Malloc.P50", label: "System Malloc Heap" },
-      { umaName: "Memory.Experimental.Browser2.V8", cdpKey: "Memory.Experimental.Browser2.V8.P50", label: "V8 JavaScript Engine Heap" },
-      { umaName: "Memory.Experimental.Browser2.BlinkGC", cdpKey: "Memory.Experimental.Browser2.BlinkGC.P50", label: "Blink C++ GC (cppgc)" },
-      { umaName: "Memory.Experimental.Browser2.Skia", cdpKey: "Memory.Experimental.Browser2.Skia.P50", label: "Skia 2D Graphics & Images" },
-      { umaName: "Memory.Browser.LibChrobaltRss", cdpKey: "Memory.Browser.LibChrobaltRss.P50", label: "Binary Executable Pages (libchrobalt.so)" },
-      { umaName: "Memory.Experimental.Browser2.CodeOther", cdpKey: "Memory.Experimental.Browser2.CodeOther.P50", label: "Other Dynamic Shared Libraries" },
-      { umaName: "Memory.Experimental.Browser2.Fonts", cdpKey: "Memory.Experimental.Browser2.Fonts.P50", label: "Font Caches & Glyph Buffers" },
-      { umaName: "Memory.Experimental.Browser2.Stacks", cdpKey: "Memory.Experimental.Browser2.Stacks.P50", label: "Thread Stacks" },
-      { umaName: "Memory.Experimental.Browser2.JavaHeap", cdpKey: "Memory.Experimental.Browser2.JavaHeap.P50", label: "Android ART Java Heap" },
+      { umaName: "Memory.Experimental.Browser2.PartitionAlloc", cdpKey: "Memory.Experimental.Browser2.PartitionAlloc.P50", label: "PartitionAlloc C++ Heap", cssClass: "segment-pa", color: "var(--color-pa)" },
+      { umaName: "Memory.Experimental.Browser2.Malloc", cdpKey: "Memory.Experimental.Browser2.Malloc.P50", label: "System Malloc Heap", cssClass: "segment-malloc", color: "var(--color-malloc)" },
+      { umaName: "Memory.Experimental.Browser2.V8", cdpKey: "Memory.Experimental.Browser2.V8.P50", label: "V8 JavaScript Engine Heap", cssClass: "segment-v8", color: "var(--color-v8)" },
+      { umaName: "Memory.Experimental.Browser2.BlinkGC", cdpKey: "Memory.Experimental.Browser2.BlinkGC.P50", label: "Blink C++ GC (cppgc)", cssClass: "segment-blinkgc", color: "var(--color-blinkgc)" },
+      { umaName: "Memory.Experimental.Browser2.Skia", cdpKey: "Memory.Experimental.Browser2.Skia.P50", label: "Skia 2D Graphics & Images", cssClass: "segment-skia", color: "var(--color-skia)" },
+      { umaName: "Memory.Browser.LibChrobaltRss", cdpKey: "Memory.Browser.LibChrobaltRss.P50", label: "Binary Executable Pages (libchrobalt.so)", cssClass: "segment-binary", color: "var(--color-binary)" },
+      { umaName: "Memory.Experimental.Browser2.CodeOther", cdpKey: "Memory.Experimental.Browser2.CodeOther.P50", label: "Other Dynamic Shared Libraries", cssClass: "segment-codeother", color: "var(--color-codeother)" },
+      { umaName: "Memory.Experimental.Browser2.Fonts", cdpKey: "Memory.Experimental.Browser2.Fonts.P50", label: "Font Caches & Glyph Buffers", cssClass: "segment-fonts", color: "var(--color-fonts)" },
+      { umaName: "Memory.Experimental.Browser2.Stacks", cdpKey: "Memory.Experimental.Browser2.Stacks.P50", label: "Thread Stacks", cssClass: "segment-stacks", color: "var(--color-stacks)" },
+      { umaName: "Memory.Experimental.Browser2.JavaHeap", cdpKey: "Memory.Experimental.Browser2.JavaHeap.P50", label: "Android ART Java Heap", cssClass: "segment-java", color: "var(--color-java)" },
     ]
   }
 ];
 
 // Flat list for counter computation
 const ALL_CANONICAL_METRICS = METRIC_GROUPS.flatMap(g => g.metrics);
+
+// 10 Canonical Allocators for Distribution Bar (dynamically retrieved from subsystem group)
+const ALLOCATOR_SEGMENTS = METRIC_GROUPS.find(g => g.groupTitle.includes("Subsystem"))?.metrics || [];
+
+// Peak Guardrail Scorecard Metrics
+const GUARDRAIL_METRICS = [
+  {
+    title: "0 to 2 min Window",
+    umaName: "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.0to2min",
+    description: "Boot & initial browse phase"
+  },
+  {
+    title: "2 to 4 min Window",
+    umaName: "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.2to4min",
+    description: "Early navigation & initial playback"
+  },
+  {
+    title: "4 to 8 min Window",
+    umaName: "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.4to8min",
+    description: "Continuous browsing"
+  },
+  {
+    title: "8 to 16 min Window",
+    umaName: "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.8to16min",
+    description: "Extended session stability"
+  },
+  {
+    title: "Peak GPU (Page Load)",
+    umaName: "Memory.GPU.PeakMemoryUsage2.PageLoad",
+    cdpKey: "Memory.GPU.PeakMemoryUsage2.PageLoad.P50",
+    fallbackKey: "Memory.GPU.PeakMemoryUsage2.PageLoad",
+    description: "Initial page navigation & render"
+  }
+];
 
 let ws = null;
 let pollInterval = null;
@@ -60,6 +96,8 @@ const statusBadge = document.getElementById("connection-status");
 const tableBody = document.getElementById("metrics-table-body");
 const samplingProgress = document.getElementById("sampling-progress");
 const samplingHint = document.getElementById("sampling-hint");
+const distributionBar = document.getElementById("distribution-bar");
+const guardrailsGrid = document.getElementById("guardrails-grid");
 
 function formatBytesToMB(bytes) {
   if (bytes === undefined || bytes === null || isNaN(bytes)) return "-- MB";
@@ -78,6 +116,8 @@ function clearPolling() {
 
 // Auto-Connect on Panel Load and Restore Persisted URL
 document.addEventListener("DOMContentLoaded", () => {
+  renderGuardrails();
+
   if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
     chrome.storage.local.get(["cdpUrl"], (result) => {
       if (result && result.cdpUrl) {
@@ -234,12 +274,12 @@ function handlePerformanceMetrics(metrics) {
 }
 
 function updateUi() {
-  const rssP50 = latestMetrics["Memory.Browser.ResidentSet.P50"] || null;
+  const rssP50 = latestMetrics?.["Memory.Browser.ResidentSet.P50"] || null;
 
   // 1. Count Reported vs Pending Canonical Subsystems
   let reportedCount = 0;
   ALL_CANONICAL_METRICS.forEach(item => {
-    if (latestMetrics[item.cdpKey] !== undefined && latestMetrics[item.cdpKey] !== null) {
+    if (latestMetrics?.[item.cdpKey] !== undefined && latestMetrics?.[item.cdpKey] !== null) {
       reportedCount++;
     }
   });
@@ -254,8 +294,50 @@ function updateUi() {
     samplingHint.style.display = "block";
   }
 
-  // 2. Render Grouped Breakdown Rows
+  // 2. Render Integrated Visual Distribution Bar (10 Canonical Allocators)
+  renderDistributionBar(rssP50);
+
+  // 3. Render Grouped Breakdown Table Rows
   renderTable(rssP50);
+
+  // 4. Render Peak Memory & Lifecycle Guardrail Scorecard
+  renderGuardrails();
+}
+
+function renderDistributionBar(totalRss) {
+  if (!totalRss || totalRss <= 0) {
+    distributionBar.innerHTML = `<div class="distribution-bar-empty">Waiting for memory telemetry...</div>`;
+    return;
+  }
+
+  let totalAccountedBytes = 0;
+  let barHtml = "";
+
+  ALLOCATOR_SEGMENTS.forEach(item => {
+    const rawVal = latestMetrics?.[item.cdpKey];
+    if (typeof rawVal === "number" && rawVal > 0) {
+      totalAccountedBytes += rawVal;
+      const pct = ((rawVal / totalRss) * 100).toFixed(1);
+      const mbStr = formatBytesToMB(rawVal);
+
+      barHtml += `
+        <div class="distribution-segment ${item.cssClass}" style="width: ${pct}%" title="${item.label}: ${mbStr} (${pct}%)"></div>
+      `;
+    }
+  });
+
+  // Calculate remaining unallocated / other native resident footprint
+  const otherBytes = Math.max(0, totalRss - totalAccountedBytes);
+  if (otherBytes > 0) {
+    const pctOther = ((otherBytes / totalRss) * 100).toFixed(1);
+    const mbOtherStr = formatBytesToMB(otherBytes);
+
+    barHtml += `
+      <div class="distribution-segment segment-other" style="width: ${pctOther}%" title="Other Resident Pages: ${mbOtherStr} (${pctOther}%)"></div>
+    `;
+  }
+
+  distributionBar.innerHTML = barHtml || `<div class="distribution-bar-empty">Waiting for memory telemetry...</div>`;
 }
 
 function renderTable(totalRss) {
@@ -269,7 +351,7 @@ function renderTable(totalRss) {
     `;
 
     group.metrics.forEach(item => {
-      const rawVal = latestMetrics[item.cdpKey];
+      const rawVal = latestMetrics?.[item.cdpKey];
       const isRecorded = rawVal !== undefined && rawVal !== null;
 
       let valDisplay = `<span class="pending-text">⏳ Pending sample...</span>`;
@@ -282,11 +364,22 @@ function renderTable(totalRss) {
         }
       }
 
+      // If the metric has an assigned color dot (subsystems), render it in the label
+      let labelHtml = `<span class="metric-label">${item.label}</span>`;
+      if (item.color) {
+        labelHtml = `
+          <div class="metric-label-row">
+            <span class="metric-dot" style="background-color: ${item.color}"></span>
+            <span class="metric-label">${item.label}</span>
+          </div>
+        `;
+      }
+
       html += `
         <tr>
           <td>
             <div class="metric-name-cell">
-              <span class="metric-label">${item.label}</span>
+              ${labelHtml}
               <span class="metric-key">${item.umaName}</span>
             </div>
           </td>
@@ -298,6 +391,47 @@ function renderTable(totalRss) {
   });
 
   tableBody.innerHTML = html;
+}
+
+function renderGuardrails() {
+  let html = "";
+
+  GUARDRAIL_METRICS.forEach(g => {
+    const lookupKey = g.cdpKey || g.umaName;
+    let rawVal = latestMetrics?.[lookupKey];
+    if (rawVal === undefined && g.fallbackKey) {
+      rawVal = latestMetrics?.[g.fallbackKey];
+    }
+
+    const isRecorded = rawVal !== undefined && rawVal !== null;
+    let valHtml = `<span class="guardrail-value pending">⏳ Waiting for window...</span>`;
+    let statusBadgeHtml = `<span class="badge-guardrail-pending">Pending</span>`;
+
+    if (isRecorded && typeof rawVal === "number") {
+      valHtml = `<span class="guardrail-value">${formatBytesToMB(rawVal)}</span>`;
+      statusBadgeHtml = `<span class="badge-guardrail-recorded">Recorded</span>`;
+    }
+
+    html += `
+      <div class="guardrail-card">
+        <div class="guardrail-header">
+          <div>
+            <div class="guardrail-title">${g.title}</div>
+            <div class="guardrail-key">${g.umaName}</div>
+          </div>
+          ${statusBadgeHtml}
+        </div>
+        <div class="guardrail-value-row">
+          ${valHtml}
+        </div>
+        <div class="guardrail-footer">
+          <span class="guardrail-desc">${g.description}</span>
+        </div>
+      </div>
+    `;
+  });
+
+  guardrailsGrid.innerHTML = html;
 }
 
 // Event Listeners
