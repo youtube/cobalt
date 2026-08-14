@@ -29,12 +29,8 @@
 #include "base/threading/threading_features.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
-<<<<<<< HEAD
 #include "base/trace_event/trace_event.h"
-=======
-#include "base/trace_event/base_tracing.h"
 #include "base/uuid.h"
->>>>>>> fc8b8afb4e (Implement HangWatcher UUID tracking and NSE recovery reporting (#11757))
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_STARBOARD)
@@ -1165,15 +1161,6 @@ bool HangWatcher::WatchStateSnapShot::IsActionable() const {
   return !hung_watch_state_copies_.empty();
 }
 
-<<<<<<< HEAD
-=======
-HangWatcher::WatchStateSnapShot HangWatcher::GrabWatchStateSnapshotForTesting()
-    const {
-  WatchStateSnapShot snapshot;
-  snapshot.Init(watch_states_, deadline_ignore_threshold_, TimeDelta());
-  return snapshot;
-}
-
 #if BUILDFLAG(IS_COBALT)
 void HangWatcher::RecordHangStarted() {
   DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
@@ -1251,7 +1238,6 @@ void HangWatcher::CheckAndRecordHangRecovered() {
 }
 #endif
 
->>>>>>> fc8b8afb4e (Implement HangWatcher UUID tracking and NSE recovery reporting (#11757))
 void HangWatcher::Monitor() {
   DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
 

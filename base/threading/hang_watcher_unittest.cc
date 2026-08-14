@@ -1163,9 +1163,8 @@ TEST_F(WatchHangsInScopeBlockingTest, MAYBE_NewScopeDoesNotBlockDuringCapture) {
   continue_capture_.Signal();
 }
 
-<<<<<<< HEAD
 }  // namespace
-=======
+
 #if BUILDFLAG(IS_COBALT)
 class MockHangWatcherDelegate : public HangWatcher::Delegate {
  public:
@@ -1546,7 +1545,6 @@ TEST_F(HangWatcherCobaltTest, OverlappingHangsSingleUuid) {
 }
 
 #endif
->>>>>>> fc8b8afb4e (Implement HangWatcher UUID tracking and NSE recovery reporting (#11757))
 
 namespace internal {
 namespace {
@@ -1761,8 +1759,6 @@ TEST_F(HangWatchDeadlineTest, SetDeadlineWipesFlags) {
 
 }  // namespace
 }  // namespace internal
-<<<<<<< HEAD
-=======
 
 #if BUILDFLAG(IS_COBALT)
 TEST_F(HangWatcherCobaltTest, AlternatingHangsSingleUuid) {
@@ -1865,5 +1861,4 @@ TEST_F(HangWatcherCobaltTest, ThreadUnregistersWhileHung) {
 }
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> fc8b8afb4e (Implement HangWatcher UUID tracking and NSE recovery reporting (#11757))
 }  // namespace base
