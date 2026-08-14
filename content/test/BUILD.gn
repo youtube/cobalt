@@ -2044,7 +2044,7 @@ test("content_browsertests") {
     "//content/shell:pak",
     "//third_party/mesa_headers",
   ]
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   data = [
     "data/",
@@ -3426,7 +3426,7 @@ test("content_unittests") {
     "//testing/buildbot/filters:content_unittests_filters",
     "//third_party/mesa_headers",
   ]
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   if (!is_ios) {
     data_deps += [

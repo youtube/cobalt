@@ -18,7 +18,7 @@
 @interface RenderWidgetUIView
     : CALayerFrameSinkProvider <UITextFieldDelegate,
                                 UIGestureRecognizerDelegate> {
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   base::WeakPtr<content::RenderWidgetHostViewIOS> _view;
 
   // Contrary to what Apple's documentation says, on tvOS calling
@@ -31,7 +31,7 @@
   // Set on pressesBegan for kSelect when an input field is focused, cleared and
   // used on pressesEnded to show the keyboard.
   BOOL _selectWillShowKeyboard;
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 - (instancetype)initWithWidget:

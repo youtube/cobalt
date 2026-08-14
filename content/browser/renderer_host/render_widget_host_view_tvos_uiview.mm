@@ -7,7 +7,7 @@
 <<<<<<< HEAD
 =======
 #include "base/apple/owned_objc.h"
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/strings/sys_string_conversions.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
@@ -15,7 +15,7 @@
 <<<<<<< HEAD
 =======
 #include "ui/accessibility/platform/browser_accessibility_manager.h"
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "ui/base/ime/mojom/ime_types.mojom-shared.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/keycodes/dom/dom_code.h"
@@ -29,7 +29,7 @@
 
 #include "components/input/web_input_event_builders_ios.h"
 #endif
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 static void* kObservingContext = &kObservingContext;
 
@@ -52,7 +52,7 @@ typedef NS_ENUM(NSInteger, RemoteButton) {
 // UIPanGestureRecognizer.
 const CGFloat kMinVelocity = 100;
 
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 UIKeyboardType keyboardTypeForInputType(ui::TextInputType inputType) {
   // TODO(crbug.com/411452047): Implement textFieldShouldEndEditing to detect
   // invalid contents in the text field. When texts are inserted via a H/W
@@ -118,7 +118,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 @end
 #endif
 
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 @implementation RenderWidgetUIView
 
 #pragma mark - Public
@@ -186,7 +186,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 #else
     [self addSwipeAndPanGestureRecognizers];
 #endif
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
   return self;
 }
@@ -339,7 +339,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   swipeGesture.direction = direction;
   swipeGesture.delegate = self;
   [self addGestureRecognizer:swipeGesture];
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 - (void)swipeGesture:(UISwipeGestureRecognizer*)gestureRecognizer {
@@ -500,7 +500,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 
   switch (remoteButton) {
     case kLeft:
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       event.native_key_code = UIKeyboardHIDUsageKeyboardLeftArrow;
       event.dom_code = static_cast<int>(ui::DomCode::ARROW_LEFT);
       event.dom_key = ui::DomKey::ARROW_LEFT;
@@ -510,7 +510,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     case UISwipeGestureRecognizerDirectionRight:
 =======
     case kRight:
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       event.native_key_code = UIKeyboardHIDUsageKeyboardRightArrow;
       event.dom_code = static_cast<int>(ui::DomCode::ARROW_RIGHT);
       event.dom_key = ui::DomKey::ARROW_RIGHT;
@@ -520,7 +520,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     case UISwipeGestureRecognizerDirectionUp:
 =======
     case kUp:
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       event.native_key_code = UIKeyboardHIDUsageKeyboardUpArrow;
       event.dom_code = static_cast<int>(ui::DomCode::ARROW_UP);
       event.dom_key = ui::DomKey::ARROW_UP;
@@ -530,7 +530,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     case UISwipeGestureRecognizerDirectionDown:
 =======
     case kDown:
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       event.native_key_code = UIKeyboardHIDUsageKeyboardDownArrow;
       event.dom_code = static_cast<int>(ui::DomCode::ARROW_DOWN);
       event.dom_key = ui::DomKey::ARROW_DOWN;
@@ -566,7 +566,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
       break;
     case kNone:
       return NO;
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   _view->SendKeyEvent(
@@ -574,7 +574,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 <<<<<<< HEAD
 =======
   return YES;
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 - (void)showKeyboard:(const ui::mojom::TextInputState&)state {
@@ -662,7 +662,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   return CGRectZero;
 }
 
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #pragma mark - UIResponder
 
 - (BOOL)canBecomeFirstResponder {
@@ -700,7 +700,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     }
   }
 #endif
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return result;
 }
 
@@ -856,7 +856,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   return YES;
 }
 
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #pragma mark - UIView
 
 - (BOOL)canBecomeFocused {

@@ -357,7 +357,7 @@ BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingSubresourceSize);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingMediaSize);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace network::features
 

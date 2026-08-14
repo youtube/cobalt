@@ -330,7 +330,7 @@ void RemoteObject::RemoteObjectInvokeCallback(
         isolate, base::StrCat({"Error invoking ", method_name.Utf8(), ": ",
                                kMethodInvocationAsConstructorDisallowed})
                      .c_str())));
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return;
   }
 
@@ -345,7 +345,7 @@ void RemoteObject::RemoteObjectInvokeCallback(
         isolate, base::StrCat({"Error invoking ", ": ", method_name.Utf8(),
                                kMethodInvocationOnNonInjectedObjectDisallowed})
                      .c_str())));
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return;
   }
 
@@ -369,7 +369,7 @@ void RemoteObject::RemoteObjectInvokeCallback(
         isolate, base::StrCat({"Error invoking ", ": ", method_name.Utf8(),
                                kMethodInvocationNonexistentMethod})
                      .c_str())));
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return;
   }
 
@@ -401,7 +401,7 @@ void RemoteObject::RemoteObjectInvokeCallback(
                       kMethodInvocationErrorMessage, ": ",
                       RemoteInvocationErrorToString(result->error).Utf8()})
             .c_str())));
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c21667f7245f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return;
   }
 
