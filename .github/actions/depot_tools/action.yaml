@@ -10,7 +10,7 @@ inputs:
     default: projects/cobalt-actions-prod/instances/default_instance
   use_cache:
     description: Whether or not to use runner cache.
-    default: 'true'
+    default: 'false'
   use_gcloud:
     description: "Whether to run gcloud config set account."
     default: 'false'
