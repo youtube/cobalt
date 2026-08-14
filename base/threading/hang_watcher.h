@@ -144,6 +144,8 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   class BASE_EXPORT Delegate {
    public:
     virtual ~Delegate() = default;
+    virtual void RecordHangStarted(const std::string& hang_uuid) {}
+    virtual void RecordHangRecovered(const std::string& hang_uuid) {}
     // Returns true if hang reporting should be enabled
     // potentially overriding default settings.
     virtual bool IsHangReportingEnabled() = 0;
@@ -396,6 +398,19 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // invokes the appropriate closure if so.
   void Monitor() LOCKS_EXCLUDED(watch_state_lock_);
 
+#if BUILDFLAG(IS_COBALT)
+  // Checks if any previously hung threads have recovered. If all threads have
+  // resumed, it notifies the delegate and clears the active hang UUID.
+  void CheckAndRecordHangRecovered()
+      EXCLUSIVE_LOCKS_REQUIRED(watch_state_lock_);
+
+  // Generates a new UUID, saves it as the active hang UUID, and notifies the
+  // delegate and Crashpad that a new hang incident has begun.
+  // NOTE: RecordHang() is the upstream Chromium method that simply triggers
+  // DumpWithoutCrashing(). RecordHangStarted() is Cobalt-specific for NSE.
+  void RecordHangStarted() EXCLUSIVE_LOCKS_REQUIRED(watch_state_lock_);
+#endif
+
   // Record the hang crash dump and perform the necessary housekeeping before
   // and after.
   void DoDumpWithoutCrashing(const WatchStateSnapShot& watch_state_snapshot)
@@ -431,6 +446,15 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // Snapshot to be reused across hang captures. The point of keeping it
   // around is reducing allocations during capture.
   WatchStateSnapShot watch_state_snapshot_
+      GUARDED_BY_CONTEXT(hang_watcher_thread_checker_);
+
+  // Communicates the unique hang identifier from RecordHangStarted() to a
+  // subsequent execution of CheckAndRecordHangRecovered().
+  // NOTE: Even if multiple threads hang simultaneously (or in an overlapping
+  // cascade), they all share this single UUID. The UUID is only cleared when
+  // *all* threads recover. This prevents extreme deadlocks from overflowing
+  // Crashpad's annotation limits and NSE events overreporting.
+  std::string active_hang_uuid_
       GUARDED_BY_CONTEXT(hang_watcher_thread_checker_);
 
   base::DelegateSimpleThread thread_;
