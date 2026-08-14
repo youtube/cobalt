@@ -91,8 +91,6 @@ jobs:
         run: echo "on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')" >> $GITHUB_ENV
       - id: set-docker-service
         run: echo "docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_service')" >> $GITHUB_ENV
-      - id: set-docker-runner-service
-        run: echo "docker_runner_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_runner_service')" >> $GITHUB_ENV
     outputs:
       platforms: ${{ env.platforms }}
       includes: ${{ env.includes }}
@@ -100,7 +98,6 @@ jobs:
       on_host_test: ${{ env.on_host_test }}
       on_host_test_shards: ${{ env.on_host_test_shards }}
       docker_service: ${{ env.docker_service }}
-      docker_runner_service: ${{ env.docker_runner_service }}
   # Build windows docker images.
   build-docker-image:
     needs: [initialize]
@@ -124,11 +121,6 @@ jobs:
         uses: ./.github/actions/docker_win
         with:
           service: ${{ needs.initialize.outputs.docker_service }}
-      - name: Build runner docker image
-        id: build-runner-docker-image
-        uses: ./.github/actions/docker_win
-        with:
-          service: ${{ needs.initialize.outputs.docker_runner_service }}
   # Runs builds.
   build:
     needs: [initialize]
