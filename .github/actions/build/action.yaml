@@ -9,7 +9,7 @@ runs:
         echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
     - name: Set up Cloud SDK
       if: startsWith(${{matrix.target_platform}}, 'android')
-      uses: google-github-actions/setup-gcloud@v1
+      uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
     - name: Set Android env vars
       if: startsWith(${{matrix.target_platform}}, 'android')
       run: |
@@ -40,6 +40,6 @@ runs:
             fi
           elif [[ "${{matrix.platform}}" =~ ^evergreen-arm-hardfp ]]; then
               ninja -v -C ${GITHUB_WORKSPACE}/out/${{matrix.bootloader_platform}}_${{matrix.config}} loader_app_deploy elf_loader_sandbox_deploy crashpad_handler_deploy
-          fi  
+          fi
         fi
       shell: bash
