@@ -37,8 +37,6 @@ runs:
             --grpc_python_out=${GITHUB_WORKSPACE}/cobalt/tools/ \
             ${GITHUB_WORKSPACE}/cobalt/tools/on_device_tests_gateway.proto
       shell: bash
-    - name: Set Up Cloud SDK
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Set GCS Project Name
       run: |
         echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
@@ -118,7 +116,7 @@ runs:
         # Test results (xml and logs) must be in a subfolder in results_dir.
         # to be picked up by the test result processor.
         mkdir -p "${test_output}/${{ matrix.platform }}"
-        gsutil -q cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}"
+        gcloud storage cp -r "${{ inputs.gcs_results_path }}/*" "${test_output}/${{ matrix.platform }}"
 
         # Check for missing result xml files.
         exit_code=0

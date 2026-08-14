@@ -119,9 +119,6 @@ jobs:
     needs: [get-sha, wait-for-kokoro-build, get-targets]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
-      - name: Set Up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
       - name: Download Artifacts from GCS
         env:
           INVOCATION_ID: ${{ needs.wait-for-kokoro-build.outputs.invocation_id }}
