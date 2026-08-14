@@ -25,7 +25,7 @@ runs:
           .github/actions/docker/**
     - name: Retrieve Docker metadata
       id: meta
-      uses: docker/metadata-action@507c2f2dc502c992ad446e3d7a5dfbe311567a96 # v4.3.0
+      uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
       with:
         images: ${{env.REGISTRY}}/${{github.repository}}/${{inputs.docker_image}}
         tags: |
