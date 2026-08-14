@@ -1187,23 +1187,28 @@ void GpuServiceImpl::DestroyAllChannels() {
   gpu_channel_manager_->DestroyAllChannels();
 }
 
-void GpuServiceImpl::OnBackgroundCleanup() {
-  OnBackgroundCleanupGpuMainThread();
+void GpuServiceImpl::OnBackgroundCleanup(
+    OnBackgroundCleanupCallback callback) {
+  OnBackgroundCleanupGpuMainThread(
+      base::BindPostTask(io_runner_, std::move(callback)));
   OnBackgroundCleanupCompositorGpuThread();
 }
 
-void GpuServiceImpl::OnBackgroundCleanupGpuMainThread() {
+void GpuServiceImpl::OnBackgroundCleanupGpuMainThread(
+    base::OnceClosure callback) {
   // Currently called on Android and Cobalt.
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
   if (!main_runner_->BelongsToCurrentThread()) {
     main_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&GpuServiceImpl::OnBackgroundCleanupGpuMainThread,
-                       weak_ptr_));
+                       weak_ptr_, std::move(callback)));
     return;
   }
-  DVLOG(1) << "GPU: Performing background cleanup";
   gpu_channel_manager_->OnBackgroundCleanup();
+  if (callback) {
+    std::move(callback).Run();
+  }
 #else
   NOTREACHED();
 #endif

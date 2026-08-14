@@ -441,6 +441,12 @@ void CobaltLifecycleManager::RemoveObserver(
   observers_.RemoveObserver(observer);
 }
 
+void CobaltLifecycleManager::OnGpuCleanupCompleted() {
+  for (auto& observer : observers_) {
+    observer.OnGpuCleanupCompleted();
+  }
+}
+
 void CobaltLifecycleManager::StartWaitingForAck(
     content::WebContents* web_contents,
     PendingAck ack_type) {
