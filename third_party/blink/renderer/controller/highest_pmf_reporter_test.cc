@@ -222,6 +222,7 @@ TEST_F(HighestPmfReporterTest, MAYBE_ReportMetric) {
 
   base::TimeTicks navigation_start_time = NowTicks();
   reporter_->NotifyNavigationStart();
+  (void)navigation_start_time;
 
   for (const auto& item : time_pmf_rss_table) {
     AdvanceClockTo(navigation_start_time + item.time_since_navigation);
@@ -252,6 +253,30 @@ TEST_F(HighestPmfReporterTest, MAYBE_ReportMetric) {
   EXPECT_EQ(1U, reporter_->GetReportedWebpageCount().at(3));
 }
 
+#if BUILDFLAG(IS_COBALT)
+TEST_F(HighestPmfReporterTest, TestReportTimingForeground) {
+  EXPECT_TRUE(memory_usage_monitor_->TimerIsActive());
+  Page::OrdinaryPages().insert(&GetPage());
+
+  memory_usage_monitor_->SetPrivateFootprintBytes(1000.0);
+
+  base::TimeTicks navigation_start_time = NowTicks();
+  reporter_->NotifyNavigationStart();
+  (void)navigation_start_time;
+  AdvanceClock(base::Seconds(1));
+  
+  HighestPmfReporter::OnProcessForegrounded();
+  base::TimeTicks foreground_start_time = NowTicks();
+  AdvanceClock(base::Seconds(1));
+
+  EXPECT_EQ(0, reporter_->GetReportCount());
+  AdvanceClockTo(foreground_start_time + base::Minutes(2));
+  EXPECT_EQ(0, reporter_->GetReportCount());
+  AdvanceClock(base::Seconds(1));
+  EXPECT_EQ(1, reporter_->GetReportCount());
+}
+#endif
+
 TEST_F(HighestPmfReporterTest, TestReportTiming) {
   EXPECT_TRUE(memory_usage_monitor_->TimerIsActive());
   Page::OrdinaryPages().insert(&GetPage());
@@ -260,6 +285,7 @@ TEST_F(HighestPmfReporterTest, TestReportTiming) {
 
   base::TimeTicks navigation_start_time = NowTicks();
   reporter_->NotifyNavigationStart();
+  (void)navigation_start_time;
   AdvanceClock(base::Seconds(1));
   // Now ReportMetrics task is posted with 2minutes delay.
   // The task will be executed at "navigation_start_time + 2min + 1sec."

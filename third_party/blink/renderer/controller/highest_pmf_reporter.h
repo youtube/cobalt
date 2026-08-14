@@ -35,6 +35,9 @@ class CONTROLLER_EXPORT HighestPmfReporter
   // Returns the shared instance.
   static void Initialize(
       scoped_refptr<base::SingleThreadTaskRunner> task_runner);
+#if BUILDFLAG(IS_COBALT)
+  static void OnProcessForegrounded();
+#endif
 
  private:
   explicit HighestPmfReporter(
@@ -45,11 +48,19 @@ class CONTROLLER_EXPORT HighestPmfReporter
       scoped_refptr<base::SingleThreadTaskRunner> task_runner_for_testing,
       const base::TickClock* clock);
 
+#if BUILDFLAG(IS_COBALT)
+  void ProcessForegrounded();
+#endif
+
   friend class MockHighestPmfReporter;
 
   // MemoryUsageMonitor::Observer:
   void OnMemoryPing(MemoryUsage) override;
+#if BUILDFLAG(IS_COBALT)
+  void OnReportMetrics(int session_id);
+#else
   void OnReportMetrics();
+#endif
 
   // Make the following methods virtual for testing.
   virtual bool FirstNavigationStarted();
@@ -66,6 +77,9 @@ class CONTROLLER_EXPORT HighestPmfReporter
 #if BUILDFLAG(IS_COBALT)
   WTF::Vector<base::TimeDelta> time_to_report_;
   WTF::Vector<WTF::String> metric_names_;
+  WTF::Vector<WTF::String> metric_names_foregrounded_;
+  int session_id_ = 0;
+  bool is_foreground_measuring_ = false;
 #endif
 };
 

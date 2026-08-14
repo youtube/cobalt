@@ -152,5 +152,77 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest, MAYBE_ReportMetric) {
   EXPECT_FALSE(samples_override.empty() && samples_baseline.empty());
 }
 
+IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest, ReportMetricForeground) {
+  base::HistogramTester histogram_tester;
+
+  reporter_->ForceFirstNavigationStarted();
+  memory_usage_monitor_->usage_.private_footprint_bytes =
+      1000.0 * 1024.0 * 1024.0;
+  memory_usage_monitor_->usage_.peak_resident_bytes = 1000.0 * 1024.0 * 1024.0;
+
+  test_task_runner_->FastForwardBy(base::Seconds(1));
+  test_task_runner_->FastForwardBy(base::Minutes(2) + base::Seconds(2));
+
+  // Now emulate backgrounding/foregrounding
+  blink::HighestPmfReporter::OnProcessForegrounded();
+
+  memory_usage_monitor_->usage_.private_footprint_bytes =
+      2000.0 * 1024.0 * 1024.0;
+
+  test_task_runner_->FastForwardBy(base::Minutes(2) + base::Seconds(2));
+
+  auto samples_override = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.1minTest");
+  auto samples_baseline = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.0to2min");
+
+  EXPECT_FALSE(samples_override.empty() && samples_baseline.empty());
+}
+
+IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest, DoubleScheduleBug) {
+  base::HistogramTester histogram_tester;
+
+  // Emulate starting in background, then foregrounding
+  blink::HighestPmfReporter::OnProcessForegrounded();
+
+  // Then memory ping triggers first navigation detection (using the SAME
+  // session_id)
+  reporter_->ForceFirstNavigationStarted();
+  memory_usage_monitor_->usage_.private_footprint_bytes =
+      1000.0 * 1024.0 * 1024.0;
+  memory_usage_monitor_->usage_.peak_resident_bytes = 1000.0 * 1024.0 * 1024.0;
+
+  // This will trigger FirstNavigationStarted() which will schedule a task WITH
+  // session_id 1
+  test_task_runner_->FastForwardBy(base::Seconds(1));
+
+  // Now we wait for the first interval (1 min). TWO tasks will fire!
+  test_task_runner_->FastForwardBy(base::Minutes(1));
+
+  // The first task will increment report_count_ to 1 and schedule the next task
+  // for the REST of the time But wait, the config "intervals" was 1,2. So
+  // time_to_report is [1 min, 2 min]. The first task schedules task 2 with
+  // delay = time_to_report[1] - time_to_report[0] = 1 min. The second task
+  // executes IMMEDIATELY after, but now report_count_ is 1! It uses
+  // time_to_report[1] metrics ("2minTest"). So it writes to 2minTest bucket!
+  // Then it schedules the NEXT task. But report_count_ is 2. So it removes
+  // observer and aborts. The original task 2 will fire later and crash or
+  // remove observer.
+
+  auto samples_1min = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.1minTest");
+  auto samples_2min = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.2minTest");
+
+  // If both are reported at the 1 min mark, then we have the bug!
+  // We should NOT have 2min samples yet, because only 1 min has passed.
+  EXPECT_TRUE(samples_2min.empty())
+      << "BUG: 2min test was triggered at 1 minute due to double scheduling";
+}
+
 }  // namespace metrics
 }  // namespace cobalt
