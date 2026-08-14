@@ -337,7 +337,6 @@ config("cfi_flags") {
         cflags += [
           "-fno-inline-functions",
           "-fno-inline",
-          "-fno-omit-frame-pointer",
           "-O1",
         ]
       }

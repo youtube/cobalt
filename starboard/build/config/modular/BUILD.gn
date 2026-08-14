@@ -65,6 +65,8 @@ config("modular") {
     cflags += [
       "-O0",
       "-frtti",
+      # Required by sanitize and sceDbgBacktraceSelf (ps5).
+      "-fno-omit-frame-pointer",
     ]
     if (!cobalt_fastbuild) {
       cflags += [
@@ -76,6 +78,8 @@ config("modular") {
     cflags += [
       "-O2",
       "-frtti",
+      # Required by sanitize and sceDbgBacktraceSelf (ps5).
+      "-fno-omit-frame-pointer",
     ]
     if (!cobalt_fastbuild) {
       cflags += [
@@ -87,6 +91,8 @@ config("modular") {
     cflags += [
       "-fno-rtti",
       "-gline-tables-only",
+      # Disable usage of frame pointers.
+      "-fomit-frame-pointer",
     ]
   }
 
@@ -108,9 +114,6 @@ config("modular") {
 
       # Enable unwind tables used by libunwind for stack traces.
       "-funwind-tables",
-
-      # Disable usage of frame pointers.
-      "-fomit-frame-pointer",
 
       # Don"t warn about the "struct foo f = {0};" initialization pattern.
       "-Wno-missing-field-initializers",
@@ -152,7 +155,6 @@ config("modular") {
   if (use_asan) {
     cflags += [
       "-fsanitize=address",
-      "-fno-omit-frame-pointer",
     ]
 
     defines += [ "ADDRESS_SANITIZER" ]
@@ -163,7 +165,6 @@ config("modular") {
   } else if (use_tsan) {
     cflags += [
       "-fsanitize=thread",
-      "-fno-omit-frame-pointer",
     ]
 
     defines += [ "THREAD_SANITIZER" ]
