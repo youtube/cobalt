@@ -1,6 +1,10 @@
+# Disable dangerous-triggers rule because this workflow uses pull_request_target
+# strictly to label and create cherry-pick PRs for merged pull requests
+# without executing untrusted code from PR branches.
+# actionlint: disable dangerous-triggers
 name: Label Cherry Pick
 
-on:
+on: # zizmor: ignore[dangerous-triggers]
   pull_request_target:
     types:
       - labeled

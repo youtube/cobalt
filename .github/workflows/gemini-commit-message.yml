@@ -1,6 +1,10 @@
+# Disable dangerous-triggers rule because this workflow uses pull_request_target
+# strictly to generate commit messages from the PR diff and comment on PRs
+# without checking out or executing untrusted code from PR branches.
+# actionlint: disable dangerous-triggers
 name: 'Gemini Commit Message Generator'
 
-on:
+on: # zizmor: ignore[dangerous-triggers]
   pull_request_target:
     types: [opened, reopened]
   issue_comment:
@@ -110,8 +114,12 @@ jobs:
           GEMINI_SECRET: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
         run: |
           set -eux
-          # Keep only what is after the first space in the comment body.
-          COMMENT=${COMMENT_BODY#* }
+          # Keep only what is after the first space in the comment body if a comment was provided.
+          if [[ -n "${COMMENT}" && "${COMMENT}" == *" "* ]]; then
+            COMMENT="${COMMENT#* }"
+          else
+            COMMENT=""
+          fi
 
           # Use jq to safely combine the instructions with the variables.
           json_payload=$(jq -n \
@@ -120,7 +128,7 @@ jobs:
             --arg title "${PR_TITLE}" \
             --arg body "${PR_BODY}" \
             --arg diff "${PR_DIFF}" \
-            --arg comment "$COMMENT}" \
+            --arg comment "${COMMENT}" \
             '{
               contents: [{
                 parts: [{
