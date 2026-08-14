@@ -1036,7 +1036,8 @@ jobs:
   validate-test-result:
     needs: [initialize, build, test-results, browser-test-results]
     if: always() && needs.initialize.result == 'success'
-    permissions: {}
+    permissions:
+      pull-requests: write
     runs-on: ubuntu-latest
     name: ${{ matrix.name }}_tests_passing
     env:
@@ -1072,4 +1073,15 @@ jobs:
           # Print test result summary.
           shopt -s globstar nullglob
           python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
+        shell: bash
+      - name: Clean up test label
+        if: always() && (contains(fromJson(needs.initialize.outputs.labels), 'runtest') || contains(fromJson(needs.initialize.outputs.labels), 'yts_playback_test'))
+        continue-on-error: true
+        env:
+          EVENT_NUMBER: ${{ github.event.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "${EVENT_NUMBER}" ]; then
+            gh pr edit "${EVENT_NUMBER}" --remove-label runtest --remove-label yts_playback_test || true
+          fi
         shell: bash
