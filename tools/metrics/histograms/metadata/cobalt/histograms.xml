@@ -756,6 +756,15 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Memory.Experimental.Renderer.HighestPrivateMemoryFootprintWhenForegrounded"
+    units="MB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    The highest private memory footprint of a renderer process in (X mins after
+    resuming from a background state, Y mins after resuming from a background state]. (X, Y]
+    is (0, 2], (2, 4], (4, 8], and (8, 16]. The metric is recorded at the Y's timing.
+  </summary>
+</histogram>
 
 </histograms>
 

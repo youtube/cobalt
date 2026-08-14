@@ -46,9 +46,17 @@ constexpr std::array<const char*, kBaselineReportCount> kPeakResidentSetMetricNa
     "Memory.Experimental.Renderer.PeakResidentSet.AtHighestPrivateMemoryFootprint.4to8min",
     "Memory.Experimental.Renderer.PeakResidentSet.AtHighestPrivateMemoryFootprint.8to16min"};
 
+constexpr std::array<const char*, kBaselineReportCount> kBaselineMetricNamesForegrounded = {
+    "Memory.Experimental.Renderer.HighestPrivateMemoryFootprintWhenForegrounded.0to2min",
+    "Memory.Experimental.Renderer.HighestPrivateMemoryFootprintWhenForegrounded.2to4min",
+    "Memory.Experimental.Renderer.HighestPrivateMemoryFootprintWhenForegrounded.4to8min",
+    "Memory.Experimental.Renderer.HighestPrivateMemoryFootprintWhenForegrounded.8to16min"};
+
 constexpr std::array<base::TimeDelta, kBaselineReportCount>
     kBaselineTimeToReport = {base::Minutes(2), base::Minutes(4),
                              base::Minutes(8), base::Minutes(16)};
+
+HighestPmfReporter* g_highest_pmf_reporter = nullptr;
 #else
 constexpr size_t kMaxReportCount = 4;
 
@@ -79,6 +87,9 @@ HighestPmfReporter::HighestPmfReporter(
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
     const base::TickClock* clock)
     : task_runner_(std::move(task_runner)), clock_(clock) {
+#if BUILDFLAG(IS_COBALT)
+  g_highest_pmf_reporter = this;
+#endif
   MemoryUsageMonitor::Instance().AddObserver(this);
 
 #if BUILDFLAG(IS_COBALT)
@@ -112,12 +123,16 @@ HighestPmfReporter::HighestPmfReporter(
         metric_names_.push_back(WTF::String(
             ("Memory.Experimental.Renderer.HighestPrivateMemoryFootprint." +
              suffix_strs[i]).c_str()));
+        metric_names_foregrounded_.push_back(WTF::String(
+            ("Memory.Experimental.Renderer.HighestPrivateMemoryFootprintWhenForegrounded." +
+             suffix_strs[i]).c_str()));
       }
       if (success) {
         use_baseline = false;
       } else {
         time_to_report_.clear();
         metric_names_.clear();
+        metric_names_foregrounded_.clear();
       }
     }
   }
@@ -126,6 +141,7 @@ HighestPmfReporter::HighestPmfReporter(
     for (size_t i = 0; i < kBaselineReportCount; ++i) {
       time_to_report_.push_back(kBaselineTimeToReport[i]);
       metric_names_.push_back(WTF::String(kBaselineMetricNames[i]));
+      metric_names_foregrounded_.push_back(WTF::String(kBaselineMetricNamesForegrounded[i]));
     }
   }
 #endif
@@ -166,13 +182,19 @@ bool HighestPmfReporter::FirstNavigationStarted() {
 void HighestPmfReporter::OnMemoryPing(MemoryUsage usage) {
   DCHECK(IsMainThread());
   if (FirstNavigationStarted()) {
+#if BUILDFLAG(IS_COBALT)
+    if (!is_foreground_measuring_) {
+      task_runner_->PostDelayedTask(
+          FROM_HERE,
+          WTF::BindOnce(&HighestPmfReporter::OnReportMetrics,
+                        WTF::Unretained(this), session_id_),
+          time_to_report_[0]);
+    }
+#else
     task_runner_->PostDelayedTask(
         FROM_HERE,
         WTF::BindOnce(&HighestPmfReporter::OnReportMetrics,
                       WTF::Unretained(this)),
-#if BUILDFLAG(IS_COBALT)
-        time_to_report_[0]);
-#else
         kTimeToReport[0]);
 #endif
   }
@@ -187,19 +209,49 @@ void HighestPmfReporter::OnMemoryPing(MemoryUsage usage) {
 #else
   webpage_counts_at_current_highest_pmf_ = Page::OrdinaryPages().size();
 #endif
-
-  // TODO(tasak): Report the highest memory footprint throughout renderer's
-  // lifetime.
 }
 
+#if BUILDFLAG(IS_COBALT)
+void HighestPmfReporter::OnProcessForegrounded() {
+  if (g_highest_pmf_reporter) {
+    g_highest_pmf_reporter->ProcessForegrounded();
+  }
+}
+
+void HighestPmfReporter::ProcessForegrounded() {
+  DCHECK(IsMainThread());
+  
+  session_id_++;
+  current_highest_pmf_ = 0.0;
+  peak_resident_bytes_at_current_highest_pmf_ = 0.0;
+  webpage_counts_at_current_highest_pmf_ = 0;
+  report_count_ = 0;
+  is_foreground_measuring_ = true;
+
+  if (time_to_report_.empty()) {
+    return;
+  }
+
+  if (!MemoryUsageMonitor::Instance().HasObserver(this)) {
+    MemoryUsageMonitor::Instance().AddObserver(this);
+  }
+
+  task_runner_->PostDelayedTask(
+      FROM_HERE,
+      WTF::BindOnce(&HighestPmfReporter::OnReportMetrics,
+                    WTF::Unretained(this), session_id_),
+      time_to_report_[0]);
+}
+
+void HighestPmfReporter::OnReportMetrics(int session_id) {
+  DCHECK(IsMainThread());
+  if (session_id != session_id_) return;
+#else
 void HighestPmfReporter::OnReportMetrics() {
   DCHECK(IsMainThread());
+#endif
   ReportMetrics();
 
-  // The following code is not accurate, because OnReportMetrics will be late
-  // when renderer is slow (e.g. caused by near-OOM or heavy tasks is running
-  // or ...). However such signal getting late by minutes is unlikely, so it's
-  // ok to say "this is good enough".
   current_highest_pmf_ = 0.0;
   peak_resident_bytes_at_current_highest_pmf_ = 0.0;
   webpage_counts_at_current_highest_pmf_ = 0;
@@ -209,8 +261,6 @@ void HighestPmfReporter::OnReportMetrics() {
 #else
   if (report_count_ >= kMaxReportCount) {
 #endif
-    // Stop observing the MemoryUsageMonitor once there's no more histogram to
-    // report.
     MemoryUsageMonitor::Instance().RemoveObserver(this);
     return;
   }
@@ -224,14 +274,19 @@ void HighestPmfReporter::OnReportMetrics() {
 #endif
   task_runner_->PostDelayedTask(
       FROM_HERE,
+#if BUILDFLAG(IS_COBALT)
+      WTF::BindOnce(&HighestPmfReporter::OnReportMetrics,
+                    WTF::Unretained(this), session_id),
+#else
       WTF::BindOnce(&HighestPmfReporter::OnReportMetrics,
                     WTF::Unretained(this)),
+#endif
       delay);
 }
 
 void HighestPmfReporter::ReportMetrics() {
 #if BUILDFLAG(IS_COBALT)
-  std::string metric_name = metric_names_[report_count_].Utf8();
+  std::string metric_name = is_foreground_measuring_ ? metric_names_foregrounded_[report_count_].Utf8() : metric_names_[report_count_].Utf8();
   LOG(ERROR) << "UmaHistogramMemoryMB CALLED WITH: " << metric_name << ", VAL: " << current_highest_pmf_;
   base::UmaHistogramMemoryMB(metric_name,
                              base::saturated_cast<base::Histogram::Sample32>(
