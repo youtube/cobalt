@@ -3,12 +3,22 @@ name: Workflow Dispatcher
 on:
   pull_request_target:
     types: [labeled]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to test'
+        required: true
+        default: '843'
+      label_name:
+        description: 'Label name'
+        required: true
+        default: 'runtest'
 
 permissions: {}
 
 jobs:
   dispatch:
-    if: github.event.label.name == 'runtest' || github.event.label.name == 'yts_playback_test' || github.event.label.name == 'kokoro:run' || github.event.label.name == 'kokoro:force-run'
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'runtest' || github.event.label.name == 'yts_playback_test' || github.event.label.name == 'kokoro:run' || github.event.label.name == 'kokoro:force-run'
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -19,8 +29,19 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const pr = context.payload.pull_request;
-            const labelName = context.payload.label.name;
+            let pr = context.payload.pull_request;
+            let labelName = context.payload.label ? context.payload.label.name : null;
+
+            if (context.eventName === 'workflow_dispatch') {
+              const prNumber = parseInt(context.payload.inputs.pr_number, 10);
+              labelName = context.payload.inputs.label_name;
+              const prResponse = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber
+              });
+              pr = prResponse.data;
+            }
 
             const PLATFORM_WORKFLOWS = [
               'android.yaml',
