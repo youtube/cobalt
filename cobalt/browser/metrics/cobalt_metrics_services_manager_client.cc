@@ -54,8 +54,7 @@ CobaltMetricsServicesManagerClient::CreateMetricsServiceClient(
 }
 
 std::unique_ptr<variations::VariationsService>
-CobaltMetricsServicesManagerClient::CreateVariationsService(
-    variations::SyntheticTrialRegistry* synthetic_trial_registry) {
+CobaltMetricsServicesManagerClient::CreateVariationsService() {
   // VariationsService is not needed for Finch support in Cobalt. We don't
   // use things like the Finch seed or client-side Field Trials. Instead,
   // we have our own custom implementation that is driven by the server via
