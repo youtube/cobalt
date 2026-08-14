@@ -30,7 +30,7 @@
     <section class="table-section">
       <div class="section-header">
         <div class="title-row">
-          <div class="section-title">📊 Session Median Telemetry (P50 Breakdown)</div>
+          <div class="section-title">📊 Session P50 Memory Breakdown</div>
           <div id="sampling-progress" class="sampling-badge">0 / 12 Reported</div>
         </div>
         <div class="section-instruction">
@@ -43,6 +43,14 @@
         </div>
       </div>
 
+      <!-- Integrated Proportional Distribution Visualizer -->
+      <div class="distribution-bar-container">
+        <div id="distribution-bar" class="distribution-bar">
+          <div class="distribution-bar-empty">Waiting for memory telemetry...</div>
+        </div>
+      </div>
+
+      <!-- Breakdown Table with Color-Coded Allocator Mapping -->
       <table class="metrics-table" id="metrics-table">
         <thead>
           <tr>
@@ -57,6 +65,20 @@
           </tr>
         </tbody>
       </table>
+    </section>
+
+    <!-- Lifecycle Peak Memory Section -->
+    <section class="guardrails-section">
+      <div class="section-header">
+        <div class="section-title">⏱ Lifecycle Peak Memory</div>
+        <div class="section-instruction">
+          Highest private memory footprint (PMF) peaks recorded across elapsed session duration windows and initial GPU page load.
+        </div>
+      </div>
+
+      <div class="guardrails-grid" id="guardrails-grid">
+        <!-- 4 Time-Windowed PMF Cards + 1 Peak GPU Card dynamically rendered by panel.js -->
+      </div>
     </section>
   </div>
 
