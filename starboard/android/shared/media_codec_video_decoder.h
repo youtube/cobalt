@@ -168,8 +168,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   void ResetInternal(bool skip_flush);
 
-  // These variables will be initialized inside ctor or Initialize() and will
-  // not be changed during the life time of this class.
   SbMediaVideoCodec video_codec_;
   std::string video_mime_;
   DecoderStatusCB decoder_status_cb_;
@@ -302,7 +300,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   enum class HotSwapState {
     kNone,
     kDraining,
-    kEosReceived,
     kHotSwapScheduled,
   };
 
@@ -310,7 +307,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   VideoStreamInfo pending_stream_info_;
 
   void UpdateStreamConfigAndTeardown(const VideoStreamInfo& stream_info);
-  void MaybeScheduleHotSwap();
   void PerformInternalDecoderHotSwap();
 };
 

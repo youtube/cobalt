@@ -501,9 +501,6 @@ size_t MediaCodecVideoDecoder::GetPrerollFrameCount() const {
   if (tunnel_mode_audio_session_id_) {
     return 0;
   }
-  if (hot_swap_state_ != HotSwapState::kNone) {
-    return number_of_preroll_frames_;
-  }
   if (input_buffer_written_ > 0 && first_buffer_timestamp_ != 0) {
     return kNonInitialPrerollFrameCount;
   }
@@ -1024,10 +1021,12 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
       dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream;
 
   if (is_end_of_stream && hot_swap_state_ == HotSwapState::kDraining) {
-    SB_LOG(INFO) << "EOS received during codec draining.";
-    hot_swap_state_ = HotSwapState::kEosReceived;
+    SB_LOG(INFO)
+        << "EOS received during codec draining. Scheduling internal hot-swap.";
+    hot_swap_state_ = HotSwapState::kHotSwapScheduled;
     media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
-    MaybeScheduleHotSwap();
+    Schedule(std::bind(&MediaCodecVideoDecoder::PerformInternalDecoderHotSwap,
+                       this));
     decoder_status_cb_(kNeedMoreInput, NULL);
     return;
   }
@@ -1210,8 +1209,6 @@ void MediaCodecVideoDecoder::OnVideoFrameRelease() {
     --buffered_output_frames_;
     SB_DCHECK_GE(buffered_output_frames_, 0);
   }
-
-  MaybeScheduleHotSwap();
 }
 
 void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
@@ -1302,17 +1299,6 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
   //       to update the seek status of |video_frame_tracker_|.  This is
   //       slightly flaky as it depends on the behavior of the video renderer.
-}
-
-void MediaCodecVideoDecoder::MaybeScheduleHotSwap() {
-  if (hot_swap_state_ == HotSwapState::kEosReceived &&
-      buffered_output_frames_ == 0) {
-    hot_swap_state_ = HotSwapState::kHotSwapScheduled;
-    SB_LOG(INFO) << "Old video fully rendered on screen. Scheduling "
-                    "internal hot-swap on worker thread.";
-    Schedule(std::bind(&MediaCodecVideoDecoder::PerformInternalDecoderHotSwap,
-                       this));
-  }
 }
 
 void MediaCodecVideoDecoder::PerformInternalDecoderHotSwap() {
