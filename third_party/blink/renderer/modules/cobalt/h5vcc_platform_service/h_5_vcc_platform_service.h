@@ -16,10 +16,11 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_PLATFORM_SERVICE_H_5_VCC_PLATFORM_SERVICE_H_
 
 #include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom-blink.h"
+#include "third_party/blink/public/mojom/frame/lifecycle.mojom-blink-forward.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_receive_callback.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
-#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_state_observer.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -37,7 +38,7 @@ class ScriptState;
 
 class MODULES_EXPORT H5vccPlatformService final
     : public ScriptWrappable,
-      public ExecutionContextLifecycleObserver,
+      public ExecutionContextLifecycleStateObserver,
       public h5vcc_platform_service::mojom::blink::PlatformServiceObserver {
   DEFINE_WRAPPERTYPEINFO();
 
@@ -56,14 +57,18 @@ class MODULES_EXPORT H5vccPlatformService final
   DOMArrayBuffer* send(DOMArrayBuffer* data, ExceptionState& exception_state);
   void close();
 
+  // ExecutionContextLifecycleStateObserver implementation:
+  void ContextLifecycleStateChanged(
+      mojom::blink::FrameLifecycleState state) override;
   void ContextDestroyed() override;
 
-  // Renderer implementation for cobalt::mojom::blink::PlatformServiceObserver
+  // Renderer implementation for cobalt::mojom::blink::PlatformServiceObserver:
   void OnDataReceived(base::span<const uint8_t> data) override;
 
   void Trace(Visitor* visitor) const override;
 
  private:
+  bool EnsureConnected();
   void OnManagerConnectionError();
   void OnServiceConnectionError();
 
@@ -81,6 +86,7 @@ class MODULES_EXPORT H5vccPlatformService final
       observer_receiver_{this, GetExecutionContext()};
 
   bool service_opened_ = false;
+  bool is_closed_by_client_ = false;
 };
 
 }  // namespace blink

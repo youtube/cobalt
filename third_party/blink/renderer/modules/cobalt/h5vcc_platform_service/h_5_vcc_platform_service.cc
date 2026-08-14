@@ -18,6 +18,7 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "third_party/blink/public/mojom/frame/lifecycle.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_function.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
@@ -85,7 +86,44 @@ H5vccPlatformService* H5vccPlatformService::open(
   H5vccPlatformService* instance = MakeGarbageCollected<H5vccPlatformService>(
       *window, service_name, receive_callback);
 
-  ExecutionContext* execution_context = ExecutionContext::From(script_state);
+  if (!instance->EnsureConnected()) {
+    LOG(WARNING) << "H5vccPlatformService::open: failed to connect to "
+                 << service_name;
+    return nullptr;
+  }
+
+  return instance;
+}
+
+H5vccPlatformService::H5vccPlatformService(LocalDOMWindow& window,
+                                           const WTF::String& service_name,
+                                           V8ReceiveCallback* receive_callback)
+    : ExecutionContextLifecycleStateObserver(&window),
+      service_name_(service_name),
+      receive_callback_(receive_callback),
+      platform_service_remote_(GetExecutionContext()),
+      observer_receiver_(this, GetExecutionContext()) {
+  UpdateStateIfNeeded();
+}
+
+bool H5vccPlatformService::EnsureConnected() {
+  if (is_closed_by_client_) {
+    return false;
+  }
+
+  if (platform_service_remote_.is_bound() &&
+      platform_service_remote_.is_connected() &&
+      observer_receiver_.is_bound()) {
+    return true;
+  }
+
+  ExecutionContext* execution_context = GetExecutionContext();
+  if (!execution_context || execution_context->IsContextDestroyed()) {
+    return false;
+  }
+
+  platform_service_remote_.reset();
+  observer_receiver_.reset();
 
   // Get the manager interface
   mojo::Remote<ServiceManager> manager;
@@ -94,64 +132,66 @@ H5vccPlatformService* H5vccPlatformService::open(
           execution_context->GetTaskRunner(TaskType::kNetworking)));
   manager.set_disconnect_handler(
       WTF::BindOnce(&H5vccPlatformService::OnManagerConnectionError,
-                    WrapWeakPersistent(instance)));
+                    WrapWeakPersistent(this)));
 
   // Set up pipes for the instance-specific PlatformService
   mojo::PendingRemote<ServiceObserver> observer_remote =
-      instance->observer_receiver_.BindNewPipeAndPassRemote(
+      observer_receiver_.BindNewPipeAndPassRemote(
           execution_context->GetTaskRunner(TaskType::kNetworking));
 
   mojo::PendingRemote<Service> service_remote;
   auto service_receiver = service_remote.InitWithNewPipeAndPassReceiver();
 
   // Bind the instance's remote to the new pipe
-  instance->platform_service_remote_.Bind(
+  platform_service_remote_.Bind(
       std::move(service_remote),
       execution_context->GetTaskRunner(TaskType::kNetworking));
-  instance->platform_service_remote_.set_disconnect_handler(
+  platform_service_remote_.set_disconnect_handler(
       WTF::BindOnce(&H5vccPlatformService::OnServiceConnectionError,
-                    WrapWeakPersistent(instance)));
+                    WrapWeakPersistent(this)));
 
   // Open the service on the browser side, transferring the pipes
-  manager->Open(service_name, std::move(observer_remote),
+  manager->Open(service_name_, std::move(observer_remote),
                 std::move(service_receiver));
 
-  // Note: there's no direct confirmation here that Open succeeded in the
-  // browser. Errors will be handled by pipe disconnections.
-  instance->service_opened_ = true;
-
-  return instance;
+  service_opened_ = true;
+  return true;
 }
 
-H5vccPlatformService::H5vccPlatformService(LocalDOMWindow& window,
-                                           const WTF::String& service_name,
-                                           V8ReceiveCallback* receive_callback)
-    : ExecutionContextLifecycleObserver(&window),
-      service_name_(service_name),
-      receive_callback_(receive_callback),
-      platform_service_remote_(GetExecutionContext()),
-      observer_receiver_(this, GetExecutionContext()) {}
-
 void H5vccPlatformService::OnManagerConnectionError() {
-  DLOG(ERROR) << "H5vccPlatformServiceManager connection error";
-  // If the manager connection drops, it doesn't necessarily mean the
-  // individual service connection is bad, but it's suspicious.
-  // We'll rely on the platform_service_remote_'s disconnect handler.
+  DLOG(ERROR) << "H5vccPlatformServiceManager connection error for "
+              << service_name_;
 }
 
 void H5vccPlatformService::OnServiceConnectionError() {
-  DLOG(ERROR) << "PlatformService connection error for " << service_name_;
-  close();
+  DLOG(WARNING) << "PlatformService connection disconnected for "
+                << service_name_;
+  platform_service_remote_.reset();
+  observer_receiver_.reset();
+  // Do not clear receive_callback_ or mark is_closed_by_client_, allowing
+  // automatic reconnection on revive from system freeze or subsequent send().
+}
+
+void H5vccPlatformService::ContextLifecycleStateChanged(
+    mojom::blink::FrameLifecycleState state) {
+  if (state == mojom::blink::FrameLifecycleState::kRunning) {
+    if (service_opened_ && !is_closed_by_client_) {
+      EnsureConnected();
+    }
+  }
 }
 
 DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
                                            ExceptionState& exception_state) {
-  if (!service_opened_ || !platform_service_remote_.is_bound()) {
+  if (is_closed_by_client_) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "Service was closed.");
+    return nullptr;
+  }
+
+  if (!EnsureConnected()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       "Service is disconnected or not open.");
-
-    // Since the API is marked [RaisesException] and this error path throws a
-    // DOM exception, no value is actually returned to the JavaScript client.
     return nullptr;
   }
 
@@ -165,12 +205,10 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
                                                     &error_message);
 
   if (!mojo_result) {
+    platform_service_remote_.reset();
+    observer_receiver_.reset();
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       "Mojo call failed, connection lost.");
-    close();
-
-    // Since the API is marked [RaisesException] and this error path throws a
-    // DOM exception, no value is actually returned to the JavaScript client.
     return nullptr;
   }
 
@@ -180,9 +218,6 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
                           : error_message;
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       msg);
-
-    // Since the API is marked [RaisesException] and this error path throws a
-    // DOM exception, no value is actually returned to the JavaScript client.
     return nullptr;
   }
 
@@ -190,9 +225,10 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
 }
 
 void H5vccPlatformService::close() {
-  if (service_opened_) {
+  if (service_opened_ && !is_closed_by_client_) {
     DLOG(INFO) << "Closing H5vccPlatformService: " << service_name_;
   }
+  is_closed_by_client_ = true;
   service_opened_ = false;
   platform_service_remote_.reset();
   observer_receiver_.reset();
@@ -240,7 +276,7 @@ void H5vccPlatformService::Trace(Visitor* visitor) const {
   visitor->Trace(platform_service_remote_);
   visitor->Trace(observer_receiver_);
   ScriptWrappable::Trace(visitor);
-  ExecutionContextLifecycleObserver::Trace(visitor);
+  ExecutionContextLifecycleStateObserver::Trace(visitor);
 }
 
 }  // namespace blink
