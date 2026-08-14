@@ -279,4 +279,30 @@ IN_PROC_BROWSER_TEST_F(PictureInPictureBrowserTest,
   ASSERT_TRUE(NavigateToURL(shell(), next_url));
 }
 
+IN_PROC_BROWSER_TEST_F(PictureInPictureBrowserTest,
+                       AppBackgroundExitsPictureInPicture) {
+  if (!IsPictureInPictureAvailable(shell())) {
+    GTEST_SKIP() << "Picture-in-Picture not available in this test environment";
+  }
+
+  GURL test_url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), test_url));
+  // The custom test shell client bypasses the creation of the Cobalt observer.
+  // We manually attach it here.
+  cobalt::CobaltWebContentsObserver observer(shell()->web_contents());
+  ASSERT_TRUE(ExecJs(shell(), kPictureInPictureScript));
+  ASSERT_TRUE(ExecJs(shell(), "addPictureInPictureEventListeners();"));
+  ASSERT_EQ(true, EvalJs(shell(), "play();"));
+  TitleWatcher enter_watcher(shell()->web_contents(), u"enterpictureinpicture");
+  ASSERT_EQ(true, EvalJs(shell(), "enterPictureInPicture();"));
+  EXPECT_EQ(u"enterpictureinpicture", enter_watcher.WaitAndGetTitle());
+  TitleWatcher exit_watcher(shell()->web_contents(), u"leavepictureinpicture");
+  // Simulating the app going to the background (e.g. user pressing Home
+  // button).
+  shell()->web_contents()->WasHidden();
+  EXPECT_EQ(u"leavepictureinpicture", exit_watcher.WaitAndGetTitle());
+  GURL cleanup_url = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_TRUE(NavigateToURL(shell(), cleanup_url));
+}
+
 }  // namespace content
