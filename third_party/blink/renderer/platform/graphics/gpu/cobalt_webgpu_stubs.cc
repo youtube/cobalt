@@ -979,8 +979,8 @@ __attribute__((weak)) void  wgpuSurfaceGetCurrentTexture(WGPUSurface surface, WG
     procs.surfaceGetCurrentTexture(surface, surfaceTexture);
 }
 DAWN_NO_SANITIZE("cfi-icall")
-__attribute__((weak)) void  wgpuSurfacePresent(WGPUSurface surface) {
-    procs.surfacePresent(surface);
+__attribute__((weak)) WGPUStatus  wgpuSurfacePresent(WGPUSurface surface) {
+return    procs.surfacePresent(surface);
 }
 DAWN_NO_SANITIZE("cfi-icall")
 __attribute__((weak)) void  wgpuSurfaceSetLabel(WGPUSurface surface, WGPUStringView label) {
