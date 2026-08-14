@@ -301,10 +301,12 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Mid-stream seamless codec change draining variables
   bool draining_codec_ = false;
   bool eos_received_in_draining_ = false;
+  bool hot_swap_scheduled_ = false;
   SbMediaVideoCodec pending_video_codec_ = kSbMediaVideoCodecNone;
   VideoStreamInfo pending_video_stream_info_;
   bool just_reset_ = false;
 
+  void MaybeScheduleHotSwap();
   void PerformInternalDecoderHotSwap();
 };
 

@@ -546,31 +546,34 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
                              (!new_mime.empty() && new_mime != video_mime_) ||
                              color_metadata_changed;
 
-  if (just_reset_) {
+  if (stream_info_changed && !draining_codec_) {
+    bool can_recreate_immediately =
+        just_reset_ || !media_decoder_ || input_buffer_written_ == 0;
     just_reset_ = false;
-    if (stream_info_changed) {
-      SB_LOG(INFO)
-          << "TEST: Stream info change detected after Reset. Recreating "
-             "codec immediately without draining...";
+
+    if (can_recreate_immediately) {
+      SB_LOG(INFO) << "Stream info change detected (empty decoder). "
+                      "Recreating codec immediately without draining...";
       TeardownCodec();
       video_codec_ = new_codec;
       video_mime_ = new_mime;
-      color_metadata_= new_color_metadata;
+      color_metadata_ = new_color_metadata;
+      needs_fps_to_initialize_codec_ =
+          (video_codec_ == kSbMediaVideoCodecAv1 &&
+           MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30());
       input_buffer_written_ = 0;
       video_fps_ = 0;
+    } else {
+      SB_LOG(INFO) << "Stream info change detected during active decoding. "
+                      "Initiating codec draining...";
+      draining_codec_ = true;
+      pending_video_codec_ = new_codec;
+      pending_video_stream_info_ = input_buffers.front()->video_stream_info();
+      pending_input_buffers_.insert(pending_input_buffers_.end(),
+                                    input_buffers.begin(), input_buffers.end());
+      media_decoder_->WriteEndOfStream();
+      return;
     }
-  }
-
-  if (input_buffer_written_ > 0 && stream_info_changed && !draining_codec_) {
-    draining_codec_ = true;
-    pending_video_codec_ = new_codec;
-    pending_video_stream_info_ = input_buffers.front()->video_stream_info();
-
-    pending_input_buffers_.insert(pending_input_buffers_.end(),
-                                  input_buffers.begin(), input_buffers.end());
-
-    media_decoder_->WriteEndOfStream();
-    return;
   }
 
   if (draining_codec_) {
@@ -1042,15 +1045,10 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
       dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream;
 
   if (is_end_of_stream && draining_codec_) {
-    SB_LOG(INFO) << "TEST: EOS received during draining.";
+    SB_LOG(INFO) << "EOS received during codec draining.";
     eos_received_in_draining_ = true;
     media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
-    if (buffered_output_frames_ == 0) {
-      SB_LOG(INFO) << "TEST: Old video fully rendered on screen. Scheduling "
-                      "internal hot-swap on worker thread.";
-      Schedule(std::bind(&MediaCodecVideoDecoder::PerformInternalDecoderHotSwap,
-                         this));
-    }
+    MaybeScheduleHotSwap();
     decoder_status_cb_(kNeedMoreInput, NULL);
     return;
   }
@@ -1234,13 +1232,7 @@ void MediaCodecVideoDecoder::OnVideoFrameRelease() {
     SB_DCHECK_GE(buffered_output_frames_, 0);
   }
 
-  if (draining_codec_ && eos_received_in_draining_ &&
-      buffered_output_frames_ == 0) {
-    SB_LOG(INFO) << "TEST: Old video fully rendered on screen. Scheduling "
-                    "internal hot-swap on worker thread.";
-    Schedule(std::bind(&MediaCodecVideoDecoder::PerformInternalDecoderHotSwap,
-                       this));
-  }
+  MaybeScheduleHotSwap();
 }
 
 void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
@@ -1313,6 +1305,7 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   just_reset_ = true;
   draining_codec_ = false;
   eos_received_in_draining_ = false;
+  hot_swap_scheduled_ = false;
   pending_video_codec_ = kSbMediaVideoCodecNone;
 
   // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
@@ -1321,9 +1314,25 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   //       slightly flaky as it depends on the behavior of the video renderer.
 }
 
+void MediaCodecVideoDecoder::MaybeScheduleHotSwap() {
+  if (draining_codec_ && eos_received_in_draining_ &&
+      buffered_output_frames_ == 0 && !hot_swap_scheduled_) {
+    hot_swap_scheduled_ = true;
+    SB_LOG(INFO) << "Old video fully rendered on screen. Scheduling "
+                    "internal hot-swap on worker thread.";
+    Schedule(std::bind(&MediaCodecVideoDecoder::PerformInternalDecoderHotSwap,
+                       this));
+  }
+}
+
 void MediaCodecVideoDecoder::PerformInternalDecoderHotSwap() {
   SB_CHECK(BelongsToCurrentThread());
-  SB_LOG(INFO) << "TEST: Performing internal decoder hot-swap from "
+  hot_swap_scheduled_ = false;
+  if (!draining_codec_) {
+    return;
+  }
+
+  SB_LOG(INFO) << "Performing internal decoder hot-swap from "
                << GetMediaVideoCodecName(video_codec_) << " to "
                << GetMediaVideoCodecName(pending_video_codec_);
 
@@ -1331,6 +1340,7 @@ void MediaCodecVideoDecoder::PerformInternalDecoderHotSwap() {
 
   video_codec_ = pending_video_codec_;
   video_mime_ = pending_video_stream_info_.mime;
+  color_metadata_ = pending_video_stream_info_.color_metadata;
   needs_fps_to_initialize_codec_ =
       (video_codec_ == kSbMediaVideoCodecAv1 &&
        MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30());
@@ -1339,34 +1349,12 @@ void MediaCodecVideoDecoder::PerformInternalDecoderHotSwap() {
   video_fps_ = 0;
   draining_codec_ = false;
   eos_received_in_draining_ = false;
-
-  if (IsIdentity(pending_video_stream_info_.color_metadata)) {
-    SbMediaColorMetadata sdr_metadata = {};
-    sdr_metadata.primaries = kSbMediaPrimaryIdBt709;
-    sdr_metadata.transfer = kSbMediaTransferIdBt709;
-    sdr_metadata.matrix = kSbMediaMatrixIdBt709;
-    sdr_metadata.range = kSbMediaRangeIdLimited;
-    color_metadata_ = sdr_metadata;
-  } else {
-    color_metadata_ = pending_video_stream_info_.color_metadata;
-  }
-
-  auto result = InitializeCodec(pending_video_stream_info_);
-  if (!result) {
-    std::string error_message =
-        "Failed to initialize video decoder internally: " + result.error();
-    SB_LOG(ERROR) << error_message;
-    TeardownCodec();
-    ReportError(kSbPlayerErrorDecode, error_message);
-    return;
-  }
+  pending_video_codec_ = kSbMediaVideoCodecNone;
 
   if (!pending_input_buffers_.empty()) {
-    SB_LOG(INFO) << "TEST: Feeding " << pending_input_buffers_.size()
-                 << " queued new samples to the new decoder.";
-    input_buffer_written_ += pending_input_buffers_.size();
-    WriteInputBuffersInternal(pending_input_buffers_);
-    pending_input_buffers_.clear();
+    InputBuffers buffers_to_write;
+    buffers_to_write.swap(pending_input_buffers_);
+    WriteInputBuffers(buffers_to_write);
   }
 }
 
