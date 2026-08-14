@@ -1,5 +1,9 @@
+# Disable dangerous-triggers rule because this workflow uses workflow_run
+# strictly to check job results and rerun failed test jobs without executing
+# untrusted code.
+# actionlint: disable dangerous-triggers
 name: Deflake Tests
-on:
+on: # zizmor: ignore[dangerous-triggers]
   workflow_run:
     workflows: [android, raspi-2-modular, evergreen, linux, tvos]
     types:
@@ -18,6 +22,7 @@ jobs:
       - name: Checkout .github Files
         uses: actions/checkout@v4
         with:
+          persist-credentials: false
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: .github
