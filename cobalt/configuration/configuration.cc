@@ -17,6 +17,7 @@
 #include <string>
 #include <string_view>
 
+#include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/notreached.h"
 #include "starboard/system.h"
