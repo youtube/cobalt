@@ -61,15 +61,16 @@ A lightweight Manifest V3 Chrome Extension providing real-time memory inspection
 
 ---
 
-## Metric Breakdown Reference
+## Metric Breakdown & Reference
 
-The primary **Session Median Telemetry (P50 Breakdown)** table renders the 12 continuous native and managed allocators matching production Kimono / PLX field telemetry (`go/kimono-memory-metrics`):
+### 1. Session P50 Memory Breakdown
+Aggregated median memory footprint across continuous allocators matching production Kimono / PLX field telemetry (`go/kimono-memory-metrics`). Includes an embedded proportional distribution bar visualizing relative allocator weights across the total Physical Resident Set (RSS).
 
-### Process Totals (OS / Kernel)
-* **Physical Resident Set (RSS)** (`Memory.Browser.ResidentSet`): Total physical RAM pages in RAM mapped by the OS kernel.
+#### Process Totals (OS / Kernel)
+* **Physical Resident Set (RSS)** (`Memory.Browser.ResidentSet`): Total physical RAM pages mapped by the OS kernel.
 * **Private Memory Footprint** (`Memory.Browser.PrivateMemoryFootprint`): Unshared memory dedicated strictly to Cobalt (Anonymous RSS + Swap), directly contributing to device OOM threshold.
 
-### Subsystem & Allocator Breakdown
+#### Subsystem & Allocator Breakdown
 * **PartitionAlloc C++ Heap** (`Memory.Experimental.Browser2.PartitionAlloc`): General C++ allocations across browser/engine modules and JavaScript `ArrayBuffer` backing stores.
 * **System Malloc Heap** (`Memory.Experimental.Browser2.Malloc`): System C runtime `malloc` (allocations outside PartitionAlloc-Everywhere, e.g. third-party dynamic libraries).
 * **V8 JavaScript Engine Heap** (`Memory.Experimental.Browser2.V8`): V8 JavaScript engine managed heap (JS objects, compiled bytecode, closures, IC caches).
@@ -80,3 +81,14 @@ The primary **Session Median Telemetry (P50 Breakdown)** table renders the 12 co
 * **Font Caches & Glyph Buffers** (`Memory.Experimental.Browser2.Fonts`): Font tables, FreeType glyph slot caches, and HarfBuzz text shaping buffers.
 * **Thread Stacks** (`Memory.Experimental.Browser2.Stacks`): Active stack frames for Cobalt threads (Browser, Compositor, IO, Media workers).
 * **Android ART Java Heap** (`Memory.Experimental.Browser2.JavaHeap`): Android Java runtime heap for Coat activity lifecycle and JNI media bridges.
+
+---
+
+### 2. Lifecycle Peak Memory
+Tracks maximum memory peaks recorded across elapsed lifecycle time windows and initial graphics rendering:
+
+* **0 to 2 min Window** (`Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.0to2min`): Peak private memory footprint reached during app boot and initial browse.
+* **2 to 4 min Window** (`Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.2to4min`): Peak PMF reached during early navigation & initial video playback.
+* **4 to 8 min Window** (`Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.4to8min`): Peak PMF reached during continuous browsing.
+* **8 to 16 min Window** (`Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.8to16min`): Peak PMF reached during extended session stability.
+* **Peak GPU (Page Load)** (`Memory.GPU.PeakMemoryUsage2.PageLoad`): Maximum GPU VRAM allocated during initial page navigation and rendering.

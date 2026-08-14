@@ -29,6 +29,19 @@
   --status-pending: #fbbf24;
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* 10 Canonical Allocator Palette (go/kimono-memory-metrics) */
+  --color-binary: #8b5cf6;
+  --color-codeother: #a855f7;
+  --color-pa: #3b82f6;
+  --color-malloc: #0ea5e9;
+  --color-v8: #f59e0b;
+  --color-blinkgc: #ec4899;
+  --color-skia: #10b981;
+  --color-fonts: #14b8a6;
+  --color-stacks: #f97316;
+  --color-java: #e11d48;
+  --color-other: #64748b;
 }
 
 * {
@@ -171,7 +184,7 @@ body {
   gap: 10px;
 }
 
-/* Table Section */
+/* Primary Table Section */
 .table-section {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -179,7 +192,7 @@ body {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .section-header {
@@ -248,6 +261,56 @@ body {
   font-family: var(--font-mono);
 }
 
+/* Integrated Distribution Bar */
+.distribution-bar-container {
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  height: 20px;
+}
+
+.distribution-bar {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.distribution-bar-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.distribution-segment {
+  height: 100%;
+  transition: width 0.4s ease;
+  position: relative;
+}
+
+.distribution-segment:hover {
+  filter: brightness(1.15);
+}
+
+.segment-binary { background-color: var(--color-binary); }
+.segment-codeother { background-color: var(--color-codeother); }
+.segment-pa { background-color: var(--color-pa); }
+.segment-malloc { background-color: var(--color-malloc); }
+.segment-v8 { background-color: var(--color-v8); }
+.segment-blinkgc { background-color: var(--color-blinkgc); }
+.segment-skia { background-color: var(--color-skia); }
+.segment-fonts { background-color: var(--color-fonts); }
+.segment-stacks { background-color: var(--color-stacks); }
+.segment-java { background-color: var(--color-java); }
+.segment-other { background-color: var(--color-other); }
+
+/* Metrics Table */
 .metrics-table {
   width: 100%;
   border-collapse: collapse;
@@ -297,6 +360,20 @@ body {
   gap: 2px;
 }
 
+.metric-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.metric-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
 .metric-label {
   font-weight: 600;
   color: var(--text-bright);
@@ -309,26 +386,6 @@ body {
   color: var(--text-dim);
   font-family: var(--font-mono);
   word-break: break-all;
-}
-
-.badge-p50 {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 600;
-  color: #fbbf24;
-  background-color: rgba(251, 191, 36, 0.12);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.badge-pending {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 500;
-  color: #a1a1aa;
-  background-color: rgba(161, 161, 170, 0.12);
-  padding: 2px 6px;
-  border-radius: 4px;
 }
 
 .pending-text {
@@ -346,6 +403,115 @@ body {
   font-family: var(--font-family) !important;
 }
 
+/* Lifecycle Peak Memory Section */
+.guardrails-section {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.guardrails-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.guardrail-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.guardrail-card:hover {
+  border-color: #52525b;
+}
+
+.guardrail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.guardrail-title {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text-bright);
+}
+
+.guardrail-key {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  word-break: break-all;
+  margin-top: 1px;
+}
+
+.guardrail-value-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 4px 0;
+}
+
+.guardrail-value {
+  font-size: 18px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--text-bright);
+}
+
+.guardrail-value.pending {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+  font-style: italic;
+  font-family: var(--font-family);
+}
+
+.guardrail-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(63, 63, 70, 0.4);
+}
+
+.guardrail-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.badge-guardrail-recorded {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: var(--status-connected);
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.badge-guardrail-pending {
+  background-color: rgba(161, 161, 170, 0.15);
+  color: var(--text-dim);
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
 @media (max-width: 768px) {
   .toolbar {
     flex-direction: column;
@@ -356,5 +522,8 @@ body {
   }
   .connection-bar input[type="text"] {
     flex: 1;
+  }
+  .guardrails-grid {
+    grid-template-columns: 1fr;
   }
 }
