@@ -3861,7 +3861,7 @@ source_set("browser") {
     sources = []
     sources = _filtered_sources
     sources += [
-      "devtools/devtools_background_services_context_impl.cc",
+      "devtools/devtools_background_services_context_impl_stub.cc",
       "devtools/devtools_instrumentation_stub.cc",
       "devtools/dedicated_worker_devtools_agent_host_stub.cc",
       "devtools/dedicated_worker_devtools_agent_host_stub.h",
