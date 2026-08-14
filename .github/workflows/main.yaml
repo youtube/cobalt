@@ -160,7 +160,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Login to Docker Registry ${{env.REGISTRY}}
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -197,7 +197,7 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
       - name: Login to Docker Registry ${{env.REGISTRY}}
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -246,7 +246,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Cache Gradle
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
         if: startsWith( matrix.target_platform , 'android')
         with:
           key: gradle-cache-${{ hashFiles('starboard/android/apk/**/*gradle*') }}
@@ -258,7 +258,7 @@ jobs:
       - name: Build Cobalt
         uses: ./.github/actions/build
       - name: 'Upload Artifact'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v3.3.0
         if: inputs.keep_artifacts
         with:
           name: ${{ matrix.platform }}-${{ matrix.config }}
