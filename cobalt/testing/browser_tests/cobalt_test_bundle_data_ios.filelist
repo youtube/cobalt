@@ -1302,9 +1302,7 @@
 //content/test/data/accessibility/aria/aria-orientation-expected-win.txt
 //content/test/data/accessibility/aria/aria-orientation.html
 //content/test/data/accessibility/aria/aria-owns-crash-2-expected-blink.txt
-//content/test/data/accessibility/aria/aria-owns-crash-2.html
 //content/test/data/accessibility/aria/aria-owns-crash-expected-blink.txt
-//content/test/data/accessibility/aria/aria-owns-crash.html
 //content/test/data/accessibility/aria/aria-owns-expected-android-assist-data.txt
 //content/test/data/accessibility/aria/aria-owns-expected-android-external.txt
 //content/test/data/accessibility/aria/aria-owns-expected-android.txt
@@ -1965,6 +1963,24 @@
 //content/test/data/accessibility/aria/toggle-button-expand-collapse-expected-uia-win.txt
 //content/test/data/accessibility/aria/toggle-button-expand-collapse-expected-win.txt
 //content/test/data/accessibility/aria/toggle-button-expand-collapse.html
+//content/test/data/accessibility/crash/area-crash.html
+//content/test/data/accessibility/crash/area-serialization-crash.html
+//content/test/data/accessibility/crash/aria-owns-child-and-hidden-descendant-crash.html
+//content/test/data/accessibility/crash/aria-owns-crash-2.html
+//content/test/data/accessibility/crash/aria-owns-crash.html
+//content/test/data/accessibility/crash/aria-owns-reparent-above-other-change-crash.html
+//content/test/data/accessibility/crash/delete-selection-crash.html
+//content/test/data/accessibility/crash/hidden-named-slot-no-subtree-crash.html
+//content/test/data/accessibility/crash/ignored-crash.html
+//content/test/data/accessibility/crash/marker-crash.html
+//content/test/data/accessibility/crash/node-changed-crash-in-editable-text.html
+//content/test/data/accessibility/crash/progress-meter-crash.html
+//content/test/data/accessibility/crash/relation-points-to-invalid-nodes-crash.html
+//content/test/data/accessibility/crash/reload-selection-crash.html
+//content/test/data/accessibility/crash/reparent-crash.html
+//content/test/data/accessibility/crash/select-expand-many-options-crash.html
+//content/test/data/accessibility/crash/slot-creation-crash.html
+//content/test/data/accessibility/crash/xml-in-iframe-crash.html
 //content/test/data/accessibility/css/alt-text-expected-android-assist-data.txt
 //content/test/data/accessibility/css/alt-text-expected-android-external.txt
 //content/test/data/accessibility/css/alt-text-expected-android.txt
@@ -2097,7 +2113,6 @@
 //content/test/data/accessibility/css/list-marker-styles-custom-expected-win.txt
 //content/test/data/accessibility/css/list-marker-styles-custom.html
 //content/test/data/accessibility/css/marker-crash-expected-blink.txt
-//content/test/data/accessibility/css/marker-crash.html
 //content/test/data/accessibility/css/marker-hyphens-expected-blink.txt
 //content/test/data/accessibility/css/marker-hyphens.html
 //content/test/data/accessibility/css/next-on-line-check-failure-expected-blink.txt
@@ -3010,7 +3025,6 @@
 //content/test/data/accessibility/event/visibility-hidden-changed-expected-auralinux.txt
 //content/test/data/accessibility/event/visibility-hidden-changed-expected-uia-win.txt
 //content/test/data/accessibility/event/visibility-hidden-changed.html
-//content/test/data/accessibility/form-controls/aria-owns-child-and-hidden-descendant-crash.html
 //content/test/data/accessibility/form-controls/bdo-table-cell.html
 //content/test/data/accessibility/form-controls/contenteditable-descendants-expected-android.txt
 //content/test/data/accessibility/form-controls/contenteditable-descendants-expected-blink.txt
@@ -3020,7 +3034,6 @@
 //content/test/data/accessibility/form-controls/img-form.html
 //content/test/data/accessibility/form-controls/img-map-pseudo.html
 //content/test/data/accessibility/form-controls/map-inside-map.html
-//content/test/data/accessibility/form-controls/progress-meter-crash.html
 //content/test/data/accessibility/form-controls/role-group-expected-android.txt
 //content/test/data/accessibility/form-controls/role-group-expected-blink.txt
 //content/test/data/accessibility/form-controls/role-group.html
@@ -3146,7 +3159,6 @@
 //content/test/data/accessibility/html/area-alone-expected-blink.txt
 //content/test/data/accessibility/html/area-alone.html
 //content/test/data/accessibility/html/area-crash-expected-blink.txt
-//content/test/data/accessibility/html/area-crash.html
 //content/test/data/accessibility/html/area-expected-android-assist-data.txt
 //content/test/data/accessibility/html/area-expected-android-external.txt
 //content/test/data/accessibility/html/area-expected-android.txt
@@ -3157,7 +3169,6 @@
 //content/test/data/accessibility/html/area-expected-uia-win.txt
 //content/test/data/accessibility/html/area-expected-win.txt
 //content/test/data/accessibility/html/area-serialization-crash-expected-blink.txt
-//content/test/data/accessibility/html/area-serialization-crash.html
 //content/test/data/accessibility/html/area-with-aria-owns-expected-blink.txt
 //content/test/data/accessibility/html/area-with-aria-owns.html
 //content/test/data/accessibility/html/area.html
@@ -3661,7 +3672,6 @@
 //content/test/data/accessibility/html/del.html
 //content/test/data/accessibility/html/delete-selection-crash-expected-blink.txt
 //content/test/data/accessibility/html/delete-selection-crash-expected-win.txt
-//content/test/data/accessibility/html/delete-selection-crash.html
 //content/test/data/accessibility/html/design-mode-expected-blink.txt
 //content/test/data/accessibility/html/design-mode.html
 //content/test/data/accessibility/html/details-expected-android-assist-data.txt
@@ -3943,7 +3953,6 @@
 //content/test/data/accessibility/html/hgroup-expected-blink.txt
 //content/test/data/accessibility/html/hgroup.html
 //content/test/data/accessibility/html/hidden-named-slot-no-subtree-crash-expected-blink.txt
-//content/test/data/accessibility/html/hidden-named-slot-no-subtree-crash.html
 //content/test/data/accessibility/html/hr-expected-android-assist-data.txt
 //content/test/data/accessibility/html/hr-expected-android-external.txt
 //content/test/data/accessibility/html/hr-expected-android.txt
@@ -4919,7 +4928,6 @@
 //content/test/data/accessibility/html/node-changed-crash-in-editable-text-expected-mac.txt
 //content/test/data/accessibility/html/node-changed-crash-in-editable-text-expected-uia-win.txt
 //content/test/data/accessibility/html/node-changed-crash-in-editable-text-expected-win.txt
-//content/test/data/accessibility/html/node-changed-crash-in-editable-text.html
 //content/test/data/accessibility/html/noscript-expected-android.txt
 //content/test/data/accessibility/html/noscript-expected-auralinux.txt
 //content/test/data/accessibility/html/noscript-expected-fuchsia.txt
@@ -5118,7 +5126,6 @@
 //content/test/data/accessibility/html/relevant-space-expected-blink.txt
 //content/test/data/accessibility/html/relevant-space.html
 //content/test/data/accessibility/html/reparent-crash-expected-blink.txt
-//content/test/data/accessibility/html/reparent-crash.html
 //content/test/data/accessibility/html/replace-data-expected-blink.txt
 //content/test/data/accessibility/html/replace-data.html
 //content/test/data/accessibility/html/replaced-node-across-trees-expected-android-assist-data.txt
@@ -6166,7 +6173,6 @@
 //content/test/data/accessibility/regression/aria-hidden-tabindex-change-expected-blink.txt
 //content/test/data/accessibility/regression/aria-hidden-tabindex-change.html
 //content/test/data/accessibility/regression/aria-owns-from-textarea.html
-//content/test/data/accessibility/regression/aria-owns-reparent-above-other-change-crash.html
 //content/test/data/accessibility/regression/aria-pressed-changes-button-role-expected-blink.txt
 //content/test/data/accessibility/regression/aria-pressed-changes-button-role.html
 //content/test/data/accessibility/regression/clear-children-while-computing-name-expected-blink.txt
@@ -6189,7 +6195,6 @@
 //content/test/data/accessibility/regression/hidden-table.html
 //content/test/data/accessibility/regression/iframe-navigation.html
 //content/test/data/accessibility/regression/ignored-crash-expected-blink.txt
-//content/test/data/accessibility/regression/ignored-crash.html
 //content/test/data/accessibility/regression/inner1.html
 //content/test/data/accessibility/regression/inner2.html
 //content/test/data/accessibility/regression/language-changed-on-html-expected-blink.txt
@@ -6202,9 +6207,7 @@
 //content/test/data/accessibility/regression/progress-with-background-exposes-values.html
 //content/test/data/accessibility/regression/reentrant-add-children.html
 //content/test/data/accessibility/regression/relation-points-to-invalid-nodes-crash-expected-blink.txt
-//content/test/data/accessibility/regression/relation-points-to-invalid-nodes-crash.html
 //content/test/data/accessibility/regression/reload-selection-crash-expected-blink.txt
-//content/test/data/accessibility/regression/reload-selection-crash.html
 //content/test/data/accessibility/regression/remove-aria-owner-expected-auralinux.txt
 //content/test/data/accessibility/regression/remove-aria-owner-expected-blink.txt
 //content/test/data/accessibility/regression/remove-aria-owner.html
@@ -6223,13 +6226,10 @@
 //content/test/data/accessibility/regression/reused-map-move-image.html
 //content/test/data/accessibility/regression/reused-map.html
 //content/test/data/accessibility/regression/root-becomes-leaf.html
-//content/test/data/accessibility/regression/select-expand-many-options-crash.html
 //content/test/data/accessibility/regression/slot-creation-crash-expected-blink.txt
-//content/test/data/accessibility/regression/slot-creation-crash.html
 //content/test/data/accessibility/regression/title-in-shadow-expected-blink.txt
 //content/test/data/accessibility/regression/title-in-shadow.html
 //content/test/data/accessibility/regression/workplace.jpg
-//content/test/data/accessibility/regression/xml-in-iframe-crash.html
 //content/test/data/accessibility/relations/ignore-duplicate-relation-ids-expected-auralinux.txt
 //content/test/data/accessibility/relations/ignore-duplicate-relation-ids-expected-win.txt
 //content/test/data/accessibility/relations/ignore-duplicate-relation-ids.html
@@ -6580,7 +6580,6 @@
 //content/test/data/back_forward_cache/page_with_nonexistent_script.html
 //content/test/data/back_forward_cache/page_with_pageshow.html
 //content/test/data/back_forward_cache/page_with_same_origin_subframe_with_pageshow.html
-//content/test/data/back_forward_cache/page_with_shared_worker.html
 //content/test/data/back_forward_cache/page_with_wakelock.html
 //content/test/data/back_forward_cache/page_with_webgl.html
 //content/test/data/back_forward_cache/page_with_websocket_external_script.html
@@ -6596,7 +6595,6 @@
 //content/test/data/back_forward_cache/service_worker_post_message.js
 //content/test/data/back_forward_cache/service_worker_registration.html
 //content/test/data/back_forward_cache/service_worker_registration.js
-//content/test/data/back_forward_cache/shared_worker.js
 //content/test/data/back_forward_cache/websocket_external_script.js
 //content/test/data/back_forward_cache/webusb/nested-worker.js
 //content/test/data/back_forward_cache/webusb/worker.js
@@ -6841,7 +6839,6 @@
 //content/test/data/dom_storage/sanity_check.html
 //content/test/data/dom_storage/sanity_check.js
 //content/test/data/dom_storage/store_data.html
-//content/test/data/dom_storage/store_data_task.html
 //content/test/data/dom_storage/store_session_storage_data.html
 //content/test/data/dom_storage/verify_data.html
 //content/test/data/dom_storage/verify_session_storage_data.html

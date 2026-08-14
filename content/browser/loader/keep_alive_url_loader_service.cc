@@ -64,17 +64,11 @@ KeepAliveURLLoaderService::FactoryContext::FactoryContext(
     : factory(other->factory),
       weak_document_ptr(other->weak_document_ptr),
       ukm_source_id(other->ukm_source_id),
-<<<<<<< HEAD
       policy_container_host(other->policy_container_host),
-      attribution_context(other->attribution_context),
-      network_isolation_key(other->network_isolation_key) {}
-=======
-      policy_container_host(other->policy_container_host)
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-    , attribution_context(other->attribution_context)
+      attribution_context(other->attribution_context),
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-{}
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+      network_isolation_key(other->network_isolation_key) {}
 
 KeepAliveURLLoaderService::FactoryContext::~FactoryContext() = default;
 

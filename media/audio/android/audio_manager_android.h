@@ -14,17 +14,12 @@
 #include "base/memory/raw_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
-<<<<<<< HEAD
 #include "media/audio/android/aaudio_bluetooth_output.h"
-=======
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "base/unguessable_token.h"
-#endif
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "media/audio/android/aaudio_input.h"
 #include "media/audio/android/audio_device.h"
 #include "media/audio/android/audio_device_id.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/unguessable_token.h"
 #include "media/audio/android/starboard_audio_input_stream.h"
 #endif
 #include "media/audio/audio_manager_base.h"

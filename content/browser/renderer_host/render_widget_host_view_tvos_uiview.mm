@@ -4,39 +4,28 @@
 
 #include "content/browser/renderer_host/render_widget_host_view_tvos_uiview.h"
 
-<<<<<<< HEAD
-=======
 #include "base/apple/owned_objc.h"
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/strings/sys_string_conversions.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/common/input/web_keyboard_event.h"
-<<<<<<< HEAD
-=======
 #include "ui/accessibility/platform/browser_accessibility_manager.h"
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "ui/base/ime/mojom/ime_types.mojom-shared.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/dom_key.h"
 #include "ui/events/keycodes/keyboard_codes.h"
-<<<<<<< HEAD
-=======
 
 #if BUILDFLAG(IS_COBALT)
 #import <GameController/GameController.h>
 
 #include "components/input/web_input_event_builders_ios.h"
 #endif
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 static void* kObservingContext = &kObservingContext;
 
 namespace {
 
-<<<<<<< HEAD
-=======
 typedef NS_ENUM(NSInteger, RemoteButton) {
   kUp,
   kDown,
@@ -52,7 +41,6 @@ typedef NS_ENUM(NSInteger, RemoteButton) {
 // UIPanGestureRecognizer.
 const CGFloat kMinVelocity = 100;
 
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 UIKeyboardType keyboardTypeForInputType(ui::TextInputType inputType) {
   // TODO(crbug.com/411452047): Implement textFieldShouldEndEditing to detect
   // invalid contents in the text field. When texts are inserted via a H/W
@@ -73,10 +61,6 @@ UIKeyboardType keyboardTypeForInputType(ui::TextInputType inputType) {
   }
 }
 
-<<<<<<< HEAD
-}  // namespace
-
-=======
 RemoteButton remoteButtonFromPressType(UIPressType type) {
   RemoteButton button = kNone;
   switch (type) {
@@ -118,7 +102,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 @end
 #endif
 
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 @implementation RenderWidgetUIView
 
 #pragma mark - Public
@@ -131,39 +114,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     self.autoresizingMask =
         UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
 
-<<<<<<< HEAD
-    UITapGestureRecognizer* tapGesture =
-        [[UITapGestureRecognizer alloc] initWithTarget:self
-                                                action:@selector(tapGesture:)];
-    [self addGestureRecognizer:tapGesture];
-
-    UISwipeGestureRecognizer* swipeLeftGesture =
-        [[UISwipeGestureRecognizer alloc]
-            initWithTarget:self
-                    action:@selector(swipeGesture:)];
-    swipeLeftGesture.direction = UISwipeGestureRecognizerDirectionLeft;
-    [self addGestureRecognizer:swipeLeftGesture];
-
-    UISwipeGestureRecognizer* swipeRightGesture =
-        [[UISwipeGestureRecognizer alloc]
-            initWithTarget:self
-                    action:@selector(swipeGesture:)];
-    swipeRightGesture.direction = UISwipeGestureRecognizerDirectionRight;
-    [self addGestureRecognizer:swipeRightGesture];
-
-    UISwipeGestureRecognizer* swipeUpGesture = [[UISwipeGestureRecognizer alloc]
-        initWithTarget:self
-                action:@selector(swipeGesture:)];
-    swipeUpGesture.direction = UISwipeGestureRecognizerDirectionUp;
-    [self addGestureRecognizer:swipeUpGesture];
-
-    UISwipeGestureRecognizer* swipeDownGesture =
-        [[UISwipeGestureRecognizer alloc]
-            initWithTarget:self
-                    action:@selector(swipeGesture:)];
-    swipeDownGesture.direction = UISwipeGestureRecognizerDirectionDown;
-    [self addGestureRecognizer:swipeDownGesture];
-=======
     // tvOS supports multiple types of input events from the Remote, including
     // the clickpad (touch surface), the clickpad ring (directional control),
     // and various physical buttons.
@@ -186,7 +136,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 #else
     [self addSwipeAndPanGestureRecognizers];
 #endif
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
   return self;
 }
@@ -248,44 +197,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 
 #pragma mark - Private
 
-<<<<<<< HEAD
-- (void)tapGesture:(UIGestureRecognizer*)gestureRecognizer {
-  if ([gestureRecognizer state] != UIGestureRecognizerStateEnded) {
-    return;
-  }
-
-  const ui::mojom::TextInputState* state = [self editState];
-  if (state && state->mode != ui::TextInputMode::TEXT_INPUT_MODE_NONE &&
-      state->type != ui::TextInputType::TEXT_INPUT_TYPE_NONE) {
-    [self showKeyboard:*state];
-    return;
-  }
-
-  blink::WebKeyboardEvent event(blink::WebInputEvent::Type::kKeyDown,
-                                blink::WebInputEvent::kNoModifiers,
-                                ui::EventTimeForNow());
-  event.native_key_code = UIKeyboardHIDUsageKeyboardReturnOrEnter;
-  event.dom_code = static_cast<int>(ui::DomCode::ENTER);
-  event.dom_key = ui::DomKey::ENTER;
-  event.windows_key_code = ui::VKEY_RETURN;
-
-  // Copied from components/input/web_input_event_builders_mac.mm's
-  // WebKeyboardEventBuilder::Build().
-  // This is necessary due to way some HTML elements process keyboard activation
-  // (e.g. blink::HTMLElement::HandleKeyboardActivation()).
-  event.text[0] = '\r';
-  event.unmodified_text[0] = '\r';
-
-  _view->SendKeyEvent(
-      input::NativeWebKeyboardEvent(event, _view->GetNativeView()));
-
-  // We also need to send a keyup event so that e.g. checkboxes are properly
-  // activated/deactivated with the keyboard.
-  event.SetType(blink::WebInputEvent::Type::kKeyUp);
-  event.SetTimeStamp(ui::EventTimeForNow());
-  _view->SendKeyEvent(
-      input::NativeWebKeyboardEvent(event, _view->GetNativeView()));
-=======
 - (void)addSwipeAndPanGestureRecognizers {
   // Create and add swipe gesture recognizers for all directions originating
   // from the clickpad buttons.
@@ -339,7 +250,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   swipeGesture.direction = direction;
   swipeGesture.delegate = self;
   [self addGestureRecognizer:swipeGesture];
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 - (void)swipeGesture:(UISwipeGestureRecognizer*)gestureRecognizer {
@@ -347,17 +257,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     return;
   }
 
-<<<<<<< HEAD
-  const UISwipeGestureRecognizerDirection direction =
-      gestureRecognizer.direction;
-
-  blink::WebKeyboardEvent event(blink::WebInputEvent::Type::kKeyDown,
-                                blink::WebInputEvent::kNoModifiers,
-                                ui::EventTimeForNow());
-
-  switch (direction) {
-    case UISwipeGestureRecognizerDirectionLeft:
-=======
   RemoteButton button = kNone;
   switch (gestureRecognizer.direction) {
     case UISwipeGestureRecognizerDirectionLeft:
@@ -500,44 +399,29 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 
   switch (remoteButton) {
     case kLeft:
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       event.native_key_code = UIKeyboardHIDUsageKeyboardLeftArrow;
       event.dom_code = static_cast<int>(ui::DomCode::ARROW_LEFT);
       event.dom_key = ui::DomKey::ARROW_LEFT;
       event.windows_key_code = ui::VKEY_LEFT;
       break;
-<<<<<<< HEAD
-    case UISwipeGestureRecognizerDirectionRight:
-=======
     case kRight:
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       event.native_key_code = UIKeyboardHIDUsageKeyboardRightArrow;
       event.dom_code = static_cast<int>(ui::DomCode::ARROW_RIGHT);
       event.dom_key = ui::DomKey::ARROW_RIGHT;
       event.windows_key_code = ui::VKEY_RIGHT;
       break;
-<<<<<<< HEAD
-    case UISwipeGestureRecognizerDirectionUp:
-=======
     case kUp:
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       event.native_key_code = UIKeyboardHIDUsageKeyboardUpArrow;
       event.dom_code = static_cast<int>(ui::DomCode::ARROW_UP);
       event.dom_key = ui::DomKey::ARROW_UP;
       event.windows_key_code = ui::VKEY_UP;
       break;
-<<<<<<< HEAD
-    case UISwipeGestureRecognizerDirectionDown:
-=======
     case kDown:
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       event.native_key_code = UIKeyboardHIDUsageKeyboardDownArrow;
       event.dom_code = static_cast<int>(ui::DomCode::ARROW_DOWN);
       event.dom_key = ui::DomKey::ARROW_DOWN;
       event.windows_key_code = ui::VKEY_DOWN;
       break;
-<<<<<<< HEAD
-=======
     case kMediaPlayPause:
       event.native_key_code = UIKeyboardHIDUsageKeyboardPause;
       event.dom_code = static_cast<int>(ui::DomCode::MEDIA_PLAY_PAUSE);
@@ -566,15 +450,11 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
       break;
     case kNone:
       return NO;
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   _view->SendKeyEvent(
       input::NativeWebKeyboardEvent(event, _view->GetNativeView()));
-<<<<<<< HEAD
-=======
   return YES;
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 - (void)showKeyboard:(const ui::mojom::TextInputState&)state {
@@ -650,8 +530,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   }
 }
 
-<<<<<<< HEAD
-=======
 #pragma mark - UIAccessibilityElement
 
 - (BOOL)isAccessibilityElement {
@@ -662,7 +540,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   return CGRectZero;
 }
 
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #pragma mark - UIResponder
 
 - (BOOL)canBecomeFirstResponder {
@@ -683,8 +560,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
       (result || _view->CanBecomeFirstResponderForTesting())) {
     _view->OnFirstResponderChanged();
   }
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(IS_COBALT)
   if (result) {
     // Re-register gamepad handlers in case another UIView had overwritten them.
@@ -700,7 +575,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     }
   }
 #endif
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return result;
 }
 
@@ -730,8 +604,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   [self hideAndDeleteKeyboard];
 }
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(IS_COBALT)
 #pragma mark - Controller Connect/Disconnect Notifications
 
@@ -856,7 +728,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   return YES;
 }
 
->>>>>>> parent of a2477a25892 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #pragma mark - UIView
 
 - (BOOL)canBecomeFocused {
