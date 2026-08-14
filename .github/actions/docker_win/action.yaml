@@ -18,7 +18,6 @@ runs:
         files: |
           docker-compose-windows.yml
           docker/windows/**
-          .github/actions/docker_win/**
     - name: Retrieve Docker metadata
       id: meta
       uses: docker/metadata-action@507c2f2dc502c992ad446e3d7a5dfbe311567a96 # v4.3.0
