@@ -16,7 +16,10 @@ ARG BASE_OS
 ARG BASE_OS_TAG
 FROM ${BASE_OS:-marketplace.gcr.io/google/debian10}:${BASE_OS_TAG:-latest}
 
-COPY base/clean-after-apt.sh /opt/clean-after-apt.sh
+COPY base/clean-after-apt.sh ARG GCLOUD=google-cloud-cli-linux-x86_64.tar.gz
+RUN cd /tmp     && curl -L -O "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/"     && tar xf "" -C /usr/local --strip-components=1 google-cloud-sdk/bin google-cloud-sdk/lib     && rm ""     && gcloud --version
+
+RUN /opt/clean-after-apt.sh
 
 ENV PYTHONUNBUFFERED 1
 

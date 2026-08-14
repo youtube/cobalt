@@ -6,11 +6,7 @@ runs:
     - name: Configure Environment
       shell: bash
       run: |
-        echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-    - name: Set up Cloud SDK
-      if: startsWith(${{matrix.target_platform}}, 'android')
-      uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
-    - name: Set Android env vars
+        echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV    - name: Set Android env vars
       if: startsWith(${{matrix.target_platform}}, 'android')
       run: |
         echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
