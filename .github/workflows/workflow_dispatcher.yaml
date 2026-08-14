@@ -21,7 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: write
-      pull-requests: read
+      pull-requests: write
+      issues: write
     steps:
       - name: Check label and trigger PR jobs
         uses: actions/github-script@v8
@@ -114,3 +115,19 @@ jobs:
                 console.error(`Failed to rerun ${workflow}:`, error);
               }
             }));
+
+            // Remove the trigger label after all workflows have been triggered
+            if (labelName === 'runtest' || labelName === 'yts_playback_test') {
+              try {
+                console.log(`Removing label ${labelName} from PR #${pr.number}...`);
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  name: labelName
+                });
+                console.log(`Successfully removed label ${labelName} from PR #${pr.number}.`);
+              } catch (error) {
+                console.error(`Failed to remove label ${labelName}:`, error);
+              }
+            }
