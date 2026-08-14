@@ -47,6 +47,10 @@
 #include "media/base/media_player_logging_id.h"
 #include "media/base/media_switches.h"
 #include "media/base/memory_dump_provider_proxy.h"
+#if BUILDFLAG(IS_COBALT)
+#include "components/discardable_memory/service/discardable_shared_memory_manager.h"
+#endif
+
 #include "media/base/output_device_info.h"
 #include "media/base/remoting_constants.h"
 #include "media/base/renderer.h"
@@ -119,6 +123,8 @@
 #include "media/base/android/media_codec_util.h"
 #endif
 
+
+
 namespace WTF {
 
 template <>
@@ -134,6 +140,44 @@ struct CrossThreadCopier<media::VideoTransformation>
 };
 
 }  // namespace WTF
+
+#if BUILDFLAG(IS_COBALT)
+#include <set>
+#include <algorithm>
+#include "base/no_destructor.h"
+#include "base/feature_list.h"
+#include "base/metrics/field_trial_params.h"
+#include "components/discardable_memory/service/discardable_shared_memory_manager.h"
+
+BASE_FEATURE(kCobaltImageCacheCapacityMultiplier,
+             "CobaltImageCacheCapacityMultiplier",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+const base::FeatureParam<double> kCobaltImageCacheCapacityMultiplierValue{
+    &kCobaltImageCacheCapacityMultiplier, "multiplier", 0.33};
+const base::FeatureParam<int> kCobaltImageCacheDefaultLimitMb{
+    &kCobaltImageCacheCapacityMultiplier, "default_limit_mb", 30};
+
+std::set<void*>& GetActiveCobaltPlayers() {
+  static base::NoDestructor<std::set<void*>> active_players;
+  return *active_players;
+}
+
+void UpdateImageCacheLimit() {
+  if (base::FeatureList::IsEnabled(kCobaltImageCacheCapacityMultiplier)) {
+    if (auto* mgr = discardable_memory::DiscardableSharedMemoryManager::Get()) {
+      int default_mb = std::max(0, kCobaltImageCacheDefaultLimitMb.Get());
+      if (!GetActiveCobaltPlayers().empty()) {
+        double multiplier = std::max(0.0, kCobaltImageCacheCapacityMultiplierValue.Get());
+        mgr->SetMemoryLimit(static_cast<size_t>(default_mb * multiplier * 1024 * 1024));
+      } else {
+        mgr->SetMemoryLimit(static_cast<size_t>(default_mb * 1024 * 1024));
+      }
+    }
+  }
+}
+#endif
+
 
 namespace blink {
 
@@ -618,6 +662,10 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 }
 
 WebMediaPlayerImpl::~WebMediaPlayerImpl() {
+#if BUILDFLAG(IS_COBALT)
+  GetActiveCobaltPlayers().erase(this);
+  UpdateImageCacheLimit();
+#endif
   DVLOG(1) << __func__;
   DCHECK(main_task_runner_->BelongsToCurrentThread());
 
@@ -1004,6 +1052,10 @@ void WebMediaPlayerImpl::DoLoad(LoadType load_type,
 }
 
 void WebMediaPlayerImpl::Play() {
+#if BUILDFLAG(IS_COBALT)
+  GetActiveCobaltPlayers().insert(this);
+  UpdateImageCacheLimit();
+#endif
   DVLOG(1) << __func__;
   DCHECK(main_task_runner_->BelongsToCurrentThread());
 
@@ -1051,6 +1103,10 @@ void WebMediaPlayerImpl::Play() {
 }
 
 void WebMediaPlayerImpl::Pause(PauseReason pause_reason) {
+#if BUILDFLAG(IS_COBALT)
+  GetActiveCobaltPlayers().erase(this);
+  UpdateImageCacheLimit();
+#endif
   DVLOG(1) << __func__;
   DCHECK(main_task_runner_->BelongsToCurrentThread());
 
@@ -4236,3 +4292,4 @@ void WebMediaPlayerImpl::DidMediaMetadataChange() {
 }
 
 }  // namespace blink
+
