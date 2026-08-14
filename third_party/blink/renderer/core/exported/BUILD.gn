@@ -26,7 +26,7 @@ blink_core_sources("exported") {
   sources = blink_core_sources_exported
   if (!enable_devtools_backend) {
     sources -= [ "web_dev_tools_agent_impl.cc" ]
-    sources += [ "web_dev_tools_agent_impl_stub.cc" ]
+    sources += [ "cobalt/web_dev_tools_agent_impl_stub.cc" ]
   }
 
   deps = [

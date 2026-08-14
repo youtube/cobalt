@@ -9,7 +9,7 @@
 #include "third_party/blink/public/common/buildflags.h"
 
 #if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-#include "content/browser/devtools/network_service_devtools_observer_stub.h"
+#include "content/browser/devtools/cobalt/network_service_devtools_observer_stub.h"
 #else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #include <string>

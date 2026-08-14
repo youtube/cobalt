@@ -192,7 +192,7 @@ target(link_target_type, "renderer") {
     ]
     if (!enable_devtools_backend) {
       sources -= [ "media/inspector_media_event_handler.cc" ]
-      sources += [ "media/inspector_media_event_handler_stub.h" ]
+      sources += [ "media/cobalt/inspector_media_event_handler_stub.h" ]
     }
   }
 

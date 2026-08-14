@@ -20,7 +20,7 @@
 #include "third_party/blink/public/common/buildflags.h"
 
 #if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-#include "content/browser/devtools/protocol/page_handler_stub.h"
+#include "content/browser/devtools/cobalt/protocol/page_handler_stub.h"
 #else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #include "cc/trees/render_frame_metadata.h"

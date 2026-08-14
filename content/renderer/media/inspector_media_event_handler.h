@@ -9,7 +9,7 @@
 #include "third_party/blink/public/common/buildflags.h"
 
 #if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-#include "content/renderer/media/inspector_media_event_handler_stub.h"
+#include "content/renderer/media/cobalt/inspector_media_event_handler_stub.h"
 #else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #include <vector>

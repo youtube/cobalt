@@ -16,7 +16,7 @@
 #include "third_party/blink/public/common/buildflags.h"
 
 #if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-#include "content/browser/devtools/render_frame_devtools_agent_host_stub.h"
+#include "content/browser/devtools/cobalt/render_frame_devtools_agent_host_stub.h"
 #else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #include "content/browser/devtools/devtools_agent_host_impl.h"

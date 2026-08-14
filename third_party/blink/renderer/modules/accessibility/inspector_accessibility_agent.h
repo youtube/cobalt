@@ -9,7 +9,7 @@
 #include "third_party/blink/public/common/buildflags.h"
 
 #if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-#include "third_party/blink/renderer/modules/accessibility/inspector_accessibility_agent_stub.h"
+#include "third_party/blink/renderer/modules/accessibility/cobalt/inspector_accessibility_agent_stub.h"
 #else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #include "third_party/blink/renderer/core/accessibility/ax_context.h"

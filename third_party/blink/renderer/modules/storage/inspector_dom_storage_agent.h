@@ -33,7 +33,7 @@
 #include "third_party/blink/public/common/buildflags.h"
 
 #if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-#include "third_party/blink/renderer/modules/storage/inspector_dom_storage_agent_stub.h"
+#include "third_party/blink/renderer/modules/storage/cobalt/inspector_dom_storage_agent_stub.h"
 #else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #include "third_party/blink/renderer/core/inspector/inspector_base_agent.h"
