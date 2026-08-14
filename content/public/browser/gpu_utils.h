@@ -6,7 +6,7 @@
 #define CONTENT_PUBLIC_BROWSER_GPU_UTILS_H_
 
 #include "base/clang_profiling_buildflags.h"
-#include "base/functional/callback_forward.h"
+#include "base/functional/callback.h"
 #include "content/common/content_export.h"
 #include "gpu/config/gpu_preferences.h"
 
@@ -23,7 +23,8 @@ CONTENT_EXPORT void KillGpuProcess();
 
 #if BUILDFLAG(IS_COBALT)
 // Cleans up GL contexts, caches, and surfaces in the GPU service on background.
-CONTENT_EXPORT void CleanupGpuProcessOnBackground();
+CONTENT_EXPORT void CleanupGpuProcessOnBackground(
+    base::OnceClosure callback = base::OnceClosure());
 #endif
 
 CONTENT_EXPORT gpu::GpuChannelEstablishFactory* GetGpuChannelEstablishFactory();

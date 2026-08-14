@@ -195,7 +195,7 @@ interface GpuService {
   // GPU can use this message to perform appropriate cleanup. Sent with a
   // slight delay to prevent thrashing if the app is rapidly backgrounded
   // foregrounded.
-  OnBackgroundCleanup();
+  OnBackgroundCleanup() => ();
 
   // Called by the browser immediately after the application is backgrounded.
   OnBackgrounded();

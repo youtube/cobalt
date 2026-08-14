@@ -322,7 +322,9 @@ void ShellPlatformDelegate::OnAllFramesConcealed(
   }
   is_visible_ = false;
 
-  content::CleanupGpuProcessOnBackground();
+  content::CleanupGpuProcessOnBackground(base::BindOnce([]() {
+    cobalt::CobaltLifecycleManager::GetInstance()->OnGpuCleanupCompleted();
+  }));
 
   // Stop observing as we only need one notification per conceal.
   cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(

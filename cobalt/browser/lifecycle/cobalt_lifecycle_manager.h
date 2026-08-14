@@ -51,6 +51,7 @@ enum class PendingAck {
   kBlur,
   kUnfreeze,
   kCookieFlush,
+  kGpuCleanup,
 };
 
 class CobaltLifecycleManagerObserver {
@@ -79,6 +80,9 @@ class CobaltLifecycleManagerObserver {
 
   // Called when all frames of a specific WebContents have completed resume.
   virtual void OnAllFramesResumed(content::WebContents* web_contents) {}
+
+  // Called when background GPU cleanup and EGL display termination complete.
+  virtual void OnGpuCleanupCompleted() {}
 
  protected:
   virtual ~CobaltLifecycleManagerObserver() = default;
@@ -160,6 +164,9 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
   // Adds/removes observers.
   void AddObserver(CobaltLifecycleManagerObserver* observer);
   void RemoveObserver(CobaltLifecycleManagerObserver* observer);
+
+  // Called when background GPU cleanup and EGL display termination complete.
+  void OnGpuCleanupCompleted();
 
   // Called to start waiting for a specific ACK type.
   void StartWaitingForAck(content::WebContents* web_contents,

@@ -806,18 +806,11 @@ void GpuChannelManager::OnBackgroundCleanup() {
 void GpuChannelManager::OnBackgroundCleanup() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  // 1. Mark all GPU channel contexts lost and remove GPU channels to destroy client GL contexts.
-  std::vector<int> channels_to_clear;
+  // 1. Mark all GPU channel contexts lost and destroy all GPU channels.
   for (auto& kv : gpu_channels_) {
-    if (kv.second->HasActiveStatefulContext()) {
-      continue;
-    }
-    channels_to_clear.push_back(kv.first);
     kv.second->MarkAllContextsLost();
   }
-  for (int channel : channels_to_clear) {
-    RemoveChannel(channel);
-  }
+  DestroyAllChannels();
 
   // 2. Free unreferenced compiled GL/GLES shader binaries from the GPU cache.
   if (program_cache_)
@@ -836,7 +829,13 @@ void GpuChannelManager::OnBackgroundCleanup() {
     default_offscreen_surface_ = nullptr;
   }
 
-  // 5. Clear CPU-side font and 2D raster caches.
+  // 5. Terminate the EGL display connection so all driver display resources are released.
+  gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
+  if (display && display->IsInitialized()) {
+    display->Shutdown();
+  }
+
+  // 6. Clear CPU-side font and 2D raster caches.
   SkGraphics::PurgeAllCaches();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -860,6 +859,7 @@ void GpuChannelManager::OnApplicationBackgrounded() {
 }
 
 void GpuChannelManager::OnApplicationForegounded() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   application_backgrounded_ = false;
 }
 

@@ -142,14 +142,18 @@ void KillGpuProcess() {
 }
 
 #if BUILDFLAG(IS_COBALT)
-void CleanupGpuProcessOnBackground() {
+void CleanupGpuProcessOnBackground(base::OnceClosure callback) {
   GpuProcessHost::CallOnUI(
       FROM_HERE, GPU_PROCESS_KIND_SANDBOXED, false /* force_create */,
-      base::BindOnce([](content::GpuProcessHost* host) {
-        if (host && host->gpu_service()) {
-          host->gpu_service()->OnBackgroundCleanup();
-        }
-      }));
+      base::BindOnce(
+          [](base::OnceClosure callback, content::GpuProcessHost* host) {
+            if (host && host->gpu_service()) {
+              host->gpu_service()->OnBackgroundCleanup(std::move(callback));
+            } else if (callback) {
+              std::move(callback).Run();
+            }
+          },
+          std::move(callback)));
 }
 #endif
 
