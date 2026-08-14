@@ -67,9 +67,6 @@ runs:
         name: ${{ inputs.test_artifacts_key }}
         path: artifacts/*
         retention-days: 3
-    - name: Set up Cloud SDK
-      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true'
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Upload On-Device Test Artifacts to GCS
       if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true'
       env:
@@ -90,6 +87,6 @@ runs:
              "${GITHUB_WORKSPACE}/artifacts/"
         fi
 
-        gsutil -m cp -r "${GITHUB_WORKSPACE}/artifacts/*" \
+        gcloud storage cp -r "${GITHUB_WORKSPACE}/artifacts/*" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
       shell: bash
