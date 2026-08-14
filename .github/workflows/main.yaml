@@ -40,7 +40,7 @@ jobs:
       - id: checkout
         uses: actions/checkout@v3
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - id: set-platforms
         run: echo "platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')" >> $GITHUB_ENV
       - id: set-includes
