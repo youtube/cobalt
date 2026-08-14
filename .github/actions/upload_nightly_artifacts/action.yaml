@@ -4,14 +4,15 @@ runs:
   using: "composite"
   steps:
     - name: Set up Cloud SDK
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+      if: runner.os == 'Windows'
+      uses: google-github-actions/setup-gcloud@f0990588f1e5b5af6827153b93673613abdc6ec7 # v2.1.1
     - name: Set env vars
       env:
         WORKFLOW: ${{github.workflow}}
       run: |
         echo "ARCHIVE_FILE=cobalt-${{matrix.platform}}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
         echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/cobalt-${{matrix.platform}}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
-        echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
+        echo "PROJECT_NAME=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')" >> $GITHUB_ENV
         echo "TODAY=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
         echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
         echo "WORKFLOW=${WORKFLOW}" >> $GITHUB_ENV
@@ -36,4 +37,4 @@ runs:
       shell: bash
       run: |
         set -uex
-        gsutil -d cp "${ARCHIVE_PATH}" "gs://${PROJECT_NAME}-build-artifacts/${WORKFLOW}/${TODAY}/${GITHUB_RUN_NUMBER}/"
+        gcloud storage cp "${ARCHIVE_PATH}" "gs://${PROJECT_NAME}-build-artifacts/${WORKFLOW}/${TODAY}/${GITHUB_RUN_NUMBER}/"
