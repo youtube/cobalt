@@ -45,7 +45,8 @@ template("modular_apk") {
     ]
 
     if (_name == "cobalt") {
-      sources = [ "$root_build_dir/cobalt_shell.pak" ]
+      renaming_sources += [ "$root_build_dir/cobalt_shell.pak" ]
+      renaming_destinations += [ "app/cobalt/content/cobalt_shell.pak" ]
       deps += [ "//cobalt/shell:pak($default_toolchain)" ]
     }
 
