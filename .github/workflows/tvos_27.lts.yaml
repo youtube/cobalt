@@ -117,13 +117,11 @@ jobs:
           exit 1
 
   download-artifacts:
-    # TODO(b/519669027): consider odt-runner for fetching the artifacts.
     needs: [get-sha, wait-for-kokoro-build, get-targets]
-    runs-on: [self-hosted, chrobalt-linux-runner]
+    runs-on: [self-hosted, odt-runner]
+    container:
+      image: ghcr.io/youtube/cobalt/linux:main
     steps:
-      - name: Set Up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
       - name: Download Artifacts from GCS
         env:
           INVOCATION_ID: ${{ needs.wait-for-kokoro-build.outputs.invocation_id }}
