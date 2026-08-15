@@ -74,12 +74,27 @@ int64_t SearchForMemoryValue(const char* search_key, const char* buffer) {
 }
 
 int64_t SbSystemGetUsedCPUMemory() {
-  // Read our process' current physical memory usage from /proc/self/status.
+  starboard::ScopedFile smaps_file("/proc/self/smaps_rollup", O_RDONLY);
+  if (smaps_file.IsValid()) {
+    const int kBufferSize = 2048;
+    char buffer[kBufferSize];
+    int bytes_read = smaps_file.ReadAll(buffer, kBufferSize - 1);
+    if (bytes_read > 0) {
+      buffer[bytes_read] = '\0';
+      int64_t pss_anon = SearchForMemoryValue("Pss_Anon:", buffer);
+      if (pss_anon > 0) {
+        return pss_anon;
+      }
+      int64_t pss = SearchForMemoryValue("Pss:", buffer);
+      if (pss > 0) {
+        return pss;
+      }
+    }
+  }
+
   starboard::ScopedFile status_file("/proc/self/status", 0);
   if (!status_file.IsValid()) {
-    SB_LOG(ERROR)
-        << "Error opening /proc/self/status in order to query self memory "
-           "usage.";
+    SB_LOG(ERROR) << "Error opening /proc/self/status";
     return 0;
   }
 
@@ -94,7 +109,9 @@ int64_t SbSystemGetUsedCPUMemory() {
   }
   buffer[bytes_read] = '\0';
 
-  // Return the result, multiplied by 1024 because it is given in kilobytes.
-  return SearchForMemoryValue("VmRSS", buffer) +
-         SearchForMemoryValue("VmSwap", buffer);
+  int64_t rss = SearchForMemoryValue("RssAnon:", buffer);
+  if (rss == 0) {
+    rss = SearchForMemoryValue("VmRSS:", buffer);
+  }
+  return rss + SearchForMemoryValue("VmSwap:", buffer);
 }

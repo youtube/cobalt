@@ -70,6 +70,15 @@ void PerformanceImpl::MeasureAvailableCpuMemory(
 
 void PerformanceImpl::MeasureUsedCpuMemory(
     MeasureAvailableCpuMemoryCallback callback) {
+#if BUILDFLAG(IS_STARBOARD)
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t { return SbSystemGetUsedCPUMemory(); }),
+      std::move(callback));
+#elif BUILDFLAG(IS_IOS_TVOS)
+  NOTIMPLEMENTED();
+  std::move(callback).Run(0);
+#else
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
       base::BindOnce([]() -> uint64_t {
@@ -79,9 +88,10 @@ void PerformanceImpl::MeasureUsedCpuMemory(
           return 0;
         }
         auto info = process_metrics->GetMemoryInfo();
-        return info.has_value() ? info->resident_set_bytes : 0;
+        return info.has_value() ? info->rss_anon_bytes : 0;
       }),
       std::move(callback));
+#endif
 }
 
 void PerformanceImpl::MeasureUsedSwapMemory(
