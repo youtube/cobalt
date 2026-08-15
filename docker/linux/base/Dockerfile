@@ -11,7 +11,6 @@ RUN sed -i -e 's/deb\.debian\.org/archive.debian.org/g' \
            -e 's/security\.debian\.org/archive.debian.org/g' \
            -e '/buster-updates/d' /etc/apt/sources.list \
     && echo "Acquire::Check-Valid-Until \"false\";" > /etc/apt/apt.conf.d/99no-check-valid-until
-
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         python-pip \
@@ -42,5 +41,12 @@ RUN apt update -qqy \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     && rm -rf /var/lib/{apt,dpkg,cache,log} \
     && echo "Done"
+
+ARG GCLOUD=google-cloud-cli-412.0.0-linux-x86_64.tar.gz
+RUN cd /tmp \
+    && curl -L -O "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/${GCLOUD}" \
+    && tar xf "${GCLOUD}" -C /usr/local --strip-components=1 google-cloud-sdk/bin google-cloud-sdk/lib \
+    && rm "${GCLOUD}" \
+    && gcloud --version
 
 CMD ["/usr/bin/python","--version"]
