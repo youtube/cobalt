@@ -20,10 +20,6 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up Cloud SDK
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-      if: ${{ inputs.is_pr == 'true' }}
-
     - name: Set Docker Build Vars
       env:
         DOCKER_SERVICE: ${{ inputs.docker_service }}
@@ -49,11 +45,8 @@ runs:
 
         # Login to GAR to be able to push images created by fork based PR workflows.
         if [[ "${{ inputs.is_pr }}" == "true" ]]; then
-          printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev
+          printf '%s' "${ACCESS_TOKEN}" | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev
         fi
-
-        # Login to Marketplace GAR to be able to pull base images.
-        printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://marketplace.gcr.io
       shell: bash
 
     - name: Login to GitHub Docker Registry
@@ -63,6 +56,15 @@ runs:
         username: ${{ github.actor }}
         password: ${{ inputs.github_token }}
 
+    - name: Login to Marketplace GCR
+      run: |
+        METADATA="http://metadata.google.internal./computeMetadata/v1"
+        SVC_ACCT="${METADATA}/instance/service-accounts/default"
+        ACCESS_TOKEN=$(curl -s -f -H 'Metadata-Flavor: Google' ${SVC_ACCT}/token 2>/dev/null | cut -d'"' -f 4 || true)
+        if [[ -n "${ACCESS_TOKEN}" ]]; then
+          printf '%s' "${ACCESS_TOKEN}" | docker login -u oauth2accesstoken --password-stdin https://marketplace.gcr.io || true
+        fi
+      shell: bash
     - name: Pull Existing Docker Image
       id: pull-cached-image
       env:
@@ -83,7 +85,7 @@ runs:
 
           else
             # No fitting post-submit image was found. Check PR registry to see if there's an image there.
-            PROJECT_NAME=$(gcloud config get-value project)
+            PROJECT_NAME=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
             DOCKER_COMPOSE_IMAGE="${PR_DOCKER_REGISTRY_URL}/${PROJECT_NAME}/github/${DOCKER_SERVICE}"
 
             if ! docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
