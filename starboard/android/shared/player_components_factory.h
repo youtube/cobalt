@@ -210,7 +210,10 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     SB_DCHECK(error_message);
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
-        creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
+#if SB_API_VERSION >= 15
+        creation_parameters.audio_codec() != kSbMediaAudioCodecIamf &&
+#endif  // SB_API_VERSION >= 15
+	creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
       SB_LOG(INFO) << "Creating non-passthrough components.";
       return PlayerComponents::Factory::CreateComponents(creation_parameters,
                                                          error_message);

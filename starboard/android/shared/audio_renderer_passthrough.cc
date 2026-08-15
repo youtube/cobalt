@@ -36,6 +36,10 @@ constexpr int kMaxDecodedAudios = 64;
 constexpr int64_t kAudioTrackUpdateInternal = 5'000;  // 5ms
 
 constexpr int kPreferredBufferSizeInBytes = 16 * 1024;
+constexpr int kIamfPreferredBufferSizeInBytes = 6 * 1024;
+
+constexpr int kIamfAudioFramesPerBuffer = 960; // FIXME
+
 // TODO: Enable passthrough with tunnel mode.
 constexpr int kTunnelModeAudioSessionId = -1;
 
@@ -397,10 +401,13 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
   std::unique_ptr<AudioTrackBridge> audio_track_bridge(new AudioTrackBridge(
       audio_stream_info_.codec == kSbMediaAudioCodecAc3
           ? kSbMediaAudioCodingTypeAc3
-          : kSbMediaAudioCodingTypeDolbyDigitalPlus,
+          : audio_stream_info_.codec == kSbMediaAudioCodecEac3
+	  ? kSbMediaAudioCodingTypeDolbyDigitalPlus
+	  : kSbMediaAudioCodingTypeIamfBaseProfileOpus,
       optional<SbMediaAudioSampleType>(),  // Not required in passthrough mode
       audio_stream_info_.number_of_channels,
-      audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
+      audio_stream_info_.samples_per_second,
+      audio_stream_info_.codec == kSbMediaAudioCodecIamf ? kIamfPreferredBufferSizeInBytes : kPreferredBufferSizeInBytes,
       kTunnelModeAudioSessionId, false /* is_web_audio */));
 
   if (!audio_track_bridge->is_valid()) {
@@ -613,8 +620,13 @@ void AudioRendererPassthrough::OnDecoderOutput() {
     // audio decoded, so it's thread-safe even if the code is not synchronized
     // using a lock.
     if (frames_per_input_buffer_ == 0) {
-      frames_per_input_buffer_ = ParseAc3SyncframeAudioSampleCount(
-          decoded_audio->data(), decoded_audio->size_in_bytes());
+      if (audio_stream_info_.codec == kSbMediaAudioCodecIamf) {
+        frames_per_input_buffer_ = kIamfAudioFramesPerBuffer;
+      }
+      else {
+        frames_per_input_buffer_ = ParseAc3SyncframeAudioSampleCount(
+            decoded_audio->data(), decoded_audio->size_in_bytes());
+      }
       SB_LOG(INFO) << "Got frames per input buffer "
                    << frames_per_input_buffer_;
     } else {
