@@ -85,7 +85,8 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
       custom_fonts.fFontsXml = xml_path.c_str();
       custom_fonts.fFallbackFontsXml = nullptr;
       custom_fonts.fIsolated = true;
-      return SkFontMgr_New_Android(&custom_fonts, SkFontScanner_Make_Fontations());
+      return SkFontMgr_New_Android(&custom_fonts,
+                                   SkFontScanner_Make_Fontations());
     }
   }
 #endif  // BUILDFLAG(IS_COBALT)
