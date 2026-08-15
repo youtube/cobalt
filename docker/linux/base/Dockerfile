@@ -6,7 +6,6 @@ ENV PYTHONUNBUFFERED 1
 
 ARG GIT_SHA265SUM="93993babac690a06906d832a1715c3315b4787a2845aeb500f7dcc82e1599df2 git-2.18.0.tar.gz"
 
-# === Install common dependencies
 RUN sed -i -e 's/deb\.debian\.org/archive.debian.org/g' \
            -e 's/security\.debian\.org/archive.debian.org/g' \
            -e '/buster-updates/d' /etc/apt/sources.list \
@@ -42,7 +41,7 @@ RUN apt update -qqy \
     && rm -rf /var/lib/{apt,dpkg,cache,log} \
     && echo "Done"
 
-ARG GCLOUD=google-cloud-cli-linux-x86_64.tar.gz
+ARG GCLOUD=google-cloud-cli-412.0.0-linux-x86_64.tar.gz
 RUN cd /tmp \
     && curl -L -O "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/${GCLOUD}" \
     && tar xf "${GCLOUD}" -C /usr/local --strip-components=1 google-cloud-sdk/bin google-cloud-sdk/lib \
