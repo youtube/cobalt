@@ -15,22 +15,19 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set Up Cloud SDK
-      if: inputs.symbolize == 'true'
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Set GCS Project Name
       if: inputs.symbolize == 'true'
       id: gcs-project
       run: |
-        echo "name=$(gcloud config get-value project)" >> $GITHUB_OUTPUT
+        echo "name=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')" >> $GITHUB_OUTPUT
       shell: bash
     - name: Download Test Symbols
       if: inputs.symbolize == 'true'
       env:
         WORKFLOW: ${{ github.workflow }}
       run: |
-        gsutil -m cp "gs://${{ steps.gcs-project.outputs.name }}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/symbols/*" \
-          "${GITHUB_WORKSPACE}/out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/
+        gcloud storage cp "gs://${{ steps.gcs-project.outputs.name }}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/symbols/*" \
+          "${GITHUB_WORKSPACE}/out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/"
       shell: bash
     - name: Print Logs and Test Summary
       run: |
