@@ -215,6 +215,16 @@
 
   data: [
     {
+      name: "CobaltPeakRss",
+      status: "stable",
+      base_feature: "CobaltPeakRss",
+    },
+    {
+      name: "CobaltPeakRssBackoff",
+      status: "stable",
+      base_feature: "CobaltPeakRssBackoff",
+    },
+    {
       name: "Accelerated2dCanvas",
       settable_from_internals: true,
       status: "stable",

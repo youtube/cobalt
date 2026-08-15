@@ -18,4 +18,5 @@
 
     // Returns the application startup timestamp in millisecs (ms).
     [CallWith=ScriptState, RaisesException] Promise<DOMHighResTimeStamp> getAppStartupTimeStamp();
+    [CallWith=ScriptState, RaisesException] Promise<unsigned long long> measureRssHighWaterMarkMemory();
 };

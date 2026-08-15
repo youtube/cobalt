@@ -14,13 +14,21 @@
 
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
 
+#include <atomic>
+#include <memory>
+#include <string_view>
+
+#include "base/time/time.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/blink/renderer/platform/wtf/functional.h"
 
 namespace blink {
 
@@ -96,6 +104,67 @@ ScriptPromise<IDLDouble> PerformanceExtensions::getAppStartupTimeStamp(
       base::TimeTicks::FromInternalValue(startup_timestamp),
       true /* allow_negative_value */,
       context->CrossOriginIsolatedCapability()));
+
+  return promise;
+}
+
+static std::atomic<int64_t> g_last_time_internal{0};
+
+ScriptPromise<IDLUnsignedLongLong>
+PerformanceExtensions::measureRssHighWaterMarkMemory(
+    ScriptState* script_state,
+    const Performance& performance_obj,
+    ExceptionState& exception_state) {
+  if (!RuntimeEnabledFeatures::CobaltPeakRssEnabled()) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kNotSupportedError,
+                                      "API not supported");
+    return ScriptPromise<IDLUnsignedLongLong>();
+  }
+
+  if (RuntimeEnabledFeatures::CobaltPeakRssBackoffEnabled()) {
+    base::TimeTicks now = base::TimeTicks::Now();
+    int64_t last = g_last_time_internal.load(std::memory_order_relaxed);
+    if (last != 0 &&
+        now.ToInternalValue() - last < base::Seconds(5).InMicroseconds()) {
+      exception_state.ThrowDOMException(DOMExceptionCode::kNotSupportedError,
+                                        "API not supported - rate limited");
+      return ScriptPromise<IDLUnsignedLongLong>();
+    }
+    g_last_time_internal.store(now.ToInternalValue(),
+                               std::memory_order_relaxed);
+  }
+
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<IDLUnsignedLongLong>>(
+          script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
+
+  auto remote =
+      std::make_unique<mojo::Remote<performance::mojom::CobaltPerformance>>(
+          BindRemotePerformance(script_state));
+  auto* remote_ptr = remote.get();
+
+  auto callback = mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+      WTF::BindOnce(
+          [](std::unique_ptr<
+                 mojo::Remote<performance::mojom::CobaltPerformance>> remote,
+             ScriptPromiseResolver<IDLUnsignedLongLong>* resolver,
+             uint64_t peak_rss) {
+            ScriptState* script_state = resolver->GetScriptState();
+            if (script_state && script_state->ContextIsValid()) {
+              ScriptState::Scope scope(script_state);
+              if (peak_rss == 0) {
+                resolver->Reject(MakeGarbageCollected<DOMException>(
+                    DOMExceptionCode::kOperationError, "Measurement failed"));
+              } else {
+                resolver->Resolve(peak_rss);
+              }
+            }
+          },
+          std::move(remote), WrapPersistent(resolver)),
+      0);
+
+  (*remote_ptr)->MeasureRssHighWaterMarkMemory(std::move(callback));
 
   return promise;
 }

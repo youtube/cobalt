@@ -39,6 +39,8 @@ class PerformanceImpl
                      content::RenderFrameHost* render_frame_host,
                      mojo::PendingReceiver<mojom::CobaltPerformance> receiver);
 
+  static void SetProcStatusDataForTesting(std::string* data);
+
   PerformanceImpl(const PerformanceImpl&) = delete;
   PerformanceImpl& operator=(const PerformanceImpl&) = delete;
 
@@ -48,6 +50,8 @@ class PerformanceImpl
   void MeasureReservedVirtualMemory(
       MeasureReservedVirtualMemoryCallback) override;
   void GetAppStartupTimeStamp(GetAppStartupTimeStampCallback callback) override;
+  void MeasureRssHighWaterMarkMemory(
+      MeasureRssHighWaterMarkMemoryCallback callback) override;
 
  private:
   PerformanceImpl(std::optional<int64_t> app_startup_timestamp,

@@ -39,6 +39,10 @@ class CORE_EXPORT PerformanceExtensions final {
   static ScriptPromise<IDLDouble> getAppStartupTimeStamp(ScriptState*,
                                                          const Performance&,
                                                          ExceptionState&);
+  static ScriptPromise<IDLUnsignedLongLong> measureRssHighWaterMarkMemory(
+      ScriptState*,
+      const Performance&,
+      ExceptionState& exception_state);
 };
 
 }  // namespace blink

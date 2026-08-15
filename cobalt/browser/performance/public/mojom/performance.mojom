@@ -35,4 +35,7 @@ interface CobaltPerformance {
   // Get the application startup timestamp in microseconds (us).
   [Sync]
   GetAppStartupTimeStamp() => (int64 timestamp);
+
+  // Get the peak RSS memory in bytes. If reset is true, resets the peak memory tracker.
+  MeasureRssHighWaterMarkMemory() => (uint64 peak_rss);
 };

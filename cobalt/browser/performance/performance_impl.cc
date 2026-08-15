@@ -14,12 +14,20 @@
 
 #include "cobalt/browser/performance/performance_impl.h"
 
+#include "base/files/file.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_process_host.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -121,6 +129,54 @@ void PerformanceImpl::GetAppStartupTimeStamp(
   }
 #endif
   std::move(callback).Run(app_startup_timestamp_.value_or(0));
+}
+
+namespace {
+std::string* g_proc_status_data_for_testing = nullptr;
+std::string GetMemoryData() {
+  if (g_proc_status_data_for_testing) {
+    return *g_proc_status_data_for_testing;
+  }
+  std::string status_data;
+  base::ReadFileToString(base::FilePath("/proc/self/status"), &status_data);
+  return status_data;
+}
+}  // namespace
+
+void PerformanceImpl::SetProcStatusDataForTesting(std::string* data) {
+  g_proc_status_data_for_testing = data;
+}
+
+void PerformanceImpl::MeasureRssHighWaterMarkMemory(
+    MeasureRssHighWaterMarkMemoryCallback callback) {
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t {
+        uint64_t peak_rss = 0;
+        std::string status_data = GetMemoryData();
+
+        if (!status_data.empty()) {
+          for (std::string_view line :
+               base::SplitStringPiece(status_data, "\n", base::TRIM_WHITESPACE,
+                                      base::SPLIT_WANT_NONEMPTY)) {
+            if (line.starts_with("VmHWM:")) {
+              std::vector<std::string_view> tokens =
+                  base::SplitStringPiece(line, " \t", base::TRIM_WHITESPACE,
+                                         base::SPLIT_WANT_NONEMPTY);
+              if (tokens.size() >= 2) {
+                uint64_t kb = 0;
+                if (base::StringToUint64(tokens[1], &kb)) {
+                  peak_rss = kb * 1024;
+                }
+              }
+              break;
+            }
+          }
+        }
+
+        return peak_rss;
+      }),
+      std::move(callback));
 }
 
 }  // namespace performance
