@@ -7,6 +7,7 @@ on:
       - main
       - experimental/*
       - feature/*
+      - 'stack/**'
   workflow_dispatch:
     inputs:
       nightly:
@@ -43,7 +44,7 @@ jobs:
       targets: ${{ steps.short-targets.outputs.targets }}
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: |
             .github/actions/test_targets_json
@@ -140,7 +141,7 @@ jobs:
           done
 
       - name: Upload to GitHub Actions
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: tvos-test-artifacts
           path: "*.tar.gz"
@@ -157,7 +158,7 @@ jobs:
         target: ${{ fromJSON(needs.get-targets.outputs.targets) }}
     steps:
       - name: Checkout Cobalt (Sparse)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: |
             cobalt/testing/filters
@@ -165,7 +166,7 @@ jobs:
             cobalt/tools
 
       - name: Download from GitHub Actions
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: tvos-test-artifacts
 
@@ -240,7 +241,7 @@ jobs:
 
       - name: Archive Test Results
         if: always() && steps.filter.outputs.skipped != 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: tvos_${{ matrix.target }}_test_results
           path: results/*

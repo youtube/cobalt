@@ -25,7 +25,7 @@ jobs:
       target_branch: ${{ steps.set-branches.outputs.target_branch }}
     steps:
       - name: Auto-label PR
-        uses: actions/labeler@v5
+        uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7.0.0
         if: github.event.pull_request.merged == true && github.base_ref == 'main'
         with:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
@@ -80,7 +80,7 @@ jobs:
       CHERRY_PICK_BRANCH: cherry-pick-${{ matrix.target_branch }}-${{ github.event.pull_request.number }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 30
         with:
           ref: ${{ matrix.target_branch }}
@@ -121,7 +121,7 @@ jobs:
       - name: Create Pull Request
         id: create-pr
         continue-on-error: true
-        uses: peter-evans/create-pull-request@2b011faafdcbc9ceb11414d64d0573f37c774b04 # v4.2.3
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
           draft: ${{ steps.cherry-pick.outcome == 'failure' }}
@@ -138,7 +138,7 @@ jobs:
             ${{ github.event.pull_request.body }}
 
       - name: Comment on failure
-        uses: actions/github-script@v8
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
           PR_NUMBER: ${{ steps.create-pr.outputs.pull-request-number }}
           CHERRY_PICK_OUTCOME: ${{ steps.cherry-pick.outcome }}
