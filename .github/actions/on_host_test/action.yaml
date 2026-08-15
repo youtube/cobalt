@@ -3,8 +3,6 @@ description: Runs on-host tests.
 runs:
   using: "composite"
   steps:
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v0.6.0
     - name: Configure Environment
       id: configure-environment
       shell: bash
@@ -17,8 +15,8 @@ runs:
         WORKFLOW: ${{ github.workflow }}
       run: |
         set -x
-        PROJECT_NAME=$(gcloud config get-value project)
-        gsutil cp gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/${{matrix.platform}}_${{matrix.config}}.${ARCHIVE_EXTENSION} ${GITHUB_WORKSPACE}/out/tmp/${{matrix.platform}}_${{matrix.config}}.${ARCHIVE_EXTENSION}
+        PROJECT_NAME=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+        gcloud storage cp gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/${{matrix.platform}}_${{matrix.config}}.${ARCHIVE_EXTENSION} ${GITHUB_WORKSPACE}/out/tmp/${{matrix.platform}}_${{matrix.config}}.${ARCHIVE_EXTENSION}
     - name: Extract Archive
       shell: bash
       run: |
