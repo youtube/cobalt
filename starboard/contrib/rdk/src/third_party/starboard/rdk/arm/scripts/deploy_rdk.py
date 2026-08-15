@@ -263,12 +263,12 @@ def _filter_args_by_keys(base_args: List[str], override_args: List[str]) -> List
     override_keys = {
         _extract_flag_key(arg)
         for arg in override_args
-        if arg.startswith("--") and arg != "--"
+        if arg.startswith("--")
     }
     return [
         arg
         for arg in base_args
-        if not (arg.startswith("--") and arg != "--" and _extract_flag_key(arg) in override_keys)
+        if not (arg.startswith("--") and _extract_flag_key(arg) in override_keys)
     ]
 
 
