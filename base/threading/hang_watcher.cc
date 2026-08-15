@@ -30,12 +30,14 @@
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "base/uuid.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include <inttypes.h>
 
 #include "starboard/extension/crash_handler.h"
+#include "starboard/extension/native_stability.h"
 #include "starboard/system.h"
 #endif
 
@@ -608,6 +610,9 @@ void HangWatcher::InitializeOnMainThread(ProcessType process_type,
 }
 
 void HangWatcher::UninitializeOnMainThreadForTesting() {
+#if BUILDFLAG(IS_COBALT)
+  g_hang_reporting_enabled.store(true, std::memory_order_relaxed);
+#endif
   g_use_hang_watcher.store(false, std::memory_order_relaxed);
   g_threadpool_log_level.store(LoggingLevel::kNone, std::memory_order_relaxed);
   g_io_thread_log_level.store(LoggingLevel::kNone, std::memory_order_relaxed);
@@ -898,7 +903,14 @@ void HangWatcher::Run() {
 #endif
     Wait();
 
-    if (!IsWatchListEmpty() &&
+    bool has_work = !IsWatchListEmpty();
+#if BUILDFLAG(IS_COBALT)
+    // If the watch list is empty but we have an active hang UUID, we still
+    // have work to do (cleaning up the recovery state).
+    has_work = has_work || !active_hang_uuid_.empty();
+#endif
+
+    if (has_work &&
         g_keep_monitoring.load(std::memory_order_relaxed)) {
       Monitor();
       if (after_monitor_closure_for_testing_) {
@@ -1149,6 +1161,83 @@ bool HangWatcher::WatchStateSnapShot::IsActionable() const {
   return !hung_watch_state_copies_.empty();
 }
 
+#if BUILDFLAG(IS_COBALT)
+void HangWatcher::RecordHangStarted() {
+  DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
+  if (!g_hang_reporting_enabled.load(std::memory_order_relaxed)) {
+    return;
+  }
+  if (!active_hang_uuid_.empty()) {
+    return;
+  }
+
+  active_hang_uuid_ = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  std::string uuid_to_report = active_hang_uuid_;
+
+  {
+    base::AutoUnlock auto_unlock(watch_state_lock_);
+    auto* delegate = g_hang_watcher_delegate.load(std::memory_order_acquire);
+    if (delegate) {
+      delegate->RecordHangStarted(uuid_to_report);
+    }
+  }
+
+#if BUILDFLAG(IS_STARBOARD)
+  auto* crash_ext = static_cast<const CobaltExtensionCrashHandlerApi*>(
+      SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+  if (crash_ext && crash_ext->version >= 2 && crash_ext->SetString) {
+    crash_ext->SetString(kNativeStabilityHangUuidKey, uuid_to_report.c_str());
+  }
+#endif
+}
+
+void HangWatcher::CheckAndRecordHangRecovered() {
+  DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
+
+  if (active_hang_uuid_.empty()) {
+    return;
+  }
+
+  bool any_thread_hung = false;
+  base::TimeTicks now = base::TimeTicks::Now();
+
+  // We iterate over the watch states to determine if ANY thread is currently
+  // physically hung. Note: We are ALREADY inside HangWatcher::Monitor(), so
+  // watch_state_lock_ is currently held by the caller. We do not need to
+  // acquire or release it here for the iteration.
+  for (const auto& watch_state : watch_states_) {
+    if (watch_state->GetDeadline() <= now) {
+      any_thread_hung = true;
+      break;
+    }
+  }
+
+  if (!any_thread_hung) {
+    std::string uuid_to_report = active_hang_uuid_;
+    active_hang_uuid_.clear();
+
+    {
+      // Unlock before calling out to the delegate to prevent deadlocks with
+      // embedder code.
+      base::AutoUnlock auto_unlock(watch_state_lock_);
+
+      auto* delegate = g_hang_watcher_delegate.load(std::memory_order_acquire);
+      if (delegate) {
+        delegate->RecordHangRecovered(uuid_to_report);
+      }
+    }
+
+#if BUILDFLAG(IS_STARBOARD)
+    auto* crash_ext = static_cast<const CobaltExtensionCrashHandlerApi*>(
+        SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+    if (crash_ext && crash_ext->version >= 2 && crash_ext->SetString) {
+      crash_ext->SetString(kNativeStabilityHangUuidKey, "");
+    }
+#endif
+  }
+}
+#endif
+
 void HangWatcher::Monitor() {
   DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
 
@@ -1164,6 +1253,9 @@ void HangWatcher::Monitor() {
   // If all threads unregistered since this function was invoked there's
   // nothing to do anymore.
   if (watch_states_.empty()) {
+#if BUILDFLAG(IS_COBALT)
+    CheckAndRecordHangRecovered();
+#endif
     return;
   }
 
@@ -1172,6 +1264,10 @@ void HangWatcher::Monitor() {
 
   if (watch_state_snapshot_.IsActionable()) {
     DoDumpWithoutCrashing(watch_state_snapshot_);
+  } else {
+#if BUILDFLAG(IS_COBALT)
+    CheckAndRecordHangRecovered();
+#endif
   }
 
   watch_state_snapshot_.Clear();
@@ -1296,6 +1392,9 @@ void HangWatcher::DoDumpWithoutCrashing(
   base::TimeTicks latest_expired_deadline =
       watch_state_snapshot.GetHighestDeadline();
 
+#if BUILDFLAG(IS_COBALT)
+  RecordHangStarted();
+#endif
   if (on_hang_closure_for_testing_) {
     on_hang_closure_for_testing_.Run();
   } else {
