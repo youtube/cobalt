@@ -51,7 +51,7 @@ runs:
         SVC_ACCT="${METADATA}/instance/service-accounts/default"
         ACCESS_TOKEN=$(curl -s -f -H 'Metadata-Flavor: Google' ${SVC_ACCT}/token 2>/dev/null | cut -d'"' -f 4 || true)
         if [[ -n "${ACCESS_TOKEN}" ]]; then
-          printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://marketplace.gcr.io || true
+          printf '%s' "${ACCESS_TOKEN}" | docker login -u oauth2accesstoken --password-stdin https://marketplace.gcr.io || true
         fi
       shell: bash
     - name: Docker Pull
