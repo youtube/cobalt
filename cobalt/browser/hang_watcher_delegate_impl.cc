@@ -21,8 +21,11 @@
 #include "base/feature_list.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
+
 namespace cobalt {
 namespace browser {
 
@@ -46,7 +49,17 @@ CobaltHangWatcherDelegate::CobaltHangWatcherDelegate(
 // the Chromium TaskEnvironment and thread pool are ready, causing a FATAL
 // crash.
 GlobalFeatures* CobaltHangWatcherDelegate::GetGlobalFeatures() {
-  return global_features_ ? global_features_ : GlobalFeatures::GetInstance();
+  if (global_features_) {
+    return global_features_;
+  }
+
+  // GlobalFeatures::GetInstance() may require ThreadPool to initialize or
+  // access settings. We must ensure it's available to avoid crashes during
+  // early startup or shutdown.
+  if (!base::ThreadPoolInstance::Get()) {
+    return nullptr;
+  }
+  return GlobalFeatures::GetInstance();
 }
 
 std::optional<int64_t> CobaltHangWatcherDelegate::GetIntSetting(
@@ -134,6 +147,22 @@ std::optional<bool> CobaltHangWatcherDelegate::IsThreadDumpingEnabled(
   }
 
   return std::nullopt;
+}
+
+void CobaltHangWatcherDelegate::RecordHangStarted(
+    const std::string& hang_uuid) {
+  auto* nsm = h5vcc_native_stability::NativeStabilityManager::GetInstance();
+  if (nsm) {
+    nsm->RecordHangStarted(hang_uuid);
+  }
+}
+
+void CobaltHangWatcherDelegate::RecordHangRecovered(
+    const std::string& hang_uuid) {
+  auto* nsm = h5vcc_native_stability::NativeStabilityManager::GetInstance();
+  if (nsm) {
+    nsm->RecordHangRecovered(hang_uuid);
+  }
 }
 
 }  // namespace browser

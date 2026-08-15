@@ -49,6 +49,9 @@ class NativeStabilityManager {
   // with it.
   void ArmCrashUuidAnnotation();
 
+  void RecordHangStarted(const std::string& hang_uuid);
+  void RecordHangRecovered(const std::string& hang_uuid);
+
   // Asynchronously reads and summarizes stability reports stored on disk that
   // have not previously been acknowledged.
   //
@@ -78,6 +81,19 @@ class NativeStabilityManager {
   void AcknowledgeReports(std::vector<std::string> native_stability_event_uuids,
                           base::OnceClosure callback);
 
+  // Asynchronously removes acknowledged report UUIDs from disk if their
+  // corresponding stability reports are no longer stored on disk.
+  //
+  // Note that stability report storage is managed by the platform's crash
+  // reporting system, which is expected to implement its own pruning strategy.
+  // We prune by reflecting that system's state.
+  //
+  // As with GetPendingReports(), disk I/O is offloaded to a background
+  // ThreadPool task runner and |callback| is posted back to the UI sequence.
+  // The |callback| parameter is optional to accommodate fire-and-forget callers
+  // that do not require completion notification.
+  void PruneStorage(base::OnceClosure callback = base::OnceClosure());
+
   using GetExtensionCallback =
       base::RepeatingCallback<const void*(const char*)>;
 
@@ -103,6 +119,10 @@ class NativeStabilityManager {
 
   void AcknowledgeReportsOnTaskRunner(
       std::vector<std::string> native_stability_event_uuids,
+      base::OnceClosure callback);
+
+  void PruneStorageOnTaskRunner(
+      const StarboardExtensionNativeStabilityApi* native_stability_extension,
       base::OnceClosure callback);
 
   base::FilePath GetAckedUuidsFilePath();
