@@ -673,6 +673,16 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Memory.Experimental.Renderer.PeakResidentSet.AtHighestPrivateMemoryFootprint"
+    units="MB" expires_after="2027-08-13">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-dev@google.com</owner>
+  <summary>
+    The peak resident set at the time of the highest private memory footprint.
+  </summary>
+</histogram>
+
+
 </histograms>
 
 </histogram-configuration>
