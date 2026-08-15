@@ -14116,8 +14116,8 @@ void RenderFrameHostImpl::CreateDedicatedWorkerHostFactory(
       std::move(receiver));
 }
 
-#if (BUILDFLAG(IS_ANDROID) ||                                    \
-     (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))) &&           \
+#if (BUILDFLAG(IS_ANDROID) ||                           \
+     (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))) && \
     !BUILDFLAG(IS_COBALT)
 void RenderFrameHostImpl::BindNFCReceiver(
     mojo::PendingReceiver<device::mojom::NFC> receiver) {
