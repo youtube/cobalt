@@ -101,7 +101,7 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
   } else {
     return SkFontMgr_New_Android(nullptr);
   }
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #elif BUILDFLAG(IS_APPLE)
   return SkFontMgr_New_CoreText(nullptr);
 #elif BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)

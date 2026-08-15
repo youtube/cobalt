@@ -34,7 +34,7 @@
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 =======
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/lss/linux_syscall_support.h"
 #elif BUILDFLAG(IS_MAC)
 // TODO(crbug.com/40641285): Waiting for this header to appear in the iOS SDK.
@@ -77,7 +77,7 @@ class URandomFd {
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
      BUILDFLAG(IS_ANDROID)) &&                        \
     !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 bool KernelSupportsGetRandom() {
   return base::SysInfo::KernelVersionNumber::Current() >=
@@ -105,7 +105,7 @@ bool GetRandomSyscall(void* output, size_t output_length) {
 =======
 #endif  // (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace
 
@@ -150,7 +150,7 @@ void RandBytesInternal(span<uint8_t> output, bool avoid_allocation) {
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
      BUILDFLAG(IS_ANDROID)) &&                        \
     !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // On Android it is mandatory to check that the kernel _version_ has the
   // support for a syscall before calling. The same check is made on Linux and
   // ChromeOS to avoid making a syscall that predictably returns ENOSYS.

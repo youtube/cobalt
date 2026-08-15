@@ -225,7 +225,7 @@ void Shell::Shutdown() {
   // Pump the message loop to allow window teardown tasks to run.
   base::RunLoop().RunUntilIdle();
 #endif  // !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 gfx::Size Shell::AdjustWindowSize(const gfx::Size& initial_size) {

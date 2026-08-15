@@ -1102,7 +1102,7 @@ component("base") {
   if (is_cobalt_hermetic_build) {
     deps += [ "//starboard/common" ]
   }
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   # `raw_ptr` cannot be made a component due to CRT symbol issues.
   # Its gateway to being a component is through `//base`, so we have
@@ -1148,7 +1148,7 @@ component("base") {
       "containers/span_rust.h",
       "strings/string_view_rust.h",
     ]
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   # Base provides conversions between CXX types and base types (e.g.
   # std::string_view).
@@ -1954,7 +1954,7 @@ component("base") {
 
     # Find a way to fix the offending customizations instead.
     configs -= [ "//build/config/compiler:prevent_unsafe_narrowing" ]
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   # Windows.
@@ -4020,7 +4020,7 @@ test("base_unittests") {
   if (!is_nacl && !(is_cobalt && is_partner_toolchain)) {
     deps += [ "//build/rust:cxx_cppdeps" ]
   }
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   if (is_starboard) {
     deps += [
@@ -4239,7 +4239,7 @@ test("base_unittests") {
       ]
     }
     if (!is_nacl && !is_apple && !is_starboard) {
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       sources += [
         "profiler/stack_base_address_posix_unittest.cc",
         "profiler/stack_copier_signal_unittest.cc",

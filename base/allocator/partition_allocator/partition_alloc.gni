@@ -136,7 +136,7 @@ declare_args() {
   # so that PartitionAlloc is not even linked into partner built binaries.
   use_partition_alloc =
       !is_nacl && is_clang_or_gcc && !(is_cobalt && is_partner_toolchain)
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 if (!is_clang_or_gcc) {

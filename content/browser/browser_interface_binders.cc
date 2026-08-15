@@ -1108,7 +1108,7 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
 =======
 #if BUILDFLAG(IS_ANDROID)
 #if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   map->Add<device::mojom::NFC>(base::BindRepeating(
       &RenderFrameHostImpl::BindNFCReceiver, base::Unretained(host)));
 #endif  // !BUILDFLAG(IS_COBALT)
