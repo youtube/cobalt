@@ -142,9 +142,7 @@ struct CrossThreadCopier<media::VideoTransformation>
 }  // namespace WTF
 
 #if BUILDFLAG(IS_COBALT)
-#include <set>
 #include <algorithm>
-#include "base/no_destructor.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
 #include "components/discardable_memory/service/discardable_shared_memory_manager.h"
@@ -158,16 +156,13 @@ const base::FeatureParam<double> kCobaltImageCacheCapacityMultiplierValue{
 const base::FeatureParam<int> kCobaltImageCacheDefaultLimitMb{
     &kCobaltImageCacheCapacityMultiplier, "default_limit_mb", 30};
 
-std::set<void*>& GetActiveCobaltPlayers() {
-  static base::NoDestructor<std::set<void*>> active_players;
-  return *active_players;
-}
+static int s_active_cobalt_players = 0;
 
 void UpdateImageCacheLimit() {
   if (base::FeatureList::IsEnabled(kCobaltImageCacheCapacityMultiplier)) {
     if (auto* mgr = discardable_memory::DiscardableSharedMemoryManager::Get()) {
       int default_mb = std::max(0, kCobaltImageCacheDefaultLimitMb.Get());
-      if (!GetActiveCobaltPlayers().empty()) {
+      if (s_active_cobalt_players > 0) {
         double multiplier = std::max(0.0, kCobaltImageCacheCapacityMultiplierValue.Get());
         mgr->SetMemoryLimit(static_cast<size_t>(default_mb * multiplier * 1024 * 1024));
       } else {
@@ -663,8 +658,11 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 
 WebMediaPlayerImpl::~WebMediaPlayerImpl() {
 #if BUILDFLAG(IS_COBALT)
-  GetActiveCobaltPlayers().erase(this);
-  UpdateImageCacheLimit();
+  if (is_image_cache_squeezed_) {
+    is_image_cache_squeezed_ = false;
+    s_active_cobalt_players--;
+    UpdateImageCacheLimit();
+  }
 #endif
   DVLOG(1) << __func__;
   DCHECK(main_task_runner_->BelongsToCurrentThread());
@@ -1053,8 +1051,11 @@ void WebMediaPlayerImpl::DoLoad(LoadType load_type,
 
 void WebMediaPlayerImpl::Play() {
 #if BUILDFLAG(IS_COBALT)
-  GetActiveCobaltPlayers().insert(this);
-  UpdateImageCacheLimit();
+  if (!is_image_cache_squeezed_) {
+    is_image_cache_squeezed_ = true;
+    s_active_cobalt_players++;
+    UpdateImageCacheLimit();
+  }
 #endif
   DVLOG(1) << __func__;
   DCHECK(main_task_runner_->BelongsToCurrentThread());
@@ -1104,8 +1105,11 @@ void WebMediaPlayerImpl::Play() {
 
 void WebMediaPlayerImpl::Pause(PauseReason pause_reason) {
 #if BUILDFLAG(IS_COBALT)
-  GetActiveCobaltPlayers().erase(this);
-  UpdateImageCacheLimit();
+  if (is_image_cache_squeezed_) {
+    is_image_cache_squeezed_ = false;
+    s_active_cobalt_players--;
+    UpdateImageCacheLimit();
+  }
 #endif
   DVLOG(1) << __func__;
   DCHECK(main_task_runner_->BelongsToCurrentThread());
