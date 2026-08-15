@@ -129,6 +129,13 @@ public class JavaSwitches {
   public static final String DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING =
       "DisableLessAggressiveParkableString";
 
+  /**
+   * Flag to enable aggressively shrinking the Image Cache during video playback to prevent Android
+   * OOMs.
+   */
+  public static final String ENABLE_COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER =
+      "EnableCobaltImageCacheCapacityMultiplier";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -306,11 +313,17 @@ public class JavaSwitches {
     }
 
     if (javaSwitches.containsKey(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE)) {
-      extraCommandLineArgs.add("--enable-features=" + JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE);
+      extraCommandLineArgs.add(
+          "--enable-features=" + JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING)) {
       extraCommandLineArgs.add("--disable-features=LessAggressiveParkableString");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER)) {
+      extraCommandLineArgs.add(
+          "--enable-features=CobaltImageCacheCapacityMultiplier:multiplier/0.33/default_limit_mb/30");
     }
 
     return extraCommandLineArgs;

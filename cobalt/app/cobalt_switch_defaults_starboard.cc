@@ -99,6 +99,12 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        "SmallerInterestArea, "
        "ReclaimPrepaintTilesWhenIdle, "
        "ReclaimOldPrepaintTiles"},
+
+      // Memory Optimization Limits: V8, Skia, Media
+      {"js-flags", "--max-old-space-size=48"},
+      {"media-cache-size", "2097152"},
+      {"max-discardable-memory-mb", "30"},
+      {"skia-ganesh-resource-cache-limit-mb", "16"},
   // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
       {::switches::kUseGL, "angle"},

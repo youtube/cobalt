@@ -151,7 +151,7 @@ struct CrossThreadCopier<media::VideoTransformation>
 
 BASE_FEATURE(kCobaltImageCacheCapacityMultiplier,
              "CobaltImageCacheCapacityMultiplier",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<double> kCobaltImageCacheCapacityMultiplierValue{
     &kCobaltImageCacheCapacityMultiplier, "multiplier", 0.33};
