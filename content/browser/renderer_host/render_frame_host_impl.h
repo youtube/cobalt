@@ -207,7 +207,7 @@
 =======
 #include "services/device/public/mojom/nfc.mojom.h"
 #elif !BUILDFLAG(IS_COBALT)
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/blink/public/mojom/hid/hid.mojom-forward.h"
 #endif
 
@@ -2168,7 +2168,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
 #if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
 =======
 #if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   void BindNFCReceiver(mojo::PendingReceiver<device::mojom::NFC> receiver);
 #endif
 

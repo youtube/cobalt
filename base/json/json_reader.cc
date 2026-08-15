@@ -29,7 +29,7 @@
 // TODO(crbug.com/40811643): Move the C++ parser into components/nacl to just
 // run in-process there. Don't compile base::JSONReader on NaCL at all.
 #if !BUILDFLAG(IS_NACL) && (!BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC))
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 namespace {
 const char kSecurityJsonParsingTime[] = "Security.JSONParser.ParsingTime";
@@ -154,7 +154,7 @@ std::optional<Value> JSONReader::Read(std::string_view json,
   internal::JSONParser parser(options, max_depth);
   return parser.Parse(json);
 #else   // BUILDFLAG(IS_NACL)
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   SCOPED_UMA_HISTOGRAM_TIMER_MICROS(kSecurityJsonParsingTime);
 
   JSONReader::Result result =
@@ -206,7 +206,7 @@ JSONReader::Result JSONReader::ReadAndReturnValueWithError(
 
   return std::move(*value);
 #else   // BUILDFLAG(IS_NACL)
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   SCOPED_UMA_HISTOGRAM_TIMER_MICROS(kSecurityJsonParsingTime);
   return serde_json_lenient::DecodeJSONInRust(json, options,
                                               internal::kAbsoluteMaxDepth);

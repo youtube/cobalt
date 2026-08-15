@@ -61,7 +61,7 @@ bool DetectTextEncoding(base::span<const uint8_t> bytes,
                         WTF::TextEncoding* detected_encoding) {
 #if !BUILDFLAG(IS_COBALT)
   *detected_encoding = WTF::TextEncoding();
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // In general, do not use language hint. This helps get more
   // deterministic encoding detection results across devices. Note that local
   // file resources can still benefit from the hint.

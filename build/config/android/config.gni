@@ -91,7 +91,7 @@ if (is_android) {
       # disabled at runtime. See b/508072838, b/422247849.
       default_min_sdk_version = 24
     }
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b6f744e88a00 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     # Static analysis can be either "on" or "off" or "build_server". This
     # controls how android lint, error-prone, bytecode checks are run. This
