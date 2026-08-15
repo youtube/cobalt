@@ -14,7 +14,7 @@
 
 ARG BASE_OS
 ARG BASE_OS_TAG
-FROM ${BASE_OS:-marketplace.gcr.io/google/debian11}:${BASE_OS_TAG:-latest}
+FROM ${BASE_OS:-gcr.io/cloud-marketplace-containers/google/debian11}:${BASE_OS_TAG:-latest}
 
 COPY base/clean-after-apt.sh /opt/clean-after-apt.sh
 
@@ -32,5 +32,13 @@ RUN apt update -qqy \
         git ccache \
         curl xz-utils \
     && /opt/clean-after-apt.sh
+
+ARG GCLOUD_VERSION=465.0.0
+ENV PATH="/opt/google-cloud-sdk/bin:${PATH}"
+RUN cd /tmp \
+    && curl -L -O "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-${GCLOUD_VERSION}-linux-x86_64.tar.gz" \
+    && tar xf "google-cloud-cli-${GCLOUD_VERSION}-linux-x86_64.tar.gz" -C /opt \
+    && rm "google-cloud-cli-${GCLOUD_VERSION}-linux-x86_64.tar.gz" \
+    && gcloud --version
 
 CMD ["/usr/bin/python3","--version"]

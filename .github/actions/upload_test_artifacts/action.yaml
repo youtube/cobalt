@@ -10,14 +10,12 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up Cloud SDK
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Configure Environment
       env:
         WORKFLOW: ${{ github.workflow }}
       run: |
         set -x
-        project_name=$(gcloud config get-value project)
+        project_name=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
         if [ -z ${COBALT_EVERGREEN_LOADER+x} ]
         then
           PLATFORM=${{matrix.platform}}
@@ -47,7 +45,7 @@ runs:
         fi
 
         echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-        project_name=$(gcloud config get-value project)
+        project_name=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
       shell: bash
     - name: Create Test Files Archive
       run: |
@@ -75,4 +73,4 @@ runs:
       shell: bash
       run: |
         set -eux
-        gsutil -d cp "${ARCHIVE_PATH}" "gs://${DESTINATION}"
+        gcloud storage cp "${ARCHIVE_PATH}" "gs://${DESTINATION}"

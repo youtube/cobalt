@@ -12,13 +12,11 @@ runs:
       run: |
         python -m grpc_tools.protoc -Itools/ --python_out=tools/ --grpc_python_out=tools/ tools/on_device_tests_gateway.proto
       shell: bash
-    - name: Set up Cloud SDK
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Set env vars
       env:
         WORKFLOW: ${{ github.workflow }}
       run: |
-        echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
+        echo "PROJECT_NAME=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')" >> $GITHUB_ENV
         echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
         echo "WORKFLOW=${WORKFLOW}" >> $GITHUB_ENV
 
