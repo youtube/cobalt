@@ -25,7 +25,7 @@ Usage Examples:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --tests nplb --run
 
-  (For more complex workflows—such as deep-linking, profiling, DevTools, or log streaming—refer to the script arguments or ask an AI assistant.)
+  (For more complex workflows—such as deep-linking, profiling, DevTools, or log streaming—run the script with --help to see all available parameters.)
 """
 
 import argparse
