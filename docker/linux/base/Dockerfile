@@ -36,4 +36,14 @@ RUN apt update -qqy \
         curl xz-utils \
     && /opt/clean-after-apt.sh
 
+ARG GCLOUD=google-cloud-cli-412.0.0-linux-x86_64.tar.gz
+RUN cd /tmp \
+    && curl -sSLf -O "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/${GCLOUD}" \
+    && mkdir -p /opt/google-cloud-sdk \
+    && tar xf "${GCLOUD}" -C /opt/google-cloud-sdk --strip-components=1 google-cloud-sdk/bin google-cloud-sdk/lib \
+    && ln -s /opt/google-cloud-sdk/bin/gcloud /usr/local/bin/gcloud \
+    && rm "${GCLOUD}" \
+    && gcloud config set storage/check_hashes never \
+    && gcloud --version
+
 CMD ["/usr/bin/python","--version"]
