@@ -653,7 +653,7 @@ public:
     int glyphSrcPadding() const override { return 0; }
 
     void testingOnly_packedGlyphIDToGlyph(StrikeCache* cache) const override {
-        fGlyphs.packedGlyphIDToGlyph(cache, fVertexFiller.grMaskType());
+        fGlyphs.packedGlyphIDToGlyph(cache);
     }
 
     std::tuple<bool, SkRect> deviceRectAndNeedsTransform(
@@ -757,7 +757,7 @@ public:
     const AtlasSubRun* testingOnly_atlasSubRun() const override { return this; }
 
     void testingOnly_packedGlyphIDToGlyph(StrikeCache *cache) const override {
-        fGlyphs.packedGlyphIDToGlyph(cache, fVertexFiller.grMaskType());
+        fGlyphs.packedGlyphIDToGlyph(cache);
     }
 
     int glyphSrcPadding() const override { return 1; }
@@ -886,7 +886,7 @@ public:
     const AtlasSubRun* testingOnly_atlasSubRun() const override { return this; }
 
     void testingOnly_packedGlyphIDToGlyph(StrikeCache *cache) const override {
-        fGlyphs.packedGlyphIDToGlyph(cache, fVertexFiller.grMaskType());
+        fGlyphs.packedGlyphIDToGlyph(cache);
     }
 
     int glyphSrcPadding() const override { return SK_DistanceFieldInset; }

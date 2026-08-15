@@ -9,7 +9,6 @@
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
-#include "build/build_config.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/demuxer.h"
 #include "media/base/demuxer_stream.h"
@@ -33,12 +32,6 @@ class MEDIA_EXPORT SourceBufferState {
   using CreateDemuxerStreamCB =
       base::RepeatingCallback<ChunkDemuxerStream*(DemuxerStream::Type)>;
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Overrides the maximum number of bytes that a single call to Parse() will
-  // inspect from the pending buffer.
-  static void SetMaxPendingBytesPerParseOverride(int max_bytes);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
   SourceBufferState(std::unique_ptr<StreamParser> stream_parser,
                     std::unique_ptr<FrameProcessor> frame_processor,
                     CreateDemuxerStreamCB create_demuxer_stream_cb,
@@ -50,9 +43,6 @@ class MEDIA_EXPORT SourceBufferState {
   ~SourceBufferState();
 
   void Init(StreamParser::InitCB init_cb,
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-            std::string_view mime_type,
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
             std::optional<std::string_view> expected_codecs,
             const StreamParser::EncryptedMediaInitDataCB&
                 encrypted_media_init_data_cb);
@@ -301,9 +291,6 @@ class MEDIA_EXPORT SourceBufferState {
 
   std::vector<AudioCodec> expected_audio_codecs_;
   std::vector<VideoCodec> expected_video_codecs_;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  std::string mime_type_;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

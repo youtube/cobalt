@@ -25,10 +25,4 @@ DemuxerStream* MediaResource::GetFirstStream(DemuxerStream::Type type) {
   return nullptr;
 }
 
-#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
-GURL MediaResource::GetMediaUrl() const {
-  return GURL();
-}
-#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
-
 }  // namespace media
