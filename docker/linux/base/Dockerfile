@@ -42,7 +42,7 @@ RUN apt update -qqy \
     && rm -rf /var/lib/{apt,dpkg,cache,log} \
     && echo "Done"
 
-ARG GCLOUD=google-cloud-cli-412.0.0-linux-x86_64.tar.gz
+ARG GCLOUD=google-cloud-cli-linux-x86_64.tar.gz
 RUN cd /tmp \
     && curl -L -O "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/${GCLOUD}" \
     && tar xf "${GCLOUD}" -C /usr/local --strip-components=1 google-cloud-sdk/bin google-cloud-sdk/lib \
