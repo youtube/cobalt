@@ -1039,6 +1039,7 @@ jobs:
       - build
       - on-device-test
       - on-host-test
+      - browser-test-on-host
       - web-tests
       - e2e-test
       - yts-test
@@ -1067,12 +1068,19 @@ jobs:
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
+      - name: Download Browser Test Results
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        continue-on-error: true
+        with:
+          pattern: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
+          path: results/
       - name: Failed Tests
         if: always()
         env:
           BUILD_RESULT: ${{ needs.build.result }}
           ON_DEVICE_TEST_RESULT: ${{ needs.on-device-test.result }}
           ON_HOST_TEST_RESULT: ${{ needs.on-host-test.result }}
+          BROWSER_TEST_ON_HOST_RESULT: ${{ needs.browser-test-on-host.result }}
           WEB_TESTS_RESULT: ${{ needs.web-tests.result }}
           E2E_TEST_RESULT: ${{ needs.e2e-test.result }}
           YTS_TEST_RESULT: ${{ needs.yts-test.result }}
@@ -1100,6 +1108,11 @@ jobs:
 
           if [[ "${ON_HOST_TEST_RESULT}" == "failure" || "${ON_HOST_TEST_RESULT}" == "cancelled" ]]; then
             echo "::error::On-host test job failed with result: ${ON_HOST_TEST_RESULT}"
+            failed=true
+          fi
+
+          if [[ "${BROWSER_TEST_ON_HOST_RESULT}" == "failure" || "${BROWSER_TEST_ON_HOST_RESULT}" == "cancelled" ]]; then
+            echo "::error::Browser test job failed with result: ${BROWSER_TEST_ON_HOST_RESULT}"
             failed=true
           fi
 
