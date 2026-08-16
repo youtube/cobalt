@@ -9,7 +9,7 @@ runs:
       run: |
         echo "ARCHIVE_FILE=cobalt-${{matrix.platform}}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
         echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/cobalt-${{matrix.platform}}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
-        echo "PROJECT_NAME=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')" >> $GITHUB_ENV
+        echo "PROJECT_NAME=$(curl -s --connect-timeout 2 -m 10 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')" >> $GITHUB_ENV
         echo "TODAY=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
         echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
         echo "WORKFLOW=${WORKFLOW}" >> $GITHUB_ENV

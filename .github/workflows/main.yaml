@@ -194,7 +194,7 @@ jobs:
         shell: bash
       - name: Set env vars
         run: |
-          echo "PROJECT_NAME=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')" >> $GITHUB_ENV
+          echo "PROJECT_NAME=$(curl -s --connect-timeout 2 -m 10 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')" >> $GITHUB_ENV
           echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
           echo "WORKFLOW=${{ github.workflow }}" >> $GITHUB_ENV
           if [ "${{ needs.initialize.outputs.bootloader }}" != "null" ]; then
