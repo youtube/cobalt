@@ -1188,7 +1188,6 @@ class HangWatcherCobaltTest : public testing::Test {
   const base::TimeDelta kHangTime = kTimeout + base::Seconds(1);
 
   HangWatcherCobaltTest() {
-    feature_list_.InitWithFeaturesAndParameters(kFeatureAndParams, {});
     HangWatcher::InitializeOnMainThread(
         HangWatcher::ProcessType::kBrowserProcess, /*emit_crashes=*/true);
   }
@@ -1228,7 +1227,7 @@ class HangWatcherCobaltTest : public testing::Test {
 
  protected:
   WaitableEvent monitor_event_;
-  base::test::ScopedFeatureList feature_list_;
+  base::test::ScopedFeatureList feature_list_{base::kEnableHangWatcher};
   test::SingleThreadTaskEnvironment task_environment_{
       test::TaskEnvironment::TimeSource::MOCK_TIME};
   std::unique_ptr<HangWatcher> hang_watcher_;
