@@ -23,7 +23,9 @@ RUN apt update -qqy \
 ARG GCLOUD=google-cloud-cli-412.0.0-linux-x86_64.tar.gz
 RUN cd /tmp \
     && curl -L -O "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/${GCLOUD}" \
-    && tar xf "${GCLOUD}" -C /usr/local --strip-components=1 google-cloud-sdk/bin google-cloud-sdk/lib \
+    && mkdir -p /opt/google-cloud-sdk \
+    && tar xf "${GCLOUD}" -C /opt/google-cloud-sdk --strip-components=1 google-cloud-sdk/bin google-cloud-sdk/lib \
+    && ln -s /opt/google-cloud-sdk/bin/gcloud /usr/local/bin/gcloud \
     && rm "${GCLOUD}" \
     && gcloud --version
 

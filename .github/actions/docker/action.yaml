@@ -53,10 +53,10 @@ runs:
       if: ${{ (steps.changed-files.outputs.any_changed == 'true') && (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.fork) }}
       run: |
         # Need to login to GCR to be able to push images created by fork based PR workflows.
-        PROJECT_NAME=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+        PROJECT_NAME=$(curl -s --connect-timeout 2 -m 10 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
         METADATA="http://metadata.google.internal./computeMetadata/v1"
         SVC_ACCT="${METADATA}/instance/service-accounts/default"
-        ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${SVC_ACCT}/token | cut -d'"' -f 4)
+        ACCESS_TOKEN=$(curl -s --connect-timeout 2 -m 10 -H 'Metadata-Flavor: Google' ${SVC_ACCT}/token | cut -d'"' -f 4)
         printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://gcr.io
         echo "DOCKER_TAG=gcr.io/${PROJECT_NAME}/${{inputs.docker_image}}:pr-${GITHUB_EVENT_NUMBER}" >> $GITHUB_ENV
       shell: bash
@@ -65,7 +65,7 @@ runs:
       run: |
         METADATA="http://metadata.google.internal./computeMetadata/v1"
         SVC_ACCT="${METADATA}/instance/service-accounts/default"
-        ACCESS_TOKEN=$(curl -s -f -H 'Metadata-Flavor: Google' ${SVC_ACCT}/token 2>/dev/null | cut -d'"' -f 4 || true)
+        ACCESS_TOKEN=$(curl -s -f --connect-timeout 2 -m 10 -H 'Metadata-Flavor: Google' ${SVC_ACCT}/token 2>/dev/null | cut -d'"' -f 4 || true)
         if [[ -n "${ACCESS_TOKEN}" ]]; then
           printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://marketplace.gcr.io || true
         fi
