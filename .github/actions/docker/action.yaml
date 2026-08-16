@@ -22,7 +22,6 @@ runs:
         files: |
           docker-compose.yml
           docker/linux/**
-          .github/actions/docker/**
     - name: Retrieve Docker metadata
       id: meta
       uses: docker/metadata-action@507c2f2dc502c992ad446e3d7a5dfbe311567a96 # v4.3.0
@@ -56,9 +55,11 @@ runs:
       if: ${{ (steps.changed-files.outputs.any_changed == 'false') && (github.event_name == 'pull_request') }}
       run: |
         set -x
-        docker_tag="${{ steps.pr-meta.outputs.tags }}"
-        docker_tag="${docker_tag%.1[+,-]}"
-        echo "DOCKER_TAG=${docker_tag}" >> $GITHUB_ENV
+        base_ref="${GITHUB_BASE_REF%.1+}"
+        if [[ "$base_ref" =~ (25\.lts|25-lts) ]]; then
+          base_ref="25.lts"
+        fi
+        echo "DOCKER_TAG=ghcr.io/${REPO}/${{inputs.docker_image}}:${base_ref}" >> $GITHUB_ENV
       shell: bash
     - name: Set up Cloud SDK
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1

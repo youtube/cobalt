@@ -18,7 +18,6 @@ runs:
         files: |
           docker-compose-windows.yml
           docker/windows/**
-          .github/actions/docker_win/**
     - name: Retrieve Docker metadata
       id: meta
       uses: docker/metadata-action@507c2f2dc502c992ad446e3d7a5dfbe311567a96 # v4.3.0
@@ -42,7 +41,12 @@ runs:
       if: ${{ (steps.changed-files.outputs.any_changed == 'false') && (github.event_name == 'pull_request') }}
       env:
         REPO: ${{ github.repository }}
-      run: echo "DOCKER_TAG=ghcr.io/${REPO}/cobalt-${{inputs.service}}:${GITHUB_BASE_REF%.1+}" >> $GITHUB_ENV
+      run: |
+        base_ref="${GITHUB_BASE_REF%.1+}"
+        if [[ "$base_ref" =~ (25\.lts|25-lts) ]]; then
+          base_ref="25.lts"
+        fi
+        echo "DOCKER_TAG=ghcr.io/${REPO}/cobalt-${{inputs.service}}:${base_ref}" >> $GITHUB_ENV
       shell: bash
     - name: Process Docker metadata
       id: process-docker

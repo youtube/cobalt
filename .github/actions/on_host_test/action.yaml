@@ -122,6 +122,6 @@ runs:
     #     path: ${{env.COVERAGE_DIR}}/html
     - name: Upload to Codecov
       if: success() && matrix.shard == 'coverage'
-      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v4.0.1
       with:
         files: ${{env.COVERAGE_DIR}}/report.txt
