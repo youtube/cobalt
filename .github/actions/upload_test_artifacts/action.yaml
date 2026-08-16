@@ -42,7 +42,11 @@ runs:
         WORKFLOW: ${{ github.workflow }}
       run: |
         set -eux
-        project_name=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+        project_name=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+        if [[ -z "${project_name}" ]]; then
+          echo "Error: Failed to retrieve GCS project ID from metadata server." >&2
+          exit 1
+        fi
 
         # Upload gtest target artifacts.
         gcloud storage cp "${GITHUB_WORKSPACE}/artifacts/*" \

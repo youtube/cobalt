@@ -30,7 +30,12 @@ runs:
       shell: bash
     - name: Set GCS Project Name
       run: |
-        echo "PROJECT_NAME=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')" >> $GITHUB_ENV
+        PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+        if [[ -z "${PROJECT_NAME}" ]]; then
+          echo "Error: Failed to retrieve GCS project ID from metadata server." >&2
+          exit 1
+        fi
+        echo "PROJECT_NAME=${PROJECT_NAME}" >> $GITHUB_ENV
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:

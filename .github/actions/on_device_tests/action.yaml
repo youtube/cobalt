@@ -38,7 +38,12 @@ runs:
       uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
     - name: Set GCS Project Name
       run: |
-        echo "PROJECT_NAME=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')" >> $GITHUB_ENV
+        PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id' 2>/dev/null || gcloud config get-value project 2>/dev/null)
+        if [[ -z "${PROJECT_NAME}" || "${PROJECT_NAME}" == "(unset)" ]]; then
+          echo "Error: Failed to retrieve GCS project ID." >&2
+          exit 1
+        fi
+        echo "PROJECT_NAME=${PROJECT_NAME}" >> $GITHUB_ENV
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
@@ -110,6 +115,10 @@ runs:
         # to be picked up by the test result processor.
         mkdir -p "${test_output}/${{ matrix.platform }}"
         gcs_path="${{ inputs.gcs_results_path }}"
+        if [[ -z "${gcs_path}" ]]; then
+          echo "Error: gcs_results_path is empty." >&2
+          exit 1
+        fi
         gcloud storage cp -r "${gcs_path%/}/*" "${test_output}/${{ matrix.platform }}"
       shell: bash
     - name: Archive Test Results
