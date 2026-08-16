@@ -46,7 +46,7 @@ jobs:
           fetch-depth: 1
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Cache CI Essentials
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v3.3.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: ci-essentials-${{ inputs.platform }}
           include-hidden-files: true
