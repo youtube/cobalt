@@ -39,6 +39,8 @@ class CONTROLLER_EXPORT HighestPmfReporter
   static void OnProcessForegrounded();
 #endif
 
+  ~HighestPmfReporter() override;
+
  private:
   explicit HighestPmfReporter(
       scoped_refptr<base::SingleThreadTaskRunner> task_runner);
