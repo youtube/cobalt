@@ -83,6 +83,14 @@ HighestPmfReporter::HighestPmfReporter(
     : HighestPmfReporter(std::move(task_runner),
                          base::DefaultTickClock::GetInstance()) {}
 
+HighestPmfReporter::~HighestPmfReporter() {
+#if BUILDFLAG(IS_COBALT)
+  if (g_highest_pmf_reporter == this) {
+    g_highest_pmf_reporter = nullptr;
+  }
+#endif
+}
+
 HighestPmfReporter::HighestPmfReporter(
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
     const base::TickClock* clock)

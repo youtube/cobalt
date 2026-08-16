@@ -222,7 +222,6 @@ TEST_F(HighestPmfReporterTest, MAYBE_ReportMetric) {
 
   base::TimeTicks navigation_start_time = NowTicks();
   reporter_->NotifyNavigationStart();
-  (void)navigation_start_time;
 
   for (const auto& item : time_pmf_rss_table) {
     AdvanceClockTo(navigation_start_time + item.time_since_navigation);
@@ -260,9 +259,7 @@ TEST_F(HighestPmfReporterTest, TestReportTimingForeground) {
 
   memory_usage_monitor_->SetPrivateFootprintBytes(1000.0);
 
-  base::TimeTicks navigation_start_time = NowTicks();
   reporter_->NotifyNavigationStart();
-  (void)navigation_start_time;
   AdvanceClock(base::Seconds(1));
   
   HighestPmfReporter::OnProcessForegrounded();
@@ -283,9 +280,7 @@ TEST_F(HighestPmfReporterTest, TestReportTiming) {
 
   memory_usage_monitor_->SetPrivateFootprintBytes(1000.0);
 
-  base::TimeTicks navigation_start_time = NowTicks();
   reporter_->NotifyNavigationStart();
-  (void)navigation_start_time;
   AdvanceClock(base::Seconds(1));
   // Now ReportMetrics task is posted with 2minutes delay.
   // The task will be executed at "navigation_start_time + 2min + 1sec."
