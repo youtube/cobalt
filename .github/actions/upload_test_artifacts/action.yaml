@@ -8,14 +8,13 @@ runs:
         WORKFLOW: ${{ github.workflow }}
       run: |
         set -x
-        project_name=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+        project_name=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal./computeMetadata/v1/project/project-id')
         PLATFORM=${{matrix.platform}}
         echo "PLATFORM=${{matrix.platform}}" >> $GITHUB_ENV
         echo "ARCHIVE_FILE=${PLATFORM}_${{matrix.config}}.tar.xz" >> $GITHUB_ENV
         echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/${PLATFORM}_${{matrix.config}}.tar.xz" >> $GITHUB_ENV
         echo "DESTINATION=${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
         echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-        project_name=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
       shell: bash
     - name: Create Test Files Archive
       run: |
