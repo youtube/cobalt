@@ -17,9 +17,6 @@ visibility = [
   "//:gn_all",
   "//third_party/blink/*",
 ]
-if (is_cobalt) {
-  visibility += [ "//cobalt/*" ]
-}
 
 component("controller") {
   output_name = "blink_controller"
@@ -110,7 +107,7 @@ component("controller") {
 
   # HighestPmfReporter depends on MemoryUsageMonitor and MemoryUsageMonitor
   # depends on platform specific code. Explicitly specify supported platforms.
-  if (is_linux || is_chromeos || is_win || is_android || is_apple || is_cobalt) {
+  if (is_linux || is_chromeos || is_win || is_android || is_apple) {
     sources += [
       "highest_pmf_reporter.cc",
       "highest_pmf_reporter.h",
@@ -285,7 +282,7 @@ source_set("blink_unittests_sources") {
     ]
   }
 
-  if (is_linux || is_chromeos || is_android || is_apple || is_win || is_cobalt) {
+  if (is_linux || is_chromeos || is_android || is_apple || is_win) {
     sources += [
       "highest_pmf_reporter_test.cc",
       "memory_usage_monitor_test.cc",
