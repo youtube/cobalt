@@ -73,7 +73,11 @@ runs:
         WORKFLOW: ${{ github.workflow }}
       run: |
         set -eux
-        project_name=$(gcloud config get-value project)
+        project_name=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id' 2>/dev/null || gcloud config get-value project 2>/dev/null)
+        if [[ -z "${project_name}" || "${project_name}" == "(unset)" ]]; then
+          echo "Error: Failed to retrieve GCS project ID." >&2
+          exit 1
+        fi
 
         # Add Cobalt release artifacts for smoke tests.
         if [[ "${{ inputs.upload_e2e_test_artifacts }}" == "true" ]]; then

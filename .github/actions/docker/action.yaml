@@ -41,10 +41,10 @@ runs:
       run: |
         # Login to GAR
         TOKEN_ENDPOINT="http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
-        ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${TOKEN_ENDPOINT} | jq -r .access_token)
+        ACCESS_TOKEN=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' "${TOKEN_ENDPOINT}" 2>/dev/null | jq -r '.access_token // empty' 2>/dev/null || true)
 
         # Login to GAR to be able to push images created by fork based PR workflows.
-        if [[ "${{ inputs.is_pr }}" == "true" ]]; then
+        if [[ "${{ inputs.is_pr }}" == "true" && -n "${ACCESS_TOKEN}" ]]; then
           printf '%s' "${ACCESS_TOKEN}" | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev
         fi
       shell: bash
@@ -60,7 +60,7 @@ runs:
       run: |
         METADATA="http://metadata.google.internal./computeMetadata/v1"
         SVC_ACCT="${METADATA}/instance/service-accounts/default"
-        ACCESS_TOKEN=$(curl -s -f -H 'Metadata-Flavor: Google' ${SVC_ACCT}/token 2>/dev/null | cut -d'"' -f 4 || true)
+        ACCESS_TOKEN=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' "${SVC_ACCT}/token" 2>/dev/null | jq -r '.access_token // empty' 2>/dev/null || true)
         if [[ -n "${ACCESS_TOKEN}" ]]; then
           printf '%s' "${ACCESS_TOKEN}" | docker login -u oauth2accesstoken --password-stdin https://marketplace.gcr.io || true
         fi
@@ -85,7 +85,11 @@ runs:
 
           else
             # No fitting post-submit image was found. Check PR registry to see if there's an image there.
-            PROJECT_NAME=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+            PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+            if [[ -z "${PROJECT_NAME}" ]]; then
+              echo "Error: Failed to retrieve GCS project ID from metadata server." >&2
+              exit 1
+            fi
             DOCKER_COMPOSE_IMAGE="${PR_DOCKER_REGISTRY_URL}/${PROJECT_NAME}/github/${DOCKER_SERVICE}"
 
             if ! docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then

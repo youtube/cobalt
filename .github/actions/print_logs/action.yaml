@@ -19,7 +19,12 @@ runs:
       if: inputs.symbolize == 'true'
       id: gcs-project
       run: |
-        echo "name=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')" >> $GITHUB_OUTPUT
+        PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+        if [[ -z "${PROJECT_NAME}" ]]; then
+          echo "Error: Failed to retrieve GCS project ID from metadata server." >&2
+          exit 1
+        fi
+        echo "name=${PROJECT_NAME}" >> $GITHUB_OUTPUT
       shell: bash
     - name: Download Test Symbols
       if: inputs.symbolize == 'true'
