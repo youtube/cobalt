@@ -143,11 +143,11 @@ const DrmSystem::Callbacks kStubDrmSystemCallbacks = {
     StubDrmSessionKeyStatusesChangedFunc};
 
 bool IsFrameSizeExceedingCapabilities(const Size& frame_size,
-                                      const Size& max_frame_size) {
+                                      const Size& max_video_size) {
   return std::max(frame_size.width, frame_size.height) >
-             std::max(max_frame_size.width, max_frame_size.height) ||
+             std::max(max_video_size.width, max_video_size.height) ||
          std::min(frame_size.width, frame_size.height) >
-             std::min(max_frame_size.width, max_frame_size.height);
+             std::min(max_video_size.width, max_video_size.height);
 }
 
 }  // namespace
@@ -291,7 +291,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       output_mode_(stream_config.output_mode),
       decode_target_graphics_context_provider_(
           stream_config.decode_target_graphics_context_provider),
-      max_video_capabilities_(stream_config.max_video_capabilities),
+      max_video_size_(
+          ParseMaxResolution(stream_config.max_video_capabilities,
+                             stream_config.video_stream_info.frame_size)),
       require_software_codec_(
           IsSoftwareDecoderRequired(stream_config.max_video_capabilities)),
       force_big_endian_hdr_metadata_(
@@ -379,7 +381,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", with output mode=" << GetPlayerOutputModeName(output_mode_)
                << ", preroll count=" << number_of_preroll_frames_
                << ", max pending input size=" << kMaxPendingInputsSize
-               << ", max video capabilities=\"" << max_video_capabilities_
+               << ", max video capabilities=\""
+               << stream_config.max_video_capabilities
                << "\", tunnel mode audio session id="
                << ToString(tunnel_mode_audio_session_id_)
                << ", is_video_frame_tracker_enabled="
@@ -479,6 +482,28 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
   MEDIA_TRACE_EVENT("starboard", "VideoDecoder::WriteInputBuffers", "timestamp",
                     input_buffers.front()->timestamp(), "size",
                     input_buffers.size());
+
+  if (max_video_size_.has_value()) {
+    for (const auto& input_buffer : input_buffers) {
+      if (input_buffer->video_sample_info().is_key_frame) {
+        const Size& frame_size = input_buffer->video_stream_info().frame_size;
+        SB_CHECK(!IsFrameSizeExceedingCapabilities(frame_size,
+                                                   max_video_size_.value()))
+            << "Video key frame size " << frame_size
+            << " exceeds max_video_capabilities " << max_video_size_.value();
+        if (IsFrameSizeExceedingCapabilities(frame_size,
+                                             max_video_size_.value())) {
+          SB_LOG(ERROR) << "Video frame size " << frame_size
+                        << " exceeds max_video_capabilities "
+                        << max_video_size_.value()
+                        << ". Raising kSbPlayerErrorCapabilityChanged.";
+          ReportError(kSbPlayerErrorCapabilityChanged,
+                      "Video frame size exceeds max_video_capabilities.");
+          return;
+        }
+      }
+    }
+  }
 
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);
@@ -804,29 +829,24 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
     SB_DCHECK_EQ(video_fps_, 0);
   }
 
+  // b/546122686: Raise kSbPlayerErrorCapabilityChanged if the stream resolution
+  // exceeds max_video_capabilities.
+  if (max_video_size_.has_value() &&
+      IsFrameSizeExceedingCapabilities(video_stream_info.frame_size,
+                                       max_video_size_.value())) {
+    SB_LOG(WARNING) << "Video stream frame size "
+                    << video_stream_info.frame_size
+                    << " exceeds max_video_size " << max_video_size_.value()
+                    << ". Updating max_video_size to requested stream size.";
+    max_video_size_ = video_stream_info.frame_size;
+  }
+
   // TODO(b/281431214): Evaluate if we should also parse the fps from
   //                    `max_video_capabilities_` and pass to MediaCodecDecoder
   //                    ctor.
-  std::optional<Size> max_frame_size =
-      ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_size);
-
-  // b/546122686: Raise kSbPlayerErrorCapabilityChanged if the stream resolution
-  // exceeds max_video_capabilities.
-  if (max_frame_size.has_value() &&
-      IsFrameSizeExceedingCapabilities(video_stream_info.frame_size,
-                                       max_frame_size.value())) {
-    SB_LOG(ERROR) << "Video frame size " << video_stream_info.frame_size
-                  << " exceeds max_video_capabilities "
-                  << max_frame_size.value()
-                  << ". Raising kSbPlayerErrorCapabilityChanged.";
-    ReportError(kSbPlayerErrorCapabilityChanged,
-                "Video frame size exceeds max_video_capabilities.");
-    return Failure("Video frame size exceeds max_video_capabilities.");
-  }
-
   auto result = MediaCodecDecoder::CreateForVideo(
       *media_codec_factory_, job_queue(), /*host=*/this,
-      video_stream_info.codec, video_stream_info.frame_size, max_frame_size,
+      video_stream_info.codec, video_stream_info.frame_size, max_video_size_,
       video_fps_, j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
