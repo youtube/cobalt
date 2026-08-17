@@ -418,9 +418,10 @@ TEST_F(StarboardRendererTest,
       .WillOnce(Invoke([&](SbPlayer /*player*/, SbMediaType /*type*/,
                            const SbPlayerSampleInfo* sample_infos,
                            int number_of_sample_infos) {
-        ASSERT_NE(sample_infos, nullptr);
-        ASSERT_GT(number_of_sample_infos, 0);
-        if (sample_infos[0].audio_sample_info.stream_info.mime) {
+        EXPECT_NE(sample_infos, nullptr);
+        EXPECT_GT(number_of_sample_infos, 0);
+        if (sample_infos && number_of_sample_infos > 0 &&
+            sample_infos[0].audio_sample_info.stream_info.mime) {
           written_audio_mime =
               sample_infos[0].audio_sample_info.stream_info.mime;
         }
@@ -451,9 +452,10 @@ TEST_F(StarboardRendererTest,
       .WillOnce(Invoke([&](SbPlayer /*player*/, SbMediaType /*type*/,
                            const SbPlayerSampleInfo* sample_infos,
                            int number_of_sample_infos) {
-        ASSERT_NE(sample_infos, nullptr);
-        ASSERT_GT(number_of_sample_infos, 0);
-        if (sample_infos[0].video_sample_info.stream_info.mime) {
+        EXPECT_NE(sample_infos, nullptr);
+        EXPECT_GT(number_of_sample_infos, 0);
+        if (sample_infos && number_of_sample_infos > 0 &&
+            sample_infos[0].video_sample_info.stream_info.mime) {
           written_video_mime =
               sample_infos[0].video_sample_info.stream_info.mime;
         }

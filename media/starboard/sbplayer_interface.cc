@@ -194,4 +194,14 @@ SbPlayerInterface* GetSbPlayerInterfaceForTesting() {
   return g_sbplayer_interface_for_testing.load(std::memory_order_acquire);
 }
 
+ScopedSbPlayerInterfaceForTesting::ScopedSbPlayerInterfaceForTesting(
+    SbPlayerInterface* interface)
+    : previous_interface_(GetSbPlayerInterfaceForTesting()) {
+  SetSbPlayerInterfaceForTesting(interface);
+}
+
+ScopedSbPlayerInterfaceForTesting::~ScopedSbPlayerInterfaceForTesting() {
+  SetSbPlayerInterfaceForTesting(previous_interface_);
+}
+
 }  // namespace media

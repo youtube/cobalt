@@ -212,13 +212,8 @@ MEDIA_EXPORT SbPlayerInterface* GetSbPlayerInterfaceForTesting();
 // mock interface) is destroyed to avoid use-after-free on the media thread.
 class MEDIA_EXPORT ScopedSbPlayerInterfaceForTesting {
  public:
-  explicit ScopedSbPlayerInterfaceForTesting(SbPlayerInterface* interface)
-      : previous_interface_(GetSbPlayerInterfaceForTesting()) {
-    SetSbPlayerInterfaceForTesting(interface);
-  }
-  ~ScopedSbPlayerInterfaceForTesting() {
-    SetSbPlayerInterfaceForTesting(previous_interface_);
-  }
+  explicit ScopedSbPlayerInterfaceForTesting(SbPlayerInterface* interface);
+  ~ScopedSbPlayerInterfaceForTesting();
   ScopedSbPlayerInterfaceForTesting(const ScopedSbPlayerInterfaceForTesting&) =
       delete;
   ScopedSbPlayerInterfaceForTesting& operator=(
