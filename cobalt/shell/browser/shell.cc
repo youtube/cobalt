@@ -1010,8 +1010,9 @@ void Shell::ActivateContents(WebContents* contents) {
   }
 }
 
-bool Shell::IsBackForwardCacheSupported(WebContents& web_contents) {
-  return true;
+bool Shell::IsBackForwardCacheSupported(WebContents& /*web_contents*/) {
+  return !base::CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kDisableBackForwardCache);
 }
 
 PreloadingEligibility Shell::IsPrerender2Supported(
@@ -1161,6 +1162,19 @@ void Shell::OnVisibilityChanged(Visibility visibility) {
   if (visibility == Visibility::VISIBLE && pending_focus_) {
     // Retry the pending focus now that the window is visible in Aura.
     Focus();
+  }
+
+  // When the OS backgrounds the app (resulting in Visibility::HIDDEN state),
+  // tearing down the PiP session from here ensures the
+  // VideoPictureInPictureWindowController pauses the video and destroys the UI
+  // overlay window.
+  // See: b/532272209
+  if (base::FeatureList::IsEnabled(cobalt::features::kEnablePictureInPicture) &&
+      visibility == content::Visibility::HIDDEN && web_contents() &&
+      web_contents()->HasPictureInPictureVideo()) {
+    content::PictureInPictureWindowController::
+        GetOrCreateVideoPictureInPictureController(web_contents())
+            ->Close(/*should_pause_video=*/true);
   }
 }
 

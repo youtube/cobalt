@@ -62,6 +62,9 @@ public class JavaSwitches {
   /** flag to limit GPU image cache items */
   public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
 
+  /** flag to limit GPU image cache bytes, resuing LimitImageDecodeCacheSizeMb */
+  public static final String LIMIT_IMAGE_DECODE_CACHE_SIZE_MB = "LimitImageDecodeCacheSizeMb";
+
   /** flag to globally configure max HTTP cache size ceiling in bytes. */
   public static final String MAX_HTTP_CACHE_SIZE = "MaxHttpCacheSize";
 
@@ -121,12 +124,19 @@ public class JavaSwitches {
   public static final String ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND =
       "AllowCriticalMemoryPressureHandlingInForeground";
 
+  /** flag to evict blink memory cache on critical memory pressure. */
+  public static final String EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE =
+      "EvictMemoryCacheOnCriticalMemoryPressure";
+
   /**
    * Flag to disable LessAggressiveParkableString feature to unpause foreground compression and use
    * a 2-second aging interval.
    */
   public static final String DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING =
       "DisableLessAggressiveParkableString";
+
+  /** Flag to disable BackForwardCache for WebContents. */
+  public static final String DISABLE_BACK_FORWARD_CACHE = "DisableBackForwardCache";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
@@ -166,6 +176,11 @@ public class JavaSwitches {
       String limit =
           javaSwitches.get(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS).replaceAll("[^0-9]", "");
       extraCommandLineArgs.add("--cc-image-cache-limit-items=" + limit);
+    }
+    if (javaSwitches.containsKey(JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_SIZE_MB)) {
+      String limit =
+          javaSwitches.get(JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_SIZE_MB).replaceAll("[^0-9]", "");
+      extraCommandLineArgs.add("--cc-image-cache-limit-mbs=" + limit);
     }
     if (javaSwitches.containsKey(JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES)) {
       String budget =
@@ -308,8 +323,17 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
     }
 
+    if (javaSwitches.containsKey(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE)) {
+      extraCommandLineArgs.add(
+          "--enable-features=" + JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE);
+    }
+
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING)) {
       extraCommandLineArgs.add("--disable-features=LessAggressiveParkableString");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_BACK_FORWARD_CACHE)) {
+      extraCommandLineArgs.add("--disable-back-forward-cache");
     }
 
     return extraCommandLineArgs;

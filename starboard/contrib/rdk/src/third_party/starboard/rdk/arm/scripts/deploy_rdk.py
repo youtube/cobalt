@@ -18,62 +18,14 @@ This script handles the full lifecycle of building, packaging, deploying,
 and launching Cobalt (as a plugin or executable) or Cobalt tests on RDK.
 
 Usage Examples:
-  1. Build and deploy as Cobalt plugin (default: config: qa, out: out/evergreen-arm-hardfp-rdk_qa):
+  1. Build and deploy as Cobalt plugin (default: config: qa):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py
 
-  2. Deploy a pre-built package and run it:
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --out-dir ~/Downloads/evergreen-arm-hardfp-rdk_qa/ --skip-build --run
-
-  3. Build, deploy, and RUN Cobalt plugin on device:
+  2. Build, deploy, and RUN Cobalt plugin or tests on device:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run
-
-  4. Build, deploy, and RUN nplb tests on device (uses devel config):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --tests nplb --run
 
-  5. Build and deploy as standalone executable (loader_app):
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --mode executable
-
-  6. Force deploy and run even if artifacts are up-to-date:
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --force-deploy
-
-  7. Reset RDK display and restart WPEFramework (fixes stuck displays/frozen sessions):
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --reset
-
-  8. Deploy only the libcobalt library:
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --only-lib
-
-  9. View filtered application logs (YouTube/Cobalt):
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --logs
-
-  10. Follow application logs in real-time (journalctl -f):
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --logs --follow
-
-  11. View raw global OS/system logs (journalctl):
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --system-logs
-
-  12. Build, deploy, and run Cobalt plugin with Chrome DevTools remote debugging enabled:
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --devtools
-
-  13. Download and install cross-compilation toolchain:
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --setup-toolchain
-
-  14. Revert active Cobalt loader configuration to Cobalt 25:
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --revert-c25
-
-  15. Launch Cobalt plugin with a deep link (e.g. video ID or URL parameter):
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --deeplink "v=dQw4w9WgXcQ"
-  
-  16. Run Cobalt executable with native in-process heap profiling:
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py \
-        --mode executable --run --config devel \
-        --param \
-          --enable-heap-profiling \
-          --memlog=all \
-          --memlog-stack-mode=native-with-thread-names \
-          --trace-startup=disabled-by-default-memory-infra \
-          --trace-startup-duration=15 \
-          --trace-startup-format=json \
-          --trace-startup-file=/tmp/trace_event.json
+  (For more complex workflows—such as deep-linking, profiling, DevTools, or log streaming—run the script with --help to see all available parameters.)
 """
 
 import argparse
@@ -254,34 +206,22 @@ def ensure_dolby_vision_policy(device_id: Optional[str], device_ip: Optional[str
 
 
 def _extract_flag_key(arg: str) -> str:
-    """Extracts option key from flag string (e.g. '--foo' from '--foo=val', '--foo val', or '--foo')."""
-    return arg.split("=", 1)[0].split()[0]
+    """Extracts option key from flag string (e.g. '--foo' from '--foo=val' or '--foo')."""
+    return arg.split("=", 1)[0]
 
 
 def _filter_args_by_keys(base_args: List[str], override_args: List[str]) -> List[str]:
     """Filters flags from base_args whose option keys match any flag in override_args."""
-    override_keys = set()
-    for arg in override_args:
-        if arg.startswith("--"):
-            override_keys.add(_extract_flag_key(arg))
-
-    filtered_args = []
-    i = 0
-    while i < len(base_args):
-        arg = base_args[i]
-        if arg.startswith("--"):
-            key = _extract_flag_key(arg)
-            if key in override_keys:
-                # Key is overridden by override_args. Skip this flag.
-                if "=" not in arg and " " not in arg and (i + 1 < len(base_args)) and not base_args[i + 1].startswith("--"):
-                    i += 1  # Skip space-separated value item (e.g. '1' in '--foo 1' or '--foo', '1')
-            else:
-                filtered_args.append(arg)
-        else:
-            filtered_args.append(arg)
-        i += 1
-
-    return filtered_args
+    override_keys = {
+        _extract_flag_key(arg)
+        for arg in override_args
+        if arg.startswith("--")
+    }
+    return [
+        arg
+        for arg in base_args
+        if not (arg.startswith("--") and _extract_flag_key(arg) in override_keys)
+    ]
 
 
 def _merge_args(base_args: List[str], override_args: List[str]) -> List[str]:
