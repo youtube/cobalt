@@ -29,7 +29,11 @@ runs:
       run: |
         set -x
         gcloud config set storage/check_hashes never
-        PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 10 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+        PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 10 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id' || gcloud config get-value project 2>/dev/null)
+        if [[ -z "${PROJECT_NAME}" ]]; then
+          echo "Failed to retrieve Google Cloud project ID."
+          exit 1
+        fi
         gcloud storage cp gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/${{matrix.platform}}_${{matrix.config}}.${ARCHIVE_EXTENSION} ${GITHUB_WORKSPACE}/out/tmp/${{matrix.platform}}_${{matrix.config}}.${ARCHIVE_EXTENSION}
     - name: Extract Archive
       shell: bash
@@ -49,7 +53,11 @@ runs:
       run: |
         set -x
         gcloud config set storage/check_hashes never
-        PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 10 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+        PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 10 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id' || gcloud config get-value project 2>/dev/null)
+        if [[ -z "${PROJECT_NAME}" ]]; then
+          echo "Failed to retrieve Google Cloud project ID."
+          exit 1
+        fi
         gcloud storage cp gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/${COBALT_EVERGREEN_LOADER}_${{matrix.config}}.${ARCHIVE_EXTENSION} ${GITHUB_WORKSPACE}/out/tmp/${COBALT_EVERGREEN_LOADER}_${{matrix.config}}.${ARCHIVE_EXTENSION}
     - name: Extract Evergreen loader Archive
       if: ${{ env.COBALT_EVERGREEN_LOADER != null && env.COBALT_EVERGREEN_LOADER != 'null' }}
