@@ -62,6 +62,9 @@ public class JavaSwitches {
   /** flag to limit GPU image cache items */
   public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
 
+  /** flag to limit GPU image cache bytes, resuing LimitImageDecodeCacheSizeMb */
+  public static final String LIMIT_IMAGE_DECODE_CACHE_SIZE_MB = "LimitImageDecodeCacheSizeMb";
+
   /** flag to globally configure max HTTP cache size ceiling in bytes. */
   public static final String MAX_HTTP_CACHE_SIZE = "MaxHttpCacheSize";
 
@@ -170,6 +173,11 @@ public class JavaSwitches {
       String limit =
           javaSwitches.get(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS).replaceAll("[^0-9]", "");
       extraCommandLineArgs.add("--cc-image-cache-limit-items=" + limit);
+    }
+    if (javaSwitches.containsKey(JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_SIZE_MB)) {
+      String limit =
+          javaSwitches.get(JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_SIZE_MB).replaceAll("[^0-9]", "");
+      extraCommandLineArgs.add("--cc-image-cache-limit-mbs=" + limit);
     }
     if (javaSwitches.containsKey(JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES)) {
       String budget =
