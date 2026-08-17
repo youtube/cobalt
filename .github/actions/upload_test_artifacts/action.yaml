@@ -10,14 +10,16 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v2
     - name: Configure Environment
       env:
         WORKFLOW: ${{ github.workflow }}
       run: |
         set -x
-        project_name=$(curl -s -f --connect-timeout 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+        project_name=$(curl --fail --connect-timeout 2 -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/project/project-id 2>/dev/null || gcloud config get-value project 2>/dev/null)
+        if [[ -z "${project_name}" ]]; then
+          echo "Failed to retrieve Google Cloud project ID"
+          exit 1
+        fi
         if [ -z ${COBALT_EVERGREEN_LOADER+x} ]
         then
           PLATFORM=${{matrix.platform}}

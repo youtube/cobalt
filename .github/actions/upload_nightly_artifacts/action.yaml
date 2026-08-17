@@ -3,15 +3,17 @@ description: Archives and uploads nightly artifacts to GCS bucket.
 runs:
   using: "composite"
   steps:
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v2
     - name: Set env vars
       env:
         WORKFLOW: ${{github.workflow}}
       run: |
         echo "ARCHIVE_FILE=cobalt-${{matrix.platform}}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
         echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/cobalt-${{matrix.platform}}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
-        PROJECT_NAME=$(curl -s -f --connect-timeout 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+        PROJECT_NAME=$(curl --fail --connect-timeout 2 -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/project/project-id 2>/dev/null || gcloud config get-value project 2>/dev/null)
+        if [[ -z "${PROJECT_NAME}" ]]; then
+          echo "Failed to retrieve Google Cloud project ID"
+          exit 1
+        fi
         echo "PROJECT_NAME=${PROJECT_NAME}" >> $GITHUB_ENV
         echo "TODAY=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
         echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV

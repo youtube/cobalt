@@ -16,7 +16,11 @@ runs:
       env:
         WORKFLOW: ${{ github.workflow }}
       run: |
-        PROJECT_NAME=$(curl -s -f --connect-timeout 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+        PROJECT_NAME=$(curl --fail --connect-timeout 2 -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/project/project-id 2>/dev/null || gcloud config get-value project 2>/dev/null)
+        if [[ -z "${PROJECT_NAME}" ]]; then
+          echo "Failed to retrieve Google Cloud project ID"
+          exit 1
+        fi
         echo "PROJECT_NAME=${PROJECT_NAME}" >> $GITHUB_ENV
         echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
         echo "WORKFLOW=${WORKFLOW}" >> $GITHUB_ENV
