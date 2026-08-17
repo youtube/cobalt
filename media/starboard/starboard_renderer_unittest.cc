@@ -90,7 +90,7 @@ class StarboardRendererTest : public testing::Test {
     AddStream(DemuxerStream::AUDIO, encrypted);
     AddStream(DemuxerStream::VIDEO, encrypted);
 
-    SbPlayer player = new SbPlayerPrivate();
+    SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
     EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
         .WillOnce(DoAll(SaveArg<3>(&decoder_status_cb_),
                         SaveArg<4>(&player_status_cb_),
@@ -121,6 +121,8 @@ class StarboardRendererTest : public testing::Test {
   NiceMock<MockRendererClient> renderer_client_;
   std::vector<std::unique_ptr<StrictMock<MockDemuxerStream>>> streams_;
   StrictMock<MockSbPlayerInterface> mock_sbplayer_interface_;
+  ScopedSbPlayerInterfaceForTesting scoped_sbplayer_interface_{
+      &mock_sbplayer_interface_};
   SbPlayerDecoderStatusFunc decoder_status_cb_ = nullptr;
   SbPlayerStatusFunc player_status_cb_ = nullptr;
   SbPlayerErrorFunc player_error_cb_ = nullptr;
@@ -176,7 +178,7 @@ TEST_F(StarboardRendererTest, InitializeThenSetCdm) {
   AddStream(DemuxerStream::AUDIO, /*encrypted=*/true);
   AddStream(DemuxerStream::VIDEO, /*encrypted=*/true);
 
-  SbPlayer player = new SbPlayerPrivate();
+  SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
   EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
       .WillOnce(DoAll(SaveArg<3>(&decoder_status_cb_),
                       SaveArg<4>(&player_status_cb_),
@@ -268,7 +270,7 @@ TEST_F(StarboardRendererTest, OnErrorDuringInitialization) {
   AddStream(DemuxerStream::AUDIO, /*encrypted=*/false);
   AddStream(DemuxerStream::VIDEO, /*encrypted=*/false);
 
-  SbPlayer player = new SbPlayerPrivate();
+  SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
   EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
       .WillOnce(DoAll(SaveArg<3>(&decoder_status_cb_),
                       SaveArg<4>(&player_status_cb_),
@@ -294,7 +296,7 @@ TEST_F(StarboardRendererTest, OnDemuxerErrorDuringInitialization) {
   AddStream(DemuxerStream::AUDIO, /*encrypted=*/false);
   AddStream(DemuxerStream::VIDEO, /*encrypted=*/false);
 
-  SbPlayer player = new SbPlayerPrivate();
+  SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
   EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
       .WillOnce(DoAll(SaveArg<3>(&decoder_status_cb_),
                       SaveArg<4>(&player_status_cb_),
@@ -363,7 +365,7 @@ TEST_F(StarboardRendererTest,
   video_stream->set_video_decoder_config(video_config);
   streams_.push_back(std::move(video_stream));
 
-  SbPlayer player = new SbPlayerPrivate();
+  SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
   std::string created_audio_mime;
   std::string created_video_mime;
 

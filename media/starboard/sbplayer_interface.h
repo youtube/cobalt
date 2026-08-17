@@ -199,6 +199,22 @@ MEDIA_EXPORT SbPlayerInterface* GetSbPlayerInterface();
 // Sets a custom SbPlayerInterface for testing.
 MEDIA_EXPORT void SetSbPlayerInterfaceForTesting(SbPlayerInterface* interface);
 
+// Helper class to automatically register and reset a mock SbPlayerInterface
+// for testing using RAII.
+class MEDIA_EXPORT ScopedSbPlayerInterfaceForTesting {
+ public:
+  explicit ScopedSbPlayerInterfaceForTesting(SbPlayerInterface* interface) {
+    SetSbPlayerInterfaceForTesting(interface);
+  }
+  ~ScopedSbPlayerInterfaceForTesting() {
+    SetSbPlayerInterfaceForTesting(nullptr);
+  }
+  ScopedSbPlayerInterfaceForTesting(const ScopedSbPlayerInterfaceForTesting&) =
+      delete;
+  ScopedSbPlayerInterfaceForTesting& operator=(
+      const ScopedSbPlayerInterfaceForTesting&) = delete;
+};
+
 }  // namespace media
 
 #endif  // MEDIA_STARBOARD_SBPLAYER_INTERFACE_H_

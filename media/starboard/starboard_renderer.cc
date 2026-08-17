@@ -646,9 +646,6 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
 #endif  // BUILDFLAG(IS_ANDROID)
 
 SbPlayerInterface* StarboardRenderer::GetSbPlayerInterface() {
-  if (test_sbplayer_interface_) {
-    return test_sbplayer_interface_;
-  }
   return media::GetSbPlayerInterface();
 }
 

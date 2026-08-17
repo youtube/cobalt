@@ -19,17 +19,16 @@
 #include "media/starboard/sbplayer_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
-struct SbPlayerPrivate {
- public:
-  SbPlayerPrivate() = default;
-
-  SbPlayerPrivate(const SbPlayerPrivate&) = delete;
-  SbPlayerPrivate& operator=(const SbPlayerPrivate&) = delete;
-
-  ~SbPlayerPrivate() = default;
-};
-
 namespace media {
+
+// A lightweight mock player structure used to back opaque SbPlayer handles in
+// tests without conflicting with the global SbPlayerPrivate definition.
+struct MockSbPlayer {
+  MockSbPlayer() = default;
+  MockSbPlayer(const MockSbPlayer&) = delete;
+  MockSbPlayer& operator=(const MockSbPlayer&) = delete;
+  ~MockSbPlayer() = default;
+};
 
 // A mock implementation of SbPlayerInterface used for testing the media
 // pipeline's interaction with the Starboard player. This class is typically
@@ -57,7 +56,7 @@ class MockSbPlayerInterface : public SbPlayerInterface {
   }
   void Destroy(SbPlayer player) override {
     if (player) {
-      delete player;
+      delete reinterpret_cast<MockSbPlayer*>(player);
     }
   }
   MOCK_METHOD(void, Seek, (SbPlayer, base::TimeDelta, int), (override));
