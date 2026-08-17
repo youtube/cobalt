@@ -20,6 +20,7 @@ RUN apt update -qqy \
         libxml2-dev \
         default-jdk-headless \
         binutils-arm-linux-gnueabi \
+        binutils-aarch64-linux-gnu \
         g++-multilib \
     && /opt/clean-after-apt.sh
 
