@@ -157,6 +157,7 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
   void TearDownOnMainThread() override {
     if (shell() && shell()->web_contents()) {
       (void)NavigateToURL(shell()->web_contents(), GURL("about:blank"));
+      content::RunAllTasksUntilIdle();
     }
     media::SetSbPlayerInterfaceForTesting(nullptr);
     media::SetSbMediaInterfaceForTesting(nullptr);

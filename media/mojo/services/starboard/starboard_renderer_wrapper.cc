@@ -225,7 +225,7 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
         video_geometry_change_client_receiver_.BindNewPipeAndPassRemote(),
         base::BindOnce(
             &StarboardRendererWrapper::OnSubscribeToVideoGeometryChange,
-            base::Unretained(this), media_resource, client));
+            weak_factory_.GetWeakPtr(), media_resource, client));
   } else {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
