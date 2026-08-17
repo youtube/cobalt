@@ -7,9 +7,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up Cloud SDK
-      if: runner.os == 'Windows'
-      uses: google-github-actions/setup-gcloud@f0990588f1e5b5af6827153b93673613abdc6ec7 # v2.1.1
     - name: Configure Environment
       id: configure-environment
       shell: bash
