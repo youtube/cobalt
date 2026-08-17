@@ -41,7 +41,7 @@ runs:
           echo "Error: Failed to retrieve GCS project ID from metadata server." >&2
           exit 1
         fi
-        METADATA="http://metadata.google.internal./computeMetadata/v1"
+        METADATA="http://metadata.google.internal/computeMetadata/v1"
         SVC_ACCT="${METADATA}/instance/service-accounts/default"
         ACCESS_TOKEN=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' "${SVC_ACCT}/token" 2>/dev/null | jq -r '.access_token // empty' 2>/dev/null || true)
         if [[ -n "${ACCESS_TOKEN}" ]]; then
@@ -53,7 +53,7 @@ runs:
       shell: bash
     - name: Login to Marketplace GCR
       run: |
-        METADATA="http://metadata.google.internal./computeMetadata/v1"
+        METADATA="http://metadata.google.internal/computeMetadata/v1"
         SVC_ACCT="${METADATA}/instance/service-accounts/default"
         ACCESS_TOKEN=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' "${SVC_ACCT}/token" 2>/dev/null | jq -r '.access_token // empty' 2>/dev/null || true)
         if [[ -n "${ACCESS_TOKEN}" ]]; then
