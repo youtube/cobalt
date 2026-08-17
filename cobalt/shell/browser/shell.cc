@@ -1010,8 +1010,9 @@ void Shell::ActivateContents(WebContents* contents) {
   }
 }
 
-bool Shell::IsBackForwardCacheSupported(WebContents& web_contents) {
-  return true;
+bool Shell::IsBackForwardCacheSupported(WebContents& /*web_contents*/) {
+  return !base::CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kDisableBackForwardCache);
 }
 
 PreloadingEligibility Shell::IsPrerender2Supported(
