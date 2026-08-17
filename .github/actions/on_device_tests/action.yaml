@@ -34,8 +34,7 @@ runs:
             --grpc_python_out=${GITHUB_WORKSPACE}/cobalt/tools/ \
             ${GITHUB_WORKSPACE}/cobalt/tools/on_device_tests_gateway.proto
       shell: bash
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+
     - name: Set GCS Project Name
       run: |
         PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id' 2>/dev/null || gcloud config get-value project 2>/dev/null)
