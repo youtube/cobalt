@@ -37,7 +37,7 @@ ENV NODE_VERSION 16.19.1
 RUN curl --silent -o- ${NVM_URL} \
   | base64 -d > /tmp/install.sh \
    && echo ${NVM_SHA256SUM} | sha256sum --check \
-   && . /tmp/install.sh
+   && bash /tmp/install.sh
 
 # === Pinned Node version to v16, as this is latest one that will work on
 # legacy Debian systems
