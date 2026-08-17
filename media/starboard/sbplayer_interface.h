@@ -193,10 +193,6 @@ class MEDIA_EXPORT DefaultSbPlayerInterface final : public SbPlayerInterface {
       SbMediaAudioConfiguration* out_audio_configuration) override;
 };
 
-// Returns a pointer to the global SbPlayerInterface instance.
-// By default, this returns a DefaultSbPlayerInterface instance.
-MEDIA_EXPORT SbPlayerInterface* GetSbPlayerInterface();
-
 // Sets a custom SbPlayerInterface for testing.
 MEDIA_EXPORT void SetSbPlayerInterfaceForTesting(SbPlayerInterface* interface);
 

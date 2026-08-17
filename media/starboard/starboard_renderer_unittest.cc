@@ -71,7 +71,7 @@ class StarboardRendererTest : public testing::Test {
         .WillRepeatedly(Invoke(this, &StarboardRendererTest::GetAllStreams));
   }
 
-  ~StarboardRendererTest() override {}
+  ~StarboardRendererTest() override { renderer_.reset(); }
 
   void AddStream(DemuxerStream::Type type, bool encrypted) {
     streams_.push_back(CreateMockDemuxerStream(type, encrypted));
@@ -128,7 +128,7 @@ class StarboardRendererTest : public testing::Test {
   void* context_ = nullptr;
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_;
-  const std::unique_ptr<StarboardRenderer> renderer_ =
+  std::unique_ptr<StarboardRenderer> renderer_ =
       std::make_unique<StarboardRenderer>(
           task_environment_.GetMainThreadTaskRunner(),
           std::make_unique<NullMediaLog>(),

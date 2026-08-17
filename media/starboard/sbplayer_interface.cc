@@ -187,16 +187,6 @@ bool DefaultSbPlayerInterface::GetAudioConfiguration(
   return audio_configuration;
 }
 
-SbPlayerInterface* GetSbPlayerInterface() {
-  SbPlayerInterface* testing_interface =
-      g_sbplayer_interface_for_testing.load(std::memory_order_acquire);
-  if (testing_interface) {
-    return testing_interface;
-  }
-  static base::NoDestructor<DefaultSbPlayerInterface> default_interface;
-  return default_interface.get();
-}
-
 void SetSbPlayerInterfaceForTesting(SbPlayerInterface* interface) {
   g_sbplayer_interface_for_testing.store(interface, std::memory_order_release);
 }
