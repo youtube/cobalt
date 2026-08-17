@@ -14,6 +14,7 @@
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #if BUILDFLAG(IS_COBALT)
+#include "base/cancelable_callback.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #endif
@@ -36,10 +37,11 @@ class CONTROLLER_EXPORT HighestPmfReporter
   static void Initialize(
       scoped_refptr<base::SingleThreadTaskRunner> task_runner);
 #if BUILDFLAG(IS_COBALT)
+  static HighestPmfReporter* Instance();
   static void OnProcessForegrounded();
-#endif
-
+  static void OnProcessBackgrounded();
   ~HighestPmfReporter() override;
+#endif
 
  private:
   explicit HighestPmfReporter(
@@ -52,17 +54,14 @@ class CONTROLLER_EXPORT HighestPmfReporter
 
 #if BUILDFLAG(IS_COBALT)
   void ProcessForegrounded();
+  void ProcessBackgrounded();
 #endif
 
   friend class MockHighestPmfReporter;
 
   // MemoryUsageMonitor::Observer:
   void OnMemoryPing(MemoryUsage) override;
-#if BUILDFLAG(IS_COBALT)
-  void OnReportMetrics(int session_id);
-#else
   void OnReportMetrics();
-#endif
 
   // Make the following methods virtual for testing.
   virtual bool FirstNavigationStarted();
@@ -77,11 +76,19 @@ class CONTROLLER_EXPORT HighestPmfReporter
   unsigned webpage_counts_at_current_highest_pmf_ = 0;
   unsigned report_count_ = 0;
 #if BUILDFLAG(IS_COBALT)
-  WTF::Vector<base::TimeDelta> time_to_report_;
-  WTF::Vector<WTF::String> metric_names_;
-  WTF::Vector<WTF::String> metric_names_foregrounded_;
-  int session_id_ = 0;
+  static HighestPmfReporter* instance_;
+
+  struct MetricInfo {
+    base::TimeDelta time_to_report;
+    WTF::String pmf_name;
+    WTF::String pmf_foregrounded_name;
+    WTF::String peak_rss_name;
+    WTF::String peak_rss_foregrounded_name;
+  };
+  WTF::Vector<MetricInfo> metrics_;
+
   bool is_foreground_measuring_ = false;
+  base::CancelableOnceClosure cancelable_report_task_;
 #endif
 };
 

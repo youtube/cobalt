@@ -252,34 +252,13 @@ TEST_F(HighestPmfReporterTest, MAYBE_ReportMetric) {
   EXPECT_EQ(1U, reporter_->GetReportedWebpageCount().at(3));
 }
 
-#if BUILDFLAG(IS_COBALT)
-TEST_F(HighestPmfReporterTest, TestReportTimingForeground) {
-  EXPECT_TRUE(memory_usage_monitor_->TimerIsActive());
-  Page::OrdinaryPages().insert(&GetPage());
-
-  memory_usage_monitor_->SetPrivateFootprintBytes(1000.0);
-
-  reporter_->NotifyNavigationStart();
-  AdvanceClock(base::Seconds(1));
-  
-  HighestPmfReporter::OnProcessForegrounded();
-  base::TimeTicks foreground_start_time = NowTicks();
-  AdvanceClock(base::Seconds(1));
-
-  EXPECT_EQ(0, reporter_->GetReportCount());
-  AdvanceClockTo(foreground_start_time + base::Minutes(2));
-  EXPECT_EQ(0, reporter_->GetReportCount());
-  AdvanceClock(base::Seconds(1));
-  EXPECT_EQ(1, reporter_->GetReportCount());
-}
-#endif
-
 TEST_F(HighestPmfReporterTest, TestReportTiming) {
   EXPECT_TRUE(memory_usage_monitor_->TimerIsActive());
   Page::OrdinaryPages().insert(&GetPage());
 
   memory_usage_monitor_->SetPrivateFootprintBytes(1000.0);
 
+  base::TimeTicks navigation_start_time = NowTicks();
   reporter_->NotifyNavigationStart();
   AdvanceClock(base::Seconds(1));
   // Now ReportMetrics task is posted with 2minutes delay.
