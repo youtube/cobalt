@@ -36,9 +36,9 @@ runs:
       if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name != github.repository) }}
       run: |
         # Need to login to GAR to be able to push images created by fork based PR workflows.
-        PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
-        if [[ -z "${PROJECT_NAME}" ]]; then
-          echo "Error: Failed to retrieve GCS project ID from metadata server." >&2
+        PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id' 2>/dev/null || gcloud config get-value project 2>/dev/null)
+        if [[ -z "${PROJECT_NAME}" || "${PROJECT_NAME}" == "(unset)" ]]; then
+          echo "Error: Failed to retrieve GCS project ID." >&2
           exit 1
         fi
         METADATA="http://metadata.google.internal/computeMetadata/v1"
