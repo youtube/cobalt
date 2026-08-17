@@ -646,7 +646,10 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
 #endif  // BUILDFLAG(IS_ANDROID)
 
 SbPlayerInterface* StarboardRenderer::GetSbPlayerInterface() {
-  return media::GetSbPlayerInterface();
+  if (auto* testing_interface = media::GetSbPlayerInterfaceForTesting()) {
+    return testing_interface;
+  }
+  return &sbplayer_interface_;
 }
 
 void StarboardRenderer::UpdateAudioWriteDuration() {
