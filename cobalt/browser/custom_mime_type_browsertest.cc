@@ -13,10 +13,12 @@
 // limitations under the License.
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/command_line.h"
 #include "base/containers/contains.h"
+#include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
@@ -68,6 +70,10 @@ class TestSbMediaInterface : public media::SbMediaInterface {
     base::AutoLock lock(lock_);
     if (mime) {
       intercepted_mimes_.push_back(mime);
+      if (std::string_view(mime).find("unsupported") !=
+          std::string_view::npos) {
+        return kSbMediaSupportTypeNotSupported;
+      }
     }
     if (key_system) {
       intercepted_key_systems_.push_back(key_system);
@@ -348,6 +354,101 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   std::vector<std::string> intercepted =
       test_media_interface_.GetInterceptedMimes();
   EXPECT_TRUE(base::Contains(intercepted, kAudioCustomMime));
+}
+
+IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
+                       MediaSourceAddSourceBuffer_ForwardsRawCustomAttributes) {
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
+
+  const char kCustomMime[] =
+      "video/mp4; codecs=\"avc1.4d401f\"; width=1920; height=1080; "
+      "tunnelmode=true; hdr=true";
+
+  std::string script = base::StringPrintf(
+      R"(
+        (async () => {
+          const ms = new MediaSource();
+          const video = document.createElement('video');
+          video.src = URL.createObjectURL(ms);
+          await new Promise(resolve => ms.addEventListener('sourceopen', resolve, {once: true}));
+          ms.addSourceBuffer('%s');
+          return true;
+        })()
+      )",
+      kCustomMime);
+
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), script).ExtractBool());
+
+  std::vector<std::string> intercepted =
+      test_media_interface_.GetInterceptedMimes();
+  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
+}
+
+IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
+                       SourceBufferChangeType_ForwardsRawCustomAttributes) {
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
+
+  const char kInitialMime[] = "video/mp4; codecs=\"avc1.4d401f\"";
+  const char kChangedMime[] =
+      "video/webm; codecs=\"vp9\"; width=3840; height=2160; "
+      "framerate=60; bitrate=10000000; eotf=smpte2084";
+
+  std::string script = base::StringPrintf(
+      R"(
+        (async () => {
+          const ms = new MediaSource();
+          const video = document.createElement('video');
+          video.src = URL.createObjectURL(ms);
+          await new Promise(resolve => ms.addEventListener('sourceopen', resolve, {once: true}));
+          const sb = ms.addSourceBuffer('%s');
+          sb.changeType('%s');
+          return true;
+        })()
+      )",
+      kInitialMime, kChangedMime);
+
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), script).ExtractBool());
+
+  std::vector<std::string> intercepted =
+      test_media_interface_.GetInterceptedMimes();
+  EXPECT_TRUE(base::Contains(intercepted, kInitialMime));
+  EXPECT_TRUE(base::Contains(intercepted, kChangedMime));
+}
+
+IN_PROC_BROWSER_TEST_F(
+    CustomMimeTypeBrowserTest,
+    SourceBufferChangeType_NotSupportedThrowsNotSupportedError) {
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
+
+  const char kInitialMime[] = "video/mp4; codecs=\"avc1.4d401f\"";
+  const char kUnsupportedMime[] =
+      "video/webm; codecs=\"vp9\"; width=7680; height=4320; "
+      "unsupported_flag=true";
+
+  std::string script = base::StringPrintf(
+      R"(
+        (async () => {
+          const ms = new MediaSource();
+          const video = document.createElement('video');
+          video.src = URL.createObjectURL(ms);
+          await new Promise(resolve => ms.addEventListener('sourceopen', resolve, {once: true}));
+          const sb = ms.addSourceBuffer('%s');
+          try {
+            sb.changeType('%s');
+            return false;
+          } catch (e) {
+            return e.name === 'NotSupportedError';
+          }
+        })()
+      )",
+      kInitialMime, kUnsupportedMime);
+
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), script).ExtractBool());
+
+  std::vector<std::string> intercepted =
+      test_media_interface_.GetInterceptedMimes();
+  EXPECT_TRUE(base::Contains(intercepted, kInitialMime));
+  EXPECT_TRUE(base::Contains(intercepted, kUnsupportedMime));
 }
 
 }  // namespace cobalt
