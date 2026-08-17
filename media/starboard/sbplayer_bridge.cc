@@ -30,6 +30,7 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "media/base/starboard/experimental_features.h"
+#include "media/base/timestamp_constants.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/media.h"
@@ -1011,7 +1012,7 @@ void SbPlayerBridge::GetInfo(PlayerInfo* out_info) {
       *out_info->media_time = preroll_timestamp_;
     }
     if (out_info->duration) {
-      *out_info->duration = std::nullopt;
+      *out_info->duration = kNoTimestamp;
     }
   } else {
     DCHECK(SbPlayerIsValid(player_));
@@ -1030,7 +1031,7 @@ void SbPlayerBridge::GetInfo(PlayerInfo* out_info) {
     }
     if (out_info->duration) {
       if (info.duration == SB_PLAYER_NO_DURATION) {
-        *out_info->duration = std::nullopt;
+        *out_info->duration = kNoTimestamp;
       } else {
         *out_info->duration = base::Microseconds(info.duration);
       }

@@ -34,6 +34,7 @@
 #include "media/base/renderer_client.h"
 #include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
+#include "media/base/timestamp_constants.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "ui/gfx/color_space.h"
 
@@ -259,7 +260,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // Cached values for change-detection; only notify upstream when they differ.
   TimeDelta last_buffer_start_;
   TimeDelta last_buffer_length_;
-  std::optional<TimeDelta> last_duration_;
+  TimeDelta last_duration_ = kNoTimestamp;
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(IS_ANDROID)
   RequestOverlayInfoCallBack request_overlay_info_cb_;

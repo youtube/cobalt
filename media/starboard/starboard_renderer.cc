@@ -26,6 +26,7 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_switches.h"
 #include "media/base/starboard/experimental_features.h"
+#include "media/base/timestamp_constants.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/decoder_buffer_allocator.h"
@@ -468,16 +469,10 @@ TimeDelta StarboardRenderer::GetMediaTime() {
 
   uint32_t video_frames_decoded, video_frames_dropped;
   uint64_t audio_bytes_decoded, video_bytes_decoded;
-  TimeDelta media_time;
+  TimeDelta media_time, duration;
   SbPlayerBridge::PlayerInfo info{&video_frames_decoded, &video_frames_dropped,
-                                  &audio_bytes_decoded, &video_bytes_decoded,
-                                  &media_time};
-#if BUILDFLAG(IS_IOS_TVOS)
-  std::optional<TimeDelta> polled_duration;
-  if (IsUrlPlayer()) {
-    info.duration = &polled_duration;
-  }
-#endif  // BUILDFLAG(IS_IOS_TVOS)
+                                  &audio_bytes_decoded,  &video_bytes_decoded,
+                                  &media_time,           &duration};
 
   player_bridge_->GetInfo(&info);
 
@@ -510,10 +505,10 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   }
 #if BUILDFLAG(IS_IOS_TVOS)
   if (IsUrlPlayer()) {
-    if (duration_change_cb_ && polled_duration.has_value() &&
-        polled_duration != last_duration_) {
-      last_duration_ = polled_duration;
-      duration_change_cb_.Run(*polled_duration);
+    if (duration_change_cb_ && duration != kNoTimestamp &&
+        duration != last_duration_) {
+      last_duration_ = duration;
+      duration_change_cb_.Run(duration);
     }
 
     // Polling buffered ranges on every media-time update may affect

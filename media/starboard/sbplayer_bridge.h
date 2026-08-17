@@ -72,8 +72,7 @@ class SbPlayerBridge {
     uint64_t* audio_bytes_decoded;
     uint64_t* video_bytes_decoded;
     base::TimeDelta* media_time;
-    // Populated from SbPlayerInfo; nullopt when unknown.
-    std::optional<base::TimeDelta>* duration = nullptr;
+    base::TimeDelta* duration;
   };
 
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
