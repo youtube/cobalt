@@ -51,7 +51,6 @@ namespace {
 class StarboardRendererTest : public testing::Test {
  protected:
   StarboardRendererTest() {
-    renderer_->SetSbPlayerInterfaceForTesting(&mock_sbplayer_interface_);
     renderer_->SetStarboardRendererCallbacks(
         /*paint_video_hole_frame_cb=*/base::DoNothing(),
         /*update_starboard_rendering_mode_cb=*/base::DoNothing(),

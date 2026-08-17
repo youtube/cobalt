@@ -201,4 +201,8 @@ void SetSbPlayerInterfaceForTesting(SbPlayerInterface* interface) {
   g_sbplayer_interface_for_testing.store(interface, std::memory_order_release);
 }
 
+SbPlayerInterface* GetSbPlayerInterfaceForTesting() {
+  return g_sbplayer_interface_for_testing.load(std::memory_order_acquire);
+}
+
 }  // namespace media

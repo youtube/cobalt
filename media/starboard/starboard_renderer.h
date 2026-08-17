@@ -143,10 +143,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   SbPlayerInterface* GetSbPlayerInterface();
 
-  void SetSbPlayerInterfaceForTesting(SbPlayerInterface* sbplayer_interface) {
-    media::SetSbPlayerInterfaceForTesting(sbplayer_interface);
-  }
-
  private:
   enum State {
     STATE_UNINITIALIZED,

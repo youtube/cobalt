@@ -15,6 +15,7 @@
 #ifndef MEDIA_STARBOARD_SBPLAYER_INTERFACE_H_
 #define MEDIA_STARBOARD_SBPLAYER_INTERFACE_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/base/media_export.h"
@@ -199,20 +200,34 @@ MEDIA_EXPORT SbPlayerInterface* GetSbPlayerInterface();
 // Sets a custom SbPlayerInterface for testing.
 MEDIA_EXPORT void SetSbPlayerInterfaceForTesting(SbPlayerInterface* interface);
 
-// Helper class to automatically register and reset a mock SbPlayerInterface
+// Returns the current testing SbPlayerInterface instance, or nullptr if none.
+MEDIA_EXPORT SbPlayerInterface* GetSbPlayerInterfaceForTesting();
+
+// Helper class to automatically register and restore a custom SbPlayerInterface
 // for testing using RAII.
+//
+// Lifetime and ownership:
+// This object is typically instantiated as a local or member variable within a
+// test scope. It does not own the passed SbPlayerInterface pointer.
+//
+// Threading model:
+// Should be instantiated on the test thread before initiating media playback.
 class MEDIA_EXPORT ScopedSbPlayerInterfaceForTesting {
  public:
-  explicit ScopedSbPlayerInterfaceForTesting(SbPlayerInterface* interface) {
+  explicit ScopedSbPlayerInterfaceForTesting(SbPlayerInterface* interface)
+      : previous_interface_(GetSbPlayerInterfaceForTesting()) {
     SetSbPlayerInterfaceForTesting(interface);
   }
   ~ScopedSbPlayerInterfaceForTesting() {
-    SetSbPlayerInterfaceForTesting(nullptr);
+    SetSbPlayerInterfaceForTesting(previous_interface_);
   }
   ScopedSbPlayerInterfaceForTesting(const ScopedSbPlayerInterfaceForTesting&) =
       delete;
   ScopedSbPlayerInterfaceForTesting& operator=(
       const ScopedSbPlayerInterfaceForTesting&) = delete;
+
+ private:
+  raw_ptr<SbPlayerInterface> previous_interface_;
 };
 
 }  // namespace media
