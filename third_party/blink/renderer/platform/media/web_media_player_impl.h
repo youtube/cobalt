@@ -1153,6 +1153,9 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
   unsigned video_frame_readback_count_ = 0;
 
   base::WeakPtr<WebMediaPlayerImpl> weak_this_;
+  #if BUILDFLAG(IS_COBALT)
+  bool is_image_cache_squeezed_ = false;
+#endif
   base::WeakPtrFactory<WebMediaPlayerImpl> weak_factory_{this};
 };
 
