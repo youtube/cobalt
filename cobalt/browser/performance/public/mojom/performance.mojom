@@ -51,6 +51,13 @@ interface CobaltPerformance {
   // Get the application CPU memory limit in bytes.
   [Sync]
   MeasureApplicationLimitMemory() => (uint64 bytes);
+  // Get the amount of GPU memory used by the application, in bytes.
+  [Sync]
+  MeasureUsedGpuMemory() => (bool is_supported, uint64 bytes);
+
+  // Get the total amount of GPU memory available to the application, in bytes.
+  [Sync]
+  MeasureTotalGpuMemory() => (bool is_supported, uint64 bytes);
 
   // Get the application startup timestamp in microseconds (us).
   [Sync]
