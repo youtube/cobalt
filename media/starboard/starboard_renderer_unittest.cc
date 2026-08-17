@@ -51,6 +51,20 @@ namespace {
 class StarboardRendererTest : public testing::Test {
  protected:
   StarboardRendererTest() {
+    renderer_ = std::make_unique<StarboardRenderer>(
+        task_environment_.GetMainThreadTaskRunner(),
+        std::make_unique<NullMediaLog>(),
+        /*overlay_plane_id=*/base::UnguessableToken::Create(),
+        /*audio_write_duration_local=*/base::Seconds(1),
+        /*audio_write_duration_remote=*/base::Seconds(1),
+        /*max_video_capabilities=*/"",
+        StarboardRendererConfig::ExperimentalFeatures{},
+        /*viewport_size=*/gfx::Size()
+#if BUILDFLAG(IS_ANDROID)
+            ,
+        /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
+#endif  // BUILDFLAG(IS_ANDROID)
+    );
     renderer_->SetStarboardRendererCallbacks(
         /*paint_video_hole_frame_cb=*/base::DoNothing(),
         /*update_starboard_rendering_mode_cb=*/base::DoNothing(),
@@ -128,21 +142,7 @@ class StarboardRendererTest : public testing::Test {
   void* context_ = nullptr;
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_;
-  std::unique_ptr<StarboardRenderer> renderer_ =
-      std::make_unique<StarboardRenderer>(
-          task_environment_.GetMainThreadTaskRunner(),
-          std::make_unique<NullMediaLog>(),
-          /*overlay_plane_id=*/base::UnguessableToken::Create(),
-          /*audio_write_duration_local=*/base::Seconds(1),
-          /*audio_write_duration_remote=*/base::Seconds(1),
-          /*max_video_capabilities=*/"",
-          StarboardRendererConfig::ExperimentalFeatures{},
-          /*viewport_size=*/gfx::Size()
-#if BUILDFLAG(IS_ANDROID)
-              ,
-          /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
-#endif  // BUILDFLAG(IS_ANDROID)
-      );
+  std::unique_ptr<StarboardRenderer> renderer_;
 };
 
 TEST_F(StarboardRendererTest, InitializeWithClearContent) {

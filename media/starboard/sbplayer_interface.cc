@@ -18,7 +18,6 @@
 #include <string>
 
 #include "base/logging.h"
-#include "base/no_destructor.h"
 #include "starboard/system.h"
 
 namespace media {
