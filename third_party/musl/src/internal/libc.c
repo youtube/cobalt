@@ -1,6 +1,14 @@
 #include "libc.h"
 
+#if defined(STARBOARD)
+struct __libc __libc = {
+	.can_do_threads = 1,
+	.threaded = 1,
+	.need_locks = 1,
+};
+#else
 struct __libc __libc;
+#endif
 
 size_t __hwcap;
 char *__progname=0, *__progname_full=0;
