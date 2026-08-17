@@ -85,9 +85,9 @@ runs:
 
           else
             # No fitting post-submit image was found. Check PR registry to see if there's an image there.
-            PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
-            if [[ -z "${PROJECT_NAME}" ]]; then
-              echo "Error: Failed to retrieve GCS project ID from metadata server." >&2
+            PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id' 2>/dev/null || gcloud config get-value project 2>/dev/null)
+            if [[ -z "${PROJECT_NAME}" || "${PROJECT_NAME}" == "(unset)" ]]; then
+              echo "Error: Failed to retrieve GCS project ID." >&2
               exit 1
             fi
             DOCKER_COMPOSE_IMAGE="${PR_DOCKER_REGISTRY_URL}/${PROJECT_NAME}/github/${DOCKER_SERVICE}"
