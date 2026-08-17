@@ -231,7 +231,7 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
         FROM_HERE,
         base::BindOnce(
             &StarboardRendererWrapper::OnSubscribeToVideoGeometryChange,
-            base::Unretained(this), media_resource, client));
+            weak_factory_.GetWeakPtr(), media_resource, client));
   }
 
   GetRenderer()->SetStarboardRendererCallbacks(
