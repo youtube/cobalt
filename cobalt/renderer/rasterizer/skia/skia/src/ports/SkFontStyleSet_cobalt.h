@@ -15,6 +15,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTSTYLESET_COBALT_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTSTYLESET_COBALT_H_
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 
@@ -79,6 +80,12 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
     SkString face_name;
     bool face_is_fixed_pitch;
 
+    // CobaltMmapFontCache state: whether the decompressed-SFNT cache lookup
+    // was attempted for this entry, and the resulting cache file path if it
+    // succeeded (empty otherwise). See SkWoff2FontCache_cobalt.h.
+    bool mmap_cache_checked = false;
+    SkString mmap_cache_path;
+
     sk_sp<SkTypeface> typeface;
   };
 
@@ -131,6 +138,15 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
                              int style_index);
 
   int GetClosestStyleIndex(const SkFontStyle& pattern);
+
+  // When the CobaltMmapFontCache feature is enabled and |entry| refers to a
+  // WOFF2 file, returns an mmap-backed stream of the decompressed SFNT cache
+  // file (creating the cache file on first use). Returns nullptr when the
+  // feature is disabled, for non-WOFF2 entries, or on failure; callers must
+  // then fall back to the memory-chunk stream path.
+  std::unique_ptr<SkStreamAsset> OpenMmapCacheStream(
+      SkFontStyleSetEntry_Cobalt* entry);
+
   void CreateStreamProviderTypeface(
       SkFontStyleSetEntry_Cobalt* style,
       int style_index,
