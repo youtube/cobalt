@@ -12,9 +12,10 @@ runs:
       run: |
         echo "ARCHIVE_FILE=cobalt-${{matrix.platform}}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
         echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/cobalt-${{matrix.platform}}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
-        PROJECT_NAME=$(gcloud config get-value project 2>/dev/null)
-        if [ -z "$PROJECT_NAME" ]; then
-          PROJECT_NAME=$(curl -sS -f --connect-timeout 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+        PROJECT_NAME=$(curl -sS -f --connect-timeout 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id' 2>/dev/null || gcloud config get-value project 2>/dev/null)
+        if [ -z "${PROJECT_NAME}" ]; then
+          echo "PROJECT_NAME is empty or unset"
+          exit 1
         fi
         echo "PROJECT_NAME=${PROJECT_NAME}" >> $GITHUB_ENV
         echo "TODAY=$(date +'%Y-%m-%d')" >> $GITHUB_ENV

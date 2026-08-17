@@ -7,7 +7,11 @@ runs:
       if: startsWith(${{matrix.target_platform}}, 'android')
       run: |
         echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
-        PROJECT_NAME=$(curl -sS -f --connect-timeout 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
+        PROJECT_NAME=$(curl -sS -f --connect-timeout 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id' 2>/dev/null || gcloud config get-value project 2>/dev/null)
+        if [ -z "${PROJECT_NAME}" ]; then
+          echo "PROJECT_NAME is empty or unset"
+          exit 1
+        fi
         echo "GCS_NIGHTLY_PATH=gs://${PROJECT_NAME}-build-artifacts" >> $GITHUB_ENV
       shell: bash
     - name: Build

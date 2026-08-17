@@ -57,8 +57,12 @@ runs:
       if: ${{ (steps.changed-files.outputs.any_changed == 'true') && (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.fork) }}
       run: |
         # Need to login to GCR to be able to push images created by fork based PR workflows.
-        PROJECT_NAME=$(curl -sS -f --connect-timeout 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id')
-        METADATA="http://metadata.google.internal./computeMetadata/v1"
+        PROJECT_NAME=$(curl -sS -f --connect-timeout 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id' 2>/dev/null || gcloud config get-value project 2>/dev/null)
+        if [ -z "${PROJECT_NAME}" ]; then
+          echo "PROJECT_NAME is empty or unset"
+          exit 1
+        fi
+        METADATA="http://metadata.google.internal/computeMetadata/v1"
         SVC_ACCT="${METADATA}/instance/service-accounts/default"
         ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${SVC_ACCT}/token | cut -d'"' -f 4)
         printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://gcr.io
