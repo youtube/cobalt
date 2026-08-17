@@ -19,6 +19,7 @@
 #include "base/compiler_specific.h"
 #include "base/functional/callback_helpers.h"
 #include "base/task/bind_post_task.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/base/demuxer_stream.h"
@@ -226,7 +227,11 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
             &StarboardRendererWrapper::OnSubscribeToVideoGeometryChange,
             base::Unretained(this), media_resource, client));
   } else {
-    OnSubscribeToVideoGeometryChange(media_resource, client);
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            &StarboardRendererWrapper::OnSubscribeToVideoGeometryChange,
+            base::Unretained(this), media_resource, client));
   }
 
   GetRenderer()->SetStarboardRendererCallbacks(
