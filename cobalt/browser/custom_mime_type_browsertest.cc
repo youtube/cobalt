@@ -18,6 +18,7 @@
 
 #include "base/command_line.h"
 #include "base/containers/contains.h"
+#include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
@@ -26,7 +27,10 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "media/base/starboard/sbmedia_interface.h"
+#include "media/starboard/mock_sbplayer_interface.h"
+#include "media/starboard/sbplayer_interface.h"
 #include "starboard/media.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
@@ -139,7 +143,9 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
   void SetUpOnMainThread() override {
     content::ContentBrowserTest::SetUpOnMainThread();
     media::SetSbMediaInterfaceForTesting(&test_media_interface_);
+    media::SetSbPlayerInterfaceForTesting(&mock_player_interface_);
 
+    embedded_test_server()->ServeFilesFromSourceDirectory("media/test/data");
     ASSERT_TRUE(embedded_test_server()->Start());
     GURL url = embedded_test_server()->GetURL("/title1.html");
     ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
@@ -148,12 +154,14 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
   }
 
   void TearDownOnMainThread() override {
+    media::SetSbPlayerInterfaceForTesting(nullptr);
     media::SetSbMediaInterfaceForTesting(nullptr);
     content::ContentBrowserTest::TearDownOnMainThread();
   }
 
  protected:
   TestSbMediaInterface test_media_interface_;
+  testing::NiceMock<media::MockSbPlayerInterface> mock_player_interface_;
 };
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -444,6 +452,75 @@ IN_PROC_BROWSER_TEST_F(
       test_media_interface_.GetInterceptedMimes();
   EXPECT_TRUE(base::Contains(intercepted, kInitialMime));
   EXPECT_TRUE(base::Contains(intercepted, kUnsupportedMime));
+}
+
+IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
+                       EndToEnd_MediaSourceAppendBuffer_ForwardsToSbPlayer) {
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
+
+  base::RunLoop run_loop;
+  base::RepeatingClosure quit_closure = run_loop.QuitClosure();
+  std::string created_video_mime;
+  base::Lock lock;
+
+  EXPECT_CALL(mock_player_interface_,
+              Create(testing::_, testing::_, testing::_, testing::_, testing::_,
+                     testing::_, testing::_, testing::_))
+      .WillRepeatedly(testing::Invoke(
+          [&](SbWindow /*window*/, const SbPlayerCreationParam* creation_param,
+              SbPlayerDeallocateSampleFunc /*sample_deallocate_func*/,
+              SbPlayerDecoderStatusFunc /*decoder_status_func*/,
+              SbPlayerStatusFunc player_status_func,
+              SbPlayerErrorFunc /*player_error_func*/, void* context,
+              SbDecodeTargetGraphicsContextProvider* /*context_provider*/) {
+            auto* player = new SbPlayerPrivate();
+            {
+              base::AutoLock auto_lock(lock);
+              if (creation_param && creation_param->video_stream_info.mime) {
+                created_video_mime = creation_param->video_stream_info.mime;
+              }
+            }
+            if (player_status_func) {
+              player_status_func(player, context, kSbPlayerStateInitialized,
+                                 SB_PLAYER_INITIAL_TICKET);
+            }
+            quit_closure.Run();
+            return player;
+          }));
+
+  const char kCustomMime[] =
+      "video/webm; codecs=\"vp8\"; width=320; height=240; tunnelmode=true; "
+      "hdr=true";
+
+  std::string script = base::StringPrintf(
+      R"(
+        (async () => {
+          const resp = await fetch('/bear-320x240-video-only.webm');
+          const buffer = await resp.arrayBuffer();
+          const ms = new MediaSource();
+          const video = document.createElement('video');
+          document.body.appendChild(video);
+          video.src = URL.createObjectURL(ms);
+          await new Promise(r => ms.addEventListener('sourceopen', r, {once: true}));
+          const sb = ms.addSourceBuffer('%s');
+          sb.appendBuffer(buffer);
+          await new Promise(r => sb.addEventListener('updateend', r, {once: true}));
+          video.play();
+          return true;
+        })()
+      )",
+      kCustomMime);
+
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), script).ExtractBool());
+  run_loop.Run();
+
+  std::vector<std::string> intercepted =
+      test_media_interface_.GetInterceptedMimes();
+  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
+  {
+    base::AutoLock auto_lock(lock);
+    EXPECT_EQ(created_video_mime, kCustomMime);
+  }
 }
 
 }  // namespace cobalt
