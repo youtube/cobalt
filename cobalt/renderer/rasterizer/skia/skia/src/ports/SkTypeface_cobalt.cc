@@ -86,9 +86,16 @@ SkTypeface_CobaltStream::SkTypeface_CobaltStream(
     SkFontStyle style,
     bool is_fixed_pitch,
     const SkString& family_name,
-    scoped_refptr<font_character_map::CharacterMap> character_map)
+    scoped_refptr<font_character_map::CharacterMap> character_map,
+    bool disable_synthetic_bolding /*=false*/,
+    const ComputedVariationPosition& computed_variation_position
+    /*=ComputedVariationPosition()*/)
     : INHERITED(face_index, style, is_fixed_pitch, family_name, character_map),
       stream_(std::move(stream)) {
+  if (disable_synthetic_bolding) {
+    synthesizes_bold_ = false;
+  }
+  computed_variation_position_ = computed_variation_position;
   LOG(INFO) << "Created SkTypeface_CobaltStream: " << family_name.c_str() << "("
             << style.weight() << ", " << style.width() << ", " << style.slant()
             << "); Size: " << stream_->getLength() << " bytes";
