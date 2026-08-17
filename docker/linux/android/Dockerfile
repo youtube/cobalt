@@ -15,12 +15,12 @@
 ARG FROM_IMAGE
 FROM ${FROM_IMAGE:-cobalt-build-base}
 
+# TODO: b/309157124 - add --no-install-recommends.
 RUN apt update -qqy \
-    && apt install -qqy --no-install-recommends \
+    && apt install -qqy \
         libxml2-dev \
-        default-jdk-headless \
+        default-jdk \
         binutils-arm-linux-gnueabi \
-        binutils-aarch64-linux-gnu \
         g++-multilib \
     && /opt/clean-after-apt.sh
 
@@ -47,7 +47,7 @@ RUN cd /tmp \
   && curl --silent -O -J  ${CMDLINE_URL} \
   && unzip ${TOOLS} -d ${ANDROID_SDK_ROOT} \
   && rm ${TOOLS} \
-  && echo yes | JAVA_TOOL_OPTIONS="-Xmx2g" ${ANDROID_SDK_ROOT}/tools/bin/sdkmanager \
+  && echo yes | ${ANDROID_SDK_ROOT}/tools/bin/sdkmanager \
       --sdk_root=${ANDROID_SDK_ROOT} \
     "build-tools;30.0.0" \
     "build-tools;31.0.0" \

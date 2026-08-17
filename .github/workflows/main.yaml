@@ -151,7 +151,7 @@ jobs:
     runs-on: [self-hosted, linux-runner]
     permissions:
       packages: write
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
       - name: Checkout files
         uses: kaidokert/checkout@v3.5.999
@@ -188,13 +188,13 @@ jobs:
     permissions:
       packages: write
     runs-on: [self-hosted, linux-runner]
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
       - name: Checkout files
         uses: kaidokert/checkout@v3.5.999
         timeout-minutes: 30
         with:
-          fetch-depth: 0
+          fetch-depth: 2
           persist-credentials: false
       - name: Login to Docker Registry ${{env.REGISTRY}}
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
