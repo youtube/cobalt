@@ -64,18 +64,18 @@ class MockSbPlayerInterface : public SbPlayerInterface {
               WriteSamples,
               (SbPlayer, SbMediaType, const SbPlayerSampleInfo*, int),
               (override));
-  int GetMaximumNumberOfSamplesPerWrite(SbPlayer player,
-                                        SbMediaType sample_type) override {
+  int GetMaximumNumberOfSamplesPerWrite(SbPlayer /*player*/,
+                                        SbMediaType /*sample_type*/) override {
     return 1;
   }
   MOCK_METHOD(void, WriteEndOfStream, (SbPlayer, SbMediaType), (override));
   MOCK_METHOD(void, SetBounds, (SbPlayer, int, int, int, int, int), (override));
-  bool SetPlaybackRate(SbPlayer player, double playback_rate) override {
+  bool SetPlaybackRate(SbPlayer /*player*/, double /*playback_rate*/) override {
     return true;
   }
-  void SetVolume(SbPlayer player, double volume) override {}
+  void SetVolume(SbPlayer /*player*/, double /*volume*/) override {}
   MOCK_METHOD(void, GetInfo, (SbPlayer, SbPlayerInfo*), (override));
-  SbDecodeTarget GetCurrentFrame(SbPlayer player) override {
+  SbDecodeTarget GetCurrentFrame(SbPlayer /*player*/) override {
     return kSbDecodeTargetInvalid;
   }
 
@@ -96,14 +96,14 @@ class MockSbPlayerInterface : public SbPlayerInterface {
               (override));
 
   bool GetUrlPlayerOutputModeSupported(
-      SbPlayerOutputMode output_mode) override {
+      SbPlayerOutputMode /*output_mode*/) override {
     return true;
   }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
   bool GetAudioConfiguration(
-      SbPlayer player,
-      int index,
+      SbPlayer /*player*/,
+      int /*index*/,
       SbMediaAudioConfiguration* out_audio_configuration) override {
     if (out_audio_configuration) {
       *out_audio_configuration = {};
