@@ -551,9 +551,6 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
                     input_buffers.front()->timestamp(), "size",
                     input_buffers.size());
 
-  // During playback, check if any key frame exceeds max_video_size_.
-  // Triggers an SB_CHECK assertion in debug builds, and reports
-  // kSbPlayerErrorCapabilityChanged in production builds.
   if (max_video_size_.has_value()) {
     for (const auto& input_buffer : input_buffers) {
       if (input_buffer->video_sample_info().is_key_frame) {
