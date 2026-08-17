@@ -18,6 +18,7 @@
 
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/no_destructor.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
@@ -26,6 +27,7 @@
 #include "media/base/media_switches.h"
 #include "media/base/video_frame.h"
 #include "media/mojo/clients/mojo_renderer.h"
+#include "media/mojo/common/starboard/empty_media_resource.h"
 #include "media/renderers/video_overlay_factory.h"
 #include "media/video/gpu_video_accelerator_factories.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
@@ -437,7 +439,10 @@ void StarboardRendererClient::OnExtensionBypassInitialized(
     }
     return;
   }
-  MojoRendererWrapper::Initialize(media_resource, client, std::move(init_cb));
+  static base::NoDestructor<EmptyMediaResource> empty_media_resource;
+  MojoRendererWrapper::Initialize(
+      bypass_bridge_ ? empty_media_resource.get() : media_resource, client,
+      std::move(init_cb));
 }
 
 void StarboardRendererClient::InitAndConstructMojoRenderer(
