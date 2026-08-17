@@ -16,7 +16,11 @@
 
 namespace media {
 
-MockSbPlayerInterface::MockSbPlayerInterface() = default;
+MockSbPlayerInterface::MockSbPlayerInterface() {
+  ON_CALL(*this, GetPreferredOutputMode(testing::_))
+      .WillByDefault(testing::Return(kSbPlayerOutputModePunchOut));
+}
+
 MockSbPlayerInterface::~MockSbPlayerInterface() = default;
 
 }  // namespace media

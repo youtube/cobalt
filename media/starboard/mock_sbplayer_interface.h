@@ -50,10 +50,10 @@ class MockSbPlayerInterface : public SbPlayerInterface {
                void*,
                SbDecodeTargetGraphicsContextProvider*),
               (override));
-  SbPlayerOutputMode GetPreferredOutputMode(
-      const SbPlayerCreationParam* creation_param) override {
-    return kSbPlayerOutputModePunchOut;
-  }
+  MOCK_METHOD(SbPlayerOutputMode,
+              GetPreferredOutputMode,
+              (const SbPlayerCreationParam*),
+              (override));
   void Destroy(SbPlayer player) override {
     if (player) {
       delete reinterpret_cast<MockSbPlayer*>(player);
