@@ -129,6 +129,9 @@ public class JavaSwitches {
   public static final String DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING =
       "DisableLessAggressiveParkableString";
 
+  /** Flag to disable BackForwardCache for WebContents. */
+  public static final String DISABLE_BACK_FORWARD_CACHE = "DisableBackForwardCache";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -306,11 +309,16 @@ public class JavaSwitches {
     }
 
     if (javaSwitches.containsKey(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE)) {
-      extraCommandLineArgs.add("--enable-features=" + JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE);
+      extraCommandLineArgs.add(
+          "--enable-features=" + JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING)) {
       extraCommandLineArgs.add("--disable-features=LessAggressiveParkableString");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_BACK_FORWARD_CACHE)) {
+      extraCommandLineArgs.add("--disable-back-forward-cache");
     }
 
     return extraCommandLineArgs;
