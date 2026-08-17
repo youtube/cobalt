@@ -79,13 +79,11 @@ def sync_memory_to_gcs(
           file=sys.stderr,
       )
       return True
-    fb = subprocess.run(
-        ["gsutil", "cp", target_path, remote_uri],
-        capture_output=True,
-        text=True,
-        check=False,
+    print(
+        f"[rebase_memory] [FAIL] gcloud storage cp failed: {res.stderr}",
+        file=sys.stderr,
     )
-    return fb.returncode == 0
+    return False
   except (OSError, subprocess.SubprocessError) as e:
     print(
         f"[rebase_memory] [WARNING] Could not upload to GCS: {e}",
