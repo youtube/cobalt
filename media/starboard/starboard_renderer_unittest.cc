@@ -25,10 +25,12 @@
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
 #include "media/base/test_helpers.h"
+#include "media/starboard/mock_sbplayer_interface.h"
 #include "media/starboard/sbplayer_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -42,82 +44,9 @@ using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
 
-struct SbPlayerPrivate {
- public:
-  SbPlayerPrivate() = default;
-
-  SbPlayerPrivate(const SbPlayerPrivate&) = delete;
-  SbPlayerPrivate& operator=(const SbPlayerPrivate&) = delete;
-
-  ~SbPlayerPrivate() = default;
-};
-
 namespace media {
 
 namespace {
-
-class MockSbPlayerInterface : public SbPlayerInterface {
- public:
-  MOCK_METHOD8(Create,
-               SbPlayer(SbWindow,
-                        const SbPlayerCreationParam*,
-                        SbPlayerDeallocateSampleFunc,
-                        SbPlayerDecoderStatusFunc,
-                        SbPlayerStatusFunc,
-                        SbPlayerErrorFunc,
-                        void*,
-                        SbDecodeTargetGraphicsContextProvider*));
-  SbPlayerOutputMode GetPreferredOutputMode(
-      const SbPlayerCreationParam* creation_param) override {
-    return kSbPlayerOutputModePunchOut;
-  }
-  void Destroy(SbPlayer player) override {
-    if (player) {
-      delete player;
-    }
-  }
-  MOCK_METHOD3(Seek, void(SbPlayer, base::TimeDelta, int));
-  MOCK_METHOD4(WriteSamples,
-               void(SbPlayer, SbMediaType, const SbPlayerSampleInfo*, int));
-  int GetMaximumNumberOfSamplesPerWrite(SbPlayer player,
-                                        SbMediaType sample_type) override {
-    return 1;
-  }
-  MOCK_METHOD2(WriteEndOfStream, void(SbPlayer, SbMediaType));
-  MOCK_METHOD6(SetBounds, void(SbPlayer, int, int, int, int, int));
-  bool SetPlaybackRate(SbPlayer player, double playback_rate) override {
-    return true;
-  }
-  void SetVolume(SbPlayer player, double volume) override {}
-  MOCK_METHOD2(GetInfo, void(SbPlayer, SbPlayerInfo*));
-  SbDecodeTarget GetCurrentFrame(SbPlayer player) override {
-    return kSbDecodeTargetInvalid;
-  }
-
-#if BUILDFLAG(IS_IOS_TVOS)
-  MOCK_METHOD6(CreateUrlPlayer,
-               SbPlayer(const char*,
-                        SbWindow,
-                        SbPlayerStatusFunc,
-                        SbPlayerEncryptedMediaInitDataEncounteredCB,
-                        SbPlayerErrorFunc,
-                        void*));
-  MOCK_METHOD2(SetUrlPlayerDrmSystem, void(SbPlayer, SbDrmSystem));
-  MOCK_METHOD2(GetUrlPlayerExtraInfo, void(SbPlayer, SbUrlPlayerExtraInfo*));
-
-  bool GetUrlPlayerOutputModeSupported(
-      SbPlayerOutputMode output_mode) override {
-    return true;
-  }
-#endif  // BUILDFLAG(IS_IOS_TVOS)
-
-  bool GetAudioConfiguration(
-      SbPlayer player,
-      int index,
-      SbMediaAudioConfiguration* out_audio_configuration) {
-    return true;
-  }
-};
 
 class StarboardRendererTest : public testing::Test {
  protected:
@@ -409,6 +338,135 @@ TEST_F(StarboardRendererTest, RejectCdmSwitching) {
   EXPECT_CALL(second_set_cdm_cb, Run(false));
   renderer_->SetCdm(&cdm_context_, second_set_cdm_cb.Get());
   task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererTest,
+       CustomMimeTypesPassedToSbPlayerCreateAndWriteSamples) {
+  const std::string kCustomAudioMime =
+      "audio/mp4; codecs=\"mp4a.40.2\"; channels=8; bitrate=768000; "
+      "audiopassthrough=true; enableresetaudiodecoder=true;";
+  const std::string kCustomVideoMime =
+      "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
+      "tunnelmode=true; hdr=hdr10plus; framerate=60;";
+
+  auto audio_stream =
+      std::make_unique<StrictMock<MockDemuxerStream>>(DemuxerStream::AUDIO);
+  AudioDecoderConfig audio_config = TestAudioConfig::Normal();
+  audio_config.set_mime_type(kCustomAudioMime);
+  audio_stream->set_audio_decoder_config(audio_config);
+  streams_.push_back(std::move(audio_stream));
+
+  auto video_stream =
+      std::make_unique<StrictMock<MockDemuxerStream>>(DemuxerStream::VIDEO);
+  VideoDecoderConfig video_config = TestVideoConfig::Normal();
+  video_config.set_mime_type(kCustomVideoMime);
+  video_stream->set_video_decoder_config(video_config);
+  streams_.push_back(std::move(video_stream));
+
+  SbPlayer player = new SbPlayerPrivate();
+  std::string created_audio_mime;
+  std::string created_video_mime;
+
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(Invoke(
+          [&](SbWindow /*window*/, const SbPlayerCreationParam* creation_param,
+              SbPlayerDeallocateSampleFunc /*sample_deallocate_func*/,
+              SbPlayerDecoderStatusFunc decoder_status_func,
+              SbPlayerStatusFunc player_status_func,
+              SbPlayerErrorFunc player_error_func, void* context,
+              SbDecodeTargetGraphicsContextProvider* /*context_provider*/) {
+            decoder_status_cb_ = decoder_status_func;
+            player_status_cb_ = player_status_func;
+            player_error_cb_ = player_error_func;
+            context_ = context;
+            if (creation_param) {
+              if (creation_param->audio_stream_info.mime) {
+                created_audio_mime = creation_param->audio_stream_info.mime;
+              }
+              if (creation_param->video_stream_info.mime) {
+                created_video_mime = creation_param->video_stream_info.mime;
+              }
+            }
+            return player;
+          }));
+
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  renderer_->Initialize(&media_resource_, &renderer_client_,
+                        renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+
+  // Verify that SbPlayerCreate received the custom MIME strings.
+  EXPECT_EQ(created_audio_mime, kCustomAudioMime);
+  EXPECT_EQ(created_video_mime, kCustomVideoMime);
+
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+
+  // Verify WriteSamples for Audio with custom MIME parameters.
+  DemuxerStream::ReadCB audio_read_cb;
+  EXPECT_CALL(*streams_[0], OnRead(_))
+      .WillOnce(Invoke(
+          [&](DemuxerStream::ReadCB& cb) { audio_read_cb = std::move(cb); }));
+
+  std::string written_audio_mime;
+  EXPECT_CALL(mock_sbplayer_interface_,
+              WriteSamples(player, kSbMediaTypeAudio, _, _))
+      .WillOnce(Invoke([&](SbPlayer /*player*/, SbMediaType /*type*/,
+                           const SbPlayerSampleInfo* sample_infos,
+                           int number_of_sample_infos) {
+        ASSERT_GT(number_of_sample_infos, 0);
+        if (sample_infos[0].audio_sample_info.stream_info.mime) {
+          written_audio_mime =
+              sample_infos[0].audio_sample_info.stream_info.mime;
+        }
+      }));
+
+  decoder_status_cb_(player, context_, kSbMediaTypeAudio,
+                     kSbPlayerDecoderStateNeedsData, SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+
+  ASSERT_FALSE(audio_read_cb.is_null());
+  const uint8_t kAudioData[] = {0x01, 0x02, 0x03, 0x04};
+  scoped_refptr<DecoderBuffer> audio_buffer =
+      DecoderBuffer::CopyFrom(kAudioData);
+  std::move(audio_read_cb).Run(DemuxerStream::kOk, {audio_buffer});
+  task_environment_.RunUntilIdle();
+
+  EXPECT_EQ(written_audio_mime, kCustomAudioMime);
+
+  // Verify WriteSamples for Video with custom MIME parameters.
+  DemuxerStream::ReadCB video_read_cb;
+  EXPECT_CALL(*streams_[1], OnRead(_))
+      .WillOnce(Invoke(
+          [&](DemuxerStream::ReadCB& cb) { video_read_cb = std::move(cb); }));
+
+  std::string written_video_mime;
+  EXPECT_CALL(mock_sbplayer_interface_,
+              WriteSamples(player, kSbMediaTypeVideo, _, _))
+      .WillOnce(Invoke([&](SbPlayer /*player*/, SbMediaType /*type*/,
+                           const SbPlayerSampleInfo* sample_infos,
+                           int number_of_sample_infos) {
+        ASSERT_GT(number_of_sample_infos, 0);
+        if (sample_infos[0].video_sample_info.stream_info.mime) {
+          written_video_mime =
+              sample_infos[0].video_sample_info.stream_info.mime;
+        }
+      }));
+
+  decoder_status_cb_(player, context_, kSbMediaTypeVideo,
+                     kSbPlayerDecoderStateNeedsData, SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+
+  ASSERT_FALSE(video_read_cb.is_null());
+  const uint8_t kVideoData[] = {0x00, 0x00, 0x00, 0x01};
+  scoped_refptr<DecoderBuffer> video_buffer =
+      DecoderBuffer::CopyFrom(kVideoData);
+  std::move(video_read_cb).Run(DemuxerStream::kOk, {video_buffer});
+  task_environment_.RunUntilIdle();
+
+  EXPECT_EQ(written_video_mime, kCustomVideoMime);
 }
 
 }  // namespace

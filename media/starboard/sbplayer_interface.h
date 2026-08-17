@@ -17,6 +17,7 @@
 
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "media/base/media_export.h"
 #include "media/starboard/buildflags.h"
 #include "starboard/player.h"
 
@@ -33,7 +34,7 @@
 
 namespace media {
 
-class SbPlayerInterface {
+class MEDIA_EXPORT SbPlayerInterface {
  public:
   virtual ~SbPlayerInterface() {}
 
@@ -135,7 +136,7 @@ class SbPlayerInterface {
   MediaMetricsProvider media_metrics_provider_;
 };
 
-class DefaultSbPlayerInterface final : public SbPlayerInterface {
+class MEDIA_EXPORT DefaultSbPlayerInterface final : public SbPlayerInterface {
  public:
   SbPlayer Create(
       SbWindow window,
@@ -190,6 +191,13 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
       int index,
       SbMediaAudioConfiguration* out_audio_configuration) override;
 };
+
+// Returns a pointer to the global SbPlayerInterface instance.
+// By default, this returns a DefaultSbPlayerInterface instance.
+MEDIA_EXPORT SbPlayerInterface* GetSbPlayerInterface();
+
+// Sets a custom SbPlayerInterface for testing.
+MEDIA_EXPORT void SetSbPlayerInterfaceForTesting(SbPlayerInterface* interface);
 
 }  // namespace media
 
