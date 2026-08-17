@@ -36,7 +36,7 @@ RUN apt update -qqy \
 ARG GCLOUD_VERSION=465.0.0
 ENV PATH="/opt/google-cloud-sdk/bin:${PATH}"
 RUN cd /tmp \
-    && curl -sSLf -O "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-${GCLOUD_VERSION}-linux-x86_64.tar.gz" \
+    && curl -sSLf --connect-timeout 5 -O "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-${GCLOUD_VERSION}-linux-x86_64.tar.gz" \
     && tar xf "google-cloud-cli-${GCLOUD_VERSION}-linux-x86_64.tar.gz" -C /opt \
     && rm "google-cloud-cli-${GCLOUD_VERSION}-linux-x86_64.tar.gz" \
     && gcloud --version
