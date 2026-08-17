@@ -449,7 +449,7 @@ MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   // video distortion on some platforms. For details, see http://b/182610842.
   if (tunnel_mode_audio_session_id_.has_value()) {
     ResetVideoSurface();
-  } else {
+  } else if (output_mode_ == kSbPlayerOutputModePunchOut) {
     CleanUpVideoSurface(decode_target_graphics_context_provider_);
   }
 }
