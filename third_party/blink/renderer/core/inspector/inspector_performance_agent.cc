@@ -22,9 +22,9 @@
 #include "third_party/blink/renderer/platform/instrumentation/instance_counters.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread.h"
 
-#if BUILDFLAG(IS_COBALT) && !defined(OFFICIAL_BUILD)
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #include "third_party/blink/renderer/core/inspector/cobalt_memory_metrics_helper.h"
-#endif
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 namespace blink {
 
@@ -275,7 +275,7 @@ protocol::Response InspectorPerformanceAgent::getMetrics(
     }
   }
 
-#if BUILDFLAG(IS_COBALT) && !defined(OFFICIAL_BUILD)
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   auto append_metrics =
       [&result](const std::optional<std::vector<MemoryBreakdownMetric>>&
                     metrics) {
@@ -292,7 +292,7 @@ protocol::Response InspectorPerformanceAgent::getMetrics(
   append_metrics(GetLiveMemoryBreakdown());
   append_metrics(GetP50MemoryBreakdown());
   append_metrics(GetPeakMemoryGuardrails());
-#endif
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
   *out_result = std::move(result);
   return protocol::Response::Success();
