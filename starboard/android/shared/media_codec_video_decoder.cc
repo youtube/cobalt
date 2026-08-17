@@ -29,6 +29,7 @@
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_video_decoder_helpers.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/android/shared/video_render_algorithm_android.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/common/check_op.h"
@@ -228,8 +229,10 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
  public:
   typedef std::function<void(double playback_rate)> PlaybackRateChangedCB;
 
-  Sink(PlaybackRateChangedCB playback_rate_changed_cb)
-      : playback_rate_changed_cb_(playback_rate_changed_cb) {}
+  Sink(SbPlayerOutputMode output_mode,
+       PlaybackRateChangedCB playback_rate_changed_cb)
+      : output_mode_(output_mode),
+        playback_rate_changed_cb_(playback_rate_changed_cb) {}
 
   bool Render() {
     SB_DCHECK(render_cb_);
@@ -253,7 +256,13 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
     render_cb_ = render_cb;
   }
 
-  void SetBounds(int z_index, const Rect& rect) override {}
+  void SetBounds(int z_index, const Rect& rect) override {
+    if (output_mode_ != kSbPlayerOutputModeDecodeToTexture) {
+      JNIEnv* env = jni_zero::AttachCurrentThread();
+      StarboardBridge::GetInstance()->SetVideoSurfaceBounds(
+          env, rect.x, rect.y, rect.size.width, rect.size.height);
+    }
+  }
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
@@ -264,6 +273,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
     return kReleased;
   }
 
+  SbPlayerOutputMode output_mode_;
   PlaybackRateChangedCB playback_rate_changed_cb_;
   RenderCB render_cb_;
   bool rendered_;
@@ -457,6 +467,7 @@ MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
 scoped_refptr<VideoRendererSink> MediaCodecVideoDecoder::GetSink() {
   if (sink_ == nullptr) {
     sink_ = make_scoped_refptr<Sink>(
+        output_mode_,
         std::bind(&MediaCodecVideoDecoder::SetPlaybackRate, this, _1));
   }
   return sink_;

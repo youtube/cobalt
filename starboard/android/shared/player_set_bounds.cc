@@ -35,8 +35,5 @@ void SbPlayerSetBounds(SbPlayer player,
     return;
   }
 
-  JNIEnv* env = jni_zero::AttachCurrentThread();
-  starboard::StarboardBridge::GetInstance()->SetVideoSurfaceBounds(
-      env, x, y, width, height);
   player->SetBounds(z_index, starboard::Rect(x, y, width, height));
 }
