@@ -85,7 +85,7 @@ class StarboardRendererTest : public testing::Test {
         .WillRepeatedly(Invoke(this, &StarboardRendererTest::GetAllStreams));
   }
 
-  ~StarboardRendererTest() override { renderer_.reset(); }
+  ~StarboardRendererTest() override = default;
 
   void AddStream(DemuxerStream::Type type, bool encrypted) {
     streams_.push_back(CreateMockDemuxerStream(type, encrypted));
