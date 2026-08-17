@@ -15,7 +15,6 @@
 #ifndef MEDIA_STARBOARD_SBPLAYER_INTERFACE_H_
 #define MEDIA_STARBOARD_SBPLAYER_INTERFACE_H_
 
-#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/base/media_export.h"
@@ -226,7 +225,7 @@ class MEDIA_EXPORT ScopedSbPlayerInterfaceForTesting {
       const ScopedSbPlayerInterfaceForTesting&) = delete;
 
  private:
-  raw_ptr<SbPlayerInterface> previous_interface_;
+  SbPlayerInterface* previous_interface_;
 };
 
 }  // namespace media
