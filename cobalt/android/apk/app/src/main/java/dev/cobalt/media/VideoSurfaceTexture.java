@@ -19,11 +19,12 @@ import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 /**
- *  A wrapper of SurfaceTexture class.
- * VideoSurfaceTexture allows native code to receive OnFrameAvailable event.
+ * A wrapper of SurfaceTexture class. VideoSurfaceTexture allows native code to receive
+ * OnFrameAvailable event.
  */
 @JNINamespace("starboard")
 public class VideoSurfaceTexture extends SurfaceTexture {
@@ -79,7 +80,7 @@ public class VideoSurfaceTexture extends SurfaceTexture {
   }
 
   @CalledByNative
-  public float[] getTransformMatrix() {
+  public @JniType("std::array<float, 16>") float[] getTransformMatrix() {
     super.getTransformMatrix(mTransformMatrix);
     return mTransformMatrix;
   }

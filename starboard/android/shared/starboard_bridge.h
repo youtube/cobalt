@@ -62,8 +62,10 @@ class StarboardBridge {
   std::string GetAdvertisingId(JNIEnv* env);
   bool GetLimitAdTracking(JNIEnv* env);
   std::string GetFriendlyName(JNIEnv* env);
+  double GetScreenDiagonal(JNIEnv* env);
 
   void CloseApp(JNIEnv* env);
+  void RequestStop(JNIEnv* env, jint error_level);
 
   std::string GetTimeZoneId(JNIEnv* env);
 

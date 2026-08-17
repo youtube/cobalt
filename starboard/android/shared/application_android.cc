@@ -62,7 +62,7 @@ ApplicationAndroid::ApplicationAndroid(
     const std::string& cache_dir,
     const std::string& native_library_dir)
     : Application(stubSbEventHandle) {
-  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(6);
+  StarboardBridge::GetInstance()->SetStartupMilestone(6);
   SetCommandLine(std::move(command_line));
   // Initialize Time Zone early so that local time works correctly.
   // Called once here to help SbTimeZoneGet*Name()

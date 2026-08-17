@@ -17,37 +17,15 @@
 #include "media/mojo/services/media_resource_shim.h"
 #include "media/mojo/services/mojo_cdm_service_context.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/mojo/common/starboard/empty_media_resource.h"
+#include "media/mojo/services/starboard/starboard_renderer_wrapper.h"
+#endif
+
 namespace media {
 
 // Time interval to update media time.
 constexpr auto kTimeUpdateInterval = base::Milliseconds(125);
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-// A simple implementation of MediaResource that holds raw pointers to local
-// DemuxerStreams. Used in single-process mode to bypass Mojo Data Pipes for
-// passing media data.
-//
-// Lifetime: Owned by MojoRendererService. It does not own the DemuxerStreams,
-// and the caller must ensure that the DemuxerStreams outlive this object.
-// This is safe in single-process mode as the cleanup order is ensured by
-// WebMediaPlayerImpl, which destroys MojoRenderer (and thus this service)
-// before destroying the DemuxerStreams.
-//
-// Threading: This class is not thread-safe and should be used on the same
-// sequence as MojoRendererService.
-class DirectMediaResource : public MediaResource {
- public:
-  explicit DirectMediaResource(std::vector<DemuxerStream*> streams)
-      : streams_(std::move(streams)) {}
-      
-  std::vector<DemuxerStream*> GetAllStreams() override {
-    return streams_;
-  }
-  
- private:
-  std::vector<DemuxerStream*> streams_;
-};
-#endif
 
 // static
 mojo::SelfOwnedReceiverRef<mojom::Renderer> MojoRendererService::Create(
@@ -90,45 +68,23 @@ void MojoRendererService::Initialize(
   client_.Bind(std::move(client));
   state_ = STATE_INITIALIZING;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (streams.has_value() && streams->empty()) {
+    media_resource_ = std::make_unique<EmptyMediaResource>();
+    renderer_->Initialize(
+        media_resource_.get(), this,
+        base::BindOnce(&MojoRendererService::OnRendererInitializeDone,
+                       weak_this_, std::move(callback)));
+    return;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   DCHECK(streams.has_value());
   media_resource_ = std::make_unique<MediaResourceShim>(
       std::move(*streams),
       base::BindOnce(&MojoRendererService::OnAllStreamsReady, weak_this_,
                      std::move(callback)));
 }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-void MojoRendererService::InitializeWithStreamPointers(
-    mojo::PendingAssociatedRemote<mojom::RendererClient> client,
-    const std::optional<std::vector<uint64_t>>& stream_pointers,
-    uint64_t client_pointer,
-    uint64_t task_runner_pointer,
-    InitializeWithStreamPointersCallback callback) {
-  DVLOG(1) << __func__;
-  DCHECK_EQ(state_, STATE_UNINITIALIZED);
-
-  client_.Bind(std::move(client));
-  state_ = STATE_INITIALIZING;
-
-  DCHECK(stream_pointers.has_value());
-  std::vector<DemuxerStream*> streams;
-  for (uint64_t ptr : *stream_pointers) {
-    streams.push_back(reinterpret_cast<DemuxerStream*>(ptr));
-  }
-
-  media_resource_ = std::make_unique<DirectMediaResource>(std::move(streams));
-
-  client_pointer_ = client_pointer;
-  if (task_runner_pointer) {
-    client_task_runner_ = reinterpret_cast<base::SequencedTaskRunner*>(task_runner_pointer);
-  }
-
-  renderer_->Initialize(
-      media_resource_.get(), this,
-      base::BindOnce(&MojoRendererService::OnRendererInitializeDone, weak_this_,
-                     std::move(callback)));
-}
-#endif
 
 void MojoRendererService::Flush(FlushCallback callback) {
   DVLOG(2) << __func__;
@@ -230,16 +186,6 @@ void MojoRendererService::OnEnded() {
 
 void MojoRendererService::OnStatisticsUpdate(const PipelineStatistics& stats) {
   DVLOG(3) << __func__;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (client_pointer_ && client_task_runner_) {
-    client_task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&mojom::RendererClient::OnStatisticsUpdate,
-                       base::Unretained(reinterpret_cast<mojom::RendererClient*>(client_pointer_)),
-                       stats));
-    return;
-  }
-#endif
   client_->OnStatisticsUpdate(stats);
 }
 
@@ -309,6 +255,19 @@ void MojoRendererService::OnRendererInitializeDone(
 }
 
 void MojoRendererService::UpdateMediaTime(bool force) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // When Starboard media bypass is active, media time updates are posted
+  // directly in-process via MojoRendererBypassBridge to StarboardRendererClient.
+  // Bypass all Mojo IPC OnTimeUpdate calls here (which are otherwise triggered
+  // by StartPlayingFrom, SetPlaybackRate, CancelPeriodicMediaTimeUpdates, or
+  // periodic timer ticks) to avoid sending redundant or resetting IPCs over Mojo.
+  if (renderer_ &&
+      renderer_->GetRendererType() == RendererType::kStarboard &&
+      static_cast<StarboardRendererWrapper*>(renderer_.get())->IsBypassing()) {
+    return;
+  }
+#endif
+
   const base::TimeDelta media_time = renderer_->GetMediaTime();
   if (!force && media_time == last_media_time_)
     return;
@@ -318,19 +277,7 @@ void MojoRendererService::UpdateMediaTime(bool force) {
   if (time_update_timer_.IsRunning() && (playback_rate_ > 0))
     max_time += 2 * kTimeUpdateInterval;
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (client_pointer_ && client_task_runner_) {
-    client_task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&mojom::RendererClient::OnTimeUpdate,
-                       base::Unretained(reinterpret_cast<mojom::RendererClient*>(client_pointer_)),
-                       media_time, max_time, base::TimeTicks::Now()));
-  } else {
-#endif
   client_->OnTimeUpdate(media_time, max_time, base::TimeTicks::Now());
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  }
-#endif
   last_media_time_ = media_time;
 }
 

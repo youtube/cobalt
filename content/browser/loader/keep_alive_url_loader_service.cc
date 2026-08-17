@@ -4,12 +4,6 @@
 
 #include "content/browser/loader/keep_alive_url_loader_service.h"
 
-// clang-format off
-// Remove these two includes after CHROMIUM_MILESTONE_LE_138
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
-// clang-format on
-
 #include <map>
 
 #include "base/feature_list.h"

@@ -17,3 +17,4 @@
 -//content/test/data/layout_tests/**
 -//content/test/data/plugin/**
 -//content/test/data/fuzzer_*/**
+//cobalt/testing/browser_tests/data/**

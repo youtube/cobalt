@@ -82,7 +82,6 @@ buildflag_header("buildflags") {
   flags = [
     "USE_MINIKIN_HYPHENATION=$use_minikin_hyphenation",
     "ENABLE_UNHANDLED_TAP=$enable_unhandled_tap",
-    "ENABLE_PRIVACY_SANDBOX_APIS=$enable_privacy_sandbox_apis",
   ]
 }
 

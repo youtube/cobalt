@@ -166,7 +166,7 @@ FakeMediaCodec::ConsumeReleasedOutputs() {
 std::unique_ptr<MediaCodec> FakeMediaCodecFactory::CreateAudioMediaCodec(
     const AudioStreamInfo& audio_stream_info,
     MediaCodec::Handler* handler,
-    jobject j_media_crypto) {
+    const jni_zero::JavaRef<jobject>& j_media_crypto) {
   auto fake =
       std::make_unique<FakeMediaCodec>(handler, &last_created_audio_codec_);
   last_created_audio_codec_ = fake.get();
@@ -180,8 +180,8 @@ FakeMediaCodecFactory::CreateVideoMediaCodec(
     int fps,
     const std::optional<Size>& max_frame_size,
     MediaCodec::Handler* handler,
-    jobject j_surface,
-    jobject j_media_crypto,
+    const jni_zero::JavaRef<jobject>& j_surface,
+    const jni_zero::JavaRef<jobject>& j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
     const MediaCodec::VideoPlatformOptions& platform_options) {
   SB_LOG(INFO) << "[FakeMediaCodec] CreateVideoMediaCodec called";

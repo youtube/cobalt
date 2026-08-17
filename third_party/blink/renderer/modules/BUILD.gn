@@ -175,8 +175,21 @@ component("modules") {
     "//third_party/blink/renderer/modules/xr",
   ]
 
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
+  if (!enable_privacy_sandbox_apis) {
+    sub_modules -= [
+      "//third_party/blink/renderer/modules/browsing_topics",
+      "//third_party/blink/renderer/modules/private_attribution",
+      "//third_party/blink/renderer/modules/shared_storage",
+      "//third_party/blink/renderer/modules/storage_access",
+      "//third_party/blink/renderer/modules/ad_auction",
+      "//third_party/blink/renderer/modules/credentialmanagement",
+    ]
+  }
+
   if (is_cobalt) {
     sub_modules -= [
+      "//third_party/blink/renderer/modules/mediarecorder",
       "//third_party/blink/renderer/modules/ml",
       "//third_party/blink/renderer/modules/webgpu",
       "//third_party/blink/renderer/modules/xr",
@@ -192,6 +205,7 @@ component("modules") {
       "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics",
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_native_stability",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_platform_service",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_settings",
@@ -207,6 +221,14 @@ component("modules") {
       ]
     }
 
+    if (enable_native_on_screen_keyboard) {
+      sub_modules +=
+          [ "//third_party/blink/renderer/modules/cobalt/on_screen_keyboard" ]
+    }
+
+    if (enable_in_app_dial) {
+      sub_modules += [ "//third_party/blink/renderer/modules/cobalt/dial" ]
+    }
   }
 
   if (!use_webrtc_peer_connection) {
@@ -310,6 +332,18 @@ source_set("modules_testing") {
     "webaudio/testing/internals_web_audio.cc",
     "webaudio/testing/internals_web_audio.h",
   ]
+
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
+  if (!enable_privacy_sandbox_apis) {
+    _ad_auction_testing_filtered_sources =
+        filter_exclude(sources,
+                       [
+                         "ad_auction/testing/*",
+                         "credentialmanagement/testing/*",
+                       ])
+    sources = []
+    sources = _ad_auction_testing_filtered_sources
+  }
 
   if (enable_compute_pressure) {
     sources += [
@@ -735,6 +769,7 @@ source_set("unit_tests") {
   }
 
   if (is_cobalt) {
+    sources -= filter_include(sources, [ "mediarecorder/*" ])
     sources += [
       "cobalt/h5vcc_accessibility/h_5_vcc_accessibility_test.cc",
       "cobalt/h5vcc_experiments/experiments_utils_test.cc",
@@ -813,6 +848,25 @@ source_set("unit_tests") {
     "//v8",
   ]
 
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
+  if (!enable_privacy_sandbox_apis) {
+    sources -= [
+      "credentialmanagement/authentication_credentials_container_test.cc",
+      "credentialmanagement/credential_manager_type_converters_unittest.cc",
+      "credentialmanagement/digital_identity_credential_test.cc",
+      "credentialmanagement/password_credential_test.cc",
+      "credentialmanagement/public_key_credential_unittest.cc",
+      "payments/payment_request_secure_payment_confirmation_availability_test.cc",
+      "payments/secure_payment_confirmation_helper_test.cc",
+      "shared_storage/shared_storage_worklet_unittest.cc",
+    ]
+    deps -= [
+      "//third_party/blink/renderer/modules/ad_auction:unit_tests",
+      "//third_party/blink/renderer/modules/storage_access:unit_tests",
+    ]
+  }
+
   if (is_cobalt) {
     deps += [ "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments:experiments_utils" ]
     deps -= [
@@ -821,11 +875,11 @@ source_set("unit_tests") {
       "//third_party/blink/renderer/modules/webgpu:unit_tests",
     ]
     sources -= [
+      "bluetooth/bluetooth_uuid_unittest.cc",
+      "nfc/nfc_proxy_test.cc",
       "xr/xr_rigid_transform_test.cc",
       "xr/xr_test_utils.cc",
       "xr/xr_view_test.cc",
-      "bluetooth/bluetooth_uuid_unittest.cc",
-      "nfc/nfc_proxy_test.cc",
     ]
   }
 

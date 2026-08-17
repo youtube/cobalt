@@ -69,7 +69,10 @@ CC_BASE_EXPORT extern const char kCCScrollAnimationDurationForTesting[];
 
 #if BUILDFLAG(IS_COBALT)
 CC_BASE_EXPORT extern const char kCCImageCacheLimitItems[];
+CC_BASE_EXPORT extern const char kCCImageCacheLimitMbs[];
 CC_BASE_EXPORT extern const char kDecodedImageWorkingSetBudgetBytes[];
+// Avoid reuse resource.
+CC_BASE_EXPORT extern const char kAvoidCCReuseResource[];
 #endif
 
 }  // namespace switches

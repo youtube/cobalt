@@ -54,6 +54,7 @@ public class AudioOutputManager {
       int sampleType,
       int sampleRate,
       int channelCount,
+      int maxSamplesPerWrite,
       int preferredBufferSizeInBytes,
       int tunnelModeAudioSessionId,
       boolean isWebAudio) {
@@ -62,6 +63,7 @@ public class AudioOutputManager {
             sampleType,
             sampleRate,
             channelCount,
+            maxSamplesPerWrite,
             preferredBufferSizeInBytes,
             tunnelModeAudioSessionId,
             isWebAudio);

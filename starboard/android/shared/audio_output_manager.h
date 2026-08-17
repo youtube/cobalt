@@ -35,6 +35,7 @@ class AudioOutputManager {
       int sample_type,
       int sample_rate,
       int channel_count,
+      int max_samples_per_write,
       int preferred_buffer_size_in_bytes,
       std::optional<int> tunnel_mode_audio_session_id,
       jboolean is_web_audio);

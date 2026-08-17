@@ -15,6 +15,7 @@
 #include "starboard/android/shared/media_codec_bridge.h"
 
 #include "base/android/jni_array.h"
+#include "base/android/jni_bytebuffer.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
@@ -33,6 +34,7 @@ namespace {
 
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
+using base::android::JavaByteBufferToMutableSpan;
 using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
 using jni_zero::AttachCurrentThread;
@@ -101,7 +103,7 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
 std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodec(
     const AudioStreamInfo& audio_stream_info,
     Handler* handler,
-    jobject j_media_crypto) {
+    const jni_zero::JavaRef<jobject>& j_media_crypto) {
   bool is_passthrough = false;
   const char* mime =
       SupportedAudioCodecToMimeType(audio_stream_info.codec, &is_passthrough);
@@ -138,9 +140,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodec(
           ConvertUTF8ToJavaString(env, mime),
           ConvertUTF8ToJavaString(env, decoder_name),
           audio_stream_info.samples_per_second,
-          audio_stream_info.number_of_channels,
-          ScopedJavaLocalRef<jobject>::Adopt(env,
-                                             env->NewLocalRef(j_media_crypto)),
+          audio_stream_info.number_of_channels, j_media_crypto,
           configuration_data);
 
   if (!j_media_codec_bridge) {
@@ -165,8 +165,8 @@ MediaCodecBridge::CreateVideoMediaCodec(
     int fps,
     const std::optional<Size>& max_frame_size,
     Handler* handler,
-    jobject j_surface,
-    jobject j_media_crypto,
+    const jni_zero::JavaRef<jobject>& j_surface,
+    const jni_zero::JavaRef<jobject>& j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
     const MediaCodec::VideoPlatformOptions& platform_options) {
   JNIEnv* env = AttachCurrentThread();
@@ -194,8 +194,7 @@ MediaCodecBridge::CreateVideoMediaCodec(
           mastering_metadata.white_point_chromaticity_x,
           mastering_metadata.white_point_chromaticity_y,
           mastering_metadata.luminance_max, mastering_metadata.luminance_min,
-          color_metadata->max_cll, color_metadata->max_fall,
-          platform_options.force_big_endian_hdr_metadata));
+          color_metadata->max_cll, color_metadata->max_fall));
     }
   }
 
@@ -209,9 +208,7 @@ MediaCodecBridge::CreateVideoMediaCodec(
       ConvertUTF8ToJavaString(env, mime),
       ConvertUTF8ToJavaString(env, decoder_name), frame_size_hint.width,
       frame_size_hint.height, fps, max_frame_size ? max_frame_size->width : -1,
-      max_frame_size ? max_frame_size->height : -1,
-      ScopedJavaLocalRef<jobject>::Adopt(env, env->NewLocalRef(j_surface)),
-      ScopedJavaLocalRef<jobject>::Adopt(env, env->NewLocalRef(j_media_crypto)),
+      max_frame_size ? max_frame_size->height : -1, j_surface, j_media_crypto,
       j_color_info,
       platform_options.tunnel_mode_audio_session_id.value_or(
           TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
@@ -219,7 +216,7 @@ MediaCodecBridge::CreateVideoMediaCodec(
       platform_options.enable_frame_renderer_listener,
       platform_options.skip_video_frames_over_60_fps,
       platform_options.ignore_mediacodec_callbacks_during_flushing,
-      platform_options.enable_low_latency, j_create_media_codec_bridge_result);
+      j_create_media_codec_bridge_result);
 
   ScopedJavaLocalRef<jobject> j_media_codec_bridge(
       Java_CreateMediaCodecBridgeResult_mediaCodecBridge(
@@ -268,18 +265,11 @@ Span<uint8_t> MediaCodecBridge::GetInputBufferAddress(jint index) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> byte_buffer =
       Java_MediaCodecBridge_getInputBuffer(env, j_media_codec_bridge_, index);
-  if (byte_buffer.is_null()) {
+  if (!byte_buffer) {
     return {};
   }
-  jlong cap = env->GetDirectBufferCapacity(byte_buffer.obj());
-  if (cap < 0) {
-    return {};
-  }
-  void* address = env->GetDirectBufferAddress(byte_buffer.obj());
-  if (!address) {
-    return {};
-  }
-  return {static_cast<uint8_t*>(address), static_cast<size_t>(cap)};
+  auto span = JavaByteBufferToMutableSpan(env, byte_buffer.obj());
+  return {span.data(), span.size()};
 }
 
 jint MediaCodecBridge::QueueInputBuffer(jint index,
@@ -345,18 +335,11 @@ Span<uint8_t> MediaCodecBridge::GetOutputBufferAddress(jint index) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> byte_buffer =
       Java_MediaCodecBridge_getOutputBuffer(env, j_media_codec_bridge_, index);
-  if (byte_buffer.is_null()) {
+  if (!byte_buffer) {
     return {};
   }
-  jlong cap = env->GetDirectBufferCapacity(byte_buffer.obj());
-  if (cap < 0) {
-    return {};
-  }
-  void* address = env->GetDirectBufferAddress(byte_buffer.obj());
-  if (!address) {
-    return {};
-  }
-  return {static_cast<uint8_t*>(address), static_cast<size_t>(cap)};
+  auto span = JavaByteBufferToMutableSpan(env, byte_buffer.obj());
+  return {span.data(), span.size()};
 }
 
 void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {

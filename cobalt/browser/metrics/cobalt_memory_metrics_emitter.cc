@@ -27,6 +27,7 @@
 #include "base/trace_event/memory_dump_request_args.h"
 #include "build/build_config.h"
 #include "media/base/media_client.h"
+#include "partition_alloc/buildflags.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/browser_metrics.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 
@@ -237,11 +238,63 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      kAllocatedObjectsSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
+
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+    {"malloc/partitions/allocator/thread_cache",
+     "Malloc.ThreadCache",
+     CobaltMemoryMetricsEmitter::MetricSize::kSmall,
+     "size",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"malloc/partitions/allocator",
+     "Malloc.MaxAllocatedSize",
+     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
+     "max_allocated_size",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"malloc/partitions/allocator",
+     "Malloc.MaxCommittedSize",
+     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
+     "max_committed_size",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"malloc/partitions/allocator",
+     "Malloc.CommittedSize",
+     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
+     "virtual_committed_size",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"malloc/partitions/allocator",
+     "Malloc.Wasted",
+     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
+     "wasted",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"malloc/partitions/allocator",
+     "Malloc.Fragmentation",
+     CobaltMemoryMetricsEmitter::MetricSize::kPercentage,
+     "fragmentation",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"malloc",
+     "Malloc.SyscallsPerMinute",
+     CobaltMemoryMetricsEmitter::MetricSize::kTiny,
+     "syscalls_per_minute",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+
 #if BUILDFLAG(IS_ANDROID)
     {base::android::MeminfoDumpProvider::kDumpName,
      "AndroidOtherPss",
      CobaltMemoryMetricsEmitter::MetricSize::kLarge,
      base::android::MeminfoDumpProvider::kPssMetricName,
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {base::android::MeminfoDumpProvider::kDumpName,
+     "AndroidGraphicsMemory",
+     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
+     base::android::MeminfoDumpProvider::kGraphicsMetricName,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
      {}},
 #endif
@@ -275,6 +328,9 @@ CobaltMemoryMetricsEmitter::CobaltMemoryMetricsEmitter() {
   // on a background sequence maintained by base::SequenceBound
   // in CobaltMetricsServiceClient.
   DETACH_FROM_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_ANDROID)
+  base::android::MeminfoDumpProvider::Initialize();
+#endif
 }
 
 void CobaltMemoryMetricsEmitter::FetchAndEmitProcessMemoryMetrics() {

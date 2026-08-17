@@ -78,6 +78,44 @@ size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
 #endif
 }
 
+#if BUILDFLAG(IS_COBALT)
+// static
+size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetCount() {
+  static const size_t cobalt_decoded_image_persistent_cache_budget_count = []() {
+    size_t budget = 2000; // kNormalMaxItemsInCacheForGpu default
+    auto* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kCCImageCacheLimitItems)) {
+      std::string value = command_line->GetSwitchValueASCII(
+          switches::kCCImageCacheLimitItems);
+      int parsed_value;
+      if (base::StringToInt(value, &parsed_value) && parsed_value >= 0) {
+        budget = static_cast<size_t>(parsed_value);
+      }
+    }
+    return budget;
+  }();
+  return cobalt_decoded_image_persistent_cache_budget_count;
+}
+
+// static
+size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetBytes() {
+  static const size_t cobalt_decoded_image_persistent_cache_budget_bytes = []() {
+    size_t budget = std::numeric_limits<size_t>::max();
+    auto* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kCCImageCacheLimitMbs)) {
+      std::string value = command_line->GetSwitchValueASCII(
+          switches::kCCImageCacheLimitMbs);
+      int parsed_value;
+      if (base::StringToInt(value, &parsed_value) && parsed_value >= 0) {
+        budget = static_cast<size_t>(parsed_value) * 1024 * 1024;
+      }
+    }
+    return budget;
+  }();
+  return cobalt_decoded_image_persistent_cache_budget_bytes;
+}
+#endif
+
 }  // namespace cc
 
 #endif  // CC_TILES_IMAGE_DECODE_CACHE_UTILS_CC_

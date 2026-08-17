@@ -37,6 +37,7 @@
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "ui/gl/gl_implementation.h"
+#include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_utils.h"
 #include "ui/gl/gl_version_info.h"
 #include "ui/gl/gpu_switching_manager.h"
@@ -928,15 +929,27 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   // feature_info_->feature_flags().angle_robust_resource_initialization and
   // api()->glIsEnabledFn(GL_ROBUST_RESOURCE_INITIALIZATION_ANGLE)
 
+#if BUILDFLAG(IS_COBALT)
+#define FAIL_INIT_IF_NOT(feature, message)                       \
+  if (!(feature)) {                                              \
+    Destroy(true);                                               \
+    LOG(ERROR) << "ContextResult::kFatalFailure: " << (message); \
+    return gpu::ContextResult::kFatalFailure;                    \
+  } else {                                                       \
+    /* Cobalt: Clear any GL_INVALID_ENUM or other GL errors     */ \
+    /* generated when querying unsupported ANGLE extension      */ \
+    /* enums on native GL contexts.                             */ \
+    while (glGetError() != GL_NO_ERROR) {}                       \
+  }
+#else
 #define FAIL_INIT_IF_NOT(feature, message)                       \
   if (!(feature)) {                                              \
     Destroy(true);                                               \
     LOG(ERROR) << "ContextResult::kFatalFailure: " << (message); \
     return gpu::ContextResult::kFatalFailure;                    \
   }
+#endif
 
-// TODO: b/457746593 - Cobalt: Fix the crash on raspi2
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) || !defined(__arm__)
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_robust_client_memory,
                    "missing GL_ANGLE_robust_client_memory");
   FAIL_INIT_IF_NOT(
@@ -946,22 +959,33 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
                    "missing GL_CHROMIUM_copy_texture");
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_client_arrays,
                    "missing GL_ANGLE_client_arrays");
-#endif
 
   FAIL_INIT_IF_NOT(api()->glIsEnabledFn(GL_CLIENT_ARRAYS_ANGLE) == GL_FALSE,
                    "GL_ANGLE_client_arrays shouldn't be enabled");
+
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt on some platforms (like RDK) runs on native GL without ANGLE compatibility,
+  // but we still want to allow WebGL context creation.
+  const bool webgl_compat_match = true;
+  FAIL_INIT_IF_NOT(webgl_compat_match, "missing GL_ANGLE_webgl_compatibility");
+#else
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_webgl_compatibility ==
                        IsWebGLContextType(attrib_helper.context_type),
                    "missing GL_ANGLE_webgl_compatibility");
+#endif
 
-// TODO: b/457746593 - Cobalt: Fix the crash on raspi2
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) || !defined(__arm__)
+#if BUILDFLAG(IS_COBALT)
+  if (feature_info_->gl_version_info().is_es3) {
+    CHECK(gl::g_current_gl_driver);
+    FAIL_INIT_IF_NOT(gl::g_current_gl_driver->fn.glGetStringiFn,
+                     "GLES3 context missing glGetStringi");
+  }
+#endif
+
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_request_extension,
                    "missing GL_ANGLE_request_extension");
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().khr_debug,
                    "missing GL_KHR_debug");
-#endif
-
   FAIL_INIT_IF_NOT(!attrib_helper.fail_if_major_perf_caveat ||
                        !feature_info_->feature_flags().is_software_webgl,
                    "fail_if_major_perf_caveat + software gl");

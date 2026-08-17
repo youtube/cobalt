@@ -626,7 +626,13 @@ BASE_FEATURE_PARAM(int,
                    kCobaltDynamicMojoPipeSizingSubresourceSize,
                    &kCobaltDynamicMojoPipeSizing,
                    "subresource_size",
-                   128 * 1024);
+                   512 * 1024);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltDynamicMojoPipeSizingMediaSize,
+                   &kCobaltDynamicMojoPipeSizing,
+                   "media_size",
+                   512 * 1024);
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace network::features

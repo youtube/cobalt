@@ -19,6 +19,7 @@
 #include "cobalt/configuration/configuration.h"
 #include "starboard/common/system_property.h"
 #include "starboard/system.h"
+#include "starboard/window.h"
 
 namespace h5vcc_system {
 
@@ -112,6 +113,16 @@ void H5vccSystemImpl::GetFriendlyName(GetFriendlyNameCallback callback) {
   DLOG_IF(INFO, friendly_name.empty())
       << "Failed to get kSbSystemPropertyFriendlyName.";
   std::move(callback).Run(friendly_name);
+}
+
+void H5vccSystemImpl::GetScreenDiagonal(GetScreenDiagonalCallback callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  SbWindow window = GetPrimarySbWindow();
+  DLOG_IF(ERROR, !SbWindowIsValid(window))
+      << "GetScreenDiagonal: Invalid primary window.";
+  float diagonal =
+      SbWindowIsValid(window) ? SbWindowGetDiagonalSizeInInches(window) : 0.0f;
+  std::move(callback).Run(static_cast<double>(diagonal));
 }
 
 void H5vccSystemImpl::GetUserOnExitStrategy(

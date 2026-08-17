@@ -7,12 +7,11 @@ An overview of the goals and design principles of Starboard with the perspective
 of hindsight.
 
 **Status:** REVIEWED\
-**Created:** 2016-11-12
+**Created:** 2026-06-16
 
 Starboard is a porting abstraction and a collection of implementation fragments
 used to abstract operating system facilities and platform quirks from C or C++
-applications. It occupies a similar space to SDL, DirectFB, Marmalade, and
-various others.
+applications.
 
 ## Background
 
@@ -50,10 +49,7 @@ Here are the main goals of Starboard, stack-ranked from most-to-least important.
   * **G10** Maintain a loose binding between a Starboard Platform Implementation
     and a Starboard Client Application, such that they can be updated
     independently at a source level.
-  * **G11** Avoid the pitfalls of trying to emulate POSIX, including, but not
-    limited to: auto-included headers, global defines of short and common
-    symbols, wrapping misbehaving or misprototyped system APIs, using custom
-    toolchain facilities, and conflicts with platform headers.
+  * **G11** Use POSIX wrappers to provide a stable System ABI per CPU architecture.
 
 ## Principles
 

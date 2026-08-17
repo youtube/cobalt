@@ -107,9 +107,9 @@ Possible audio sample types.
 
 ### SbMediaRangeId
 
-This corresponds to the WebM Range enum which is part of WebM color data (see [http://www.webmproject.org/docs/container/#Range](http://www.webmproject.org/docs/container/#Range)
-). H.264 only uses a bool, which corresponds to the LIMITED/FULL values. Chrome-
-specific values start at 1000.
+This corresponds to the WebM Range enum which is part of WebM color data (see [http://www.webmproject.org/docs/container/#Range](http://www.webmproject.org/docs/container/#Range)).
+H.264 only uses a bool, which corresponds to the LIMITED/FULL values.
+Chrome-specific values start at 1000.
 
 #### Values
 
@@ -222,7 +222,7 @@ The set of information required by the decoder or player for each audio stream.
 *   `SbMediaAudioCodec codec`
 
     The audio codec of this sample.
-*   `const char * mime`
+*   `const char* mime`
 
     The mime of the audio stream when `codec` isn't kSbMediaAudioCodecNone. It
     may point to an empty string if the mime is not available, and it can only
@@ -239,7 +239,7 @@ The set of information required by the decoder or player for each audio stream.
 *   `uint16_t audio_specific_config_size`
 
     The size, in bytes, of the audio_specific_config.
-*   `const void * audio_specific_config`
+*   `const void* audio_specific_config`
 
     The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1.
 
@@ -317,8 +317,8 @@ luminosity than is possible with standard digital imaging.
     and chroma values from red, green, and blue color primaries. For clarity,
     the value and meanings for MatrixCoefficients are adopted from Table 4 of
     ISO/IEC 23001-8:2013/DCOR1. (0:GBR, 1: BT709, 2: Unspecified, 3: Reserved,
-    4: FCC, 5: BT470BG, 6: SMPTE 170M, 7: SMPTE 240M, 8: YCOCG, 9: BT2020 Non-
-    constant Luminance, 10: BT2020 Constant Luminance).
+    4: FCC, 5: BT470BG, 6: SMPTE 170M, 7: SMPTE 240M, 8: YCOCG, 9: BT2020
+    Non-constant Luminance, 10: BT2020 Constant Luminance).
 *   `SbMediaRangeId range`
 
     [Color Space field] Clipping of the color ranges. (0: Unspecified, 1:
@@ -397,12 +397,12 @@ The set of information required by the decoder or player for each video stream.
 *   `SbMediaVideoCodec codec`
 
     The video codec of this sample.
-*   `const char * mime`
+*   `const char* mime`
 
     The mime of the video stream when `codec` isn't kSbMediaVideoCodecNone. It
     may point to an empty string if the mime is not available, and it can only
     be set to NULL when `codec` is kSbMediaVideoCodecNone.
-*   `const char * max_video_capabilities`
+*   `const char* max_video_capabilities`
 
     Indicates the max video capabilities required. The web app will not provide
     a video stream exceeding the maximums described by this parameter. Allows
@@ -430,8 +430,8 @@ The set of information required by the decoder or player for each video stream.
     Color Space, and Color elements: MatrixCoefficients, BitsPerChannel,
     ChromaSubsamplingHorz, ChromaSubsamplingVert, CbSubsamplingHorz,
     CbSubsamplingVert, ChromaSitingHorz, ChromaSitingVert, Range,
-    TransferCharacteristics, and Primaries described here: [https://matroska.org/technical/specs/index.html](https://matroska.org/technical/specs/index.html)
-    . This will only be specified on frames where the HDR metadata and color /
+    TransferCharacteristics, and Primaries described here: [https://matroska.org/technical/specs/index.html](https://matroska.org/technical/specs/index.html).
+    This will only be specified on frames where the HDR metadata and color /
     color space might have changed (e.g. keyframes).
 
 ## Functions
@@ -509,9 +509,9 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char *mime, const char *
 
 Specifies the maximum amount of memory used by audio buffers of media source
 before triggering a garbage collection. A large value will cause more memory
-being used by audio buffers but will also make the app less likely to re-
-download audio data. Note that the app may experience significant difficulty if
-this value is too low.
+being used by audio buffers but will also make the app less likely to
+re-download audio data. Note that the app may experience significant difficulty
+if this value is too low.
 
 #### Declaration
 

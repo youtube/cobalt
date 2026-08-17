@@ -244,6 +244,11 @@ void RendererWebMediaPlayerDelegate::OnPageVisibilityChanged(
       // into a hidden state to free up system memory resources.
       LOG(INFO) << "Decommitting memory blocks on page hidden.";
       ::media::DecoderBufferAllocator::Get()->DecommitAllDecommitableBlocks();
+
+      // Release idle memory in decoder buffer allocator when the application
+      // transitions into a hidden state to shed unused system memory resources.
+      LOG(INFO) << "Releasing idle memory on page hidden.";
+      ::media::DecoderBufferAllocator::Get()->ReleaseIdleMemory();
     }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }

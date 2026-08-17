@@ -25,12 +25,12 @@ There are newly implemented features, improvements, and simplified code. We have
 outlined the changelist below with a brief description of Cobalt 25 LTS and
 Starboard 16 changes.
 
-IMPORTANT NOTE: As this version is a RC (Release Candidate), the code is
-subject to change while we expect to have no more Starboard API changes.
-**This is ready for integration and we STRONGLY RECOMMEND you start integration
-of this Cobalt 25 LTS RC on your respective platforms early and report issues
-ASAP** so there is ample time to investigate and resolve any detected issues
-before Cobalt 25 LTS Stable Release later this year.
+> Caution: As this version is a RC (Release Candidate), the code is
+> subject to change while we expect to have no more Starboard API changes.
+> **This is ready for integration and we STRONGLY RECOMMEND you start integration
+> of this Cobalt 25 LTS RC on your respective platforms early and report issues
+> ASAP** so there is ample time to investigate and resolve any detected issues
+> before Cobalt 25 LTS Stable Release later this year.
 
 The Evergreen static version channels command (`co 25lts1`) can be used to
 update builds to the `25.LTS.1` Cobalt version for testing by following the

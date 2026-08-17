@@ -45,12 +45,7 @@ class MojoRenderer : public Renderer, public mojom::RendererClient {
   MojoRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
                std::unique_ptr<VideoOverlayFactory> video_overlay_factory,
                VideoRendererSink* video_renderer_sink,
-               mojo::PendingRemote<mojom::Renderer> remote_renderer
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-               ,
-               bool bypass_mojo_for_media = false
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-               );
+               mojo::PendingRemote<mojom::Renderer> remote_renderer);
 
   MojoRenderer(const MojoRenderer&) = delete;
   MojoRenderer& operator=(const MojoRenderer&) = delete;
@@ -70,13 +65,11 @@ class MojoRenderer : public Renderer, public mojom::RendererClient {
   base::TimeDelta GetMediaTime() override;
   RendererType GetRendererType() override;
 
+ private:
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  scoped_refptr<base::SequencedTaskRunner> task_runner() const {
-    return task_runner_;
-  }
+  friend class StarboardRendererClient;
 #endif
 
- private:
   // mojom::RendererClient implementation, dispatched on the |task_runner_|.
   void OnTimeUpdate(base::TimeDelta time,
                     base::TimeDelta max_time,
@@ -132,10 +125,6 @@ class MojoRenderer : public Renderer, public mojom::RendererClient {
 
   // Client of |this| renderer passed in Initialize.
   raw_ptr<media::RendererClient> client_ = nullptr;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  bool bypass_mojo_for_media_ = false;
-#endif
 
   // Mojo demuxer streams.
   // Owned by MojoRenderer instead of remote mojom::Renderer

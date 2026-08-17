@@ -55,6 +55,9 @@ _RE_COBALT = re.compile(r'\s*<unknown> \[(0x[a-z0-9]*)\]\s*')
 _RE_RAW = re.compile(r'^(0x[a-z0-9]*)$')
 _RE_GDB = re.compile(r'\s*(#[0-9]{1,3})\s*(0x[a-z0-9]*)\s*')
 
+# Regex to find the start of a stack trace line (Cobalt or ASAN/GDB)
+_RE_STACK_START = re.compile(r'(?:\s*<unknown>\s+\[0x)|(?:\s*#[0-9]{1,3}\s+0x)')
+
 
 def _Symbolize(filename, library, base_address):
   """Attempts to resolve memory addresses within the file specified.
@@ -77,13 +80,21 @@ def _Symbolize(filename, library, base_address):
     raise ValueError(f'Library not found: {library}.')
   with open(filename, encoding='utf-8') as f:
     for line in f:
+      prefix = ''
+
+      # Try to split prefix (e.g. RDK log header) from the actual stack trace
+      match_start = _RE_STACK_START.search(line)
+      if match_start:
+        prefix = line[:match_start.start()]
+        line = line[match_start.start():]
+
       # Address Sanitizer
       match = _RE_ASAN.match(line)
       if match:
         offset = int(match.group(2), 0) - int(base_address, 0)
         results = _RunSymbolizer(library, str(offset))
-        if results and b'?' not in results[0] and b'?' not in results[1]:
-          sys.stdout.write(f'    {match.group(1)} {hex(offset)} in '
+        if results and '?' not in results[0] and '?' not in results[1]:
+          sys.stdout.write(f'{prefix}    {match.group(1)} {hex(offset)} in '
                            f'{results[0]} {results[1]}\n')
           continue
       # Cobalt
@@ -91,8 +102,8 @@ def _Symbolize(filename, library, base_address):
       if match:
         offset = int(match.group(1), 0) - int(base_address, 0)
         results = _RunSymbolizer(library, str(offset))
-        if results and b'?' not in results[0]:
-          sys.stdout.write(f'        {hex(offset)} [{results[0]}]\n')
+        if results and '?' not in results[0]:
+          sys.stdout.write(f'{prefix}        {hex(offset)} [{results[0]}]\n')
           continue
       # Raw
       match = _RE_RAW.match(line)
@@ -107,12 +118,12 @@ def _Symbolize(filename, library, base_address):
       if match:
         offset = int(match.group(2), 0) - int(base_address, 0)
         results = _RunSymbolizer(library, str(offset))
-        if results and b'?' not in results[0] and b'?' not in results[1]:
-          sys.stdout.write(f'    {match.group(1)} {hex(offset)} in '
+        if results and '?' not in results[0] and '?' not in results[1]:
+          sys.stdout.write(f'{prefix}    {match.group(1)} {hex(offset)} in '
                            f'{results[0]} {results[1]}\n')
           continue
 
-      sys.stdout.write(line)
+      sys.stdout.write(prefix + line)
 
 
 def _RunSymbolizer(library, offset):
@@ -125,10 +136,12 @@ def _RunSymbolizer(library, offset):
   if int(offset) >= 0:
     command = subprocess.Popen(  # pylint:disable=consider-using-with
         [_SYMBOLIZER, '-e', library, offset, '-f'],
-        stdout=subprocess.PIPE)
+        stdout=subprocess.PIPE,
+        text=True,
+        encoding='utf-8')
     results = command.communicate()
     if command.returncode == 0:
-      return results[0].split(os.linesep.encode('utf8'))
+      return results[0].split('\n')
   return None
 
 
@@ -148,7 +161,8 @@ def main():
   arg_parser.add_argument(
       'base_address',
       type=str,
-      nargs=1,
+      nargs='?',
+      default='0',
       help='The base address of the library.')
   args, _ = arg_parser.parse_known_args()
 
@@ -156,7 +170,7 @@ def main():
     raise ValueError(
         f'Please update {__file__} with a valid llvm-symbolizer path.')
 
-  return _Symbolize(args.filename, args.library, args.base_address[0])
+  return _Symbolize(args.filename, args.library, args.base_address)
 
 
 if __name__ == '__main__':

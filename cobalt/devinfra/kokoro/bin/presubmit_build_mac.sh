@@ -5,7 +5,12 @@ set -ueEx
 . $(dirname "$0")/common.sh
 
 # Using repository root as work directory.
-export WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/github/src"
+if [[ -d "${KOKORO_ARTIFACTS_DIR}/github" ]]; then
+  export GCLIENT_ROOT="${KOKORO_ARTIFACTS_DIR}/github"
+else
+  export GCLIENT_ROOT="${KOKORO_ARTIFACTS_DIR}/git"
+fi
+export WORKSPACE_COBALT="${GCLIENT_ROOT}/src"
 cd "${WORKSPACE_COBALT}"
 
 # Clean up workspace on exit or error.
@@ -20,15 +25,14 @@ pipeline () {
   # Run mac specific setup steps.
   setup_mac
 
-  local gclient_root="${KOKORO_ARTIFACTS_DIR}/github"
-  git config --global --add safe.directory "${gclient_root}/src"
-  local git_url="$(git -C "${gclient_root}/src" remote get-url origin)"
+  git config --global --add safe.directory "${GCLIENT_ROOT}/src"
+  local git_url="$(git -C "${GCLIENT_ROOT}/src" remote get-url origin)"
 
   # Set up gclient and run sync.
   ##############################################################################
-  cd "${gclient_root}"
+  cd "${GCLIENT_ROOT}"
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools --filter=blob:none
-  export PATH="${PATH}:${gclient_root}/tools/depot_tools"
+  export PATH="${PATH}:${GCLIENT_ROOT}/tools/depot_tools"
   # Conditionally enable RBE variables
   local custom_vars=""
   if [[ "${CONFIG}" == "devel" || "${CONFIG}" == "qa" ]]; then
@@ -63,7 +67,7 @@ EOF
 
   # Run GN and Ninja.
   ##############################################################################
-  cd "${gclient_root}/src"
+  cd "${GCLIENT_ROOT}/src"
   local rbe_flag="--no-rbe"
   if [[ "${CONFIG}" == "devel" ]] || [[ "${CONFIG}" == "qa" ]]; then
     rbe_flag=""
@@ -91,8 +95,13 @@ EOF
 
   # Package, archive, and upload to GCS.
   ##############################################################################
+  if [[ -z "${KOKORO_BUILD_ID:-}" ]]; then
+    echo "ERROR: KOKORO_BUILD_ID environment variable is required."
+    exit 1
+  fi
+  local build_id="${KOKORO_BUILD_ID}"
   local bucket="${COBALT_GCS_BUCKET:-cobalt-unittest-storage}"
-  local gcs_archive_path="gs://${bucket}/kokoro/build/${TARGET_PLATFORM}_${CONFIG}/${KOKORO_BUILD_NUMBER:-local}/"
+  local gcs_archive_path="gs://${bucket}/kokoro/build/${TARGET_PLATFORM}_${CONFIG}/${build_id}/"
 
   for target in ${GN_TARGET}; do
     # Extract target name (e.g. base:base_unittests -> base_unittests)
@@ -124,8 +133,13 @@ EOF
       local archive_file="${WORKSPACE_COBALT}/package/${target_name}.tar.gz"
       mkdir -p "${WORKSPACE_COBALT}/package"
 
-      # Create tar.gz archive.
-      tar -czf "${archive_file}" -C "${out_dir}" "${target_name}.app"
+      # Create tar.gz archive including iossim if available.
+      if [[ -f "${out_dir}/iossim" ]]; then
+        echo "Including iossim in the archive..."
+        tar -czf "${archive_file}" -C "${out_dir}" "${target_name}.app" "iossim"
+      else
+        tar -czf "${archive_file}" -C "${out_dir}" "${target_name}.app"
+      fi
 
       # Upload to GCS.
       echo "Uploading archive ${target_name}.tar.gz to ${gcs_archive_path}..."

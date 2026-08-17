@@ -22,6 +22,7 @@
 #include "base/containers/flat_map.h"
 #include "build/build_config.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
+#include "cobalt/build/configs/buildflags.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
 
@@ -34,6 +35,14 @@ class ViewsDelegate;
 #if BUILDFLAG(IS_APPLE)
 #include "ui/display/screen.h"
 #endif
+
+#if BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+#include "base/memory/weak_ptr.h"
+
+namespace on_screen_keyboard {
+class PlatformOnScreenKeyboard;
+}  // namespace on_screen_keyboard
+#endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
 
 class GURL;
 
@@ -146,9 +155,7 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
   virtual bool DestroyShell(Shell* shell);
 
   void AddPreviouslyVisibleWebContentsForTesting(
-      content::WebContents* web_contents) {
-    previously_visible_web_contents_.insert(web_contents);
-  }
+      content::WebContents* web_contents);
 
 #if !BUILDFLAG(IS_ANDROID)
   // Returns the native window. Valid after calling CreatePlatformWindow().
@@ -160,8 +167,9 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
                                   WebContents* web_contents,
                                   bool enter_fullscreen);
 
-  bool IsFullscreenForTabOrPending(Shell* shell,
-                                   const WebContents* web_contents) const;
+  virtual bool IsFullscreenForTabOrPending(
+      Shell* shell,
+      const WebContents* web_contents) const;
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -175,6 +183,11 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
     skip_for_testing_ = skip_for_testing;
   }
 #endif
+
+#if BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+  base::WeakPtr<on_screen_keyboard::PlatformOnScreenKeyboard>
+  GetOrCreatePlatformOnScreenKeyboard(Shell* shell);
+#endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
 
  protected:
   void CreatePlatformWindowInternal(Shell* shell,
@@ -223,10 +236,23 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
   // early resume stages (root_window is null).
   bool waiting_for_reveal_ack_ = false;
 
+  class WebContentsTracker;
+  struct WebContentsTrackerDeleter {
+    void operator()(WebContentsTracker* ptr) const;
+  };
+
   // Set of WebContents that were visible before the application was concealed.
   // This is used on reveal to decide which WebContents we should wait for
   // Reveal ACK from. We only wait for those that were active before.
-  std::set<content::WebContents*> previously_visible_web_contents_;
+  // The map stores self-unregistering observers to guarantee clean container
+  // state upon WebContents destruction.
+  base::flat_map<content::WebContents*,
+                 std::unique_ptr<WebContentsTracker, WebContentsTrackerDeleter>>
+      previously_visible_web_contents_;
+
+  void TrackPreviouslyVisibleWebContents(content::WebContents* web_contents);
+  void RemovePreviouslyVisibleWebContents(content::WebContents* web_contents);
+  friend class WebContentsTracker;
 
   // Data held in ShellPlatformDelegate that is shared between all Shells. This
   // is created in Initialize(), and is defined for each platform

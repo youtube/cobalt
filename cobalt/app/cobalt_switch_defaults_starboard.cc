@@ -16,11 +16,13 @@
 
 #include "base/base_switches.h"
 #include "build/buildflag.h"
+#include "cc/base/switches.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
@@ -75,6 +77,8 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       ::switches::kDisableAcceleratedVideoEncode,
       // Force to use dark mode.
       ::switches::kForceDarkMode,
+      // Hide scrollbars to avoid memory allocation.
+      ::switches::kHideScrollbars,
   };
   return kCobaltToggleSwitches;
 }
@@ -83,7 +87,7 @@ const base::CommandLine::SwitchMap&
 CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
   static const base::CommandLine::SwitchMap kCobaltSwitchDefaults{
       // Disable Vulkan.
-      {::switches::kDisableFeatures, "Vulkan"},
+      {::switches::kDisableFeatures, "Vulkan,MemoryCacheStrongReference"},
       {::switches::kEnableFeatures,
        "LimitImageDecodeCacheSize:mb/24, "
        // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
@@ -116,9 +120,21 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       // Enable autoplay video/audio, as Cobalt may launch directly into media
       // playback before user interaction.
       {::switches::kAutoplayPolicy, "no-user-gesture-required"},
-      // Disable decommitting pooled pages to prevent virtual memory
-      // fragmentation.
-      {blink::switches::kJavaScriptFlags, "--no-decommit-pooled-pages"},
+      {blink::switches::kJavaScriptFlags,
+       // Disable decommitting pooled pages to prevent virtual memory
+       // fragmentation.
+       "--no-decommit-pooled-pages "
+       // Enable memory saving mode with little v8 performance tradeoff.
+       "--optimize-for-size "
+       // Set initial old space size to 16MB and max old space size to 512MB.
+       "--initial-old-space-size=16 "
+       "--max-old-space-size=512 "
+       // Disable v8 concurrent marking by default.
+       "--no-concurrent-marking"},
+      // Limit GPU memory available to 64MB.
+      {::switches::kForceGpuMemAvailableMb, "64"},
+      // Disable CC image cache items limit.
+      {::switches::kCCImageCacheLimitItems, "0"},
   };
   return kCobaltSwitchDefaults;
 }

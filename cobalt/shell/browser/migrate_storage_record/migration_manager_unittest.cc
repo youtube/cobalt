@@ -15,6 +15,7 @@
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 
 #include <numeric>
+#include <optional>
 
 #include "base/base_paths.h"
 #include "base/command_line.h"
@@ -38,7 +39,6 @@
 #include "services/network/test/test_cookie_manager.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/dom_storage/storage_area.mojom.h"
 #include "url/gurl.h"
@@ -93,7 +93,7 @@ class MockStorageArea : public blink::mojom::StorageArea {
                        observer) override {}
   void Put(const std::vector<uint8_t>& key,
            const std::vector<uint8_t>& value,
-           const absl::optional<std::vector<uint8_t>>& client_old_value,
+           const std::optional<std::vector<uint8_t>>& client_old_value,
            const std::string& source,
            PutCallback callback) override {
     put_call_count_++;
@@ -106,7 +106,7 @@ class MockStorageArea : public blink::mojom::StorageArea {
     }
   }
   void Delete(const std::vector<uint8_t>& key,
-              const absl::optional<std::vector<uint8_t>>& client_old_value,
+              const std::optional<std::vector<uint8_t>>& client_old_value,
               const std::string& source,
               DeleteCallback callback) override {}
   void DeleteAll(

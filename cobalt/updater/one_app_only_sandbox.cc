@@ -41,8 +41,8 @@
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "partition_alloc/memory_reclaimer.h"
+#include "starboard/common/app_key.h"
 #include "starboard/event.h"
-#include "starboard/loader_app/app_key.h"
 #include "starboard/system.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
@@ -118,7 +118,7 @@ void SbEventHandle(const SbEvent* event) {
     if (command_line.HasSwitch(cobalt::switches::kInitialURL)) {
       std::string url =
           command_line.GetSwitchValueASCII(cobalt::switches::kInitialURL);
-      if (loader_app::GetAppKey(url) != kMainAppKey &&
+      if (starboard::GetAppKey(url) != kMainAppKey &&
           url.find(kEvergreenCertTestHtml) == std::string::npos) {
         // If the app is not the main app nor Evergreen cert test page, stop the
         // app.

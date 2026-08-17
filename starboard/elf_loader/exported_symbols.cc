@@ -22,10 +22,9 @@
 
 #include "build/build_config.h"
 
-// TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols.
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#if !defined(OFFICIAL_BUILD)
 #include <dlfcn.h>
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#endif  // !defined(OFFICIAL_BUILD)
 
 #include <errno.h>
 #include <fcntl.h>
@@ -254,8 +253,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(pause);
   REGISTER_SYMBOL(pipe);
   REGISTER_SYMBOL(posix_memalign);
-  REGISTER_SYMBOL(pread);
-  REGISTER_SYMBOL(pwrite);
   REGISTER_SYMBOL(raise);
   REGISTER_SYMBOL(rand);
   REGISTER_SYMBOL(rand_r);
@@ -337,6 +334,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pipe2);
   REGISTER_WRAPPER(poll);
   REGISTER_WRAPPER(prctl);
+  REGISTER_WRAPPER(pread);
+  REGISTER_WRAPPER(pwrite);
   REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);
   REGISTER_WRAPPER(pthread_attr_getdetachstate);
@@ -431,15 +430,16 @@ const void* ExportedSymbols::Lookup(const char* name) {
     return address;
   }
 
-  SB_LOG(ERROR) << "Failed to retrieve the address of '" << name << "'.";
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  // Not an error, as it could be a weak symbol.
+  SB_DLOG(WARNING) << "Failed to retrieve the address of '" << name << "'.";
+#if !defined(OFFICIAL_BUILD)
   // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols or
   // potentially keep it behind a flag to help with future maintenance.
   address = dlsym(RTLD_DEFAULT, name);
   if (address == nullptr) {
     SB_LOG(ERROR) << "Fallback dlsym failed for '" << name << "'.";
   }
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#endif  // !defined(OFFICIAL_BUILD)
   return address;
 }
 

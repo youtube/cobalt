@@ -78,7 +78,9 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   const void* GetMetrics(int* size) override;
   // SbDrmSystemPrivate override ends.
 
-  jobject GetMediaCrypto() const { return media_drm_bridge_->GetMediaCrypto(); }
+  const jni_zero::JavaRef<jobject>& GetMediaCrypto() const {
+    return media_drm_bridge_->GetMediaCrypto();
+  }
 
   // MediaDrmBridge::Host methods.
   void OnSessionUpdate(int ticket,

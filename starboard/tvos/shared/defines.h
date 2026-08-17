@@ -29,17 +29,4 @@ inline void onApplicationMainThread(void (^block)(void)) {
   }
 }
 
-/**
- *  @brief Helper function to ensure a block is run on the host application's UI
- *      thread. Execute @c block immediately if currently on the main thread,
- *      otherwise dispatch an async task.
- */
-inline void onApplicationMainThreadAsync(void (^block)(void)) {
-  if (![NSThread isMainThread]) {
-    dispatch_async(dispatch_get_main_queue(), block);
-  } else {
-    block();
-  }
-}
-
 #endif  // STARBOARD_TVOS_SHARED_DEFINES_H_

@@ -14,8 +14,6 @@
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
 #include "content/public/browser/storage_partition.h"
-#include "content/public/common/content_milestone_features.h"
-#include "content/public/common/buildflags.h"
 #include "content/public/browser/storage_partition_config.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/network/public/mojom/cert_verifier_service_updater.mojom.h"
@@ -251,7 +249,9 @@ class TestStoragePartition : public StoragePartition {
   void RemoveObserver(DataRemovalObserver* observer) override;
   int GetDataRemovalObserverCount();
 
+#if !BUILDFLAG(IS_COBALT)
   void ClearBluetoothAllowedDevicesMapForTesting() override;
+#endif
   void FlushNetworkInterfaceForTesting() override;
   void FlushCertVerifierInterfaceForTesting() override;
   void WaitForDeletionTasksForTesting() override;

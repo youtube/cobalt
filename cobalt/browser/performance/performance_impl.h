@@ -15,10 +15,11 @@
 #ifndef COBALT_BROWSER_PERFORMANCE_PERFORMANCE_IMPL_H_
 #define COBALT_BROWSER_PERFORMANCE_PERFORMANCE_IMPL_H_
 
+#include <optional>
+
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "content/public/browser/document_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 class RenderFrameHost;
@@ -34,7 +35,7 @@ class PerformanceImpl
  public:
   // Creates a PerformanceImpl. The PerformanceImpl is bound to the
   // receiver and its lifetime is scoped to the render_frame_host.
-  static void Create(absl::optional<int64_t> app_startup_timestamp,
+  static void Create(std::optional<int64_t> app_startup_timestamp,
                      content::RenderFrameHost* render_frame_host,
                      mojo::PendingReceiver<mojom::CobaltPerformance> receiver);
 
@@ -49,10 +50,10 @@ class PerformanceImpl
   void GetAppStartupTimeStamp(GetAppStartupTimeStampCallback callback) override;
 
  private:
-  PerformanceImpl(absl::optional<int64_t> app_startup_timestamp,
+  PerformanceImpl(std::optional<int64_t> app_startup_timestamp,
                   content::RenderFrameHost& render_frame_host,
                   mojo::PendingReceiver<mojom::CobaltPerformance> receiver);
-  absl::optional<int64_t> app_startup_timestamp_;
+  std::optional<int64_t> app_startup_timestamp_;
 };
 
 }  // namespace performance

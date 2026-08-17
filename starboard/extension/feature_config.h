@@ -102,9 +102,10 @@ FEATURE_LIST_START
 
 #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 // keep-sorted start newline_separated=yes
-// By default, app provisioning is disabled. Set the following variable to true
-// to enable app provisioning.
-STARBOARD_FEATURE(kEnableAppProvisioning, "EnableAppProvisioning", false)
+// Set to true to enable area-based video buffer budget calculation.
+STARBOARD_FEATURE(kAreaBasedVideoBufferBudget,
+                  "AreaBasedVideoBufferBudget",
+                  false)
 
 // Set the following variable to true to enable av1 startup optimization.
 STARBOARD_FEATURE(kEnableAv1StartupOptimization,
@@ -139,14 +140,6 @@ STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 // enabling tunnel mode on all playbacks.
 STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
 
-// By default, software video codec can be selected when software codec is not
-// required. Set the following variable to true to prevent using low performance
-// software video decoder in MediaCapabilitiesCache when software codec is not
-// explicitly required.
-STARBOARD_FEATURE(kRejectLowPerformanceSoftwareDecoder,
-                  "RejectLowPerformanceSoftwareDecoder",
-                  false)
-
 // Cobalt VideoRenderAlgorithm used to release video frames immediately after
 // playback starts. Set the following variable to true to make it release video
 // frames until the underlying audio sink actually starts.
@@ -170,6 +163,17 @@ STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   false)
 // keep-sorted end
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+
+// Set the following variable to true to reduce starboard thread stack size.
+STARBOARD_FEATURE(kReduceStarboardThreadStackSize,
+                  "ReduceStarboardThreadStackSize",
+                  false)
+
+// Set the following variable to true to reduce android thread stack size.
+STARBOARD_FEATURE(kReduceAndroidThreadStackSize,
+                  "ReduceAndroidThreadStackSize",
+                  false)
+
 FEATURE_LIST_END
 
 // To add a parameter to Starboard, use the macro:

@@ -19,6 +19,7 @@
 #include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/common/size.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -57,12 +58,6 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
     }
     must_support_tunnel_mode =
         mime_type->GetParamBoolValue("tunnelmode", false);
-
-    // Override endianness on HDR Info header. Defaults to little.
-    if (!mime_type->ValidateStringParameter("hdrinfoendianness",
-                                            "big|little")) {
-      return false;
-    }
 
     // Allow the web app to control how software decoders should be used.
     if (!mime_type->ValidateStringParameter(
@@ -107,7 +102,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
 
   return MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
       mime, require_secure_playback, must_support_hdr, must_support_tunnel_mode,
-      frame_width, frame_height, bitrate, fps);
+      Size(frame_width, frame_height), bitrate, fps);
 }
 
 }  // namespace starboard

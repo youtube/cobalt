@@ -94,7 +94,9 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
       FixedNoFreeAllocator::FreeWithSize(memory, size);
     }
 
-    void Decommit(void* memory, size_t size, bool conservative) override {
+    void Decommit(void* memory,
+                  size_t size,
+                  Allocator::DecommitMode mode) override {
       auto it = active_allocations_.find(memory);
       EXPECT_NE(it, active_allocations_.end())
           << "Decommitting a pointer not allocated by this fallback allocator.";
@@ -103,14 +105,14 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
             << "Decommit size does not exactly match the allocated size.";
       }
 
-      decommits.push_back({memory, size, conservative});
+      decommits.push_back({memory, size, mode});
       decommit_count++;
     }
 
     struct DecommitRecord {
       void* memory;
       size_t size;
-      bool conservative;
+      Allocator::DecommitMode mode;
     };
 
     int decommit_count;
@@ -125,11 +127,12 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
     std::ignore = posix_memalign(&tmp, Allocator::kMinAlignment, kBufferSize);
     buffer_.reset(static_cast<uint8_t*>(tmp));
 
-    std::unique_ptr<FixedNoFreeAllocator> fallback_allocator(
-        new FixedNoFreeAllocator(buffer_.get(), kBufferSize));
-    allocator_.reset(new BidirectionalFitReuseAllocator<ReuseAllocatorBase>(
-        fallback_allocator.get(), initial_capacity, small_allocation_threshold,
-        allocation_increment));
+    auto fallback_allocator =
+        std::make_unique<FixedNoFreeAllocator>(buffer_.get(), kBufferSize);
+    allocator_ =
+        std::make_unique<BidirectionalFitReuseAllocator<ReuseAllocatorBase>>(
+            fallback_allocator.get(), initial_capacity,
+            small_allocation_threshold, allocation_increment);
 
     fallback_allocator_.swap(fallback_allocator);
   }
@@ -138,16 +141,20 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
     std::ignore = posix_memalign(&tmp, Allocator::kMinAlignment, kBufferSize);
     buffer_.reset(static_cast<uint8_t*>(tmp));
 
-    std::unique_ptr<MockDecommitAllocator> fallback_allocator(
-        new MockDecommitAllocator(buffer_.get(), kBufferSize));
+    auto fallback_allocator =
+        std::make_unique<MockDecommitAllocator>(buffer_.get(), kBufferSize);
 
     // Store pointer before move/swap
     mock_fallback_allocator_ = fallback_allocator.get();
 
-    allocator_.reset(new BidirectionalFitReuseAllocator<ReuseAllocatorBase>(
-        mock_fallback_allocator_, 0, 0, 0, true,
-        /*retain_blocks=*/0,
-        /*conservative_decommit_blocks=*/0));
+    allocator_ =
+        std::make_unique<BidirectionalFitReuseAllocator<ReuseAllocatorBase>>(
+            mock_fallback_allocator_, 0, 0, 0, true,
+            /*retain_blocks=*/0,
+            /*conservative_decommit_blocks=*/0,
+            /*aggressive_decommit_on_suspend=*/false,
+            /*memset_on_reclaim=*/false,
+            /*mark_as_cold_on_reclaim=*/false);
 
     fallback_allocator_.reset(fallback_allocator.release());
   }
@@ -159,15 +166,19 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
     std::ignore = posix_memalign(&tmp, Allocator::kMinAlignment, kBufferSize);
     buffer_.reset(static_cast<uint8_t*>(tmp));
 
-    std::unique_ptr<MockDecommitAllocator> fallback_allocator(
-        new MockDecommitAllocator(buffer_.get(), kBufferSize));
+    auto fallback_allocator =
+        std::make_unique<MockDecommitAllocator>(buffer_.get(), kBufferSize);
 
     // Store pointer before move/swap
     mock_fallback_allocator_ = fallback_allocator.get();
 
-    allocator_.reset(new BidirectionalFitReuseAllocator<ReuseAllocatorBase>(
-        mock_fallback_allocator_, 0, 0, 0, true, retain_blocks,
-        conservative_decommit_blocks));
+    allocator_ =
+        std::make_unique<BidirectionalFitReuseAllocator<ReuseAllocatorBase>>(
+            mock_fallback_allocator_, 0, 0, 0, true, retain_blocks,
+            conservative_decommit_blocks,
+            /*aggressive_decommit_on_suspend=*/false,
+            /*memset_on_reclaim=*/false,
+            /*mark_as_cold_on_reclaim=*/false);
 
     fallback_allocator_.reset(fallback_allocator.release());
   }
@@ -388,7 +399,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitExactFallbackBlocks) {
 
   EXPECT_TRUE(block1 != nullptr);
   EXPECT_TRUE(block2 != nullptr);
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
 
   // Free them. The allocator may merge the free blocks internally,
   // but it must still decommit the original exact fallback blocks.
@@ -397,7 +408,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitExactFallbackBlocks) {
   this->allocator_->DecommitAllDecommitableBlocks();
 
   // We should have exactly 2 decommits matching the original blocks.
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 2);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 2U);
 
   // They might be decommitted in any order, so check if both exist.
   // Note: For EmbeddedMetadataReuseAllocatorBase, `block1` and `block2` are
@@ -442,7 +453,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitOnBatchedFree) {
     blocks.push_back(block);
   }
 
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
 
   for (void* block : blocks) {
     this->allocator_->Free(block);
@@ -451,12 +462,12 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitOnBatchedFree) {
 
   // EmbeddedMetadataReuseAllocatorBase batches frees and processes them all at
   // once when idle.
-  EXPECT_GT(this->mock_fallback_allocator_->decommits.size(), 0);
+  EXPECT_GT(this->mock_fallback_allocator_->decommits.size(), 0U);
 
   size_t total_decommitted_size = 0;
   for (const auto& decommit : this->mock_fallback_allocator_->decommits) {
     total_decommitted_size += decommit.size;
-    EXPECT_FALSE(decommit.conservative);
+    EXPECT_EQ(decommit.mode, Allocator::DecommitMode::kAggressive);
   }
   EXPECT_GE(total_decommitted_size, kBlockSize * kNumBlocks);
 }
@@ -487,7 +498,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, TieredDecommit) {
   EXPECT_TRUE(block2 != nullptr);
   EXPECT_TRUE(block3 != nullptr);
   EXPECT_TRUE(block4 != nullptr);
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
 
   // Free them. The allocator should batch them and process when idle.
   this->allocator_->Free(block1);
@@ -497,7 +508,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, TieredDecommit) {
   this->allocator_->DecommitAllDecommitableBlocks();
 
   // Block 1 (retain) is skipped. Block 2, 3, 4 should be decommitted.
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 3);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 3U);
 
   bool found_block2 = false;
   bool found_block3 = false;
@@ -511,15 +522,15 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, TieredDecommit) {
 
     if (ptr2 >= fallback_ptr && ptr2 < fallback_ptr + fallback_size) {
       found_block2 = true;
-      EXPECT_TRUE(decommit.conservative);
+      EXPECT_EQ(decommit.mode, Allocator::DecommitMode::kConservative);
     }
     if (ptr3 >= fallback_ptr && ptr3 < fallback_ptr + fallback_size) {
       found_block3 = true;
-      EXPECT_TRUE(decommit.conservative);
+      EXPECT_EQ(decommit.mode, Allocator::DecommitMode::kConservative);
     }
     if (ptr4 >= fallback_ptr && ptr4 < fallback_ptr + fallback_size) {
       found_block4 = true;
-      EXPECT_FALSE(decommit.conservative);
+      EXPECT_EQ(decommit.mode, Allocator::DecommitMode::kAggressive);
     }
   }
 

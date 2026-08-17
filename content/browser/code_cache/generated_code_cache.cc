@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string_view>
 
+#include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -15,6 +16,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/byte_conversions.h"
+#include "build/build_config.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
@@ -476,6 +478,27 @@ void GeneratedCodeCache::WriteEntry(const GURL& url,
   // Reject buffers that are large enough to cause overflow problems.
   if (data.size() >= std::numeric_limits<int32_t>::max())
     return;
+
+#if BUILDFLAG(IS_COBALT)
+  if (cache_type_ == CodeCacheType::kJavaScript) {
+    // We skip caching below experimental thresholds (1KB, 16KB) to preserve
+    // cache slots for heavy core bundles. Cache switch evaluations statically
+    // once per runtime process to avoid redundant map lookups.
+    static const size_t kMinBytecodeSize = [] {
+      auto* command_line = base::CommandLine::ForCurrentProcess();
+      if (command_line->HasSwitch("enable-http-and-v8-cache-tuning")) {
+        return 16384;
+      }
+      if (command_line->HasSwitch("enable-optimized-v8-code-cache")) {
+        return 1024;
+      }
+      return 0;
+    }();
+    if (data.size() < kMinBytecodeSize) {
+      return;
+    }
+  }
+#endif
 
   const std::string key = GetCacheKey(url, origin_lock, nik, cache_type_);
   if (cache_type_ == CodeCacheType::kJavaScript) {

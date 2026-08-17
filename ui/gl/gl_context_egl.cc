@@ -411,20 +411,10 @@ void GLContextEGL::Destroy() {
   ReleaseBackpressureFences();
   OnContextWillDestroy();
   if (context_) {
-#if BUILDFLAG(IS_COBALT)
-    EGLDisplay display = gl_display_->GetDisplay();
-    if (display != EGL_NO_DISPLAY) {
-      if (!eglDestroyContext(display, context_)) {
-        LOG(ERROR) << "eglDestroyContext failed with error "
-                   << GetLastEGLErrorString();
-      }
-    }
-#else  // BUILDFLAG(IS_COBALT)
     if (!eglDestroyContext(gl_display_->GetDisplay(), context_)) {
       LOG(ERROR) << "eglDestroyContext failed with error "
                  << GetLastEGLErrorString();
     }
-#endif  // BUILDFLAG(IS_COBALT)
 
     context_ = nullptr;
   }

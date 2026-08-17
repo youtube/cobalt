@@ -18,6 +18,7 @@
 
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/avc_util.h"
+#include "starboard/shared/starboard/media/resolutions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -42,7 +43,7 @@ std::vector<uint8_t> operator+(const std::vector<uint8_t>& left,
 TEST(VideoConfigTest, CtorWithVideoStreamInfo) {
   VideoStreamInfo video_stream_info;
   video_stream_info.codec = kSbMediaVideoCodecH264;
-  video_stream_info.frame_size = {1920, 1080};
+  video_stream_info.frame_size = Resolution::k1080p;
 
   std::vector<uint8_t> nalus_in_annex_b =
       kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
@@ -58,13 +59,13 @@ TEST(VideoConfigTest, CtorWithVideoStreamInfo) {
 }
 
 TEST(VideoConfigTest, IsValidH264PpsOnly) {
-  auto config = VideoConfig::Create(kSbMediaVideoCodecH264, {1920, 1080},
+  auto config = VideoConfig::Create(kSbMediaVideoCodecH264, Resolution::k1080p,
                                     kPpsInAnnexB.data(), kPpsInAnnexB.size());
   ASSERT_TRUE(config.has_value());
 }
 
 TEST(VideoConfigTest, IsValidH264IdrOnly) {
-  auto config = VideoConfig::Create(kSbMediaVideoCodecH264, {1920, 1080},
+  auto config = VideoConfig::Create(kSbMediaVideoCodecH264, Resolution::k1080p,
                                     kIdrInAnnexB.data(), kIdrInAnnexB.size());
   ASSERT_TRUE(config.has_value());
 }
@@ -73,7 +74,7 @@ TEST(VideoConfigTest, IsValidH264FullAnnexB) {
   std::vector<uint8_t> nalus_in_annex_b =
       kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
   auto config =
-      VideoConfig::Create(kSbMediaVideoCodecH264, {1920, 1080},
+      VideoConfig::Create(kSbMediaVideoCodecH264, Resolution::k1080p,
                           nalus_in_annex_b.data(), nalus_in_annex_b.size());
   ASSERT_TRUE(config.has_value());
 }
@@ -83,14 +84,14 @@ TEST(VideoConfigTest, IsValidH264InvalidHeader) {
       kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
   // The implementation only fails when the format is avc and the input isn't
   // empty and doesn't start with a nalu header.
-  auto config = VideoConfig::Create(kSbMediaVideoCodecH264, {1920, 1080},
+  auto config = VideoConfig::Create(kSbMediaVideoCodecH264, Resolution::k1080p,
                                     nalus_in_annex_b.data() + 1,
                                     nalus_in_annex_b.size() - 1);
   ASSERT_FALSE(config.has_value());
 }
 
 TEST(VideoConfigTest, IsValidVp9) {
-  auto config = VideoConfig::Create(kSbMediaVideoCodecVp9, {1920, 1080},
+  auto config = VideoConfig::Create(kSbMediaVideoCodecVp9, Resolution::k1080p,
                                     /*data=*/nullptr, /*data_size=*/0);
   ASSERT_TRUE(config.has_value());
 }
@@ -118,7 +119,7 @@ TEST(VideoConfigTest, EqualityOperatorsH264) {
 
   // Different values (resolution)
   auto config3 =
-      VideoConfig::Create(kSbMediaVideoCodecH264, {1920, 1080},
+      VideoConfig::Create(kSbMediaVideoCodecH264, Resolution::k1080p,
                           nalus_in_annex_b.data(), nalus_in_annex_b.size());
   ASSERT_TRUE(config3.has_value());
   EXPECT_FALSE(*config1 == *config3);
@@ -144,9 +145,9 @@ TEST(VideoConfigTest, EqualityOperatorsVp9) {
   EXPECT_FALSE(*config1 != *config2);
 
   // Different values (resolution)
-  auto config3 =
-      VideoConfig::Create(kSbMediaVideoCodecVp9, {1920, 1080}, /*data=*/nullptr,
-                          /*data_size=*/0);
+  auto config3 = VideoConfig::Create(kSbMediaVideoCodecVp9, Resolution::k1080p,
+                                     /*data=*/nullptr,
+                                     /*data_size=*/0);
   ASSERT_TRUE(config3.has_value());
   EXPECT_FALSE(*config1 == *config3);
   EXPECT_TRUE(*config1 != *config3);
@@ -163,7 +164,7 @@ TEST(VideoConfigTest, H264) {
 
   // Different resolution, same parameter sets.
   auto config_1 =
-      VideoConfig::Create(kSbMediaVideoCodecH264, {1920, 1080},
+      VideoConfig::Create(kSbMediaVideoCodecH264, Resolution::k1080p,
                           nalus_in_annex_b.data(), nalus_in_annex_b.size());
   ASSERT_TRUE(config_1.has_value());
   EXPECT_NE(*config, *config_1);
@@ -242,8 +243,8 @@ TEST(VideoConfigTest, Vp9) {
 
   // Different resolution, same data.
   auto config_1 =
-      VideoConfig::Create(kSbMediaVideoCodecVp9, {1920, 1080}, kInvalidData,
-                          SB_ARRAY_SIZE(kInvalidData));
+      VideoConfig::Create(kSbMediaVideoCodecVp9, Resolution::k1080p,
+                          kInvalidData, SB_ARRAY_SIZE(kInvalidData));
   ASSERT_TRUE(config_1.has_value());
   EXPECT_NE(*config, *config_1);
 

@@ -5,14 +5,14 @@ Book: /youtube/cobalt/_book.yaml
 
 A description of the coding conventions for Starboard code and API headers.
 
-**Status:** REVIEWED\
-**Created:** 2016-11-08
+**Status:** REVIEWED
+**Created:** 2026-06-16
 
-Starboard generally tries to follow the coding conventions of Cobalt, which
-itself mostly follows the conventions of Chromium, which mostly follows the
-externally-published Google C++ coding conventions. But, Starboard has some
-special requirements due to its unusual constraints, so it must add a few new
-conventions and loosen some of the existing style prescriptions.
+Starboard generally tries to follow the coding conventions of Chromium,
+which mostly follows the externally-published Google C++ coding conventions.
+But, Starboard has some special requirements due to its unusual constraints,
+so it must add a few new conventions and loosen some of the existing
+style prescriptions.
 
 ## Background
 
@@ -23,7 +23,6 @@ in this order:
 
   * [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html)
   * [Chromium C++ Style Guide](https://chromium.googlesource.com/chromium/src/+/master/styleguide/c++/c++.md)
-  * [Cobalt Style Guide](http://cobalt.foo/broken)
 
 The main additional constraints that Starboard has to deal with are:
 
@@ -62,7 +61,7 @@ the guidelines follow thusly as follows.
 
 ### API Definitions
 
-  * Starboard API definitions must always be compatible with straight-C99 compilers.
+  * Starboard API definitions must always be compatible with C11 compilers.
   * All public API declarations must be specified in headers in
     `src/starboard/*.h`, not in any subdirectories.
   * Non-public declarations must NOT be specified in headers in
@@ -81,8 +80,8 @@ the guidelines follow thusly as follows.
 
   * The name of the module must be the singular form of the noun being
     interfaced with by the module, without any "sb" or "starboard".
-      * `file.h`
-      * `directory.h`
+      * `player.h`
+      * `media.h`
       * `window.h`
   * Module interfaces should not have circular dependencies.
 
@@ -93,7 +92,7 @@ the guidelines follow thusly as follows.
   * File names must not contain `sb_` or `starboard_`.
   * The name of a module header file must be the `lower_snake_case` form of the
     module name.
-      * `SbConditionVariable` ➡ `starboard/condition_variable.h`
+      * `SbAudioSink` ➡ `starboard/audio_sink.h`
   * A header that is intended to be an internal implementation detail of one or
     more platform implementations should have the suffix `_internal.h`, and
     include the header `starboard/shared/internal_only.h`.
@@ -106,15 +105,15 @@ the guidelines follow thusly as follows.
     C, so `Sb` is the Starboard namespace.
   * Every public Starboard type must be declared by a module, and must have the
     name of the module following the `Sb`.
-      * `file.h` contains `SbFile`, `SbFileInfo`, `SbFileWhence`, etc...
+      * `player.h` contains `SbPlayer`, etc...
   * Every seemingly-allocatable, platform-specific Starboard type should be
     defined as an opaque handle to a publicly undefined struct with the
     `Private` suffix. Follow this pattern for all such type declarations.
-      * `struct SbFilePrivate` is declared, but not defined in the public header.
-      * `SbFilePrivate` is `typedef`'d to `struct SbFilePrivate`. This is a C
+      * `struct SbPlayerPrivate` is declared, but not defined in the public header.
+      * `SbPlayerPrivate` is `typedef`'d to `struct SbPlayerPrivate`. This is a C
         thing where types are defined as names with the "`struct`" keyword
         prepended unless `typedef`'d.
-      * `SbFile` is defined as a `typedef` of `struct SbFilePrivate*`.
+      * `SbPlayer` is defined as a `typedef` of `struct SbPlayerPrivate*`.
   * C structs may be defined internally to have functions and visibility. It is
     allowed for such structs to have constructors, destructors, methods,
     members, and public members.
@@ -132,17 +131,9 @@ the guidelines follow thusly as follows.
   * Every public Starboard function must be declared by a module, and must have
     the name of the module following the `Sb`.
       * `system.h` contains `SbSystemGetPath()`
-      * `file.h` contains `SbFileOpen()`
   * After the Starboard and Module prefix, functions should start with an
     imperative verb indicating what the function does.
-      * The Thread module defines `SbThreadCreateLocalKey()` to create a key for
-        thread local storage.
-  * If a word in the name of a function is redundant with the module name, it is
-    omitted.
-      * The `File` module as the function `SbFileOpen`, not ~~`SbOpenFile`,
-        `SbFileOpenFile` or `SbFileOpenSbFile`~~.
-      * If this gets awkward, it may indicate a need to split into a different
-        module.
+      * The SbPlayer module defines `SbPlayerCreate()` to create a player.
 
 ### Variables, Parameters, Fields
 
@@ -176,8 +167,7 @@ namespace at the starboard repository root.
   * Configuration definitions should be namespaced with the module name that
     they primarily affect, if applicable, or a scope that generally indicates
     its domain.
-      * `SB_FILE_MAX_NAME`
-      * `SB_MEMORY_PAGE_SIZE`
+      * `SB_CHECK`
   * Always use `#if defined(MACRO)` over `#ifdef MACRO`.
 
 ### Constants
@@ -187,10 +177,6 @@ namespace at the starboard repository root.
     `k`.
   * After the `k`, all constants have `Sb`, the Starboard namespace.
       * `kSb`
-  * After `kSb`, all constants then have the module name.
-      * `kSbFile`
-  * After `kSb<module>` comes the rest of the name of the constant.
-      * `kSbFileInvalid`
   * Enum entries are prefixed with the full name of the enum.
       * The enum `SbSystemDeviceType` contains entries like
         `kSbSystemDeviceTypeBlueRayDiskPlayer`.
@@ -198,7 +184,7 @@ namespace at the starboard repository root.
 ### Comments
 
   * All files must have a license and copyright comment.
-  * It is expected that the straight-C compiler supports C99 single-line
+  * It is expected that the straight-C compiler supports C11 single-line
     comments. Block comments should be avoided whenever possible, even in
     license and copyright headers.
   * Each public API module file should have a Module Overview documentation

@@ -283,6 +283,15 @@
 #define BUILDFLAG_INTERNAL_IS_COBALT() (0)
 #endif
 
+// TODO(b/505811196): Remove this argument once Cobalt rebased
+// to the milestone where the privacy sandbox components are fully
+// removed.
+#if defined(ENABLE_BUILDFLAG_ENABLE_PRIVACY_SANDBOX_APIS)
+#define BUILDFLAG_INTERNAL_ENABLE_PRIVACY_SANDBOX_APIS() (1)
+#else
+#define BUILDFLAG_INTERNAL_ENABLE_PRIVACY_SANDBOX_APIS() (0)
+#endif
+
 #if defined(OS_STARBOARD)
 #define BUILDFLAG_INTERNAL_IS_STARBOARD() (1)
 #else

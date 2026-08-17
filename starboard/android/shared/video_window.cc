@@ -48,13 +48,9 @@ jni_zero::ScopedJavaGlobalRef<jobject>& GetGlobalVideoSurface() {
 }
 
 // Global pointer to the single video window.
-ANativeWindow* g_native_video_window = NULL;
+ANativeWindow* g_native_video_window = nullptr;
 // Global video surface pointer holder.
-VideoSurfaceHolder* g_video_surface_holder = NULL;
-// Global boolean to indicate if we need to reset SurfaceView after playing
-// vertical video.
-// TODO: b/521503666 - Revisit to see if we need this variable or not.
-bool g_reset_surface_on_clear_window = false;
+VideoSurfaceHolder* g_video_surface_holder = nullptr;
 
 void ClearNativeWindow(void* raw_context) {
   ANativeWindow* native_window = static_cast<ANativeWindow*>(raw_context);
@@ -160,10 +156,6 @@ void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
   }
 }
 
-void JNI_VideoSurfaceView_SetNeedResetSurface(JNIEnv* env) {
-  g_reset_surface_on_clear_window = true;
-}
-
 // static
 bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
   // We only consider video surface is available when there is a video
@@ -173,16 +165,18 @@ bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
   return !g_video_surface_holder && GetGlobalVideoSurface();
 }
 
-jobject VideoSurfaceHolder::AcquireVideoSurface() {
+jni_zero::ScopedJavaLocalRef<jobject>
+VideoSurfaceHolder::AcquireVideoSurface() {
   std::lock_guard lock(*GetViewSurfaceMutex());
   if (g_video_surface_holder != NULL) {
-    return NULL;
+    return {};
   }
   if (!GetGlobalVideoSurface()) {
-    return NULL;
+    return {};
   }
   g_video_surface_holder = this;
-  return GetGlobalVideoSurface().obj();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  return jni_zero::ScopedJavaLocalRef<jobject>(env, GetGlobalVideoSurface());
 }
 
 void VideoSurfaceHolder::ReleaseVideoSurface() {
@@ -192,19 +186,7 @@ void VideoSurfaceHolder::ReleaseVideoSurface() {
   }
 }
 
-bool VideoSurfaceHolder::GetVideoWindowSize(int* width, int* height) {
-  std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_native_video_window == NULL) {
-    return false;
-  } else {
-    *width = ANativeWindow_getWidth(g_native_video_window);
-    *height = ANativeWindow_getHeight(g_native_video_window);
-    return true;
-  }
-}
-
-void VideoSurfaceHolder::CleanUpVideoWindow(
-    bool force_clear,
+void VideoSurfaceHolder::CleanUpVideoSurface(
     SbDecodeTargetGraphicsContextProvider* gpu_provider) {
   // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
   // during painting.
@@ -215,22 +197,25 @@ void VideoSurfaceHolder::CleanUpVideoWindow(
     return;
   }
 
+  SB_CHECK(gpu_provider);
+  gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
+                                    g_native_video_window);
+  SB_LOG(INFO) << "Video surface has been cleared.";
+}
+
+void VideoSurfaceHolder::ResetVideoSurface() {
+  // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
+  // during painting.
+  std::lock_guard lock(*GetViewSurfaceMutex());
+
   JNIEnv* env = AttachCurrentThread();
   if (!env) {
-    SB_LOG(INFO) << "Tried to clean up video window when JNIEnv was null.";
-    return;
-  }
-
-  if (force_clear) {
-    SB_CHECK(gpu_provider);
-    gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
-                                      g_native_video_window);
-    SB_LOG(INFO) << "Video surface has been cleared.";
+    SB_LOG(INFO) << "Tried to reset video window when JNIEnv was null.";
     return;
   }
 
   StarboardBridge::GetInstance()->ResetVideoSurface(env);
-  SB_LOG(INFO) << "Video surface has been reset (default behavior).";
+  SB_LOG(INFO) << "Video surface has been reset.";
 }
 
 }  // namespace starboard

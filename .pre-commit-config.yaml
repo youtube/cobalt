@@ -50,6 +50,12 @@ repos:
         files: ^.github/workflows
 -   repo: local
     hooks:
+    -   id: autoroll-format
+        name: autoroll-format
+        entry: python3 ./cobalt/precommit/autoroll_check.py
+        language: python
+        files: ^.github/AUTOROLL$
+        pass_filenames: false
     -   id: chromium-pre-commit
         name: Chromium presubmit bridge
         entry: ./third_party/depot_tools/vpython3 --vpython-spec=./third_party/depot_tools/.vpython3 ./cobalt/precommit/run_chromium_presubmits.py
@@ -115,13 +121,6 @@ repos:
         language: python
         types: [java]
         args: [-i]
-        # (TODO:b/454687024) Re-enable. Temporarily disabled post m138 merge
-        # due to unintended update of java code formatting rules
-        exclude: |
-            (?x)^(
-                starboard/|
-                cobalt/
-            )
     -   id: gcheckstyle
         name: gcheckstyle
         entry: python3 ./cobalt/precommit/gcheckstyle_wrapper.py

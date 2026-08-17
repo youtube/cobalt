@@ -293,6 +293,10 @@ test("gl_tests") {
     sources -= [ "command_buffer/tests/gl_tests_main.cc" ]
   }
 
+  if (is_cobalt && use_starboard_media) {
+    sources += [ "command_buffer/service/shared_image/starboard/starboard_gl_texture_image_backing_unittest.cc" ]
+  }
+
   if (is_android) {
     sources += [ "command_buffer/tests/gl_unittests_android.cc" ]
   }
@@ -342,6 +346,10 @@ test("gl_tests") {
   ]
 
   deps += [ "//third_party/angle:translator" ]
+
+  if (is_cobalt && use_starboard_media) {
+    deps += [ "//starboard:starboard_headers_only" ]
+  }
 
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
@@ -538,9 +546,6 @@ test("gpu_unittests") {
     "ipc/service/gpu_watchdog_thread_unittest.cc",
   ]
 
-  if (is_cobalt && use_starboard_media) {
-    sources += [ "command_buffer/service/shared_image/starboard/starboard_gl_texture_image_backing_unittest.cc" ]
-  }
 
   if (is_cobalt_hermetic_build) {
     sources += [ "command_buffer/common/starboard/unittest_main.cc" ]

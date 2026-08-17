@@ -50,6 +50,8 @@ source_set("starboard") {
       "starboard_cdm.h",
       "starboard_cdm_factory.cc",
       "starboard_cdm_factory.h",
+      "starboard_media_external_memory_allocator.cc",
+      "starboard_media_external_memory_allocator.h",
       "starboard_memory_allocator.h",
       "starboard_renderer.cc",
       "starboard_renderer.h",
@@ -58,6 +60,12 @@ source_set("starboard") {
     ]
 
     deps += [ ":buildflags" ]
+    if (is_ios && target_platform == "tvos") {
+      sources += [
+        "url_player_demuxer.cc",
+        "url_player_demuxer.h",
+      ]
+    }
   }
 
   deps += [
@@ -93,6 +101,7 @@ source_set("unit_tests") {
       "decoder_buffer_allocator_strategy_test.cc",
       "decoder_buffer_allocator_test.cc",
       "media_buffer_pool_decoder_buffer_allocator_strategy_test.cc",
+      "starboard_media_external_memory_allocator_unittest.cc",
       "starboard_memory_allocator_test.cc",
       "starboard_renderer_unittest.cc",
       "starboard_utils_test.cc",

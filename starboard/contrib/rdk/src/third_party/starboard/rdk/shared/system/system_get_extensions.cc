@@ -44,14 +44,19 @@
 #include "third_party/starboard/rdk/shared/accessibility_extension.h"
 #include "third_party/starboard/rdk/shared/configuration.h"
 #include "third_party/starboard/rdk/shared/platform_service.h"
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/elf_loader/evergreen_config.h"
 #include "starboard/shared/starboard/crash_handler.h"
 #include "starboard/shared/starboard/loader_app_metrics.h"
 #endif
 
+#if BUILDFLAG(USE_EVERGREEN)
+#include "starboard/extension/native_stability.h"
+#include "starboard/shared/starboard/native_stability.h"
+#endif
+
 const void* SbSystemGetExtension(const char* name) {
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
   const elf_loader::EvergreenConfig* evergreen_config =
       elf_loader::EvergreenConfig::GetInstance();
   if (evergreen_config != NULL &&
@@ -66,6 +71,11 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
     return starboard::GetLoaderAppMetricsApi();
+  }
+#endif
+#if BUILDFLAG(USE_EVERGREEN)
+  if (strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
+    return starboard::GetNativeStabilityApi();
   }
 #endif
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {

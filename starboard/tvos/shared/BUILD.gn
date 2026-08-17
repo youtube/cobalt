@@ -21,13 +21,21 @@ if (is_internal_build) {
 static_library("test_support") {
   testonly = true
 
-  public_deps = [ "//testing/gtest" ]
+  public_deps = [
+    "//starboard/testing:test_runner",
+    "//testing/gtest",
+  ]
 
-  deps = [ ":starboard_platform" ]
+  deps = [
+    ":starboard_platform",
+    "//base",
+    "//base/test:test_support",
+  ]
 
   sources = [
     "starboard_test_environment.h",
     "starboard_test_environment.mm",
+    "test_runner.cc",
   ]
 }
 
@@ -154,6 +162,7 @@ static_library("starboard_platform") {
     "system_get_path.mm",
     "system_get_property.mm",
     "system_request_conceal.mm",
+    "thread_platform.cc",
     "uikit_media_session_client.h",
     "uikit_media_session_client.mm",
   ]

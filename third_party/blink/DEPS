@@ -15,7 +15,6 @@ include_rules = [
     "+base/observer_list.h",
     "+base/trace_event",
     "+base/win/windows_h_disallowed.h",
-    "+content/public/common/content_milestone_features.h",
     "+third_party/perfetto/include/perfetto/tracing",
 ]
 

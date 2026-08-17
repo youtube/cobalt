@@ -42,12 +42,12 @@
 #include "media/audio/android/starboard_audio_input_stream.h"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-function"
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "media/base/android/media_jni_headers/AudioManagerAndroid_jni.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #pragma clang diagnostic pop
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 using base::android::AppendJavaStringArrayToStringVector;
 using base::android::AttachCurrentThread;
@@ -71,7 +71,7 @@ const int kMaxOutputStreams = 10;
 [[maybe_unused]] const int kDefaultInputBufferSize = 1024;
 #else
 const int kDefaultInputBufferSize = 1024;
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 const int kDefaultOutputBufferSize = 2048;
 
 void AddDefaultDevice(AudioDeviceNames* device_names) {
@@ -162,7 +162,7 @@ void AudioManagerAndroid::ShutdownOnAudioThread() {
       it.second->stream->Close();
     }
   }
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   AudioManagerBase::ShutdownOnAudioThread();
 
@@ -328,7 +328,7 @@ void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
     DVLOG(1) << "device_name: " << d.device_name;
     DVLOG(1) << "unique_id: " << d.unique_id;
   }
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 std::optional<AudioDevice> AudioManagerAndroid::GetDeviceForAAudioStream(
@@ -404,7 +404,7 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
   params.set_effects(effects);
   DVLOG(1) << params.AsHumanReadableString();
   return params;
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 const std::string_view AudioManagerAndroid::GetName() {
@@ -433,8 +433,7 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Check if this is a fast-track request by checking for our special prefix.
   static constexpr char kFastTrackPrefix[] = "fast-track-";
-  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack) &&
-      base::StartsWith(device_id, kFastTrackPrefix)) {
+  if (base::StartsWith(device_id, kFastTrackPrefix)) {
     std::string session_id = device_id.substr(sizeof(kFastTrackPrefix) -1);
     std::unique_ptr<PreStartedEntry> entry;
     {
@@ -467,7 +466,7 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
   }
 #else
   bool has_input_streams = !HasNoAudioInputStreams();
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
       params, device_id, AudioManager::LogCallback());
 
@@ -504,7 +503,7 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
     SetCommunicationAudioModeOn(true);
   }
   return stream;
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void AudioManagerAndroid::ReleaseOutputStream(AudioOutputStream* stream) {
@@ -528,7 +527,7 @@ void AudioManagerAndroid::ReleaseInputStream(AudioInputStream* stream) {
       }
     }
   }
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   AudioManagerBase::ReleaseInputStream(stream);
 
@@ -539,7 +538,7 @@ void AudioManagerAndroid::ReleaseInputStream(AudioInputStream* stream) {
     communication_mode_is_on_ = false;
     SetCommunicationAudioModeOn(false);
   }
-#endif
+#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 AudioOutputStream* AudioManagerAndroid::MakeLinearOutputStream(
@@ -616,11 +615,10 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
-    return new StarboardAudioInputStream(this, params);
-  }
-#endif
+  return new StarboardAudioInputStream(this, params);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   if (__builtin_available(android AAUDIO_MIN_API, *)) {
     if (UseAAudioInput()) {
       std::optional<AudioDevice> device =
@@ -636,7 +634,8 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
   return new OpenSLESInputStream(this, params);
 #else
   return nullptr;
-#endif
+#endif  // BUILDFLAG(USE_OPENSLES)
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
@@ -647,10 +646,10 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
-    return new StarboardAudioInputStream(this, params);
-  }
-#endif
+  return new StarboardAudioInputStream(this, params);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   DLOG_IF(ERROR, device_id.empty()) << "Invalid device ID!";
 
   if (!UseAAudioPerStreamDeviceSelection()) {
@@ -683,7 +682,8 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
   return new OpenSLESInputStream(this, params);
 #else
   return nullptr;
-#endif
+#endif  // BUILDFLAG(USE_OPENSLES)
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void AudioManagerAndroid::OnStartAAudioInputStream(AAudioInputStream* stream) {
@@ -820,7 +820,7 @@ const JavaRef<jobject>& AudioManagerAndroid::GetJavaAudioManager() {
     // notifications.
     Java_AudioManagerAndroid_init(base::android::AttachCurrentThread(),
                                   j_audio_manager_);
-#endif
+#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
   }
   return j_audio_manager_;
 }
@@ -830,7 +830,7 @@ void AudioManagerAndroid::SetCommunicationAudioModeOn(bool on) {
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
   Java_AudioManagerAndroid_setCommunicationAudioModeOn(
       base::android::AttachCurrentThread(), GetJavaAudioManager(), on);
-#endif
+#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 bool AudioManagerAndroid::SetCommunicationDevice(const std::string& device_id) {
@@ -849,7 +849,7 @@ bool AudioManagerAndroid::SetCommunicationDevice(const std::string& device_id) {
                                                                  : device_id);
   return Java_AudioManagerAndroid_setCommunicationDevice(
       env, GetJavaAudioManager(), j_device_id);
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 bool AudioManagerAndroid::IsBluetoothScoOn() {
@@ -925,7 +925,7 @@ void AudioManagerAndroid::PreStartStream(
 
 AudioManagerAndroid::PreStartedEntry::PreStartedEntry() = default;
 AudioManagerAndroid::PreStartedEntry::~PreStartedEntry() = default;
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 int AudioManagerAndroid::GetNativeOutputSampleRate() {
   return Java_AudioManagerAndroid_getNativeOutputSampleRate(

@@ -366,6 +366,156 @@ TEST(DecodedAudioTest, Clone) {
   }
 }
 
-}  // namespace
+class DecodedAudioNeonTest : public ::testing::Test {
+ protected:
+  scoped_refptr<DecodedAudio> CreateInt16PlanarRamp(int total_samples) {
+    int size_in_bytes = total_samples * sizeof(int16_t);
+    auto base = make_scoped_refptr<DecodedAudio>(
+        kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
+        kSbMediaAudioFrameStorageTypePlanar, kTimestampUsec, size_in_bytes);
+    int16_t* data = base->data_as_int16();
+    for (int i = 0; i < total_samples; ++i) {
+      data[i] = static_cast<int16_t>(i - 32768);
+    }
+    return base;
+  }
 
+  scoped_refptr<DecodedAudio> CreateFloat32InterleavedRamp(int total_samples) {
+    int size_in_bytes = total_samples * sizeof(float);
+    auto base = make_scoped_refptr<DecodedAudio>(
+        kChannels, kSbMediaAudioSampleTypeFloat32,
+        kSbMediaAudioFrameStorageTypeInterleaved, kTimestampUsec,
+        size_in_bytes);
+    float* data = base->data_as_float32();
+    for (int i = 0; i < total_samples; ++i) {
+      data[i] = -2.0f + 4.0f * (static_cast<float>(i) / total_samples);
+    }
+    return base;
+  }
+
+  void VerifyContent(scoped_refptr<DecodedAudio> ref,
+                     scoped_refptr<DecodedAudio> simd) {
+    ASSERT_NE(ref, nullptr);
+    ASSERT_NE(simd, nullptr);
+    ASSERT_EQ(ref->size_in_bytes(), simd->size_in_bytes());
+    if (ref->sample_type() == kSbMediaAudioSampleTypeFloat32) {
+      const float* ref_data = ref->data_as_float32();
+      const float* simd_data = simd->data_as_float32();
+      int num_floats = ref->size_in_bytes() / sizeof(float);
+      for (int i = 0; i < num_floats; ++i) {
+        ASSERT_FLOAT_EQ(ref_data[i], simd_data[i]) << "Mismatch at index " << i;
+      }
+    } else {
+      const int16_t* ref_data = ref->data_as_int16();
+      const int16_t* simd_data = simd->data_as_int16();
+      int num_ints = ref->size_in_bytes() / sizeof(int16_t);
+      for (int i = 0; i < num_ints; ++i) {
+        ASSERT_EQ(ref_data[i], simd_data[i]) << "Mismatch at index " << i;
+      }
+    }
+  }
+
+  void VerifySwitchFormat(scoped_refptr<DecodedAudio> base_audio,
+                          SbMediaAudioSampleType target_sample_type,
+                          SbMediaAudioFrameStorageType target_storage_type) {
+    scoped_refptr<DecodedAudio> ref = base_audio->SwitchFormatTo(
+        target_sample_type, target_storage_type, /*force_simd=*/false);
+    scoped_refptr<DecodedAudio> simd = base_audio->SwitchFormatTo(
+        target_sample_type, target_storage_type, /*force_simd=*/true);
+    VerifyContent(ref, simd);
+  }
+};
+
+TEST_F(DecodedAudioNeonTest, SwitchFormatTo_NeonSimdExhaustive) {
+  // 1. Test conversions starting from Int16 Planar (65536 samples)
+  auto int16_planar_base = CreateInt16PlanarRamp(65536);
+
+  // Test Case 1: Int16 Planar -> Float32 Interleaved
+  VerifySwitchFormat(int16_planar_base, kSbMediaAudioSampleTypeFloat32,
+                     kSbMediaAudioFrameStorageTypeInterleaved);
+
+  // Test Case 2: Int16 Planar -> Float32 Planar
+  VerifySwitchFormat(int16_planar_base, kSbMediaAudioSampleTypeFloat32,
+                     kSbMediaAudioFrameStorageTypePlanar);
+
+  // 2. Test conversions starting from Float32 Interleaved (8000 samples)
+  auto float_interleaved_base = CreateFloat32InterleavedRamp(8000);
+
+  // Test Case 3: Float32 Interleaved -> Int16 Planar
+  VerifySwitchFormat(float_interleaved_base,
+                     kSbMediaAudioSampleTypeInt16Deprecated,
+                     kSbMediaAudioFrameStorageTypePlanar);
+
+  // Test Case 4: Float32 Interleaved -> Int16 Interleaved
+  VerifySwitchFormat(float_interleaved_base,
+                     kSbMediaAudioSampleTypeInt16Deprecated,
+                     kSbMediaAudioFrameStorageTypeInterleaved);
+
+  // Test Case 5: Int16 Planar -> Int16 Interleaved
+  VerifySwitchFormat(int16_planar_base, kSbMediaAudioSampleTypeInt16Deprecated,
+                     kSbMediaAudioFrameStorageTypeInterleaved);
+
+  // Test Case 6: Int16 Interleaved -> Int16 Planar
+  auto int16_interleaved = int16_planar_base->SwitchFormatTo(
+      kSbMediaAudioSampleTypeInt16Deprecated,
+      kSbMediaAudioFrameStorageTypeInterleaved, /*force_simd=*/false);
+  VerifySwitchFormat(int16_interleaved, kSbMediaAudioSampleTypeInt16Deprecated,
+                     kSbMediaAudioFrameStorageTypePlanar);
+
+  // Test Case 7: Float32 Interleaved -> Float32 Planar
+  VerifySwitchFormat(float_interleaved_base, kSbMediaAudioSampleTypeFloat32,
+                     kSbMediaAudioFrameStorageTypePlanar);
+
+  // Test Case 8: Float32 Planar -> Float32 Interleaved
+  auto float_planar = float_interleaved_base->SwitchFormatTo(
+      kSbMediaAudioSampleTypeFloat32, kSbMediaAudioFrameStorageTypePlanar,
+      /*force_simd=*/false);
+  VerifySwitchFormat(float_planar, kSbMediaAudioSampleTypeFloat32,
+                     kSbMediaAudioFrameStorageTypeInterleaved);
+}
+
+TEST_F(DecodedAudioNeonTest, SwitchFormatTo_NeonSimdUnaligned) {
+  // Test with unaligned sizes (non-multiples of 8/16) to verify C++ scalar
+  // fallbacks. 65536 + 14 is non-multiple of 16 (for Int16 -> Float32)
+  auto int16_planar_base = CreateInt16PlanarRamp(65536 + 14);
+
+  // Int16 Planar -> Float32 Interleaved
+  VerifySwitchFormat(int16_planar_base, kSbMediaAudioSampleTypeFloat32,
+                     kSbMediaAudioFrameStorageTypeInterleaved);
+
+  // Float32 Interleaved -> Int16 Planar
+  auto float_interleaved_base = CreateFloat32InterleavedRamp(8000 + 14);
+  VerifySwitchFormat(float_interleaved_base,
+                     kSbMediaAudioSampleTypeInt16Deprecated,
+                     kSbMediaAudioFrameStorageTypePlanar);
+
+  // Float32 Interleaved -> Int16 Interleaved
+  VerifySwitchFormat(float_interleaved_base,
+                     kSbMediaAudioSampleTypeInt16Deprecated,
+                     kSbMediaAudioFrameStorageTypeInterleaved);
+
+  // Int16 Planar -> Int16 Interleaved
+  VerifySwitchFormat(int16_planar_base, kSbMediaAudioSampleTypeInt16Deprecated,
+                     kSbMediaAudioFrameStorageTypeInterleaved);
+
+  // Int16 Interleaved -> Int16 Planar
+  auto int16_interleaved = int16_planar_base->SwitchFormatTo(
+      kSbMediaAudioSampleTypeInt16Deprecated,
+      kSbMediaAudioFrameStorageTypeInterleaved, /*force_simd=*/false);
+  VerifySwitchFormat(int16_interleaved, kSbMediaAudioSampleTypeInt16Deprecated,
+                     kSbMediaAudioFrameStorageTypePlanar);
+
+  // Float32 Interleaved -> Float32 Planar
+  VerifySwitchFormat(float_interleaved_base, kSbMediaAudioSampleTypeFloat32,
+                     kSbMediaAudioFrameStorageTypePlanar);
+
+  // Float32 Planar -> Float32 Interleaved
+  auto float_planar = float_interleaved_base->SwitchFormatTo(
+      kSbMediaAudioSampleTypeFloat32, kSbMediaAudioFrameStorageTypePlanar,
+      /*force_simd=*/false);
+  VerifySwitchFormat(float_planar, kSbMediaAudioSampleTypeFloat32,
+                     kSbMediaAudioFrameStorageTypeInterleaved);
+}
+
+}  // namespace
 }  // namespace starboard

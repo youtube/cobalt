@@ -29,6 +29,9 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
@@ -41,9 +44,12 @@
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_settings_impl.h"
+#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
+#include "cobalt/build/configs/buildflags.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
 #include "cobalt/shell/browser/shell.h"
@@ -60,6 +66,7 @@
 #include "components/variations/pref_names.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/overlay_window.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -74,9 +81,14 @@
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
+#endif
+
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/updater/updater_module.h"  //nogncheck
-#include "content/public/browser/storage_partition.h"
+#include "starboard/extension/installation_manager.h"
+#include "starboard/system.h"
 #endif  // BUILDFLAG(USE_EVERGREEN)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -92,6 +104,10 @@
 #include "cobalt/browser/cobalt_crash_annotations.h"  // nogncheck
 #endif                                                // BUILDFLAG(IS_STARBOARD)
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#include "cobalt/browser/proxy_server_support.h"
+#endif
 
 namespace cobalt {
 
@@ -127,7 +143,36 @@ void BindPlatformWindowProviderService(
       std::move(receiver));
 }
 
+void ParseAndApplyH5vccSettings(std::string_view settings_value,
+                                GlobalFeatures* global_features) {
+  std::vector<std::string> pairs = base::SplitString(
+      settings_value, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  for (const std::string& pair : pairs) {
+    size_t eq_pos = pair.find('=');
+    if (eq_pos == std::string::npos || eq_pos == 0) {
+      LOG(WARNING) << "Skipping value: pair=" << pair;
+      continue;
+    }
+    std::string_view pair_view(pair);
+    std::string_view key =
+        base::TrimWhitespaceASCII(pair_view.substr(0, eq_pos), base::TRIM_ALL);
+    std::string_view val_str =
+        base::TrimWhitespaceASCII(pair_view.substr(eq_pos + 1), base::TRIM_ALL);
+    int64_t int_val = 0;
+    if (base::StringToInt64(val_str, &int_val)) {
+      global_features->SetSettings(key, int_val);
+    } else {
+      global_features->SetSettings(key, std::string(val_str));
+    }
+  }
+}
+
 }  // namespace
+
+void ParseAndApplyH5vccSettingsForTesting(std::string_view settings_value,
+                                          GlobalFeatures* global_features) {
+  ParseAndApplyH5vccSettings(settings_value, global_features);
+}
 
 #if BUILDFLAG(IS_ANDROID)
 static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
@@ -181,7 +226,7 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
 }
 
 CobaltContentBrowserClient::CobaltContentBrowserClient(
-    absl::optional<int64_t> startup_timestamp,
+    std::optional<int64_t> startup_timestamp,
     const std::string& deep_link,
     bool is_visible)
     : startup_timestamp_(startup_timestamp),
@@ -210,6 +255,45 @@ CobaltContentBrowserClient::~CobaltContentBrowserClient() {
 CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
   return static_cast<CobaltContentBrowserClient*>(
       content::ShellContentBrowserClient::Get());
+}
+
+#if BUILDFLAG(IS_ANDROID)
+base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "enable-gpu-shader-disk-cache")) {
+    base::FilePath user_data_dir;
+    if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
+        !user_data_dir.empty()) {
+      return user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache"));
+    }
+  }
+  return base::FilePath();
+}
+
+base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "enable-gpu-shader-disk-cache")) {
+    base::FilePath user_data_dir;
+    if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
+        !user_data_dir.empty()) {
+      return user_data_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
+    }
+  }
+  return base::FilePath();
+}
+#endif
+
+std::unique_ptr<content::VideoOverlayWindow>
+CobaltContentBrowserClient::CreateWindowForVideoPictureInPicture(
+    content::VideoPictureInPictureWindowController* controller) {
+  // TODO: b/532158001 - Support PiP on Linux.
+  // PiP is currently only supported on Android. On other platforms, calling
+  // Create() allocates a dummy object that leaks memory, so we return nullptr.
+#if BUILDFLAG(IS_ANDROID)
+  return content::VideoOverlayWindow::Create(controller);
+#else   // BUILDFLAG(IS_ANDROID)
+  return nullptr;
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 std::unique_ptr<content::BrowserMainParts>
@@ -242,9 +326,15 @@ void CobaltContentBrowserClient::CreateThrottlesForNavigation(
 content::GeneratedCodeCacheSettings
 CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
     content::BrowserContext* context) {
-  // Default compiled javascript quota in Cobalt 25.
+  // Default compiled javascript quota in Cobalt 25 is 3 MB:
   // https://github.com/youtube/cobalt/blob/3ccdb04a5e36c2597fe7066039037eabf4906ba5/cobalt/network/disk_cache/resource_type.cc#L72
-  constexpr size_t size = 3 * 1024 * 1024;
+  // When enable-optimized-v8-code-cache switch is set, increase to 5 MB for
+  // YouTube TV.
+  size_t size = 3 * 1024 * 1024;
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "enable-optimized-v8-code-cache")) {
+    size = 5 * 1024 * 1024;
+  }
   base::FilePath cache_path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
   return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
@@ -354,6 +444,22 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
         base::FilePath(kSCTAuditingPendingReportsFileName);
   }
 
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "max-http-cache-size")) {
+    std::string size_str =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+            "max-http-cache-size");
+    int parsed_size = 0;
+    if (base::StringToInt(size_str, &parsed_size)) {
+      network_context_params->http_cache_max_size = parsed_size;
+    }
+  }
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  cobalt::browser::ConfigureProxyFromCommandLineIfNeeded(
+      network_context_params);
+#endif
+
   network_context_params->enable_certificate_reporting = true;
 
   network_context_params->sct_auditing_mode =
@@ -378,15 +484,23 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
   }
   VLOG(1) << "NativeSplash: Observing main frame WebContents.";
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
+  // Initialize the lifecycle tracker for this WebContents to ensure we track
+  // and register its frames (including the main frame) for lifecycle events
+  // from the very start.
+  CobaltLifecycleManager::GetInstance()->InitializeTracker(web_contents);
 #if BUILDFLAG(USE_EVERGREEN)
   // Create the updater module singleton if not already created.
   auto* storage_partition =
       web_contents->GetPrimaryMainFrame()->GetStoragePartition();
   if (storage_partition && !updater::UpdaterModule::GetInstance()) {
-    LOG(INFO) << "Creating UpdaterModule singleton.";
-    updater::UpdaterModule::CreateInstance(
-        storage_partition->GetURLLoaderFactoryForBrowserProcess(),
-        GetUserAgent(), updater::kDefaultUpdateCheckDelay);
+    if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
+      LOG(INFO) << "Creating UpdaterModule singleton.";
+      updater::UpdaterModule::CreateInstance(
+          storage_partition->GetURLLoaderFactoryForBrowserProcess(),
+          GetUserAgent(), updater::kDefaultUpdateCheckDelay);
+    } else {
+      LOG(INFO) << "Evergreen Lite mode detected, disabling UpdaterModule.";
+    }
   }
 #endif
 }
@@ -474,6 +588,9 @@ void CobaltContentBrowserClient::OnSbWindowCreated(SbWindow window) {
   // assumes only single PlatformWindowStarboard() in Cobalt.
   CHECK(!cached_sb_window_);
   cached_sb_window_ = reinterpret_cast<uint64_t>(window);
+#if BUILDFLAG(IS_STARBOARD)
+  h5vcc_system::H5vccSystemImpl::SetPrimarySbWindow(window);
+#endif
   for (auto& receiver : pending_window_receivers_) {
     BindPlatformWindowProviderService(cached_sb_window_, std::move(receiver));
   }
@@ -483,6 +600,9 @@ void CobaltContentBrowserClient::OnSbWindowCreated(SbWindow window) {
 void CobaltContentBrowserClient::OnSbWindowDestroyed(SbWindow window) {
   DCHECK_EQ(cached_sb_window_, reinterpret_cast<uint64_t>(window));
   cached_sb_window_ = 0;
+#if BUILDFLAG(IS_STARBOARD)
+  h5vcc_system::H5vccSystemImpl::SetPrimarySbWindow(kSbWindowInvalid);
+#endif
 }
 
 void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
@@ -529,6 +649,7 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
       use_safe_config ? kSafeConfigFeatureParams
                       : kExperimentConfigFeatureParams);
 
+  size_t features_applied = 0;
   for (const auto feature_name_and_value : feature_map) {
     if (feature_name_and_value.second.is_bool()) {
       auto override_value =
@@ -537,27 +658,38 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
               : base::FeatureList::OverrideState::OVERRIDE_DISABLE_FEATURE;
       feature_list->RegisterFieldTrialOverride(
           feature_name_and_value.first, override_value, cobalt_field_trial);
+      features_applied++;
     } else {
-      // TODO(b/407734134): Register UMA here for non boolean feature value.
       LOG(ERROR) << "Failed to apply override for feature "
                  << feature_name_and_value.first;
       base::debug::DumpWithoutCrashing();
     }
   }
+  const bool has_invalid_feature_type = feature_map.size() != features_applied;
+  base::UmaHistogramBoolean("Cobalt.Finch.HasInvalidFeatureType",
+                            has_invalid_feature_type);
+  base::UmaHistogramCounts100("Cobalt.Finch.NumFeaturesApplied",
+                              static_cast<int>(features_applied));
 
+  size_t params_applied = 0;
   base::FieldTrialParams params;
   for (const auto param_name_and_value : param_map) {
     if (param_name_and_value.second.is_string()) {
       params.emplace(param_name_and_value.first,
                      param_name_and_value.second.GetString());
+      params_applied++;
     } else {
-      // TODO(b/407734134): Register UMA here for non string param value.
       LOG(ERROR) << "Failed to associate field trial param "
                  << param_name_and_value.first << " with string value "
                  << param_name_and_value.second;
       base::debug::DumpWithoutCrashing();
     }
   }
+  const bool has_invalid_param_type = param_map.size() != params_applied;
+  base::UmaHistogramBoolean("Cobalt.Finch.HasInvalidParamType",
+                            has_invalid_param_type);
+  base::UmaHistogramCounts100("Cobalt.Finch.NumParamsApplied",
+                              static_cast<int>(params_applied));
   base::AssociateFieldTrialParams(kCobaltExperimentName, kCobaltGroupName,
                                   params);
 }
@@ -579,6 +711,11 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   const base::CommandLine& command_line =
       *base::CommandLine::ForCurrentProcess();
 
+  if (command_line.HasSwitch(switches::kEnableH5vccSettings)) {
+    ParseAndApplyH5vccSettings(
+        command_line.GetSwitchValueASCII(switches::kEnableH5vccSettings),
+        global_features);
+  }
   // Overrides for content/common and lower layers' switches.
   std::vector<base::FeatureList::FeatureOverrideInfo> feature_overrides =
       content::GetSwitchDependentFeatureOverrides(command_line);
@@ -606,6 +743,8 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
             << command_line.GetSwitchValueASCII(::switches::kEnableFeatures)
             << "], disable_features=["
             << command_line.GetSwitchValueASCII(::switches::kDisableFeatures)
+            << "], enable_h5vcc_settings=["
+            << command_line.GetSwitchValueASCII(switches::kEnableH5vccSettings)
             << "]";
   LOG(INFO) << "CobaltCommandLine: "
             << CommandLineSwitchesToString(

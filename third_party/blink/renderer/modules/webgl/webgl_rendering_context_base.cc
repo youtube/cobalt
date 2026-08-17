@@ -2294,9 +2294,18 @@ void WebGLRenderingContextBase::bindTexture(GLenum target,
   } else if (IsWebGL2() && target == GL_TEXTURE_3D) {
     texture_units_[active_texture_unit_].texture3d_binding_ = texture;
   } else if (target == GL_TEXTURE_EXTERNAL_OES) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (!ExtensionEnabled(kOESEGLImageExternalName)) {
+      SynthesizeGLError(GL_INVALID_ENUM, "bindTexture",
+                        "GL_TEXTURE_EXTERNAL_OES textures not supported");
+      return;
+    }
+    texture_units_[active_texture_unit_].texture_external_oes_binding_ = texture;
+#else
     SynthesizeGLError(GL_INVALID_ENUM, "bindTexture",
                       "GL_TEXTURE_EXTERNAL_OES textures not supported");
     return;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   } else if (target == GL_TEXTURE_RECTANGLE_ARB) {
     SynthesizeGLError(GL_INVALID_ENUM, "bindTexture",
                       "GL_TEXTURE_RECTANGLE_ARB textures not supported");
@@ -2903,6 +2912,12 @@ void WebGLRenderingContextBase::deleteTexture(WebGLTexture* texture) {
       texture_units_[i].texture_cube_map_binding_ = nullptr;
       max_bound_texture_index = i;
     }
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (texture == texture_units_[i].texture_external_oes_binding_) {
+      texture_units_[i].texture_external_oes_binding_ = nullptr;
+      max_bound_texture_index = i;
+    }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     if (IsWebGL2()) {
       if (texture == texture_units_[i].texture3d_binding_) {
         texture_units_[i].texture3d_binding_ = nullptr;
@@ -7751,6 +7766,16 @@ WebGLTexture* WebGLRenderingContextBase::ValidateTextureBinding(
       }
       tex = texture_units_[active_texture_unit_].texture2d_array_binding_.Get();
       break;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    case GL_TEXTURE_EXTERNAL_OES:
+      if (!ExtensionEnabled(kOESEGLImageExternalName)) {
+        SynthesizeGLError(GL_INVALID_ENUM, function_name,
+                          "invalid texture target");
+        return nullptr;
+      }
+      tex = texture_units_[active_texture_unit_].texture_external_oes_binding_.Get();
+      break;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     default:
       SynthesizeGLError(GL_INVALID_ENUM, function_name,
                         "invalid texture target");
@@ -9003,7 +9028,11 @@ void WebGLRenderingContextBase::FindNewMaxNonDefaultTextureUnit() {
   int start_index = one_plus_max_non_default_texture_unit_ - 1;
   for (int i = start_index; i >= 0; --i) {
     if (texture_units_[i].texture2d_binding_ ||
-        texture_units_[i].texture_cube_map_binding_) {
+        texture_units_[i].texture_cube_map_binding_
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+        || texture_units_[i].texture_external_oes_binding_
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+    ) {
       one_plus_max_non_default_texture_unit_ = i + 1;
       return;
     }
@@ -9018,7 +9047,9 @@ void WebGLRenderingContextBase::TextureUnitState::Trace(
   visitor->Trace(texture3d_binding_);
   visitor->Trace(texture2d_array_binding_);
   visitor->Trace(texture_video_image_binding_);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   visitor->Trace(texture_external_oes_binding_);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   visitor->Trace(texture_rectangle_arb_binding_);
 }
 

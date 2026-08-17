@@ -28,6 +28,10 @@ namespace {
 SetStringCallback g_set_string_callback = nullptr;
 pthread_mutex_t g_set_string_callback_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+void (*g_dump_without_crashing_callback)() = nullptr;
+pthread_mutex_t g_dump_without_crashing_callback_mutex =
+    PTHREAD_MUTEX_INITIALIZER;
+
 bool OverrideCrashpadAnnotations(CrashpadAnnotations* crashpad_annotations) {
   return false;  // Deprecated
 }
@@ -50,10 +54,25 @@ void RegisterSetStringCallback(SetStringCallback callback) {
   SB_CHECK_EQ(pthread_mutex_unlock(&g_set_string_callback_mutex), 0);
 }
 
+void DumpWithoutCrashing() {
+  SB_CHECK_EQ(pthread_mutex_lock(&g_dump_without_crashing_callback_mutex), 0);
+  if (g_dump_without_crashing_callback) {
+    g_dump_without_crashing_callback();
+  }
+  SB_CHECK_EQ(pthread_mutex_unlock(&g_dump_without_crashing_callback_mutex), 0);
+}
+
+void RegisterDumpWithoutCrashingCallback(void (*callback)()) {
+  SB_CHECK_EQ(pthread_mutex_lock(&g_dump_without_crashing_callback_mutex), 0);
+  g_dump_without_crashing_callback = callback;
+  SB_CHECK_EQ(pthread_mutex_unlock(&g_dump_without_crashing_callback_mutex), 0);
+}
+
 const CobaltExtensionCrashHandlerApi kCrashHandlerApi = {
-    kCobaltExtensionCrashHandlerName, 3,
-    &OverrideCrashpadAnnotations,     &SetString,
-    &RegisterSetStringCallback,
+    kCobaltExtensionCrashHandlerName,     4,
+    &OverrideCrashpadAnnotations,         &SetString,
+    &RegisterSetStringCallback,           &DumpWithoutCrashing,
+    &RegisterDumpWithoutCrashingCallback,
 };
 
 }  // namespace

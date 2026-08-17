@@ -63,11 +63,6 @@ struct AudioOutputFormatResult {
   jint channel_count;
 };
 
-struct DequeueInputResult {
-  int32_t status;
-  int32_t index;
-};
-
 struct DequeueOutputResult {
   int32_t status;
   int32_t index;
@@ -89,11 +84,10 @@ class MediaCodec {
     bool skip_video_frames_over_60_fps = false;
     bool ignore_mediacodec_callbacks_during_flushing = false;
     bool enable_frame_renderer_listener = false;
-    bool enable_low_latency = false;
     bool require_secured_decoder = false;
     bool require_software_codec = false;
-    bool force_big_endian_hdr_metadata = false;
     std::optional<int> tunnel_mode_audio_session_id;
+    bool enable_ndk_video = false;
   };
 
   static constexpr int32_t kBufferFlagCodecConfig = 2;
@@ -122,15 +116,15 @@ class MediaCodec {
     virtual std::unique_ptr<MediaCodec> CreateAudioMediaCodec(
         const AudioStreamInfo& audio_stream_info,
         Handler* handler,
-        jobject j_media_crypto) = 0;
+        const jni_zero::JavaRef<jobject>& j_media_crypto) = 0;
     virtual NonNullResult<std::unique_ptr<MediaCodec>> CreateVideoMediaCodec(
         SbMediaVideoCodec video_codec,
         const Size& frame_size_hint,
         int fps,
         const std::optional<Size>& max_frame_size,
         Handler* handler,
-        jobject j_surface,
-        jobject j_media_crypto,
+        const jni_zero::JavaRef<jobject>& j_surface,
+        const jni_zero::JavaRef<jobject>& j_media_crypto,
         const SbMediaColorMetadata* color_metadata,
         const VideoPlatformOptions& platform_options) = 0;
   };
@@ -138,7 +132,7 @@ class MediaCodec {
   static std::unique_ptr<MediaCodec> CreateAudioMediaCodec(
       const AudioStreamInfo& audio_stream_info,
       Handler* handler,
-      jobject j_media_crypto);
+      const jni_zero::JavaRef<jobject>& j_media_crypto);
 
   static NonNullResult<std::unique_ptr<MediaCodec>> CreateVideoMediaCodec(
       SbMediaVideoCodec video_codec,
@@ -146,8 +140,8 @@ class MediaCodec {
       int fps,
       const std::optional<Size>& max_frame_size,
       Handler* handler,
-      jobject j_surface,
-      jobject j_media_crypto,
+      const jni_zero::JavaRef<jobject>& j_surface,
+      const jni_zero::JavaRef<jobject>& j_media_crypto,
       const SbMediaColorMetadata* color_metadata,
       const VideoPlatformOptions& platform_options);
 
@@ -193,7 +187,7 @@ class DefaultMediaCodecFactory : public MediaCodec::Factory {
   std::unique_ptr<MediaCodec> CreateAudioMediaCodec(
       const AudioStreamInfo& audio_stream_info,
       MediaCodec::Handler* handler,
-      jobject j_media_crypto) override;
+      const jni_zero::JavaRef<jobject>& j_media_crypto) override;
 
   NonNullResult<std::unique_ptr<MediaCodec>> CreateVideoMediaCodec(
       SbMediaVideoCodec video_codec,
@@ -201,8 +195,8 @@ class DefaultMediaCodecFactory : public MediaCodec::Factory {
       int fps,
       const std::optional<Size>& max_frame_size,
       MediaCodec::Handler* handler,
-      jobject j_surface,
-      jobject j_media_crypto,
+      const jni_zero::JavaRef<jobject>& j_surface,
+      const jni_zero::JavaRef<jobject>& j_media_crypto,
       const SbMediaColorMetadata* color_metadata,
       const MediaCodec::VideoPlatformOptions& platform_options) override;
 };

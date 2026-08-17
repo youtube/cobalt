@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <android/api-level.h>
 #include <jni.h>
 
 #include <atomic>
@@ -21,6 +22,7 @@
 
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
+#include "starboard/android/shared/audio_track.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
@@ -30,13 +32,16 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
+#include "starboard/shared/starboard/player/buffer_internal.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
@@ -45,7 +50,7 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
-#include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -54,6 +59,31 @@ namespace {
 
 using features::FeatureList;
 using jni_zero::AttachCurrentThread;
+
+constexpr int kAndroidApiLevelU = 34;
+
+bool IsFeatureEnabledOrDefaultOnAndroidU(
+    const SbFeature& feature,
+    const ExperimentalFeatures& experimental_features,
+    const ExperimentalFeatureKey<bool>& experimental_feature_key) {
+  return android_get_device_api_level() >= kAndroidApiLevelU ||
+         FeatureList::IsEnabled(feature) ||
+         experimental_features.GetBool(experimental_feature_key);
+}
+
+bool ShouldEnableFlushDuringSeek(
+    const ExperimentalFeatures& experimental_features) {
+  return IsFeatureEnabledOrDefaultOnAndroidU(
+      features::kForceFlushDecoderDuringReset, experimental_features,
+      kMediaEnableFlushDuringSeek);
+}
+
+bool ShouldEnableResetAudioDecoder(
+    const ExperimentalFeatures& experimental_features) {
+  return IsFeatureEnabledOrDefaultOnAndroidU(features::kForceResetAudioDecoder,
+                                             experimental_features,
+                                             kMediaEnableResetAudioDecoder);
+}
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
@@ -66,6 +96,31 @@ bool UseLibopusDecoder(SbMediaAudioCodec codec,
                        bool force_platform_opus_decoder) {
   return codec == kSbMediaAudioCodecOpus && !SbDrmSystemIsValid(drm_system) &&
          !force_platform_opus_decoder;
+}
+
+bool ShouldUseDualThreads(SbMediaAudioCodec audio_codec,
+                          SbDrmSystem drm_system,
+                          const ExperimentalFeatures& features,
+                          bool force_platform_opus_decoder) {
+  // If there is no audio codec, default to using dual threads.
+  if (audio_codec == kSbMediaAudioCodecNone) {
+    return true;
+  }
+
+  // The experimental feature flag overrides all other conditions.
+  if (features.GetBool(kMediaForceDualThreads)) {
+    return true;
+  }
+
+  // `use_dual_threads` should be disabled if the libopus audio
+  // decoder isn't used, as we want to limit the initial behavior to
+  // playbacks with software based audio where their threading behavior is
+  // more straightforward.
+  //
+  // TODO(b/329686979): Make this work better with AdaptiveAudioDecoder,
+  // where technically the stream can start with aac then transit into opus.
+  return UseLibopusDecoder(audio_codec, drm_system,
+                           force_platform_opus_decoder);
 }
 
 bool IsTunnelModeVideoDecoderSupported(const std::string& mime,
@@ -237,6 +292,11 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
     AudioRendererSink::Reset();
   }
 
+  void Stop() override {
+    is_flushed_ = false;
+    AudioRendererSinkImpl::Stop();
+  }
+
   const bool is_tunnel_mode_enabled_;
   const bool enable_video_renderer_vsp_adjustment_;
   const bool allow_flush_during_seek_;
@@ -286,13 +346,18 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     const auto& experimental_features =
         creation_parameters.experimental_features();
 
-    if (experimental_features.enable_av1_startup_optimization) {
+    Buffer::SetPoolEnabled(
+        experimental_features.GetBool(kMediaDecodedAudioBufferPool));
+    MediaCodecVideoDecoder::SetVideoFramePoolEnabled(
+        experimental_features.GetBool(kMediaVideoFrameImplPool));
+
+    if (experimental_features.GetBool(kMediaEnableAv1StartupOptimization)) {
       MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(true);
       SB_LOG(INFO) << "`enable_av1_startup_optimization` is set to true.";
     }
-    if (experimental_features.disable_low_performance_sw_decoder) {
-      MediaCapabilitiesCache::GetInstance()->SetSoftwareDecoderEnabled(false);
-      SB_LOG(INFO) << "`disable_low_performance_sw_decoder` is set to true.";
+    if (experimental_features.GetBool(kMediaNdkAudioTrack)) {
+      AudioTrack::SetNdkAudioTrackEnabled(true);
+      SB_LOG(INFO) << "`ndk_audio_track` is set to true.";
     }
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
@@ -313,9 +378,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       }
     }
 
-    bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.experimental_features().flush_decoder_during_reset;
+    bool enable_flush_during_seek = ShouldEnableFlushDuringSeek(
+        creation_parameters.experimental_features());
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       auto video_mime_type = MimeType::Create(creation_parameters.video_mime());
@@ -449,8 +513,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     const auto& experimental_features =
         creation_parameters.experimental_features();
     bool enable_reset_audio_decoder =
-        FeatureList::IsEnabled(features::kForceResetAudioDecoder) ||
-        experimental_features.reset_audio_decoder ||
+        ShouldEnableResetAudioDecoder(experimental_features) ||
         (video_mime_type &&
          video_mime_type->GetParamBoolValue("enableresetaudiodecoder", false));
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
@@ -463,8 +526,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << ".";
 
     bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
-        experimental_features.flush_decoder_during_reset ||
+        ShouldEnableFlushDuringSeek(experimental_features) ||
         (video_mime_type &&
          video_mime_type->GetParamBoolValue("enableflushduringseek", false));
     SB_LOG_IF(INFO, enable_flush_during_seek)
@@ -478,7 +540,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     bool allow_flush_audio_track_during_seek =
         FeatureList::IsEnabled(features::kForceFlushAudioTrackDuringReset) ||
-        experimental_features.flush_audio_track_during_seek;
+        experimental_features.GetBool(kMediaFlushAudioTrackDuringSeek);
     SB_LOG_IF(INFO, allow_flush_audio_track_during_seek)
         << "`kForceFlushAudioTrackDuringReset` is set to true, force flushing"
         << " audio track during Reset().";
@@ -489,12 +551,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       // TODO: b/500811542 - Connect to H5VCC.
       const bool allow_audio_writing_on_pause =
-          experimental_features.allow_audio_writing_on_pause;
+          experimental_features.GetBool(kMediaAllowAudioWritingOnPause);
       SB_LOG_IF(INFO, allow_audio_writing_on_pause)
           << "allow_audio_writing_on_pause is set to true.";
 
       const bool enable_video_renderer_vsp_adjustment =
-          experimental_features.enable_video_renderer_vsp_adjustment;
+          experimental_features.GetBool(kMediaEnableVideoRendererVspAdjustment);
       SB_LOG_IF(INFO, enable_video_renderer_vsp_adjustment)
           << "enable_video_renderer_vsp_adjustment is set to true.";
 
@@ -541,8 +603,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           << "The maximum size in bytes of a buffer of data is "
           << max_video_input_size;
 
-      if (experimental_features.enable_video_renderer_vsp_adjustment &&
-          !experimental_features.allow_audio_writing_on_pause) {
+      if (experimental_features.GetBool(
+              kMediaEnableVideoRendererVspAdjustment) &&
+          !experimental_features.GetBool(kMediaAllowAudioWritingOnPause)) {
         return Failure(
             "Video renderer vsp adjustment needs to be enabled with audio "
             "writing on pause.");
@@ -577,27 +640,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       int max_video_input_size) {
     auto experimental_features = creation_parameters.experimental_features();
 
-    bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
-        experimental_features.flush_decoder_during_reset;
+        ShouldEnableFlushDuringSeek(experimental_features);
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
 
-    // TODO: b/429021006 - Connect this flag to H5VCC.
-    bool force_clear_surface = false;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
-      // Use mime param to determine endianness of HDR metadata. If param is
-      // missing or invalid it defaults to Little Endian.
       auto video_mime_type = MimeType::Create(creation_parameters.video_mime());
-      if (video_mime_type && video_mime_type->ValidateStringParameter(
-                                 "hdrinfoendianness", "big|little")) {
-        const std::string& hdr_info_endianness =
-            video_mime_type->GetParamStringValue("hdrinfoendianness",
-                                                 /*default=*/"little");
-        force_big_endian_hdr_metadata = hdr_info_endianness == "big";
-      }
       if (video_mime_type &&
           video_mime_type->ValidateBoolParameter("enableflushduringseek")) {
         enable_flush_during_seek =
@@ -616,20 +666,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
-    if (experimental_features.use_dual_threads_for_video.value_or(false) &&
-        creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
-      // `use_dual_threads_for_video` should be disabled if the libopus audio
-      // decoder isn't used, as we want to limit the initial experiment to
-      // playbacks with software based audio where their threading behavior is
-      // more straightforward.
-      // TODO(b/329686979): Make this work better with AdaptiveAudioDecoder,
-      // where technically the stream can start with aac then transit into opus.
-      if (!UseLibopusDecoder(creation_parameters.audio_codec(),
-                             creation_parameters.drm_system(),
-                             force_platform_opus_decoder_)) {
-        experimental_features.use_dual_threads_for_video = false;
-      }
-    }
+    bool use_dual_threads = ShouldUseDualThreads(
+        creation_parameters.audio_codec(), creation_parameters.drm_system(),
+        experimental_features, force_platform_opus_decoder_);
 
     return MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
@@ -639,9 +678,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
          creation_parameters.surface_view(),
          creation_parameters.max_video_capabilities()},
         {tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode},
-        {max_video_input_size, enable_flush_during_seek, experimental_features},
-        {force_clear_surface, force_big_endian_hdr_metadata, reset_delay_usec,
-         flush_delay_usec});
+        {max_video_input_size, enable_flush_during_seek, use_dual_threads,
+         experimental_features},
+        {reset_delay_usec, flush_delay_usec});
   }
 
   bool IsTunnelModeSupported(const CreationParameters& creation_parameters,
@@ -681,10 +720,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
     DrmSystem* drm_system_ptr =
         static_cast<DrmSystem*>(creation_parameters.drm_system());
-    jobject j_media_crypto =
-        drm_system_ptr ? drm_system_ptr->GetMediaCrypto() : nullptr;
-
-    bool is_encrypted = !!j_media_crypto;
+    bool is_encrypted = drm_system_ptr && drm_system_ptr->GetMediaCrypto();
     if (IsTunnelModeVideoDecoderSupported(mime, is_encrypted)) {
       return true;
     }

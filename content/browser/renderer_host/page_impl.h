@@ -13,10 +13,15 @@
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "build/buildflag.h"
 #include "cc/input/browser_controls_state.h"
-#include "content/browser/fenced_frame/fenced_frame_url_mapping.h"
 #include "content/browser/renderer_host/stored_page.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#include "content/browser/fenced_frame/fenced_frame_url_mapping.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/shared_storage/shared_storage_saved_query_data.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/common/content_export.h"
 #include "content/common/navigation_client.mojom.h"
 #include "content/public/browser/page.h"
@@ -159,9 +164,11 @@ class CONTENT_EXPORT PageImpl : public Page {
     return text_autosizer_page_info_;
   }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   FencedFrameURLMapping& fenced_frame_urls_map() {
     return fenced_frame_urls_map_;
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   void set_last_main_document_source_id(ukm::SourceId id) {
     last_main_document_source_id_ = id;
@@ -368,10 +375,13 @@ class CONTENT_EXPORT PageImpl : public Page {
   // we can do something for special contents.
   std::string contents_mime_type_;
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // Fenced frames:
   // Any fenced frames created within this page will access this map.
   FencedFrameURLMapping fenced_frame_urls_map_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // If `blink::features::kSharedStorageSelectURLLimit` is enabled, the number
   // of bits of entropy remaining in this pageload's overall budget for calls to
   // `sharedStorage.selectURL()`. Calls from all sites on this page are
@@ -397,6 +407,7 @@ class CONTENT_EXPORT PageImpl : public Page {
   base::flat_map<std::tuple<url::Origin, GURL, std::string, std::u16string>,
                  SharedStorageSavedQueryData>
       select_url_saved_query_index_results_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   // This class is owned by the main RenderFrameHostImpl and it's safe to keep a
   // reference to it.

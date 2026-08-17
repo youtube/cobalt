@@ -327,7 +327,8 @@ class SecondaryPlayerTestThread : public AbstractTestThread {
       const SbPlayerTestConfig& config,
       FakeGraphicsContextProvider* fake_graphics_context_provider)
       : config_(config),
-        fake_graphics_context_provider_(fake_graphics_context_provider) {}
+        fake_graphics_context_provider_(fake_graphics_context_provider),
+        success_(false) {}
 
   void Run() override {
     SbPlayerTestFixture player_fixture(config_,
@@ -350,13 +351,17 @@ class SecondaryPlayerTestThread : public AbstractTestThread {
       samples.AddVideoEOS();
     }
 
-    ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
-    ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
+    player_fixture.Write(samples);
+    player_fixture.WaitForPlayerEndOfStream();
+    success_ = !player_fixture.HasError();
   }
+
+  bool success() const { return success_; }
 
  private:
   const SbPlayerTestConfig config_;
   FakeGraphicsContextProvider* fake_graphics_context_provider_;
+  std::atomic<bool> success_;
 };
 
 TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
@@ -385,6 +390,9 @@ TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
 
   primary_player_thread.WaitForFinish();
   secondary_player_thread.WaitForFinish();
+
+  ASSERT_TRUE(primary_player_thread.success());
+  ASSERT_TRUE(secondary_player_thread.success());
 }
 
 TEST_P(SbPlayerWriteSampleTest, VideoCodecSwitching) {

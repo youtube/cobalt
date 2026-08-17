@@ -9,10 +9,15 @@ inputs:
     description: "Where the tests run (e.g., host, device). Omit for no filter."
     required: false
     default: ""
+  test_targets_json_file:
+    description: "Path to the test targets JSON file. If provided, skip downloading."
+    required: false
+    default: "test_targets.json"
 runs:
   using: "composite"
   steps:
     - name: Download Test Targets Json
+      if: inputs.test_targets_json_file == 'test_targets.json'
       uses: actions/download-artifact@v5
       with:
         name: ${{ matrix.platform }}_test_targets_json
@@ -22,6 +27,7 @@ runs:
       env:
         TEST_TYPE: ${{ inputs.test_type }}
         RUNS_ON: ${{ inputs.runs_on }}
+        JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
         filtered_json="$(jq -cr \
           --arg test_type "${TEST_TYPE}" \
@@ -32,7 +38,7 @@ runs:
                 ($test_type == "" or .test_type == $test_type) and
                 ($runs_on == "" or .runs_on == $runs_on)
               )
-          ]' test_targets.json)"
+          ]' "${JSON_FILE}")"
 
         test_targets_json="$(jq -ncr --argjson data "${filtered_json}" '[$data[] | select(.target != null) | .target]')"
         printf "test_targets_json=%s\n" "${test_targets_json}" >> "$GITHUB_OUTPUT"

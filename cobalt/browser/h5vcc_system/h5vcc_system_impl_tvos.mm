@@ -117,6 +117,14 @@ void H5vccSystemImpl::GetFriendlyName(GetFriendlyNameCallback callback) {
       base::SysNSStringToUTF8([UIDevice currentDevice].name));
 }
 
+void H5vccSystemImpl::GetScreenDiagonal(GetScreenDiagonalCallback callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // This was not implemented in Cobalt 25 (which linked against the stub
+  // returning 0.0), and we are not yet sure if or how we will implement it in
+  // Cobalt 27.
+  std::move(callback).Run(0.0);
+}
+
 void H5vccSystemImpl::GetUserOnExitStrategy(
     GetUserOnExitStrategyCallback callback) {
   std::move(callback).Run(h5vcc_system::mojom::UserOnExitStrategy::kMinimize);

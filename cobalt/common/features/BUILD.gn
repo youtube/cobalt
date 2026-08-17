@@ -23,12 +23,10 @@ static_library("features") {
   deps = [
     "//base",
     "//starboard/common:common",
+    "//starboard/extension:feature_config_header",
   ]
 
   if (is_android) {
-    deps += [
-      "//cobalt/android:jni_headers",
-      "//starboard/extension:feature_config_header",
-    ]
+    deps += [ "//cobalt/android:jni_headers" ]
   }
 }

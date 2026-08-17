@@ -41,15 +41,17 @@ public class CobaltApplication extends Application implements StarboardBridge.Ho
 
   @Override
   protected void attachBaseContext(Context base) {
-      super.attachBaseContext(base);
-      boolean isBrowserProcess = !ContextUtils.getProcessName().contains(":");
-      ContextUtils.initApplicationContext(this);
-      LibraryLoader.getInstance().setLibraryProcessType(isBrowserProcess
-                      ? LibraryProcessType.PROCESS_BROWSER
-                      : LibraryProcessType.PROCESS_CHILD);
-      if (isBrowserProcess) {
-          PathUtils.setPrivateDataDirectorySuffix(PRIVATE_DATA_DIRECTORY_SUFFIX);
-          ApplicationStatus.initialize(this);
-      }
+    super.attachBaseContext(base);
+    boolean isBrowserProcess = !ContextUtils.getProcessName().contains(":");
+    ContextUtils.initApplicationContext(this);
+    LibraryLoader.getInstance()
+        .setLibraryProcessType(
+            isBrowserProcess
+                ? LibraryProcessType.PROCESS_BROWSER
+                : LibraryProcessType.PROCESS_CHILD);
+    if (isBrowserProcess) {
+      PathUtils.setPrivateDataDirectorySuffix(PRIVATE_DATA_DIRECTORY_SUFFIX);
+      ApplicationStatus.initialize(this);
+    }
   }
 }

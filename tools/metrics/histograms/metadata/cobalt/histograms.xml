@@ -53,6 +53,24 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Features.TestFinchFeature" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records whether the test Finch feature is enabled. Used for validating
+    feature deployment.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.TestFinchFeatureParam" units="hash"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the hash of the parameter value for the test Finch feature. Used for
+    validating parameter propagation.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
@@ -81,12 +99,66 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Finch.CrashStreakAtStartup" units="crashes"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the variations crash streak number at startup. This helps track
+    system stability and safe config activation.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.HasInvalidFeatureType" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records whether any features in the variations configuration had an invalid
+    (non-boolean) type.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.HasInvalidParamType" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records whether any parameters in the variations configuration had an
+    invalid (non-string) type.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.NumFeaturesApplied" units="features"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the number of experiment features successfully registered and
+    applied at startup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.NumParamsApplied" units="parameters"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the number of experiment parameters successfully registered and
+    applied at startup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.SetExperimentState.ParseError" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records when SetExperimentState fails because the variations config
+    dictionary could not be parsed.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Finch.TimeBetweenWrites" units="ms"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records the duration since the last time the variations experiment configuration
-    was written to persistent storage.
+    Records the duration since the last time the variations experiment
+    configuration was written to persistent storage.
   </summary>
 </histogram>
 
@@ -99,7 +171,6 @@ Always run the pretty print utility on this file after editing:
     received.
   </summary>
 </histogram>
-
 
 <histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
     expires_after="never">
@@ -162,6 +233,17 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Media.IsBufferPoolAllocateOnDemand" enum="Boolean"
+    expires_after="never">
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
+  <summary>
+    Records whether the Starboard media buffer pool is allocated on demand as
+    reported by SbMediaIsBufferPoolAllocateOnDemand(). Recorded during
+    DecoderBufferAllocator initialization.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Network.CumulativePlatformErrorRaised" units="count"
     expires_after="never">
   <owner>charleykim@google.com</owner>
@@ -185,6 +267,24 @@ Always run the pretty print utility on this file after editing:
   <summary>
     Records whether a primary main frame navigation timed out before completion
     or failure. This is logged when the navigation timer fires.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.PictureInPicture.Enter" enum="Boolean"
+    expires_after="never">
+  <owner>ziliangguo@google.com</owner>
+  <summary>
+    Records whether entering Picture-in-Picture succeeded (true) or failed
+    (false). Emitted when attempting to transition to Picture-in-Picture mode.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.PictureInPicture.Exit" enum="Boolean"
+    expires_after="never">
+  <owner>ziliangguo@google.com</owner>
+  <summary>
+    Records whether exiting Picture-in-Picture succeeded (true) or failed
+    (false). Emitted when attempting to leave Picture-in-Picture mode.
   </summary>
 </histogram>
 
@@ -478,6 +578,15 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Memory.Experimental.Browser2.AndroidGraphicsMemory"
+    units="MiB" expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Graphics memory usage (GPU) on Android for cobalt. This data comes from
+    graphics section of dumpsys meminfo.
+  </summary>
+</histogram>
+
 <histogram name="Memory.Experimental.Browser2.AndroidRuntime" units="MiB"
     expires_after="never">
   <owner>avvall@google.com</owner>
@@ -563,6 +672,16 @@ Always run the pretty print utility on this file after editing:
     are emitted.
   </summary>
 </histogram>
+
+<histogram name="Memory.Experimental.Renderer.PeakResidentSet.AtHighestPrivateMemoryFootprint"
+    units="MB" expires_after="2027-08-13">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-dev@google.com</owner>
+  <summary>
+    The peak resident set at the time of the highest private memory footprint.
+  </summary>
+</histogram>
+
 
 </histograms>
 

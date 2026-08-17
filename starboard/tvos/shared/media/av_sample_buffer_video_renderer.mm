@@ -15,6 +15,7 @@
 #include "starboard/tvos/shared/media/av_sample_buffer_video_renderer.h"
 
 #import <AVKit/AVKit.h>
+#import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #include <libkern/OSByteOrder.h>
 
@@ -130,6 +131,8 @@ const size_t kCachedFramesHighWatermark = 40;
 const int kRequiredBuffersInDisplayLayer = 16;
 
 UIWindow* GetPlatformWindow() {
+  // This function calls UIKit code that may only be invoked from the UI thread.
+  SB_DCHECK(NSThread.isMainThread);
   NSSet<UIScene*>* connected_scenes =
       UIApplication.sharedApplication.connectedScenes;
   if (connected_scenes.count == 0) {
@@ -407,7 +410,10 @@ void AVSBVideoRenderer::ReportError(const std::string& message) {
 }
 
 void AVSBVideoRenderer::UpdatePreferredDisplayCriteria() {
-  AVDisplayManager* avDisplayManager = GetPlatformWindow().avDisplayManager;
+  __block AVDisplayManager* avDisplayManager;
+  onApplicationMainThread(^{
+    avDisplayManager = GetPlatformWindow().avDisplayManager;
+  });
   if (avDisplayManager.isDisplayCriteriaMatchingEnabled == YES) {
     NSURL* url = [NSURL URLWithString:kDummyMasterPlaylistUrl];
 

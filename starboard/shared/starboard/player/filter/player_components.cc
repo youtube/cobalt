@@ -23,14 +23,14 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
-#include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_pcm_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider_impl.h"
 #include "starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/stub_audio_decoder.h"
 #include "starboard/shared/starboard/player/filter/stub_video_decoder.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
-#include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
 
 namespace starboard {
 

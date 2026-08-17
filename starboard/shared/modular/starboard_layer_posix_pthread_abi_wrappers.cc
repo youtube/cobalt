@@ -492,7 +492,16 @@ int __abi_wrap_pthread_setname_np(musl_pthread_t thread, const char* name) {
 int __abi_wrap_pthread_getname_np(musl_pthread_t thread,
                                   char* name,
                                   size_t len) {
+#if __ANDROID_API__ < 26 && defined(__clang__)
+// The API doesn exist before API Level 26
+// TODO(b/374300500): add back posix emulation
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability"
+#endif
   return pthread_getname_np(reinterpret_cast<pthread_t>(thread), name, len);
+#if __ANDROID_API__ < 26 && defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 }
 
 int __abi_wrap_pthread_getattr_np(musl_pthread_t thread,
