@@ -84,7 +84,15 @@ Aggregated median memory footprint across continuous allocators matching product
 
 ---
 
-### 2. Lifecycle Peak Memory
+### 2. Real-Time Live Memory (1 Hz Streaming)
+A high-frequency rolling 60-second time-series chart plotting instantaneous memory metrics ($t = \text{now}$) sampled at 1 Hz directly from process metrics and the V8 isolate runtime:
+* 🟣 **Physical Resident Set (RSS)** (`Memory.Browser.ResidentSet.Live`): Instantaneous physical RAM pages mapped by the OS.
+* 🔵 **Private Memory Footprint (PMF)** (`Memory.Browser.PrivateMemoryFootprint.Live`): Instantaneous anonymous resident pages contributing to the OOM threshold.
+* 🟡 **V8 JavaScript Engine Heap** (`Memory.Experimental.Browser2.V8.Live`): Live used JavaScript heap memory, displaying active GC sawtooth sweeps and allocation bursts.
+
+---
+
+### 3. Lifecycle Peak Memory
 Tracks maximum memory peaks recorded across elapsed lifecycle time windows and initial graphics rendering:
 
 * **0 to 2 min Window** (`Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.0to2min`): Peak private memory footprint reached during app boot and initial browse.
