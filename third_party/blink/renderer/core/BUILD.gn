@@ -514,7 +514,7 @@ component("core") {
     deps += [ "//starboard:starboard_group" ]
   }
 
-  if (is_cobalt && !is_official_build) {
+  if (is_cobalt && !cobalt_is_release_build) {
     sources += [
       "inspector/cobalt_memory_metrics_helper.cc",
       "inspector/cobalt_memory_metrics_helper.h",
@@ -1624,7 +1624,7 @@ source_set("unit_tests") {
 
   data_deps = [ ":unit_tests_data" ]
 
-  if (is_cobalt && !is_official_build) {
+  if (is_cobalt && !cobalt_is_release_build) {
     sources += [ "inspector/cobalt_memory_metrics_helper_test.cc" ]
   }
 
