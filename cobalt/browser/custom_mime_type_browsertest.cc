@@ -21,6 +21,7 @@
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "content/public/common/content_switches.h"
@@ -484,8 +485,10 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
               }
             }
             if (player_status_func) {
-              player_status_func(player, context, kSbPlayerStateInitialized,
-                                 SB_PLAYER_INITIAL_TICKET);
+              base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+                  FROM_HERE, base::BindOnce(player_status_func, player, context,
+                                            kSbPlayerStateInitialized,
+                                            SB_PLAYER_INITIAL_TICKET));
             }
             quit_closure.Run();
             return player;
