@@ -46,7 +46,7 @@ RUN cd /tmp \
   && curl --silent -O -J  ${CMDLINE_URL} \
   && unzip ${TOOLS} -d ${ANDROID_SDK_ROOT} \
   && rm ${TOOLS} \
-  && echo yes | ${ANDROID_SDK_ROOT}/tools/bin/sdkmanager \
+  && echo yes | JAVA_TOOL_OPTIONS="-Xmx2g" ${ANDROID_SDK_ROOT}/tools/bin/sdkmanager \
       --sdk_root=${ANDROID_SDK_ROOT} \
     "build-tools;30.0.0" \
     "build-tools;31.0.0" \
