@@ -207,8 +207,8 @@ TEST_F(MediaCodecVideoDecoderTest,
   VideoStreamInfo oversized_info = kDefaultVideoStreamInfo;
   oversized_info.frame_size = {1920, 1080};
 
-  // Decoder creation should succeed by updating max_video_size instead of
-  // failing.
+  // Initializing codec with oversized initial stream resolution should
+  // dynamically update max_video_size_.
   CreateDecoder("width=1280; height=720", &oversized_info);
 
   FakeMediaCodec* fake_codec = GetFakeVideoCodec();
@@ -236,6 +236,8 @@ TEST_F(MediaCodecVideoDecoderTest,
   auto input_buffer = CreateDummyVideoInputBuffer(10000, 1024, &oversized_info,
                                                   /*is_key_frame=*/true);
 
+  // In debug builds, key frame exceeding max_video_size_ in WriteInputBuffers
+  // triggers SB_CHECK assertion.
   EXPECT_DEATH_IF_SUPPORTED(decoder_->WriteInputBuffers({input_buffer}), "");
 }
 

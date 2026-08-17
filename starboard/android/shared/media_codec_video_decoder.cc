@@ -446,9 +446,12 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", with output mode=" << GetPlayerOutputModeName(output_mode_)
                << ", preroll count=" << number_of_preroll_frames_
                << ", max pending input size=" << kMaxPendingInputsSize
-               << ", max video capabilities=\""
-               << stream_config.max_video_capabilities
-               << "\", tunnel mode audio session id="
+               << ", max video size="
+               << (max_video_size_.has_value()
+                       ? (ToString(max_video_size_->width) + "x" +
+                          ToString(max_video_size_->height))
+                       : "none")
+               << ", tunnel mode audio session id="
                << ToString(tunnel_mode_audio_session_id_)
                << ", is_video_frame_tracker_enabled="
                << ToString(is_video_frame_tracker_enabled_);
@@ -548,6 +551,9 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
                     input_buffers.front()->timestamp(), "size",
                     input_buffers.size());
 
+  // During playback, check if any key frame exceeds max_video_size_.
+  // Triggers an SB_CHECK assertion in debug builds, and reports
+  // kSbPlayerErrorCapabilityChanged in production builds.
   if (max_video_size_.has_value()) {
     for (const auto& input_buffer : input_buffers) {
       if (input_buffer->video_sample_info().is_key_frame) {
@@ -895,8 +901,9 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
     SB_DCHECK_EQ(video_fps_, 0);
   }
 
-  // b/546122686: Raise kSbPlayerErrorCapabilityChanged if the stream resolution
-  // exceeds max_video_capabilities.
+  // If initial stream resolution exceeds max_video_capabilities, update
+  // max_video_size_ to requested stream resolution so MediaCodec is initialized
+  // with adequate buffer allocation instead of returning an error.
   if (max_video_size_.has_value() &&
       IsFrameSizeExceedingCapabilities(video_stream_info.frame_size,
                                        max_video_size_.value())) {
