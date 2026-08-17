@@ -165,6 +165,12 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check disk space
+        run: |
+          df -h
+          docker info
+          free -m
+        shell: bash
       - name: Build docker image
         id: build-docker-image
         uses: ./.github/actions/docker
@@ -202,6 +208,12 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check disk space
+        run: |
+          df -h
+          docker info
+          free -m
+        shell: bash
       - name: Build docker image
         id: build-docker-image
         uses: ./.github/actions/docker
