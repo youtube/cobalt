@@ -25,7 +25,7 @@ RUN apt update -qqy \
     && echo "Done"
 
 RUN mkdir -p ${raspi_home}/tools \
-    && git clone https://github.com/raspberrypi/tools.git ${raspi_home}/tools
+    && git clone --depth 1 https://github.com/raspberrypi/tools.git ${raspi_home}/tools
 
 RUN cd ${raspi_home} \
     && wget -q \
