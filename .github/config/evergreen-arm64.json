@@ -1,5 +1,5 @@
 {
-  "docker_service": "build-android-evergreen",
+  "docker_service": "build-android",
   "evergreen_loader": "android-arm64",
   "platforms": [
     "evergreen-arm64-sbversion-14",

@@ -104,7 +104,7 @@ runs:
       shell: bash
       run: |
         set -xue
-        DOCKER_BUILDKIT=0 docker compose -f docker-compose.yml up --build --no-start "${SERVICE}"
+        docker compose -f docker-compose.yml up --build --no-start "${SERVICE}"
     - name: Tag images
       id: tag-images
       if: env.need_to_build == 'true'
