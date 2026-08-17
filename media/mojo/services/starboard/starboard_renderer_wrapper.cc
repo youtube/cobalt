@@ -225,6 +225,8 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
         base::BindOnce(
             &StarboardRendererWrapper::OnSubscribeToVideoGeometryChange,
             base::Unretained(this), media_resource, client));
+  } else {
+    OnSubscribeToVideoGeometryChange(media_resource, client);
   }
 
   GetRenderer()->SetStarboardRendererCallbacks(
