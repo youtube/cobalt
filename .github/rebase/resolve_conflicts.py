@@ -1131,11 +1131,7 @@ def write_result_report(
 | :--- | :--- | :--- |
 {file_table}
 {escalation_section}
-## 3. Behavior Preservation Notes
-- **Cobalt Custom Variables**: Maintained `checkout_cobalt_internal`, `checkout_copybara`, and Cobalt custom submodule pins in `DEPS`.
-- **Cobalt C++ / Java Macros**: Preserved `#if BUILDFLAG(USE_STARBOARD_MEDIA)`, `#if BUILDFLAG(IS_COBALT)`, `#if defined(STARBOARD)`, Starboard media flows, and platform shims.
-
-## 4. AI Token Metrics
+## 3. AI Token Metrics
 | Metric | Value |
 | :--- | :--- |
 | **Model** | `{token_usage.model}` |
@@ -1144,7 +1140,7 @@ def write_result_report(
 | **Total Tokens** | {token_usage.total_tokens:,} |
 | **AI Calls / Invocations** | {token_usage.calls} |
 
-## 5. Verification
+## 4. Verification
 ```text
 {sync_output.strip()[-2000:] if sync_output else "All files processed."}
 ```
