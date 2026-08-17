@@ -15,9 +15,9 @@
 /**
  * Cobalt Memory Breakdown DevTools Extension Panel Controller.
  * Connects to Cobalt's active CDP port via WebSocket and renders:
- * 1. Real-Time Live Memory Time Series Chart (1 Hz polling over 60s window).
+ * 1. Primary Session P50 Memory Breakdown table (12 continuous P50 allocators).
  * 2. Integrated Proportional Memory Distribution Bar (10 Canonical Allocators).
- * 3. Primary Session P50 Memory Breakdown table (12 continuous P50 allocators).
+ * 3. Real-Time Live Memory Time Series Chart (1 Hz polling over 60s window).
  * 4. Lifecycle Peak Memory scorecard (time-windowed PMF & Peak GPU).
  */
 
@@ -155,10 +155,12 @@ window.addEventListener("beforeunload", () => {
 });
 
 async function resolveWebSocketUrl(baseHostUrl) {
+  // If already a direct ws:// or wss:// URL with target ID, return directly.
   if ((baseHostUrl.startsWith("ws://") || baseHostUrl.startsWith("wss://")) && baseHostUrl.includes("/devtools/page/")) {
     return baseHostUrl;
   }
 
+  // Convert WebSocket scheme to HTTP scheme for target discovery
   let httpBase = baseHostUrl.replace(/^ws:\/\//, "http://").replace(/^wss:\/\//, "https://");
   if (!httpBase.startsWith("http://") && !httpBase.startsWith("https://")) {
     httpBase = "http://" + httpBase;
@@ -296,12 +298,9 @@ function handlePerformanceMetrics(metrics) {
 }
 
 function recordLiveSample() {
-  const rssBytes = latestMetrics["Memory.Browser.ResidentSet.Live"] ??
-                   latestMetrics["Memory.Browser.ResidentSet.P50"] ?? 0;
-  const pmfBytes = latestMetrics["Memory.Browser.PrivateMemoryFootprint.Live"] ??
-                   latestMetrics["Memory.Browser.PrivateMemoryFootprint.P50"] ?? 0;
-  const v8Bytes = latestMetrics["Memory.Experimental.Browser2.V8.Live"] ??
-                  latestMetrics["Memory.Experimental.Browser2.V8.P50"] ?? 0;
+  const rssBytes = latestMetrics?.["Memory.Browser.ResidentSet.Live"] ?? null;
+  const pmfBytes = latestMetrics?.["Memory.Browser.PrivateMemoryFootprint.Live"] ?? null;
+  const v8Bytes = latestMetrics?.["Memory.Experimental.Browser2.V8.Live"] ?? null;
 
   liveHistory.push({
     timestamp: Date.now(),
@@ -375,6 +374,7 @@ function renderDistributionBar(totalRss) {
     }
   });
 
+  // Calculate remaining unallocated / other native resident footprint
   const otherBytes = Math.max(0, totalRss - totalAccountedBytes);
   if (otherBytes > 0) {
     const pctOther = ((otherBytes / totalRss) * 100).toFixed(1);
@@ -412,6 +412,7 @@ function renderTable(totalRss) {
         }
       }
 
+      // If the metric has an assigned color dot (subsystems), render it in the label
       let labelHtml = `<span class="metric-label">${item.label}</span>`;
       if (item.color) {
         labelHtml = `
@@ -490,8 +491,8 @@ function drawTimeSeriesChart() {
 
   const dpr = window.devicePixelRatio || 1;
   const rect = chartCanvas.getBoundingClientRect();
-  const width = rect.width;
-  const height = rect.height;
+  const width = rect.width || 300;
+  const height = rect.height || 150;
 
   chartCanvas.width = width * dpr;
   chartCanvas.height = height * dpr;
@@ -501,13 +502,17 @@ function drawTimeSeriesChart() {
   ctx.clearRect(0, 0, width, height);
 
   const padding = { top: 12, right: 16, bottom: 24, left: 48 };
-  const chartW = width - padding.left - padding.right;
-  const chartH = height - padding.top - padding.bottom;
+  const chartW = Math.max(1, width - padding.left - padding.right);
+  const chartH = Math.max(1, height - padding.top - padding.bottom);
 
   // Compute Max Y value in MB across all series (min ceiling: 50 MB)
   let maxBytes = 50 * 1024 * 1024;
   liveHistory.forEach(s => {
-    if (s.rss > maxBytes) maxBytes = s.rss;
+    const vals = [s.rss, s.pmf, s.v8].filter(v => typeof v === "number" && v > 0);
+    if (vals.length > 0) {
+      const m = Math.max(...vals);
+      if (m > maxBytes) maxBytes = m;
+    }
   });
   const maxYMB = Math.ceil((maxBytes / (1024 * 1024)) * 1.15); // 15% headroom
 
@@ -541,7 +546,13 @@ function drawTimeSeriesChart() {
     ctx.fillText(lbl, xVal, height - padding.bottom + 6);
   });
 
-  if (liveHistory.length < 2) {
+  const validSamplesCount = liveHistory.filter(s =>
+    (typeof s.rss === "number" && s.rss > 0) ||
+    (typeof s.pmf === "number" && s.pmf > 0) ||
+    (typeof s.v8 === "number" && s.v8 > 0)
+  ).length;
+
+  if (validSamplesCount < 2) {
     ctx.fillStyle = "#71717a";
     ctx.font = "italic 12px sans-serif";
     ctx.textAlign = "center";
@@ -552,21 +563,27 @@ function drawTimeSeriesChart() {
   // Helper coordinate mapper
   function getPointCoords(index, valBytes) {
     const x = padding.left + (index / (MAX_HISTORY_SAMPLES - 1)) * chartW;
-    const mb = valBytes / (1024 * 1024);
-    const y = padding.top + chartH - (mb / maxYMB) * chartH;
+    const mb = (typeof valBytes === "number" && valBytes > 0) ? valBytes / (1024 * 1024) : 0;
+    const y = Math.max(padding.top, Math.min(padding.top + chartH, padding.top + chartH - (mb / maxYMB) * chartH));
     return { x, y };
   }
 
   // Draw Line Series with Fill
   function drawSeries(key, strokeColor, fillColor) {
+    const hasData = liveHistory.some(s => typeof s[key] === "number" && s[key] > 0);
+    if (!hasData) return;
+
     const startIdx = MAX_HISTORY_SAMPLES - liveHistory.length;
 
     // Line Path
     ctx.beginPath();
+    let isFirst = true;
     liveHistory.forEach((sample, i) => {
-      const { x, y } = getPointCoords(startIdx + i, sample[key]);
-      if (i === 0) {
+      const val = typeof sample[key] === "number" ? sample[key] : 0;
+      const { x, y } = getPointCoords(startIdx + i, val);
+      if (isFirst) {
         ctx.moveTo(x, y);
+        isFirst = false;
       } else {
         ctx.lineTo(x, y);
       }
@@ -578,8 +595,12 @@ function drawTimeSeriesChart() {
 
     // Area Fill
     if (fillColor) {
-      const lastPoint = getPointCoords(startIdx + liveHistory.length - 1, liveHistory[liveHistory.length - 1][key]);
-      const firstPoint = getPointCoords(startIdx, liveHistory[0][key]);
+      const lastVal = typeof liveHistory[liveHistory.length - 1][key] === "number"
+        ? liveHistory[liveHistory.length - 1][key] : 0;
+      const firstVal = typeof liveHistory[0][key] === "number"
+        ? liveHistory[0][key] : 0;
+      const lastPoint = getPointCoords(startIdx + liveHistory.length - 1, lastVal);
+      const firstPoint = getPointCoords(startIdx, firstVal);
 
       ctx.lineTo(lastPoint.x, padding.top + chartH);
       ctx.lineTo(firstPoint.x, padding.top + chartH);
@@ -588,19 +609,24 @@ function drawTimeSeriesChart() {
       ctx.fill();
     }
 
-    // Draw endpoint circle at current "Now" sample
+    // Draw endpoint circle at current "Now" sample if latest value is present
     const latest = liveHistory[liveHistory.length - 1];
-    const endCoord = getPointCoords(MAX_HISTORY_SAMPLES - 1, latest[key]);
-    ctx.beginPath();
-    ctx.arc(endCoord.x, endCoord.y, 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = strokeColor;
-    ctx.fill();
+    if (typeof latest[key] === "number" && latest[key] > 0) {
+      const endCoord = getPointCoords(MAX_HISTORY_SAMPLES - 1, latest[key]);
+      ctx.beginPath();
+      ctx.arc(endCoord.x, endCoord.y, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = strokeColor;
+      ctx.fill();
+    }
   }
 
-  // Draw layers: V8 Heap -> Private Footprint -> Resident Set
-  drawSeries("v8", "#fbbf24", "rgba(251, 191, 36, 0.1)");
-  drawSeries("pmf", "#38bdf8", "rgba(56, 189, 248, 0.08)");
+  // Draw layers in order from largest to smallest to avoid line occlusion:
+  // 1. Resident Set (RSS) - Largest background area fill
+  // 2. Private Memory Footprint (PMF) - Middle area fill
+  // 3. V8 JavaScript Heap - Top layer crisp line
   drawSeries("rss", "#a855f7", "rgba(168, 85, 247, 0.05)");
+  drawSeries("pmf", "#38bdf8", "rgba(56, 189, 248, 0.08)");
+  drawSeries("v8", "#fbbf24", "rgba(251, 191, 36, 0.1)");
 }
 
 function setupChartInteractivity() {
