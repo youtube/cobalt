@@ -521,6 +521,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
     base::AutoLock auto_lock(lock);
     EXPECT_EQ(created_video_mime, kCustomMime);
   }
+  testing::Mock::VerifyAndClearExpectations(&mock_player_interface_);
 }
 
 }  // namespace cobalt
