@@ -1089,11 +1089,11 @@ void SourceBuffer::ChangeType_Locked(
   if (!MediaSource::IsTypeSupportedInternal(
           GetExecutionContext(), type,
           false /* allow underspecified codecs in |type| */) ||
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
-      !web_source_buffer_->CanChangeType(content_type.GetType(), codecs)) {
-#else  // !BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
       !web_source_buffer_->CanChangeType(type)) {
-#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
+      !web_source_buffer_->CanChangeType(content_type.GetType(), codecs)) {
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     MediaSource::LogAndThrowDOMException(
         *exception_state, DOMExceptionCode::kNotSupportedError,
         "Changing to the type provided ('" + type + "') is not supported.");
