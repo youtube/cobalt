@@ -33,4 +33,5 @@ runs:
       shell: bash
       run: |
         set -uex
+        gcloud config set storage/check_hashes never
         gcloud storage cp "${ARCHIVE_PATH}" "gs://${PROJECT_NAME}-build-artifacts/${WORKFLOW}/${TODAY}/${GITHUB_RUN_NUMBER}/"

@@ -47,6 +47,7 @@ RUN cd /tmp \
     && tar xf "${GCLOUD}" -C /opt/google-cloud-sdk --strip-components=1 google-cloud-sdk/bin google-cloud-sdk/lib \
     && ln -s /opt/google-cloud-sdk/bin/gcloud /usr/local/bin/gcloud \
     && rm "${GCLOUD}" \
+    && gcloud config set storage/check_hashes never \
     && gcloud --version
 
 CMD ["/usr/bin/python","--version"]

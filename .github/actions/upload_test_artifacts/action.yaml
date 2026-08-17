@@ -57,4 +57,5 @@ runs:
       shell: bash
       run: |
         set -eux
+        gcloud config set storage/check_hashes never
         gcloud storage cp "${ARCHIVE_PATH}" "gs://${DESTINATION}"
