@@ -364,7 +364,7 @@ TEST_F(StarboardRendererTest,
   video_stream->set_video_decoder_config(video_config);
   streams_.push_back(std::move(video_stream));
 
-  SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
+  SbPlayer player = nullptr;
   std::string created_audio_mime;
   std::string created_video_mime;
 
@@ -388,6 +388,7 @@ TEST_F(StarboardRendererTest,
                 created_video_mime = creation_param->video_stream_info.mime;
               }
             }
+            player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
             return player;
           }));
 

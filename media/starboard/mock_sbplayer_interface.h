@@ -16,7 +16,6 @@
 #define MEDIA_STARBOARD_MOCK_SBPLAYER_INTERFACE_H_
 
 #include "build/build_config.h"
-#include "media/base/media_export.h"
 #include "media/starboard/sbplayer_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -35,7 +34,7 @@ struct MockSbPlayer {
 // pipeline's interaction with the Starboard player. This class is typically
 // owned by the test fixture or instantiated as a local variable within a test,
 // and is thread-safe.
-class MEDIA_EXPORT MockSbPlayerInterface : public SbPlayerInterface {
+class MockSbPlayerInterface : public SbPlayerInterface {
  public:
   MockSbPlayerInterface();
   ~MockSbPlayerInterface() override;

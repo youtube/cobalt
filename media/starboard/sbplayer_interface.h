@@ -208,6 +208,9 @@ MEDIA_EXPORT SbPlayerInterface* GetSbPlayerInterfaceForTesting();
 //
 // Threading model:
 // Should be instantiated on the test thread before initiating media playback.
+// The media pipeline or renderer using the mocked interface must be
+// completely stopped or destroyed before this scoped object (and the underlying
+// mock interface) is destroyed to avoid use-after-free on the media thread.
 class MEDIA_EXPORT ScopedSbPlayerInterfaceForTesting {
  public:
   explicit ScopedSbPlayerInterfaceForTesting(SbPlayerInterface* interface)
