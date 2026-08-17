@@ -83,11 +83,14 @@ runs:
           echo "  |_| |_____|____/ |_|   |____/ |_|/_/   \_\|_|  \___/ |____/ "
           echo
 
-          python3 cobalt/tools/junit_mini_parser.py ${RESULTS_GLOB} > test_failures.json
-          jq -r '
-            .failing_tests | to_entries[] |
-            .key + "\n" + ([.value[] | "  [  FAILED  ] \(.name)" + (if .message != "" then "\n" + ("    " + (.message | gsub("\n"; "\n    "))) else "" end)] | join("\n"))
-          ' test_failures.json
+          if ! python3 cobalt/tools/junit_mini_parser.py ${RESULTS_GLOB} > test_failures.json; then
+            if [ -s test_failures.json ]; then
+              jq -r '
+                .failing_tests | to_entries[] |
+                .key + "\n" + ([.value[] | "  [  FAILED  ] \(.name)" + (if .message != "" then "\n" + ("    " + (.message | gsub("\n"; "\n    "))) else "" end)] | join("\n"))
+              ' test_failures.json || true
+            fi
+          fi
           rm -f test_failures.json
 
           echo "::error::${TARGET_NAME} has ${TESTS_FAILED} failed test(s)."

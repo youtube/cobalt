@@ -1085,11 +1085,13 @@ jobs:
           if [[ ${#xml_files[@]} -gt 0 ]]; then
             if ! python3 cobalt/tools/junit_mini_parser.py "${xml_files[@]}" > test_failures.json; then
               failed=true
-              echo "Failing Tests Summary:"
-              jq -r '
-                .failing_tests | to_entries[] |
-                .key + "\n" + ([.value[] | "  [  FAILED  ] \(.name)" + (if .message != "" then "\n" + ("    " + (.message | gsub("\n"; "\n    "))) else "" end)] | join("\n"))
-              ' test_failures.json
+              if [ -s test_failures.json ]; then
+                echo "Failing Tests Summary:"
+                jq -r '
+                  .failing_tests | to_entries[] |
+                  .key + "\n" + ([.value[] | "  [  FAILED  ] \(.name)" + (if .message != "" then "\n" + ("    " + (.message | gsub("\n"; "\n    "))) else "" end)] | join("\n"))
+                ' test_failures.json || true
+              fi
             fi
             rm -f test_failures.json
           fi
