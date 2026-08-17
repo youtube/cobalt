@@ -721,7 +721,7 @@ Supported renames:
 +------------------------------+-------------------------------------+---------------------------------------+
 
 urllib parse
-<<<<<<<<<<<<
+^^^^^^^^^^^^
 
 .. module:: six.moves.urllib.parse
    :synopsis: Stuff from :mod:`py2:urlparse` and :mod:`py2:urllib` in Python 2 and :mod:`py3:urllib.parse` in Python 3
@@ -760,7 +760,7 @@ and :mod:`py2:urllib`:
 
 
 urllib error
-<<<<<<<<<<<<
+^^^^^^^^^^^^
 
 .. module:: six.moves.urllib.error
    :synopsis: Stuff from :mod:`py2:urllib` and :mod:`py2:urllib2` in Python 2 and :mod:`py3:urllib.error` in Python 3
@@ -778,7 +778,7 @@ and :mod:`py2:urllib2`:
 
 
 urllib request
-<<<<<<<<<<<<<<
+^^^^^^^^^^^^^^
 
 .. module:: six.moves.urllib.request
    :synopsis: Stuff from :mod:`py2:urllib` and :mod:`py2:urllib2` in Python 2 and :mod:`py3:urllib.request` in Python 3
@@ -828,7 +828,7 @@ and :mod:`py2:urllib2`:
 
 
 urllib response
-<<<<<<<<<<<<<<<
+^^^^^^^^^^^^^^^
 
 .. module:: six.moves.urllib.response
    :synopsis: Stuff from :mod:`py2:urllib` in Python 2 and :mod:`py3:urllib.response` in Python 3
@@ -844,7 +844,7 @@ Contains classes from Python 3's :mod:`py3:urllib.response` and Python 2's:
 
 
 Advanced - Customizing renames
-<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. currentmodule:: six
 
