@@ -546,8 +546,9 @@ void HangWatcher::UpdateConfiguration() {
     g_hang_watch_monitoring_period_us.store(configured_period->InMicroseconds(),
                                             std::memory_order_relaxed);
   } else {
-    g_hang_watch_monitoring_period_us.store(kMonitoringPeriod.InMicroseconds(),
-                                            std::memory_order_relaxed);
+    g_hang_watch_monitoring_period_us.store(
+        kHangWatcherMonitoringPeriod.Get().InMicroseconds(),
+        std::memory_order_relaxed);
   }
 
   g_hang_reporting_enabled.store(delegate->IsHangReportingEnabled(),
