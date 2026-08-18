@@ -5671,6 +5671,7 @@ void RenderFrameHostImpl::ResetChildren() {
               ChromeTrackEvent::kRenderFrameHost, this);
   base::ScopedUmaHistogramTimer histogram_timer("Navigation.ResetChildren");
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // If the outermost main frame is tearing down its FrameTree state, then we
   // need to monitor how many of its child fenced frames were in the viewport
   // right before they all unload. This may have already occurred prior to a
@@ -5685,6 +5686,7 @@ void RenderFrameHostImpl::ResetChildren() {
       monitor->ComputeSameSiteFencedFrameMaximumBeforePrimaryPageChange();
     }
   }
+#endif
 
   // Remove child nodes from the tree, then delete them. This destruction
   // operation will notify observers. See https://crbug.com/612450 for
