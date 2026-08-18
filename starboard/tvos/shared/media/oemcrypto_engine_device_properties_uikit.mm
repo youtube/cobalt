@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#define USE_STARBOARD_MEDIA
+
 #include "starboard/tvos/shared/media/oemcrypto_engine_device_properties_uikit.h"
 
 #include <atomic>
