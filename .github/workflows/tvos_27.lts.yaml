@@ -4,14 +4,8 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
     branches:
-<<<<<<< HEAD:.github/workflows/tvos_27.lts.yaml
       - 27.lts
-=======
-      - main
-      - experimental/*
-      - feature/*
       - 'stack/**'
->>>>>>> d2d2302a22 (ci: Add zizmor trigger annotations and restrict tvos permissions (#11927)):.github/workflows/tvos.yaml
   workflow_dispatch:
     inputs:
       nightly:
