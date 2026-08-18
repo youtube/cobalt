@@ -322,10 +322,11 @@ jobs:
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           path: src
-          # Set fetch-depth to 2 to make checkout faster for pull requests and cobalt_sandbox repo.
+          # Set fetch-depth to 100 to make checkout faster for pull requests and cobalt_sandbox repo,
+          # while still allowing lastchange.py to find a valid parent commit.
           # Set fetch-dept to 0 for non pull request workflows in production repo which is needed
           # to properly calculate build id.
-          fetch-depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
+          fetch-depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 100 || 0 }}
       - name: Set Up Depot Tools
         uses: ./src/.github/actions/depot_tools
       - name: Build Cobalt
