@@ -176,6 +176,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // Handles presenting state for URL player: propagates video resolution
   // for hole-punch rendering and re-applies playback rate.
   void OnUrlPlayerPresenting();
+  // Reads and propagates a valid URL-player resolution when it changes.
+  void UpdateUrlPlayerVideoResolution();
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
   void UpdateAudioWriteDuration();
@@ -261,6 +263,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   TimeDelta last_buffer_start_;
   TimeDelta last_buffer_length_;
   TimeDelta last_duration_ = kNoTimestamp;
+  gfx::Size url_player_video_size_;
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(IS_ANDROID)
   RequestOverlayInfoCallBack request_overlay_info_cb_;
