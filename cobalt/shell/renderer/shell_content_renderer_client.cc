@@ -48,10 +48,6 @@
 #include "third_party/blink/public/web/web_view.h"
 #include "v8/include/v8.h"
 
-#if BUILDFLAG(ENABLE_PLUGINS)
-#include "ppapi/shared_impl/ppapi_switches.h"  // nogncheck
-#endif
-
 #if BUILDFLAG(ENABLE_MOJO_CDM)
 #include "base/feature_list.h"
 #include "media/base/media_switches.h"
