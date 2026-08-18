@@ -8,7 +8,7 @@ FROM marketplace.gcr.io/google/debian12@${BASE_IMAGE_SHA}
 #     gcc-multilib  for cross-builds of v8/32bit arm
 RUN apt-get update && apt-get install -y \
     curl python3-dev python3-pip git \
-    python3-grpcio python3-grpc-tools python3-protobuf python3-six \
+    python3-grpcio python3-grpc-tools python3-protobuf python3-six python-is-python3 \
     xz-utils \
     pkgconf \
     libglib2.0-0 \
