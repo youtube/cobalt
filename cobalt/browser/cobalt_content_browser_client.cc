@@ -87,7 +87,8 @@
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/updater/updater_module.h"  //nogncheck
-#include "content/public/browser/storage_partition.h"
+#include "starboard/extension/installation_manager.h"
+#include "starboard/system.h"
 #endif  // BUILDFLAG(USE_EVERGREEN)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -325,15 +326,10 @@ void CobaltContentBrowserClient::CreateThrottlesForNavigation(
 content::GeneratedCodeCacheSettings
 CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
     content::BrowserContext* context) {
-  // Default compiled javascript quota in Cobalt 25 is 3 MB:
+  // Default compiled javascript quota in Cobalt 25 was 3 MB:
   // https://github.com/youtube/cobalt/blob/3ccdb04a5e36c2597fe7066039037eabf4906ba5/cobalt/network/disk_cache/resource_type.cc#L72
-  // When enable-optimized-v8-code-cache switch is set, increase to 5 MB for
-  // YouTube TV.
-  size_t size = 3 * 1024 * 1024;
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "enable-optimized-v8-code-cache")) {
-    size = 5 * 1024 * 1024;
-  }
+  // Increased to 5 MB for Cobalt 27+.
+  size_t size = 5 * 1024 * 1024;
   base::FilePath cache_path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
   return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
@@ -492,10 +488,14 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
   auto* storage_partition =
       web_contents->GetPrimaryMainFrame()->GetStoragePartition();
   if (storage_partition && !updater::UpdaterModule::GetInstance()) {
-    LOG(INFO) << "Creating UpdaterModule singleton.";
-    updater::UpdaterModule::CreateInstance(
-        storage_partition->GetURLLoaderFactoryForBrowserProcess(),
-        GetUserAgent(), updater::kDefaultUpdateCheckDelay);
+    if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
+      LOG(INFO) << "Creating UpdaterModule singleton.";
+      updater::UpdaterModule::CreateInstance(
+          storage_partition->GetURLLoaderFactoryForBrowserProcess(),
+          GetUserAgent(), updater::kDefaultUpdateCheckDelay);
+    } else {
+      LOG(INFO) << "Evergreen Lite mode detected, disabling UpdaterModule.";
+    }
   }
 #endif
 }
