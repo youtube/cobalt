@@ -29,6 +29,8 @@ RUN apt-get update && apt-get install -y \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+
 ARG GCLOUD=google-cloud-cli-linux-x86_64.tar.gz
 RUN cd /tmp \
     && curl -L -O "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/${GCLOUD}" \
