@@ -215,4 +215,10 @@ blink_modules_sources("webgl") {
       "cobalt/oes_egl_image_external.h",
     ]
   }
+  if (is_cobalt && use_starboard_media && target_os_is_android) {
+    sources += [
+      "cobalt/cobalt_video_texture_transform.cc",
+      "cobalt/cobalt_video_texture_transform.h",
+    ]
+  }
 }
