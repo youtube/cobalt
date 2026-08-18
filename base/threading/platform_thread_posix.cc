@@ -364,12 +364,9 @@ void PlatformThreadBase::Detach(PlatformThreadHandle thread_handle) {
 
 // static
 bool PlatformThreadBase::CanChangeThreadType(ThreadType from, ThreadType to) {
-<<<<<<< HEAD
-=======
-#if BUILDFLAG(IS_NACL) || BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   return false;
 #else
->>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (from >= to) {
     // Decreasing thread priority on POSIX is always allowed.
     return true;
@@ -379,10 +376,7 @@ bool PlatformThreadBase::CanChangeThreadType(ThreadType from, ThreadType to) {
   }
 
   return internal::CanLowerNiceTo(internal::ThreadTypeToNiceValue(to));
-<<<<<<< HEAD
-=======
-#endif  // BUILDFLAG(IS_NACL) || BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
->>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 }
 
 namespace internal {
