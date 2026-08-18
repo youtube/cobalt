@@ -544,12 +544,7 @@ base::StrictNumeric<uint64_t> GetNetLogMaximumFileSizeFromCommandLine(
 // when running in-process; otherwise it will run on the IO thread.
 BASE_FEATURE(kNetworkServiceDedicatedThread,
              "NetworkServiceDedicatedThread",
-<<<<<<< HEAD
              base::FEATURE_ENABLED_BY_DEFAULT);
-=======
-             base::FEATURE_ENABLED_BY_DEFAULT
-);
->>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 uint64_t GetNetLogMaximumFileSizeFromCommandLineForTesting(  // IN-TEST
     const base::CommandLine& command_line) {
