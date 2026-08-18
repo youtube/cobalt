@@ -15,6 +15,7 @@
 #ifndef MEDIA_STARBOARD_MOCK_SBPLAYER_INTERFACE_H_
 #define MEDIA_STARBOARD_MOCK_SBPLAYER_INTERFACE_H_
 
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/starboard/sbplayer_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
