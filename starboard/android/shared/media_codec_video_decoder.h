@@ -141,6 +141,14 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnFrameAvailable() override;
 
  private:
+  // Tracks mid-stream codec transitions (e.g., triggered by
+  // MediaSource.changeType()).
+  enum class CodecChangeState {
+    kNone,
+    kDraining,
+    kCodecChangeScheduled,
+  };
+
   // Attempt to initialize the codec.
   Result<void> InitializeCodec(const VideoStreamInfo& video_stream_info);
   void TeardownCodec();
@@ -168,6 +176,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   void ResetInternal(bool skip_flush);
 
+  void UpdateStreamConfigAndTeardown(const VideoStreamInfo& stream_info);
+  void PerformInternalDecoderCodecChange();
+
+  // These variables will be initialized inside ctor or Initialize().
   SbMediaVideoCodec video_codec_;
   std::string video_mime_;
   DecoderStatusCB decoder_status_cb_;
@@ -273,6 +285,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
 
+  CodecChangeState codec_change_state_ = CodecChangeState::kNone;
+  VideoStreamInfo pending_stream_info_;
   std::vector<scoped_refptr<InputBuffer>> pending_input_buffers_;
   int video_fps_ = 0;
 
@@ -295,19 +309,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       const PlatformOptions& platform_options);
 
   const std::unique_ptr<VideoSurfaceTextureBridge> surface_texture_bridge_;
-
-  // Mid-stream seamless codec change state tracking
-  enum class HotSwapState {
-    kNone,
-    kDraining,
-    kHotSwapScheduled,
-  };
-
-  HotSwapState hot_swap_state_ = HotSwapState::kNone;
-  VideoStreamInfo pending_stream_info_;
-
-  void UpdateStreamConfigAndTeardown(const VideoStreamInfo& stream_info);
-  void PerformInternalDecoderHotSwap();
 };
 
 }  // namespace starboard
