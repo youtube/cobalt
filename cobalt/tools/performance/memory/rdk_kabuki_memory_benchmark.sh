@@ -2,6 +2,10 @@
 
 # TODO(b/522305776): Rewrite this script in Python to share common helper methods
 # with deploy_rdk.py (e.g., launching/deactivating plugins, restarting wpeframework).
+#
+# Note: Memory-saving mode (--mode=memory-saving) appends 'aq=LM' to URLs. This
+# requires an active Developer Access Code on the device to take effect:
+# https://developers.google.com/youtube/devices/living-room/cobalt/cobalt-developer-mode#access-code
 
 # Parse command-line arguments
 MODE="default"
@@ -29,7 +33,10 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --mode=MODE           Set benchmark mode (e.g. 'memory-saving' adds aq=LM, default: 'default')"
+            echo "  --mode=MODE           Set benchmark mode ('default' or 'memory-saving')."
+            echo "                        'memory-saving' appends 'aq=LM' to URLs."
+            echo "                        Note: Requires Developer Mode Access Code on device:"
+            echo "                        https://developers.google.com/youtube/devices/living-room/cobalt/cobalt-developer-mode#access-code"
             echo "  --url-params=PARAMS   Add custom URL parameters (e.g. 'expflag=myflag:true' or 'build=hello')"
             echo "  -h, --help            Show this help message"
             exit 0
@@ -84,6 +91,10 @@ exec > >(tee -a "$OUTPUT_FILE") 2>&1
 
 echo "Memory Test Configuration:"
 echo "  Mode:         $MODE"
+if [ "$MODE" = "memory-saving" ]; then
+    echo "  Note:         Memory-saving mode (aq=LM) requires an active Developer Access Code:"
+    echo "                https://developers.google.com/youtube/devices/living-room/cobalt/cobalt-developer-mode#access-code"
+fi
 if [ -n "$QUERY_PARAMS" ]; then
     echo "  Query Params: $QUERY_PARAMS"
 fi

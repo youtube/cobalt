@@ -50,7 +50,7 @@ This tool provides a bridge between UMA histograms and low-level OS `smaps` snap
 python3 compare_accuracy.py --uma_log uma_histos.txt --smaps_dir cobalt_smaps_logs --platform android
 ```
 
-### 4. `rdk_memory_benchmark.sh`
+### 4. `rdk_kabuki_memory_benchmark.sh` (and `rdk_yttv_memory_benchmark.sh`)
 This shell script is designed for RDK-based devices to measure memory usage across critical scenarios and establish a memory baseline. It automates the process of launching `loader_app`, collecting samples, and generating a final report.
 
 **Key Features:**
@@ -63,11 +63,23 @@ This shell script is designed for RDK-based devices to measure memory usage acro
 **Usage:**
 ```bash
 # Ensure execution permissions
-chmod +x rdk_memory_benchmark.sh
+chmod +x rdk_kabuki_memory_benchmark.sh
 
-# Run the benchmark
-./rdk_memory_benchmark.sh
+# Run the benchmark with default mode
+./rdk_kabuki_memory_benchmark.sh
+
+# Run in memory-saving mode (appends aq=LM)
+./rdk_kabuki_memory_benchmark.sh --mode=memory-saving
+
+# Run with custom URL params
+./rdk_kabuki_memory_benchmark.sh --url-params="expflag=myflag:true"
+
+# Combine memory-saving mode with custom URL params
+./rdk_kabuki_memory_benchmark.sh --mode=memory-saving --url-params="expflag=myflag:true"
 ```
+
+> **Note on Memory-Saving Mode:**
+> Running with `--mode=memory-saving` appends `aq=LM` to YouTube URLs. This requires an active [Developer Mode Access Code](https://developers.google.com/youtube/devices/living-room/cobalt/cobalt-developer-mode#access-code) applied on the device.
 
 ## Interpreting Results & Gotchas
 
