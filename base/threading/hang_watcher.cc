@@ -1449,7 +1449,6 @@ void HangWatcher::DoDumpWithoutCrashing(
   }
 #endif  // BUILDFLAG(IS_STARBOARD)
 #endif  // BUILDFLAG(IS_COBALT)
-#endif  // !BUILDFLAG(IS_NACL)
 
   // To avoid capturing more than one hang that blames a subset of the same
   // threads it's necessary to keep track of what is the furthest deadline
