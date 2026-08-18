@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#define USE_STARBOARD_MEDIA
+
 #include "starboard/tvos/shared/media/oemcrypto_engine_device_properties_uikit.h"
 
 #include <atomic>
@@ -88,7 +90,7 @@ void OEMCrypto_AlwaysEnforceOutputProtection() {
 
 class CryptoEngineUikit : public CryptoEngine {
  public:
-  explicit CryptoEngineUikit(scoped_ptr<FileSystem> file_system)
+  explicit CryptoEngineUikit(scoped_ptr<wvcdm::FileSystem> file_system)
       : CryptoEngine(file_system) {}
 
   OEMCrypto_HDCP_Capability config_current_hdcp_capability() override {
@@ -110,7 +112,7 @@ class CryptoEngineUikit : public CryptoEngine {
 };
 
 CryptoEngine* CryptoEngine::MakeCryptoEngine(
-    scoped_ptr<FileSystem> file_system) {
+    scoped_ptr<wvcdm::FileSystem> file_system) {
   return new CryptoEngineUikit(file_system);
 }
 
