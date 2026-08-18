@@ -498,15 +498,6 @@ void MediaCodecVideoDecoder::Initialize(
   decoder_status_cb_ = decoder_status_cb;
   error_cb_ = error_cb;
 
-  if (pending_error_.has_value()) {
-    SbPlayerError error = pending_error_.value();
-    std::string error_message = pending_error_message_;
-    pending_error_ = std::nullopt;
-    pending_error_message_.clear();
-    ReportError(error, error_message);
-    return;
-  }
-
   // There's a race condition when suspending the app. If surface view is
   // destroyed before this function is called, |media_decoder_| could be null
   // here.
@@ -1247,11 +1238,9 @@ void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
 
 void MediaCodecVideoDecoder::ReportError(SbPlayerError error,
                                          const std::string& error_message) {
+  SB_DCHECK(error_cb_);
+
   if (!error_cb_) {
-    SB_LOG(WARNING) << "error_cb_ is not set yet. Storing pending error: "
-                    << error_message;
-    pending_error_ = error;
-    pending_error_message_ = error_message;
     return;
   }
 
