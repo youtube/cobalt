@@ -134,10 +134,10 @@ EOF
       # --------------------------------------------------------------------------
       # Embed Provisioning Profile & Re-sign App for Physical tvOS Devices
       # --------------------------------------------------------------------------
-      # Locate the tvOS development provisioning profile
-      local tvos_profile="${KOKORO_PIPER_DIR:-}/google3/googlemac/iPhone/Shared/ProvisioningProfiles/Google_Development_tvOS.mobileprovision"
+      local tvos_profile="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/Google_Development_tvOS.mobileprovision"
       if [[ ! -f "${tvos_profile}" ]]; then
-        tvos_profile="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/Google_Development_tvOS.mobileprovision"
+        echo "ERROR: Provisioning profile not found at ${tvos_profile}" >&2
+        exit 1
       fi
 
       echo "Embedding ${tvos_profile} into ${target_name}.app..."
@@ -150,7 +150,7 @@ EOF
       plutil -extract Entitlements xml1 -o "${entitlements_plist}" "${profile_plist}"
       rm -f "${profile_plist}"
 
-      # Re-sign app bundle using a single explicit codesign attempt
+      # Re-sign app bundle using installed development certificate
       echo "Signing ${target_name}.app..."
       codesign --force --deep --sign "Apple Development" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app"
       rm -f "${entitlements_plist}"
