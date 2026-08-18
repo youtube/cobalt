@@ -28,11 +28,14 @@ runs:
             --grpc_python_out=${GITHUB_WORKSPACE}/cobalt/tools/ \
             ${GITHUB_WORKSPACE}/cobalt/tools/on_device_tests_gateway.proto
       shell: bash
-    - name: Set Up Cloud SDK
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Set GCS Project Name
       run: |
-        echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
+        PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id' 2>/dev/null || gcloud config get-value project 2>/dev/null)
+        if [[ -z "${PROJECT_NAME}" || "${PROJECT_NAME}" == "(unset)" ]]; then
+          echo "Error: Failed to retrieve GCS project ID." >&2
+          exit 1
+        fi
+        echo "PROJECT_NAME=${PROJECT_NAME}" >> $GITHUB_ENV
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:

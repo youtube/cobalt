@@ -34,11 +34,29 @@ runs:
             --grpc_python_out=${GITHUB_WORKSPACE}/cobalt/tools/ \
             ${GITHUB_WORKSPACE}/cobalt/tools/on_device_tests_gateway.proto
       shell: bash
-    - name: Set Up Cloud SDK
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+
+    - name: Install gcloud
+      run: |
+        if [ ! -d "$HOME/google-cloud-sdk" ]; then
+          echo "gcloud SDK not found. Downloading and installing..."
+          cd $HOME
+          curl -sSLf -O "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-412.0.0-linux-x86_64.tar.gz"
+          tar xf "google-cloud-cli-412.0.0-linux-x86_64.tar.gz"
+          rm "google-cloud-cli-412.0.0-linux-x86_64.tar.gz"
+        else
+          echo "gcloud SDK already exists in $HOME."
+        fi
+        echo "$HOME/google-cloud-sdk/bin" >> $GITHUB_PATH
+      shell: bash
+
     - name: Set GCS Project Name
       run: |
-        echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
+        PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id' 2>/dev/null || gcloud config get-value project 2>/dev/null)
+        if [[ -z "${PROJECT_NAME}" || "${PROJECT_NAME}" == "(unset)" ]]; then
+          echo "Error: Failed to retrieve GCS project ID." >&2
+          exit 1
+        fi
+        echo "PROJECT_NAME=${PROJECT_NAME}" >> $GITHUB_ENV
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
@@ -115,7 +133,12 @@ runs:
         # Test results (xml and logs) must be in a subfolder in results_dir.
         # to be picked up by the test result processor.
         mkdir -p "${test_output}/${{ matrix.platform }}"
-        gsutil -q cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}"
+        gcs_path="${{ inputs.gcs_results_path }}"
+        if [[ -z "${gcs_path}" ]]; then
+          echo "Error: gcs_results_path is empty." >&2
+          exit 1
+        fi
+        gcloud storage cp --quiet -r "${gcs_path%/}/*" "${test_output}/${{ matrix.platform }}"
 
         # Check for missing result xml files.
         readarray -t test_targets < <(echo "$TEST_TARGETS_JSON" | jq -r '.[]')
