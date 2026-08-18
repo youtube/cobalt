@@ -209,13 +209,11 @@ source_set("unit_tests") {
     ]
   }
 
-<<<<<<< HEAD
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-=======
+
   if (is_cobalt && use_starboard_media) {
     sources += [ "starboard/starboard_renderer_client_unittest.cc" ]
   }
->>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
