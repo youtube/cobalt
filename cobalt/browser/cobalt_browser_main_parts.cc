@@ -202,12 +202,6 @@ int CobaltBrowserMainParts::PreCreateThreads() {
   InitializeBrowserMemoryInstrumentationClient();
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  // Manually initialize Perfetto tracing post-FeatureList for Cobalt.
-  // This is required because Cobalt bypasses
-  // ContentMainRunnerImpl::RunBrowser() which normally initializes tracing in
-  // standard Chromium.
-  tracing::InitTracingPostFeatureList(/*enable_consumer=*/true,
-                                      /*will_trace_thread_restart=*/false);
   InitializeCobaltHeapProfiler();
 #endif
 
