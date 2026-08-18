@@ -35,6 +35,14 @@ runs:
             ${GITHUB_WORKSPACE}/cobalt/tools/on_device_tests_gateway.proto
       shell: bash
 
+    - name: Diagnose gcloud installation
+      run: |
+        which gcloud || true
+        which gsutil || true
+        find /usr /opt /snap -name gcloud -print -quit 2>/dev/null || true
+        echo "PATH=$PATH"
+      shell: bash
+
     - name: Set GCS Project Name
       run: |
         PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id' 2>/dev/null || gcloud config get-value project 2>/dev/null)
