@@ -33,20 +33,19 @@ def load_skill(skill_name: str, skills_dir: Optional[str] = None) -> str:
   if cache_key in _SKILL_CACHE:
     return _SKILL_CACHE[cache_key]
 
-  if os.path.isfile(cache_key):
-    try:
-      with open(cache_key, "r", encoding="utf-8") as f:
-        content = f.read().strip()
-        if content.startswith("---"):
-          parts = content.split("---", 2)
-          if len(parts) >= 3:
-            content = parts[2].strip()
-        _SKILL_CACHE[cache_key] = content
-        return content
-    except (OSError, UnicodeDecodeError):
-      pass
+  if not os.path.isfile(cache_key):
+    raise FileNotFoundError(
+        f"Required skill file not found: {cache_key}. "
+        "Ensure skills directory is present and contains valid .md skills.")
 
-  return f"You are an expert Cobalt engineer specializing in {skill_name}."
+  with open(cache_key, "r", encoding="utf-8") as f:
+    content = f.read().strip()
+    if content.startswith("---"):
+      parts = content.split("---", 2)
+      if len(parts) >= 3:
+        content = parts[2].strip()
+    _SKILL_CACHE[cache_key] = content
+    return content
 
 
 class CobaltReasoningEngine:
@@ -84,11 +83,16 @@ class CobaltReasoningEngine:
       context_before: str = "",
       context_after: str = "",
       git_context: str = "",
+      past_experience: str = "",
       use_pro: bool = False,
   ) -> Dict[str, Any]:
     """Resolves source/DEPS merge conflicts on Vertex AI."""
     chosen_model = self.pro_model if use_pro else self.flash_model
     conflict_skill = load_skill("conflict_resolution", self.skills_dir)
+
+    past_lessons_section = (
+        f"--- Past Successful Lessons ---\n{past_experience}\n\n"
+        if past_experience else "")
 
     sys_inst = (
         f"You are an expert Chromium and Cobalt engineer ({language}).\n\n"
@@ -96,6 +100,7 @@ class CobaltReasoningEngine:
         f"--- Conflict Resolution Skill ---\n{conflict_skill}\n")
     prompt = (f"Target File: {file_path} ({language})\n"
               f"{git_context}\n\n"
+              f"{past_lessons_section}"
               f"Context before conflict:\n{context_before}\n\n"
               f"Conflicted Block to Resolve:\n{raw_conflict}\n\n"
               f"Context after conflict:\n{context_after}\n\n"

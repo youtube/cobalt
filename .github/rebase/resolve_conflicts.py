@@ -8,118 +8,28 @@ Resolves merge conflicts across ALL files in the repository:
   - Java & Java templates (.java, .tmpl)
   - GN build configs (.gn, .gni)
   - Other config and resource files (.py, .spec, .grd, .json)
-
-Features enterprise Vertex AI & Google AI Studio dual authentication:
-  - Vertex AI: Uses GCP Project ID + Service Account / gcloud ADC (No 429
-    rate limits, billed to GCP project).
-  - AI Studio: Supports personal API Key for quick local debugging.
-  - Interactive Local Tool Engine: Gemini can request TOOL_READ_FILE,
-    TOOL_GREP, TOOL_GIT_SHOW, or TOOL_EXPAND_CONTEXT to inspect symbols.
-  - Thinking Budget Control: Sets thinkingBudget to prevent hangs.
-  - Non-crashing resilience: Gracefully escalates persistent errors.
 """
 
 import argparse
 import ast
 import dataclasses
-import difflib
-import json
 import os
 import re
 import shutil
-import ssl
 import subprocess
 import sys
 import time
-import urllib.error
-import urllib.request
 from typing import Dict, List, Optional, Tuple
 
-try:
-  import google.auth
-  import google.auth.transport.requests
-  HAS_GOOGLE_AUTH = True
-except ImportError:
-  HAS_GOOGLE_AUTH = False
+from google import genai
+from google.genai import types
 
 from reasoning_engine import load_skill
+from token_usage import TokenUsage
 
 
 class GeminiAPIError(Exception):
   """Raised when Gemini API fails after all retries."""
-
-
-def get_gcp_access_token() -> Optional[str]:
-  """Retrieves Google Cloud OAuth access token via ADC or gcloud CLI."""
-  # 1. Try gcloud auth application-default print-access-token
-  try:
-    res = subprocess.run(
-        ["gcloud", "auth", "application-default", "print-access-token"],
-        capture_output=True,
-        text=True,
-        timeout=10,
-        check=False,
-    )
-    if res.returncode == 0 and res.stdout.strip():
-      return res.stdout.strip()
-  except (OSError, subprocess.SubprocessError):
-    pass
-
-  # 2. Try gcloud auth print-access-token
-  try:
-    res = subprocess.run(
-        ["gcloud", "auth", "print-access-token"],
-        capture_output=True,
-        text=True,
-        timeout=10,
-        check=False,
-    )
-    if res.returncode == 0 and res.stdout.strip():
-      return res.stdout.strip()
-  except (OSError, subprocess.SubprocessError):
-    pass
-
-  # 3. Direct exchange using application_default_credentials.json if present
-  adc_path = os.path.expanduser(
-      "~/.config/gcloud/application_default_credentials.json")
-  if os.path.isfile(adc_path):
-    try:
-      with open(adc_path, "r", encoding="utf-8") as f:
-        adc = json.load(f)
-      if ("refresh_token" in adc and "client_id" in adc and
-          "client_secret" in adc):
-        token_url = "https://oauth2.googleapis.com/token"
-        payload = json.dumps({
-            "client_id": adc["client_id"],
-            "client_secret": adc["client_secret"],
-            "refresh_token": adc["refresh_token"],
-            "grant_type": "refresh_token",
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            token_url,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        ctx = ssl.create_default_context()
-        with urllib.request.urlopen(req, context=ctx, timeout=10) as resp:
-          data = json.loads(resp.read().decode("utf-8"))
-          return data.get("access_token")
-    except (OSError, json.JSONDecodeError, urllib.error.URLError):
-      pass
-
-  # 4. Try google.auth if installed
-  if HAS_GOOGLE_AUTH:
-    try:
-      credentials, _ = google.auth.default(
-          scopes=["https://www.googleapis.com/auth/cloud-platform"])
-      credentials.refresh(google.auth.transport.requests.Request())
-      if credentials.token:
-        return credentials.token
-    except Exception:  # pylint: disable=broad-exception-caught
-      pass
-
-  return None
 
 
 def get_clean_build_env(
@@ -160,25 +70,6 @@ class ConflictBlock:
   theirs_content: str
   context_before: str
   context_after: str
-
-
-@dataclasses.dataclass
-class TokenUsage:
-  """Tracks token metrics and model call counts across invocations."""
-
-  prompt_tokens: int = 0
-  completion_tokens: int = 0
-  total_tokens: int = 0
-  model: str = ""
-  calls: int = 0
-
-  def add(self, prompt: int, completion: int, total: int, model: str):
-    """Accumulates prompt and response token usage."""
-    self.prompt_tokens += prompt
-    self.completion_tokens += completion
-    self.total_tokens += total
-    self.model = model
-    self.calls += 1
 
 
 @dataclasses.dataclass
@@ -464,7 +355,8 @@ def query_gemini(
     mock_mode: bool = False,
     token_tracker: Optional[TokenUsage] = None,
 ) -> str:
-  """Queries Gemini via Vertex AI (GCP ADC) or Google AI Studio (API Key)."""
+  # pylint: disable=unused-argument
+  """Queries Gemini via Google GenAI SDK (Vertex AI ADC or AI Studio)."""
   if mock_mode:
     if token_tracker:
       prompt_est = len(prompt) // 4
@@ -485,124 +377,58 @@ def query_gemini(
         theirs_lines.append(line)
     return "\n".join(theirs_lines)
 
-  use_vertex = bool(
-      project_id or os.environ.get("GCP_PROJECT") or
-      os.environ.get("GOOGLE_CLOUD_PROJECT"))
   gcp_proj = (
       project_id or os.environ.get("GCP_PROJECT") or
       os.environ.get("GOOGLE_CLOUD_PROJECT"))
+  api_k = (
+      api_key or os.environ.get("GEMINI_API_KEY") or
+      os.environ.get("GOOGLE_API_KEY"))
 
-  headers = {"Content-Type": "application/json"}
-  ctx = ssl.create_default_context()
-  current_timeout = timeout_seconds
-  active_model = model
+  if gcp_proj:
+    client = genai.Client(vertexai=True, project=gcp_proj, location=location)
+  elif api_k:
+    client = genai.Client(api_key=api_k)
+  else:
+    # Default to Vertex AI with ambient ADC (e.g. GKE Workload Identity)
+    client = genai.Client(vertexai=True, location=location)
 
-  if use_vertex:
-    access_token = get_gcp_access_token()
-    if not access_token:
-      raise GeminiAPIError(
-          "Vertex AI mode enabled but failed to obtain OAuth access "
-          "token.")
-    headers["Authorization"] = f"Bearer {access_token}"
+  config = types.GenerateContentConfig(
+      system_instruction=system_instruction,
+      temperature=0.1,
+      max_output_tokens=8192,
+  )
 
   for attempt in range(1, max_retries + 1):
-    if use_vertex:
-      url = (f"https://{location}-aiplatform.googleapis.com/v1/projects/"
-             f"{gcp_proj}/locations/{location}/publishers/google/models/"
-             f"{active_model}:generateContent")
-    else:
-      key = (
-          api_key or os.environ.get("GEMINI_API_KEY") or
-          os.environ.get("GOOGLE_API_KEY"))
-      if not key:
-        raise ValueError("Provide --project-id for Vertex AI or --api-key for "
-                         "AI Studio.")
-      url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-             f"{active_model}:generateContent?key={key}")
-
-    payload = {
-        "contents": [{
-            "role": "user",
-            "parts": [{
-                "text": prompt
-            }],
-        }],
-        "systemInstruction": {
-            "parts": [{
-                "text": system_instruction
-            }],
-        },
-        "generationConfig": {
-            "temperature": 0.1,
-            "maxOutputTokens": 8192,
-        },
-    }
-
-    data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        url,
-        data=data,
-        headers=headers,
-        method="POST",
-    )
-
     try:
-      with urllib.request.urlopen(
-          req, context=ctx, timeout=current_timeout) as resp:
-        resp_data = json.loads(resp.read().decode("utf-8"))
+      resp = client.models.generate_content(
+          model=model,
+          contents=prompt,
+          config=config,
+      )
+      if token_tracker and resp.usage_metadata:
+        p_tok = resp.usage_metadata.prompt_token_count or 0
+        c_tok = resp.usage_metadata.candidates_token_count or 0
+        t_tok = resp.usage_metadata.total_token_count or (p_tok + c_tok)
+        token_tracker.add(p_tok, c_tok, t_tok, model)
 
-        usage = resp_data.get("usageMetadata", {})
-        if token_tracker:
-          p_tok = usage.get("promptTokenCount", 0)
-          c_tok = usage.get("candidatesTokenCount", 0)
-          t_tok = usage.get("totalTokenCount", p_tok + c_tok)
-          token_tracker.add(p_tok, c_tok, t_tok, active_model)
-
-        candidates = resp_data.get("candidates", [])
-        if not candidates:
-          raise RuntimeError(
-              f"Empty candidates in Gemini response: {resp_data}")
-        text = (
-            candidates[0].get("content", {}).get("parts",
-                                                 [{}])[0].get("text", ""))
-        return clean_output(text)
-    except urllib.error.HTTPError as e:
-      if e.code == 429 and attempt < max_retries:
+      if not resp.text:
+        raise RuntimeError(f"Empty text in Gemini response for model {model}")
+      return clean_output(resp.text)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      if attempt < max_retries:
         backoff = attempt * 5
         print(
-            f"[resolve_conflicts] HTTP 429 Rate-Limit hit. Backing off "
+            f"[resolve_conflicts] Query error: {e}. Backing off "
             f"{backoff}s before retry ({attempt}/{max_retries})...",
             file=sys.stderr,
         )
         time.sleep(backoff)
         continue
-      if e.code in (500, 502, 503, 504) and attempt < max_retries:
-        backoff = attempt * 6
-        print(
-            f"[resolve_conflicts] HTTP {e.code} Service Overload. "
-            f"Backing off {backoff}s before retry...",
-            file=sys.stderr,
-        )
-        time.sleep(backoff)
-        continue
-      err_body = e.read().decode("utf-8")
-      raise GeminiAPIError(f"HTTP Error {e.code}: {err_body}") from e
-    except (TimeoutError, urllib.error.URLError) as e:
-      if attempt < max_retries:
-        backoff = attempt * 4
-        current_timeout += 30
-        print(
-            f"[resolve_conflicts] Socket timeout. Expanding timeout "
-            f"to {current_timeout}s & retrying in {backoff}s...",
-            file=sys.stderr,
-        )
-        time.sleep(backoff)
-        continue
       raise GeminiAPIError(
-          f"Request timed out after {attempt} attempts: {e}") from e
+          f"Gemini API query failed after {max_retries} attempts: {e}") from e
 
-    raise GeminiAPIError(
-        f"Gemini API request failed after {max_retries} retries.")
+  raise GeminiAPIError(
+      f"Gemini API request failed after {max_retries} retries.")
 
 
 def clean_output(text: str) -> str:
@@ -825,7 +651,7 @@ def resolve_file_conflicts(
     token_tracker: Optional[TokenUsage] = None,
     escalations: Optional[List[EscalationItem]] = None,
     max_tool_rounds: int = 5,
-) -> Tuple[bool, List[str]]:
+) -> bool:
   """Resolves all conflict blocks in any file with multi-turn tools."""
   tracker = token_tracker or TokenUsage()
   esc_list = escalations if escalations is not None else []
@@ -849,7 +675,7 @@ def resolve_file_conflicts(
           cwd=repo_path,
           check=False,
       )
-      return True, [f"Auto-resolved binary file {rel_path} with --theirs"]
+      return True
     except (OSError, subprocess.SubprocessError) as e:
       print(
           f"[WARNING] Failed to checkout --theirs for {rel_path}: {e}",
@@ -865,7 +691,7 @@ def resolve_file_conflicts(
         f"[resolve_conflicts] No conflict markers in: {file_path}",
         file=sys.stderr,
     )
-    return True, []
+    return True
 
   language = detect_language(file_path)
   system_instruction = build_system_instruction(language, skills_dir)
@@ -1056,27 +882,18 @@ def resolve_file_conflicts(
           f"    [FAIL] AST syntax error in {file_path}: {e}",
           file=sys.stderr,
       )
-      return False, []
+      return False
 
   # Backup & write
   shutil.copyfile(file_path, f"{file_path}.bak")
   with open(file_path, "w", encoding="utf-8") as f:
     f.write(current_content)
 
-  diff = list(
-      difflib.unified_diff(
-          original_content.splitlines(),
-          current_content.splitlines(),
-          fromfile=f"{file_path} (conflicted)",
-          tofile=f"{file_path} (resolved)",
-          lineterm="",
-      ))
   print(
-      f"[resolve_conflicts] Successfully processed {file_path} "
-      f"({len(diff)} diff lines).",
+      f"[resolve_conflicts] Successfully processed {file_path}.",
       file=sys.stderr,
   )
-  return True, diff
+  return True
 
 
 def write_result_report(
@@ -1132,13 +949,7 @@ def write_result_report(
 {file_table}
 {escalation_section}
 ## 3. AI Token Metrics
-| Metric | Value |
-| :--- | :--- |
-| **Model** | `{token_usage.model}` |
-| **Prompt Tokens** | {token_usage.prompt_tokens:,} |
-| **Completion Tokens** | {token_usage.completion_tokens:,} |
-| **Total Tokens** | {token_usage.total_tokens:,} |
-| **AI Calls / Invocations** | {token_usage.calls} |
+{token_usage.format_summary_table()}
 
 ## 4. Verification
 ```text
@@ -1151,6 +962,22 @@ def write_result_report(
       f"\n[resolve_conflicts] Report written to: {report_path}",
       file=sys.stderr,
   )
+
+
+def get_chromium_milestone(repo_path: Optional[str] = None) -> str:
+  """Reads the Chromium major milestone from chrome/VERSION (e.g. 'M138')."""
+  base = repo_path or os.path.expanduser("~/cobalt/src")
+  version_file = os.path.join(base, "chrome", "VERSION")
+  if os.path.isfile(version_file):
+    try:
+      with open(version_file, "r", encoding="utf-8") as f:
+        for line in f:
+          if line.startswith("MAJOR="):
+            major_ver = line.strip().split("=")[1]
+            return f"M{major_ver}"
+    except OSError:
+      pass
+  return "M_Unknown"
 
 
 def main():
@@ -1175,14 +1002,15 @@ def main():
   )
   parser.add_argument(
       "--skills-dir",
-      default=os.path.expanduser("~/cobalt/src/.github/rebase/skills"),
+      default=os.path.expanduser(
+          "~/cobalt/src/.github/rebase/reasoning_engine/skills"),
       help="Path to skills directory.",
   )
   parser.add_argument(
       "--report-path",
-      default=os.path.expanduser(
-          "~/cobalt/src/.github/rebase/results/M139_rebase_summary.md"),
-      help="Path to summary report.",
+      default=None,
+      help=("Path to summary report (defaults to"
+            " results/<milestone>_rebase_summary.md)."),
   )
   parser.add_argument(
       "--project-id",
@@ -1284,7 +1112,7 @@ def main():
     if not os.path.isfile(tf):
       continue
 
-    ok, _ = resolve_file_conflicts(
+    if resolve_file_conflicts(
         file_path=tf,
         repo_path=repo_path,
         git_context=git_context,
@@ -1299,8 +1127,7 @@ def main():
         token_tracker=token_tracker,
         escalations=escalations,
         max_tool_rounds=args.max_tool_rounds,
-    )
-    if ok:
+    ):
       resolved_list.append(tf)
       if os.path.basename(tf) == "DEPS":
         deps_resolved = True
@@ -1329,8 +1156,12 @@ def main():
     )
 
   # Write report
+  milestone = get_chromium_milestone(args.repo_path)
+  rebase_dir = os.path.dirname(os.path.abspath(__file__))
+  final_report_path = args.report_path or os.path.join(
+      rebase_dir, "results", f"{milestone}_rebase_summary.md")
   write_result_report(
-      report_path=args.report_path,
+      report_path=final_report_path,
       resolved_files=resolved_list,
       git_meta=git_meta,
       token_usage=token_tracker,

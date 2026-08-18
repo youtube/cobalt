@@ -151,8 +151,7 @@ def self_heal_gn_generation(
     )
     ai_fix = res_ai.get("patch", "")
 
-    modified = apply_patch_or_replacement(ai_fix, repo_path=repo_path)
-    if modified:
+    if modified := apply_patch_or_replacement(ai_fix, repo_path=repo_path):
       mod_names = [os.path.relpath(mf, repo_path) for mf in modified]
       for rel in mod_names:
         print(f"  [OK] Applied GN fix to: {rel}", file=sys.stderr)
@@ -179,6 +178,22 @@ def self_heal_gn_generation(
   return False
 
 
+def get_chromium_milestone(repo_path: Optional[str] = None) -> str:
+  """Reads the Chromium major milestone from chrome/VERSION (e.g. 'M138')."""
+  base = repo_path or os.path.expanduser("~/cobalt/src")
+  version_file = os.path.join(base, "chrome", "VERSION")
+  if os.path.isfile(version_file):
+    try:
+      with open(version_file, "r", encoding="utf-8") as f:
+        for line in f:
+          if line.startswith("MAJOR="):
+            major_ver = line.strip().split("=")[1]
+            return f"M{major_ver}"
+    except OSError:
+      pass
+  return "M_Unknown"
+
+
 def _write_final_report(
     rebase_dir: str,
     platform: str,
@@ -188,17 +203,21 @@ def _write_final_report(
     model: str,
     status: str,
     elapsed_seconds: float,
-):
-  """Generates the final comprehensive M139 rebase summary report."""
+    repo_path: Optional[str] = None,
+) -> str:
+  """Generates the final comprehensive rebase summary report."""
+  milestone = get_chromium_milestone(repo_path)
   results_dir = os.path.join(rebase_dir, "results")
   os.makedirs(results_dir, exist_ok=True)
-  report_path = os.path.join(results_dir, "M139_rebase_summary.md")
+  report_filename = f"{milestone}_rebase_summary.md"
+  report_path = os.path.join(results_dir, report_filename)
   comp_status = ("[OK] Clean"
                  if "SUCCESS" in status else "[WARNING] Requires Attention")
-  content = f"""# Cobalt Rebase Resolution & Verification Report
+  content = f"""# Cobalt {milestone} Rebase Resolution & Verification Report
 
 ## 1. Executive Summary
 - **Status**: **{status}**
+- **Milestone**: `{milestone}`
 - **Platform**: `{platform}`
 - **Build Type**: `{build_type}`
 - **Target**: `{target}`
@@ -224,10 +243,11 @@ def _write_final_report(
         f"[pipeline] [WARNING] Could not write report: {e}",
         file=sys.stderr,
     )
+  return report_path
 
 
-def main():
-  """Main CLI entry point for Cobalt rebase pipeline."""
+def build_arg_parser() -> argparse.ArgumentParser:
+  """Constructs the CLI argument parser for the rebase pipeline."""
   parser = argparse.ArgumentParser(
       description="Automated Cobalt Chromium Rebase Pipeline Runner.")
   parser.add_argument(
@@ -301,11 +321,14 @@ def main():
   parser.add_argument(
       "--gcs-memory-uri",
       default=os.environ.get("GCS_MEMORY_URI"),
-      help=("Optional GCS bucket URI (gs://bucket/path) to sync knowledge "
-            "bank."),
+      help=(
+          "Optional GCS bucket URI (gs://bucket/path) to sync knowledge bank."),
   )
-  args = parser.parse_args()
+  return parser
 
+
+def run_pipeline(args: argparse.Namespace) -> int:
+  """Executes the end-to-end multi-phase Cobalt rebase pipeline."""
   rebase_dir = os.path.dirname(os.path.abspath(__file__))
   proj_arg = ["--project-id", args.project_id] if args.project_id else []
   loc_arg = ["--location", args.location] if args.location else []
@@ -369,8 +392,9 @@ def main():
           model=args.model,
           status="FAILED (Phase 1: Conflict Resolution)",
           elapsed_seconds=time.time() - start_time,
+          repo_path=args.repo_path,
       )
-      sys.exit(rc)
+      return rc
     print("[OK] Phase 1 Completed Successfully.", file=sys.stderr)
 
   # -------------------------------------------------------------------------
@@ -406,8 +430,9 @@ def main():
           model=args.model,
           status="FAILED (Phase 2: GN Generation)",
           elapsed_seconds=time.time() - start_time,
+          repo_path=args.repo_path,
       )
-      sys.exit(1)
+      return 1
     print("[OK] Phase 2 Completed Successfully.", file=sys.stderr)
 
   # -------------------------------------------------------------------------
@@ -449,12 +474,13 @@ def main():
           model=args.model,
           status="FAILED (Phase 3: Compiler Loop)",
           elapsed_seconds=time.time() - start_time,
+          repo_path=args.repo_path,
       )
-      sys.exit(rc)
+      return rc
     print("[OK] Phase 3 Completed Successfully.", file=sys.stderr)
 
   elapsed = time.time() - start_time
-  _write_final_report(
+  summary_path = _write_final_report(
       rebase_dir=rebase_dir,
       platform=args.platform,
       build_type=args.build_type,
@@ -462,6 +488,7 @@ def main():
       model=args.model,
       status="SUCCESS (All Phases Complete)",
       elapsed_seconds=elapsed,
+      repo_path=args.repo_path,
   )
 
   # Sync persistent knowledge memory bank to GCS if configured
@@ -473,12 +500,19 @@ def main():
       f"[SUCCESS] PIPELINE COMPLETED CLEANLY in {elapsed:.1f}s!",
       file=sys.stderr,
   )
-  summary_path = os.path.join(rebase_dir, "results", "M139_rebase_summary.md")
   print(
       f"[REPORT] Summary Report: {summary_path}",
       file=sys.stderr,
   )
   print("=" * 80, file=sys.stderr)
+  return 0
+
+
+def main():
+  """Main CLI entry point for Cobalt rebase pipeline."""
+  parser = build_arg_parser()
+  args = parser.parse_args()
+  sys.exit(run_pipeline(args))
 
 
 if __name__ == "__main__":

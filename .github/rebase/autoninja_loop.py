@@ -32,25 +32,6 @@ class CompilerDiagnostic:
   notes: List[str]
 
 
-@dataclasses.dataclass
-class TokenUsage:
-  """Tracks token metrics and model call counts across invocations."""
-
-  prompt_tokens: int = 0
-  completion_tokens: int = 0
-  total_tokens: int = 0
-  model: str = ""
-  calls: int = 0
-
-  def add(self, prompt: int, completion: int, total: int, model: str):
-    """Accumulates prompt and response token usage."""
-    self.prompt_tokens += prompt
-    self.completion_tokens += completion
-    self.total_tokens += total
-    self.model = model
-    self.calls += 1
-
-
 def get_clean_build_env(
     depot_tools_path: Optional[str] = None,) -> Dict[str, str]:
   """Prepares a clean build environment, stripping agent-specific env vars."""
@@ -151,7 +132,21 @@ def get_source_context(file_path: str,
 
 def apply_search_replace(file_path: str, search_block: str,
                          replace_block: str) -> bool:
-  """Surgically replaces search_block with replace_block in file_path."""
+  """Applies a single search_block replacement to a target file on disk.
+
+    Performs surgical in-place modification on a single file:
+      1. Attempts direct exact matching (`content.replace(search, replace, 1)`).
+      2. If direct matching fails, falls back to whitespace-normalized
+         line-by-line matching to accommodate indentation variations.
+
+    Args:
+        file_path: Absolute or relative path to the file to modify.
+        search_block: Exact code chunk to locate in the file.
+        replace_block: Replacement code chunk to insert.
+
+    Returns:
+        True if replaced successfully; False otherwise.
+    """
   if not os.path.isfile(file_path):
     print(
         f"[autoninja_loop] [ERROR] Target file does not exist: {file_path}",
@@ -208,8 +203,24 @@ def apply_search_replace(file_path: str, search_block: str,
   return False
 
 
-def apply_patch_or_replacement(patch_text: str, repo_path: str) -> bool:
-  """Parses and applies SEARCH/REPLACE blocks or unified diff patches."""
+def apply_patch_or_replacement(patch_text: str, repo_path: str) -> List[str]:
+  """Parses and dispatches AI model output containing one or more code edits.
+
+    Acts as the top-level parser and dispatcher for raw LLM patch responses:
+      1. Multi-File SEARCH/REPLACE: Extracts every `FILE: <path>`,
+         `<<<<<<< SEARCH`, `=======`, `>>>>>>> REPLACE` block from the LLM text.
+         Normalizes paths (e.g. stripping GN '//' prefixes) and calls
+         `apply_search_replace` for each individual file edit.
+      2. Unified Diff Fallback: If the response is a standard unified diff
+         (`--- a/... +++ b/... @@ ... @@`), routes to `apply_unified_diff`.
+
+    Args:
+        patch_text: Raw multi-line output returned by Gemini.
+        repo_path: Root directory of repository for relative path resolution.
+
+    Returns:
+        List of modified file paths if successful, or empty list on failure.
+    """
   if "<<<<<<< SEARCH" in patch_text and "=======" in patch_text:
     sr_pattern = re.compile(
         r"FILE:\s*([a-zA-Z0-9_/\.\-]+)\s*\n"
@@ -218,7 +229,7 @@ def apply_patch_or_replacement(patch_text: str, repo_path: str) -> bool:
     )
     matches = sr_pattern.findall(patch_text)
     if matches:
-      overall_success = True
+      modified_files = []
       for rel_file, search_b, replace_b in matches:
         clean_rel = rel_file.strip()
         if clean_rel.startswith("//"):
@@ -227,22 +238,24 @@ def apply_patch_or_replacement(patch_text: str, repo_path: str) -> bool:
             os.path.join(repo_path, clean_rel)
             if not os.path.isabs(clean_rel) else clean_rel)
         applied = apply_search_replace(target_file, search_b, replace_b)
-        if not applied:
-          overall_success = False
-      return overall_success
+        if applied:
+          modified_files.append(target_file)
+        else:
+          return []
+      return modified_files
 
   return apply_unified_diff(patch_text, repo_path)
 
 
-def apply_unified_diff(diff_text: str, repo_path: str) -> bool:
-  """Applies a unified diff patch to source files."""
+def apply_unified_diff(diff_text: str, repo_path: str) -> List[str]:
+  """Applies a unified diff patch to source files, returning modified paths."""
   file_match = re.search(
       r"^(?:---|\+\+\+)\s+[ab]?/?([a-zA-Z0-9_/\.\-]+)",
       diff_text,
       re.MULTILINE,
   )
   if not file_match:
-    return False
+    return []
 
   rel_file = file_match.group(1).strip()
   if rel_file.startswith("//"):
@@ -252,7 +265,7 @@ def apply_unified_diff(diff_text: str, repo_path: str) -> bool:
       if not os.path.isabs(rel_file) else rel_file)
 
   if not os.path.isfile(file_path):
-    return False
+    return []
 
   with open(file_path, "r", encoding="utf-8") as f:
     orig_lines = f.readlines()
@@ -293,9 +306,9 @@ def apply_unified_diff(diff_text: str, repo_path: str) -> bool:
 
     with open(file_path, "w", encoding="utf-8") as f:
       f.writelines(new_lines)
-    return True
+    return [file_path]
   except (OSError, ValueError, IndexError):
-    return False
+    return []
 
 
 def run_autoninja_build(
@@ -368,10 +381,8 @@ def run_compiler_self_healing_loop(
 
   seen_errors: Set[str] = set()
   history_records: List[Dict] = []
-  iteration = 0
 
-  while iteration < max_iterations:
-    iteration += 1
+  for iteration in range(1, max_iterations + 1):
     print(
         f"\n[autoninja_loop] >>> Build Iteration "
         f"{iteration}/{max_iterations}...",
@@ -537,7 +548,8 @@ def main():
   )
   parser.add_argument(
       "--skills-dir",
-      default=os.path.expanduser("~/cobalt/src/.github/rebase/skills"),
+      default=os.path.expanduser(
+          "~/cobalt/src/.github/rebase/reasoning_engine/skills"),
       help="Path to skills directory",
   )
   args = parser.parse_args()

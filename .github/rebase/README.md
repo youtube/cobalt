@@ -1,6 +1,6 @@
 # Automated Cobalt Chromium Rebase & Self-Healing Pipeline
 
-An autonomous, multi-phase AI-driven engineering pipeline powered by Google Cloud Vertex AI and Gemini. Designed to resolve merge conflicts, repair GN build definitions, and heal C++/Java compilation breaks across Chromium milestone upgrades (e.g. M138 to M139) for Cobalt
+An autonomous, multi-phase AI-driven engineering pipeline powered by Google Cloud Vertex AI and Gemini. Designed to resolve merge conflicts, repair GN build definitions, and heal C++/Java compilation breaks across Chromium milestone upgrades (e.g. M138 to M139) for Cobalt.
 
 ---
 
@@ -48,22 +48,27 @@ The pipeline executes in three automated, self-healing phases:
 
 ```
 .github/rebase/
-├── README.md              # Documentation and operational guide
-├── run_rebase_pipeline.py # End-to-end multi-phase orchestrator
-├── autoninja_loop.py      # autoninja compiler self-healing loop
-├── resolve_conflicts.py   # Multi-file merge conflict resolver & AST verifier
-├── reasoning_engine.py    # Direct Vertex AI client (google.genai SDK)
-├── deploy.py              # Vertex AI Reasoning Engine lifecycle manager
-├── rebase_memory.py       # Knowledge bank interface with GCS sync
-├── test_rebase_suite.py   # Comprehensive unit test suite (7/7 passing)
-├── test_api_connection.py # Vertex AI connectivity & authentication diagnostic
-├── skills/                # Declarative domain instructions (Markdown)
-│   ├── cobalt_rebase.md       # Master guidelines, Code Search & Gitiles
-│   ├── compiler_healing.md    # Compiler & linker break patterns
-│   ├── gn_healing.md          # GN build rules & visibility restrictions
-│   └── conflict_resolution.md # DEPS AST & merge conflict rules
-└── results/               # Generated reports
-    └── M139_rebase_summary.md
+│
+├── reasoning_engine/                   # [DEPLOYED TO VERTEX AI]
+│   ├── __init__.py                     # Package initialization
+│   ├── engine.py                       # CobaltReasoningEngine service definition
+│   ├── deploy.py                       # Vertex AI deployment & lifecycle CLI
+│   ├── requirements.txt                # Container runtime dependencies
+│   └── skills/                         # Declarative domain instructions (Markdown)
+│       ├── cobalt_rebase.md            # Master guidelines & behavior preservation
+│       ├── compiler_healing.md         # Compiler & linker break repair heuristics
+│       ├── gn_healing.md               # GN build rules & visibility repair
+│       └── conflict_resolution.md      # DEPS AST & merge conflict rules
+│
+├── run_rebase_pipeline.py              # [CI RUNNER] End-to-end multi-phase orchestrator
+├── autoninja_loop.py                   # [CI RUNNER] autoninja compiler healing loop
+├── resolve_conflicts.py                # [CI RUNNER] Multi-file conflict resolver
+├── rebase_memory.py                    # [CI RUNNER] Memory bank interface & GCS sync
+├── test_rebase_suite.py                # [CI RUNNER] Comprehensive unit test suite
+├── test_api_connection.py            # [CI RUNNER] Vertex AI connectivity diagnostic
+├── results/                            # [ARTIFACTS] Generated summaries
+│   └── M139_rebase_summary.md
+└── README.md                           # Documentation & operational manual
 ```
 
 ---
@@ -120,13 +125,13 @@ python3 .github/rebase/run_rebase_pipeline.py \
 
 ---
 
-## 4. Vertex AI Reasoning Engine Deployment (`deploy.py`)
+## 4. Vertex AI Reasoning Engine Deployment (`reasoning_engine/deploy.py`)
 
-To deploy, update, or list managed Reasoning Engine instances on Vertex AI:
+To deploy, update, or list managed Reasoning Engine instances on Google Cloud Vertex AI:
 
 * **Deploy**:
   ```bash
-  python3 .github/rebase/deploy.py deploy \
+  python3 .github/rebase/reasoning_engine/deploy.py deploy \
     --project-id "$GCP_PROJECT" \
     --location "us-central1" \
     --staging-bucket "gs://your-staging-bucket"
@@ -134,7 +139,7 @@ To deploy, update, or list managed Reasoning Engine instances on Vertex AI:
 
 * **Update**:
   ```bash
-  python3 .github/rebase/deploy.py update \
+  python3 .github/rebase/reasoning_engine/deploy.py update \
     --resource-id "<REASONING_ENGINE_ID>" \
     --project-id "$GCP_PROJECT" \
     --location "us-central1" \
@@ -143,21 +148,21 @@ To deploy, update, or list managed Reasoning Engine instances on Vertex AI:
 
 * **List**:
   ```bash
-  python3 .github/rebase/deploy.py list \
+  python3 .github/rebase/reasoning_engine/deploy.py list \
     --project-id "$GCP_PROJECT" \
     --location "us-central1"
   ```
 
 ---
 
-## 5. Domain Skills (`skills/`)
+## 5. Domain Skills (`reasoning_engine/skills/`)
 
-Prompts and domain rules are completely decoupled from Python code. To adjust rebase heuristics or add new patterns for future Chromium rolls (e.g. M140), edit the markdown files in `skills/`:
+Prompts and domain rules are decoupled from Python code. To adjust rebase heuristics or add new patterns for future Chromium rolls (e.g. M140), edit the markdown files in `reasoning_engine/skills/`:
 
-* **`skills/cobalt_rebase.md`**: Master behavior preservation principles, Starboard macros (`USE_STARBOARD_MEDIA`, `IS_COBALT`), and investigation workflows using Chromium Code Search (`source.chromium.org`) and Gitiles (`chromium.googlesource.com`).
-* **`skills/compiler_healing.md`**: C++/Java header splits (e.g. `base/notimplemented.h`, `base/timer/elapsed_timer.h`), method signature updates, and linker stubs.
-* **`skills/gn_healing.md`**: GN visibility rules and template variable forwarding.
-* **`skills/conflict_resolution.md`**: Upstream roll priority, DEPS syntax rules, and multi-turn tool commands.
+* **`reasoning_engine/skills/cobalt_rebase.md`**: Master behavior preservation principles, Starboard macros (`USE_STARBOARD_MEDIA`, `IS_COBALT`), and investigation workflows using Chromium Code Search (`source.chromium.org`) and Gitiles (`chromium.googlesource.com`).
+* **`reasoning_engine/skills/compiler_healing.md`**: C++/Java header splits (e.g. `base/notimplemented.h`, `base/timer/elapsed_timer.h`), method signature updates, and linker stubs.
+* **`reasoning_engine/skills/gn_healing.md`**: GN visibility rules and template variable forwarding.
+* **`reasoning_engine/skills/conflict_resolution.md`**: Upstream roll priority, DEPS syntax rules, and multi-turn tool commands.
 
 ---
 
@@ -169,7 +174,7 @@ To persist the knowledge bank across ephemeral build machines via GCS:
 ```bash
 export GCS_MEMORY_URI="gs://your-bucket-name/rebase_memory/knowledge_bank.json"
 ```
-The pipeline will automatically **pull** existing memory at startup and **push** new fixes upon completion.
+The pipeline will automatically **pull** existing memory at startup and **push** new fixes upon completion using the native `google-cloud-storage` client library.
 
 ---
 

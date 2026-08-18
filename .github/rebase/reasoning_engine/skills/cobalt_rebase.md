@@ -112,6 +112,11 @@ When upstream changes deprecate APIs or remove interfaces:
    * **DEPS**: Verify with `ast.parse()` and run `gclient sync --nohooks --no-history`.
    * **Source Files**: Run `autoninja -C out/Default cobalt:cobalt` to verify compilation.
 
+4. **Milestone build flags**
+   * You may see build flag like `CHROMIUM_MILESTONE_LE_138`, which means the edit is only for milestone less than 138. For milestone larger than 138,
+   use upstream code. It is mostly used with `BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)`, because a lot of Privacy Sandbox APIs are removed before M152.
+   Therefore, if the conflicts are due to the removel, just use upstream changes.
+
 ---
 
 ## 4. Known M139 Breaking Patterns & Resolutions Reference

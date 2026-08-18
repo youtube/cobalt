@@ -14,92 +14,26 @@ import argparse
 import json
 import os
 import ssl
-import subprocess
 import sys
 import time
 import urllib.error
 import urllib.request
-from typing import Dict, Optional
+from typing import Dict
 
-try:
-  import google.auth
-  import google.auth.transport.requests
-  HAS_GOOGLE_AUTH = True
-except ImportError:
-  HAS_GOOGLE_AUTH = False
+import google.auth
+import google.auth.transport.requests
 
 
-def get_gcp_access_token() -> Optional[str]:
-  """Retrieves Google Cloud OAuth access token via ADC or gcloud CLI."""
-  # 1. Try gcloud auth application-default print-access-token
-  try:
-    res = subprocess.run(
-        ["gcloud", "auth", "application-default", "print-access-token"],
-        capture_output=True,
-        text=True,
-        timeout=10,
-        check=False,
-    )
-    if res.returncode == 0 and res.stdout.strip():
-      return res.stdout.strip()
-  except (OSError, subprocess.SubprocessError):
-    pass
-
-  # 2. Try gcloud auth print-access-token
-  try:
-    res = subprocess.run(
-        ["gcloud", "auth", "print-access-token"],
-        capture_output=True,
-        text=True,
-        timeout=10,
-        check=False,
-    )
-    if res.returncode == 0 and res.stdout.strip():
-      return res.stdout.strip()
-  except (OSError, subprocess.SubprocessError):
-    pass
-
-  # 3. Direct exchange using application_default_credentials.json if present
-  adc_path = os.path.expanduser(
-      "~/.config/gcloud/application_default_credentials.json")
-  if os.path.isfile(adc_path):
-    try:
-      with open(adc_path, "r", encoding="utf-8") as f:
-        adc = json.load(f)
-      if ("refresh_token" in adc and "client_id" in adc and
-          "client_secret" in adc):
-        token_url = "https://oauth2.googleapis.com/token"
-        payload = json.dumps({
-            "client_id": adc["client_id"],
-            "client_secret": adc["client_secret"],
-            "refresh_token": adc["refresh_token"],
-            "grant_type": "refresh_token",
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            token_url,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        ctx = ssl.create_default_context()
-        with urllib.request.urlopen(req, context=ctx, timeout=10) as resp:
-          data = json.loads(resp.read().decode("utf-8"))
-          return data.get("access_token")
-    except (OSError, json.JSONDecodeError, urllib.error.URLError):
-      pass
-
-  # 4. Try google.auth if installed
-  if HAS_GOOGLE_AUTH:
-    try:
-      credentials, _ = google.auth.default(
-          scopes=["https://www.googleapis.com/auth/cloud-platform"])
-      credentials.refresh(google.auth.transport.requests.Request())
-      if credentials.token:
-        return credentials.token
-    except Exception:  # pylint: disable=broad-exception-caught
-      pass
-
-  return None
+def get_gcp_access_token() -> str:
+  """Retrieves GCP OAuth access token natively using google-auth ADC."""
+  credentials, _ = google.auth.default(
+      scopes=["https://www.googleapis.com/auth/cloud-platform"])
+  request = google.auth.transport.requests.Request()
+  credentials.refresh(request)
+  if not credentials.token:
+    raise RuntimeError(
+        "Failed to obtain OAuth access token from Google Cloud ADC.")
+  return credentials.token
 
 
 def test_vertex_ai_query(

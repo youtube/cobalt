@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,wrong-import-position
 """Vertex AI Reasoning Engine Deployment and Lifecycle Management Script.
 
 Deploys, updates, lists, and manages CobaltReasoningEngine instances on
@@ -11,14 +11,19 @@ import os
 import sys
 from typing import Optional
 
-import vertexai
-from vertexai.preview import reasoning_engines
-
-from reasoning_engine import CobaltReasoningEngine
+# Ensure package directory is in sys.path
+_PKG_DIR = os.path.dirname(os.path.abspath(__file__))
+if _PKG_DIR not in sys.path:
+  sys.path.insert(0, _PKG_DIR)
 
 # Disable mTLS endpoint on Cloudtop to ensure clean Vertex AI transport.
 os.environ["GOOGLE_API_USE_CLIENT_CERTIFICATE"] = "false"
 os.environ["GOOGLE_API_USE_MTLS_ENDPOINT"] = "never"
+
+import vertexai
+from vertexai.preview import reasoning_engines
+
+from engine import CobaltReasoningEngine
 
 
 def _normalize_resource_name(resource_id: str, project_id: str,
