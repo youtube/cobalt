@@ -158,10 +158,6 @@ StarboardRenderer::StarboardRenderer(
       android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
 #endif  // BUILDFLAG(IS_ANDROID)
 {
-  SbPlayerInterface* testing_interface = GetSbPlayerInterfaceForTesting();
-  sbplayer_interface_ptr_ =
-      testing_interface ? testing_interface : &sbplayer_interface_;
-
   DCHECK(task_runner_);
   DCHECK(media_log_);
   CHECK_GT(max_samples_per_write_, 0);
@@ -650,7 +646,8 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
 #endif  // BUILDFLAG(IS_ANDROID)
 
 SbPlayerInterface* StarboardRenderer::GetSbPlayerInterface() {
-  return sbplayer_interface_ptr_;
+  SbPlayerInterface* testing_interface = GetSbPlayerInterfaceForTesting();
+  return testing_interface ? testing_interface : &sbplayer_interface_;
 }
 
 void StarboardRenderer::UpdateAudioWriteDuration() {
