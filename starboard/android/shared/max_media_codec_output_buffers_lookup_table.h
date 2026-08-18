@@ -50,8 +50,6 @@ class MaxMediaCodecOutputBuffersLookupTable {
 
   int GetMaxOutputVideoBuffers(const VideoOutputFormat& format) const;
 
-  void SetEnabled(bool enable);
-
   void UpdateMaxOutputBuffers(const VideoOutputFormat& format,
                               int max_num_of_frames);
 
@@ -60,8 +58,6 @@ class MaxMediaCodecOutputBuffersLookupTable {
       const MaxMediaCodecOutputBuffersLookupTable& table);
 
  private:
-  bool enable_ = true;
-
   mutable std::mutex mutex_;
   std::map<VideoOutputFormat, int> lookup_table_;
 };

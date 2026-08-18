@@ -16,7 +16,6 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 // clang-format on
 
-#include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/size.h"
@@ -72,14 +71,6 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
     }
     if (mime_type->GetParamBoolValue("disablecache", false)) {
       MediaCapabilitiesCache::GetInstance()->SetCacheEnabled(false);
-    }
-
-    if (!mime_type->ValidateBoolParameter("disabledynamicprerollframecount")) {
-      return false;
-    }
-    if (mime_type->GetParamBoolValue("disabledynamicprerollframecount",
-                                     false)) {
-      MaxMediaCodecOutputBuffersLookupTable::GetInstance()->SetEnabled(false);
     }
   }
 
