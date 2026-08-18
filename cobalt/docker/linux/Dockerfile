@@ -7,7 +7,8 @@ FROM marketplace.gcr.io/google/debian12@${BASE_IMAGE_SHA}
 # V8 snapshot binary, on X11/GTK builds
 #     gcc-multilib  for cross-builds of v8/32bit arm
 RUN apt-get update && apt-get install -y \
-    curl python3-dev git \
+    curl python3-dev python3-pip git \
+    python3-grpcio python3-grpc-tools python3-protobuf python3-six python-is-python3 \
     xz-utils \
     pkgconf \
     libglib2.0-0 \
@@ -28,6 +29,9 @@ RUN apt-get update && apt-get install -y \
     bzip2 \
     jq \
     && rm -rf /var/lib/apt/lists/*
+
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+ENV COBALT_BOOTSTRAP_CONTAINER=1
 
 ARG GCLOUD=google-cloud-cli-linux-x86_64.tar.gz
 RUN cd /tmp \

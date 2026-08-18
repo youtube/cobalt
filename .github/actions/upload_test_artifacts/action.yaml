@@ -36,22 +36,23 @@ runs:
         name: ${{ inputs.test_artifacts_key }}
         path: artifacts/*
         retention-days: 3
-    - name: Set up Cloud SDK
-      if: inputs.upload_on_device_test_artifacts == 'true'
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Upload Android Test Artifacts to GCS
       if: inputs.upload_on_device_test_artifacts == 'true'
       env:
         WORKFLOW: ${{ github.workflow }}
       run: |
         set -eux
-        project_name=$(gcloud config get-value project)
+        project_name=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id' 2>/dev/null || gcloud config get-value project 2>/dev/null)
+        if [[ -z "${project_name}" || "${project_name}" == "(unset)" ]]; then
+          echo "Error: Failed to retrieve GCS project ID." >&2
+          exit 1
+        fi
 
         # Upload gtest target artifacts.
-        gsutil -m cp "${GITHUB_WORKSPACE}/artifacts/*" \
+        gcloud storage cp "${GITHUB_WORKSPACE}/artifacts/*" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
 
         # Upload cobalt.apk for smoke tests.
-        gsutil -m cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/apks/Cobalt.apk" \
+        gcloud storage cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/apks/Cobalt.apk" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
       shell: bash
