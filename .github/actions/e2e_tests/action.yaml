@@ -28,6 +28,20 @@ runs:
             --grpc_python_out=${GITHUB_WORKSPACE}/cobalt/tools/ \
             ${GITHUB_WORKSPACE}/cobalt/tools/on_device_tests_gateway.proto
       shell: bash
+    - name: Install gcloud
+      run: |
+        if [ ! -d "$HOME/google-cloud-sdk" ]; then
+          echo "gcloud SDK not found. Downloading and installing..."
+          cd $HOME
+          curl -sSLf -O "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-412.0.0-linux-x86_64.tar.gz"
+          tar xf "google-cloud-cli-412.0.0-linux-x86_64.tar.gz"
+          rm "google-cloud-cli-412.0.0-linux-x86_64.tar.gz"
+        else
+          echo "gcloud SDK already exists in $HOME."
+        fi
+        echo "$HOME/google-cloud-sdk/bin" >> $GITHUB_PATH
+      shell: bash
+
     - name: Set GCS Project Name
       run: |
         PROJECT_NAME=$(curl -s -f --connect-timeout 2 --max-time 5 -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/project/project-id' 2>/dev/null || gcloud config get-value project 2>/dev/null)
