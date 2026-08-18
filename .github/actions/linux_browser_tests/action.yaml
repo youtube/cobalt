@@ -26,9 +26,6 @@ runs:
         name: ${{ inputs.test_artifacts_key }}
         path: artifacts
 
-    - name: Set Up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v2
-
     - name: Run Browser Tests (Linux)
       shell: bash
       env:

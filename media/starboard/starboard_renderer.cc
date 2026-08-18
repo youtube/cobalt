@@ -705,11 +705,6 @@ void StarboardRenderer::CreatePlayerBridge() {
       video_stream_ ? video_stream_->video_decoder_config()
                     : invalid_video_config;
 
-  const std::string audio_mime_type =
-      audio_stream_ ? audio_stream_->mime_type() : "";
-  const std::string video_mime_type =
-      video_stream_ ? video_stream_->mime_type() : "";
-
   std::string error_message;
 
   DCHECK(!player_bridge_);
@@ -737,7 +732,7 @@ void StarboardRenderer::CreatePlayerBridge() {
     player_bridge_.reset(new SbPlayerBridge(
         GetSbPlayerInterface(), task_runner_,
         get_decode_target_graphics_context_provider_func_, audio_config,
-        audio_mime_type, video_config, video_mime_type,
+        video_config,
         // TODO(b/326497953): Support suspend/resume.
         // TODO(b/326508279): Support background mode.
         sb_window_, drm_system_, this,
@@ -828,12 +823,12 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
 
   if (stream->type() == DemuxerStream::AUDIO) {
     const AudioDecoderConfig& decoder_config = stream->audio_decoder_config();
-    player_bridge_->UpdateAudioConfig(decoder_config, stream->mime_type());
+    player_bridge_->UpdateAudioConfig(decoder_config);
   } else {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
 
-    player_bridge_->UpdateVideoConfig(decoder_config, stream->mime_type());
+    player_bridge_->UpdateVideoConfig(decoder_config);
 
     // TODO(b/375275033): Refine natural size change handling.
 #if 0

@@ -2,10 +2,9 @@
 # strictly to edit PR labels (pull-requests: write) without checking out or executing
 # untrusted code from PR branches.
 # actionlint: disable dangerous-triggers
-# zizmor: ignore[dangerous-triggers]
 name: Auto Label Kokoro
 
-on:
+on: # zizmor: ignore[dangerous-triggers]
   pull_request_target:
     types:
       - opened
@@ -17,17 +16,20 @@ on:
       - staging
       - autoroll-chromium/main-to-staging
       - experimental/*
+      - 'stack/**'
 
 concurrency:
   group: '${{ github.workflow }}-${{ github.event_name }} @ ${{ github.event.pull_request.number || github.sha }}'
   cancel-in-progress: true
 
 permissions:
-  pull-requests: write
+  contents: read
 
 jobs:
   label-kokoro-run:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     if: github.event.pull_request.draft == false
     steps:
       - name: Apply kokoro:run label to PR for collaborators/committers

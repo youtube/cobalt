@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 
+#include <optional>
+
 #include "base/functional/bind.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
@@ -97,7 +99,7 @@ void ForwardToJavaFrame(content::RenderFrameHost* render_frame_host,
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 
 void PopulateCobaltFrameBinders(
-    absl::optional<int64_t> app_startup_timestamp,
+    std::optional<int64_t> app_startup_timestamp,
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map) {
 // We want to use the Java Mojo implementation for 1P ATV only.

@@ -21,9 +21,11 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/types/expected.h"
 #include "build/build_config.h"
 #include "media/base/media_switches.h"
+#include "media/base/starboard/sbmedia_interface.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/bidirectional_fit_decoder_buffer_allocator_strategy.h"
 #include "media/starboard/media_buffer_pool_decoder_buffer_allocator_strategy.h"
@@ -34,7 +36,6 @@
 #include "starboard/common/external_metadata_reuse_allocator_base.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/media.h"
 
 namespace media {
 
@@ -68,9 +69,10 @@ base::expected<void, std::string> ProcessEnableOnlySetting(
 }  // namespace
 
 DecoderBufferAllocator::DecoderBufferAllocator()
-    : DecoderBufferAllocator(SbMediaIsBufferPoolAllocateOnDemand(),
-                             SbMediaGetInitialBufferCapacity(),
-                             SbMediaGetBufferAllocationUnit()) {}
+    : DecoderBufferAllocator(
+          GetSbMediaInterface()->IsBufferPoolAllocateOnDemand(),
+          GetSbMediaInterface()->GetInitialBufferCapacity(),
+          GetSbMediaInterface()->GetBufferAllocationUnit()) {}
 
 DecoderBufferAllocator::DecoderBufferAllocator(
     bool is_memory_pool_allocated_on_demand,
@@ -81,6 +83,9 @@ DecoderBufferAllocator::DecoderBufferAllocator(
       allocation_unit_(allocation_unit) {
   DCHECK_GE(initial_capacity_, 0);
   DCHECK_GE(allocation_unit_, 0);
+
+  base::UmaHistogramBoolean("Cobalt.Media.IsBufferPoolAllocateOnDemand",
+                            is_memory_pool_allocated_on_demand_);
 
   if (is_memory_pool_allocated_on_demand_) {
     LOG(INFO) << "Allocated decoder buffer pool on demand.";
@@ -218,7 +223,7 @@ void DecoderBufferAllocator::Write(Handle handle,
 base::TimeDelta
 DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold() const {
   return base::Microseconds(
-      SbMediaGetBufferGarbageCollectionDurationThreshold());
+      GetSbMediaInterface()->GetBufferGarbageCollectionDurationThreshold());
 }
 
 size_t DecoderBufferAllocator::GetAllocatedMemory() const {
@@ -317,22 +322,24 @@ base::expected<void, std::string> DecoderBufferAllocator::SetSetting(
     uint32_t unsigned_value = static_cast<uint32_t>(value);
     uint32_t flags = unsigned_value >> 24;
 
+    size_t block_size_mb = (unsigned_value >> 16) & 0xFF;
+
+    Strategy::ExperimentConfig strategy_config;
+    strategy_config.initial_capacity = block_size_mb * 1024 * 1024;
+    strategy_config.allocation_increment = block_size_mb * 1024 * 1024;
+    strategy_config.enable_decommit_on_idle = true;
+    strategy_config.retain_blocks = (unsigned_value >> 8) & 0xFF;
+    strategy_config.conservative_decommit_blocks = unsigned_value & 0xFF;
+    strategy_config.aggressive_decommit_on_suspend = (flags & 0x04) != 0;
+    strategy_config.allocate_with_page_alignment = (flags & 0x02) != 0;
+    strategy_config.memset_on_reclaim = (flags & 0x08) != 0;
+    strategy_config.mark_as_cold_on_reclaim = (flags & 0x10) != 0;
+
     bool enable_decommit_on_suspend = (flags & 0x01) != 0;
-    bool allocate_with_page_alignment = (flags & 0x02) != 0;
-    bool aggressive_decommit_on_suspend = (flags & 0x04) != 0;
-    bool memset_on_reclaim = (flags & 0x08) != 0;
-    bool mark_as_cold_on_reclaim = (flags & 0x10) != 0;
     bool periodic_decommit = (flags & 0x20) != 0;
 
-    int block_size_mb = (unsigned_value >> 16) & 0xFF;
-    int retain_blocks = (unsigned_value >> 8) & 0xFF;
-    int conservative_decommit_blocks = unsigned_value & 0xFF;
-
     EnableConfigurableDecommitStrategy(
-        block_size_mb * 1024 * 1024, retain_blocks,
-        conservative_decommit_blocks, enable_decommit_on_suspend,
-        allocate_with_page_alignment, aggressive_decommit_on_suspend,
-        memset_on_reclaim, mark_as_cold_on_reclaim, periodic_decommit);
+        strategy_config, enable_decommit_on_suspend, periodic_decommit);
     return base::ok();
   }
   if (name == "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy") {
@@ -360,27 +367,21 @@ void DecoderBufferAllocator::OnPeriodicDecommitTask(
 
 // static
 void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
-    int block_size,
-    int retain_blocks,
-    int conservative_decommit_blocks,
+    Strategy::ExperimentConfig strategy_config,
     bool enable_decommit_on_suspend,
-    bool allocate_with_page_alignment,
-    bool aggressive_decommit_on_suspend,
-    bool memset_on_reclaim,
-    bool mark_as_cold_on_reclaim,
     bool periodic_decommit) {
   auto* allocator = Get();
   CHECK(allocator);
   // Checking MADV_COLD support directly here simplifies experimental setup
   // without adding extra platform abstraction layers.
 #if !defined(MADV_COLD)
-  if (mark_as_cold_on_reclaim) {
+  if (strategy_config.mark_as_cold_on_reclaim) {
     LOG(INFO) << "mark_as_cold_on_reclaim is set, but MADV_COLD is not "
                  "defined. Resetting mark_as_cold_on_reclaim to false.";
-    mark_as_cold_on_reclaim = false;
+    strategy_config.mark_as_cold_on_reclaim = false;
   }
 #endif  // !defined(MADV_COLD)
-  if (aggressive_decommit_on_suspend) {
+  if (strategy_config.aggressive_decommit_on_suspend) {
     enable_decommit_on_suspend = true;
   }
   if (enable_decommit_on_suspend) {
@@ -393,10 +394,8 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
     allocator->EnablePeriodicDecommitLoop();
   }
   allocator->UpdateAllocatorStrategy(base::BindRepeating(
-      [](int block_size, int retain_blocks, int conservative_decommit_blocks,
-         bool enable_decommit_on_suspend, bool allocate_with_page_alignment,
-         bool aggressive_decommit_on_suspend, bool memset_on_reclaim,
-         bool mark_as_cold_on_reclaim, bool periodic_decommit,
+      [](const Strategy::ExperimentConfig& strategy_config,
+         bool enable_decommit_on_suspend, bool periodic_decommit,
          int initial_capacity, int allocation_unit)
           -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
         LOG(INFO)
@@ -405,30 +404,27 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
             << "initial_capacity (" << initial_capacity
             << ") and allocation_unit (" << allocation_unit
             << ") are ignored. Using "
-            << "block_size: " << block_size << ", "
-            << "retain_blocks: " << retain_blocks << ", "
-            << "conservative_decommit_blocks: " << conservative_decommit_blocks
+            << "initial_capacity: " << strategy_config.initial_capacity << ", "
+            << "allocation_increment: " << strategy_config.allocation_increment
+            << ", "
+            << "retain_blocks: " << strategy_config.retain_blocks << ", "
+            << "conservative_decommit_blocks: "
+            << strategy_config.conservative_decommit_blocks
             << ", enable_decommit_on_suspend: "
             << ToString(enable_decommit_on_suspend)
             << ", allocate_with_page_alignment: "
-            << ToString(allocate_with_page_alignment)
+            << ToString(strategy_config.allocate_with_page_alignment)
             << ", aggressive_decommit_on_suspend: "
-            << ToString(aggressive_decommit_on_suspend)
-            << ", memset_on_reclaim: " << ToString(memset_on_reclaim)
+            << ToString(strategy_config.aggressive_decommit_on_suspend)
+            << ", memset_on_reclaim: "
+            << ToString(strategy_config.memset_on_reclaim)
             << ", mark_as_cold_on_reclaim: "
-            << ToString(mark_as_cold_on_reclaim)
+            << ToString(strategy_config.mark_as_cold_on_reclaim)
             << ", periodic_decommit: " << ToString(periodic_decommit);
 
-        return std::make_unique<DefaultReuseAllocatorStrategy>(
-            block_size, block_size, /*enable_decommit_on_idle=*/true,
-            retain_blocks, conservative_decommit_blocks,
-            aggressive_decommit_on_suspend, allocate_with_page_alignment,
-            memset_on_reclaim, mark_as_cold_on_reclaim);
+        return std::make_unique<DefaultReuseAllocatorStrategy>(strategy_config);
       },
-      block_size, retain_blocks, conservative_decommit_blocks,
-      enable_decommit_on_suspend, allocate_with_page_alignment,
-      aggressive_decommit_on_suspend, memset_on_reclaim,
-      mark_as_cold_on_reclaim, periodic_decommit));
+      strategy_config, enable_decommit_on_suspend, periodic_decommit));
 }
 
 // static

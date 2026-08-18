@@ -530,5 +530,85 @@ class TestDeployRdkDeviceDetection(unittest.TestCase):
                 self.fail("KeyboardInterrupt was not caught by deploy_rdk --logs")
 
 
+class TestRemoveDuplicateSbArgs(unittest.TestCase):
+    """Unit tests for remove_duplicate_sb_args function."""
+
+    def test_inline_key_value(self):
+        """Verifies deduplication of --key=value flags."""
+        sb_args = ["--url=https://old.com", "--v=1"]
+        new_args = ["--url=https://new.com"]
+        result = deploy_rdk.remove_duplicate_sb_args(sb_args, new_args)
+        self.assertEqual(result, ["--v=1", "--url=https://new.com"])
+
+    def test_valueless_boolean_flag(self):
+        """Verifies deduplication of valueless/boolean flags."""
+        sb_args = ["--enable-heap-profiling", "--v=1"]
+        new_args = ["--enable-heap-profiling"]
+        result = deploy_rdk.remove_duplicate_sb_args(sb_args, new_args)
+        self.assertEqual(result, ["--v=1", "--enable-heap-profiling"])
+
+    def test_combined_inline_and_boolean_flags(self):
+        """Verifies deduplication when inline and boolean flags are present and overridden."""
+        sb_args = [
+            "--foo=old_inline",
+            "--bar",
+            "--keep=123",
+        ]
+        new_args = [
+            "--foo=new_inline",
+            "--bar",
+        ]
+        result = deploy_rdk.remove_duplicate_sb_args(sb_args, new_args)
+        expected = [
+            "--keep=123",
+            "--foo=new_inline",
+            "--bar",
+        ]
+        self.assertEqual(result, expected)
+
+    def test_double_dash_separator(self):
+        """Verifies that the double-dash separator '--' is not treated as a flag key and filtered out."""
+        sb_args = ["--v=1", "--", "positional_arg"]
+        new_args = ["--v=2"]
+        result = deploy_rdk.remove_duplicate_sb_args(sb_args, new_args)
+        self.assertEqual(result, ["--", "positional_arg", "--v=2"])
+
+    def test_positional_param_rejection(self):
+        """Verifies parse_args fails when positional arguments are passed to --param."""
+        argv = ["deploy_rdk.py", "--param", "www.youtube.com/tv"]
+        with mock.patch("sys.argv", argv):
+            with mock.patch("sys.exit") as mock_exit:
+                deploy_rdk.parse_args()
+                mock_exit.assert_called_once_with(1)
+
+    def test_valid_param_flags(self):
+        """Verifies parse_args succeeds when valid -- flags are passed to --param."""
+        argv = ["deploy_rdk.py", "--param", "--url=www.youtube.com/tv", "--enable-heap-profiling"]
+        with mock.patch("sys.argv", argv):
+            args = deploy_rdk.parse_args()
+            self.assertEqual(args.param, ["--url=www.youtube.com/tv", "--enable-heap-profiling"])
+
+    def test_user_override_replaces_script_args(self):
+        """Verifies user override flags in --param replace script-added flags if keys collide."""
+        script_args = ["--remote-debugging-port=9222"]
+        user_override_args = ["--remote-debugging-port=9999"]
+        override_args = deploy_rdk.remove_duplicate_sb_args(script_args, user_override_args)
+        self.assertEqual(override_args, ["--remote-debugging-port=9999"])
+
+    def test_three_arg_precedence(self):
+        """Verifies remove_duplicate_sb_args correctly deduplicates across all 3 argument sources."""
+        cobalt_json_args = ["--v=1", "--remote-debugging-port=8080", "--url=https://old.com"]
+        script_args = ["--remote-debugging-port=9222"]
+        user_override_args = ["--remote-debugging-port=9999", "--enable-heap-profiling"]
+
+        result = deploy_rdk.remove_duplicate_sb_args(
+            cobalt_json_args, script_args, user_override_args
+        )
+        self.assertEqual(
+            result,
+            ["--v=1", "--url=https://old.com", "--remote-debugging-port=9999", "--enable-heap-profiling"]
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

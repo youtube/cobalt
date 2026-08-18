@@ -22,7 +22,6 @@ import android.content.Context;
 import android.text.TextUtils;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
-import dev.cobalt.shell.ContentViewRenderView;
 import org.chromium.base.Callback;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.Initializer;
@@ -38,264 +37,234 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
 /**
- *  Copied from org.chromium.content_shell.Shell.
- *  Cobalt's own Java implementation of Shell. It does not have Shell UI.
- *  Container for the various UI components that make up a shell window.
+ * Copied from org.chromium.content_shell.Shell. Cobalt's own Java implementation of Shell. It does
+ * not have Shell UI. Container for the various UI components that make up a shell window.
  */
 @JNINamespace("content")
 @NullMarked
 public class Shell {
-    /**
-     * Interface for notifying observers of WebContents readiness.
-     */
-    public interface OnWebContentsReadyListener {
-        void onWebContentsReady();
+  /** Interface for notifying observers of WebContents readiness. */
+  public interface OnWebContentsReadyListener {
+    void onWebContentsReady();
+  }
+
+  public static final String TAG = "cobalt";
+  private static final long COMPLETED_PROGRESS_TIMEOUT_MS = 200;
+
+  private WebContents mWebContents;
+  private WebContents mSplashScreenWebContents;
+  private NavigationController mNavigationController;
+
+  private long mNativeShell;
+  private @Nullable StartupGuardNavigationObserver mStartupGuardNavigationObserver;
+  private @Nullable ContentViewRenderView mContentViewRenderView;
+  private @Nullable WindowAndroid mWindow;
+  private @Nullable ShellViewAndroidDelegate mViewAndroidDelegate;
+
+  private boolean mIsFullscreen;
+  private boolean mIsActivityVisible;
+
+  private @Nullable OnWebContentsReadyListener mWebContentsReadyListener;
+  private @Nullable Callback<Boolean> mOverlayModeChangedCallbackForTesting;
+  private ViewGroup mRootView;
+
+  /** Constructor for inflating via XML. */
+  public Shell(Context context) {
+    Activity activity = (Activity) context;
+    mRootView = activity.findViewById(android.R.id.content);
+  }
+
+  public void setRootViewForTesting(ViewGroup view) {
+    mRootView = view;
+  }
+
+  public void setWebContentsReadyListener(@Nullable OnWebContentsReadyListener listener) {
+    mWebContentsReadyListener = listener;
+  }
+
+  /** Set the SurfaceView being rendered to as soon as it is available. */
+  public void setContentViewRenderView(@Nullable ContentViewRenderView contentViewRenderView) {
+    if (contentViewRenderView == null) {
+      if (mContentViewRenderView != null) {
+        mRootView.removeView(mContentViewRenderView);
+      }
+    } else {
+      mRootView.addView(
+          contentViewRenderView,
+          new FrameLayout.LayoutParams(
+              FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
     }
+    mContentViewRenderView = contentViewRenderView;
+  }
 
-    public static final String TAG = "cobalt";
-    private static final long COMPLETED_PROGRESS_TIMEOUT_MS = 200;
+  /**
+   * Initializes the Shell for use.
+   *
+   * @param nativeShell The pointer to the native Shell object.
+   * @param window The owning window for this shell.
+   */
+  public void initialize(long nativeShell, WindowAndroid window) {
+    mNativeShell = nativeShell;
+    mWindow = window;
+  }
 
-    // Stylus handwriting: Setting this ime option instructs stylus writing service to restrict
-    // capturing writing events slightly outside the Url bar area. This is needed to prevent stylus
-    // handwriting in inputs in web content area that are very close to url bar area, from being
-    // committed to Url bar's Edit text. Ex: google.com search field.
-    private static final String IME_OPTION_RESTRICT_STYLUS_WRITING_AREA =
-            "restrictDirectWritingArea=true";
+  /**
+   * Closes the shell and cleans up the native instance, which will handle destroying all
+   * dependencies.
+   */
+  public void close() {
+    if (mNativeShell == 0) return;
+    ShellJni.get().closeShell(mNativeShell);
+  }
 
-    private WebContents mWebContents;
-    private WebContents mSplashScreenWebContents;
-    private NavigationController mNavigationController;
+  /** Load splash screen. */
+  public void loadSplashScreenWebContents() {
+    if (mNativeShell == 0) return;
+    ShellJni.get().loadSplashScreenWebContents(mNativeShell);
+  }
 
-    private long mNativeShell;
-    private @Nullable StartupGuardNavigationObserver mStartupGuardNavigationObserver;
-    private @Nullable ContentViewRenderView mContentViewRenderView;
-    private @Nullable WindowAndroid mWindow;
-    private @Nullable ShellViewAndroidDelegate mViewAndroidDelegate;
+  @SuppressWarnings("NullAway")
+  @CalledByNative
+  private void onNativeDestroyed() {
+    mWindow = null;
+    mNativeShell = 0;
+    mWebContents = null;
+  }
 
-    private boolean mLoading;
-    private boolean mIsFullscreen;
-    private boolean mIsActivityVisible;
+  /**
+   * Loads an URL. This will perform minimal amounts of sanitizing of the URL to attempt to make it
+   * valid.
+   *
+   * @param url The URL to be loaded by the shell.
+   */
+  public void loadUrl(String url) {
+    if (url == null) return;
 
-    private @Nullable OnWebContentsReadyListener mWebContentsReadyListener;
-    private @Nullable Callback<Boolean> mOverlayModeChangedCallbackForTesting;
-    private ViewGroup mRootView;
-
-    /**
-     * Constructor for inflating via XML.
-     */
-    public Shell(Context context) {
-        Activity activity = (Activity) context;
-        mRootView = activity.findViewById(android.R.id.content);
+    if (TextUtils.equals(url, mWebContents.getLastCommittedUrl().getSpec())) {
+      mNavigationController.reload(true);
+    } else {
+      mNavigationController.loadUrl(new LoadUrlParams(sanitizeUrl(url)));
     }
+  }
 
-    public void setRootViewForTesting(ViewGroup view) {
-        mRootView = view;
+  /**
+   * Given an URL, this performs minimal sanitizing to ensure it will be valid.
+   *
+   * @param url The url to be sanitized.
+   * @return The sanitized URL.
+   */
+  public static String sanitizeUrl(String url) {
+    if (url == null) return null;
+    if (url.startsWith("www.") || url.indexOf(":") == -1) url = "http://" + url;
+    return url;
+  }
+
+  @CalledByNative
+  private void onLoadProgressChanged(double progress) {}
+
+  @CalledByNative
+  private void toggleFullscreenModeForTab(boolean enterFullscreen) {}
+
+  @CalledByNative
+  private boolean isFullscreenForTabOrPending() {
+    return mIsFullscreen;
+  }
+
+  /**
+   * Initializes the ContentView based on the native tab contents pointer passed in.
+   *
+   * @param webContents A {@link WebContents} object.
+   */
+  @CalledByNative
+  @Initializer
+  private void initFromNativeTabContents(WebContents webContents) {
+    if (webContents == null || mContentViewRenderView == null) return;
+    mViewAndroidDelegate = new ShellViewAndroidDelegate(mRootView);
+    assert (mWebContents != webContents);
+    if (mWebContents != null) mWebContents.clearNativeReference();
+    webContents.setDelegates(
+        "", mViewAndroidDelegate, null, mWindow, WebContents.createDefaultInternalsHolder());
+    mWebContents = webContents;
+    mNavigationController = assertNonNull(mWebContents.getNavigationController());
+    if (mIsActivityVisible) {
+      mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
     }
-
-    public void setWebContentsReadyListener(@Nullable OnWebContentsReadyListener listener) {
-        mWebContentsReadyListener = listener;
+    assumeNonNull(mContentViewRenderView).setCurrentWebContents(mWebContents);
+    mStartupGuardNavigationObserver = new StartupGuardNavigationObserver(mWebContents);
+    if (mWebContentsReadyListener != null) {
+      mWebContentsReadyListener.onWebContentsReady();
     }
+  }
 
-    /**
-     * Set the SurfaceView being rendered to as soon as it is available.
-     */
-    public void setContentViewRenderView(@Nullable ContentViewRenderView contentViewRenderView) {
-        if (contentViewRenderView == null) {
-            if (mContentViewRenderView != null) {
-                mRootView.removeView(mContentViewRenderView);
-            }
-        } else {
-            mRootView.addView(contentViewRenderView,
-                    new FrameLayout.LayoutParams(
-                            FrameLayout.LayoutParams.MATCH_PARENT,
-                            FrameLayout.LayoutParams.MATCH_PARENT));
-        }
-        mContentViewRenderView = contentViewRenderView;
+  /**
+   * Load the native splash screen contents.
+   *
+   * @param webContents A {@link WebContents} object.
+   */
+  @CalledByNative
+  private void loadSplashScreenNativeTabContents(WebContents splashWebContents) {
+    if (splashWebContents == null || mContentViewRenderView == null) return;
+    mSplashScreenWebContents = splashWebContents;
+    splashWebContents.setDelegates(
+        "", mViewAndroidDelegate, null, mWindow, WebContents.createDefaultInternalsHolder());
+    if (mIsActivityVisible) {
+      splashWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
     }
+    mContentViewRenderView.setCurrentWebContents(splashWebContents);
+  }
 
-    /**
-     * Initializes the Shell for use.
-     *
-     * @param nativeShell The pointer to the native Shell object.
-     * @param window The owning window for this shell.
-     */
-    public void initialize(long nativeShell, WindowAndroid window) {
-        mNativeShell = nativeShell;
-        mWindow = window;
+  /**
+   * Update native contents.
+   *
+   * @param webContents A {@link WebContents} object.
+   */
+  @CalledByNative
+  private void updateNativeTabContents(WebContents webContents) {
+    if (webContents == null || mContentViewRenderView == null) return;
+    mWebContents = webContents;
+    mSplashScreenWebContents = null;
+    mNavigationController = mWebContents.getNavigationController();
+    if (mIsActivityVisible) {
+      mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
     }
+    mContentViewRenderView.setCurrentWebContents(mWebContents);
+  }
 
-    /**
-     * Closes the shell and cleans up the native instance, which will handle destroying all
-     * dependencies.
-     */
-    public void close() {
-        if (mNativeShell == 0) return;
-        ShellJni.get().closeShell(mNativeShell);
+  public void onActivityVisible(boolean visible) {
+    mIsActivityVisible = visible;
+    if (mWebContents != null) {
+      if (visible) {
+        mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
+      } else {
+        mWebContents.updateWebContentsVisibility(Visibility.HIDDEN);
+      }
     }
+  }
 
-    /**
-     * Load splash screen.
-     */
-    public void loadSplashScreenWebContents() {
-        if (mNativeShell == 0) return;
-        ShellJni.get().loadSplashScreenWebContents(mNativeShell);
+  @CalledByNative
+  public void setOverlayMode(boolean useOverlayMode) {
+    assumeNonNull(mContentViewRenderView).setOverlayVideoMode(useOverlayMode);
+    if (mOverlayModeChangedCallbackForTesting != null) {
+      mOverlayModeChangedCallbackForTesting.onResult(useOverlayMode);
     }
+  }
 
-    @SuppressWarnings("NullAway")
-    @CalledByNative
-    private void onNativeDestroyed() {
-        mWindow = null;
-        mNativeShell = 0;
-        mWebContents = null;
-    }
+  public void setOverayModeChangedCallbackForTesting(Callback<Boolean> callback) {
+    mOverlayModeChangedCallbackForTesting = callback;
+    ResettersForTesting.register(() -> mOverlayModeChangedCallbackForTesting = null);
+  }
 
-    /**
-     * Loads an URL.  This will perform minimal amounts of sanitizing of the URL to attempt to
-     * make it valid.
-     *
-     * @param url The URL to be loaded by the shell.
-     */
-    public void loadUrl(String url) {
-        if (url == null) return;
+  /**
+   * @return The {@link WebContents} currently managing the content shown by this Shell.
+   */
+  public WebContents getWebContents() {
+    return mWebContents;
+  }
 
-        if (TextUtils.equals(url, mWebContents.getLastCommittedUrl().getSpec())) {
-            mNavigationController.reload(true);
-        } else {
-            mNavigationController.loadUrl(new LoadUrlParams(sanitizeUrl(url)));
-        }
-    }
+  @NativeMethods
+  interface Natives {
+    void loadSplashScreenWebContents(long shellPtr);
 
-    /**
-     * Given an URL, this performs minimal sanitizing to ensure it will be valid.
-     * @param url The url to be sanitized.
-     * @return The sanitized URL.
-     */
-    public static String sanitizeUrl(String url) {
-        if (url == null) return null;
-        if (url.startsWith("www.") || url.indexOf(":") == -1) url = "http://" + url;
-        return url;
-    }
-
-    @CalledByNative
-    private void onUpdateUrl(String url) {}
-
-    @CalledByNative
-    private void onLoadProgressChanged(double progress) {}
-
-    @CalledByNative
-    private void toggleFullscreenModeForTab(boolean enterFullscreen) {
-    }
-
-    @CalledByNative
-    private boolean isFullscreenForTabOrPending() {
-        return mIsFullscreen;
-    }
-
-    @CalledByNative
-    private void setIsLoading(boolean loading) {
-        mLoading = loading;
-    }
-
-    /**
-     * Initializes the ContentView based on the native tab contents pointer passed in.
-     * @param webContents A {@link WebContents} object.
-     */
-    @CalledByNative
-    @Initializer
-    private void initFromNativeTabContents(WebContents webContents) {
-        if (webContents == null || mContentViewRenderView == null) return;
-        mViewAndroidDelegate = new ShellViewAndroidDelegate(mRootView);
-        assert (mWebContents != webContents);
-        if (mWebContents != null) mWebContents.clearNativeReference();
-        webContents.setDelegates(
-                "", mViewAndroidDelegate, null, mWindow, WebContents.createDefaultInternalsHolder());
-        mWebContents = webContents;
-        mNavigationController = assertNonNull(mWebContents.getNavigationController());
-        if (mIsActivityVisible) {
-            mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
-        }
-        assumeNonNull(mContentViewRenderView).setCurrentWebContents(mWebContents);
-        mStartupGuardNavigationObserver = new StartupGuardNavigationObserver(mWebContents);
-        if (mWebContentsReadyListener != null) {
-            mWebContentsReadyListener.onWebContentsReady();
-        }
-    }
-
-    /**
-     * Load the native splash screen contents.
-     * @param webContents A {@link WebContents} object.
-     */
-    @CalledByNative
-    private void loadSplashScreenNativeTabContents(WebContents splashWebContents) {
-        if (splashWebContents == null || mContentViewRenderView == null) return;
-        mSplashScreenWebContents = splashWebContents;
-        splashWebContents.setDelegates(
-                "", mViewAndroidDelegate, null, mWindow, WebContents.createDefaultInternalsHolder());
-        if (mIsActivityVisible) {
-            splashWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
-        }
-        mContentViewRenderView.setCurrentWebContents(splashWebContents);
-    }
-
-    /**
-     * Update native contents.
-     * @param webContents A {@link WebContents} object.
-     */
-    @CalledByNative
-    private void updateNativeTabContents(WebContents webContents) {
-        if (webContents == null || mContentViewRenderView == null) return;
-        mWebContents = webContents;
-        mSplashScreenWebContents = null;
-        mNavigationController = mWebContents.getNavigationController();
-        if (mIsActivityVisible) {
-            mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
-        }
-        mContentViewRenderView.setCurrentWebContents(mWebContents);
-    }
-
-    public void onActivityVisible(boolean visible) {
-        mIsActivityVisible = visible;
-        if (mWebContents != null) {
-            if (visible) {
-                mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
-            } else {
-                mWebContents.updateWebContentsVisibility(Visibility.HIDDEN);
-            }
-        }
-    }
-
-    @CalledByNative
-    public void setOverlayMode(boolean useOverlayMode) {
-        assumeNonNull(mContentViewRenderView).setOverlayVideoMode(useOverlayMode);
-        if (mOverlayModeChangedCallbackForTesting != null) {
-            mOverlayModeChangedCallbackForTesting.onResult(useOverlayMode);
-        }
-    }
-
-    public void setOverayModeChangedCallbackForTesting(Callback<Boolean> callback) {
-        mOverlayModeChangedCallbackForTesting = callback;
-        ResettersForTesting.register(() -> mOverlayModeChangedCallbackForTesting = null);
-    }
-
-    /**
-     * Enable/Disable navigation(Prev/Next) button if navigation is allowed/disallowed
-     * in respective direction.
-     * @param controlId Id of button to update
-     * @param enabled enable/disable value
-     */
-    @CalledByNative
-    private void enableUiControl(int controlId, boolean enabled) {}
-
-     /**
-     * @return The {@link WebContents} currently managing the content shown by this Shell.
-     */
-    public WebContents getWebContents() {
-        return mWebContents;
-    }
-
-    @NativeMethods
-    interface Natives {
-        void loadSplashScreenWebContents(long shellPtr);
-        void closeShell(long shellPtr);
-    }
+    void closeShell(long shellPtr);
+  }
 }
