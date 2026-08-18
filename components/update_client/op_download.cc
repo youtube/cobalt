@@ -247,17 +247,13 @@ void HandleAvailableSpace(
   crx_downloader->set_progress_callback(progress_callback);
   cancellation->OnCancel(crx_downloader->StartDownload(
       urls, hash,
-<<<<<<< HEAD
-      base::BindOnce(&DownloadComplete, id, crx_downloader, cancellation,
-=======
 #if defined(IN_MEMORY_UPDATES)
       crx_str,
 #endif
-      base::BindOnce(&DownloadComplete, crx_downloader, cancellation,
+      base::BindOnce(&DownloadComplete, id, crx_downloader, cancellation,
 #if defined(IN_MEMORY_UPDATES)
                      event_adder, crx_str, std::move(callback))));
 #else
->>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
                      event_adder, std::move(callback))));
 #endif
 }
@@ -300,18 +296,13 @@ base::OnceClosure DownloadOperation(
                        : int64_t{0};
           },
           get_available_space),
-<<<<<<< HEAD
       base::BindOnce(&HandleAvailableSpace, config, id, cancellation,
                      is_foreground, urls, size, hash, progress_callback,
-                     event_adder, std::move(callback)));
-=======
-      base::BindOnce(&HandleAvailableSpace, config, cancellation, is_foreground,
-                     urls, size, hash, progress_callback, event_adder,
+                     event_adder,
 #if defined(IN_MEMORY_UPDATES)
                      crx_str,
 #endif
                      std::move(callback)));
->>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return base::BindOnce(&Cancellation::Cancel, cancellation);
 }
 
