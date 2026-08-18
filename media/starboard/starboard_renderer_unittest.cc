@@ -428,7 +428,8 @@ TEST_F(StarboardRendererTest,
       }));
 
   decoder_status_cb_(player, context_, kSbMediaTypeAudio,
-                     kSbPlayerDecoderStateNeedsData, SB_PLAYER_INITIAL_TICKET);
+                     kSbPlayerDecoderStateNeedsData,
+                     SB_PLAYER_INITIAL_TICKET + 1);
   task_environment_.RunUntilIdle();
 
   ASSERT_FALSE(audio_read_cb.is_null());
@@ -462,7 +463,8 @@ TEST_F(StarboardRendererTest,
       }));
 
   decoder_status_cb_(player, context_, kSbMediaTypeVideo,
-                     kSbPlayerDecoderStateNeedsData, SB_PLAYER_INITIAL_TICKET);
+                     kSbPlayerDecoderStateNeedsData,
+                     SB_PLAYER_INITIAL_TICKET + 1);
   task_environment_.RunUntilIdle();
 
   ASSERT_FALSE(video_read_cb.is_null());
