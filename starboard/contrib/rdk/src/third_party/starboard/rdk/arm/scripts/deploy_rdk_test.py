@@ -96,7 +96,7 @@ class TestDeployRdk(unittest.TestCase):
         """Verifies targets and tar command for plugin mode."""
         self.mock_run.side_effect = lambda *args, **kwargs: ""
 
-        argv = ["deploy_rdk.py", "--mode", "plugin", "--force-deploy"]
+        argv = ["deploy_rdk.py", "--force-deploy"]
         with mock.patch("sys.argv", argv):
             deploy_rdk.main()
 
@@ -116,35 +116,11 @@ class TestDeployRdk(unittest.TestCase):
         self.assertIn("cobalt_loader.runtime_deps", str(tar_args))
         self.assertIn("libloader_app.so", tar_args)
 
-    def test_executable_mode_packaging(self):
-        """Verifies targets and tar command for executable mode."""
-        self.mock_run.side_effect = lambda *args, **kwargs: ""
-
-        argv = ["deploy_rdk.py", "--mode", "executable", "--force-deploy"]
-        with mock.patch("sys.argv", argv):
-            deploy_rdk.main()
-
-        # Check targets built: cobalt_loader
-        build_call = next(call for call in self.mock_run.call_args_list 
-                         if "autoninja" in str(call))
-        targets = build_call[0][0]
-        self.assertIn("cobalt_loader", targets)
-
-        # Check tar command: robust flag order -czvf, -T <deps_file>, then -C <out_dir>
-        tar_call = next(call for call in self.mock_run.call_args_list 
-                       if "tar" in str(call))
-        tar_args = tar_call[0][0]
-        self.assertIn("-czvf", tar_args)
-        self.assertIn("-T", tar_args)
-        self.assertIn("-C", tar_args)
-        self.assertIn("cobalt_loader.runtime_deps", str(tar_args))
-        self.assertNotIn("libloader_app.so", tar_args)
-
     def test_plugin_mode_launch(self):
         """Verifies plugin mode uses deactivate -> sleep -> activate sequence."""
         self.mock_run.side_effect = lambda *args, **kwargs: ""
 
-        argv = ["deploy_rdk.py", "--mode", "plugin", "--run", "--force-deploy"]
+        argv = ["deploy_rdk.py", "--run", "--force-deploy"]
         with mock.patch("sys.argv", argv):
             deploy_rdk.main()
 
@@ -173,7 +149,7 @@ class TestDeployRdk(unittest.TestCase):
 
         self.mock_run.side_effect = run_cmd_mock
 
-        argv = ["deploy_rdk.py", "--mode", "plugin", "--run", "--force-deploy", "--deeplink", "v=dQw4w9WgXcQ"]
+        argv = ["deploy_rdk.py", "--run", "--force-deploy", "--deeplink", "v=dQw4w9WgXcQ"]
         with mock.patch("sys.argv", argv):
             deploy_rdk.main()
 
@@ -185,33 +161,6 @@ class TestDeployRdk(unittest.TestCase):
         activate_call = next((call for call in self.mock_run.call_args_list 
                              if "Controller.1.activate" in str(call)), None)
         self.assertIsNotNone(activate_call)
-
-    def test_deeplink_in_executable_mode_fails(self):
-        """Verifies --deeplink in executable mode fails and exits."""
-        argv = ["deploy_rdk.py", "--mode", "executable", "--run", "--deeplink", "v=123"]
-        with mock.patch("sys.argv", argv):
-            deploy_rdk.main()
-
-        self.mock_exit.assert_called_once_with(1)
-
-    def test_executable_mode_remote_dir(self):
-        """Verifies executable mode uses the correct remote directory."""
-        self.mock_run.side_effect = lambda *args, **kwargs: ""
-
-        argv = ["deploy_rdk.py", "--mode", "executable", "--run", "--force-deploy"]
-        with mock.patch("sys.argv", argv):
-            deploy_rdk.main()
-
-        found_executable_dir = False
-        for call_args in self.mock_run.call_args_list:
-            cmd_arg = str(call_args[0][0])
-            if "/data/out_loader_app_executable" in cmd_arg:
-                found_executable_dir = True
-
-        self.assertTrue(
-            found_executable_dir,
-            "Executable mode did not use /data/out_loader_app_executable",
-        )
 
     def test_only_lib_flag(self):
         """Verifies that --only-lib pushes the lz4 file to correct folder."""
