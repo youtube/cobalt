@@ -44,18 +44,7 @@
 #include "net/cookies/cookie_monster.h"
 #include "ui/base/resource/resource_bundle.h"
 
-<<<<<<< HEAD
-#if !BUILDFLAG(IS_ANDROID)
-=======
-#if BUILDFLAG(IPC_MESSAGE_LOG_ENABLED)
-#define IPC_MESSAGE_MACROS_LOG_ENABLED
-#include "content/public/common/content_ipc_logging.h"
-#define IPC_LOG_TABLE_ADD_ENTRY(msg_id, logger) \
-    content::RegisterIPCLogger(msg_id, logger)
-#endif
-
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "content/web_test/browser/web_test_browser_main_runner.h"  // nogncheck
 #include "content/web_test/browser/web_test_content_browser_client.h"  // nogncheck
 #include "content/web_test/renderer/web_test_content_renderer_client.h"  // nogncheck
