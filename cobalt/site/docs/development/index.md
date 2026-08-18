@@ -42,7 +42,7 @@ To maximize development efficiency, we recommend following a 3-stage development
 
 Under Cobalt's Evergreen architecture, responsibilities are strictly divided between Google and SoC/OEM partners:
 
-* **Google-Built (Cobalt Core & Updater)**: Google compiles, signs, and distributes all official Cobalt Core (`libcobalt.so` / `libcobalt.lz4`) packages in `.crx` format. In production and certification, partners are required to use official Google Prebuilt CRX packages.
+* **Google-Built (Cobalt Core & Updater)**: Google compiles, signs, and distributes all official Cobalt Core (`libcobalt.so` / `libcobalt.lz4`) packages in `.crx` format via [GitHub Releases](https://github.com/youtube/cobalt/releases). In production and certification, partners are required to use official Google Prebuilt CRX packages.
 * **Partner-Built (Starboard & Loader)**: SoC and OEM partners implement the Starboard platform layer (`libstarboard.so`) and build the Cobalt Loader (`loader_app`, `crashpad_handler`).
 
 ---

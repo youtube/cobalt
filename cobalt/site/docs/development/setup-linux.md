@@ -145,7 +145,7 @@ Because Evergreen support is required for certification, you can also run Cobalt
 
 ### Deploying Official Google Prebuilt CRX Packages
 
-In standard integration and certification testing, partners deploy official Google prebuilt `.crx` packages instead of compiling Cobalt Core from source.
+In standard integration and certification testing, partners deploy official Google prebuilt `.crx` packages (available on [GitHub Releases](https://github.com/youtube/cobalt/releases)) instead of compiling Cobalt Core from source.
 
 1. **Ensure environment variables are set and initialize an Evergreen build directory**:
 
