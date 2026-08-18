@@ -146,10 +146,12 @@ EOF
         # Extract entitlements from the provisioning profile
         local profile_plist="${out_dir}/${target_name}_profile.plist"
         local entitlements_plist="${out_dir}/${target_name}_entitlements.plist"
-        security cms -D -i "${tvos_profile}" > "${profile_plist}" 2>/dev/null || true
-        if [[ -f "${profile_plist}" ]]; then
-          plutil -extract Entitlements xml1 -o "${entitlements_plist}" "${profile_plist}" 2>/dev/null || true
+        if security cms -D -i "${tvos_profile}" > "${profile_plist}" 2>/dev/null; then
+          if ! plutil -extract Entitlements xml1 -o "${entitlements_plist}" "${profile_plist}" 2>/dev/null; then
+            rm -f "${entitlements_plist}"
+          fi
         fi
+        rm -f "${profile_plist}"
 
         # Re-sign app bundle using Kokoro's installed development certificate
         # Tries 'Apple Development' first, then legacy 'iPhone Developer', and finally ad-hoc '-'
@@ -158,6 +160,7 @@ EOF
           codesign --force --deep --sign "Apple Development" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app" || \
           codesign --force --deep --sign "iPhone Developer" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app" || \
           codesign --force --deep --sign "-" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app"
+          rm -f "${entitlements_plist}"
         else
           codesign --force --deep --sign "Apple Development" "${out_dir}/${target_name}.app" || \
           codesign --force --deep --sign "iPhone Developer" "${out_dir}/${target_name}.app" || \
