@@ -251,6 +251,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   PipelineStatusCallback init_cb_;
 
   DefaultSbPlayerInterface sbplayer_interface_;
+  raw_ptr<SbPlayerInterface> resolved_sbplayer_interface_ = nullptr;
 
   TimeDelta seek_time_;
 

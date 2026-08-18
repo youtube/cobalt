@@ -106,12 +106,14 @@ source_set("test_support") {
     ]
   }
   configs += [ "//media:media_config" ]
-  deps = [
-    ":starboard",
-    "//base",
-    "//starboard:starboard_group",
-    "//testing/gmock",
-  ]
+  deps = [ "//base" ]
+  if (use_starboard_media) {
+    deps += [
+      ":starboard",
+      "//starboard:starboard_group",
+      "//testing/gmock",
+    ]
+  }
 }
 
 source_set("unit_tests") {
