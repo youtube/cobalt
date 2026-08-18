@@ -67,12 +67,48 @@ class CobaltReasoningEngine:
     self.flash_model = flash_model
     self.pro_model = pro_model
     self.skills_dir = skills_dir or SKILLS_DIR
-    self.rebase_skill = load_skill("cobalt_rebase", self.skills_dir)
+    self.skill_cache: Dict[str, str] = {
+        "cobalt_rebase":
+            load_skill("cobalt_rebase", self.skills_dir),
+        "conflict_resolution":
+            load_skill("conflict_resolution", self.skills_dir),
+        "gn_healing":
+            load_skill("gn_healing", self.skills_dir),
+        "compiler_healing":
+            load_skill("compiler_healing", self.skills_dir),
+    }
+    self.client: Optional[genai.Client] = None
+
+  def set_up(self):
+    """Initializes Google GenAI client in remote Vertex AI container."""
     self.client = genai.Client(
         vertexai=True,
         project=self.project_id,
         location=self.location,
     )
+
+  def _get_client(self) -> genai.Client:
+    """Returns active client instance, initializing if needed."""
+    if self.client is None:
+      self.set_up()
+    return self.client
+
+  def _get_skill(self, name: str) -> str:
+    """Retrieves skill instructions from cache or disk."""
+    if name in self.skill_cache:
+      return self.skill_cache[name]
+    return load_skill(name, self.skills_dir)
+
+  def query(self, action: str = "resolve_conflict", **kwargs) -> Dict[str, Any]:
+    """Primary query dispatcher for Vertex AI Reasoning Engine."""
+    if action == "resolve_conflict":
+      return self.resolve_conflict(**kwargs)
+    if action in ("heal_gn", "heal_gn_error"):
+      return self.heal_gn_error(**kwargs)
+    if action in ("heal_compiler", "heal_compiler_break",
+                  "heal_compiler_error"):
+      return self.heal_compiler_error(**kwargs)
+    raise ValueError(f"Unknown Reasoning Engine action: {action}")
 
   def resolve_conflict(
       self,
@@ -88,7 +124,8 @@ class CobaltReasoningEngine:
   ) -> Dict[str, Any]:
     """Resolves source/DEPS merge conflicts on Vertex AI."""
     chosen_model = self.pro_model if use_pro else self.flash_model
-    conflict_skill = load_skill("conflict_resolution", self.skills_dir)
+    rebase_skill = self._get_skill("cobalt_rebase")
+    conflict_skill = self._get_skill("conflict_resolution")
 
     past_lessons_section = (
         f"--- Past Successful Lessons ---\n{past_experience}\n\n"
@@ -96,7 +133,7 @@ class CobaltReasoningEngine:
 
     sys_inst = (
         f"You are an expert Chromium and Cobalt engineer ({language}).\n\n"
-        f"--- General Rebase Guidelines ---\n{self.rebase_skill}\n\n"
+        f"--- General Rebase Guidelines ---\n{rebase_skill}\n\n"
         f"--- Conflict Resolution Skill ---\n{conflict_skill}\n")
     prompt = (f"Target File: {file_path} ({language})\n"
               f"{git_context}\n\n"
@@ -105,7 +142,7 @@ class CobaltReasoningEngine:
               f"Conflicted Block to Resolve:\n{raw_conflict}\n\n"
               f"Context after conflict:\n{context_after}\n\n"
               "Task: Return ONLY the exact replacement code for the block.")
-    resp = self.client.models.generate_content(
+    resp = self._get_client().models.generate_content(
         model=chosen_model,
         contents=prompt,
         config={
@@ -130,10 +167,11 @@ class CobaltReasoningEngine:
   ) -> Dict[str, Any]:
     """Diagnoses and fixes GN generation errors on Vertex AI."""
     chosen_model = self.pro_model if use_pro else self.flash_model
-    gn_skill = load_skill("gn_healing", self.skills_dir)
+    rebase_skill = self._get_skill("cobalt_rebase")
+    gn_skill = self._get_skill("gn_healing")
 
     sys_inst = ("You are an expert Chromium and Cobalt GN build engineer.\n\n"
-                f"--- General Rebase Guidelines ---\n{self.rebase_skill}\n\n"
+                f"--- General Rebase Guidelines ---\n{rebase_skill}\n\n"
                 f"--- GN Healing Skill ---\n{gn_skill}\n")
     prompt = (f"GN Build Error:\n--------------------\n{error_trace}\n"
               "--------------------\n\n"
@@ -147,7 +185,7 @@ class CobaltReasoningEngine:
               "=======\n"
               "<fixed replacement lines>\n"
               ">>>>>>> REPLACE")
-    resp = self.client.models.generate_content(
+    resp = self._get_client().models.generate_content(
         model=chosen_model,
         contents=prompt,
         config={
@@ -172,11 +210,12 @@ class CobaltReasoningEngine:
   ) -> Dict[str, Any]:
     """Diagnoses and repairs C++/Java compilation errors on Vertex AI."""
     chosen_model = self.pro_model if use_pro else self.flash_model
-    compiler_skill = load_skill("compiler_healing", self.skills_dir)
+    rebase_skill = self._get_skill("cobalt_rebase")
+    compiler_skill = self._get_skill("compiler_healing")
 
     sys_inst = (
         "You are an expert Chromium and Cobalt C++ compiler engineer.\n\n"
-        f"--- General Rebase Guidelines ---\n{self.rebase_skill}\n\n"
+        f"--- General Rebase Guidelines ---\n{rebase_skill}\n\n"
         f"--- Compiler Healing Skill ---\n{compiler_skill}\n")
     prompt = (f"autoninja build for \"{target}\" failed.\n\n"
               f"Compiler Diagnostics:\n--------------------\n{diagnostics}\n"
@@ -190,7 +229,7 @@ class CobaltReasoningEngine:
               "=======\n"
               "<fixed replacement lines>\n"
               ">>>>>>> REPLACE")
-    resp = self.client.models.generate_content(
+    resp = self._get_client().models.generate_content(
         model=chosen_model,
         contents=prompt,
         config={
