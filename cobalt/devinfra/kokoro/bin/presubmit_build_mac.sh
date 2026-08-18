@@ -130,6 +130,44 @@ EOF
 
     elif [[ " ${json_targets} " == *" ${target_name} "* ]] && [[ -d "${out_dir}/${target_name}.app" ]]; then
       echo "Archiving and uploading test package ${target_name}.app..."
+
+      # --------------------------------------------------------------------------
+      # Embed Provisioning Profile & Re-sign App for Physical tvOS Devices
+      # --------------------------------------------------------------------------
+      local tvos_profile="${KOKORO_PIPER_DIR:-}/google3/googlemac/iPhone/Shared/ProvisioningProfiles/Google_Development_tvOS.mobileprovision"
+      if [[ ! -f "${tvos_profile}" ]]; then
+        tvos_profile="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/Google_Development_tvOS.mobileprovision"
+      fi
+
+      if [[ -f "${tvos_profile}" ]]; then
+        echo "Embedding ${tvos_profile} into ${target_name}.app..."
+        cp -f "${tvos_profile}" "${out_dir}/${target_name}.app/embedded.mobileprovision"
+
+        # Extract entitlements from the provisioning profile
+        local profile_plist="${out_dir}/${target_name}_profile.plist"
+        local entitlements_plist="${out_dir}/${target_name}_entitlements.plist"
+        security cms -D -i "${tvos_profile}" > "${profile_plist}" 2>/dev/null || true
+        if [[ -f "${profile_plist}" ]]; then
+          plutil -extract Entitlements xml1 -o "${entitlements_plist}" "${profile_plist}" 2>/dev/null || true
+        fi
+
+        # Re-sign app bundle using Kokoro's installed development certificate
+        # Tries 'Apple Development' first, then legacy 'iPhone Developer', and finally ad-hoc '-'
+        echo "Signing ${target_name}.app..."
+        if [[ -f "${entitlements_plist}" ]]; then
+          codesign --force --deep --sign "Apple Development" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app" || \
+          codesign --force --deep --sign "iPhone Developer" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app" || \
+          codesign --force --deep --sign "-" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app"
+        else
+          codesign --force --deep --sign "Apple Development" "${out_dir}/${target_name}.app" || \
+          codesign --force --deep --sign "iPhone Developer" "${out_dir}/${target_name}.app" || \
+          codesign --force --deep --sign "-" "${out_dir}/${target_name}.app"
+        fi
+      else
+        echo "WARNING: Google_Development_tvOS.mobileprovision not found at ${tvos_profile}. Skipping re-signing."
+      fi
+      # --------------------------------------------------------------------------
+
       local archive_file="${WORKSPACE_COBALT}/package/${target_name}.tar.gz"
       mkdir -p "${WORKSPACE_COBALT}/package"
 
