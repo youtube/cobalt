@@ -23,6 +23,7 @@ FROM marketplace.gcr.io/google/debian12@${BASE_IMAGE_SHA}
 RUN apt-get update && apt-get install -y \
     curl \
     python3-dev \
+    python3-pip \
     git \
     xz-utils \
     pkgconf \
