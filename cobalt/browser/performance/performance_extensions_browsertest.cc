@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/scoped_feature_list.h"
@@ -20,10 +21,8 @@
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
-#include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
-#include "net/test/embedded_test_server/embedded_test_server.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
 #include "url/gurl.h"
@@ -46,12 +45,6 @@ class PerformanceExtensionsBrowserTestDisabled
   }
   ~PerformanceExtensionsBrowserTestDisabled() override = default;
 
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    command_line->AppendSwitchASCII(switches::kDisableBlinkFeatures,
-                                    "CobaltPeakRss");
-    PerformanceExtensionsBrowserTest::SetUpCommandLine(command_line);
-  }
-
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
@@ -64,12 +57,6 @@ class PerformanceExtensionsBrowserTestNoBackoff
         blink::features::kCobaltPeakRssBackoff);
   }
   ~PerformanceExtensionsBrowserTestNoBackoff() override = default;
-
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    command_line->AppendSwitchASCII(switches::kDisableBlinkFeatures,
-                                    "CobaltPeakRssBackoff");
-    PerformanceExtensionsBrowserTest::SetUpCommandLine(command_line);
-  }
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -87,9 +74,7 @@ IN_PROC_BROWSER_TEST_F(PerformanceExtensionsBrowserTestNoBackoff,
       static_cast<int>(expected_kb));
   performance::PerformanceImpl::SetProcStatusDataForTesting(&mock_data);
 
-  ASSERT_TRUE(embedded_test_server()->Start());
-  ASSERT_TRUE(content::NavigateToURL(
-      shell(), embedded_test_server()->GetURL("/title1.html")));
+  ASSERT_TRUE(content::NavigateToURL(shell(), GURL("about:blank")));
 
   // Verify that the JS API extracts the precise VmHWM evaluation correctly.
   std::string script = R"(
@@ -123,9 +108,7 @@ IN_PROC_BROWSER_TEST_F(PerformanceExtensionsBrowserTestDisabled,
       "VmRSS:\t   100560 kB\n";
   performance::PerformanceImpl::SetProcStatusDataForTesting(&mock_data);
 
-  ASSERT_TRUE(embedded_test_server()->Start());
-  ASSERT_TRUE(content::NavigateToURL(
-      shell(), embedded_test_server()->GetURL("/title1.html")));
+  ASSERT_TRUE(content::NavigateToURL(shell(), GURL("about:blank")));
 
   // Verify that when the Finch flag CobaltPeakRss is disabled, the API
   // throws/rejects immediately and does not evaluate memory.
@@ -162,9 +145,7 @@ IN_PROC_BROWSER_TEST_F(PerformanceExtensionsBrowserTest,
       static_cast<int>(expected_kb));
   performance::PerformanceImpl::SetProcStatusDataForTesting(&mock_data);
 
-  ASSERT_TRUE(embedded_test_server()->Start());
-  ASSERT_TRUE(content::NavigateToURL(
-      shell(), embedded_test_server()->GetURL("/title1.html")));
+  ASSERT_TRUE(content::NavigateToURL(shell(), GURL("about:blank")));
 
   // Verify that calling it twice in a row rapidly triggers the backoff block
   std::string script = R"(

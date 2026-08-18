@@ -464,6 +464,16 @@ BASE_FEATURE(kCobaltBypassResourceLoadScheduler,
              "CobaltBypassResourceLoadScheduler",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Controls measureRssHighWaterMarkMemory API in Cobalt performance extensions.
+BASE_FEATURE(kCobaltPeakRss,
+             "CobaltPeakRss",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls rate limiting/backoff for measureRssHighWaterMarkMemory API.
+BASE_FEATURE(kCobaltPeakRssBackoff,
+             "CobaltPeakRssBackoff",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Enables full memory cache eviction on critical memory pressure in Cobalt.
 BASE_FEATURE(kEvictMemoryCacheOnCriticalMemoryPressure,
              "EvictMemoryCacheOnCriticalMemoryPressure",

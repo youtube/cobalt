@@ -18,16 +18,17 @@
 #include <memory>
 #include <string_view>
 
+#include "base/feature_list.h"
 #include "base/time/time.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
 namespace blink {
@@ -115,13 +116,13 @@ PerformanceExtensions::measureRssHighWaterMarkMemory(
     ScriptState* script_state,
     const Performance& performance_obj,
     ExceptionState& exception_state) {
-  if (!RuntimeEnabledFeatures::CobaltPeakRssEnabled()) {
+  if (!base::FeatureList::IsEnabled(blink::features::kCobaltPeakRss)) {
     exception_state.ThrowDOMException(DOMExceptionCode::kNotSupportedError,
                                       "API not supported");
     return ScriptPromise<IDLUnsignedLongLong>();
   }
 
-  if (RuntimeEnabledFeatures::CobaltPeakRssBackoffEnabled()) {
+  if (base::FeatureList::IsEnabled(blink::features::kCobaltPeakRssBackoff)) {
     base::TimeTicks now = base::TimeTicks::Now();
     int64_t last = g_last_time_internal.load(std::memory_order_relaxed);
     if (last != 0 &&

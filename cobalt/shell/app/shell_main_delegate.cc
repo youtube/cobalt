@@ -25,6 +25,7 @@
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/cpu.h"
+#include "base/feature_list.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/lazy_instance.h"
@@ -190,10 +191,18 @@ std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
 #endif
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
-  // On Android and iOS, we defer to the system message loop when the stack
-  // unwinds. So here we only create (and leak) a BrowserMainRunner. The
-  // shutdown of BrowserMainRunner doesn't happen in Chrome Android/iOS and
-  // doesn't work properly on Android/iOS at all.
+  // In browser tests, the |main_function_params| contains a |ui_task| which
+  // will execute the testing. Re-initialize FeatureList from command line
+  // switches so test ScopedFeatureList overrides are applied.
+  if (main_function_params.ui_task) {
+    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+    base::FeatureList::ClearInstanceForTesting();
+    auto feature_list = std::make_unique<base::FeatureList>();
+    feature_list->InitFromCommandLine(
+        command_line->GetSwitchValueASCII(switches::kEnableFeatures),
+        command_line->GetSwitchValueASCII(switches::kDisableFeatures));
+    base::FeatureList::SetInstance(std::move(feature_list));
+  }
   std::unique_ptr<BrowserMainRunner> main_runner = BrowserMainRunner::Create();
   // In browser tests, the |main_function_params| contains a |ui_task| which
   // will execute the testing. The task will be executed synchronously inside
