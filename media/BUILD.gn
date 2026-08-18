@@ -118,12 +118,6 @@ config("media_config") {
 #
 config("subcomponent_config") {
   visibility = media_subcomponent_deps
-  if (is_cobalt) {
-    visibility += [
-      "//media/muxers",
-      "//media/muxers:unit_tests",
-    ]
-  }
   if (is_apple) {
     visibility += [ "//media/base/mac" ]
   }
@@ -217,20 +211,6 @@ test("media_unittests") {
     "//media/video:unit_tests",
     "//media/webrtc:unit_tests",
   ]
-
-  if (is_cobalt && use_starboard_media) {
-    deps += ["//media/starboard:unit_tests"]
-  }
-
-  if (is_cobalt) {
-    # Cobalt disabled WebRtc processing in 
-    # https://github.com/youtube/cobalt/pull/10471
-    # due to additional latency for the microphone path.
-    deps -= [
-      "//media/muxers:unit_tests",
-      "//media/webrtc:unit_tests",
-    ]
-  }
 
   data = [
     "test/data/",

@@ -61,13 +61,18 @@ _HEADER = '''
 import("//build/config/android/config.gni")
 import("//third_party/xnnpack/build_defs.gni")
 
-config("xnnpack_public_config") {
+config("xnnpack_config") {
   include_dirs = [
     "//third_party/pthreadpool/src/include",
     "src/deps/clog/include",
     "src/include",
     "src/src",
     "src",
+  ]
+
+  cflags=[
+    "-Wno-unused-function",
+    "-Wno-deprecated-comma-subscript",
   ]
 
   if (is_android && current_cpu == "arm64") {
@@ -80,13 +85,6 @@ config("xnnpack_public_config") {
     "XNN_LOG_TO_STDIO=0",
   ] + xnn_defines
 }
-
-config("xnnpack_private_config") {
-  cflags = [
-    "-Wno-unused-function",
-    "-Wno-deprecated-comma-subscript",
-  ]
-}
 '''.strip()
 
 _MAIN_TMPL = '''
@@ -96,7 +94,6 @@ source_set("xnnpack") {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ "//build/config/sanitizers:cfi_icall_generalize_pointers" ]
-  configs += [ ":xnnpack_private_config" ]
 
   sources = [
   "src/include/xnnpack.h",
@@ -111,7 +108,7 @@ source_set("xnnpack") {
     "//third_party/pthreadpool",
   ]
 
-  public_configs = [ ":xnnpack_public_config" ]
+  public_configs = [ ":xnnpack_config" ]
 }
 
 # This is a target that cannot depend on //base.
@@ -121,7 +118,6 @@ source_set("xnnpack_standalone") {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ "//build/config/sanitizers:cfi_icall_generalize_pointers" ]
-  configs += [ ":xnnpack_private_config" ]
 
   sources = [
   "src/include/xnnpack.h",
@@ -136,7 +132,7 @@ source_set("xnnpack_standalone") {
     "//third_party/pthreadpool:pthreadpool_standalone",
   ]
 
-  public_configs = [ ":xnnpack_public_config" ]
+  public_configs = [ ":xnnpack_config" ]
 
   if (!(is_android && use_order_profiling)) {
     assert_no_deps = [ "//base" ]
@@ -158,7 +154,6 @@ source_set("%TARGET_NAME%") {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ "//build/config/sanitizers:cfi_icall_generalize_pointers" ]
-  configs += [ ":xnnpack_private_config" ]
 
   deps = [
     "//third_party/cpuinfo",
@@ -167,7 +162,7 @@ source_set("%TARGET_NAME%") {
     "//third_party/pthreadpool",
   ]
 
-  public_configs = [ ":xnnpack_public_config" ]
+  public_configs = [ ":xnnpack_config" ]
 }
 
 # This is a target that cannot depend on //base.
@@ -184,7 +179,6 @@ source_set("%TARGET_NAME%_standalone") {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ "//build/config/sanitizers:cfi_icall_generalize_pointers" ]
-  configs += [ ":xnnpack_private_config" ]
 
   deps = [
     "//third_party/cpuinfo",
@@ -193,7 +187,7 @@ source_set("%TARGET_NAME%_standalone") {
     "//third_party/pthreadpool:pthreadpool_standalone",
   ]
 
-  public_configs = [ ":xnnpack_public_config" ]
+  public_configs = [ ":xnnpack_config" ]
 
   if (!(is_android && use_order_profiling)) {
     assert_no_deps = [ "//base" ]
