@@ -35,12 +35,18 @@ runs:
             ${GITHUB_WORKSPACE}/cobalt/tools/on_device_tests_gateway.proto
       shell: bash
 
-    - name: Diagnose gcloud installation
+    - name: Install gcloud
       run: |
-        which gcloud || true
-        which gsutil || true
-        find /usr /opt /snap -name gcloud -print -quit 2>/dev/null || true
-        echo "PATH=$PATH"
+        if [ ! -d "$HOME/google-cloud-sdk" ]; then
+          echo "gcloud SDK not found. Downloading and installing..."
+          cd $HOME
+          curl -sSLf -O "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-412.0.0-linux-x86_64.tar.gz"
+          tar xf "google-cloud-cli-412.0.0-linux-x86_64.tar.gz"
+          rm "google-cloud-cli-412.0.0-linux-x86_64.tar.gz"
+        else
+          echo "gcloud SDK already exists in $HOME."
+        fi
+        echo "$HOME/google-cloud-sdk/bin" >> $GITHUB_PATH
       shell: bash
 
     - name: Set GCS Project Name
