@@ -16,6 +16,8 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 // clang-format on
 
+#include <android/api-level.h>
+
 #include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
@@ -92,6 +94,13 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   if (must_support_tunnel_mode && decode_to_texture_required) {
     SB_LOG(WARNING) << "Tunnel mode is rejected because output mode decode to "
                        "texture is required but not supported.";
+    return false;
+  }
+
+  if (must_support_tunnel_mode && android_get_device_api_level() < 34) {
+    SB_LOG(WARNING)
+        << "Tunnel mode is rejected because Android version is less "
+           "than 14.";
     return false;
   }
 
