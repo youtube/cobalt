@@ -25,7 +25,11 @@ runs:
   steps:
     - name: Install Requirements
       run: |
-        pip3 install --require-hashes --no-deps -r ${GITHUB_WORKSPACE}/cobalt/tools/requirements.txt
+        if [ "${COBALT_BOOTSTRAP_CONTAINER}" = "1" ]; then
+          echo "Running inside Cobalt runner container, requirements should be pre-installed."
+        else
+          pip3 install --require-hashes --no-deps -r ${GITHUB_WORKSPACE}/cobalt/tools/requirements.txt
+        fi
       shell: bash
     - name: Generate gRPC files
       run: |
