@@ -11,19 +11,26 @@ import os
 import sys
 from typing import Optional
 
-# Ensure package directory is in sys.path
+# Ensure parent directory is in sys.path for proper package qualification
 _PKG_DIR = os.path.dirname(os.path.abspath(__file__))
-if _PKG_DIR not in sys.path:
-  sys.path.insert(0, _PKG_DIR)
+_REBASE_DIR = os.path.dirname(_PKG_DIR)
+if _REBASE_DIR not in sys.path:
+  sys.path.insert(0, _REBASE_DIR)
 
 # Disable mTLS endpoint on Cloudtop to ensure clean Vertex AI transport.
 os.environ["GOOGLE_API_USE_CLIENT_CERTIFICATE"] = "false"
 os.environ["GOOGLE_API_USE_MTLS_ENDPOINT"] = "never"
 
+import cloudpickle
 import vertexai
 from vertexai.preview import reasoning_engines
 
-from engine import CobaltReasoningEngine
+import reasoning_engine.engine as engine_mod
+from reasoning_engine.engine import CobaltReasoningEngine
+
+# Register module to pickle by value so class and cached skills are
+# self-contained in deployment artifact.
+cloudpickle.register_pickle_by_value(engine_mod)
 
 
 def _normalize_resource_name(resource_id: str, project_id: str,
