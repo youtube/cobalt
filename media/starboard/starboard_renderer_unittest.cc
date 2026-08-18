@@ -401,11 +401,6 @@ TEST_F(StarboardRendererTest,
   EXPECT_EQ(created_audio_mime, kCustomAudioMime);
   EXPECT_EQ(created_video_mime, kCustomVideoMime);
 
-  ASSERT_TRUE(player_status_cb_);
-  player_status_cb_(player, context_, kSbPlayerStateInitialized,
-                    SB_PLAYER_INITIAL_TICKET);
-  task_environment_.RunUntilIdle();
-
   // Verify WriteSamples for Audio with custom MIME parameters.
   DemuxerStream::ReadCB audio_read_cb;
   EXPECT_CALL(*streams_[0], OnRead(_))
@@ -428,8 +423,7 @@ TEST_F(StarboardRendererTest,
       }));
 
   decoder_status_cb_(player, context_, kSbMediaTypeAudio,
-                     kSbPlayerDecoderStateNeedsData,
-                     SB_PLAYER_INITIAL_TICKET + 1);
+                     kSbPlayerDecoderStateNeedsData, SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
 
   ASSERT_FALSE(audio_read_cb.is_null());
@@ -463,8 +457,7 @@ TEST_F(StarboardRendererTest,
       }));
 
   decoder_status_cb_(player, context_, kSbMediaTypeVideo,
-                     kSbPlayerDecoderStateNeedsData,
-                     SB_PLAYER_INITIAL_TICKET + 1);
+                     kSbPlayerDecoderStateNeedsData, SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
 
   ASSERT_FALSE(video_read_cb.is_null());
@@ -475,6 +468,11 @@ TEST_F(StarboardRendererTest,
   task_environment_.RunUntilIdle();
 
   EXPECT_EQ(written_video_mime, kCustomVideoMime);
+
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
 }
 
 }  // namespace
