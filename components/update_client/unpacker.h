@@ -79,7 +79,8 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
 
   // Begins the actual unpacking of the files. Calls `callback` with the result.
 #if BUILDFLAG(IS_STARBOARD)
-  static void Unpack(const std::vector<uint8_t>& pk_hash,
+  static void Unpack(const std::string& app_id,
+                     const std::vector<uint8_t>& pk_hash,
                      const OperationResult& crx_operation_result,
                      std::unique_ptr<Unzipper> unzipper,
                      crx_file::VerifierFormat crx_format,

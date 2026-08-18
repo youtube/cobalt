@@ -59,7 +59,8 @@ Unpacker::Unpacker(const OperationResult& crx_operation_result,
 
 Unpacker::~Unpacker() = default;
 
-void Unpacker::Unpack(const std::vector<uint8_t>& pk_hash,
+void Unpacker::Unpack(const std::string& app_id,
+                      const std::vector<uint8_t>& pk_hash,
                       const OperationResult& crx_operation_result,
                       std::unique_ptr<Unzipper> unzipper,
                       crx_file::VerifierFormat crx_format,
