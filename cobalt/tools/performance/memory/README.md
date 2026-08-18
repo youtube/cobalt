@@ -72,10 +72,10 @@ chmod +x rdk_kabuki_memory_benchmark.sh
 #### Optional Configurations
 The benchmark supports flags for testing different configurations and query parameters:
 
-- **Memory-Saving Mode (`--mode=memory-saving`):**
+- **App Memory-Saving Mode (`--app-memory-saving-mode=true`):**
   Appends `aq=LM` to YouTube URLs.
   ```bash
-  ./rdk_kabuki_memory_benchmark.sh --mode=memory-saving
+  ./rdk_kabuki_memory_benchmark.sh --app-memory-saving-mode=true
   ```
   > **Note:** Running in memory-saving mode requires an active [Developer Mode Access Code](https://developers.google.com/youtube/devices/living-room/cobalt/cobalt-developer-mode#access-code) applied on the device.
 
@@ -86,7 +86,7 @@ The benchmark supports flags for testing different configurations and query para
   ./rdk_kabuki_memory_benchmark.sh --url-params="my_param=something"
 
   # Combined with memory-saving mode
-  ./rdk_kabuki_memory_benchmark.sh --mode=memory-saving --url-params="my_param=something"
+  ./rdk_kabuki_memory_benchmark.sh --app-memory-saving-mode=true --url-params="my_param=something"
   ```
 
 ## Interpreting Results & Gotchas

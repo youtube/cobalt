@@ -3,23 +3,36 @@
 # TODO(b/522305776): Rewrite this script in Python to share common helper methods
 # with deploy_rdk.py (e.g., launching/deactivating plugins, restarting wpeframework).
 #
-# Note: Memory-saving mode (--mode=memory-saving) appends 'aq=LM' to URLs. This
-# requires an active Developer Access Code on the device to take effect:
+# Note: App memory-saving mode (--app-memory-saving-mode=true) appends 'aq=LM' to
+# URLs. This requires an active Developer Access Code on the device to take effect:
 # https://developers.google.com/youtube/devices/living-room/cobalt/cobalt-developer-mode#access-code
 
 # Parse command-line arguments
-MODE="default"
+APP_MEMORY_SAVING_MODE=false
 URL_PARAMS=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --mode=*)
-            MODE="${1#*=}"
+        --app-memory-saving-mode=*)
+            val="${1#*=}"
+            if [ "$val" = "true" ] || [ "$val" = "1" ]; then
+                APP_MEMORY_SAVING_MODE=true
+            elif [ "$val" = "false" ] || [ "$val" = "0" ]; then
+                APP_MEMORY_SAVING_MODE=false
+            else
+                echo "Error: Invalid value for --app-memory-saving-mode: '$val'. Expected 'true' or 'false'."
+                exit 1
+            fi
             shift
             ;;
-        --mode)
-            MODE="$2"
-            shift 2
+        --app-memory-saving-mode)
+            if [[ "$2" == "true" || "$2" == "false" ]]; then
+                APP_MEMORY_SAVING_MODE="$2"
+                shift 2
+            else
+                APP_MEMORY_SAVING_MODE=true
+                shift
+            fi
             ;;
         --url-params=*)
             URL_PARAMS="${1#*=}"
@@ -33,8 +46,8 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --mode=MODE           Set benchmark mode ('default' or 'memory-saving')."
-            echo "                        'memory-saving' appends 'aq=LM' to URLs."
+            echo "  --app-memory-saving-mode=true|false"
+            echo "                        Enable app memory-saving mode (appends 'aq=LM' to URLs, default: false)."
             echo "                        Note: Requires Developer Mode Access Code on device:"
             echo "                        https://developers.google.com/youtube/devices/living-room/cobalt/cobalt-developer-mode#access-code"
             echo "  --url-params=PARAMS   Add custom URL parameters (e.g. 'my_param=something' or 'build=hello')"
@@ -49,14 +62,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [ "$MODE" != "default" ] && [ "$MODE" != "memory-saving" ]; then
-    echo "Error: Unknown mode '$MODE'. Supported modes: default, memory-saving"
-    exit 1
-fi
-
-# Build query parameters based on mode and url-params
+# Build query parameters based on app-memory-saving-mode and url-params
 QUERY_PARAMS=""
-if [ "$MODE" = "memory-saving" ]; then
+if [ "$APP_MEMORY_SAVING_MODE" = true ]; then
     QUERY_PARAMS="aq=LM"
 fi
 
@@ -81,7 +89,7 @@ readonly JSONRPC_DELAY=2
 
 # Initialize output file
 echo "Memory Test Started at $(date)" > "$OUTPUT_FILE"
-echo "Mode: $MODE" >> "$OUTPUT_FILE"
+echo "App Memory-Saving Mode: $APP_MEMORY_SAVING_MODE" >> "$OUTPUT_FILE"
 if [ -n "$QUERY_PARAMS" ]; then
     echo "Query Params: $QUERY_PARAMS" >> "$OUTPUT_FILE"
 fi
@@ -90,13 +98,13 @@ fi
 exec > >(tee -a "$OUTPUT_FILE") 2>&1
 
 echo "Memory Test Configuration:"
-echo "  Mode:         $MODE"
-if [ "$MODE" = "memory-saving" ]; then
-    echo "  Note:         Memory-saving mode (aq=LM) requires an active Developer Access Code:"
-    echo "                https://developers.google.com/youtube/devices/living-room/cobalt/cobalt-developer-mode#access-code"
+echo "  App Memory-Saving Mode: $APP_MEMORY_SAVING_MODE"
+if [ "$APP_MEMORY_SAVING_MODE" = true ]; then
+    echo "  Note:                   Memory-saving mode (aq=LM) requires an active Developer Access Code:"
+    echo "                          https://developers.google.com/youtube/devices/living-room/cobalt/cobalt-developer-mode#access-code"
 fi
 if [ -n "$QUERY_PARAMS" ]; then
-    echo "  Query Params: $QUERY_PARAMS"
+    echo "  Query Params:           $QUERY_PARAMS"
 fi
 
 # Define scenarios: name|url|duration|rounds|action
