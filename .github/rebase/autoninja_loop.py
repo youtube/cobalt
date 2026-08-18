@@ -168,11 +168,9 @@ def apply_search_replace(file_path: str, search_block: str,
 
   # Normalize whitespace fallback
   content_lines = content.splitlines()
-  search_lines = [
-      line.strip() for line in search_clean.splitlines() if line.strip()
-  ]
+  search_lines = [line.strip() for line in search_clean.splitlines()]
 
-  if not search_lines:
+  if not any(search_lines):
     return False
 
   for idx, line in enumerate(content_lines):
@@ -299,8 +297,13 @@ def apply_unified_diff(diff_text: str, repo_path: str) -> List[str]:
 
         pos = orig_start + offset
         if 0 <= pos <= len(new_lines):
+          current_slice = new_lines[pos:pos + len(hunk_src)]
+          if current_slice != hunk_src:
+            return []
           new_lines[pos:pos + len(hunk_src)] = hunk_dst
           offset += len(hunk_dst) - len(hunk_src)
+        else:
+          return []
       else:
         i += 1
 

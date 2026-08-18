@@ -668,12 +668,12 @@ def resolve_file_conflicts(
       subprocess.run(
           ["git", "checkout", "--theirs", "--", rel_path],
           cwd=repo_path,
-          check=False,
+          check=True,
       )
       subprocess.run(
           ["git", "add", "--", rel_path],
           cwd=repo_path,
-          check=False,
+          check=True,
       )
       return True
     except (OSError, subprocess.SubprocessError) as e:
@@ -681,6 +681,7 @@ def resolve_file_conflicts(
           f"[WARNING] Failed to checkout --theirs for {rel_path}: {e}",
           file=sys.stderr,
       )
+      return False
 
   with open(file_path, "r", encoding="utf-8", errors="replace") as f:
     original_content = f.read()
@@ -702,6 +703,7 @@ def resolve_file_conflicts(
       file=sys.stderr,
   )
 
+  all_resolved = True
   current_content = original_content
   for b in reversed(blocks):
     block_line_count = len(b.raw_block.splitlines())
@@ -855,6 +857,7 @@ def resolve_file_conflicts(
       break
 
     if resolved_chunk is None:
+      all_resolved = False
       continue
 
     if not resolved_chunk.endswith("\n") and b.raw_block.endswith("\n"):
@@ -868,6 +871,7 @@ def resolve_file_conflicts(
           f"    [WARNING] Warning: Block #{b.index} mismatch, skipping.",
           file=sys.stderr,
       )
+      all_resolved = False
 
   # Validate Python AST if DEPS or .py
   if os.path.basename(file_path) == "DEPS" or file_path.endswith(".py"):
@@ -893,7 +897,7 @@ def resolve_file_conflicts(
       f"[resolve_conflicts] Successfully processed {file_path}.",
       file=sys.stderr,
   )
-  return True
+  return all_resolved
 
 
 def write_result_report(
