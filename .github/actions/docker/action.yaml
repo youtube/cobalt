@@ -62,7 +62,7 @@ runs:
         echo "DOCKER_TAG=ghcr.io/${REPO}/${{inputs.docker_image}}:${base_ref}" >> $GITHUB_ENV
       shell: bash
     - name: Set up Cloud SDK
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+      uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
     - name: Configure Docker auth for GCloud
       shell: bash
       run: |
