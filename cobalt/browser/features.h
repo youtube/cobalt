@@ -19,6 +19,7 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/time/time.h"
 
 namespace cobalt {
 namespace features {
@@ -73,6 +74,9 @@ extern const base::Feature kCobaltNativeMemoryAblation;
 
 // Memory ablation size to allocate in Megabytes (default: 0).
 extern const base::FeatureParam<int> kMemoryAblationSizeMBParam;
+
+// Delay before performing memory ablation (default: 0s).
+extern const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam;
 
 }  // namespace features
 }  // namespace cobalt

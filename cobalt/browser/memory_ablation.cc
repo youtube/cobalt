@@ -26,6 +26,7 @@
 #include "base/no_destructor.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "base/time/time.h"
 #include "cobalt/browser/features.h"
 
 namespace cobalt {
@@ -113,19 +114,19 @@ void MaybeApplyMemoryAblation() {
     return;
   }
 
-  LOG(WARNING) << "Dispatching native memory ablation: allocating and dirtying "
-               << size_mb << " MB of RAM in background.";
+  const base::TimeDelta delay = features::kMemoryAblationDelayParam.Get();
 
   scoped_refptr<base::SequencedTaskRunner> reply_runner =
       base::SequencedTaskRunner::HasCurrentDefault()
           ? base::SequencedTaskRunner::GetCurrentDefault()
           : nullptr;
 
-  base::ThreadPool::PostTask(
+  base::ThreadPool::PostDelayedTask(
       FROM_HERE,
       {base::TaskPriority::BEST_EFFORT,
        base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
-      base::BindOnce(&DoMemoryAblationInBackground, size_mb, reply_runner));
+      base::BindOnce(&DoMemoryAblationInBackground, size_mb, reply_runner),
+      delay);
 }
 
 void ResetMemoryAblationForTesting() {

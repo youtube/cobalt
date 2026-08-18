@@ -32,7 +32,8 @@ class MemoryAblationTest : public ::testing::Test {
 
   void TearDown() override { ResetMemoryAblationForTesting(); }
 
-  base::test::TaskEnvironment task_environment_;
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::HistogramTester histogram_tester_;
 };
 
@@ -80,6 +81,35 @@ TEST_F(MemoryAblationTest, EnabledWithAllocatedSize) {
       "Cobalt.Features.NativeMemoryAblation.Enabled", true, 1);
   histogram_tester_.ExpectUniqueSample(
       "Cobalt.Features.NativeMemoryAblation.AllocatedMB", 1, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.Features.NativeMemoryAblation.Result",
+      NativeMemoryAblationResult::kSuccess, 1);
+}
+
+TEST_F(MemoryAblationTest, EnabledWithDelayedExecution) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      features::kCobaltNativeMemoryAblation,
+      {{"ablation_size_mb", "1"}, {"ablation_delay", "5s"}});
+
+  MaybeApplyMemoryAblation();
+  task_environment_.RunUntilIdle();
+
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.Features.NativeMemoryAblation.Enabled", true, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.Features.NativeMemoryAblation.AllocatedMB", 1, 1);
+  // Task should not have run yet because of 5s delay.
+  histogram_tester_.ExpectTotalCount(
+      "Cobalt.Features.NativeMemoryAblation.Result", 0);
+
+  // Fast-forward by 4 seconds (still not run).
+  task_environment_.FastForwardBy(base::Seconds(4));
+  histogram_tester_.ExpectTotalCount(
+      "Cobalt.Features.NativeMemoryAblation.Result", 0);
+
+  // Fast-forward by remaining 1 second (now runs).
+  task_environment_.FastForwardBy(base::Seconds(1));
   histogram_tester_.ExpectUniqueSample(
       "Cobalt.Features.NativeMemoryAblation.Result",
       NativeMemoryAblationResult::kSuccess, 1);

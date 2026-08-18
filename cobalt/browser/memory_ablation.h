@@ -34,7 +34,8 @@ enum class NativeMemoryAblationResult {
 
 // Checks if the native memory ablation Finch feature is enabled and,
 // if so, allocates and commits (dirties) the requested amount of native memory
-// on a background thread to hold for the lifetime of the process.
+// on a background thread after an optional delay to hold for the lifetime of
+// the process.
 // Strictly executes at most once per application lifetime.
 void MaybeApplyMemoryAblation();
 

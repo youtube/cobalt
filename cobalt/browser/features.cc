@@ -85,5 +85,8 @@ BASE_FEATURE(kCobaltNativeMemoryAblation,
 const base::FeatureParam<int> kMemoryAblationSizeMBParam{
     &kCobaltNativeMemoryAblation, "ablation_size_mb", 0};
 
+const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam{
+    &kCobaltNativeMemoryAblation, "ablation_delay", base::Seconds(0)};
+
 }  // namespace features
 }  // namespace cobalt
