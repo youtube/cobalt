@@ -15,6 +15,7 @@ runs:
   steps:
       - name: GN gen
         run: |
+          git config --global --add safe.directory '*' || true
           cd src
           cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }}
         shell: bash
