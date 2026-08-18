@@ -135,9 +135,7 @@ void Unpacker::Verify(const std::vector<uint8_t>& pk_hash,
 
 void Unpacker::BeginUnzipping() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-<<<<<<< HEAD
   unzip_begin_time_ = base::TimeTicks::Now();
-=======
 #if BUILDFLAG(IS_STARBOARD)
 #if defined(IN_MEMORY_UPDATES)
   unpack_path_ = result_.installation_dir;
@@ -146,7 +144,6 @@ void Unpacker::BeginUnzipping() {
   unpack_path_ = path_.DirName();
 #endif  // defined(IN_MEMORY_UPDATES)
 #else  // BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (!base::CreateNewTempDirectory(
           FILE_PATH_LITERAL("chrome_Unpacker_BeginUnzipping"), &unpack_path_)) {
     VLOG(1) << "Unable to create temporary directory for unpacking.";

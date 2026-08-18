@@ -78,10 +78,6 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
   Unpacker& operator=(const Unpacker&) = delete;
 
   // Begins the actual unpacking of the files. Calls `callback` with the result.
-<<<<<<< HEAD
-  static void Unpack(const std::string& app_id,
-                     const std::vector<uint8_t>& pk_hash,
-=======
 #if BUILDFLAG(IS_STARBOARD)
   static void Unpack(const std::vector<uint8_t>& pk_hash,
                      const OperationResult& crx_operation_result,
@@ -89,8 +85,8 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
                      crx_file::VerifierFormat crx_format,
                      base::OnceCallback<void(const Result& result)> callback);
 #else
-  static void Unpack(const std::vector<uint8_t>& pk_hash,
->>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  static void Unpack(const std::string& app_id,
+                     const std::vector<uint8_t>& pk_hash,
                      const base::FilePath& path,
                      std::unique_ptr<Unzipper> unzipper,
                      crx_file::VerifierFormat crx_format,
@@ -104,17 +100,13 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
   // `pk_hash` is the expected public developer key's SHA256 hash. If empty,
   // the unpacker accepts any developer key. `path` is the current location
   // of the CRX.
-<<<<<<< HEAD
-  Unpacker(const std::string& app_id,
-           const base::FilePath& path,
-=======
 #if BUILDFLAG(IS_STARBOARD)
   Unpacker(const OperationResult& crx_operation_result,
            std::unique_ptr<Unzipper> unzipper,
            base::OnceCallback<void(const Result& result)> callback);
 #else
-  Unpacker(const base::FilePath& path,
->>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  Unpacker(const std::string& app_id,
+           const base::FilePath& path,
            std::unique_ptr<Unzipper> unzipper,
            base::OnceCallback<void(const Result& result)> callback);
 #endif
@@ -145,14 +137,11 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
   // callback provided in `Unpack`.
   void EndUnpacking(UnpackerError error, int extended_error = 0);
 
-<<<<<<< HEAD
   const std::string app_id_;
-=======
 #if BUILDFLAG(IS_STARBOARD)
   OperationResult result_;
 #endif
 #if !defined(IN_MEMORY_UPDATES)
->>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   base::FilePath path_;
 #endif
   std::unique_ptr<Unzipper> unzipper_;
