@@ -28,6 +28,10 @@ namespace {
 
 class MemoryAblationTest : public ::testing::Test {
  protected:
+  void SetUp() override { ResetMemoryAblationForTesting(); }
+
+  void TearDown() override { ResetMemoryAblationForTesting(); }
+
   base::test::TaskEnvironment task_environment_;
   base::HistogramTester histogram_tester_;
 };
@@ -44,6 +48,8 @@ TEST_F(MemoryAblationTest, DisabledByDefault) {
       "Cobalt.Features.NativeMemoryAblation.Enabled", false, 1);
   histogram_tester_.ExpectTotalCount(
       "Cobalt.Features.NativeMemoryAblation.AllocatedMB", 0);
+  histogram_tester_.ExpectTotalCount(
+      "Cobalt.Features.NativeMemoryAblation.Result", 0);
 }
 
 TEST_F(MemoryAblationTest, EnabledWithZeroSize) {
@@ -58,6 +64,8 @@ TEST_F(MemoryAblationTest, EnabledWithZeroSize) {
       "Cobalt.Features.NativeMemoryAblation.Enabled", true, 1);
   histogram_tester_.ExpectUniqueSample(
       "Cobalt.Features.NativeMemoryAblation.AllocatedMB", 0, 1);
+  histogram_tester_.ExpectTotalCount(
+      "Cobalt.Features.NativeMemoryAblation.Result", 0);
 }
 
 TEST_F(MemoryAblationTest, EnabledWithAllocatedSize) {
@@ -72,6 +80,9 @@ TEST_F(MemoryAblationTest, EnabledWithAllocatedSize) {
       "Cobalt.Features.NativeMemoryAblation.Enabled", true, 1);
   histogram_tester_.ExpectUniqueSample(
       "Cobalt.Features.NativeMemoryAblation.AllocatedMB", 1, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.Features.NativeMemoryAblation.Result",
+      NativeMemoryAblationResult::kSuccess, 1);
 }
 
 TEST_F(MemoryAblationTest, EnabledWithExceedingMaxSize) {
@@ -88,6 +99,31 @@ TEST_F(MemoryAblationTest, EnabledWithExceedingMaxSize) {
   histogram_tester_.ExpectUniqueSample(
       "Cobalt.Features.NativeMemoryAblation.AllocatedMB",
       kMaxAblationSizeMB + 1, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.Features.NativeMemoryAblation.Result",
+      NativeMemoryAblationResult::kExceedsMaxLimit, 1);
+}
+
+TEST_F(MemoryAblationTest, ExecutesAtMostOnce) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      features::kCobaltNativeMemoryAblation, {{"ablation_size_mb", "1"}});
+
+  MaybeApplyMemoryAblation();
+  task_environment_.RunUntilIdle();
+
+  // Call second time within same app lifetime
+  MaybeApplyMemoryAblation();
+  task_environment_.RunUntilIdle();
+
+  // Histograms should only have 1 sample
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.Features.NativeMemoryAblation.Enabled", true, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.Features.NativeMemoryAblation.AllocatedMB", 1, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.Features.NativeMemoryAblation.Result",
+      NativeMemoryAblationResult::kSuccess, 1);
 }
 
 }  // namespace

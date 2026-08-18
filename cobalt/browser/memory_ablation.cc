@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/memory_ablation.h"
 
+#include <atomic>
 #include <memory>
 #include <new>
 #include <vector>
@@ -31,16 +32,18 @@ namespace cobalt {
 
 namespace {
 
+std::atomic_bool g_was_applied{false};
+
 // Holds allocated buffers alive for the duration of the process.
 std::vector<std::unique_ptr<char[]>>& GetAblatedMemoryStore() {
   static base::NoDestructor<std::vector<std::unique_ptr<char[]>>> store;
   return *store;
 }
 
-void StoreAblatedMemory(std::unique_ptr<char[]> buffer, int size_mb) {
+void StoreAblatedMemory(std::unique_ptr<char[]> buffer) {
   GetAblatedMemoryStore().push_back(std::move(buffer));
-  LOG(INFO) << "Native memory ablation successfully allocated and dirtied "
-            << size_mb << " MB.";
+  base::UmaHistogramEnumeration("Cobalt.Features.NativeMemoryAblation.Result",
+                                NativeMemoryAblationResult::kSuccess);
 }
 
 void DoMemoryAblationInBackground(
@@ -52,6 +55,8 @@ void DoMemoryAblationInBackground(
   auto buffer =
       std::unique_ptr<char[]>(new (std::nothrow) char[bytes_to_allocate]);
   if (!buffer) {
+    base::UmaHistogramEnumeration("Cobalt.Features.NativeMemoryAblation.Result",
+                                  NativeMemoryAblationResult::kOomFailure);
     LOG(ERROR) << "Failed to allocate " << size_mb
                << " MB for native memory ablation (OOM).";
     return;
@@ -66,19 +71,22 @@ void DoMemoryAblationInBackground(
   }
 
   if (reply_runner && reply_runner->RunsTasksInCurrentSequence()) {
-    StoreAblatedMemory(std::move(buffer), size_mb);
+    StoreAblatedMemory(std::move(buffer));
   } else if (reply_runner) {
     reply_runner->PostTask(
-        FROM_HERE,
-        base::BindOnce(&StoreAblatedMemory, std::move(buffer), size_mb));
+        FROM_HERE, base::BindOnce(&StoreAblatedMemory, std::move(buffer)));
   } else {
-    StoreAblatedMemory(std::move(buffer), size_mb);
+    StoreAblatedMemory(std::move(buffer));
   }
 }
 
 }  // namespace
 
 void MaybeApplyMemoryAblation() {
+  if (g_was_applied.exchange(true)) {
+    return;
+  }
+
   const bool is_enabled =
       base::FeatureList::IsEnabled(features::kCobaltNativeMemoryAblation);
   base::UmaHistogramBoolean("Cobalt.Features.NativeMemoryAblation.Enabled",
@@ -93,12 +101,12 @@ void MaybeApplyMemoryAblation() {
       "Cobalt.Features.NativeMemoryAblation.AllocatedMB", size_mb);
 
   if (size_mb <= 0) {
-    LOG(INFO) << "Native memory ablation is enabled but ablation_size_mb is "
-              << size_mb << ". No memory allocated.";
     return;
   }
 
   if (size_mb > kMaxAblationSizeMB) {
+    base::UmaHistogramEnumeration("Cobalt.Features.NativeMemoryAblation.Result",
+                                  NativeMemoryAblationResult::kExceedsMaxLimit);
     LOG(ERROR) << "Requested ablation size " << size_mb
                << " MB exceeds maximum allowable limit (" << kMaxAblationSizeMB
                << " MB). Ablation skipped.";
@@ -118,6 +126,11 @@ void MaybeApplyMemoryAblation() {
       {base::TaskPriority::BEST_EFFORT,
        base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
       base::BindOnce(&DoMemoryAblationInBackground, size_mb, reply_runner));
+}
+
+void ResetMemoryAblationForTesting() {
+  g_was_applied.store(false);
+  GetAblatedMemoryStore().clear();
 }
 
 }  // namespace cobalt

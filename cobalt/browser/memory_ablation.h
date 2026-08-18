@@ -22,10 +22,24 @@ namespace cobalt {
 // devices.
 constexpr int kMaxAblationSizeMB = 256;
 
+// Outcome of native memory ablation allocation attempt.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class NativeMemoryAblationResult {
+  kSuccess = 0,
+  kOomFailure = 1,
+  kExceedsMaxLimit = 2,
+  kMaxValue = kExceedsMaxLimit,
+};
+
 // Checks if the native memory ablation Finch feature is enabled and,
 // if so, allocates and commits (dirties) the requested amount of native memory
 // on a background thread to hold for the lifetime of the process.
+// Strictly executes at most once per application lifetime.
 void MaybeApplyMemoryAblation();
+
+// Resets internal state for unit testing.
+void ResetMemoryAblationForTesting();
 
 }  // namespace cobalt
 
