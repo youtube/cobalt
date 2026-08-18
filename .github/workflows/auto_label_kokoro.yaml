@@ -16,6 +16,7 @@ on:
       - main
       - staging
       - experimental/*
+      - 27.lts
 
 concurrency:
   group: '${{ github.workflow }}-${{ github.event_name }} @ ${{ github.event.pull_request.number || github.sha }}'
