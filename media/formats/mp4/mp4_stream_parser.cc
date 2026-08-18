@@ -107,33 +107,6 @@ base::HeapArray<uint8_t> PrepareAACBuffer(
 }
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 
-<<<<<<< HEAD
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-base::HeapArray<uint8_t> PrependIADescriptors(
-    const IamfSpecificBox& iacb,
-    base::span<const uint8_t> frame_buf,
-    std::vector<SubsampleEntry>* subsamples) {
-  // Prepend the IA Descriptors to every IA Sample.
-  const size_t descriptors_size = iacb.ia_descriptors.size();
-  const size_t total_size = frame_buf.size() + descriptors_size;
-  auto output_buffer = base::HeapArray<uint8_t>::Uninit(total_size);
-  auto [output_ia_descriptors, output_frame_buf] =
-      base::span(output_buffer).split_at(descriptors_size);
-  output_ia_descriptors.copy_from_nonoverlapping(iacb.ia_descriptors);
-  output_frame_buf.copy_from_nonoverlapping(frame_buf);
-
-  if (subsamples->empty()) {
-    subsamples->emplace_back(descriptors_size, frame_buf.size());
-  } else {
-    (*subsamples)[0].clear_bytes += descriptors_size;
-  }
-
-  return output_buffer;
-}
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-
-=======
->>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace
 
 MP4StreamParser::MP4StreamParser(
