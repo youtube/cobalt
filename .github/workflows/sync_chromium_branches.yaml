@@ -28,7 +28,7 @@ jobs:
       MILESTONE: ${{ matrix.branch.milestone }}
     steps:
       # Attempt to checkout our Chromium reference, if missing, create a new branch
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         id: checkout
         continue-on-error: true
         with:
@@ -36,7 +36,7 @@ jobs:
           fetch-depth: 1
           filter: blob:none
       - name: Run fallback actions/checkout@v4
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         if: steps.checkout.outcome == 'failure'
         with:
           ref: main
