@@ -215,8 +215,9 @@ TEST_F(MediaCodecVideoDecoderTest,
   ASSERT_NE(fake_codec, nullptr);
 }
 
-TEST_F(MediaCodecVideoDecoderTest,
-       KeyFrameExceedingMaxVideoSizeTriggersCheckInWriteInputBuffers) {
+TEST_F(
+    MediaCodecVideoDecoderTest,
+    KeyFrameExceedingMaxVideoSizeRaisesCapabilityChangedErrorInWriteInputBuffers) {
   VideoStreamInfo initial_info = kDefaultVideoStreamInfo;
   initial_info.frame_size = {1280, 720};
 
@@ -224,9 +225,15 @@ TEST_F(MediaCodecVideoDecoderTest,
   // height=720".
   CreateDecoder("width=1280; height=720", &initial_info);
 
+  SbPlayerError reported_error = kSbPlayerErrorDecode;
+  bool error_called = false;
+
   decoder_->Initialize([](VideoDecoder::Status status,
                           const scoped_refptr<VideoFrame>& frame) {},
-                       [](SbPlayerError error, const std::string& msg) {});
+                       [&](SbPlayerError error, const std::string& msg) {
+                         error_called = true;
+                         reported_error = error;
+                       });
 
   // Create a key frame stream info with 1920x1080 resolution (exceeding
   // 1280x720).
@@ -235,10 +242,10 @@ TEST_F(MediaCodecVideoDecoderTest,
 
   auto input_buffer = CreateDummyVideoInputBuffer(10000, 1024, &oversized_info,
                                                   /*is_key_frame=*/true);
+  decoder_->WriteInputBuffers({input_buffer});
 
-  // In debug builds, key frame exceeding max_video_size_ in WriteInputBuffers
-  // triggers SB_CHECK assertion.
-  EXPECT_DEATH_IF_SUPPORTED(decoder_->WriteInputBuffers({input_buffer}), "");
+  EXPECT_TRUE(error_called);
+  EXPECT_EQ(reported_error, kSbPlayerErrorCapabilityChanged);
 }
 
 TEST_F(MediaCodecVideoDecoderTest, BackpressureOnOutputFrame) {

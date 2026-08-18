@@ -446,12 +446,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", with output mode=" << GetPlayerOutputModeName(output_mode_)
                << ", preroll count=" << number_of_preroll_frames_
                << ", max pending input size=" << kMaxPendingInputsSize
-               << ", max video size="
-               << (max_video_size_.has_value()
-                       ? (ToString(max_video_size_->width) + "x" +
-                          ToString(max_video_size_->height))
-                       : "none")
-               << ", tunnel mode audio session id="
+               << ", max video capabilities=\""
+               << stream_config.max_video_capabilities
+               << "\", tunnel mode audio session id="
                << ToString(tunnel_mode_audio_session_id_)
                << ", is_video_frame_tracker_enabled="
                << ToString(is_video_frame_tracker_enabled_);
@@ -546,10 +543,6 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     for (const auto& input_buffer : input_buffers) {
       if (input_buffer->video_sample_info().is_key_frame) {
         const Size& frame_size = input_buffer->video_stream_info().frame_size;
-        SB_CHECK(!IsFrameSizeExceedingCapabilities(frame_size,
-                                                   max_video_size_.value()))
-            << "Video key frame size " << frame_size
-            << " exceeds max_video_capabilities " << max_video_size_.value();
         if (IsFrameSizeExceedingCapabilities(frame_size,
                                              max_video_size_.value())) {
           SB_LOG(ERROR) << "Video frame size " << frame_size
