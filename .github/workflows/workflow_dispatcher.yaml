@@ -44,16 +44,16 @@ jobs:
             }
 
             const PLATFORM_WORKFLOWS = [
-              'android.yaml',
-              'aosp.yaml',
-              'evergreen.yaml',
-              'linux.yaml',
-              'tvos.yaml'
+              'android_27.lts.yaml',
+              'aosp_27.lts.yaml',
+              'evergreen_27.lts.yaml',
+              'linux_27.lts.yaml',
+              'tvos_27.lts.yaml'
             ];
 
             let workflows = [];
             if (labelName === 'kokoro:run' || labelName === 'kokoro:force-run') {
-              workflows = ['tvos.yaml'];
+              workflows = ['tvos_27.lts.yaml'];
             } else {
               workflows = PLATFORM_WORKFLOWS;
             }
