@@ -37,7 +37,7 @@ while [[ $# -gt 0 ]]; do
             echo "                        'memory-saving' appends 'aq=LM' to URLs."
             echo "                        Note: Requires Developer Mode Access Code on device:"
             echo "                        https://developers.google.com/youtube/devices/living-room/cobalt/cobalt-developer-mode#access-code"
-            echo "  --url-params=PARAMS   Add custom URL parameters (e.g. 'expflag=myflag:true' or 'build=hello')"
+            echo "  --url-params=PARAMS   Add custom URL parameters (e.g. 'my_param=something' or 'build=hello')"
             echo "  -h, --help            Show this help message"
             exit 0
             ;;

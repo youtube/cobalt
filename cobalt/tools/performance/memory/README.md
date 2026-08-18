@@ -65,21 +65,29 @@ This shell script is designed for RDK-based devices to measure memory usage acro
 # Ensure execution permissions
 chmod +x rdk_kabuki_memory_benchmark.sh
 
-# Run the benchmark with default mode
+# Run the benchmark
 ./rdk_kabuki_memory_benchmark.sh
-
-# Run in memory-saving mode (appends aq=LM)
-./rdk_kabuki_memory_benchmark.sh --mode=memory-saving
-
-# Run with custom URL params
-./rdk_kabuki_memory_benchmark.sh --url-params="expflag=myflag:true"
-
-# Combine memory-saving mode with custom URL params
-./rdk_kabuki_memory_benchmark.sh --mode=memory-saving --url-params="expflag=myflag:true"
 ```
 
-> **Note on Memory-Saving Mode:**
-> Running with `--mode=memory-saving` appends `aq=LM` to YouTube URLs. This requires an active [Developer Mode Access Code](https://developers.google.com/youtube/devices/living-room/cobalt/cobalt-developer-mode#access-code) applied on the device.
+#### Optional Configurations
+The benchmark supports flags for testing different configurations and query parameters:
+
+- **Memory-Saving Mode (`--mode=memory-saving`):**
+  Appends `aq=LM` to YouTube URLs.
+  ```bash
+  ./rdk_kabuki_memory_benchmark.sh --mode=memory-saving
+  ```
+  > **Note:** Running in memory-saving mode requires an active [Developer Mode Access Code](https://developers.google.com/youtube/devices/living-room/cobalt/cobalt-developer-mode#access-code) applied on the device.
+
+- **Custom URL Parameters (`--url-params`):**
+  Appends custom query parameters to the benchmark URLs (e.g., experiment flags or builds).
+  ```bash
+  # Custom parameters
+  ./rdk_kabuki_memory_benchmark.sh --url-params="my_param=something"
+
+  # Combined with memory-saving mode
+  ./rdk_kabuki_memory_benchmark.sh --mode=memory-saving --url-params="my_param=something"
+  ```
 
 ## Interpreting Results & Gotchas
 
