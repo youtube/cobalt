@@ -983,10 +983,7 @@ void HangWatcher::Run() {
 #endif
     Wait();
 
-<<<<<<< HEAD
-    if (IsWatchingThreads() &&
-=======
-    bool has_work = !IsWatchListEmpty();
+    bool has_work = IsWatchingThreads();
 #if BUILDFLAG(IS_COBALT)
     // If the watch list is empty but we have an active hang UUID, we still
     // have work to do (cleaning up the recovery state).
@@ -994,7 +991,6 @@ void HangWatcher::Run() {
 #endif
 
     if (has_work &&
->>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         g_keep_monitoring.load(std::memory_order_relaxed)) {
       Monitor();
       if (after_monitor_closure_for_testing_) {
