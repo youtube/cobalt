@@ -2,6 +2,82 @@
 
 # TODO(b/522305776): Rewrite this script in Python to share common helper methods
 # with deploy_rdk.py (e.g., launching/deactivating plugins, restarting wpeframework).
+#
+# Note: App memory-saving mode (--app-memory-saving-mode=true) appends 'aq=LM' to
+# URLs. This requires an active Developer Access Code on the device to take effect:
+# https://developers.google.com/youtube/devices/living-room/cobalt/cobalt-developer-mode#access-code
+
+# Parse command-line arguments
+APP_MEMORY_SAVING_MODE=false
+URL_PARAMS=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --app-memory-saving-mode=*)
+            val="${1#*=}"
+            if [ "$val" = "true" ] || [ "$val" = "1" ]; then
+                APP_MEMORY_SAVING_MODE=true
+            elif [ "$val" = "false" ] || [ "$val" = "0" ]; then
+                APP_MEMORY_SAVING_MODE=false
+            else
+                echo "Error: Invalid value for --app-memory-saving-mode: '$val'. Expected 'true' or 'false'."
+                exit 1
+            fi
+            shift
+            ;;
+        --app-memory-saving-mode)
+            if [[ "$2" == "true" || "$2" == "false" ]]; then
+                APP_MEMORY_SAVING_MODE="$2"
+                shift 2
+            else
+                APP_MEMORY_SAVING_MODE=true
+                shift
+            fi
+            ;;
+        --url-params=*)
+            URL_PARAMS="${1#*=}"
+            shift
+            ;;
+        --url-params)
+            URL_PARAMS="$2"
+            shift 2
+            ;;
+        -h|--help)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --app-memory-saving-mode=true|false"
+            echo "                        Enable app memory-saving mode (appends 'aq=LM' to URLs, default: false)."
+            echo "                        Note: Requires Developer Mode Access Code on device:"
+            echo "                        https://developers.google.com/youtube/devices/living-room/cobalt/cobalt-developer-mode#access-code"
+            echo "  --url-params=PARAMS   Add custom URL parameters (e.g. 'my_param=something' or 'build=hello')"
+            echo "  -h, --help            Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use -h or --help for usage information."
+            exit 1
+            ;;
+    esac
+done
+
+# Build query parameters based on app-memory-saving-mode and url-params
+QUERY_PARAMS=""
+if [ "$APP_MEMORY_SAVING_MODE" = true ]; then
+    QUERY_PARAMS="aq=LM"
+fi
+
+if [ -n "$URL_PARAMS" ]; then
+    # Strip any leading '?' or '&' from URL_PARAMS
+    URL_PARAMS="${URL_PARAMS#\?}"
+    URL_PARAMS="${URL_PARAMS#\&}"
+    if [ -n "$QUERY_PARAMS" ]; then
+        QUERY_PARAMS="${QUERY_PARAMS}&${URL_PARAMS}"
+    else
+        QUERY_PARAMS="${URL_PARAMS}"
+    fi
+fi
 
 # Configuration
 readonly CALLSIGN="YouTube"
@@ -13,9 +89,23 @@ readonly JSONRPC_DELAY=2
 
 # Initialize output file
 echo "Memory Test Started at $(date)" > "$OUTPUT_FILE"
+echo "App Memory-Saving Mode: $APP_MEMORY_SAVING_MODE" >> "$OUTPUT_FILE"
+if [ -n "$QUERY_PARAMS" ]; then
+    echo "Query Params: $QUERY_PARAMS" >> "$OUTPUT_FILE"
+fi
 
 # Redirect stdout and stderr to both terminal and output file
 exec > >(tee -a "$OUTPUT_FILE") 2>&1
+
+echo "Memory Test Configuration:"
+echo "  App Memory-Saving Mode: $APP_MEMORY_SAVING_MODE"
+if [ "$APP_MEMORY_SAVING_MODE" = true ]; then
+    echo "  Note:                   Memory-saving mode (aq=LM) requires an active Developer Access Code:"
+    echo "                          https://developers.google.com/youtube/devices/living-room/cobalt/cobalt-developer-mode#access-code"
+fi
+if [ -n "$QUERY_PARAMS" ]; then
+    echo "  Query Params:           $QUERY_PARAMS"
+fi
 
 # Define scenarios: name|url|duration|rounds|action
 # If rounds is omitted, it defaults to 1.
@@ -73,6 +163,30 @@ calculate_average() {
     local count=${#arr[@]}
     if [ "$count" -eq 0 ]; then echo "0"; return; fi
     printf '%s\n' "${arr[@]}" | awk '{sum+=$1} END {print sum/NR}'
+}
+
+# Function to append query parameters to a URL before any hash fragment
+append_query_params_to_url() {
+    local raw_url="$1"
+    local query="$2"
+    if [ -z "$query" ] || [ "$raw_url" = "about:blank" ]; then
+        echo "$raw_url"
+        return
+    fi
+
+    local base="${raw_url%%#*}"
+    local fragment=""
+    if [[ "$raw_url" == *"#"* ]]; then
+        fragment="#${raw_url#*#}"
+    fi
+
+    if [[ "$base" == *"?"* ]]; then
+        base="${base}&${query}"
+    else
+        base="${base}?${query}"
+    fi
+
+    echo "${base}${fragment}"
 }
 
 # JSON-RPC Helpers
@@ -183,6 +297,8 @@ for scenario_info in "${SCENARIOS[@]}"; do
     if [ -z "$scenario_rounds" ]; then
         scenario_rounds=1
     fi
+
+    scenario_command=$(append_query_params_to_url "$scenario_command" "$QUERY_PARAMS")
 
     echo ""
     echo "##########################################################"
