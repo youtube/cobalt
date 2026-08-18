@@ -46,10 +46,6 @@ namespace update_client {
 
 Unpacker::Result::Result() = default;
 
-<<<<<<< HEAD
-Unpacker::Unpacker(const std::string& app_id,
-                   const base::FilePath& path,
-=======
 #if BUILDFLAG(IS_STARBOARD)
 Unpacker::Unpacker(const OperationResult& crx_operation_result,
                    std::unique_ptr<Unzipper> unzipper,
@@ -73,8 +69,8 @@ void Unpacker::Unpack(const std::vector<uint8_t>& pk_hash,
       ->Verify(pk_hash, crx_format);
 }
 #else
-Unpacker::Unpacker(const base::FilePath& path,
->>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+Unpacker::Unpacker(const std::string& app_id,
+                   const base::FilePath& path,
                    std::unique_ptr<Unzipper> unzipper,
                    base::OnceCallback<void(const Result& result)> callback)
     : app_id_(app_id),
