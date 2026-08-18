@@ -108,12 +108,10 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       {::switches::kUseCmdDecoder, "passthrough"},
       // Set the default size for the content shell/starboard window.
       {::switches::kContentShellHostWindowSize, "1920x1080"},
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-      // Enable remote DevTools, reachable from the network (e.g. SSH tunnel to
-      // the container IP) - matches the c25 dev experience, no on-device
-      // config.
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+      // Enable remote Devtools access.
       {::switches::kRemoteDebuggingPort, "9222"},
-#endif
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
       // kEnableLowEndDeviceMode sets MSAA to 4 (and not 8, the default). But
       // we set it explicitly just in case.
       {blink::switches::kGpuRasterizationMSAASampleCount, "4"},
