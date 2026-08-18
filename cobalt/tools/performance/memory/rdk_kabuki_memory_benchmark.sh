@@ -3,6 +3,67 @@
 # TODO(b/522305776): Rewrite this script in Python to share common helper methods
 # with deploy_rdk.py (e.g., launching/deactivating plugins, restarting wpeframework).
 
+# Parse command-line arguments
+MODE="default"
+URL_PARAMS=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --mode=*)
+            MODE="${1#*=}"
+            shift
+            ;;
+        --mode)
+            MODE="$2"
+            shift 2
+            ;;
+        --url-params=*)
+            URL_PARAMS="${1#*=}"
+            shift
+            ;;
+        --url-params)
+            URL_PARAMS="$2"
+            shift 2
+            ;;
+        -h|--help)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --mode=MODE           Set benchmark mode (e.g. 'memory-saving' adds aq=LM, default: 'default')"
+            echo "  --url-params=PARAMS   Add custom URL parameters (e.g. 'expflag=myflag:true' or 'build=hello')"
+            echo "  -h, --help            Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use -h or --help for usage information."
+            exit 1
+            ;;
+    esac
+done
+
+if [ "$MODE" != "default" ] && [ "$MODE" != "memory-saving" ]; then
+    echo "Error: Unknown mode '$MODE'. Supported modes: default, memory-saving"
+    exit 1
+fi
+
+# Build query parameters based on mode and url-params
+QUERY_PARAMS=""
+if [ "$MODE" = "memory-saving" ]; then
+    QUERY_PARAMS="aq=LM"
+fi
+
+if [ -n "$URL_PARAMS" ]; then
+    # Strip any leading '?' or '&' from URL_PARAMS
+    URL_PARAMS="${URL_PARAMS#\?}"
+    URL_PARAMS="${URL_PARAMS#\&}"
+    if [ -n "$QUERY_PARAMS" ]; then
+        QUERY_PARAMS="${QUERY_PARAMS}&${URL_PARAMS}"
+    else
+        QUERY_PARAMS="${URL_PARAMS}"
+    fi
+fi
+
 # Configuration
 readonly CALLSIGN="YouTube"
 readonly PROCESS_NAME="YouTube"
@@ -13,9 +74,19 @@ readonly JSONRPC_DELAY=2
 
 # Initialize output file
 echo "Memory Test Started at $(date)" > "$OUTPUT_FILE"
+echo "Mode: $MODE" >> "$OUTPUT_FILE"
+if [ -n "$QUERY_PARAMS" ]; then
+    echo "Query Params: $QUERY_PARAMS" >> "$OUTPUT_FILE"
+fi
 
 # Redirect stdout and stderr to both terminal and output file
 exec > >(tee -a "$OUTPUT_FILE") 2>&1
+
+echo "Memory Test Configuration:"
+echo "  Mode:         $MODE"
+if [ -n "$QUERY_PARAMS" ]; then
+    echo "  Query Params: $QUERY_PARAMS"
+fi
 
 # Define scenarios: name|url|duration|rounds|action
 # If rounds is omitted, it defaults to 1.
@@ -72,6 +143,30 @@ calculate_average() {
     local count=${#arr[@]}
     if [ "$count" -eq 0 ]; then echo "0"; return; fi
     printf '%s\n' "${arr[@]}" | awk '{sum+=$1} END {print sum/NR}'
+}
+
+# Function to append query parameters to a URL before any hash fragment
+append_query_params_to_url() {
+    local raw_url="$1"
+    local query="$2"
+    if [ -z "$query" ] || [ "$raw_url" = "about:blank" ]; then
+        echo "$raw_url"
+        return
+    fi
+
+    local base="${raw_url%%#*}"
+    local fragment=""
+    if [[ "$raw_url" == *"#"* ]]; then
+        fragment="#${raw_url#*#}"
+    fi
+
+    if [[ "$base" == *"?"* ]]; then
+        base="${base}&${query}"
+    else
+        base="${base}?${query}"
+    fi
+
+    echo "${base}${fragment}"
 }
 
 # JSON-RPC Helpers
@@ -182,6 +277,8 @@ for scenario_info in "${SCENARIOS[@]}"; do
     if [ -z "$scenario_rounds" ]; then
         scenario_rounds=1
     fi
+
+    scenario_command=$(append_query_params_to_url "$scenario_command" "$QUERY_PARAMS")
 
     echo ""
     echo "##########################################################"
