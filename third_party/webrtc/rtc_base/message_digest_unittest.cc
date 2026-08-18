@@ -13,6 +13,9 @@
 #include <openssl/evp.h>
 #include <openssl/sha.h>
 
+#include <cstddef>
+#include <string>
+
 #include "absl/strings/string_view.h"
 #include "rtc_base/string_encode.h"
 #include "test/gtest.h"

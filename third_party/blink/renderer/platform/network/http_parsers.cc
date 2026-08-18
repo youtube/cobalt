@@ -461,7 +461,7 @@ bool ParseRefreshTime(const String& source, base::TimeDelta& delay) {
   unsigned number_end = source.length();
   for (unsigned i = 0; i < source.length(); ++i) {
     UChar ch = source[i];
-    if (ch == kFullstopCharacter) {
+    if (ch == uchar::kFullStop) {
       if (++full_stop_count == 2)
         number_end = i;
     } else if (!IsASCIIDigit(ch)) {
@@ -656,7 +656,7 @@ AtomicString ExtractMIMETypeFromMediaType(const AtomicString& media_type) {
 
 bool IsHTTPTabOrSpace(UChar c) {
   // https://fetch.spec.whatwg.org/#http-tab-or-space
-  return c == kSpaceCharacter || c == kTabulationCharacter;
+  return c == uchar::kSpace || c == uchar::kTab;
 }
 
 // https://mimesniff.spec.whatwg.org/#minimize-a-supported-mime-type

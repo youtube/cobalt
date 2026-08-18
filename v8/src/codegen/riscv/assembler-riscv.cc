@@ -1491,10 +1491,11 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 
 void Assembler::BlockTrampolinePoolFor(int instructions) {
   DEBUG_PRINTF("\tBlockTrampolinePoolFor %d", instructions);
-  CheckTrampolinePoolQuick(instructions);
+  int margin = instructions * kInstrSize;
+  CheckTrampolinePoolQuick(margin);
   DEBUG_PRINTF("\tpc_offset %d,BlockTrampolinePoolBefore %d\n", pc_offset(),
-               pc_offset() + instructions * kInstrSize);
-  BlockTrampolinePoolBefore(pc_offset() + instructions * kInstrSize);
+               pc_offset() + margin);
+  BlockTrampolinePoolBefore(pc_offset() + margin);
 }
 
 void Assembler::CheckTrampolinePool() {
@@ -1691,7 +1692,7 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
                                     WritableJitAllocation* jit_allocation,
                                     ICacheFlushMode icache_flush_mode) {
   DEBUG_PRINTF("\tset_target_value_at: pc: %" PRIxPTR "\ttarget: %" PRIx64
-               "\told: %" PRIx64 "\n",
+               "\told: %" PRIxPTR "\n",
                pc, target, target_address_at(pc, static_cast<Address>(0)));
   uint32_t* p = reinterpret_cast<uint32_t*>(pc);
 #ifdef RISCV_USE_SV39

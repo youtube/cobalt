@@ -269,7 +269,8 @@ QuicConnection::QuicConnection(
                     QuicAlarmProxy(&alarms_, QuicAlarmSlot::kPing)),
       multi_port_probing_interval_(kDefaultMultiPortProbingInterval),
       connection_id_generator_(generator),
-      received_client_addresses_cache_(kMaxReceivedClientAddressSize) {
+      received_client_addresses_cache_(kMaxReceivedClientAddressSize),
+      least_unacked_plus_1_(GetQuicReloadableFlag(quic_least_unacked_plus_1)) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
 
@@ -642,6 +643,9 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     multi_port_stats_ = std::make_unique<MultiPortStats>();
     if (config.HasClientRequestedIndependentOption(kMPQM, perspective_)) {
       multi_port_migration_enabled_ = true;
+    }
+    if (config.HasClientRequestedIndependentOption(kMPR1, perspective_)) {
+      multi_port_probing_on_rto_ = true;
     }
   }
 
@@ -2000,7 +2004,7 @@ bool QuicConnection::OnNewConnectionIdFrame(
   NewConnectionIdResult result = OnNewConnectionIdFrameInner(frame);
   switch (result) {
     case NewConnectionIdResult::kOk:
-      if (multi_port_stats_ != nullptr) {
+      if (multi_port_stats_ != nullptr && !multi_port_probing_on_rto_) {
         MaybeCreateMultiPortPath();
       }
       break;
@@ -4292,6 +4296,16 @@ WriteResult QuicConnection::SendPacketToWriter(
   return result;
 }
 
+// If self_issued_cid_manager_ or peer_issued_cid_manager_ are nullptr,
+// then there is unused connection ID. Otherwise, check if there is unused
+// connection ID in self_issued_cid_manager_ and peer_issued_cid_manager_.
+bool QuicConnection::HasUnusedConnectionId() const {
+  return (self_issued_cid_manager_ == nullptr ||
+          self_issued_cid_manager_->HasConnectionIdToConsume()) &&
+         (peer_issued_cid_manager_ == nullptr ||
+          peer_issued_cid_manager_->HasUnusedConnectionId());
+}
+
 void QuicConnection::OnRetransmissionAlarm() {
   QUICHE_DCHECK(connected());
   ScopedRetransmissionTimeoutIndicator indicator(this);
@@ -4395,6 +4409,14 @@ void QuicConnection::OnRetransmissionAlarm() {
         << ", writer is blocked: " << writer_->IsWriteBlocked()
         << ", pending_timer_transmission_count: "
         << sent_packet_manager_.pending_timer_transmission_count();
+    if (multi_port_probing_on_rto_ && IsHandshakeConfirmed() &&
+        HasUnusedConnectionId()) {
+      QUICHE_DCHECK(multi_port_stats_ != nullptr &&
+                    version().HasIetfQuicFrames());
+
+      QUIC_VLOG(1) << "Maybe creating multiport path on PTO.";
+      MaybeCreateMultiPortPath();
+    }
   }
 
   // Ensure the retransmission alarm is always set if there are unacked packets
@@ -5824,12 +5846,17 @@ void QuicConnection::MaybeStartIetfPeerMigration() {
 
 void QuicConnection::PostProcessAfterAckFrame(bool acked_new_packet) {
   if (!packet_creator_.has_ack()) {
+    QuicPacketNumber largest_packet_peer_knows_is_acked =
+        sent_packet_manager_.GetLargestPacketPeerKnowsIsAcked(
+            last_received_packet_info_.decrypted_level);
+    if (least_unacked_plus_1_ &&
+        largest_packet_peer_knows_is_acked.IsInitialized()) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_least_unacked_plus_1);
+      ++largest_packet_peer_knows_is_acked;
+    }
     uber_received_packet_manager_.DontWaitForPacketsBefore(
         last_received_packet_info_.decrypted_level,
-        SupportsMultiplePacketNumberSpaces()
-            ? sent_packet_manager_.GetLargestPacketPeerKnowsIsAcked(
-                  last_received_packet_info_.decrypted_level)
-            : sent_packet_manager_.largest_packet_peer_knows_is_acked());
+        largest_packet_peer_knows_is_acked);
   }
   // Always reset the retransmission alarm when an ack comes in, since we now
   // have a better estimate of the current rtt than when it was set.
@@ -6873,10 +6900,7 @@ void QuicConnection::ValidatePath(
         return;
       }
     }
-    if ((self_issued_cid_manager_ != nullptr &&
-         !self_issued_cid_manager_->HasConnectionIdToConsume()) ||
-        (peer_issued_cid_manager_ != nullptr &&
-         !peer_issued_cid_manager_->HasUnusedConnectionId())) {
+    if (!HasUnusedConnectionId()) {
       QUIC_DVLOG(1) << "Client cannot start new path validation as there is no "
                        "requried connection ID is available.";
       result_delegate->OnPathValidationFailure(std::move(context));

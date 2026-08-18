@@ -12,6 +12,7 @@
 #import "components/pref_registry/pref_registry_syncable.h"
 #import "components/prefs/pref_service.h"
 #import "components/signin/public/base/signin_metrics.h"
+#import "components/signin/public/base/signin_pref_names.h"
 #import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
 #import "components/sync/test/mock_sync_service.h"
 #import "components/sync_preferences/pref_service_mock_factory.h"
@@ -96,6 +97,7 @@ class SigninPromoViewMediatorTest : public PlatformTest {
     EXPECT_OCMOCK_VERIFY((id)secondary_button_);
     EXPECT_OCMOCK_VERIFY((id)close_button_);
     EXPECT_OCMOCK_VERIFY((id)account_settings_presenter_);
+    EXPECT_OCMOCK_VERIFY((id)signin_promo_mediator_delegate_);
   }
 
   void CreateMediator(signin_metrics::AccessPoint access_point) {

@@ -33,7 +33,7 @@ constexpr uint16_t kAudioDeviceId = 0;
 // Maximum value range limit on ChannelId. This can be increased without any
 // side effect and only set at this moderate value for better readability for
 // logging.
-static constexpr int kMaxChannelId = 100000;
+constexpr int kMaxChannelId = 100000;
 
 }  // namespace
 

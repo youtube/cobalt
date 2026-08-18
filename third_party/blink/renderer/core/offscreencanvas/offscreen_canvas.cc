@@ -120,7 +120,7 @@ void OffscreenCanvas::Dispose() {
   // We need to drop frame dispatcher, to prevent mojo calls from completing.
   disposing_ = true;
   frame_dispatcher_ = nullptr;
-  DiscardResourceProvider();
+  DiscardResources();
 
   if (context_) {
     context_->DetachHost();
@@ -478,10 +478,6 @@ bool OffscreenCanvas::OriginClean() const {
   return origin_clean_ && !disable_reading_from_canvas_;
 }
 
-bool OffscreenCanvas::IsAccelerated() const {
-  return GetRasterMode() == RasterMode::kGPU;
-}
-
 bool OffscreenCanvas::EnableAccelerationForCanvas2D() {
   CHECK(IsRenderingContext2D());
 
@@ -596,7 +592,7 @@ OffscreenCanvas::GetOrCreateResourceProviderForImageBitmap() {
         CanvasResourceProvider::ShouldInitialize::kCallClear, this);
   }
 
-  ReplaceResourceProvider(std::move(provider));
+  SetResourceProviderForImageBitmap(std::move(provider));
 
   if (GetResourceProviderForImageBitmap() &&
       GetResourceProviderForImageBitmap()->IsValid()) {
@@ -698,7 +694,7 @@ OffscreenCanvas::GetOrCreateResourceProviderForCanvas2D() {
         CanvasResourceProvider::ShouldInitialize::kCallClear, this);
   }
 
-  ReplaceResourceProvider(std::move(provider));
+  SetResourceProviderForCanvas2D(std::move(provider));
 
   if (GetResourceProviderForCanvas2D() &&
       GetResourceProviderForCanvas2D()->IsValid()) {

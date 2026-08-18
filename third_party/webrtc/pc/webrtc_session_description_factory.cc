@@ -46,16 +46,15 @@
 
 namespace webrtc {
 namespace {
-static const char kFailedDueToIdentityFailed[] =
+const char kFailedDueToIdentityFailed[] =
     " failed because DTLS identity request failed";
-static const char kFailedDueToSessionShutdown[] =
+const char kFailedDueToSessionShutdown[] =
     " failed because the session was shut down";
 
-static const uint64_t kInitSessionVersion = 2;
+const uint64_t kInitSessionVersion = 2;
 
 // Check that each sender has a unique ID.
-static bool ValidMediaSessionOptions(
-    const MediaSessionOptions& session_options) {
+bool ValidMediaSessionOptions(const MediaSessionOptions& session_options) {
   std::vector<SenderOptions> sorted_senders;
   for (const MediaDescriptionOptions& media_description_options :
        session_options.media_description_options) {

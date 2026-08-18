@@ -31,10 +31,10 @@ namespace webrtc {
 
 namespace {
 // Threshold constant used until first downscale (to permit fast rampup).
-static const int kMeasureMs = 2000;
-static const float kSamplePeriodScaleFactor = 2.5;
-static const int kFramedropPercentThreshold = 60;
-static const size_t kMinFramesNeededToScale = 2 * 30;
+const int kMeasureMs = 2000;
+const float kSamplePeriodScaleFactor = 2.5;
+const int kFramedropPercentThreshold = 60;
+const size_t kMinFramesNeededToScale = 2 * 30;
 
 }  // namespace
 

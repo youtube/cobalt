@@ -24,7 +24,6 @@
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/fec_controller.h"
 #include "api/field_trials.h"
-#include "api/field_trials_view.h"
 #include "api/ice_transport_interface.h"
 #include "api/neteq/neteq_factory.h"
 #include "api/peer_connection_interface.h"
@@ -177,9 +176,6 @@ class PeerConfigurer {
   // Set bitrate parameters on PeerConnection. This constraints will be
   // applied to all summed RTP streams for this peer.
   PeerConfigurer* SetBitrateSettings(BitrateSettings bitrate_settings);
-  // Set field trials used for this PeerConnection.
-  [[deprecated]]
-  PeerConfigurer* SetFieldTrials(std::unique_ptr<FieldTrialsView> field_trials);
 
   // Appends field trials for this PeerConnection.
   PeerConfigurer* AddFieldTrials(const FieldTrials& field_trials) {

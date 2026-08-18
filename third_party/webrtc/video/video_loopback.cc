@@ -11,7 +11,6 @@
 
 #include <stdio.h>
 
-#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -421,7 +420,7 @@ void Loopback() {
   SL_descriptors.push_back(SL1());
   SL_descriptors.push_back(SL2());
 
-  VideoQualityTest fixture(nullptr);
+  VideoQualityTest fixture;
   fixture.FillScalabilitySettings(
       &params, 0, stream_descriptors, NumStreams(), SelectedStream(),
       NumSpatialLayers(), SelectedSL(), InterLayerPred(), SL_descriptors);

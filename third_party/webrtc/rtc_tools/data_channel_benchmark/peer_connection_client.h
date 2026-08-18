@@ -14,15 +14,13 @@
 
 #include <functional>
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "api/data_channel_interface.h"
+#include "api/field_trials_view.h"
 #include "api/jsep.h"
 #include "api/peer_connection_interface.h"
-#include "api/rtp_receiver_interface.h"
 #include "api/scoped_refptr.h"
-#include "api/set_local_description_observer_interface.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/thread.h"
 #include "rtc_tools/data_channel_benchmark/signaling_interface.h"
@@ -65,7 +63,8 @@ class PeerConnectionClient : public PeerConnectionObserver {
 
   // Creates a default PeerConnectionFactory object.
   static scoped_refptr<PeerConnectionFactoryInterface> CreateDefaultFactory(
-      Thread* signaling_thread);
+      Thread* signaling_thread,
+      std::unique_ptr<FieldTrialsView> field_trials);
 
  private:
   void AddIceCandidate(std::unique_ptr<IceCandidate> candidate);

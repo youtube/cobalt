@@ -22,7 +22,7 @@ namespace webrtc {
 
 namespace {
 constexpr Frequency k90kHz = Frequency::KiloHertz(90);
-}
+}  // namespace
 
 InterFrameDelayVariationCalculator::InterFrameDelayVariationCalculator() {
   Reset();

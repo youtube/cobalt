@@ -30,6 +30,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
@@ -4671,9 +4672,8 @@ std::vector<gfx::Rect> PDFiumEngine::GetSelectionRects() {
   for (auto& selection : selection_) {
     std::vector<gfx::Rect> screen_rects = selection.GetScreenRects(
         GetVisibleRect().origin(), current_zoom_, GetCurrentOrientation());
-    for (auto& screen_rect : screen_rects) {
-      selection_rects.push_back(screen_rect);
-    }
+    selection_rects.insert(selection_rects.end(), screen_rects.begin(),
+                           screen_rects.end());
   }
   return selection_rects;
 }

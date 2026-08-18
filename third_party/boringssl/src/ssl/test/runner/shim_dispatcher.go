@@ -26,11 +26,12 @@ import (
 )
 
 type shimDispatcher struct {
-	lock       sync.Mutex
-	nextShimID uint64
-	listener   *net.TCPListener
-	shims      map[uint64]*shimListener
-	err        error
+	lock        sync.Mutex
+	nextShimID  uint64
+	listener    *net.TCPListener
+	shims       map[uint64]*shimListener
+	closedShims map[uint64]struct{}
+	err         error
 }
 
 func newShimDispatcher() (*shimDispatcher, error) {
@@ -42,7 +43,7 @@ func newShimDispatcher() (*shimDispatcher, error) {
 	if err != nil {
 		return nil, err
 	}
-	d := &shimDispatcher{listener: listener, shims: make(map[uint64]*shimListener)}
+	d := &shimDispatcher{listener: listener, shims: make(map[uint64]*shimListener), closedShims: make(map[uint64]struct{})}
 	go d.acceptLoop()
 	return d, nil
 }
@@ -63,6 +64,7 @@ func (d *shimDispatcher) NewShim() (*shimListener, error) {
 func (d *shimDispatcher) unregisterShim(l *shimListener) {
 	d.lock.Lock()
 	delete(d.shims, l.shimID)
+	d.closedShims[l.shimID] = struct{}{}
 	d.lock.Unlock()
 }
 
@@ -97,8 +99,17 @@ func (d *shimDispatcher) dispatch(conn net.Conn) error {
 	shimID := binary.LittleEndian.Uint64(buf[:])
 	d.lock.Lock()
 	shim, ok := d.shims[shimID]
+	_, closed := d.closedShims[shimID]
 	d.lock.Unlock()
 	if !ok {
+		// If the shim is known but already closed, just silently reject the
+		// connection. This may happen if runner fails the test at the shim's
+		// first connection, but the shim tries to make a second connection
+		// before it is killed.
+		if closed {
+			conn.Close()
+			return nil
+		}
 		return fmt.Errorf("shim ID %d not found", shimID)
 	}
 

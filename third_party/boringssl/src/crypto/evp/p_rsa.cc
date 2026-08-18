@@ -64,7 +64,7 @@ static int pkey_rsa_init(EVP_PKEY_CTX *ctx) {
 
   rctx->nbits = 2048;
   rctx->pad_mode = RSA_PKCS1_PADDING;
-  rctx->saltlen = -2;
+  rctx->saltlen = RSA_PSS_SALTLEN_AUTO;
 
   ctx->data = rctx;
 

@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 import {EarconEngine} from '../background/earcon_engine.js';
+import {BackgroundBridge} from '../common/background_bridge.js';
 import {InternalKeyEvent} from '../common/internal_key_event.js';
+import {LearnModeBridge} from '../common/learn_mode_bridge.js';
 import {OffscreenCommandType} from '../common/offscreen_command_type.js';
 
 import {LibLouisWorker} from './liblouis_worker.js';
@@ -37,31 +39,28 @@ class OffscreenBackgroundKeyboardHandler {
    * Handles key down events using the offscreen DOM and forwards them to the
    * ChromeVox service worker.
    */
-  private onKeyDown_(evt: KeyboardEvent): void {
-    this.sendKeyEventToServiceWorker_(OffscreenCommandType.ON_KEY_DOWN, evt);
+  private async onKeyDown_(evt: KeyboardEvent): Promise<void> {
+    const internalEvt = new InternalKeyEvent(evt);
+    const stopPropagation =
+        await BackgroundBridge.BackgroundKeyboardHandler.onKeyDown(internalEvt);
+    if (stopPropagation) {
+      evt.preventDefault();
+      evt.stopPropagation();
+    }
   }
 
   /**
    * Handles key up events using the offscreen DOM and forwards them to the
    * ChromeVox service worker.
    */
-  private onKeyUp_(evt: KeyboardEvent): void {
-    this.sendKeyEventToServiceWorker_(OffscreenCommandType.ON_KEY_UP, evt);
-  }
-
-
-  private sendKeyEventToServiceWorker_(
-      command: OffscreenCommandType, evt: KeyboardEvent) {
-    const extensionId = undefined;
-    const message = {command, internalEvent: new InternalKeyEvent(evt)};
-    const options = undefined;
-    const callback = (value: any) => {
-      if (value as boolean) {
-        evt.preventDefault();
-        evt.stopPropagation();
-      }
-    };
-    chrome.runtime.sendMessage(extensionId, message, options, callback);
+  private async onKeyUp_(evt: KeyboardEvent): Promise<void> {
+    const internalEvt = new InternalKeyEvent(evt);
+    const stopPropagation =
+        await BackgroundBridge.BackgroundKeyboardHandler.onKeyUp(internalEvt);
+    if (stopPropagation) {
+      evt.preventDefault();
+      evt.stopPropagation();
+    }
   }
 }
 
@@ -115,35 +114,27 @@ class OffscreenLearnModeKeyboardHandler {
   }
 
   private onKeyDown_(evt: KeyboardEvent): void {
-    const extensionId = undefined;
-    const message = {
-      command: OffscreenCommandType.LEARN_MODE_ON_KEY_DOWN,
-      internalEvent: new InternalKeyEvent(evt)
-    };
-    const options = undefined;
-    const callback = (value: any) => {
-      if (value as boolean) {
+    const internalEvt = new InternalKeyEvent(evt);
+    LearnModeBridge.onKeyDown(internalEvt).then((stopProp: boolean) => {
+      if (stopProp) {
         evt.preventDefault();
         evt.stopPropagation();
       }
-    };
-    chrome.runtime.sendMessage(extensionId, message, options, callback);
+    });
   }
 
   private onKeyUp_(evt: KeyboardEvent): void {
     evt.preventDefault();
     evt.stopPropagation();
 
-    const message = {command: OffscreenCommandType.LEARN_MODE_ON_KEY_UP};
-    chrome.runtime.sendMessage(undefined, message)
+    LearnModeBridge.onKeyUp();
   }
 
   private onKeyPress_(evt: KeyboardEvent): void {
     evt.preventDefault();
     evt.stopPropagation();
 
-    const message = {command: OffscreenCommandType.LEARN_MODE_ON_KEY_PRESS};
-    chrome.runtime.sendMessage(undefined, message)
+    LearnModeBridge.onKeyPress();
   }
 }
 
@@ -234,8 +225,8 @@ class OffscreenSpeechSynthesis {
   constructor() {
     if (window.speechSynthesis) {
       window.speechSynthesis.onvoiceschanged = () => {
-        chrome.runtime.sendMessage(
-            undefined, {command: OffscreenCommandType.ON_VOICES_CHANGED});
+        BackgroundBridge.LocaleOutputHelper.onVoicesChanged();
+        BackgroundBridge.PrimaryTts.onVoicesChanged();
       };
     }
 

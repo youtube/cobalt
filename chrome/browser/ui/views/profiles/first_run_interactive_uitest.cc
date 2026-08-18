@@ -469,12 +469,13 @@ class FirstRunParameterizedInteractiveUiTest
 
     account_info =
         signin::WithGeneratedUserInfo(account_info, account_given_name);
-    if (account_email == kTestEnterpriseEmail) {
-      account_info.hosted_domain = "chromium.org";
-    }
 
     // Controls behavior of sync buttons and supervision.
     AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    if (account_email == kTestEnterpriseEmail) {
+      account_info.hosted_domain = "chromium.org";
+      mutator.set_is_subject_to_enterprise_policies(true);
+    }
 
     if (GetParam().with_supervision.has_value()) {
       mutator.set_is_subject_to_parental_controls(WithSupervisedUser());
@@ -589,10 +590,10 @@ IN_PROC_BROWSER_TEST_P(FirstRunParameterizedInteractiveUiTest,
 
 IN_PROC_BROWSER_TEST_P(FirstRunParameterizedInteractiveUiTest, SignInAndSync) {
   bool should_skip_test = false;
-#if BUILDFLAG(IS_WIN) && defined(ARCH_CPU_64_BITS)
+#if BUILDFLAG(IS_WIN)
   // TODO(crbug.com/363254870, crbug.com/366082752): Re-enable this test
   should_skip_test = true;
-#endif  // WIN && ARCH_CPU_64_BITS
+#endif  // WIN
   if (should_skip_test) {
     GTEST_SKIP() << "Test is flaky on win64";
   }

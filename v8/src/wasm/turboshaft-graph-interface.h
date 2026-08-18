@@ -40,6 +40,7 @@ struct WasmModule;
 class WireBytesStorage;
 class TurboshaftGraphBuildingInterface;
 struct CompilationEnv;
+class WasmFunctionCoverageData;
 
 V8_EXPORT_PRIVATE void BuildTSGraph(
     compiler::turboshaft::PipelineData* data, AccountingAllocator* allocator,
@@ -47,7 +48,8 @@ V8_EXPORT_PRIVATE void BuildTSGraph(
     compiler::turboshaft::Graph& graph, const FunctionBody& func_body,
     const WireBytesStorage* wire_bytes,
     std::unique_ptr<AssumptionsJournal>* assumptions,
-    ZoneVector<WasmInliningPosition>* inlining_positions, int func_index);
+    ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
+    WasmFunctionCoverageData* coverage_data);
 
 void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
                       AccountingAllocator* allocator,
@@ -95,10 +97,6 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   using V = compiler::turboshaft::V<T>;
   template <typename T>
   using ConstOrV = compiler::turboshaft::ConstOrV<T>;
-
-  OpIndex CallRuntime(Zone* zone, Runtime::FunctionId f,
-                      std::initializer_list<const OpIndex> args,
-                      V<Context> context);
 
   OpIndex GetBuiltinPointerTarget(Builtin builtin);
   V<WordPtr> GetTargetForBuiltinCall(Builtin builtin, StubCallMode stub_mode);

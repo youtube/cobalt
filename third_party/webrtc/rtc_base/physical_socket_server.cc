@@ -146,7 +146,7 @@ typedef char* SockOptArg;
 namespace {
 
 // RFC-3168, Section 5. ECN is the two least significant bits.
-static constexpr uint8_t kEcnMask = 0x03;
+constexpr uint8_t kEcnMask = 0x03;
 
 #if defined(WEBRTC_POSIX)
 

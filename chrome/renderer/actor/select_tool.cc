@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "base/check.h"
+#include "base/notimplemented.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/actor_logging.h"
 #include "chrome/common/url_constants.h"
@@ -63,7 +64,7 @@ std::string SelectTool::DebugString() const {
 
 SelectTool::ValidatedResult SelectTool::Validate() const {
   CHECK(frame_->GetWebFrame());
-  CHECK(frame_->GetWebFrame()->LocalRoot()->FrameWidget());
+  CHECK(frame_->GetWebFrame()->FrameWidget());
 
   mojom::ToolTargetPtr& target = action_->target;
 

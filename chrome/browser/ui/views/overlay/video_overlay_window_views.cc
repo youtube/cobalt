@@ -83,6 +83,10 @@
 #include "ui/base/win/shell.h"
 #endif
 
+#if BUILDFLAG(IS_MAC)
+#include "chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h"
+#endif  // BUILDFLAG(IS_MAC)
+
 namespace {
 
 // Lower bound size of the window is a fixed value to allow for minimal sizes
@@ -388,6 +392,24 @@ std::unique_ptr<VideoOverlayWindowViews> VideoOverlayWindowViews::Create(
   params.name = "PictureInPictureWindow";
   params.layer_type = ui::LAYER_NOT_DRAWN;
   params.delegate = new OverlayWindowWidgetDelegate();
+
+// Fade in animation is disabled for Document and Video Picture-in-Picture on
+// Windows. On Windows, resizable windows can not be translucent. See
+// crbug.com/425711450.
+#if !BUILDFLAG(IS_WIN)
+  if (base::FeatureList::IsEnabled(
+          media::kPictureInPictureShowWindowAnimation)) {
+    params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
+  }
+#endif
+
+#if BUILDFLAG(IS_MAC)
+  // On Mac, we override the default native widget with our own subclass, which
+  // allows us to get the default window styling (e.g. corner radius) even
+  // though we're using `views::Widget::InitParams::remove_standard_frame`.
+  params.native_widget =
+      new VideoOverlayWindowNativeWidgetMac(overlay_window.get());
+#endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_CHROMEOS)
   params.init_properties_container.SetProperty(chromeos::kAppTypeKey,
@@ -1921,12 +1943,33 @@ bool VideoOverlayWindowViews::IsActive() const {
 void VideoOverlayWindowViews::Close() {
   views::Widget::Close();
   MaybeUnregisterFrameSinkHierarchy();
+  if (fade_animator_) {
+    fade_animator_->CancelAndReset();
+  }
   PictureInPictureWindowManager::GetInstance()->OnPictureInPictureWindowHidden(
       this);
 }
 
 void VideoOverlayWindowViews::ShowInactive() {
+// Fade in animation is disabled for Document and Video Picture-in-Picture on
+// Windows. On Windows, resizable windows can not be translucent. See
+// crbug.com/425711450.
+#if BUILDFLAG(IS_WIN)
   views::Widget::ShowInactive();
+#else
+  if (base::FeatureList::IsEnabled(
+          media::kPictureInPictureShowWindowAnimation)) {
+    if (!fade_animator_) {
+      fade_animator_ = std::make_unique<PictureInPictureWidgetFadeAnimator>();
+    }
+    fade_animator_->AnimateShowWindow(
+        this,
+        PictureInPictureWidgetFadeAnimator::WidgetShowType::kShowInactive);
+  } else {
+    views::Widget::ShowInactive();
+  }
+#endif
+
   views::Widget::SetVisibleOnAllWorkspaces(true);
 #if BUILDFLAG(IS_CHROMEOS)
   non_client_view()->frame_view()->UpdateWindowRoundedCorners();
@@ -1971,6 +2014,9 @@ void VideoOverlayWindowViews::Hide() {
   // If there is an existing overlay view, remove it now.
   RemoveOverlayViewIfExists();
   views::Widget::Hide();
+  if (fade_animator_) {
+    fade_animator_->CancelAndReset();
+  }
   MaybeUnregisterFrameSinkHierarchy();
   PictureInPictureWindowManager::GetInstance()->OnPictureInPictureWindowHidden(
       this);

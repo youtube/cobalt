@@ -59,9 +59,7 @@ static UConverter*& CachedConverterIcu() {
   return WtfThreading().CachedConverterIcu().converter;
 }
 
-std::unique_ptr<TextCodec> TextCodecIcu::Create(
-    const WTF::TextEncoding& encoding,
-    const void*) {
+std::unique_ptr<TextCodec> TextCodecIcu::Create(const TextEncoding& encoding) {
   return base::WrapUnique(new TextCodecIcu(encoding));
 }
 
@@ -273,7 +271,7 @@ void TextCodecIcu::RegisterEncodingNames(EncodingNameRegistrar registrar) {
 
 void TextCodecIcu::RegisterCodecs(TextCodecRegistrar registrar) {
   // See comment above in registerEncodingNames.
-  registrar("ISO-8859-8-I", Create, nullptr);
+  registrar("ISO-8859-8-I", Create);
 
   int32_t num_encodings = ucnv_countAvailable();
   for (int32_t i = 0; i < num_encodings; ++i) {
@@ -299,11 +297,11 @@ void TextCodecIcu::RegisterCodecs(TextCodecRegistrar registrar) {
     if (TextCodecCjk::IsSupported(standard_name)) {
       continue;
     }
-    registrar(standard_name, Create, nullptr);
+    registrar(standard_name, Create);
   }
 }
 
-TextCodecIcu::TextCodecIcu(const WTF::TextEncoding& encoding)
+TextCodecIcu::TextCodecIcu(const TextEncoding& encoding)
     : encoding_(encoding) {}
 
 TextCodecIcu::~TextCodecIcu() {
@@ -335,7 +333,7 @@ void TextCodecIcu::CreateIcuConverter() const {
   if (cached_converter) {
     err = U_ZERO_ERROR;
     const char* cached_name = ucnv_getName(cached_converter, &err);
-    if (U_SUCCESS(err) && encoding_ == WTF::TextEncoding(cached_name)) {
+    if (U_SUCCESS(err) && encoding_ == TextEncoding(cached_name)) {
       converter_icu_ = cached_converter;
       cached_converter = nullptr;
       return;
@@ -452,7 +450,7 @@ String TextCodecIcu::Decode(base::span<const uint8_t> data,
   // ICU decodes it as U+E5E5.
   if (encoding_.GetName() != "GBK") {
     if (EqualIgnoringASCIICase(encoding_.GetName(), "gb18030"))
-      result_string.Replace(0xE5E5, kIdeographicSpaceCharacter);
+      result_string.Replace(0xE5E5, uchar::kIdeographicSpace);
     // Make GBK compliant to the encoding spec and align with GB18030
     result_string.Replace(0x01F9, 0xE7C8);
     // FIXME: Once https://www.w3.org/Bugs/Public/show_bug.cgi?id=28740#c3
@@ -646,12 +644,12 @@ class TextCodecInput final {
   STACK_ALLOCATED();
 
  public:
-  TextCodecInput(const WTF::TextEncoding& encoding,
+  TextCodecInput(const TextEncoding& encoding,
                  base::span<const UChar> characters)
       : begin_(characters.data()),
         end_(characters.data() + characters.size()) {}
 
-  TextCodecInput(const WTF::TextEncoding& encoding,
+  TextCodecInput(const TextEncoding& encoding,
                  base::span<const LChar> characters) {
     buffer_.ReserveInitialCapacity(
         base::checked_cast<wtf_size_t>(characters.size()));
@@ -711,9 +709,9 @@ std::string TextCodecIcu::EncodeInternal(const TextCodecInput& input,
 #endif
       break;
     case UnencodableHandling::kNoUnencodables:
-      DCHECK(encoding_ == UTF16BigEndianEncoding() ||
-             encoding_ == UTF16LittleEndianEncoding() ||
-             encoding_ == UTF8Encoding());
+      DCHECK(encoding_ == Utf16BigEndianEncoding() ||
+             encoding_ == Utf16LittleEndianEncoding() ||
+             encoding_ == Utf8Encoding());
       ucnv_setFromUCallBack(converter_icu_, NotReachedEntityCallback, nullptr,
                             nullptr, nullptr, &err);
       break;

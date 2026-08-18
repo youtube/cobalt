@@ -255,10 +255,12 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kStructSet:
       case Opcode::kSetStackPointer:
       case Opcode::kMemoryCopy:
+      case Opcode::kWasmIncCoverageCounter:
 #endif  // V8_ENABLE_WEBASSEMBLY
         // We explicitly break for those operations that have can_write effects
         // but don't actually write, or cannot interfere with load elimination.
         break;
+
       default:
         // Operations that `can_write` should invalidate the state. All such
         // operations should be already handled above, which means that we don't
@@ -565,6 +567,9 @@ void LateLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
     // TODO(dmercadier): this is more conservative that we'd like, since only a
     // few functions use .arguments. Using a native-context-specific protector
     // for .arguments might allow to avoid invalidating frame states' content.
+    // Actually, FrameStates should know if they are inlined or not, and they
+    // should know what their inputs are (ie, locals, parameters, etc.). So, we
+    // should be able to inspect FrameStates and invalidate only Parameters.
     for (OpIndex input : frame_state->inputs()) {
       InvalidateIfAlias(input);
     }

@@ -5181,6 +5181,27 @@ A configuração <ph name="CHROME_OS_RELEASE_CHANNEL_POLICY_NAME" /> só terá e
 
       Se uma política não estiver na lista e houver um conflito entre origens, escopos ou níveis, a política com a maior prioridade será aplicada.</translation>
 <translation id="4646739075621507361">Informar trabalhos de impressão</translation>
+<translation id="4649231830965908577">Essa política permite que os administradores definam um agregador de pesquisa corporativo específico para fornecer recomendações e resultados tanto na omnibox (barra de endereço) quanto na caixa de pesquisa da página "Nova guia".
+
+Por padrão, as sugestões de pesquisa corporativa são misturadas e exibidas com as recomendações normais do <ph name="PRODUCT_NAME" />. No entanto, os usuários podem direcionar suas buscas exclusivamente para o agregador de pesquisa corporativa ao inserir a palavra-chave especificada no campo <ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> com ou sem o prefixo @ (por exemplo, <ph name="SHORTCUT_EXAMPLE_SEARCH_AGGREGATOR_SETTINGS" />), seguida de um espaço ou da tecla Tab na omnibox. No momento, as buscas corporativas específicas (acionadas por palavra-chave) só são compatíveis com a omnibox e não funcionam na caixa de pesquisa da página "Nova guia".
+
+Estes campos são obrigatórios: <ph name="NAME_SEARCH_AGGREGATOR_SETTINGS_FIELD" />, <ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" />, <ph name="SEARCH_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" />, <ph name="SUGGEST_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" />.
+
+O campo <ph name="NAME_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> corresponde ao nome do mecanismo de pesquisa mostrado ao usuário na barra de endereço.
+
+O campo <ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> é a palavra-chave inserida pelo usuário para acionar a pesquisa. O atalho pode incluir palavras e caracteres simples, mas não deve ter espaços nem começar com o símbolo @. Os atalhos precisam ser exclusivos.
+
+O campo <ph name="SEARCH_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> especifica o URL em que a pesquisa será feita. Insira o endereço da Web da página de resultados do mecanismo de pesquisa e use <ph name="SEARCH_TERM_MARKER" /> no lugar da consulta.
+
+O campo <ph name="SUGGEST_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> informa o URL que fornece sugestões de pesquisa. Uma solicitação POST será feita, e a consulta do usuário será transmitida nos parâmetros POST na chave <ph name="SEARCH_SUGGEST_POST_PARAMS_QUERY_KEY" />.
+
+O campo <ph name="ICON_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> especifica o URL de uma imagem que será usada nas sugestões de pesquisa. Um ícone padrão será usado quando esse campo não estiver definido. Recomendamos usar um favicon (por exemplo, <ph name="ICON_URL_EXAMPLE" />). Formatos de arquivos de imagem aceitos: JPEG, PNG e ICO.
+
+O campo <ph name="REQUIRE_SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> especifica se a barra de endereço <ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> é necessária para mostrar as recomendações de pesquisa. Se necessário, as sugestões não vão aparecer na caixa de pesquisa da página "Nova guia", mas vão continuar sendo exibidas na omnibox (barra de endereço) no modo de pesquisa específica. Se esse campo não for definido, a barra de endereço <ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> não será obrigatória.
+
+No <ph name="MS_WIN_NAME" />, essa política só está disponível em instâncias associadas a um domínio do <ph name="MS_AD_NAME" />, associadas ao <ph name="MS_AAD_NAME" /> ou registradas em <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
+
+No <ph name="MAC_OS_NAME" />, essa política só está disponível em instâncias gerenciadas por MDM, associadas a um domínio via MCX ou registradas em <ph name="CHROME_ENTERPRISE_CORE_NAME" />.</translation>
 <translation id="4649395978608361979">Destinos de impressoras locais</translation>
 <translation id="4650044303940238102">Configurações de fontes locais</translation>
 <translation id="4650759511838826572">Desativar esquemas do protocolo de URL</translation>
@@ -6297,25 +6318,6 @@ Se o valor for "true" ou não for definido, alguns docentes poderão adicionar l
 
 Se o valor for "false", os usuários não poderão acessar o recurso.</translation>
 <translation id="5377606826822211923">Controla, no lugar do usuário, o uso de apps Android de fontes não confiáveis</translation>
-<translation id="5377826248281933035">Esta política oferece uma lista de sites em que o usuário pode pesquisar rapidamente usando atalhos na barra de endereço. É possível iniciar uma pesquisa digitando o atalho ou @atalho (por exemplo, @trabalho) seguido da barra de espaço ou tecla Tab na barra de endereço.
-
-Os campos a seguir são obrigatórios para cada site: <ph name="NAME_SITE_SEARCH_SETTINGS_FIELD" />, <ph name="SHORTCUT_SITE_SEARCH_SETTINGS_FIELD" /> e <ph name="URL_SITE_SEARCH_SETTINGS_FIELD" />.
-
-O campo <ph name="NAME_SITE_SEARCH_SETTINGS_FIELD" /> corresponde ao nome do site ou do mecanismo de pesquisa que será mostrado ao usuário na barra de endereço.
-
-O <ph name="SHORTCUT_SITE_SEARCH_SETTINGS_FIELD" /> pode incluir palavras e caracteres simples, mas não pode incluir espaços nem começar com o símbolo @. Os atalhos também precisam ser exclusivos.
-
-Para cada entrada, o campo <ph name="URL_SITE_SEARCH_SETTINGS_FIELD" /> especifica o URL do mecanismo de pesquisa usado durante uma pesquisa com a palavra-chave correspondente. O URL precisa incluir a string <ph name="SEARCH_TERM_MARKER" />, que é substituída na consulta pelos termos de pesquisa do usuário. Entradas inválidas e com atalhos duplicados são ignoradas.
-
-As entradas da pesquisa no site configuradas como em destaque aparecem na barra de endereço quando o usuário digita "@". Até três entradas podem ser selecionadas para ficar em destaque.
-
-Não é possível editar ou desativar entradas de pesquisa no site definidas pela política, mas o usuário pode adicionar novos atalhos para o mesmo URL. Além disso, não é possível criar novas entradas de pesquisa no site com um atalho criado anteriormente por esta política.
-
-Em caso de conflito com um atalho criado anteriormente pelo usuário, a configuração do usuário tem prioridade. No entanto, ainda é possível acionar a opção criada pela política digitando "@" na barra de pesquisa. Por exemplo, se o usuário já definiu "trabalho" como um atalho para URL1, e a política define "trabalho" como um atalho para URL2, digitar "trabalho" na barra de pesquisa aciona uma pesquisa para URL1, mas digitar "@trabalho" aciona uma pesquisa para URL2.
-
-No <ph name="MS_WIN_NAME" />, essa política só está disponível em instâncias associadas a um domínio do <ph name="MS_AD_NAME" />, associadas ao <ph name="MS_AAD_NAME" /> ou registradas em <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
-
-No <ph name="MAC_OS_NAME" />, essa política só está disponível em instâncias gerenciadas por MDM, associadas a um domínio via MCX ou registradas em <ph name="CHROME_ENTERPRISE_CORE_NAME" />.</translation>
 <translation id="537786648513450280">Controla, no lugar do dispositivo, o uso de apps Android de fontes não confiáveis</translation>
 <translation id="5378885577701865339">Desativar a área de transferência compartilhada</translation>
 <translation id="538108065117008131">Permitir que o <ph name="PRODUCT_FRAME_NAME" /> lide com os seguintes tipos de conteúdo.</translation>
@@ -8644,6 +8646,11 @@ No <ph name="MS_WIN_NAME" />, essa política só está disponível em instância
 <translation id="6802412020718145539">O visualizador de PDF usa a arquitetura OOPIF.</translation>
 <translation id="68031099365512050">Informar o status de áudio</translation>
 <translation id="680356860463873420">Não permitir o uso de um PluginVm</translation>
+<translation id="6807707420322335446">Se a política for ativada, os cookies não poderão ser definidos por elementos de página da Web que não sejam do domínio que está na barra de endereço do navegador. Se a política for desativada, os cookies poderão ser definidos por esses elementos, e os usuários serão impedidos de mudar essa configuração.
+
+      Se ela não for definida, os cookies de terceiros serão permitidos, mas os usuários poderão mudar essa configuração.
+
+      Observação: essa política não se aplica ao modo de navegação anônima, em que os cookies de terceiros são bloqueados e só podem ser permitidos no nível do site. Para permitir cookies no nível do site, use a política <ph name="COOKIES_ALLOWED_FOR_URLS_POLICY_NAME" />.</translation>
 <translation id="6810445994095397827">Bloquear o JavaScript nestes sites</translation>
 <translation id="6813263547126514821">Ligar e desligar</translation>
 <translation id="681446116407619279">Esquemas de autenticação compatíveis</translation>
@@ -10528,13 +10535,6 @@ um erro será gerado.
 No <ph name="MS_WIN_NAME" />, essa política só está disponível em instâncias associadas a um domínio do <ph name="MS_AD_NAME" />, associadas ao <ph name="MS_AAD_NAME" /> ou registradas em <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
 
 No <ph name="MAC_OS_NAME" />, essa política só está disponível em instâncias gerenciadas por MDM, associadas a um domínio via MCX ou registradas em <ph name="CHROME_ENTERPRISE_CORE_NAME" />.</translation>
-<translation id="8213475033260328041">Escolha se quer armazenar os dados cobertos do <ph name="PRODUCT_NAME" /> em uma localização geográfica específica.
-
-Se a política não for definida ou for definida como <ph name="DATA_REGION_SETTING_NO_PREFERENCE_OPTION_NAME" /> (valor 0), os dados cobertos poderão ser armazenados em qualquer localização geográfica.
-
-Se a política for definida como <ph name="DATA_REGION_SETTING_UNITED_STATES_OPTION_NAME" /> (valor 1), os dados cobertos serão armazenados nos Estados Unidos.
-
-Se a política for definida como <ph name="DATA_REGION_SETTING_EUROPE_OPTION_NAME" /> (valor 2), os dados cobertos serão armazenados na Europa.</translation>
 <translation id="8213770777756919897">Esta política está obsoleta e será removida na versão 85 do <ph name="PRODUCT_OS_NAME" />. Por isso, passe a usar <ph name="POWER_MANAGEMENT_IDLE_SETTINGS_POLICY_NAME" />.
 
           Quando esta política é definida, ela especifica a ação que o <ph name="PRODUCT_OS_NAME" /> executa quando o usuário permanece inativo pelo período definido pelo tempo de inatividade, que pode ser configurado separadamente.
@@ -10906,6 +10906,11 @@ configurados.</translation>
       Se a política não for definida, o <ph name="PRODUCT_NAME" /> permitirá que os usuários controlem se ele será o padrão ou não e, caso não seja, se as notificações do usuário serão exibidas.
 
       Observação: para administradores do <ph name="MS_WIN_NAME" />, a ativação dessa configuração só funciona em máquinas com o Windows 7. Para versões mais recentes, é necessário implantar um arquivo de "associações de aplicativo padrão", que torna o <ph name="PRODUCT_NAME" /> o gerenciador dos protocolos <ph name="HTTPS_PROTOCOL" /> e <ph name="HTTP_PROTOCOL" /> e, opcionalmente, o protocolo <ph name="FTP_PROTOCOL" /> e outros formatos de arquivo. Consulte a Ajuda do Google Chrome (https://support.google.com/chrome?p=make_chrome_default_win).</translation>
+<translation id="8437836857126992452">Permite especificar quais extensões os usuários NÃO podem instalar. As extensões já instaladas serão desativadas se estiverem bloqueadas, sem a opção de o usuário ativá-las novamente. Quando uma extensão que tiver sido desativada devido à lista de bloqueios for removida da lista, ela será reativada automaticamente.
+
+          Um valor "*" da lista de bloqueio significa que todas as extensões estão bloqueadas por padrão. As extensões que estão explicitamente na lista de permissões só são permitidas se estiverem assinadas (empacotadas). Todas as extensões descompactadas estão bloqueadas.
+
+          Se esta política não for definida, o usuário poderá instalar qualquer extensão no <ph name="PRODUCT_NAME" />.</translation>
 <translation id="8441105784056442638">Ativar o recurso de restauração completa</translation>
 <translation id="844322176712318428">Permitir o uso da API Translator</translation>
 <translation id="8444157920689124099">Ativar a criptografia vinculada ao aplicativo</translation>

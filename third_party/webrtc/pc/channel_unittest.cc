@@ -2385,18 +2385,22 @@ TEST_F(VideoChannelSingleThreadTest,
 
   EXPECT_THAT(
       media_receive_channel1_impl()->recv_codecs(),
-      ElementsAre(AllOf(Field(&webrtc::Codec::id, 96),
-                        Field(&webrtc::Codec::packetization, "foo")),
-                  AllOf(Field(&webrtc::Codec::id, 98),
-                        Field(&webrtc::Codec::packetization, std::nullopt))));
+      ElementsAre(
+          AllOf(Field("id", &webrtc::Codec::id, 96),
+                Field("packetization", &webrtc::Codec::packetization, "foo")),
+          AllOf(Field("id", &webrtc::Codec::id, 98),
+                Field("packetization", &webrtc::Codec::packetization,
+                      std::nullopt))));
   EXPECT_THAT(
       media_send_channel1_impl()->send_codecs(),
-      ElementsAre(AllOf(Field(&webrtc::Codec::id, 96),
-                        Field(&webrtc::Codec::packetization, "foo")),
-                  AllOf(Field(&webrtc::Codec::id, 97),
-                        Field(&webrtc::Codec::packetization, "bar")),
-                  AllOf(Field(&webrtc::Codec::id, 99),
-                        Field(&webrtc::Codec::packetization, std::nullopt))));
+      ElementsAre(
+          AllOf(Field("id", &webrtc::Codec::id, 96),
+                Field("packetization", &webrtc::Codec::packetization, "foo")),
+          AllOf(Field("id", &webrtc::Codec::id, 97),
+                Field("packetization", &webrtc::Codec::packetization, "bar")),
+          AllOf(Field("id", &webrtc::Codec::id, 99),
+                Field("packetization", &webrtc::Codec::packetization,
+                      std::nullopt))));
 }
 
 TEST_F(VideoChannelSingleThreadTest,

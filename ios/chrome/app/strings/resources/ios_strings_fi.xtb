@@ -18,6 +18,7 @@
 <translation id="1054745118061919935">Jatkamalla hyväksyt <ph name="BEGIN_LINK" />käyttöehdot<ph name="END_LINK" />.</translation>
 <translation id="10614374240317010">Ei tallenneta</translation>
 <translation id="1062138828266376352">PIN-koodia ei muutettu. Tarkista internetyhteytesi ja yritä uudelleen</translation>
+<translation id="1063070031224282617">Valitse, minne "<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />" (<ph name="FILE_SIZE" />) tallennetaan</translation>
 <translation id="1072476005125066234">Kiinnostuksen kohteisiisi perustuvat arvostelut</translation>
 <translation id="1074827084851510304">Olet poistamassa {password_count} salasanaa ja listan sivustoista ja sovelluksista, joiden sisäänkirjautumistietoja et halua tallentaa. Sivustoille ja sovelluksille luomiasi tilejä ei poisteta.</translation>
 <translation id="1076421457278169141">Koodi skannattiin.</translation>
@@ -210,6 +211,7 @@
 <translation id="1838089197478136166">Avataanko tiedosto Walletissa?</translation>
 <translation id="183878838231635348">Kortissa näkyvät yksityisyys- tai tietoturvaongelmat, jotka turvatarkistus havaitsee puolestasi automaattisesti.</translation>
 <translation id="1845230888742614096">Säilytä ryhmä</translation>
+<translation id="1853692000353488670">Uusi incognito-välilehti</translation>
 <translation id="1854463785401910334">Hae avoimilta välilehdiltä</translation>
 <translation id="1861067954551502701">{count,plural, =1{{position}/{count} salasana}other{{position}/{count} salasanaa}}</translation>
 <translation id="1861262398884155592">Tämä kansio on tyhjä</translation>
@@ -545,6 +547,7 @@ Katso tarvittaessa hakukoneesi ohjeet hakuhistorian poistamiselle.</translation>
 <translation id="3227137524299004712">Mikrofoni</translation>
 <translation id="3235063766008841141">Käytetty petollisella sivustolla ja kuului tietosuojaloukkaukseen</translation>
 <translation id="3235242129752692527">Muokkaa tapahtuman tietoja ja valitse "Tallenna".</translation>
+<translation id="323863549127671026">Tällä hetkellä avoimet välilehdet ja välilehtiryhmät</translation>
 <translation id="3240426699337459095">Linkki kopioitu</translation>
 <translation id="3244271242291266297">KK</translation>
 <translation id="3245429137663807393">Jos jaat myös Chromen käyttöraportteja, avaamasi URL-osoitteet näkyvät niissä</translation>
@@ -592,6 +595,7 @@ Katso tarvittaessa hakukoneesi ohjeet hakuhistorian poistamiselle.</translation>
 <translation id="3476450923187944815">Käytä salasanojasi muissa sovelluksissa.</translation>
 <translation id="3488501490964659223">Välilehdet suljettiin ja selausdata poistettiin. Sinut on kirjattu ulos</translation>
 <translation id="3493531032208478708"><ph name="BEGIN_LINK" />Lue lisätietoja<ph name="END_LINK" /> suositellusta sisällöstä.</translation>
+<translation id="349446645805573740">Valitse, minne "<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />" tallennetaan</translation>
 <translation id="3504377992102007712">Asetukset</translation>
 <translation id="35083190962747987">Avaa ${url}</translation>
 <translation id="3511519535430890904">Lisää selaussuoja</translation>
@@ -691,6 +695,7 @@ Katso tarvittaessa hakukoneesi ohjeet hakuhistorian poistamiselle.</translation>
 <translation id="3922395466317605522">Muokkaa valikkoa</translation>
 <translation id="3929457972718048006">Osoitteet</translation>
 <translation id="3931215329146376310">{count,plural, =1{Uusi salasana tälle sivustolle}other{Uusia salasanoja tälle sivustolle}}</translation>
+<translation id="3934905113567851655">Muuta kokoa nipistämällä</translation>
 <translation id="3940195383040445971">Seuraa hintoja välilehdillä</translation>
 <translation id="3941941395924123592">{COUNT,plural, =1{Sulje {COUNT} välilehti}other{Sulje {COUNT} välilehteä}}</translation>
 <translation id="3948600256434252210">Voit selata incognito-tilassa pyyhkäisemällä oikealle.</translation>
@@ -1698,6 +1703,7 @@ Kun olet incognito-tilassa, sivustot eivät näe selaustoimintaasi eri sivustoil
 <translation id="7925108652071887026">Tietojen automaattinen täyttö</translation>
 <translation id="7926975587469166629">Kortin lyhytnimi</translation>
 <translation id="7927711904086083099">Ei valittu</translation>
+<translation id="7927902634113905831">Valitse tili, jolle "<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />" (<ph name="FILESIZE" />) tallennetaan</translation>
 <translation id="7930998711684428189">Varoittaa, jos salasanoja vaarantuu tietosuojaloukkauksessa</translation>
 <translation id="7933880123415105005">Hae: <ph name="SEARCH_PROVIDER" /></translation>
 <translation id="7938254975914653459">FaceTime</translation>

@@ -657,7 +657,14 @@ viz_source_set("unit_tests") {
     "hit_test/hit_test_aggregator_unittest.cc",
     "input/mock_input_manager.cc",
     "input/mock_input_manager.h",
+    "layers/layer_context_impl_animation_unittest.cc",
+    "layers/layer_context_impl_base_unittest.cc",
+    "layers/layer_context_impl_base_unittest.h",
+    "layers/layer_context_impl_layer_tree_unittest.cc",
+    "layers/layer_context_impl_property_trees_unittest.cc",
+    "layers/layer_context_impl_tiling_unittest.cc",
     "layers/layer_context_impl_unittest.cc",
+    "layers/layer_context_impl_view_transition_unittest.cc",
     "main/viz_main_impl_unittest.cc",
     "performance_hint/boost_manager_unittest.cc",
     "surfaces/referenced_surface_tracker_unittest.cc",
@@ -698,6 +705,7 @@ viz_source_set("unit_tests") {
     "//third_party/libyuv",
     "//ui/display/types",
     "//ui/gfx:test_support",
+    "//ui/gfx/animation/keyframe:keyframe",
     "//ui/gl",
   ]
 

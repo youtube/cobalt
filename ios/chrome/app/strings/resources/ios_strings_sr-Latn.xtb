@@ -18,6 +18,7 @@
 <translation id="1054745118061919935">Ako nastavite, prihvatate <ph name="BEGIN_LINK" />Uslove korišćenja usluge<ph name="END_LINK" />.</translation>
 <translation id="10614374240317010">Nikada se ne čuva</translation>
 <translation id="1062138828266376352">PIN nije promenjen. Proverite internet vezu i probajte ponovo</translation>
+<translation id="1063070031224282617">Odaberite gde želite da sačuvate <ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" /> (<ph name="FILE_SIZE" />)</translation>
 <translation id="1072476005125066234">Recenzije na osnovu interesovanja</translation>
 <translation id="1074827084851510304">Izbrisaćete lozinke ({password_count}) i listu sajtova i aplikacija za koje ste odabrali da nikada ne čuvate podatke za prijavljivanje. Nalozi koje ste otvorili za sajtove i aplikacije neće biti izbrisani.</translation>
 <translation id="1076421457278169141">Skenirali ste kôd</translation>
@@ -170,6 +171,7 @@
 <translation id="1657011748321897393">Deljenje nije uspelo zato što niste povezani sa mrežom.</translation>
 <translation id="1668001730617725852">Otvori u novoj grupi kartica</translation>
 <translation id="1674504678466460478"><ph name="SOURCE_LANGUAGE" /> na <ph name="TARGET_LANGUAGE" /></translation>
+<translation id="168389590065701766">Sada možete da otvorite Google objektiv sa trake za adresu i pretražite sve što vidite</translation>
 <translation id="1689333818294560261">Nadimak</translation>
 <translation id="169048873465870056">Želite da uklonite karticu i izbrišete grupu?</translation>
 <translation id="1698090540708020240">Uvezi lozinke…</translation>
@@ -210,6 +212,7 @@
 <translation id="1838089197478136166">Želite da otvorite u Novčaniku?</translation>
 <translation id="183878838231635348">Ova kartica prikazuje sve probleme u vezi sa privatnošću ili bezbednošću koje Provera bezbednosti automatski otkrije.</translation>
 <translation id="1845230888742614096">Zadrži grupu</translation>
+<translation id="1853692000353488670">Nova kartica bez arhiviranja</translation>
 <translation id="1854463785401910334">Pretražite otvorene kartice</translation>
 <translation id="1861067954551502701">{count,plural, =1{{position}. od {count} lozinke}one{{position}. od {count} lozinke}few{{position}. od {count} lozinke}other{{position}. od {count} lozinki}}</translation>
 <translation id="1861262398884155592">Ovaj folder je prazan</translation>
@@ -265,6 +268,7 @@
 <translation id="2044681667265133332">Nalogom <ph name="USER_EMAIL" /> upravlja <ph name="HOSTED_DOMAIN" />, koji može da pregleda određene informacije. <ph name="BEGIN_LINK" />Saznajte više<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">nova stavka</translation>
 <translation id="2049727122989709386">Nalozi (<ph name="COUNT" />) koriste istu lozinku</translation>
+<translation id="205013082884273671">Pretražite bilo šta na ekranu</translation>
 <translation id="2054044186557130763">Prijavite se preko naloga <ph name="NAME" /> <ph name="EMAIL" />, kojim upravlja organizacija.</translation>
 <translation id="2059166748188874810">Opština</translation>
 <translation id="2060638295449304809">Ova adresa se čuva samo na ovom uređaju. Da biste je koristili na drugim uređajima, sačuvajte je na Google nalogu, <ph name="USER_EMAIL" /></translation>
@@ -457,6 +461,7 @@ Vaš pretraživač je <ph name="DSE_NAME" />. Pogledajte uputstva tog pretraživ
 <translation id="2819667972867209401">Kada je uključeno, podaci se čuvaju na Google nalogu. Kada je isključeno, podaci se čuvaju samo na ovom uređaju i brišu se ako se odjavite.</translation>
 <translation id="2827760117436553203">Ne želite da povežete podatke sa profilom?</translation>
 <translation id="2829172210806130158">Pretražite ekran</translation>
+<translation id="2831109159746537587">Probajte da zaokružite ili dodirnete sliku da biste je pretražili</translation>
 <translation id="2834399722155632105">3. Dodirnite Opcije lozinki</translation>
 <translation id="2834956026595107950"><ph name="TITLE" />, <ph name="STATE" />, <ph name="URL" /></translation>
 <translation id="2841013758207633010">Vreme</translation>
@@ -593,6 +598,7 @@ Pogledajte uputstva pretraživača za brisanje istorije pretrage ako je to prime
 <translation id="3476450923187944815">Pristupajte lozinkama u drugim aplikacijama.</translation>
 <translation id="3488501490964659223">Kartice su zatvorene i podaci pregledanja su izbrisani. Odjavljeni ste</translation>
 <translation id="3493531032208478708"><ph name="BEGIN_LINK" />Saznajte više<ph name="END_LINK" /> o predloženom sadržaju</translation>
+<translation id="349446645805573740">Odaberite gde želite da sačuvate „<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />“</translation>
 <translation id="3504377992102007712">Podešavanja</translation>
 <translation id="35083190962747987">Otvori ${url}</translation>
 <translation id="3511519535430890904">Dodajte zaštitu pregledanja</translation>
@@ -692,6 +698,7 @@ Pogledajte uputstva pretraživača za brisanje istorije pretrage ako je to prime
 <translation id="3922395466317605522">Prilagodite meni</translation>
 <translation id="3929457972718048006">Adrese</translation>
 <translation id="3931215329146376310">{count,plural, =1{Nova lozinka za ovaj sajt}one{Nove lozinke za ovaj sajt}few{Nove lozinke za ovaj sajt}other{Nove lozinke za ovaj sajt}}</translation>
+<translation id="3934905113567851655">Uštinite da biste promenili veličinu</translation>
 <translation id="3940195383040445971">Prati cene na karticama</translation>
 <translation id="3941941395924123592">{COUNT,plural, =1{Zatvori {COUNT} karticu}one{Zatvori {COUNT}karticu}few{Zatvori {COUNT} kartice}other{Zatvori {COUNT} kartica}}</translation>
 <translation id="3948600256434252210">Možete da prevučete udesno da biste pregledali u režimu bez arhiviranja.</translation>
@@ -1699,6 +1706,7 @@ Kada ste u režimu bez arhiviranja, sajtovi ne mogu da koriste kolačiće da bi
 <translation id="7925108652071887026">Podaci Automatskog popunjavanja</translation>
 <translation id="7926975587469166629">Nadimak kartice</translation>
 <translation id="7927711904086083099">Nije izabrano</translation>
+<translation id="7927902634113905831">Izaberite nalog koji želite da koristite da biste sačuvali <ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" /> – <ph name="FILESIZE" /></translation>
 <translation id="7930998711684428189">Upozorava vas ako su lozinke otkrivene pri upadu u podatke.</translation>
 <translation id="7933880123415105005">Pretražite <ph name="SEARCH_PROVIDER" /></translation>
 <translation id="7938254975914653459">FaceTime</translation>

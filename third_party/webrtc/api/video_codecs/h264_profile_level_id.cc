@@ -80,7 +80,7 @@ struct LevelConstraint {
 };
 
 // This is from ITU-T H.264 (02/2016) Table A-1 – Level limits.
-static constexpr LevelConstraint kLevelConstraints[] = {
+constexpr LevelConstraint kLevelConstraints[] = {
     {1485, 99, H264Level::kLevel1},
     {1485, 99, H264Level::kLevel1_b},
     {3000, 396, H264Level::kLevel1_1},

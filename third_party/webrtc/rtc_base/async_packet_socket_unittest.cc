@@ -10,8 +10,11 @@
 
 #include "rtc_base/async_packet_socket.h"
 
+#include <cstddef>
+
+#include "rtc_base/network/received_packet.h"
+#include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 

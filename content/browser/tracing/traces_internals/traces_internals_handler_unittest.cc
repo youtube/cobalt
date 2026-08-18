@@ -82,7 +82,10 @@ class MockTracePage : public traces_internals::mojom::Page {
 
 class MockTracingDelegate : public TracingDelegate {
  public:
-  MOCK_METHOD(bool, IsRecordingAllowed, (bool), (const, override));
+  MOCK_METHOD(bool,
+              IsRecordingAllowed,
+              (bool, base::TimeTicks),
+              (const, override));
   MOCK_METHOD(bool, ShouldSaveUnuploadedTrace, (), (const, override));
 #if BUILDFLAG(IS_WIN)
   MOCK_METHOD(void,
@@ -149,7 +152,7 @@ class TracesInternalsHandlerTest : public testing::Test {
 TEST_F(TracesInternalsHandlerTest, TracingStartStop) {
   auto trace_config =
       ParseTraceConfigFromText(R"pb(
-        data_sources: { config: { name: "org.chromium.trace_metadata" } }
+        data_sources: { config: { name: "org.chromium.trace_metadata2" } }
       )pb")
           .SerializeAsString();
   base::MockCallback<TracesInternalsHandler::StartTraceSessionCallback>
@@ -228,7 +231,7 @@ TEST_F(TracesInternalsHandlerTest, TracingStartFail) {
 TEST_F(TracesInternalsHandlerTest, TracingClone) {
   auto trace_config =
       ParseTraceConfigFromText(R"pb(
-        data_sources: { config: { name: "org.chromium.trace_metadata" } }
+        data_sources: { config: { name: "org.chromium.trace_metadata2" } }
       )pb")
           .SerializeAsString();
   base::MockCallback<TracesInternalsHandler::StartTraceSessionCallback>
@@ -265,7 +268,7 @@ TEST_F(TracesInternalsHandlerTest, TracingClone) {
 TEST_F(TracesInternalsHandlerTest, TracingBufferUsage) {
   auto trace_config =
       ParseTraceConfigFromText(R"pb(
-        data_sources: { config: { name: "org.chromium.trace_metadata" } }
+        data_sources: { config: { name: "org.chromium.trace_metadata2" } }
       )pb")
           .SerializeAsString();
   base::MockCallback<TracesInternalsHandler::StartTraceSessionCallback>

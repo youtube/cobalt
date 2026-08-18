@@ -35,6 +35,7 @@
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
 #include "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
+#include "components/autofill/core/browser/data_manager/valuables/valuables_data_manager.h"
 #include "components/autofill/core/browser/field_type_utils.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/filling/addresses/field_filling_address_util.h"
@@ -42,7 +43,7 @@
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/autofill_driver.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
-#include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_delegate.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_manager.h"
 #include "components/autofill/core/browser/integrators/compose/autofill_compose_delegate.h"
 #include "components/autofill/core/browser/integrators/plus_addresses/autofill_plus_address_delegate.h"
 #include "components/autofill/core/browser/metrics/autofill_in_devtools_metrics.h"
@@ -54,6 +55,7 @@
 #include "components/autofill/core/browser/payments/credit_card_access_manager.h"
 #include "components/autofill/core/browser/payments/iban_access_manager.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
+#include "components/autofill/core/browser/payments/save_and_fill_manager.h"
 #include "components/autofill/core/browser/single_field_fillers/autocomplete/autocomplete_history_manager.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
@@ -242,6 +244,7 @@ bool AutofillExternalDelegate::IsAutofillAndFirstLayerSuggestionId(
     case SuggestionType::kLoyaltyCardEntry:
       return true;
     case SuggestionType::kAccountStoragePasswordEntry:
+    case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kAllSavedPasswordsEntry:
     case SuggestionType::kAutocompleteEntry:
     case SuggestionType::kBnplEntry:
@@ -648,6 +651,7 @@ void AutofillExternalDelegate::DidSelectSuggestion(
           mojom::FieldActionType::kReplaceAll, query_form_, query_field_,
           suggestion.main_text.value, suggestion.type, LOYALTY_MEMBERSHIP_ID);
       break;
+    case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kComposeDisable:
     case SuggestionType::kComposeGoToSettings:
     case SuggestionType::kComposeNeverShowOnThisSiteAgain:
@@ -878,6 +882,15 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
           mojom::ActionPersistence::kFill, mojom::FieldActionType::kReplaceAll,
           query_form_, query_field_, suggestion.main_text.value,
           SuggestionType::kLoyaltyCardEntry, LOYALTY_MEMBERSHIP_ID);
+      ValuablesDataManager* vdm = manager_->client().GetValuablesDataManager();
+      CHECK(vdm);
+      const std::string guid =
+          std::get<Suggestion::Guid>(suggestion.payload).value();
+      if (std::optional<LoyaltyCard> loyaty_card =
+              vdm->GetLoyaltyCardById(ValuableId(guid))) {
+        manager_->LogAndRecordLoyaltyCardFill(
+            *loyaty_card, query_form_.global_id(), query_field_.global_id());
+      }
       break;
     }
     case SuggestionType::kTitle:
@@ -887,6 +900,7 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
     case SuggestionType::kTroubleSigningInEntry:
     case SuggestionType::kFreeformFooter:
     case SuggestionType::kAccountStoragePasswordEntry:
+    case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kAllSavedPasswordsEntry:
     case SuggestionType::kGeneratePasswordEntry:
     case SuggestionType::kDevtoolsTestAddresses:
@@ -998,6 +1012,7 @@ bool AutofillExternalDelegate::RemoveSuggestion(const Suggestion& suggestion) {
     case SuggestionType::kBackupPasswordEntry:
     case SuggestionType::kTroubleSigningInEntry:
     case SuggestionType::kFreeformFooter:
+    case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kAllSavedPasswordsEntry:
     case SuggestionType::kGeneratePasswordEntry:
     case SuggestionType::kAccountStoragePasswordEntry:
@@ -1360,11 +1375,16 @@ void AutofillExternalDelegate::DidAcceptPaymentsSuggestion(
       manager_->OnSingleFieldSuggestionSelected(
           suggestion, query_form_.global_id(), query_field_.global_id());
       break;
-    case SuggestionType::kSaveAndFillCreditCardEntry:
-      manager_->client()
-          .GetPaymentsAutofillClient()
-          ->ShowCreditCardSaveAndFillDialog();
+    case SuggestionType::kSaveAndFillCreditCardEntry: {
+      payments::SaveAndFillManager* save_and_fill_manager =
+          manager_->client()
+              .GetPaymentsAutofillClient()
+              ->GetSaveAndFillManager();
+      CHECK(save_and_fill_manager);
+
+      save_and_fill_manager->OnDidAcceptCreditCardSaveAndFillSuggestion();
       break;
+    }
     case SuggestionType::kScanCreditCard:
       manager_->client().GetPaymentsAutofillClient()->ScanCreditCard(
           base::BindOnce(&AutofillExternalDelegate::OnCreditCardScanned,

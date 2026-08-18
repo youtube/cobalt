@@ -76,7 +76,7 @@ using ::testing::Return;
 using ::testing::StrEq;
 using ::testing::WithArg;
 
-static const float kTolerance = 0.0001f;
+const float kTolerance = 0.0001f;
 
 const uint32_t kSsrc = 1234;
 const char* kCName = "foo_name";

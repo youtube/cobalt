@@ -23,6 +23,7 @@
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/test_utils/autofill_form_test_utils.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/autofill/core/browser/ui/test_autofill_external_delegate.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/sync/test/test_sync_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -230,6 +231,8 @@ class AutofillMetricsBaseTest {
         form, form.fields()[field_index],
         base::UTF8ToUTF16(card.loyalty_card_number()),
         SuggestionType::kLoyaltyCardEntry, LOYALTY_MEMBERSHIP_ID);
+    autofill_manager().LogAndRecordLoyaltyCardFill(
+        card, form.global_id(), form.fields()[field_index].global_id());
   }
 
   void UndoAutofill(const FormData& form) {
@@ -263,8 +266,9 @@ class AutofillMetricsBaseTest {
         autofill_driver_->GetAutofillManager());
   }
 
-  AutofillExternalDelegate& external_delegate() {
-    return *test_api(autofill_manager()).external_delegate();
+  TestAutofillExternalDelegate& external_delegate() {
+    return static_cast<TestAutofillExternalDelegate&>(
+        *test_api(autofill_manager()).external_delegate());
   }
 
   MockCreditCardAccessManager& credit_card_access_manager() {

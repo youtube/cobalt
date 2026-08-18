@@ -42,7 +42,7 @@ namespace {
 
 // Generator table for y=log2(1+e^x) in Q8.
 enum { kGenFuncTableSize = 128 };
-static const uint16_t kGenFuncTable[kGenFuncTableSize] = {
+const uint16_t kGenFuncTable[kGenFuncTableSize] = {
     256,   485,   786,   1126,  1484,  1849,  2217,  2586,  2955,  3324,  3693,
     4063,  4432,  4801,  5171,  5540,  5909,  6279,  6648,  7017,  7387,  7756,
     8125,  8495,  8864,  9233,  9603,  9972,  10341, 10711, 11080, 11449, 11819,
@@ -56,7 +56,7 @@ static const uint16_t kGenFuncTable[kGenFuncTableSize] = {
     40626, 40996, 41365, 41734, 42104, 42473, 42842, 43212, 43581, 43950, 44320,
     44689, 45058, 45428, 45797, 46166, 46536, 46905};
 
-static const int16_t kAvgDecayTime = 250;  // frames; < 3000
+const int16_t kAvgDecayTime = 250;  // frames; < 3000
 
 // the 32 most significant bits of A(19) * B(26) >> 13
 #define AGC_MUL32(A, B) (((B) >> 13) * (A) + (((0x00001FFF & (B)) * (A)) >> 13))

@@ -10,7 +10,10 @@
 
 #include "rtc_base/rate_statistics.h"
 
+#include <cstdint>
 #include <cstdlib>
+#include <limits>
+#include <optional>
 
 #include "test/gtest.h"
 

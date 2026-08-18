@@ -26,6 +26,7 @@
 #import "components/enterprise/browser/reporting/common_pref_names.h"
 #import "components/enterprise/connectors/core/connectors_prefs.h"
 #import "components/enterprise/idle/idle_pref_names.h"
+#import "components/feature_engagement/public/pref_names.h"
 #import "components/feed/core/v2/public/ios/pref_names.h"
 #import "components/handoff/handoff_manager.h"
 #import "components/history/core/common/pref_names.h"
@@ -203,6 +204,8 @@ inline constexpr char kVariationsLimitedEntropySyntheticTrialSeed[] =
     "variations_limited_entropy_synthetic_trial_seed";
 inline constexpr char kVariationsLimitedEntropySyntheticTrialSeedV2[] =
     "variations_limited_entropy_synthetic_trial_seed_v2";
+inline constexpr char kGaiaCookiePeriodicReportTimeDeprecated[] =
+    "gaia_cookie.periodic_report_time";
 
 // Migrates a boolean pref from source to target PrefService.
 void MigrateBooleanPref(std::string_view pref_name,
@@ -434,6 +437,7 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   auto_deletion::AutoDeletionService::RegisterLocalStatePrefs(registry);
   push_notification_prefs::RegisterLocalStatePrefs(registry);
   RegisterWelcomeBackLocalStatePrefs(registry);
+  feature_engagement::RegisterLocalStatePrefs(registry);
 
 #if !BUILDFLAG(IS_IOS_MACCATALYST)
   default_status::RegisterDefaultStatusPrefs(registry);
@@ -611,6 +615,8 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   // Prefs used to force multi-profile migration.
   registry->RegisterTimePref(
       prefs::kWaitingForMultiProfileForcedMigrationTimestamp, base::Time());
+
+  registry->RegisterTimePref(prefs::kNextSSORecallTime, base::Time());
 
   // Deprecated 07/2024 (migrated to profile prefs).
   registry->RegisterTimePref(prefs::kTabPickupLastDisplayedTime, base::Time());
@@ -1033,6 +1039,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
   registry->RegisterIntegerPref(omnibox::kAIModeSettings, 0);
 
+  registry->RegisterIntegerPref(prefs::kGeminiEnabledByPolicy, 0);
+
   // Deprecated 09/2024 (migrated to localState prefs).
   registry->RegisterBooleanPref(prefs::kIncognitoInterstitialEnabled, false);
 
@@ -1087,6 +1095,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterTimePref(kSyncLastSyncedTime, base::Time());
   registry->RegisterTimePref(kSyncLastPollTime, base::Time());
   registry->RegisterTimeDeltaPref(kSyncPollInterval, base::TimeDelta());
+
+  // Deprecated 06/2025.
+  registry->RegisterDoublePref(kGaiaCookiePeriodicReportTimeDeprecated, 0);
 }
 
 // This method should be periodically pruned of year+ old migrations.
@@ -1286,6 +1297,13 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
   prefs->ClearPref(kSyncLastSyncedTime);
   prefs->ClearPref(kSyncLastPollTime);
   prefs->ClearPref(kSyncPollInterval);
+
+  // Added 06/2025.
+  prefs->ClearPref(kGaiaCookiePeriodicReportTimeDeprecated);
+
+  // Added 06/2025.
+  prefs->ClearPref(safety_check_prefs::kSafetyCheckInMagicStackDisabledPref);
+  prefs->ClearPref(tab_resumption_prefs::kTabResumptionDisabledPref);
 }
 
 void MigrateObsoleteUserDefault() {

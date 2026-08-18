@@ -51,7 +51,7 @@ namespace webrtc {
 
 namespace {
 
-static constexpr const char kBasicRemoteDescription[] = R"(v=0
+constexpr const char kBasicRemoteDescription[] = R"(v=0
 o=- 0 0 IN IP4 127.0.0.1
 s=-
 t=0 0
@@ -72,12 +72,12 @@ using RTCConfiguration = PeerConnectionInterface::RTCConfiguration;
 using RTCOfferAnswerOptions = PeerConnectionInterface::RTCOfferAnswerOptions;
 using ::testing::NiceMock;
 
-static const char kUsagePatternMetric[] = "WebRTC.PeerConnection.UsagePattern";
-static constexpr TimeDelta kDefaultTimeout = TimeDelta::Millis(10000);
-static const SocketAddress kLocalAddrs[2] = {SocketAddress("1.1.1.1", 0),
-                                             SocketAddress("2.2.2.2", 0)};
-static const SocketAddress kPrivateLocalAddress("10.1.1.1", 0);
-static const SocketAddress kPrivateIpv6LocalAddress("fd12:3456:789a:1::1", 0);
+const char kUsagePatternMetric[] = "WebRTC.PeerConnection.UsagePattern";
+constexpr TimeDelta kDefaultTimeout = TimeDelta::Millis(10000);
+const SocketAddress kLocalAddrs[2] = {SocketAddress("1.1.1.1", 0),
+                                      SocketAddress("2.2.2.2", 0)};
+const SocketAddress kPrivateLocalAddress("10.1.1.1", 0);
+const SocketAddress kPrivateIpv6LocalAddress("fd12:3456:789a:1::1", 0);
 
 int MakeUsageFingerprint(std::set<UsageEvent> events) {
   int signature = 0;
@@ -604,7 +604,7 @@ TEST_F(PeerConnectionUsageHistogramTest, FingerprintWithPrivateIpv6Callee) {
       1, metrics::NumEvents(kUsagePatternMetric, expected_fingerprint_callee));
 }
 
-static struct IPAddressTypeTestConfig {
+struct IPAddressTypeTestConfig {
   absl::string_view address;
   IPAddressType address_type;
 } const kAllCandidateIPAddressTypeTestConfigs[] = {

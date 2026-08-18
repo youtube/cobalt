@@ -132,8 +132,10 @@ enum class IphType {
   kNone,
   // '@gemini' promo; shown in zero state.
   kGemini,
-  // Featured search promo; shown in zero state.
-  kFeaturedEnterpriseSearch,
+  // Enterprise search aggregator promo; shown in zero state.
+  kEnterpriseSearchAggregator,
+  // Featured enterprise site search promo; shown in zero state.
+  kFeaturedEnterpriseSiteSearch,
   // Embeddings' setting promo when embeddings are disabled; shown in '@history'
   // scope.
   kHistoryEmbeddingsSettingsPromo,

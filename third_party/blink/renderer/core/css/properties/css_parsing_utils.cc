@@ -5335,6 +5335,33 @@ CSSValue* ConsumeCornerShape(CSSParserTokenStream& stream,
   return MakeGarbageCollected<cssvalue::CSSSuperellipseValue>(*param);
 }
 
+bool ConsumeCorner(CSSParserTokenStream& stream,
+                   const CSSParserContext& context,
+                   CSSValue*& radius,
+                   CSSValue*& shape) {
+  if (stream.Peek().GetType() == kIdentToken &&
+      stream.Peek().Id() == CSSValueID::kNormal) {
+    ConsumeIdent(stream);
+    radius = MakeGarbageCollected<CSSValuePair>(
+        CSSNumericLiteralValue::Create(0, CSSPrimitiveValue::UnitType::kPixels),
+        CSSNumericLiteralValue::Create(0, CSSPrimitiveValue::UnitType::kPixels),
+        CSSValuePair::kDropIdenticalValues);
+    shape = CSSIdentifierValue::Create(CSSValueID::kRound);
+    return true;
+  }
+
+  shape = ConsumeCornerShape(stream, context);
+  radius = ParseBorderRadiusCorner(stream, context);
+  if (!radius) {
+    return false;
+  }
+
+  if (!shape) {
+    shape = ConsumeCornerShape(stream, context);
+  }
+  return shape != nullptr;
+}
+
 CSSValue* ParseBorderWidthSide(CSSParserTokenStream& stream,
                                const CSSParserContext& context,
                                const CSSParserLocalContext& local_context) {
@@ -8392,12 +8419,27 @@ CSSValue* ConsumeBorderWidth(CSSParserTokenStream& stream,
   return ConsumeLineWidth(stream, context, unitless);
 }
 
-CSSValue* ParseSpacing(CSSParserTokenStream& stream,
-                       const CSSParserContext& context) {
+// TODO(crbug.com/327740939): Merge ParseLetterSpacing and ParseWordSpacing if
+// percentage for word-spacing is implemented.
+CSSValue* ParseLetterSpacing(CSSParserTokenStream& stream,
+                             const CSSParserContext& context) {
   if (stream.Peek().Id() == CSSValueID::kNormal) {
     return ConsumeIdent(stream);
   }
-  // TODO(timloh): allow <percentage>s in word-spacing.
+  if (RuntimeEnabledFeatures::CSSLetterSpacingPercentageEnabled()) {
+    return ConsumeLengthOrPercent(stream, context,
+                                  CSSPrimitiveValue::ValueRange::kAll,
+                                  UnitlessQuirk::kAllow);
+  }
+  return ConsumeLength(stream, context, CSSPrimitiveValue::ValueRange::kAll,
+                       UnitlessQuirk::kAllow);
+}
+
+CSSValue* ParseWordSpacing(CSSParserTokenStream& stream,
+                           const CSSParserContext& context) {
+  if (stream.Peek().Id() == CSSValueID::kNormal) {
+    return ConsumeIdent(stream);
+  }
   return ConsumeLength(stream, context, CSSPrimitiveValue::ValueRange::kAll,
                        UnitlessQuirk::kAllow);
 }

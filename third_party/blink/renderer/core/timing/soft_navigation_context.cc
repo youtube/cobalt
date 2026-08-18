@@ -25,25 +25,25 @@ SoftNavigationContext::SoftNavigationContext(
           DOMWindowPerformance::performance(window))) {}
 
 void SoftNavigationContext::AddModifiedNode(Node* node) {
-  auto add_result = modified_nodes_.insert(node);
-  if (add_result.is_new_entry) {
-    // If this is the first mod this animation frame, trace it.
-    if (num_modified_dom_nodes_ ==
-        num_modified_dom_nodes_last_animation_frame_) {
-      // TODO(crbug.com/353218760): Add support for reporting every single
-      // modification. Perhaps changing this to FirstModifiedNodeInFrame, and
-      // then having all modifications in an even noisier trace category. Or
-      // based on a chrome feature flag, for testing?
-      TRACE_EVENT_INSTANT(
-          TRACE_DISABLED_BY_DEFAULT("loading"),
-          "SoftNavigationContext::FirstAddedModifiedNodeInAnimationFrame",
-          "context", this);
+  if (paint_attribution_mode_ !=
+      features::SoftNavigationHeuristicsMode::kPrePaintBasedAttribution) {
+    auto add_result = modified_nodes_.insert(node);
+    if (!add_result.is_new_entry) {
+      return;
     }
-    ++num_modified_dom_nodes_;
   }
+  ++num_modified_dom_nodes_;
+  TRACE_EVENT_INSTANT(
+      "loading", "SoftNavigationContext::AddedModifiedNodeInAnimationFrame",
+      perfetto::Track::FromPointer(this), "context", this, "nodeId",
+      node->GetDomNodeId(), "nodeDebugName", node->DebugName(),
+      "domModificationsThisAnimationFrame",
+      num_modified_dom_nodes_ - num_modified_dom_nodes_last_animation_frame_);
 }
 
 bool SoftNavigationContext::IsNeededForTiming(Node* node) {
+  CHECK_NE(paint_attribution_mode_,
+           features::SoftNavigationHeuristicsMode::kPrePaintBasedAttribution);
   if (!node) {
     return false;
   }
@@ -104,28 +104,29 @@ bool SoftNavigationContext::AddPaintedAreaInternal(Node* node,
     return false;
   }
 
-  DCHECK(IsNeededForTiming(node));
-
   uint64_t painted_area = rect.size().GetArea();
 
-  if (already_painted_modified_nodes_.Contains(node)) {
-    // We are sometimes observing paints for the same node.
-    // Until we fix first-contentful-paint-only observation, let's ignore these.
-    repainted_area_ += painted_area;
-    return false;
+  if (paint_attribution_mode_ !=
+      features::SoftNavigationHeuristicsMode::kPrePaintBasedAttribution) {
+    DCHECK(IsNeededForTiming(node));
+    if (already_painted_modified_nodes_.Contains(node)) {
+      // We are sometimes observing paints for the same node.
+      // Until we fix first-contentful-paint-only observation, let's ignore
+      // these.
+      repainted_area_ += painted_area;
+      return false;
+    }
+    already_painted_modified_nodes_.insert(node);
   }
 
-  already_painted_modified_nodes_.insert(node);
-  // If this is the first paint this animation frame, trace it.
-  if (painted_area_ == painted_area_last_animation_frame_) {
-    // TODO(crbug.com/353218760): Add support for reporting every single
-    // paint.
-    TRACE_EVENT_INSTANT(
-        TRACE_DISABLED_BY_DEFAULT("loading"),
-        "SoftNavigationContext::FirstAttributablePaintInAnimationFrame",
-        "context", this);
-  }
   painted_area_ += painted_area;
+  TRACE_EVENT_INSTANT(
+      "loading", "SoftNavigationContext::AttributablePaintInAnimationFrame",
+      perfetto::Track::FromPointer(this), "context", this, "nodeId",
+      node->GetDomNodeId(), "nodeDebugName", node->DebugName(), "rect_x",
+      rect.x(), "rect_y", rect.y(), "rect_width", rect.width(), "rect_height",
+      rect.height(), "paintedAreaThisAnimationFrame",
+      painted_area_ - painted_area_last_animation_frame_);
   return true;
 }
 
@@ -154,9 +155,9 @@ bool SoftNavigationContext::OnPaintFinished() {
   // TODO(crbug.com/353218760): Consider reporting if any of the values change
   // if we have an extra loud tracing debug mode.
   if (num_modded_new_nodes || new_painted_area) {
-    TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("loading"),
-                        "SoftNavigationContext::OnPaintFinished", "context",
-                        this, "numModdenNewNodes", num_modded_new_nodes,
+    TRACE_EVENT_INSTANT("loading", "SoftNavigationContext::OnPaintFinished",
+                        perfetto::Track::FromPointer(this), "context", this,
+                        "numModdenNewNodes", num_modded_new_nodes,
                         "numGcedOldNodes", num_gced_old_nodes, "newPaintedArea",
                         new_painted_area, "newRepaintedArea",
                         new_repainted_area);
@@ -182,12 +183,6 @@ void SoftNavigationContext::OnInputOrScroll() {
     return;
   }
   first_input_or_scroll_time_ = base::TimeTicks::Now();
-
-  // TODO(crbug.com/422958651): Same as with hard-LCP, although we have just
-  // scrolled/had input, we might still be waiting for presentation time
-  // feedback from paints that came before that scroll/input.  It seems
-  // perfectly reasonable to keep lcp_calculator_ around until those report.
-  lcp_calculator_ = nullptr;
 }
 
 // TODO(crbug.com/419386429): This gets called after each new presentation time
@@ -215,17 +210,46 @@ void SoftNavigationContext::OnInputOrScroll() {
 // Soft-nav entry if we already have candidates to report.  Similar to above,
 // there are concerns with reporting Candidates after Paint but before
 // Presentation.
-void SoftNavigationContext::UpdateSoftLcpCandidate() {
-  // Check if we have already stopped measuring LCP (Input or Scroll)
-  if (!lcp_calculator_) {
-    return;
-  }
-  // Check if we are ready to start measuring LCP (After soft-nav entry).
-  if (!WasEmitted()) {
-    return;
-  }
+void SoftNavigationContext::UpdateWebExposedLargestContentfulPaintIfNeeded() {
   lcp_calculator_->UpdateWebExposedLargestContentfulPaintIfNeeded(
       largest_text_, largest_image_, true);
+}
+
+bool SoftNavigationContext::TryUpdateLcpCandidate() {
+  // After we are ready to start measuring LCP (`HasNavigationId()`) and
+  // before we want to stop (input or scroll), we update LCP candidate.
+  if (!HasNavigationId() || !first_input_or_scroll_time_.is_null()) {
+    return false;
+  }
+
+  // TODO(crbug.com/425398556): Consider updating `lcp_calculator_` to accept
+  // ImageRecord and TextRecord and to extract its own timings/sizes rather than
+  // passing them manually here-- similar to how
+  // `UpdateWebExposedLargestContentfulPaintIfNeeded` does it.
+  bool latest_lcp_details_for_ukm_changed = false;
+  // TODO(crbug.com/425989954): Guard on paint_time, because although this
+  // TryUpdateLcpCandidate gets called after presentation feedback, it might not
+  // be the right presentation time for this specific text/image record.
+  if (largest_text_ && !largest_text_->paint_time.is_null()) {
+    latest_lcp_details_for_ukm_changed =
+        latest_lcp_details_for_ukm_changed ||
+        lcp_calculator_->NotifyMetricsIfLargestTextPaintChanged(
+            largest_text_->paint_time, largest_text_->recorded_size);
+  }
+  if (largest_image_ && !largest_image_->paint_time.is_null()) {
+    latest_lcp_details_for_ukm_changed =
+        latest_lcp_details_for_ukm_changed ||
+        lcp_calculator_->NotifyMetricsIfLargestImagePaintChanged(
+            largest_image_->paint_time, largest_image_->recorded_size,
+            largest_image_, largest_image_->EntropyForLCP(),
+            largest_image_->RequestPriority());
+  }
+  return latest_lcp_details_for_ukm_changed;
+}
+
+const LargestContentfulPaintDetails&
+SoftNavigationContext::LatestLcpDetailsForUkm() {
+  return lcp_calculator_->LatestLcpDetails();
 }
 
 void SoftNavigationContext::WriteIntoTrace(
@@ -233,10 +257,12 @@ void SoftNavigationContext::WriteIntoTrace(
   perfetto::TracedDictionary dict = std::move(context).WriteDictionary();
 
   dict.Add("softNavContextId", context_id_);
-  dict.Add("interactionTimestamp", user_interaction_timestamp_);
+  dict.Add("navigationId", navigation_id_);
   dict.Add("initialURL", initial_url_);
   dict.Add("mostRecentURL", most_recent_url_);
-  dict.Add("wasEmitted", was_emitted_);
+
+  dict.Add("interactionTimestamp", user_interaction_timestamp_);
+  dict.Add("firstContentfulPaint", first_contentful_paint_);
 
   dict.Add("domModifications", num_modified_dom_nodes_);
   dict.Add("paintedArea", painted_area_);

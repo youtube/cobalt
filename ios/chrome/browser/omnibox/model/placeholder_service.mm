@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/omnibox/model/placeholder_service.h"
 
+#import "base/functional/callback_helpers.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/omnibox/common/omnibox_features.h"
 #import "components/search_engines/template_url.h"
@@ -20,6 +21,7 @@ PlaceholderService::PlaceholderService(FaviconLoader* favicon_loader,
                                        TemplateURLService* template_url_service)
     : favicon_loader_(favicon_loader),
       template_url_service_(template_url_service),
+      current_dse_(nullptr),
       icon_callbacks_() {
   template_url_service->AddObserver(this);
   icon_cache_ = [[NSCache alloc] init];
@@ -79,7 +81,36 @@ void PlaceholderService::FetchDefaultSearchEngineIcon(
   PerformIconFetch(default_provider, icon_point_size);
 }
 
+UIImage* PlaceholderService::GetDefaultSearchEngineIcon(
+    CGFloat icon_point_size) {
+  // Return the cached image if there is one.
+  UIImage* cached_icon = [icon_cache_ objectForKey:@(icon_point_size)];
+  if (cached_icon) {
+    return cached_icon;
+  }
+
+  // Return the placeholder icon if there is no default search provider.
+  UIImage* placeholder_icon =
+      DefaultSymbolWithPointSize(kSearchSymbol, icon_point_size);
+  const TemplateURL* default_provider =
+      template_url_service_ ? template_url_service_->GetDefaultSearchProvider()
+                            : nullptr;
+  if (!default_provider) {
+    return placeholder_icon;
+  }
+  // Fetch the icon after return.
+  base::ScopedClosureRunner run_after_return =
+      base::ScopedClosureRunner(base::BindOnce(
+          &PlaceholderService::FetchDefaultSearchEngineIcon,
+          base::Unretained(this), icon_point_size, base::DoNothing()));
+  return placeholder_icon;
+}
+
 NSString* PlaceholderService::GetCurrentPlaceholderText() {
+  if (!base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
+    return l10n_util::GetNSString(IDS_OMNIBOX_EMPTY_HINT);
+  }
+
   CHECK(template_url_service_);
 
   std::u16string provider_name = u"";
@@ -101,12 +132,8 @@ NSString* PlaceholderService::GetCurrentSearchOnlyPlaceholderText() {
     provider_name = search_provider->short_name();
   }
 
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
-    return l10n_util::GetNSStringF(IDS_IOS_OMNIBOX_PLACEHOLDER_SEARCH_ONLY,
-                                   provider_name);
-  } else {
-    return l10n_util::GetNSString(IDS_OMNIBOX_EMPTY_HINT);
-  }
+  return l10n_util::GetNSStringF(IDS_IOS_OMNIBOX_PLACEHOLDER_SEARCH_ONLY,
+                                 provider_name);
 }
 
 base::WeakPtr<PlaceholderService> PlaceholderService::AsWeakPtr() {
@@ -124,6 +151,11 @@ void PlaceholderService::RemoveObserver(PlaceholderServiceObserver* observer) {
 #pragma mark - TemplateURLServiceObserver
 
 void PlaceholderService::OnTemplateURLServiceChanged() {
+  if (!template_url_service_ ||
+      template_url_service_->GetDefaultSearchProvider() == current_dse_) {
+    return;
+  }
+  current_dse_ = template_url_service_->GetDefaultSearchProvider();
   [icon_cache_ removeAllObjects];
   icon_callbacks_.clear();
   for (auto& observer : model_observers_) {
@@ -160,6 +192,10 @@ void PlaceholderService::OnIconReceivedForTemplateURL(
           template_url_id &&
       ![icon_cache_ objectForKey:@(icon_point_size)]) {
     [icon_cache_ setObject:icon forKey:@(icon_point_size)];
+
+    for (auto& observer : model_observers_) {
+      observer.OnPlaceholderImageChanged();
+    }
 
     if (icon_callbacks_.contains(icon_point_size)) {
       std::vector<PlaceholderImageCallback> callbacks =
@@ -204,9 +240,8 @@ void PlaceholderService::PerformIconFetch(const TemplateURL* template_url,
     std::string empty_page_url = template_url->url_ref().ReplaceSearchTerms(
         TemplateURLRef::SearchTermsArgs(std::u16string()),
         template_url_service_->search_terms_data());
-    favicon_loader_->FaviconForPageUrl(
-        GURL(empty_page_url), icon_point_size, icon_point_size,
-        /*fallback_to_google_server=*/YES, favicon_completion);
+    favicon_loader_->FaviconForPageUrlOrHost(
+        GURL(empty_page_url), icon_point_size, favicon_completion);
   } else {
     // Download the favicon.
     favicon_loader_->FaviconForIconUrl(template_url->favicon_url(),

@@ -58,15 +58,15 @@ static const int kNumberStepScaleFactor = 1;
 
 struct RealNumberRenderSize {
   unsigned size_before_decimal_point;
-  unsigned size_afte_decimal_point;
+  unsigned size_after_decimal_point;
 
   RealNumberRenderSize(unsigned before, unsigned after)
-      : size_before_decimal_point(before), size_afte_decimal_point(after) {}
+      : size_before_decimal_point(before), size_after_decimal_point(after) {}
 
   RealNumberRenderSize Max(const RealNumberRenderSize& other) const {
     return RealNumberRenderSize(
         std::max(size_before_decimal_point, other.size_before_decimal_point),
-        std::max(size_afte_decimal_point, other.size_afte_decimal_point));
+        std::max(size_after_decimal_point, other.size_after_decimal_point));
   }
 };
 
@@ -141,11 +141,11 @@ String NumberInputType::NormalizeFullWidthNumberChars(const String& input) {
   result.ReserveCapacity(len);
   for (wtf_size_t i = 0; i < len; ++i) {
     UChar c = input[i];
-    if (c >= kFullwidthDigitZero && c <= kFullwidthDigitNine) {
+    if (c >= uchar::kFullwidthDigitZero && c <= uchar::kFullwidthDigitNine) {
       // Convert full-width digits (０-９, U+FF10-U+FF19) to ASCII digits (0-9)
-      result.Append(c - kFullwidthDigitZero + kDigitZeroCharacter);
-    } else if (c == kKatakanaHiraganaProlongedSoundMark ||
-               c == kFullwidthHyphenMinus) {
+      result.Append(c - uchar::kFullwidthDigitZero + uchar::kDigitZero);
+    } else if (c == uchar::kKatakanaHiraganaProlongedSoundMark ||
+               c == uchar::kFullwidthHyphenMinus) {
       // Convert full-width minus signs and the Japanese IME long sound symbol
       // ("ー", U+30FC) to ASCII '-'.
       // Note: On Japanese IMEs, typing a minus sign in full-width mode can
@@ -162,10 +162,10 @@ String NumberInputType::NormalizeFullWidthNumberChars(const String& input) {
       //
       // Since users generally intend to input negative numbers in such cases,
       // we normalize both 'ー' and '－' to ASCII minus '-'.
-      result.Append(kHyphenMinusCharacter);
-    } else if (c == kFullwidthFullStop) {
+      result.Append(uchar::kHyphenMinus);
+    } else if (c == uchar::kFullwidthFullStop) {
       // Convert full-width period (．, U+FF0E) to ASCII dot (.)
-      result.Append(kFullstopCharacter);
+      result.Append(uchar::kFullStop);
     } else {
       // Preserve other characters
       result.Append(c);
@@ -185,8 +185,8 @@ StepRange NumberInputType::CreateStepRange(
                                     -double_max, double_max, step_description);
 }
 
-bool NumberInputType::SizeShouldIncludeDecoration(int default_size,
-                                                  int& preferred_size) const {
+bool NumberInputType::GetSizeWithDecoration(int default_size,
+                                            int& preferred_size) const {
   preferred_size = default_size;
 
   const String step_string =
@@ -211,8 +211,8 @@ bool NumberInputType::SizeShouldIncludeDecoration(int default_size,
       CalculateRenderSize(maximum).Max(CalculateRenderSize(step)));
 
   preferred_size = size.size_before_decimal_point +
-                   size.size_afte_decimal_point +
-                   (size.size_afte_decimal_point ? 1 : 0);
+                   size.size_after_decimal_point +
+                   (size.size_after_decimal_point ? 1 : 0);
 
   return true;
 }

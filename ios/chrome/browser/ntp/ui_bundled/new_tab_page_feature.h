@@ -152,11 +152,17 @@ double GetDeprecateFeedHeaderParameterValueAsDouble(
 // Returns the enabled variation of feature kFeedSwipeInProductHelp.
 FeedSwipeIPHVariation GetFeedSwipeIPHVariation();
 
-// Returns the enabled variation of feature kNTPMIAEntrypoint;
-NTPMIAEntrypointVariation GetNTPMIAEntrypointVariation();
-
 // YES if the feed visibility is handled by the eligibility service instead of
 // the new tab page mediator.
 bool UseFeedEligibilityService();
+
+// Returns the enabled variation of feature kNTPMIAEntrypoint;
+NTPMIAEntrypointVariation GetNTPMIAEntrypointVariation();
+
+// Whether to show only the MIA button in the fakebox.
+bool ShowOnlyMIAEntrypointInNTPFakebox();
+
+// Whether the quick actions row should be displayed.
+bool ShouldShowQuickActionsRow();
 
 #endif  // IOS_CHROME_BROWSER_NTP_UI_BUNDLED_NEW_TAB_PAGE_FEATURE_H_

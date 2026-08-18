@@ -13,6 +13,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+#include <optional>
 #include <string>
 
 #include "absl/strings/string_view.h"

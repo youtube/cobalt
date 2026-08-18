@@ -774,14 +774,14 @@ TEST_P(ShapeParameterTest, MaxGlyphsClusterDevanagari) {
 }
 
 TEST_P(ShapeParameterTest, ZeroWidthSpace) {
-  UChar string[] = {kZeroWidthSpaceCharacter,
-                    kZeroWidthSpaceCharacter,
+  UChar string[] = {uchar::kZeroWidthSpace,
+                    uchar::kZeroWidthSpace,
                     0x0627,
                     0x0631,
                     0x062F,
                     0x0648,
-                    kZeroWidthSpaceCharacter,
-                    kZeroWidthSpaceCharacter};
+                    uchar::kZeroWidthSpace,
+                    uchar::kZeroWidthSpace};
   HarfBuzzShaper shaper{String(base::span(string))};
   const ShapeResult* result = ShapeWithParameter(&shaper);
   EXPECT_EQ(0u, result->StartIndex());
@@ -963,7 +963,7 @@ TEST_F(HarfBuzzShaperTest, NegativeLetterSpacing) {
 
   ShapeResultSpacing<String> spacing(string);
   FontDescription font_description;
-  font_description.SetLetterSpacing(-5);
+  font_description.SetLetterSpacing(Length::Fixed(-5));
   spacing.SetSpacing(font_description);
   result->ApplySpacing(spacing);
 
@@ -980,7 +980,7 @@ TEST_F(HarfBuzzShaperTest, NegativeLetterSpacingTo0) {
 
   ShapeResultSpacing<String> spacing(string);
   FontDescription font_description;
-  font_description.SetLetterSpacing(-char_width);
+  font_description.SetLetterSpacing(Length::Fixed(-char_width));
   spacing.SetSpacing(font_description);
   result->ApplySpacing(spacing);
 
@@ -997,7 +997,7 @@ TEST_F(HarfBuzzShaperTest, NegativeLetterSpacingToNegative) {
 
   ShapeResultSpacing<String> spacing(string);
   FontDescription font_description;
-  font_description.SetLetterSpacing(-2 * char_width);
+  font_description.SetLetterSpacing(Length::Fixed(-2 * char_width));
   spacing.SetSpacing(font_description);
   result->ApplySpacing(spacing);
 
@@ -2228,7 +2228,7 @@ TEST_F(HarfBuzzShaperTest, OverlyLongGraphemeCluster) {
   StringBuilder builder;
   builder.Append('e');
   for (unsigned i = 0; i < 35000; ++i)
-    builder.Append(kCombiningAcuteAccentCharacter);
+    builder.Append(uchar::kCombiningAcuteAccent);
   builder.Append('X');
   String string = builder.ToString();
 

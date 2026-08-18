@@ -3945,15 +3945,31 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::Int32Divide* node,
                                 const maglev::ProcessingState& state) {
+    // TODO(victorgomes): Since ARM and X64 treat this differently, maybe
+    // Turbolev should lowered this div much later.
     V<Word32> lhs = Map(node->left_input());
     V<Word32> rhs = Map(node->right_input());
     ScopedVar<Word32, AssemblerT> result(this);
     IF (UNLIKELY(__ Word32Equal(rhs, 0))) {
+      // Truncated value of anything divided by 0 is 0.
       result = __ Word32Constant(0);
+    } ELSE IF (UNLIKELY(__ Word32Equal(rhs, -1))) {
+      // Return -left if right = -1.
+      // This avoids a hardware exception if left = INT32_MIN.
+      // Int32Divide returns a truncated value and according to
+      // ecma262#sec-toint32, the truncated value of INT32_MIN
+      // is INT32_MIN.
+      result = __ Word32Sub(0, lhs);
     } ELSE {
       result = __ Int32Div(lhs, rhs);
     }
     SetMap(node, result);
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Int32MultiplyOverflownBits* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ Int32MulOverflownBits(Map(node->left_input()),
+                                          Map(node->right_input())));
     return maglev::ProcessResult::kContinue;
   }
 #define PROCESS_BINOP_WITH_OVERFLOW(MaglevName, TurboshaftName,                \
@@ -4357,11 +4373,20 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  maglev::ProcessResult Process(maglev::HoleyFloat64IsUndefinedOrHole* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, ConvertWord32ToJSBool(
+                     __ Float64IsUndefinedOrHole(Map(node->input()))));
+    return maglev::ProcessResult::kContinue;
+  }
+#else
   maglev::ProcessResult Process(maglev::HoleyFloat64IsHole* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, ConvertWord32ToJSBool(__ Float64IsHole(Map(node->input()))));
     return maglev::ProcessResult::kContinue;
   }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
   maglev::ProcessResult Process(maglev::CheckedNumberOrOddballToFloat64* node,
                                 const maglev::ProcessingState& state) {

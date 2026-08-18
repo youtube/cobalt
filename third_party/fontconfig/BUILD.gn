@@ -8,7 +8,10 @@ assert(is_linux || is_chromeos)
 
 if (use_bundled_fontconfig) {
   config("fontconfig_config") {
-    include_dirs = [ "src" ]
+    include_dirs = [
+      "src",
+      "include/fc-lang/",
+    ]
   }
 
   component("fontconfig") {

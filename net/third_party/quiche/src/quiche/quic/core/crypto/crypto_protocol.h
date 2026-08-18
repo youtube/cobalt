@@ -151,6 +151,7 @@ DEFINE_STATIC_QUIC_TAG(IW03);  // Force ICWND to 3
 DEFINE_STATIC_QUIC_TAG(IW10);  // Force ICWND to 10
 DEFINE_STATIC_QUIC_TAG(IW20);  // Force ICWND to 20
 DEFINE_STATIC_QUIC_TAG(IW50);  // Force ICWND to 50
+DEFINE_STATIC_QUIC_TAG(IW2X);  // Force ICWND to 2x its default value.
 DEFINE_STATIC_QUIC_TAG(B2ON);  // Enable BBRv2
 DEFINE_STATIC_QUIC_TAG(B2NA);  // For BBRv2, do not add ack
                                // height to queueing threshold
@@ -524,6 +525,7 @@ DEFINE_STATIC_QUIC_TAG(FTOE);
 DEFINE_STATIC_QUIC_TAG(PDE2);  // 2 PTOs for path degradation.
 DEFINE_STATIC_QUIC_TAG(PDE3);  // 3 PTOs for path degradation.
 DEFINE_STATIC_QUIC_TAG(PDE5);  // 5 PTOs for path degradation.
+DEFINE_STATIC_QUIC_TAG(MPR1);  // Probe for multi-port path on RTO.
 
 // Experiment for explicit connection close packet for silent idle timeout from
 // server.

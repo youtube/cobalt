@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/audio/audio_device.h"
 #include "api/audio/audio_processing.h"
@@ -68,7 +69,7 @@ class BaseTest;
 
 class CallTest : public ::testing::Test, public RtpPacketSinkInterface {
  public:
-  CallTest();
+  explicit CallTest(absl::string_view field_trials = "");
   virtual ~CallTest();
 
   static const std::map<uint8_t, MediaType> payload_type_map_;

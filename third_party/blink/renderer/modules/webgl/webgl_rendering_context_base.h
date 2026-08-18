@@ -716,8 +716,12 @@ class MODULES_EXPORT WebGLRenderingContextBase
 
   // CanvasRenderingContext implementation.
   bool IsComposited() const override { return true; }
+  bool IsAccelerated() const override;
   bool UsingSwapChain() const override;
   void PageVisibilityChanged() override;
+  void SizeChanged() override;
+  std::unique_ptr<CanvasResourceProvider> CreateCanvasResourceProvider()
+      override;
   scoped_refptr<StaticBitmapImage> PaintRenderingResultsToSnapshot(
       SourceDrawingBuffer source_buffer,
       FlushReason reason) override;
@@ -1962,6 +1966,7 @@ class MODULES_EXPORT WebGLRenderingContextBase
                                 Platform::ContextType context_type,
                                 Platform::GraphicsInfo* graphics_info);
 
+  CanvasResourceProvider* GetOrCreateCanvasResourceProvider();
   CanvasResourceProvider* PaintRenderingResultsToCanvas(
       SourceDrawingBuffer source_buffer,
       bool* resource_provider_was_updated = nullptr);
@@ -1996,6 +2001,8 @@ class MODULES_EXPORT WebGLRenderingContextBase
                                            GLenum precision_type,
                                            WebGLShaderPrecisionFormat* format);
 
+  void Dispose() override;
+
   // PushFrameWithCopy will make a potential copy if the resource is accelerated
   // or a drawImage if the resource is non accelerated.
   bool PushFrameWithCopy();
@@ -2003,6 +2010,7 @@ class MODULES_EXPORT WebGLRenderingContextBase
   // ExtenralCanvasResource.
   bool PushFrameNoCopy();
 
+  std::unique_ptr<CanvasResourceProvider> resource_provider_;
   static bool webgl_context_limits_initialized_;
   static unsigned max_active_webgl_contexts_;
   static unsigned max_active_webgl_contexts_on_worker_;
@@ -2012,6 +2020,10 @@ class MODULES_EXPORT WebGLRenderingContextBase
   bool checkProgramCompletionQueryAvailable(WebGLProgram* program,
                                             bool* completed);
   static constexpr unsigned int kMaxProgramCompletionQueries = 128u;
+
+  // `did_fail_to_create_resource_provider_` prevents repeated attempts in
+  // allocating resources after the first attempt failed.
+  bool did_fail_to_create_resource_provider_ = false;
 
   // Support for KHR_parallel_shader_compile.
   //

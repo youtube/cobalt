@@ -33,15 +33,16 @@
 #include <variant>
 #include <vector>
 
-#include "perfetto/base/compiler.h"
 #include "perfetto/base/logging.h"
 #include "perfetto/ext/base/flat_hash_map.h"
 #include "perfetto/ext/base/string_utils.h"
+#include "perfetto/ext/base/variant.h"
 #include "perfetto/public/compiler.h"
 #include "src/trace_processor/containers/string_pool.h"
 #include "src/trace_processor/dataframe/impl/bit_vector.h"
 #include "src/trace_processor/dataframe/impl/bytecode_core.h"
 #include "src/trace_processor/dataframe/impl/bytecode_instructions.h"
+#include "src/trace_processor/dataframe/impl/bytecode_interpreter_impl.h"  // IWYU pragma: keep
 #include "src/trace_processor/dataframe/impl/bytecode_registers.h"
 #include "src/trace_processor/dataframe/impl/flex_vector.h"
 #include "src/trace_processor/dataframe/impl/slab.h"
@@ -2347,6 +2348,24 @@ TEST_F(BytecodeInterpreterTest, CastFilterValueList_String) {
   ASSERT_EQ(list.size(), 2u);
   EXPECT_EQ(spool_.Get(list[0]), "hello");
   EXPECT_EQ(spool_.Get(list[1]), "world");
+}
+
+TEST_F(BytecodeInterpreterTest, SortedFilterUint32Eq_ManyDuplicates) {
+  std::string bytecode =
+      "SortedFilter<Uint32, EqualRange>: [col=0, val_register=Register(0), "
+      "update_register=Register(1), write_result_to=BoundModifier(0)]";
+
+  auto values = CreateFlexVectorForTesting<uint32_t>(
+      {0u, 4u, 5u, 5u, 5u, 5u, 5u, 5u, 5u, 5u, 5u,  5u, 5u,
+       5u, 5u, 5u, 5u, 5u, 5u, 5u, 5u, 5u, 6u, 10u, 10u});
+  AddColumn(impl::Column{std::move(values), NullStorage::NonNull{}, Sorted{},
+                         HasDuplicates{}});
+
+  SetRegistersAndExecute(bytecode, CastFilterValueResult::Valid(5u),
+                         Range{0u, 25u});
+  const auto& result = GetRegister<Range>(1);
+  EXPECT_EQ(result.b, 2u);
+  EXPECT_EQ(result.e, 22u);
 }
 
 }  // namespace

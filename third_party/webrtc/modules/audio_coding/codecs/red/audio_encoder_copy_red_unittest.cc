@@ -43,8 +43,8 @@ using ::testing::SetArgPointee;
 namespace webrtc {
 
 namespace {
-static const size_t kMaxNumSamples = 48 * 10 * 2;  // 10 ms @ 48 kHz stereo.
-static const size_t kRedLastHeaderLength =
+const size_t kMaxNumSamples = 48 * 10 * 2;  // 10 ms @ 48 kHz stereo.
+const size_t kRedLastHeaderLength =
     1;  // 1 byte RED header for the last element.
 }  // namespace
 

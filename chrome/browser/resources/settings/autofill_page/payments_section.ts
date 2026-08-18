@@ -242,12 +242,12 @@ export class SettingsPaymentsSectionElement extends
     // Create listener function.
     const setCreditCardsListener =
         (cardList: chrome.autofillPrivate.CreditCardEntry[]) => {
-          this.creditCards = cardList;
+          this.setCreditCards_(cardList);
         };
 
     const setPersonalDataListener: PersonalDataChangedListener =
         (_addressList, cardList, ibanList, payOverTimeIssuerList) => {
-          this.creditCards = cardList;
+          this.setCreditCards_(cardList);
           this.ibans = ibanList;
           if (this.shouldShowPayOverTimeSettings_) {
             this.payOverTimeIssuers = payOverTimeIssuerList;
@@ -302,6 +302,19 @@ export class SettingsPaymentsSectionElement extends
     this.setPersonalDataListener_ = null;
   }
 
+  private setCreditCards_(cardList: chrome.autofillPrivate.CreditCardEntry[]) {
+    this.creditCards = cardList;
+
+    // To align with Android, only record this histogram when the pref is
+    // enabled.
+    const autofillEnabledPref = this.get('prefs.autofill.credit_card_enabled');
+    if (!!autofillEnabledPref && autofillEnabledPref.value) {
+      MetricsBrowserProxyImpl.getInstance().recordBooleanHistogram(
+          'Autofill.PaymentMethodsSettingsPage.CardsViewedWithoutExistingCards',
+          this.creditCards.length === 0);
+    }
+  }
+
   /**
    * Returns true if IBAN should be shown from settings page.
    * TODO(crbug.com/40234941): Add additional check (starter country-list, or
@@ -352,6 +365,13 @@ export class SettingsPaymentsSectionElement extends
    */
   private onAddCreditCardClick_(e: Event) {
     e.preventDefault();
+
+    MetricsBrowserProxyImpl.getInstance().recordBooleanHistogram(
+        'Autofill.PaymentMethodsSettingsPage.AddCardClicked2', true);
+    MetricsBrowserProxyImpl.getInstance().recordBooleanHistogram(
+        'Autofill.PaymentMethodsSettingsPage.AddCardClickedWithoutExistingCards2',
+        this.creditCards.length === 0);
+
     const date = new Date();  // Default to current month/year.
     const expirationMonth = date.getMonth() + 1;  // Months are 0 based.
     this.activeCreditCard_ = {

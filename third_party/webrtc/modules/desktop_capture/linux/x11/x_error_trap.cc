@@ -22,8 +22,8 @@ namespace webrtc {
 
 namespace {
 
-static int g_last_xserver_error_code = 0;
-static std::atomic<Display*> g_display_for_error_handler = nullptr;
+int g_last_xserver_error_code = 0;
+std::atomic<Display*> g_display_for_error_handler = nullptr;
 
 Mutex* AcquireMutex() {
   static Mutex* mutex = new Mutex();

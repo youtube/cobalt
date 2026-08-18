@@ -35,6 +35,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/string_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "ui/gfx/extension_set.h"
+#include "ui/gl/angle_platform_impl.h"
 #include "ui/gl/egl_util.h"
 #include "ui/gl/gl_utils.h"
 #include "ui/gl/gl_version_info.h"
@@ -3493,14 +3494,10 @@ gfx::ColorSpace WebGLRenderingContextWebGPUBase::GetColorSpace() const {
 
 int WebGLRenderingContextWebGPUBase::AllocatedBufferCountPerPixel() {
   // Front and back buffers.
-  int buffer_count = 2;
-
-  if (Host()->GetResourceProviderForWebGL()) {
-    buffer_count++;
-  }
-
   // TODO(413078308): Add support configuring MSAA and depth-stencil.
-  return buffer_count;
+  // Note: If/once this class creates a CanvasResourceProvider it should track
+  // the memory of the provider here as well.
+  return 2;
 }
 
 bool WebGLRenderingContextWebGPUBase::isContextLost() const {
@@ -3520,6 +3517,11 @@ void WebGLRenderingContextWebGPUBase::SetHdrMetadata(
 
 bool WebGLRenderingContextWebGPUBase::IsComposited() const {
   return true;
+}
+
+bool WebGLRenderingContextWebGPUBase::IsAccelerated() const {
+  NOTIMPLEMENTED();
+  return false;
 }
 
 bool WebGLRenderingContextWebGPUBase::IsPaintable() const {
@@ -3731,6 +3733,9 @@ void WebGLRenderingContextWebGPUBase::InitializeContext() {
   driver_egl_.fn.eglInitializeFn(display_, &egl_version_major,
                                  &egl_version_minor);
 
+  // Setup the ANGLE platform for internal logging and trace events
+  angle::InitializePlatform(display_, get_proc_address);
+
   // Create a GL Context.
   // TODO(413078308): Request version 2 vs 3 depending on WebGL version.
   // TODO(413078308): Request a WebGL compatibility context when requesting
@@ -3826,6 +3831,8 @@ void WebGLRenderingContextWebGPUBase::InitializeContext() {
 void WebGLRenderingContextWebGPUBase::Destroy() {
   if (context_) {
     DCHECK(display_ != EGL_NO_DISPLAY);
+    driver_egl_.fn.eglMakeCurrentFn(EGL_NO_DISPLAY, EGL_NO_CONTEXT,
+                                    EGL_NO_SURFACE, EGL_NO_SURFACE);
     driver_egl_.fn.eglDestroyContextFn(display_, context_);
     context_ = EGL_NO_CONTEXT;
   }
@@ -3833,6 +3840,7 @@ void WebGLRenderingContextWebGPUBase::Destroy() {
   gles2_for_objects_ = nullptr;
 
   if (display_) {
+    angle::ResetPlatform(display_, driver_egl_.fn.eglGetProcAddressFn);
     driver_egl_.fn.eglTerminateFn(display_);
     display_ = EGL_NO_DISPLAY;
   }

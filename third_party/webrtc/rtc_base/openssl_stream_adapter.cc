@@ -67,8 +67,7 @@
 
 namespace {
 // Value specified in RFC 5764.
-static constexpr absl::string_view kDtlsSrtpExporterLabel =
-    "EXTRACTOR-dtls_srtp";
+constexpr absl::string_view kDtlsSrtpExporterLabel = "EXTRACTOR-dtls_srtp";
 }  // namespace
 
 namespace webrtc {

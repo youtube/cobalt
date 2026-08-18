@@ -146,13 +146,13 @@ public class SurfaceColorUpdateUtilsUnitTest {
 
     @Test
     @DisableFeatures({ChromeFeatureList.GRID_TAB_SWITCHER_SURFACE_COLOR_UPDATE})
-    public void testTabCardVieBackgroundColor_FlagDisabled() {
+    public void testTabCardViewBackgroundColor_FlagDisabled() {
         @ColorInt
         int tabCardViewBackgroundColor =
                 SurfaceColorUpdateUtils.getCardViewBackgroundColor(
                         mContext, /* isIncognito= */ false, /* colorId= */ null);
         assertEquals(
-                SemanticColorUtils.getColorSurfaceContainerHigh(mContext),
+                SemanticColorUtils.getColorSurfaceContainerHighest(mContext),
                 tabCardViewBackgroundColor);
 
         @ColorInt
@@ -255,7 +255,7 @@ public class SurfaceColorUpdateUtilsUnitTest {
                 SurfaceColorUpdateUtils.getTabGridDialogBackgroundColor(
                         mContext, /* isIncognito= */ true);
         assertEquals(
-                ContextCompat.getColor(mContext, R.color.gm3_baseline_surface_container_low_dark),
+                ContextCompat.getColor(mContext, R.color.gm3_baseline_surface_container_dark),
                 gtsBackgroundColorIncognito);
     }
 

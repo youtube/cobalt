@@ -9,6 +9,7 @@
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/permissions/content_setting_permission_context_base.h"
+#include "components/permissions/permission_decision.h"
 
 // Common class which handles the mic and camera permissions.
 class MediaStreamDevicePermissionContext
@@ -30,8 +31,7 @@ class MediaStreamDevicePermissionContext
       const permissions::PermissionRequestData& request_data,
       permissions::BrowserPermissionCallback callback,
       bool persist,
-      ContentSetting content_setting,
-      bool is_one_time,
+      PermissionDecision decision,
       bool is_final_decision) override;
 #endif
   void ResetPermission(const GURL& requesting_origin,

@@ -10,10 +10,8 @@ export interface PageElementTypes {
   focusedUrl: HTMLInputElement;
   contextAccessIndicator: HTMLInputElement;
   panelActiveCheckbox: HTMLInputElement;
-  focusedTabLogs: HTMLSpanElement;
   focusedFaviconV2: HTMLImageElement;
   focusedUrlV2: HTMLInputElement;
-  contextAccessIndicatorV2: HTMLInputElement;
   focusedTabLogsV2: HTMLSpanElement;
   syncCookiesBn: HTMLButtonElement;
   testLogsBn: HTMLButtonElement;
@@ -123,6 +121,12 @@ export interface PageElementTypes {
   setClosedCaptioningFalse: HTMLButtonElement;
   dropScrollToHighlightBtn: HTMLButtonElement;
   copyAPCToClipboardBtn: HTMLButtonElement;
+  maybeRefreshUserStatusBn: HTMLButtonElement;
+  multiTabSection: HTMLElement;
+  pinnedTabs: HTMLElement;
+  pinFocusedTab: HTMLButtonElement;
+  fetchPinned: HTMLButtonElement;
+  unpin: HTMLButtonElement;
 }
 
 export const $: PageElementTypes = new Proxy({}, {

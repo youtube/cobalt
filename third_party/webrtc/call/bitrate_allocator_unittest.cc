@@ -111,7 +111,6 @@ TargetTransferRate CreateTargetRateMessage(uint32_t target_bitrate_bps,
   // messages in the test.
   msg.at_time = Timestamp::Seconds(10000);
   msg.target_rate = DataRate::BitsPerSec(target_bitrate_bps);
-  msg.stable_target_rate = msg.target_rate;
   msg.network_estimate.bandwidth = msg.target_rate;
   msg.network_estimate.loss_rate_ratio = fraction_loss / 255.0;
   msg.network_estimate.round_trip_time = TimeDelta::Millis(rtt_ms);

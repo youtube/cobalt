@@ -89,9 +89,9 @@ RtpStreamSender::~RtpStreamSender() = default;
 }  // namespace webrtc_internal_rtp_video_sender
 
 namespace {
-static const int kMinSendSidePacketHistorySize = 600;
+const int kMinSendSidePacketHistorySize = 600;
 // We don't do MTU discovery, so assume that we have the standard ethernet MTU.
-static const size_t kPathMTU = 1500;
+const size_t kPathMTU = 1500;
 
 using webrtc_internal_rtp_video_sender::RtpStreamSender;
 

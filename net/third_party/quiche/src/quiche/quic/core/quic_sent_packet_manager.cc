@@ -6,19 +6,28 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "quiche/quic/core/congestion_control/loss_detection_interface.h"
 #include "quiche/quic/core/congestion_control/pacing_sender.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
+#include "quiche/quic/core/congestion_control/uber_loss_algorithm.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
+#include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/frames/quic_ack_frame.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
+#include "quiche/quic/core/frames/quic_frame.h"
+#include "quiche/quic/core/proto/cached_network_parameters_proto.h"
+#include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_tag.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_transmission_info.h"
@@ -28,6 +37,7 @@
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/print_elements.h"
 
 namespace quic {
@@ -35,7 +45,7 @@ namespace quic {
 namespace {
 static const int64_t kDefaultRetransmissionTimeMs = 500;
 
-// Ensure the handshake timer isnt't faster than 10ms.
+// Ensure the handshake timer isn't faster than 10ms.
 // This limits the tenth retransmitted packet to 10s after the initial CHLO.
 static const int64_t kMinHandshakeTimeoutMs = 10;
 
@@ -176,6 +186,13 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientRequestedIndependentOption(kIW50, perspective)) {
     initial_congestion_window_ = 50;
     send_algorithm_->SetInitialCongestionWindowInPackets(50);
+  }
+  if (config.HasClientRequestedIndependentOption(kIW2X, perspective) &&
+      GetQuicReloadableFlag(quic_allow_client_enabled_2x_initial_cwnd)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_allow_client_enabled_2x_initial_cwnd);
+    initial_congestion_window_ *= 2;
+    send_algorithm_->SetInitialCongestionWindowInPackets(
+        initial_congestion_window_);
   }
   if (config.HasClientRequestedIndependentOption(kBWS5, perspective)) {
     initial_congestion_window_ = 10;
@@ -1566,9 +1583,11 @@ QuicPacketNumber QuicSentPacketManager::GetLeastPacketAwaitedByPeer(
 
 QuicPacketNumber QuicSentPacketManager::GetLargestPacketPeerKnowsIsAcked(
     EncryptionLevel decrypted_packet_level) const {
-  QUICHE_DCHECK(supports_multiple_packet_number_spaces());
-  return largest_packets_peer_knows_is_acked_[QuicUtils::GetPacketNumberSpace(
-      decrypted_packet_level)];
+  if (supports_multiple_packet_number_spaces()) {
+    return largest_packets_peer_knows_is_acked_[QuicUtils::GetPacketNumberSpace(
+        decrypted_packet_level)];
+  }
+  return largest_packet_peer_knows_is_acked_;
 }
 
 QuicTime::Delta

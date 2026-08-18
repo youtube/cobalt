@@ -216,6 +216,7 @@ rtc_source_set("ice_transport_interface") {
   sources = [ "ice_transport_interface.h" ]
   deps = [
     ":async_dns_resolver",
+    ":local_network_access_permission",
     ":packet_socket_factory",
     ":ref_count",
     ":rtc_error",
@@ -323,6 +324,7 @@ rtc_library("libjingle_peerconnection_api") {
     ":frame_transformer_interface",
     ":ice_transport_interface",
     ":libjingle_logging_api",
+    ":local_network_access_permission",
     ":make_ref_counted",
     ":media_stream_interface",
     ":network_state_predictor_api",
@@ -465,6 +467,17 @@ rtc_source_set("packet_socket_factory") {
 rtc_source_set("async_dns_resolver") {
   visibility = [ "*" ]
   sources = [ "async_dns_resolver.h" ]
+  deps = [
+    "../rtc_base:checks",
+    "../rtc_base:socket_address",
+    "../rtc_base/system:rtc_export",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
+  ]
+}
+
+rtc_source_set("local_network_access_permission") {
+  visibility = [ "*" ]
+  sources = [ "local_network_access_permission.h" ]
   deps = [
     "../rtc_base:checks",
     "../rtc_base:socket_address",
@@ -706,20 +719,6 @@ if (rtc_include_tests) {
       ]
     }
 
-    rtc_library("test_dependency_factory") {
-      visibility = [ "*" ]
-      testonly = true
-      sources = [
-        "test/test_dependency_factory.cc",
-        "test/test_dependency_factory.h",
-      ]
-      deps = [
-        ":video_quality_test_fixture_api",
-        "../rtc_base:checks",
-        "../rtc_base:platform_thread_types",
-      ]
-    }
-
     rtc_library("create_video_quality_test_fixture_api") {
       visibility = [ "*" ]
       testonly = true
@@ -728,9 +727,6 @@ if (rtc_include_tests) {
         "test/create_video_quality_test_fixture.h",
       ]
       deps = [
-        ":fec_controller_api",
-        ":network_state_predictor_api",
-        ":scoped_refptr",
         ":video_quality_test_fixture_api",
         "../video:video_quality_test",
       ]
@@ -1391,6 +1387,18 @@ if (rtc_include_tests) {
     sources = [ "test/mock_async_dns_resolver.h" ]
     deps = [
       ":async_dns_resolver",
+      "../rtc_base:socket_address",
+      "../test:test_support",
+      "//third_party/abseil-cpp/absl/functional:any_invocable",
+    ]
+  }
+
+  rtc_source_set("mock_local_network_access_permission") {
+    visibility = [ "*" ]
+    testonly = true
+    sources = [ "test/mock_local_network_access_permission.h" ]
+    deps = [
+      ":local_network_access_permission",
       "../rtc_base:socket_address",
       "../test:test_support",
       "//third_party/abseil-cpp/absl/functional:any_invocable",

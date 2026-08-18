@@ -33,7 +33,7 @@ namespace webrtc {
 namespace {
 
 // Square root of Hanning window in Q14.
-static const ALIGN8_BEG int16_t WebRtcAecm_kSqrtHanning[] ALIGN8_END = {
+const ALIGN8_BEG int16_t WebRtcAecm_kSqrtHanning[] ALIGN8_END = {
     0,     399,   798,   1196,  1594,  1990,  2386,  2780,  3172,  3562,  3951,
     4337,  4720,  5101,  5478,  5853,  6224,  6591,  6954,  7313,  7668,  8019,
     8364,  8705,  9040,  9370,  9695,  10013, 10326, 10633, 10933, 11227, 11514,
@@ -56,13 +56,13 @@ static const uint16_t kAlpha3 = 26951;
 static const uint16_t kBeta3 = 18927;
 #endif
 
-static const int16_t kNoiseEstQDomain = 15;
-static const int16_t kNoiseEstIncCount = 5;
+const int16_t kNoiseEstQDomain = 15;
+const int16_t kNoiseEstIncCount = 5;
 
-static void ComfortNoise(AecmCore* aecm,
-                         const uint16_t* dfa,
-                         ComplexInt16* out,
-                         const int16_t* lambda) {
+void ComfortNoise(AecmCore* aecm,
+                  const uint16_t* dfa,
+                  ComplexInt16* out,
+                  const int16_t* lambda) {
   int16_t i;
   int16_t tmp16;
   int32_t tmp32;
@@ -172,11 +172,11 @@ static void ComfortNoise(AecmCore* aecm,
   }
 }
 
-static void WindowAndFFT(AecmCore* aecm,
-                         int16_t* fft,
-                         const int16_t* time_signal,
-                         ComplexInt16* freq_signal,
-                         int time_signal_scaling) {
+void WindowAndFFT(AecmCore* aecm,
+                  int16_t* fft,
+                  const int16_t* time_signal,
+                  ComplexInt16* freq_signal,
+                  int time_signal_scaling) {
   int i = 0;
 
   // FFT of signal
@@ -199,11 +199,11 @@ static void WindowAndFFT(AecmCore* aecm,
   }
 }
 
-static void InverseFFTAndWindow(AecmCore* aecm,
-                                int16_t* fft,
-                                ComplexInt16* efw,
-                                int16_t* output,
-                                const int16_t* nearendClean) {
+void InverseFFTAndWindow(AecmCore* aecm,
+                         int16_t* fft,
+                         ComplexInt16* efw,
+                         int16_t* output,
+                         const int16_t* nearendClean) {
   int i, j, outCFFT;
   int32_t tmp32no1;
   // Reuse `efw` for the inverse FFT output after transferring
@@ -263,11 +263,11 @@ static void InverseFFTAndWindow(AecmCore* aecm,
 //                              the frequency domain array
 // return value                 The Q-domain of current frequency values
 //
-static int TimeToFrequencyDomain(AecmCore* aecm,
-                                 const int16_t* time_signal,
-                                 ComplexInt16* freq_signal,
-                                 uint16_t* freq_signal_abs,
-                                 uint32_t* freq_signal_sum_abs) {
+int TimeToFrequencyDomain(AecmCore* aecm,
+                          const int16_t* time_signal,
+                          ComplexInt16* freq_signal,
+                          uint16_t* freq_signal_abs,
+                          uint32_t* freq_signal_sum_abs) {
   int i = 0;
   int time_signal_scaling = 0;
 

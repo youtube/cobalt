@@ -71,15 +71,15 @@
 
 namespace {
 
-static const char kStreamId1[] = "local_stream_1";
-static const char kVideoTrackId[] = "video_1";
-static const char kAudioTrackId[] = "audio_1";
-static const uint32_t kVideoSsrc = 98;
-static const uint32_t kVideoSsrc2 = 100;
-static const uint32_t kAudioSsrc = 99;
-static const uint32_t kAudioSsrc2 = 101;
-static const uint32_t kVideoSsrcSimulcast = 102;
-static const uint32_t kVideoSimulcastLayerCount = 2;
+const char kStreamId1[] = "local_stream_1";
+const char kVideoTrackId[] = "video_1";
+const char kAudioTrackId[] = "audio_1";
+const uint32_t kVideoSsrc = 98;
+const uint32_t kVideoSsrc2 = 100;
+const uint32_t kAudioSsrc = 99;
+const uint32_t kAudioSsrc2 = 101;
+const uint32_t kVideoSsrcSimulcast = 102;
+const uint32_t kVideoSimulcastLayerCount = 2;
 
 class MockSetStreamsObserver
     : public webrtc::RtpSenderBase::SetStreamsObserver {

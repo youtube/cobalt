@@ -34,7 +34,7 @@ chromium-metrics-reviews@google.com.
   </summary>
   <int value="0" label="Available and turned on in Chrome settings"/>
   <int value="1" label="Not allowed by policy"/>
-  <int value="2" label="Android OS version is too old"/>
+  <int value="2" label="(obsolete) Android OS version is too old"/>
   <int value="3" label="The system's AutofillManager is not available"/>
   <int value="4" label="The system does not support autofill"/>
   <int value="5" label="The system's AutofillService cannot be determined."/>
@@ -1182,6 +1182,11 @@ Called by update_autofill_enums.py.-->
   <int value="3025" label="EMAIL_OR_LOYALTY_MEMBERSHIP_ID: accepted"/>
 </enum>
 
+<enum name="AutofillEmailOrLoyaltyCardAcceptanceMetricValue">
+  <int value="0" label="EMAIL: accepted"/>
+  <int value="1" label="LOYALTY_CARD: accepted"/>
+</enum>
+
 <enum name="AutofillErrorDialogType">
   <int value="0" label="VIRTUAL_CARD_TEMPORARY_ERROR"/>
   <int value="1" label="VIRTUAL_CARD_PERMANENT_ERROR"/>
@@ -2296,6 +2301,13 @@ Called by update_autofill_enums.py.-->
   <int value="1" label="Suggestion Selected"/>
 </enum>
 
+<enum name="AutofillLoyaltyCardAffiliationCategoryFillingReadiness">
+  <int value="0" label="No loyalty cards available"/>
+  <int value="1" label="Only affiliated loyalty cards available"/>
+  <int value="2" label="Only non-affiliated loyalty cards available"/>
+  <int value="3" label="Loyalty cards from different categories available."/>
+</enum>
+
 <enum name="AutofillManageCardsPrompt">
   <int value="0" label="Shown"/>
   <int value="1" label="Done button pressed"/>
@@ -3241,6 +3253,18 @@ Called by update_autofill_enums.py.-->
   <int value="1"
       label="Suggestions containing cards with a benefit available were shown
              when the user had two or more server cards (once)"/>
+  <int value="4"
+      label="Suggestion of a masked server card with a benefit available was
+             selected when the user had two or more server cards, and at
+             least one had a benefit available (once)"/>
+  <int value="8"
+      label="Suggestion of a masked server card with a benefit available was
+             filled when the user had two or more server cards, and at least
+             one had a benefit available (once)"/>
+  <int value="12"
+      label="Suggestion of a masked server card with a benefit available was
+             submitted when the user had two or more server cards, and at
+             least one had a benefit available (once)"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/card_metadata_metrics.h:CardBenefitFormEvent) -->
@@ -4055,6 +4079,7 @@ Called by update_autofill_enums.py.-->
   <int value="71"
       label="Suggestion to try a backup credential in case of login failure"/>
   <int value="72" label="Footer with multiline freeform text"/>
+  <int value="73" label="All loyalty cards"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/suggestions/suggestion_type.h:SuggestionType) -->

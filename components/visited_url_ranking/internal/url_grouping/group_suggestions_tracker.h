@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_VISITED_URL_RANKING_INTERNAL_URL_GROUPING_GROUP_SUGGESTIONS_TRACKER_H_
 #define COMPONENTS_VISITED_URL_RANKING_INTERNAL_URL_GROUPING_GROUP_SUGGESTIONS_TRACKER_H_
 
+#include <vector>
+
 #include "base/containers/flat_set.h"
 #include "components/segmentation_platform/public/input_context.h"
 #include "components/visited_url_ranking/public/url_grouping/group_suggestions.h"
@@ -14,6 +16,10 @@ class PrefService;
 class PrefRegistrySimple;
 
 namespace visited_url_ranking {
+
+using CachedSuggestionsAndInputs =
+    std::pair<GroupSuggestions,
+              std::vector<scoped_refptr<segmentation_platform::InputContext>>>;
 
 class GroupSuggestionsTracker {
  public:
@@ -31,16 +37,27 @@ class GroupSuggestionsTracker {
 
   static void RegisterProfilePrefs(PrefRegistrySimple* registry);
 
-  void AddSuggestion(
+  void AddShownSuggestion(
       const GroupSuggestion& suggestion,
       const std::vector<scoped_refptr<segmentation_platform::InputContext>>&
           inputs,
-      GroupSuggestionsDelegate::UserResponse user_response);
+      UserResponse user_response);
 
   bool ShouldShowSuggestion(
       const GroupSuggestion& suggestion,
       const std::vector<scoped_refptr<segmentation_platform::InputContext>>&
           inputs);
+
+  // Caches the provided suggestions. Overwrites any previously cached data.
+  void CacheSuggestions(
+      GroupSuggestions suggestions,
+      std::vector<scoped_refptr<segmentation_platform::InputContext>> inputs);
+
+  // Retrieves a copy of the last cached suggestions. Does not clear the cache.
+  std::optional<CachedSuggestionsAndInputs> GetCachedSuggestions() const;
+
+  // Invalidates the cached suggestions.
+  void InvalidateCache();
 
  private:
   struct ShownSuggestion {
@@ -60,8 +77,7 @@ class GroupSuggestionsTracker {
     base::Time time_shown;
     std::vector<int> tab_ids;
     std::set<int> host_hashes;
-    GroupSuggestionsDelegate::UserResponse user_response =
-        GroupSuggestionsDelegate::UserResponse::kUnknown;
+    UserResponse user_response = UserResponse::kUnknown;
   };
 
   bool HasOverlappingTabs(const GroupSuggestion& suggestion) const;
@@ -72,6 +88,10 @@ class GroupSuggestionsTracker {
 
   raw_ptr<PrefService> pref_service_;
   std::vector<ShownSuggestion> suggestions_;
+
+  // Holds the last set of computed suggestions and their input contexts for the
+  // GetCachedSuggestions API.
+  std::optional<CachedSuggestionsAndInputs> last_cached_suggestions_and_inputs_;
 };
 
 }  // namespace visited_url_ranking

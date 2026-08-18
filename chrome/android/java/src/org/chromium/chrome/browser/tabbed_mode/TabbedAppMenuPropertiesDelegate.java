@@ -49,6 +49,7 @@ import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.readaloud.ReadAloudController;
 import org.chromium.chrome.browser.share.ShareUtils;
+import org.chromium.chrome.browser.supervised_user.SupervisedUserServiceBridge;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tinker_tank.TinkerTankDelegate;
@@ -57,7 +58,7 @@ import org.chromium.chrome.browser.toolbar.menu_button.MenuItemState;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuDelegate;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties;
-import org.chromium.chrome.browser.ui.extensions.ExtensionsBuildflags;
+import org.chromium.chrome.browser.ui.extensions.ExtensionService;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.components.browser_ui.accessibility.PageZoomCoordinator;
 import org.chromium.components.dom_distiller.core.DomDistillerFeatures;
@@ -98,6 +99,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
     WebFeedSnackbarController.FeedLauncher mFeedLauncher;
     ModalDialogManager mModalDialogManager;
     SnackbarManager mSnackbarManager;
+    @Nullable ExtensionService mExtensionService;
 
     private boolean mUpdateMenuItemVisible;
 
@@ -124,6 +126,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
             WebFeedSnackbarController.FeedLauncher feedLauncher,
             ModalDialogManager modalDialogManager,
             SnackbarManager snackbarManager,
+            @Nullable ExtensionService extensionService,
             @NonNull
                     OneshotSupplier<IncognitoReauthController>
                             incognitoReauthControllerOneshotSupplier,
@@ -142,6 +145,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         mFeedLauncher = feedLauncher;
         mModalDialogManager = modalDialogManager;
         mSnackbarManager = snackbarManager;
+        mExtensionService = extensionService;
 
         incognitoReauthControllerOneshotSupplier.onAvailable(
                 mIncognitoReauthCallbackController.makeCancelable(
@@ -365,6 +369,10 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
             maybeAddDividerLine(modelList, R.id.managed_by_divider_line_id);
             modelList.add(buildManagedByItem(currentTab));
         }
+        if (shouldShowContentFilterHelpCenterMenuItem(currentTab)) {
+            maybeAddDividerLine(modelList, R.id.menu_item_content_filter_divider_line_id);
+            modelList.add(buildContentFilterHelpCenterMenuItem(currentTab));
+        }
     }
 
     private Runnable buildUpdateStateChangedObserver() {
@@ -387,6 +395,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         if (modelList.get(modelList.size() - 1).type == AppMenuHandler.AppMenuItemType.DIVIDER) {
             return;
         }
+
         modelList.add(
                 new MVCListAdapter.ListItem(
                         AppMenuHandler.AppMenuItemType.DIVIDER, buildModelForDivider(id)));
@@ -511,7 +520,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                 buildModelForStandardMenuItem(
                         R.id.pin_tab_menu_id,
                         R.string.menu_pin_tab,
-                        shouldShowIconBeforeItem() ? R.drawable.ic_offline_pin_24dp : 0));
+                        shouldShowIconBeforeItem() ? R.drawable.ic_keep_24dp : 0));
     }
 
     private MVCListAdapter.ListItem buildNewWindowItem() {
@@ -590,9 +599,8 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
     }
 
     private boolean shouldShowExtensionsItem() {
-        return ExtensionsBuildflags.ENABLE_DESKTOP_ANDROID_EXTENSIONS
-                && !ChromeFeatureList.isEnabled(
-                        ChromeFeatureList.BLOCK_INSTALLING_EXTENSIONS_ON_DESKTOP_ANDROID);
+        // TODO(crbug.com/422307625): Remove this check once extensions are ready for dogfooding.
+        return mExtensionService != null && mExtensionService.areExtensionsEnabled();
     }
 
     private MVCListAdapter.ListItem buildExtensionsItem() {
@@ -654,7 +662,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                 AppMenuHandler.AppMenuItemType.STANDARD,
                 buildModelForStandardMenuItem(
                         R.id.reader_mode_menu_id,
-                        R.string.reader_view_text_alt,
+                        R.string.show_reading_mode_text,
                         shouldShowIconBeforeItem() ? R.drawable.ic_reader_mode_24dp : 0));
     }
 
@@ -989,6 +997,13 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         return currentTab != null && ManagedBrowserUtils.isBrowserManaged(currentTab.getProfile());
     }
 
+    protected boolean shouldShowContentFilterHelpCenterMenuItem(@Nullable Tab currentTab) {
+        return currentTab != null
+                && ChromeFeatureList.isEnabled(
+                        ChromeFeatureList.PROPAGATE_DEVICE_CONTENT_FILTERS_TO_SUPERVISED_USER)
+                && SupervisedUserServiceBridge.isSupervisedLocally(currentTab.getProfile());
+    }
+
     private MVCListAdapter.ListItem buildManagedByItem(Tab currentTab) {
         assert shouldShowManagedByMenuItem(currentTab);
         return new MVCListAdapter.ListItem(
@@ -997,6 +1012,16 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                         R.id.managed_by_menu_id,
                         R.string.managed_browser,
                         shouldShowIconBeforeItem() ? R.drawable.ic_business : 0));
+    }
+
+    private MVCListAdapter.ListItem buildContentFilterHelpCenterMenuItem(Tab currentTab) {
+        assert shouldShowContentFilterHelpCenterMenuItem(currentTab);
+        return new MVCListAdapter.ListItem(
+                AppMenuHandler.AppMenuItemType.STANDARD,
+                buildModelForStandardMenuItem(
+                        R.id.menu_item_content_filter_help_center_id,
+                        R.string.menu_item_content_filter_help_center_link,
+                        shouldShowIconBeforeItem() ? R.drawable.ic_account_child_20dp : 0));
     }
 
     @Override

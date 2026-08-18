@@ -38,12 +38,14 @@
 #include "base/location.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notimplemented.h"
 #include "base/numerics/checked_math.h"
 #include "base/numerics/clamped_math.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
 #include "build/build_config.h"
+#include "cc/layers/texture_layer.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "third_party/blink/public/common/features.h"
@@ -451,7 +453,7 @@ void HTMLCanvasElement::Dispose() {
 
   // We need to drop frame dispatcher, to prevent mojo calls from completing.
   frame_dispatcher_ = nullptr;
-  DiscardResourceProvider();
+  DiscardResources();
 
   if (context_) {
     if (context_->Host())
@@ -907,7 +909,7 @@ void HTMLCanvasElement::DisableAccelerationForCanvas2D() {
   // Create and configure an unaccelerated CanvasResourceProvider.
   SetPreferred2DRasterMode(RasterModeHint::kPreferCPU);
 
-  ReplaceExistingResourceProviderForCanvas2D();
+  DropAndRecreateExistingCanvas2DResourceProvider();
 
   // We must force a paint invalidation on the canvas even if it's
   // content did not change because it layer was destroyed.
@@ -1311,7 +1313,11 @@ UkmParameters HTMLCanvasElement::GetUkmParameters() {
 void HTMLCanvasElement::SetSurfaceSize(gfx::Size size) {
   CanvasResourceHost::SetSize(size);
   did_fail_to_create_resource_provider_ = false;
-  DiscardResourceProvider();
+  if (RenderingContext()) {
+    RenderingContext()->SizeChanged();
+  }
+
+  DiscardResources();
   if (IsRenderingContext2D() && context_->isContextLost()) {
     context_->RestoreFromInvalidSizeIfNeeded();
   }
@@ -1785,18 +1791,19 @@ void HTMLCanvasElement::SetNeedsPushProperties() {
   }
 }
 
-void HTMLCanvasElement::SetResourceProviderForTesting(
+void HTMLCanvasElement::SetCanvas2DResourceProviderForTesting(
     std::unique_ptr<CanvasResourceProvider> provider,
     const gfx::Size& size) {
-  DiscardResourceProvider();
+  CHECK(IsRenderingContext2D());
+  DiscardResources();
   SetIntegralAttribute(html_names::kWidthAttr, size.width());
   SetIntegralAttribute(html_names::kHeightAttr, size.height());
   CanvasResourceHost::SetSize(size);
   hibernation_handler_ = std::make_unique<CanvasHibernationHandler>(*this);
-  ReplaceResourceProvider(std::move(provider));
+  ReplaceResourceProviderForCanvas2D(std::move(provider));
 }
 
-void HTMLCanvasElement::DiscardResourceProvider() {
+void HTMLCanvasElement::DiscardResources() {
   if (IsHibernating()) {
     // Ensure consistency of metrics reporting across the change from the
     // previous code flow.
@@ -1806,7 +1813,7 @@ void HTMLCanvasElement::DiscardResourceProvider() {
     GetHibernationHandler()->Clear();
   }
   ResetLayer();
-  CanvasResourceHost::DiscardResourceProvider();
+  CanvasRenderingContextHost::DiscardResources();
   dirty_rect_ = gfx::Rect();
 }
 
@@ -1920,7 +1927,7 @@ void HTMLCanvasElement::WillDrawImageInCanvas2D(CanvasImageSource* source) {
 
   // If the source is GPU-accelerated, and the canvas is not, but could be...
   if (source->IsAccelerated() && ShouldAccelerate() &&
-      GetRasterMode() == RasterMode::kCPU) {
+      GetRasterModeForCanvas2D() == RasterMode::kCPU) {
     // Recreate the canvas in GPU raster mode, and update its contents.
     if (RecreateCanvasInGPURasterModeForCanvas2D()) {
       SetNeedsCompositingUpdate();
@@ -1930,7 +1937,7 @@ void HTMLCanvasElement::WillDrawImageInCanvas2D(CanvasImageSource* source) {
 
 bool HTMLCanvasElement::EnableAccelerationForCanvas2D() {
   CHECK(IsRenderingContext2D());
-  return GetRasterMode() != RasterMode::kCPU ||
+  return GetRasterModeForCanvas2D() != RasterMode::kCPU ||
          RecreateCanvasInGPURasterModeForCanvas2D();
 }
 
@@ -1940,7 +1947,7 @@ bool HTMLCanvasElement::RecreateCanvasInGPURasterModeForCanvas2D() {
     return false;
   }
   SetPreferred2DRasterMode(RasterModeHint::kPreferGPU);
-  ReplaceExistingResourceProviderForCanvas2D();
+  DropAndRecreateExistingCanvas2DResourceProvider();
   return true;
 }
 
@@ -2142,15 +2149,6 @@ void HTMLCanvasElement::UpdateMemoryUsage() {
     return;
 
   int buffer_count = context_->AllocatedBufferCountPerPixel();
-  auto* provider = IsWebGL() ? GetResourceProviderForWebGL()
-                             : GetResourceProviderForCanvas2D();
-  if (provider && provider->IsAccelerated()) {
-    // The number of internal GPU buffers vary between one (stable
-    // non-displayed state) and three (triple-buffered animations).
-    // Adding 2 is a pessimistic but relevant estimate.
-    // Note: These buffers might be allocated in GPU memory.
-    buffer_count += 2;
-  }
 
   // NOTE: All formats used by canvas are either 8-bit or 16-bit.
   const int bytes_per_pixel = GetRenderingContextFormat().BitsPerPixel() / 8;
@@ -2193,7 +2191,7 @@ size_t HTMLCanvasElement::GetMemoryUsage() const {
   return base::saturated_cast<size_t>(externally_allocated_memory_);
 }
 
-void HTMLCanvasElement::ReplaceExistingResourceProviderForCanvas2D() {
+void HTMLCanvasElement::DropAndRecreateExistingCanvas2DResourceProvider() {
   CHECK(IsRenderingContext2D());
   CanvasResourceProvider* old_provider = GetResourceProviderForCanvas2D();
   if (old_provider == nullptr) {
@@ -2211,7 +2209,7 @@ void HTMLCanvasElement::ReplaceExistingResourceProviderForCanvas2D() {
   std::unique_ptr<MemoryManagedPaintRecorder> recorder =
       old_provider->ReleaseRecorder();
   ResetLayer();
-  ReplaceResourceProvider(nullptr);
+  ReplaceResourceProviderForCanvas2D(nullptr);
 
   // Bail out if the context is lost.
   if (context_->isContextLost() && !context_->IsContextBeingRestored()) {
@@ -2378,10 +2376,6 @@ void HTMLCanvasElement::SetTransferToGPUTextureWasInvoked() {
 bool HTMLCanvasElement::TransferToGPUTextureWasInvoked() {
   return TransferToGPUTextureInvokedSupplement::From(GetDocument())
       .TransferToGPUTextureWasInvoked();
-}
-
-bool HTMLCanvasElement::IsAccelerated() const {
-  return GetRasterMode() == RasterMode::kGPU;
 }
 
 }  // namespace blink

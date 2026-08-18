@@ -132,13 +132,13 @@ bool MinimizeProcessingForUnusedOutput(const FieldTrialsView& field_trials) {
 
 // Maximum lengths that frame of samples being passed from the render side to
 // the capture side can have (does not apply to AEC3).
-static const size_t kMaxAllowedValuesOfSamplesPerBand = 160;
-static const size_t kMaxAllowedValuesOfSamplesPerFrame = 480;
+const size_t kMaxAllowedValuesOfSamplesPerBand = 160;
+const size_t kMaxAllowedValuesOfSamplesPerFrame = 480;
 
 // Maximum number of frames to buffer in the render queue.
 // TODO(peah): Decrease this once we properly handle hugely unbalanced
 // reverse and forward call numbers.
-static const size_t kMaxNumFramesToBuffer = 100;
+const size_t kMaxNumFramesToBuffer = 100;
 
 void PackRenderAudioBufferForEchoDetector(const AudioBuffer& audio,
                                           std::vector<float>& packed_buffer) {

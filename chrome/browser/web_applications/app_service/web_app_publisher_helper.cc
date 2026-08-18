@@ -413,6 +413,22 @@ apps::IntentFilters CreateIntentFiltersFromScopeExtensionInfo(
   return filters;
 }
 
+apps::IntentFilters CreateIntentFiltersFromProtocolHandlers(
+    const std::vector<custom_handlers::ProtocolHandler>& protocol_handlers) {
+  apps::IntentFilters filters;
+  for (const auto& handler : protocol_handlers) {
+    auto intent_filter = std::make_unique<apps::IntentFilter>();
+    intent_filter->AddSingleValueCondition(apps::ConditionType::kAction,
+                                           apps_util::kIntentActionView,
+                                           apps::PatternMatchType::kLiteral);
+    intent_filter->AddSingleValueCondition(apps::ConditionType::kScheme,
+                                           handler.protocol(),
+                                           apps::PatternMatchType::kLiteral);
+    filters.push_back(std::move(intent_filter));
+  }
+  return filters;
+}
+
 apps::IntentFilters CreateShareIntentFiltersFromShareTarget(
     const apps::ShareTarget& share_target) {
   apps::IntentFilters filters;
@@ -517,9 +533,7 @@ void WebAppPublisherHelper::BadgeManagerDelegate::OnAppBadgeUpdated(
 WebAppPublisherHelper::WebAppPublisherHelper(Profile* profile,
                                              WebAppProvider* provider,
                                              Delegate* delegate)
-    : profile_(profile),
-      provider_(provider),
-      delegate_(delegate) {
+    : profile_(profile), provider_(provider), delegate_(delegate) {
   DCHECK(profile_);
   DCHECK(delegate_);
   Init();
@@ -647,6 +661,13 @@ apps::IntentFilters WebAppPublisherHelper::CreateIntentFiltersForWebApp(
     base::Extend(filters,
                  CreateShareIntentFiltersFromShareTarget(*app.share_target()));
   }
+
+  // Includes all protocol handlers except for the ones that the user has
+  // explicitly disallowed.
+  const std::vector<custom_handlers::ProtocolHandler> protocol_handlers =
+      provider.os_integration_manager().GetAppProtocolHandlers(app.app_id());
+  base::Extend(filters,
+               CreateIntentFiltersFromProtocolHandlers(protocol_handlers));
 
   const apps::FileHandlers* enabled_file_handlers =
       provider.os_integration_manager().GetEnabledFileHandlers(app.app_id());
@@ -1057,6 +1078,12 @@ void WebAppPublisherHelper::LaunchAppWithParams(
     return;
   }
 
+  if (params.protocol_handler_launch_url) {
+    LaunchAppFromProtocolCheckingUserPermission(std::move(params),
+                                                std::move(on_complete));
+    return;
+  }
+
   apps::AppLaunchParams params_for_restore(
       params.app_id, params.container, params.disposition, params.override_url,
       params.launch_source, params.display_id, params.launch_files,
@@ -1304,6 +1331,14 @@ WebAppInstallManager& WebAppPublisherHelper::install_manager() const {
 
 bool WebAppPublisherHelper::IsShuttingDown() const {
   return is_shutting_down_;
+}
+
+void WebAppPublisherHelper::OnWebAppProtocolSettingsChanged(
+    const webapps::AppId& app_id) {
+  const WebApp* web_app = GetWebApp(app_id);
+  if (web_app) {
+    delegate_->PublishWebApp(CreateWebApp(web_app));
+  }
 }
 
 void WebAppPublisherHelper::OnWebAppFileHandlerApprovalStateChanged(
@@ -1832,6 +1867,35 @@ void WebAppPublisherHelper::LaunchAppWithFilesCheckingUserPermission(
       file_paths, app_id, std::move(launch_callback));
 }
 
+void WebAppPublisherHelper::LaunchAppFromProtocolCheckingUserPermission(
+    apps::AppLaunchParams params,
+    base::OnceCallback<void(content::WebContents*)> callback) {
+  CHECK(params.protocol_handler_launch_url);
+  std::string app_id = params.app_id;
+  GURL protocol_url = *params.protocol_handler_launch_url;
+
+  WebAppRegistrar& registrar = provider_->registrar_unsafe();
+  if (!registrar.IsRegisteredLaunchProtocol(app_id, protocol_url.scheme()) ||
+      registrar.IsDisallowedLaunchProtocol(app_id, protocol_url.scheme())) {
+    std::move(callback).Run(nullptr);
+    return;
+  }
+
+  if (!registrar.IsAllowedLaunchProtocol(params.app_id,
+                                         protocol_url.scheme())) {
+    provider_->ui_manager().ShowWebAppProtocolLaunchDialog(
+        protocol_url, app_id,
+        base::BindOnce(&WebAppPublisherHelper::OnProtocolHandlerDialogCompleted,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(params),
+                       std::move(callback)));
+    return;
+  }
+
+  OnProtocolHandlerDialogCompleted(std::move(params), std::move(callback),
+                                   /*allowed=*/true,
+                                   /*remember_user_choice=*/false);
+}
+
 void WebAppPublisherHelper::OnFileHandlerDialogCompleted(
     std::string app_id,
     apps::AppLaunchParams params,
@@ -1887,6 +1951,31 @@ void WebAppPublisherHelper::OnFileHandlerDialogCompleted(
   }
 
   std::move(concurrent).Done(std::move(callback));
+}
+
+void WebAppPublisherHelper::OnProtocolHandlerDialogCompleted(
+    apps::AppLaunchParams params,
+    base::OnceCallback<void(content::WebContents*)> on_complete,
+    bool allowed,
+    bool remember_user_choice) {
+  if (remember_user_choice) {
+    ApiApprovalState approval_state =
+        allowed ? ApiApprovalState::kAllowed : ApiApprovalState::kDisallowed;
+    provider_->scheduler().UpdateProtocolHandlerUserApproval(
+        params.app_id, params.protocol_handler_launch_url->scheme(),
+        approval_state, base::DoNothing());
+  }
+  if (!allowed) {
+    std::move(on_complete).Run(nullptr);
+    return;
+  }
+  provider_->scheduler().LaunchAppWithCustomParams(
+      std::move(params),
+      base::BindOnce([](base::WeakPtr<Browser>,
+                        base::WeakPtr<content::WebContents> web_contents,
+                        apps::LaunchContainer) {
+        return web_contents.get();
+      }).Then(std::move(on_complete)));
 }
 
 void WebAppPublisherHelper::OnLaunchCompleted(

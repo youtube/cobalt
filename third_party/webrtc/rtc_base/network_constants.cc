@@ -10,6 +10,8 @@
 
 #include "rtc_base/network_constants.h"
 
+#include <string>
+
 #include "rtc_base/checks.h"
 
 namespace webrtc {

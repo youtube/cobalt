@@ -18,7 +18,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
-#include "rtc_base/string_encode.h"
 
 namespace webrtc {
 

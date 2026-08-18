@@ -142,6 +142,10 @@ static_library("protobuf_full") {
 
       # The Cast Core gRPC generator tool.
       "//third_party/cast_core/public/src/build/chromium:cast_core_grpc_generator",
+
+      # The proto_extras plugin generates code that some of the above fuzzers
+      # use, and thus needs to know the full types.
+      "//components/proto_extras:protobuf_full_support",
     ]
   }
 
@@ -347,7 +351,7 @@ group("py_proto") {
 
 # Note: This exists for Cronet in AOSP where we can't import prebuilts. We import
 # the raw sources and compile them using a specialized pipeline. See crbug.com/419480317.
-if (is_android && is_cronet_build) {
+if (is_android && is_cronet_for_aosp_build) {
   android_library("proto_runtime_lite_java") {
     sources = javaproto_sources
   }

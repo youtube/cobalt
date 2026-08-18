@@ -53,6 +53,10 @@
 #include <windows.h>
 #endif
 
+#if defined(_M_X64) || defined(_M_IX86)
+#include "intrin.h"
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -1483,16 +1487,26 @@ inline uint64_t CRYPTO_addc_u64(uint64_t x, uint64_t y, uint64_t carry,
 static inline uint32_t CRYPTO_addc_u32(uint32_t x, uint32_t y, uint32_t carry,
                                        uint32_t *out_carry) {
   declassify_assert(carry <= 1);
+#if defined(_M_IX86)
+  uint32_t sum = 0;
+  *out_carry = _addcarry_u32(carry, x, y, &sum);
+  return sum;
+#else
   uint64_t ret = carry;
   ret += (uint64_t)x + y;
   *out_carry = (uint32_t)(ret >> 32);
   return (uint32_t)ret;
+#endif
 }
 
 static inline uint64_t CRYPTO_addc_u64(uint64_t x, uint64_t y, uint64_t carry,
                                        uint64_t *out_carry) {
   declassify_assert(carry <= 1);
-#if defined(BORINGSSL_HAS_UINT128)
+#if defined(_M_X64)
+  uint64_t sum = 0;
+  *out_carry = _addcarry_u64(carry, x, y, &sum);
+  return sum;
+#elif defined(BORINGSSL_HAS_UINT128)
   uint128_t ret = carry;
   ret += (uint128_t)x + y;
   *out_carry = (uint64_t)(ret >> 64);
@@ -1547,17 +1561,29 @@ inline uint64_t CRYPTO_subc_u64(uint64_t x, uint64_t y, uint64_t borrow,
 static inline uint32_t CRYPTO_subc_u32(uint32_t x, uint32_t y, uint32_t borrow,
                                        uint32_t *out_borrow) {
   declassify_assert(borrow <= 1);
+#if defined(_M_IX86)
+  uint32_t diff = 0;
+  *out_borrow = _subborrow_u32(borrow, x, y, &diff);
+  return diff;
+#else
   uint32_t ret = x - y - borrow;
   *out_borrow = (x < y) | ((x == y) & borrow);
   return ret;
+#endif
 }
 
 static inline uint64_t CRYPTO_subc_u64(uint64_t x, uint64_t y, uint64_t borrow,
                                        uint64_t *out_borrow) {
   declassify_assert(borrow <= 1);
+#if defined(_M_X64)
+  uint64_t diff = 0;
+  *out_borrow = _subborrow_u64(borrow, x, y, &diff);
+  return diff;
+#else
   uint64_t ret = x - y - borrow;
   *out_borrow = (x < y) | ((x == y) & borrow);
   return ret;
+#endif
 }
 #endif
 

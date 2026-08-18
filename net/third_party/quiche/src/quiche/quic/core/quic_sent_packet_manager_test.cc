@@ -728,7 +728,8 @@ TEST_F(QuicSentPacketManagerTest, GetLeastUnackedUnacked) {
 }
 
 TEST_F(QuicSentPacketManagerTest, AckAckAndUpdateRtt) {
-  EXPECT_FALSE(manager_.largest_packet_peer_knows_is_acked().IsInitialized());
+  EXPECT_FALSE(manager_.GetLargestPacketPeerKnowsIsAcked(ENCRYPTION_INITIAL)
+                   .IsInitialized());
   SendDataPacket(1);
   SendAckPacket(2, 1);
 
@@ -741,7 +742,8 @@ TEST_F(QuicSentPacketManagerTest, AckAckAndUpdateRtt) {
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
                                    ENCRYPTION_INITIAL, kEmptyCounts));
-  EXPECT_EQ(QuicPacketNumber(1), manager_.largest_packet_peer_knows_is_acked());
+  EXPECT_EQ(QuicPacketNumber(1),
+            manager_.GetLargestPacketPeerKnowsIsAcked(ENCRYPTION_INITIAL));
 
   SendAckPacket(3, 3);
 
@@ -755,7 +757,7 @@ TEST_F(QuicSentPacketManagerTest, AckAckAndUpdateRtt) {
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
                                    ENCRYPTION_INITIAL, kEmptyCounts));
   EXPECT_EQ(QuicPacketNumber(3u),
-            manager_.largest_packet_peer_knows_is_acked());
+            manager_.GetLargestPacketPeerKnowsIsAcked(ENCRYPTION_INITIAL));
 }
 
 TEST_F(QuicSentPacketManagerTest, Rtt) {
@@ -2117,6 +2119,51 @@ TEST_F(QuicSentPacketManagerTest, IW10ForUpAndDown) {
   manager_.SetFromConfig(config);
 
   EXPECT_EQ(10u, manager_.initial_congestion_window());
+}
+
+TEST_F(QuicSentPacketManagerTest, ServerCongestionWindowDoubledWithIW2X) {
+  SetQuicReloadableFlag(quic_allow_client_enabled_2x_initial_cwnd, true);
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, {kIW2X});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, SetInitialCongestionWindowInPackets(
+                                    kInitialCongestionWindow * 2));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+
+  EXPECT_EQ(manager_.initial_congestion_window(), kInitialCongestionWindow * 2);
+}
+
+TEST_F(QuicSentPacketManagerTest,
+       ServerCongestionWindowIsDefaultWithIW2XAndNoFlag) {
+  SetQuicReloadableFlag(quic_allow_client_enabled_2x_initial_cwnd, false);
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, {kIW2X});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, SetInitialCongestionWindowInPackets(_))
+      .Times(0);
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+
+  EXPECT_EQ(manager_.initial_congestion_window(), kInitialCongestionWindow);
+}
+
+TEST_F(QuicSentPacketManagerTest,
+       ClientCongestionWindowIsDefaultWithIW2XAndNoFlag) {
+  QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
+  SetQuicReloadableFlag(quic_allow_client_enabled_2x_initial_cwnd, false);
+  QuicConfig config;
+  config.SetConnectionOptionsToSend({kIW2X});
+  config.SetClientConnectionOptions({});
+
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_,
+              SetInitialCongestionWindowInPackets(kInitialCongestionWindow * 2))
+      .Times(0);
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+
+  EXPECT_EQ(manager_.initial_congestion_window(), kInitialCongestionWindow);
 }
 
 TEST_F(QuicSentPacketManagerTest, ClientMultiplePacketNumberSpacePtoTimeout) {

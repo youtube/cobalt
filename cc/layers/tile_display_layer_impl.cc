@@ -87,7 +87,6 @@ void TileDisplayLayerImpl::Tiling::SetTileSize(const gfx::Size& size) {
   }
 
   tiling_data_.SetMaxTextureSize(size);
-  tiles_.clear();
 }
 
 void TileDisplayLayerImpl::Tiling::SetTilingRect(const gfx::Rect& rect) {
@@ -96,7 +95,6 @@ void TileDisplayLayerImpl::Tiling::SetTilingRect(const gfx::Rect& rect) {
   }
 
   tiling_data_.SetTilingRect(rect);
-  tiles_.clear();
 }
 
 void TileDisplayLayerImpl::Tiling::SetTileContents(const TileIndex& key,
@@ -200,8 +198,7 @@ void TileDisplayLayerImpl::AppendQuads(const AppendQuadsContext& context,
     return;
   }
 
-  const float max_contents_scale =
-      tilings_.empty() ? 1.0f : tilings_.front()->contents_scale_key();
+  const float max_contents_scale = tilings_.front()->contents_scale_key();
 
   // If this layer is used as a backdrop filter, don't create and append a quad
   // as that will be done in RenderSurfaceImpl::AppendQuads.
@@ -213,6 +210,32 @@ void TileDisplayLayerImpl::AppendQuads(const AppendQuadsContext& context,
       render_pass->CreateAndAppendSharedQuadState();
   PopulateScaledSharedQuadState(shared_quad_state, max_contents_scale,
                                 contents_opaque());
+
+  if (is_directly_composited_image_) {
+    // Directly composited images should be clipped to the layer's content rect.
+    // When a PictureLayerTiling is created for a directly composited image, the
+    // layer bounds are multiplied by the raster scale in order to compute the
+    // tile size. If the aspect ratio of the layer doesn't match that of the
+    // image, it's possible that one of the dimensions of the resulting size
+    // (layer bounds * raster scale) is a fractional number, as raster scale
+    // does not scale x and y independently.
+    // When this happens, the ToEnclosingRect() operation in
+    // |PictureLayerTiling::EnclosingContentsRectFromLayer()| will
+    // create a tiling that, when scaled by |max_contents_scale| above, is
+    // larger than the layer bounds by a fraction of a pixel.
+    gfx::Rect bounds_in_target_space = MathUtil::MapEnclosingClippedRect(
+        draw_properties().target_space_transform, gfx::Rect(bounds()));
+    if (is_clipped()) {
+      bounds_in_target_space.Intersect(draw_properties().clip_rect);
+    }
+
+    if (shared_quad_state->clip_rect) {
+      bounds_in_target_space.Intersect(*shared_quad_state->clip_rect);
+    }
+
+    shared_quad_state->clip_rect = bounds_in_target_space;
+  }
+
   const Occlusion scaled_occlusion =
       draw_properties()
           .occlusion_in_content_space.GetOcclusionWithGivenDrawTransform(
@@ -276,10 +299,8 @@ void TileDisplayLayerImpl::AppendQuads(const AppendQuadsContext& context,
         auto* quad = render_pass->CreateAndAppendDrawQuad<viz::TileDrawQuad>();
         quad->SetNew(shared_quad_state, offset_geometry_rect,
                      offset_visible_geometry_rect, needs_blending,
-                     resource->resource_id, texture_rect,
-                     iter.CurrentTiling()->tile_size(),
-                     /*nearest_neighbor=*/false,
-                     /*enable_edge_aa=*/false);
+                     resource->resource_id, texture_rect, nearest_neighbor_,
+                     !layer_tree_impl()->settings().enable_edge_anti_aliasing);
         has_draw_quad = true;
       } else if (auto color = iter->solid_color()) {
         has_draw_quad = true;
@@ -317,8 +338,7 @@ void TileDisplayLayerImpl::GetContentsResourceId(
   CHECK(is_backdrop_filter_mask_);
   CHECK_EQ(tilings_.size(), 1u);
 
-  const float max_contents_scale =
-      tilings_.empty() ? 1.0f : tilings_.front()->contents_scale_key();
+  const float max_contents_scale = tilings_.front()->contents_scale_key();
   gfx::Rect content_rect =
       gfx::ScaleToEnclosingRect(gfx::Rect(bounds()), max_contents_scale);
   const auto ideal_scale = GetIdealContentsScale();

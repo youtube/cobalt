@@ -277,7 +277,7 @@ std::vector<Codec> GetPayloadTypesAndDefaultCodecs(
   return output_codecs;
 }
 
-static std::string CodecVectorToString(const std::vector<Codec>& codecs) {
+std::string CodecVectorToString(const std::vector<Codec>& codecs) {
   StringBuilder out;
   out << "{";
   for (size_t i = 0; i < codecs.size(); ++i) {
@@ -290,7 +290,7 @@ static std::string CodecVectorToString(const std::vector<Codec>& codecs) {
   return out.Release();
 }
 
-static bool ValidateCodecFormats(const std::vector<Codec>& codecs) {
+bool ValidateCodecFormats(const std::vector<Codec>& codecs) {
   bool has_video = false;
   for (size_t i = 0; i < codecs.size(); ++i) {
     if (!codecs[i].ValidateCodecFormat()) {
@@ -308,7 +308,7 @@ static bool ValidateCodecFormats(const std::vector<Codec>& codecs) {
   return true;
 }
 
-static bool ValidateStreamParams(const StreamParams& sp) {
+bool ValidateStreamParams(const StreamParams& sp) {
   if (sp.ssrcs.empty()) {
     RTC_LOG(LS_ERROR) << "No SSRCs in stream parameters: " << sp.ToString();
     return false;

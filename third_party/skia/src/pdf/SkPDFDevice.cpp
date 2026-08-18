@@ -41,10 +41,10 @@
 #include "include/core/SkTypeface.h"
 #include "include/core/SkTypes.h"
 #include "include/docs/SkPDFDocument.h"
-#include "include/pathops/SkPathOps.h"
 #include "include/private/base/SkDebug.h"
 #include "include/private/base/SkTemplates.h"
 #include "include/private/base/SkTo.h"
+#include "modules/pathops/include/SkPathOps.h"
 #include "src/base/SkScopeExit.h"
 #include "src/base/SkTLazy.h"
 #include "src/base/SkUTF.h"
@@ -297,7 +297,7 @@ sk_sp<SkDevice> SkPDFDevice::createDevice(const CreateInfo& cinfo, const SkPaint
     // printer resolution.
 
     // TODO: It may be possible to express some filters natively using PDF
-    // to improve quality and file size (https://bug.skia.org/3043)
+    // to improve quality and file size (skbug.com/40034150)
     if ((layerPaint && (layerPaint->getImageFilter() || layerPaint->getColorFilter()))
         || (cinfo.fInfo.colorSpace() && !cinfo.fInfo.colorSpace()->isSRGB())) {
         // need to return a raster device, which we will detect in drawDevice()
@@ -1716,7 +1716,7 @@ void SkPDFDevice::internalDrawImageRect(SkKeyedImage imageSubset,
 
     bool needToRestore = false;
     if (src && !is_integral(*src)) {
-        // Need sub-pixel clipping to fix https://bug.skia.org/4374
+        // Need sub-pixel clipping to fix skbug.com/40035524
         this->cs().save();
         this->cs().clipRect(dst, ctm, SkClipOp::kIntersect, true);
         needToRestore = true;

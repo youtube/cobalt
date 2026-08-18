@@ -25,7 +25,6 @@
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/fec_controller.h"
 #include "api/field_trials.h"
-#include "api/field_trials_view.h"
 #include "api/ice_transport_interface.h"
 #include "api/neteq/neteq_factory.h"
 #include "api/peer_connection_interface.h"
@@ -238,15 +237,6 @@ PeerConfigurer* PeerConfigurer::SetBitrateSettings(
 PeerConfigurer* PeerConfigurer::SetIceTransportFactory(
     std::unique_ptr<IceTransportFactory> factory) {
   components_->pc_dependencies->ice_transport_factory = std::move(factory);
-  return this;
-}
-
-PeerConfigurer* PeerConfigurer::SetFieldTrials(
-    std::unique_ptr<FieldTrialsView> field_trials) {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  components_->pcf_dependencies->trials = std::move(field_trials);
-#pragma clang diagnostic pop
   return this;
 }
 

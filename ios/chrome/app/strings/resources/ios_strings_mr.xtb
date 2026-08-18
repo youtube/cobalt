@@ -18,6 +18,7 @@
 <translation id="1054745118061919935">पुढे सुरू ठेवून, तुम्ही <ph name="BEGIN_LINK" />सेवा अटी<ph name="END_LINK" /> यांना सहमती दर्शवता.</translation>
 <translation id="10614374240317010">कधीही सेव्ह न केलेले</translation>
 <translation id="1062138828266376352">तुमचा पिन बदलला नाही. तुमचे इंटरनेट कनेक्शन तपासा आणि पुन्हा प्रयत्न करा</translation>
+<translation id="1063070031224282617">"<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />" (<ph name="FILE_SIZE" />) कुठे सेव्ह करायची आहे ते निवडा</translation>
 <translation id="1072476005125066234">तुमच्या स्वारस्यांवर आधारित पुनरावलोकने</translation>
 <translation id="1074827084851510304">तुमचे {password_count} पासवर्ड आणि तुम्ही साइन-इन माहिती कधीही सेव्ह न करण्याचे निवडलेल्या साइट आणि ॲप्सची सूची हटवणार आहात. एखाद्या साइट आणि ॲप्ससाठी तुम्ही तयार केलेले कोणतेही खाते हटवले जाणार नाही.</translation>
 <translation id="1076421457278169141">कोड स्कॅन केला</translation>
@@ -210,6 +211,7 @@
 <translation id="1838089197478136166">Wallet मध्ये उघडायची आहे का?</translation>
 <translation id="183878838231635348">हे कार्ड तुमच्यासाठी सुरक्षितता तपासणी ने आपोआप डिटेक्ट केलेली कोणतीही गोपनीयता किंवा सुरक्षितता यासंबंधित समस्या दाखवते.</translation>
 <translation id="1845230888742614096">गट कायम ठेवा</translation>
+<translation id="1853692000353488670">नवीन गुप्त टॅब</translation>
 <translation id="1854463785401910334">उघडलेल्या टॅबमध्ये शोधा</translation>
 <translation id="1861067954551502701">{count,plural, =1{{count} पैकी {position} क्रमांकाचा पासवर्ड}other{{count} पैकी {position} क्रमांकाचा पासवर्ड}}</translation>
 <translation id="1861262398884155592">हे फोल्डर रिक्त आहे</translation>
@@ -545,6 +547,7 @@
 <translation id="3227137524299004712">मायक्रोफोन</translation>
 <translation id="3235063766008841141">फसव्या साइटवर एंटर केले गेले आणि डेटा उल्लंघन करत असल्याचे आढळले</translation>
 <translation id="3235242129752692527">इव्हेंट तपशील संपादित करा आणि "सेव्ह करा" वर टॅप करा.</translation>
+<translation id="323863549127671026">सध्या उघडे असलेले टॅब आणि टॅब गट</translation>
 <translation id="3240426699337459095">लिंक कॉपी केला</translation>
 <translation id="3244271242291266297">MM</translation>
 <translation id="3245429137663807393">तुम्ही Chrome वापर अहवालदेखील शेअर केल्यास, त्या अहवालांमध्ये तुम्ही भेट दिलेल्या URLs चा समावेश होतो</translation>
@@ -592,6 +595,7 @@
 <translation id="3476450923187944815">इतर सर्व अ‍ॅप्सवर तुमचे पासवर्ड अ‍ॅक्सेस करा.</translation>
 <translation id="3488501490964659223">टॅब बंद केले गेले होते आणि ब्राउझिंग डेटा हटवला गेला होता. तुम्हाला साइन आउट केले गेले होते</translation>
 <translation id="3493531032208478708">सूचित केलेल्या आशयविषयी <ph name="BEGIN_LINK" />अधिक जाणून घ्या<ph name="END_LINK" /></translation>
+<translation id="349446645805573740">"<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />" कुठे सेव्ह करायची आहे ते निवडा</translation>
 <translation id="3504377992102007712">सेटिंग्ज</translation>
 <translation id="35083190962747987">${url} उघडा</translation>
 <translation id="3511519535430890904">ब्राउझिंग संरक्षण जोडा</translation>
@@ -691,6 +695,7 @@
 <translation id="3922395466317605522">मेनू कस्टमाइझ करा</translation>
 <translation id="3929457972718048006">पत्ते</translation>
 <translation id="3931215329146376310">{count,plural, =1{या साइटसाठी नवीन पासवर्ड}other{या साइटसाठी नवीन पासवर्ड}}</translation>
+<translation id="3934905113567851655">आकार बदलण्यासाठी पिंच करा</translation>
 <translation id="3940195383040445971">टॅबवर किमती ट्रॅक करा</translation>
 <translation id="3941941395924123592">{COUNT,plural, =1{{COUNT} टॅब बंद करा}other{{COUNT} टॅब बंद करा}}</translation>
 <translation id="3948600256434252210">तुम्ही गुप्त मोड मध्ये ब्राउझ करण्यासाठी उजवीकडे स्‍वाइप करू शकता.</translation>
@@ -1699,6 +1704,7 @@
 <translation id="7925108652071887026">स्वयं-भरण डेटा</translation>
 <translation id="7926975587469166629">कार्डावरील टोपणनाव</translation>
 <translation id="7927711904086083099">न निवडलेले</translation>
+<translation id="7927902634113905831">तुम्हाला "<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />" - <ph name="FILESIZE" /> ज्यामध्ये सेव्ह करायची आहे ते खाते निवडा</translation>
 <translation id="7930998711684428189">डेटा भंगामध्ये पासवर्ड उघड झाल्यास, तुम्हाला चेतावणी देतो.</translation>
 <translation id="7933880123415105005"><ph name="SEARCH_PROVIDER" /> शोधा</translation>
 <translation id="7938254975914653459">फेसटाइम</translation>

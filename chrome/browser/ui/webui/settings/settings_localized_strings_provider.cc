@@ -105,7 +105,6 @@
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "crypto/crypto_buildflags.h"
-#include "device/fido/features.h"
 #include "media/base/media_switches.h"
 #include "net/base/url_util.h"
 #include "net/net_buildflags.h"
@@ -143,6 +142,7 @@
 #endif
 
 #if BUILDFLAG(IS_WIN)
+#include "device/fido/features.h"
 #include "device/fido/win/webauthn_api.h"
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -632,10 +632,11 @@ void AddClearBrowsingDataStrings(content::WebUIDataSource* html_source,
       {"historyDeletionDialogTitle",
        IDS_CLEAR_BROWSING_DATA_HISTORY_NOTICE_TITLE},
       {"historyDeletionDialogOK", IDS_CLEAR_BROWSING_DATA_HISTORY_NOTICE_OK},
-      {"manageOtherGoogleDataTitle",
+      {"manageOtherDataLabel", IDS_SETTINGS_MANAGE_OTHER_DATA_LABEL},
+      {"manageOtherGoogleDataLabel",
        IDS_SETTINGS_MANAGE_OTHER_GOOGLE_DATA_LABEL},
-      {"manageOtherGoogleDataDescription",
-       IDS_SETTINGS_MANAGE_OTHER_GOOGLE_DATA_SUB_LABEL},
+      {"manageOtherDataSubLabel", IDS_SETTINGS_MANAGE_OTHER_DATA_SUB_LABEL},
+      {"managePasswordsSubLabel", IDS_SETTINGS_MANAGE_PASSWORDS_SUB_LABEL},
       {"passwordsDeletionDialogTitle",
        IDS_CLEAR_BROWSING_DATA_PASSWORDS_NOTICE_TITLE},
       {"passwordsDeletionDialogOK",
@@ -644,6 +645,7 @@ void AddClearBrowsingDataStrings(content::WebUIDataSource* html_source,
       {"clearBrowsingDataShowMore", IDS_SETTINGS_CLEAR_BROWSING_DATA_SHOW_MORE},
       {"clearBrowsingDataMore", IDS_SETTINGS_CLEAR_BROWSING_DATA_MORE},
       {"otherDataTitle", IDS_SETTINGS_OTHER_DATA_TITLE},
+      {"otherGoogleDataTitle", IDS_SETTINGS_OTHER_GOOGLE_DATA_TITLE},
       {"otherDataDescription", IDS_SETTINGS_OTHER_DATA_DESCRIPTION},
       {"passwordsAndPasskeys", IDS_SETTINGS_PASSWORDS_AND_PASSKEYS},
       {"manageInGooglePasswordManager",
@@ -752,12 +754,18 @@ void AddGlicStrings(content::WebUIDataSource* html_source) {
       {"glicLocationToggle", IDS_SETTINGS_GLIC_PERMISSIONS_LOCATION_TOGGLE},
       {"glicLocationToggleSublabel",
        IDS_SETTINGS_GLIC_PERMISSIONS_LOCATION_TOGGLE_SUBLABEL},
+      {"glicLocationToggleSublabelDataProtected",
+       IDS_SETTINGS_GLIC_PERMISSIONS_LOCATION_TOGGLE_SUBLABEL_DATA_PROTECTED},
       {"glicMicrophoneToggle", IDS_SETTINGS_GLIC_PERMISSIONS_MICROPHONE_TOGGLE},
       {"glicMicrophoneToggleSublabel",
        IDS_SETTINGS_GLIC_PERMISSIONS_MICROPHONE_TOGGLE_SUBLABEL},
+      {"glicMicrophoneToggleSublabelDataProtected",
+       IDS_SETTINGS_GLIC_PERMISSIONS_MICROPHONE_TOGGLE_SUBLABEL_DATA_PROTECTED},
       {"glicTabAccessToggle", IDS_SETTINGS_GLIC_PERMISSIONS_TAB_ACCESS_TOGGLE},
       {"glicTabAccessToggleSublabel",
        IDS_SETTINGS_GLIC_PERMISSIONS_TAB_ACCESS_TOGGLE_SUBLABEL},
+      {"glicTabAccessToggleSublabelDataProtected",
+       IDS_SETTINGS_GLIC_PERMISSIONS_TAB_ACCESS_TOGGLE_SUBLABEL_DATA_PROTECTED},
       {"glicActivityButton", IDS_SETTINGS_GLIC_PERMISSIONS_ACTIVITY_BUTTON},
       {"glicActivityButtonSublabel",
        IDS_SETTINGS_GLIC_PERMISSIONS_ACTIVITY_BUTTON_SUBLABEL},
@@ -789,11 +797,17 @@ void AddGlicStrings(content::WebUIDataSource* html_source) {
                          features::kGlicLocationToggleLearnMoreURL.Get());
   html_source->AddString("glicTabAccessToggleLearnMoreUrl",
                          features::kGlicTabAccessToggleLearnMoreURL.Get());
+  html_source->AddString(
+      "glicTabAccessToggleLearnMoreUrlDataProtected",
+      features::kGlicTabAccessToggleLearnMoreURLDataProtected.Get());
   html_source->AddString("glicSettingsPageLearnMoreUrl",
                          features::kGlicSettingsPageLearnMoreURL.Get());
   html_source->AddBoolean(
       "glicClosedCaptionsFeatureEnabled",
       base::FeatureList::IsEnabled(features::kGlicClosedCaptioning));
+  html_source->AddBoolean(
+      "glicUserStatusCheckFeatureEnabled",
+      base::FeatureList::IsEnabled(features::kGlicUserStatusCheck));
 }
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
@@ -1421,10 +1435,18 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
                          autofill::payments::GetManageAddressesUrl().spec());
   html_source->AddString(
       "manageCreditCardsLabel",
-      l10n_util::GetStringFUTF16(
-          IDS_SETTINGS_PAYMENTS_MANAGE_CREDIT_CARDS,
-          base::UTF8ToUTF16(
-              autofill::payments::GetManageInstrumentsUrl().spec())));
+      base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableLoyaltyCardsFilling)
+          ? l10n_util::GetStringFUTF16(
+                IDS_SETTINGS_PAYMENTS_MANAGE_LOYALTY_CARDS_AND_PAYMENT_METHODS,
+                base::UTF8ToUTF16(
+                    autofill::payments::GetManageLoyaltyCardsUrl().spec()),
+                base::UTF8ToUTF16(
+                    autofill::payments::GetManageInstrumentsUrl().spec()))
+          : l10n_util::GetStringFUTF16(
+                IDS_SETTINGS_PAYMENTS_MANAGE_CREDIT_CARDS,
+                base::UTF8ToUTF16(
+                    autofill::payments::GetManageInstrumentsUrl().spec())));
   html_source->AddString("managePaymentMethodsUrl",
                          autofill::payments::GetManageInstrumentsUrl().spec());
   html_source->AddString("addressesAndPaymentMethodsLearnMoreURL",
@@ -1631,8 +1653,6 @@ void AddPersonalizationOptionsStrings(content::WebUIDataSource* html_source) {
       {"enablePersonalizationLoggingDesc",
        IDS_SETTINGS_ENABLE_LOGGING_PREF_DESC},
       {"spellingDescription", IDS_SETTINGS_SPELLING_PREF_DESC},
-      {"linkDoctorPref", IDS_SETTINGS_LINKDOCTOR_PREF},
-      {"linkDoctorPrefDesc", IDS_SETTINGS_LINKDOCTOR_PREF_DESC},
       {"searchSuggestPref", IDS_SETTINGS_SUGGEST_PREF},
       {"searchSuggestPrefDesc", IDS_SETTINGS_SUGGEST_PREF_DESC},
       {"searchAggregatorSuggestPref", IDS_SETTINGS_SEARCH_AGGREGATOR_PREF},
@@ -2082,6 +2102,9 @@ void AddPrivacyStrings(content::WebUIDataSource* html_source,
 
   html_source->AddString("cookiesSettingsHelpCenterURL",
                          chrome::kCookiesSettingsHelpCenterURL);
+
+  html_source->AddString("incognitoTrackingProtectionsLearnMoreUrl",
+                         chrome::kIncognitoTrackingProtectionsLearnMoreUrl);
 
   html_source->AddString("relatedWebsiteSetsLearnMoreURL",
                          chrome::kRelatedWebsiteSetsLearnMoreURL);
@@ -3730,19 +3753,6 @@ void AddSecurityKeysStrings(content::WebUIDataSource* html_source) {
       {"securityKeysSetPinButton", IDS_SETTINGS_SECURITY_KEYS_SET_PIN_BUTTON},
       {"securityKeysSamePINAsCurrent",
        IDS_SETTINGS_SECURITY_KEYS_SAME_PIN_AS_CURRENT},
-      {"securityKeysPhoneEditDialogTitle",
-       IDS_SETTINGS_SECURITY_KEYS_PHONE_EDIT_DIALOG_TITLE},
-      {"securityKeysPhonesYourDevices",
-       IDS_SETTINGS_SECURITY_KEYS_PHONES_YOUR_DEVICES},
-      {"securityKeysPhonesSyncedDesc",
-       IDS_SETTINGS_SECURITY_KEYS_PHONES_SYNCED_DESC},
-      {"securityKeysPhonesLinkedDevices",
-       IDS_SETTINGS_SECURITY_KEYS_PHONES_LINKED_DEVICES},
-      {"securityKeysPhonesLinkedDesc",
-       IDS_SETTINGS_SECURITY_KEYS_PHONES_LINKED_DESC},
-      {"securityKeysPhonesManage", IDS_SETTINGS_SECURITY_KEYS_PHONES_MANAGE},
-      {"securityKeysPhonesManageDesc",
-       IDS_SETTINGS_SECURITY_KEYS_PHONES_MANAGE_DESC},
   };
   html_source->AddLocalizedStrings(kSecurityKeysStrings);
   bool win_native_api_available = false;
@@ -3755,9 +3765,6 @@ void AddSecurityKeysStrings(content::WebUIDataSource* html_source) {
                           !win_native_api_available);
   html_source->AddBoolean("enableSecurityKeysBioEnrollment",
                           !win_native_api_available);
-  html_source->AddBoolean(
-      "enableSecurityKeysManagePhones",
-      base::FeatureList::IsEnabled(device::kWebAuthnHybridLinking));
 }
 
 void AddShortcutInputStrings(content::WebUIDataSource* html_source) {

@@ -36,22 +36,21 @@ using ::testing::UnorderedElementsAre;
 using SkippedStream = AnyForwardTsnChunk::SkippedStream;
 
 // The default maximum size of the Reassembly Queue.
-static constexpr size_t kBufferSize = 10000;
+constexpr size_t kBufferSize = 10000;
 
-static constexpr StreamID kStreamID(1);
-static constexpr SSN kSSN(0);
-static constexpr MID kMID(0);
-static constexpr FSN kFSN(0);
-static constexpr PPID kPPID(53);
+constexpr StreamID kStreamID(1);
+constexpr SSN kSSN(0);
+constexpr MID kMID(0);
+constexpr FSN kFSN(0);
+constexpr PPID kPPID(53);
 
-static constexpr std::array<uint8_t, 4> kShortPayload = {1, 2, 3, 4};
-static constexpr std::array<uint8_t, 4> kMessage2Payload = {5, 6, 7, 8};
-static constexpr std::array<uint8_t, 6> kSixBytePayload = {1, 2, 3, 4, 5, 6};
-static constexpr std::array<uint8_t, 8> kMediumPayload1 = {1, 2, 3, 4,
-                                                           5, 6, 7, 8};
-static constexpr std::array<uint8_t, 8> kMediumPayload2 = {9,  10, 11, 12,
-                                                           13, 14, 15, 16};
-static constexpr std::array<uint8_t, 16> kLongPayload = {
+constexpr std::array<uint8_t, 4> kShortPayload = {1, 2, 3, 4};
+constexpr std::array<uint8_t, 4> kMessage2Payload = {5, 6, 7, 8};
+constexpr std::array<uint8_t, 6> kSixBytePayload = {1, 2, 3, 4, 5, 6};
+constexpr std::array<uint8_t, 8> kMediumPayload1 = {1, 2, 3, 4, 5, 6, 7, 8};
+constexpr std::array<uint8_t, 8> kMediumPayload2 = {9,  10, 11, 12,
+                                                    13, 14, 15, 16};
+constexpr std::array<uint8_t, 16> kLongPayload = {
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
 MATCHER_P3(SctpMessageIs, stream_id, ppid, expected_payload, "") {

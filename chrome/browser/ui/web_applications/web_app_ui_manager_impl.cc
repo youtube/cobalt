@@ -321,6 +321,14 @@ void WebAppUiManagerImpl::ShowWebAppFileLaunchDialog(
                                         std::move(launch_callback));
 }
 
+void WebAppUiManagerImpl::ShowWebAppProtocolLaunchDialog(
+    const GURL& protocol_url,
+    const webapps::AppId& app_id,
+    WebAppLaunchAcceptanceCallback launch_callback) {
+  ::web_app::ShowWebAppProtocolLaunchDialog(protocol_url, profile_, app_id,
+                                            std::move(launch_callback));
+}
+
 void WebAppUiManagerImpl::ShowWebAppIdentityUpdateDialog(
     const std::string& app_id,
     bool title_change,
@@ -435,6 +443,16 @@ void WebAppUiManagerImpl::TriggerInstallDialogForBackgroundInstall(
   web_app::CreateWebAppForBackgroundInstall(initiating_web_contents,
                                             std::move(tracker), install_url,
                                             manifest_id, std::move(callback));
+}
+
+void WebAppUiManagerImpl::TriggerLaunchDialogForBackgroundInstall(
+    content::WebContents* initiating_web_contents,
+    const webapps::AppId& app_id,
+    Profile* profile,
+    const std::string& app_name,
+    WebInstallAppLaunchAcceptanceCallback callback) {
+  ShowWebInstallAppLaunchDialog(initiating_web_contents, app_id, profile,
+                                app_name, std::move(callback));
 }
 
 void WebAppUiManagerImpl::PresentUserUninstallDialog(

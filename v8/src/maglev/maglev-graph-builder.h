@@ -2760,6 +2760,8 @@ class MaglevGraphBuilder {
   template <Operation kOperation>
   MaybeReduceResult TryFoldInt32BinaryOperation(ValueNode* left,
                                                 int32_t cst_right);
+  template <Operation kOperation>
+  MaybeReduceResult TryFoldInt32BinaryOperation(int32_t left, int32_t right);
 
   template <Operation kOperation>
   ReduceResult BuildInt32UnaryOperationNode();
@@ -2996,6 +2998,10 @@ class MaglevGraphBuilder {
                                                  ValueNode* node);
   BranchResult BuildBranchIfFloat64IsHole(BranchBuilder& builder,
                                           ValueNode* node);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  BranchResult BuildBranchIfFloat64IsUndefinedOrHole(BranchBuilder& builder,
+                                                     ValueNode* node);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   BranchResult BuildBranchIfReferenceEqual(BranchBuilder& builder,
                                            ValueNode* lhs, ValueNode* rhs);
   BranchResult BuildBranchIfInt32Compare(BranchBuilder& builder, Operation op,

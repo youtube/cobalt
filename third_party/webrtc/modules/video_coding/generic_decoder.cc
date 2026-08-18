@@ -51,7 +51,7 @@ namespace {
 
 constexpr size_t kDecoderFrameMemoryLength = 10;
 
-}
+}  // namespace
 
 VCMDecodedFrameCallback::VCMDecodedFrameCallback(
     VCMTiming* timing,

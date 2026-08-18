@@ -72,7 +72,7 @@ struct RTC_EXPORT CryptoOptions {
 
   // Cipher groups used by DTLS when establishing an ephemeral key during
   // handshake.
-  class EphemeralKeyExchangeCipherGroups {
+  class RTC_EXPORT EphemeralKeyExchangeCipherGroups {
    public:
     // Which cipher groups are supported by this binary,
     // - ssl.h: SSL_GROUP_{}

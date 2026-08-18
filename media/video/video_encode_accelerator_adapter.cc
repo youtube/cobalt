@@ -37,6 +37,7 @@
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 #include "media/video/gpu_video_accelerator_factories.h"
 #include "media/video/video_encoder_info.h"
+#include "ui/gfx/gpu_memory_buffer.h"
 
 namespace media {
 
@@ -1055,8 +1056,7 @@ VideoEncodeAcceleratorAdapter::PrepareCpuFrame(
                               : src_frame;
   auto shared_frame = VideoFrame::WrapExternalData(
       PIXEL_FORMAT_I420, dest_coded_size, dest_visible_rect,
-      dest_visible_rect.size(), static_cast<const uint8_t*>(mapping->memory()),
-      mapping->size(), src_frame->timestamp());
+      dest_visible_rect.size(), *mapping, src_frame->timestamp());
 
   if (!shared_frame || !mapped_src_frame)
     return EncoderStatus(EncoderStatus::Codes::kSystemAPICallError);

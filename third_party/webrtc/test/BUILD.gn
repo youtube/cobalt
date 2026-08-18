@@ -1399,9 +1399,9 @@ if (!build_with_chromium) {
       "../rtc_base:threading",
       "../rtc_base:timeutils",
       "../system_wrappers",
-      "../system_wrappers:field_trial",
       "../video/config:encoder_config",
       "//third_party/abseil-cpp/absl/flags:flag",
+      "//third_party/abseil-cpp/absl/strings:string_view",
     ]
     if (!is_android && !build_with_chromium) {
       deps += [ "../modules/video_capture:video_capture_internal_impl" ]

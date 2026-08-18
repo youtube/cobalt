@@ -12,10 +12,14 @@
 
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "api/async_dns_resolver.h"
+#include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
-#include "rtc_base/ref_counted_object.h"
+#include "rtc_base/ip_address.h"
+#include "rtc_base/socket_address.h"
+#include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/thread_annotations.h"
 

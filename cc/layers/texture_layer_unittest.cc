@@ -1159,6 +1159,13 @@ class TextureLayerReleaseResourcesBase : public LayerTreeTest,
   bool PrepareTransferableResource(
       viz::TransferableResource* resource,
       viz::ReleaseCallback* release_callback) override {
+    if (commit_count_ > 0) {
+      // Any update after the first commit should clear the resource to ensure
+      // the main thread layer doesn't hold onto it.
+      *resource = viz::TransferableResource();
+      return true;
+    }
+
     *resource = MakeFakeResource();
     *release_callback =
         base::BindOnce(&TextureLayerReleaseResourcesBase::ResourceReleased,
@@ -1168,6 +1175,10 @@ class TextureLayerReleaseResourcesBase : public LayerTreeTest,
 
   void ResourceReleased(const gpu::SyncToken& sync_token, bool lost_resource) {
     resource_released_ = true;
+    // End the test when resource is released.
+    if (commit_count_ >= 1) {
+      EndTest();
+    }
   }
 
   void SetupTree() override {
@@ -1183,27 +1194,44 @@ class TextureLayerReleaseResourcesBase : public LayerTreeTest,
 
   void BeginTest() override {
     resource_released_ = false;
+    commit_count_ = 0;
     PostSetNeedsCommitToMainThread();
   }
 
-  void DidCommitAndDrawFrame() override { EndTest(); }
+  void DidCommitAndDrawFrame() override {
+    ++commit_count_;
+    PostSetNeedsCommitToMainThread();
+  }
 
   void AfterTest() override { EXPECT_TRUE(resource_released_); }
 
  protected:
   int texture_layer_id_;
+  int commit_count_ = 0;
 
  private:
-  bool resource_released_;
+  bool resource_released_ = false;
 };
 
 class TextureLayerReleaseResourcesAfterCommit
     : public TextureLayerReleaseResourcesBase {
  public:
   void CommitCompleteOnThread(LayerTreeHostImpl* host_impl) override {
-    LayerTreeImpl* tree = nullptr;
-    tree = host_impl->sync_tree();
-    tree->LayerById(texture_layer_id_)->ReleaseResources();
+    if (commit_count_ == 0) {
+      // After first commit, call ReleaseResources and verify it's released by
+      // the impl layer. It'll be released by the main thread layer during the
+      // next update.
+      auto* texture_impl = static_cast<TextureLayerImpl*>(
+          host_impl->sync_tree()->LayerById(texture_layer_id_));
+
+      // Verify resource exists before releasing
+      EXPECT_FALSE(texture_impl->transferable_resource().is_empty());
+
+      texture_impl->ReleaseResources();
+
+      // Verify resource was released from impl thread
+      EXPECT_TRUE(texture_impl->transferable_resource().is_empty());
+    }
   }
 };
 
@@ -1213,7 +1241,21 @@ class TextureLayerReleaseResourcesAfterActivate
     : public TextureLayerReleaseResourcesBase {
  public:
   void DidActivateTreeOnThread(LayerTreeHostImpl* host_impl) override {
-    host_impl->active_tree()->LayerById(texture_layer_id_)->ReleaseResources();
+    if (commit_count_ == 0) {
+      // After first commit, call ReleaseResources and verify it's released by
+      // the impl layer. It'll be released by the main thread layer during the
+      // next update.
+      auto* texture_impl = static_cast<TextureLayerImpl*>(
+          host_impl->active_tree()->LayerById(texture_layer_id_));
+
+      // Verify resource exists before releasing
+      EXPECT_FALSE(texture_impl->transferable_resource().is_empty());
+
+      texture_impl->ReleaseResources();
+
+      // Verify resource was released from impl thread
+      EXPECT_TRUE(texture_impl->transferable_resource().is_empty());
+    }
   }
 };
 
@@ -1392,11 +1434,11 @@ class SoftwareTextureLayerTest : public LayerTreeTest {
  protected:
   SoftwareTextureLayerTest() : LayerTreeTest(viz::RendererType::kSoftware) {}
 
-  void CleanupBeforeDestroy() override {
+  void AfterTest() override {
     // Clear before the LayerTreeHost (and its TestLayerTreeFrameSink) is
     // destroyed to prevent a dangling pointer during test cleanup.
     frame_sink_ = nullptr;
-    LayerTreeTest::CleanupBeforeDestroy();
+    LayerTreeTest::AfterTest();
   }
 
   void SetupTree() override {
@@ -1496,7 +1538,10 @@ class SoftwareTextureLayerSwitchTreesTest : public SoftwareTextureLayerTest {
     verified_frames_++;
   }
 
-  void AfterTest() override { EXPECT_EQ(6, verified_frames_); }
+  void AfterTest() override {
+    EXPECT_EQ(6, verified_frames_);
+    SoftwareTextureLayerTest::AfterTest();
+  }
 
   int step_ = 0;
   int verified_frames_ = 0;
@@ -1549,7 +1594,10 @@ class SoftwareTextureLayerPurgeMemoryTest : public SoftwareTextureLayerTest {
     verified_frames_++;
   }
 
-  void AfterTest() override { EXPECT_EQ(4, verified_frames_); }
+  void AfterTest() override {
+    EXPECT_EQ(4, verified_frames_);
+    SoftwareTextureLayerTest::AfterTest();
+  }
 
   int step_ = 0;
   int verified_frames_ = 0;
@@ -1601,7 +1649,10 @@ class SoftwareTextureLayerMultipleResourceTest
     verified_frames_++;
   }
 
-  void AfterTest() override { EXPECT_EQ(4, verified_frames_); }
+  void AfterTest() override {
+    EXPECT_EQ(4, verified_frames_);
+    SoftwareTextureLayerTest::AfterTest();
+  }
 
   int step_ = 0;
   int verified_frames_ = 0;
@@ -1648,7 +1699,7 @@ class SoftwareTextureLayerLoseFrameSinkTest : public SoftwareTextureLayerTest {
         // another frame, with the id being registered again.
         layer_tree_host()->SetVisible(false);
         // Clear frame_sink_ before releasing to prevent dangling pointer. The
-        // normal clear in CleanupBeforeDestroy won't handle it as this test is
+        // normal clear in AfterTest won't handle it as this test is
         // intentionally modifying the frame sink's lifetime.
         frame_sink_ = nullptr;
         layer_tree_host()->ReleaseLayerTreeFrameSink();
@@ -1685,7 +1736,10 @@ class SoftwareTextureLayerLoseFrameSinkTest : public SoftwareTextureLayerTest {
     EndTest();
   }
 
-  void AfterTest() override { EXPECT_EQ(4, verified_frames_); }
+  void AfterTest() override {
+    EXPECT_EQ(4, verified_frames_);
+    SoftwareTextureLayerTest::AfterTest();
+  }
 
   int step_ = 0;
   int verified_frames_ = 0;

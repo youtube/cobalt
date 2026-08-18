@@ -31,10 +31,12 @@ template("sizes_test") {
     if (!defined(data)) {
       data = []
     }
-    data += [
-      "${clang_base_path}/bin/llvm-strip",
-      "${clang_base_path}/bin/llvm-objcopy",
-    ]
+    if (!is_win) {
+      data += [
+        "${clang_base_path}/bin/llvm-strip",
+        "${clang_base_path}/bin/llvm-objcopy",
+      ]
+    }
 
     if (is_mac) {
       executable_args += [

@@ -18,6 +18,7 @@
 <translation id="1054745118061919935">A folytatással Ön elfogadja az <ph name="BEGIN_LINK" />Általános Szerződési Feltételeket<ph name="END_LINK" />.</translation>
 <translation id="10614374240317010">Az alábbi oldalakról soha ne mentsen jelszavakat</translation>
 <translation id="1062138828266376352">A PIN-kódja nem változott meg. Ellenőrizze az internetkapcsolatot, és próbálja újra.</translation>
+<translation id="1063070031224282617">Válassza ki, hogy hova szeretné menteni a következő fájlt: „<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />” (<ph name="FILE_SIZE" />)</translation>
 <translation id="1072476005125066234">Az érdeklődési körei alapján megjelenő értékelések</translation>
 <translation id="1074827084851510304">{password_count} jelszót, valamint azon webhelyek és alkalmazások listáját készül törölni, amelyeknél úgy döntött, hogy soha nem menti a bejelentkezési adatokat. A webhelyekhez és alkalmazásokhoz létrehozott fiókok nem törlődnek.</translation>
 <translation id="1076421457278169141">Kód beolvasva</translation>
@@ -210,6 +211,7 @@
 <translation id="1838089197478136166">Megnyitja a Walletban?</translation>
 <translation id="183878838231635348">Ez a kártya azokat az adatvédelmi és biztonsági problémákat jeleníti meg, amelyeket a biztonsági ellenőrzés automatikusan észlelt.</translation>
 <translation id="1845230888742614096">Csoport megtartása</translation>
+<translation id="1853692000353488670">Új inkognitó lap</translation>
 <translation id="1854463785401910334">Keresés a megnyitott lapokon</translation>
 <translation id="1861067954551502701">{count,plural, =1{{position}. jelszó, összesen ennyiből: {count}}other{{position}. jelszó, összesen ennyiből: {count}}}</translation>
 <translation id="1861262398884155592">Ez a mappa üres</translation>
@@ -545,6 +547,7 @@ A keresési előzmények törléséről a keresőmotorja útmutatójából táj�
 <translation id="3227137524299004712">Mikrofon</translation>
 <translation id="3235063766008841141">Félrevezető webhelyen írták be és adatvédelmi incidens során találtak rá.</translation>
 <translation id="3235242129752692527">Szerkessze az esemény adatait, majd koppintson a „Mentés” gombra.</translation>
+<translation id="323863549127671026">Jelenleg megnyitott lapok és lapcsoportok</translation>
 <translation id="3240426699337459095">Link másolva</translation>
 <translation id="3244271242291266297">HH</translation>
 <translation id="3245429137663807393">Ha a Chrome használati jelentéseit is megosztja, ezek a jelentések tartalmazzák az Ön által felkeresett URL-eket.</translation>
@@ -592,6 +595,7 @@ A keresési előzmények törléséről a keresőmotorja útmutatójából táj�
 <translation id="3476450923187944815">Más alkalmazásokban is hozzáférhet a jelszavaihoz.</translation>
 <translation id="3488501490964659223">A lapok bezáródtak, a böngészési adatok pedig törlődtek. A rendszer kijelentkeztette Önt</translation>
 <translation id="3493531032208478708"><ph name="BEGIN_LINK" />További információ<ph name="END_LINK" /> a javasolt tartalomról</translation>
+<translation id="349446645805573740">Válassza ki, hogy hova szeretné menteni a következő fájlt: „<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />”</translation>
 <translation id="3504377992102007712">Beállítások</translation>
 <translation id="35083190962747987">${url} megnyitása</translation>
 <translation id="3511519535430890904">Böngészési védelem növelése</translation>
@@ -623,6 +627,7 @@ A keresési előzmények törléséről a keresőmotorja útmutatójából táj�
 <translation id="3596414637720633074">Harmadik felektől származó cookie-k letiltása Inkognitó módban</translation>
 <translation id="3602260545951981695">Válassza a „Speciális védelem” lehetőséget.</translation>
 <translation id="3608436266458100337">Olvasási mód</translation>
+<translation id="3610041351087301930">Olvasó elrejtése</translation>
 <translation id="3622175633937495219">Keresési előzmények (<ph name="COUNT" /> elem található)</translation>
 <translation id="3625008969091706597">Ujját a képernyő szélén gyorsan csúsztatva visszaléphet.</translation>
 <translation id="362709345066740529">Itt személyre szabhatja kártyáit, hírcsatornáját és egyebeket</translation>
@@ -690,6 +695,7 @@ A keresési előzmények törléséről a keresőmotorja útmutatójából táj�
 <translation id="3922395466317605522">Menü személyre szabása</translation>
 <translation id="3929457972718048006">Címek</translation>
 <translation id="3931215329146376310">{count,plural, =1{Új jelszó ehhez a webhelyhez}other{Új jelszavak ehhez a webhelyhez}}</translation>
+<translation id="3934905113567851655">Húzza össze ujjait az átméretezéshez</translation>
 <translation id="3940195383040445971">Árkövetés a megnyitott lapokon</translation>
 <translation id="3941941395924123592">{COUNT,plural, =1{{COUNT} lap bezárása}other{{COUNT} lap bezárása}}</translation>
 <translation id="3948600256434252210">Jobbra csúsztatva inkognitó módban böngészhet.</translation>
@@ -1063,6 +1069,7 @@ A keresési előzmények törléséről a keresőmotorja útmutatójából táj�
 <translation id="5431252637281434233">A rendszer kijelentkezteti Önt</translation>
 <translation id="543338862236136125">Jelszó módosítása</translation>
 <translation id="5433691172869980887">Felhasználónév vágólapra másolva</translation>
+<translation id="5437480232219631455">Itt nyithatja meg a Geminit</translation>
 <translation id="5439618055789623719">Bejelentkezve mint <ph name="USER_EMAIL" /></translation>
 <translation id="5443636120437209490">Alapértelmezés szerint jobb böngészés</translation>
 <translation id="5444892875087332195">Könyvjelzők</translation>
@@ -1696,6 +1703,7 @@ Inkognitó módban a webhelyek nem használhatnak cookie-kat arra, hogy megfigye
 <translation id="7925108652071887026">Automatikus kitöltés adatai</translation>
 <translation id="7926975587469166629">Egyéni kártyanév</translation>
 <translation id="7927711904086083099">Nincs kiválasztva</translation>
+<translation id="7927902634113905831">Válassza ki a fiókot, amelyet használni szeretne a következő mentéséhez: „<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />” – <ph name="FILESIZE" /></translation>
 <translation id="7930998711684428189">Figyelmezteti Önt, ha a jelszavak adatvédelmi incidens során nyilvánosságra kerülnek</translation>
 <translation id="7933880123415105005"><ph name="SEARCH_PROVIDER" /> keresése</translation>
 <translation id="7938254975914653459">FaceTime</translation>

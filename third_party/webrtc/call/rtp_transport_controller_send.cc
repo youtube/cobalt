@@ -61,8 +61,8 @@
 
 namespace webrtc {
 namespace {
-static const int64_t kRetransmitWindowSizeMs = 500;
-static const size_t kMaxOverheadBytes = 500;
+const int64_t kRetransmitWindowSizeMs = 500;
+const size_t kMaxOverheadBytes = 500;
 
 constexpr TimeDelta kPacerQueueUpdateInterval = TimeDelta::Millis(25);
 

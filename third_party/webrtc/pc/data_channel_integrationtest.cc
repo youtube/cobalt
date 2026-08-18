@@ -950,7 +950,7 @@ TEST_P(DataChannelIntegrationTest, SctpDataChannelToAudioVideoUpgrade) {
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
 }
 
-static void MakeSpecCompliantSctpOffer(
+void MakeSpecCompliantSctpOffer(
     std::unique_ptr<SessionDescriptionInterface>& desc) {
   SctpDataContentDescription* dcd_offer =
       GetFirstSctpDataContentDescription(desc->description());
@@ -1638,7 +1638,7 @@ class DataChannelIntegrationTestUnifiedPlanFieldTrials
   }
 };
 
-static const char* kTrialsVariants[] = {
+const char* kTrialsVariants[] = {
     "",
     "WebRTC-ForceDtls13/Enabled/",
     "WebRTC-IceHandshakeDtls/Enabled/",

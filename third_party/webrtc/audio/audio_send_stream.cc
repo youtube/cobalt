@@ -506,7 +506,6 @@ uint32_t AudioSendStream::OnBitrateUpdated(BitrateAllocationUpdate update) {
       GetMinMaxBitrateConstraints();
   if (constraints) {
     update.target_bitrate.Clamp(constraints->min, constraints->max);
-    update.stable_target_bitrate.Clamp(constraints->min, constraints->max);
   }
   channel_send_->OnBitrateAllocation(update);
   // The amount of audio protection is not exposed by the encoder, hence

@@ -1103,7 +1103,7 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
                             base::Unretained(host)));
   }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
 #if !BUILDFLAG(IS_COBALT)
   map->Add<device::mojom::NFC>(base::BindRepeating(
       &RenderFrameHostImpl::BindNFCReceiver, base::Unretained(host)));
@@ -1117,7 +1117,8 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
   map->Add<blink::mojom::InstalledAppProvider>(
       base::BindRepeating(&RenderFrameHostImpl::CreateInstalledAppProvider,
                           base::Unretained(host)));
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) &&
+        // !BUILDFLAG(IS_IOS_TVOS))
 
 #if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::SerialService>(base::BindRepeating(

@@ -42,20 +42,20 @@ chromium-metrics-reviews@google.com.
   <variant name="Embedder_WebView" summary="Embedder trigger, WebView"/>
   <variant name="SpeculationRule_Conservative"
       summary="SpeculationRules trigger, Conservative"/>
-  <variant name="SpeculationRule_Eager"
-      summary="SpeculationRules trigger, Eager"/>
+  <variant name="SpeculationRule_Immediate"
+      summary="SpeculationRules trigger, Immediate"/>
   <variant name="SpeculationRule_Moderate"
       summary="SpeculationRules trigger, Moderate"/>
   <variant name="SpeculationRuleFromAutoSpeculationRules_Conservative"
       summary="SpeculationRulesFromAutoSpeculationRules trigger, Conservative"/>
-  <variant name="SpeculationRuleFromAutoSpeculationRules_Eager"
-      summary="SpeculationRulesFromAutoSpeculationRules trigger, Eager"/>
+  <variant name="SpeculationRuleFromAutoSpeculationRules_Immediate"
+      summary="SpeculationRulesFromAutoSpeculationRules trigger, Immediate"/>
   <variant name="SpeculationRuleFromAutoSpeculationRules_Moderate"
       summary="SpeculationRulesFromAutoSpeculationRules trigger, Moderate"/>
   <variant name="SpeculationRuleFromIsolatedWorld_Conservative"
       summary="SpeculationRulesFromIsolatedWorld trigger, Conservative"/>
-  <variant name="SpeculationRuleFromIsolatedWorld_Eager"
-      summary="SpeculationRulesFromIsolatedWorld trigger, Eager"/>
+  <variant name="SpeculationRuleFromIsolatedWorld_Immediate"
+      summary="SpeculationRulesFromIsolatedWorld trigger, Immediate"/>
   <variant name="SpeculationRuleFromIsolatedWorld_Moderate"
       summary="SpeculationRulesFromIsolatedWorld trigger, Moderate"/>
 </variants>
@@ -215,7 +215,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.{PrerenderOrNonPrerender}.{TriggerTypeAndEagerness}"
-    enum="Boolean" expires_after="2025-10-12">
+    enum="Boolean" expires_after="2025-12-14">
   <owner>kouhei@chromium.org</owner>
   <owner>kenoss@chromium.org</owner>
   <owner>taiyo@chromium.org</owner>
@@ -242,7 +242,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.{TriggerTypeAndEagerness}"
-    enum="Boolean" expires_after="2025-10-12">
+    enum="Boolean" expires_after="2025-12-14">
   <owner>kouhei@chromium.org</owner>
   <owner>kenoss@chromium.org</owner>
   <owner>taiyo@chromium.org</owner>
@@ -563,7 +563,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.Prefetch.Mainframe.RespCode"
-    enum="HttpResponseCode" expires_after="2025-10-12">
+    enum="HttpResponseCode" expires_after="2025-12-14">
   <owner>kouhei@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>

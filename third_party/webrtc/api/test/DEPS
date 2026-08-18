@@ -44,6 +44,9 @@ specific_include_rules = {
   "mock_async_dns_resolver\.h": [
     "+rtc_base/socket_address.h",
   ],
+  "mock_local_network_access_permission\.h": [
+    "+rtc_base/socket_address.h",
+  ],
   "mock_packet_socket_factory\.h": [
     "+rtc_base/async_packet_socket.h",
     "+rtc_base/socket_address.h",

@@ -149,6 +149,35 @@ source_set("global_features") {
   ]
 }
 
+source_set("flags") {
+  sources = [
+    "about_flags.h",
+    "flag_descriptions.h",
+  ]
+  public_deps = [
+    "//base",
+    "//base:debugging_buildflags",
+    "//build:branding_buildflags",
+    "//build:buildflag_header_h",
+    "//chrome/common:buildflags",
+    "//components/compose:buildflags",
+    "//components/enterprise/buildflags",
+    "//components/nacl/common:buildflags",
+    "//components/paint_preview/buildflags",
+    "//components/signin/public/base:signin_buildflags",
+    "//components/webui/flags",
+    "//content/public/common",
+    "//device/vr/buildflags",
+    "//extensions/buildflags",
+    "//media:media_buildflags",
+    "//net:buildflags",
+    "//pdf:buildflags",
+    "//printing/buildflags",
+    "//skia:buildflags",
+    "//third_party/blink/public/common:buildflags",
+  ]
+}
+
 source_set("shell_integration") {
   sources = [ "shell_integration.h" ]
   deps = [
@@ -163,7 +192,6 @@ source_set("shell_integration") {
 static_library("browser") {
   sources = [
     "about_flags.cc",
-    "about_flags.h",
     "accessibility/accessibility_labels_service.cc",
     "accessibility/accessibility_labels_service.h",
     "accessibility/accessibility_labels_service_factory.cc",
@@ -181,11 +209,9 @@ static_library("browser") {
     "assist_ranker/assist_ranker_service_factory.cc",
     "assist_ranker/assist_ranker_service_factory.h",
     "autocomplete/autocomplete_classifier_factory.cc",
-    "autocomplete/autocomplete_classifier_factory.h",
     "autocomplete/chrome_autocomplete_provider_client.cc",
     "autocomplete/chrome_autocomplete_provider_client.h",
     "autocomplete/chrome_autocomplete_scheme_classifier.cc",
-    "autocomplete/chrome_autocomplete_scheme_classifier.h",
     "autocomplete/document_suggestions_service_factory.cc",
     "autocomplete/document_suggestions_service_factory.h",
     "autocomplete/enterprise_search_aggregator_suggestions_service_factory.cc",
@@ -548,7 +574,6 @@ static_library("browser") {
     "first_party_sets/first_party_sets_policy_service_factory.cc",
     "first_party_sets/first_party_sets_policy_service_factory.h",
     "flag_descriptions.cc",
-    "flag_descriptions.h",
     "font_family_cache.cc",
     "font_family_cache.h",
     "gcm/gcm_product_util.cc",
@@ -1876,6 +1901,7 @@ static_library("browser") {
     ":active_use_util",
     ":browser_process",
     ":expired_flags_list",
+    ":flags",
     ":font_pref",
     ":global_features",
     ":k_anonymity_storage_proto",
@@ -1904,6 +1930,7 @@ static_library("browser") {
     "//chrome/browser/affiliations",
     "//chrome/browser/ai",
     "//chrome/browser/ai:impl",
+    "//chrome/browser/autocomplete",
     "//chrome/browser/autofill",
     "//chrome/browser/background:background",
     "//chrome/browser/background:impl",
@@ -2051,6 +2078,10 @@ static_library("browser") {
     "//chrome/browser/ui/safety_hub:impl",
     "//chrome/browser/ui/search_engines",
     "//chrome/browser/ui/side_search",
+
+    # TODO(crbug.com/369436587): Remove this dependency when
+    # c/b/policy/configuration_policy_handler_list_factory.cc gets modularized.
+    "//chrome/browser/ui/toolbar/chrome_labs",
 
     # TODO(417228688): Remove this dependency when both chrome/browser/serial and
     # chrome/browser/profiles/profile_manager.h get modularized.
@@ -2438,9 +2469,9 @@ static_library("browser") {
     "//components/tab_groups",
     "//components/tpcd/metadata/browser",
     "//components/tpcd/metadata/browser:prefs",
-    "//components/tracing:background_tracing_metrics_provider",
     "//components/tracing:background_tracing_utils",
     "//components/tracing:tracing_config",
+    "//components/tracing:tracing_metrics",
     "//components/translate/content/browser",
     "//components/translate/core/browser",
     "//components/translate/core/common",
@@ -3207,8 +3238,6 @@ static_library("browser") {
       "profiles/profile_manager_android.cc",
       "profiles/profile_manager_android.h",
       "readaloud/android/read_aloud_features.cc",
-      "readaloud/android/synthetic_trial.cc",
-      "readaloud/android/synthetic_trial.h",
       "safe_browsing/android/notification_content_detection_manager_android.cc",
       "safe_browsing/android/notification_content_detection_manager_android.h",
       "safe_browsing/android/password_reuse_controller_android.cc",
@@ -3254,6 +3283,7 @@ static_library("browser") {
       "ssl/known_interception_disclosure_infobar.h",
       "supervised_user/android/favicon_fetcher.cc",
       "supervised_user/android/favicon_fetcher.h",
+      "supervised_user/android/supervised_user_service_bridge.cc",
       "supervised_user/android/supervised_user_service_platform_delegate.cc",
       "supervised_user/android/supervised_user_service_platform_delegate.h",
       "supervised_user/android/supervised_user_web_content_handler_impl.cc",
@@ -3315,7 +3345,6 @@ static_library("browser") {
       # TODO(crbug.com/40261269): Move to its own target in touch_to_fill/.
       "touch_to_fill/autofill/android/touch_to_fill_delegate_android_impl.cc",
       "touch_to_fill/autofill/android/touch_to_fill_delegate_android_impl.h",
-      "touch_to_fill/autofill/android/touch_to_fill_payment_method_controller.h",
       "touch_to_fill/autofill/android/touch_to_fill_payment_method_controller_impl.cc",
       "touch_to_fill/autofill/android/touch_to_fill_payment_method_controller_impl.h",
       "touch_to_fill/password_manager/touch_to_fill_controller.cc",
@@ -3411,6 +3440,7 @@ static_library("browser") {
       "//chrome/browser/serial/android:jni_headers",
       "//chrome/browser/signin/services/android:jni_headers",
       "//chrome/browser/ssl/android:jni_headers",
+      "//chrome/browser/supervised_user:supervised_user_service_bridge_jni_headers",
       "//chrome/browser/supervised_user:supervised_user_service_platform_delegate_jni_headers",
       "//chrome/browser/supervised_user:website_parent_approval_jni_headers",
       "//chrome/browser/sync/android:jni_headers",
@@ -4491,7 +4521,6 @@ static_library("browser") {
       "//components/app_constants",
       "//components/autofill/core/browser",
       "//components/autofill/core/common",
-      "//components/autofill_ai/core/browser",
       "//components/cbor",
       "//components/commerce/core:cart_db_content_proto",
       "//components/commerce/core:discounts_db_content_proto",
@@ -4557,6 +4586,10 @@ static_library("browser") {
     # Any circular includes must depend on the target
     # "browser_public_dependencies".
     allow_circular_includes_from += [
+      # TODO(crbug.com/426554250): This needs //chrome/browser/lookalikes which is
+      # not yet modularized.
+      "//chrome/browser/actor:impl",
+
       # TODO(crbug.com/40251079): Remove circular dependencies.
       "//chrome/browser/apps/app_service",
 
@@ -5490,6 +5523,7 @@ static_library("browser") {
       "//chrome/browser/chromeos/upload_office_to_cloud",
       "//chrome/browser/chromeos/video_conference",
       "//chrome/browser/enterprise/connectors/device_trust/attestation/ash",
+      "//chrome/browser/extensions/api/enterprise_networking_attributes",
       "//chrome/browser/nearby_sharing:share_target",
       "//chrome/browser/nearby_sharing/certificates",
       "//chrome/browser/nearby_sharing/client",
@@ -6006,6 +6040,7 @@ static_library("browser") {
       "//chrome/browser/chromeos/reporting",
       "//chrome/browser/chromeos/tablet_mode",
       "//chrome/browser/chromeos/upload_office_to_cloud",
+      "//chrome/browser/extensions/api/enterprise_networking_attributes",
       "//chrome/browser/policy:onc",
       "//chrome/browser/support_tool/ash",
       "//chrome/browser/ui/ash/accelerator",
@@ -6443,6 +6478,7 @@ static_library("browser") {
       "//chrome/app:chrome_exe_main_exports",
       "//chrome/app/theme:chrome_unscaled_resources_grit",
       "//chrome/browser/os_crypt",
+      "//chrome/browser/platform_experience:prefs",
       "//chrome/browser/shortcuts",
       "//chrome/browser/web_applications/chrome_pwa_launcher:util",
       "//chrome/browser/win:cloud_synced_folder_checker",
@@ -7783,14 +7819,19 @@ static_library("browser") {
         "//services/accessibility/public/mojom",
         "//ui/events/ozone/layout:layout",
 
-        # TODO(crbug.com/40227502): Currently EnterpriseDeviceAttributes
-        # internally uses profile manager. We should get rid of it.
+        # For allow_circular_includes_from below.
+        "//chrome/browser/chromeos/extensions/login_screen/login",
         "//chrome/browser/extensions/api/enterprise_device_attributes",
+        "//chrome/browser/extensions/api/enterprise_login",
       ]
       allow_circular_includes_from += [
         # TODO(crbug.com/40227502): Currently EnterpriseDeviceAttributes
         # internally uses profile manager. We should get rid of it.
         "//chrome/browser/extensions/api/enterprise_device_attributes",
+
+        # For chrome::AttemptUserExit().
+        "//chrome/browser/chromeos/extensions/login_screen/login",
+        "//chrome/browser/extensions/api/enterprise_login",
       ]
     }
   }
@@ -7804,6 +7845,8 @@ static_library("browser") {
       # They should be removed.
       "extensions/desktop_android/desktop_android_extension_host_delegate.cc",
       "extensions/desktop_android/desktop_android_extension_host_delegate.h",
+      "extensions/extension_menu_delegate_android.cc",
+      "extensions/extension_menu_delegate_android.h",
     ]
 
     deps += [
@@ -9000,10 +9043,6 @@ grit("resources") {
 
   if (safe_browsing_mode == 1) {
     deps += [ "//chrome/browser/resources/reset_password:build_ts" ]
-  }
-
-  if (enable_nacl || is_mac) {
-    deps += [ "//chrome/browser/resources/about_nacl:build_ts" ]
   }
 }
 

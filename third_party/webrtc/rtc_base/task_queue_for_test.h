@@ -11,13 +11,17 @@
 #ifndef RTC_BASE_TASK_QUEUE_FOR_TEST_H_
 #define RTC_BASE_TASK_QUEUE_FOR_TEST_H_
 
+#include <memory>
 #include <utility>
 
 #include "absl/cleanup/cleanup.h"
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/function_view.h"
+#include "api/location.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/task_queue/task_queue_factory.h"
+#include "api/units/time_delta.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
 

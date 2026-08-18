@@ -49,9 +49,9 @@ rust_static_library("bridge_rust_side") {
   cxx_bindings = [ skia_fontations_bridge_root ]
   deps = [
     ":path_bridge",
-    "//third_party/rust/font_types/v0_8:lib",
-    "//third_party/rust/read_fonts/v0_27:lib",
-    "//third_party/rust/skrifa/v0_29:lib",
+    "//third_party/rust/font_types/v0_9:lib",
+    "//third_party/rust/read_fonts/v0_30:lib",
+    "//third_party/rust/skrifa/v0_32:lib",
   ]
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [
@@ -263,7 +263,6 @@ component("skia") {
     "ext/skia_memory_dump_provider.h",
     "ext/skia_trace_memory_dump_impl.h",
     "ext/skia_utils_base.h",
-    "fontations_feature.h",
     "rusty_png_feature.h",
   ]
   sources = [
@@ -295,7 +294,6 @@ component("skia") {
     "ext/skia_memory_dump_provider.cc",
     "ext/skia_trace_memory_dump_impl.cc",
     "ext/skia_utils_base.cc",
-    "fontations_feature.cc",
     "rusty_png_feature.cc",
   ]
   if (is_ios) {

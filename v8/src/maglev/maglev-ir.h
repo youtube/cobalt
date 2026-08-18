@@ -51,8 +51,10 @@
 
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 #define IF_UD(Macro, ...) Macro(__VA_ARGS__)
+#define IF_NOT_UD(Macro, ...)
 #else
 #define IF_UD(Macro, ...)
+#define IF_NOT_UD(Macro, ...) Macro(__VA_ARGS__)
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 namespace v8 {
@@ -109,6 +111,7 @@ class ExceptionHandlerInfo;
   V(Int32Add)                         \
   V(Int32Subtract)                    \
   V(Int32Multiply)                    \
+  V(Int32MultiplyOverflownBits)       \
   V(Int32Divide)                      \
   V(Int32AddWithOverflow)             \
   V(Int32SubtractWithOverflow)        \
@@ -298,7 +301,8 @@ class ExceptionHandlerInfo;
   V(HoleyFloat64ToMaybeNanFloat64)                  \
   IF_UD(V, Float64ToHoleyFloat64)                   \
   IF_UD(V, ConvertHoleNanToUndefinedNan)            \
-  V(HoleyFloat64IsHole)                             \
+  IF_UD(V, HoleyFloat64IsUndefinedOrHole)           \
+  IF_NOT_UD(V, HoleyFloat64IsHole)                  \
   V(LogicalNot)                                     \
   V(SetPendingMessage)                              \
   V(StringAt)                                       \
@@ -526,6 +530,7 @@ constexpr bool IsCommutativeNode(Opcode opcode) {
     case Opcode::kInt32BitwiseOr:
     case Opcode::kInt32BitwiseXor:
     case Opcode::kInt32Multiply:
+    case Opcode::kInt32MultiplyOverflownBits:
     case Opcode::kInt32MultiplyWithOverflow:
     case Opcode::kStringEqual:
     case Opcode::kTaggedEqual:
@@ -3233,6 +3238,27 @@ DEF_INT32_BINARY_NODE(ShiftLeft)
 DEF_INT32_BINARY_NODE(ShiftRight)
 #undef DEF_INT32_BINARY_NODE
 
+class Int32MultiplyOverflownBits
+    : public FixedInputValueNodeT<2, Int32MultiplyOverflownBits> {
+  using Base = FixedInputValueNodeT<2, Int32MultiplyOverflownBits>;
+
+ public:
+  explicit Int32MultiplyOverflownBits(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
+
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return Node::input(kLeftIndex); }
+  Input& right_input() { return Node::input(kRightIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class Int32BitwiseNot : public FixedInputValueNodeT<1, Int32BitwiseNot> {
   using Base = FixedInputValueNodeT<1, Int32BitwiseNot>;
 
@@ -4807,7 +4833,25 @@ class ConvertHoleNanToUndefinedNan
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
+class HoleyFloat64IsUndefinedOrHole
+    : public FixedInputValueNodeT<1, HoleyFloat64IsUndefinedOrHole> {
+  using Base = FixedInputValueNodeT<1, HoleyFloat64IsUndefinedOrHole>;
+
+ public:
+  explicit HoleyFloat64IsUndefinedOrHole(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+#else
 
 class HoleyFloat64IsHole : public FixedInputValueNodeT<1, HoleyFloat64IsHole> {
   using Base = FixedInputValueNodeT<1, HoleyFloat64IsHole>;
@@ -4824,6 +4868,8 @@ class HoleyFloat64IsHole : public FixedInputValueNodeT<1, HoleyFloat64IsHole> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
+
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 class TruncateNumberOrOddballToInt32
     : public FixedInputValueNodeT<1, TruncateNumberOrOddballToInt32> {

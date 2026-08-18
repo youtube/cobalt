@@ -51,7 +51,6 @@ namespace cc {
 enum class ActivelyScrollingType;
 class DebugRectHistory;
 class ViewTransitionRequest;
-class DroppedFrameCounter;
 class GlobalStateThatImpactsTilePriority;
 class HeadsUpDisplayLayerImpl;
 class ImageDecodeCache;
@@ -133,7 +132,6 @@ class CC_EXPORT LayerTreeImpl {
   TileManager* tile_manager() const;
   ImageDecodeCache* image_decode_cache() const;
   ImageAnimationController* image_animation_controller() const;
-  DroppedFrameCounter* dropped_frame_counter() const;
   FrameSorter* frame_sorter() const;
   MemoryHistory* memory_history() const;
   DebugRectHistory* debug_rect_history() const;
@@ -511,6 +509,9 @@ class CC_EXPORT LayerTreeImpl {
   void set_needs_update_draw_properties() {
     needs_update_draw_properties_ = true;
   }
+  void clear_needs_update_draw_properties_for_testing() {
+    needs_update_draw_properties_ = false;
+  }
   bool needs_update_draw_properties() const {
     return needs_update_draw_properties_;
   }
@@ -827,6 +828,11 @@ class CC_EXPORT LayerTreeImpl {
   // capture phase.
   base::flat_set<blink::ViewTransitionToken> GetCaptureViewTransitionTokens()
       const;
+
+  const std::vector<std::unique_ptr<ViewTransitionRequest>>&
+  view_transition_requests() const {
+    return view_transition_requests_;
+  }
 
   void UpdateAllScrollbarGeometriesForTesting() {
     UpdateAllScrollbarGeometries();

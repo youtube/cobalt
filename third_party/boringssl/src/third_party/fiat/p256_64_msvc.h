@@ -827,7 +827,7 @@ static FIAT_P256_FIAT_INLINE void fiat_p256_add(fiat_p256_montgomery_domain_fiel
  */
 static FIAT_P256_FIAT_INLINE void fiat_p256_sub(fiat_p256_montgomery_domain_field_element out1, const fiat_p256_montgomery_domain_field_element arg1, const fiat_p256_montgomery_domain_field_element arg2) {
   // NOTE: edited by hand, see third_party/fiat/README.md
-  p256_coord_sub((br_word_t)&out1, (br_word_t)&arg1, (br_word_t)&arg2);
+  p256_coord_sub((br_word_t)out1, (br_word_t)arg1, (br_word_t)arg2);
 }
 
 /*

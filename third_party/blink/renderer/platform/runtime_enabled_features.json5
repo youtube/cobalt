@@ -1137,6 +1137,11 @@
       status: "stable",
     },
     {
+      // Let transforms affect anchor() and anchor-size() functions.
+      name: "CSSAnchorWithTransforms",
+      status: "experimental",
+    },
+    {
       // Whether <image> values are allowed as counter style <symbol>
       name: "CSSAtRuleCounterStyleImageSymbols",
     },
@@ -1155,6 +1160,12 @@
       // https://chromestatus.com/feature/5125388091260928
       name: "CSSBackgroundClipUnprefix",
       status: "stable",
+    },
+    // https://chromestatus.com/feature/5459864205393920
+    {
+      // https://chromestatus.com/feature/5125388091260928
+      name: "CSSBorderShape",
+      status: "experimental",
     },
     {
       // Support CSS Values Level 4 calc simplification and serialization
@@ -1216,7 +1227,13 @@
     {
       // https://drafts.csswg.org/css-borders-4/#corner-shaping
       name: "CSSCornerShape",
+      status: "stable",
+    },
+    {
+      // https://drafts.csswg.org/css-borders-4/#corner-shaping
+      name: "CSSCornersShorthand",
       status: "experimental",
+      depends_on: ["CSSCornerShape"],
     },
     {
       // Unprefixed cross-fade() (in addition to the existing -webkit-cross-fade()).
@@ -1305,12 +1322,24 @@
       status: "stable",
     },
     {
+      // Support for the interest-delay shorthand property.
+      // The longhands are controlled by HTMLInterestForAttribute. The
+      // shorthand is controlled separately since shorthands can not be enabled
+      // by an origin trial.
+      name: "CSSInterestDelayShorthand",
+      status: "experimental",
+    },
+    {
       // https://chromestatus.com/feature/6289894144212992
       name: "CSSKeyframesRuleLength",
       status: "stable",
     },
     {
       name: "CSSLayoutAPI",
+      status: "experimental",
+    },
+    {
+      name: "CSSLetterSpacingPercentage",
       status: "experimental",
     },
     {
@@ -1373,7 +1402,7 @@
       status: "stable",
     },
     {
-      // For ::column pseudo element for fragment styling.
+      // For ::column pseudo-element for fragment styling.
       // https://github.com/flackr/carousel/blob/main/fragmentation/README.md
       name: "CSSPseudoColumn",
       status: "stable",
@@ -1398,14 +1427,14 @@
       status: "test",
     },
     {
-      // For ::scroll-up-button and ::scroll-down-button pseudo elements for Carousel.
+      // For ::scroll-up-button and ::scroll-down-button pseudo-elements for Carousel.
       // https://github.com/flackr/carousel/tree/main/scroll-button
       name: "CSSPseudoScrollButtons",
       status: "stable",
       depends_on: ["PseudoElementsFocusable"],
     },
     {
-      // For ::scroll-marker and ::scroll-marker-group pseudo elements for Carousel.
+      // For ::scroll-marker and ::scroll-marker-group pseudo-elements for Carousel.
       // https://github.com/flackr/carousel/tree/main/scroll-marker
       name: "CSSPseudoScrollMarkers",
       status: "stable",
@@ -2389,6 +2418,11 @@
       name: "FontFamilyStyleMatchingCTMigration",
     },
     {
+      // crbug.com/40398871
+      name: "FontFeatureSettingsDescriptor",
+      status: "experimental",
+    },
+    {
       name: "FontPresentWin",
       status: "stable",
     },
@@ -2564,6 +2598,10 @@
       name: "HTMLCommandRequestClose",
       depends_on: ["HTMLCommandAttributes"],
       status: "stable",
+    },
+    {
+      name: "HTMLElementScrollParent",
+      status: "experimental",
     },
     // The `<embed>` should follow the specification, layout is not forced
     // when the `type` attribute is set to `image`.
@@ -3003,6 +3041,10 @@
       status: "stable",
     },
     {
+      name: "MacDisableCtrlHomeEnd",
+      status: "stable",
+    },
+    {
       name: "MachineLearningNeuralNetwork",
       // Enabled by webnn::mojom::features::kWebMachineLearningNeuralNetwork.
       base_feature: "none",
@@ -3224,6 +3266,7 @@
       name: "NavigationId",
       status: "experimental",
       origin_trial_feature_name: "SoftNavigationHeuristics",
+      implied_by: ["SoftNavigationHeuristics"],
     },
     {
       name: "NavigatorContentUtils",
@@ -3679,7 +3722,7 @@
       public: true,
     },
     // Adds a web setting to disable CSS ScrollbarColor, ScrollbarWidth, and
-    // legacy ::-webkit-scrollbar* pseudo element styling.
+    // legacy ::-webkit-scrollbar* pseudo-element styling.
     {
       name: "PreferDefaultScrollbarStyles",
     },
@@ -3827,7 +3870,7 @@
       is_protected_feature: "true",
     },
     {
-      // Allowing pseudo elements to have focus.
+      // Allowing pseudo-elements to have focus.
       name: "PseudoElementsFocusable",
       status: "stable",
     },
@@ -3945,8 +3988,9 @@
       // createElement and attribute related DOM APIs.
       // https://github.com/whatwg/dom/pull/1079
       // http://crbug.com/40228234
+      // https://chromestatus.com/feature/6278918763708416
       name: "RelaxDOMValidNames",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "RelOpenerBcgDependencyHint",
@@ -3967,6 +4011,13 @@
         "Mac": "stable",
         "Linux": "stable",
         "default": "experimental"},
+    },
+    {
+      // This feature acts as a kill switch for ISO-2022-JP auto-detection.
+      // This will be shipped in M139, and it can be removed in M141.
+      // See https://chromestatus.com/feature/6576566521561088.
+      name: "RemoveCharsetAutoDetectionForISO2022JP",
+      status: "stable",
     },
     {
       name: "RemoveDanglingMarkupInTarget",
@@ -4044,6 +4095,10 @@
     {
       name: "ResourceTimingFinalResponseHeadersStart",
       status: "stable",
+    },
+    {
+      name: "ResourceTimingInitiator",
+      status: "experimental",
     },
     {
       name: "ResourceTimingUseCORSForBodySizes",
@@ -4203,7 +4258,6 @@
       // https://github.com/whatwg/html/pull/10869
       // https://github.com/whatwg/dom/pull/1341
       name: "ScopedCustomElementRegistry",
-      status: "experimental",
     },
     {
       // https://github.com/WICG/view-transitions/blob/main/scoped-transitions.md
@@ -4321,7 +4375,7 @@
     },
     {
       name: "SecurePaymentConfirmationAvailabilityAPI",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "SecurePaymentConfirmationBrowserBoundKeys",
@@ -4625,6 +4679,10 @@
     {
       name: "SoftNavigationDetectionAdvancedPaintAttribution",
       status: "experimental",
+      depends_on: ["SoftNavigationDetection"],
+    },
+    {
+      name: "SoftNavigationDetectionPrePaintBasedAttribution",
       depends_on: ["SoftNavigationDetection"],
     },
     {
@@ -5044,6 +5102,13 @@
       public: true,
     },
     {
+      // Traverse flat tree to find start and end of paragraph in delete
+      // selection to handle slot distribution in details.
+      // See https://crbug.com/413595949
+      name: "TraverseFlatTreeToHandleSlots",
+      status: "stable",
+    },
+    {
       // Ensures symbols are treated as word boundaries during traversal.
       // See https://crbug.com/40252642
       name: "TreatSymbolsAsWordBoundary",
@@ -5174,6 +5239,11 @@
       // https://crbug.com/40658856
       name: "UseSelectionFocusNodeForCaretNavigation",
       status: "stable",
+    },
+    {
+      // Fix for https://crbug.com/421314614
+      name: "UseSelectionInDOMTreeAnchorInExtendSelection",
+      status: "stable"
     },
     {
       name: "UseShadowHostStyleCheckEditable",
@@ -5584,7 +5654,7 @@
     {
       name: "WebNFC",
       public: true,
-      status: {"Android": "stable", "default": "test"},
+      status: {"Android": "stable", "iOS": "stable", "default": "test"},
       base_feature: "none",
     },
     {

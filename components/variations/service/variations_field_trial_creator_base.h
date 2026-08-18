@@ -48,8 +48,14 @@ class MetricsStateManager;
 
 namespace variations {
 
-class SyntheticTrialRegistry;
 class EntropyProviders;
+
+// TODO(crbug.com/424154785): Clean this up if low entropy source values are no
+// longer transmitted with VariationIDs.
+struct CreateTrialsResult {
+  bool applied_seed = false;
+  std::optional<bool> seed_has_limited_layer;
+};
 
 // Just maps one set of enum values to another. Nothing to see here.
 Study::Channel ConvertProductChannelToStudyChannel(
@@ -151,8 +157,6 @@ class VariationsFieldTrialCreatorBase {
   // Must not be null.
   // |metrics_state_manager| facilitates signaling that Chrome has not yet
   // exited cleanly. Must not be null.
-  // |synthetic_trial_registry| provides an interface to register synthetic
-  // trials. Must not be null.
   // |platform_field_trials| provides the
   // platform-specific field trial setup for Chrome. Must not be null.
   // |safe_seed_manager| should be notified of the combined server and client
@@ -167,8 +171,6 @@ class VariationsFieldTrialCreatorBase {
   // explicit --disable-features and --enable-features from the command line
   // take precedence over |extra_overrides|, which takes precedence over the
   // field trials.
-  //
-  // TODO(crbug.com/40948861): Clean up |synthetic_trial_registry|.
   bool SetUpFieldTrials(
       const std::vector<std::string>& variation_ids,
       const std::string& command_line_variation_ids,
@@ -176,7 +178,6 @@ class VariationsFieldTrialCreatorBase {
           extra_overrides,
       std::unique_ptr<base::FeatureList> feature_list,
       metrics::MetricsStateManager* metrics_state_manager,
-      SyntheticTrialRegistry* synthetic_trial_registry,
       PlatformFieldTrials* platform_field_trials,
       SafeSeedManagerBase* safe_seed_manager,
       bool add_entropy_source_to_variations_ids,
@@ -274,18 +275,26 @@ class VariationsFieldTrialCreatorBase {
   // the server.
   bool IsSeedForFutureMilestone(bool is_safe_seed);
 
-  // Creates field trials based on the variations seed loaded from local state.
-  // If there is a problem loading the seed data, all trials specified by the
-  // seed may not be created. Some field trials are configured to override or
-  // associate with (for reporting) specific features. These associations are
-  // registered with |feature_list|. Returns true if trials were created
-  // successfully; and if so, stores the loaded variations state into the
-  // |safe_seed_manager|.
-  bool CreateTrialsFromSeed(const EntropyProviders& entropy_providers,
-                            base::FeatureList* feature_list,
-                            SafeSeedManagerBase* safe_seed_manager,
-                            SyntheticTrialRegistry* synthetic_trial_registry,
-                            std::unique_ptr<ClientFilterableState> state);
+  // Creates field trials from a VariationsSeed. Returns whether the seed was
+  // successfully applied and whether the seed contains a limited-entropy-mode
+  // layer.
+  //
+  // |entropy_providers| helps to randomize field trial groups.
+  // |feature_list| associates field trial groups with features.
+  // |safe_seed_manager| has two responsibilities. It is used to determine which
+  // seed to apply, if any. If the latest seed is successfully applied, the
+  // manager also stores the applied variations state.
+  // |client_state| is used for filtering studies in the seed.
+  //
+  // If the seed isn't successfully loaded or if the seed fails some checks
+  // (e.g. if the seed has expired), then no trials are created from the seed
+  // and the client uses client-side defaults for features, like
+  // DISABLED_BY_DEFAULT.
+  CreateTrialsResult CreateTrialsFromSeed(
+      const EntropyProviders& entropy_providers,
+      base::FeatureList* feature_list,
+      SafeSeedManagerBase* safe_seed_manager,
+      std::unique_ptr<ClientFilterableState> client_state);
 
   // Reads a seed's data and signature from the file at |json_seed_path| and
   // writes them to Local State. Exits Chrome if (A) the file's contents can't

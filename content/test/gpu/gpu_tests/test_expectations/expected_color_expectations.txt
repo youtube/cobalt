@@ -8,9 +8,9 @@
 #         mac highsierra mojave catalina bigsur monterey ventura sonoma sequoia
 #         win win8 win10 win11 ]
 # Devices
-# tags: [ android-nexus-5x android-pixel-2 android-pixel-4
-#             android-pixel-6 android-shield-android-tv android-sm-a137f
-#             android-sm-a236b android-sm-s911u1
+# tags: [ android-pixel-2 android-pixel-4 android-pixel-6
+#             android-shield-android-tv android-sm-a137f android-sm-a236b
+#             android-sm-s911u1
 #         android-brya android-corsola
 #         chromeos-board-amd64-generic chromeos-board-eve chromeos-board-jacuzzi
 #             chromeos-board-octopus chromeos-board-volteer
@@ -119,6 +119,11 @@ crbug.com/40877266 [ android android-shield-android-tv ] ExpectedColor_MediaReco
 crbug.com/416712848 [ sequoia apple-angle-metal-renderer:-apple-m1 ] ExpectedColor_MediaRecorderFrom2DCanvas [ RetryOnFailure ]
 crbug.com/416712848 [ sequoia apple-angle-metal-renderer:-apple-m1 ] ExpectedColor_maps [ RetryOnFailure ]
 
+# Flakes on Intel Mac with a larger shifted image
+crbug.com/425653491 [ mac intel-0x3e9b angle-metal graphite-enabled ] ExpectedColor_MediaRecorderFromVideoElement [ Failure ]
+
+# Flakes on Android DEMUXER_ERROR_COULD_NOT_OPEN
+crbug.com/426594100 [ android android-pixel-2 graphite-disabled ] ExpectedColor_MediaRecorderFromVideoElement [ RetryOnFailure ]
 
 #######################################################################
 # Automated Entries After This Point - Do Not Manually Add Below Here #

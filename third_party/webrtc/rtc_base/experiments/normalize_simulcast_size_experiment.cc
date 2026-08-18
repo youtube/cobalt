@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 
+#include <optional>
 #include <string>
 
 #include "api/field_trials_view.h"

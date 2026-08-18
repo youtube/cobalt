@@ -10,9 +10,7 @@
 
 #include "rtc_base/task_queue_stdlib.h"
 
-#include <string.h>
-
-#include <algorithm>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <queue>
@@ -21,11 +19,12 @@
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
+#include "api/location.h"
 #include "api/task_queue/task_queue_base.h"
+#include "api/task_queue/task_queue_factory.h"
 #include "api/units/time_delta.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
-#include "rtc_base/logging.h"
 #include "rtc_base/numerics/divide_round.h"
 #include "rtc_base/platform_thread.h"
 #include "rtc_base/synchronization/mutex.h"

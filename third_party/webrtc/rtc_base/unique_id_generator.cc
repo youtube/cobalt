@@ -10,13 +10,18 @@
 
 #include "rtc_base/unique_id_generator.h"
 
+#include <cstdint>
 #include <limits>
-#include <vector>
+#include <optional>
+#include <string>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "api/array_view.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/crypto_random.h"
-#include "rtc_base/string_encode.h"
 #include "rtc_base/string_to_number.h"
+#include "rtc_base/synchronization/mutex.h"
 
 namespace webrtc {
 

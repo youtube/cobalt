@@ -10,8 +10,14 @@
 
 #include "rtc_base/copy_on_write_buffer.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
+#include "api/array_view.h"
 #include "test/gtest.h"
 
 namespace webrtc {

@@ -56,7 +56,7 @@
 namespace webrtc {
 namespace test {
 namespace {
-static constexpr size_t kNumSsrcs = 6;
+constexpr size_t kNumSsrcs = 6;
 const uint32_t kSendRtxSsrcs[kNumSsrcs] = {0xBADCAFD, 0xBADCAFE, 0xBADCAFF,
                                            0xBADCB00, 0xBADCB01, 0xBADCB02};
 const uint32_t kVideoSendSsrcs[kNumSsrcs] = {0xC0FFED, 0xC0FFEE, 0xC0FFEF,

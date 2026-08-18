@@ -654,7 +654,7 @@ const HeapVector<Member<Node>> Element::ReadingFlowChildren() const {
     }
   }
   // Add all non-reading flow items at the end of the reading flow.
-  // We use LayoutTreeBuilder traversal to make sure all pseudo elements
+  // We use LayoutTreeBuilder traversal to make sure all pseudo-elements
   // (including scroll markers) are accounted for.
   for (Node* child = LayoutTreeBuilderTraversal::FirstChild(*this); child;
        child = LayoutTreeBuilderTraversal::NextSibling(*child)) {
@@ -2611,8 +2611,19 @@ void Element::scrollTo(double x, double y) {
 }
 
 void Element::scrollTo(const ScrollToOptions* scroll_to_options) {
+  SetScrollOffset(scroll_to_options);
+}
+
+bool Element::SetScrollOffset(const ScrollOffset& offset) {
+  ScrollToOptions* scroll_to_options = ScrollToOptions::Create();
+  scroll_to_options->setLeft(offset.x());
+  scroll_to_options->setTop(offset.y());
+  return SetScrollOffset(scroll_to_options);
+}
+
+bool Element::SetScrollOffset(const ScrollToOptions* scroll_to_options) {
   if (!InActiveDocument()) {
-    return;
+    return false;
   }
 
   // TODO(crbug.com/1499981): This should be removed once synchronized scrolling
@@ -2625,13 +2636,13 @@ void Element::scrollTo(const ScrollToOptions* scroll_to_options) {
                                             DocumentUpdateReason::kJavaScript);
 
   if (GetDocument().ScrollingElementNoLayout() == this) {
-    ScrollFrameTo(scroll_to_options);
+    return ScrollFrameTo(scroll_to_options);
   } else {
-    ScrollLayoutBoxTo(scroll_to_options);
+    return ScrollLayoutBoxTo(scroll_to_options);
   }
 }
 
-void Element::ScrollLayoutBoxBy(const ScrollToOptions* scroll_to_options) {
+bool Element::ScrollLayoutBoxBy(const ScrollToOptions* scroll_to_options) {
   gfx::Vector2dF displacement;
   if (scroll_to_options->hasLeft()) {
     displacement.set_x(
@@ -2647,90 +2658,98 @@ void Element::ScrollLayoutBoxBy(const ScrollToOptions* scroll_to_options) {
           scroll_to_options->behavior().AsEnum());
   LayoutBox* box = GetLayoutBoxForScrolling();
   if (!box) {
-    return;
+    return false;
   }
-  if (PaintLayerScrollableArea* scrollable_area = box->GetScrollableArea()) {
-    DCHECK(box);
-    gfx::PointF current_position(scrollable_area->ScrollPosition().x(),
-                                 scrollable_area->ScrollPosition().y());
-    displacement.Scale(box->Style()->EffectiveZoom());
-    gfx::PointF new_position = current_position + displacement;
+  PaintLayerScrollableArea* scrollable_area = box->GetScrollableArea();
+  if (!scrollable_area) {
+    return false;
+  }
 
-    std::unique_ptr<cc::SnapSelectionStrategy> strategy =
-        cc::SnapSelectionStrategy::CreateForDisplacement(
-            current_position, displacement,
-            RuntimeEnabledFeatures::FractionalScrollOffsetsEnabled());
-    new_position =
-        scrollable_area->GetSnapPositionAndSetTarget(*strategy).value_or(
-            new_position);
-    scrollable_area->ScrollToAbsolutePosition(new_position, scroll_behavior);
-  }
+  DCHECK(box);
+  gfx::PointF current_position(scrollable_area->ScrollPosition().x(),
+                               scrollable_area->ScrollPosition().y());
+  displacement.Scale(box->Style()->EffectiveZoom());
+  gfx::PointF new_position = current_position + displacement;
+
+  std::unique_ptr<cc::SnapSelectionStrategy> strategy =
+      cc::SnapSelectionStrategy::CreateForDisplacement(
+          current_position, displacement,
+          RuntimeEnabledFeatures::FractionalScrollOffsetsEnabled());
+  new_position =
+      scrollable_area->GetSnapPositionAndSetTarget(*strategy).value_or(
+          new_position);
+  return scrollable_area->ScrollToAbsolutePosition(new_position,
+                                                   scroll_behavior);
 }
 
-void Element::ScrollLayoutBoxTo(const ScrollToOptions* scroll_to_options) {
+bool Element::ScrollLayoutBoxTo(const ScrollToOptions* scroll_to_options) {
   mojom::blink::ScrollBehavior scroll_behavior =
       ScrollableArea::V8EnumToScrollBehavior(
           scroll_to_options->behavior().AsEnum());
 
   LayoutBox* box = GetLayoutBoxForScrolling();
   if (!box) {
-    return;
+    return false;
   }
-  if (PaintLayerScrollableArea* scrollable_area = box->GetScrollableArea()) {
-    if (scroll_to_options->hasLeft() && HasLeftwardDirection(*this)) {
+
+  PaintLayerScrollableArea* scrollable_area = box->GetScrollableArea();
+  if (!scrollable_area) {
+    return false;
+  }
+
+  if (scroll_to_options->hasLeft() && HasLeftwardDirection(*this)) {
+    UseCounter::Count(
+        GetDocument(),
+        WebFeature::
+            kElementWithLeftwardOrUpwardOverflowDirection_ScrollLeftOrTop);
+    if (scroll_to_options->left() > 0) {
       UseCounter::Count(
           GetDocument(),
           WebFeature::
-              kElementWithLeftwardOrUpwardOverflowDirection_ScrollLeftOrTop);
-      if (scroll_to_options->left() > 0) {
-        UseCounter::Count(
-            GetDocument(),
-            WebFeature::
-                kElementWithLeftwardOrUpwardOverflowDirection_ScrollLeftOrTopSetPositive);
-      }
+              kElementWithLeftwardOrUpwardOverflowDirection_ScrollLeftOrTopSetPositive);
     }
-    if (scroll_to_options->hasTop() && HasUpwardDirection(*this)) {
+  }
+  if (scroll_to_options->hasTop() && HasUpwardDirection(*this)) {
+    UseCounter::Count(
+        GetDocument(),
+        WebFeature::
+            kElementWithLeftwardOrUpwardOverflowDirection_ScrollLeftOrTop);
+    if (scroll_to_options->top() > 0) {
       UseCounter::Count(
           GetDocument(),
           WebFeature::
-              kElementWithLeftwardOrUpwardOverflowDirection_ScrollLeftOrTop);
-      if (scroll_to_options->top() > 0) {
-        UseCounter::Count(
-            GetDocument(),
-            WebFeature::
-                kElementWithLeftwardOrUpwardOverflowDirection_ScrollLeftOrTopSetPositive);
-      }
+              kElementWithLeftwardOrUpwardOverflowDirection_ScrollLeftOrTopSetPositive);
     }
-
-    ScrollOffset new_offset = scrollable_area->GetScrollOffset();
-    if (scroll_to_options->hasLeft()) {
-      new_offset.set_x(
-          ScrollableArea::NormalizeNonFiniteScroll(scroll_to_options->left()) *
-          box->Style()->EffectiveZoom());
-    }
-    if (scroll_to_options->hasTop()) {
-      new_offset.set_y(
-          ScrollableArea::NormalizeNonFiniteScroll(scroll_to_options->top()) *
-          box->Style()->EffectiveZoom());
-    }
-
-    new_offset = SnapScrollOffsetToPhysicalPixels(new_offset);
-    std::unique_ptr<cc::SnapSelectionStrategy> strategy =
-        cc::SnapSelectionStrategy::CreateForEndPosition(
-            scrollable_area->ScrollOffsetToPosition(new_offset),
-            scroll_to_options->hasLeft(), scroll_to_options->hasTop());
-    std::optional<gfx::PointF> snap_point =
-        scrollable_area->GetSnapPositionAndSetTarget(*strategy);
-    if (snap_point.has_value()) {
-      new_offset = scrollable_area->ScrollPositionToOffset(snap_point.value());
-    }
-
-    scrollable_area->SetScrollOffset(
-        new_offset, mojom::blink::ScrollType::kProgrammatic, scroll_behavior);
   }
+
+  ScrollOffset new_offset = scrollable_area->GetScrollOffset();
+  if (scroll_to_options->hasLeft()) {
+    new_offset.set_x(
+        ScrollableArea::NormalizeNonFiniteScroll(scroll_to_options->left()) *
+        box->Style()->EffectiveZoom());
+  }
+  if (scroll_to_options->hasTop()) {
+    new_offset.set_y(
+        ScrollableArea::NormalizeNonFiniteScroll(scroll_to_options->top()) *
+        box->Style()->EffectiveZoom());
+  }
+
+  new_offset = SnapScrollOffsetToPhysicalPixels(new_offset);
+  std::unique_ptr<cc::SnapSelectionStrategy> strategy =
+      cc::SnapSelectionStrategy::CreateForEndPosition(
+          scrollable_area->ScrollOffsetToPosition(new_offset),
+          scroll_to_options->hasLeft(), scroll_to_options->hasTop());
+  std::optional<gfx::PointF> snap_point =
+      scrollable_area->GetSnapPositionAndSetTarget(*strategy);
+  if (snap_point.has_value()) {
+    new_offset = scrollable_area->ScrollPositionToOffset(snap_point.value());
+  }
+
+  return scrollable_area->SetScrollOffset(
+      new_offset, mojom::blink::ScrollType::kProgrammatic, scroll_behavior);
 }
 
-void Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options) {
+bool Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options) {
   gfx::Vector2dF displacement;
   if (scroll_to_options->hasLeft()) {
     displacement.set_x(
@@ -2746,12 +2765,12 @@ void Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options) {
           scroll_to_options->behavior().AsEnum());
   LocalFrame* frame = GetDocument().GetFrame();
   if (!frame || !frame->View() || !GetDocument().GetPage()) {
-    return;
+    return false;
   }
 
   ScrollableArea* viewport = frame->View()->LayoutViewport();
   if (!viewport) {
-    return;
+    return false;
   }
 
   displacement.Scale(frame->LayoutZoomFactor());
@@ -2763,23 +2782,23 @@ void Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options) {
           RuntimeEnabledFeatures::FractionalScrollOffsetsEnabled());
   new_position =
       viewport->GetSnapPositionAndSetTarget(*strategy).value_or(new_position);
-  viewport->SetScrollOffset(viewport->ScrollPositionToOffset(new_position),
-                            mojom::blink::ScrollType::kProgrammatic,
-                            scroll_behavior);
+  return viewport->SetScrollOffset(
+      viewport->ScrollPositionToOffset(new_position),
+      mojom::blink::ScrollType::kProgrammatic, scroll_behavior);
 }
 
-void Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options) {
+bool Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options) {
   mojom::blink::ScrollBehavior scroll_behavior =
       ScrollableArea::V8EnumToScrollBehavior(
           scroll_to_options->behavior().AsEnum());
   LocalFrame* frame = GetDocument().GetFrame();
   if (!frame || !frame->View() || !GetDocument().GetPage()) {
-    return;
+    return false;
   }
 
   ScrollableArea* viewport = frame->View()->LayoutViewport();
   if (!viewport) {
-    return;
+    return false;
   }
 
   ScrollOffset new_offset = viewport->GetScrollOffset();
@@ -2803,8 +2822,8 @@ void Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options) {
   new_position =
       viewport->GetSnapPositionAndSetTarget(*strategy).value_or(new_position);
   new_offset = viewport->ScrollPositionToOffset(new_position);
-  viewport->SetScrollOffset(new_offset, mojom::blink::ScrollType::kProgrammatic,
-                            scroll_behavior);
+  return viewport->SetScrollOffset(
+      new_offset, mojom::blink::ScrollType::kProgrammatic, scroll_behavior);
 }
 
 gfx::Rect Element::BoundsInWidget() const {
@@ -3980,7 +3999,7 @@ void Element::AttachLayoutTree(AttachContext& context) {
 void Element::DetachLayoutTree(bool performing_reattach) {
   HTMLFrameOwnerElement::PluginDisposeSuspendScope suspend_plugin_dispose;
 
-  // Pseudo elements that may have child pseudo elements (such as ::column) must
+  // Pseudo-elements that may have child pseudo-elements (such as ::column) must
   // be cleared before clearing the rare data vector below.
   ClearColumnPseudoElements();
 
@@ -4205,7 +4224,7 @@ bool Element::SkipStyleRecalcForContainer(
   }
 
   if (!child_change.TraversePseudoElements(*this)) {
-    // If none of the children or pseudo elements need to be traversed for style
+    // If none of the children or pseudo-elements need to be traversed for style
     // recalc, there is no point in marking the subtree as skipped.
     DCHECK(!child_change.TraverseChildren(*this));
     return false;
@@ -4248,7 +4267,7 @@ bool Element::SkipStyleRecalcForContainer(
 
   // ::scroll-marker-group and ::scroll-button() boxes are created outside their
   // originating element's box and cannot be skipped if the originating element
-  // is a size container because the pseudo element and its box need to be
+  // is a size container because the pseudo-element and its box need to be
   // created before layout.
   if (!style.ScrollMarkerGroupNone() ||
       CanGeneratePseudoElement(kPseudoIdScrollButton) ||
@@ -4904,7 +4923,9 @@ StyleRecalcChange Element::RecalcOwnStyle(
           // reset the anchored(fallback) state to no fallback for normal style
           // recalc.
           child_change = evaluator->ApplyAnchoredChanges(
-              child_change, /*try_fallback_index=*/std::nullopt);
+              child_change, PositionTryFallback(),
+              WritingDirectionMode(WritingMode::kHorizontalTb,
+                                   TextDirection::kLtr));
         }
         child_change = evaluator->ApplyScrollStateAndStyleChanges(
             child_change, *old_style, *new_style,
@@ -5730,10 +5751,10 @@ struct Element::AffectedByPseudoStateChange {
             element.AncestorsOrSiblingsAffectedByActiveInHas();
         break;
       default:
-        // Activate :has() invalidation for all allowed pseudo classes.
+        // Activate :has() invalidation for all allowed pseudo-classes.
         //
         // IsPseudoClassValidWithinHasArgument() in css_selector_parser.cc
-        // maintains the disallowed pseudo classes inside :has().
+        // maintains the disallowed pseudo-classes inside :has().
         // If a :has() argument contains any of the disallowed pseudo,
         // CSSSelectorParser will drop the argument. If the argument is
         // dropped, RuleFeatureSet will not maintain the pseudo type for
@@ -8662,7 +8683,7 @@ const ComputedStyle* Element::EnsureOwnComputedStyle(
     const StyleRecalcContext& style_recalc_context,
     PseudoId pseudo_element_specifier,
     const AtomicString& pseudo_argument) {
-  // FIXME: Find and use the layoutObject from the pseudo element instead of the
+  // FIXME: Find and use the layoutObject from the pseudo-element instead of the
   // actual element so that the 'length' properties, which are only known by the
   // layoutObject because it did the layout, will be correct and so that the
   // values returned for the ":selection" pseudo-element will be correct.
@@ -8945,7 +8966,7 @@ void Element::UpdateFirstLetterPseudoElement(StyleUpdatePhase phase) {
 void Element::UpdateFirstLetterPseudoElement(
     StyleUpdatePhase phase,
     const StyleRecalcContext& style_recalc_context) {
-  // Update the ::first-letter pseudo elements presence and its style. This
+  // Update the ::first-letter pseudo-elements presence and its style. This
   // method may be called from style recalc or layout tree rebuilding/
   // reattachment. In order to know if an element generates a ::first-letter
   // element, we need to know if:
@@ -8981,7 +9002,7 @@ void Element::UpdateFirstLetterPseudoElement(
         CreatePseudoElementIfNeeded(kPseudoIdFirstLetter, style_recalc_context);
     // If we are in Element::AttachLayoutTree, don't mess up the ancestor flags
     // for layout tree attachment/rebuilding. We will unconditionally call
-    // AttachLayoutTree for the created pseudo element immediately after this
+    // AttachLayoutTree for the created pseudo-element immediately after this
     // call.
     if (element && phase != StyleUpdatePhase::kAttachLayoutTree) {
       element->SetNeedsReattachLayoutTree();
@@ -9030,7 +9051,7 @@ void Element::UpdateFirstLetterPseudoElement(
   }
 
   StyleRecalcChange change(StyleRecalcChange::kRecalcDescendants);
-  // Remaining text part should be next to first-letter pseudo element.
+  // Remaining text part should be next to first-letter pseudo-element.
   // See http://crbug.com/984389 for details.
   if (text_node_changed || remaining_text_layout_object->PreviousSibling() !=
                                element->GetLayoutObject()) {
@@ -9137,7 +9158,7 @@ PseudoElement* Element::UpdatePseudoElement(
               pseudo_id, element->GetComputedStyle(), this)) {
         generate_pseudo = false;
         // If the content property is relying on attr() we should add the
-        // originating element's ComputedStyle to the pseudo element style
+        // originating element's ComputedStyle to the pseudo-element style
         // cache, so that when attribute value changes it will force style
         // invalidation.
         if (element->GetComputedStyle() &&
@@ -9195,7 +9216,7 @@ PseudoElement* Element::CreatePseudoElementIfNeeded(
     GetElementRareData()->SetPseudoElement(pseudo_id, nullptr,
                                            view_transition_name);
     // If the content property is relying on attr() we should add the
-    // originating element's ComputedStyle to the pseudo element style cache, so
+    // originating element's ComputedStyle to the pseudo-element style cache, so
     // that when attribute value changes it will force style invalidation.
     if (pseudo_style && pseudo_style->HasAttrFunction() &&
         !GetComputedStyle()->GetCachedPseudoElementStyle(pseudo_id,
@@ -9280,10 +9301,10 @@ Element* Element::GetStyledPseudoElement(
     }
   }
 
-  // This traverses the pseudo element hierarchy generated in
+  // This traverses the pseudo-element hierarchy generated in
   // RecalcTransitionPseudoTreeStyle to query nested ::view-transition-group
   // ::view-transition-image-pair and
-  // ::view-transition-{old,new} pseudo elements.
+  // ::view-transition-{old,new} pseudo-elements.
   auto* transition_pseudo = GetPseudoElement(kPseudoIdViewTransition);
   if (!transition_pseudo || pseudo_id == kPseudoIdViewTransition) {
     return transition_pseudo;
@@ -9386,9 +9407,9 @@ bool Element::PseudoElementStylesDependOnFunc(Functor& func) const {
     return false;
   }
 
-  // Note that |HasAnyPseudoElementStyles()| counts public pseudo elements only.
+  // Note that |HasAnyPseudoElementStyles()| counts public pseudo-elements only.
   // ::-webkit-scrollbar-*  are internal, and hence are not counted. So we must
-  // perform this check after checking scrollbar pseudo element styles.
+  // perform this check after checking scrollbar pseudo-element styles.
   if (!style->HasAnyPseudoElementStyles()) {
     return false;
   }
@@ -9591,7 +9612,7 @@ bool Element::CanGeneratePseudoElement(PseudoId pseudo_id) const {
     if (IsDocumentElement()) {
       // The root element is never a scroll container, but is scrolled by the
       // viewport, which is always (programmatically) scrollable.
-      // ::scroll-marker-group pseudo element boxes are generated as children of
+      // ::scroll-marker-group pseudo-element boxes are generated as children of
       // the root element box, and not as siblings which is the case for other
       // elements.
       if (pseudo_id == kPseudoIdScrollMarkerGroupBefore) {
@@ -11366,7 +11387,7 @@ void Element::RecalcTransitionPseudoTreeStyle(
       continue;
     }
 
-    // Nested pseudo elements don't keep pointers to their children, only their
+    // Nested pseudo-elements don't keep pointers to their children, only their
     // parents (i.e. firstChild() in a  ::view-transition is nullptr but
     // parentNode of ::view-transition-group is ::view-transition). However,
     // the layout tree is reattached by descending the DOM tree by child

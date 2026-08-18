@@ -190,7 +190,7 @@ bool ParseSsrc(absl::string_view str, uint32_t* ssrc) {
   return true;
 }
 
-static bool ValidateExtensionId(int value) {
+bool ValidateExtensionId(int value) {
   if (value > 0 && value <= 255)  // Value is ok.
     return true;
   printf("Extension ID must be between 1 and 255, not %d\n",

@@ -122,6 +122,7 @@
 #include "third_party/blink/public/common/origin_trials/origin_trials_settings_provider.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/color/color_provider_manager.h"
+#include "ui/gl/gl_switches.h"
 
 // Per-platform #include blocks, in alphabetical order.
 
@@ -1081,6 +1082,10 @@ int ChromeBrowserMainParts::PreCreateThreadsImpl() {
     command_line->AppendSwitch(net::kRemoveWhitespaceForDataURLs);
   }
 
+  if (local_state->GetBoolean(prefs::kEnableUnsafeSwiftShader)) {
+    command_line->AppendSwitch(switches::kEnableUnsafeSwiftShader);
+  }
+
 #if BUILDFLAG(IS_ANDROID)
   // The admin should also be able to use these policies to force Site Isolation
   // off (on Android; using enterprise policies to disable Site Isolation is not
@@ -1195,10 +1200,12 @@ void ChromeBrowserMainParts::PreProfileInit() {
 #endif
 
 #if BUILDFLAG(IS_MAC)
-  if (base::FeatureList::IsEnabled(features::kViewsJSAppModalDialog))
+  if (base::FeatureList::IsEnabled(features::kViewsJSAppModalDialog) ||
+      headless::IsHeadlessMode()) {
     InstallChromeJavaScriptAppModalDialogViewFactory();
-  else
+  } else {
     InstallChromeJavaScriptAppModalDialogViewCocoaFactory();
+  }
 #else
   InstallChromeJavaScriptAppModalDialogViewFactory();
 #endif

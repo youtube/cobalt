@@ -12,9 +12,13 @@
 // are correctly negotiated in the SDP offer/answer.
 
 #include <string>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "api/media_types.h"
 #include "api/peer_connection_interface.h"
+#include "api/rtp_parameters.h"
+#include "api/rtp_transceiver_direction.h"
 #include "api/test/rtc_error_matchers.h"
 #include "pc/test/integration_test_helpers.h"
 #include "test/gmock.h"
@@ -23,11 +27,14 @@
 
 namespace webrtc {
 
-using testing::Eq;
+using ::testing::Contains;
+using ::testing::Eq;
+using ::testing::Field;
 using ::testing::Gt;
-using testing::HasSubstr;
+using ::testing::HasSubstr;
 using ::testing::IsTrue;
-using testing::Not;
+using ::testing::Ne;
+using ::testing::Not;
 
 class PeerConnectionCongestionControlTest
     : public PeerConnectionIntegrationBaseTest {
@@ -77,6 +84,53 @@ TEST_F(PeerConnectionCongestionControlTest, ReceiveOfferSetsCcfbFlag) {
   EXPECT_THAT(answer_str, Not(HasSubstr("transport-cc")));
 }
 
+TEST_F(PeerConnectionCongestionControlTest, NegotiatingCcfbRemovesTsn) {
+  SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignalingForSdpOnly();
+  callee()->AddVideoTrack();
+  // Add transceivers to caller in order to accomodate reception
+  caller()->pc()->AddTransceiver(MediaType::VIDEO);
+  auto parameters = caller()->pc()->GetSenders()[0]->GetParameters();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+
+  std::vector<RtpHeaderExtensionCapability> negotiated_header_extensions =
+      caller()->pc()->GetTransceivers()[0]->GetNegotiatedHeaderExtensions();
+  EXPECT_THAT(
+      negotiated_header_extensions,
+      Not(Contains(
+          AllOf(Field("uri", &RtpHeaderExtensionCapability::uri,
+                      RtpExtension::kTransportSequenceNumberUri),
+                Not(Field("direction", &RtpHeaderExtensionCapability::direction,
+                          RtpTransceiverDirection::kStopped))))))
+      << " in caller negotiated header extensions";
+
+  parameters = caller()->pc()->GetSenders()[0]->GetParameters();
+  EXPECT_THAT(parameters.header_extensions,
+              Not(Contains(Field("uri", &RtpExtension::uri,
+                                 RtpExtension::kTransportSequenceNumberUri))))
+      << " in caller sender parameters";
+  parameters = caller()->pc()->GetReceivers()[0]->GetParameters();
+  EXPECT_THAT(parameters.header_extensions,
+              Not(Contains(Field("uri", &RtpExtension::uri,
+                                 RtpExtension::kTransportSequenceNumberUri))))
+      << " in caller receiver parameters";
+
+  parameters = callee()->pc()->GetSenders()[0]->GetParameters();
+  EXPECT_THAT(parameters.header_extensions,
+              Not(Contains(Field("uri", &RtpExtension::uri,
+                                 RtpExtension::kTransportSequenceNumberUri))))
+      << " in callee sender parameters";
+
+  parameters = callee()->pc()->GetReceivers()[0]->GetParameters();
+  EXPECT_THAT(parameters.header_extensions,
+              Not(Contains(Field("uri", &RtpExtension::uri,
+                                 RtpExtension::kTransportSequenceNumberUri))))
+      << " in callee receiver parameters";
+}
+
 TEST_F(PeerConnectionCongestionControlTest, CcfbGetsUsed) {
   SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
@@ -124,6 +178,68 @@ TEST_F(PeerConnectionCongestionControlTest, TransportCcGetsUsed) {
       IsRtcOk());
   // Test that RFC 8888 feedback is NOT generated when field trial disabled.
   EXPECT_THAT(pc_internal->FeedbackAccordingToRfc8888CountForTesting(), Eq(0));
+}
+
+TEST_F(PeerConnectionCongestionControlTest, CcfbGetsUsedCalleeToCaller) {
+  SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  callee()->AddVideoTrack();
+  // Add transceivers to caller in order to accomodate reception
+  caller()->pc()->AddTransceiver(MediaType::VIDEO);
+  auto parameters = caller()->pc()->GetSenders()[0]->GetParameters();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+
+  std::vector<RtpHeaderExtensionCapability> negotiated_header_extensions =
+      caller()->pc()->GetTransceivers()[0]->GetNegotiatedHeaderExtensions();
+  EXPECT_THAT(
+      negotiated_header_extensions,
+      Not(Contains(
+          AllOf(Field("uri", &RtpHeaderExtensionCapability::uri,
+                      RtpExtension::kTransportSequenceNumberUri),
+                Not(Field("direction", &RtpHeaderExtensionCapability::direction,
+                          RtpTransceiverDirection::kStopped))))))
+      << " in caller negotiated header extensions";
+
+  parameters = caller()->pc()->GetSenders()[0]->GetParameters();
+  EXPECT_THAT(parameters.header_extensions,
+              Not(Contains(Field("uri", &RtpExtension::uri,
+                                 RtpExtension::kTransportSequenceNumberUri))))
+      << " in caller sender parameters";
+  parameters = caller()->pc()->GetReceivers()[0]->GetParameters();
+  EXPECT_THAT(parameters.header_extensions,
+              Not(Contains(Field("uri", &RtpExtension::uri,
+                                 RtpExtension::kTransportSequenceNumberUri))))
+      << " in caller receiver parameters";
+
+  parameters = callee()->pc()->GetSenders()[0]->GetParameters();
+  EXPECT_THAT(parameters.header_extensions,
+              Not(Contains(Field("uri", &RtpExtension::uri,
+                                 RtpExtension::kTransportSequenceNumberUri))))
+      << " in callee sender parameters";
+
+  parameters = callee()->pc()->GetReceivers()[0]->GetParameters();
+  EXPECT_THAT(parameters.header_extensions,
+              Not(Contains(Field("uri", &RtpExtension::uri,
+                                 RtpExtension::kTransportSequenceNumberUri))))
+      << " in callee receiver parameters";
+
+  MediaExpectations media_expectations;
+  media_expectations.CallerExpectsSomeVideo();
+  ASSERT_TRUE(ExpectNewFrames(media_expectations));
+  auto pc_internal = callee()->pc_internal();
+  EXPECT_THAT(
+      WaitUntil(
+          [&] {
+            return pc_internal->FeedbackAccordingToRfc8888CountForTesting() > 2;
+          },
+          IsTrue()),
+      IsRtcOk());
+  // There should be no transport-cc generated.
+  EXPECT_THAT(pc_internal->FeedbackAccordingToTransportCcCountForTesting(),
+              Eq(0));
 }
 
 }  // namespace webrtc

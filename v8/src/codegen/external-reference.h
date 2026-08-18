@@ -261,8 +261,9 @@ enum class IsolateFieldId : uint8_t;
     "simple_name_dictionary_lookup_forwarded_string")                          \
   V(simple_name_dictionary_find_insertion_entry_forwarded_string,              \
     "simple_name_dictionary_find_insertion_entry_forwarded_string")            \
-  IF_WASM(V, wasm_switch_stacks, "wasm_switch_stacks")                         \
-  IF_WASM(V, wasm_return_switch, "wasm_return_switch")                         \
+  IF_WASM(V, wasm_start_or_suspend_stack, "wasm_start_or_suspend_stack")       \
+  IF_WASM(V, wasm_resume_stack, "wasm_resume_stack")                           \
+  IF_WASM(V, wasm_return_stack, "wasm_return_stack")                           \
   IF_WASM(V, wasm_switch_to_the_central_stack,                                 \
           "wasm::switch_to_the_central_stack")                                 \
   IF_WASM(V, wasm_switch_from_the_central_stack,                               \
@@ -614,7 +615,7 @@ class ExternalReference {
          const CFunctionInfo* const* c_signatures, unsigned num_functions);
   static ExternalReference Create(const Runtime::Function* f);
   static ExternalReference Create(IsolateAddressId id, Isolate* isolate);
-  static ExternalReference Create(Runtime::FunctionId id);
+  static V8_EXPORT_PRIVATE ExternalReference Create(Runtime::FunctionId id);
   static ExternalReference Create(IsolateFieldId id);
   static V8_EXPORT_PRIVATE ExternalReference
   Create(Address address, Type type = ExternalReference::BUILTIN_CALL);

@@ -37,6 +37,7 @@ rtc_library("media_constraints") {
   deps = [
     "../api:audio_options_api",
     "../api:libjingle_peerconnection_api",
+    "../rtc_base:stringutils",
   ]
 }
 

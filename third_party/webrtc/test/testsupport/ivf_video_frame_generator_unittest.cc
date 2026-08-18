@@ -59,7 +59,7 @@ constexpr int kHeight = 240;
 constexpr int kVideoFramesCount = 30;
 constexpr int kMaxFramerate = 30;
 constexpr TimeDelta kMaxFrameEncodeWaitTimeout = TimeDelta::Seconds(2);
-static const VideoEncoder::Capabilities kCapabilities(false);
+const VideoEncoder::Capabilities kCapabilities(false);
 
 #if defined(WEBRTC_ANDROID) || defined(WEBRTC_IOS) || defined(WEBRTC_ARCH_ARM64)
 constexpr double kExpectedMinPsnr = 35;

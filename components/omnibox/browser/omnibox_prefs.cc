@@ -30,8 +30,12 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(
       kShowGoogleLensShortcut, true,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+  registry->RegisterBooleanPref(
+      kShowSearchTools, true, user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
 
   registry->RegisterBooleanPref(omnibox::kDismissedGeminiIph, false);
+  registry->RegisterBooleanPref(
+      omnibox::kDismissedEnterpriseSearchAggregatorIphPrefName, false);
   registry->RegisterBooleanPref(
       omnibox::kDismissedFeaturedEnterpriseSiteSearchIphPrefName, false);
   registry->RegisterBooleanPref(
@@ -41,6 +45,7 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
                                 false);
 
   registry->RegisterIntegerPref(kShownCountGeminiIph, 0);
+  registry->RegisterIntegerPref(kShownCountEnterpriseSearchAggregatorIph, 0);
   registry->RegisterIntegerPref(kShownCountFeaturedEnterpriseSiteSearchIph, 0);
   registry->RegisterIntegerPref(kShownCountHistoryEmbeddingsSettingsPromo, 0);
   registry->RegisterIntegerPref(kShownCountHistoryScopePromo, 0);

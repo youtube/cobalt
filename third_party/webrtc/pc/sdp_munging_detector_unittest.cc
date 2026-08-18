@@ -1001,7 +1001,7 @@ TEST_F(SdpMungingTest, HeaderExtensionRemoved) {
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
   ASSERT_TRUE(media_description);
-  media_description->ClearRtpHeaderExtensions();
+  media_description->set_rtp_header_extensions({});
 
   RTCError error;
   EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));

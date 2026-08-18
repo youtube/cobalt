@@ -87,7 +87,7 @@ const unsigned char kTestCertSha512[] = {
 // and the update changes the string form of the keys, these will have to be
 // updated too.  The fingerprint, fingerprint algorithm and base64 certificate
 // were created by calling `identity->certificate().GetStats()`.
-static const char kRSA_PRIVATE_KEY_PEM[] =
+const char kRSA_PRIVATE_KEY_PEM[] =
     "-----BEGIN PRI"   // Linebreak to avoid detection of private
     "VATE KEY-----\n"  // keys by linters.
     "MIICdQIBADANBgkqhkiG9w0BAQEFAASCAl8wggJbAgEAAoGBAMQPqDStRlYeDpkX\n"
@@ -105,14 +105,14 @@ static const char kRSA_PRIVATE_KEY_PEM[] =
     "bhvEzY/fu8gEp+EzsER96/D79az5z1BaMGL5OPM2xHBPJATKlswnAa7Lp3QKGZGk\n"
     "TxslfL18J71s\n"
     "-----END PRIVATE KEY-----\n";
-static const char kRSA_PUBLIC_KEY_PEM[] =
+const char kRSA_PUBLIC_KEY_PEM[] =
     "-----BEGIN PUBLIC KEY-----\n"
     "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDED6g0rUZWHg6ZF3q0Zr/mtZ2j\n"
     "PL0lUmNIBtqZZ656H1YlkVtzEalgvtNtDLCI94T2XkgJ7f8vxS/56+BGuzV3MHUa\n"
     "Nf9cRCu1P3/3I0oNWrp8rxwh8HBXDK99Ryxbx69GYHBcG4CLhSzRJe5CuRzDvQD8\n"
     "9Z7VI3pPAZgY/MjJfQIDAQAB\n"
     "-----END PUBLIC KEY-----\n";
-static const char kRSA_CERT_PEM[] =
+const char kRSA_CERT_PEM[] =
     "-----BEGIN CERTIFICATE-----\n"
     "MIIBnDCCAQWgAwIBAgIJAOEHLgeWYwrpMA0GCSqGSIb3DQEBCwUAMBAxDjAMBgNV\n"
     "BAMMBXRlc3QxMB4XDTE2MDQyNDE4MTAyMloXDTE2MDUyNTE4MTAyMlowEDEOMAwG\n"
@@ -124,11 +124,11 @@ static const char kRSA_CERT_PEM[] =
     "yTpU3ixErjQvoZew5ngXTEvTY8BSQUijJEaLWh8n6NDKRbEGTdAk8nPAmq9hdCFq\n"
     "e3UkexqNHm3g/VxG4NUC1Y+w29ai0/Rgh+VvgbDwK+Q=\n"
     "-----END CERTIFICATE-----\n";
-static const char kRSA_FINGERPRINT[] =
+const char kRSA_FINGERPRINT[] =
     "3C:E8:B2:70:09:CF:A9:09:5A:F4:EF:8F:8D:8A:32:FF:EA:04:91:BA:6E:D4:17:78:16"
     ":2A:EE:F9:9A:DD:E2:2B";
-static const char kRSA_FINGERPRINT_ALGORITHM[] = "sha-256";
-static const char kRSA_BASE64_CERTIFICATE[] =
+const char kRSA_FINGERPRINT_ALGORITHM[] = "sha-256";
+const char kRSA_BASE64_CERTIFICATE[] =
     "MIIBnDCCAQWgAwIBAgIJAOEHLgeWYwrpMA0GCSqGSIb3DQEBCwUAMBAxDjAMBgNVBAMMBXRlc3"
     "QxMB4XDTE2MDQyNDE4MTAyMloXDTE2MDUyNTE4MTAyMlowEDEOMAwGA1UEAwwFdGVzdDEwgZ8w"
     "DQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBAMQPqDStRlYeDpkXerRmv+a1naM8vSVSY0gG2plnrn"
@@ -138,19 +138,19 @@ static const char kRSA_BASE64_CERTIFICATE[] =
     "i8dxyTpU3ixErjQvoZew5ngXTEvTY8BSQUijJEaLWh8n6NDKRbEGTdAk8nPAmq9hdCFqe3Ukex"
     "qNHm3g/VxG4NUC1Y+w29ai0/Rgh+VvgbDwK+Q=";
 
-static const char kECDSA_PRIVATE_KEY_PEM[] =
+const char kECDSA_PRIVATE_KEY_PEM[] =
     "-----BEGIN PRI"   // Linebreak to avoid detection of private
     "VATE KEY-----\n"  // keys by linters.
     "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg/AkEA2hklq7dQ2rN\n"
     "ZxYL6hOUACL4pn7P4FYlA3ZQhIChRANCAAR7YgdO3utP/8IqVRq8G4VZKreMAxeN\n"
     "rUa12twthv4uFjuHAHa9D9oyAjncmn+xvZZRyVmKrA56jRzENcEEHoAg\n"
     "-----END PRIVATE KEY-----\n";
-static const char kECDSA_PUBLIC_KEY_PEM[] =
+const char kECDSA_PUBLIC_KEY_PEM[] =
     "-----BEGIN PUBLIC KEY-----\n"
     "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEe2IHTt7rT//CKlUavBuFWSq3jAMX\n"
     "ja1GtdrcLYb+LhY7hwB2vQ/aMgI53Jp/sb2WUclZiqwOeo0cxDXBBB6AIA==\n"
     "-----END PUBLIC KEY-----\n";
-static const char kECDSA_CERT_PEM[] =
+const char kECDSA_CERT_PEM[] =
     "-----BEGIN CERTIFICATE-----\n"
     "MIIBFDCBu6ADAgECAgkArpkxjw62sW4wCgYIKoZIzj0EAwIwEDEOMAwGA1UEAwwF\n"
     "dGVzdDMwHhcNMTYwNDI0MTgxNDM4WhcNMTYwNTI1MTgxNDM4WjAQMQ4wDAYDVQQD\n"
@@ -159,11 +159,11 @@ static const char kECDSA_CERT_PEM[] =
     "gCAwCgYIKoZIzj0EAwIDSAAwRQIhANyreQ/K5yuPPpirsd0e/4WGLHou6bIOSQks\n"
     "DYzo56NmAiAKOr3u8ol3LmygbUCwEvtWrS8QcJDygxHPACo99hkekw==\n"
     "-----END CERTIFICATE-----\n";
-static const char kECDSA_FINGERPRINT[] =
+const char kECDSA_FINGERPRINT[] =
     "9F:47:FA:88:76:3D:18:B8:00:A0:59:9D:C3:5D:34:0B:1F:B8:99:9E:68:DA:F3:A5:DA"
     ":50:33:A9:FF:4D:31:89";
-static const char kECDSA_FINGERPRINT_ALGORITHM[] = "sha-256";
-static const char kECDSA_BASE64_CERTIFICATE[] =
+const char kECDSA_FINGERPRINT_ALGORITHM[] = "sha-256";
+const char kECDSA_BASE64_CERTIFICATE[] =
     "MIIBFDCBu6ADAgECAgkArpkxjw62sW4wCgYIKoZIzj0EAwIwEDEOMAwGA1UEAwwFdGVzdDMwHh"
     "cNMTYwNDI0MTgxNDM4WhcNMTYwNTI1MTgxNDM4WjAQMQ4wDAYDVQQDDAV0ZXN0MzBZMBMGByqG"
     "SM49AgEGCCqGSM49AwEHA0IABHtiB07e60//wipVGrwbhVkqt4wDF42tRrXa3C2G/i4WO4cAdr"

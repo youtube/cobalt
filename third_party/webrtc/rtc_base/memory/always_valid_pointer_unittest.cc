@@ -10,7 +10,9 @@
 
 #include "rtc_base/memory/always_valid_pointer.h"
 
+#include <memory>
 #include <string>
+#include <utility>
 
 #include "test/gtest.h"
 

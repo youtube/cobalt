@@ -10,9 +10,14 @@
 
 #include "rtc_base/server_socket_adapters.h"
 
-#include <string>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 
-#include "rtc_base/byte_buffer.h"
+#include "api/array_view.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/socket.h"
+#include "rtc_base/socket_adapters.h"
 
 namespace webrtc {
 

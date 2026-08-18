@@ -1333,6 +1333,9 @@ TEST_F(
 class UsesSplitStoresAndUPMForLocalTest : public ::testing::Test {
  public:
   UsesSplitStoresAndUPMForLocalTest() {
+    feature_list_.InitAndDisableFeature(
+        password_manager::features::kLoginDbDeprecationAndroid);
+
     base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
         syncer::kSyncDeferredStartupTimeoutSeconds, "0");
     // Override the GMS version to be big enough for local UPM support, so these
@@ -1522,6 +1525,7 @@ class UsesSplitStoresAndUPMForLocalTest : public ::testing::Test {
   PrefService* pref_service() { return profile_->GetPrefs(); }
 
  private:
+  base::test::ScopedFeatureList feature_list_;
   content::BrowserTaskEnvironment task_environment_;
   const base::FilePath profile_path_ =
       base::CreateUniqueTempDirectoryScopedToTest();
@@ -1770,6 +1774,13 @@ class GetPasswordAccessLossWarningTypeTest
 };
 
 TEST_P(GetPasswordAccessLossWarningTypeTest, GetPasswordAccessLossWarningType) {
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::kLoginDbDeprecationAndroid) &&
+      GetParam().local_passwords_migration_failed) {
+    // When the deprecation is enabled, the migration doesn't happen anymore
+    // and this test is not applicable.
+    GTEST_SKIP();
+  }
   if (base::android::BuildInfo::GetInstance()->is_automotive() !=
       GetParam().is_auto) {
     GTEST_SKIP() << "Automotive tests don't need to run on non-auto devices "

@@ -14,6 +14,7 @@
 
 #include "net/base/platform_mime_util.h"
 
+#include "base/notimplemented.h"
 #include "net/base/network_interfaces.h"
 
 #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)

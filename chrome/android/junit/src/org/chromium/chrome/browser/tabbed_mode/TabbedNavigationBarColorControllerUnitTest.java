@@ -44,6 +44,7 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.layouts.LayoutManager;
+import org.chromium.chrome.browser.layouts.LayoutStateProvider.LayoutStateObserver;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModel;
@@ -63,6 +64,8 @@ import java.util.List;
         shadows = {TabbedNavigationBarColorControllerUnitTest.ShadowSemanticColorUtils.class},
         sdk = 29)
 @EnableFeatures(ChromeFeatureList.NAV_BAR_COLOR_MATCHES_TAB_BACKGROUND)
+// TODO(crbug.com/425761643): Re-enable after nav bar color animations finch experiment.
+@DisableFeatures(ChromeFeatureList.NAV_BAR_COLOR_ANIMATION)
 public class TabbedNavigationBarColorControllerUnitTest {
     public @Rule MockitoRule mockitoRule = MockitoJUnit.rule();
 
@@ -398,6 +401,32 @@ public class TabbedNavigationBarColorControllerUnitTest {
         // disabled.
         verify(mEdgeToEdgeSystemBarColorHelper, times(1)).setNavigationBarColor(eq(Color.RED));
         verify(mEdgeToEdgeSystemBarColorHelper, times(1)).setNavigationBarColor(anyInt());
+    }
+
+    @Test
+    @EnableFeatures({
+        ChromeFeatureList.NAV_BAR_COLOR_ANIMATION,
+        ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN
+    })
+    @DisableFeatures({ChromeFeatureList.EDGE_TO_EDGE_EVERYWHERE})
+    public void testHideNavBarDuringOmniboxSwipe() {
+        mNavColorController.setIsBottomChinEnabledForTesting(true);
+        Mockito.clearInvocations(mEdgeToEdgeSystemBarColorHelper);
+
+        ArgumentCaptor<LayoutStateObserver> argumentCaptor =
+                ArgumentCaptor.forClass(LayoutStateObserver.class);
+
+        // mLayoutManagerSupplier.set(mLayoutManager) in this file should trigger setLayoutManager.
+        verify(mLayoutManager).addObserver(argumentCaptor.capture());
+
+        LayoutStateObserver layoutStateObserver = argumentCaptor.getValue();
+
+        // Simulate omnibox swipe.
+        layoutStateObserver.onStartedShowing(LayoutType.TOOLBAR_SWIPE);
+        runColorUpdateAnimation();
+
+        verify(mEdgeToEdgeSystemBarColorHelper).setNavigationBarColor(eq(Color.TRANSPARENT));
+        verify(mEdgeToEdgeSystemBarColorHelper).setNavigationBarDividerColor(eq(Color.TRANSPARENT));
     }
 
     @Test

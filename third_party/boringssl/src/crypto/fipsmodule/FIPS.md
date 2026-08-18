@@ -17,6 +17,15 @@ BoringCrypto has undergone the following validations:
 1. 2022-06-13: certificate [#4735](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4735).
 1. 2023-04-28: certificate [#4953](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4953).
 
+The following validations are active:
+
+| Version | Status | CAVP |
+| ------- | ------ | ---- |
+| 2024-04-07 | Review Pending at NIST    | [A5370](https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/details?product=18027) |
+| 2024-08-05 | Review Pending at NIST    | [A6134](https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/details?product=9831) |
+| 2025-01-07 | Review Pending at NIST    | [A6838](https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/details?product=19570) |
+| 2025-xx-xx | Under review by NVLAP lab |         |
+
 ## Update stream
 
 On 2025-01-16, the FedRAMP Board published an [updated policy](https://www.fedramp.gov/rev5/fips/) on cryptographic modules. That policy suggests that module vendors should “promote the use of update streams over the use of validated module streams”. An _update stream_ “contains the latest patches and updates to be applied to software, regardless of the FIPS-validation status of the changed software”.

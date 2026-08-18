@@ -12,7 +12,6 @@
 #define RTC_BASE_TYPE_TRAITS_H_
 
 #include <cstddef>
-#include <string>
 #include <type_traits>
 
 namespace webrtc {

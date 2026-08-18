@@ -23,6 +23,7 @@
 #include "media/audio/android/starboard_audio_input_stream.h"
 #endif
 #include "media/audio/audio_manager_base.h"
+#include "media/base/audio_parameters.h"
 
 namespace media {
 
@@ -63,9 +64,6 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
     virtual std::optional<std::vector<JniAudioDevice>>
     GetCommunicationDevices() = 0;
 
-    // Returns whether the currently connected device is an audio sink.
-    virtual bool IsAudioSinkConnected() = 0;
-
     virtual int GetMinInputFrameSize(int sample_rate, int channels) = 0;
 
     virtual bool AcousticEchoCancelerIsAvailable() = 0;
@@ -91,9 +89,9 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
 
     virtual int GetMinOutputFrameSize(int sample_rate, int channels) = 0;
 
-    // Returns a bit mask of AudioParameters::Format enum values sink device
-    // supports.
-    virtual int GetSinkAudioEncodingFormats() = 0;
+    // Returns a bitmask of audio encoding formats supported by all connected
+    // HDMI output devices.
+    virtual AudioParameters::Format GetHdmiOutputEncodingFormats() = 0;
 
     virtual int GetLayoutWithMaxChannels() = 0;
   };
@@ -171,7 +169,9 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
   // otherwise accounting for.
   base::TimeDelta GetOutputLatency();
 
-  static int GetSinkAudioEncodingFormats();
+  // Returns a bitmask of audio encoding formats supported by all connected HDMI
+  // output devices.
+  static AudioParameters::Format GetHdmiOutputEncodingFormats();
 
   // Called by an `AAudioInputStream` when it is started, i.e. it begins
   // providing audio data.
@@ -229,13 +229,7 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
       AudioDeviceDirection direction);
 
   int GetOptimalOutputFrameSize(int sample_rate, int channels);
-  AudioParameters GetAudioFormatsSupportedBySinkDevice(
-      const std::string& output_device_id,
-      const ChannelLayoutConfig& channel_layout_config,
-      int sample_rate,
-      int buffer_size);
-  ChannelLayoutConfig GetLayoutWithMaxChannels(
-      ChannelLayoutConfig layout_configuration);
+  ChannelLayoutConfig GetLayoutWithMaxChannels();
 
   void DoSetMuteOnAudioThread(bool muted);
   void DoSetVolumeOnAudioThread(double volume);

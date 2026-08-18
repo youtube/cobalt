@@ -35,8 +35,8 @@
 
 namespace {
 
-static const char kTestRealm[] = "example.org";
-static const char kTestSoftware[] = "TestTurnServer";
+const char kTestRealm[] = "example.org";
+const char kTestSoftware[] = "TestTurnServer";
 
 // A wrapper class for webrtc::TurnServer to allocate sockets.
 class PacketSocketFactoryWrapper : public webrtc::PacketSocketFactory {

@@ -7,6 +7,8 @@
 
 #include <memory>
 #include <optional>
+#include <string>
+#include <vector>
 
 #include "base/callback_list.h"
 #include "base/containers/flat_set.h"
@@ -41,6 +43,7 @@ class AuthController;
 class GlicActorController;
 class GlicEnabling;
 class GlicMetrics;
+class GlicOcclusionNotifier;
 class GlicProfileManager;
 class GlicScreenshotCapturer;
 class GlicSharingManagerImpl;
@@ -79,7 +82,8 @@ class GlicKeyedService : public KeyedService {
                 bool prevent_close,
                 mojom::InvocationSource source);
 
-  void OpenFreDialogInNewTab(BrowserWindowInterface* bwi);
+  void OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
+                             mojom::InvocationSource source);
 
   // Forcibly close the UI. This is similar to Shutdown in that it causes the
   // window controller to shutdown (and clear cached state), but unlike
@@ -94,6 +98,7 @@ class GlicKeyedService : public KeyedService {
   // Fetch zero state suggestions for the active web contents.
   void FetchZeroStateSuggestions(
       bool is_first_run,
+      std::optional<std::vector<std::string>> supported_tools,
       glic::mojom::WebClientHandler::
           GetZeroStateSuggestionsForFocusedTabCallback callback);
 
@@ -243,6 +248,7 @@ class GlicKeyedService : public KeyedService {
   std::unique_ptr<AuthController> auth_controller_;
   std::unique_ptr<GlicActorController> actor_controller_;
   std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+  std::unique_ptr<GlicOcclusionNotifier> occlusion_notifier_;
   base::OnceCallback<void()> preload_callback_;
 
   // Unowned

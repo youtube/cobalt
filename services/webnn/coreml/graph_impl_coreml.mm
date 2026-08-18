@@ -32,7 +32,6 @@
 #include "base/task/thread_pool.h"
 #include "base/types/expected_macros.h"
 #include "build/build_config.h"
-#include "mojo/public/cpp/base/big_buffer.h"
 #include "mojo/public/cpp/bindings/self_owned_associated_receiver.h"
 #include "services/webnn/coreml/buffer_content_coreml.h"
 #include "services/webnn/coreml/context_impl_coreml.h"
@@ -79,45 +78,6 @@
 namespace webnn::coreml {
 
 namespace {
-
-
-// Compute strides which may be used to construct an `MLMultiArray` given
-// `multi_array_constraint`.
-// See https://developer.apple.com/documentation/coreml/mlmultiarray/strides.
-//
-// For example, given a 4D input `shape`, its strides would be as follows:
-// [
-//   shape[1] * shape[2] * shape[3],
-//   shape[2] * shape[3],
-//   shape[3],
-//   1
-// ];
-NSMutableArray* CalculateStrides(
-    MLMultiArrayConstraint* multi_array_constraint) {
-  // Empty shapes are not supported for input or output operands.
-  CHECK_GT(multi_array_constraint.shape.count, 0u);
-
-  NSMutableArray* strides =
-      [NSMutableArray arrayWithCapacity:multi_array_constraint.shape.count];
-
-  // Fill `strides` in reverse order, then return the list in reverse.
-
-  // The last stride is always 1.
-  uint32_t current_stride = 1;
-  [strides addObject:@(current_stride)];
-
-  for (uint32_t i = multi_array_constraint.shape.count - 1; i > 0; --i) {
-    // Overflow checks are not needed here because this calculation will always
-    // result in a value less than the similar calculation performed (with
-    // overflow checks) in `OperandDescriptor::Create()` - and
-    // `multi_array_constraint` corresponds to an `OperandDescriptor`.
-    current_stride *= multi_array_constraint.shape[i].unsignedIntegerValue;
-
-    [strides addObject:@(current_stride)];
-  }
-
-  return [[[strides reverseObjectEnumerator] allObjects] mutableCopy];
-}
 
 API_AVAILABLE(macos(12.3))
 base::flat_map<std::string,
@@ -587,26 +547,6 @@ void GraphImplCoreml::DidCreateAndBuild(
   std::move(callback).Run(base::WrapUnique(new GraphImplCoreml(
       std::move(receiver), static_cast<ContextImplCoreml*>(context.get()),
       *std::move(result))));
-}
-
-// static
-MLFeatureValue* GraphImplCoreml::CreateMultiArrayFeatureValueFromBytes(
-    MLMultiArrayConstraint* multi_array_constraint,
-    mojo_base::BigBuffer data) {
-  NSError* error;
-  __block mojo_base::BigBuffer captured_data = std::move(data);
-  MLMultiArray* multi_array = [[MLMultiArray alloc]
-      initWithDataPointer:captured_data.data()
-                    shape:multi_array_constraint.shape
-                 dataType:multi_array_constraint.dataType
-                  strides:CalculateStrides(multi_array_constraint)
-              deallocator:^(void* bytes) {
-                mojo_base::BigBuffer destroy_in_block =
-                    std::move(captured_data);
-              }
-                    error:&error];
-  CHECK(!error);
-  return [MLFeatureValue featureValueWithMultiArray:multi_array];
 }
 
 GraphImplCoreml::ScopedModelPath::ScopedModelPath(base::ScopedTempDir file_dir)

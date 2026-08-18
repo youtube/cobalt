@@ -31,10 +31,12 @@
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/ice_transport_interface.h"
+#include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
 #include "api/scoped_refptr.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/test/mock_async_dns_resolver.h"
+#include "api/test/mock_local_network_access_permission.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/transport/enums.h"
 #include "api/transport/stun.h"
@@ -126,48 +128,46 @@ using ::webrtc::SocketAddress;
 
 // Default timeout for tests in this file.
 // Should be large enough for slow buildbots to run the tests reliably.
-static const int kDefaultTimeout = 10000;
-static const int kMediumTimeout = 3000;
-static const int kShortTimeout = 1000;
+const int kDefaultTimeout = 10000;
+const int kMediumTimeout = 3000;
+const int kShortTimeout = 1000;
 
-static const int kOnlyLocalPorts = webrtc::PORTALLOCATOR_DISABLE_STUN |
-                                   webrtc::PORTALLOCATOR_DISABLE_RELAY |
-                                   webrtc::PORTALLOCATOR_DISABLE_TCP;
-static const int LOW_RTT = 20;
+const int kOnlyLocalPorts = webrtc::PORTALLOCATOR_DISABLE_STUN |
+                            webrtc::PORTALLOCATOR_DISABLE_RELAY |
+                            webrtc::PORTALLOCATOR_DISABLE_TCP;
+const int LOW_RTT = 20;
 // Addresses on the public internet.
-static const SocketAddress kPublicAddrs[2] = {SocketAddress("11.11.11.11", 0),
-                                              SocketAddress("22.22.22.22", 0)};
+const SocketAddress kPublicAddrs[2] = {SocketAddress("11.11.11.11", 0),
+                                       SocketAddress("22.22.22.22", 0)};
 // IPv6 Addresses on the public internet.
-static const SocketAddress kIPv6PublicAddrs[2] = {
+const SocketAddress kIPv6PublicAddrs[2] = {
     SocketAddress("2400:4030:1:2c00:be30:abcd:efab:cdef", 0),
     SocketAddress("2600:0:1000:1b03:2e41:38ff:fea6:f2a4", 0)};
 // For configuring multihomed clients.
-static const SocketAddress kAlternateAddrs[2] = {
-    SocketAddress("101.101.101.101", 0), SocketAddress("202.202.202.202", 0)};
-static const SocketAddress kIPv6AlternateAddrs[2] = {
+const SocketAddress kAlternateAddrs[2] = {SocketAddress("101.101.101.101", 0),
+                                          SocketAddress("202.202.202.202", 0)};
+const SocketAddress kIPv6AlternateAddrs[2] = {
     SocketAddress("2401:4030:1:2c00:be30:abcd:efab:cdef", 0),
     SocketAddress("2601:0:1000:1b03:2e41:38ff:fea6:f2a4", 0)};
 // Internal addresses for NAT boxes.
-static const SocketAddress kNatAddrs[2] = {SocketAddress("192.168.1.1", 0),
-                                           SocketAddress("192.168.2.1", 0)};
+const SocketAddress kNatAddrs[2] = {SocketAddress("192.168.1.1", 0),
+                                    SocketAddress("192.168.2.1", 0)};
 // Private addresses inside the NAT private networks.
-static const SocketAddress kPrivateAddrs[2] = {
-    SocketAddress("192.168.1.11", 0), SocketAddress("192.168.2.22", 0)};
+const SocketAddress kPrivateAddrs[2] = {SocketAddress("192.168.1.11", 0),
+                                        SocketAddress("192.168.2.22", 0)};
 // For cascaded NATs, the internal addresses of the inner NAT boxes.
-static const SocketAddress kCascadedNatAddrs[2] = {
-    SocketAddress("192.168.10.1", 0), SocketAddress("192.168.20.1", 0)};
+const SocketAddress kCascadedNatAddrs[2] = {SocketAddress("192.168.10.1", 0),
+                                            SocketAddress("192.168.20.1", 0)};
 // For cascaded NATs, private addresses inside the inner private networks.
-static const SocketAddress kCascadedPrivateAddrs[2] = {
+const SocketAddress kCascadedPrivateAddrs[2] = {
     SocketAddress("192.168.10.11", 0), SocketAddress("192.168.20.22", 0)};
 // The address of the public STUN server.
-static const SocketAddress kStunAddr("99.99.99.1", webrtc::STUN_SERVER_PORT);
+const SocketAddress kStunAddr("99.99.99.1", webrtc::STUN_SERVER_PORT);
 // The addresses for the public turn server.
-static const SocketAddress kTurnUdpIntAddr("99.99.99.3",
-                                           webrtc::STUN_SERVER_PORT);
-static const SocketAddress kTurnTcpIntAddr("99.99.99.4",
-                                           webrtc::STUN_SERVER_PORT + 1);
-static const SocketAddress kTurnUdpExtAddr("99.99.99.5", 0);
-static const webrtc::RelayCredentials kRelayCredentials("test", "test");
+const SocketAddress kTurnUdpIntAddr("99.99.99.3", webrtc::STUN_SERVER_PORT);
+const SocketAddress kTurnTcpIntAddr("99.99.99.4", webrtc::STUN_SERVER_PORT + 1);
+const SocketAddress kTurnUdpExtAddr("99.99.99.5", 0);
+const webrtc::RelayCredentials kRelayCredentials("test", "test");
 
 // Based on ICE_UFRAG_LENGTH
 const char* kIceUfrag[4] = {"UF00", "UF01", "UF02", "UF03"};
@@ -280,6 +280,32 @@ class ResolverFactoryFixture : public webrtc::MockAsyncDnsResolverFactory {
   std::unique_ptr<webrtc::MockAsyncDnsResolver> mock_async_dns_resolver_;
   webrtc::MockAsyncDnsResolverResult mock_async_dns_resolver_result_;
   absl::AnyInvocable<void()> saved_callback_;
+};
+
+class PermissionFactoryFixture
+    : public webrtc::MockLocalNetworkAccessPermissionFactory {
+ public:
+  explicit PermissionFactoryFixture(
+      webrtc::LocalNetworkAccessPermissionStatus result) {
+    EXPECT_CALL(*this, Create()).WillRepeatedly([result]() {
+      auto mock_lna_permission =
+          std::make_unique<webrtc::MockLocalNetworkAccessPermission>();
+
+      EXPECT_CALL(*mock_lna_permission, RequestPermission(_, _))
+          .WillRepeatedly(
+              [result](
+                  const SocketAddress& /* addr */,
+                  absl::AnyInvocable<void(
+                      webrtc::LocalNetworkAccessPermissionStatus)> callback) {
+                webrtc::Thread::Current()->PostTask(
+                    [callback = std::move(callback), result]() mutable {
+                      callback(result);
+                    });
+              });
+
+      return mock_lna_permission;
+    });
+  }
 };
 
 bool HasLocalAddress(const webrtc::CandidatePairInterface* pair,
@@ -7180,6 +7206,125 @@ TEST_F(P2PTransportChannelTest, EnableDnsLookupsWithTransportPolicyNoHost) {
 
   DestroyChannels();
 }
+
+static struct LocalAreaNetworkPermissionTestConfig {
+  template <typename Sink>
+  friend void AbslStringify(
+      Sink& sink,
+      const LocalAreaNetworkPermissionTestConfig& config) {
+    sink.Append(config.address);
+    sink.Append("_");
+    switch (config.lna_permission_status) {
+      case webrtc::LocalNetworkAccessPermissionStatus::kDenied:
+        sink.Append("Denied");
+        break;
+      case webrtc::LocalNetworkAccessPermissionStatus::kGranted:
+        sink.Append("Granted");
+        break;
+    }
+  }
+
+  webrtc::LocalNetworkAccessPermissionStatus lna_permission_status;
+  absl::string_view address;
+  bool candidate_added;
+} kAllLocalAreNetworkPermissionTestConfigs[] = {
+    {LocalNetworkAccessPermissionStatus::kDenied, "127.0.0.1",
+     /*candidate_added=*/false},
+    {LocalNetworkAccessPermissionStatus::kDenied, "10.0.0.3",
+     /*candidate_added=*/false},
+    {LocalNetworkAccessPermissionStatus::kDenied, "1.1.1.1",
+     /*candidate_added=*/true},
+    {LocalNetworkAccessPermissionStatus::kDenied, "::1",
+     /*candidate_added=*/false},
+    {LocalNetworkAccessPermissionStatus::kDenied, "fd00:4860:4860::8844",
+     /*candidate_added=*/false},
+    {LocalNetworkAccessPermissionStatus::kDenied, "2001:4860:4860::8888",
+     /*candidate_added=*/true},
+    {LocalNetworkAccessPermissionStatus::kGranted, "127.0.0.1",
+     /*candidate_added=*/true},
+    {LocalNetworkAccessPermissionStatus::kGranted, "10.0.0.3",
+     /*candidate_added=*/true},
+    {LocalNetworkAccessPermissionStatus::kGranted, "1.1.1.1",
+     /*candidate_added=*/true},
+    {LocalNetworkAccessPermissionStatus::kGranted, "::1",
+     /*candidate_added=*/true},
+    {LocalNetworkAccessPermissionStatus::kGranted, "fd00:4860:4860::8844",
+     /*candidate_added=*/true},
+    {LocalNetworkAccessPermissionStatus::kGranted, "2001:4860:4860::8888",
+     /*candidate_added=*/true},
+};
+
+class LocalAreaNetworkPermissionTest
+    : public P2PTransportChannelPingTest,
+      public ::testing::WithParamInterface<
+          LocalAreaNetworkPermissionTestConfig> {};
+
+TEST_P(LocalAreaNetworkPermissionTest, LiteralAddresses) {
+  const Environment env = CreateEnvironment();
+  FakePortAllocator pa(env, ss());
+  PermissionFactoryFixture lna_permission_factory(
+      GetParam().lna_permission_status);
+
+  IceTransportInit init;
+  init.set_port_allocator(&pa);
+  init.set_field_trials(&env.field_trials());
+  init.set_lna_permission_factory(&lna_permission_factory);
+
+  auto ch = P2PTransportChannel::Create("foo", 1, std::move(init));
+  PrepareChannel(ch.get());
+  ch->MaybeStartGathering();
+
+  ch->AddRemoteCandidate(
+      CreateUdpCandidate(IceCandidateType::kHost, GetParam().address, 5000, 1));
+
+  ASSERT_THAT(
+      WaitUntil([&] { return ch->PermissionQueriesOutstandingForTesting(); },
+                Eq(0)),
+      IsRtcOk());
+  if (GetParam().candidate_added) {
+    EXPECT_EQ(1u, ch->remote_candidates().size());
+  } else {
+    EXPECT_EQ(0u, ch->remote_candidates().size());
+  }
+}
+
+TEST_P(LocalAreaNetworkPermissionTest, UnresolvedAddresses) {
+  const Environment env = CreateEnvironment();
+  FakePortAllocator pa(env, ss());
+  PermissionFactoryFixture lna_permission_factory(
+      GetParam().lna_permission_status);
+
+  ResolverFactoryFixture resolver_fixture;
+  resolver_fixture.SetAddressToReturn({GetParam().address, 5000});
+
+  IceTransportInit init;
+  init.set_port_allocator(&pa);
+  init.set_field_trials(&env.field_trials());
+  init.set_lna_permission_factory(&lna_permission_factory);
+  init.set_async_dns_resolver_factory(&resolver_fixture);
+
+  auto ch = P2PTransportChannel::Create("foo", 1, std::move(init));
+  PrepareChannel(ch.get());
+  ch->MaybeStartGathering();
+
+  ch->AddRemoteCandidate(
+      CreateUdpCandidate(IceCandidateType::kHost, "fake.test", 5000, 1));
+
+  ASSERT_THAT(
+      WaitUntil([&] { return ch->PermissionQueriesOutstandingForTesting(); },
+                Eq(0)),
+      IsRtcOk());
+  if (GetParam().candidate_added) {
+    EXPECT_EQ(1u, ch->remote_candidates().size());
+  } else {
+    EXPECT_EQ(0u, ch->remote_candidates().size());
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    LocalAreaNetworkPermissionTest,
+    ::testing::ValuesIn(kAllLocalAreNetworkPermissionTestConfigs));
 
 class GatherAfterConnectedTest : public P2PTransportChannelTest,
                                  public WithParamInterface<bool> {};

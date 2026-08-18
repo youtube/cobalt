@@ -79,8 +79,8 @@ constexpr char kVP8IosMaxNumberOfThreadFieldTrialParameter[] = "max_thread";
 #endif
 
 namespace variable_framerate_screenshare {
-static constexpr double kMinFps = 5.0;
-static constexpr int kUndershootPct = 30;
+constexpr double kMinFps = 5.0;
+constexpr int kUndershootPct = 30;
 }  // namespace variable_framerate_screenshare
 
 constexpr char kVp8ForcePartitionResilience[] =

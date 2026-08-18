@@ -181,9 +181,6 @@ class CORE_EXPORT OffscreenCanvas final
   }
   bool IsOpaque() const final;
 
-  // overrides CanvasImageSource::IsAccelerated()
-  bool IsAccelerated() const final;
-
   // overrides CanvasRenderingContextHost::EnableAccelerationForCanvas2D()
   bool EnableAccelerationForCanvas2D() final;
 
@@ -206,11 +203,6 @@ class CORE_EXPORT OffscreenCanvas final
   UniqueFontSelector* GetFontSelector() override;
 
   void Trace(Visitor*) const override;
-
-  CanvasResourceProvider* GetResourceProviderForImageBitmap() {
-    CHECK(IsImageBitmapRenderingContext());
-    return GetResourceProviderWithoutContextCheck();
-  }
 
   class ScopedInsideWorkerRAF {
     STACK_ALLOCATED();

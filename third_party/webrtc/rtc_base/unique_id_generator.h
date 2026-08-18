@@ -11,15 +11,19 @@
 #ifndef RTC_BASE_UNIQUE_ID_GENERATOR_H_
 #define RTC_BASE_UNIQUE_ID_GENERATOR_H_
 
+#include <cstdint>
 #include <limits>
 #include <set>
 #include <string>
+#include <type_traits>
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/sequence_checker.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/no_unique_address.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 

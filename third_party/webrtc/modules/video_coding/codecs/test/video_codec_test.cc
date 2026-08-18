@@ -113,7 +113,7 @@ VideoInfo kFourPeople_1280x720_30 = {
     .resolution = {.width = 1280, .height = 720},
     .framerate = Frequency::Hertz(30)};
 
-static constexpr Frequency k90kHz = Frequency::Hertz(90000);
+constexpr Frequency k90kHz = Frequency::Hertz(90000);
 
 VideoSourceSettings ToSourceSettings(VideoInfo video_info) {
   return VideoSourceSettings{.file_path = ResourcePath(video_info.name, "yuv"),

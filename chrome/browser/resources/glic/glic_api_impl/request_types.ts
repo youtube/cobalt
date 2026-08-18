@@ -71,6 +71,23 @@ export declare interface HostRequestTypes {
       tabContextResult: TabContextResultPrivate,
     },
   };
+  glicBrowserGetContextFromTab: {
+    request: {
+      tabId: string,
+      options: TabContextOptions,
+    },
+    response: {
+      tabContextResult: TabContextResultPrivate,
+    },
+  };
+  glicBrowserSetMaximumNumberOfPinnedTabs: {
+    request: {
+      requestedMax: number,
+    },
+    response: {
+      effectiveMax: number,
+    },
+  };
   glicBrowserActInFocusedTab: {
     request: {
       actInFocusedTabParams: ActInFocusedTabParams,
@@ -204,6 +221,23 @@ export declare interface HostRequestTypes {
       enabled: boolean,
     },
   };
+  glicBrowserPinTabs: {
+    request: {
+      tabIds: string[],
+    },
+    response: {
+      pinnedAll: boolean,
+    },
+  };
+  glicBrowserUnpinTabs: {
+    request: {
+      tabIds: string[],
+    },
+    response: {
+      unpinnedAll: boolean,
+    },
+  };
+  glicBrowserUnpinAllTabs: {};
   glicBrowserGetZeroStateSuggestionsForFocusedTab: {
     request: {
       isFirstRun?: boolean,
@@ -212,6 +246,7 @@ export declare interface HostRequestTypes {
       suggestions?: ZeroStateSuggestions,
     },
   };
+  glicBrowserMaybeRefreshUserStatus: {};
 }
 
 // Types of requests to the GlicWebClient.
@@ -287,6 +322,16 @@ export declare interface WebClientRequestTypes {
       hotkey: string,
     },
   };
+  glicWebClientNotifyPinnedTabsChanged: {
+    request: {
+      tabData: TabDataPrivate[],
+    },
+  };
+  glicWebClientNotifyPinnedTabDataChanged: {
+    request: {
+      tabData: TabDataPrivate,
+    },
+  };
 }
 
 
@@ -309,6 +354,8 @@ type HostRequestEnumNamesType = {
     ClosePanelAndShutdown: 0,
     ShowProfilePicker: 0,
     GetContextFromFocusedTab: 0,
+    GetContextFromTab: 0,
+    SetMaximumNumberOfPinnedTabs: 0,
     ActInFocusedTab: 0,
     StopActorTask: 0,
     PauseActorTask: 0,
@@ -337,9 +384,13 @@ type HostRequestEnumNamesType = {
     SetSyntheticExperimentState: 0,
     OpenOsPermissionSettingsMenu: 0,
     GetOsMicrophonePermissionStatus: 0,
+    PinTabs: 0,
+    UnpinTabs: 0,
+    UnpinAllTabs: 0,
     GetZeroStateSuggestionsForFocusedTab: 0,
     SetClosedCaptioningSetting: 0,
     DropScrollToHighlight: 0,
+    MaybeRefreshUserStatus: 0,
   };
   return apiRequestTypes;
   // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/histograms.xml:ApiRequestType)

@@ -1324,6 +1324,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.tabmodel") {
     "src/org/chromium/chrome/browser/tabmodel/ContextMenuLoadUrlParamsTest.java",
     "src/org/chromium/chrome/browser/tabmodel/IncognitoTabModelTest.java",
     "src/org/chromium/chrome/browser/tabmodel/MultiInstanceMigrationTest.java",
+    "src/org/chromium/chrome/browser/tabmodel/TabCollectionTabModelImplTest.java",
     "src/org/chromium/chrome/browser/tabmodel/TabGroupsTest.java",
     "src/org/chromium/chrome/browser/tabmodel/TabModelImplTest.java",
     "src/org/chromium/chrome/browser/tabmodel/TabModelMergingTest.java",
@@ -1705,6 +1706,7 @@ android_library(
     "src/org/chromium/chrome/browser/customtabs/CustomTabLaunchCauseMetricsTest.java",
     "src/org/chromium/chrome/browser/customtabs/features/minimizedcustomtab/MinimizedCardCoordinatorTest.java",
     "src/org/chromium/chrome/browser/customtabs/features/minimizedcustomtab/MinimizedCardViewBinderTest.java",
+    "src/org/chromium/chrome/browser/customtabs/features/toolbar/CustomTabToolbarButtonsViewBinderTest.java",
   ]
 
   deps = [ ":common_unit_test_deps_java" ]

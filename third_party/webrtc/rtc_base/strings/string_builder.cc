@@ -16,6 +16,7 @@
 #include <cstring>
 
 #include "absl/strings/string_view.h"
+#include "api/array_view.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_minmax.h"
 

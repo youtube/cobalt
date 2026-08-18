@@ -185,7 +185,7 @@ std::unique_ptr<UlpfecReceiver> MaybeConstructUlpfecReceiver(
                                           callback, clock);
 }
 
-static const int kPacketLogIntervalMs = 10000;
+const int kPacketLogIntervalMs = 10000;
 
 }  // namespace
 

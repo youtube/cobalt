@@ -777,11 +777,18 @@ public abstract class BrowserServicesIntentDataProvider {
     }
 
     /**
-     * @return the TWA startup timestamp associated with an intent in the uptimeMillis timebase, or
-     *     null.
+     * @return if optional button on the toolbar can be shown.
      */
-    public @Nullable Long getTwaStartupUptimeMillis() {
-        return null;
+    public boolean isOptionalButtonSupported() {
+        return false;
+    }
+
+    /**
+     * @return the TWA startup timestamp associated with an intent in the uptimeMillis timebase, or
+     *     zero.
+     */
+    public long getTwaStartupUptimeMillis() {
+        return 0;
     }
 
     /**

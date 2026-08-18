@@ -4,6 +4,7 @@
 
 #include "chrome/browser/actor/tools/navigate_tool.h"
 
+#include "chrome/browser/actor/tools/observation_delay_controller.h"
 #include "chrome/browser/actor/tools/tool_callbacks.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
@@ -19,8 +20,11 @@ using content::WebContents;
 
 namespace actor {
 
-NavigateTool::NavigateTool(WebContents& web_contents, const GURL& url)
-    : WebContentsObserver(&web_contents), url_(url) {}
+NavigateTool::NavigateTool(TaskId task_id,
+                           AggregatedJournal& journal,
+                           WebContents& web_contents,
+                           const GURL& url)
+    : Tool(task_id, journal), WebContentsObserver(&web_contents), url_(url) {}
 
 NavigateTool::~NavigateTool() = default;
 
@@ -60,6 +64,12 @@ std::string NavigateTool::DebugString() const {
 
 std::string NavigateTool::JournalEvent() const {
   return "Navigate";
+}
+
+std::unique_ptr<ObservationDelayController>
+NavigateTool::GetObservationDelayer() const {
+  return std::make_unique<ObservationDelayController>(
+      *web_contents()->GetPrimaryMainFrame());
 }
 
 void NavigateTool::DidFinishNavigation(NavigationHandle* navigation_handle) {

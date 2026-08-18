@@ -23,9 +23,8 @@ namespace {
 // services/device/public/cpp/device_features.h or in other locations in the
 // code base.
 const base::Feature* const kFeaturesExposedToJava[] = {
-    &device::kWebAuthnAndroidUsePasskeyCache,
+    &device::kWebAuthnAndroidPasskeyCacheMigration,
     &device::kWebAuthnPasskeyUpgrade,
-    &device::kWebAuthnRemoteDesktopAllowedOriginsPolicy,
     &kGenericSensorExtraClasses,
     &kBatteryStatusManagerBroadcastReceiverInBackground,
     &device::features::kBluetoothRfcommAndroid,

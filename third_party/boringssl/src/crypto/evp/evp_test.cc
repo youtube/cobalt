@@ -610,7 +610,7 @@ static void RunWycheproofVerifyTest(const char *path) {
 
     bool is_pss = t->HasInstruction("mgf");
     const EVP_MD *mgf1_md = nullptr;
-    int pss_salt_len = -1;
+    int pss_salt_len = RSA_PSS_SALTLEN_DIGEST;
     if (is_pss) {
       ASSERT_EQ("MGF1", t->GetInstructionOrDie("mgf"));
       mgf1_md = GetWycheproofDigest(t, "mgfSha", true);

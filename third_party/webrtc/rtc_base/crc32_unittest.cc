@@ -10,6 +10,8 @@
 
 #include "rtc_base/crc32.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include "test/gtest.h"

@@ -74,9 +74,11 @@ chromium-metrics-reviews@google.com.
     <variant name="DropScrollToHighlight"/>
     <variant name="EnableDragResize"/>
     <variant name="GetContextFromFocusedTab"/>
+    <variant name="GetContextFromTab"/>
     <variant name="GetOsMicrophonePermissionStatus"/>
     <variant name="GetUserProfileInfo"/>
     <variant name="GetZeroStateSuggestionsForFocusedTab"/>
+    <variant name="MaybeRefreshUserStatus"/>
     <variant name="OnRequestStarted"/>
     <variant name="OnResponseRated"/>
     <variant name="OnResponseStarted"/>
@@ -86,6 +88,7 @@ chromium-metrics-reviews@google.com.
     <variant name="OpenGlicSettingsPage"/>
     <variant name="OpenOsPermissionSettingsMenu"/>
     <variant name="PauseActorTask"/>
+    <variant name="PinTabs"/>
     <variant name="RefreshSignInCookies"/>
     <variant name="ResizeWindow"/>
     <variant name="ResumeActorTask"/>
@@ -94,6 +97,7 @@ chromium-metrics-reviews@google.com.
     <variant name="SetClosedCaptioningState"/>
     <variant name="SetContextAccessIndicator"/>
     <variant name="SetLocationPermissionState"/>
+    <variant name="SetMaximumNumberOfPinnedTabs"/>
     <variant name="SetMicrophonePermissionState"/>
     <variant name="SetMinimumWidgetSize"/>
     <variant name="SetSyntheticExperimentState"/>
@@ -101,6 +105,8 @@ chromium-metrics-reviews@google.com.
     <variant name="SetWindowDraggableAreas"/>
     <variant name="ShowProfilePicker"/>
     <variant name="StopActorTask"/>
+    <variant name="UnpinAllTabs"/>
+    <variant name="UnpinTabs"/>
     <variant name="WebClientCreated"/>
     <variant name="WebClientInitialized"/>
   </token>
@@ -167,6 +173,16 @@ chromium-metrics-reviews@google.com.
     Note: When setting a shortcut, 'disabled' will always be logged, then
     'enabled'. This is because the edit process first clears the existing value.
     If the shortcut is cleared, only a single 'disabled' log entry is generated.
+  </summary>
+</histogram>
+
+<histogram name="Glic.FRE.InvocationSource" enum="GlicInvocationSource"
+    expires_after="2026-01-15">
+  <owner>cuianthony@google.com</owner>
+  <owner>iwells@google.com</owner>
+  <summary>
+    Records the entry point used to trigger the opening of the glic FRE modal.
+    Recorded when the FRE is shown to the user.
   </summary>
 </histogram>
 
@@ -758,6 +774,25 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the browser active state when a Glic response starts rendering.
   </summary>
+</histogram>
+
+<histogram name="Glic.Sharing.ActiveTabSharingState.{Event}"
+    enum="ActiveTabSharingState" expires_after="2026-01-15">
+  <owner>harringtond@chromium.org</owner>
+  <owner>carlosk@chromium.org</owner>
+  <summary>
+    Records the active tab's focus state at the moment when {Event}.
+  </summary>
+  <token key="Event">
+    <variant name="OnPanelOpenAndReady"
+        summary="the Glic panel has been opened and is ready to receive user
+                 input"/>
+    <variant name="OnTabContextPermissionGranted"
+        summary="the user grants tab context access to Glic while the panel
+                 is open"/>
+    <variant name="OnUserInputSubmitted"
+        summary="the user submits their input"/>
+  </token>
 </histogram>
 
 <histogram name="Glic.ShouldPreload" enum="Boolean" expires_after="2026-01-15">

@@ -26,7 +26,7 @@ namespace {
 
 constexpr int kFrameLengthUs = 10000;
 
-}
+}  // namespace
 
 TestAudioDevice::TestAudioDevice(
     TaskQueueFactory* task_queue_factory,

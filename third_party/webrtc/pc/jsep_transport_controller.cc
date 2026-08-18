@@ -29,6 +29,7 @@
 #include "api/environment/environment.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
+#include "api/local_network_access_permission.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
@@ -77,12 +78,14 @@ JsepTransportController::JsepTransportController(
     Thread* network_thread,
     PortAllocator* port_allocator,
     AsyncDnsResolverFactoryInterface* async_dns_resolver_factory,
+    LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory,
     PayloadTypePicker& payload_type_picker,
     Config config)
     : env_(env),
       network_thread_(network_thread),
       port_allocator_(port_allocator),
       async_dns_resolver_factory_(async_dns_resolver_factory),
+      lna_permission_factory_(lna_permission_factory),
       transports_(
           [this](const std::string& mid, JsepTransport* transport) {
             return OnTransportChanged(mid, transport);
@@ -499,6 +502,7 @@ JsepTransportController::CreateIceTransport(const std::string& transport_name,
   IceTransportInit init;
   init.set_port_allocator(port_allocator_);
   init.set_async_dns_resolver_factory(async_dns_resolver_factory_);
+  init.set_lna_permission_factory(lna_permission_factory_);
   init.set_event_log(config_.event_log);
   init.set_field_trials(&env_.field_trials());
   auto transport = config_.ice_transport_factory->CreateIceTransport(

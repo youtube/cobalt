@@ -46,7 +46,6 @@ import static org.chromium.ui.test.util.ViewUtils.waitForViewCheckingState;
 
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 
@@ -1589,7 +1588,7 @@ public class SiteSettingsTest {
     public void testOnlyExpectedPreferencesShown() {
         // If you add a category in the SiteSettings UI, please update this total AND add a test for
         // it below, named "testOnlyExpectedPreferences<Category>".
-        Assert.assertEquals(35, SiteSettingsCategory.Type.NUM_ENTRIES);
+        Assert.assertEquals(36, SiteSettingsCategory.Type.NUM_ENTRIES);
     }
 
     @Test
@@ -2316,6 +2315,26 @@ public class SiteSettingsTest {
     @SmallTest
     @Feature({"Preferences"})
     @DisableFeatures(ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON)
+    public void testOnlyExpectedPreferencesLocalNetworkAccessWithToggle() {
+        testExpectedPreferences(
+                SiteSettingsCategory.Type.LOCAL_NETWORK_ACCESS, BINARY_TOGGLE, BINARY_TOGGLE);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Preferences"})
+    @EnableFeatures(ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON)
+    public void testOnlyExpectedPreferencesLocalNetworkAccess() {
+        testExpectedPreferences(
+                SiteSettingsCategory.Type.LOCAL_NETWORK_ACCESS,
+                BINARY_RADIO_BUTTON_AND_INFO_TEXT,
+                BINARY_RADIO_BUTTON_AND_INFO_TEXT);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON)
     public void testOnlyExpectedPreferencesJavascriptWithToggle() {
         testExpectedPreferences(
                 SiteSettingsCategory.Type.JAVASCRIPT,
@@ -2396,20 +2415,8 @@ public class SiteSettingsTest {
         ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON
     })
     public void testOnlyExpectedPreferencesNotificationsWithToggle() {
-        String[] notifications_enabled;
-        String[] notifications_disabled;
-        // The "notifications_vibrate" option has been removed in Android O but is present in
-        // earlier versions.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            notifications_enabled =
-                    new String[] {
-                        "binary_toggle", "notifications_quiet_ui", "notifications_vibrate"
-                    };
-            notifications_disabled = new String[] {"binary_toggle", "notifications_vibrate"};
-        } else {
-            notifications_enabled = new String[] {"binary_toggle", "notifications_quiet_ui"};
-            notifications_disabled = BINARY_TOGGLE;
-        }
+        String[] notifications_enabled = new String[] {"binary_toggle", "notifications_quiet_ui"};
+        String[] notifications_disabled = BINARY_TOGGLE;
 
         testExpectedPreferences(
                 SiteSettingsCategory.Type.NOTIFICATIONS,
@@ -2426,25 +2433,9 @@ public class SiteSettingsTest {
     })
     @DisableFeatures(ChromeFeatureList.PERMISSION_DEDICATED_CPSS_SETTING_ANDROID)
     public void testOnlyExpectedPreferencesNotifications() {
-        String[] notifications_enabled;
-        String[] notifications_disabled;
-        // The "notifications_vibrate" option has been removed in Android O but is present in
-        // earlier versions.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            notifications_enabled =
-                    new String[] {
-                        "info_text",
-                        "binary_radio_button",
-                        "notifications_quiet_ui",
-                        "notifications_vibrate"
-                    };
-            notifications_disabled =
-                    new String[] {"info_text", "binary_radio_button", "notifications_vibrate"};
-        } else {
-            notifications_enabled =
-                    new String[] {"info_text", "binary_radio_button", "notifications_quiet_ui"};
-            notifications_disabled = BINARY_RADIO_BUTTON_AND_INFO_TEXT;
-        }
+        String[] notifications_enabled =
+                new String[] {"info_text", "binary_radio_button", "notifications_quiet_ui"};
+        String[] notifications_disabled = BINARY_RADIO_BUTTON_AND_INFO_TEXT;
 
         testExpectedPreferences(
                 SiteSettingsCategory.Type.NOTIFICATIONS,
@@ -3230,6 +3221,34 @@ public class SiteSettingsTest {
     @Test
     @SmallTest
     @Feature({"Preferences"})
+    @EnableFeatures(ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON)
+    public void testAllowLocalNetworkAccess() {
+        new TwoStatePermissionTestCaseWithRadioButton(
+                        "LocalNetworkAccess",
+                        SiteSettingsCategory.Type.LOCAL_NETWORK_ACCESS,
+                        ContentSettingsType.LOCAL_NETWORK_ACCESS,
+                        true)
+                .withExpectedPrefKeysAtStart(SingleCategorySettings.INFO_TEXT_KEY)
+                .run();
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Preferences"})
+    @EnableFeatures(ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON)
+    public void testBlockLocalNetworkAccess() {
+        new TwoStatePermissionTestCaseWithRadioButton(
+                        "LocalNetworkAccess",
+                        SiteSettingsCategory.Type.LOCAL_NETWORK_ACCESS,
+                        ContentSettingsType.LOCAL_NETWORK_ACCESS,
+                        false)
+                .withExpectedPrefKeysAtStart(SingleCategorySettings.INFO_TEXT_KEY)
+                .run();
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Preferences"})
     @DisableFeatures(ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON)
     public void testAllowAutoDarkWithToggle() {
         final String histogramName = "Android.DarkTheme.AutoDarkMode.SettingsChangeSource.Enabled";
@@ -3677,9 +3696,6 @@ public class SiteSettingsTest {
     @Test
     @SmallTest
     @Feature({"Preferences"})
-    @DisableIf.Build(
-            message = "Flaky, see crbug.com/1170671",
-            sdk_is_less_than = Build.VERSION_CODES.Q)
     // Auto does not have actions to handle ACTION_CHANNEL_NOTIFICATION_SETTINGS
     @Restriction(DeviceRestriction.RESTRICTION_TYPE_NON_AUTO)
     public void testEmbargoedNotificationSiteSettings() throws Exception {
@@ -3734,7 +3750,6 @@ public class SiteSettingsTest {
     @Feature({"Preferences"})
     @DisabledTest(message = "https://crbug.com/1094934")
     public void testEmbargoedNotificationCategorySiteSettings() throws Exception {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         final String urlToEmbargo =
                 mPermissionRule.getURLWithHostName(
                         "example.com", "/chrome/test/data/notifications/notification_tester.html");
@@ -3847,10 +3862,6 @@ public class SiteSettingsTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
-    @DisableIf.Build(
-            message = "https://crbug.com/1414569",
-            sdk_is_greater_than = Build.VERSION_CODES.N_MR1,
-            sdk_is_less_than = Build.VERSION_CODES.P)
     public void testProtectedContentDefaultOption() throws Exception {
         initializeUpdateWaiter(/* expectGranted= */ true);
         mPermissionRule.runNoPromptTest(
@@ -3865,10 +3876,6 @@ public class SiteSettingsTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
-    @DisableIf.Build(
-            message = "https://crbug.com/1414569",
-            sdk_is_greater_than = Build.VERSION_CODES.N_MR1,
-            sdk_is_less_than = Build.VERSION_CODES.P)
     public void testProtectedContentAskAllow() throws Exception {
         setGlobalTriStateToggleForCategory(
                 SiteSettingsCategory.Type.PROTECTED_MEDIA, ContentSettingValues.ASK);
@@ -3886,10 +3893,6 @@ public class SiteSettingsTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
-    @DisableIf.Build(
-            message = "https://crbug.com/1414569",
-            sdk_is_greater_than = Build.VERSION_CODES.N_MR1,
-            sdk_is_less_than = Build.VERSION_CODES.P)
     public void testProtectedContentAskBlocked() throws Exception {
         setGlobalTriStateToggleForCategory(
                 SiteSettingsCategory.Type.PROTECTED_MEDIA, ContentSettingValues.ASK);
@@ -3907,10 +3910,6 @@ public class SiteSettingsTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
-    @DisableIf.Build(
-            message = "https://crbug.com/1414569",
-            sdk_is_greater_than = Build.VERSION_CODES.N_MR1,
-            sdk_is_less_than = Build.VERSION_CODES.P)
     public void testProtectedContentBlocked() throws Exception {
         setGlobalTriStateToggleForCategory(
                 SiteSettingsCategory.Type.PROTECTED_MEDIA, ContentSettingValues.BLOCK);
@@ -3928,10 +3927,7 @@ public class SiteSettingsTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
-    @DisableIf.Build(
-            message = "https://crbug.com/1269556,https://crbug.com/1414569",
-            sdk_is_greater_than = Build.VERSION_CODES.N_MR1)
-    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // https://crbug.com/1234530
+    @DisabledTest(message = "https://crbug.com/1269556,https://crbug.com/1414569,crbug.com/1234530")
     public void testProtectedContentAllowThenBlock() throws Exception {
         initializeUpdateWaiter(/* expectGranted= */ true);
         mPermissionRule.runNoPromptTest(

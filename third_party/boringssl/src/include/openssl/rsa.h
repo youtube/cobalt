@@ -301,6 +301,13 @@ OPENSSL_EXPORT int RSA_sign(int hash_nid, const uint8_t *digest,
                             size_t digest_len, uint8_t *out, unsigned *out_len,
                             RSA *rsa);
 
+// RSA_PSS_SALTLEN_DIGEST indicates a PSS salt length that matches the digest
+// length. This is recommended.
+#define RSA_PSS_SALTLEN_DIGEST (-1)
+// RSA_PSS_SALTLEN_AUTO indicates a maximum possible PSS salt length when
+// signing, and automatically detecting the salt length when verifying.
+#define RSA_PSS_SALTLEN_AUTO (-2)
+
 // RSA_sign_pss_mgf1 signs |digest_len| bytes from |digest| with the public key
 // from |rsa| using RSASSA-PSS with MGF1 as the mask generation function. It
 // writes, at most, |max_out| bytes of signature data to |out|. The |max_out|
@@ -311,9 +318,10 @@ OPENSSL_EXPORT int RSA_sign(int hash_nid, const uint8_t *digest,
 // and the MGF1 hash, respectively. If |mgf1_md| is NULL, |md| is
 // used.
 //
-// |salt_len| specifies the expected salt length in bytes. If |salt_len| is -1,
-// then the salt length is the same as the hash length. If -2, then the salt
-// length is maximal given the size of |rsa|. If unsure, use -1.
+// |salt_len| specifies the expected salt length in bytes. If |salt_len| is
+// |RSA_PSS_SALTLEN_DIGEST|, then the salt length is the same as the hash
+// length. If |RSA_PSS_SALTLEN_AUTO|, then the salt length is maximal given the
+// size of |rsa|. If unsure, use |RSA_PSS_SALTLEN_DIGEST|.
 //
 // WARNING: |digest| must be the result of hashing the data to be signed with
 // |md|. Passing unhashed inputs will not result in a secure signature scheme.
@@ -373,9 +381,9 @@ OPENSSL_EXPORT int RSA_verify(int hash_nid, const uint8_t *digest,
 // and the MGF1 hash, respectively. If |mgf1_md| is NULL, |md| is
 // used. |salt_len| specifies the expected salt length in bytes.
 //
-// If |salt_len| is -1, then the salt length is the same as the hash length. If
-// -2, then the salt length is recovered and all values accepted. If unsure, use
-// -1.
+// If |salt_len| is |RSA_PSS_SALTLEN_DIGEST|, then the salt length is the same
+// as the hash length. If |RSA_PSS_SALTLEN_AUTO|, then the salt length is
+// recovered and all values accepted. If unsure, use |RSA_PSS_SALTLEN_DIGEST|.
 //
 // WARNING: |digest| must be the result of hashing the data to be verified with
 // |md|. Passing unhashed input will not result in a secure signature scheme.

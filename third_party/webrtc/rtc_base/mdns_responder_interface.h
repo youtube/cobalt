@@ -12,7 +12,6 @@
 #define RTC_BASE_MDNS_RESPONDER_INTERFACE_H_
 
 #include <functional>
-#include <string>
 
 #include "absl/strings/string_view.h"
 #include "rtc_base/ip_address.h"

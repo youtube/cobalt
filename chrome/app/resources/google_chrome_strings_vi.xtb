@@ -55,6 +55,7 @@
 <translation id="1682634494516646069">Google Chrome không thể đọc và ghi vào thư mục dữ liệu:
 
 <ph name="USER_DATA_DIRECTORY" /></translation>
+<translation id="1688214853608504530">Khi bạn nhập vào thanh địa chỉ hoặc hộp tìm kiếm, Chrome sẽ gửi nội dung bạn nhập đến công cụ tìm kiếm, AI và công cụ hỗ trợ của tổ chức bạn để đưa ra đề xuất.</translation>
 <translation id="1698376642261615901">Google Chrome là một trình duyệt web chạy các trang web và ứng dụng với tốc độ cực nhanh. Trình duyệt này nhanh, ổn định và dễ sử dụng. Duyệt web an toàn hơn với tính năng ngăn chặn phần mềm độc hại và lừa đảo được tích hợp trong Google Chrome.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome sẽ khởi động lại sau một giờ}other{Chrome sẽ khởi động lại sau # giờ}}</translation>
 <translation id="1722488837206509557">Thao tác này sẽ cho phép bạn chọn trong số các thiết bị có sẵn và hiển thị nội dung trên các thiết bị đó.</translation>
@@ -269,6 +270,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chrome đề xuất tạm dừng thẻ làm chậm trình duyệt của bạn}other{Chrome đề xuất tạm dừng các thẻ làm chậm trình duyệt của bạn}}</translation>
 <translation id="4328355335528187361">Google Chrome Dev (mDNS-In)</translation>
 <translation id="4329315893554541805">Để sử dụng chế độ cá nhân hoá và các tính năng khác, hãy thêm Chrome vào mục Hoạt động trên web và ứng dụng cũng như các dịch vụ của Google được liên kết</translation>
+<translation id="4334241893986177674">Tìm kiếm thông tin trên ảnh chụp màn hình này</translation>
 <translation id="4334294535648607276">Quá trình tải xuống hoàn tất.</translation>
 <translation id="4337324600316876133">Để nhận các bản cập nhật Google Chrome sau này, bạn cần có macOS 12 trở lên. Máy tính này đang sử dụng macOS 11.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> đã được thêm vào Chrome</translation>

@@ -889,7 +889,7 @@ std::string BucketContext::SanitizeErrorMessage(const std::string& message) {
   return sanitized_message;
 }
 
-bool BucketContext::ShouldUseSqlite() {
+bool BucketContext::ShouldUseSqlite() const {
   // Additional checks may be added subsequently.
   return base::FeatureList::IsEnabled(kSqliteBackingStore);
 }
@@ -994,7 +994,8 @@ BucketContext::InitBackingStoreIfNeeded(bool create_if_missing) {
     const bool is_first_attempt = i == 0;
     std::tie(backing_store, status, data_loss_info, disk_full) =
         ShouldUseSqlite()
-            ? sqlite::BackingStoreImpl::OpenAndVerify(data_path_)
+            ? sqlite::BackingStoreImpl::OpenAndVerify(data_path_,
+                                                      *blob_storage_context_)
             : level_db::BackingStore::OpenAndVerify(
                   *this, data_path_, database_path, blob_path,
                   lock_manager.get(), is_first_attempt, create_if_missing);

@@ -18,6 +18,7 @@
 <translation id="1054745118061919935">ប្រសិនបើ​បន្ត មានន័យថា​អ្នកយល់ព្រមតាម​<ph name="BEGIN_LINK" />លក្ខខណ្ឌ​ប្រើប្រាស់<ph name="END_LINK" />។</translation>
 <translation id="10614374240317010">មិនដែលបានរក្សាទុក</translation>
 <translation id="1062138828266376352">កូដ PIN របស់អ្នក​មិនត្រូវបាន​ផ្លាស់ប្ដូរទេ។ សូមពិនិត្យការតភ្ជាប់អ៊ីនធឺណិតរបស់អ្នក រួចព្យាយាមម្ដងទៀត</translation>
+<translation id="1063070031224282617">ជ្រើសរើស​កន្លែង​រក្សាទុក "<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />" (<ph name="FILE_SIZE" />)</translation>
 <translation id="1072476005125066234">មតិវាយតម្លៃ​ដែល​ផ្អែកលើ​ចំណាប់​អារម្មណ៍​របស់អ្នក</translation>
 <translation id="1074827084851510304">អ្នក​ហៀបនឹង​លុប​ពាក្យសម្ងាត់ {password_count} ព្រមទាំង​បញ្ជីគេហទំព័រ និង​កម្មវិធី​ដែលអ្នក​បានជ្រើសរើស​មិនរក្សាទុក​ព័ត៌មានចូល​គណនី។ គណនី​ដែលអ្នក​បានបង្កើត​សម្រាប់​គេហទំព័រ និងកម្មវិធី​នឹងមិន​ត្រូវបាន​លុបឡើយ។</translation>
 <translation id="1076421457278169141">បានស្កេនរកលេខកូដ</translation>
@@ -170,6 +171,7 @@
 <translation id="1657011748321897393">ការចែករំលែកបានបរាជ័យ ពីព្រោះអ្នកមិនបានភ្ជាប់ទៅនឹងបណ្តាញទេ។</translation>
 <translation id="1668001730617725852">បើក​នៅ​ក្នុង​ក្រុមផ្ទាំង​ថ្មី</translation>
 <translation id="1674504678466460478"><ph name="SOURCE_LANGUAGE" /> ទៅ <ph name="TARGET_LANGUAGE" /></translation>
+<translation id="168389590065701766">ឥឡូវនេះ អ្នក​អាចបើក Google Lens ពី​របារអាសយដ្ឋាន​របស់អ្នក និង​ស្វែងរក​អ្វីក៏បាន​ដែលអ្នក​មើលឃើញ</translation>
 <translation id="1689333818294560261">ឈ្មោះ​ហៅក្រៅ</translation>
 <translation id="169048873465870056">ដកផ្ទាំងចេញ និងលុបក្រុមឬ?</translation>
 <translation id="1698090540708020240">នាំចូល​ពាក្យសម្ងាត់…</translation>
@@ -210,6 +212,7 @@
 <translation id="1838089197478136166">បើក​នៅក្នុង Wallet ឬ?</translation>
 <translation id="183878838231635348">កាតនេះ​បង្ហាញបញ្ហា​ឯកជនភាព ឬ​សុវត្ថិភាព​ទាំងឡាយ​ដែលការពិនិត្យ​សុវត្ថិភាព​រកឃើញ​ដោយស្វ័យប្រវត្តិ​សម្រាប់អ្នក។</translation>
 <translation id="1845230888742614096">រក្សា​ក្រុម</translation>
+<translation id="1853692000353488670">ផ្ទាំងឯកជនថ្មី</translation>
 <translation id="1854463785401910334">ស្វែងរកផ្ទាំងដែលបើក</translation>
 <translation id="1861067954551502701">{count,plural, =1{ពាក្យ​សម្ងាត់​ទី {position} នៃ {count}}other{ពាក្យ​សម្ងាត់​ទី {position} នៃ {count}}}</translation>
 <translation id="1861262398884155592">ថត​នេះ​ទទេ</translation>
@@ -265,6 +268,7 @@
 <translation id="2044681667265133332">គណនី <ph name="USER_EMAIL" /> ស្ថិតក្រោម​ការគ្រប់គ្រង​របស់ <ph name="HOSTED_DOMAIN" /> ដែលប្រហែលជាអាច​មើលព័ត៌មាន​មួយចំនួន​បាន។ <ph name="BEGIN_LINK" />ស្វែងយល់​បន្ថែម<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">ធាតុ​ថ្មី</translation>
 <translation id="2049727122989709386">គណនី <ph name="COUNT" /> កំពុងប្រើប្រាស់ពាក្យសម្ងាត់ដូចគ្នា</translation>
+<translation id="205013082884273671">ស្វែងរក​អ្វីក៏បាន​នៅលើ​អេក្រង់​របស់អ្នក</translation>
 <translation id="2054044186557130763">ចូលគណនី​ជា <ph name="NAME" /> (<ph name="EMAIL" />) ដែលស្ថិត​ក្រោម​ការ​គ្រប់គ្រង​របស់ស្ថាប័ន​អ្នក។</translation>
 <translation id="2059166748188874810">ក្រុង</translation>
 <translation id="2060638295449304809">អាសយដ្ឋាននេះ​ត្រូវបានរក្សាទុក​ទៅក្នុង​ឧបករណ៍នេះតែ​ប៉ុណ្ណោះ។ ដើម្បី​ប្រើវា​នៅលើ​ឧបករណ៍​ផ្សេងទៀត​របស់អ្នក សូម​រក្សាទុកវា​នៅក្នុង​គណនី Google <ph name="USER_EMAIL" /> របស់អ្នក</translation>
@@ -457,6 +461,7 @@
 <translation id="2819667972867209401">នៅពេល​បើក ទិន្នន័យ​ត្រូវបាន​រក្សាទុក​នៅក្នុង​គណនី Google របស់អ្នក។ នៅពេលបិទ ទិន្នន័យ​ត្រូវបាន​រក្សាទុក​តែនៅលើ​ឧបករណ៍នេះ​ប៉ុណ្ណោះ និង​ត្រូវបានលុប ប្រសិនបើ​អ្នកចេញពី​គណនី។</translation>
 <translation id="2827760117436553203">រក្សា​ទិន្នន័យ​ដាច់ដោយឡែក​ឬ?</translation>
 <translation id="2829172210806130158">ស្វែងរកនៅលើអេក្រង់របស់អ្នក</translation>
+<translation id="2831109159746537587">សាកល្បង​គូររង្វង់ ឬ​ចុចលើ​រូបភាព​ដើម្បី​ស្វែងរក</translation>
 <translation id="2834399722155632105">3. ចុច "ជម្រើស​ពាក្យសម្ងាត់"</translation>
 <translation id="2834956026595107950"><ph name="TITLE" />, <ph name="STATE" />, <ph name="URL" /></translation>
 <translation id="2841013758207633010">ពេលវេលា</translation>
@@ -593,6 +598,7 @@
 <translation id="3476450923187944815">ចូលប្រើ​ពាក្យសម្ងាត់​របស់អ្នក​នៅលើ​កម្មវិធី​ផ្សេងទៀត។</translation>
 <translation id="3488501490964659223">ផ្ទាំងត្រូវបានបិទ ហើយទិន្នន័យរុករកត្រូវបានលុប។ អ្នកត្រូវបាននាំចេញពីគណនី</translation>
 <translation id="3493531032208478708"><ph name="BEGIN_LINK" />ស្វែងយល់បន្ថែម<ph name="END_LINK" />អំពីមាតិកាដែលបានណែនាំ</translation>
+<translation id="349446645805573740">ជ្រើសរើស​កន្លែង​រក្សាទុក "<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />"</translation>
 <translation id="3504377992102007712">ការកំណត់</translation>
 <translation id="35083190962747987">បើក ${url}</translation>
 <translation id="3511519535430890904">បញ្ចូល​ការការពារ​ការរុករក</translation>
@@ -692,6 +698,7 @@
 <translation id="3922395466317605522">ប្ដូរម៉ឺនុយតាម​បំណង</translation>
 <translation id="3929457972718048006">អាសយដ្ឋាន</translation>
 <translation id="3931215329146376310">{count,plural, =1{ពាក្យសម្ងាត់​ថ្មី​សម្រាប់​គេហទំព័រ​នេះ}other{ពាក្យសម្ងាត់​ថ្មីៗ​សម្រាប់​គេហទំព័រ​នេះ}}</translation>
+<translation id="3934905113567851655">ច្បិច​ដើម្បី​ប្ដូរទំហំ</translation>
 <translation id="3940195383040445971">តាមដានតម្លៃនៅក្នុងផ្ទាំង</translation>
 <translation id="3941941395924123592">{COUNT,plural, =1{បិទ {COUNT} ផ្ទាំង}other{បិទ {COUNT} ផ្ទាំង}}</translation>
 <translation id="3948600256434252210">អ្នកអាចអូសទៅស្ដាំដើម្បីរុករកនៅក្នុងមុខងារឯកជន។</translation>
@@ -1699,6 +1706,7 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="7925108652071887026">ទិន្នន័យបំពេញស្វ័យប្រវត្តិ</translation>
 <translation id="7926975587469166629">ឈ្មោះហៅក្រៅរបស់កាត</translation>
 <translation id="7927711904086083099">មិនត្រូវបានជ្រើសរើសទេ</translation>
+<translation id="7927902634113905831">ជ្រើសរើស​គណនី​ដែលអ្នក​ចង់ប្រើ ដើម្បី​រក្សាទុក "<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />" - <ph name="FILESIZE" /></translation>
 <translation id="7930998711684428189">ព្រមានអ្នក ប្រសិនបើ​ពាក្យសម្ងាត់​​បែកធ្លាយ​នៅក្នុង​ការបំពាន​ទិន្នន័យ។</translation>
 <translation id="7933880123415105005">ស្វែងរក <ph name="SEARCH_PROVIDER" /></translation>
 <translation id="7938254975914653459">FaceTime</translation>

@@ -85,14 +85,14 @@ class FormDataIterationSource final
 
 }  // namespace
 
-FormData::FormData(const WTF::TextEncoding& encoding) : encoding_(encoding) {}
+FormData::FormData(const TextEncoding& encoding) : encoding_(encoding) {}
 
 FormData::FormData(const FormData& form_data)
     : encoding_(form_data.encoding_),
       entries_(form_data.entries_),
       contains_password_data_(form_data.contains_password_data_) {}
 
-FormData::FormData() : encoding_(UTF8Encoding()) {}
+FormData::FormData() : encoding_(Utf8Encoding()) {}
 
 FormData* FormData::Create(HTMLFormElement* form,
                            ExceptionState& exception_state) {
@@ -128,7 +128,7 @@ FormData* FormData::Create(HTMLFormElement* form,
   }
   // 1.2. Let list be the result of constructing the entry list for form and
   // submitter.
-  FormData* form_data = form->ConstructEntryList(control, UTF8Encoding());
+  FormData* form_data = form->ConstructEntryList(control, Utf8Encoding());
   // 1.3. If list is null, then throw an "InvalidStateError" DOMException.
   if (!form_data) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
@@ -259,7 +259,8 @@ void FormData::AppendFromElement(const String& name, const String& value) {
 }
 
 std::string FormData::Encode(const String& string) const {
-  return encoding_.Encode(string, WTF::kEntitiesForUnencodables);
+  return encoding_.Encode(string,
+                          UnencodableHandling::kEntitiesForUnencodables);
 }
 
 scoped_refptr<EncodedFormData> FormData::EncodeFormData(

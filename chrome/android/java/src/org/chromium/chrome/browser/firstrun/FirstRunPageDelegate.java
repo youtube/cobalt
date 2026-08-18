@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.firstrun;
 
-import android.os.Bundle;
-
 import org.chromium.base.Promise;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
@@ -17,12 +15,10 @@ import org.chromium.ui.base.WindowAndroid;
 /** Defines the host interface for First Run Experience pages. */
 @NullMarked
 public interface FirstRunPageDelegate {
-    /** Returns FRE properties bundle. */
-    Bundle getProperties();
-
     /**
-     * Advances the First Run Experience to the next page.
-     * Successfully finishes FRE if the current page is the last page.
+     * Advances the First Run Experience to the next page. Successfully finishes FRE if the current
+     * page is the last page.
+     *
      * @return Whether advancing to the next page succeeded.
      */
     boolean advanceToNextPage();

@@ -33,6 +33,7 @@
 #include "absl/flags/parse.h"
 #include "absl/strings/string_view.h"
 #include "api/data_channel_interface.h"
+#include "api/field_trials.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
@@ -48,7 +49,6 @@
 #include "rtc_tools/data_channel_benchmark/peer_connection_client.h"
 #include "rtc_tools/data_channel_benchmark/signaling_interface.h"
 #include "system_wrappers/include/clock.h"
-#include "system_wrappers/include/field_trial.h"
 
 ABSL_FLAG(int, verbose, 0, "verbosity level (0-5)");
 ABSL_FLAG(bool, server, false, "Server mode");
@@ -249,7 +249,8 @@ int RunServer() {
   signaling_thread->Start();
   {
     auto factory = webrtc::PeerConnectionClient::CreateDefaultFactory(
-        signaling_thread.get());
+        signaling_thread.get(), std::make_unique<webrtc::FieldTrials>(
+                                    absl::GetFlag(FLAGS_force_fieldtrials)));
 
     auto grpc_server = webrtc::GrpcSignalingServerInterface::Create(
         [factory =
@@ -281,7 +282,7 @@ int RunServer() {
 
           // Wait for the sender and receiver peers to stabilize (send all ACKs)
           // This makes it easier to isolate the sending part when profiling.
-          absl::SleepFor(absl::Seconds(1));
+          webrtc::Thread::SleepMs(/*millis=*/1'000);
 
           auto begin_time = webrtc::Clock::GetRealTimeClock()->CurrentTime();
 
@@ -320,7 +321,8 @@ int RunClient() {
   signaling_thread->Start();
   {
     auto factory = webrtc::PeerConnectionClient::CreateDefaultFactory(
-        signaling_thread.get());
+        signaling_thread.get(), std::make_unique<webrtc::FieldTrials>(
+                                    absl::GetFlag(FLAGS_force_fieldtrials)));
     auto grpc_client = webrtc::GrpcSignalingClientInterface::Create(
         server_address + ":" + std::to_string(port));
     webrtc::PeerConnectionClient client(factory.get(),
@@ -390,9 +392,6 @@ int main(int argc, char** argv) {
       static_cast<webrtc::LoggingSeverity>(logging_severity));
 
   bool is_server = absl::GetFlag(FLAGS_server);
-  std::string field_trials = absl::GetFlag(FLAGS_force_fieldtrials);
-
-  webrtc::field_trial::InitFieldTrialsFromString(field_trials.c_str());
 
   return is_server ? RunServer() : RunClient();
 }

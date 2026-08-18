@@ -48,6 +48,7 @@
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/payments_customer_data.h"
 #include "components/autofill/core/browser/payments/payments_util.h"
+#include "components/autofill/core/browser/payments/test/mock_virtual_card_enrollment_manager.h"
 #include "components/autofill/core/browser/payments/test_credit_card_save_manager.h"
 #include "components/autofill/core/browser/payments/test_legal_message_line.h"
 #include "components/autofill/core/browser/payments/test_payments_autofill_client.h"
@@ -304,25 +305,6 @@ class MockAutofillClient : public TestAutofillClient {
         std::make_unique<MockPaymentsAutofillClient>(this));
   }
   ~MockAutofillClient() override = default;
-};
-
-class MockVirtualCardEnrollmentManager
-    : public TestVirtualCardEnrollmentManager {
- public:
-  using TestVirtualCardEnrollmentManager::TestVirtualCardEnrollmentManager;
-  MOCK_METHOD(
-      void,
-      InitVirtualCardEnroll,
-      (const CreditCard& credit_card,
-       VirtualCardEnrollmentSource virtual_card_enrollment_source,
-       std::optional<payments::GetDetailsForEnrollmentResponseDetails>
-           get_details_for_enrollment_response_details,
-       PrefService* user_prefs,
-       VirtualCardEnrollmentManager::RiskAssessmentFunction
-           risk_assessment_function,
-       VirtualCardEnrollmentManager::VirtualCardEnrollmentFieldsLoadedCallback
-           virtual_card_enrollment_fields_loaded_callback),
-      (override));
 };
 
 }  // namespace
@@ -6801,7 +6783,7 @@ TEST_P(CreditCardSaveManagerWithVirtualCardEnrollTestParameterized,
         .WillOnce(DoAll(
             SaveArg<0>(&arg_credit_card),
             SaveArg<1>(&arg_virtual_card_enrollment_source),
-            SaveArg<2>(&arg_get_details_for_enrollment_response_details)));
+            SaveArg<3>(&arg_get_details_for_enrollment_response_details)));
   }
   credit_card_save_manager_->set_upload_request_card(test::GetCreditCard());
   credit_card_save_manager_->OnDidUploadCard(

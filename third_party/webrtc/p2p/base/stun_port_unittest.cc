@@ -75,36 +75,32 @@ using ::webrtc::IceCandidateType;
 using ::webrtc::ServerAddresses;
 using ::webrtc::SocketAddress;
 
-static const SocketAddress kPrivateIP("192.168.1.12", 0);
-static const SocketAddress kMsdnAddress("unittest-mdns-host-name.local", 0);
-static const SocketAddress kPublicIP("212.116.91.133", 0);
-static const SocketAddress kNatAddr(kPublicIP.ipaddr(),
-                                    webrtc::NAT_SERVER_UDP_PORT);
-static const SocketAddress kStunServerAddr1("34.38.54.120", 5000);
-static const SocketAddress kStunServerAddr2("34.38.54.120", 4000);
+const SocketAddress kPrivateIP("192.168.1.12", 0);
+const SocketAddress kMsdnAddress("unittest-mdns-host-name.local", 0);
+const SocketAddress kPublicIP("212.116.91.133", 0);
+const SocketAddress kNatAddr(kPublicIP.ipaddr(), webrtc::NAT_SERVER_UDP_PORT);
+const SocketAddress kStunServerAddr1("34.38.54.120", 5000);
+const SocketAddress kStunServerAddr2("34.38.54.120", 4000);
 
-static const SocketAddress kPrivateIPv6("2001:4860:4860::8844", 0);
-static const SocketAddress kPublicIPv6("2002:4860:4860::8844", 5000);
-static const SocketAddress kNatAddrIPv6(kPublicIPv6.ipaddr(),
-                                        webrtc::NAT_SERVER_UDP_PORT);
-static const SocketAddress kStunServerAddrIPv6Addr("2003:4860:4860::8844",
-                                                   5000);
+const SocketAddress kPrivateIPv6("2001:4860:4860::8844", 0);
+const SocketAddress kPublicIPv6("2002:4860:4860::8844", 5000);
+const SocketAddress kNatAddrIPv6(kPublicIPv6.ipaddr(),
+                                 webrtc::NAT_SERVER_UDP_PORT);
+const SocketAddress kStunServerAddrIPv6Addr("2003:4860:4860::8844", 5000);
 
-static const SocketAddress kBadAddr("0.0.0.1", 5000);
-static const SocketAddress kIPv6BadAddr("::ffff:0:1", 5000);
-static const SocketAddress kValidHostnameAddr("valid-hostname", 5000);
-static const SocketAddress kBadHostnameAddr("not-a-real-hostname", 5000);
+const SocketAddress kBadAddr("0.0.0.1", 5000);
+const SocketAddress kIPv6BadAddr("::ffff:0:1", 5000);
+const SocketAddress kValidHostnameAddr("valid-hostname", 5000);
+const SocketAddress kBadHostnameAddr("not-a-real-hostname", 5000);
 // STUN timeout (with all retries) is webrtc::STUN_TOTAL_TIMEOUT.
 // Add some margin of error for slow bots.
-static const int kTimeoutMs = webrtc::STUN_TOTAL_TIMEOUT;
+const int kTimeoutMs = webrtc::STUN_TOTAL_TIMEOUT;
 // stun prio = 100 (srflx) << 24 | 30 (IPv4) << 8 | 256 - 1 (component)
-static const uint32_t kStunCandidatePriority =
-    (100 << 24) | (30 << 8) | (256 - 1);
+const uint32_t kStunCandidatePriority = (100 << 24) | (30 << 8) | (256 - 1);
 // stun prio = 100 (srflx) << 24 | 40 (IPv6) << 8 | 256 - 1 (component)
-static const uint32_t kIPv6StunCandidatePriority =
-    (100 << 24) | (40 << 8) | (256 - 1);
-static const int kInfiniteLifetime = -1;
-static const int kHighCostPortKeepaliveLifetimeMs = 2 * 60 * 1000;
+const uint32_t kIPv6StunCandidatePriority = (100 << 24) | (40 << 8) | (256 - 1);
+const int kInfiniteLifetime = -1;
+const int kHighCostPortKeepaliveLifetimeMs = 2 * 60 * 1000;
 
 constexpr uint64_t kTiebreakerDefault = 44444;
 
@@ -767,7 +763,7 @@ TEST_P(StunPortIPAddressTypeMetricsTest, TestIPAddressTypeMetrics) {
   EXPECT_EQ(samples[static_cast<int>(GetParam().address_type)], 1);
 }
 
-static const IPAddressTypeTestConfig kAllIPAddressTypeTestConfigs[] = {
+const IPAddressTypeTestConfig kAllIPAddressTypeTestConfigs[] = {
     {"127.0.0.1", webrtc::IPAddressType::kLoopback},
     {"localhost", webrtc::IPAddressType::kLoopback},
     {"10.0.0.3", webrtc::IPAddressType::kPrivate},
@@ -1026,7 +1022,7 @@ TEST_P(StunIPv6PortIPAddressTypeMetricsTest, TestIPAddressTypeMetrics) {
   EXPECT_EQ(samples[static_cast<int>(GetParam().address_type)], 1);
 }
 
-static const IPAddressTypeTestConfig kAllIPv6AddressTypeTestConfigs[] = {
+const IPAddressTypeTestConfig kAllIPv6AddressTypeTestConfigs[] = {
     {"::1", webrtc::IPAddressType::kLoopback},
     {"fd00:4860:4860::8844", webrtc::IPAddressType::kPrivate},
     {"2001:4860:4860::8888", webrtc::IPAddressType::kPublic},

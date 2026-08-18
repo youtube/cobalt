@@ -128,7 +128,11 @@ void ChangePasswordFormFillingSubmissionHelper::OnPasswordFormSubmission(
   if (std::exchange(submission_detected_, true)) {
     return;
   }
-  timeout_timer_.FireNow();
+  if (!timeout_timer_.IsRunning()) {
+    return;
+  }
+  timeout_timer_.Reset();
+  OnSubmissionDetectedOrTimeout();
 }
 
 void ChangePasswordFormFillingSubmissionHelper::SavePassword(
@@ -152,6 +156,8 @@ void ChangePasswordFormFillingSubmissionHelper::TriggerFilling(
     const std::u16string& new_password) {
   CHECK(form_manager_);
   if (!driver) {
+    // Fail immediately as something went terribly wrong (e.g. page crashed).
+    std::move(callback_).Run(false);
     return;
   }
 
@@ -162,7 +168,7 @@ void ChangePasswordFormFillingSubmissionHelper::TriggerFilling(
       base::BindOnce(
           &ChangePasswordFormFillingSubmissionHelper::ChangePasswordFormFilled,
           weak_ptr_factory_.GetWeakPtr(), driver,
-          form.new_password_element_renderer_id));
+          form.new_password_element_renderer_id, old_password));
 
   password_manager::PasswordForm form_to_save(form);
   form_to_save.username_value = username;
@@ -177,8 +183,11 @@ void ChangePasswordFormFillingSubmissionHelper::TriggerFilling(
 void ChangePasswordFormFillingSubmissionHelper::ChangePasswordFormFilled(
     base::WeakPtr<password_manager::PasswordManagerDriver> driver,
     autofill::FieldRendererId field_id,
+    const std::u16string& backup_password,
     const std::optional<autofill::FormData>& submitted_form) {
   if (!driver) {
+    // Fail immediately as something went terribly wrong (e.g. page crashed).
+    std::move(callback_).Run(false);
     return;
   }
 
@@ -198,6 +207,7 @@ void ChangePasswordFormFillingSubmissionHelper::ChangePasswordFormFilled(
       base::LRUCache<password_manager::PossibleUsernameFieldIdentifier,
                      password_manager::PossibleUsernameData>(
           password_manager::kMaxSingleUsernameFieldsToStore));
+  form_manager_->UpdateBackupPassword(backup_password);
   driver->SubmitFormWithEnter(
       field_id,
       base::BindOnce(
@@ -213,19 +223,23 @@ void ChangePasswordFormFillingSubmissionHelper::OnSubmitWithEnterResult(
                        success);
   }
 
-  if (!success) {
-    std::move(capture_annotated_page_content_)
-        .Run(base::BindOnce(
-            &ChangePasswordFormFillingSubmissionHelper::OnPageContentReceived,
-            weak_ptr_factory_.GetWeakPtr()));
+  if (success) {
+    OnFormSubmitted();
     return;
   }
-  OnFormSubmitted();
+
+  // Fallback to submission using optimization_guide.
+  std::move(capture_annotated_page_content_)
+      .Run(base::BindOnce(
+          &ChangePasswordFormFillingSubmissionHelper::OnPageContentReceived,
+          weak_ptr_factory_.GetWeakPtr()));
 }
 
 void ChangePasswordFormFillingSubmissionHelper::OnPageContentReceived(
     std::optional<optimization_guide::AIPageContentResult> content) {
   if (!content) {
+    // Fail immediately as submit element can't be identified without `content`.
+    std::move(callback_).Run(false);
     return;
   }
 
@@ -256,6 +270,7 @@ void ChangePasswordFormFillingSubmissionHelper::OnExecutionResponseCallback(
         logging_data) {
   CHECK(web_contents_);
   if (!execution_result.response.has_value()) {
+    std::move(callback_).Run(false);
     return;
   }
   std::optional<optimization_guide::proto::PasswordChangeResponse> response =
@@ -263,10 +278,18 @@ void ChangePasswordFormFillingSubmissionHelper::OnExecutionResponseCallback(
           optimization_guide::proto::PasswordChangeResponse>(
           execution_result.response.value());
   if (!response) {
+    std::move(callback_).Run(false);
     return;
   }
 
   int dom_node_id = response.value().submit_form_data().dom_node_id_to_click();
+
+  if (!dom_node_id) {
+    // Fail immediately as model didn't provide a submit element to click.
+    std::move(callback_).Run(false);
+    return;
+  }
+
   click_helper_ = std::make_unique<ButtonClickHelper>(
       web_contents_.get(), dom_node_id,
       base::BindOnce(
@@ -280,6 +303,7 @@ void ChangePasswordFormFillingSubmissionHelper::OnFormSubmitted() {
 }
 
 void ChangePasswordFormFillingSubmissionHelper::OnButtonClicked(bool result) {
+  CHECK(web_contents_);
   click_helper_.reset();
 
   if (auto logger = GetLoggerIfAvailable(web_contents_)) {
@@ -287,7 +311,9 @@ void ChangePasswordFormFillingSubmissionHelper::OnButtonClicked(bool result) {
                        result);
   }
 
-  if (!result || !web_contents_) {
+  if (!result) {
+    // Fail immediately as click failed.
+    std::move(callback_).Run(false);
     return;
   }
 

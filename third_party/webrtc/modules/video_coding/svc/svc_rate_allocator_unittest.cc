@@ -37,12 +37,12 @@ namespace {
 using ::testing::Bool;
 using ::testing::TestWithParam;
 
-static VideoCodec Configure(VideoCodecType codecType,
-                            size_t width,
-                            size_t height,
-                            size_t num_spatial_layers,
-                            size_t num_temporal_layers,
-                            bool is_screen_sharing) {
+VideoCodec Configure(VideoCodecType codecType,
+                     size_t width,
+                     size_t height,
+                     size_t num_spatial_layers,
+                     size_t num_temporal_layers,
+                     bool is_screen_sharing) {
   VideoCodec codec;
   codec.width = width;
   codec.height = height;
@@ -492,155 +492,6 @@ TEST_P(SvcRateAllocatorTestParametrizedContentType, PaddingBitrate) {
   padding_bitrate = SvcRateAllocator::GetPaddingBitrate(codec);
   // No padding expected.
   EXPECT_EQ(DataRate::Zero(), padding_bitrate);
-}
-
-TEST_P(SvcRateAllocatorTestParametrizedContentType, StableBitrate) {
-  FieldTrials field_trials = CreateTestFieldTrials(
-      "WebRTC-StableTargetRate/enabled:true,video_hysteresis_factor:1.0,"
-      "screenshare_hysteresis_factor:1.0/");
-
-  const VideoCodec codec =
-      Configure(kVideoCodecVP9, 1280, 720, 3, 1, is_screen_sharing_);
-  const auto start_rates = SvcRateAllocator::GetLayerStartBitrates(codec);
-  const DataRate min_rate_two_layers = start_rates[1];
-  const DataRate min_rate_three_layers = start_rates[2];
-
-  const DataRate max_rate_one_layer =
-      DataRate::KilobitsPerSec(codec.spatialLayers[0].maxBitrate);
-  const DataRate max_rate_two_layers =
-      is_screen_sharing_
-          ? DataRate::KilobitsPerSec(codec.spatialLayers[0].targetBitrate +
-                                     codec.spatialLayers[1].maxBitrate)
-          : DataRate::KilobitsPerSec(codec.spatialLayers[0].maxBitrate +
-                                     codec.spatialLayers[1].maxBitrate);
-
-  SvcRateAllocator allocator = SvcRateAllocator(codec, field_trials);
-
-  // Two layers, stable and target equal.
-  auto allocation = allocator.Allocate(VideoBitrateAllocationParameters(
-      /*total_bitrate=*/min_rate_two_layers,
-      /*stable_bitrate=*/min_rate_two_layers, /*fps=*/30.0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(1));
-  EXPECT_EQ(allocation.get_sum_bps(), min_rate_two_layers.bps());
-
-  // Two layers, stable bitrate too low for two layers.
-  allocation = allocator.Allocate(VideoBitrateAllocationParameters(
-      /*total_bitrate=*/min_rate_two_layers,
-      /*stable_bitrate=*/min_rate_two_layers - DataRate::BitsPerSec(1),
-      /*fps=*/30.0));
-  EXPECT_FALSE(allocation.IsSpatialLayerUsed(1));
-  EXPECT_EQ(DataRate::BitsPerSec(allocation.get_sum_bps()),
-            std::min(min_rate_two_layers - DataRate::BitsPerSec(1),
-                     max_rate_one_layer));
-
-  // Three layers, stable and target equal.
-  allocation = allocator.Allocate(VideoBitrateAllocationParameters(
-      /*total_bitrate=*/min_rate_three_layers,
-      /*stable_bitrate=*/min_rate_three_layers, /*fps=*/30.0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(2));
-  EXPECT_EQ(allocation.get_sum_bps(), min_rate_three_layers.bps());
-
-  // Three layers, stable bitrate too low for three layers.
-  allocation = allocator.Allocate(VideoBitrateAllocationParameters(
-      /*total_bitrate=*/min_rate_three_layers,
-      /*stable_bitrate=*/min_rate_three_layers - DataRate::BitsPerSec(1),
-      /*fps=*/30.0));
-  EXPECT_FALSE(allocation.IsSpatialLayerUsed(2));
-  EXPECT_EQ(DataRate::BitsPerSec(allocation.get_sum_bps()),
-            std::min(min_rate_three_layers - DataRate::BitsPerSec(1),
-                     max_rate_two_layers));
-}
-
-TEST_P(SvcRateAllocatorTestParametrizedContentType,
-       StableBitrateWithHysteresis) {
-  const VideoCodec codec =
-      Configure(kVideoCodecVP9, 1280, 720, 3, 1, is_screen_sharing_);
-  const auto start_rates = SvcRateAllocator::GetLayerStartBitrates(codec);
-  const DataRate min_rate_single_layer = start_rates[0];
-  const DataRate min_rate_two_layers = start_rates[1];
-  const DataRate min_rate_three_layers = start_rates[2];
-
-  FieldTrials field_trials = CreateTestFieldTrials(
-      "WebRTC-StableTargetRate/enabled:true,video_hysteresis_factor:1.1,"
-      "screenshare_hysteresis_factor:1.1/");
-  SvcRateAllocator allocator = SvcRateAllocator(codec, field_trials);
-  // Always use max bitrate as target, verify only stable is used for layer
-  // count selection.
-  const DataRate max_bitrate = allocator.GetMaxBitrate(codec);
-
-  // Start with a single layer.
-  auto allocation = allocator.Allocate(VideoBitrateAllocationParameters(
-      /*total_bitrate=*/max_bitrate,
-      /*stable_bitrate=*/min_rate_single_layer, /*fps=*/30.0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(0));
-  EXPECT_FALSE(allocation.IsSpatialLayerUsed(1));
-  EXPECT_FALSE(allocation.IsSpatialLayerUsed(2));
-
-  // Min bitrate not enough to enable second layer due to 10% hysteresis.
-  allocation = allocator.Allocate(VideoBitrateAllocationParameters(
-      /*total_bitrate=*/max_bitrate,
-      /*stable_bitrate=*/min_rate_two_layers, /*fps=*/30.0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(0));
-  EXPECT_FALSE(allocation.IsSpatialLayerUsed(1));
-  EXPECT_FALSE(allocation.IsSpatialLayerUsed(2));
-
-  // Add hysteresis, second layer should turn on.
-  allocation = allocator.Allocate(VideoBitrateAllocationParameters(
-      /*total_bitrate=*/max_bitrate,
-      /*stable_bitrate=*/min_rate_two_layers * 1.1, /*fps=*/30.0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(1));
-  EXPECT_FALSE(allocation.IsSpatialLayerUsed(2));
-
-  // Remove hysteresis, second layer should stay on.
-  allocation = allocator.Allocate(VideoBitrateAllocationParameters(
-      /*total_bitrate=*/max_bitrate,
-      /*stable_bitrate=*/min_rate_two_layers, /*fps=*/30.0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(1));
-  EXPECT_FALSE(allocation.IsSpatialLayerUsed(2));
-
-  // Going below min for two layers, second layer should turn off again.
-  allocation = allocator.Allocate(VideoBitrateAllocationParameters(
-      /*total_bitrate=*/max_bitrate,
-      /*stable_bitrate=*/min_rate_two_layers - DataRate::BitsPerSec(1),
-      /*fps=*/30.0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(0));
-  EXPECT_FALSE(allocation.IsSpatialLayerUsed(1));
-  EXPECT_FALSE(allocation.IsSpatialLayerUsed(2));
-
-  // Min bitrate not enough to enable third layer due to 10% hysteresis.
-  allocation = allocator.Allocate(VideoBitrateAllocationParameters(
-      /*total_bitrate=*/max_bitrate,
-      /*stable_bitrate=*/min_rate_three_layers, /*fps=*/30.0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(1));
-  EXPECT_FALSE(allocation.IsSpatialLayerUsed(2));
-
-  // Add hysteresis, third layer should turn on.
-  allocation = allocator.Allocate(VideoBitrateAllocationParameters(
-      /*total_bitrate=*/max_bitrate,
-      /*stable_bitrate=*/min_rate_three_layers * 1.1, /*fps=*/30.0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(1));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(2));
-
-  // Remove hysteresis, third layer should stay on.
-  allocation = allocator.Allocate(VideoBitrateAllocationParameters(
-      /*total_bitrate=*/max_bitrate,
-      /*stable_bitrate=*/min_rate_three_layers, /*fps=*/30.0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(1));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(2));
-
-  // Going below min for three layers, third layer should turn off again.
-  allocation = allocator.Allocate(VideoBitrateAllocationParameters(
-      /*total_bitrate=*/max_bitrate,
-      /*stable_bitrate=*/min_rate_three_layers - DataRate::BitsPerSec(1),
-      /*fps=*/30.0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(0));
-  EXPECT_TRUE(allocation.IsSpatialLayerUsed(1));
-  EXPECT_FALSE(allocation.IsSpatialLayerUsed(2));
 }
 
 TEST_P(SvcRateAllocatorTestParametrizedContentType, TwoTemporalLayersAv1) {

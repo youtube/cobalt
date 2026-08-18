@@ -33,6 +33,7 @@ struct PrecompileSettings {
     SkEnumBitMask<skgpu::graphite::DrawTypeFlags> fDrawTypeFlags =
             skgpu::graphite::DrawTypeFlags::kNone;
     skgpu::graphite::RenderPassProperties fRenderPassProps;
+    bool fAnalyticClipping = false;
 
     bool isSubsetOf(const PrecompileSettings& superSet) const;
 };
@@ -134,6 +135,10 @@ skgpu::graphite::PaintOptions MouriMapToneMap();
 skgpu::graphite::PaintOptions KawaseBlurLowSrcSrcOver();
 skgpu::graphite::PaintOptions KawaseBlurHighSrc();
 skgpu::graphite::PaintOptions BlurFilterMix();
+
+skgpu::graphite::PaintOptions EdgeExtensionPremulSrcover();
+skgpu::graphite::PaintOptions TransparentPaintEdgeExtensionPassthroughSrcover();
+skgpu::graphite::PaintOptions TransparentPaintEdgeExtensionPremulSrcover();
 
 // Specifies the child shader to be created for a RE_LinearEffect
 enum class ChildType {

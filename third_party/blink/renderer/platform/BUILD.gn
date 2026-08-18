@@ -731,6 +731,7 @@ component("platform") {
     "fonts/plain_text_node.h",
     "fonts/plain_text_painter.cc",
     "fonts/plain_text_painter.h",
+    "fonts/resolved_font_features.cc",
     "fonts/resolved_font_features.h",
     "fonts/script_run_iterator.cc",
     "fonts/script_run_iterator.h",
@@ -2330,7 +2331,6 @@ source_set("blink_platform_unittests_sources") {
     "json/json_values_test.cc",
     "media/web_audio_source_provider_impl_test.cc",
     "mediastream/audio_service_audio_processor_proxy_test.cc",
-    "mediastream/media_stream_audio_processor_options_test.cc",
     "mediastream/media_stream_audio_test.cc",
     "mediastream/transferred_media_stream_component_test.cc",
     "mediastream/webrtc_uma_histograms_test.cc",
@@ -3005,7 +3005,7 @@ fuzzer_test("blink_storage_key_fuzzer") {
   additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
 }
 
-# Fuzzer template for WTF::TextCodec.
+# Fuzzer template for blink::TextCodec.
 template("blink_text_codec_fuzzer") {
   forward_variables_from(invoker, "*")
   config(target_name + "_config") {

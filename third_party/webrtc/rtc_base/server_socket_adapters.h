@@ -11,7 +11,12 @@
 #ifndef RTC_BASE_SERVER_SOCKET_ADAPTERS_H_
 #define RTC_BASE_SERVER_SOCKET_ADAPTERS_H_
 
+#include <cstddef>
+
+#include "rtc_base/socket.h"
 #include "rtc_base/socket_adapters.h"
+#include "rtc_base/socket_address.h"
+#include "rtc_base/third_party/sigslot/sigslot.h"
 
 namespace webrtc {
 

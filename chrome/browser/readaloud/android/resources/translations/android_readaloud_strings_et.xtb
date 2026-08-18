@@ -21,7 +21,6 @@
 <translation id="3493899379487634969">Mis läks valesti?</translation>
 <translation id="3730775656877876887">AI taasesituse genereerimine</translation>
 <translation id="3778044272390020426">Negatiivse tagasiside valikute menüü</translation>
-<translation id="3807208219231826020">Taasesituse kerimine</translation>
 <translation id="385051799172605136">Tagasi</translation>
 <translation id="3936324432406465283">Esituskiirus</translation>
 <translation id="4020327272915390518">Valikute menüü</translation>
@@ -68,5 +67,6 @@
 <translation id="8481839122437406573">Rahulik</translation>
 <translation id="8756370108715456837">Faktiliselt vale</translation>
 <translation id="8953618380150219653">Pleier „Kuula seda lehte“ on avatud täiskõrgusel.</translation>
+<translation id="9087782179025630211">Otsimise juhik. <ph name="ELAPSED" />/<ph name="TOTAL" /> möödunud.</translation>
 <translation id="978117257931832348">Madal</translation>
 </translationbundle>

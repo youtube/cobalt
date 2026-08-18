@@ -687,6 +687,12 @@ void MemoryBarrierOp::PrintOptions(std::ostream& os) const {
   os << "[memory order: " << memory_order << ']';
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+void WasmIncCoverageCounterOp::PrintOptions(std::ostream& os) const {
+  os << "[counter_addr: " << counter_addr << ']';
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 void StoreOp::PrintInputs(std::ostream& os,
                           const std::string& op_index_prefix) const {
   os << " *(" << op_index_prefix << base().id();
@@ -1215,6 +1221,8 @@ std::ostream& operator<<(std::ostream& os, NumericKind kind) {
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case NumericKind::kFloat64Undefined:
       return os << "Float64Undefined";
+    case NumericKind::kFloat64UndefinedOrHole:
+      return os << "Float64UndefinedOrHole";
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case NumericKind::kFinite:
       return os << "Finite";

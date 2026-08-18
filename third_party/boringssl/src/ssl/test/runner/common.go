@@ -329,6 +329,7 @@ type ConnectionState struct {
 	NegotiatedProtocolIsMutual bool                  // negotiated protocol was advertised by server
 	NegotiatedProtocolFromALPN bool                  // protocol negotiated with ALPN
 	ServerName                 string                // server name requested by client, if any (server side only)
+	ServerNameAck              bool                  // whether the server acknowledged the server name (client side only)
 	PeerCertificates           []*x509.Certificate   // certificate chain presented by remote peer
 	PeerDelegatedCredential    []byte                // delegated credential presented by remote peer
 	VerifiedChains             [][]*x509.Certificate // verified chains built from PeerCertificates

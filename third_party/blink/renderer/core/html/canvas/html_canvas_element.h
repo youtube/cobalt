@@ -58,6 +58,10 @@
 
 #define CanvasDefaultInterpolationQuality kInterpolationLow
 
+namespace cc {
+class TextureLayer;
+}
+
 namespace blink {
 
 class CanvasHibernationHandler;
@@ -192,7 +196,7 @@ class CORE_EXPORT HTMLCanvasElement final
 
   void SetNeedsPushProperties();
 
-  void DiscardResourceProvider() override;
+  void DiscardResources() override;
 
   TextDirection GetTextDirection(const ComputedStyle*) override;
   const LayoutLocale* GetLocale() const override;
@@ -234,7 +238,6 @@ class CORE_EXPORT HTMLCanvasElement final
                          const RespectImageOrientationEnum) const override;
   bool IsCanvasElement() const override { return true; }
   bool IsOpaque() const override;
-  bool IsAccelerated() const override;
 
   // SurfaceLayerBridgeObserver implementation
   void OnWebLayerUpdated() override;
@@ -274,7 +277,7 @@ class CORE_EXPORT HTMLCanvasElement final
                                   viz::ResourceId resource_id) override;
   void Trace(Visitor*) const override;
 
-  void SetResourceProviderForTesting(
+  void SetCanvas2DResourceProviderForTesting(
       std::unique_ptr<CanvasResourceProvider> provider,
       const gfx::Size& size);
 
@@ -462,7 +465,7 @@ class CORE_EXPORT HTMLCanvasElement final
 
   // If the ResourceProvider currently exists, replaces it with a
   // CanvasResourceProvider that was newly created for usage with a 2D context.
-  void ReplaceExistingResourceProviderForCanvas2D();
+  void DropAndRecreateExistingCanvas2DResourceProvider();
 
   // Used for OffscreenCanvas that controls this HTML canvas element
   // and for low latency mode.

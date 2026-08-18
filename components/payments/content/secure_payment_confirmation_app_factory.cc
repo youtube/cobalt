@@ -402,6 +402,8 @@ void SecurePaymentConfirmationAppFactory::Create(
       spc_request->issuer_info = nullptr;
 
       // Since only the first 2 icons are shown, remove the remaining logos.
+      // Note that the SPC dialog on Chrome Android will CHECK() that no more
+      // than 2 logos are provided.
       if (spc_request->payment_entities_logos.size() > 2) {
         spc_request->payment_entities_logos.erase(
             spc_request->payment_entities_logos.begin() + 2);
@@ -581,8 +583,10 @@ void SecurePaymentConfirmationAppFactory::DidDownloadAllIcons(
 
   if (!request->delegate->GetSpec() ||
       ((!request->authenticator || !request->credential) &&
-       !PaymentsExperimentalFeatures::IsEnabled(
-           features::kSecurePaymentConfirmationFallback))) {
+       !(PaymentsExperimentalFeatures::IsEnabled(
+             features::kSecurePaymentConfirmationFallback) ||
+         base::FeatureList::IsEnabled(
+             blink::features::kSecurePaymentConfirmationUxRefresh)))) {
     request->delegate->OnDoneCreatingPaymentApps();
     return;
   }
@@ -607,7 +611,9 @@ void SecurePaymentConfirmationAppFactory::DidDownloadAllIcons(
 
   if (!request->authenticator || !request->credential) {
     CHECK(PaymentsExperimentalFeatures::IsEnabled(
-        features::kSecurePaymentConfirmationFallback));
+              features::kSecurePaymentConfirmationFallback) ||
+          base::FeatureList::IsEnabled(
+              blink::features::kSecurePaymentConfirmationUxRefresh));
     // In the case of no authenticator or credentials, we still create the
     // SecurePaymentConfirmationApp, which holds the information to be shown
     // in the fallback UX.

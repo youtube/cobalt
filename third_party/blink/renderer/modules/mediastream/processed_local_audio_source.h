@@ -14,6 +14,7 @@
 #include "media/base/audio_capturer_source.h"
 #include "media/base/audio_glitch_info.h"
 #include "third_party/blink/renderer/modules/mediastream/media_constraints.h"
+#include "third_party/blink/renderer/modules/mediastream/media_stream_audio_processing_layout.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_level_calculator.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_processor_options.h"
@@ -49,8 +50,7 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
       LocalFrame& frame,
       const MediaStreamDevice& device,
       bool disable_local_echo,
-      const AudioProcessingProperties& audio_processing_properties,
-      int num_requested_channels,
+      const MediaStreamAudioProcessingLayout& processing_layout,
       ConstraintsRepeatingCallback started_callback,
       scoped_refptr<base::SingleThreadTaskRunner> task_runner);
 
@@ -75,7 +75,7 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
   }
 
   const blink::AudioProcessingProperties& audio_processing_properties() const {
-    return audio_processing_properties_;
+    return processing_layout_.properties();
   }
 
   std::optional<blink::AudioProcessingProperties> GetAudioProcessingProperties()
@@ -127,13 +127,6 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
   // make the log unique.
   void SendLogMessageWithSessionId(const std::string& message) const;
 
-  // If true, processing (controlled via |audio_processor_proxy_|) is done in
-  // the audio service (and Chrome-wide echo cancellation is applied if
-  // requested; otherwise, |media_stream_audio_processor_| will be applying
-  // audio processing locally, and if echo cancellation is requested then only
-  // PeerConnection audio from the same context as |this| is cancelled.
-  const bool use_remote_apm_;
-
   // The LocalFrame that will consume the audio data. Used when creating
   // AudioCapturerSources.
   //
@@ -144,8 +137,7 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
   WeakPersistent<PeerConnectionDependencyFactory> dependency_factory_;
 #endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
-  blink::AudioProcessingProperties audio_processing_properties_;
-  int num_requested_channels_;
+  blink::MediaStreamAudioProcessingLayout processing_layout_;
 
   // Callback that's called when the audio source has been initialized.
   ConstraintsRepeatingCallback started_callback_;

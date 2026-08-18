@@ -98,6 +98,7 @@
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/legacy_stats_types.h"
+#include "api/local_network_access_permission.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
 #include "api/metronome/metronome.h"
@@ -1397,6 +1398,10 @@ struct RTC_EXPORT PeerConnectionDependencies final {
   // Optional network controller factory to use.
   // Overrides that set in PeerConnectionFactoryDependencies.
   std::unique_ptr<NetworkControllerFactoryInterface> network_controller_factory;
+
+  // Optional permission factory to request Local Network Access permission.
+  std::unique_ptr<LocalNetworkAccessPermissionFactoryInterface>
+      lna_permission_factory;
 
   // Optional field trials to use.
   // Overrides those from PeerConnectionFactoryDependencies.

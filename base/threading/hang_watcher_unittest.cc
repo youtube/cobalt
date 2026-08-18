@@ -1188,7 +1188,6 @@ class HangWatcherCobaltTest : public testing::Test {
   const base::TimeDelta kHangTime = kTimeout + base::Seconds(1);
 
   HangWatcherCobaltTest() {
-    feature_list_.InitWithFeaturesAndParameters(kFeatureAndParams, {});
     HangWatcher::InitializeOnMainThread(
         HangWatcher::ProcessType::kBrowserProcess, /*emit_crashes=*/true);
   }
@@ -1228,7 +1227,7 @@ class HangWatcherCobaltTest : public testing::Test {
 
  protected:
   WaitableEvent monitor_event_;
-  base::test::ScopedFeatureList feature_list_;
+  base::test::ScopedFeatureList feature_list_{base::kEnableHangWatcher};
   test::SingleThreadTaskEnvironment task_environment_{
       test::TaskEnvironment::TimeSource::MOCK_TIME};
   std::unique_ptr<HangWatcher> hang_watcher_;
@@ -1318,13 +1317,8 @@ TEST_F(HangWatcherCobaltTest, MultipleHangsSingleUuid) {
   auto unregister_thread_closure =
       HangWatcher::RegisterThread(base::HangWatcher::ThreadType::kMainThread);
 
-  base::WaitableEvent unblock_thread_1;
-  base::WaitableEvent unblock_thread_2;
-  BlockingThread thread_1(&unblock_thread_1, kTimeout);
-  BlockingThread thread_2(&unblock_thread_2, kTimeout);
-
-  thread_1.StartAndWaitForScopeEntered();
-  thread_2.StartAndWaitForScopeEntered();
+  BlockedThread thread_1(HangWatcher::ThreadType::kMainThread, kTimeout);
+  BlockedThread thread_2(HangWatcher::ThreadType::kMainThread, kTimeout);
 
   // Reset monitor event because thread registration triggers Monitor().
   monitor_event_.Reset();
@@ -1340,8 +1334,8 @@ TEST_F(HangWatcherCobaltTest, MultipleHangsSingleUuid) {
     ASSERT_FALSE(captured_uuid.empty());
 
     // Recover thread_1.
-    unblock_thread_1.Signal();
-    thread_1.Join();
+    thread_1.Unblock();
+    thread_1.WaitDone();
 
     // Trigger monitor event again. thread_2 is still hung, so no recovery
     // should be signaled yet.
@@ -1361,8 +1355,8 @@ TEST_F(HangWatcherCobaltTest, MultipleHangsSingleUuid) {
 
     // Recover thread_2. This is the last hung thread.
     EXPECT_CALL(mock_delegate, RecordHangRecovered(captured_uuid)).Times(1);
-    unblock_thread_2.Signal();
-    thread_2.Join();
+    thread_2.Unblock();
+    thread_2.WaitDone();
 
     TriggerMonitorAndWait();
   }
@@ -1483,12 +1477,7 @@ TEST_F(HangWatcherCobaltTest, OverlappingHangsSingleUuid) {
   auto unregister_thread_closure =
       HangWatcher::RegisterThread(base::HangWatcher::ThreadType::kMainThread);
 
-  base::WaitableEvent unblock_thread_a;
-  base::WaitableEvent unblock_thread_b;
-  BlockingThread thread_a(&unblock_thread_a, kTimeout);
-  BlockingThread thread_b(&unblock_thread_b, kTimeout);
-
-  thread_a.StartAndWaitForScopeEntered();
+  BlockedThread thread_a(HangWatcher::ThreadType::kMainThread, kTimeout);
 
   // Reset monitor event because thread registration triggers Monitor().
   monitor_event_.Reset();
@@ -1506,15 +1495,15 @@ TEST_F(HangWatcherCobaltTest, OverlappingHangsSingleUuid) {
   }
 
   // Now start Thread B so its deadline is later than Thread A's deadline.
-  thread_b.StartAndWaitForScopeEntered();
+  BlockedThread thread_b(HangWatcher::ThreadType::kMainThread, kTimeout);
   monitor_event_.Reset();
 
   // Fast forward so Thread B hangs too.
   task_environment_.FastForwardBy(kHangTime);
 
   // --- Thread A Recovers, Thread B is still hung ---
-  unblock_thread_a.Signal();
-  thread_a.Join();
+  thread_a.Unblock();
+  thread_a.WaitDone();
 
   // Trigger monitor event. Thread A is recovered, Thread B is hung.
   // Because Thread B's deadline is newer than Thread A's (which set the
@@ -1538,8 +1527,8 @@ TEST_F(HangWatcherCobaltTest, OverlappingHangsSingleUuid) {
 
   // --- Thread B Recovers ---
   EXPECT_CALL(mock_delegate, RecordHangRecovered(captured_uuid)).Times(1);
-  unblock_thread_b.Signal();
-  thread_b.Join();
+  thread_b.Unblock();
+  thread_b.WaitDone();
 
   TriggerMonitorAndWait();
 }
@@ -1781,18 +1770,14 @@ TEST_F(HangWatcherCobaltTest, AlternatingHangsSingleUuid) {
   auto unregister_thread_closure =
       HangWatcher::RegisterThread(base::HangWatcher::ThreadType::kMainThread);
 
-  base::WaitableEvent unblock_thread_a;
-  base::WaitableEvent unblock_thread_b;
-  BlockingThread thread_a(&unblock_thread_a, kTimeout);
-  BlockingThread thread_b(&unblock_thread_b, kTimeout);
+  BlockedThread thread_a(HangWatcher::ThreadType::kMainThread, kTimeout);
 
-  thread_a.StartAndWaitForScopeEntered();
   monitor_event_.Reset();
-  
+
   // Advance time so thread A and thread B have different deadlines.
   task_environment_.FastForwardBy(kTimeout / 2);
 
-  thread_b.StartAndWaitForScopeEntered();
+  BlockedThread thread_b(HangWatcher::ThreadType::kMainThread, kTimeout);
   monitor_event_.Reset();
 
   // Thread A hangs.
@@ -1800,8 +1785,8 @@ TEST_F(HangWatcherCobaltTest, AlternatingHangsSingleUuid) {
   TriggerMonitorAndWait();  // Actionable for A. Dump taken.
 
   // Thread A recovers.
-  unblock_thread_a.Signal();
-  thread_a.Join();
+  thread_a.Unblock();
+  thread_a.WaitDone();
 
   // Thread B hangs.
   task_environment_.FastForwardBy(kTimeout / 2);
@@ -1812,8 +1797,8 @@ TEST_F(HangWatcherCobaltTest, AlternatingHangsSingleUuid) {
   TriggerMonitorAndWait();
 
   // Thread B recovers.
-  unblock_thread_b.Signal();
-  thread_b.Join();
+  thread_b.Unblock();
+  thread_b.WaitDone();
 
   // Monitor runs. IsActionable() is false.
   // CheckAndRecordHangRecovered runs.
@@ -1837,23 +1822,22 @@ TEST_F(HangWatcherCobaltTest, ThreadUnregistersWhileHung) {
 
   hang_watcher_->SetOnHangClosureForTesting(base::BindRepeating([] {}));
 
-  base::WaitableEvent unblock_thread_a;
-  BlockingThread thread_a(&unblock_thread_a, kTimeout);
+  BlockedThread thread_a(HangWatcher::ThreadType::kMainThread, kTimeout);
 
-  thread_a.StartAndWaitForScopeEntered();
   monitor_event_.Reset();
 
   // Thread A hangs.
   task_environment_.FastForwardBy(kHangTime);
   TriggerMonitorAndWait();  // Actionable for A. Dump taken.
 
-  // The unregistration of Thread A will now synchronously trigger RecordHangRecovered
-  // when Monitor() runs because the watch list becomes empty.
+  // The unregistration of Thread A will now synchronously trigger
+  // RecordHangRecovered when Monitor() runs because the watch list becomes
+  // empty.
   EXPECT_CALL(mock_delegate, RecordHangRecovered(captured_uuid)).Times(1);
 
   // Thread A unblocks and unregisters
-  unblock_thread_a.Signal();
-  thread_a.Join();
+  thread_a.Unblock();
+  thread_a.WaitDone();
 
   TriggerMonitorAndWait();
 

@@ -222,6 +222,7 @@ Kai kurios funkcijos gali būti nepasiekiamos ir nuostatų pakeitimai nebus išs
 <translation id="3954172517175569325">Slaptažodžiai, mokėjimo metodai ir adresai, kuriuos išsaugojote „Google“ paskyroje, bus pašalinti iš šio įrenginio. Jei norite juos vėl naudoti „Chromium“, vėl prisijunkite.</translation>
 <translation id="395904275706073188">Apsaugotų puslapių negalima skaityti. Pabandykite kitą puslapį.</translation>
 <translation id="3962647064319009959">Sužinokite, kaip „Chromium“ jus apsaugo</translation>
+<translation id="3971865010372729242">Kai vedate tekstą adreso juostoje ar paieškos laukelyje, „Chromium“ siunčia tai, ką įvedate, organizacijos paieškai, DI ir tarpininko įrankiams, kad gautų pasiūlymų.</translation>
 <translation id="3975724895399328945">Apie &amp;„Google Chrome for Testing“</translation>
 <translation id="3997429360543082038">Apie „Chromium“ OS</translation>
 <translation id="4019629340646866719">„Chromium“ OS, kaip ir <ph name="BEGIN_LINK_LINUX_OSS" />„Linux“ kūrimo aplinka<ph name="END_LINK_LINUX_OSS" />, pasiekiama naudojant papildomą <ph name="BEGIN_LINK_CROS_OSS" />atvirojo šaltinio programinę įrangą<ph name="END_LINK_CROS_OSS" />.</translation>
@@ -248,6 +249,7 @@ Kai kurios funkcijos gali būti nepasiekiamos ir nuostatų pakeitimai nebus išs
 <translation id="4281844954008187215">Paslaugų teikimo sąlygos</translation>
 <translation id="4285930937574705105">Diegimas nepavyko dėl nežinomos klaidos. Jei šiuo metu veikia „Chromium“, uždarykite ir pabandykite iš naujo.</translation>
 <translation id="4304713468139749426">Slaptažodžių tvarkytuvė</translation>
+<translation id="4334241893986177674">Ieškoti šioje ekrano kopijoje</translation>
 <translation id="4334294535648607276">Atsisiuntimas baigtas.</translation>
 <translation id="439358628917130594"><ph name="MANAGER" /> reikia, kad prieš naudodami šį įrenginį perskaitytumėte toliau pateiktas paslaugų teikimo sąlygas ir su jomis sutiktumėte. Šios sąlygos neišplečia, nepakeičia ir neapriboja „Chromium“ OS sąlygų.</translation>
 <translation id="4407044323746248786">Vis tiek išeiti iš „Chromium“?</translation>

@@ -10,8 +10,9 @@
 #ifndef RTC_BASE_REF_COUNTED_OBJECT_H_
 #define RTC_BASE_REF_COUNTED_OBJECT_H_
 
-#include "api/scoped_refptr.h"
-#include "rtc_base/ref_count.h"
+#include <utility>
+
+#include "api/ref_count.h"
 #include "rtc_base/ref_counter.h"
 
 namespace webrtc {

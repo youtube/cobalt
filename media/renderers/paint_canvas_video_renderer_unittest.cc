@@ -80,7 +80,7 @@ scoped_refptr<VideoFrame> CreateTestY16Frame(const gfx::Size& coded_size,
 
   return media::VideoFrame::WrapExternalData(
       media::PIXEL_FORMAT_Y16, coded_size, visible_rect, visible_rect.size(),
-      static_cast<uint8_t*>(external_memory), byte_size, timestamp);
+      base::span(static_cast<uint8_t*>(external_memory), byte_size), timestamp);
 }
 
 // Readback the contents of a RGBA texture into an array of RGBA values.
@@ -952,8 +952,11 @@ TEST_F(PaintCanvasVideoRendererTest, ContextLost) {
   cc::SkiaPaintCanvas canvas(AllocBitmap(kWidth, kHeight));
 
   gfx::Size size(kWidth, kHeight);
+  // We try copying the contents of the source VideoFrame *into* the
+  // cached SI over the raster interface.
   scoped_refptr<gpu::ClientSharedImage> shared_image =
-      gpu::ClientSharedImage::CreateForTesting();
+      gpu::ClientSharedImage::CreateForTesting(
+          gpu::SHARED_IMAGE_USAGE_RASTER_READ);
   auto video_frame = VideoFrame::WrapSharedImage(
       PIXEL_FORMAT_NV12, shared_image, gpu::SyncToken(),
       base::BindOnce(MailboxHoldersReleased), size, gfx::Rect(size), size,
@@ -984,7 +987,7 @@ TEST_F(PaintCanvasVideoRendererTest, CorrectFrameSizeToVisibleRect) {
 
   auto video_frame = media::VideoFrame::WrapExternalData(
       media::PIXEL_FORMAT_Y16, coded_size, gfx::Rect(visible_size),
-      visible_size, &memory[0], fWidth * fHeight * 2, base::Milliseconds(4));
+      visible_size, memory, base::Milliseconds(4));
 
   cc::PaintFlags flags;
   PaintCanvasVideoRenderer::PaintParams params;

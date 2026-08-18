@@ -57,9 +57,9 @@ constexpr BufferFlags kUpdate = BufferFlags::kUpdate;
 constexpr BufferFlags kReferenceAndUpdate = BufferFlags::kReferenceAndUpdate;
 constexpr FreezeEntropy kFreezeEntropy = FreezeEntropy::kFreezeEntropy;
 
-static constexpr uint8_t kUninitializedPatternIndex =
+constexpr uint8_t kUninitializedPatternIndex =
     std::numeric_limits<uint8_t>::max();
-static constexpr std::array<Vp8BufferReference, 3> kAllBuffers = {
+constexpr std::array<Vp8BufferReference, 3> kAllBuffers = {
     {Vp8BufferReference::kLast, Vp8BufferReference::kGolden,
      Vp8BufferReference::kAltref}};
 

@@ -150,12 +150,8 @@ void PictureLayerTilingSet::UpdateTilingsToCurrentRasterSourceForActivation(
     tiling->CreateMissingTilesInLiveTilesRect();
 
     // |this| is active set and |tiling| is not in the pending set, which means
-    // it is now NON_IDEAL_RESOLUTION. The exception is for LOW_RESOLUTION
-    // tilings, which are computed and created entirely on the active tree.
-    // Since the pending tree does not have them, we should just leave them as
-    // low resolution to not lose them.
-    if (tiling->resolution() != LOW_RESOLUTION)
-      tiling->set_resolution(NON_IDEAL_RESOLUTION);
+    // it is now NON_IDEAL_RESOLUTION.
+    tiling->set_resolution(NON_IDEAL_RESOLUTION);
 
     all_tiles_done_ &= tiling->all_tiles_done();
   }
@@ -254,10 +250,6 @@ void PictureLayerTilingSet::CleanUpTilings(
         tiling->contents_scale_key() <= max_acceptable_high_res_scale_key) {
       continue;
     }
-
-    // Keep low resolution tilings.
-    if (tiling->resolution() == LOW_RESOLUTION)
-      continue;
 
     // Don't remove tilings that are required.
     if (base::Contains(needed_tilings, tiling.get())) {
@@ -619,13 +611,10 @@ PictureLayerTilingSet::TilingRange PictureLayerTilingSet::GetTilingRange(
   // compute them only when the tiling set has changed instead.
   size_t tilings_size = tilings_.size();
   TilingRange high_res_range(0, 0);
-  TilingRange low_res_range(tilings_size, tilings_size);
   for (size_t i = 0; i < tilings_size; ++i) {
     const PictureLayerTiling* tiling = tilings_[i].get();
     if (tiling->resolution() == HIGH_RESOLUTION)
       high_res_range = TilingRange(i, i + 1);
-    if (tiling->resolution() == LOW_RESOLUTION)
-      low_res_range = TilingRange(i, i + 1);
   }
 
   TilingRange range(0, 0);
@@ -637,22 +626,7 @@ PictureLayerTilingSet::TilingRange PictureLayerTilingSet::GetTilingRange(
       range = high_res_range;
       break;
     case BETWEEN_HIGH_AND_LOW_RES:
-      // TODO(vmpstr): This code assumes that high res tiling will come before
-      // low res tiling, however there are cases where this assumption is
-      // violated. As a result, it's better to be safe in these situations,
-      // since otherwise we can end up accessing a tiling that doesn't exist.
-      // See crbug.com/429397 for high res tiling appearing after low res
-      // tiling discussion/fixes.
-      if (high_res_range.start <= low_res_range.start)
-        range = TilingRange(high_res_range.end, low_res_range.start);
-      else
-        range = TilingRange(low_res_range.end, high_res_range.start);
-      break;
-    case LOW_RES:
-      range = low_res_range;
-      break;
-    case LOWER_THAN_LOW_RES:
-      range = TilingRange(low_res_range.end, tilings_size);
+      range = TilingRange(high_res_range.end, tilings_size);
       break;
   }
 

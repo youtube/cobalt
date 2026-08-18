@@ -34,6 +34,7 @@
 #include "api/field_trials_view.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
+#include "api/local_network_access_permission.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
@@ -650,6 +651,9 @@ class PeerConnection : public PeerConnectionInternal,
   std::unique_ptr<PortAllocator>
       port_allocator_;  // TODO(bugs.webrtc.org/9987): Accessed on both
                         // signaling and network thread.
+  std::unique_ptr<LocalNetworkAccessPermissionFactoryInterface>
+      lna_permission_factory_;
+
   const std::unique_ptr<IceTransportFactory>
       ice_transport_factory_;  // TODO(bugs.webrtc.org/9987): Accessed on the
                                // signaling thread but the underlying raw

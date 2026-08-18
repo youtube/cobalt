@@ -52,20 +52,18 @@ void TextCodecUtf16::RegisterEncodingNames(EncodingNameRegistrar registrar) {
 }
 
 static std::unique_ptr<TextCodec> NewStreamingTextDecoderUtf16le(
-    const WTF::TextEncoding&,
-    const void*) {
+    const TextEncoding&) {
   return std::make_unique<TextCodecUtf16>(true);
 }
 
 static std::unique_ptr<TextCodec> NewStreamingTextDecoderUtf16be(
-    const WTF::TextEncoding&,
-    const void*) {
+    const TextEncoding&) {
   return std::make_unique<TextCodecUtf16>(false);
 }
 
 void TextCodecUtf16::RegisterCodecs(TextCodecRegistrar registrar) {
-  registrar("UTF-16LE", NewStreamingTextDecoderUtf16le, nullptr);
-  registrar("UTF-16BE", NewStreamingTextDecoderUtf16be, nullptr);
+  registrar("UTF-16LE", NewStreamingTextDecoderUtf16le);
+  registrar("UTF-16BE", NewStreamingTextDecoderUtf16be);
 }
 
 String TextCodecUtf16::Decode(base::span<const uint8_t> bytes,
@@ -80,7 +78,7 @@ String TextCodecUtf16::Decode(base::span<const uint8_t> bytes,
     if (really_flush && (have_lead_byte_ || have_lead_surrogate_)) {
       have_lead_byte_ = have_lead_surrogate_ = false;
       saw_error = true;
-      return String(base::span_from_ref(kReplacementCharacter));
+      return String(base::span_from_ref(uchar::kReplacementCharacter));
     }
     return String();
   }
@@ -106,7 +104,7 @@ String TextCodecUtf16::Decode(base::span<const uint8_t> bytes,
       if (have_lead_surrogate_) {
         have_lead_surrogate_ = false;
         saw_error = true;
-        out_span[out_span_cursor++] = kReplacementCharacter;
+        out_span[out_span_cursor++] = uchar::kReplacementCharacter;
       }
 
       if (U_IS_LEAD(c)) {
@@ -114,7 +112,7 @@ String TextCodecUtf16::Decode(base::span<const uint8_t> bytes,
         lead_surrogate_ = c;
       } else if (U_IS_TRAIL(c)) {
         saw_error = true;
-        out_span[out_span_cursor++] = kReplacementCharacter;
+        out_span[out_span_cursor++] = uchar::kReplacementCharacter;
       } else {
         out_span[out_span_cursor++] = c;
       }
@@ -150,7 +148,7 @@ String TextCodecUtf16::Decode(base::span<const uint8_t> bytes,
   if (really_flush && (have_lead_byte_ || have_lead_surrogate_)) {
     have_lead_byte_ = have_lead_surrogate_ = false;
     saw_error = true;
-    out_span[out_span_cursor++] = kReplacementCharacter;
+    out_span[out_span_cursor++] = uchar::kReplacementCharacter;
   }
 
   buffer.Shrink(static_cast<wtf_size_t>(out_span_cursor));

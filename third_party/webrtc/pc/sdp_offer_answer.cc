@@ -145,15 +145,15 @@ const char kSessionError[] = "Session error code: ";
 const char kSessionErrorDesc[] = "Session error description: ";
 
 // The length of RTCP CNAMEs.
-static const int kRtcpCnameLength = 16;
+const int kRtcpCnameLength = 16;
 
 // The maximum length of the MID attribute.
-static constexpr size_t kMidMaxSize = 16;
+constexpr size_t kMidMaxSize = 16;
 
 const char kDefaultStreamId[] = "default";
 // NOTE: Duplicated in peer_connection.cc:
-static const char kDefaultAudioSenderId[] = "defaulta0";
-static const char kDefaultVideoSenderId[] = "defaultv0";
+const char kDefaultAudioSenderId[] = "defaulta0";
+const char kDefaultVideoSenderId[] = "defaultv0";
 
 void NoteAddIceCandidateResult(int result) {
   RTC_HISTOGRAM_ENUMERATION("WebRTC.PeerConnection.AddIceCandidate", result,

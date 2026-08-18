@@ -645,11 +645,9 @@ class LiftoffCompiler {
 
     if (v8_flags.wasm_code_coverage) {
       DCHECK_EQ(for_debugging_, kForDebugging);
-      DCHECK_NOT_NULL(coverage_data);
-      coverage_code_ranges_ = coverage_data->code_ranges();
-      coverage_current_code_range_ = coverage_code_ranges_.begin();
-      coverage_count_array_addr_ =
-          reinterpret_cast<Address>(coverage_data->counters().data());
+      coverage_instrumentation_ =
+          std::make_unique<WasmCoverageInstrumentation<FullDecoder>>(
+              coverage_data);
     }
   }
 
@@ -1386,21 +1384,9 @@ class LiftoffCompiler {
 
   void EmitCoverageInstrumentationIfReachable(FullDecoder* decoder,
                                               WasmOpcode opcode) {
-    if (!decoder->control_at(0)->reachable()) return;
-
-    if (coverage_current_code_range_ == coverage_code_ranges_.end()) return;
-
-    while (coverage_current_code_range_->end < decoder->position()) {
-      ++coverage_current_code_range_;
-    }
-    if (coverage_current_code_range_->start <= decoder->position()) {
-      // Emit code coverage instrumentation.
-      __ emit_inc_i32_at(
-          coverage_count_array_addr_ +
-          (coverage_current_code_range_ - coverage_code_ranges_.begin()) *
-              sizeof(uint32_t));
-      ++coverage_current_code_range_;
-    }
+    coverage_instrumentation_->EmitCoverageInstrumentationIfReachable(
+        decoder, opcode,
+        [this](Address counter_addr) { __ emit_inc_i32_at(counter_addr); });
   }
 
   void NextInstruction(FullDecoder* decoder, WasmOpcode opcode) {
@@ -3659,9 +3645,9 @@ class LiftoffCompiler {
     }
   }
 
-  void TraceMemoryOperation(bool is_store, MachineRepresentation rep,
-                            Register index, uintptr_t offset,
-                            WasmCodePosition position) {
+  void TraceMemoryOperation(bool is_store, uint32_t mem_index,
+                            MachineRepresentation rep, Register index,
+                            uintptr_t offset, WasmCodePosition position) {
     // Before making the runtime call, spill all cache registers.
     __ SpillAllRegisters();
 
@@ -3670,9 +3656,8 @@ class LiftoffCompiler {
     // Get one register for computing the effective offset (offset + index).
     LiftoffRegister effective_offset =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    // TODO(14259): Support multiple memories.
-    const WasmMemory* memory = env_->module->memories.data();
-    if (memory->is_memory64() && !kNeedI64RegPair) {
+    const WasmMemory& memory = env_->module->memories[mem_index];
+    if (memory.is_memory64() && !kNeedI64RegPair) {
       __ LoadConstant(effective_offset,
                       WasmValue(static_cast<uint64_t>(offset)));
       if (index != no_reg) {
@@ -3700,7 +3685,7 @@ class LiftoffCompiler {
     LiftoffRegister data = effective_offset;
 
     // Now store all information into the MemoryTracingInfo struct.
-    if (kSystemPointerSize == 8 && !memory->is_memory64()) {
+    if (kSystemPointerSize == 8 && !memory.is_memory64()) {
       // Zero-extend the effective offset to u64.
       CHECK(__ emit_type_conversion(kExprI64UConvertI32, data, effective_offset,
                                     nullptr));
@@ -3709,6 +3694,9 @@ class LiftoffCompiler {
         info.gp(), no_reg, offsetof(MemoryTracingInfo, offset), data,
         kSystemPointerSize == 8 ? StoreType::kI64Store : StoreType::kI32Store,
         pinned);
+    __ LoadConstant(data, WasmValue(mem_index));
+    __ Store(info.gp(), no_reg, offsetof(MemoryTracingInfo, mem_index), data,
+             StoreType::kI32Store, pinned);
     __ LoadConstant(data, WasmValue(is_store ? 1 : 0));
     __ Store(info.gp(), no_reg, offsetof(MemoryTracingInfo, is_store), data,
              StoreType::kI32Store8, pinned);
@@ -3825,7 +3813,7 @@ class LiftoffCompiler {
       __ cache_state()->stack_state.pop_back();
       SCOPED_CODE_COMMENT("load from memory (constant offset)");
       LiftoffRegList pinned;
-      Register mem = pinned.set(GetMemoryStart(imm.memory->index, pinned));
+      Register mem = pinned.set(GetMemoryStart(imm.mem_index, pinned));
       LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
       __ Load(value, mem, no_reg, offset, type, nullptr, true, i64_offset);
       if (needs_f16_to_f32_conv) {
@@ -3848,7 +3836,7 @@ class LiftoffCompiler {
 
       // Load the memory start address only now to reduce register pressure
       // (important on ia32).
-      Register mem = pinned.set(GetMemoryStart(imm.memory->index, pinned));
+      Register mem = pinned.set(GetMemoryStart(imm.mem_index, pinned));
       LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
 
       uint32_t protected_load_pc = 0;
@@ -3869,10 +3857,9 @@ class LiftoffCompiler {
     }
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
-      // TODO(14259): Implement memory tracing for multiple memories.
-      CHECK_EQ(0, imm.memory->index);
-      TraceMemoryOperation(false, type.mem_type().representation(), index,
-                           offset, decoder->position());
+      TraceMemoryOperation(false, imm.mem_index,
+                           type.mem_type().representation(), index, offset,
+                           decoder->position());
     }
   }
 
@@ -3914,14 +3901,13 @@ class LiftoffCompiler {
     __ PushRegister(kS128, value);
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
-      // TODO(14259): Implement memory tracing for multiple memories.
-      CHECK_EQ(0, imm.memory->index);
       // Again load extend is different.
       MachineRepresentation mem_rep =
           transform == LoadTransformationKind::kExtend
               ? MachineRepresentation::kWord64
               : type.mem_type().representation();
-      TraceMemoryOperation(false, mem_rep, index, offset, decoder->position());
+      TraceMemoryOperation(false, imm.mem_index, mem_rep, index, offset,
+                           decoder->position());
     }
   }
 
@@ -3963,10 +3949,9 @@ class LiftoffCompiler {
     __ PushRegister(kS128, result);
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
-      // TODO(14259): Implement memory tracing for multiple memories.
-      CHECK_EQ(0, imm.memory->index);
-      TraceMemoryOperation(false, type.mem_type().representation(), index,
-                           offset, decoder->position());
+      TraceMemoryOperation(false, imm.mem_index,
+                           type.mem_type().representation(), index, offset,
+                           decoder->position());
     }
   }
 
@@ -4002,7 +3987,7 @@ class LiftoffCompiler {
     if (IndexStaticallyInBounds(imm.memory, index_slot, type.size(), &offset)) {
       __ cache_state()->stack_state.pop_back();
       SCOPED_CODE_COMMENT("store to memory (constant offset)");
-      Register mem = pinned.set(GetMemoryStart(imm.memory->index, pinned));
+      Register mem = pinned.set(GetMemoryStart(imm.mem_index, pinned));
       __ Store(mem, no_reg, offset, value, type, pinned, nullptr, true,
                i64_offset);
     } else {
@@ -4019,7 +4004,7 @@ class LiftoffCompiler {
       uint32_t protected_store_pc = 0;
       // Load the memory start address only now to reduce register pressure
       // (important on ia32).
-      Register mem = pinned.set(GetMemoryStart(imm.memory->index, pinned));
+      Register mem = pinned.set(GetMemoryStart(imm.mem_index, pinned));
       LiftoffRegList outer_pinned;
       if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) outer_pinned.set(index);
       __ Store(mem, index, offset, value, type, outer_pinned,
@@ -4030,9 +4015,7 @@ class LiftoffCompiler {
     }
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
-      // TODO(14259): Implement memory tracing for multiple memories.
-      CHECK_EQ(0, imm.memory->index);
-      TraceMemoryOperation(true, type.mem_rep(), index, offset,
+      TraceMemoryOperation(true, imm.mem_index, type.mem_rep(), index, offset,
                            decoder->position());
     }
   }
@@ -4071,9 +4054,7 @@ class LiftoffCompiler {
       }
     }
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
-      // TODO(14259): Implement memory tracing for multiple memories.
-      CHECK_EQ(0, imm.memory->index);
-      TraceMemoryOperation(true, type.mem_rep(), index, offset,
+      TraceMemoryOperation(true, imm.mem_index, type.mem_rep(), index, offset,
                            decoder->position());
     }
   }
@@ -4083,7 +4064,7 @@ class LiftoffCompiler {
                           Value* /* result */) {
     LiftoffRegList pinned;
     LiftoffRegister mem_size = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    if (imm.memory->index == 0) {
+    if (imm.index == 0) {
       LOAD_INSTANCE_FIELD(mem_size.gp(), Memory0Size, kSystemPointerSize,
                           pinned);
     } else {
@@ -4091,7 +4072,7 @@ class LiftoffCompiler {
                                         pinned);
       int buffer_offset =
           wasm::ObjectAccess::ToTagged(OFFSET_OF_DATA_START(ByteArray)) +
-          kSystemPointerSize * (imm.memory->index * 2 + 1);
+          kSystemPointerSize * (imm.index * 2 + 1);
       __ LoadFullPointer(mem_size.gp(), mem_size.gp(), buffer_offset);
     }
     // Convert bytes to pages.
@@ -4149,8 +4130,7 @@ class LiftoffCompiler {
     // Load the constant after potentially moving the {num_pages} register to
     // avoid overwriting it.
     Register mem_index_param_reg = descriptor.GetRegisterParameter(0);
-    __ LoadConstant(LiftoffRegister{mem_index_param_reg},
-                    WasmValue(imm.memory->index));
+    __ LoadConstant(LiftoffRegister{mem_index_param_reg}, WasmValue(imm.index));
 
     __ CallBuiltin(Builtin::kWasmMemoryGrow);
     DefineSafepoint();
@@ -5751,9 +5731,7 @@ class LiftoffCompiler {
     }
     __ AtomicStore(addr, index, offset, value, type, outer_pinned, i64_offset);
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
-      // TODO(14259): Implement memory tracing for multiple memories.
-      CHECK_EQ(0, imm.memory->index);
-      TraceMemoryOperation(true, type.mem_rep(), index, offset,
+      TraceMemoryOperation(true, imm.mem_index, type.mem_rep(), index, offset,
                            decoder->position());
     }
   }
@@ -5787,10 +5765,9 @@ class LiftoffCompiler {
     __ PushRegister(kind, value);
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
-      // TODO(14259): Implement memory tracing for multiple memories.
-      CHECK_EQ(0, imm.memory->index);
-      TraceMemoryOperation(false, type.mem_type().representation(), index,
-                           offset, decoder->position());
+      TraceMemoryOperation(false, imm.mem_index,
+                           type.mem_type().representation(), index, offset,
+                           decoder->position());
     }
   }
 
@@ -5861,13 +5838,13 @@ class LiftoffCompiler {
 
     uintptr_t offset = imm.offset;
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    if (imm.memory->index == 0) {
+    if (imm.mem_index == 0) {
       LOAD_INSTANCE_FIELD(addr, Memory0Start, kSystemPointerSize, pinned);
     } else {
       LOAD_PROTECTED_PTR_INSTANCE_FIELD(addr, MemoryBasesAndSizes, pinned);
       int buffer_offset =
           wasm::ObjectAccess::ToTagged(OFFSET_OF_DATA_START(ByteArray)) +
-          kSystemPointerSize * imm.memory->index * 2;
+          kSystemPointerSize * imm.mem_index * 2;
       __ LoadFullPointer(addr, addr, buffer_offset);
     }
     __ emit_i32_add(addr, addr, index);
@@ -6028,7 +6005,7 @@ class LiftoffCompiler {
     // memory32 or memory64 is used. This is okay because both values get passed
     // by register.
     CallBuiltin(target, MakeSig::Params(kI32, index_kind, expected_kind, kRef),
-                {{kI32, static_cast<int32_t>(imm.memory->index), 0},
+                {{kI32, static_cast<int32_t>(imm.mem_index), 0},
                  index,
                  {expected_kind, LiftoffRegister{expected}, 0},
                  timeout},
@@ -6060,7 +6037,7 @@ class LiftoffCompiler {
       __ emit_ptrsize_addi(addr, addr, offset);
     }
 
-    Register mem_start = GetMemoryStart(imm.memory->index, pinned);
+    Register mem_start = GetMemoryStart(imm.mem_index, pinned);
     __ emit_ptrsize_add(addr, addr, mem_start);
 
     LiftoffRegister result =
@@ -10443,21 +10420,9 @@ class LiftoffCompiler {
   const int* next_breakpoint_ptr_ = nullptr;
   const int* next_breakpoint_end_ = nullptr;
 
-  // A precalculated set of code ranges that define the basic blocks in the
-  // current function. Note that the NativeModule can be deleted during the
-  // compilation, but these code ranges are kept alive via a shared_ptr in the
-  // CompilationEnv.
-  base::Vector<const WasmCodeRange> coverage_code_ranges_;
-
-  // Points to the current WasmCodeRange during compilation, it's used to decide
-  // whether we are in a new basic block and we need to emit coverage
-  // instrumentation.
-  const WasmCodeRange* coverage_current_code_range_ = nullptr;
-
-  // Points to the start of an array of uint32_t counters that represent the
-  // coverage count for each basic block in the function. We emit
-  // instrumentation code to increase the counter with {emit_inc_i32_at}.
-  Address coverage_count_array_addr_ = 0;
+  // Manages code coverage instrumentation.
+  std::unique_ptr<WasmCoverageInstrumentation<FullDecoder>>
+      coverage_instrumentation_;
 
   // Introduce a dead breakpoint to ensure that the calculation of the return
   // address in OSR is correct.

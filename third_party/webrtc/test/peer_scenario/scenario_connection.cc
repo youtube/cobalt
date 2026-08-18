@@ -147,6 +147,7 @@ ScenarioIceConnectionImpl::ScenarioIceConnectionImpl(
                                       network_thread_,
                                       port_allocator_.get(),
                                       /*async_resolver_factory*/ nullptr,
+                                      /*lna_permission_factory*/ nullptr,
                                       payload_type_picker_,
                                       CreateJsepConfig())) {
   SendTask(network_thread_, [this] {

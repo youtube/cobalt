@@ -51,8 +51,8 @@ namespace webrtc {
 
 namespace {
 
-static const char kDefaultAudioSenderId[] = "defaulta0";
-static const char kDefaultVideoSenderId[] = "defaultv0";
+const char kDefaultAudioSenderId[] = "defaulta0";
+const char kDefaultVideoSenderId[] = "defaultv0";
 
 }  // namespace
 

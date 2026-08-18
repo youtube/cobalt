@@ -24,11 +24,11 @@
 
 namespace webrtc {
 namespace {
-static const int kFramerate = 30;
-static const int kLowQp = 15;
-static const int kHighQp = 40;
-static const int kMinFramesNeededToScale = 60;  // From quality_scaler.cc.
-static constexpr TimeDelta kDefaultTimeout = TimeDelta::Millis(150);
+const int kFramerate = 30;
+const int kLowQp = 15;
+const int kHighQp = 40;
+const int kMinFramesNeededToScale = 60;  // From quality_scaler.cc.
+constexpr TimeDelta kDefaultTimeout = TimeDelta::Millis(150);
 }  // namespace
 
 class FakeQpUsageHandler : public QualityScalerQpUsageHandlerInterface {

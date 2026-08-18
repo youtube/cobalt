@@ -32,7 +32,7 @@ namespace webrtc {
 namespace {
 
 #if !(defined(MIPS_FPU_LE) || defined(WEBRTC_HAS_NEON))
-static void cft1st_128_C(float* a) {
+void cft1st_128_C(float* a) {
   const int n = 128;
   int j, k1, k2;
   float wk1r, wk1i, wk2r, wk2i, wk3r, wk3i;
@@ -139,7 +139,7 @@ static void cft1st_128_C(float* a) {
   }
 }
 
-static void cftmdl_128_C(float* a) {
+void cftmdl_128_C(float* a) {
   const int l = 8;
   const int n = 128;
   const int m = 32;
@@ -266,7 +266,7 @@ static void cftmdl_128_C(float* a) {
   }
 }
 
-static void rftfsub_128_C(float* a) {
+void rftfsub_128_C(float* a) {
   const float* c = rdft_w + 32;
   int j1, j2, k1, k2;
   float wkr, wki, xr, xi, yr, yi;
@@ -287,7 +287,7 @@ static void rftfsub_128_C(float* a) {
   }
 }
 
-static void rftbsub_128_C(float* a) {
+void rftbsub_128_C(float* a) {
   const float* c = rdft_w + 32;
   int j1, j2, k1, k2;
   float wkr, wki, xr, xi, yr, yi;

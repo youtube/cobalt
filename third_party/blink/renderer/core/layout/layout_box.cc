@@ -187,7 +187,7 @@ LayoutUnit TextAreaIntrinsicInlineSize(const HTMLTextAreaElement& textarea,
 LayoutUnit TextFieldIntrinsicInlineSize(const HTMLInputElement& input,
                                         const LayoutBox& box) {
   int factor;
-  const bool includes_decoration = input.SizeShouldIncludeDecoration(factor);
+  const bool includes_decoration = input.GetSizeWithDecoration(factor);
   if (factor <= 0)
     factor = 20;
 
@@ -4363,6 +4363,11 @@ namespace {
 template <typename Function>
 void ForEachAnchorQueryOnContainer(const LayoutBox& box, Function func) {
   const LayoutObject* container = box.Container();
+  if (!container) {
+    // This is not supposed to be possible, but it is (crbug.com/424420492).
+    DCHECK(false);
+    return;
+  }
   if (container->IsLayoutBlock()) {
     for (const PhysicalBoxFragment& fragment :
          To<LayoutBlock>(container)->PhysicalFragments()) {

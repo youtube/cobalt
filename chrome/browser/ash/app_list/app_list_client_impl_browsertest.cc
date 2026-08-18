@@ -44,6 +44,7 @@
 #include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
+#include "chrome/browser/apps/app_service/chrome_app_deprecation/chrome_app_deprecation.h"
 #include "chrome/browser/apps/app_service/launch_utils.h"
 #include "chrome/browser/apps/app_service/promise_apps/promise_app.h"
 #include "chrome/browser/apps/app_service/promise_apps/promise_app_registry_cache.h"
@@ -193,6 +194,10 @@ IN_PROC_BROWSER_TEST_F(AppListClientImplBrowserTest, IsExtensionAppOpen) {
   base::FilePath extension_path = test_data_dir_.AppendASCII("app");
   const extensions::Extension* extension_app = LoadExtension(extension_path);
   ASSERT_NE(nullptr, extension_app);
+
+  apps::chrome_app_deprecation::ScopedAddAppToAllowlistForTesting allowlist(
+      extension_app->id());
+
   EXPECT_FALSE(delegate->IsAppOpen(extension_app->id()));
   {
     content::CreateAndLoadWebContentsObserver app_loaded_observer;
@@ -1719,61 +1724,4 @@ IN_PROC_BROWSER_TEST_P(AppListModifiedDefaultAppOrderTest,
   EXPECT_EQ(camera_ordinal, new_camera_ordinal);
   EXPECT_EQ(youtube_ordinal, new_youtube_ordinal);
   EXPECT_EQ(calculator_ordinal, new_calculator_ordinal);
-}
-
-class AppListClientImplAssistantNewEntryPointTest
-    : public AppListClientImplBrowserPromiseAppTest {
- protected:
-  static constexpr char kTestAppName[] = "test app";
-  const GURL kTestAppUrl = GURL("https://example.com/path");
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_{
-      ash::assistant::features::kEnableNewEntryPoint};
-};
-
-IN_PROC_BROWSER_TEST_F(AppListClientImplAssistantNewEntryPointTest, Eligible) {
-  webapps::AppId app_id =
-      web_app::test::InstallDummyWebApp(profile(), kTestAppName, kTestAppUrl);
-
-  AssistantBrowserDelegateImpl* delegate =
-      static_cast<AssistantBrowserDelegateImpl*>(
-          ash::assistant::AssistantBrowserDelegate::Get());
-  ASSERT_TRUE(delegate);
-  delegate->OverrideEntryPointIdForTesting(app_id);
-  delegate->SetGoogleChromeBuildForTesting();
-
-  AppListClientImpl* client = AppListClientImpl::GetInstance();
-  ASSERT_TRUE(client);
-
-  base::test::TestFuture<bool> eligibility_future;
-  client->GetAssistantNewEntryPointEligibility(
-      eligibility_future.GetCallback());
-  EXPECT_TRUE(eligibility_future.Get());
-}
-
-IN_PROC_BROWSER_TEST_F(AppListClientImplAssistantNewEntryPointTest, Name) {
-  AppListClientImpl* client = AppListClientImpl::GetInstance();
-  ASSERT_TRUE(client);
-
-  EXPECT_EQ(std::nullopt, client->GetAssistantNewEntryPointName())
-      << "Querying new entry point name before it's installed will return "
-         "std::nullopt";
-
-  webapps::AppId app_id =
-      web_app::test::InstallDummyWebApp(profile(), kTestAppName, kTestAppUrl);
-
-  AssistantBrowserDelegateImpl* delegate =
-      static_cast<AssistantBrowserDelegateImpl*>(
-          ash::assistant::AssistantBrowserDelegate::Get());
-  ASSERT_TRUE(delegate);
-  delegate->OverrideEntryPointIdForTesting(app_id);
-  delegate->SetGoogleChromeBuildForTesting();
-
-  base::test::TestFuture<bool> eligibility_future;
-  client->GetAssistantNewEntryPointEligibility(
-      eligibility_future.GetCallback());
-  EXPECT_TRUE(eligibility_future.Get());
-
-  EXPECT_EQ(kTestAppName, client->GetAssistantNewEntryPointName());
 }

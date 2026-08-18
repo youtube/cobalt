@@ -123,7 +123,7 @@
 namespace webrtc {
 
 namespace {
-static const int REPORT_USAGE_PATTERN_DELAY_MS = 60000;
+const int REPORT_USAGE_PATTERN_DELAY_MS = 60000;
 
 class CodecLookupHelperForPeerConnection : public CodecLookupHelper {
  public:
@@ -527,6 +527,7 @@ PeerConnection::PeerConnection(
       async_dns_resolver_factory_(
           std::move(dependencies.async_dns_resolver_factory)),
       port_allocator_(std::move(dependencies.allocator)),
+      lna_permission_factory_(std::move(dependencies.lna_permission_factory)),
       ice_transport_factory_(std::move(dependencies.ice_transport_factory)),
       tls_cert_verifier_(std::move(dependencies.tls_cert_verifier)),
       call_(std::move(call)),
@@ -716,10 +717,10 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
         }
       };
 
-  transport_controller_.reset(
-      new JsepTransportController(env_, network_thread(), port_allocator_.get(),
-                                  async_dns_resolver_factory_.get(),
-                                  payload_type_picker_, std::move(config)));
+  transport_controller_.reset(new JsepTransportController(
+      env_, network_thread(), port_allocator_.get(),
+      async_dns_resolver_factory_.get(), lna_permission_factory_.get(),
+      payload_type_picker_, std::move(config)));
 
   transport_controller_->SubscribeIceConnectionState(
       [this](::webrtc::IceConnectionState s) {

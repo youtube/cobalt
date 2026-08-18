@@ -49,6 +49,7 @@
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/attribution_reporting/aggregatable_result.mojom.h"  // nogncheck
+#include "content/browser/attribution_reporting/attribution_debug_report.h"
 #include "content/browser/attribution_reporting/attribution_manager.h"
 #include "content/browser/attribution_reporting/attribution_observer.h"
 #include "content/browser/attribution_reporting/attribution_report.h"
@@ -2535,16 +2536,16 @@ void StorageHandler::OnReportSent(const AttributionReport& report,
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   std::optional<int> net_error;
-  std::optional<String> net_error_name;
+  std::optional<std::string> net_error_name;
   std::optional<int> http_status_code;
   Storage::AttributionReportingReportResult out_result = std::visit(
       absl::Overload{
           [&](SendResult::Sent result) {
-            if (result.status >= 0) {
+            if (result.status > 0) {
               http_status_code = result.status;
             } else {
               net_error = result.status;
-              net_error_name = String(net::ErrorToShortString(result.status));
+              net_error_name = net::ErrorToShortString(result.status);
             }
             return Storage::AttributionReportingReportResultEnum::Sent;
           },
@@ -2565,6 +2566,34 @@ void StorageHandler::OnReportSent(const AttributionReport& report,
       report.ReportURL(is_debug_report).spec(),
       std::make_unique<base::Value::Dict>(report.ReportBody()), out_result,
       net_error, std::move(net_error_name), http_status_code);
+}
+
+void StorageHandler::OnDebugReportSent(const AttributionDebugReport& report,
+                                       int status,
+                                       base::Time time) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  std::optional<int> net_error;
+  std::optional<std::string> net_error_name;
+  std::optional<int> http_status_code;
+
+  if (status > 0) {
+    http_status_code = status;
+  } else {
+    net_error = status;
+    net_error_name = net::ErrorToShortString(status);
+  }
+
+  auto body = std::make_unique<Array<Value::Dict>>();
+  for (const auto& item : report.ReportBody()) {
+    const auto* as_dict = item.GetIfDict();
+    CHECK(as_dict);
+    body->push_back(std::make_unique<Value::Dict>(as_dict->Clone()));
+  }
+
+  frontend_->AttributionReportingVerboseDebugReportSent(
+      report.ReportUrl().spec(), std::move(body), net_error,
+      std::move(net_error_name), http_status_code);
 }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 

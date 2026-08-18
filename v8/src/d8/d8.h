@@ -84,6 +84,7 @@ class CounterCollection {
 };
 
 using CounterMap = std::unordered_map<std::string, Counter*>;
+using PerformanceMarkMap = std::unordered_map<std::string, double>;
 
 class SourceGroup {
  public:
@@ -380,6 +381,8 @@ class PerIsolateData {
            std::pair<Global<Context>, Global<Function>>>
       worker_message_callbacks_;
 
+  PerformanceMarkMap performance_mark_map_;
+
   int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& info,
                         int arg_offset);
   int RealmFind(Local<Context> context);
@@ -552,6 +555,7 @@ class Shell : public i::AllStatic {
   static MaybeLocal<Context> CreateEvaluationContext(Isolate* isolate);
   static int RunMain(Isolate* isolate, bool last_run);
   static int Main(int argc, char* argv[]);
+  static void InitializeDefaultCounters(Isolate* isolate);
   static void Exit(int exit_code);
   static void OnExit(Isolate* isolate, bool dispose);
   static void DumpCounters();
@@ -578,6 +582,8 @@ class Shell : public i::AllStatic {
 
   static void PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void PerformanceMark(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static bool LookupPerformanceMark(Isolate* isolate, v8::Local<String> name,
+                                    double* result);
   static void PerformanceMeasure(
       const v8::FunctionCallbackInfo<v8::Value>& info);
   static void PerformanceMeasureMemory(
@@ -781,6 +787,7 @@ class Shell : public i::AllStatic {
 
   static void Initialize(Isolate* isolate, D8Console* console,
                          bool isOnMainThread = true);
+  static void InitializeMainThreadCounters(Isolate* isolate);
 
   static void PromiseRejectCallback(v8::PromiseRejectMessage reject_message);
 

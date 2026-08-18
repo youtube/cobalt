@@ -35,6 +35,7 @@
 #include "api/candidate.h"
 #include "api/field_trials_view.h"
 #include "api/ice_transport_interface.h"
+#include "api/local_network_access_permission.h"
 #include "api/rtc_error.h"
 #include "api/sequence_checker.h"
 #include "api/transport/enums.h"
@@ -139,7 +140,8 @@ std::unique_ptr<P2PTransportChannel> P2PTransportChannel::Create(
     IceTransportInit init) {
   return absl::WrapUnique(new P2PTransportChannel(
       transport_name, component, init.port_allocator(),
-      init.async_dns_resolver_factory(), nullptr, init.event_log(),
+      init.async_dns_resolver_factory(), /*owned_dns_resolver_factory=*/nullptr,
+      init.lna_permission_factory(), init.event_log(),
       init.ice_controller_factory(), init.active_ice_controller_factory(),
       init.field_trials()));
 }
@@ -153,6 +155,7 @@ P2PTransportChannel::P2PTransportChannel(absl::string_view transport_name,
                           allocator,
                           /* async_dns_resolver_factory= */ nullptr,
                           /* owned_dns_resolver_factory= */ nullptr,
+                          /* lna_permission_factory= */ nullptr,
                           /* event_log= */ nullptr,
                           /* ice_controller_factory= */ nullptr,
                           /* active_ice_controller_factory= */ nullptr,
@@ -166,6 +169,7 @@ P2PTransportChannel::P2PTransportChannel(
     AsyncDnsResolverFactoryInterface* async_dns_resolver_factory,
     std::unique_ptr<AsyncDnsResolverFactoryInterface>
         owned_dns_resolver_factory,
+    LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory,
     RtcEventLog* event_log,
     IceControllerFactoryInterface* ice_controller_factory,
     ActiveIceControllerFactoryInterface* active_ice_controller_factory,
@@ -179,6 +183,7 @@ P2PTransportChannel::P2PTransportChannel(
                                       ? owned_dns_resolver_factory.get()
                                       : async_dns_resolver_factory),
       owned_dns_resolver_factory_(std::move(owned_dns_resolver_factory)),
+      lna_permission_factory_(lna_permission_factory),
       network_thread_(Thread::Current()),
       incoming_only_(false),
       error_(0),
@@ -1237,7 +1242,7 @@ void P2PTransportChannel::AddRemoteCandidate(const Candidate& candidate) {
     return;
   }
 
-  FinishAddingRemoteCandidate(new_remote_candidate);
+  CheckLocalNetworkAccessPermission(new_remote_candidate);
 }
 
 P2PTransportChannel::CandidateAndResolver::CandidateAndResolver(
@@ -1298,7 +1303,68 @@ void P2PTransportChannel::AddRemoteCandidateWithResult(
                    << candidate.address().HostAsSensitiveURIString() << " to "
                    << resolved_address.ipaddr().ToSensitiveString();
   candidate.set_address(resolved_address);
-  FinishAddingRemoteCandidate(candidate);
+
+  CheckLocalNetworkAccessPermission(candidate);
+}
+
+void P2PTransportChannel::CheckLocalNetworkAccessPermission(
+    const Candidate& candidate) {
+  RTC_DCHECK_RUN_ON(network_thread_);
+  if (!lna_permission_factory_) {
+    RTC_LOG(LS_VERBOSE) << "No LocalNetworkAccessPermissionFactory";
+    FinishAddingRemoteCandidate(candidate);
+    return;
+  }
+
+  if (!candidate.address().IsPrivateIP() &&
+      !candidate.address().IsLoopbackIP()) {
+    RTC_LOG(LS_VERBOSE) << "Skipping LNA permission check for public IP "
+                        << candidate.address().ipaddr().ToSensitiveString()
+                        << ".";
+    FinishAddingRemoteCandidate(candidate);
+    return;
+  }
+
+  std::unique_ptr<LocalNetworkAccessPermissionInterface> permission_query =
+      lna_permission_factory_->Create();
+  auto permission_query_ptr = permission_query.get();
+  permission_queries_.emplace_back(candidate, std::move(permission_query));
+
+  RTC_LOG(LS_VERBOSE) << "Asynchronously requesting LNA permission."
+                      << candidate.address().HostAsSensitiveURIString();
+  permission_query_ptr->RequestPermission(
+      candidate.address(),
+      [this, permission_query_ptr](LocalNetworkAccessPermissionStatus status) {
+        OnLocalNetworkAccessResult(permission_query_ptr, status);
+      });
+}
+
+void P2PTransportChannel::OnLocalNetworkAccessResult(
+    LocalNetworkAccessPermissionInterface* permission_query,
+    LocalNetworkAccessPermissionStatus status) {
+  RTC_DCHECK_RUN_ON(network_thread_);
+  auto p =
+      absl::c_find_if(permission_queries_,
+                      [permission_query](const CandidateAndPermission& cr) {
+                        return cr.permission_query.get() == permission_query;
+                      });
+
+  if (p == permission_queries_.end()) {
+    RTC_LOG(LS_ERROR) << "Unexpected LocalNetworkAccessPermission return";
+    RTC_DCHECK_NOTREACHED();
+    return;
+  }
+
+  Candidate candidate = std::move(p->candidate);
+  permission_queries_.erase(p);
+
+  if (status != LocalNetworkAccessPermissionStatus::kGranted) {
+    RTC_LOG(LS_INFO) << "LNA Permission denied for "
+                     << candidate.address().HostAsSensitiveURIString() << ".";
+    return;
+  }
+
+  FinishAddingRemoteCandidate(std::move(candidate));
 }
 
 void P2PTransportChannel::FinishAddingRemoteCandidate(
@@ -2329,6 +2395,11 @@ void P2PTransportChannel::ResetDtlsStunPiggybackCallbacks() {
   for (auto& connection : connections_) {
     connection->DeregisterDtlsPiggyback();
   }
+}
+
+size_t P2PTransportChannel::PermissionQueriesOutstandingForTesting() const {
+  RTC_DCHECK_RUN_ON(network_thread_);
+  return permission_queries_.size();
 }
 
 }  // namespace webrtc

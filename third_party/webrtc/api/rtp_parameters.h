@@ -601,6 +601,10 @@ struct RTC_EXPORT RtpCodecParameters : public RtpCodec {
     return RtpCodec::operator==(o) && payload_type == o.payload_type;
   }
   bool operator!=(const RtpCodecParameters& o) const { return !(*this == o); }
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const RtpCodecParameters& p) {
+    absl::Format(&sink, "[%d: %s]", p.payload_type, p.mime_type());
+  }
 };
 
 // RtpCapabilities is used to represent the static capabilities of an endpoint.

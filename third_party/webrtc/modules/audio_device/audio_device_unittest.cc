@@ -85,21 +85,21 @@ namespace {
 
 // Number of callbacks (input or output) the tests waits for before we set
 // an event indicating that the test was OK.
-static constexpr size_t kNumCallbacks = 10;
+constexpr size_t kNumCallbacks = 10;
 // Max amount of time we wait for an event to be set while counting callbacks.
-static constexpr TimeDelta kTestTimeOut = TimeDelta::Seconds(10);
+constexpr TimeDelta kTestTimeOut = TimeDelta::Seconds(10);
 // Average number of audio callbacks per second assuming 10ms packet size.
-static constexpr size_t kNumCallbacksPerSecond = 100;
+constexpr size_t kNumCallbacksPerSecond = 100;
 // Run the full-duplex test during this time (unit is in seconds).
-static constexpr TimeDelta kFullDuplexTime = TimeDelta::Seconds(5);
+constexpr TimeDelta kFullDuplexTime = TimeDelta::Seconds(5);
 // Length of round-trip latency measurements. Number of deteced impulses
 // shall be kImpulseFrequencyInHz * kMeasureLatencyTime - 1 since the
 // last transmitted pulse is not used.
-static constexpr TimeDelta kMeasureLatencyTime = TimeDelta::Seconds(10);
+constexpr TimeDelta kMeasureLatencyTime = TimeDelta::Seconds(10);
 // Sets the number of impulses per second in the latency test.
-static constexpr size_t kImpulseFrequencyInHz = 1;
+constexpr size_t kImpulseFrequencyInHz = 1;
 // Utilized in round-trip latency measurements to avoid capturing noise samples.
-static constexpr int kImpulseThreshold = 1000;
+constexpr int kImpulseThreshold = 1000;
 
 enum class TransportType {
   kInvalid,

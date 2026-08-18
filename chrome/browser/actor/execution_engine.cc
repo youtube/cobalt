@@ -20,6 +20,7 @@
 #include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/actor/site_policy.h"
 #include "chrome/browser/actor/tools/tool_controller.h"
+#include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
@@ -69,36 +70,6 @@ bool ActionRequiresTabScopedSafetyChecks(const Action& action) {
     case Action::kNavigate:
     case Action::kWait:
       return true;
-    case Action::kCreateTab:
-    case Action::kCloseTab:
-    case Action::kActivateTab:
-    case Action::kCreateWindow:
-    case Action::kCloseWindow:
-    case Action::kActivateWindow:
-    case Action::kYieldToUser:
-    case Action::ACTION_NOT_SET:
-      return false;
-  }
-}
-
-// Whether the action requires a frame.
-bool ActionRequiresFrame(const Action& action) {
-  switch (action.action_case()) {
-    case Action::kClick:
-    case Action::kType:
-    case Action::kScroll:
-    case Action::kMoveMouse:
-    case Action::kDragAndRelease:
-    case Action::kSelect:
-      return true;
-    // TODO(crbug.com/411462297): These requests do not require frames. For now
-    // we return `true` to preserve existing behavior.
-    case Action::kBack:
-    case Action::kForward:
-    case Action::kNavigate:
-    case Action::kWait:
-      return true;
-
     case Action::kCreateTab:
     case Action::kCloseTab:
     case Action::kActivateTab:
@@ -211,6 +182,7 @@ ExecutionEngine::~ExecutionEngine() {
 
 void ExecutionEngine::SetOwner(ActorTask* task) {
   task_ = task;
+  tool_controller_ = std::make_unique<ToolController>(task_->id(), *journal_);
 }
 
 // static
@@ -386,41 +358,30 @@ void ExecutionEngine::DidFinishAsyncSafetyChecks(
 
 void ExecutionEngine::ExecuteNextAction() {
   CHECK(actions_v1_ || actions_v2_);
+  CHECK(tool_controller_);
 
   const Action& action = GetNextAction();
   ++action_index_;
 
-  tabs::TabInterface* tab = GetTab(action);
-
-  if (ActionRequiresTab(action) && !tab) {
+  // TODO(bokan): ExecutionEngine shouldn't know about the Action proto, it
+  // should operate in terms of ToolRequest.
+  active_tool_request_ = CreateToolRequest(action, tab_);
+  if (!active_tool_request_) {
     journal_->Log(GURL::EmptyGURL(), task_->id(), "Act Failed",
-                  "The tab is no longer present");
-    CompleteActions(MakeResult(mojom::ActionResultCode::kTabWentAway,
-                               "The tab is no longer present."));
+                  "Failed to convert ActionInformation proto to ToolRequest");
+    CompleteActions(MakeResult(mojom::ActionResultCode::kArgumentsInvalid));
     return;
   }
 
-  RenderFrameHost* target_frame = nullptr;
-  if (ActionRequiresFrame(action)) {
-    target_frame = FindTargetFrame(*tab->GetContents(), action);
-
-    if (!target_frame) {
-      journal_->Log(LastCommittedURLOfCurrentTask(), task_->id(), "Act Failed",
-                    "The target frame is no longer present in the tab.");
-      CompleteActions(
-          MakeResult(mojom::ActionResultCode::kFrameWentAway,
-                     "The target frame is no longer present in the tab."));
-      return;
-    }
-  }
-
-  tool_controller_.Invoke(
-      action, *journal_, task_->id(), tab, target_frame,
+  tool_controller_->Invoke(
+      *active_tool_request_, last_observed_page_content_.get(),
       base::BindOnce(&ExecutionEngine::FinishOneAction, GetWeakPtr()));
 }
 
 void ExecutionEngine::FinishOneAction(mojom::ActionResultPtr result) {
   CHECK(actions_v1_ || actions_v2_);
+
+  active_tool_request_.reset();
 
   // The current action errored out. Stop the chain.
   if (!IsOk(*result)) {

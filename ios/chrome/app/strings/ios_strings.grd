@@ -147,6 +147,12 @@
       <message name="IDS_IOS_ACCNAME_LENS" desc="The accessibility label for the Lens visual search button in the location bar [Length: unlimited]">
         Lens visual search
       </message>
+      <message name="IDS_IOS_ACCNAME_MIA" desc="The accessibility label for the AI Mode search button on the new tab page [Length: unlimited]">
+        Ask AI mode
+      </message>
+      <message name="IDS_IOS_ACCNAME_NEW_INCOGNITO_TAB" desc="The accessibility label for the new incognito tab button on the new tab page [Length: unlimited]">
+        New incognito tab
+      </message>
       <message name="IDS_IOS_ACCNAME_RELOAD" desc="The accessibility label for the reload button [Length: unlimited] [iOS only]">
         Reload
       </message>
@@ -5211,6 +5217,12 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_REVIEWS_OMNIBOX_ACTION_ACCESSIBILITY_LABEL" desc="The accessibility label for the Reviews suggestion action button  [iOS only]">
         Read customer evaluations of products, services, or experience to help inform your decisions with reviews
       </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_ENTRY_POINT_SECONDARY_ACTION" desc="Safari import entry point screen - Button text to create a reminder to import data from Safari. [iOS only]">
+        Remind me later
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_ENTRY_POINT_TITLE" desc="Safari import entry point screen - Title.">
+        Bring your data from Safari
+      </message>
       <message name="IDS_IOS_SAFETY_CHECK_COMPACT_DESCRIPTION_COMPROMISED_PASSWORD" desc="Tag label description displayed for the Safety Check module in the Magic Stack when the Password check finds a compromised password issue. [iOS only]">
         You have compromised passwords.
       </message>
@@ -6703,8 +6715,14 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_TAB_GROUPS_PANEL_CELL_ACCESSIBILITY_LABEL_FORMAT" desc="Format for the accessibility label of a cell in the Tab Groups panel in Tab Grid. [iOS only]">
         Open <ph name="GROUP_TITLE">$1<ex>Travel</ex></ph>, group of <ph name="NUMBER_OF_TABS">$2<ex>4 Tabs</ex></ph>, <ph name="CREATION_TEXT">$3<ex>created 3 days ago</ex></ph>
       </message>
-      <message name="IDS_IOS_TAB_GROUPS_PANEL_NOTIFICATION_CELL_ACCESSIBILITY_HINT" desc="Accessibility hint for tapping on the notification cell that can appear at the top of the Tab Groups panel.">
+      <message name="IDS_IOS_TAB_GROUPS_PANEL_NOTIFICATION_CELL_ACCESSIBILITY_HINT" desc="Accessibility hint for tapping on the notification cell that can appear at the top of the tab groups panel.">
         Double tap to close this notification.
+      </message>
+      <message name="IDS_IOS_TAB_GROUPS_PANEL_OUT_OF_DATE_MESSAGE_CELL_ACCESSIBILITY_HINT" desc="Accessibility hint for tapping on the out-of-date cell that can appear at the top of the tab groups panel when the app is out-of-date to support shared tab groups.">
+        Double tap to close this notification.
+      </message>
+      <message name="IDS_IOS_TAB_GROUPS_PANEL_OUT_OF_DATE_MESSAGE_UPDATE_BUTTON" desc="Title of the button in the out-of-date message of the tab groups panel.">
+        Update
       </message>
       <message name="IDS_IOS_TAB_GROUP_ACTIVITY_LABEL_USER_ADDED_TEXT" desc="Text in the label that indicates a user added a tab in a shared tab group.">
         Added

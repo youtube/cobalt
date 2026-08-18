@@ -104,7 +104,6 @@ BASE_DECLARE_FEATURE(kOmniboxAnswerActions);
 
 // Adds support for categorical suggestion type.
 BASE_DECLARE_FEATURE(kCategoricalSuggestions);
-BASE_DECLARE_FEATURE(kMergeSubtypes);
 
 // Allows for touch down events to send a signal to |SearchPrefetchService| to
 // start prefetching the suggestion. The feature only applies to search
@@ -123,6 +122,7 @@ BASE_DECLARE_FEATURE(kOmniboxAsyncViewInflation);
 BASE_DECLARE_FEATURE(kUseFusedLocationProvider);
 
 BASE_DECLARE_FEATURE(kOmniboxMobileParityUpdate);
+BASE_DECLARE_FEATURE(kOmniboxMobileParityUpdateV2);
 
 // Omnibox suggestions tuning
 BASE_DECLARE_FEATURE(kNumNtpZpsRecentSearches);
@@ -148,9 +148,6 @@ BASE_DECLARE_FEATURE(kOmniboxShortcutsAndroid);
 
 // Enterprise search aggregators features.
 BASE_DECLARE_FEATURE(kEnableSearchAggregatorPolicy);
-
-// Ipad ZPS matches limit increase.
-BASE_DECLARE_FEATURE(kIpadZeroSuggestMatches);
 
 // Site search allow user override feature.
 BASE_DECLARE_FEATURE(kEnableSiteSearchAllowUserOverridePolicy);

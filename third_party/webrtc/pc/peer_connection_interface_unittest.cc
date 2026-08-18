@@ -98,30 +98,30 @@
 namespace webrtc {
 namespace {
 
-static const char kStreamId1[] = "local_stream_1";
-static const char kStreamId2[] = "local_stream_2";
-static const char kStreamId3[] = "local_stream_3";
-static const int kDefaultStunPort = 3478;
-static const char kStunAddressOnly[] = "stun:address";
-static const char kStunInvalidPort[] = "stun:address:-1";
-static const char kStunAddressPortAndMore1[] = "stun:address:port:more";
-static const char kStunAddressPortAndMore2[] = "stun:address:port more";
-static const char kTurnIceServerUri[] = "turn:turn.example.org";
-static const char kTurnUsername[] = "user";
-static const char kTurnPassword[] = "password";
-static const char kTurnHostname[] = "turn.example.org";
-static const uint32_t kTimeout = 10000U;
+const char kStreamId1[] = "local_stream_1";
+const char kStreamId2[] = "local_stream_2";
+const char kStreamId3[] = "local_stream_3";
+const int kDefaultStunPort = 3478;
+const char kStunAddressOnly[] = "stun:address";
+const char kStunInvalidPort[] = "stun:address:-1";
+const char kStunAddressPortAndMore1[] = "stun:address:port:more";
+const char kStunAddressPortAndMore2[] = "stun:address:port more";
+const char kTurnIceServerUri[] = "turn:turn.example.org";
+const char kTurnUsername[] = "user";
+const char kTurnPassword[] = "password";
+const char kTurnHostname[] = "turn.example.org";
+const uint32_t kTimeout = 10000U;
 
-static const char kStreams[][8] = {"stream1", "stream2"};
-static const char kAudioTracks[][32] = {"audiotrack0", "audiotrack1"};
-static const char kVideoTracks[][32] = {"videotrack0", "videotrack1"};
+const char kStreams[][8] = {"stream1", "stream2"};
+const char kAudioTracks[][32] = {"audiotrack0", "audiotrack1"};
+const char kVideoTracks[][32] = {"videotrack0", "videotrack1"};
 
-static const char kRecvonly[] = "recvonly";
-static const char kSendrecv[] = "sendrecv";
+const char kRecvonly[] = "recvonly";
+const char kSendrecv[] = "sendrecv";
 
 // Reference SDP with a MediaStream with label "stream1" and audio track with
 // id "audio_1" and a video track with id "video_1;
-static const char kSdpStringWithStream1PlanB[] =
+const char kSdpStringWithStream1PlanB[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -151,7 +151,7 @@ static const char kSdpStringWithStream1PlanB[] =
 // Same string as above but with the MID changed to the Unified Plan default and
 // a=msid added. This is needed so that this SDP can be used as an answer for a
 // Unified Plan offer.
-static const char kSdpStringWithStream1UnifiedPlan[] =
+const char kSdpStringWithStream1UnifiedPlan[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -181,7 +181,7 @@ static const char kSdpStringWithStream1UnifiedPlan[] =
 
 // Reference SDP with a MediaStream with label "stream1" and audio track with
 // id "audio_1";
-static const char kSdpStringWithStream1AudioTrackOnly[] =
+const char kSdpStringWithStream1AudioTrackOnly[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -201,7 +201,7 @@ static const char kSdpStringWithStream1AudioTrackOnly[] =
 // Reference SDP with two MediaStreams with label "stream1" and "stream2. Each
 // MediaStreams have one audio track and one video track.
 // This uses MSID.
-static const char kSdpStringWithStream1And2PlanB[] =
+const char kSdpStringWithStream1And2PlanB[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -233,7 +233,7 @@ static const char kSdpStringWithStream1And2PlanB[] =
     "a=ssrc:2 msid:stream1 videotrack0\r\n"
     "a=ssrc:4 cname:stream2\r\n"
     "a=ssrc:4 msid:stream2 videotrack1\r\n";
-static const char kSdpStringWithStream1And2UnifiedPlan[] =
+const char kSdpStringWithStream1And2UnifiedPlan[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -285,7 +285,7 @@ static const char kSdpStringWithStream1And2UnifiedPlan[] =
     "a=ssrc:4 msid:stream2 videotrack1\r\n";
 
 // Reference SDP without MediaStreams. Msid is not supported.
-static const char kSdpStringWithoutStreams[] =
+const char kSdpStringWithoutStreams[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -310,7 +310,7 @@ static const char kSdpStringWithoutStreams[] =
     "a=rtpmap:120 VP8/90000\r\n";
 
 // Reference SDP without MediaStreams. Msid is supported.
-static const char kSdpStringWithMsidWithoutStreams[] =
+const char kSdpStringWithMsidWithoutStreams[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -336,7 +336,7 @@ static const char kSdpStringWithMsidWithoutStreams[] =
     "a=rtpmap:120 VP8/90000\r\n";
 
 // Reference SDP without MediaStreams and audio only.
-static const char kSdpStringWithoutStreamsAudioOnly[] =
+const char kSdpStringWithoutStreamsAudioOnly[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -352,7 +352,7 @@ static const char kSdpStringWithoutStreamsAudioOnly[] =
     "a=rtpmap:111 OPUS/48000/2\r\n";
 
 // Reference SENDONLY SDP without MediaStreams. Msid is not supported.
-static const char kSdpStringSendOnlyWithoutStreams[] =
+const char kSdpStringSendOnlyWithoutStreams[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -378,14 +378,14 @@ static const char kSdpStringSendOnlyWithoutStreams[] =
     "a=rtcp-mux\r\n"
     "a=rtpmap:120 VP8/90000\r\n";
 
-static const char kSdpStringInit[] =
+const char kSdpStringInit[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
     "t=0 0\r\n"
     "a=msid-semantic: WMS\r\n";
 
-static const char kSdpStringAudio[] =
+const char kSdpStringAudio[] =
     "m=audio 1 RTP/AVPF 111\r\n"
     "a=ice-ufrag:e5785931\r\n"
     "a=ice-pwd:36fb7878390db89481c1d46daa4278d8\r\n"
@@ -396,7 +396,7 @@ static const char kSdpStringAudio[] =
     "a=rtcp-mux\r\n"
     "a=rtpmap:111 OPUS/48000/2\r\n";
 
-static const char kSdpStringVideo[] =
+const char kSdpStringVideo[] =
     "m=video 1 RTP/AVPF 120\r\n"
     "a=ice-ufrag:e5785931\r\n"
     "a=ice-pwd:36fb7878390db89481c1d46daa4278d8\r\n"
@@ -407,19 +407,19 @@ static const char kSdpStringVideo[] =
     "a=rtcp-mux\r\n"
     "a=rtpmap:120 VP8/90000\r\n";
 
-static const char kSdpStringMs1Audio0[] =
+const char kSdpStringMs1Audio0[] =
     "a=ssrc:1 cname:stream1\r\n"
     "a=ssrc:1 msid:stream1 audiotrack0\r\n";
 
-static const char kSdpStringMs1Video0[] =
+const char kSdpStringMs1Video0[] =
     "a=ssrc:2 cname:stream1\r\n"
     "a=ssrc:2 msid:stream1 videotrack0\r\n";
 
-static const char kSdpStringMs1Audio1[] =
+const char kSdpStringMs1Audio1[] =
     "a=ssrc:3 cname:stream1\r\n"
     "a=ssrc:3 msid:stream1 audiotrack1\r\n";
 
-static const char kSdpStringMs1Video1[] =
+const char kSdpStringMs1Video1[] =
     "a=ssrc:4 cname:stream1\r\n"
     "a=ssrc:4 msid:stream1 videotrack1\r\n";
 

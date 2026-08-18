@@ -18,6 +18,7 @@
 <translation id="1054745118061919935">অব্যাহত ৰাখি, আপুনি <ph name="BEGIN_LINK" />সেৱাৰ চৰ্তাৱলী<ph name="END_LINK" />ত সন্মতি দিছে।</translation>
 <translation id="10614374240317010">কেতিয়াও ছেভ কৰা নহয়</translation>
 <translation id="1062138828266376352">আপোনাৰ পিন সলনি কৰা হোৱা নাই। আপোনাৰ ইণ্টাৰনেট সংযোগ পৰীক্ষা কৰক আৰু পুনৰ চেষ্টা কৰক</translation>
+<translation id="1063070031224282617">"<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />" (<ph name="FILE_SIZE" />) ক’ত ছেভ কৰিব বাছনি কৰক</translation>
 <translation id="1072476005125066234">আপোনাৰ আগ্ৰহৰ ভিত্তিত পৰ্যালোচনা</translation>
 <translation id="1074827084851510304">আপুনি {password_count} টা পাছৱৰ্ড আৰু আপুনি কেতিয়াও ছাইন-ইনৰ তথ্য ছেভ নকৰিবলৈ বাছনি কৰা ছাইট আৰু এপ্‌সমূহৰ সূচী মচিব ওলাইছে। আপুনি ছাইট বা এপ্‌সমূহৰ বাবে সৃষ্টি কৰা কোনো একাউণ্ট মচি পেলোৱা নহ’ব।</translation>
 <translation id="1076421457278169141">ক’ড স্কেন কৰা হ’ল</translation>
@@ -210,6 +211,7 @@
 <translation id="1838089197478136166">Walletত খুলিবনে?</translation>
 <translation id="183878838231635348">এই কাৰ্ডখনে সুৰক্ষা পৰীক্ষাটোৱে আপোনাৰ বাবে স্বয়ংক্ৰিয়ভাৱে চিনাক্ত কৰা যিকোনো গোপনীয়তা অথবা সুৰক্ষা সম্পৰ্কীয় সমস্যা দেখুৱায়।</translation>
 <translation id="1845230888742614096">গোটটো ৰাখক</translation>
+<translation id="1853692000353488670">নতুন ইনকগনিট’ টেব</translation>
 <translation id="1854463785401910334">খোলা থকা টেবত সন্ধান কৰক</translation>
 <translation id="1861067954551502701">{count,plural, =1{{count} টা পাছৱৰ্ডৰ {position} নম্বৰ পাছৱৰ্ডটো}one{{count} টা পাছৱৰ্ডৰ {position} নম্বৰ পাছৱৰ্ডটো}other{{count} টা পাছৱৰ্ডৰ {position} নম্বৰ পাছৱৰ্ডটো}}</translation>
 <translation id="1861262398884155592">এই ফল্ডাৰটো খালী</translation>
@@ -545,6 +547,7 @@
 <translation id="3227137524299004712">মাইক্ৰ’ফ’ন</translation>
 <translation id="3235063766008841141">এটা প্ৰতাৰণামূলক ছাইটত দিয়া হৈছিল আৰু এবাৰ ডেটা উলংঘন হোৱা দেখা গৈছিল</translation>
 <translation id="3235242129752692527">অনুষ্ঠানৰ সবিশেষ সম্পাদনা কৰি “ছেভ কৰক“ টিপক।</translation>
+<translation id="323863549127671026">বৰ্তমান খোলা থকা টেব আৰু টেবৰ গোট</translation>
 <translation id="3240426699337459095">লিংকটোৰ প্ৰতিলিপি কৰা হ’ল</translation>
 <translation id="3244271242291266297">মাহ</translation>
 <translation id="3245429137663807393">যদি আপুনি Chrome ব্যৱহাৰ কৰাৰ ৰিপ’ৰ্টও শ্বেয়াৰ কৰে, সেই ৰিপ’ৰ্টত আপুনি চোৱা URLসমূহ অন্তৰ্ভুক্ত হয়</translation>
@@ -592,6 +595,7 @@
 <translation id="3476450923187944815">অন্য এপ্‌সমূহত আপোনাৰ পাছৱৰ্ডসমূহ এক্সেছ কৰক।</translation>
 <translation id="3488501490964659223">টেবসমূহ বন্ধ কৰা হৈছে আৰু ব্ৰাউজিঙৰ ডেটা মচি পেলোৱা হৈছে। আপোনাক ছাইন আউট কৰোৱা হৈছে</translation>
 <translation id="3493531032208478708">পৰামৰ্শ দিয়া সমলৰ বিষয়ে <ph name="BEGIN_LINK" />অধিক জানক<ph name="END_LINK" /></translation>
+<translation id="349446645805573740">"<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />" ক’ত ছেভ কৰিব লাগে বাছনি কৰক</translation>
 <translation id="3504377992102007712">ছেটিং</translation>
 <translation id="35083190962747987">${url} খোলক</translation>
 <translation id="3511519535430890904">ব্ৰাউজিঙৰ সুৰক্ষা যোগ দিয়ক</translation>
@@ -691,6 +695,7 @@
 <translation id="3922395466317605522">মেনু কাষ্টমাইজ কৰক</translation>
 <translation id="3929457972718048006">ঠিকনা</translation>
 <translation id="3931215329146376310">{count,plural, =1{এই ছাইটটোৰ বাবে নতুন পাছৱৰ্ড}one{এই ছাইটটোৰ বাবে নতুন পাছৱৰ্ডসমূহ}other{এই ছাইটটোৰ বাবে নতুন পাছৱৰ্ডসমূহ}}</translation>
+<translation id="3934905113567851655">আকাৰ সলনি কৰিবলৈ পিঞ্চ কৰক</translation>
 <translation id="3940195383040445971">টেবত মূল্য ট্ৰেক কৰক</translation>
 <translation id="3941941395924123592">{COUNT,plural, =1{{COUNT} টা টেব বন্ধ কৰক}one{{COUNT} টা টেব বন্ধ কৰক}other{{COUNT} টা টেব বন্ধ কৰক}}</translation>
 <translation id="3948600256434252210">আপুনি ইনক’গনিট’ত ব্ৰাউজ কৰিবলৈ সোঁফালে ছোৱাইপ কৰিব পাৰে।</translation>
@@ -1698,6 +1703,7 @@
 <translation id="7925108652071887026">স্বয়ংক্রিয়ভাৱে পূৰ হোৱা ডেটা</translation>
 <translation id="7926975587469166629">কার্ডৰ উপনাম</translation>
 <translation id="7927711904086083099">বাছনি কৰা হোৱা নাই</translation>
+<translation id="7927902634113905831">"<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />" ছেভ কৰিবলৈ ব্যৱহাৰ কৰিব বিচৰা একাউণ্টটো বাছনি কৰক - <ph name="FILESIZE" /></translation>
 <translation id="7930998711684428189">ডেটা উলংঘনৰ ফলত পাছৱৰ্ডসমূহ ফাদিল হ’লে আপোনাক সকীয়নি দিয়ে।</translation>
 <translation id="7933880123415105005"><ph name="SEARCH_PROVIDER" />ত সন্ধান কৰক</translation>
 <translation id="7938254975914653459">FaceTime</translation>

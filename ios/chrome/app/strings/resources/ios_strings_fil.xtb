@@ -211,6 +211,7 @@
 <translation id="1838089197478136166">Buksan sa Wallet?</translation>
 <translation id="183878838231635348">Ipinapakita ng card na ito ang anumang isyu sa privacy o seguridad na awtomatikong dine-detect ng Pag-check sa Kaligtasan para sa iyo.</translation>
 <translation id="1845230888742614096">Panatilihin ang Grupo</translation>
+<translation id="1853692000353488670">Bagong tab na incognito</translation>
 <translation id="1854463785401910334">Maghanap sa mga bukas na tab</translation>
 <translation id="1861067954551502701">{count,plural, =1{{position} sa {count} password}one{{position} sa {count} password}other{{position} sa {count} na password}}</translation>
 <translation id="1861262398884155592">Walang laman ang folder na ito</translation>
@@ -546,6 +547,7 @@ Tingnan ang mga tagubilin ng iyong search engine para sa pag-delete sa history n
 <translation id="3227137524299004712">Mikropono</translation>
 <translation id="3235063766008841141">Nailagay sa isang mapanlinlang na site at nakita sa paglabag sa data</translation>
 <translation id="3235242129752692527">I-edit ang mga detalye ng event at i-tap ang “I-save.“</translation>
+<translation id="323863549127671026">Mga kasalukuyang nakabukas na tab at grupo ng tab</translation>
 <translation id="3240426699337459095">Nakopya ang link</translation>
 <translation id="3244271242291266297">MM</translation>
 <translation id="3245429137663807393">Kung nagbabahagi ka rin ng mga ulat ng paggamit sa Chrome, isasama sa mga ulat na iyon ang mga URL na binibisita mo</translation>

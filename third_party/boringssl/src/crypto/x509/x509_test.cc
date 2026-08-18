@@ -2206,7 +2206,8 @@ TEST(X509Test, RSASign) {
   ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), &pkey_ctx, EVP_sha256(), NULL,
                                  pkey.get()));
   ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING));
-  ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, -1));
+  ASSERT_TRUE(
+      EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, RSA_PSS_SALTLEN_DIGEST));
   ASSERT_TRUE(SignatureRoundTrips(md_ctx.get(), pkey.get()));
 
   md_ctx.Reset();
@@ -2221,7 +2222,8 @@ TEST(X509Test, RSASign) {
   ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), &pkey_ctx, EVP_sha1(), NULL,
                                  pkey.get()));
   ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING));
-  ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, -1));
+  ASSERT_TRUE(
+      EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, RSA_PSS_SALTLEN_DIGEST));
   bssl::UniquePtr<X509> cert = CertFromPEM(kLeafPEM);
   ASSERT_TRUE(cert);
   EXPECT_FALSE(X509_sign_ctx(cert.get(), md_ctx.get()));
@@ -2231,7 +2233,8 @@ TEST(X509Test, RSASign) {
   ASSERT_TRUE(EVP_DigestSignInit(md_ctx.get(), &pkey_ctx, EVP_sha256(), NULL,
                                  pkey.get()));
   ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING));
-  ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, -1));
+  ASSERT_TRUE(
+      EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, RSA_PSS_SALTLEN_DIGEST));
   ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_mgf1_md(pkey_ctx, EVP_sha512()));
   cert = CertFromPEM(kLeafPEM);
   ASSERT_TRUE(cert);

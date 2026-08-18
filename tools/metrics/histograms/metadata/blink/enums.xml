@@ -4198,30 +4198,37 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="3750" label="PaymentHandlerStandardizedPaymentMethodIdentifier"/>
   <int value="3751" label="WebCodecsAudioEncoder"/>
   <int value="3752" label="EmbeddedCrossOriginFrameWithoutFrameAncestorsOrXFO"/>
-  <int value="3753" label="AddressSpacePrivateSecureContextEmbeddedLocal"/>
-  <int value="3754" label="AddressSpacePrivateNonSecureContextEmbeddedLocal"/>
-  <int value="3755" label="AddressSpacePublicSecureContextEmbeddedLocal"/>
-  <int value="3756" label="AddressSpacePublicNonSecureContextEmbeddedLocal"/>
-  <int value="3757" label="AddressSpacePublicSecureContextEmbeddedPrivate"/>
-  <int value="3758" label="AddressSpacePublicNonSecureContextEmbeddedPrivate"/>
-  <int value="3759" label="AddressSpaceUnknownSecureContextEmbeddedLocal"/>
-  <int value="3760" label="AddressSpaceUnknownNonSecureContextEmbeddedLocal"/>
-  <int value="3761" label="AddressSpaceUnknownSecureContextEmbeddedPrivate"/>
-  <int value="3762" label="AddressSpaceUnknownNonSecureContextEmbeddedPrivate"/>
-  <int value="3763" label="AddressSpacePrivateSecureContextNavigatedToLocal"/>
+  <int value="3753" label="AddressSpaceLocalSecureContextEmbeddedLoopbackV2"/>
+  <int value="3754"
+      label="AddressSpaceLocalNonSecureContextEmbeddedLoopbackV2"/>
+  <int value="3755" label="AddressSpacePublicSecureContextEmbeddedLoopbackV2"/>
+  <int value="3756"
+      label="AddressSpacePublicNonSecureContextEmbeddedLoopbackV2"/>
+  <int value="3757" label="AddressSpacePublicSecureContextEmbeddedLocalV2"/>
+  <int value="3758" label="AddressSpacePublicNonSecureContextEmbeddedLocalV2"/>
+  <int value="3759" label="AddressSpaceUnknownSecureContextEmbeddedLoopbackV2"/>
+  <int value="3760"
+      label="AddressSpaceUnknownNonSecureContextEmbeddedLoopbackV2"/>
+  <int value="3761" label="AddressSpaceUnknownSecureContextEmbeddedLocalV2"/>
+  <int value="3762" label="AddressSpaceUnknownNonSecureContextEmbeddedLocalV2"/>
+  <int value="3763"
+      label="AddressSpaceLocalSecureContextNavigatedToLoopbackV2"/>
   <int value="3764"
-      label="AddressSpacePrivateNonSecureContextNavigatedToLocal"/>
-  <int value="3765" label="AddressSpacePublicSecureContextNavigatedToLocal"/>
-  <int value="3766" label="AddressSpacePublicNonSecureContextNavigatedToLocal"/>
-  <int value="3767" label="AddressSpacePublicSecureContextNavigatedToPrivate"/>
+      label="AddressSpaceLocalNonSecureContextNavigatedToLoopbackV2"/>
+  <int value="3765"
+      label="AddressSpacePublicSecureContextNavigatedToLoopbackV2"/>
+  <int value="3766"
+      label="AddressSpacePublicNonSecureContextNavigatedToLoopbackV2"/>
+  <int value="3767" label="AddressSpacePublicSecureContextNavigatedToLocalV2"/>
   <int value="3768"
-      label="AddressSpacePublicNonSecureContextNavigatedToPrivate"/>
-  <int value="3769" label="AddressSpaceUnknownSecureContextNavigatedToLocal"/>
+      label="AddressSpacePublicNonSecureContextNavigatedToLocalV2"/>
+  <int value="3769"
+      label="AddressSpaceUnknownSecureContextNavigatedToLoopbackV2"/>
   <int value="3770"
-      label="AddressSpaceUnknownNonSecureContextNavigatedToLocal"/>
-  <int value="3771" label="AddressSpaceUnknownSecureContextNavigatedToPrivate"/>
+      label="AddressSpaceUnknownNonSecureContextNavigatedToLoopbackV2"/>
+  <int value="3771" label="AddressSpaceUnknownSecureContextNavigatedToLocalV2"/>
   <int value="3772"
-      label="AddressSpaceUnknownNonSecureContextNavigatedToPrivate"/>
+      label="AddressSpaceUnknownNonSecureContextNavigatedToLocalV2"/>
   <int value="3773" label="OBSOLETE_RTCPeerConnectionSdpSemanticsPlanB"/>
   <int value="3774" label="FetchRespondWithNoResponseWithUsedRequestBody"/>
   <int value="3775" label="V8TCPSocket_Close_Method"/>
@@ -6217,6 +6224,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5592" label="LocalNetworkAccessPrivateAliasUse"/>
   <int value="5593" label="V8URLPattern_Generate_Method"/>
   <int value="5594" label="SelectMultipleSizeOne"/>
+  <int value="5595" label="WebGPUFeatureLevelCompatibility"/>
+  <int value="5596" label="OverscrollBehaviorOnNonScrollableScrollContainer"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -7752,12 +7761,12 @@ Called by update_use_counter_css.py.-->
   <int value="799" label="view-transition-group"/>
   <int value="800" label="position-area"/>
   <int value="801" label="text-box"/>
-  <int value="802" label="masonry-track-end"/>
-  <int value="803" label="masonry-track-start"/>
-  <int value="804" label="masonry-template-tracks"/>
+  <int value="802" label="masonry-track-end (obsolete)"/>
+  <int value="803" label="masonry-track-start (obsolete)"/>
+  <int value="804" label="masonry-template-tracks (obsolete)"/>
   <int value="805" label="text-wrap-mode"/>
   <int value="806" label="text-wrap-style"/>
-  <int value="807" label="masonry-track"/>
+  <int value="807" label="masonry-track (obsolete)"/>
   <int value="808" label="item-tolerance"/>
   <int value="809" label="caret-animation"/>
   <int value="810" label="view-transition-capture-mode (obsolete)"/>
@@ -7765,7 +7774,7 @@ Called by update_use_counter_css.py.-->
   <int value="812" label="masonry-fill"/>
   <int value="813" label="masonry-direction"/>
   <int value="814" label="masonry-flow"/>
-  <int value="815" label="masonry-auto-tracks"/>
+  <int value="815" label="masonry-auto-tracks (obsolete)"/>
   <int value="816" label="result"/>
   <int value="817" label="animation-trigger-type"/>
   <int value="818" label="animation-trigger-timeline"/>
@@ -7809,7 +7818,7 @@ Called by update_use_counter_css.py.-->
   <int value="856" label="text-grow"/>
   <int value="857" label="text-shrink"/>
   <int value="858" label="rule"/>
-  <int value="859" label="origin-trial-test-shorthand"/>
+  <int value="859" label="origin-trial-test-shorthand (obsolete)"/>
   <int value="860" label="corner-top-shape"/>
   <int value="861" label="corner-right-shape"/>
   <int value="862" label="corner-bottom-shape"/>
@@ -7818,6 +7827,8 @@ Called by update_use_counter_css.py.-->
   <int value="865" label="corner-block-end-shape"/>
   <int value="866" label="corner-inline-start-shape"/>
   <int value="867" label="corner-inline-end-shape"/>
+  <int value="868" label="corners"/>
+  <int value="869" label="border-shape"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->
@@ -7841,7 +7852,6 @@ Called by update_use_counter_css.py.-->
   <int value="2" label="Low constrast between color and background color"/>
   <int value="3" label="Too small font size"/>
   <int value="4" label="Too large font size"/>
-  <int value="5" label="Invalid display property"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/renderer/core/html/html_permission_element.h:InvalidStyleReason) -->

@@ -24,29 +24,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-temporal-objects-tq.inc"
 
-#define DECLARE_TEMPORAL_INLINE_GETTER_SETTER(field) \
-  inline void set_##field(int32_t field);            \
-  inline int32_t field() const;
-
-#define DECLARE_TEMPORAL_TIME_INLINE_GETTER_SETTER()     \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_hour)        \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_minute)      \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_second)      \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_millisecond) \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_microsecond) \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_nanosecond)
-
-#define DECLARE_TEMPORAL_DATE_INLINE_GETTER_SETTER() \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_year)    \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_month)   \
-  DECLARE_TEMPORAL_INLINE_GETTER_SETTER(iso_day)
-
-#define TEMPORAL_UNIMPLEMENTED(T)            \
-  {                                          \
-    printf("TBW %s\n", __PRETTY_FUNCTION__); \
-    UNIMPLEMENTED();                         \
-  }
-
 // For a type wrapping a rust field, add accessors for it
 // including a initialize_with_wrapped_rust_value() that can be used in
 // templates
@@ -54,7 +31,14 @@ namespace internal {
   typedef RustType_ RustType;                             \
   DECL_ACCESSORS(field, Tagged<Managed<RustType_>>)       \
   inline void initialize_with_wrapped_rust_value(         \
-      Tagged<Managed<RustType_>> handle);
+      Tagged<Managed<RustType_>> handle);                 \
+  inline const RustType_& wrapped_rust() const;
+
+// Adds JSTemporalFoo::GetConstructorTarget()
+// that can be used to obtain a constructor target/new_target for constructing
+// values of this type.
+#define DECL_CTOR_HELPER() \
+  static inline DirectHandle<JSFunction> GetConstructorTarget(Isolate* isolate);
 
 // When populating this list, consider also adding the field to
 // js-temporal-objects.tq, adding DEFINE_ACCESSORS_FOR_RUST_WRAPPER
@@ -74,6 +58,8 @@ ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainTime,
                                         kTemporalPlainTimeTag)
 ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::PlainYearMonth,
                                         kTemporalPlainYearMonthTag)
+ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(temporal_rs::ZonedDateTime,
+                                        kTemporalZonedDateTimeTag)
 class JSTemporalPlainDate;
 class JSTemporalPlainMonthDay;
 class JSTemporalPlainYearMonth;
@@ -133,7 +119,7 @@ class JSTemporalDuration
       DirectHandle<Object> round_to_obj);
 
   // #sec-temporal.duration.prototype.total
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> Total(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Number> Total(
       Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
       DirectHandle<Object> total_of);
 
@@ -158,6 +144,7 @@ class JSTemporalDuration
 
   DECL_PRINTER(JSTemporalDuration)
 
+  DECL_CTOR_HELPER()
   DECL_ACCESSORS_FOR_RUST_WRAPPER(duration, temporal_rs::Duration)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalDuration)
@@ -178,6 +165,14 @@ class JSTemporalInstant
 
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant> From(
       Isolate* isolate, DirectHandle<Object> item);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant>
+  FromEpochMilliseconds(Isolate* isolate, DirectHandle<Object> item);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant>
+  FromEpochNanoseconds(Isolate* isolate, DirectHandle<Object> item);
+
+  // #sec-temporal.instant.compare
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Smi> Compare(
+      Isolate* isolate, DirectHandle<Object> one, DirectHandle<Object> two);
 
   // #sec-temporal.instant.prototype.round
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant> Round(
@@ -192,10 +187,10 @@ class JSTemporalInstant
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<BigInt> EpochNanoseconds(
       Isolate* isolate, DirectHandle<JSTemporalInstant> instant);
 
-  // #sec-temporal.instant.prototype.tozoneddatetime
+  // #sec-temporal.instant.prototype.tozoneddatetimeiso
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalZonedDateTime>
-  ToZonedDateTime(Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
-                  DirectHandle<Object> item);
+  ToZonedDateTimeISO(Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
+                     DirectHandle<Object> item);
 
   // #sec-temporal.instant.prototype.equals
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Oddball> Equals(
@@ -236,6 +231,7 @@ class JSTemporalInstant
       Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
       DirectHandle<Object> other, DirectHandle<Object> options);
 
+  DECL_CTOR_HELPER()
   DECL_ACCESSORS_FOR_RUST_WRAPPER(instant, temporal_rs::Instant)
 
   DECL_PRINTER(JSTemporalInstant)
@@ -274,6 +270,11 @@ class JSTemporalPlainDate
       Isolate* isolate, DirectHandle<JSTemporalPlainDate> plain_date,
       DirectHandle<Object> temporal_duration_like,
       DirectHandle<Object> options);
+
+  // #sec-temporal.plaindate.prototype.withcalendar
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainDate>
+  WithCalendar(Isolate* isolate, DirectHandle<JSTemporalPlainDate> plain_date,
+               DirectHandle<Object> calendar_id);
 
   // #sec-temporal.plaindate.from
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainDate> From(
@@ -342,7 +343,7 @@ class JSTemporalPlainDate
       DirectHandle<Object> locales, DirectHandle<Object> options);
 
   DECL_PRINTER(JSTemporalPlainDate)
-
+  DECL_CTOR_HELPER()
   DECL_ACCESSORS_FOR_RUST_WRAPPER(date, temporal_rs::PlainDate)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainDate)
@@ -400,13 +401,6 @@ class JSTemporalPlainDateTime
                   DirectHandle<JSTemporalPlainDateTime> date_time,
                   DirectHandle<Object> temporal_time_zone_like,
                   DirectHandle<Object> options_obj);
-
-  // #sec-temporal.plaindatetime.prototype.withplaindate
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainDateTime>
-  WithPlainDate(Isolate* isolate,
-                DirectHandle<JSTemporalPlainDateTime> date_time,
-                DirectHandle<Object> temporal_date_date_like);
-
   // #sec-temporal.plaindatetime.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> GetISOFields(
       Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time);
@@ -416,6 +410,11 @@ class JSTemporalPlainDateTime
       Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
       DirectHandle<Object> temporal_date_time_like,
       DirectHandle<Object> options);
+  // #sec-temporal.plaindatetime.prototype.withcalendar
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainDateTime>
+  WithCalendar(Isolate* isolate,
+               DirectHandle<JSTemporalPlainDateTime> plain_date,
+               DirectHandle<Object> calendar_id);
 
   // #sec-temporal.plaindatetime.prototype.tojson
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> ToJSON(
@@ -479,6 +478,7 @@ class JSTemporalPlainDateTime
 
   DECL_PRINTER(JSTemporalPlainDateTime)
 
+  DECL_CTOR_HELPER()
   DECL_ACCESSORS_FOR_RUST_WRAPPER(date_time, temporal_rs::PlainDateTime)
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainDateTime)
 };
@@ -536,6 +536,7 @@ class JSTemporalPlainMonthDay
 
   DECL_PRINTER(JSTemporalPlainMonthDay)
 
+  DECL_CTOR_HELPER()
   DECL_ACCESSORS_FOR_RUST_WRAPPER(month_day, temporal_rs::PlainMonthDay)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainMonthDay)
@@ -623,6 +624,7 @@ class JSTemporalPlainTime
 
   DECL_PRINTER(JSTemporalPlainTime)
 
+  DECL_CTOR_HELPER()
   DECL_ACCESSORS_FOR_RUST_WRAPPER(time, temporal_rs::PlainTime)
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainTime)
 };
@@ -705,6 +707,7 @@ class JSTemporalPlainYearMonth
 
   DECL_PRINTER(JSTemporalPlainYearMonth)
 
+  DECL_CTOR_HELPER()
   DECL_ACCESSORS_FOR_RUST_WRAPPER(year_month, temporal_rs::PlainYearMonth)
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainYearMonth)
 };
@@ -740,13 +743,11 @@ class JSTemporalZonedDateTime
       Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
       DirectHandle<Object> temporal_zoned_date_time_like,
       DirectHandle<Object> options);
-
-
-  // #sec-temporal.zoneddatetime.prototype.withplaindate
+  // #sec-temporal.zoneddatetime.prototype.withcalendar
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalZonedDateTime>
-  WithPlainDate(Isolate* isolate,
-                DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
-                DirectHandle<Object> plain_date_like);
+  WithCalendar(Isolate* isolate,
+               DirectHandle<JSTemporalZonedDateTime> plain_date,
+               DirectHandle<Object> calendar_id);
 
   // #sec-temporal.zoneddatetime.prototype.withplaintime
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalZonedDateTime>
@@ -792,15 +793,6 @@ class JSTemporalZonedDateTime
            DirectHandle<Object> temporal_duration_like,
            DirectHandle<Object> options);
 
-  // #sec-temporal.zoneddatetime.prototype.toplainyearmonth
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainYearMonth>
-  ToPlainYearMonth(Isolate* isolate,
-                   DirectHandle<JSTemporalZonedDateTime> zoned_date_time);
-
-  // #sec-temporal.zoneddatetime.prototype.toplainmonthday
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainMonthDay>
-  ToPlainMonthDay(Isolate* isolate,
-                  DirectHandle<JSTemporalZonedDateTime> zoned_date_time);
 
   // #sec-temporal.now.zoneddatetime
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalZonedDateTime> Now(
@@ -811,11 +803,19 @@ class JSTemporalZonedDateTime
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalZonedDateTime>
   NowISO(Isolate* isolate, DirectHandle<Object> temporal_time_zone_like);
 
-  // #sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds
+  // #sec-temporal.zoneddatetime.prototype.epochnanoseconds
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<BigInt> EpochNanoseconds(
+      Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> instant);
+
+  // #sec-temporal.zoneddatetime.prototype.timezoneid
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> TimeZoneId(
+      Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time);
+
+  // #sec-temporal.zoneddatetime.prototype.offsetnanoseconds
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> OffsetNanoseconds(
       Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time);
 
-  // #sec-get-temporal.zoneddatetime.prototype.offset
+  // #sec-temporal.zoneddatetime.prototype.offset
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> Offset(
       Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time);
 
@@ -823,6 +823,12 @@ class JSTemporalZonedDateTime
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalZonedDateTime>
   StartOfDay(Isolate* isolate,
              DirectHandle<JSTemporalZonedDateTime> zoned_date_time);
+
+  // #sec-temporal.zoneddatetime.prototype.gettimezonetransition
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalZonedDateTime>
+  GetTimeZoneTransition(Isolate* isolate,
+                        DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
+                        DirectHandle<Object> direction_param);
 
   // #sec-temporal.zoneddatetime.prototype.toinstant
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant> ToInstant(
@@ -859,8 +865,15 @@ class JSTemporalZonedDateTime
 
   DECL_PRINTER(JSTemporalZonedDateTime)
 
+  DECL_CTOR_HELPER()
+  DECL_ACCESSORS_FOR_RUST_WRAPPER(zoned_date_time, temporal_rs::ZonedDateTime)
+
   TQ_OBJECT_CONSTRUCTORS(JSTemporalZonedDateTime)
 };
+
+// #sec-temporal.now.timezoneid
+V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> JSTemporalNowTimeZoneId(
+    Isolate* isolate);
 
 namespace temporal {
 

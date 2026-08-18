@@ -436,8 +436,8 @@ class V8_EXPORT Object : public Value {
   Local<Value> GetPrototype();
 
   /**
-   * Get the prototype object (same as getting __proto__ property).  This does
-   * not consult the security handler.
+   * Get the prototype object (same as calling Object.getPrototypeOf(..)).
+   * This does not consult the security handler.
    * TODO(333672197): rename back to GetPrototype() once the old version goes
    * through the deprecation process and is removed.
    */
@@ -448,7 +448,7 @@ class V8_EXPORT Object : public Value {
    * be skipped by __proto__ and it does not consult the security
    * handler.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "V8 will stop providing access to hidden prototype (i.e. "
       "JSGlobalObject). Use SetPrototypeV2() instead. "
       "See http://crbug.com/333672197.")
@@ -456,8 +456,8 @@ class V8_EXPORT Object : public Value {
                                                  Local<Value> prototype);
 
   /**
-   * Set the prototype object (same as setting __proto__ property).  This does
-   * does not consult the security handler.
+   * Set the prototype object (same as calling Object.setPrototypeOf(..)).
+   * This does not consult the security handler.
    * TODO(333672197): rename back to SetPrototype() once the old version goes
    * through the deprecation process and is removed.
    */
@@ -664,6 +664,19 @@ class V8_EXPORT Object : public Value {
   static V8_INLINE void Wrap(v8::Isolate* isolate,
                              const BasicTracedReference<Object>& wrapper,
                              Wrappable* wrappable, CppHeapPointerTag tag);
+
+  // Version of Wrap() function for v8::Context::Global() objects.
+  // Unlike the functions above it wraps both JSGlobalProxy and its hidden
+  // prototype (JSGlobalObject or remote object).
+  static void WrapGlobal(v8::Isolate* isolate,
+                         const v8::Local<v8::Object>& wrapper,
+                         Wrappable* wrappable, CppHeapPointerTag tag);
+
+  // Checks that wrappables set on JSGlobalProxy and its hidden prototype are
+  // the same.
+  static bool CheckGlobalWrappable(v8::Isolate* isolate,
+                                   const v8::Local<v8::Object>& wrapper,
+                                   CppHeapPointerTagRange tag_range);
 
   /**
    * HasOwnProperty() is like JavaScript's

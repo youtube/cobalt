@@ -23,6 +23,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
+#include "base/notimplemented.h"
 #include "base/process/process_info.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -51,8 +52,6 @@
 #include "chrome/browser/defaults.h"
 #include "chrome/browser/devtools/devtools_toggle_action.h"
 #include "chrome/browser/devtools/devtools_window.h"
-#include "chrome/browser/download/bubble/download_bubble_ui_controller.h"
-#include "chrome/browser/download/bubble/download_display_controller.h"
 #include "chrome/browser/download/download_core_service.h"
 #include "chrome/browser/download/download_core_service_factory.h"
 #include "chrome/browser/extensions/extension_ui_util.h"
@@ -630,6 +629,17 @@ Browser* Browser::Create(const CreateParams& params) {
   return new Browser(params);
 }
 
+// static
+std::unique_ptr<Browser> Browser::DeprecatedCreateOwnedForTesting(
+    const CreateParams& params) {
+  CHECK_IS_TEST();
+  // If this is failing, a caller is trying to create a browser when creation is
+  // not possible, e.g. using the wrong profile or during shutdown. The caller
+  // should handle this; see e.g. crbug.com/1141608 and crbug.com/1261628.
+  CHECK_EQ(CreationStatus::kOk, GetCreationStatusForProfile(params.profile));
+  return base::WrapUnique(new Browser(params));
+}
+
 Browser::Browser(const CreateParams& params)
     : create_params_(params),
       type_(params.type),
@@ -741,15 +751,6 @@ Browser::Browser(const CreateParams& params)
     session_service->WindowOpened(this);
   }
 
-  exclusive_access_manager_ = std::make_unique<ExclusiveAccessManager>(
-      window_->GetExclusiveAccessContext());
-
-  if (window_->GetDownloadBubbleUIController()) {
-    window_->GetDownloadBubbleUIController()
-        ->GetDownloadDisplayController()
-        ->ListenToFullScreenChanges();
-  }
-
   // Initialize the browser features that rely on the browser window now that it
   // is initialized.
   features_->InitPostWindowConstruction(this);
@@ -788,7 +789,6 @@ Browser::~Browser() {
 
   // Destroy ExclusiveAccessManager, which depends on `window_` which may be
   // destroyed by RemoveBrowser().
-  exclusive_access_manager_.reset();
   BrowserList::RemoveBrowser(this);
 
   // If closing the window is going to trigger a shutdown, then we need to
@@ -1249,6 +1249,10 @@ BrowserWindowFeatures& Browser::GetFeatures() {
   return *features_.get();
 }
 
+const BrowserWindowFeatures& Browser::GetFeatures() const {
+  return *features_.get();
+}
+
 UnownedUserDataHost& Browser::GetUnownedUserDataHost() {
   return unowned_user_data_host_;
 }
@@ -1288,7 +1292,7 @@ base::CallbackListSubscription Browser::RegisterDidBecomeInactive(
 }
 
 ExclusiveAccessManager* Browser::GetExclusiveAccessManager() {
-  return exclusive_access_manager();
+  return GetFeatures().exclusive_access_manager();
 }
 
 ImmersiveModeController* Browser::GetImmersiveModeController() {
@@ -1493,7 +1497,9 @@ Browser::DownloadCloseType Browser::OkToCloseWithInProgressDownloads(
 // Browser, Tab adding/showing functions:
 
 void Browser::WindowFullscreenStateChanged() {
-  exclusive_access_manager_->fullscreen_controller()
+  browser_window_features()
+      ->exclusive_access_manager()
+      ->fullscreen_controller()
       ->WindowFullscreenStateChanged();
   command_controller_->FullscreenStateChanged();
   UpdateBookmarkBarState(BOOKMARK_BAR_STATE_CHANGE_TOGGLE_FULLSCREEN);
@@ -1513,7 +1519,9 @@ void Browser::OnFindBarVisibilityChanged() {
 // Browser, Assorted browser commands:
 
 void Browser::ToggleFullscreenModeWithExtension(const GURL& extension_url) {
-  exclusive_access_manager_->fullscreen_controller()
+  browser_window_features()
+      ->exclusive_access_manager()
+      ->fullscreen_controller()
       ->ToggleBrowserFullscreenModeWithExtension(extension_url);
 }
 
@@ -1876,7 +1884,8 @@ content::KeyboardEventProcessingResult Browser::PreHandleKeyboardEvent(
   // Forward keyboard events to the manager for fullscreen / mouse lock. This
   // may consume the event (e.g., Esc exits fullscreen mode).
   // TODO(koz): Write a test for this http://crbug.com/100441.
-  if (exclusive_access_manager_->HandleUserKeyEvent(event)) {
+  if (browser_window_features()->exclusive_access_manager()->HandleUserKeyEvent(
+          event)) {
     return content::KeyboardEventProcessingResult::HANDLED;
   }
 
@@ -2001,7 +2010,9 @@ void Browser::MediaWatchTimeChanged(
     const content::MediaPlayerWatchTime& watch_time) {}
 
 bool Browser::IsPointerLocked() const {
-  return exclusive_access_manager_->pointer_lock_controller()
+  return browser_window_features()
+      ->exclusive_access_manager()
+      ->pointer_lock_controller()
       ->IsPointerLocked();
 }
 
@@ -2150,8 +2161,9 @@ content::WebContents* Browser::AddNewContents(
     const blink::mojom::WindowFeatures& window_features,
     bool user_gesture,
     bool* was_blocked) {
-  FullscreenController* fullscreen_controller =
-      exclusive_access_manager_->fullscreen_controller();
+  FullscreenController* fullscreen_controller = browser_window_features()
+                                                    ->exclusive_access_manager()
+                                                    ->fullscreen_controller();
 #if BUILDFLAG(IS_MAC)
   // On the Mac, the convention is to turn popups into new tabs when in browser
   // fullscreen mode. Only worry about user-initiated fullscreen as showing a
@@ -2270,7 +2282,7 @@ void Browser::ContentsMouseEvent(WebContents* source, const ui::Event& event) {
   // without explicit user input events during window state changes.
   if (type != ui::EventType::kMouseEntered && !exited &&
       !event.IsSynthesized()) {
-    exclusive_access_manager_->OnUserInput();
+    browser_window_features()->exclusive_access_manager()->OnUserInput();
   }
 
   // Mouse motion events update the status bubble, if it exists.
@@ -2608,20 +2620,26 @@ bool Browser::CanEnterFullscreenModeForTab(
     return false;
   }
 
-  return exclusive_access_manager_->fullscreen_controller()
+  return browser_window_features()
+      ->exclusive_access_manager()
+      ->fullscreen_controller()
       ->CanEnterFullscreenModeForTab(requesting_frame);
 }
 
 void Browser::EnterFullscreenModeForTab(
     content::RenderFrameHost* requesting_frame,
     const blink::mojom::FullscreenOptions& options) {
-  exclusive_access_manager_->fullscreen_controller()->EnterFullscreenModeForTab(
-      requesting_frame, options.display_id);
+  browser_window_features()
+      ->exclusive_access_manager()
+      ->fullscreen_controller()
+      ->EnterFullscreenModeForTab(requesting_frame, options.display_id);
 }
 
 void Browser::ExitFullscreenModeForTab(WebContents* web_contents) {
-  exclusive_access_manager_->fullscreen_controller()->ExitFullscreenModeForTab(
-      web_contents);
+  browser_window_features()
+      ->exclusive_access_manager()
+      ->fullscreen_controller()
+      ->ExitFullscreenModeForTab(web_contents);
 }
 
 bool Browser::IsFullscreenForTabOrPending(const WebContents* web_contents) {
@@ -2632,8 +2650,10 @@ bool Browser::IsFullscreenForTabOrPending(const WebContents* web_contents) {
 
 content::FullscreenState Browser::GetFullscreenState(
     const WebContents* web_contents) const {
-  return exclusive_access_manager_->fullscreen_controller()->GetFullscreenState(
-      web_contents);
+  return browser_window_features()
+      ->exclusive_access_manager()
+      ->fullscreen_controller()
+      ->GetFullscreenState(web_contents);
 }
 
 blink::mojom::DisplayMode Browser::GetDisplayMode(
@@ -2803,28 +2823,39 @@ void Browser::FindReply(WebContents* web_contents,
 void Browser::RequestPointerLock(WebContents* web_contents,
                                  bool user_gesture,
                                  bool last_unlocked_by_target) {
-  exclusive_access_manager_->pointer_lock_controller()->RequestToLockPointer(
-      web_contents, user_gesture, last_unlocked_by_target);
+  browser_window_features()
+      ->exclusive_access_manager()
+      ->pointer_lock_controller()
+      ->RequestToLockPointer(web_contents, user_gesture,
+                             last_unlocked_by_target);
 }
 
 void Browser::LostPointerLock() {
-  exclusive_access_manager_->pointer_lock_controller()
+  browser_window_features()
+      ->exclusive_access_manager()
+      ->pointer_lock_controller()
       ->ExitExclusiveAccessToPreviousState();
 }
 
 bool Browser::IsWaitingForPointerLockPrompt(WebContents* web_contents) {
-  return exclusive_access_manager_->pointer_lock_controller()
+  return browser_window_features()
+      ->exclusive_access_manager()
+      ->pointer_lock_controller()
       ->IsWaitingForPointerLockPrompt(web_contents);
 }
 
 void Browser::RequestKeyboardLock(WebContents* web_contents,
                                   bool esc_key_locked) {
-  exclusive_access_manager_->keyboard_lock_controller()->RequestKeyboardLock(
-      web_contents, esc_key_locked);
+  browser_window_features()
+      ->exclusive_access_manager()
+      ->keyboard_lock_controller()
+      ->RequestKeyboardLock(web_contents, esc_key_locked);
 }
 
 void Browser::CancelKeyboardLockRequest(WebContents* web_contents) {
-  exclusive_access_manager_->keyboard_lock_controller()
+  browser_window_features()
+      ->exclusive_access_manager()
+      ->keyboard_lock_controller()
       ->CancelKeyboardLockRequest(web_contents);
 }
 
@@ -3073,7 +3104,7 @@ void Browser::OnTabClosing(WebContents* contents) {
       page_load_metrics::MetricsWebContentsObserver::FromWebContents(contents);
   metrics_observer->WebContentsWillSoonBeDestroyed();
 
-  exclusive_access_manager_->OnTabClosing(contents);
+  browser_window_features()->exclusive_access_manager()->OnTabClosing(contents);
   SessionServiceBase* service = GetAppropriateSessionServiceForProfile(this);
 
   if (service) {
@@ -3096,7 +3127,8 @@ void Browser::OnTabDetached(WebContents* contents, bool was_active) {
 }
 
 void Browser::OnTabDeactivated(WebContents* contents) {
-  exclusive_access_manager_->OnTabDeactivated(contents);
+  browser_window_features()->exclusive_access_manager()->OnTabDeactivated(
+      contents);
   SearchTabHelper::FromWebContents(contents)->OnTabDeactivated();
 
   // Save what the user's currently typing, so it can be restored when we
@@ -3149,7 +3181,8 @@ void Browser::OnActiveTabChanged(WebContents* old_contents,
   // is updated.
   window_->OnActiveTabChanged(old_contents, new_contents, index, reason);
 
-  exclusive_access_manager_->OnTabDetachedFromView(old_contents);
+  browser_window_features()->exclusive_access_manager()->OnTabDetachedFromView(
+      old_contents);
 
   // If we have any update pending, do it now.
   if (chrome_updater_factory_.HasWeakPtrs() && old_contents) {
@@ -3213,7 +3246,8 @@ void Browser::OnTabReplacedAt(WebContents* old_contents,
     did_active_tab_change_callback_list_.Notify(this);
   }
   TabDetachedAtImpl(old_contents, was_active, DETACH_TYPE_REPLACE);
-  exclusive_access_manager_->OnTabClosing(old_contents);
+  browser_window_features()->exclusive_access_manager()->OnTabClosing(
+      old_contents);
   SessionServiceBase* session_service =
       GetAppropriateSessionServiceForProfile(this);
   if (session_service) {

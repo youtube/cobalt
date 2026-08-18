@@ -59,7 +59,7 @@ enum PseudoId : uint8_t {
   // "PseudoElementStyles" in computed_style_extra_fields.json5 to
   // (kLastTrackedPublicPseudoId - kFirstPublicPseudoId + 1).
   //
-  // The above is necessary because presence of a public pseudo element style
+  // The above is necessary because presence of a public pseudo-element style
   // for an element is tracked on the element's ComputedStyle. This is done for
   // all public IDs until kLastTrackedPublicPseudoId.
   kPseudoIdNone,
@@ -95,11 +95,15 @@ enum PseudoId : uint8_t {
   kPseudoIdViewTransitionNew,
   // Internal IDs follow:
   kPseudoIdFirstLineInherited,
+
+  // These five must be together, due to code in
+  // CollectMatchingRulesInternal().
   kPseudoIdScrollbarThumb,
   kPseudoIdScrollbarButton,
   kPseudoIdScrollbarTrack,
   kPseudoIdScrollbarTrackPiece,
   kPseudoIdScrollbarCorner,
+
   kPseudoIdScrollMarkerGroupAfter,
   kPseudoIdScrollMarkerGroupBefore,
   kPseudoIdResizer,

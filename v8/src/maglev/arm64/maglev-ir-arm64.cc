@@ -295,10 +295,27 @@ void Int32Multiply::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
   Register left = ToRegister(left_input()).W();
   Register right = ToRegister(right_input()).W();
-  Register out = ToRegister(result()).W();
+  Register out = ToRegister(result()).X();
 
   // TODO(leszeks): peephole optimise multiplication by a constant.
   __ Smull(out, left, right);
+}
+
+void Int32MultiplyOverflownBits::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Int32MultiplyOverflownBits::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Register left = ToRegister(left_input()).W();
+  Register right = ToRegister(right_input()).W();
+  Register out = ToRegister(result()).X();
+
+  // TODO(leszeks): peephole optimise multiplication by a constant.
+  __ Smull(out, left, right);
+  __ Asr(out, out, 32);
 }
 
 void Int32Divide::SetValueLocationConstraints() {
@@ -314,16 +331,10 @@ void Int32Divide::GenerateCode(MaglevAssembler* masm,
 
   // TODO(leszeks): peephole optimise division by a constant.
 
-  Label done, is_zero;
-  __ CompareAndBranch(right, Immediate(0), eq, &is_zero);
-
+  // On ARM, integer division does not trap on overflow or division by zero.
+  // - Division by zero returns 0.
+  // - Signed overflow (INT_MIN / -1) returns INT_MIN.
   __ Sdiv(out, left, right);
-  __ B(&done);
-
-  __ Bind(&is_zero);
-  __ Move(out, 0);
-
-  __ Bind(&done);
 }
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {

@@ -18,7 +18,6 @@
 #include "include/core/SkRect.h"
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkSize.h"
-#include "include/core/SkSurface.h"
 #include "include/core/SkTypes.h"
 #include "src/base/SkRectMemcpy.h"
 #include "src/core/SkImageInfoPriv.h"
@@ -32,7 +31,7 @@
 class GrDirectContext;
 class SkSurfaceProps;
 
-// fixes https://bug.skia.org/5096
+// fixes skbug.com/40036261
 static bool is_not_subset(const SkBitmap& bm) {
     SkASSERT(bm.pixelRef());
     SkISize dim = SkISize::Make(bm.pixelRef()->width(), bm.pixelRef()->height());
@@ -89,12 +88,9 @@ sk_sp<SkSurface> SkImage_Raster::onMakeSurface(SkRecorder* recorder,
         // TODO(kjlubick) remove this after old SkImage::makeScaled(image info, sampling) API gone
         recorder = skcpu::Recorder::TODO();
     }
-    if (recorder->type() != SkRecorder::Type::kCPU) {
-        return nullptr;
-    }
     const SkSurfaceProps* props = nullptr;
     constexpr size_t rowBytes = 0;
-    return static_cast<skcpu::Recorder*>(recorder)->makeBitmapSurface(info, rowBytes, props);
+    return recorder->cpuRecorder()->makeBitmapSurface(info, rowBytes, props);
 }
 
 static SkBitmap copy_bitmap_subset(const SkBitmap& orig, const SkIRect& subset) {

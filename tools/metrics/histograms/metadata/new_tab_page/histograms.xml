@@ -185,7 +185,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.BackgroundService.Images.Headers.StatusCode"
-    units="HttpResponseCode" expires_after="2025-10-12">
+    units="HttpResponseCode" expires_after="2025-12-14">
   <owner>danpeng@google.com</owner>
   <owner>pauladedeji@google.com</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -252,16 +252,29 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="NewTabPage.Composebox.FromNTPLoadToSessionStart" units="ms"
+    expires_after="2026-06-17">
+  <owner>niharm@google.com</owner>
+  <owner>rtatum@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <summary>
+    Recorded when the user clicks on the compose entrypoint on desktop. This
+    only gets recorded if the compose button leads to a compose session starting
+    (i.e. the composebox opening). This records the amount of time it takes from
+    when the new tab page is loaded to when a compose session starts.
+  </summary>
+</histogram>
+
 <histogram name="NewTabPage.ComposeEntrypoint.Click.UserTextPresent"
     enum="Boolean" expires_after="2026-06-10">
   <owner>niharm@google.com</owner>
   <owner>ananyaseelam@google.com</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
   <summary>
-    Recorded when the user clicks on the compose entrypoint in the NTP realbox.
-    Records whether the user had text in the realbox at the time they clicked
-    the compose entrypoint. This metric is only recorded when the entry point is
-    used to navigate rather than open the compose box.
+    Recorded when the user clicks on the compose entrypoint in the desktop NTP
+    realbox. Records whether the user had text in the realbox at the time they
+    clicked the compose entrypoint. This metric is only recorded when the entry
+    point is used to navigate rather than open the compose box.
   </summary>
 </histogram>
 
@@ -271,8 +284,8 @@ chromium-metrics-reviews@google.com.
   <owner>ananyaseelam@google.com</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
   <summary>
-    Recorded when the compose entrypoint is shown in the NTP realbox. This is
-    recorded once when the NTP is attached to DOM. It is not shown for
+    Recorded when the compose entrypoint is shown in the desktop NTP realbox.
+    This is recorded once when the NTP is attached to DOM. It is not shown for
     enterprise if the enterprise policies don't allow AIMode settings.
   </summary>
 </histogram>
@@ -436,7 +449,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.CustomizeChromeSidePanelAction"
-    enum="NTPCustomizeChromeSidePanelAction" expires_after="2025-10-12">
+    enum="NTPCustomizeChromeSidePanelAction" expires_after="2025-12-14">
   <owner>pauladedeji@google.com</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>rtatum@google.com</owner>
@@ -571,7 +584,9 @@ chromium-metrics-reviews@google.com.
   <owner>xinyiji@chromium.org</owner>
   <summary>
     Record the total number of impressions of the fake search box on the New Tab
-    Page. The histogram is logged on New tab page and is Android-only.
+    Page. This logs a baseline impression count for the button in the fake
+    search box. The event is triggered each time the New Tab Page is shown or
+    the button's visibility is updated.The histogram is Android-only.
   </summary>
 </histogram>
 
@@ -581,6 +596,14 @@ chromium-metrics-reviews@google.com.
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
   <summary>Logged when the Footer was clicked.</summary>
+</histogram>
+
+<histogram name="NewTabPage.Footer.ContextMenuClicked"
+    enum="FooterContextMenuItem" expires_after="2025-11-23">
+  <owner>temao@chromium.org</owner>
+  <owner>tiborg@chromium.org</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <summary>Logged when item in footer's context menu is clicked.</summary>
 </histogram>
 
 <histogram name="NewTabPage.Footer.CustomizeChromeOpened"
@@ -2014,7 +2037,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.TabResumption.Visit.ClickSource"
-    enum="NtpURLVisitAggregateTypes" expires_after="2025-10-12">
+    enum="NtpURLVisitAggregateTypes" expires_after="2025-12-14">
   <owner>mfacey@google.com</owner>
   <owner>romanarora@google.com</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -2026,7 +2049,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.TabResumption.VisitDismissIndex" units="index"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>mfacey@google.com</owner>
   <owner>romanarora@google.com</owner>
   <owner>chrome-desktop-ntp@google.com</owner>

@@ -941,6 +941,15 @@
       ]
      ]
     },
+    "css-borders": {
+     "border-image-gradient-zero-size-transform-crash.html": [
+      "c722267fc08e41e1d5e4496d583fcaf4d179b2dd",
+      [
+       null,
+       {}
+      ]
+     ]
+    },
     "css-break": {
      "area-crash.html": [
       "d47327cde3f6a963b8c6e61280d3063b28a2d25c",
@@ -7798,6 +7807,15 @@
      ],
      "element": {
       "manual": {
+       "drawing-paths-to-the-canvas": {
+        "fill-path-with-uninvertible-transform-crash.html": [
+         "9d032ddba9637c8bee07c8cb9c4ec618a1c5d701",
+         [
+          null,
+          {}
+         ]
+        ]
+       },
        "filters": {
         "svg-filter-crash.html": [
          "f64379c79241409ab55535596f4cbad894f45b42",
@@ -8021,6 +8039,13 @@
      "the-details-element": {
       "details-autofocus-crash.html": [
        "70a220feace45c47b74cf8d6e67f8762475d8992",
+       [
+        null,
+        {}
+       ]
+      ],
+      "details-crash.html": [
+       "448a71581f211ad3ed716ebb7503fcc6284aa52e",
        [
         null,
         {}
@@ -8616,6 +8641,13 @@
       ],
       "popover-root-crash.html": [
        "86498607730f883920419ac4815dce128196d9f5",
+       [
+        null,
+        {}
+       ]
+      ],
+      "popover-source-crash.html": [
+       "11dcac6253fe539c796b6b801028ce6939bbe4b7",
        [
         null,
         {}
@@ -26406,7 +26438,7 @@
     },
     "acid3": {
      "test.html": [
-      "0c475309cf57fd67d5710f7a39d6c9efc251f378",
+      "8e1d0340ebcdeb80d4e742bda8b1575495fb153f",
       [
        null,
        [
@@ -74910,6 +74942,19 @@
        {}
       ]
      ],
+     "anchor-position-multicol-colspan-003.html": [
+      "e985cebfb807f65d7413d81885f6d2be7234b2a9",
+      [
+       null,
+       [
+        [
+         "/css/reference/ref-filled-green-100px-square.xht",
+         "=="
+        ]
+       ],
+       {}
+      ]
+     ],
      "anchor-position-non-anchored-fallback.html": [
       "26965fe8bf413ca199dae0a09940d46f0b29f62c",
       [
@@ -75882,6 +75927,84 @@
        [
         [
          "/css/css-anchor-position/reference/sticky-anchor-position-invalid-ref.html",
+         "=="
+        ]
+       ],
+       {}
+      ]
+     ],
+     "transform-001.tentative.html": [
+      "62170211c2777c50ac3c4433c354ee83a34c326a",
+      [
+       null,
+       [
+        [
+         "/css/reference/ref-filled-green-100px-square.xht",
+         "=="
+        ]
+       ],
+       {}
+      ]
+     ],
+     "transform-002.tentative.html": [
+      "65e2942698e0cf370c69e07db7be1628b40f674e",
+      [
+       null,
+       [
+        [
+         "/css/reference/ref-filled-green-100px-square.xht",
+         "=="
+        ]
+       ],
+       {}
+      ]
+     ],
+     "transform-003.tentative.html": [
+      "b492fab584f9cd5d213aedb938d9498a6fc061b6",
+      [
+       null,
+       [
+        [
+         "/css/reference/ref-filled-green-100px-square.xht",
+         "=="
+        ]
+       ],
+       {}
+      ]
+     ],
+     "transform-004.tentative.html": [
+      "bdd1a804df7b09de8a5459eab8d1afe83fde8290",
+      [
+       null,
+       [
+        [
+         "/css/reference/ref-filled-green-100px-square.xht",
+         "=="
+        ]
+       ],
+       {}
+      ]
+     ],
+     "transform-005.tentative.html": [
+      "e6871ced8d21d8917e12ce13f2c9d84b369f21a3",
+      [
+       null,
+       [
+        [
+         "/css/reference/ref-filled-green-100px-square.xht",
+         "=="
+        ]
+       ],
+       {}
+      ]
+     ],
+     "transform-006.tentative.html": [
+      "22390d6d0f6c7270b19cf2253144a68389537d9f",
+      [
+       null,
+       [
+        [
+         "/css/reference/ref-filled-green-100px-square.xht",
          "=="
         ]
        ],
@@ -86291,6 +86414,1396 @@
        {}
       ]
      ],
+     "corner-shape": {
+      "corner-shape-backdrop-filter-overflow.html": [
+       "09efdaee8415a773b9d58e9a0750f63d679a934d",
+       [
+        null,
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-backdrop-filter-overflow-ref.html",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             64
+            ],
+            [
+             0,
+             360
+            ]
+           ]
+          ]
+         ]
+        }
+       ]
+      ],
+      "corner-shape-backdrop-filter.html": [
+       "be294645919e4f840faaeb05bdff6690a59d87fa",
+       [
+        null,
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-backdrop-filter-ref.html",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             64
+            ],
+            [
+             0,
+             360
+            ]
+           ]
+          ]
+         ]
+        }
+       ]
+      ],
+      "corner-shape-bevel-overflow-composite.html": [
+       "90421a1fe9c352309c7943d22f1a15f9cffe99da",
+       [
+        null,
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-bevel-overflow-composite-ref.html",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             100
+            ],
+            [
+             0,
+             255
+            ]
+           ]
+          ]
+         ]
+        }
+       ]
+      ],
+      "corner-shape-bevel-overflow.html": [
+       "5ac98b4973499a18619397460433aa3afa2e7b02",
+       [
+        null,
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-bevel-overflow-ref.html",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             32
+            ],
+            [
+             0,
+             256
+            ]
+           ]
+          ]
+         ]
+        }
+       ]
+      ],
+      "corner-shape-fill.html": [
+       "602a8bfed41a70b3542a8b5173f3a2789355bcb7",
+       [
+        null,
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-fill-ref.html",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             32
+            ],
+            [
+             0,
+             256
+            ]
+           ]
+          ]
+         ]
+        }
+       ]
+      ],
+      "corner-shape-img.html": [
+       "f3d3cd5ea76c65a2ba82f15c6d7a3996239cb93b",
+       [
+        null,
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-img-ref.html",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             64
+            ],
+            [
+             0,
+             100
+            ]
+           ]
+          ]
+         ]
+        }
+       ]
+      ],
+      "corner-shape-inset-shadow.html": [
+       "8a0b991567b4d5a1065bc98f856a9e123f6c21d0",
+       [
+        null,
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-inset-shadow-ref.html",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             255
+            ],
+            [
+             0,
+             360
+            ]
+           ]
+          ]
+         ]
+        }
+       ]
+      ],
+      "corner-shape-notch.html": [
+       "5d0f0e55090f7f06f7c64e501c5d558a4d1c1a08",
+       [
+        null,
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-notch-ref.html",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             64
+            ],
+            [
+             0,
+             64
+            ]
+           ]
+          ]
+         ]
+        }
+       ]
+      ],
+      "corner-shape-overflow-clip-margin.html": [
+       "97371aa6c3f3891004a6da02548101ae9adf29d3",
+       [
+        null,
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-overflow-clip-margin-ref.html",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             64
+            ],
+            [
+             0,
+             180
+            ]
+           ]
+          ]
+         ]
+        }
+       ]
+      ],
+      "corner-shape-render-fuzzy.html": [
+       "53301d8e782e7e5e477552bb424c74d9059c2753",
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?border-radius=30%&corner-shape=superellipse(-1.5)&box-shadow=10px%2010px%200%2010px%20black",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?border-radius=30%&corner-shape=superellipse(-1.5)&box-shadow=10px%2010px%200%2010px%20black",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?border-radius=40%&corner-shape=notch&box-shadow=10px%2010px%200%2010px%20yellow",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?border-radius=40%&corner-shape=notch&box-shadow=10px%2010px%200%2010px%20yellow",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?border-radius=50%&corner-shape=bevel&box-shadow=10px%2010px%200%2010px%20black",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?border-radius=50%&corner-shape=bevel&box-shadow=10px%2010px%200%2010px%20black",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?border-radius=50%&corner-top-left-shape=scoop&corner-bottom-right-shape=scoop&corner-top-right-shape=notch&corner-bottom-left-shape=notch&border-width=10px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?border-radius=50%&corner-top-left-shape=scoop&corner-bottom-right-shape=scoop&corner-top-right-shape=notch&corner-bottom-left-shape=notch&border-width=10px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?border-radius=50%&corner-top-right-shape=scoop&corner-bottom-left-shape=scoop&corner-top-left-shape=notch&corner-bottom-right-shape=notch&border-width=10px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?border-radius=50%&corner-top-right-shape=scoop&corner-bottom-left-shape=scoop&corner-top-left-shape=notch&corner-bottom-right-shape=notch&border-width=10px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?corner-shape=scoop&border-radius=20%&border-width=20px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=scoop&border-radius=20%&border-width=20px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?corner-shape=squircle&border-radius=25%&border-width=20px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=squircle&border-radius=25%&border-width=20px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?corner-shape=squircle&border-radius=25%&box-shadow=10px 10px 0 10px black",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=squircle&border-radius=25%&box-shadow=10px 10px 0 10px black",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?corner-shape=squircle&border-radius=50%",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=squircle&border-radius=50%",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?corner-shape=superellipse(-2)&border-radius=20%&border-width=20px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=superellipse(-2)&border-radius=20%&border-width=20px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?corner-shape=superellipse(-7)&border-radius=20%&border-width=20px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=superellipse(-7)&border-radius=20%&border-width=20px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?corner-shape=superellipse(0.8)&border-radius=40px&border-width=10px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=superellipse(0.8)&border-radius=40px&border-width=10px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?corner-shape=superellipse(3)&border-radius=40px&box-shadow=10px 10px 0 10px black",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=superellipse(3)&border-radius=40px&box-shadow=10px 10px 0 10px black",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?corner-shape=superellipse(5)&border-radius=20%&border-width=20px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=superellipse(5)&border-radius=20%&border-width=20px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?corner-top-left-shape=bevel&border-radius=40px&border-width=10px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=bevel&border-radius=40px&border-width=10px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?corner-top-left-shape=bevel&corner-bottom-right-shape=bevel&border-radius=40px&border-width=10px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=bevel&corner-bottom-right-shape=bevel&border-radius=40px&border-width=10px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?corner-top-left-shape=scoop&corner-top-right-shape=scoop&border-radius=50%",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=scoop&corner-top-right-shape=scoop&border-radius=50%",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?corner-top-left-shape=superellipse(-4)&border-radius=40%",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=superellipse(-4)&border-radius=40%",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?corner-top-left-shape=superellipse(2.5)&border-radius=20%&border-width=10px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=superellipse(2.5)&border-radius=20%&border-width=10px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-fuzzy.html?corner-top-right-shape=scoop&border-radius=20%&border-width=10px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-top-right-shape=scoop&border-radius=20%&border-width=10px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             200
+            ],
+            [
+             0,
+             550
+            ]
+           ]
+          ]
+         ]
+        }
+       ]
+      ],
+      "corner-shape-render-precise.html": [
+       "68f2555eafad97a26eca0ea0d5f0b4db4f0f91f3",
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?border-top-left-radius=50%&corner-shape=superellipse(0.7)&border-left-width=30px&border-top-width=30px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?border-top-left-radius=50%&corner-shape=superellipse(0.7)&border-left-width=30px&border-top-width=30px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-bottom-left-shape=bevel&border-bottom-left-radius=30px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-bottom-left-shape=bevel&border-bottom-left-radius=30px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-bottom-left-shape=bevel&border-width=10px&border-radius=20px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-bottom-left-shape=bevel&border-width=10px&border-radius=20px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-bottom-right-shape=bevel&border-width=10px&border-radius=20px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-bottom-right-shape=bevel&border-width=10px&border-radius=20px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-bottom-right-shape=bevel&corner-bottom-left-shape=bevel",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-bottom-right-shape=bevel&corner-bottom-left-shape=bevel",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-bottom-right-shape=superellipse(0.8)&border-bottom-right-radius=50%",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-bottom-right-shape=superellipse(0.8)&border-bottom-right-radius=50%",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-shape=notch&border-radius=30px&border-width=30px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=notch&border-radius=30px&border-width=30px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-shape=square&border-bottom-left-radius=5px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=square&border-bottom-left-radius=5px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-shape=squircle&border-top-left-radius=25%&border-width=10px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=squircle&border-top-left-radius=25%&border-width=10px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-shape=squircle&border-top-left-radius=30%",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=squircle&border-top-left-radius=30%",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-shape=squircle&border-top-right-radius=30px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=squircle&border-top-right-radius=30px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-shape=superellipse(-2)&border-top-left-radius=40%&border-width=20px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=superellipse(-2)&border-top-left-radius=40%&border-width=20px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-shape=superellipse(2.3)&border-radius=40%",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=superellipse(2.3)&border-radius=40%",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-shape=superellipse(3)&border-top-right-radius=33px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-shape=superellipse(3)&border-top-right-radius=33px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-top-left-shape=bevel&border-radius=40px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=bevel&border-radius=40px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-top-left-shape=bevel&border-width=10px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=bevel&border-width=10px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-top-left-shape=scoop&border-radius=40px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=scoop&border-radius=40px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-top-left-shape=superellipse(-0.5)&border-radius=40px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=superellipse(-0.5)&border-radius=40px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-top-left-shape=superellipse(-4)&border-radius=40px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=superellipse(-4)&border-radius=40px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-top-left-shape=superellipse(0.5)&border-radius=40px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=superellipse(0.5)&border-radius=40px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-top-right-shape=bevel&border-width=10px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-top-right-shape=bevel&border-width=10px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ],
+       [
+        "css/css-borders/corner-shape/corner-shape-render-precise.html?corner-top-right-shape=superellipse(-4)&border-top-right-radius=50px",
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-any-ref.html?corner-top-right-shape=superellipse(-4)&border-top-right-radius=50px",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             180
+            ],
+            [
+             0,
+             350
+            ]
+           ]
+          ]
+         ]
+        }
+       ]
+      ],
+      "corner-shape-square.html": [
+       "f8425816c1c25c40365c638a3466dde92eb95005",
+       [
+        null,
+        [
+         [
+          "/css/css-borders/corner-shape/corner-shape-square-ref.html",
+          "=="
+         ]
+        ],
+        {
+         "fuzzy": [
+          [
+           null,
+           [
+            [
+             0,
+             60
+            ],
+            [
+             0,
+             80
+            ]
+           ]
+          ]
+         ]
+        }
+       ]
+      ]
+     },
      "subpixel-border-width.tentative.html": [
       "d056c01c914c88a239e8b6f0593a1b7dc4bf54dd",
       [
@@ -86356,1396 +87869,6 @@
           ]
          ],
          {}
-        ]
-       ]
-      },
-      "corner-shape": {
-       "corner-shape-backdrop-filter-overflow.html": [
-        "550428a37e3fca4a0f50bba755f9c4f4cb738dd9",
-        [
-         null,
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-backdrop-filter-overflow-ref.html",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              64
-             ],
-             [
-              0,
-              360
-             ]
-            ]
-           ]
-          ]
-         }
-        ]
-       ],
-       "corner-shape-backdrop-filter.html": [
-        "c4a2523b1f818cd3c670969c730d0fbe82eba8a8",
-        [
-         null,
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-backdrop-filter-ref.html",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              64
-             ],
-             [
-              0,
-              360
-             ]
-            ]
-           ]
-          ]
-         }
-        ]
-       ],
-       "corner-shape-bevel-overflow-composite.html": [
-        "985b5efdc9b9c868465d658e5486cd1e7eae5fd5",
-        [
-         null,
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-bevel-overflow-composite-ref.html",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              100
-             ],
-             [
-              0,
-              255
-             ]
-            ]
-           ]
-          ]
-         }
-        ]
-       ],
-       "corner-shape-bevel-overflow.html": [
-        "5a18e11af61b9aa9176802dac24d7064a4aab58d",
-        [
-         null,
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-bevel-overflow-ref.html",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              32
-             ],
-             [
-              0,
-              256
-             ]
-            ]
-           ]
-          ]
-         }
-        ]
-       ],
-       "corner-shape-fill.html": [
-        "b8c8bc0ad2e3d9a6eb18422925660b79de9d2a9b",
-        [
-         null,
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-fill-ref.html",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              32
-             ],
-             [
-              0,
-              256
-             ]
-            ]
-           ]
-          ]
-         }
-        ]
-       ],
-       "corner-shape-img.html": [
-        "82662d255623d387080bcc8be2e33570f0ed4c62",
-        [
-         null,
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-img-ref.html",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              64
-             ],
-             [
-              0,
-              100
-             ]
-            ]
-           ]
-          ]
-         }
-        ]
-       ],
-       "corner-shape-inset-shadow.html": [
-        "7a83caff70c08b74d5d6c2540684c49f8e893f72",
-        [
-         null,
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-inset-shadow-ref.html",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              255
-             ],
-             [
-              0,
-              360
-             ]
-            ]
-           ]
-          ]
-         }
-        ]
-       ],
-       "corner-shape-notch.html": [
-        "30acefe527f81eec1b807d1f3fa4a16ff0bcb549",
-        [
-         null,
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-notch-ref.html",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              64
-             ],
-             [
-              0,
-              64
-             ]
-            ]
-           ]
-          ]
-         }
-        ]
-       ],
-       "corner-shape-overflow-clip-margin.html": [
-        "97371aa6c3f3891004a6da02548101ae9adf29d3",
-        [
-         null,
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-overflow-clip-margin-ref.html",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              64
-             ],
-             [
-              0,
-              180
-             ]
-            ]
-           ]
-          ]
-         }
-        ]
-       ],
-       "corner-shape-render-fuzzy.html": [
-        "53301d8e782e7e5e477552bb424c74d9059c2753",
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?border-radius=30%&corner-shape=superellipse(-1.5)&box-shadow=10px%2010px%200%2010px%20black",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?border-radius=30%&corner-shape=superellipse(-1.5)&box-shadow=10px%2010px%200%2010px%20black",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?border-radius=40%&corner-shape=notch&box-shadow=10px%2010px%200%2010px%20yellow",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?border-radius=40%&corner-shape=notch&box-shadow=10px%2010px%200%2010px%20yellow",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?border-radius=50%&corner-shape=bevel&box-shadow=10px%2010px%200%2010px%20black",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?border-radius=50%&corner-shape=bevel&box-shadow=10px%2010px%200%2010px%20black",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?border-radius=50%&corner-top-left-shape=scoop&corner-bottom-right-shape=scoop&corner-top-right-shape=notch&corner-bottom-left-shape=notch&border-width=10px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?border-radius=50%&corner-top-left-shape=scoop&corner-bottom-right-shape=scoop&corner-top-right-shape=notch&corner-bottom-left-shape=notch&border-width=10px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?border-radius=50%&corner-top-right-shape=scoop&corner-bottom-left-shape=scoop&corner-top-left-shape=notch&corner-bottom-right-shape=notch&border-width=10px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?border-radius=50%&corner-top-right-shape=scoop&corner-bottom-left-shape=scoop&corner-top-left-shape=notch&corner-bottom-right-shape=notch&border-width=10px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?corner-shape=scoop&border-radius=20%&border-width=20px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=scoop&border-radius=20%&border-width=20px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?corner-shape=squircle&border-radius=25%&border-width=20px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=squircle&border-radius=25%&border-width=20px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?corner-shape=squircle&border-radius=25%&box-shadow=10px 10px 0 10px black",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=squircle&border-radius=25%&box-shadow=10px 10px 0 10px black",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?corner-shape=squircle&border-radius=50%",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=squircle&border-radius=50%",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?corner-shape=superellipse(-2)&border-radius=20%&border-width=20px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=superellipse(-2)&border-radius=20%&border-width=20px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?corner-shape=superellipse(-7)&border-radius=20%&border-width=20px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=superellipse(-7)&border-radius=20%&border-width=20px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?corner-shape=superellipse(0.8)&border-radius=40px&border-width=10px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=superellipse(0.8)&border-radius=40px&border-width=10px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?corner-shape=superellipse(3)&border-radius=40px&box-shadow=10px 10px 0 10px black",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=superellipse(3)&border-radius=40px&box-shadow=10px 10px 0 10px black",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?corner-shape=superellipse(5)&border-radius=20%&border-width=20px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=superellipse(5)&border-radius=20%&border-width=20px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?corner-top-left-shape=bevel&border-radius=40px&border-width=10px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=bevel&border-radius=40px&border-width=10px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?corner-top-left-shape=bevel&corner-bottom-right-shape=bevel&border-radius=40px&border-width=10px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=bevel&corner-bottom-right-shape=bevel&border-radius=40px&border-width=10px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?corner-top-left-shape=scoop&corner-top-right-shape=scoop&border-radius=50%",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=scoop&corner-top-right-shape=scoop&border-radius=50%",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?corner-top-left-shape=superellipse(-4)&border-radius=40%",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=superellipse(-4)&border-radius=40%",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?corner-top-left-shape=superellipse(2.5)&border-radius=20%&border-width=10px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=superellipse(2.5)&border-radius=20%&border-width=10px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-fuzzy.html?corner-top-right-shape=scoop&border-radius=20%&border-width=10px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-top-right-shape=scoop&border-radius=20%&border-width=10px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              200
-             ],
-             [
-              0,
-              550
-             ]
-            ]
-           ]
-          ]
-         }
-        ]
-       ],
-       "corner-shape-render-precise.html": [
-        "68f2555eafad97a26eca0ea0d5f0b4db4f0f91f3",
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?border-top-left-radius=50%&corner-shape=superellipse(0.7)&border-left-width=30px&border-top-width=30px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?border-top-left-radius=50%&corner-shape=superellipse(0.7)&border-left-width=30px&border-top-width=30px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-bottom-left-shape=bevel&border-bottom-left-radius=30px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-bottom-left-shape=bevel&border-bottom-left-radius=30px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-bottom-left-shape=bevel&border-width=10px&border-radius=20px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-bottom-left-shape=bevel&border-width=10px&border-radius=20px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-bottom-right-shape=bevel&border-width=10px&border-radius=20px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-bottom-right-shape=bevel&border-width=10px&border-radius=20px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-bottom-right-shape=bevel&corner-bottom-left-shape=bevel",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-bottom-right-shape=bevel&corner-bottom-left-shape=bevel",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-bottom-right-shape=superellipse(0.8)&border-bottom-right-radius=50%",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-bottom-right-shape=superellipse(0.8)&border-bottom-right-radius=50%",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-shape=notch&border-radius=30px&border-width=30px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=notch&border-radius=30px&border-width=30px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-shape=square&border-bottom-left-radius=5px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=square&border-bottom-left-radius=5px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-shape=squircle&border-top-left-radius=25%&border-width=10px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=squircle&border-top-left-radius=25%&border-width=10px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-shape=squircle&border-top-left-radius=30%",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=squircle&border-top-left-radius=30%",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-shape=squircle&border-top-right-radius=30px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=squircle&border-top-right-radius=30px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-shape=superellipse(-2)&border-top-left-radius=40%&border-width=20px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=superellipse(-2)&border-top-left-radius=40%&border-width=20px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-shape=superellipse(2.3)&border-radius=40%",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=superellipse(2.3)&border-radius=40%",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-shape=superellipse(3)&border-top-right-radius=33px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-shape=superellipse(3)&border-top-right-radius=33px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-top-left-shape=bevel&border-radius=40px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=bevel&border-radius=40px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-top-left-shape=bevel&border-width=10px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=bevel&border-width=10px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-top-left-shape=scoop&border-radius=40px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=scoop&border-radius=40px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-top-left-shape=superellipse(-0.5)&border-radius=40px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=superellipse(-0.5)&border-radius=40px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-top-left-shape=superellipse(-4)&border-radius=40px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=superellipse(-4)&border-radius=40px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-top-left-shape=superellipse(0.5)&border-radius=40px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-top-left-shape=superellipse(0.5)&border-radius=40px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-top-right-shape=bevel&border-width=10px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-top-right-shape=bevel&border-width=10px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ],
-        [
-         "css/css-borders/tentative/corner-shape/corner-shape-render-precise.html?corner-top-right-shape=superellipse(-4)&border-top-right-radius=50px",
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-any-ref.html?corner-top-right-shape=superellipse(-4)&border-top-right-radius=50px",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              180
-             ],
-             [
-              0,
-              350
-             ]
-            ]
-           ]
-          ]
-         }
-        ]
-       ],
-       "corner-shape-square.html": [
-        "13ab05cc7f677bab47f1fd5d3aa610897a0ccefe",
-        [
-         null,
-         [
-          [
-           "/css/css-borders/tentative/corner-shape/corner-shape-square-ref.html",
-           "=="
-          ]
-         ],
-         {
-          "fuzzy": [
-           [
-            null,
-            [
-             [
-              0,
-              60
-             ],
-             [
-              0,
-              80
-             ]
-            ]
-           ]
-          ]
-         }
         ]
        ]
       }
@@ -130572,6 +130695,32 @@
        {}
       ]
      ],
+     "font-feature-settings-descriptor-02.html": [
+      "4be3aaa0d82db503807ee14cd048025f6bfa085a",
+      [
+       null,
+       [
+        [
+         "/css/css-fonts/font-feature-settings-descriptor-02-ref.html",
+         "=="
+        ]
+       ],
+       {}
+      ]
+     ],
+     "font-feature-settings-descriptor-binary.html": [
+      "a7c11bb8dec6296d5b96ea91f158ead900d24dc5",
+      [
+       null,
+       [
+        [
+         "/css/css-fonts/font-feature-settings-descriptor-binary-ref.html",
+         "=="
+        ]
+       ],
+       {}
+      ]
+     ],
      "font-feature-settings-tibetan.html": [
       "45cde9acb5d2b4aba2ea53f7c0080551369f4abb",
       [
@@ -132613,6 +132762,19 @@
        {}
       ]
      ],
+     "font-variant-caps-invalidation-container-sizing.html": [
+      "a3e2c8d6294c4da592bae0cef51b181da4fb3c53",
+      [
+       null,
+       [
+        [
+         "/css/css-fonts/font-variant-caps-invalidation-container-sizing-ref.html",
+         "=="
+        ]
+       ],
+       {}
+      ]
+     ],
      "font-variant-caps.html": [
       "7d89802f1cf0dd4f2e197f025d183c5bc8e4aa35",
       [
@@ -133336,6 +133498,19 @@
         [
          [
           "/css/css-fonts/matching/font-unicode-PUA-ref.html",
+          "=="
+         ]
+        ],
+        {}
+       ]
+      ],
+      "font-unicode-presented-as-emoji-outline.html": [
+       "51fa87abaa82fe7ad3c018bd7ae69f44faad5fc6",
+       [
+        null,
+        [
+         [
+          "/css/css-fonts/matching/font-unicode-presented-as-emoji-outline-ref.html",
           "=="
          ]
         ],
@@ -135448,6 +135623,136 @@
          [
           [
            "/css/css-gaps/grid/grid-gap-decorations-012-ref.html",
+           "=="
+          ]
+         ],
+         {}
+        ]
+       ],
+       "subgrid-gap-decorations-009.html": [
+        "96f90de5643b18a7e5a1cadd7c93230aea4b3727",
+        [
+         null,
+         [
+          [
+           "/css/reference/ref-filled-green-100px-square.xht",
+           "=="
+          ]
+         ],
+         {}
+        ]
+       ],
+       "subgrid-gap-decorations-010.html": [
+        "dd8cac2a7df0f124df374f4b5c47cb3a6f066cba",
+        [
+         null,
+         [
+          [
+           "/css/reference/ref-filled-green-100px-square.xht",
+           "=="
+          ]
+         ],
+         {}
+        ]
+       ],
+       "subgrid-gap-decorations-011.html": [
+        "d80b0a2b3e43995fa40624e607ec73ce6820d830",
+        [
+         null,
+         [
+          [
+           "/css/reference/ref-filled-green-100px-square.xht",
+           "=="
+          ]
+         ],
+         {}
+        ]
+       ],
+       "subgrid-gap-decorations-012.html": [
+        "9cc84c3e04b3c9135d976931836462e6a8d6f456",
+        [
+         null,
+         [
+          [
+           "/css/css-gaps/grid/subgrid/subgrid-gap-decorations-012-ref.html",
+           "=="
+          ]
+         ],
+         {}
+        ]
+       ],
+       "subgrid-gap-decorations-013.html": [
+        "3afa02f21494786c7959936f9d2b6218e48a2472",
+        [
+         null,
+         [
+          [
+           "/css/css-gaps/grid/subgrid/subgrid-gap-decorations-013-ref.html",
+           "=="
+          ]
+         ],
+         {}
+        ]
+       ],
+       "subgrid-gap-decorations-014.html": [
+        "468614669c9b5efb262c13a6d12e299d975bbfde",
+        [
+         null,
+         [
+          [
+           "/css/reference/ref-filled-green-100px-square.xht",
+           "=="
+          ]
+         ],
+         {}
+        ]
+       ],
+       "subgrid-gap-decorations-015.html": [
+        "a7010d199e414d1b290a432a7437a517cda34bf3",
+        [
+         null,
+         [
+          [
+           "/css/css-gaps/grid/subgrid/subgrid-gap-decorations-015-ref.html",
+           "=="
+          ]
+         ],
+         {}
+        ]
+       ],
+       "subgrid-gap-decorations-016.html": [
+        "353367bd06ca4e267c01204fd0868381ea9f4543",
+        [
+         null,
+         [
+          [
+           "/css/css-gaps/grid/subgrid/subgrid-gap-decorations-016-ref.html",
+           "=="
+          ]
+         ],
+         {}
+        ]
+       ],
+       "subgrid-gap-decorations-017.html": [
+        "c175dfa656353d7bc799e5c9376b723fda4b6155",
+        [
+         null,
+         [
+          [
+           "/css/css-gaps/grid/subgrid/subgrid-gap-decorations-017-ref.html",
+           "=="
+          ]
+         ],
+         {}
+        ]
+       ],
+       "subgrid-gap-decorations-018.html": [
+        "1fd2f1e16a5a3b6944bfae6920b3fbc696f614ea",
+        [
+         null,
+         [
+          [
+           "/css/reference/ref-filled-green-100px-square.xht",
            "=="
           ]
          ],
@@ -173836,12 +174141,12 @@
        ]
       ],
       "block-ellipsis-016.html": [
-       "7c7256a953a3a60f5ed06aa6cb25fb036b733ac5",
+       "d36279ab381da71db89bdbdd4aee695f0109fc49",
        [
         null,
         [
          [
-          "/css/css-overflow/line-clamp/reference/block-ellipsis-001-ref.html",
+          "/css/css-overflow/line-clamp/reference/block-ellipsis-016-ref.html",
           "=="
          ]
         ],
@@ -177915,7 +178220,7 @@
       ]
      ],
      "scroll-target-group-002.html": [
-      "e3e83769db2ffab1b8cbab1b00e795bfc9ec4c4f",
+      "5e32462426c1be6056d07b1936c3b3b45fb6b5b4",
       [
        null,
        [
@@ -177928,7 +178233,7 @@
       ]
      ],
      "scroll-target-group-003.html": [
-      "39e1beff02acd0f29577e067f8e2cbe7aa42b82d",
+      "413e99f4eb791b7823458fa55a95109bb1b7bc3e",
       [
        null,
        [
@@ -178038,6 +178343,19 @@
        [
         [
          "/css/css-overflow/scroll-target-group-009-ref.html",
+         "=="
+        ]
+       ],
+       {}
+      ]
+     ],
+     "scroll-target-group-012.html": [
+      "f8f8a07a50d9c0a643fe11934c92dda3985c6392",
+      [
+       null,
+       [
+        [
+         "/css/css-overflow/scroll-target-group-012-ref.html",
          "=="
         ]
        ],
@@ -255879,7 +256197,7 @@
       ]
      ],
      "fractional-translation-from-position.html": [
-      "6187348b9ea792e252cd5c34e00e11b5774481a8",
+      "df3d679ca358f87616fccb661efabaed1e735166",
       [
        null,
        [
@@ -255892,7 +256210,7 @@
       ]
      ],
      "fractional-translation-from-transform.html": [
-      "40188875b93969a4903698eca8f502f422d37a56",
+      "f5f538c4ebd383ac993b123bdd214b654db37592",
       [
        null,
        [
@@ -255908,11 +256226,11 @@
           [
            [
             0,
-            100
+            64
            ],
            [
             0,
-            10
+            8
            ]
           ]
          ]
@@ -258597,6 +258915,35 @@
            [
             0,
             400
+           ]
+          ]
+         ]
+        ]
+       }
+      ]
+     ],
+     "new-content-transform-change-001.html": [
+      "973a9931b71b9b09350e5de201035d922eefcba0",
+      [
+       null,
+       [
+        [
+         "/css/css-view-transitions/new-content-transform-change-001-ref.html",
+         "=="
+        ]
+       ],
+       {
+        "fuzzy": [
+         [
+          null,
+          [
+           [
+            0,
+            75
+           ],
+           [
+            0,
+            10100
            ]
           ]
          ]
@@ -288815,6 +289162,21 @@
      ]
     }
    },
+   "gif": {
+    "reset-no-gce-1.html": [
+     "75a2b48dcd61a942f50e9b9a18a6e9d3223af3bb",
+     [
+      null,
+      [
+       [
+        "/gif/reset-no-gce-ref.html",
+        "=="
+       ]
+      ],
+      {}
+     ]
+    ]
+   },
    "html": {
     "browsers": {
      "sandboxing": {
@@ -313144,7 +313506,7 @@
       ]
      ],
      "image-modify-href-4.svg": [
-      "f7e550e5defb0b1eba85edad430b0cef760223e6",
+      "26d9b169c4df8e7e8c71d6a960df1ed70086a4ab",
       [
        null,
        [
@@ -316244,7 +316606,7 @@
        ]
       ],
       "pathlength-002.svg": [
-       "bdae7e75f2ddfe77c5caac7807a793a9dcf3e018",
+       "5bae25641686f67cee43861e15082193da9d6dd3",
        [
         null,
         [
@@ -316257,7 +316619,7 @@
        ]
       ],
       "pathlength-003.svg": [
-       "506952f54b4b0b59d10a106af50ae61062873e99",
+       "7d50694f76ceb6f290a3edaac69b1fcedf486f57",
        [
         null,
         [
@@ -322287,10 +322649,6 @@
       "afa04c171df258a598d599d2eeccd523c096f3de",
       []
      ],
-     "numbered-tests-expected.txt": [
-      "d96c2e150488066a0eb615c8f3b7e5b4573c6550",
-      []
-     ],
      "reference.png": [
       "22cd4cae0837ad174b0d08070ce7fa01d9d3a748",
       []
@@ -322364,7 +322722,7 @@
       []
      ],
      "util.js": [
-      "eda6a17a24ff7377aa4252e0cc23382972257cc4",
+      "8f9efad5a22c6251bfe0d00ed6730354751f6954",
       []
      ]
     },
@@ -324665,7 +325023,7 @@
      []
     ],
     "get-host-info.sub.js": [
-     "9b8c2b5de63f282663cab92231fe1c35184e6f02",
+     "f680cd8b1999a317066de5ce3aab1c682b081bc5",
      []
     ],
     "get-host-info.sub.js.headers": [
@@ -327447,6 +327805,10 @@
      ],
      "cookie_helper.py": [
       "71dd8b82ee7eb50054455724bc4c018b22f20949",
+      []
+     ],
+     "domain_parsing-child.sub.https.html": [
+      "c8ab3bbc54bb9b8a86b6893ee42edde449a30499",
       []
      ],
      "empty_sw.js": [
@@ -336517,7 +336879,7 @@
        []
       ],
       "background-image-computed.sub-expected.txt": [
-       "f4048d60301b0afa2fcf0458a0d6077a702ad99a",
+       "34580bc8b2e8b7479e97f5a999130c31b7be1fa7",
        []
       ],
       "background-position-computed-expected.txt": [
@@ -337589,6 +337951,70 @@
       "e1ef68513f7cabfd9c1ec444e8e9c5f00c9e0baf",
       []
      ],
+     "corner-shape": {
+      "corner-shape-any-ref.html": [
+       "36fc7a88825fea38ad5cfcdf544946e3644cc00b",
+       []
+      ],
+      "corner-shape-backdrop-filter-overflow-ref.html": [
+       "4aabd7e8e353f90f3ceeaf590eca42854c9552b7",
+       []
+      ],
+      "corner-shape-backdrop-filter-ref.html": [
+       "165f93e6be13d9d856ac008b4eb9a5db4b0873cd",
+       []
+      ],
+      "corner-shape-bevel-overflow-composite-ref.html": [
+       "f67be0cc6388ee35801bc1eab83f857902ea2be8",
+       []
+      ],
+      "corner-shape-bevel-overflow-ref.html": [
+       "374302671907cfc89740026e76f671df6418f40a",
+       []
+      ],
+      "corner-shape-fill-ref.html": [
+       "4000833c31d1cad31076f52f33f0f4f95922bbd1",
+       []
+      ],
+      "corner-shape-gallery.manual.html": [
+       "1eb6cbd8df349f0a27b1575b8a77583c95b44a42",
+       []
+      ],
+      "corner-shape-img-ref.html": [
+       "565698f79ec3fe89a9078a2c6277b38f494dfd99",
+       []
+      ],
+      "corner-shape-inset-shadow-ref.html": [
+       "fa36c9d6ecc527fee37bb589c3c5194df1ff2291",
+       []
+      ],
+      "corner-shape-notch-ref.html": [
+       "8963c0ca2939c4036d9505461c9772b803b586f2",
+       []
+      ],
+      "corner-shape-overflow-clip-margin-ref.html": [
+       "2c1ccf86cc6ae5ec138b741d83dfb31347de61c8",
+       []
+      ],
+      "corner-shape-square-ref.html": [
+       "4576240ef3288a954c9a627cbafd640eacd95444",
+       []
+      ],
+      "resources": {
+       "corner-shape.js": [
+        "c08a95c7d7511e84eb92015d13578e23ad2f2ec5",
+        []
+       ],
+       "corner-utils.js": [
+        "b6f329e82484f14f853c999dbd99a15771db1e8d",
+        []
+       ],
+       "resolve-corner-style.js": [
+        "a890c57b868e45648eaf097c97163d214a9a1d92",
+        []
+       ]
+      }
+     },
      "reference": {
       "border-radius-greater-than-width-ref.html": [
        "3c8c470ef5ac93ed8d29fb26d40a2c4bbea47827",
@@ -337616,70 +338042,6 @@
       ]
      },
      "tentative": {
-      "corner-shape": {
-       "corner-shape-any-ref.html": [
-        "36fc7a88825fea38ad5cfcdf544946e3644cc00b",
-        []
-       ],
-       "corner-shape-backdrop-filter-overflow-ref.html": [
-        "4aabd7e8e353f90f3ceeaf590eca42854c9552b7",
-        []
-       ],
-       "corner-shape-backdrop-filter-ref.html": [
-        "165f93e6be13d9d856ac008b4eb9a5db4b0873cd",
-        []
-       ],
-       "corner-shape-bevel-overflow-composite-ref.html": [
-        "f67be0cc6388ee35801bc1eab83f857902ea2be8",
-        []
-       ],
-       "corner-shape-bevel-overflow-ref.html": [
-        "374302671907cfc89740026e76f671df6418f40a",
-        []
-       ],
-       "corner-shape-fill-ref.html": [
-        "4000833c31d1cad31076f52f33f0f4f95922bbd1",
-        []
-       ],
-       "corner-shape-gallery.manual.html": [
-        "1eb6cbd8df349f0a27b1575b8a77583c95b44a42",
-        []
-       ],
-       "corner-shape-img-ref.html": [
-        "565698f79ec3fe89a9078a2c6277b38f494dfd99",
-        []
-       ],
-       "corner-shape-inset-shadow-ref.html": [
-        "fa36c9d6ecc527fee37bb589c3c5194df1ff2291",
-        []
-       ],
-       "corner-shape-notch-ref.html": [
-        "8963c0ca2939c4036d9505461c9772b803b586f2",
-        []
-       ],
-       "corner-shape-overflow-clip-margin-ref.html": [
-        "2c1ccf86cc6ae5ec138b741d83dfb31347de61c8",
-        []
-       ],
-       "corner-shape-square-ref.html": [
-        "4576240ef3288a954c9a627cbafd640eacd95444",
-        []
-       ],
-       "resources": {
-        "corner-shape.js": [
-         "c08a95c7d7511e84eb92015d13578e23ad2f2ec5",
-         []
-        ],
-        "corner-utils.js": [
-         "b6f329e82484f14f853c999dbd99a15771db1e8d",
-         []
-        ],
-        "resolve-corner-style.js": [
-         "a890c57b868e45648eaf097c97163d214a9a1d92",
-         []
-        ]
-       }
-      },
       "parsing": {
        "border-block-end-radius-computed-expected.txt": [
         "230798c53100ada9d83ec777d7189eb2aa895a33",
@@ -337791,14 +338153,6 @@
        ],
        "box-shadow-spread-valid-expected.txt": [
         "b62502c787e8269f268a85abe12d709a4b0bfecd",
-        []
-       ],
-       "corners-computed-expected.txt": [
-        "2ab97845bb5be924d484b04ad1ebc1e8bdd3f453",
-        []
-       ],
-       "corners-valid-expected.txt": [
-        "652f11b1cc259d576111c79eee9d3d458df95fe7",
         []
        ]
       }
@@ -344753,6 +345107,10 @@
       "eeddd2ed86a226ff8c894fdd843d13c266575b27",
       []
      ],
+     "calc-in-font-variation-settings-expected.txt": [
+      "1daab4048a6e0cca7d1ffc949f128fbcdc25e6b2",
+      []
+     ],
      "downloadable-font-in-iframe-print-ref.html": [
       "f66046f8a28e4662a0ad5eb715e969df600d371f",
       []
@@ -344921,6 +345279,14 @@
      ],
      "font-feature-settings-descriptor-01-ref.html": [
       "4a1723e690882650361410bb8af55dab7cbb3b73",
+      []
+     ],
+     "font-feature-settings-descriptor-02-ref.html": [
+      "180a9cccbb2923e5d1cd2503d18d6c785dd062d4",
+      []
+     ],
+     "font-feature-settings-descriptor-binary-ref.html": [
+      "c5119f37bdeee39fb1ef17d3d13fb892e328ed3e",
       []
      ],
      "font-feature-settings-tibetan-ref.html": [
@@ -345419,6 +345785,10 @@
       "2dbc43904fd0f5825e095a4fb87e0edb590c4a87",
       []
      ],
+     "font-variant-caps-invalidation-container-sizing-ref.html": [
+      "8463376cb8a99d0bead34358421030100f4dbe00",
+      []
+     ],
      "font-variant-caps-ref.html": [
       "f84e51add0c573b4a38f28c3f051cfe8a97221b8",
       []
@@ -345672,11 +346042,19 @@
        "01b95e8e72e59bf248148555d32a5e06c943b166",
        []
       ],
+      "font-unicode-presented-as-emoji-outline-ref.html": [
+       "1c6532187cceeb5435a8c352422469a3a31b67c6",
+       []
+      ],
       "range-descriptor-reversed-ref.html": [
        "e59dc50dc757ddc746e73615953372c4a3e92d3c",
        []
       ],
       "resources": {
+       "AhemCrossmarkSupport.otf": [
+        "9ec89a89c94f25c1f38c5ef752498e321edb1594",
+        []
+       ],
        "variabletest_matching.ttf": [
         "89ed12a2c03531a1e8f764e3a2365824a8f40a12",
         []
@@ -352185,7 +352563,7 @@
        []
       ],
       "at-font-face-descriptors-expected.txt": [
-       "05f9a11a70d24e34ab797ec7182d11c1040f44c9",
+       "f2e573c02846354f9ede050da982e228cacc6043",
        []
       ],
       "font-descriptor-range-reversed-ref.html": [
@@ -352699,7 +353077,29 @@
       "grid-gap-decorations-045-ref.html": [
        "b002cf0fb3a3481e476ee6fc5adfed14b8d19f79",
        []
-      ]
+      ],
+      "subgrid": {
+       "subgrid-gap-decorations-012-ref.html": [
+        "bcb16d454899cd69314fddecc2f6883e14ed49b5",
+        []
+       ],
+       "subgrid-gap-decorations-013-ref.html": [
+        "9b20aaf22c6f1b5c7a4da450a20f21c2fa45c324",
+        []
+       ],
+       "subgrid-gap-decorations-015-ref.html": [
+        "41915ab503eb3e16e01e8a8f8e4719ab5c5a5fd6",
+        []
+       ],
+       "subgrid-gap-decorations-016-ref.html": [
+        "43577fa98006f1662a5732e658d2f3de940ab44e",
+        []
+       ],
+       "subgrid-gap-decorations-017-ref.html": [
+        "e2218e06c45ca5f0109e9573a57e23e2b87f96d6",
+        []
+       ]
+      }
      },
      "multicol": {
       "multicol-gap-decorations-001-ref.html": [
@@ -359671,6 +360071,10 @@
         "baa8dd1a8d7271389e10d1058e674cc64a86e34b",
         []
        ],
+       "block-ellipsis-016-ref.html": [
+        "acaf9b64254613710a18249c114a342f9321d631",
+        []
+       ],
        "block-ellipsis-017-ref.html": [
         "7a801508e2e564bad79b512c4e327632399c2ce7",
         []
@@ -360493,6 +360897,10 @@
      ],
      "scroll-target-group-009-ref.html": [
       "82fbb988dfa9726a81be6a20bfa5ea28adc0f861",
+      []
+     ],
+     "scroll-target-group-012-ref.html": [
+      "3f63ce1d2e43ff0317e78091bba126700a837a43",
       []
      ],
      "scrollable-overflow-input-001-ref.html": [
@@ -362459,6 +362867,10 @@
       "e030fdf37c68bd6cfd3b8efa1c361db880044646",
       []
      ],
+     "registered-property-computation-expected.txt": [
+      "8f41eb229cd7eaf7501d6fb3fa9b4953034abf00",
+      []
+     ],
      "resources": {
       "utils.js": [
        "b850e61fc7287d82daa4749c073c78e190ec9258",
@@ -362491,6 +362903,10 @@
        ]
       }
      },
+     "typedom-expected.txt": [
+      "19d7cb210171037d1f52b5f8363985cef4493dc5",
+      []
+     ],
      "unit-cycles-expected.txt": [
       "5074dab0444c2094c4a4e910ee1f17e44c4489f9",
       []
@@ -368316,14 +368732,6 @@
        "9d895a5e5b25c85cf04e9be3d659232b64ec2ae3",
        []
       ],
-      "letter-spacing-computed-expected.txt": [
-       "6c45f23b1c3b1904f2ea0d83a4742f26e6a49d03",
-       []
-      ],
-      "letter-spacing-valid-expected.txt": [
-       "9decd1a95edf2debf45fcb504fc7d39127a5ade7",
-       []
-      ],
       "text-align-all-valid-expected.txt": [
        "eed49d7a26f16f94b0320cd9ee431ffdf2d4fc01",
        []
@@ -369893,6 +370301,10 @@
        ],
        "text-wrap-balance-text-indent-001-ref.html": [
         "401e35e2f1f8c534487782df003078b1a53b6e36",
+        []
+       ],
+       "text-wrap-balance-with-svg-001-ref.html": [
+        "5d97e834ce6b0895251a345cc146cffba96431b5",
         []
        ],
        "text-wrap-balance-word-spacing-001-ref.html": [
@@ -373286,6 +373698,10 @@
        "59843ae54b64f6ce4f7e616d4be491c911ea84cf",
        []
       ],
+      "transition-in-iframe-001-iframe.html": [
+       "b7214bd378bd60b2729bc276bd775a389fd4ebcb",
+       []
+      ],
       "two.gif": [
        "01435c80209d533dc2164ac48279574c7ba4615e",
        []
@@ -373585,10 +374001,6 @@
        ],
        "inline-size-expected.txt": [
         "07301e286d4573309d66c3ca4323f6d736c2ddb2",
-        []
-       ],
-       "letter-spacing-expected.txt": [
-        "5d4fa8be30384b0b2d3ca29cafa98871e8777136",
         []
        ],
        "list-style-type-expected.txt": [
@@ -375203,12 +375615,6 @@
       "2248d3702b0c0276dbb2dd1f1f2ae2712fa654c8",
       []
      ],
-     "animations": {
-      "calc-interpolation-expected.txt": [
-       "9bfa4f27e43e6663f54dc91992bce453f9233c8f",
-       []
-      ]
-     },
      "attr-all-types-expected.txt": [
       "668de5de5e1f881149822e1952b06a8d1761892f",
       []
@@ -375267,10 +375673,6 @@
      ],
      "calc-infinity-nan-serialize-length-expected.txt": [
       "cced79a004c0e7f1acdd55298a1221212bdfe94d",
-      []
-     ],
-     "calc-letter-spacing-expected.txt": [
-      "4446bc0ab25d5af5c1d71ad94371386bb5ceecf2",
       []
      ],
      "calc-linear-radial-conic-gradient-001-expected.txt": [
@@ -375387,10 +375789,6 @@
      ],
      "ex-calc-expression-001-ref.html": [
       "888a51ea9b6ac04fb065ee5d84a18be8fe765aca",
-      []
-     ],
-     "hypot-pow-sqrt-serialize-expected.txt": [
-      "cdc2180e17ea741cee5baad0ade5a92e6e8b004e",
       []
      ],
      "minmax-percentage-serialize-expected.txt": [
@@ -376627,6 +377025,10 @@
      ],
      "new-content-scaling-ref.html": [
       "729be2fcbf606723a4e3449bf3ffad97c8e6bf15",
+      []
+     ],
+     "new-content-transform-change-001-ref.html": [
+      "48147a55700701ee2cb67b5394e8491085ba4426",
       []
      ],
      "new-content-transform-position-fixed-ref.html": [
@@ -382804,10 +383206,6 @@
       []
      ]
     },
-    "historical-expected.txt": [
-     "21186e94e6556dda1658aa3169a4366340eed24d",
-     []
-    ],
     "htmlconstructor": {
      "WEB_FEATURES.yml": [
       "6645507d4b305e5cb34b94cab17ddfc34fc01441",
@@ -382852,51 +383250,59 @@
     },
     "registries": {
      "Construct-expected.txt": [
-      "b404f3d1e602b04f3dc79003655de655122fe452",
+      "5760353a7b152ff5e647f191f2e923f65b7f263c",
+      []
+     ],
+     "CustomElementRegistry-define-expected.txt": [
+      "ce02dc2782b7340a7ad70bfae764b0eb09572849",
       []
      ],
      "CustomElementRegistry-initialize-expected.txt": [
-      "f3abb8c6a8b237b9a46c39685718d6f64e46d34c",
+      "55ed9cf2bca7c0b6c2cfa8350295ee4ba1131b20",
+      []
+     ],
+     "CustomElementRegistry-multi-register-expected.txt": [
+      "b7e0b972a8ce4c600067474b68882d4f7c4a0886",
       []
      ],
      "CustomElementRegistry-upgrade-expected.txt": [
-      "1c355a3cd7ca67d457a449f8d32370f0b88c96fa",
+      "2832ed434913cf2ef3997b543f9cf14d9c8c337b",
       []
      ],
      "Document-createElement-expected.txt": [
-      "650b6a48c9466405a589e040725b956f451a5f98",
+      "1818c226c6a223040cf7cf19188b8b3efc79e0fd",
       []
      ],
      "Document-createElementNS-expected.txt": [
-      "07c5bb7d917de4e5d4dc5505ecd1726275b2c43c",
+      "1818c226c6a223040cf7cf19188b8b3efc79e0fd",
       []
      ],
      "Document-customElementRegistry-expected.txt": [
-      "a8d73b6144331db2e5456599b675b5c52ab2e4ab",
+      "c5c25e44659658b4c8a1d0cc590dea2ecb21725d",
       []
      ],
      "Document-importNode-expected.txt": [
-      "4d66dedb3298e84cee1e69a54ab0ec060ef5ef02",
+      "1818c226c6a223040cf7cf19188b8b3efc79e0fd",
       []
      ],
      "Element-customElementRegistry-exceptions-expected.txt": [
-      "18d8f3f2b3d406e186871700c799e87b2533ca0d",
+      "3310c24a6fa6c2852bd5d8e59052e81ef1712727",
       []
      ],
      "Element-customElementRegistry-expected.txt": [
-      "4f75e3796b70808899cf65c68aaa3104c95d3a84",
+      "f37da205eb2e7f7f407009dea13d9df29ce6109f",
       []
      ],
      "Element-innerHTML-expected.txt": [
-      "f59e021aacde1e5ee6998e04e06fe8edba3abb77",
+      "87127efd0c5d36a9e63e0291c43d382236703c56",
       []
      ],
      "ShadowRoot-init-customElementRegistry-expected.txt": [
-      "04c204a3847733e4f8c57b18f594ae43f27fdf92",
+      "9b73229b6fb326d7d9ceaa3d76c40c117c9ad85f",
       []
      ],
      "ShadowRoot-innerHTML-expected.txt": [
-      "189246f8c32012d87a1b7193d912b7c2e3e004cd",
+      "69378082873079ca30002e2beeeecbedc3be95e1",
       []
      ],
      "WEB_FEATURES.yml": [
@@ -382904,7 +383310,7 @@
       []
      ],
      "constructor-reentry-with-different-definition-expected.txt": [
-      "de22e864d7d14a9e0280ec2f41678dbc90ee2e58",
+      "ae9069c20b4051efd1526ef1c11eb6ac65ef1c0e",
       []
      ],
      "initial-about-blank.window-expected.txt": [
@@ -382916,19 +383322,23 @@
       []
      ],
      "pseudo-class-defined.window-expected.txt": [
-      "12084e3656e3f7489b5299c812f9add750579b61",
+      "b3ac1b7c9cc2ac41294ef4336cdb417f4aaeb179",
       []
      ],
      "scoped-registry-define-upgrade-criteria-expected.txt": [
-      "6fdbf7be112582c9d561897a6a481a2a79449247",
+      "7d8ba836721be543c4e55e161afa9c8b51266d51",
       []
      ],
      "scoped-registry-define-upgrade-order-expected.txt": [
-      "ef12a7b4a1c3dca67b531ac724218607690281ec",
+      "6eeb8c105f184e80a5d4649f6f83f32ca80a76f3",
+      []
+     ],
+     "scoped-registry-registry-define-get-etc-expected.txt": [
+      "8064e9ae58da235b005fb5f1177c490e982b46f5",
       []
      ],
      "template.window-expected.txt": [
-      "5b860002cccdaa876eeb994428f8f566b7286b02",
+      "d9af626b9a8f222c3dc2e33f038c4ae749b29479",
       []
      ]
     },
@@ -382951,7 +383361,7 @@
      ]
     },
     "scoped-registry-initialize-expected.txt": [
-     "03a54dac7fe61d8b7798f7d4122969d3f23dd1ab",
+     "1818c226c6a223040cf7cf19188b8b3efc79e0fd",
      []
     ],
     "state": {
@@ -383884,6 +384294,10 @@
      "dec186080f789908147910bd09e089323e6de58a",
      []
     ],
+    "idlharness.window_exclude=Node-expected.txt": [
+     "8b9bddbeca83ce54d698273aff1da06b03aa046c",
+     []
+    ],
     "lists": {
      "README.md": [
       "59c821a7daa465a852a1e9cba209af40de132d12",
@@ -383901,14 +384315,6 @@
      ],
      "Comment-in-doctype-expected.txt": [
       "cb89704f1f7e3b4ec008e3fabba4a8a2dce51c6b",
-      []
-     ],
-     "DOMImplementation-createDocument-expected.txt": [
-      "f39f005ea2b168c41a00b698072fc9b1cea79640",
-      []
-     ],
-     "DOMImplementation-createDocumentType-expected.txt": [
-      "e04159d51e0c2ce7fc6db6aac330cb475979e04f",
       []
      ],
      "DOMImplementation-createHTMLDocument.js": [
@@ -383969,16 +384375,8 @@
        ]
       }
      },
-     "Document-createAttribute-expected.txt": [
-      "2f09612fca61380671518e40fc745d06fd82515c",
-      []
-     ],
      "Document-createComment-createTextNode.js": [
       "62a38d380da6021d57e363ec14fdd410685c07cd",
-      []
-     ],
-     "Document-createElement-expected.txt": [
-      "daffffe02e2b5b8391f5a2b80e21cab0c5328564",
       []
      ],
      "Document-createElement-namespace-tests": {
@@ -384147,12 +384545,8 @@
        []
       ]
      },
-     "Document-createElementNS-expected.txt": [
-      "83cd84b5b02a09685021db72db19cb91e0bd0431",
-      []
-     ],
      "Document-createElementNS.js": [
-      "2cf2948563a2b780193871d7c7ca7dab12d3b2c6",
+      "d2e2f78e77e40c4f35f0fd362c61714a2227f224",
       []
      ],
      "Document-createEvent.https-expected.txt": [
@@ -384221,10 +384615,6 @@
      ],
      "adoption.window-expected.txt": [
       "fe74c71a2f9d696e20ed9cb2083e25a96751a437",
-      []
-     ],
-     "attributes-expected.txt": [
-      "b62a4beaa30e9ec080f918ebb65722518f0365f4",
       []
      ],
      "attributes.js": [
@@ -384298,7 +384688,7 @@
       []
      ],
      "productions.js": [
-      "218797fc4595fdd10dd446d52ca2daa75ab29736",
+      "f779c467d890a8f2d6fdaaf8942b98439f0b1e00",
       []
      ],
      "query-target-in-load-event.part.html": [
@@ -386688,6 +387078,14 @@
      "aa5c581ecdc8805944bf6819ac350aa74edd409f",
      []
     ],
+    "ja-ISO-2022-JP-late.tentative-expected.txt": [
+     "a6979261c3228f826a695904f22558ee3386cb60",
+     []
+    ],
+    "ja-ISO-2022-JP.tentative-expected.txt": [
+     "a6979261c3228f826a695904f22558ee3386cb60",
+     []
+    ],
     "ja-half-width.tentative-expected.txt": [
      "9d90e427b369744e0629477c8435260422434a88",
      []
@@ -387811,7 +388209,7 @@
        []
       ],
       "intercept_service_worker.js": [
-       "b458c973be3083ef05c3dffda39944f6f4549d4b",
+       "eca8b11e52e15f4d23e6157a7ad26cb53a8133af",
        []
       ],
       "pending-userinfo-iframe.html": [
@@ -387836,7 +388234,7 @@
       []
      ],
      "fedcm-iframe-level2.html": [
-      "7622d988ff2c129003f0e3251bb7a0be698d17d6",
+      "c0c4cce6beff17d4f720281f8aba2758c1900a43",
       []
      ],
      "fedcm-iframe.html": [
@@ -393442,6 +393840,20 @@
       []
      ]
     }
+   },
+   "gif": {
+    "META.yml": [
+     "1d051253be2da7b30e3f6aee27073661574dbcb4",
+     []
+    ],
+    "reset-no-gce-ref.html": [
+     "5bf308fd63b86f5ec81c79db512fb6ca337df9b1",
+     []
+    ],
+    "reset-no-gce.gif": [
+     "98e6bc61ac4a43e5d5e3df7165b87402a72c915b",
+     []
+    ]
    },
    "graphics-aam": {
     "DIR_METADATA": [
@@ -399751,10 +400163,6 @@
         "b450c530ad031e1e0dcefc456be0b1ed10e2cded",
         []
        ],
-       "dataset-set-expected.txt": [
-        "a30e398dd0fa26fd1d0757899e3bbcb3c4de7f49",
-        []
-       ],
        "dir-auto-dynamic-simple-ref.html": [
         "5a9a2f2484cef7a53fee96058ba7c61926b8a3c6",
         []
@@ -400308,7 +400716,7 @@
       []
      ],
      "idlharness.https_exclude=(Document_Window_HTML.+)-expected.txt": [
-      "7b22798f5a3319ad08273c23d120bc5c518a2546",
+      "d521a342994a65469f46705a9a5bd3b9186b5cfd",
       []
      ],
      "idlharness.https_include=(Document_Window)-expected.txt": [
@@ -400316,7 +400724,7 @@
       []
      ],
      "idlharness.https_include=HTML.+-expected.txt": [
-      "52cb0c58c79bd16e4f69c0e5c5dc42d270886829",
+      "21321026ac25759aa272662d3443ab1e0de295b2",
       []
      ],
      "new-harness.js": [
@@ -402476,7 +402884,7 @@
         []
        ],
        "test-helper.js": [
-        "fa9ec20c62be2aa9158abd32e1732689457c3f4d",
+        "c7c80958fd577b5f3e00d30de0ab7bb1d55fd784",
         []
        ]
       },
@@ -412906,7 +413314,7 @@
         []
        ],
        "non-local-ports.sub.window.js.ini": [
-        "36a803d3ed7678cac74bd89b64ec041b425bb887",
+        "6bdc2a5b5910d2967a99f684eab72da01d98d48e",
         []
        ]
       },
@@ -415212,7 +415620,7 @@
     }
    },
    "lint.ignore": [
-    "7273ff2c0597d2a377de936cfed64a7b145a5d84",
+    "597f692249f289944436f38c084985df3bcee088",
     []
    ],
    "loading": {
@@ -419625,7 +420033,11 @@
       "b0653f8c0cd7dbcb7d4be0617054685aa8fbb72a",
       []
      ]
-    }
+    },
+    "worker.https-expected.txt": [
+     "bad6c55bb0a568170265cbcab3ea8526eb0c414b",
+     []
+    ]
    },
    "permissions-policy": {
     "DIR_METADATA": [
@@ -420512,6 +420924,22 @@
      "53c06b6443b553a17dc85314f1669d3dcae695d5",
      []
     ],
+    "pointerevent_boundary_events_modifier_no_pointer_movement_Alt-expected.txt": [
+     "912f5d7e89c8a893e75d2b4848dd1371b902f7f2",
+     []
+    ],
+    "pointerevent_boundary_events_modifier_no_pointer_movement_Control-expected.txt": [
+     "124b8a47fdca4cce6c26cc6bda99a59977447da1",
+     []
+    ],
+    "pointerevent_boundary_events_modifier_no_pointer_movement_Meta-expected.txt": [
+     "50b1a413b8fba1b0aaec33b58309c34385c79909",
+     []
+    ],
+    "pointerevent_boundary_events_modifier_no_pointer_movement_Shift-expected.txt": [
+     "c64900c2ddcd1ba490e802cea7435c1d1cb90e4c",
+     []
+    ],
     "pointerevent_click_during_parent_capture_pointerType=touch_preventDefault=-expected.txt": [
      "e320ae7b61c57fe7f87a4cd673b94a716ebd5680",
      []
@@ -420530,6 +420958,10 @@
     ],
     "pointerevent_lostpointercapture_remove_setcapture_node-expected.txt": [
      "2d3c1af839d52c9176d85201b92de9c970fffe15",
+     []
+    ],
+    "pointerevent_multiple_pointerover_no_pointer_movement-expected.txt": [
+     "60139a8e5e7ec5097e4fcc951368f2c32d594013",
      []
     ],
     "pointerevent_pointer_boundary_events_after_removing_last_over_element-expected.txt": [
@@ -423358,7 +423790,7 @@
       []
      ],
      "test-initiator.js": [
-      "f839b463c56d8f70969afffb721e887e54614290",
+      "e4b367f8a0cdfa6b0a48af36a67ad824d10599ee",
       []
      ],
      "webperftestharness.js": [
@@ -428343,6 +428775,16 @@
       "6647dd740a275cb8a62be5cc0356e90dc0991d2e",
       []
      ],
+     "images": {
+      "lcp-256x256-alt-1.png": [
+       "44526f5aa3d999cde79de5fb4e0899cdb2b0e5af",
+       []
+      ],
+      "lcp-256x256-alt-2.png": [
+       "bb59d9dc1baa0abe5a57c860cd64c9000ec2b18e",
+       []
+      ]
+     },
      "soft-navigation-helper.js": [
       "9ee79d36f76fdd6e8f6324fe0425f80825d2670d",
       []
@@ -428429,7 +428871,7 @@
        []
       ],
       "executor.sub.html": [
-       "b89c45e4f5c25b274925afd6569d6384d5183fe4",
+       "8e799559c126e705fcaa36342ef2982b87af271e",
        []
       ],
       "executor.sub.html.headers": [
@@ -428453,7 +428895,7 @@
        []
       ],
       "redirect-helper.sub.js": [
-       "a17eaabe2430090ce0554fec480480a261ae41aa",
+       "317a155377d4823e5bf1033b484dea0d6fddb0b0",
        []
       ],
       "ruleset.py": [
@@ -428473,7 +428915,7 @@
        []
       ],
       "utils.sub.js": [
-       "dd577c00c1d30c6e812080a8088d272b65ca0e12",
+       "ceb5e3d06ffc0ca38506fb062868fe4872e497f1",
        []
       ]
      },
@@ -429652,6 +430094,16 @@
      "01c9666a8de9d5535615aff830810e5df4b2156f",
      []
     ],
+    "integrity-policy": {
+     "script.https_reporting=false-expected.txt": [
+      "cf4efe318705b810e64b173ce1f367fda0bd3639",
+      []
+     ],
+     "script.https_reporting=true-expected.txt": [
+      "cf4efe318705b810e64b173ce1f367fda0bd3639",
+      []
+     ]
+    },
     "script.js": [
      "bfca1efbf3fb10fc98dd39600966fc97817586ee",
      []
@@ -431336,10 +431788,6 @@
      "b1924d52b5c979deb7dd26dffdbdedff3297c804",
      []
     ],
-    "TrustedTypePolicy-createXXX-expected.txt": [
-     "45d110dd9d36dcfc54dc4c5c813e5eb827ec1c26",
-     []
-    ],
     "TrustedTypePolicyFactory-getAttributeType-expected.txt": [
      "7be05f45b7e494451a344da30c6b2bf6518f068a",
      []
@@ -432233,6 +432681,22 @@
      }
     },
     "mouse": {
+     "mouse_boundary_events_modifier_no_mouse_movement_Alt-expected.txt": [
+      "87e1b8dd53826363e282942d854ba4d5c7e9a764",
+      []
+     ],
+     "mouse_boundary_events_modifier_no_mouse_movement_Control-expected.txt": [
+      "5f35b8ae5ac02c8319d471b960fd8f34c5c96b8e",
+      []
+     ],
+     "mouse_boundary_events_modifier_no_mouse_movement_Meta-expected.txt": [
+      "83fefe73389cc737882a56dc8bf230a8ef2e9d10",
+      []
+     ],
+     "mouse_boundary_events_modifier_no_mouse_movement_Shift-expected.txt": [
+      "555580bf21ab17f5915834d6e225216c6f7de65e",
+      []
+     ],
      "resources": {
       "mouse-event-reporter-subframe.html": [
        "f12f429491342ebd04df786d1d88edacc8cd3e84",
@@ -435141,7 +435605,7 @@
      []
     ],
     "OWNERS": [
-     "abb8a85d6af43159970b189529b24f47c8f81567",
+     "a7db251a2d396b1de2de484e6fe2888e2f927068",
      []
     ],
     "README.md": [
@@ -437361,7 +437825,7 @@
        []
       ],
       "web_extension.py": [
-       "ba9473a7947e9f6cee367f47d7aadf5486fbc1fa",
+       "6928efd699d95479babaeccecf421127f3bcb8f3",
        []
       ],
       "webextensions": {
@@ -438003,7 +438467,7 @@
      []
     ],
     "RTCRtpTransceiver.https-expected.txt": [
-     "3661b1e2a89371e612930805b28f985b571073eb",
+     "7a07190ce98f3583d9c15b123b4ad711ac39b217",
      []
     ],
     "WEB_FEATURES.yml": [
@@ -438388,6 +438852,10 @@
     ],
     "getStats-remote-candidate-address-expected.txt": [
      "f73ad23fc53014c79fb1d0aa11ece0ab1c2f8ff1",
+     []
+    ],
+    "outbound-rtp.https-expected.txt": [
+     "fb3703309450f9875522465b9fd34bda721c747a",
      []
     ],
     "rtp-stats-creation-expected.txt": [
@@ -470513,7 +470981,7 @@
       ]
      ],
      "detector.https.window.js": [
-      "ae21b4635383772032a0b979932679895b06e2bd",
+      "f52064696f33bdf1fdcc4d4cec56a24eaa35be6b",
       [
        "ai/language_detection/detector.https.window.html",
        {
@@ -470807,7 +471275,7 @@
       ]
      ],
      "rewriter-rewrite-streaming.tentative.https.window.js": [
-      "d275ba514db2d2e1f25a84c4e7bc1c7dce048b3f",
+      "59c7da3ceb344b133119bd361546548b81547a7e",
       [
        "ai/rewriter/rewriter-rewrite-streaming.tentative.https.window.html",
        {
@@ -470834,7 +471302,7 @@
       ]
      ],
      "rewriter-rewrite.tentative.https.window.js": [
-      "07e8b419a4af8c1c3933271e11083509a1e97fa4",
+      "55ec52bc932c98eac760f9c8eede1a445b3423df",
       [
        "ai/rewriter/rewriter-rewrite.tentative.https.window.html",
        {
@@ -471089,7 +471557,7 @@
       ]
      ],
      "summarizer-summarize-streaming.tentative.https.window.js": [
-      "09a8fb0d97eb4629d6cdc81d1fe34d02e9ebbbb7",
+      "2a41369c92d0a98257497dda421001e6a493200d",
       [
        "ai/summarizer/summarizer-summarize-streaming.tentative.https.window.html",
        {
@@ -471116,7 +471584,7 @@
       ]
      ],
      "summarizer-summarize.tentative.https.window.js": [
-      "a9be36dace027fdbf229f0f48a13ba4ab9b13941",
+      "8753a48353d246e59eeb7c7f8654e64db6e998ea",
       [
        "ai/summarizer/summarizer-summarize.tentative.https.window.html",
        {
@@ -471242,7 +471710,7 @@
       ]
      ],
      "translator.optional.https.window.js": [
-      "94be911afb5e823fbcde961753eb86bbc0e5d75f",
+      "1b2519cf2f0ed9c8b030fa1b2c6c79b000621478",
       [
        "ai/translator/translator.optional.https.window.html",
        {
@@ -471497,7 +471965,7 @@
       ]
      ],
      "writer-write-streaming.tentative.https.window.js": [
-      "67286a7ede95578dc6ef12eae43d3a08a58ff9d6",
+      "122acb03fd5293cdfd9a704d7587f2360d8a8dec",
       [
        "ai/writer/writer-write-streaming.tentative.https.window.html",
        {
@@ -471524,7 +471992,7 @@
       ]
      ],
      "writer-write.tentative.https.window.js": [
-      "3383ceb923963a5e726d158ff1882f083c781939",
+      "a49f04e44a634a9bb77b0f75c6fa3604d1024d60",
       [
        "ai/writer/writer-write.tentative.https.window.html",
        {
@@ -484362,7 +484830,7 @@
      ]
     ],
     "compute_pressure_duplicate_updates.https.window.js": [
-     "b2968375db06ad348bd92b403f56828b84ff5fb9",
+     "c10fd1baf970e836c822c747325d3024fef3dd95",
      [
       "compute-pressure/compute_pressure_duplicate_updates.https.window.html?globalScope=dedicated_worker",
       {
@@ -487074,6 +487542,13 @@
      ],
      "frame-src-allowed.sub.html": [
       "8421a9cbfb0cf577c33b39eb4bd83651f135ff60",
+      [
+       null,
+       {}
+      ]
+     ],
+     "frame-src-blocked-path-matching.sub.html": [
+      "36daf5ff46e3571cdbe88218958399c5542885be",
       [
        null,
        {}
@@ -491047,6 +491522,13 @@
        {}
       ]
      ],
+     "script-src-event-handler-on-inline-script.html": [
+      "cae3f23b75aaea0e909b68e8daa4d02bc6939aa3",
+      [
+       null,
+       {}
+      ]
+     ],
      "script-src-multiple-policies-multiple-hashing-algorithms.html": [
       "70b314572783c509b1319c351bd9a09a7f27faac",
       [
@@ -493638,6 +494120,15 @@
          "window,serviceworker"
         ]
        ]
+      }
+     ]
+    ],
+    "cookieStore_set_domain_parsing.sub.https.html": [
+     "dd1a6a4868483893f8832a5ccf4931d35a461d1d",
+     [
+      null,
+      {
+       "testdriver": true
       }
      ]
     ],
@@ -500462,37 +500953,79 @@
        {}
       ]
      ],
-     "tentative": {
-      "corner-shape": {
-       "corner-shape-hittest.html": [
-        "d6655acc330ac4153ad80575a87391c86d01804a",
-        [
-         null,
-         {}
-        ]
-       ],
-       "corner-shape-interpolation.html": [
-        "2ba9d43cb1fcd79b5d37e848b483fe8ad2c85436",
-        [
-         null,
-         {}
-        ]
-       ],
-       "corner-shape-outside-left.html": [
-        "b38b7f3f27872e5bf8ad402aa6dabe981a9d5530",
-        [
-         null,
-         {}
-        ]
-       ],
-       "corner-shape-outside-right.html": [
-        "96a297230bb52863ac149c7a8da1ec1e9d20bcac",
-        [
-         null,
-         {}
-        ]
+     "corner-shape": {
+      "corner-shape-computed.html": [
+       "7ba3f089d28d065aff74235ee150aa469aa2f73c",
+       [
+        null,
+        {}
        ]
-      },
+      ],
+      "corner-shape-hittest.html": [
+       "d6655acc330ac4153ad80575a87391c86d01804a",
+       [
+        null,
+        {}
+       ]
+      ],
+      "corner-shape-interpolation.html": [
+       "2ba9d43cb1fcd79b5d37e848b483fe8ad2c85436",
+       [
+        null,
+        {}
+       ]
+      ],
+      "corner-shape-invalid.html": [
+       "d65ef996ade2f5581c3657131b406adc758536f7",
+       [
+        null,
+        {}
+       ]
+      ],
+      "corner-shape-outside-left.html": [
+       "b38b7f3f27872e5bf8ad402aa6dabe981a9d5530",
+       [
+        null,
+        {}
+       ]
+      ],
+      "corner-shape-outside-right.html": [
+       "96a297230bb52863ac149c7a8da1ec1e9d20bcac",
+       [
+        null,
+        {}
+       ]
+      ],
+      "corner-shape-valid.html": [
+       "6c230ab56d51f8116a6471da219ccd33ed178001",
+       [
+        null,
+        {}
+       ]
+      ],
+      "corners-computed.html": [
+       "2449c8e5f3920f7d5f101f823e5704e3a773a5e0",
+       [
+        null,
+        {}
+       ]
+      ],
+      "corners-invalid.html": [
+       "7a1487aaabb563ea62d8416dc0f297ce53d3726e",
+       [
+        null,
+        {}
+       ]
+      ],
+      "corners-valid.html": [
+       "7a1396195c0556a14466ec1f75cd8a277b44a058",
+       [
+        null,
+        {}
+       ]
+      ]
+     },
+     "tentative": {
       "parsing": {
        "border-block-end-radius-computed.html": [
         "fd096fa17c7de36d62661c67949f7e21479e7bcc",
@@ -500783,48 +501316,6 @@
        ],
        "box-shadow-spread-valid.html": [
         "a368d136945852f1251b7a1ae3d2daeb925a842e",
-        [
-         null,
-         {}
-        ]
-       ],
-       "corner-shape-computed.html": [
-        "7ba3f089d28d065aff74235ee150aa469aa2f73c",
-        [
-         null,
-         {}
-        ]
-       ],
-       "corner-shape-invalid.html": [
-        "d65ef996ade2f5581c3657131b406adc758536f7",
-        [
-         null,
-         {}
-        ]
-       ],
-       "corner-shape-valid.html": [
-        "6c230ab56d51f8116a6471da219ccd33ed178001",
-        [
-         null,
-         {}
-        ]
-       ],
-       "corners-computed.html": [
-        "6605f9eeb0cccf9f5882278ac123470e546cd168",
-        [
-         null,
-         {}
-        ]
-       ],
-       "corners-invalid.html": [
-        "1a762a757250e050bd437f341a786d45a21cee71",
-        [
-         null,
-         {}
-        ]
-       ],
-       "corners-valid.html": [
-        "5b1ae7afb3f9fd50e9d7474d6632ddf600749c92",
         [
          null,
          {}
@@ -503549,7 +504040,7 @@
        ]
       ],
       "query-evaluation-style.html": [
-       "585d5e7742b66f504a1e17e0b531b1802c41c509",
+       "84da9a4c9484114d84bc2dc306851e53344526c9",
        [
         null,
         {}
@@ -507900,7 +508391,7 @@
       ]
      },
      "calc-in-font-variation-settings.html": [
-      "1a7c59abd5ddebfc6cd1f972ee6a186bdb7b97df",
+      "47f98a1dc777682183e24af82c26d62bcd9ef9ad",
       [
        null,
        {}
@@ -508784,7 +509275,7 @@
      ],
      "variations": {
       "at-font-face-descriptors.html": [
-       "bb41c24ad07a4404bb570817a37091ff46eb5295",
+       "7e9792730dc1abf1cfa5b2e3c281ef9ea8794bc2",
        [
         null,
         {}
@@ -514982,27 +515473,6 @@
          {}
         ]
        ],
-       "masonry-auto-tracks-computed.html": [
-        "2581a35292f65cba7bd4d74cecad454ce349ce54",
-        [
-         null,
-         {}
-        ]
-       ],
-       "masonry-auto-tracks-invalid.html": [
-        "e23933ecd295866a9335511b2c85880164ceceda",
-        [
-         null,
-         {}
-        ]
-       ],
-       "masonry-auto-tracks-valid.html": [
-        "b0c1424fa726818763db3bde4a62993db3a5418b",
-        [
-         null,
-         {}
-        ]
-       ],
        "masonry-direction-computed.html": [
         "d94476540f59d254ba58c3c0513420a1e9afd608",
         [
@@ -515061,41 +515531,6 @@
        ],
        "masonry-flow-valid.html": [
         "93c9bf375a6991637d872c1085533983b5d1d33f",
-        [
-         null,
-         {}
-        ]
-       ],
-       "masonry-template-tracks-invalid.html": [
-        "7fed500c28ebcf3a117eccc8faedad901527e347",
-        [
-         null,
-         {}
-        ]
-       ],
-       "masonry-template-tracks-valid.html": [
-        "45550cbb11295eb72d20c046287e81feeba7986e",
-        [
-         null,
-         {}
-        ]
-       ],
-       "masonry-track-computed.html": [
-        "771626ca94dd8d8afed8674c5fec9eeab108e16c",
-        [
-         null,
-         {}
-        ]
-       ],
-       "masonry-track-invalid.html": [
-        "ba03c8426cb48e61c097c451df3d2e87a01d7848",
-        [
-         null,
-         {}
-        ]
-       ],
-       "masonry-track-valid.html": [
-        "2625c2629e582829fc223007e908c77a3ec8cd68",
         [
          null,
          {}
@@ -517144,6 +517579,15 @@
        }
       ]
      ],
+     "overscroll-behavior-without-overflow.html": [
+      "1491ff6d586d38f23457d225c60e681f9f1122fa",
+      [
+       null,
+       {
+        "testdriver": true
+       }
+      ]
+     ],
      "overscroll-behavior.html": [
       "dcd981e92e2b64afd93a6a390450ed270bcc23c8",
       [
@@ -518693,7 +519137,7 @@
       ]
      ],
      "registered-property-computation.html": [
-      "ebfc7c6a0b3414d14305c4a7e8cb8f7794eb9a22",
+      "a59fb1e6901f32fe89e03d4142a05141c29e87b0",
       [
        null,
        {}
@@ -518749,7 +519193,7 @@
       ]
      ],
      "typedom.html": [
-      "51940e298d07707288d9ad6c023f274952966f21",
+      "45e463608f035e4fa3b7dd17264c929c20f26d37",
       [
        null,
        {}
@@ -519021,7 +519465,7 @@
        ]
       ],
       "marker-supported-properties.html": [
-       "203c0a640774e40bf497a6531f2b08e8362ab2f0",
+       "cb1d67b62052a8e18eaf7ae1bac41ba915e763b5",
        [
         null,
         {}
@@ -527921,15 +528365,36 @@
        {}
       ]
      ],
+     "3d-point-mapping-2-transforminterop.html": [
+      "1322fc753d1732a69096c535c23506ac09193b48",
+      [
+       null,
+       {}
+      ]
+     ],
+     "3d-point-mapping-3.html": [
+      "458ea62dd4e4b69eb29129325d960a7f67af4782",
+      [
+       null,
+       {}
+      ]
+     ],
      "3d-point-mapping-coplanar.html": [
-      "0ae0ab1ee483f627c9a1142f82d9976ce7ee5a3c",
+      "7d0288015ba8ecf30565ad83aaf915409260f115",
       [
        null,
        {}
       ]
      ],
      "3d-point-mapping-overlapping.html": [
-      "ffcfc1ae042697fc083ceb108182ba09086b4593",
+      "ea93c7e9ce1a58282d5947dd9ee48ed5778862fd",
+      [
+       null,
+       {}
+      ]
+     ],
+     "3d-point-mapping.html": [
+      "1600031f501490907ca5085f19f2dc158c145f46",
       [
        null,
        {}
@@ -529304,6 +529769,13 @@
      ],
      "transition-important.html": [
       "cae14369ba54220bd769b550bc9113ce0e7506a4",
+      [
+       null,
+       {}
+      ]
+     ],
+     "transition-in-iframe-001.html": [
+      "2e5e64de2308aa0c1f176c1d047cd178cac5d3ed",
       [
        null,
        {}
@@ -532771,7 +533243,7 @@
       ]
      ],
      "attr-security.html": [
-      "25f0a78a32803a79792a1f6ea46871f7f4d96e1c",
+      "8d7a2af6f9df1a0faec075187b3e23a96244ef17",
       [
        null,
        {}
@@ -533233,27 +533705,6 @@
        {}
       ]
      ],
-     "container-progress-computed.tentative.html": [
-      "fa0fcd7056084b35c3df2f48968f74c29235ebe9",
-      [
-       null,
-       {}
-      ]
-     ],
-     "container-progress-invalid.tentative.html": [
-      "491abf505ac5fa80afafc5aa4437db396932539a",
-      [
-       null,
-       {}
-      ]
-     ],
-     "container-progress-serialize.tentative.html": [
-      "18c76a35d969cd7695ed937de43edbdf465c0e7f",
-      [
-       null,
-       {}
-      ]
-     ],
      "dynamic-viewport-units-rule-cache.html": [
       "8afb3c51ed32ffd11656c17d6a7334475f6405f7",
       [
@@ -533360,7 +533811,7 @@
       ]
      ],
      "if-conditionals.html": [
-      "bc25196e615139e43082c00d6bb066709754ad02",
+      "a299b267af5011f94160705cbd1fe0ec2cb58e51",
       [
        null,
        {}
@@ -533459,27 +533910,6 @@
      ],
      "line-break-ch-unit.html": [
       "295b418f304a76cde4dba21a1d24022557882b18",
-      [
-       null,
-       {}
-      ]
-     ],
-     "media-progress-computed.tentative.html": [
-      "4bea3f617e37aa3eb5f0be900ad14afc216e0295",
-      [
-       null,
-       {}
-      ]
-     ],
-     "media-progress-invalid.tentative.html": [
-      "0aed208d8bd8998d719748ef71d647c954144acb",
-      [
-       null,
-       {}
-      ]
-     ],
-     "media-progress-serialize.tentative.html": [
-      "2144ddc69dbdd9581aef034ddb855c243225233a",
       [
        null,
        {}
@@ -533619,7 +534049,7 @@
       ]
      ],
      "progress-computed.html": [
-      "8eb4e2b6757e2559b76c6a641dca40f1df32e0b7",
+      "6d4e8365fb45c34c5c23a080faa92d1f4e67866b",
       [
        null,
        {}
@@ -533633,7 +534063,7 @@
       ]
      ],
      "progress-serialize.html": [
-      "49c3a3c3d56596d529ee40df71373dca1290b16b",
+      "bb16280e17d1421deb486c682d1945c52d94f744",
       [
        null,
        {}
@@ -533747,7 +534177,7 @@
       ]
      ],
      "sign-in-keyframes-with-relative-units.html": [
-      "5431c7c6241020f1c9af2808b8747d25f68f977e",
+      "2b5b73332ee048aa684b7f08c110c1f985a49b80",
       [
        null,
        {}
@@ -533859,6 +534289,13 @@
         {}
        ]
       ],
+      "sibling-index-keyframe-font-style-dynamic.html": [
+       "743bf099192bae37c965f1298e2e9a44954829b0",
+       [
+        null,
+        {}
+       ]
+      ],
       "sibling-index-keyframe-font-variation-settings-dynamic.html": [
        "d98a72a2fb219e08dac908eca790bae20fc9f234",
        [
@@ -533875,6 +534312,13 @@
       ],
       "sibling-index-keyframe-length-value-dynamic.html": [
        "cbd34602fb3c74f3cea8a1e2192d1b5687e38a05",
+       [
+        null,
+        {}
+       ]
+      ],
+      "sibling-index-keyframe-palette-mix-dynamic.html": [
+       "aef994da26e8eb0819ca7a98374d60d5eedfd1e0",
        [
         null,
         {}
@@ -533930,6 +534374,13 @@
        ]
       ]
      },
+     "typed_arithmetic.html": [
+      "f4258c3328775203b77273f4e088f8825cb8460c",
+      [
+       null,
+       {}
+      ]
+     ],
      "update-subpixel-rem-unit.html": [
       "98d4f00f92ae90165dd9b0c82cf0496523bc9c2a",
       [
@@ -542515,7 +542966,7 @@
      ]
     ],
     "debug-header.https.html": [
-     "631151bcbcfb7c6004e022b5b2a28f0c902998fc",
+     "4f384bf11952babc676d3ae23c6ec291aa736862",
      [
       null,
       {}
@@ -542543,7 +542994,7 @@
      ]
     ],
     "multiple-registrations.https.html": [
-     "d5563eb4e014f74649ce6850871d428327eb0348",
+     "ef024bd0c77a3ae432d382d8bacb694e054f250f",
      [
       null,
       {}
@@ -542585,7 +543036,7 @@
      ]
     ],
     "resolving-urls.https.html": [
-     "e502eb4b777a746fe653cfdc1582b4c6504bb4be",
+     "79f1594ba71914fd672a4065374c554820d749c1",
      [
       null,
       {}
@@ -545345,14 +545796,14 @@
       ]
      ],
      "DOMImplementation-createDocument.html": [
-      "835002b47077672583df7b364323428dd67ffee8",
+      "4550f5d0dce4f9ad7aef77dd3a6cb25e37757c99",
       [
        null,
        {}
       ]
      ],
      "DOMImplementation-createDocumentType.html": [
-      "8d23e66a2b0324ee4d4988e07ac89c9b81b8ad17",
+      "f103a8da3ceb61e9816570007ddc667398a36927",
       [
        null,
        {}
@@ -545577,14 +546028,14 @@
       ]
      ],
      "Document-createElement.html": [
-      "93435ac82d60c07dbe88b4d0bb744cd2cfd20cc9",
+      "668b58af7fa6d49dd99c4f494c2d1c948b5323c5",
       [
        null,
        {}
       ]
      ],
      "Document-createElementNS.html": [
-      "5ad81043de0717f4957b205a51d13f8dc41f41aa",
+      "03e5a7687d29a3d9c8fb832297c6c94c0ed04a53",
       [
        null,
        {}
@@ -546671,7 +547122,7 @@
       ]
      ],
      "attributes.html": [
-      "47f51dff1bccd8bc368828f6e7dde5400aa0317a",
+      "c292f8b9d94fb8f50bcc19e2614eefaefccb4146",
       [
        null,
        {}
@@ -547072,6 +547523,13 @@
         {}
        ]
       ],
+      "child-style-preserve.html": [
+       "68bdec16037fbf2748919ebc295720e20b9aaa88",
+       [
+        null,
+        {}
+       ]
+      ],
       "continue-css-animation-left.html": [
        "8c7f73e3c933ce6f6a9749281707c62e0a090d7d",
        [
@@ -547342,7 +547800,7 @@
        ]
       ]
      },
-     "name-validation.tentative.html": [
+     "name-validation.html": [
       "ca5e9c118248990c6ea629eafa41a331d79539a6",
       [
        null,
@@ -569349,7 +569807,7 @@
      ]
     ],
     "fedcm-iframe.https.html": [
-     "2c63a9973b2908a35508ffafaa576bd74cb781a0",
+     "335e1c83cb6bd4e563e27f5770b8719300ef80ee",
      [
       null,
       {
@@ -606341,14 +606799,14 @@
          ]
         ],
         "before-load-hash-twice.html": [
-         "7c8df118437d0c075b8468e9a4abef787c09a673",
+         "7c3bc4870000b61007566c8fa679b42200ba6fbb",
          [
           null,
           {}
          ]
         ],
         "before-load-hash.html": [
-         "97c4636fad7c51cb07eb71cab70048df0b4df6ee",
+         "ccbb37e58c95dc06147ddec7b58b32a7ac5c6dd1",
          [
           null,
           {}
@@ -640947,7 +641405,7 @@
         ]
        ],
        "dataset-set.html": [
-        "a5bc177f504f9aa5acbad5e67a31a9145c486dd7",
+        "fca91347d4a4f3bb2c61d98ba49fbb9194013f10",
         [
          null,
          {}
@@ -645880,6 +646338,13 @@
         {}
        ]
       ],
+      "field-sizing-select-contain-size.html": [
+       "5e80003da0999dcd7b0c3b9f492a1c1f6ccac8ee",
+       [
+        null,
+        {}
+       ]
+      ],
       "field-sizing-select.html": [
        "d55898105e8f6884dc61bddf8b8dcf91cf62c3c0",
        [
@@ -649094,6 +649559,13 @@
          {}
         ]
        ],
+       "embed-allowed-schemas.sub.window.js": [
+        "887a6339655a129ea39a887228330eeeb0739fbe",
+        [
+         "html/semantics/embedded-content/the-embed-element/embed-allowed-schemas.sub.window.html",
+         {}
+        ]
+       ],
        "embed-change-src.html": [
         "4152d51b0c6658be2b05081f02ba455da39b5343",
         [
@@ -651274,6 +651746,13 @@
         "c7a577a9d417fdc063ce0aeab21a06ca5568fc6e",
         [
          null,
+         {}
+        ]
+       ],
+       "object-allowed-schemas.sub.window.js": [
+        "aed166bf9ad93254555fd009e9dce1a897334736",
+        [
+         "html/semantics/embedded-content/the-object-element/object-allowed-schemas.sub.window.html",
          {}
         ]
        ],
@@ -654907,6 +655386,15 @@
         [
          null,
          {}
+        ]
+       ],
+       "dialog-open-movebefore-setup.html": [
+        "5e90784ecababbb6b2f17b01677d7d0a835ffe83",
+        [
+         null,
+         {
+          "testdriver": true
+         }
         ]
        ],
        "dialog-open.html": [
@@ -686830,6 +687318,24 @@
       {}
      ]
     ],
+    "edge-cases.https.html": [
+     "e2dbe0dce404249583db5c90c3d168ecfbca130e",
+     [
+      null,
+      {
+       "testdriver": true
+      }
+     ]
+    ],
+    "event-model.https.html": [
+     "f59dfb62d705a08ef79a5a53b94907dd0cfcd720",
+     [
+      null,
+      {
+       "testdriver": true
+      }
+     ]
+    ],
     "idlharness.any.js": [
      "ff0a969badace39c3c4466c4528e30c21355e132",
      [
@@ -686909,6 +687415,24 @@
      [
       null,
       {}
+     ]
+    ],
+    "revocation.https.html": [
+     "f86d69363734b9087d2f339978d67bbd456b7ac6",
+     [
+      null,
+      {
+       "testdriver": true
+      }
+     ]
+    ],
+    "worker.https.html": [
+     "05b4e25c18d16eb39a03bdfe5042ab6240539257",
+     [
+      null,
+      {
+       "testdriver": true
+      }
      ]
     ]
    },
@@ -689097,6 +689621,33 @@
       }
      ]
     ],
+    "pointerevent_boundary_events_modifier_no_pointer_movement.html": [
+     "02646f07bc718aef283add10f8bcf913188b1dbc",
+     [
+      "pointerevents/pointerevent_boundary_events_modifier_no_pointer_movement.html?Alt",
+      {
+       "testdriver": true
+      }
+     ],
+     [
+      "pointerevents/pointerevent_boundary_events_modifier_no_pointer_movement.html?Control",
+      {
+       "testdriver": true
+      }
+     ],
+     [
+      "pointerevents/pointerevent_boundary_events_modifier_no_pointer_movement.html?Meta",
+      {
+       "testdriver": true
+      }
+     ],
+     [
+      "pointerevents/pointerevent_boundary_events_modifier_no_pointer_movement.html?Shift",
+      {
+       "testdriver": true
+      }
+     ]
+    ],
     "pointerevent_bubble_ancestors_none.html": [
      "8908079cc8b3de1e8cb7892bbd39088df850a6bb",
      [
@@ -689319,18 +689870,42 @@
      ]
     ],
     "pointerevent_element_haspointercapture.html": [
-     "3db6acf8e57b0524c4b55f58faa1761927f41499",
+     "d0f73a03982ebf5430640eb891debfc42a81c58d",
      [
-      null,
+      "pointerevents/pointerevent_element_haspointercapture.html?mouse",
+      {
+       "testdriver": true
+      }
+     ],
+     [
+      "pointerevents/pointerevent_element_haspointercapture.html?pen",
+      {
+       "testdriver": true
+      }
+     ],
+     [
+      "pointerevents/pointerevent_element_haspointercapture.html?touch",
       {
        "testdriver": true
       }
      ]
     ],
     "pointerevent_element_haspointercapture_release_pending_capture.html": [
-     "e75dff867528d91d62b14ac7e48d822626deba34",
+     "26ce5837cbdec04702e3761e4d61700a0ca2b17b",
      [
-      null,
+      "pointerevents/pointerevent_element_haspointercapture_release_pending_capture.html?mouse",
+      {
+       "testdriver": true
+      }
+     ],
+     [
+      "pointerevents/pointerevent_element_haspointercapture_release_pending_capture.html?pen",
+      {
+       "testdriver": true
+      }
+     ],
+     [
+      "pointerevents/pointerevent_element_haspointercapture_release_pending_capture.html?touch",
       {
        "testdriver": true
       }
@@ -689477,6 +690052,15 @@
       {
        "testdriver": true,
        "timeout": "long"
+      }
+     ]
+    ],
+    "pointerevent_multiple_pointerover_no_pointer_movement.html": [
+     "bc7b5e825b0cf1bc25056dcd03c40ff94909b83a",
+     [
+      null,
+      {
+       "testdriver": true
       }
      ]
     ],
@@ -689832,9 +690416,21 @@
      ]
     ],
     "pointerevent_releasepointercapture_release_right_after_capture.html": [
-     "409951b918aa6ef9de4603ac97f330085080e2b7",
+     "bdae1a37a364dedf470a52da760a7a49cd0bd535",
      [
-      null,
+      "pointerevents/pointerevent_releasepointercapture_release_right_after_capture.html?mouse",
+      {
+       "testdriver": true
+      }
+     ],
+     [
+      "pointerevents/pointerevent_releasepointercapture_release_right_after_capture.html?pen",
+      {
+       "testdriver": true
+      }
+     ],
+     [
+      "pointerevents/pointerevent_releasepointercapture_release_right_after_capture.html?touch",
       {
        "testdriver": true
       }
@@ -689912,9 +690508,21 @@
      ]
     ],
     "pointerevent_setpointercapture_override_pending_capture_element.html": [
-     "f7c1d4299192f28ac8b3b99142951876f3155b45",
+     "7021153e3171cb4a0f0d90b4b0e191c98a88a604",
      [
-      null,
+      "pointerevents/pointerevent_setpointercapture_override_pending_capture_element.html?mouse",
+      {
+       "testdriver": true
+      }
+     ],
+     [
+      "pointerevents/pointerevent_setpointercapture_override_pending_capture_element.html?pen",
+      {
+       "testdriver": true
+      }
+     ],
+     [
+      "pointerevents/pointerevent_setpointercapture_override_pending_capture_element.html?touch",
       {
        "testdriver": true
       }
@@ -689948,9 +690556,21 @@
      ]
     ],
     "pointerevent_setpointercapture_to_same_element_twice.html": [
-     "5225ac508d42dca00b0a7269c8a4f95350545d64",
+     "a1cdc7dff744073ea610a6cab194cdc66f885c4c",
      [
-      null,
+      "pointerevents/pointerevent_setpointercapture_to_same_element_twice.html?mouse",
+      {
+       "testdriver": true
+      }
+     ],
+     [
+      "pointerevents/pointerevent_setpointercapture_to_same_element_twice.html?pen",
+      {
+       "testdriver": true
+      }
+     ],
+     [
+      "pointerevents/pointerevent_setpointercapture_to_same_element_twice.html?touch",
       {
        "testdriver": true
       }
@@ -705229,7 +705849,7 @@
     ],
     "tentative": {
      "document-initiated.html": [
-      "eea2bb2761d79cbf77670fbb835b2ca489ed7e7d",
+      "bbbd3afc9a5e52a48b0a62f1636e36d959abe7fa",
       [
        null,
        {}
@@ -709504,6 +710124,15 @@
       {}
      ]
     ],
+    "extend-selection-in-shadow-tree.html": [
+     "f908fe824a81fd8c32c53cd92ec44a94b00601b9",
+     [
+      null,
+      {
+       "testdriver": true
+      }
+     ]
+    ],
     "fire-selectionchange-event-on-document-if-textcontrol-element-is-in-shadow-tree.html": [
      "7f40ce716e9a720132566bdc5f2fd0543e41f1c3",
      [
@@ -709802,7 +710431,7 @@
        ]
       ],
       "Selection-getComposedRanges.html": [
-       "b433c7e415dfde464ba4ed4a2ec7e86678263658",
+       "8c0f2bb8e15cde9482c119b198abe4b643b846de",
        [
         null,
         {}
@@ -716931,6 +717560,15 @@
     ],
     "lcp": {
      "tentative": {
+      "background-image-set-image.html": [
+       "a99ba5bdd789afeb11b809b98e13c061604fc22b",
+       [
+        null,
+        {
+         "testdriver": true
+        }
+       ]
+      ],
       "broken-image-icon.html": [
        "fbfb2280dcfbad916b0b62d69e481b35256b0188",
        [
@@ -716942,6 +717580,51 @@
       ],
       "contracted-image.html": [
        "46d359a87b3fe5e99e03879cf3801e4e358e1f67",
+       [
+        null,
+        {
+         "testdriver": true
+        }
+       ]
+      ],
+      "cross-origin-image.sub.html": [
+       "78886e7b4dce1952e95d5bb05d3d1c514d85d7b5",
+       [
+        null,
+        {
+         "testdriver": true
+        }
+       ]
+      ],
+      "element-only-when-fully-active.html": [
+       "10d0f1460590fd53bee32ec3eaa59458f3c4e933",
+       [
+        null,
+        {
+         "testdriver": true
+        }
+       ]
+      ],
+      "expanded-image.html": [
+       "5d47817a07c3ea3945d71344e30737d520943287",
+       [
+        null,
+        {
+         "testdriver": true
+        }
+       ]
+      ],
+      "first-paint-equals-lcp-text.html": [
+       "ea0ceb15387ce27fc551055966865f34b7beb1b0",
+       [
+        null,
+        {
+         "testdriver": true
+        }
+       ]
+      ],
+      "iframe-content-not-observed.html": [
+       "73beb752adf07e7c6f07c4a6321b0a466aeec4d5",
        [
         null,
         {
@@ -717134,6 +717817,15 @@
         }
        ]
       ],
+      "image-src-change.html": [
+       "a9bb1dc2ceb581975bf65df2414270c3a9c2037d",
+       [
+        null,
+        {
+         "testdriver": true
+        }
+       ]
+      ],
       "lcp-unbuffered.html": [
        "cf6dd768313d8209fe15fc1fd8be6855e29c0559",
        [
@@ -717306,7 +717998,7 @@
     ],
     "prefetch": {
      "anonymous-client.https.html": [
-      "902724cdb0e08e603d0d41566a2fe889646088f0",
+      "a371255eede7305cd1f07ec9517d1a0c26f5ed2b",
       [
        null,
        {}
@@ -717364,8 +718056,18 @@
        }
       ]
      ],
+     "cross-origin-cookies-anonymous-client-ip-duplicate.https.html": [
+      "4e793c9f04aaf55f9c59cceb567c829355ce6fff",
+      [
+       null,
+       {
+        "testdriver": true,
+        "timeout": "long"
+       }
+      ]
+     ],
      "cross-origin-cookies.https.html": [
-      "95c95197a70e200542bf3691f10ee1a73a4deb76",
+      "e6785d83536a46b95095d12da8e69a4b5293c2b5",
       [
        null,
        {
@@ -717572,7 +718274,7 @@
       ]
      ],
      "navigation-timing-requestStart-responseStart.https.html": [
-      "2687b5bf2c2d0aa46a202cd0552252c2735931e4",
+      "edcd83e699764ecbd9d87430d2af0306a0945ea4",
       [
        "speculation-rules/prefetch/navigation-timing-requestStart-responseStart.https.html?include=afterResponse",
        {}
@@ -717866,7 +718568,7 @@
       ]
      },
      "out-of-document-rule-set.https.html": [
-      "b0e0253eeb786396fa42d349ff4d9518ca395eae",
+      "1421ac30ee594dca95d3e6e157e3ebebbe51e584",
       [
        "speculation-rules/prefetch/out-of-document-rule-set.https.html?include=BaseCase",
        {}
@@ -718058,7 +718760,7 @@
       ]
      ],
      "referrer-policy-from-rules.https.html": [
-      "f877bd848246fff7b2145edd106ae48af696b24b",
+      "da32465a2578d37d192a597ca0327f05b2ab2119",
       [
        "speculation-rules/prefetch/referrer-policy-from-rules.https.html?1-1",
        {}
@@ -718093,7 +718795,7 @@
       ]
      ],
      "referrer-policy-not-accepted.https.html": [
-      "8cb7388479b9a56c16c79df8e03e00aacab7bf54",
+      "24f75bb9c3c254d041c1d965f99c83f14e14c8d6",
       [
        "speculation-rules/prefetch/referrer-policy-not-accepted.https.html?1-1",
        {}
@@ -718373,7 +719075,7 @@
       }
      },
      "user-pass.https.html": [
-      "c6cc51bdb04ba860142de6a789bc30f9d36cf740",
+      "177c57d1b39a33d06ff42547b6987a29e52cf017",
       [
        "speculation-rules/prefetch/user-pass.https.html?cross-origin=false",
        {
@@ -720073,7 +720775,7 @@
     ],
     "speculation-tags": {
      "cross-site-prefetch.https.html": [
-      "b10aecf40350cf9849b6e36e577a29cd9100ee64",
+      "3eb735cec961996fbca85f6ab6008f9b86f5cc50",
       [
        null,
        {
@@ -720082,7 +720784,7 @@
       ]
      ],
      "cross-site-to-same-site-redirection-prefetch.https.html": [
-      "e264572c2f963ed1b1d63515049c33a221551ef5",
+      "5e84d179ee93f5351dc2efe2ba95f90acacaf9ff",
       [
        null,
        {
@@ -720142,7 +720844,7 @@
       ]
      ],
      "prefetch-eagerness-pointer-down.https.html": [
-      "cbf69cefba61f23b706c9b397308625467671237",
+      "b97be0d64057a58b9f68414ab388e0005db82518",
       [
        null,
        {
@@ -720152,7 +720854,7 @@
       ]
      ],
      "prefetch-eagerness-pointer-hover.https.html": [
-      "f5e749b9c6f63f80c40ed9ff7cac42570f8b8d13",
+      "b343f24a38554be23f955d21aec889a74781f2ec",
       [
        null,
        {
@@ -720171,7 +720873,7 @@
       ]
      ],
      "same-site-to-cross-site-redirection-prefetch.https.html": [
-      "27ece0cfde17716cf2846d18c825d7d1d286d538",
+      "fa04055a27b8c08216de18f0b9ce5122b4034333",
       [
        null,
        {
@@ -733711,9 +734413,15 @@
       ]
      ],
      "script.https.html": [
-      "6b4d6ae2f89fe0fe1f8ccedd208e89d5e92dec45",
+      "c58598bf236577da50a0222072128c0b96233a84",
       [
-       null,
+       "subresource-integrity/integrity-policy/script.https.html?reporting=false",
+       {
+        "timeout": "long"
+       }
+      ],
+      [
+       "subresource-integrity/integrity-policy/script.https.html?reporting=true",
        {
         "timeout": "long"
        }
@@ -738577,7 +739285,7 @@
      ]
     ],
     "TrustedTypePolicy-createXXX.html": [
-     "f51f51d98455ebccdee31a5b0d844a926b27fc0e",
+     "957a691bcd909d71b2b34a4256fe7168cd14930b",
      [
       null,
       {}
@@ -740067,6 +740775,33 @@
       "817c5d9ecc8bda182af96ad2fcf883ce737d86c7",
       [
        null,
+       {
+        "testdriver": true
+       }
+      ]
+     ],
+     "mouse_boundary_events_modifier_no_mouse_movement.html": [
+      "f7f898ece1d22fc31de35be8b2b46ab522135ffb",
+      [
+       "uievents/mouse/mouse_boundary_events_modifier_no_mouse_movement.html?Alt",
+       {
+        "testdriver": true
+       }
+      ],
+      [
+       "uievents/mouse/mouse_boundary_events_modifier_no_mouse_movement.html?Control",
+       {
+        "testdriver": true
+       }
+      ],
+      [
+       "uievents/mouse/mouse_boundary_events_modifier_no_mouse_movement.html?Meta",
+       {
+        "testdriver": true
+       }
+      ],
+      [
+       "uievents/mouse/mouse_boundary_events_modifier_no_mouse_movement.html?Shift",
        {
         "testdriver": true
        }
@@ -743302,6 +744037,13 @@
         ]
        ]
       }
+     ]
+    ],
+    "urlpattern-constructor.html": [
+     "2d83b7dc0325b43068df6dd9b7603eb0a12be8ea",
+     [
+      null,
+      {}
      ]
     ],
     "urlpattern-generate.tentative.any.js": [
@@ -758996,7 +759738,7 @@
        ]
       ],
       "ctor-convolver.html": [
-       "28a0fc1c3c75e5b5804d892798ad8f38aa3216e3",
+       "0bbb771c85d73b6c92b57b71aefb9e29f3866b69",
        [
         null,
         {}
@@ -759107,7 +759849,7 @@
      },
      "the-dynamicscompressornode-interface": {
       "ctor-dynamicscompressor.html": [
-       "c2460dfa1ddd26a5c2e199873c0b28189275ff83",
+       "5306e94282a8e3dcf4e0badb612c20ddd0273659",
        [
         null,
         {}
@@ -759222,7 +759964,7 @@
      },
      "the-mediastreamaudiodestinationnode-interface": {
       "ctor-mediastreamaudiodestination.html": [
-       "5d3fd0c26f4aa0347e2682b303d9bedbcc2b7600",
+       "7d67c1e6897c43090cd460f344ebed591f4ffe7a",
        [
         null,
         {}
@@ -779192,7 +779934,7 @@
       ]
      ],
      "qdq_subgraph.https.any.js": [
-      "b7bcdc06228075db5a54494f41f488ccf29f9207",
+      "9c7ef624f17a5e651e32c3a556aa9d63190d40a3",
       [
        "webnn/conformance_tests/qdq_subgraph.https.any.html?cpu",
        {
@@ -800542,7 +801284,7 @@
      ]
     ],
     "RTCDataChannel-close.html": [
-     "e215d95ed9a932692d066a06c05dc84d36db8215",
+     "992a490cd3908a8038a880b0cdcddf47a98dc6c4",
      [
       null,
       {
@@ -800583,7 +801325,7 @@
      ]
     ],
     "RTCDataChannel-send.html": [
-     "193f38cd780292e95daceda0aade957ac53c95cc",
+     "69bdf9dbe62b0fb081b764d5f8a39b8880d3457b",
      [
       null,
       {
@@ -801403,7 +802145,7 @@
      ]
     ],
     "RTCRtpTransceiver.https.html": [
-     "54af97aa7b85629369f6bb83ad720c4346553180",
+     "943550d4b7feeb0bc69dd02de3fec722aef4565c",
      [
       null,
       {
@@ -802342,7 +803084,7 @@
      ]
     ],
     "script-transform-sendKeyFrameRequest.https.html": [
-     "9bc75bd7a0e0894cdecab7ffb7eb70d9bf967159",
+     "b67627dcf1128785d59784363f38fdacc378ac52",
      [
       null,
       {
@@ -802725,7 +803467,7 @@
      ]
     ],
     "outbound-rtp.https.html": [
-     "196e8fd003706f9d6fe89cdaa2adf17e8fc2b30e",
+     "ff87d54256026b3b6fc6da2aa9f03a579730b330",
      [
       null,
       {
@@ -838347,13 +839089,6 @@
        {}
       ]
      ],
-     "font-variant-caps-invalidation-container-sizing.html": [
-      "54a00dc360fac3beb6c8b4fb2e8ccf372b3c5cea",
-      [
-       null,
-       {}
-      ]
-     ],
      "language-specific-01.html": [
       "dbffdc64b02962fee90d22ad4f367909eeb48ea6",
       [
@@ -838807,6 +839542,15 @@
       ],
       "text-justify-005.html": [
        "afbc036cce43268a4764e3dea75190a0ed44be3c",
+       [
+        null,
+        {}
+       ]
+      ]
+     },
+     "white-space": {
+      "text-wrap-balance-with-svg-001.html": [
+       "f129990e1ab5451203e443cf3bdf7bceec89b76b",
        [
         null,
         {}

@@ -15,7 +15,6 @@
 #include "include/core/SkPictureRecorder.h"
 #include "include/core/SkStream.h"
 #include "include/effects/SkGradientShader.h"
-#include "include/pathops/SkPathOps.h"
 #include "include/private/base/SkMutex.h"
 #include "src/base/SkScopeExit.h"
 #include "src/codec/SkCodecPriv.h"
@@ -1004,7 +1003,7 @@ sk_sp<SkTypeface> SkTypeface_Fontations::onMakeClone(const SkFontArguments& args
         return MakeFromData(fFontData, fusedArgs);
     }
 
-    // TODO(crbug.com/skia/330149870): Palette differences are not fused, see DWrite backend impl.
+    // TODO(skbug.com/330149870): Palette differences are not fused, see DWrite backend impl.
     rust::Slice<const fontations_ffi::PaletteOverride> argPaletteOverrides(
             reinterpret_cast<const fontations_ffi::PaletteOverride*>(args.getPalette().overrides),
             args.getPalette().overrideCount);

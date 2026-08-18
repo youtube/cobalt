@@ -2091,6 +2091,10 @@ class DescriptorSetDescBuilder final
                               const VkDeviceSize requiredOffsetAlignment,
                               const BufferHelper &emptyBuffer,
                               const WriteDescriptorDescs &writeDescriptorDescs);
+    void updateOneShaderBufferOffset(const size_t blockIndex,
+                                     const gl::OffsetBindingPointer<gl::Buffer> &bufferBinding,
+                                     VkDescriptorType descriptorType,
+                                     const WriteDescriptorDescs &writeDescriptorDescs);
     angle::Result updateImages(Context *context,
                                const gl::ProgramExecutable &executable,
                                const ShaderInterfaceVariableInfoMap &variableInfoMap,
@@ -2331,8 +2335,9 @@ class SharedCacheKeyManager
     bool allValidEntriesAreCached(ContextVk *contextVk) const;
 
   private:
-    size_t updateEmptySlotBits();
-    void addKeyImpl(const SharedCacheKeyT &key);
+    bool addKeyToEmptySlot(const SharedCacheKeyT &key);
+    bool releaseUnusedKeysAndReplaceWithKey(const SharedCacheKeyT &key);
+    void addKeyToNewSlot(const SharedCacheKeyT &key);
 
     bool containsKeyWithOwnerEqual(const SharedCacheKeyT &key) const;
     void assertAllEntriesDestroyed() const;

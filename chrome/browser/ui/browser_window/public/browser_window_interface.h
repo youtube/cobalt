@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "content/public/browser/page_navigator.h"
 
@@ -185,6 +186,7 @@ class BrowserWindowInterface : public content::PageNavigator {
   //   that is conceptually a BrowserWindowFeature and needs access to other
   //   BrowserWindowFeature.
   virtual BrowserWindowFeatures& GetFeatures() = 0;
+  virtual const BrowserWindowFeatures& GetFeatures() const = 0;
 
   // Returns the web contents modal dialog host pertaining to this
   // BrowserWindow.

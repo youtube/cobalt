@@ -1257,12 +1257,22 @@ optional("graphite") {
   }
 }
 
+skia_component("clipstack_utils") {
+  deps = [
+    ":skia",
+    "//modules/pathops",
+  ]
+  sources = skia_clipstack_utils_sources
+}
+
 optional("pdf") {
-  enabled = skia_use_zlib && skia_enable_pdf && skia_use_libjpeg_turbo_decode &&
-            skia_use_libjpeg_turbo_encode
+  enabled = skia_use_zlib && skia_enable_pdf
   public_defines = [ "SK_SUPPORT_PDF" ]
 
-  deps = [ "//third_party/zlib" ]
+  deps = [
+    ":clipstack_utils",
+    "//third_party/zlib",
+  ]
   public = skia_pdf_public
   sources = skia_pdf_sources
   sources_when_disabled = [ "src/pdf/SkDocument_PDF_None.cpp" ]
@@ -1286,6 +1296,7 @@ optional("pdf_jpeg_helpers") {
 optional("xps") {
   enabled = skia_use_xps && is_win
   public_defines = [ "SK_SUPPORT_XPS" ]
+  deps = [ ":clipstack_utils" ]
   public = skia_xps_public
   sources = skia_xps_sources
 }
@@ -1661,11 +1672,8 @@ skia_component("skia") {
     ":gpu",
     ":graphite",
     ":jpeg_encode",
-    ":pdf",
-    ":pdf_jpeg_helpers",
     ":png_encode_libpng",
     ":webp_encode",
-    ":xps",
   ]
 
   deps = [
@@ -1722,6 +1730,10 @@ skia_component("skia") {
     "src/sfnt/SkOTTable_name.cpp",
     "src/sfnt/SkOTUtils.cpp",
   ]
+
+  # TODO(fmalita): remove from skia_utils_private after clients are migrated to
+  # skia_clipstack_utils_sources
+  sources -= skia_clipstack_utils_sources
 
   defines = []
   libs = []
@@ -1851,74 +1863,10 @@ if (is_wasm) {
   }
 }
 
-skia_static_library("pathkit") {
-  check_includes = false
-  public_configs = [ ":skia_public" ]
-  configs = skia_library_configs
-
-  deps = [ ":hsw" ]
-
-  sources = []
-  sources += skia_legacy_pathops_sources
-  sources += skia_legacy_pathops_public
-  sources += [
-    "src/base/SkArenaAlloc.cpp",
-    "src/base/SkBezierCurves.cpp",
-    "src/base/SkContainers.cpp",
-    "src/base/SkCubics.cpp",
-    "src/base/SkFloatingPoint.cpp",
-    "src/base/SkMalloc.cpp",
-    "src/base/SkMathPriv.cpp",
-    "src/base/SkQuads.cpp",
-    "src/base/SkSafeMath.cpp",
-    "src/base/SkSemaphore.cpp",
-    "src/base/SkTDArray.cpp",
-    "src/base/SkThreadID.cpp",
-    "src/base/SkUTF.cpp",
-    "src/base/SkUtils.cpp",
-    "src/core/SkAnalyticEdge.cpp",
-    "src/core/SkContourMeasure.cpp",
-    "src/core/SkCubicMap.cpp",
-    "src/core/SkEdge.cpp",
-    "src/core/SkEdgeBuilder.cpp",
-    "src/core/SkEdgeClipper.cpp",
-    "src/core/SkGeometry.cpp",
-    "src/core/SkIDChangeListener.cpp",
-    "src/core/SkLineClipper.cpp",
-    "src/core/SkMallocPixelRef.cpp",
-    "src/core/SkMatrix.cpp",
-    "src/core/SkOpts.cpp",
-    "src/core/SkPaint.cpp",
-    "src/core/SkPaintPriv.cpp",
-    "src/core/SkPath.cpp",
-    "src/core/SkPathBuilder.cpp",
-    "src/core/SkPathEffect.cpp",
-    "src/core/SkPathMeasure.cpp",
-    "src/core/SkPathRef.cpp",
-    "src/core/SkPathUtils.cpp",
-    "src/core/SkPoint.cpp",
-    "src/core/SkRRect.cpp",
-    "src/core/SkReadBuffer.cpp",
-    "src/core/SkRect.cpp",
-    "src/core/SkStream.cpp",
-    "src/core/SkString.cpp",
-    "src/core/SkStringUtils.cpp",
-    "src/core/SkStroke.cpp",
-    "src/core/SkStrokeRec.cpp",
-    "src/core/SkStrokerPriv.cpp",
-    "src/effects/SkDashPathEffect.cpp",
-    "src/effects/SkTrimPathEffect.cpp",
-    "src/ports/SkDebug_stdio.cpp",
-    "src/ports/SkMemory_malloc.cpp",
-    "src/utils/SkDashPath.cpp",
-    "src/utils/SkParse.cpp",
-    "src/utils/SkParsePath.cpp",
-  ]
-}
-
 group("modules") {
   deps = [
     "modules/bentleyottmann",
+    "modules/pathops",
     "modules/skottie",
     "modules/skparagraph",
     "modules/skshaper",
@@ -1956,6 +1904,7 @@ if (skia_enable_tools) {
     "include/svg",
     "include/utils",
     "include/utils/mac",
+    "modules/pathops/include",
     "modules/skottie/include",
     "modules/skparagraph/include",
     "modules/skshaper/include",
@@ -2001,8 +1950,11 @@ if (skia_enable_tools) {
       deps = [
         ":flags",
         ":gpu_tool_utils",
+        ":pdf",
+        ":pdf_jpeg_helpers",
         ":skia",
         ":skia.h",
+        "modules/pathops",
         "modules/skottie",
         "modules/skparagraph",
         "modules/skshaper",
@@ -2031,6 +1983,7 @@ if (skia_enable_tools) {
     deps = [
       ":skia",
       ":skia.h",
+      "modules/pathops",
       "modules/skottie",
       "modules/skshaper",
     ]
@@ -2487,6 +2440,7 @@ if (skia_enable_tools) {
       ":flags",
       ":skia",
       ":tool_utils",
+      "modules/pathops",
       "modules/skottie",
       "modules/skottie:gm",
       "modules/skparagraph",
@@ -2604,6 +2558,8 @@ if (skia_enable_tools) {
       ":flags",
       ":gm",
       ":gpu_tool_utils",
+      ":pdf",
+      ":pdf_jpeg_helpers",
       ":skia",
       ":tool_utils",
       "modules/skparagraph:bench",
@@ -2676,10 +2632,14 @@ if (skia_enable_tools) {
         ":gm",
         ":gpu_tool_utils",
         ":hash_and_encode",
+        ":pdf",
+        ":pdf_jpeg_helpers",
         ":skia",
         ":tests",
         ":tool_utils",
         ":trace",
+        ":xps",
+        "modules/pathops",
         "modules/skottie",
         "modules/skottie:utils",
         "modules/skshaper",
@@ -2791,7 +2751,10 @@ if (skia_enable_tools) {
     test_app("sktexttopdf") {
       sources = [ "tools/using_skia_and_harfbuzz.cpp" ]
       deps = [
+        ":pdf",
+        ":pdf_jpeg_helpers",
         ":skia",
+        "modules/pathops",
         "modules/skshaper",
       ]
     }
@@ -2890,6 +2853,8 @@ if (skia_enable_tools) {
     deps = [
       ":flags",
       ":gpu_tool_utils",
+      ":pdf",
+      ":pdf_jpeg_helpers",
       ":skia",
       "modules/jsonreader",
       "modules/skottie:fuzz",
@@ -2938,6 +2903,8 @@ if (skia_enable_tools) {
       ]
       deps = [
         ":gm",
+        ":pdf",
+        ":pdf_jpeg_helpers",
         ":skia",
         ":tests",
         ":tool_utils",
@@ -3117,6 +3084,8 @@ if (skia_enable_tools) {
         ]
       }
       deps = [
+        ":pdf",
+        ":pdf_jpeg_helpers",
         ":skia",
         ":skia.h",
         "modules/skottie",
@@ -3337,6 +3306,8 @@ if (skia_enable_tools) {
         deps += [
           ":flags",
           ":gpu_tool_utils",
+          ":pdf",
+          ":pdf_jpeg_helpers",
           ":skia",
           ":tool_utils",
         ]

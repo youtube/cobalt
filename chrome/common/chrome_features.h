@@ -245,6 +245,22 @@ COMPONENT_EXPORT(CHROME_FEATURES)
 // sample from the chosen deviation. The value should be less than 1.
 extern const base::FeatureParam<double> kGlicUserStatusRequestDelayJitter;
 
+enum class GlicEnterpriseCheckStrategy {
+  // Use ManagementService to check if the account is managed.
+  kPolicy,
+  // Use AccountManagedStatusFinder to check if the account is managed.
+  kManaged,
+};
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<GlicEnterpriseCheckStrategy>
+    kGlicUserStatusEnterpriseCheckStrategy;
+
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<bool> kGlicUserStatusRefreshApi;
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<base::TimeDelta>
+    kGlicUserStatusThrottleInterval;
+
 COMPONENT_EXPORT(CHROME_FEATURES) BASE_DECLARE_FEATURE(kGlicFreURLConfig);
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<std::string> kGlicFreURL;
@@ -261,6 +277,9 @@ COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<std::string> kGlicLocationToggleLearnMoreURL;
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<std::string> kGlicTabAccessToggleLearnMoreURL;
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<std::string>
+    kGlicTabAccessToggleLearnMoreURLDataProtected;
 
 COMPONENT_EXPORT(CHROME_FEATURES) BASE_DECLARE_FEATURE(kGlicCSPConfig);
 COMPONENT_EXPORT(CHROME_FEATURES)
@@ -328,10 +347,6 @@ BASE_DECLARE_FEATURE(kGlicExplicitBackgroundColor);
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kGlicPanelResetTopChromeButton);
 COMPONENT_EXPORT(CHROME_FEATURES)
-extern const base::FeatureParam<bool> kGlicPanelResetTopChromeButtonOnOpen;
-COMPONENT_EXPORT(CHROME_FEATURES)
-extern const base::FeatureParam<bool> kGlicPanelResetTopChromeButtonAnimate;
-COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<int> kGlicPanelResetTopChromeButtonDelayMs;
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kGlicPanelResetOnStart);
@@ -350,6 +365,23 @@ BASE_DECLARE_FEATURE(kGlicUseShaderCache);
 
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kGlicTabGlow);
+
+COMPONENT_EXPORT(CHROME_FEATURES)
+BASE_DECLARE_FEATURE(kGlicParameterizedShader);
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<std::string> kGlicParameterizedShaderColors;
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<std::string> kGlicParameterizedShaderFloats;
+
+COMPONENT_EXPORT(CHROME_FEATURES)
+BASE_DECLARE_FEATURE(kGlicTabFocusDataDedupDebounce);
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<int> kGlicTabFocusDataDebounceDelayMs;
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<int> kGlicTabFocusDataMaxDebounces;
+
+COMPONENT_EXPORT(CHROME_FEATURES)
+BASE_DECLARE_FEATURE(kGlicAssetsV2);
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
 COMPONENT_EXPORT(CHROME_FEATURES)
@@ -540,6 +572,9 @@ BASE_DECLARE_FEATURE(kImmersiveFullscreenPWAs);
 COMPONENT_EXPORT(CHROME_FEATURES) BASE_DECLARE_FEATURE(kFullscreenAnimateTabs);
 #endif
 
+COMPONENT_EXPORT(CHROME_FEATURES)
+BASE_DECLARE_FEATURE(kIncognitoFingerprintingInterventions);
+
 #if BUILDFLAG(IS_WIN)
 // Only has an effect in branded builds.
 COMPONENT_EXPORT(CHROME_FEATURES)
@@ -655,9 +690,6 @@ BASE_DECLARE_FEATURE(kOverridePrefetchOnSingleton);
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
-COMPONENT_EXPORT(CHROME_FEATURES)
-BASE_DECLARE_FEATURE(kSkipParentAccessCodeForReauth);
-
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kPeriodicLogUploadMigration);
 
@@ -1108,8 +1140,6 @@ BASE_DECLARE_FEATURE(kWin10AcceleratedDefaultBrowserFlow);
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_CHROMEOS)
-COMPONENT_EXPORT(CHROME_FEATURES)
-bool IsParentAccessCodeForReauthEnabled();
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kSupportsRtcWakeOver24Hours);
 #endif  // BUILDFLAG(IS_CHROMEOS)

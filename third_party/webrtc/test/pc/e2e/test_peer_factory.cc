@@ -16,15 +16,12 @@
 #include <utility>
 #include <vector>
 
-#include "absl/base/nullability.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/audio/audio_device.h"
 #include "api/enable_media_with_defaults.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
-#include "api/field_trials.h"
-#include "api/field_trials_view.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_event_log/rtc_event_log_factory.h"
 #include "api/scoped_refptr.h"
@@ -41,7 +38,6 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/system/file_wrapper.h"
 #include "rtc_base/thread.h"
-#include "system_wrappers/include/field_trial.h"
 #include "test/pc/e2e/analyzer/video/quality_analyzing_video_encoder.h"
 #include "test/pc/e2e/analyzer/video/video_quality_analyzer_injection_helper.h"
 #include "test/pc/e2e/echo/echo_emulation.h"
@@ -57,36 +53,6 @@ using EmulatedSFUConfigMap =
 
 constexpr int16_t kGeneratedAudioMaxAmplitude = 32000;
 constexpr int kDefaultSamplingFrequencyInHz = 48000;
-
-// TODO: bugs.webrtc.org/419453427 - Remove this combiner when users of the PCLF
-// both stop passing field trials as single FieldTrialsView, and stop relying
-// on the global field trial string.
-class FieldTrialsCombiner : public FieldTrialsView {
- public:
-  FieldTrialsCombiner(absl_nullable std::unique_ptr<FieldTrialsView> trials,
-                      absl_nonnull std::unique_ptr<FieldTrials> field_trials)
-      : trials_(std::move(trials)), field_trials_(std::move(field_trials)) {}
-
-  std::string Lookup(absl::string_view key) const override {
-    if (trials_ != nullptr) {
-      if (std::string value = trials_->Lookup(key); !value.empty()) {
-        return value;
-      }
-    }
-
-    if (std::string value = field_trials_->Lookup(key); !value.empty()) {
-      return value;
-    }
-
-    // Fallback to the global field trial string while some users of the PCLF
-    // sets it.
-    return field_trial::FindFullName(key);
-  }
-
- private:
-  absl_nullable std::unique_ptr<FieldTrialsView> trials_;
-  absl_nonnull std::unique_ptr<FieldTrials> field_trials_;
-};
 
 // Sets mandatory entities in injectable components like `pcf_dependencies`
 // and `pc_dependencies` if they are omitted. Also setup required
@@ -326,12 +292,7 @@ std::unique_ptr<TestPeer> TestPeerFactory::CreateTestPeer(
   params->rtc_configuration.sdp_semantics = SdpSemantics::kUnifiedPlan;
 
   const Environment env = CreateEnvironment(
-      std::make_unique<FieldTrialsCombiner>(
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-          std::move(components->pcf_dependencies->trials),
-#pragma clang diagnostic pop
-          std::move(components->pcf_dependencies->field_trials)),
+      std::move(components->pcf_dependencies->field_trials),
       time_controller_.GetClock(), time_controller_.GetTaskQueueFactory());
 
   // Create peer connection factory.

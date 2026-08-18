@@ -35,12 +35,12 @@ namespace {
 // The factor of 2 handles wb, and the + 1 is as a safety margin
 #define MAX_RESAMP_LEN (5 * FRAME_LEN)
 
-static const size_t kBufSizeSamp =
+const size_t kBufSizeSamp =
     BUF_SIZE_FRAMES * FRAME_LEN;  // buffer size (samples)
-static const int kSampMsNb = 8;   // samples per ms in nb
+const int kSampMsNb = 8;          // samples per ms in nb
 // Target suppression levels for nlp modes
 // log{0.001, 0.00001, 0.00000001}
-static const int kInitCheck = 42;
+const int kInitCheck = 42;
 
 typedef struct {
   int sampFreq;

@@ -40,6 +40,7 @@
 #include "src/base/platform/memory.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
+#include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/base/vector.h"
 #include "src/builtins/accessors.h"
@@ -6327,6 +6328,69 @@ void v8::Object::Wrap(v8::Isolate* isolate, i::Address wrapper_obj,
                            tag);
 }
 
+namespace {
+
+// Checks that given prototype is a valid hidden prototype of JSGlobalProxy.
+// It must be either JSGlobalObject or remote object.
+void CheckPrototypeIsGlobalObjectOrRemoteObject(
+    i::Tagged<i::JSPrototype> prototype) {
+  CHECK(i::IsJSSpecialObject(prototype));
+  auto prototype_obj = i::Cast<i::JSSpecialObject>(prototype);
+  CHECK(i::IsJSGlobalObject(prototype_obj) ||
+        i::IsNull(prototype_obj->map()->map()->native_context_or_null()));
+}
+
+}  // namespace
+
+// static
+void v8::Object::WrapGlobal(v8::Isolate* isolate,
+                            const v8::Local<v8::Object>& wrapper,
+                            Wrappable* wrappable, CppHeapPointerTag tag) {
+  auto global_proxy = i::Cast<i::JSObject>(
+      i::Tagged<i::Object>(internal::ValueHelper::ValueAsAddress(*wrapper)));
+  CHECK(i::IsJSGlobalProxy(global_proxy));
+
+  auto prototype = global_proxy->map()->prototype();
+  CheckPrototypeIsGlobalObjectOrRemoteObject(prototype);
+
+  i::CppHeapObjectWrapper(global_proxy)
+      .SetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), wrappable,
+                           tag);
+  i::CppHeapObjectWrapper(i::Cast<i::JSObject>(prototype))
+      .SetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), wrappable,
+                           tag);
+}
+
+// static
+bool v8::Object::CheckGlobalWrappable(v8::Isolate* isolate,
+                                      const v8::Local<v8::Object>& wrapper,
+                                      CppHeapPointerTagRange tag_range) {
+  auto global_proxy = i::Cast<i::JSObject>(
+      i::Tagged<i::Object>(internal::ValueHelper::ValueAsAddress(*wrapper)));
+  Utils::ApiCheck(i::IsJSGlobalProxy(global_proxy),
+                  "v8::Object::CheckGlobalWrappable",
+                  "Bad object provided, expecting JSGlobalProxy");
+
+  auto prototype = global_proxy->map()->prototype();
+  CheckPrototypeIsGlobalObjectOrRemoteObject(prototype);
+
+  void* global_proxy_wrappable =
+      i::CppHeapObjectWrapper(global_proxy)
+          .GetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate),
+                               tag_range);
+
+  void* hidden_prototype_wrappable =
+      i::CppHeapObjectWrapper(i::Cast<i::JSObject>(prototype))
+          .GetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate),
+                               tag_range);
+
+  Utils::ApiCheck(
+      global_proxy_wrappable == hidden_prototype_wrappable,
+      "v8::Object::CheckGlobalWrappable",
+      "Global object's wrappable is not equal hidden prototype's wrappable");
+  return true;
+}
+
 // --- E n v i r o n m e n t ---
 
 void v8::V8::InitializePlatform(Platform* platform) {
@@ -9530,6 +9594,24 @@ Local<Private> v8::Private::ForApi(Isolate* v8_isolate, Local<String> name) {
   return result.UnsafeAs<Private>();
 }
 
+Local<Number> v8::Number::NewFromInt32(Isolate* v8_isolate, int32_t value) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i::DisallowJavascriptExecutionDebugOnly no_execution(i_isolate);
+  i::DisallowExceptionsDebugOnly no_exceptions(i_isolate);
+  i::DirectHandle<i::Object> result =
+      i_isolate->factory()->NewNumberFromInt(value);
+  return Utils::NumberToLocal(result);
+}
+
+Local<Number> v8::Number::NewFromUint32(Isolate* v8_isolate, uint32_t value) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i::DisallowJavascriptExecutionDebugOnly no_execution(i_isolate);
+  i::DisallowExceptionsDebugOnly no_exceptions(i_isolate);
+  i::DirectHandle<i::Object> result =
+      i_isolate->factory()->NewNumberFromUint(value);
+  return Utils::NumberToLocal(result);
+}
+
 Local<Number> v8::Number::New(Isolate* v8_isolate, double value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i::DisallowJavascriptExecutionDebugOnly no_execution(i_isolate);
@@ -11093,22 +11175,38 @@ String::Value::~Value() { i::DeleteArray(str_); }
 String::ValueView::ValueView(v8::Isolate* v8_isolate,
                              v8::Local<v8::String> str) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i::HandleScope scope(i_isolate);
   i::DirectHandle<i::String> i_str = Utils::OpenDirectHandle(*str);
-  i::DirectHandle<i::String> i_flat_str = i::String::Flatten(i_isolate, i_str);
 
-  flat_str_ = Utils::ToLocal(i_flat_str);
-
-  i::DisallowGarbageCollectionInRelease* no_gc =
-      new (no_gc_debug_scope_) i::DisallowGarbageCollectionInRelease();
-  i::String::FlatContent flat_content = i_flat_str->GetFlatContent(*no_gc);
-  DCHECK(flat_content.IsFlat());
-  is_one_byte_ = flat_content.IsOneByte();
-  length_ = flat_content.length();
-  if (is_one_byte_) {
-    data8_ = flat_content.ToOneByteVector().data();
+  // If the underlying string is flat, we can access its content directly.
+  // Otherwise, we need to create a handle scope to flatten the string.
+  if (i_str->IsFlat()) {
+    i::DisallowGarbageCollectionInRelease* no_gc =
+        new (no_gc_debug_scope_) i::DisallowGarbageCollectionInRelease();
+    i::String::FlatContent flat_content = i_str->GetFlatContent(*no_gc);
+    flat_str_ = str;
+    is_one_byte_ = flat_content.IsOneByte();
+    length_ = flat_content.length();
+    if (is_one_byte_) {
+      data8_ = flat_content.ToOneByteVector().data();
+    } else {
+      data16_ = flat_content.ToUC16Vector().data();
+    }
   } else {
-    data16_ = flat_content.ToUC16Vector().data();
+    i::HandleScope scope(i_isolate);
+    i::DirectHandle<i::String> i_flat_str =
+        i::String::Flatten(i_isolate, i_str);
+    flat_str_ = Utils::ToLocal(i_flat_str);
+    i::DisallowGarbageCollectionInRelease* no_gc =
+        new (no_gc_debug_scope_) i::DisallowGarbageCollectionInRelease();
+    i::String::FlatContent flat_content = i_flat_str->GetFlatContent(*no_gc);
+    DCHECK(flat_content.IsFlat());
+    is_one_byte_ = flat_content.IsOneByte();
+    length_ = flat_content.length();
+    if (is_one_byte_) {
+      data8_ = flat_content.ToOneByteVector().data();
+    } else {
+      data16_ = flat_content.ToUC16Vector().data();
+    }
   }
 }
 

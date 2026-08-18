@@ -56,7 +56,7 @@ class MockVideoStreamEncoder : public VideoStreamEncoderInterface {
               (override));
   MOCK_METHOD(void,
               OnBitrateUpdated,
-              (DataRate, DataRate, DataRate, uint8_t, int64_t, double),
+              (DataRate, DataRate, uint8_t, int64_t, double),
               (override));
   MOCK_METHOD(void,
               SetFecControllerOverride,

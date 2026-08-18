@@ -39,8 +39,8 @@ namespace {
 // Fake auth tag written by the sender when external authentication is enabled.
 // HMAC in packet will be compared against this value before updating packet
 // with actual HMAC value.
-static const uint8_t kFakeAuthTag[10] = {0xba, 0xdd, 0xba, 0xdd, 0xba,
-                                         0xdd, 0xba, 0xdd, 0xba, 0xdd};
+const uint8_t kFakeAuthTag[10] = {0xba, 0xdd, 0xba, 0xdd, 0xba,
+                                  0xdd, 0xba, 0xdd, 0xba, 0xdd};
 
 void UpdateAbsSendTimeExtensionValue(uint8_t* extension_data,
                                      size_t length,

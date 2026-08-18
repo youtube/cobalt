@@ -34,9 +34,9 @@
 namespace dcsctp {
 namespace dcsctp_fuzzers {
 namespace {
-static constexpr int kRandomValue = FuzzerCallbacks::kRandomValue;
-static constexpr size_t kMinInputLength = 5;
-static constexpr size_t kMaxInputLength = 1024;
+constexpr int kRandomValue = FuzzerCallbacks::kRandomValue;
+constexpr size_t kMinInputLength = 5;
+constexpr size_t kMaxInputLength = 1024;
 
 // A starting state for the socket, when fuzzing.
 enum class StartingState : int {

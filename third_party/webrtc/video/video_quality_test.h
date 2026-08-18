@@ -55,8 +55,7 @@ namespace webrtc {
 class VideoQualityTest : public test::CallTest,
                          public VideoQualityTestFixtureInterface {
  public:
-  explicit VideoQualityTest(
-      std::unique_ptr<InjectionComponents> injection_components);
+  explicit VideoQualityTest(InjectionComponents injection_components = {});
 
   void RunWithAnalyzer(const Params& params) override;
   void RunWithRenderers(const Params& params) override;
@@ -119,7 +118,6 @@ class VideoQualityTest : public test::CallTest,
   virtual std::unique_ptr<test::LayerFilteringTransport> CreateSendTransport();
   virtual std::unique_ptr<test::DirectTransport> CreateReceiveTransport();
 
-  const Environment env_;
   std::vector<std::unique_ptr<VideoSourceInterface<VideoFrame>>>
       thumbnail_capturers_;
   RtcEventLogFactory rtc_event_log_factory_;
@@ -141,7 +139,7 @@ class VideoQualityTest : public test::CallTest,
   int send_logs_;
 
   Params params_;
-  std::unique_ptr<InjectionComponents> injection_components_;
+  InjectionComponents injection_components_;
 
   // Set non-null when running with analyzer.
   std::unique_ptr<VideoAnalyzer> analyzer_;

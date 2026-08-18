@@ -183,11 +183,11 @@ int RSA_verify_PKCS1_PSS_mgf1(const RSA *rsa, const uint8_t *mHash,
   //   -2      salt length is autorecovered from signature
   //   -N      reserved
   size_t hLen = EVP_MD_size(Hash);
-  if (sLen == -1) {
+  if (sLen == RSA_PSS_SALTLEN_DIGEST) {
     sLen = (int)hLen;
-  } else if (sLen == -2) {
-    sLen = -2;
-  } else if (sLen < -2) {
+  } else if (sLen == RSA_PSS_SALTLEN_AUTO) {
+    // Leave |sLen| negative.
+  } else if (sLen < 0) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_SLEN_CHECK_FAILED);
     goto err;
   }
@@ -304,9 +304,9 @@ int RSA_padding_add_PKCS1_PSS_mgf1(const RSA *rsa, unsigned char *EM,
   //   -2  salt length is maximized
   //   -N  reserved
   size_t sLen;
-  if (sLenRequested == -1) {
+  if (sLenRequested == RSA_PSS_SALTLEN_DIGEST) {
     sLen = hLen;
-  } else if (sLenRequested == -2) {
+  } else if (sLenRequested == RSA_PSS_SALTLEN_AUTO) {
     sLen = emLen - hLen - 2;
   } else if (sLenRequested < 0) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_SLEN_CHECK_FAILED);

@@ -52,6 +52,29 @@ using OpenOutcome = media::AudioInputStream::OpenOutcome;
 const int kMaxInputChannels = 3;
 constexpr base::TimeDelta kCheckMutedStateInterval = base::Seconds(1);
 
+#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+using ReferenceOpenOutcome = ReferenceSignalProvider::ReferenceOpenOutcome;
+
+InputController::ErrorCode MapReferenceOpenOutcomeToInputErrorCode(
+    ReferenceOpenOutcome open_outcome) {
+  CHECK(open_outcome != ReferenceOpenOutcome::SUCCESS);
+  switch (open_outcome) {
+    case ReferenceOpenOutcome::STREAM_CREATE_ERROR:
+      return InputController::REFERENCE_STREAM_CREATE_ERROR;
+    case ReferenceOpenOutcome::STREAM_OPEN_ERROR:
+      return InputController::REFERENCE_STREAM_OPEN_ERROR;
+    case ReferenceOpenOutcome::STREAM_OPEN_SYSTEM_PERMISSIONS_ERROR:
+      return InputController::REFERENCE_STREAM_OPEN_SYSTEM_PERMISSIONS_ERROR;
+    case ReferenceOpenOutcome::STREAM_OPEN_DEVICE_IN_USE_ERROR:
+      return InputController::REFERENCE_STREAM_OPEN_DEVICE_IN_USE_ERROR;
+    case ReferenceOpenOutcome::STREAM_PREVIOUS_ERROR:
+      return InputController::REFERENCE_STREAM_ERROR;
+    default:
+      NOTREACHED();
+  }
+}
+#endif
+
 #if defined(AUDIO_POWER_MONITORING)
 // Time in seconds between two successive measurements of audio power levels.
 constexpr base::TimeDelta kPowerMonitorLogInterval = base::Seconds(15);
@@ -216,12 +239,13 @@ void InputController::MaybeSetUpAudioProcessing(
     const media::AudioParameters& device_params,
     std::unique_ptr<ReferenceSignalProvider> reference_signal_provider,
     media::AecdumpRecordingManager* aecdump_recording_manager) {
-  if (!reference_signal_provider) {
+  if (!processing_config) {
     return;
   }
-
-  if (!(processing_config &&
-        processing_config->settings.NeedWebrtcAudioProcessing())) {
+  // If audio processing is configured there should always be a
+  // ReferenceSignalProvider in case AEC is requested.
+  CHECK(reference_signal_provider);
+  if (!processing_config->settings.NeedWebrtcAudioProcessing()) {
     return;
   }
 
@@ -248,25 +272,26 @@ void InputController::MaybeSetUpAudioProcessing(
                           base::Unretained(event_handler_)),
       base::BindRepeating(&InputController::DeliverProcessedAudio,
                           base::Unretained(this)),
+      // AudioProcessorHandler delivers errors on the main thread.
+      base::BindRepeating(&InputController::DoReportError, weak_this_,
+                          REFERENCE_STREAM_ERROR),
       std::move(processing_config->controls_receiver),
       aecdump_recording_manager);
 
-  // If the required processing is lightweight, there is no need to offload work
-  // to a new thread.
+  // If we are not running echo cancellation the processing is lightweight, so
+  // there is no need to offload work to a new thread.
   if (!audio_processor_handler_->needs_playout_reference()) {
     return;
   }
 
-  if (media::IsChromeWideEchoCancellationEnabled()) {
-    // base::Unretained() is safe since both |audio_processor_handler_| and
-    // |event_handler_| outlive |processing_fifo_|.
-    processing_fifo_ = std::make_unique<ProcessingAudioFifo>(
-        *processing_input_params, kProcessingFifoSize,
-        base::BindRepeating(&AudioProcessorHandler::ProcessCapturedAudio,
-                            base::Unretained(audio_processor_handler_.get())),
-        base::BindRepeating(&EventHandler::OnLog,
-                            base::Unretained(event_handler_.get())));
-  }
+  // base::Unretained() is safe since both |audio_processor_handler_| and
+  // |event_handler_| outlive |processing_fifo_|.
+  processing_fifo_ = std::make_unique<ProcessingAudioFifo>(
+      *processing_input_params, kProcessingFifoSize,
+      base::BindRepeating(&AudioProcessorHandler::ProcessCapturedAudio,
+                          base::Unretained(audio_processor_handler_.get())),
+      base::BindRepeating(&EventHandler::OnLog,
+                          base::Unretained(event_handler_.get())));
 
   // Unretained() is safe, since |event_handler_| outlives |output_tapper_|.
   output_tapper_ = std::make_unique<OutputTapper>(
@@ -328,6 +353,22 @@ void InputController::Record() {
 
   event_handler_->OnLog("AIC::Record()");
 
+#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+  if (output_tapper_) {
+    ReferenceOpenOutcome reference_open_outcome = output_tapper_->Start();
+    if (reference_open_outcome != ReferenceOpenOutcome::SUCCESS) {
+      // The AEC reference stream failed to start.
+      DoReportError(
+          MapReferenceOpenOutcomeToInputErrorCode(reference_open_outcome));
+      return;
+    }
+  }
+
+  if (processing_fifo_) {
+    processing_fifo_->Start();
+  }
+#endif
+
   stream_create_time_ = base::TimeTicks::Now();
 
   // Unretained() is safe, since |this| outlives |audio_callback_|.
@@ -342,20 +383,11 @@ void InputController::Record() {
           task_runner_,
           base::BindOnce(&InputController::ReportIsAlive, weak_this_)),
       /*on_error_callback=*/
-      base::BindPostTask(
-          task_runner_,
-          base::BindRepeating(&InputController::DoReportError, weak_this_)));
-
-#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
-  if (processing_fifo_)
-    processing_fifo_->Start();
-
-  if (output_tapper_)
-    output_tapper_->Start();
-#endif
+      base::BindPostTask(task_runner_,
+                         base::BindRepeating(&InputController::DoReportError,
+                                             weak_this_, STREAM_ERROR)));
 
   stream_->Start(audio_callback_.get());
-  return;
 }
 
 void InputController::Close() {
@@ -560,9 +592,9 @@ void InputController::DoCreate(media::AudioManager* audio_manager,
   DCHECK(check_muted_state_timer_.IsRunning());
 }
 
-void InputController::DoReportError() {
+void InputController::DoReportError(ErrorCode error_code) {
   DCHECK(task_runner_->BelongsToCurrentThread());
-  event_handler_->OnError(STREAM_ERROR);
+  event_handler_->OnError(error_code);
 }
 
 void InputController::DoLogAudioLevels(float level_dbfs,

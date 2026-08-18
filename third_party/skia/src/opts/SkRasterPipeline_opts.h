@@ -279,7 +279,7 @@ namespace SK_OPTS_NS {
     SI V<T> gather(const T* ptr, U32 ix) {
         // The compiler assumes ptr is aligned, which caused crashes on some
         // arm32 chips because a register was marked as "aligned to 32 bits"
-        // incorrectly. https://crbug.com/skia/409859319
+        // incorrectly. skbug.com/409859319
         SkASSERTF(reinterpret_cast<uintptr_t>(ptr) % alignof(T) == 0,
                  "Should use gather_unaligned");
         return V<T>{ptr[ix[0]], ptr[ix[1]], ptr[ix[2]], ptr[ix[3]]};
@@ -2844,6 +2844,17 @@ HIGHP_STAGE(HLGinvish, const skcms_TransferFunction* ctx) {
     r = fn(r);
     g = fn(g);
     b = fn(b);
+}
+
+HIGHP_STAGE(ootf, const float* ctx) {
+    F Y = ctx[0] * r + ctx[1] * g + ctx[2] * b;
+
+    U32 sign;
+    Y = strip_sign(Y, &sign);
+    F Y_to_gamma_minus_one = apply_sign(approx_powf(Y, ctx[3]), sign);
+    r = r * Y_to_gamma_minus_one;
+    g = g * Y_to_gamma_minus_one;
+    b = b * Y_to_gamma_minus_one;
 }
 
 HIGHP_STAGE(load_a8, const SkRasterPipelineContexts::MemoryCtx* ctx) {
@@ -5981,7 +5992,7 @@ SI void store(T* ptr, V v) {
     SI V gather(const T* ptr, U32 ix) {
         // The compiler assumes ptr is aligned, which caused crashes on some
         // arm32 chips because a register was marked as "aligned to 32 bits"
-        // incorrectly. https://crbug.com/skia/409859319
+        // incorrectly. skbug.com/409859319
         SkASSERTF(reinterpret_cast<uintptr_t>(ptr) % alignof(T) == 0,
                  "Should use gather_unaligned");
         return V{ ptr[ix[ 0]], ptr[ix[ 1]], ptr[ix[ 2]], ptr[ix[ 3]],

@@ -35,8 +35,7 @@ class WebXrPermissionContext : public ContentSettingPermissionContextBase {
   void NotifyPermissionSet(const PermissionRequestData& request_data,
                            BrowserPermissionCallback callback,
                            bool persist,
-                           ContentSetting content_setting,
-                           bool is_one_time,
+                           PermissionDecision decision,
                            bool is_final_decision) override;
 
   void UpdateTabContext(const permissions::PermissionRequestID& id,

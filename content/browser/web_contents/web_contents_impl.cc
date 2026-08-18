@@ -273,6 +273,10 @@
 #include "content/public/browser/picture_in_picture_window_controller.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS)
+#include "content/browser/ios/nfc_host.h"
+#endif
+
 namespace content {
 
 namespace {
@@ -2089,6 +2093,25 @@ RenderWidgetHostView* WebContentsImpl::GetTopLevelRenderWidgetHostView() {
     return GetOuterWebContents()->GetTopLevelRenderWidgetHostView();
   }
   return GetRenderManager()->GetRenderWidgetHostView();
+}
+
+RenderWidgetHost* WebContentsImpl::FindWidgetAtPoint(const gfx::PointF& point) {
+  if (GetOuterWebContents()) {
+    return GetOuterWebContents()->FindWidgetAtPoint(point);
+  }
+  gfx::PointF transformed_point;
+  input::RenderWidgetHostViewInput* rwhvi =
+      GetInputEventRouter()->GetRenderWidgetHostViewInputAtPoint(
+          static_cast<RenderWidgetHostViewBase*>(
+              GetTopLevelRenderWidgetHostView()),
+          point, &transformed_point);
+
+  RenderWidgetHostImpl* widget_host = RenderWidgetHostImpl::From(
+      static_cast<RenderWidgetHostViewBase*>(rwhvi)->GetRenderWidgetHost());
+  if (!widget_host) {
+    return nullptr;
+  }
+  return widget_host;
 }
 
 WebContentsView* WebContentsImpl::GetView() const {
@@ -6000,9 +6023,9 @@ device::mojom::WakeLockContext* WebContentsImpl::GetWakeLockContext() {
   return wake_lock_context_host_->GetWakeLockContext();
 }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
 void WebContentsImpl::GetNFC(
-    RenderFrameHost* render_frame_host,
+    RenderFrameHostImpl* render_frame_host,
     mojo::PendingReceiver<device::mojom::NFC> receiver) {
   if (!nfc_host_) {
     nfc_host_ = std::make_unique<NFCHost>(this);
@@ -11408,6 +11431,13 @@ void WebContentsImpl::IsClipboardPasteAllowedWrapperCallback(
   --suppress_unresponsive_renderer_count_;
 }
 
+std::optional<std::vector<std::u16string>>
+WebContentsImpl::GetClipboardTypesIfPolicyApplied(
+    const ui::ClipboardSequenceNumberToken& seqno) {
+  return GetContentClient()->browser()->GetClipboardTypesIfPolicyApplied(
+      seqno);
+}
+
 void WebContentsImpl::BindScreenOrientation(
     RenderFrameHost* rfh,
     mojo::PendingAssociatedReceiver<device::mojom::ScreenOrientation>
@@ -11994,6 +12024,7 @@ std::unique_ptr<PrefetchHandle> WebContentsImpl::StartPrefetch(
     const blink::mojom::Referrer& referrer,
     const std::optional<url::Origin>& referring_origin,
     std::optional<net::HttpNoVarySearchData> no_vary_search_hint,
+    std::optional<PrefetchPriority> priority,
     scoped_refptr<PreloadPipelineInfo> preload_pipeline_info,
     base::WeakPtr<PreloadingAttempt> attempt,
     std::optional<PreloadingHoldbackStatus> holdback_status_override,
@@ -12013,7 +12044,7 @@ std::unique_ptr<PrefetchHandle> WebContentsImpl::StartPrefetch(
                              use_prefetch_proxy);
   auto container = std::make_unique<PrefetchContainer>(
       *this, prefetch_url, prefetch_type, embedder_histogram_suffix, referrer,
-      referring_origin, std::move(no_vary_search_hint),
+      referring_origin, std::move(no_vary_search_hint), std::move(priority),
       std::move(preload_pipeline_info), std::move(attempt),
       holdback_status_override, std::move(ttl));
 

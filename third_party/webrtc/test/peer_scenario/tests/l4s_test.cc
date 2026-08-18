@@ -185,11 +185,7 @@ TEST(L4STest, NegotiateAndUseCcfbIfEnabled) {
 
   s.ProcessMessages(TimeDelta::Seconds(2));
   EXPECT_GT(send_node_feedback_counter.FeedbackAccordingToRfc8888(), 0);
-  // TODO: bugs.webrtc.org/42225697 - Fix bug. Caller sends both transport
-  // sequence number feedback and congestion control feedback. So
-  // callee still send packets with transport sequence number header extensions
-  // even though it has been removed from the answer.
-  // EXPECT_EQ(send_node_feedback_counter.FeedbackAccordingToTransportCc(), 0);
+  EXPECT_EQ(send_node_feedback_counter.FeedbackAccordingToTransportCc(), 0);
 
   EXPECT_GT(ret_node_feedback_counter.FeedbackAccordingToRfc8888(), 0);
   EXPECT_EQ(ret_node_feedback_counter.FeedbackAccordingToTransportCc(), 0);

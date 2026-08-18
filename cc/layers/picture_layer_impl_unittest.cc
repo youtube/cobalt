@@ -1504,7 +1504,7 @@ TEST_F(LegacySWPictureLayerImplTest, MarkRequiredOffscreenTiles) {
 
   std::unique_ptr<TilingSetRasterQueueAll> queue =
       TilingSetRasterQueueAll::Create(
-          pending_layer()->picture_layer_tiling_set(), false, false);
+          pending_layer()->picture_layer_tiling_set(), false);
   EXPECT_TRUE(queue);
   for (; !queue->IsEmpty(); queue->Pop()) {
     const PrioritizedTile& prioritized_tile = queue->Top();
@@ -1594,7 +1594,7 @@ TEST_F(LegacySWPictureLayerImplTest,
   EXPECT_EQ(0, data.num_missing_tiles);
   EXPECT_FALSE(data.checkerboarded_needs_raster);
   EXPECT_FALSE(data.checkerboarded_needs_record);
-  EXPECT_FALSE(active_layer()->only_used_low_res_last_append_quads());
+  EXPECT_TRUE(active_layer()->produced_tile_last_append_quads());
 }
 
 TEST_F(LegacySWPictureLayerImplTest, HighResTileIsComplete) {
@@ -1626,7 +1626,7 @@ TEST_F(LegacySWPictureLayerImplTest, HighResTileIsComplete) {
   EXPECT_EQ(0, data.num_missing_tiles);
   EXPECT_FALSE(data.checkerboarded_needs_raster);
   EXPECT_FALSE(data.checkerboarded_needs_record);
-  EXPECT_FALSE(active_layer()->only_used_low_res_last_append_quads());
+  EXPECT_TRUE(active_layer()->produced_tile_last_append_quads());
 }
 
 TEST_F(LegacySWPictureLayerImplTest, HighResTileIsIncomplete) {
@@ -1651,7 +1651,7 @@ TEST_F(LegacySWPictureLayerImplTest, HighResTileIsIncomplete) {
   EXPECT_EQ(1, data.num_missing_tiles);
   EXPECT_TRUE(data.checkerboarded_needs_raster);
   EXPECT_FALSE(data.checkerboarded_needs_record);
-  EXPECT_TRUE(active_layer()->only_used_low_res_last_append_quads());
+  EXPECT_FALSE(active_layer()->produced_tile_last_append_quads());
 }
 
 TEST_F(LegacySWPictureLayerImplTest,
@@ -1717,7 +1717,7 @@ TEST_F(LegacySWPictureLayerImplTest,
   EXPECT_EQ(0, data.num_missing_tiles);
   EXPECT_FALSE(data.checkerboarded_needs_raster);
   EXPECT_FALSE(data.checkerboarded_needs_record);
-  EXPECT_FALSE(active_layer()->only_used_low_res_last_append_quads());
+  EXPECT_TRUE(active_layer()->produced_tile_last_append_quads());
 }
 
 TEST_F(LegacySWPictureLayerImplTest, AppendQuadsDataForCheckerboard) {
@@ -1753,7 +1753,7 @@ TEST_F(LegacySWPictureLayerImplTest, AppendQuadsDataForCheckerboard) {
   EXPECT_EQ(1, data.num_missing_tiles);
   EXPECT_TRUE(data.checkerboarded_needs_raster);
   EXPECT_TRUE(data.checkerboarded_needs_record);
-  EXPECT_TRUE(active_layer()->only_used_low_res_last_append_quads());
+  EXPECT_FALSE(active_layer()->produced_tile_last_append_quads());
 
   recorded_bounds = gfx::Rect(30, 30, 150, 150);
   SetupPendingTree(
@@ -1774,7 +1774,7 @@ TEST_F(LegacySWPictureLayerImplTest, AppendQuadsDataForCheckerboard) {
   EXPECT_EQ(1, data.num_missing_tiles);
   EXPECT_TRUE(data.checkerboarded_needs_raster);
   EXPECT_TRUE(data.checkerboarded_needs_record);
-  EXPECT_TRUE(active_layer()->only_used_low_res_last_append_quads());
+  EXPECT_FALSE(active_layer()->produced_tile_last_append_quads());
 
   // Initialize all tiles with resources.
   for (size_t i = 0; i < active_layer()->tilings()->num_tilings(); i++) {
@@ -1792,7 +1792,7 @@ TEST_F(LegacySWPictureLayerImplTest, AppendQuadsDataForCheckerboard) {
   EXPECT_EQ(0, data.num_missing_tiles);
   EXPECT_FALSE(data.checkerboarded_needs_raster);
   EXPECT_TRUE(data.checkerboarded_needs_record);
-  EXPECT_FALSE(active_layer()->only_used_low_res_last_append_quads());
+  EXPECT_TRUE(active_layer()->produced_tile_last_append_quads());
 
   // Now the layer is fully recorded.
   host_impl()
@@ -1814,7 +1814,7 @@ TEST_F(LegacySWPictureLayerImplTest, AppendQuadsDataForCheckerboard) {
   EXPECT_EQ(0, data.num_missing_tiles);
   EXPECT_FALSE(data.checkerboarded_needs_raster);
   EXPECT_FALSE(data.checkerboarded_needs_record);
-  EXPECT_FALSE(active_layer()->only_used_low_res_last_append_quads());
+  EXPECT_TRUE(active_layer()->produced_tile_last_append_quads());
 }
 
 TEST_F(LegacySWPictureLayerImplTest, RasterInducingScrollPaintCheckerboarding) {
@@ -2933,7 +2933,7 @@ TEST_F(LegacySWPictureLayerImplTest, TilingSetRasterQueue) {
   int high_res_now_tiles = 0u;
   std::unique_ptr<TilingSetRasterQueueAll> queue =
       TilingSetRasterQueueAll::Create(
-          pending_layer()->picture_layer_tiling_set(), false, false);
+          pending_layer()->picture_layer_tiling_set(), false);
   EXPECT_TRUE(queue);
   while (!queue->IsEmpty()) {
     PrioritizedTile prioritized_tile = queue->Top();
@@ -3005,7 +3005,7 @@ TEST_F(LegacySWPictureLayerImplTest, TilingSetRasterQueue) {
   unique_tiles.clear();
   high_res_tile_count = 0u;
   queue = TilingSetRasterQueueAll::Create(
-      pending_layer()->picture_layer_tiling_set(), false, false);
+      pending_layer()->picture_layer_tiling_set(), false);
   EXPECT_TRUE(queue);
   while (!queue->IsEmpty()) {
     PrioritizedTile prioritized_tile = queue->Top();
@@ -3042,7 +3042,7 @@ TEST_F(LegacySWPictureLayerImplTest, TilingSetRasterQueue) {
   }
 
   queue = TilingSetRasterQueueAll::Create(
-      pending_layer()->picture_layer_tiling_set(), true, false);
+      pending_layer()->picture_layer_tiling_set(), false);
   EXPECT_TRUE(queue);
   EXPECT_TRUE(queue->IsEmpty());
 }
@@ -3907,7 +3907,7 @@ TEST_F(OcclusionTrackingPictureLayerImplTest,
   int unoccluded_tile_count = 0;
   std::unique_ptr<TilingSetRasterQueueAll> queue =
       TilingSetRasterQueueAll::Create(
-          pending_layer()->picture_layer_tiling_set(), false, false);
+          pending_layer()->picture_layer_tiling_set(), false);
   EXPECT_TRUE(queue);
   while (!queue->IsEmpty()) {
     PrioritizedTile prioritized_tile = queue->Top();
@@ -3939,7 +3939,7 @@ TEST_F(OcclusionTrackingPictureLayerImplTest,
 
   unoccluded_tile_count = 0;
   queue = TilingSetRasterQueueAll::Create(
-      pending_layer()->picture_layer_tiling_set(), false, false);
+      pending_layer()->picture_layer_tiling_set(), false);
   EXPECT_TRUE(queue);
   while (!queue->IsEmpty()) {
     PrioritizedTile prioritized_tile = queue->Top();
@@ -3964,7 +3964,7 @@ TEST_F(OcclusionTrackingPictureLayerImplTest,
 
   unoccluded_tile_count = 0;
   queue = TilingSetRasterQueueAll::Create(
-      pending_layer()->picture_layer_tiling_set(), false, false);
+      pending_layer()->picture_layer_tiling_set(), false);
   EXPECT_TRUE(queue);
   while (!queue->IsEmpty()) {
     PrioritizedTile prioritized_tile = queue->Top();

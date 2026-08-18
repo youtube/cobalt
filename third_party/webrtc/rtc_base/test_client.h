@@ -11,15 +11,20 @@
 #ifndef RTC_BASE_TEST_CLIENT_H_
 #define RTC_BASE_TEST_CLIENT_H_
 
+#include <cstddef>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "api/units/timestamp.h"
-#include "rtc_base/async_udp_socket.h"
+#include "rtc_base/async_packet_socket.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/network/received_packet.h"
+#include "rtc_base/socket.h"
+#include "rtc_base/socket_address.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/third_party/sigslot/sigslot.h"
 
 namespace webrtc {
 
