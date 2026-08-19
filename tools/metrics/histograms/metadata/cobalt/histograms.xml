@@ -53,6 +53,32 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Features.NativeMemoryAblation.AllocatedMB" units="MB"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the amount of native memory allocated in megabytes when the native
+    memory ablation Finch feature is enabled.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.NativeMemoryAblation.Enabled" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records whether the native memory ablation Finch feature is enabled. Used to
+    verify experiment arm rollout for Finch validation.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.NativeMemoryAblation.Result"
+    enum="NativeMemoryAblationResult" expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the outcome of the native memory ablation allocation attempt.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Features.TestFinchFeature" enum="Boolean"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
