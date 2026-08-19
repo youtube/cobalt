@@ -72,10 +72,6 @@
 #include "third_party/blink/renderer/modules/webgl/webgl_multi_draw_instanced_base_vertex_base_instance.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_polygon_mode.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "third_party/blink/renderer/modules/webgl/cobalt/oes_egl_image_external.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace blink {
 
 WebGLRenderingContext::WebGLRenderingContext(
@@ -123,9 +119,6 @@ void WebGLRenderingContext::RegisterContextExtensions() {
   RegisterExtension<EXTTextureMirrorClampToEdge>();
   RegisterExtension<EXTsRGB>();
   RegisterExtension<KHRParallelShaderCompile>();
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  RegisterExtension<OESEGLImageExternal>();
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   RegisterExtension<OESElementIndexUint>();
   RegisterExtension<OESFboRenderMipmap>();
   RegisterExtension<OESStandardDerivatives>();
