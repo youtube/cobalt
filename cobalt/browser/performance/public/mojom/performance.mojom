@@ -32,6 +32,26 @@ interface CobaltPerformance {
   [Sync]
   MeasureReservedVirtualMemory() => (uint64 bytes);
 
+  // Get the peak resident set size (high water mark) used by the process in bytes.
+  [Sync]
+  MeasureRssHighWaterMarkMemory() => (uint64 bytes);
+
+  // Get the resident anonymous memory used by the process in bytes.
+  [Sync]
+  MeasureUsedRssAnonMemory() => (uint64 bytes);
+
+  // Get the total physical CPU memory on the device in bytes.
+  [Sync]
+  MeasureTotalCpuMemory() => (uint64 bytes);
+
+  // Get the proportional set size (PSS) memory used by the process in bytes.
+  [Sync]
+  MeasureUsedPssMemory() => (uint64 bytes);
+
+  // Get the application CPU memory limit in bytes.
+  [Sync]
+  MeasureApplicationLimitMemory() => (uint64 bytes);
+
   // Get the application startup timestamp in microseconds (us).
   [Sync]
   GetAppStartupTimeStamp() => (int64 timestamp);
