@@ -86,7 +86,7 @@ For step-by-step instructions on deploying prebuilt `.crx` packages on Linux wor
 
 > [!CAUTION]
 > **Mandatory CRX Requirement for SoC Partners:**
-> SoC and OEM partners are strictly required to use official Google-built Prebuilt CRX packages for testing, QA, and certification. 
+> SoC and OEM partners are strictly required to use official Google-built Prebuilt CRX packages for testing, QA, and certification.
 > Compiling Cobalt Core (`libcobalt.so`) from source is reserved for internal engine development and core debugging.
 
 When developing or debugging custom Cobalt Core engine modifications:
