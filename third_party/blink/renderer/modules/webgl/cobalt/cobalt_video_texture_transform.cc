@@ -35,7 +35,7 @@ WebGLExtensionName CobaltVideoTextureTransform::GetName() const {
 
 bool CobaltVideoTextureTransform::Supported(
     WebGLRenderingContextBase* context) {
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_ANDROIDTV)
   // Currently specific to Android, where MediaCodec hardware decoders allocate
   // macroblock-aligned GraphicBuffer surfaces sampled via
   // GL_OES_EGL_image_external.
@@ -43,7 +43,7 @@ bool CobaltVideoTextureTransform::Supported(
       "GL_OES_EGL_image_external");
 #else
   return false;
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_ANDROIDTV)
 }
 
 const char* CobaltVideoTextureTransform::ExtensionName() {
@@ -68,10 +68,12 @@ Vector<float> CobaltVideoTextureTransform::getCurrentFrameTextureTransform(
   // texture is not ready and drawing should be suppressed.
   scoped_refptr<media::VideoFrame> frame;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (WebGLTexture* texture =
-          context->texture_units_[context->active_texture_unit_]
-              .texture_external_oes_binding_.Get()) {
-    frame = texture->GetVideoFrame();
+  if (context->active_texture_unit_ < context->texture_units_.size()) {
+    if (WebGLTexture* texture =
+            context->texture_units_[context->active_texture_unit_]
+                .texture_external_oes_binding_.Get()) {
+      frame = texture->GetVideoFrame();
+    }
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -134,16 +136,21 @@ Vector<float> CobaltVideoTextureTransform::getCurrentFrameTextureTransform(
   // extent) use the identity mapping.
   float scale_x = 1.0f;
   float offset_x = 0.0f;
-  if (vis_w > 0 && vis_w < coded.width()) {
+  if (vis_w > 2 && vis_w < coded.width()) {
     scale_x = (static_cast<float>(vis_w) - 2.0f) / coded_w;
     offset_x = (static_cast<float>(vis_x) + 1.0f) / coded_w;
+  } else if (vis_w > 0 && vis_w < coded.width()) {
+    scale_x = static_cast<float>(vis_w) / coded_w;
+    offset_x = static_cast<float>(vis_x) / coded_w;
   }
-
   float scale_y = 1.0f;
   float offset_y = 0.0f;
-  if (vis_h > 0 && vis_h < coded.height()) {
+  if (vis_h > 2 && vis_h < coded.height()) {
     scale_y = (static_cast<float>(vis_h) - 2.0f) / coded_h;
     offset_y = (static_cast<float>(vis_y) + 1.0f) / coded_h;
+  } else if (vis_h > 0 && vis_h < coded.height()) {
+    scale_y = static_cast<float>(vis_h) / coded_h;
+    offset_y = static_cast<float>(vis_y) / coded_h;
   }
 
   Vector<float> transform;

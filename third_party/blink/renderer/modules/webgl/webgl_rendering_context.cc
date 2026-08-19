@@ -75,9 +75,9 @@
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "third_party/blink/renderer/modules/webgl/cobalt/oes_egl_image_external.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID) 
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_ANDROIDTV)
 #include "third_party/blink/renderer/modules/webgl/cobalt/cobalt_video_texture_transform.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID) 
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_ANDROIDTV)
 
 namespace blink {
 
@@ -152,9 +152,9 @@ void WebGLRenderingContext::RegisterContextExtensions() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   RegisterExtension<OESEGLImageExternal>();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_ANDROIDTV)
   RegisterExtension<CobaltVideoTextureTransform>();
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_ANDROIDTV)
 }
 
 }  // namespace blink
