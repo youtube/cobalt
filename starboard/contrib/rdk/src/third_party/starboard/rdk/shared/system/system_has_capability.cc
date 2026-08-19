@@ -20,8 +20,11 @@ bool SbSystemHasCapability(SbSystemCapabilityId capability_id) {
   switch (capability_id) {
     case kSbSystemCapabilityReversedEnterAndBack:
       return false;
-    case kSbSystemCapabilityCanQueryGPUMemoryStats:
-      return access("/sys/class/misc/mali0/device/gpu_memory", R_OK) == 0;
+    case kSbSystemCapabilityCanQueryGPUMemoryStats: {
+      static const bool kHasGpuMemoryStats =
+          (access("/sys/class/misc/mali0/device/gpu_memory", R_OK) == 0);
+      return kHasGpuMemoryStats;
+    }
   }
 
   SB_DLOG(WARNING) << "Unrecognized capability: " << capability_id;
