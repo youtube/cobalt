@@ -15,5 +15,9 @@
 #include "starboard/media.h"
 
 bool SbMediaCanChangeType(const char* current_mime, const char* new_mime) {
+  if (current_mime[0] == '\0' || new_mime[0] == '\0') {
+    return false;
+  }
+
   return true;
 }

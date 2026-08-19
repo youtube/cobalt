@@ -1255,6 +1255,10 @@ void MediaCodecVideoDecoder::UpdateStreamConfigAndTeardown(
   first_buffer_timestamp_ = 0;
   input_buffer_written_ = 0;
   video_fps_ = 0;
+  end_of_stream_written_ = false;
+  tunnel_mode_prerolling_.store(true);
+  tunnel_mode_first_frame_rendered_.store(false);
+  tunnel_mode_prerolled_frames_.store(0);
 }
 
 void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
