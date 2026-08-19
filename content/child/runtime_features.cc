@@ -552,13 +552,6 @@ void SetCustomizedRuntimeFeaturesFromCombinedArgs(
 // Ensures that the various ways of enabling/disabling features do not produce
 // an invalid configuration.
 void ResolveInvalidConfigurations() {
-#if !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  // When Privacy Sandbox APIs are excluded from the build, explicitly disable
-  // their Blink runtime features so their interfaces (e.g. HTMLFencedFrameElement,
-  // document.hasPrivateToken) are not exposed to JavaScript.
-  WebRuntimeFeatures::EnableFencedFrames(false);
-  WebRuntimeFeatures::EnablePrivateStateTokens(false);
-#endif
   // Fenced frames cannot be enabled without the support of the
   // browser process.
   if ((base::FeatureList::IsEnabled(features::kPrivacySandboxAdsAPIsOverride) ||
