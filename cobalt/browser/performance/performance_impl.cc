@@ -224,6 +224,7 @@ void PerformanceImpl::MeasureApplicationLimitMemory(
       std::move(callback));
 #else
   std::move(callback).Run(0);
+#endif
 }
 
 void PerformanceImpl::MeasureUsedGpuMemory(
