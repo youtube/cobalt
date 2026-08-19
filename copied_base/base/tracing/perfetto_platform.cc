@@ -13,14 +13,11 @@
 #include "base/tracing/perfetto_task_runner.h"
 #include "base/tracing_buildflags.h"
 #include "build/build_config.h"
+#include "third_party/perfetto/include/perfetto/ext/base/thread_task_runner.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
 #endif  // BUILDFLAG(IS_ANDROID)
-
-#if !BUILDFLAG(IS_NACL)
-#include "third_party/perfetto/include/perfetto/ext/base/thread_task_runner.h"
-#endif
 
 namespace base {
 namespace tracing {
@@ -64,13 +61,8 @@ std::unique_ptr<perfetto::base::TaskRunner> PerfettoPlatform::CreateTaskRunner(
     const CreateTaskRunnerArgs&) {
   switch (task_runner_type_) {
     case TaskRunnerType::kBuiltin:
-#if !BUILDFLAG(IS_NACL)
       return std::make_unique<perfetto::base::ThreadTaskRunner>(
           perfetto::base::ThreadTaskRunner::CreateAndStart());
-#else
-      DCHECK(false);
-      return nullptr;
-#endif
     case TaskRunnerType::kThreadPool:
       // We can't create a real task runner yet because the ThreadPool may not
       // be initialized. Instead, we point Perfetto to a buffering task runner

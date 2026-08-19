@@ -22,9 +22,7 @@
 
 // Define COUNT_RESIDENT_BYTES_SUPPORTED if platform supports counting of the
 // resident memory.
-#if !BUILDFLAG(IS_NACL)
 #define COUNT_RESIDENT_BYTES_SUPPORTED
-#endif
 
 namespace perfetto {
 namespace protos {

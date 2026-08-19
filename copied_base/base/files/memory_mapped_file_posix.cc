@@ -21,7 +21,6 @@ namespace base {
 
 MemoryMappedFile::MemoryMappedFile() = default;
 
-#if !BUILDFLAG(IS_NACL)
 bool MemoryMappedFile::MapFileRegionToMemory(
     const MemoryMappedFile::Region& region,
     Access access) {
@@ -95,7 +94,6 @@ bool MemoryMappedFile::MapFileRegionToMemory(
   data_ += data_offset;
   return true;
 }
-#endif
 
 void MemoryMappedFile::CloseHandles() {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);

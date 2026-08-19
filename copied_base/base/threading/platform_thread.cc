@@ -26,11 +26,9 @@ void PlatformThread::SetCurrentThreadType(ThreadType thread_type) {
   if (CurrentIOThread::IsSet()) {
     message_pump_type = MessagePumpType::IO;
   }
-#if !BUILDFLAG(IS_NACL)
   else if (CurrentUIThread::IsSet()) {
     message_pump_type = MessagePumpType::UI;
   }
-#endif
   internal::SetCurrentThreadType(thread_type, message_pump_type);
 }
 

@@ -723,7 +723,6 @@ TEST(SharedPersistentMemoryAllocatorTest, CreationTest) {
   EXPECT_EQ(0, data[3]);
 }
 
-#if !BUILDFLAG(IS_NACL)
 //----- FilePersistentMemoryAllocator ------------------------------------------
 
 TEST(FilePersistentMemoryAllocatorTest, CreationTest) {
@@ -1000,7 +999,5 @@ TEST_F(PersistentMemoryAllocatorTest, TruncateTest) {
     EXPECT_EQ(file_length, static_cast<size_t>(actual_length));
   }
 }
-
-#endif  // !BUILDFLAG(IS_NACL)
 
 }  // namespace base

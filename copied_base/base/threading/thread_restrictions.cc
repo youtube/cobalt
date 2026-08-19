@@ -15,7 +15,7 @@
 
 // NaCL doesn't support stack sampling and Android is slow at stack sampling and
 // this causes timeouts (crbug.com/959139).
-#if BUILDFLAG(IS_NACL) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 constexpr bool kCaptureStackTraces = false;
 #else
 // Always disabled when !EXPENSIVE_DCHECKS_ARE_ON() because user-facing builds

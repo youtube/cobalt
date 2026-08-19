@@ -970,9 +970,6 @@ TEST_P(ThreadPoolImplTest, FileDescriptorWatcherNoOpsAfterShutdown) {
   EXPECT_EQ(0, IGNORE_EINTR(close(pipes[0])));
   EXPECT_EQ(0, IGNORE_EINTR(close(pipes[1])));
 }
-#endif  // BUILDFLAG(IS_POSIX)
-
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)
 
 // Verify that FileDescriptorWatcher::WatchReadable() can be called from task
 // running on a task_runner with GetExecutionMode() without a crash.
