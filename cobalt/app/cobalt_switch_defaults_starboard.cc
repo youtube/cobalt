@@ -105,9 +105,10 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       {::switches::kUseCmdDecoder, "passthrough"},
       // Set the default size for the content shell/starboard window.
       {::switches::kContentShellHostWindowSize, "1920x1080"},
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
       // Enable remote Devtools access.
       {::switches::kRemoteDebuggingPort, "9222"},
-      {::switches::kRemoteAllowOrigins, "http://localhost:9222"},
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
       // kEnableLowEndDeviceMode sets MSAA to 4 (and not 8, the default). But
       // we set it explicitly just in case.
       {blink::switches::kGpuRasterizationMSAASampleCount, "4"},
