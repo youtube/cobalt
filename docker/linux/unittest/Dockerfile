@@ -16,9 +16,6 @@ FROM cobalt-base
 
 ARG HOME=/root
 
-RUN echo deb http://deb.debian.org/debian-debug \
-    $(. /etc/os-release && echo "${VERSION_CODENAME}")-debug main \
-    >> /etc/apt/sources.list
 
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
@@ -37,13 +34,6 @@ RUN apt update -qqy \
         unzip \
         xauth \
         xvfb \
-        libasound2-dbgsym \
-        libegl1-dbgsym \
-        libgl1-mesa-dri-dbgsym \
-        libglapi-mesa-dbgsym \
-        libgles2-dbgsym \
-        libglx-mesa0-dbgsym \
-        libglx0-dbgsym \
     && /opt/clean-after-apt.sh
 
 COPY ./unittest/requirements.txt /opt/requirements.txt

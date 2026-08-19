@@ -79,7 +79,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - id: checkout
-        uses: kaidokert/checkout@v3.5.999
+        uses: kaidokert/checkout@1bf7689f6bce800f108fa5e9f0885fbfcb14ffd6 # v3.5.999
         timeout-minutes: 30
         with:
           fetch-depth: 1
@@ -154,13 +154,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout files
-        uses: kaidokert/checkout@v3.5.999
+        uses: kaidokert/checkout@1bf7689f6bce800f108fa5e9f0885fbfcb14ffd6 # v3.5.999
         timeout-minutes: 30
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Login to Docker Registry ${{env.REGISTRY}}
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -191,13 +191,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout files
-        uses: kaidokert/checkout@v3.5.999
+        uses: kaidokert/checkout@1bf7689f6bce800f108fa5e9f0885fbfcb14ffd6 # v3.5.999
         timeout-minutes: 30
         with:
           fetch-depth: 2
           persist-credentials: false
       - name: Login to Docker Registry ${{env.REGISTRY}}
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -239,14 +239,14 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
+        uses: kaidokert/checkout@1bf7689f6bce800f108fa5e9f0885fbfcb14ffd6 # v3.5.999
         timeout-minutes: 30
         with:
           # Use fetch depth of 0 to get full history for a valid build id.
           fetch-depth: 0
           persist-credentials: false
       - name: Cache Gradle
-        uses: actions/cache@v3
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
         if: startsWith( matrix.target_platform , 'android')
         with:
           key: gradle-cache-${{ hashFiles('starboard/android/apk/**/*gradle*') }}
@@ -258,7 +258,7 @@ jobs:
       - name: Build Cobalt
         uses: ./.github/actions/build
       - name: 'Upload Artifact'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v3.3.0
         if: inputs.keep_artifacts
         with:
           name: ${{ matrix.platform }}-${{ matrix.config }}
@@ -343,7 +343,7 @@ jobs:
       MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
     steps:
       - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
+        uses: kaidokert/checkout@1bf7689f6bce800f108fa5e9f0885fbfcb14ffd6 # v3.5.999
         timeout-minutes: 30
         with:
           fetch-depth: 1
@@ -376,7 +376,7 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
+        uses: kaidokert/checkout@1bf7689f6bce800f108fa5e9f0885fbfcb14ffd6 # v3.5.999
         timeout-minutes: 30
         with:
           fetch-depth: 1
