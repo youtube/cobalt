@@ -545,16 +545,18 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
                       "Initiating codec draining...";
       codec_change_state_ = CodecChangeState::kDraining;
       pending_stream_info_ = input_buffers.front()->video_stream_info();
-      pending_input_buffers_.insert(pending_input_buffers_.end(),
-                                    input_buffers.begin(), input_buffers.end());
+      pending_codec_change_buffers_.insert(pending_codec_change_buffers_.end(),
+                                           input_buffers.begin(),
+                                           input_buffers.end());
       media_decoder_->WriteEndOfStream();
       return;
     }
   }
 
   if (codec_change_state_ != CodecChangeState::kNone) {
-    pending_input_buffers_.insert(pending_input_buffers_.end(),
-                                  input_buffers.begin(), input_buffers.end());
+    pending_codec_change_buffers_.insert(pending_codec_change_buffers_.end(),
+                                         input_buffers.begin(),
+                                         input_buffers.end());
     return;
   }
 
@@ -1243,24 +1245,6 @@ void MediaCodecVideoDecoder::ReportError(SbPlayerError error,
   error_cb_(kSbPlayerErrorDecode, error_message);
 }
 
-void MediaCodecVideoDecoder::UpdateStreamConfigAndTeardown(
-    const VideoStreamInfo& stream_info) {
-  TeardownCodec();
-  video_codec_ = stream_info.codec;
-  video_mime_ = stream_info.mime;
-  color_metadata_ = stream_info.color_metadata;
-  needs_fps_to_initialize_codec_ =
-      (video_codec_ == kSbMediaVideoCodecAv1 &&
-       MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30());
-  first_buffer_timestamp_ = 0;
-  input_buffer_written_ = 0;
-  video_fps_ = 0;
-  end_of_stream_written_ = false;
-  tunnel_mode_prerolling_.store(true);
-  tunnel_mode_first_frame_rendered_.store(false);
-  tunnel_mode_prerolled_frames_.store(0);
-}
-
 void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   SB_CHECK(BelongsToCurrentThread());
 
@@ -1296,6 +1280,7 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   tunnel_mode_prerolled_frames_.store(0);
   end_of_stream_written_ = false;
   pending_input_buffers_.clear();
+  pending_codec_change_buffers_.clear();
   codec_change_state_ = CodecChangeState::kNone;
   pending_stream_info_ = VideoStreamInfo();
 
@@ -1305,6 +1290,25 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   //       slightly flaky as it depends on the behavior of the video renderer.
 }
 
+void MediaCodecVideoDecoder::UpdateStreamConfigAndTeardown(
+    const VideoStreamInfo& stream_info) {
+  TeardownCodec();
+  video_codec_ = stream_info.codec;
+  video_mime_ = stream_info.mime;
+  color_metadata_ = stream_info.color_metadata;
+  needs_fps_to_initialize_codec_ =
+      (video_codec_ == kSbMediaVideoCodecAv1 &&
+       MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30());
+  first_buffer_timestamp_ = 0;
+  input_buffer_written_ = 0;
+  video_fps_ = 0;
+  end_of_stream_written_ = false;
+  tunnel_mode_prerolling_.store(true);
+  tunnel_mode_first_frame_rendered_.store(false);
+  tunnel_mode_prerolled_frames_.store(0);
+}
+
+// TODO b/PLACEHOLDER - Explore reducing dropped frames during codec change.
 void MediaCodecVideoDecoder::PerformInternalDecoderCodecChange() {
   SB_CHECK(BelongsToCurrentThread());
   if (codec_change_state_ != CodecChangeState::kCodecChangeScheduled) {
@@ -1324,9 +1328,9 @@ void MediaCodecVideoDecoder::PerformInternalDecoderCodecChange() {
     decoder_status_cb_(kReleaseAllFrames, NULL);
   }
 
-  if (!pending_input_buffers_.empty()) {
+  if (!pending_codec_change_buffers_.empty()) {
     InputBuffers buffers_to_write;
-    buffers_to_write.swap(pending_input_buffers_);
+    buffers_to_write.swap(pending_codec_change_buffers_);
     WriteInputBuffers(buffers_to_write);
   }
 }

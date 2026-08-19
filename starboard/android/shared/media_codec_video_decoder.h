@@ -287,6 +287,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   CodecChangeState codec_change_state_ = CodecChangeState::kNone;
   VideoStreamInfo pending_stream_info_;
+  std::vector<scoped_refptr<InputBuffer>> pending_codec_change_buffers_;
   std::vector<scoped_refptr<InputBuffer>> pending_input_buffers_;
   int video_fps_ = 0;
 
