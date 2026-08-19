@@ -134,26 +134,30 @@ EOF
       # --------------------------------------------------------------------------
       # Embed Provisioning Profile & Re-sign App for Physical tvOS Devices
       # --------------------------------------------------------------------------
-      local tvos_profile="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/Google_Development_tvOS.mobileprovision"
-      if [[ ! -f "${tvos_profile}" ]]; then
-        echo "ERROR: Provisioning profile not found at ${tvos_profile}" >&2
-        exit 1
+      if [[ "${TARGET_PLATFORM}" != *simulator* ]]; then
+        local tvos_profile="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/Google_Development_tvOS.mobileprovision"
+        if [[ ! -f "${tvos_profile}" ]]; then
+          echo "ERROR: Provisioning profile not found at ${tvos_profile}" >&2
+          exit 1
+        fi
+
+        echo "Embedding ${tvos_profile} into ${target_name}.app..."
+        cp -f "${tvos_profile}" "${out_dir}/${target_name}.app/embedded.mobileprovision"
+
+        # Extract entitlements from the provisioning profile
+        local profile_plist="${out_dir}/${target_name}_profile.plist"
+        local entitlements_plist="${out_dir}/${target_name}_entitlements.plist"
+        security cms -D -i "${tvos_profile}" > "${profile_plist}"
+        plutil -extract Entitlements xml1 -o "${entitlements_plist}" "${profile_plist}"
+        rm -f "${profile_plist}"
+
+        # Re-sign app bundle using installed development certificate
+        echo "Signing ${target_name}.app..."
+        codesign --force --deep --sign "Apple Development" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app"
+        rm -f "${entitlements_plist}"
+      else
+        echo "Skipping signing for simulator build: ${TARGET_PLATFORM}"
       fi
-
-      echo "Embedding ${tvos_profile} into ${target_name}.app..."
-      cp -f "${tvos_profile}" "${out_dir}/${target_name}.app/embedded.mobileprovision"
-
-      # Extract entitlements from the provisioning profile
-      local profile_plist="${out_dir}/${target_name}_profile.plist"
-      local entitlements_plist="${out_dir}/${target_name}_entitlements.plist"
-      security cms -D -i "${tvos_profile}" > "${profile_plist}"
-      plutil -extract Entitlements xml1 -o "${entitlements_plist}" "${profile_plist}"
-      rm -f "${profile_plist}"
-
-      # Re-sign app bundle using installed development certificate
-      echo "Signing ${target_name}.app..."
-      codesign --force --deep --sign "Apple Development" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app"
-      rm -f "${entitlements_plist}"
       # --------------------------------------------------------------------------
 
       local archive_file="${WORKSPACE_COBALT}/package/${target_name}.tar.gz"
