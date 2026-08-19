@@ -14,6 +14,7 @@ on: # zizmor: ignore[dangerous-triggers]
     branches:
       - main
       - staging
+      - autoroll-chromium/main-to-staging
       - experimental/*
       - 'stack/**'
 
