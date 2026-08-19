@@ -1,5 +1,6 @@
 #include "base/logging.h"
 #include "dawn/dawn_proc.h"  // nogncheck
+#include "dawn/webgpu.h"     // nogncheck
 
 // The sanitizer is disabled for calls to procs.* since those functions may be
 // dynamically loaded.
@@ -51,10 +52,12 @@ DAWN_NO_SANITIZE("cfi-icall")
 __attribute__((weak)) void  wgpuDawnDrmFormatCapabilitiesFreeMembers(WGPUDawnDrmFormatCapabilities value) {
     procs.dawnDrmFormatCapabilitiesFreeMembers(value);
 }
+#if defined(WGPU_DAWN_NATIVE_INSTANCE_CAPABILITIES)
 DAWN_NO_SANITIZE("cfi-icall")
 __attribute__((weak)) WGPUStatus  wgpuGetInstanceCapabilities(WGPUInstanceCapabilities * capabilities) {
 return     procs.getInstanceCapabilities(capabilities);
 }
+#endif
 DAWN_NO_SANITIZE("cfi-icall")
 __attribute__((weak)) WGPUProc  wgpuGetProcAddress(WGPUStringView procName) {
 return     procs.getProcAddress(procName);
@@ -979,8 +982,8 @@ __attribute__((weak)) void  wgpuSurfaceGetCurrentTexture(WGPUSurface surface, WG
     procs.surfaceGetCurrentTexture(surface, surfaceTexture);
 }
 DAWN_NO_SANITIZE("cfi-icall")
-__attribute__((weak)) void  wgpuSurfacePresent(WGPUSurface surface) {
-    procs.surfacePresent(surface);
+__attribute__((weak)) WGPUStatus  wgpuSurfacePresent(WGPUSurface surface) {
+return     procs.surfacePresent(surface);
 }
 DAWN_NO_SANITIZE("cfi-icall")
 __attribute__((weak)) void  wgpuSurfaceSetLabel(WGPUSurface surface, WGPUStringView label) {

@@ -272,16 +272,12 @@ vars = {
   'screen_ai_windows_386': 'version:138.06',
 
   # siso CIPD package version.
-<<<<<<< HEAD
-  'siso_version': 'git_revision:9d34ddf5122059c051fd4f52bf0150e93144e122',
-=======
   # Cobalt: Update siso_version to milestone 141.0.7390.0, to support gcloud
   # credentials. Remove after rebasing to 141.0.7390.0 or newer. Cobalt
   # modifications to build/config/siso/configure_siso.py can also be removed
   # in favor of setting the '--reapi_backend_config_path' argument to
   # 'cobalt.star'
   'siso_version': 'git_revision:8863265a67843154872be2be1fc0c37339691405',
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   # download libaom test data
   'download_libaom_testdata': False,
@@ -2629,14 +2625,8 @@ deps = {
   'src/third_party/pdfium':
     Var('pdfium_git') + '/pdfium.git' + '@' +  Var('pdfium_revision'),
 
-<<<<<<< HEAD
   'src/third_party/perfetto':
     Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'b771e98cb55a18bb45cc5ca6feb62483d863f1c3',
-=======
-# Cobalt: imported
-#  'src/third_party/perfetto':
-#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '18d4fdc15d027a989db705592585b924f93f1d42',
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   'src/base/tracing/test/data': {
     'bucket': 'perfetto',
@@ -3007,14 +2997,8 @@ deps = {
   'src/third_party/webpagereplay':
     Var('chromium_git') + '/webpagereplay.git' + '@' + Var('webpagereplay_revision'),
 
-<<<<<<< HEAD
   'src/third_party/webrtc':
     Var('webrtc_git') + '/src.git' + '@' + '0a7647956afd6b3b8ada4bd05aa416368c41952b',
-=======
-# Cobalt: imported
-#  'src/third_party/webrtc':
-#    Var('webrtc_git') + '/src.git' + '@' + '74fa937f86ed8432c07676f7a1ce0e5e2812b3d5',
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.

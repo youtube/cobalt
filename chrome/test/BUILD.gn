@@ -1621,11 +1621,7 @@ source_set("platform_browser_tests") {
       "//chrome/browser/extensions:test_support",
       "//chrome/browser/extensions/api/bookmarks/test:test_support",
       "//chrome/browser/prefetch",
-<<<<<<< HEAD
-      "//chrome/browser/reading_list",
-=======
       "//chrome/browser/preloading:prefs",
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       "//chrome/browser/sync",
       "//chrome/browser/ui/extensions",
       "//chrome/browser/ui/extensions:test_support",

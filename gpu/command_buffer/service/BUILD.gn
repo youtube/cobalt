@@ -9,15 +9,6 @@ import("//third_party/dawn/scripts/dawn_features.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//ui/gl/features.gni")
 
-<<<<<<< HEAD
-config("implementation") {
-  defines = [ "GPU_COMMAND_BUFFER_SERVICE_IMPLEMENTATION" ]
-  configs = [ "//build/config/compiler:wexit_time_destructors" ]
-}
-
-component("service") {
-  public_deps = [ ":service_sources" ]
-=======
 if (is_cobalt) {
   import("//starboard/build/buildflags.gni")
 }
@@ -28,7 +19,6 @@ group("service") {
   } else {
     public_deps = [ ":service_sources" ]
   }
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 group("gles2") {
@@ -44,6 +34,100 @@ if (is_component_build) {
 } else {
   link_target_type = "static_library"
 }
+# The implementation of the service side of the command buffer.
+source_set("implementation") {
+  sources = [
+    # "client_service_map.cc", # Removed: Source file not found upstream (M139+).
+    "client_service_map.h",
+    "command_buffer_service.cc",
+    "command_buffer_service.h",
+    "common_decoder.cc",
+    "common_decoder.h",
+    "context_group.cc",
+    "context_group.h",
+    "decoder_client.h",
+    "decoder_context.h",
+    "error_state.cc",
+    "error_state.h",
+    "feature_info.cc",
+    "feature_info.h",
+    "gl_context_virtual.cc",
+    "gl_context_virtual.h",
+    "gl_state_restorer_impl.cc",
+    "gl_state_restorer_impl.h",
+    "gpu_fence_manager.cc",
+    "gpu_fence_manager.h",
+    "gpu_switches.cc",
+    "gpu_switches.h",
+    "graphite_utils.cc",
+    "graphite_utils.h",
+    "gr_shader_cache.cc",
+    "gr_shader_cache.h",
+    "memory_program_cache.cc",
+    "memory_program_cache.h",
+    "memory_tracking.h",
+    "passthrough_program_cache.cc",
+    "passthrough_program_cache.h",
+    "program_cache.cc",
+    "program_cache.h",
+    "query_manager.cc",
+    "query_manager.h",
+    "scheduler.cc",
+    "scheduler.h",
+    "scheduler_sequence.cc",
+    "scheduler_sequence.h",
+    "sequence_id.h",
+    "service_discardable_manager.cc",
+    "service_discardable_manager.h",
+    "service_transfer_cache.cc",
+    "service_transfer_cache.h",
+    "shared_memory_region_wrapper.cc",
+    "shared_memory_region_wrapper.h",
+    "skia_utils.cc",
+    "skia_utils.h",
+    "texture_base.cc",
+    "texture_base.h",
+    "texture_manager.cc",
+    "texture_manager.h",
+    "transfer_buffer_manager.cc",
+    "transfer_buffer_manager.h",
+    "vertex_array_manager.cc",
+    "vertex_array_manager.h",
+  ]
+
+  public_deps = [
+    "//gpu/command_buffer/common",
+    "//gpu/ipc/common",
+    "//gpu/command_buffer/common:gles2_utils",
+  ]
+  deps = [
+    "//base",
+    "//components/viz/common",
+    "//gpu/command_buffer/client:client",
+    "//gpu/config",
+    "//skia",
+    "//ui/gfx",
+    "//ui/gfx/geometry",
+    "//ui/gl",
+    "//ui/base:features", # Added for ui_base_features.h include
+    "//ui/gfx/ipc/color",
+    ":service",
+    ":gles2_sources",
+    "//third_party/angle:angle_version_info",
+    ":disk_cache_proto",
+    "//gpu/vulkan:buildflags", # Added for skia_utils.h include
+  ]
+
+  if (is_fuchsia) {
+    deps += [ "//third_party/fuchsia_sdk/sdk/pkg/zx" ]
+  }
+}
+
+# This config is applied to all targets in this directory.
+config("implementation_config") {
+  defines = [ "GPU_COMMAND_BUFFER_IMPLEMENTATION" ]
+}
+
 source_set("service_sources") {
   # External code should depend on this via //gpu/command_buffer/service above
   # rather than depending on this directly or the component build will break.
@@ -84,7 +168,7 @@ source_set("service_sources") {
 
   configs += [
     "//build/config:precompiled_headers",
-    ":implementation",
+    ":implementation_config",
     "//third_party/khronos:khronos_headers",
   ]
 

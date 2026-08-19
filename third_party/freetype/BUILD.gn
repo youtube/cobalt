@@ -66,19 +66,17 @@ config("freetype-warnings") {
   }
 }
 
-<<<<<<< HEAD
-component("freetype") {
-  visibility = [ "//build/config/freetype:freetype" ]
-=======
 if (is_starboard) {
   config("freetype_enable_brotli") {
     defines = [ "FT_CONFIG_OPTION_USE_BROTLI" ]
   }
-} 
+}
 
-source_set("freetype_source") {
-  visibility = [ "//third_party:freetype_harfbuzz" ]
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+component("freetype") {
+  visibility = [
+    "//build/config/freetype:freetype",
+    "//third_party:freetype_harfbuzz",
+  ]
 
   defines = []
   include_dirs = []

@@ -23,6 +23,7 @@
 #include "cobalt/media/audio/audio_input_constants.h"
 #include "media/audio/android/audio_manager_android.h"
 #include "media/base/audio_bus.h"
+#include "media/base/audio_sample_types.h"
 #include "starboard/android/shared/audio_permission_requester.h"
 
 #define LOG_ON_FAILURE_AND_RETURN(op, ...)      \

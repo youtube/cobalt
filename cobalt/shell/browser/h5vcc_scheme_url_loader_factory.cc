@@ -301,24 +301,42 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
     cache_storage_remote_->Match(
         std::move(fetch_api_request), std::move(match_options),
-        false, /* in_related_fetch_event */
-        false, /* in_range_fetch_event */
-        0,     // trace_id
-        base::BindOnce(&H5vccSchemeURLLoader::OnCacheMatched,
+        /*in_related_fetch_event=*/false, /*in_range_fetch_event=*/false,
+        /*trace_id=*/0,
+        base::BindOnce(&H5vccSchemeURLLoader::OnCacheMatchedWrapper,
                        weak_factory_.GetWeakPtr(), cache_name_utf8));
   }
 
+  void OnCacheMatchedWrapper(
+      const std::string& cache_name,
+      base::expected<blink::mojom::MatchResponsePtr,
+                     blink::mojom::CacheStorageError> result) {
+    if (!result.has_value()) {
+      OnCacheMatched(cache_name, result.error(), nullptr);
+      return;
+    }
+
+    blink::mojom::MatchResponsePtr match_response = std::move(result.value());
+    if (match_response && match_response->is_response()) {
+      OnCacheMatched(cache_name, blink::mojom::CacheStorageError::kSuccess,
+                     std::move(match_response->get_response()));
+    } else {
+      // This represents a cache miss.
+      OnCacheMatched(cache_name, blink::mojom::CacheStorageError::kSuccess,
+                     nullptr);
+    }
+  }
+
   void OnCacheMatched(const std::string& cache_name,
-                      blink::mojom::MatchResultPtr result) {
-    if (!result->is_response()) {
-      const auto status = result->get_status();
+                      blink::mojom::CacheStorageError result,
+                      blink::mojom::FetchAPIResponsePtr response) {
+    if (result != blink::mojom::CacheStorageError::kSuccess) {
+      const auto status = result;
       SplashScreenFetchedState state =
           SplashScreenFetchedState::kErrorOnReadCache;
-      // If the cache entry is not found, or the splash cache is not found in
-      // the cache entry, it's not an error of reading cache, but just a cache
-      // miss.
-      if (status == blink::mojom::CacheStorageError::kErrorCacheNameNotFound ||
-          status == blink::mojom::CacheStorageError::kErrorNotFound) {
+      // If the cache is not found, it's not an error of reading cache, but just
+      // a cache miss.
+      if (status == blink::mojom::CacheStorageError::kErrorCacheNameNotFound) {
         state = SplashScreenFetchedState::kOkBuiltIn;
       }
       return DisconnectCacheAndSendFallback(
@@ -327,8 +345,18 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
               cache_name.c_str(), static_cast<int>(status)),
           state);
     }
+
+    if (!response) {
+      // The cache entry is not found. This is not an error of reading cache,
+      // but just a cache miss.
+      return DisconnectCacheAndSendFallback(
+          base::StringPrintf(
+              "Did not find splash video from cache %s, reason: not found",
+              cache_name.c_str()),
+          SplashScreenFetchedState::kOkBuiltIn);
+    }
+
     LOG(INFO) << "Found splash video in cache: " << cache_name;
-    auto& response = result->get_response();
     if (!response->blob || response->blob->size == 0) {
       return DisconnectCacheAndSendFallback(
           base::StringPrintf(

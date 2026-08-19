@@ -1200,7 +1200,6 @@ void PopulateBinderMapWithContext(
   // by blink.
   // This avoids renderer kills when no binder is found in the absence of the
   // production embedder (such as in tests).
-<<<<<<< HEAD
   map->Add<blink::mojom::NoStatePrefetchProcessor>(
       &EmptyBinderForFrame<blink::mojom::NoStatePrefetchProcessor>);
   map->Add<payments::mojom::PaymentRequest>(
@@ -1211,20 +1210,30 @@ void PopulateBinderMapWithContext(
       &EmptyBinderForFrame<blink::mojom::CredentialManager>);
   map->Add<blink::mojom::LCPCriticalPathPredictorHost>(
       &EmptyBinderForFrame<blink::mojom::LCPCriticalPathPredictorHost>);
-=======
-  map->Add<blink::mojom::NoStatePrefetchProcessor>(base::BindRepeating(
-      &EmptyBinderForFrame<blink::mojom::NoStatePrefetchProcessor>));
-  map->Add<payments::mojom::PaymentRequest>(base::BindRepeating(
-      &EmptyBinderForFrame<payments::mojom::PaymentRequest>));
-  map->Add<blink::mojom::AnchorElementMetricsHost>(base::BindRepeating(
-      &EmptyBinderForFrame<blink::mojom::AnchorElementMetricsHost>));
-  map->Add<blink::mojom::CredentialManager>(base::BindRepeating(
-      &EmptyBinderForFrame<blink::mojom::CredentialManager>));
-  map->Add<blink::mojom::LCPCriticalPathPredictorHost>(base::BindRepeating(
-      &EmptyBinderForFrame<blink::mojom::LCPCriticalPathPredictorHost>));
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  if (base::FeatureList::IsEnabled(network::features::kBrowsingTopics) &&
+  map->Add<blink::mojom::AttributionReportingDataHost>(
+      &EmptyBinderForFrame<blink::mojom::AttributionReportingDataHost>);
+  map->Add<blink::mojom::PrivateAggregationHost>(
+      &EmptyBinderForFrame<blink::mojom::PrivateAggregationHost>);
+  map->Add<blink::mojom::SharedStorageWorkletHost>(
+      &EmptyBinderForFrame<blink::mojom::SharedStorageWorkletHost>);
+  map->Add<blink::mojom::TopicsDocumentService>(
+      &EmptyBinderForFrame<blink::mojom::TopicsDocumentService>);
+  map->Add<blink::mojom::FencedFrameConfigChangeNotifier>(
+      &EmptyBinderForFrame<blink::mojom::FencedFrameConfigChangeNotifier>);
+  map->Add<blink::mojom::InterestGroupManager>(
+      &EmptyBinderForFrame<blink::mojom::InterestGroupManager>);
+  map->Add<blink::mojom::InterestGroupStorage>(
+      &EmptyBinderForFrame<blink::mojom::InterestGroupStorage>);
+  map->Add<blink::mojom::AdAuctionService>(
+      &EmptyBinderForFrame<blink::mojom::AdAuctionService>);
+  map->Add<blink::mojom::AdRequestService>(
+      &EmptyBinderForFrame<blink::mojom::AdRequestService>);
+  map->Add<blink::mojom::AdRequestAgent>(
+      &EmptyBinderForFrame<blink::mojom::AdRequestAgent>);
+  map->Add<blink::mojom::AdAuctionPageMetrics>(
+      &EmptyBinderForFrame<blink::mojom::AdAuctionPageMetrics>);
+if (base::FeatureList::IsEnabled(network::features::kBrowsingTopics) &&
       base::FeatureList::IsEnabled(
           blink::features::kBrowsingTopicsDocumentAPI)) {
     map->Add<blink::mojom::BrowsingTopicsDocumentService>(
@@ -1258,23 +1267,14 @@ void PopulateBinderMapWithContext(
   map->Add<blink::mojom::ContentIndexService>(
       &ContentIndexServiceImpl::CreateForFrame);
   map->Add<blink::mojom::KeyboardLockService>(
-<<<<<<< HEAD
-      &KeyboardLockServiceImpl::CreateMojoService);
-=======
       base::BindRepeating(&KeyboardLockServiceImpl::CreateMojoService));
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (base::FeatureList::IsEnabled(network::features::kInterestGroupStorage)) {
     map->Add<blink::mojom::AdAuctionService>(
         &AdAuctionServiceImpl::CreateMojoService);
   }
-<<<<<<< HEAD
-  map->Add<blink::mojom::MediaSessionService>(&MediaSessionServiceImpl::Create);
-=======
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-  map->Add<blink::mojom::MediaSessionService>(
-      base::BindRepeating(&MediaSessionServiceImpl::Create));
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  map->Add<blink::mojom::MediaSessionService>(&MediaSessionServiceImpl::Create);
   map->Add<blink::mojom::PictureInPictureService>(
       &PictureInPictureServiceImpl::Create);
   map->Add<blink::mojom::WakeLockService>(&WakeLockServiceImpl::Create);

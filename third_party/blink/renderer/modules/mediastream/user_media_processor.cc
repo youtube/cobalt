@@ -753,8 +753,7 @@ void UserMediaProcessor::SetupAudioInput() {
     // Force-disable all native processing to get a "Straight Pipe" at 16kHz.
     // This prevents the WebRtcAudioProcessor from forcing a downsample.
     blink::AudioProcessingProperties properties;
-    properties.DisableDefaultProperties();
-    properties.echo_cancellation_type = 
+    properties.echo_cancellation_type =
         blink::AudioProcessingProperties::EchoCancellationType::kEchoCancellationDisabled;
 
     // Manually construct the settings to bypass the SelectSettingsAudioCapture algorithm
