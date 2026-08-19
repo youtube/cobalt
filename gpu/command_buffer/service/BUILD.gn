@@ -9,7 +9,10 @@ import("//third_party/dawn/scripts/dawn_features.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//ui/gl/features.gni")
 
-<<<<<<< HEAD
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 config("implementation") {
   defines = [ "GPU_COMMAND_BUFFER_SERVICE_IMPLEMENTATION" ]
   configs = [ "//build/config/compiler:wexit_time_destructors" ]
@@ -17,18 +20,6 @@ config("implementation") {
 
 component("service") {
   public_deps = [ ":service_sources" ]
-=======
-if (is_cobalt) {
-  import("//starboard/build/buildflags.gni")
-}
-
-group("service") {
-  if (is_component_build) {
-    public_deps = [ "//gpu" ]
-  } else {
-    public_deps = [ ":service_sources" ]
-  }
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 group("gles2") {

@@ -37,7 +37,7 @@
 
 static int InitAndRunAllTests(int argc, char** argv) {
   WTF::Partitions::Initialize();
-  WTF::Initialize();
+  blink::InitializeWtf();
   return base::RunUnitTestsUsingBaseTestSuite(argc, argv);
 }
 

@@ -285,20 +285,15 @@ int UtilityMain(MainFunctionParams parameters) {
   }
 #endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION) && BUILDFLAG(USE_VAAPI)
 
-<<<<<<< HEAD
-=======
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   // Thread type delegate of the process should be registered before first
   // thread type change in ChildProcess constructor. It also needs to be
   // registered before the process has multiple threads, which may race with
   // application of the sandbox.
   SandboxedProcessThreadTypeHandler::Create();
+#endif
 
-<<<<<<< HEAD
-=======
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   // Initializes the sandbox before any threads are created.
   // TODO(jorgelo): move this after GTK initialization when we enable a strict
   // Seccomp-BPF policy.
@@ -357,13 +352,9 @@ int UtilityMain(MainFunctionParams parameters) {
 #endif
       break;
 #endif  // BUILDFLAG(IS_LINUX)
-<<<<<<< HEAD
+#endif  // !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
-=======
-#endif  // !BUILDFLAG(IS_STARBOARD)
-#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     case sandbox::mojom::Sandbox::kHardwareVideoDecoding:
       pre_sandbox_hook =
           base::BindOnce(&media::HardwareVideoDecodingPreSandboxHook);
@@ -425,6 +416,7 @@ int UtilityMain(MainFunctionParams parameters) {
                             uncovered_hang_watcher_time);
     base::HangWatcher::GetInstance()->Start();
   }
+#endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #elif BUILDFLAG(IS_WIN)
   std::optional<base::win::ScopedCOMInitializer> scoped_com_initializer;

@@ -21,9 +21,9 @@ struct YtSearchVideoIntent: ShowInAppSearchResultsIntent {
   // The app is eligible for press-to-dictate, specially when the app is in the foreground.
   // The app will also appear in the Search app’s row of apps. This functionality was added
   // in tvOS 17.2.
-  static var title: LocalizedStringResource = "Search Videos"
+  static let title: LocalizedStringResource = "Search Videos"
 
-  static var searchScopes: [StringSearchScope] = [.freeformVideo, .general, .movies, .tv]
+  static let searchScopes: [StringSearchScope] = [.freeformVideo, .general, .movies, .tv]
 
   @Parameter(title: "Search criteria")
   var criteria: StringSearchCriteria
@@ -41,9 +41,9 @@ struct YtPlayVideoIntent: PlayVideoIntent {
   // NOTE:
   // Siri play requests. Using Siri to explicitly play video content on an app intent enabled app.
   // Support for this is coming in a future tvOS release.
-  static var title: LocalizedStringResource = "Play Video"
+  static let title: LocalizedStringResource = "Play Video"
 
-  static var supportedCategories: [VideoCategory] = [.freeform, .movies, .tv]
+  static let supportedCategories: [VideoCategory] = [.freeform, .movies, .tv]
 
   @Parameter(title: "Term")
   var term: String

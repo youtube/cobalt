@@ -36,6 +36,7 @@
 #include "content/public/app/content_main_runner.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
+#include "content/public/browser/web_contents.h"
 #include "net/base/apple/url_conversions.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/time.h"

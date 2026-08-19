@@ -26,21 +26,14 @@ static void* kObservingContext = &kObservingContext;
 
 namespace {
 
-<<<<<<< HEAD
-typedef NS_ENUM(NSInteger, NavigationDirection) {
-=======
 typedef NS_ENUM(NSInteger, RemoteButton) {
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   kUp,
   kDown,
   kLeft,
   kRight,
-<<<<<<< HEAD
-=======
   kMediaPlayPause,
   kSelect,
   kMenu,
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   kNone
 };
 
@@ -124,40 +117,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     // tvOS supports multiple types of input events from the Remote, including
     // the clickpad (touch surface), the clickpad ring (directional control),
     // and various physical buttons.
-<<<<<<< HEAD
-    // Add a tap gesture recognizer to handle center-clickpad press events.
-    UITapGestureRecognizer* tapGesture =
-        [[UITapGestureRecognizer alloc] initWithTarget:self
-                                                action:@selector(tapGesture:)];
-    [self addGestureRecognizer:tapGesture];
-
-    // Create and add swipe gesture recognizers for all directions originating
-    // from the clickpad buttons.
-    [self addSwipeGestureRecognizerWithDirection:
-              UISwipeGestureRecognizerDirectionUp];
-    [self addSwipeGestureRecognizerWithDirection:
-              UISwipeGestureRecognizerDirectionLeft];
-    [self addSwipeGestureRecognizerWithDirection:
-              UISwipeGestureRecognizerDirectionRight];
-    [self addSwipeGestureRecognizerWithDirection:
-              UISwipeGestureRecognizerDirectionDown];
-
-    // Add a pan gesture recognizer to capture input from the clickpad ring,
-    // which allows for continuous movement to the left or right.
-    UIPanGestureRecognizer* panGesture =
-        [[UIPanGestureRecognizer alloc] initWithTarget:self
-                                                action:@selector(handlePan:)];
-    panGesture.delegate = self;
-    [self addGestureRecognizer:panGesture];
-
-    // Only allow the pan gesture to activate if the swipe gesture fails to
-    // recognize.
-    for (UIGestureRecognizer* swipeGesture in self.gestureRecognizers) {
-      if ([swipeGesture isKindOfClass:[UISwipeGestureRecognizer class]]) {
-        [panGesture requireGestureRecognizerToFail:swipeGesture];
-      }
-    }
-=======
 #if BUILDFLAG(IS_COBALT)
     _gameControllers = [[NSMutableSet alloc] init];
     NSNotificationCenter* notifications = [NSNotificationCenter defaultCenter];
@@ -177,7 +136,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 #else
     [self addSwipeAndPanGestureRecognizers];
 #endif
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
   return self;
 }
@@ -239,22 +197,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 
 #pragma mark - Private
 
-<<<<<<< HEAD
-// Helper method to add swipe gestures for `direction`.
-- (void)addSwipeGestureRecognizerWithDirection:
-    (UISwipeGestureRecognizerDirection)direction {
-  UISwipeGestureRecognizer* swipeGesture = [[UISwipeGestureRecognizer alloc]
-      initWithTarget:self
-              action:@selector(swipeGesture:)];
-  swipeGesture.direction = direction;
-  swipeGesture.delegate = self;
-  [self addGestureRecognizer:swipeGesture];
-}
-
-- (void)tapGesture:(UIGestureRecognizer*)gestureRecognizer {
-  if ([gestureRecognizer state] != UIGestureRecognizerStateEnded) {
-    return;
-=======
 - (void)addSwipeAndPanGestureRecognizers {
   // Create and add swipe gesture recognizers for all directions originating
   // from the clickpad buttons.
@@ -281,7 +223,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     if ([swipeGesture isKindOfClass:[UISwipeGestureRecognizer class]]) {
       [panGesture requireGestureRecognizerToFail:swipeGesture];
     }
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 }
 
@@ -316,24 +257,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     return;
   }
 
-<<<<<<< HEAD
-  NavigationDirection direction = kNone;
-  switch (gestureRecognizer.direction) {
-    case UISwipeGestureRecognizerDirectionLeft:
-      direction = kLeft;
-      break;
-    case UISwipeGestureRecognizerDirectionRight:
-      direction = kRight;
-      break;
-    case UISwipeGestureRecognizerDirectionUp:
-      direction = kUp;
-      break;
-    case UISwipeGestureRecognizerDirectionDown:
-      direction = kDown;
-      break;
-  }
-  [self sendKeyEventWithDirection:direction];
-=======
   RemoteButton button = kNone;
   switch (gestureRecognizer.direction) {
     case UISwipeGestureRecognizerDirectionLeft:
@@ -356,7 +279,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
                            eventType:blink::WebInputEvent::Type::kKeyDown];
   [self sendKeyEventWithRemoteButton:button
                            eventType:blink::WebInputEvent::Type::kKeyUp];
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 - (void)handlePan:(UIPanGestureRecognizer*)gesture {
@@ -366,50 +288,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   if (gesture.state == UIGestureRecognizerStateEnded ||
       gesture.state == UIGestureRecognizerStateChanged) {
     // Use `kMinVelocity` to avoid excessive events.
-<<<<<<< HEAD
-    if (velocity.x > kMinVelocity) {
-      [self sendKeyEventWithDirection:kRight];
-    } else if (velocity.x < -kMinVelocity) {
-      [self sendKeyEventWithDirection:kLeft];
-    }
-  }
-}
-
-// Generates four-directional events when buttons on the clickpad ring are
-// pressed.
-- (void)pressesEnded:(NSSet<UIPress*>*)presses
-           withEvent:(UIPressesEvent*)event {
-  for (UIPress* press in presses) {
-    NavigationDirection direction = kNone;
-    switch (press.type) {
-      case UIPressTypeUpArrow:
-        direction = kUp;
-        break;
-      case UIPressTypeDownArrow:
-        direction = kDown;
-        break;
-      case UIPressTypeLeftArrow:
-        direction = kLeft;
-        break;
-      case UIPressTypeRightArrow:
-        direction = kRight;
-        break;
-      default:
-        [super pressesEnded:presses withEvent:event];
-        break;
-    }
-    [self sendKeyEventWithDirection:direction];
-  }
-}
-
-// Helper method to generate WebKeyboardEvent with `direction`.
-- (void)sendKeyEventWithDirection:(NavigationDirection)direction {
-  blink::WebKeyboardEvent event(blink::WebInputEvent::Type::kKeyDown,
-                                blink::WebInputEvent::kNoModifiers,
-                                ui::EventTimeForNow());
-
-  switch (direction) {
-=======
     RemoteButton button = kNone;
     if (velocity.x > kMinVelocity) {
       button = kRight;
@@ -520,7 +398,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
                                 ui::EventTimeForNow());
 
   switch (remoteButton) {
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     case kLeft:
       event.native_key_code = UIKeyboardHIDUsageKeyboardLeftArrow;
       event.dom_code = static_cast<int>(ui::DomCode::ARROW_LEFT);
@@ -545,10 +422,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
       event.dom_key = ui::DomKey::ARROW_DOWN;
       event.windows_key_code = ui::VKEY_DOWN;
       break;
-<<<<<<< HEAD
-    case kNone:
-      return;
-=======
     case kMediaPlayPause:
       event.native_key_code = UIKeyboardHIDUsageKeyboardPause;
       event.dom_code = static_cast<int>(ui::DomCode::MEDIA_PLAY_PAUSE);
@@ -577,7 +450,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
       break;
     case kNone:
       return NO;
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   _view->SendKeyEvent(
@@ -732,8 +604,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   [self hideAndDeleteKeyboard];
 }
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(IS_COBALT)
 #pragma mark - Controller Connect/Disconnect Notifications
 
@@ -850,7 +720,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 }
 #endif
 
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #pragma mark - UIGestureRecognizerDelegate
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer*)gestureRecognizer

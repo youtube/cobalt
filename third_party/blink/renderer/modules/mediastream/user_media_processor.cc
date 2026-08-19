@@ -749,13 +749,12 @@ void UserMediaProcessor::SetupAudioInput() {
         base::StringPrintf("Cobalt: SetupAudioInput({request_id=%d}) => "
                            "(Shortcut handshake, hardcoding capabilities)",
                            current_request_info_->request_id()));
-    
+
     // Force-disable all native processing to get a "Straight Pipe" at 16kHz.
     // This prevents the WebRtcAudioProcessor from forcing a downsample.
-    blink::AudioProcessingProperties properties;
-    properties.DisableDefaultProperties();
-    properties.echo_cancellation_type = 
-        blink::AudioProcessingProperties::EchoCancellationType::kEchoCancellationDisabled;
+    AudioProcessingProperties properties(AudioProcessingProperties::Disabled());
+    properties.echo_cancellation_type = blink::AudioProcessingProperties::
+        EchoCancellationType::kEchoCancellationDisabled;
 
     // Manually construct the settings to bypass the SelectSettingsAudioCapture algorithm
     // and its default processing dependencies.

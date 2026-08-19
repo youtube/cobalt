@@ -39,10 +39,9 @@ sk_sp<SkTypeface> SkTypeface_Cobalt::onMakeClone(
   return sk_ref_sp(this);
 }
 
-void SkTypeface_Cobalt::onCharsToGlyphs(const SkUnichar uni[],
-                                        int count,
-                                        SkGlyphID glyphs[]) const {
-  for (int i = 0; i < count; ++i) {
+void SkTypeface_Cobalt::onCharsToGlyphs(SkSpan<const SkUnichar> uni,
+                                        SkSpan<SkGlyphID> glyphs) const {
+  for (size_t i = 0; i < uni.size(); ++i) {
     glyphs[i] = characterMapGetGlyphIdForCharacter(uni[i]);
   }
 }
@@ -59,7 +58,7 @@ SkGlyphID SkTypeface_Cobalt::characterMapGetGlyphIdForCharacter(
 
   // If the character isn't there, look it up with FreeType, then cache it.
   SkGlyphID glyphs[1] = {0};
-  SkTypeface_FreeType::onCharsToGlyphs(&character, 1, glyphs);
+  SkTypeface_FreeType::onCharsToGlyphs({&character, 1}, glyphs);
   if (character_map_) {
     character_map_->Insert(character, glyphs[0]);
   }

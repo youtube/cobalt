@@ -309,9 +309,9 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   }
 
   void OnCacheMatched(const std::string& cache_name,
-                      blink::mojom::MatchResultPtr result) {
-    if (!result->is_response()) {
-      const auto status = result->get_status();
+                      blink::mojom::CacheStorage::MatchResult result) {
+    if (!result.has_value()) {
+      const auto status = result.error();
       SplashScreenFetchedState state =
           SplashScreenFetchedState::kErrorOnReadCache;
       // If the cache entry is not found, or the splash cache is not found in
@@ -328,7 +328,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
           state);
     }
     LOG(INFO) << "Found splash video in cache: " << cache_name;
-    auto& response = result->get_response();
+    auto& response = result.value()->get_response();
     if (!response->blob || response->blob->size == 0) {
       return DisconnectCacheAndSendFallback(
           base::StringPrintf(
