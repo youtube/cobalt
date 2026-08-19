@@ -21,7 +21,7 @@ if (current_toolchain == starboard_toolchain) {
     _benchmark_type = "executable"
   }
 
-  test("player_filter_tests") {
+  source_set("player_filter_tests_sources") {
     testonly = true
 
     sources = [
@@ -53,11 +53,19 @@ if (current_toolchain == starboard_toolchain) {
     deps = cobalt_platform_dependencies
     deps += [
       "//$starboard_path:starboard_platform",
-      "//starboard:starboard_test_main",
       "//starboard/egl_and_gles:buildflags",
       "//starboard/shared/starboard/player:player_test_data",
       "//starboard/shared/starboard/player/filter:filter_based_player_sources",
       "//starboard/testing:fake_graphics_context_provider",
+    ]
+  }
+
+  test("player_filter_tests") {
+    testonly = true
+
+    deps = [
+      ":player_filter_tests_sources",
+      "//starboard:starboard_test_main",
     ]
   }
 
