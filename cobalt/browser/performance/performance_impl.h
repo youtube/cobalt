@@ -47,6 +47,8 @@ class PerformanceImpl
   void MeasureUsedSwapMemory(MeasureUsedSwapMemoryCallback) override;
   void MeasureReservedVirtualMemory(
       MeasureReservedVirtualMemoryCallback) override;
+  void MeasureUsedGpuMemory(MeasureUsedGpuMemoryCallback) override;
+  void MeasureTotalGpuMemory(MeasureTotalGpuMemoryCallback) override;
   void GetAppStartupTimeStamp(GetAppStartupTimeStampCallback callback) override;
 
  private:
