@@ -1890,6 +1890,12 @@ class TurboshaftAssemblerOpInterface
                                        FloatRepresentation::Float64());
   }
 
+  V<Float64> Float64Binary(V<Float64> lhs, V<Float64> rhs,
+                           FloatBinopOp::Kind kind) {
+    return ReduceIfReachableFloatBinop(lhs, rhs, kind,
+                                       FloatRepresentation::Float64());
+  }
+
 #define DECL_MULTI_REP_UNARY(name, operation, rep_type, kind)                \
   OpIndex name(OpIndex input, rep_type rep) {                                \
     return ReduceIfReachable##operation(input, operation##Op::Kind::k##kind, \
@@ -2744,6 +2750,8 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableMemoryBarrier(memory_order);
   }
 
+  OpIndex Pause() { return ReduceIfReachablePause(); }
+
   OpIndex Load(OpIndex base, OptionalOpIndex index, LoadOp::Kind kind,
                MemoryRepresentation loaded_rep,
                RegisterRepresentation result_rep, int32_t offset = 0,
@@ -3213,6 +3221,10 @@ class TurboshaftAssemblerOpInterface
   void MemoryCopy(V<WordPtr> dst_base, V<WordPtr> src_base,
                   V<WordPtr> num_bytes) {
     ReduceIfReachableMemoryCopy(dst_base, src_base, num_bytes);
+  }
+
+  void MemoryFill(V<WordPtr> dst_base, V<Word32> value, V<WordPtr> num_bytes) {
+    ReduceIfReachableMemoryFill(dst_base, value, num_bytes);
   }
 #endif
 

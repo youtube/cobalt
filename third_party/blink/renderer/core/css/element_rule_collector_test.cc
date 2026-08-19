@@ -43,7 +43,8 @@ static RuleSet* RuleSetFromSingleRule(Document& document, const String& text) {
   MediaQueryEvaluator* medium =
       MakeGarbageCollected<MediaQueryEvaluator>(document.GetFrame());
   rule_set->AddStyleRule(style_rule, /*parent_rule=*/nullptr, *medium,
-                         kRuleHasNoSpecialState, /*within_mixin=*/false);
+                         /*mixins=*/{}, kRuleHasNoSpecialState,
+                         /*within_mixin=*/nullptr);
   rule_set->CompactRulesIfNeeded();
   return rule_set;
 }
@@ -270,11 +271,11 @@ TEST_F(ElementRuleCollectorTest, LinkMatchTypeHostContext) {
   ShadowRoot& unvisited_root =
       unvisited_host->AttachShadowRootForTesting(ShadowRootMode::kOpen);
 
-  visited_root.setInnerHTML(R"HTML(
+  visited_root.SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style id=style></style>
     <div id=div></div>
   )HTML");
-  unvisited_root.setInnerHTML(R"HTML(
+  unvisited_root.SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style id=style></style>
     <div id=div></div>
   )HTML");
@@ -354,12 +355,12 @@ TEST_F(ElementRuleCollectorTest, MatchesNonUniversalHighlights) {
     }
     MediaQueryEvaluator* medium =
         MakeGarbageCollected<MediaQueryEvaluator>(GetDocument().GetFrame());
-    RuleSet& rules = sheet->EnsureRuleSet(*medium);
+    RuleSet& rules = sheet->EnsureRuleSet(*medium, /*mixins=*/{});
     auto* rule = To<StyleRule>(CSSParser::ParseRule(
         sheet->ParserContext(), sheet, CSSNestingType::kNone,
         /*parent_rule_for_nesting=*/nullptr, selector + " { color: green }"));
-    rules.AddStyleRule(rule, /*parent_rule=*/nullptr, *medium,
-                       kRuleHasNoSpecialState, /*within_mixin=*/false);
+    rules.AddStyleRule(rule, /*parent_rule=*/nullptr, *medium, /*mixins=*/{},
+                       kRuleHasNoSpecialState, /*within_mixin=*/nullptr);
 
     MatchResult result;
     ElementResolveContext context{element};

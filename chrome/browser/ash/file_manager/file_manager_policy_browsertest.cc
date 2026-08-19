@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/files/file_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
@@ -555,7 +556,7 @@ class FileTransferConnectorFilesAppBrowserTestBase {
               [](base::RepeatingCallback<void(
                      enterprise_connectors::MockFileTransferAnalysisDelegate*)>
                      mock_setup_callback,
-                 safe_browsing::DeepScanAccessPoint access_point,
+                 enterprise_connectors::DeepScanAccessPoint access_point,
                  storage::FileSystemURL source_url,
                  storage::FileSystemURL destination_url, Profile* profile,
                  storage::FileSystemContext* file_system_context,

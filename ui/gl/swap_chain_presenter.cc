@@ -1798,6 +1798,19 @@ bool SwapChainPresenter::CreateSurfaceHandleHelperForTesting(HANDLE* handle) {
   return CreateSurfaceHandleHelper(handle);
 }
 
+SwapChainPresenter::PresentationMode
+SwapChainPresenter::GetLastPresentationMode() const {
+  if (IsMediaFoundationSurfaceProxy()) {
+    return PresentationMode::kMfSurfaceProxy;
+  } else if (decode_swap_chain_) {
+    return PresentationMode::kDecodeSwapChain;
+  } else if (staging_texture_) {
+    return PresentationMode::kVpBltWithStagingTexture;
+  } else {
+    return PresentationMode::kVpBlt;
+  }
+}
+
 void SwapChainPresenter::RecordPresentationStatistics() {
   base::UmaHistogramSparse("GPU.DirectComposition.SwapChainFormat3",
                            swap_chain_format_);
@@ -1899,7 +1912,9 @@ bool SwapChainPresenter::PresentDCOMPSurface(DCLayerOverlayParams& params,
                               kDestSizeTolerance) &&
       params.z_order > 0;
 
-  if (is_fullscreen_letterboxing_overlay_scenario) {
+  if (is_fullscreen_letterboxing_overlay_scenario &&
+      base::FeatureList::IsEnabled(
+          features::kDesktopPlaneRemovalForMFFullScreenLetterbox)) {
     const gfx::Rect monitor_rect =
         gfx::Rect(gfx::ToRoundedSize(dest_size.value()));
     mapped_rect = monitor_rect;
@@ -2512,6 +2527,15 @@ bool SwapChainPresenter::RevertSwapChainToSDR(
   }
 
   return true;
+}
+
+bool SwapChainPresenter::IsMediaFoundationSurfaceProxy() const {
+  if (last_overlay_image_ &&
+      last_overlay_image_->type() == DCLayerOverlayType::kDCompSurfaceProxy) {
+    CHECK(last_overlay_image_->dcomp_surface_proxy());
+    return true;
+  }
+  return false;
 }
 
 }  // namespace gl

@@ -730,10 +730,10 @@ void scalar_encode_signed_13_12(uint8_t out[416], const scalar *s) {
     e |= g << 14;
     e |= h << 27;
     h >>= 5;
-    OPENSSL_memcpy(&out[13 * i], &a, sizeof(a));
-    OPENSSL_memcpy(&out[13 * i + 4], &c, sizeof(c));
-    OPENSSL_memcpy(&out[13 * i + 8], &e, sizeof(e));
-    OPENSSL_memcpy(&out[13 * i + 12], &h, 1);
+    CRYPTO_store_u32_le(&out[13 * i], a);
+    CRYPTO_store_u32_le(&out[13 * i + 4], c);
+    CRYPTO_store_u32_le(&out[13 * i + 8], e);
+    out[13 * i + 12] = static_cast<uint8_t>(h);
   }
 }
 
@@ -757,9 +757,9 @@ void scalar_encode_signed_20_19(uint8_t out[640], const scalar *s) {
     b |= c << 8;
     b |= d << 28;
     d >>= 4;
-    OPENSSL_memcpy(&out[10 * i], &a, sizeof(a));
-    OPENSSL_memcpy(&out[10 * i + 4], &b, sizeof(b));
-    OPENSSL_memcpy(&out[10 * i + 8], &d, 2);
+    CRYPTO_store_u32_le(&out[10 * i], a);
+    CRYPTO_store_u32_le(&out[10 * i + 4], b);
+    CRYPTO_store_u16_le(&out[10 * i + 8], static_cast<uint16_t>(d));
   }
 }
 
@@ -784,10 +784,9 @@ void scalar_encode_signed(uint8_t *out, const scalar *s, int bits,
 
 // FIPS 204, Algorithm 18 (`SimpleBitUnpack`). Specialized for bitlen(b) == 10.
 void scalar_decode_10(scalar *out, const uint8_t in[320]) {
-  uint32_t v;
   static_assert(kDegree % 4 == 0, "kDegree must be a multiple of 4");
   for (int i = 0; i < kDegree / 4; i++) {
-    OPENSSL_memcpy(&v, &in[5 * i], sizeof(v));
+    uint32_t v = CRYPTO_load_u32_le(&in[5 * i]);
     out->c[4 * i] = v & 0x3ff;
     out->c[4 * i + 1] = (v >> 10) & 0x3ff;
     out->c[4 * i + 2] = (v >> 20) & 0x3ff;
@@ -798,10 +797,9 @@ void scalar_decode_10(scalar *out, const uint8_t in[320]) {
 // FIPS 204, Algorithm 19 (`BitUnpack`). Specialized to bitlen(a+b) = 4 and b =
 // 4.
 int scalar_decode_signed_4_4(scalar *out, const uint8_t in[128]) {
-  uint32_t v;
   static_assert(kDegree % 8 == 0, "kDegree must be a multiple of 8");
   for (int i = 0; i < kDegree / 8; i++) {
-    OPENSSL_memcpy(&v, &in[4 * i], sizeof(v));
+    uint32_t v = CRYPTO_load_u32_le(&in[4 * i]);
     // None of the nibbles may be >= 9. So if the MSB of any nibble is set, none
     // of the other bits may be set. First, select all the MSBs.
     const uint32_t msbs = v & 0x88888888u;
@@ -865,14 +863,12 @@ void scalar_decode_signed_13_12(scalar *out, const uint8_t in[416]) {
   static const uint32_t k13Bits = (1u << 13) - 1;
   static const uint32_t k7Bits = (1u << 7) - 1;
 
-  uint32_t a, b, c;
-  uint8_t d;
   static_assert(kDegree % 8 == 0, "kDegree must be a multiple of 8");
   for (int i = 0; i < kDegree / 8; i++) {
-    OPENSSL_memcpy(&a, &in[13 * i], sizeof(a));
-    OPENSSL_memcpy(&b, &in[13 * i + 4], sizeof(b));
-    OPENSSL_memcpy(&c, &in[13 * i + 8], sizeof(c));
-    d = in[13 * i + 12];
+    uint32_t a = CRYPTO_load_u32_le(&in[13 * i]);
+    uint32_t b = CRYPTO_load_u32_le(&in[13 * i + 4]);
+    uint32_t c = CRYPTO_load_u32_le(&in[13 * i + 8]);
+    uint8_t d = in[13 * i + 12];
 
     // It's not possible for a 13-bit number to be out of range when the max is
     // 2^12.
@@ -893,13 +889,11 @@ void scalar_decode_signed_20_19(scalar *out, const uint8_t in[640]) {
   static const uint32_t kMax = 1u << 19;
   static const uint32_t k20Bits = (1u << 20) - 1;
 
-  uint32_t a, b;
-  uint16_t c;
   static_assert(kDegree % 4 == 0, "kDegree must be a multiple of 4");
   for (int i = 0; i < kDegree / 4; i++) {
-    OPENSSL_memcpy(&a, &in[10 * i], sizeof(a));
-    OPENSSL_memcpy(&b, &in[10 * i + 4], sizeof(b));
-    OPENSSL_memcpy(&c, &in[10 * i + 8], sizeof(c));
+    uint32_t a = CRYPTO_load_u32_le(&in[10 * i]);
+    uint32_t b = CRYPTO_load_u32_le(&in[10 * i + 4]);
+    uint16_t c = CRYPTO_load_u16_le(&in[10 * i + 8]);
 
     // It's not possible for a 20-bit number to be out of range when the max is
     // 2^19.

@@ -32,9 +32,11 @@
 
 #include <limits>
 #include <memory>
+#include <utility>
 
 #include "base/debug/stack_trace.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/types/optional_util.h"
 #include "cc/animation/animation_timeline.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/task_type.h"
@@ -389,6 +391,7 @@ Animation::~Animation() {
 }
 
 void Animation::Dispose() {
+  DisassociateTriggers();
   if (timeline_)
     timeline_->AnimationDetached(this);
   DestroyCompositorAnimation();
@@ -874,7 +877,7 @@ bool Animation::HasLowerCompositeOrdering(
       // ::view-transition subtree but we may want to sort them based on their
       // actual composite order.
       // https://github.com/w3c/csswg-drafts/issues/9588.
-      return CodeUnitCompareLessThan(
+      return WTF::CodeUnitCompareLessThan(
           PseudoElement::PseudoElementNameForEvents(owning_element1),
           PseudoElement::PseudoElementNameForEvents(owning_element2));
     }
@@ -2131,8 +2134,30 @@ bool Animation::HasPendingActivity() const {
       finished_promise_ &&
       finished_promise_->GetState() == AnimationPromise::kPending;
 
+  bool can_trigger = false;
+  for (AnimationTrigger* trigger : triggers_) {
+    if (trigger->CanTrigger()) {
+      can_trigger = true;
+      break;
+    }
+  }
+  if (can_trigger) {
+    // A trigger is only a reason to keep the animation alive if triggering the
+    // animation can have an observable effect, i.e. visually affect a target or
+    // have a finish listener run.
+    if (!HasEventListeners(event_type_names::kFinish)) {
+      const auto* effect = DynamicTo<KeyframeEffect>(content_.Get());
+      // TODO(crbug.com/423632858): this check is likely not perfect as there
+      // might be a risk of garbage collecting a triggered animation whose
+      // target has been removed from the DOM but could be reattached in the
+      // future.
+      can_trigger = effect && effect->EffectTarget() &&
+                    effect->EffectTarget()->isConnected();
+    }
+  }
+
   return pending_finished_event_ || pending_cancelled_event_ ||
-         pending_remove_event_ || has_pending_promise ||
+         pending_remove_event_ || has_pending_promise || can_trigger ||
          (!finished_ && HasEventListeners(event_type_names::kFinish));
 }
 

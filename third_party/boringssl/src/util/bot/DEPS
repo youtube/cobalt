@@ -33,9 +33,9 @@ vars = {
   # Keep this in sync with .bazelversion.
   'bazel_version': 'version:3@7.5.0.chromium.1',
   # infra/3pp/tools/cmake/linux-amd64
-  'cmake_version': 'version:3@3.31.7.chromium.8',
+  'cmake_version': 'version:3@3.31.8.chromium.8',
   # infra/3pp/tools/go/linux-amd64
-  'go_version': 'version:3@1.24.3',
+  'go_version': 'version:3@1.24.4',
   # infra/3pp/tools/perl/windows-amd64
   'perl_version': 'version:3@5.38.2.2',
   # chrome_internal/third_party/sdk/windows, but if an update switches this to a
@@ -46,14 +46,14 @@ vars = {
   # https://chromium.googlesource.com/chromium/src/+/main/DEPS
   'android_sdk_platform-tools_version': 'mjFmRj7k_XR9yj60pYbr9mG38FyEbU5oWdU56bZQ5cwC',
   'libfuzzer_revision': 'e31b99917861f891308269c36a32363b120126bb',
-  'libcxx_revision': 'bf30ab1b37bc976f82a46fa7f15e30235c4a1a49',
-  'libcxxabi_revision': 'e01dce316dd430f006c8af7d1179f83270236e24',
-  'llvm_libc_revision': 'f86693f91c5aa0566fa403f4189c943744155ca6',
+  'libcxx_revision': 'b5d83e70a1537fbce965e6319877c76794daaa80',
+  'libcxxabi_revision': '02570151a883c93800bd336774e26d2bad8fee0d',
+  'llvm_libc_revision': '34e6c8e85a1acd219c32edf0650e2dc47ef95519',
   'ninja_version': 'version:2@1.12.1.chromium.4',
 
   # Update to the latest revision of
   # https://chromium.googlesource.com/chromium/src/tools/clang
-  'tools_clang_revision': '92a5f60019f3a9ff63b9388d181fa65047377fb4',
+  'tools_clang_revision': '222883ecc9931686c1ae27764ef2a66b2d8d7e10',
 
   # The Android NDK cannot be updated until https://crbug.com/42290318 is fixed.
   # We rely on an older NDK to test building without NEON instructions as the baseline.

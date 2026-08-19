@@ -71,6 +71,8 @@ class Mips64OperandGenerator final : public OperandGenerator {
 
   bool CanBeImmediate(int64_t value, InstructionCode opcode) {
     switch (ArchOpcodeField::decode(opcode)) {
+      case kArchAtomicStoreWithWriteBarrier:
+        return false;
       case kMips64Shl:
       case kMips64Sar:
       case kMips64Shr:
@@ -2340,6 +2342,13 @@ void InstructionSelector::VisitWord64AtomicCompareExchange(OpIndex node) {
     UNREACHABLE();
   }
   VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord64);
+}
+
+void InstructionSelector::VisitTaggedAtomicCompareExchange(OpIndex node) {
+  AtomicWidth width =
+      COMPRESS_POINTERS_BOOL ? AtomicWidth::kWord32 : AtomicWidth::kWord64;
+  VisitAtomicCompareExchange(this, node, kAtomicCompareExchangeWithWriteBarrier,
+                             width);
 }
 
 void InstructionSelector::VisitWord32AtomicBinaryOperation(

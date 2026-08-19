@@ -21,6 +21,7 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/password_manager/chrome_webauthn_credentials_delegate_factory.h"
+#include "chrome/browser/password_manager/password_change/change_password_form_waiter.h"
 #include "chrome/browser/password_manager/password_change/model_quality_logs_uploader.h"
 #include "chrome/browser/password_manager/password_change/password_change_submission_verifier.h"
 #include "chrome/browser/password_manager/password_manager_settings_service_factory.h"
@@ -56,6 +57,8 @@ using ::testing::Invoke;
 using ::testing::WithArg;
 using PasswordChangeOutcome = ::optimization_guide::proto::
     PasswordChangeSubmissionData_PasswordChangeOutcome;
+using QualityStatus = optimization_guide::proto::
+    PasswordChangeQuality_StepQuality_SubmissionStatus;
 
 const std::u16string kUsername = u"user";
 const std::u16string kOldPassword = u"qwerty123";
@@ -169,6 +172,13 @@ void PostResponseForSubmissionButtonClick(
                                 /*log_entry=*/nullptr));
 }
 
+void CheckSubmitFormStatus(
+    const optimization_guide::proto::LogAiDataRequest& log,
+    const QualityStatus& expected_status) {
+  EXPECT_EQ(log.password_change_submission().quality().submit_form().status(),
+            expected_status);
+}
+
 }  // namespace
 
 class ChangePasswordFormFillingSubmissionHelperTest
@@ -261,6 +271,9 @@ class ChangePasswordFormFillingSubmissionHelperTest
 
   MockStubPasswordManagerDriver& driver() { return driver_; }
   password_manager::FakeFormFetcher& form_fetcher() { return form_fetcher_; }
+  const std::unique_ptr<ModelQualityLogsUploader>& logs_uploader() const {
+    return logs_uploader_;
+  }
 
   password_manager::MockPasswordStoreInterface* profile_password_store() {
     return static_cast<password_manager::MockPasswordStoreInterface*>(
@@ -666,6 +679,11 @@ TEST_F(ChangePasswordFormFillingSubmissionHelperTest,
   verifier->OnPasswordFormSubmission(web_contents());
 
   EXPECT_FALSE(completion_future.Get());
+
+  CheckSubmitFormStatus(
+      logs_uploader()->GetFinalLog(),
+      QualityStatus::
+          PasswordChangeQuality_StepQuality_SubmissionStatus_ELEMENT_NOT_FOUND);
 }
 
 TEST_F(ChangePasswordFormFillingSubmissionHelperTest,
@@ -717,6 +735,11 @@ TEST_F(ChangePasswordFormFillingSubmissionHelperTest,
 
   // Expects that form submission succeeded.
   EXPECT_TRUE(completion_future.Get());
+
+  CheckSubmitFormStatus(
+      logs_uploader()->GetFinalLog(),
+      QualityStatus::
+          PasswordChangeQuality_StepQuality_SubmissionStatus_ACTION_SUCCESS);
 }
 
 TEST_F(ChangePasswordFormFillingSubmissionHelperTest,
@@ -753,4 +776,38 @@ TEST_F(ChangePasswordFormFillingSubmissionHelperTest,
   EXPECT_FALSE(verifier->submission_verifier());
 
   EXPECT_FALSE(completion_future.Get());
+
+  CheckSubmitFormStatus(
+      logs_uploader()->GetFinalLog(),
+      QualityStatus::
+          PasswordChangeQuality_StepQuality_SubmissionStatus_ELEMENT_NOT_FOUND);
+}
+
+TEST_F(ChangePasswordFormFillingSubmissionHelperTest,
+       WhenFormFillingFailedHelpersLooksForNewForm) {
+  auto form_manager = CreateFormManager(/*credentials_to_seed=*/{});
+
+  base::test::TestFuture<bool> completion_future;
+  base::MockCallback<
+      base::OnceCallback<void(optimization_guide::OnAIPageContentDone)>>
+      capture_annotated_page_content;
+  auto verifier =
+      CreateVerifier(form_manager.get(), completion_future.GetCallback(),
+                     capture_annotated_page_content.Get());
+
+  base::RunLoop run_loop;
+  EXPECT_CALL(driver(), FillChangePasswordForm)
+      .WillOnce(RunOnceCallback<5>(std::nullopt));
+  EXPECT_CALL(driver(), SubmitFormWithEnter).Times(0);
+  task_environment()->RunUntilIdle();
+
+  EXPECT_TRUE(verifier->form_waiter());
+  // Verify that Chrome attempts to fill and submit a newly found form.
+  EXPECT_CALL(driver(), FillChangePasswordForm)
+      .WillOnce(RunOnceCallback<5>(CreateFilledTestPasswordFormData()));
+  EXPECT_CALL(driver(), SubmitFormWithEnter)
+      .WillOnce(RunOnceCallback<1>(/*success=*/true));
+  static_cast<password_manager::PasswordFormManagerObserver*>(
+      verifier->form_waiter())
+      ->OnPasswordFormParsed(form_manager.get());
 }

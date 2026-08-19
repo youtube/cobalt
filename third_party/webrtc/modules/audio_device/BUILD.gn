@@ -66,6 +66,7 @@ rtc_library("audio_device_buffer") {
     "../../api:sequence_checker",
     "../../api/audio:audio_device",
     "../../api/task_queue",
+    "../../api/units:time_delta",
     "../../common_audio:common_audio_c",
     "../../rtc_base:buffer",
     "../../rtc_base:checks",
@@ -239,7 +240,9 @@ if (!build_with_chromium) {
       defines += [ "WEBRTC_DUMMY_FILE_DEVICES" ]
     }
     deps = [
+      ":audio_device_buffer",
       ":audio_device_generic",
+      "../../api/audio:audio_device",
       "../../rtc_base:checks",
       "../../rtc_base:logging",
       "../../rtc_base:platform_thread",
@@ -265,6 +268,7 @@ rtc_library("audio_device_impl") {
     ":audio_device_generic",
     "../../api:array_view",
     "../../api:make_ref_counted",
+    "../../api:ref_count",
     "../../api:refcountedbase",
     "../../api:scoped_refptr",
     "../../api:sequence_checker",
@@ -437,6 +441,7 @@ rtc_source_set("mock_audio_device") {
     ":audio_device_buffer",
     ":audio_device_impl",
     "../../api:make_ref_counted",
+    "../../api:scoped_refptr",
     "../../api/audio:audio_device",
     "../../test:test_support",
   ]

@@ -30,12 +30,18 @@ const base::FeatureParam<bool>* GetPageActionMigrationParam(
       return &features::kPageActionsMigrationPwaInstall;
     case PageActionIconType::kPriceInsights:
       return &features::kPageActionsMigrationPriceInsights;
+    case PageActionIconType::kDiscounts:
+      return &features::kPageActionsMigrationDiscounts;
+    case PageActionIconType::kProductSpecifications:
+      return &features::kPageActionsMigrationProductSpecifications;
     case PageActionIconType::kManagePasswords:
       return &features::kPageActionsMigrationManagePasswords;
     case PageActionIconType::kCookieControls:
       return &features::kPageActionsMigrationCookieControls;
     case PageActionIconType::kAutofillAddress:
       return &features::kPageActionsMigrationAutofillAddress;
+    case PageActionIconType::kFind:
+      return &features::kPageActionsMigrationFind;
     default:
       return nullptr;
   }

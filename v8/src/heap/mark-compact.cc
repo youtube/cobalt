@@ -354,8 +354,7 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
 
   CollectEvacuationCandidates(heap_->trusted_space());
 
-  if (heap_->isolate()->AllowsCodeCompaction() &&
-      (!heap_->IsGCWithStack() || v8_flags.compact_code_space_with_stack)) {
+  if (heap_->isolate()->AllowsCodeCompaction()) {
     CollectEvacuationCandidates(heap_->code_space());
   } else if (v8_flags.trace_fragmentation) {
     TraceFragmentation(heap_->code_space());
@@ -701,11 +700,9 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   } else if (v8_flags.stress_compaction) {
     for (size_t i = 0; i < pages.size(); i++) {
       PageMetadata* p = pages[i].second;
-      if (i % 2 == 0) {
-        candidate_count++;
-        total_live_bytes += pages[i].first;
-        AddEvacuationCandidate(p);
-      }
+      candidate_count++;
+      total_live_bytes += pages[i].first;
+      AddEvacuationCandidate(p);
     }
   } else {
     // The following approach determines the pages that should be evacuated.
@@ -910,12 +907,8 @@ void MarkCompactCollector::Finish() {
 
   sweeper_->StartMajorSweeperTasks();
 
-  // Release empty pages now, when the pointer-update phase is done.
-  for (MutablePageMetadata* page : queued_pages_to_be_freed_) {
-    heap_->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
-                                    page);
-  }
-  queued_pages_to_be_freed_.clear();
+  // Release delayed pages now that the pointer-update phase is done.
+  heap_->memory_allocator()->ReleaseDelayedPages();
 
   // Shrink pages if possible after processing and filtering slots.
   ShrinkPagesToObjectSizes(heap_, heap_->lo_space());
@@ -1862,6 +1855,20 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
                               SkipRoot::kConservativeStack,
                               SkipRoot::kReadOnlyBuiltins});
 
+#if !V8_STATIC_DISPATCH_HANDLES_BOOL
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  // Builtin dispatch handles are custom roots which are handled here.
+  // TODO(olivf): Once dispatch handles are supported by the GC this should be
+  // done by Heap::IterateBuiltins.
+  for (JSBuiltinDispatchHandleRoot::Idx idx =
+           JSBuiltinDispatchHandleRoot::kFirst;
+       idx < JSBuiltinDispatchHandleRoot::kCount;
+       idx = static_cast<JSBuiltinDispatchHandleRoot::Idx>(
+           static_cast<int>(idx) + 1)) {
+    jdt->Mark(heap_->isolate_->builtin_dispatch_handle(idx));
+  }
+#endif
+
   // Custom marking for top optimized frame.
   CustomRootBodyMarkingVisitor custom_root_body_visitor(this);
   ProcessTopOptimizedFrame(&custom_root_body_visitor, isolate);
@@ -2187,7 +2194,8 @@ void MarkCompactCollector::PerformWrapperTracing() {
   if (!cpp_heap) return;
 
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_TRACING);
-  cpp_heap->AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX);
+  cpp_heap->AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX,
+                           StackState::kMayContainHeapPointers);
 }
 
 namespace {
@@ -3874,7 +3882,7 @@ void MarkCompactCollector::ClearWeakReferences(
 }
 
 void MarkCompactCollector::ClearTrivialWeakReferences() {
-  Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue(heap_->isolate());
+  Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue();
   ClearWeakReferences<HeapObjectAndSlot, MaybeObjectSlot>(
       local_weak_objects()->weak_references_trivial_local, cleared_weak_ref);
 }
@@ -3917,7 +3925,7 @@ void MarkCompactCollector::ClearNonTrivialWeakReferences() {
   TRACE_GC(heap_->tracer(),
            GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL);
   HeapObjectAndSlot slot;
-  Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue(heap_->isolate());
+  Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue();
   while (local_weak_objects()->weak_references_non_trivial_unmarked_local.Pop(
       &slot)) {
     // The slot may not have been overwritten since it was filtered, so we can
@@ -4455,6 +4463,7 @@ void MarkCompactCollector::EvacuatePrologue() {
 void MarkCompactCollector::EvacuateEpilogue() {
   aborted_evacuation_candidates_due_to_oom_.clear();
   aborted_evacuation_candidates_due_to_flags_.clear();
+  aborted_evacuation_candidates_due_to_running_code_.clear();
 
   // New space.
   if (heap_->new_space()) {
@@ -4961,17 +4970,14 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     evacuation_items.emplace_back(ParallelWorkItem{}, page);
   }
 
+  for (PageMetadata* page :
+       aborted_evacuation_candidates_due_to_running_code_) {
+    ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
+  }
+
   if (heap_->IsGCWithStack()) {
     if (!v8_flags.compact_with_stack) {
       for (PageMetadata* page : old_space_evacuation_pages_) {
-        ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
-      }
-    } else if (!v8_flags.compact_code_space_with_stack ||
-               heap_->isolate()->InFastCCall()) {
-      // For fast C calls we cannot patch the return address in the native stack
-      // frame if we would relocate InstructionStream objects.
-      for (PageMetadata* page : old_space_evacuation_pages_) {
-        if (page->owner_identity() != CODE_SPACE) continue;
         ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
       }
     }
@@ -4981,7 +4987,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   }
 
   if (v8_flags.stress_compaction || v8_flags.stress_compaction_random) {
-    // Stress aborting of evacuation by aborting ~10% of evacuation candidates
+    // Stress aborting of evacuation by aborting ~5% of evacuation candidates
     // when stress testing.
     const double kFraction = 0.05;
 
@@ -5887,6 +5893,11 @@ void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToFlags(
   aborted_evacuation_candidates_due_to_flags_.push_back(page);
 }
 
+void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToRunningCode(
+    PageMetadata* page) {
+  aborted_evacuation_candidates_due_to_running_code_.insert(page);
+}
+
 namespace {
 
 void ReRecordPage(Heap* heap, Address failed_start, PageMetadata* page) {
@@ -5982,16 +5993,16 @@ void MarkCompactCollector::ReleasePage(PagedSpaceBase* space,
       // shared objects. Postpone releasing empty pages so that updating
       // old-to-new slots in dead old objects may access the dead shared
       // objects.
-      queued_pages_to_be_freed_.push_back(page);
+      heap()->memory_allocator()->Free(
+          MemoryAllocator::FreeMode::kDelayThenRelease, page);
       break;
     }
-
     case OLD_SPACE:
     case NEW_SPACE: {
-      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kPool, page);
+      heap()->memory_allocator()->Free(
+          MemoryAllocator::FreeMode::kDelayThenPool, page);
       break;
     }
-
     default: {
       heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
                                        page);
@@ -6105,7 +6116,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
 }
 
 namespace {
-bool ShouldPostponeFreeingEmptyPages(LargeObjectSpace* space) {
+bool ShouldDelayFreeingEmptyPages(LargeObjectSpace* space) {
   // Delay releasing dead old large object pages until after pointer updating is
   // done because dead old space objects may have old-to-new slots (which
   // were possibly later overriden with old-to-old references) that are
@@ -6121,13 +6132,19 @@ bool ShouldPostponeFreeingEmptyPages(LargeObjectSpace* space) {
 void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
   PtrComprCageBase cage_base(heap_->isolate());
   size_t surviving_object_size = 0;
-  const bool postpone_freeing = ShouldPostponeFreeingEmptyPages(space);
+  const bool delay_freeing = ShouldDelayFreeingEmptyPages(space);
   const bool add_to_pool =
       v8_flags.large_page_pool && space->identity() == NEW_LO_SPACE;
-  DCHECK_IMPLIES(add_to_pool, !postpone_freeing);
-  std::vector<LargePageMetadata*> pages_to_pool;
+  MemoryAllocator::FreeMode free_mode;
   if (add_to_pool) {
-    pages_to_pool.reserve(space->memory_chunk_list().size());
+    // We don't need to delay freeing for pages that we can pool. The allocator
+    // doesn't support `kPool` for large pages, so we choose `kDelayThenPool`.
+    DCHECK_IMPLIES(add_to_pool, !delay_freeing);
+    free_mode = MemoryAllocator::FreeMode::kDelayThenPool;
+  } else if (delay_freeing) {
+    free_mode = MemoryAllocator::FreeMode::kDelayThenRelease;
+  } else {
+    free_mode = MemoryAllocator::FreeMode::kImmediately;
   }
   for (auto it = space->begin(); it != space->end();) {
     LargePageMetadata* current = *(it++);
@@ -6136,14 +6153,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
     if (!marking_state_->IsMarked(object)) {
       // Object is dead and page can be released.
       space->RemovePage(current);
-      if (postpone_freeing) {
-        queued_pages_to_be_freed_.push_back(current);
-      } else if (add_to_pool) {
-        pages_to_pool.push_back(current);
-      } else {
-        heap_->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
-                                        current);
-      }
+      heap_->memory_allocator()->Free(free_mode, current);
       continue;
     }
     if (!v8_flags.sticky_mark_bits) {
@@ -6154,15 +6164,10 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
     surviving_object_size += static_cast<size_t>(object->Size(cage_base));
   }
   space->set_objects_size(surviving_object_size);
-
-  if (add_to_pool && !pages_to_pool.empty()) {
-    heap()->memory_allocator()->FreeLargePagesPooled(std::move(pages_to_pool));
-  }
 }
 
 void MarkCompactCollector::Sweep() {
   DCHECK(!sweeper_->sweeping_in_progress());
-  DCHECK(queued_pages_to_be_freed_.empty());
 
   sweeper_->InitializeMajorSweeping();
 
@@ -6250,6 +6255,14 @@ void RootMarkingVisitor::VisitRunningCode(
   code->IterateDeoptimizationLiterals(this);
 
   if (istream_or_smi_zero != Smi::zero()) {
+    Tagged<InstructionStream> istream =
+        Cast<InstructionStream>(istream_or_smi_zero);
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(istream);
+    if (chunk->IsFlagSet(MemoryChunk::EVACUATION_CANDIDATE)) {
+      PageMetadata* page = PageMetadata::cast(chunk->Metadata());
+      collector_->ReportAbortedEvacuationCandidateDueToRunningCode(page);
+    }
+
     VisitRootPointer(Root::kStackRoots, nullptr, istream_or_smi_zero_slot);
   }
 

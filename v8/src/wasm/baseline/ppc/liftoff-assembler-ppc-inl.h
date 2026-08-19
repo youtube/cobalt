@@ -522,14 +522,14 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
   Label exit;
+  JumpIfSmi(src, &exit);
   // NOTE: to_condition(kZero) is the equality condition (eq)
   // This line verifies the masked address is equal to dst_addr,
   // not that it is zero!
   CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
                 to_condition(kZero), &exit);
-  JumpIfSmi(src, &exit);
-  CheckPageFlag(src, ip, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                &exit);
+  CheckPageFlag(src, ip, MemoryChunk::kPointersToHereAreInterestingMask,
+                to_condition(kZero), &exit);
   mov(ip, Operand(offset_imm));
   add(ip, ip, dst_addr);
   if (offset_reg != no_reg) {
@@ -557,14 +557,14 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
   if (v8_flags.disable_write_barriers) return;
 
   Label exit;
+  JumpIfSmi(src, &exit);
   // NOTE: to_condition(kZero) is the equality condition (eq)
   // This line verifies the masked address is equal to dst_addr,
   // not that it is zero!
   CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
                 to_condition(kZero), &exit);
-  JumpIfSmi(src, &exit);
-  CheckPageFlag(src, ip, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                &exit);
+  CheckPageFlag(src, ip, MemoryChunk::kPointersToHereAreInterestingMask,
+                to_condition(kZero), &exit);
   mov(ip, Operand(offset_imm));
   add(ip, ip, dst_addr);
   if (offset_reg != no_reg) {
@@ -752,19 +752,22 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
-                                  LoadType type, LiftoffRegList /* pinned */,
-                                  bool i64_offset) {
-  Load(dst, src_addr, offset_reg, offset_imm, type, nullptr, true, i64_offset);
+                                  LoadType type, uint32_t* protected_load_pc,
+                                  LiftoffRegList /* pinned */, bool i64_offset,
+                                  Endianness /* endianness */) {
+  Load(dst, src_addr, offset_reg, offset_imm, type, protected_load_pc, true,
+       i64_offset);
   lwsync();
 }
 
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
-                                   StoreType type, LiftoffRegList pinned,
-                                   bool i64_offset) {
+                                   StoreType type, uint32_t* protected_store_pc,
+                                   LiftoffRegList pinned, bool i64_offset,
+                                   Endianness /* endianness */) {
   lwsync();
-  Store(dst_addr, offset_reg, offset_imm, src, type, pinned, nullptr, true,
-        i64_offset);
+  Store(dst_addr, offset_reg, offset_imm, src, type, pinned, protected_store_pc,
+        true, i64_offset);
   sync();
 }
 
@@ -796,6 +799,7 @@ constexpr bool is_be = false;
     switch (type.value()) {                                              \
       case StoreType::kI32Store8:                                        \
       case StoreType::kI64Store8: {                                      \
+        DCHECK_NULL(protected_load_pc);                                  \
         auto op_func = [&](Register dst, Register lhs, Register rhs) {   \
           instr(dst, lhs, rhs);                                          \
         };                                                               \
@@ -804,6 +808,7 @@ constexpr bool is_be = false;
       }                                                                  \
       case StoreType::kI32Store16:                                       \
       case StoreType::kI64Store16: {                                     \
+        DCHECK_NULL(protected_load_pc);                                  \
         auto op_func = [&](Register dst, Register lhs, Register rhs) {   \
           if (is_be) {                                                   \
             Register scratch = GetRegisterThatIsNotOneOf(lhs, rhs, dst); \
@@ -824,6 +829,7 @@ constexpr bool is_be = false;
       }                                                                  \
       case StoreType::kI32Store:                                         \
       case StoreType::kI64Store32: {                                     \
+        if (protected_load_pc) *protected_load_pc = pc_offset();         \
         auto op_func = [&](Register dst, Register lhs, Register rhs) {   \
           if (is_be) {                                                   \
             Register scratch = GetRegisterThatIsNotOneOf(lhs, rhs, dst); \
@@ -843,6 +849,7 @@ constexpr bool is_be = false;
         break;                                                           \
       }                                                                  \
       case StoreType::kI64Store: {                                       \
+        if (protected_load_pc) *protected_load_pc = pc_offset();         \
         auto op_func = [&](Register dst, Register lhs, Register rhs) {   \
           if (is_be) {                                                   \
             ByteReverseU64(dst, lhs);                                    \
@@ -866,43 +873,47 @@ constexpr bool is_be = false;
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset) {
+                                 uint32_t* protected_load_pc, bool i64_offset,
+                                 Endianness /* endianness */) {
   ATOMIC_OP(add);
 }
 
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset) {
+                                 uint32_t* protected_load_pc, bool i64_offset,
+                                 Endianness /* endianness */) {
   ATOMIC_OP(sub);
 }
 
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset) {
+                                 uint32_t* protected_load_pc, bool i64_offset,
+                                 Endianness /* endianness */) {
   ATOMIC_OP(and_);
 }
 
 void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
                                 uintptr_t offset_imm, LiftoffRegister value,
                                 LiftoffRegister result, StoreType type,
-                                bool i64_offset) {
+                                uint32_t* protected_load_pc, bool i64_offset,
+                                Endianness /* endianness */) {
   ATOMIC_OP(orx);
 }
 
 void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
-                                 bool i64_offset) {
+                                 uint32_t* protected_load_pc, bool i64_offset,
+                                 Endianness /* endianness */) {
   ATOMIC_OP(xor_);
 }
 
-void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
-                                      uintptr_t offset_imm,
-                                      LiftoffRegister value,
-                                      LiftoffRegister result, StoreType type,
-                                      bool i64_offset) {
+void LiftoffAssembler::AtomicExchange(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister value, LiftoffRegister result, StoreType type,
+    uint32_t* protected_load_pc, bool i64_offset, Endianness /* endianness */) {
   if (!i64_offset && offset_reg != no_reg) {
     ZeroExtWord32(ip, offset_reg);
     offset_reg = ip;
@@ -921,11 +932,13 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
   switch (type.value()) {
     case StoreType::kI32Store8:
     case StoreType::kI64Store8: {
+      DCHECK_NULL(protected_load_pc);
       MacroAssembler::AtomicExchange<uint8_t>(dst, value.gp(), result.gp());
       break;
     }
     case StoreType::kI32Store16:
     case StoreType::kI64Store16: {
+      DCHECK_NULL(protected_load_pc);
       if (is_be) {
         Register scratch = GetRegisterThatIsNotOneOf(value.gp(), result.gp());
         push(scratch);
@@ -940,6 +953,7 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
     }
     case StoreType::kI32Store:
     case StoreType::kI64Store32: {
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       if (is_be) {
         Register scratch = GetRegisterThatIsNotOneOf(value.gp(), result.gp());
         push(scratch);
@@ -953,6 +967,7 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
       break;
     }
     case StoreType::kI64Store: {
+      if (protected_load_pc) *protected_load_pc = pc_offset();
       if (is_be) {
         ByteReverseU64(r0, value.gp());
         MacroAssembler::AtomicExchange<uint64_t>(dst, r0, result.gp());
@@ -969,7 +984,8 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
 
 void LiftoffAssembler::AtomicExchangeTaggedPointer(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
-    LiftoffRegister value, LiftoffRegister result, LiftoffRegList pinned) {
+    LiftoffRegister value, LiftoffRegister result, uint32_t* protected_load_pc,
+    LiftoffRegList pinned) {
   Register offset = r0;
   if (offset_imm != 0) {
     mov(offset, Operand(offset_imm));
@@ -980,25 +996,11 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
     offset = offset_reg;
   }
   MemOperand dst = MemOperand(offset, dst_addr);
+  if (protected_load_pc) *protected_load_pc = pc_offset();
   if constexpr (COMPRESS_POINTERS_BOOL) {
-    if (is_be) {
-      Register scratch = GetRegisterThatIsNotOneOf(value.gp(), result.gp());
-      push(scratch);
-      ByteReverseU32(r0, value.gp(), scratch);
-      pop(scratch);
-      MacroAssembler::AtomicExchange<uint32_t>(dst, r0, result.gp());
-      ByteReverseU32(result.gp(), result.gp(), ip);
-    } else {
       MacroAssembler::AtomicExchange<uint32_t>(dst, value.gp(), result.gp());
-    }
   } else {
-    if (is_be) {
-      ByteReverseU64(r0, value.gp());
-      MacroAssembler::AtomicExchange<uint64_t>(dst, r0, result.gp());
-      ByteReverseU64(result.gp(), result.gp());
-    } else {
       MacroAssembler::AtomicExchange<uint64_t>(dst, value.gp(), result.gp());
-    }
   }
   if constexpr (COMPRESS_POINTERS_BOOL) {
     AddS64(result.gp(), result.gp(), kPtrComprCageBaseRegister);
@@ -1007,11 +1009,11 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
   if (v8_flags.disable_write_barriers) return;
   // Emit the write barrier.
   Label exit;
+  JumpIfSmi(value.gp(), &exit);
   CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
                 to_condition(kZero), &exit);
-  JumpIfSmi(value.gp(), &exit);
   CheckPageFlag(value.gp(), ip, MemoryChunk::kPointersToHereAreInterestingMask,
-                eq, &exit);
+                to_condition(kZero), &exit);
   mov(ip, Operand(offset_imm));
   add(ip, ip, dst_addr);
   if (offset_reg != no_reg) {
@@ -1025,7 +1027,8 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
-    StoreType type, bool i64_offset) {
+    StoreType type, uint32_t* protected_load_pc, bool i64_offset,
+    Endianness /* endianness */) {
   if (!i64_offset && offset_reg != no_reg) {
     ZeroExtWord32(ip, offset_reg);
     offset_reg = ip;
@@ -1041,6 +1044,7 @@ void LiftoffAssembler::AtomicCompareExchange(
     offset = offset_reg;
   }
   MemOperand dst = MemOperand(offset, dst_addr);
+  if (protected_load_pc) *protected_load_pc = pc_offset();
   switch (type.value()) {
     case StoreType::kI32Store8:
     case StoreType::kI64Store8: {
@@ -1108,7 +1112,41 @@ void LiftoffAssembler::AtomicCompareExchange(
   }
 }
 
+void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
+    uint32_t* protected_load_pc, LiftoffRegList pinned) {
+  AtomicCompareExchange(
+      dst_addr, offset_reg, offset_imm, expected, new_value, result,
+      COMPRESS_POINTERS_BOOL ? StoreType::kI32Store : StoreType::kI64Store,
+      protected_load_pc, false);
+
+  if constexpr (COMPRESS_POINTERS_BOOL) {
+    AddS64(result.gp(), result.gp(), kPtrComprCageBaseRegister);
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+  // Emit the write barrier.
+  Label exit;
+  JumpIfSmi(new_value.gp(), &exit);
+  CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
+                to_condition(kZero), &exit);
+  CheckPageFlag(new_value.gp(), ip,
+                MemoryChunk::kPointersToHereAreInterestingMask,
+                to_condition(kZero), &exit);
+  mov(ip, Operand(offset_imm));
+  add(ip, ip, dst_addr);
+  if (offset_reg != no_reg) {
+    add(ip, ip, offset_reg);
+  }
+  CallRecordWriteStubSaveRegisters(dst_addr, ip, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
+}
+
 void LiftoffAssembler::AtomicFence() { sync(); }
+
+void LiftoffAssembler::Pause() { isync(); }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,

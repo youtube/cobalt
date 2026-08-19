@@ -29,6 +29,7 @@ import type {SkColor} from 'chrome://resources/mojo/skia/public/mojom/skcolor.mo
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {BackgroundManager} from './background_manager.js';
+import {ComposeboxProxyImpl} from './composebox/composebox_proxy.js';
 import type {CustomizeButtonsDocumentCallbackRouter, CustomizeButtonsHandlerRemote} from './customize_buttons.mojom-webui.js';
 import {CustomizeChromeSection, SidePanelOpenTrigger} from './customize_buttons.mojom-webui.js';
 import {CustomizeButtonsProxy} from './customize_buttons_proxy.js';
@@ -531,6 +532,11 @@ export class AppElement extends AppElementBase {
       this.singleColoredLogo_ = this.computeSingleColoredLogo_();
     }
 
+    if (changedPrivateProperties.has('showComposebox_')) {
+      this.logoColor_ = this.computeLogoColor_();
+      this.singleColoredLogo_ = this.computeSingleColoredLogo_();
+    }
+
     // theme_, showLensUploadDialog_
     this.realboxShown_ = this.computeRealboxShown_();
 
@@ -572,7 +578,8 @@ export class AppElement extends AppElementBase {
     }
 
     if (changedPrivateProperties.has('oneGoogleBarLoaded_') ||
-        changedPrivateProperties.has('theme_')) {
+        changedPrivateProperties.has('theme_') ||
+        changedPrivateProperties.has('showComposebox_')) {
       this.updateOneGoogleBarAppearance_();
     }
   }
@@ -580,8 +587,13 @@ export class AppElement extends AppElementBase {
   // Called to update the OGB of relevant NTP state changes.
   private updateOneGoogleBarAppearance_() {
     if (this.oneGoogleBarLoaded_) {
-      const isNtpDarkTheme =
-          this.theme_ && (!!this.theme_.backgroundImage || this.theme_.isDark);
+      let isNtpDarkTheme;
+      if (this.showComposebox_) {
+        isNtpDarkTheme = this.theme_ && this.theme_.isDark;
+      } else {
+        isNtpDarkTheme = this.theme_ &&
+            (!!this.theme_.backgroundImage || this.theme_.isDark);
+      }
       $$<IframeElement>(this, '#oneGoogleBar')!.postMessage({
         type: 'updateAppearance',
         // We should be using a light OGB for dark themes and vice versa.
@@ -642,6 +654,12 @@ export class AppElement extends AppElementBase {
 
   protected toggleComposebox_() {
     this.showComposebox_ = !this.showComposebox_;
+  }
+
+  protected closeComposebox_() {
+    const composeboxHandler = ComposeboxProxyImpl.getInstance().handler;
+    composeboxHandler.notifySessionAbandoned();
+    this.toggleComposebox_();
   }
 
   protected onOpenVoiceSearch_() {
@@ -805,11 +823,18 @@ export class AppElement extends AppElementBase {
       return null;
     }
 
+    if (this.showComposebox_) {
+      return this.theme_.isDark ? hexColorToSkColor('#ffffff') : null;
+    }
+
     return this.theme_.logoColor ||
         (this.theme_.isDark ? hexColorToSkColor('#ffffff') : null);
   }
 
   private computeSingleColoredLogo_(): boolean {
+    if (this.showComposebox_) {
+      return !!this.theme_ && this.theme_.isDark;
+    }
     return !!this.theme_ && (!!this.theme_.logoColor || this.theme_.isDark);
   }
 

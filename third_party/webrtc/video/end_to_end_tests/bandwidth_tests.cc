@@ -10,7 +10,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "api/array_view.h"
@@ -37,10 +36,8 @@
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
-#include "system_wrappers/include/field_trial.h"
 #include "test/call_test.h"
 #include "test/fake_encoder.h"
-#include "test/field_trial.h"
 #include "test/gtest.h"
 #include "test/rtcp_packet_parser.h"
 #include "test/rtp_rtcp_observer.h"
@@ -327,9 +324,7 @@ TEST_F(BandwidthEndToEndTest, RembWithSendSideBwe) {
 TEST_F(BandwidthEndToEndTest, ReportsSetEncoderRates) {
   // If these fields trial are on, we get lower bitrates than expected by this
   // test, due to the packetization overhead and encoder pushback.
-  test::ScopedFieldTrials field_trials(
-      std::string(field_trial::GetFieldTrialString()) +
-      "WebRTC-VideoRateControl/bitrate_adjuster:false/");
+  field_trials().Set("WebRTC-VideoRateControl", "bitrate_adjuster:false");
   class EncoderRateStatsTest : public test::EndToEndTest,
                                public test::FakeEncoder {
    public:

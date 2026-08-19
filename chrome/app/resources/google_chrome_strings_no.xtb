@@ -35,6 +35,7 @@
 <translation id="141901961143729572">Del det du har på hjertet</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{Chrome er ferdig med å oppdatere. Du kan bruke den nyeste versjonen så snart du starter på nytt. Deretter åpnes de aktive fanene på nytt.}=1{Chrome er ferdig med å oppdatere. Du kan bruke den nyeste versjonen så snart du starter på nytt. Deretter åpnes de aktive fanene på nytt. Inkognitovinduet ditt blir ikke gjenåpnet.}other{Chrome er ferdig med å oppdatere. Du kan bruke den nyeste versjonen så snart du starter på nytt. Deretter åpnes de aktive fanene på nytt. Dine # inkognitovinduer åpnes ikke på nytt.}}</translation>
 <translation id="1434626383986940139">Chrome Canary-apper</translation>
+<translation id="1439793550875056299">Fest Chrome</translation>
 <translation id="146866447420868597">Vil du logge på Chrome?</translation>
 <translation id="1492280395845991349">Start på nytt for å fullføre Chrome-oppdateringen</translation>
 <translation id="1497802159252041924">Installasjonsfeil: <ph name="INSTALL_ERROR" /></translation>
@@ -120,6 +121,7 @@
 <translation id="2569974318947988067">Chrome prøver å oppgradere navigeringer til HTTPS</translation>
 <translation id="2571392474191184472">Organisasjonen din administrerer Chrome</translation>
 <translation id="2574930892358684005"><ph name="EXISTING_USER" /> er allerede logget på denne Chrome-profilen. For å holde surfingen din atskilt kan Chrome opprette en egen profil til deg.</translation>
+<translation id="2579190314336775785">Passord kan bare slettes utenfor Chrome</translation>
 <translation id="2580411288591421699">Google Chrome-versjonen du prøver å installere, kjører allerede. Lukk Google Chrome og forsøk å installere på nytt.</translation>
 <translation id="2586406160782125153">Dette sletter nettlesingsdataene dine fra denne enheten. For å hente dataene igjen senere må du logge på Chrome som <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">Kunne ikke bufre det nedlastede installasjonsprogrammet. Feil: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -268,6 +270,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chrome anbefaler at du setter fanen som gjør nettleseren treg, på pause}other{Chrome anbefaler at du setter fanene som gjør nettleseren treg, på pause}}</translation>
 <translation id="4328355335528187361">Google Chrome Dev (mDNS – inn)</translation>
 <translation id="4329315893554541805">For å få personlig tilpasning og andre funksjoner må du inkludere Chrome i Nett- og appaktivitet og tilknyttede Google-tjenester</translation>
+<translation id="4334241893986177674">Søk i dette skjermbildet</translation>
 <translation id="4334294535648607276">Nedlastingen er fullført.</translation>
 <translation id="4337324600316876133">For å få fremtidige Google Chrome-oppdateringer må du ha macOS 12 eller nyere. Denne datamaskinen bruker macOS 11.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> er lagt til i Chrome</translation>
@@ -351,6 +354,7 @@
 <translation id="5566025111015594046">Google Chrome (mDNS-Inn)</translation>
 <translation id="5579324208890605088">Oppstartsfeil: Kjør installasjonsprogrammet som vanlig bruker, ikke som administrator.</translation>
 <translation id="5596627076506792578">Flere alternativer</translation>
+<translation id="5600352656975192682">Fest Chrome til oppgavelinjen for å få rask tilgang til den når som helst</translation>
 <translation id="5602351063754773347">Chrome anbefaler at du fjerner den. <ph name="BEGIN_LINK" />Finn ut mer om utvidelser som støttes<ph name="END_LINK" /></translation>
 <translation id="5649156266046089790">Med Chrome-profiler kan du holde alle Chrome-tingene dine atskilt. Opprett profiler for venner og familie, eller skill mellom jobb og fritid.</translation>
 <translation id="565744775970812598"><ph name="FILE_NAME" /> kan være farlig, så Chrome har blokkert den.</translation>

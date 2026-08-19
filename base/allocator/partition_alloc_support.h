@@ -140,8 +140,6 @@ class BASE_EXPORT PartitionAllocSupport {
 #endif
 };
 
-BASE_EXPORT BASE_DECLARE_FEATURE(kDisableMemoryReclaimerInBackground);
-
 // Visible in header for testing.
 class BASE_EXPORT MemoryReclaimerSupport {
  public:
@@ -174,6 +172,11 @@ class BASE_EXPORT MemoryReclaimerSupport {
 // This is useful if you want to investigate crashes at `free()`,
 // to know which point at execution it goes wrong.
 BASE_EXPORT void CheckHeapIntegrity(const void* ptr);
+
+// The function here is called right before crashing with
+// `DoubleFreeOrCorruptionDetected()`. We provide an address for the slot start
+// to the function, and it may use that for debugging purpose.
+BASE_EXPORT void SetDoubleFreeOrCorruptionDetectedFn(void (*fn)(uintptr_t));
 
 using partition_alloc::ScopedSchedulerLoopQuarantineExclusion;
 

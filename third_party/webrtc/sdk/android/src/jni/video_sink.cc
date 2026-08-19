@@ -11,6 +11,7 @@
 #include "sdk/android/src/jni/video_sink.h"
 
 #include "sdk/android/generated_video_jni/VideoSink_jni.h"
+#include "sdk/android/native_api/jni/jvm.h"
 #include "sdk/android/src/jni/video_frame.h"
 
 namespace webrtc {

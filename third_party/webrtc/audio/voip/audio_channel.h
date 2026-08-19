@@ -11,18 +11,29 @@
 #ifndef AUDIO_VOIP_AUDIO_CHANNEL_H_
 #define AUDIO_VOIP_AUDIO_CHANNEL_H_
 
+#include <cstdint>
 #include <map>
 #include <memory>
-#include <queue>
+#include <optional>
 #include <utility>
 
-#include "api/task_queue/task_queue_factory.h"
+#include "api/array_view.h"
+#include "api/audio/audio_mixer.h"
+#include "api/audio_codecs/audio_decoder_factory.h"
+#include "api/audio_codecs/audio_encoder.h"
+#include "api/audio_codecs/audio_format.h"
+#include "api/environment/environment.h"
+#include "api/ref_count.h"
+#include "api/scoped_refptr.h"
 #include "api/voip/voip_base.h"
 #include "api/voip/voip_statistics.h"
 #include "audio/voip/audio_egress.h"
 #include "audio/voip/audio_ingress.h"
+#include "call/audio_sender.h"
+#include "modules/rtp_rtcp/include/receive_statistics.h"
+#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_impl2.h"
-#include "rtc_base/ref_count.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 

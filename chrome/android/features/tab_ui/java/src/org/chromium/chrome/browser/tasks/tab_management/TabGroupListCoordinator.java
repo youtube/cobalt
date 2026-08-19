@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.tasks.tab_management;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.tasks.tab_management.TabGroupListProperties.ENABLE_CONTAINMENT;
 import static org.chromium.chrome.browser.tasks.tab_management.TabGroupListProperties.ON_IS_SCROLLED_CHANGED;
 
@@ -13,11 +14,11 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.core.util.Consumer;
 
 import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
 import org.chromium.chrome.browser.collaboration.messaging.MessagingBackendServiceFactory;
 import org.chromium.chrome.browser.data_sharing.DataSharingServiceFactory;
@@ -56,12 +57,20 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /** Orchestrates the displaying of a list of interactable tab groups. */
+@NullMarked
 public class TabGroupListCoordinator {
-    @IntDef({RowType.TAB_GROUP, RowType.TAB_GROUP_REMOVED_CARD})
+    @IntDef({RowType.TAB_GROUP, RowType.MESSAGE_CARD})
     @Retention(RetentionPolicy.SOURCE)
     public @interface RowType {
         int TAB_GROUP = 0;
-        int TAB_GROUP_REMOVED_CARD = 1;
+        int MESSAGE_CARD = 1;
+    }
+
+    @IntDef({MessageCardType.TAB_GROUP_REMOVED, MessageCardType.VERSION_OUT_OF_DATE})
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface MessageCardType {
+        int TAB_GROUP_REMOVED = 0;
+        int VERSION_OUT_OF_DATE = 1;
     }
 
     private final TabGroupListView mView;
@@ -90,8 +99,8 @@ public class TabGroupListCoordinator {
             TabGroupUiActionHandler tabGroupUiActionHandler,
             ModalDialogManager modalDialogManager,
             Consumer<Boolean> onIsScrolledChanged,
-            @NonNull ObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier,
-            @NonNull DataSharingTabManager dataSharingTabManager) {
+            ObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier,
+            DataSharingTabManager dataSharingTabManager) {
         ModelList modelList = new ModelList();
         mSimpleRecyclerViewAdapter =
                 new SimpleRecyclerViewAdapter(modelList) {
@@ -126,7 +135,7 @@ public class TabGroupListCoordinator {
         ViewBuilder<MessageCardView> tabGroupMessageCardLayoutBuilder =
                 new LayoutViewBuilder<>(R.layout.tab_grid_message_card_item);
         mSimpleRecyclerViewAdapter.registerType(
-                RowType.TAB_GROUP_REMOVED_CARD,
+                RowType.MESSAGE_CARD,
                 tabGroupMessageCardLayoutBuilder,
                 MessageCardViewBinder::bind);
 
@@ -151,20 +160,25 @@ public class TabGroupListCoordinator {
             tabGroupSyncService = TabGroupSyncServiceFactory.getForProfile(profile);
         }
 
-        @NonNull
         CollaborationService collaborationService =
                 CollaborationServiceFactory.getForProfile(profile);
 
-        @NonNull
         DataSharingService dataSharingService = DataSharingServiceFactory.getForProfile(profile);
 
-        @NonNull
         MessagingBackendService messagingBackendService =
                 MessagingBackendServiceFactory.getForProfile(profile);
 
         ActionConfirmationManager actionConfirmationManager =
                 new ActionConfirmationManager(profile, context, modalDialogManager);
         SyncService syncService = SyncServiceFactory.getForProfile(profile);
+        assumeNonNull(syncService);
+
+        TabGroupRemovedMessageMediator tabGroupRemovedMessageMediator =
+                new TabGroupRemovedMessageMediator(context, messagingBackendService, modelList);
+
+        @Nullable PersistentVersioningMessageMediator persistentVersioningMessageMediator =
+                PersistentVersioningMessageMediator.build(
+                        context, profile, modelList, modalDialogManager);
 
         mTabGroupListMediator =
                 new TabGroupListMediator(
@@ -182,7 +196,9 @@ public class TabGroupListCoordinator {
                         actionConfirmationManager,
                         syncService,
                         enableContainment(),
-                        dataSharingTabManager);
+                        dataSharingTabManager,
+                        tabGroupRemovedMessageMediator,
+                        persistentVersioningMessageMediator);
 
         if (EdgeToEdgeUtils.isDrawKeyNativePageToEdgeEnabled()) {
             mEdgeToEdgePadAdjuster =

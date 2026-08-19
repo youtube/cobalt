@@ -79,6 +79,7 @@ GL_EXPORT extern const char kUseAdapterLuid[];
 GL_EXPORT extern const char kEnableUnsafeSwiftShader[];
 
 GL_EXPORT extern const char kDirectCompositionVideoSwapChainFormat[];
+GL_EXPORT extern const char kTintDcLayer[];
 
 // These flags are used by the test harness code, not passed in by users.
 GL_EXPORT extern const char kDisableGLDrawingForTests[];
@@ -101,6 +102,7 @@ GL_EXPORT BASE_DECLARE_FEATURE(kDCompTripleBufferVideoSwapChain);
 GL_EXPORT BASE_DECLARE_FEATURE(kDirectCompositionSoftwareOverlays);
 GL_EXPORT BASE_DECLARE_FEATURE(kDirectCompositionLetterboxVideoOptimization);
 GL_EXPORT BASE_DECLARE_FEATURE(kDirectCompositionUnlimitedOverlays);
+GL_EXPORT BASE_DECLARE_FEATURE(kDesktopPlaneRemovalForMFFullScreenLetterbox);
 GL_EXPORT BASE_DECLARE_FEATURE(kEGLDualGPURendering);
 GL_EXPORT BASE_DECLARE_FEATURE(kIntelVpSuperResolution);
 GL_EXPORT BASE_DECLARE_FEATURE(kNvidiaVpSuperResolution);

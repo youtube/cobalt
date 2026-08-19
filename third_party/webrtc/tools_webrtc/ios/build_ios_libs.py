@@ -15,6 +15,7 @@ By default, the library is created in out_ios_libs/. (Change with -o.)
 import argparse
 import logging
 import os
+import pathlib
 import shutil
 import subprocess
 import sys
@@ -227,6 +228,10 @@ def main():
     args = _ParseArgs()
 
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
+
+    if not pathlib.Path(args.output_dir).is_relative_to(SRC_DIR):
+        logging.error('--output-dir must be under %s.', SRC_DIR)
+        return 1
 
     if args.clean:
         _CleanArtifacts(args.output_dir)

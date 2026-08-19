@@ -148,6 +148,9 @@ BASE_DECLARE_FEATURE(kFullscreenSignInPromoUseDate);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kInterceptBubblesDismissibleByAvatarButton);
 
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kOfferMigrationToDiceUsers);
+
 #if BUILDFLAG(IS_IOS)
 
 // Features to enable identities in auth error (stale token).
@@ -162,10 +165,12 @@ BASE_DECLARE_FEATURE(kEnableErrorBadgeOnIdentityDisc);
 // device.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kEnableASWebAuthenticationSession);
-#endif
 
+// Feature to allowlist certain scopes for which mdm errors will be shown. All
+// other scopes will be ignored.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
-BASE_DECLARE_FEATURE(kShowEnterpriseDialogForAllManagedAccountsSignin);
+BASE_DECLARE_FEATURE(kAllowlistScopesForMdmErrors);
+#endif
 
 // Enables users to perform an explicit signin upon installing an extension.
 // After this, syncing for extensions will be enabled when in transport mode
@@ -193,6 +198,9 @@ BASE_DECLARE_FEATURE(kDeferWebSigninTrackerCreation);
 // Uses the Material Next theme for the signin promo.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kSignInPromoMaterialNextUI);
+
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kChromeIdentitySurvey);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 }  // namespace switches

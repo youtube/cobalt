@@ -24,6 +24,12 @@ BASE_FEATURE(kBluetoothWifiQSPodRefresh,
              "BluetoothWifiQSPodRefresh",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// System location provider will use caching to optimize GCP usage. This flag
+// will be enabled with Finch.
+BASE_FEATURE(kCachedLocationProvider,
+             "CachedLocationProvider",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables cloud game features.
 BASE_FEATURE(kCloudGamingDevice,
              "CloudGamingDevice",
@@ -42,11 +48,6 @@ BASE_FEATURE(kBlinkExtension,
 // Enables ChromeOS Kiosk APIs.
 BASE_FEATURE(kBlinkExtensionKiosk,
              "BlinkExtensionKiosk",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables handling of key press event in background.
-BASE_FEATURE(kCrosAppsBackgroundEventHandling,
-             "CrosAppsBackgroundEventHandling",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the use of cros-component UI elements. Contact:
@@ -409,6 +410,10 @@ bool IsBatteryBadgeIconEnabled() {
 
 bool IsBluetoothWifiQSPodRefreshEnabled() {
   return base::FeatureList::IsEnabled(kBluetoothWifiQSPodRefresh);
+}
+
+bool IsCachedLocationProviderEnabled() {
+  return base::FeatureList::IsEnabled(kCachedLocationProvider);
 }
 
 bool IsCloudGamingDeviceEnabled() {

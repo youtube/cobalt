@@ -34,7 +34,6 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/ssl_adapter.h"
 #include "rtc_base/ssl_stream_adapter.h"
-#include "system_wrappers/include/field_trial.h"
 #include "system_wrappers/include/metrics.h"
 #include "test/gtest.h"
 #include "test/test_flags.h"
@@ -142,10 +141,6 @@ class TestMainImpl : public TestMain {
     LogMessage::SetLogToStderr(absl::GetFlag(FLAGS_logs) ||
                                absl::GetFlag(FLAGS_verbose));
 
-    // InitFieldTrialsFromString stores the char*, so the char array must
-    // outlive the application.
-    field_trials_ = absl::GetFlag(FLAGS_force_fieldtrials);
-    field_trial::InitFieldTrialsFromString(field_trials_.c_str());
     metrics::Enable();
 
 #if defined(WEBRTC_WIN)

@@ -488,12 +488,11 @@ bool ssl_check_leaf_certificate(SSL_HANDSHAKE *hs, EVP_PKEY *pkey,
 
   if (EVP_PKEY_id(pkey) == EVP_PKEY_EC) {
     // Check the key's group and point format are acceptable.
-    EC_KEY *ec_key = EVP_PKEY_get0_EC_KEY(pkey);
     uint16_t group_id;
-    if (!ssl_nid_to_group_id(
-            &group_id, EC_GROUP_get_curve_name(EC_KEY_get0_group(ec_key))) ||
+    if (!ssl_nid_to_group_id(&group_id, EVP_PKEY_get_ec_curve_nid(pkey)) ||
         !tls1_check_group_id(hs, group_id) ||
-        EC_KEY_get_conv_form(ec_key) != POINT_CONVERSION_UNCOMPRESSED) {
+        EVP_PKEY_get_ec_point_conv_form(pkey) !=
+            POINT_CONVERSION_UNCOMPRESSED) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECC_CERT);
       return false;
     }

@@ -24,8 +24,10 @@ rtc_library("system_wrappers") {
   libs = []
   deps = [
     "../api:array_view",
+    "../api/units:time_delta",
     "../api/units:timestamp",
     "../rtc_base:checks",
+    "../rtc_base:divide_round",
     "../rtc_base:logging",
     "../rtc_base:rtc_numerics",
     "../rtc_base:safe_conversions",
@@ -93,6 +95,7 @@ if (rtc_include_tests && !build_with_chromium) {
       ":metrics",
       ":system_wrappers",
       "../api/units:time_delta",
+      "../api/units:timestamp",
       "../rtc_base:checks",
       "../rtc_base:random",
       "../rtc_base:stringutils",

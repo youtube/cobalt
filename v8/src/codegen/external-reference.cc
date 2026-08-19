@@ -305,6 +305,7 @@ ExternalReference ExternalReference::sandbox_end_address() {
   return ExternalReference(Sandbox::current()->end_address());
 }
 
+#ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 ExternalReference ExternalReference::sandboxed_mode_pkey_mask_address() {
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   return ExternalReference(
@@ -313,6 +314,7 @@ ExternalReference ExternalReference::sandboxed_mode_pkey_mask_address() {
   return ExternalReference(kNullAddress);
 #endif
 }
+#endif
 
 ExternalReference ExternalReference::empty_backing_store_buffer() {
   return ExternalReference(
@@ -736,6 +738,14 @@ void* allocate_buffer_impl(Isolate* isolate, size_t size) {
       isolate->heap()->cpp_heap()->GetAllocationHandle(),
       cppgc::AdditionalBytes(size));
   CHECK_NOT_NULL(result);
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // TODO(429341650): temporary and unsafe workaround as the buffer must be
+  // accessible to sandboxed code, in particular the generic JSToWasmWrapper.
+  Address addr = reinterpret_cast<Address>(result);
+  size_t page_offset = addr % kMinimumOSPageSize;
+  SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(
+      addr - page_offset, size + page_offset);
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   return result;
 }
 

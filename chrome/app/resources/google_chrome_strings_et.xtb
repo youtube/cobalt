@@ -35,6 +35,7 @@
 <translation id="141901961143729572">Jagage oma mõtteid</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{Chrome'i värskendamine jõudis lõpule. Uusima versiooni kasutamiseks käivitage uuesti. Pärast seda avanevad teie vahelehed uuesti.}=1{Chrome'i värskendamine jõudis lõpule. Uusima versiooni kasutamiseks käivitage uuesti. Pärast seda avanevad teie vahelehed uuesti. Teie inkognito akent ei avata uuesti.}other{Chrome'i värskendamine jõudis lõpule. Uusima versiooni kasutamiseks käivitage uuesti. Pärast seda avanevad teie vahelehed uuesti. Teie # inkognito akent ei avata uuesti.}}</translation>
 <translation id="1434626383986940139">Chrome Canary rakendused</translation>
+<translation id="1439793550875056299">Kinnita Chrome</translation>
 <translation id="146866447420868597">Kas logida Chrome'i sisse?</translation>
 <translation id="1492280395845991349">Chrome'i värskendamise lõpuleviimiseks käivitage uuesti</translation>
 <translation id="1497802159252041924">Installimisviga: <ph name="INSTALL_ERROR" /></translation>
@@ -122,6 +123,7 @@
 <translation id="2569974318947988067">Chrome üritab navigeerimise HTTPS-ile üle viia</translation>
 <translation id="2571392474191184472">Teie organisatsioon haldab Chrome'i</translation>
 <translation id="2574930892358684005"><ph name="EXISTING_USER" /> on juba sellele Chrome'i profiilile sisse logitud. Teie sirvimise eraldi hoidmiseks saab Chrome teile luua oma profiili.</translation>
+<translation id="2579190314336775785">Paroole saab kustutada ainult väljaspool Chrome'i</translation>
 <translation id="2580411288591421699">Töötava Google Chrome'i versiooniga sama versiooni ei saa installida. Sulgege Google Chrome ja proovige uuesti.</translation>
 <translation id="2586406160782125153">See kustutab sellest seadmest teie sirvimisandmed. Hiljem oma andmete toomiseks logige Chrome'i sisse kasutajana <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">Allalaaditud installiprogrammi vahemällu salvestamine ebaõnnestus. Viga: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -270,6 +272,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chrome soovitab teie brauserit aeglustava vahelehe peatada}other{Chrome soovitab teie brauserit aeglustavad vahelehed peatada}}</translation>
 <translation id="4328355335528187361">Google Chrome Dev (mDNS-In)</translation>
 <translation id="4329315893554541805">Isikupärastatud kasutuskogemuse saamiseks ja muude funktsioonide kasutamiseks kaasake Chrome veebi- ja rakendustegevustesse ning lingitud Google'i teenustesse</translation>
+<translation id="4334241893986177674">Otsige sellelt ekraanipildilt</translation>
 <translation id="4334294535648607276">Allalaadimine on lõpule viidud.</translation>
 <translation id="4337324600316876133">Google Chrome'i tulevaste värskenduste saamiseks on teil vaja operatsioonisüsteemi macOS 12 või uuemat versiooni. See arvuti kasutab operatsioonisüsteemi macOS 11.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> on Chrome'i lisatud</translation>
@@ -355,6 +358,7 @@ Mõned funktsioonid ei pruugi saadaval olla. Määrake muu profiilikataloog või
 <translation id="5566025111015594046">Google Chrome (mDNS-In)</translation>
 <translation id="5579324208890605088">Käivitamisel ilmnes viga: käitage installiprogrammi tavakasutajana, mitte administraatorina.</translation>
 <translation id="5596627076506792578">Rohkem valikuid</translation>
+<translation id="5600352656975192682">Kinnitage Chrome tegumiribale, et sellele igal ajal kiiresti juurde pääseda.</translation>
 <translation id="5602351063754773347">Chrome soovitab selle eemaldada. <ph name="BEGIN_LINK" />Lisateave toetatud laienduste kohta<ph name="END_LINK" /></translation>
 <translation id="5649156266046089790">Chrome'i profiilidega saate eraldada kogu oma Chrome'i sisu. Looge profiile sõprade või pereliikmete jaoks või eraldage nende abil töö ja lõbu.</translation>
 <translation id="565744775970812598"><ph name="FILE_NAME" /> võib olla ohtlik, mistõttu Chrome blokeeris selle.</translation>

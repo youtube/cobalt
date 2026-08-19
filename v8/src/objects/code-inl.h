@@ -49,6 +49,8 @@ GCSAFE_CODE_FWD_ACCESSOR(bool, has_tagged_outgoing_params)
 GCSAFE_CODE_FWD_ACCESSOR(bool, marked_for_deoptimization)
 GCSAFE_CODE_FWD_ACCESSOR(Tagged<Object>, raw_instruction_stream)
 GCSAFE_CODE_FWD_ACCESSOR(uint32_t, stack_slots)
+GCSAFE_CODE_FWD_ACCESSOR(uint16_t, parameter_count)
+GCSAFE_CODE_FWD_ACCESSOR(uint16_t, parameter_count_without_receiver)
 GCSAFE_CODE_FWD_ACCESSOR(uint16_t, wasm_js_tagged_parameter_count)
 GCSAFE_CODE_FWD_ACCESSOR(uint16_t, wasm_js_first_tagged_parameter)
 GCSAFE_CODE_FWD_ACCESSOR(Address, constant_pool)
@@ -531,67 +533,6 @@ void Code::set_marked_for_deoptimization(bool flag) {
   int32_t previous = flags(kRelaxedLoad);
   int32_t updated = MarkedForDeoptimizationField::update(previous, flag);
   set_flags(updated, kRelaxedStore);
-}
-
-inline void Code::SetMarkedForDeoptimization(Isolate* isolate,
-                                             LazyDeoptimizeReason reason) {
-  set_marked_for_deoptimization(true);
-  // Eager deopts are already logged by the deoptimizer.
-  if (reason != LazyDeoptimizeReason::kEagerDeopt &&
-      V8_UNLIKELY(v8_flags.trace_deopt || v8_flags.log_deopt)) {
-    TraceMarkForDeoptimization(isolate, reason);
-  }
-#ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchHandle handle = js_dispatch_handle();
-  if (handle != kNullJSDispatchHandle) {
-    JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-    Tagged<Code> cur = jdt->GetCode(handle);
-    if (SafeEquals(cur)) {
-      if (v8_flags.reopt_after_lazy_deopts &&
-          isolate->concurrent_recompilation_enabled()) {
-        jdt->SetCodeNoWriteBarrier(
-            handle, *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
-        // Somewhat arbitrary list of lazy deopt reasons which we expect to be
-        // stable enough to warrant either immediate re-optimization, or
-        // re-optimization after one invocation (to detect potential follow-up
-        // IC changes).
-        // TODO(olivf): We should also work on reducing the number of
-        // dependencies we create in the compilers to require less of these
-        // quick re-compilations.
-        switch (reason) {
-          case LazyDeoptimizeReason::kAllocationSiteTenuringChange:
-          case LazyDeoptimizeReason::kAllocationSiteTransitionChange:
-          case LazyDeoptimizeReason::kEmptyContextExtensionChange:
-          case LazyDeoptimizeReason::kFrameValueMaterialized:
-          case LazyDeoptimizeReason::kPropertyCellChange:
-          case LazyDeoptimizeReason::kContextCellChange:
-          case LazyDeoptimizeReason::kPrototypeChange:
-          case LazyDeoptimizeReason::kExceptionCaught:
-          case LazyDeoptimizeReason::kFieldTypeConstChange:
-          case LazyDeoptimizeReason::kFieldRepresentationChange:
-          case LazyDeoptimizeReason::kFieldTypeChange:
-          case LazyDeoptimizeReason::kInitialMapChange:
-          case LazyDeoptimizeReason::kMapDeprecated:
-            jdt->SetTieringRequest(
-                handle, TieringBuiltin::kMarkReoptimizeLazyDeoptimized,
-                isolate);
-            break;
-          default:
-            // TODO(olivf): This trampoline is just used to reset the budget. If
-            // we knew the feedback cell and the bytecode size here, we could
-            // directly reset the budget.
-            jdt->SetTieringRequest(handle, TieringBuiltin::kMarkLazyDeoptimized,
-                                   isolate);
-            break;
-        }
-      } else {
-        jdt->SetCodeNoWriteBarrier(handle, *BUILTIN_CODE(isolate, CompileLazy));
-      }
-    }
-    // Ensure we don't try to patch the entry multiple times.
-    set_js_dispatch_handle(kNullJSDispatchHandle);
-  }
-#endif
 }
 
 bool Code::embedded_objects_cleared() const {

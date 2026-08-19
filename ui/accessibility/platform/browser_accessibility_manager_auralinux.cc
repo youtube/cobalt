@@ -424,8 +424,12 @@ void BrowserAccessibilityManagerAuraLinux::FireAriaNotificationEvent(
 
 bool BrowserAccessibilityManagerAuraLinux::ShouldExposeExtraAnnouncementNodes()
     const {
-  return base::Version(atk_get_version()).CompareTo(base::Version("2.50.0")) <
-         0;
+  // Compute this once and cache it, since it is expensive to call
+  // atk_get_version() and compare it to a version string for each call or
+  // check made in the BrowserAccessibility APIs.
+  static bool should_expose =
+      base::Version(atk_get_version()).CompareTo(base::Version("2.50.0")) < 0;
+  return should_expose;
 }
 
 BrowserAccessibility*
@@ -500,7 +504,7 @@ void BrowserAccessibilityManagerAuraLinux::OnAtomicUpdateFinished(
   BrowserAccessibilityManager::OnAtomicUpdateFinished(tree, root_changed,
                                                       changes);
 
-  std::set<AXPlatformNode*> objs_to_update;
+  absl::flat_hash_set<AXPlatformNode*> objs_to_update;
   CollectChangedNodesAndParentsForAtomicUpdate(tree, changes, &objs_to_update);
 
   for (auto* node : objs_to_update)

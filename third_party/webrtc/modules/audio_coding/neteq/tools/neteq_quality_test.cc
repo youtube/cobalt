@@ -10,12 +10,11 @@
 
 #include "modules/audio_coding/neteq/tools/neteq_quality_test.h"
 
-#include <stdio.h>
-
 #include <algorithm>
 #include <climits>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <iterator>

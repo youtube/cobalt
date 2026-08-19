@@ -13,8 +13,7 @@
 
 #if defined(WEBRTC_INCLUDE_INTERNAL_AUDIO_DEVICE)
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <memory>
 
 #include "absl/base/nullability.h"

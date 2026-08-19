@@ -144,6 +144,14 @@ BASE_FEATURE(kPartitionConnectionsByNetworkIsolationKey,
              "PartitionConnectionsByNetworkIsolationKey",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kPrefixCookieHttp,
+             "PrefixCookieHttp",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kPrefixCookieHostHttp,
+             "PrefixCookieHostHttp",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSearchEnginePreconnectInterval,
              "SearchEnginePreconnectInterval",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -688,10 +696,6 @@ BASE_FEATURE(kSimdutfBase64Support,
 
 BASE_FEATURE(kFurtherOptimizeParsingDataUrls,
              "FurtherOptimizeParsingDataUrls",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kKeepWhitespaceForDataUrls,
-             "KeepWhitespaceForDataUrls",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kNoVarySearchIgnoreUnrecognizedKeys,

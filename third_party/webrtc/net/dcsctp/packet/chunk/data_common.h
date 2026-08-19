@@ -9,14 +9,17 @@
  */
 #ifndef NET_DCSCTP_PACKET_CHUNK_DATA_COMMON_H_
 #define NET_DCSCTP_PACKET_CHUNK_DATA_COMMON_H_
-#include <stdint.h>
 
+#include <cstdint>
 #include <utility>
 #include <vector>
 
 #include "api/array_view.h"
+#include "net/dcsctp/common/internal_types.h"
 #include "net/dcsctp/packet/chunk/chunk.h"
 #include "net/dcsctp/packet/data.h"
+#include "net/dcsctp/public/types.h"
+#include "rtc_base/strong_alias.h"
 
 namespace dcsctp {
 

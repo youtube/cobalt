@@ -51,14 +51,12 @@ class WebContentsModalDialogHost;
 
 class Browser;
 class BrowserActions;
-class BrowserUserEducationInterface;
 class BrowserWindowFeatures;
 class DesktopBrowserWindowCapabilities;
 class ExclusiveAccessManager;
 class GURL;
 class ImmersiveModeController;
 class Profile;
-class SessionID;
 class TabStripModel;
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -66,6 +64,7 @@ namespace ui {
 class BaseWindow;
 }  // namespace ui
 
+class SessionID;
 class UnownedUserDataHost;
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -92,6 +91,23 @@ class BrowserWindowInterface : public content::PageNavigator {
   // state, etc.
   virtual ui::BaseWindow* GetWindow() = 0;
 
+  // Returns the profile that semantically owns this browser window.
+  // On most desktop platforms, there is only one profile per browser window.
+  // This will never be null and never changes for the lifetime of a given
+  // browser window. All tabs contained in a browser window have the same
+  // Profile / BrowserContext as the browser window itself.
+  // On mobile platforms, this is not the case -- browser windows may have
+  // multiple profiles. Since this is currently not needed on mobile platforms,
+  // this is okay.
+  // On the experimental desktop android platform, we are adapting the mobile
+  // version to have the same guarantees as existing desktop platforms. Thus,
+  // when implemented, this will return a single Profile for the given browser
+  // window.
+  virtual Profile* GetProfile() = 0;
+
+  // Returns a session-unique ID.
+  virtual const SessionID& GetSessionID() const = 0;
+
   // S T O P
   // Please do not add new features here without consulting desktop leads
   // (erikchen@) and Clank leads (twellington@, dtrainor@). See comment at the
@@ -107,19 +123,10 @@ class BrowserWindowInterface : public content::PageNavigator {
   // the instance itself remains the same.
   virtual views::WebView* GetWebView() = 0;
 
-  // Returns the profile that semantically owns this browser window. This value
-  // is never null, and never changes for the lifetime of a given browser
-  // window. All tabs contained in a browser window have the same
-  // profile/BrowserContext as the browser window itself.
-  virtual Profile* GetProfile() = 0;
-
   // Opens a URL, with the given disposition. This is a convenience wrapper
   // around OpenURL from content::PageNavigator.
   virtual void OpenGURL(const GURL& gurl,
                         WindowOpenDisposition disposition) = 0;
-
-  // Returns a session-unique ID.
-  virtual const SessionID& GetSessionID() const = 0;
 
   virtual TabStripModel* GetTabStripModel() = 0;
 
@@ -262,11 +269,6 @@ class BrowserWindowInterface : public content::PageNavigator {
     // BrowserTest.StartMaximized.
   };
   virtual Type GetType() const = 0;
-
-  // Gets an object that provides common per-browser-window functionality for
-  // user education. The remainder of functionality is provided directly by the
-  // UserEducationService, which can be retrieved directly from the profile.
-  virtual BrowserUserEducationInterface* GetUserEducationInterface() = 0;
 
   virtual web_app::AppBrowserController* GetAppBrowserController() = 0;
 

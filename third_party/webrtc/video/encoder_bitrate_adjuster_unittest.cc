@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "api/field_trials.h"
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
@@ -29,8 +30,8 @@
 #include "api/video_codecs/video_encoder.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/time_utils.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 #include "test/time_controller/simulated_time_controller.h"
 
 namespace webrtc {
@@ -58,7 +59,7 @@ class EncoderBitrateAdjusterTest : public Test,
         target_framerate_fps_(kDefaultFrameRateFps),
         tl_pattern_idx_{},
         sequence_idx_{},
-        scoped_field_trial_(GetParam()) {}
+        field_trials_(CreateTestFieldTrials(GetParam())) {}
 
  protected:
   void SetUpAdjusterWithCodec(size_t num_spatial_layers,
@@ -76,7 +77,7 @@ class EncoderBitrateAdjusterTest : public Test,
     }
 
     adjuster_ = std::make_unique<EncoderBitrateAdjuster>(
-        codec_, scoped_field_trial_, *time_controller_.GetClock());
+        codec_, field_trials_, *time_controller_.GetClock());
     adjuster_->OnEncoderInfo(encoder_info_);
     current_adjusted_allocation_ =
         adjuster_->AdjustRateAllocation(VideoEncoder::RateControlParameters(
@@ -263,7 +264,7 @@ class EncoderBitrateAdjusterTest : public Test,
   double target_framerate_fps_;
   int tl_pattern_idx_[kMaxSpatialLayers];
   int sequence_idx_[kMaxSpatialLayers][kMaxTemporalStreams];
-  test::ScopedKeyValueConfig scoped_field_trial_;
+  FieldTrials field_trials_;
 
   const std::vector<int> kTlPatterns[kMaxTemporalStreams] = {
       {0},

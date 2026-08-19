@@ -4,6 +4,10 @@
 
 #include "chrome/browser/ui/tabs/tab_strip_api/testing/toy_tab_strip_model_adapter.h"
 
+#include <utility>
+
+#include "base/strings/string_number_conversions.h"
+
 namespace tabs_api::testing {
 
 ToyTabStripModelAdapter::ToyTabStripModelAdapter(ToyTabStrip* tab_strip)
@@ -36,7 +40,7 @@ void ToyTabStripModelAdapter::ActivateTab(size_t idx) {
 
 void ToyTabStripModelAdapter::MoveTab(tabs::TabHandle handle,
                                       Position position) {
-  tab_strip_->MoveTab(handle, position.index);
+  tab_strip_->MoveTab(handle, position.index());
 }
 
 mojom::TabCollectionContainerPtr

@@ -16,9 +16,6 @@
 
 #include <jni.h>
 
-#include <utility>
-
-#include "sdk/android/native_api/jni/jvm.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace webrtc {

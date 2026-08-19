@@ -3826,7 +3826,7 @@ def make_cross_origin_access_check_callback(cg_context, function_name):
             _format(
                 "{blink_class}* blink_accessed_object = "
                 "${class_name}::ToWrappableUnsafe("
-                "accessing_context->GetIsolate(),"
+                "v8::Isolate::GetCurrent(),"
                 "${accessed_object});",
                 blink_class=blink_class)),
         TextNode("return BindingSecurity::ShouldAllowAccessTo("
@@ -4329,7 +4329,7 @@ def bind_installer_local_vars(code_node, cg_context):
         S("is_in_secure_context",
           ("const bool ${is_in_secure_context} = "
            "${execution_context}->IsSecureContext();")),
-        S("isolate", "v8::Isolate* ${isolate} = ${v8_context}->GetIsolate();"),
+        S("isolate", "v8::Isolate* ${isolate} = v8::Isolate::GetCurrent();"),
         S("script_state", ("ScriptState* ${script_state} = "
                            "ScriptState::From(${isolate}, ${v8_context});")),
         S("wrapper_type_info",
@@ -6396,6 +6396,10 @@ def make_wrapper_type_info(cg_context, function_name,
 
     public_defs.append(
         TextNode("""\
+  static_assert(static_cast<v8::CppHeapPointerTag>({this_tag}) <
+                 blink::kLastScriptWrappableTag,
+                 "There are more ScriptWrappable types than available type tags."
+                 "You have to increase the kLastScirptWrappableTag in wrapper_type_info.h");
   static constexpr v8::CppHeapPointerTag kThisTag =
       static_cast<v8::CppHeapPointerTag>({this_tag});
   static constexpr v8::CppHeapPointerTag kMaxSubclassTag =
@@ -6405,6 +6409,10 @@ def make_wrapper_type_info(cg_context, function_name,
 """.format(this_tag=class_like.tag,
            max_subclass_tag=class_like.max_subclass_tag)))
 
+    public_defs.accumulate(
+        CodeGenAccumulator.require_include_headers([
+            "third_party/blink/renderer/platform/bindings/wrapper_type_info.h"
+        ]))
     member_var_def = TextNode(
         "static const WrapperTypeInfo wrapper_type_info_;")
     member_var_def.accumulate(
@@ -6512,6 +6520,10 @@ static_assert(
     "[ActiveScriptWrappable] extended attribute.");"""
     if class_like.is_interface:
         wrapper_type_info_def.append(F(pattern, blink_class=blink_class))
+        wrapper_type_info_def.accumulate(
+            CodeGenAccumulator.require_include_headers([
+                "third_party/blink/renderer/platform/bindings/active_script_wrappable_base.h"
+            ]))
 
     return public_defs, member_var_def, wrapper_type_info_def
 

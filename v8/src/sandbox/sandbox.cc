@@ -178,7 +178,10 @@ void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
 #endif  // V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
 
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-  SandboxHardwareSupport::RegisterSandboxMemory(base(), size());
+  if (SandboxHardwareSupport::IsActive()) {
+    CHECK_EQ(address_space_->ActiveMemoryProtectionKey(),
+             SandboxHardwareSupport::SandboxPkey());
+  }
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   DCHECK(initialized_);
@@ -191,24 +194,8 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
   CHECK(vas->CanAllocateSubspaces());
 
   size_t reservation_size = size;
-  // As a temporary workaround for crbug.com/40070746 we use larger guard
-  // regions at the end of the sandbox.
-  // TODO(40070746): remove this workaround again once we have a proper fix.
-  size_t true_reservation_size = size;
-#if defined(V8_TARGET_OS_ANDROID)
-  // On Android, we often won't have sufficient virtual address space available.
-  const size_t kAdditionalTrailingGuardRegionSize = 0;
-#else
-  // Worst-case, we currently need 8 (max element size) * 32GB (max ArrayBuffer
-  // size) + 4GB (additional offset for TypedArray access).
-  const size_t kTotalTrailingGuardRegionSize = 260ULL * GB;
-  const size_t kAdditionalTrailingGuardRegionSize =
-      kTotalTrailingGuardRegionSize - kSandboxGuardRegionSize;
-#endif
   if (use_guard_regions) {
     reservation_size += 2 * kSandboxGuardRegionSize;
-    true_reservation_size =
-        reservation_size + kAdditionalTrailingGuardRegionSize;
   }
 
   Address hint = RoundDown(vas->RandomPageAddress(), kSandboxAlignment);
@@ -220,10 +207,23 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
   // (multiple seconds or even minutes for a 1TB sandbox on macOS 12.X), in
   // turn causing tests to time out. As such, the maximum page permission
   // inside the sandbox should be read + write.
-  address_space_ =
-      vas->AllocateSubspace(hint, true_reservation_size, kSandboxAlignment,
-                            PagePermissions::kReadWrite);
+  const PagePermissions kSandboxMaxPermissions = PagePermissions::kReadWrite;
 
+  // When sandbox hardware support is available and active, the sandbox address
+  // space uses a dedicated memory protection key.
+  std::optional<VirtualAddressSpace::MemoryProtectionKeyId> sandbox_pkey =
+      std::nullopt;
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  if (SandboxHardwareSupport::IsActive()) {
+    CHECK_NE(SandboxHardwareSupport::SandboxPkey(),
+             base::MemoryProtectionKey::kNoMemoryProtectionKey);
+    sandbox_pkey = SandboxHardwareSupport::SandboxPkey();
+  }
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
+  address_space_ =
+      vas->AllocateSubspace(hint, reservation_size, kSandboxAlignment,
+                            kSandboxMaxPermissions, sandbox_pkey);
   if (!address_space_) return false;
 
   reservation_base_ = address_space_->base();
@@ -240,8 +240,7 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
     Address back = end_;
     // These must succeed since nothing was allocated in the subspace yet.
     CHECK(address_space_->AllocateGuardRegion(front, kSandboxGuardRegionSize));
-    CHECK(address_space_->AllocateGuardRegion(
-        back, kSandboxGuardRegionSize + kAdditionalTrailingGuardRegionSize));
+    CHECK(address_space_->AllocateGuardRegion(back, kSandboxGuardRegionSize));
   }
 
   // Also try to reserve the first 4GB of the process' address space. This

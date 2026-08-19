@@ -18,12 +18,6 @@
 #endif  // defined(ARCH_CPU_ARM_FAMILY)
 
 namespace ash::features {
-// Enables the UI and logic that minimizes the amount of time the device spends
-// at full battery. This preserves battery lifetime.
-BASE_FEATURE(kAdaptiveCharging,
-             "AdaptiveCharging",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables the UI for additional on-device parental controls that can be used to
 // enable or block ARC++ apps.
 BASE_FEATURE(kOnDeviceAppControls,
@@ -471,13 +465,6 @@ BASE_FEATURE(kClipboardHistoryLongpress,
              "ClipboardHistoryLongpress",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled when the user copies a URL that is present in the primary user
-// profile's browsing history, the clipboard history menu will show the page
-// title as part of the URL's menu item.
-BASE_FEATURE(kClipboardHistoryUrlTitles,
-             "ClipboardHistoryUrlTitles",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Controls enabling/disabling conch.
 BASE_FEATURE(kConch, "Conch", base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -797,7 +784,7 @@ BASE_FEATURE(kEnableRFC8925, "EnableRFC8925", base::FEATURE_ENABLED_BY_DEFAULT);
 // Enable the DNS proxy service running in root network namespace for ChromeOS.
 BASE_FEATURE(kEnableRootNsDnsProxy,
              "EnableRootNsDnsProxy",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enable the shortcut to toggle whether the camera is enabled/disabled in
 // Settings > Privacy controls.
@@ -861,21 +848,6 @@ BASE_FEATURE(kEnterpriseReportingUI,
 // Controls whether ephemeral network configuration policies are respected.
 BASE_FEATURE(kEphemeralNetworkPolicies,
              "kEphemeralNetworkPolicies",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables Device End Of Lifetime incentive notifications.
-BASE_FEATURE(kEolIncentive, "EolIncentive", base::FEATURE_DISABLED_BY_DEFAULT);
-
-const base::FeatureParam<EolIncentiveParam>::Option eol_incentive_options[] = {
-    {EolIncentiveParam::kNoOffer, "no_offer"},
-    {EolIncentiveParam::kOffer, "offer"},
-    {EolIncentiveParam::kOfferWithWarning, "offer_with_warning"}};
-const base::FeatureParam<EolIncentiveParam> kEolIncentiveParam{
-    &kEolIncentive, "incentive_type", EolIncentiveParam::kNoOffer,
-    &eol_incentive_options};
-
-BASE_FEATURE(kEolIncentiveSettings,
-             "EolIncentiveSettings",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Control whether the eSIM activation dialog supports submitting an empty code.
@@ -1139,17 +1111,6 @@ BASE_FEATURE(kIgnoreDeviceFlexArcEnabledPolicy,
 // flag controls if we are allowed to launch the service observing the policy
 // and if we show the user selectable UI when the policy is enabled.
 BASE_FEATURE(kFloatingSso, "FloatingSso", base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables or disables Floating Workspace feature on ChromeOS
-BASE_FEATURE(kFloatingWorkspace,
-             "FloatingWorkspace",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Maximum delay to wait for restoring Floating Workspace after login.
-constexpr base::FeatureParam<base::TimeDelta>
-    kFloatingWorkspaceMaxTimeAvailableForRestoreAfterLogin{
-        &kFloatingWorkspace, "MaxTimeAvailableForRestoreAfterLogin",
-        base::Seconds(3)};
 
 // Enables or disables Floating Workspace V2 feature on ChromeOS
 BASE_FEATURE(kFloatingWorkspaceV2,
@@ -1669,7 +1630,7 @@ BASE_FEATURE(kImprovedLoginErrorHandling,
 // management warning bubble.
 BASE_FEATURE(kImprovedManagementDisclosure,
              "ImprovedManagementDisclosure",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables Instant Hotspot on Nearby. b/303121363.
 BASE_FEATURE(kInstantHotspotOnNearby,
@@ -1811,7 +1772,7 @@ BASE_FEATURE(kFeatureManagementLocalImageSearch,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables lobster feature.
-BASE_FEATURE(kLobster, "Lobster", base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kLobster, "Lobster", base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enabling this testing flag will force the Lobster disclaimer screen to be
 // shown every time Lobster is triggered, even if users have previously approved
@@ -2020,11 +1981,6 @@ const base::FeatureParam<base::TimeDelta> kEcheScanningCycleOffTime{
 // Settings Calendar.
 BASE_FEATURE(kMultiCalendarSupport,
              "MultiCalendarSupport",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables multi-zone rgb keyboard customization.
-BASE_FEATURE(kMultiZoneRgbKeyboard,
-             "MultiZoneRgbKeyboard",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables Nearby Presence for scanning and discovery of nearby devices.
@@ -2488,14 +2444,6 @@ BASE_FEATURE(kProjectorV2, "ProjectorV2", base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kProjectorUseUSMForS3,
              "ProjectorUseUSMForS3",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-// controls whether projector uses dynamic colors.
-BASE_FEATURE(kProjectorDynamicColors,
-             "ProjectorDynamicColors",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// controls whether the projector app uses updated styles and ui components.
-BASE_FEATURE(kProjectorGm3, "ProjectorGm3", base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether the projector app uses the latest endpoint for retrieving
 // playback urls.
@@ -3188,12 +3136,6 @@ BASE_FEATURE(kWifiConcurrency,
              "WifiConcurrency",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Controls whether to enable the syncing of deletes of Wi-Fi configurations.
-// This only controls sending delete events to the Chrome Sync server.
-BASE_FEATURE(kWifiSyncAllowDeletes,
-             "WifiSyncAllowDeletes",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Controls whether to enable syncing of Wi-Fi configurations between
 // ChromeOS and a connected Android phone.
 BASE_FEATURE(kWifiSyncAndroid,
@@ -3350,10 +3292,6 @@ bool IsAudioSelectionImprovementEnabled() {
 
 bool Is16DesksEnabled() {
   return base::FeatureList::IsEnabled(kFeatureManagement16Desks);
-}
-
-bool IsAdaptiveChargingEnabled() {
-  return base::FeatureList::IsEnabled(kAdaptiveCharging);
 }
 
 bool IsOnDeviceAppControlsEnabled() {
@@ -3556,10 +3494,6 @@ bool IsClipboardHistoryLongpressEnabled() {
   return base::FeatureList::IsEnabled(kClipboardHistoryLongpress);
 }
 
-bool IsClipboardHistoryUrlTitlesEnabled() {
-  return base::FeatureList::IsEnabled(kClipboardHistoryUrlTitles);
-}
-
 bool IsContinuousOverviewScrollAnimationEnabled() {
   return base::FeatureList::IsEnabled(kContinuousOverviewScrollAnimation);
 }
@@ -3690,10 +3624,6 @@ bool IsEcheSWAMeasureLatencyEnabled() {
   return base::FeatureList::IsEnabled(kEcheSWAMeasureLatency);
 }
 
-bool IsEOLIncentiveEnabled() {
-  return base::FeatureList::IsEnabled(kEolIncentive);
-}
-
 bool IsESimEmptyActivationCodeSupportEnabled() {
   return base::FeatureList::IsEnabled(kESimEmptyActivationCodeSupported);
 }
@@ -3812,10 +3742,6 @@ bool ShouldIgnoreDeviceFlexArcEnabledPolicy() {
 
 bool IsFloatingSsoAllowed() {
   return base::FeatureList::IsEnabled(kFloatingSso);
-}
-
-bool IsFloatingWorkspaceEnabled() {
-  return base::FeatureList::IsEnabled(kFloatingWorkspace);
 }
 
 bool IsFloatingWorkspaceV2Enabled() {
@@ -4171,10 +4097,6 @@ bool IsMultiCalendarSupportEnabled() {
   return base::FeatureList::IsEnabled(kMultiCalendarSupport);
 }
 
-bool IsMultiZoneRgbKeyboardEnabled() {
-  return base::FeatureList::IsEnabled(kMultiZoneRgbKeyboard);
-}
-
 bool IsEcheLauncherEnabled() {
   return base::FeatureList::IsEnabled(kEcheLauncher) &&
          base::FeatureList::IsEnabled(kEcheSWA);
@@ -4432,16 +4354,6 @@ bool IsProjectorV2Enabled() {
 
 bool IsProjectorUseUSMForS3Enabled() {
   return base::FeatureList::IsEnabled(kProjectorUseUSMForS3);
-}
-
-bool IsProjectorDynamicColorsEnabled() {
-  // For Projector, Gm3 requires dynamic colors.
-  return base::FeatureList::IsEnabled(kProjectorDynamicColors) ||
-         base::FeatureList::IsEnabled(kProjectorGm3);
-}
-
-bool IsProjectorGm3Enabled() {
-  return base::FeatureList::IsEnabled(kProjectorGm3);
 }
 
 bool IsProjectorUseDVSPlaybackEndpointEnabled() {

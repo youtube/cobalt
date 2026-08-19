@@ -63,6 +63,8 @@ class CookieControlsContentView : public views::View {
 
   virtual void SetTrackingProtectionsButtonReloadingState();
 
+  virtual views::MdTextButtonWithSpinner* GetTrackingProtectionsButton();
+
   base::CallbackListSubscription RegisterToggleButtonPressedCallback(
       base::RepeatingCallback<void(bool)> callback);
   base::CallbackListSubscription RegisterFeedbackButtonPressedCallback(

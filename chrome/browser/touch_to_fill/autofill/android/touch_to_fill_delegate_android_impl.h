@@ -8,7 +8,7 @@
 #include <variant>
 #include <vector>
 
-#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/data_model/payments/iban.h"
@@ -108,8 +108,7 @@ class TouchToFillDelegateAndroidImpl : public TouchToFillDelegate {
   // Checks whether TTF is eligible for the given web form data.
   // Only if this is true, the controller will show the view.
   bool IntendsToShowTouchToFill(FormGlobalId form_id,
-                                FieldGlobalId field_id,
-                                const FormData& form) override;
+                                FieldGlobalId field_id) override;
 
   // Checks whether TTF is eligible for the given web form data and, if
   // successful, triggers the corresponding surface and returns |true|.
@@ -126,7 +125,6 @@ class TouchToFillDelegateAndroidImpl : public TouchToFillDelegate {
   void Reset() override;
 
   // TouchToFillDelegate:
-  AutofillManager* GetManager() override;
   bool ShouldShowScanCreditCard() override;
   void ScanCreditCard() override;
   void OnCreditCardScanned(const CreditCard& card) override;
@@ -135,8 +133,7 @@ class TouchToFillDelegateAndroidImpl : public TouchToFillDelegate {
                                     bool is_virtual) override;
   void IbanSuggestionSelected(
       std::variant<Iban::Guid, Iban::InstrumentId> backend_id) override;
-  void LoyaltyCardSuggestionSelected(
-      const std::string& loyalty_card_number) override;
+  void LoyaltyCardSuggestionSelected(const LoyaltyCard& loyalty_card) override;
   void OnDismissed(bool dismissed_by_user) override;
 
   void LogMetricsAfterSubmission(const FormStructure& submitted_form) override;
@@ -171,14 +168,9 @@ class TouchToFillDelegateAndroidImpl : public TouchToFillDelegate {
   // Checks all preconditions for showing the TTF, that is, for calling
   // PaymentsAutofillClient::ShowTouchToFillCreditCard().
   //
-  // If the DryRunResult::outcome is TriggerOutcome::kShow, the
-  // DryRun::cards_to_suggest contains the cards; otherwise it is empty.
-  // TODO(crbug.com/40282650): Remove received FormData. received_form is the
-  // form received from the renderer, so it contains the current values. This is
-  // needed for the non-empty checks.
-  DryRunResult DryRun(FormGlobalId form_id,
-                      FieldGlobalId field_id,
-                      const FormData& received_form);
+  // If the DryRunResult::outcome is TriggerOutcome::kShown,
+  // DryRunResult::items_to_suggest is populated; otherwise it is empty.
+  DryRunResult DryRun(FormGlobalId form_id, FieldGlobalId field_id);
 
   // Returns a DryRunResult with the user's fillable IBANs, or
   // `kNoValidPaymentMethods` if no IBANs are available.
@@ -187,41 +179,26 @@ class TouchToFillDelegateAndroidImpl : public TouchToFillDelegate {
   // Returns a DryRunResult with the user's fillable credit cards, or
   // an error reason if TTF should not be triggered.
   DryRunResult DryRunForCreditCard(const AutofillField& field,
-                                   const FormStructure& form,
-                                   const FormData& received_form);
+                                   const FormStructure& form);
 
   // Returns a DryRunResult with the user's fillable loyalty cards, or
   // an error reason if TTF should not be triggered.
   DryRunResult DryRunForLoyaltyCard();
 
-  bool HasAnyAutofilledFields(const FormStructure& submitted_form) const;
-
-  // The form is considered perfectly filled if all non-empty fields are
-  // autofilled without further edits.
-  bool IsFillingPerfect(const FormStructure& submitted_form) const;
-
-  // The form is considered correctly filled if all autofilled fields were not
-  // edited by user afterwards.
-  bool IsFillingCorrect(const FormStructure& submitted_form) const;
-
-  // Checks if the credit card form is already filled with values. The form is
-  // considered to be filled if the credit card number field is non-empty. The
-  // expiration date fields are not checked because they might have arbitrary
-  // placeholders.
-  // TODO(crbug.com/40227496): FormData is used here to ensure that we check the
-  // most recent form values. FormStructure knows only about the initial values.
-  bool IsFormPrefilled(const FormData& form);
-
   // Creates a list of booleans which denotes if credit cards are acceptable by
-  // the merchant. The list will be the same size as `credit_cards`, and the
-  // indices will match (the acceptability of credit_cards[i] ==
+  // the merchant. The returned list has the same size as `credit_cards`, and
+  // the indices match (the acceptability of credit_cards[i] ==
   // card_acceptability[i]).
   std::vector<bool> GetCardAcceptabilities(
       base::span<const CreditCard> credit_cards);
 
+  void LogTriggerOutcomeMetrics(const FormGlobalId& form_id,
+                                const FieldGlobalId& field_id,
+                                TriggerOutcome outcome);
+
   TouchToFillState ttf_payment_method_state_ = TouchToFillState::kShouldShow;
 
-  const raw_ptr<BrowserAutofillManager> manager_;
+  const raw_ref<BrowserAutofillManager> manager_;
   FormData query_form_;
   FormFieldData query_field_;
   bool dismissed_by_user_ = false;

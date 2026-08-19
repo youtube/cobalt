@@ -300,11 +300,13 @@ bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
 }
 
 template <typename Char>
-JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
+JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source,
+                             std::optional<ScriptDetails> script_details)
     : isolate_(isolate),
       hash_seed_(HashSeed(isolate)),
       object_constructor_(isolate_->object_function()),
-      original_source_(source) {
+      original_source_(source),
+      script_details_(script_details) {
   size_t start = 0;
   size_t length = source->length();
   PtrComprCageBase cage_base(isolate);
@@ -481,13 +483,22 @@ void JsonParser<Char>::ReportUnexpectedToken(
 
   Handle<Script> script(factory->NewScript(original_source_));
   DCHECK_IMPLIES(isolate_->NeedsSourcePositions(), script->has_line_ends());
-  DebuggableStackFrameIterator it(isolate_);
-  if (!it.done() && it.is_javascript()) {
-    FrameSummary summary = it.GetTopValidFrame();
-    script->set_eval_from_shared(summary.AsJavaScript().function()->shared());
-    if (IsScript(*summary.script())) {
-      script->set_origin_options(
-          Cast<Script>(*summary.script())->origin_options());
+  if (script_details_.has_value()) {
+    const ScriptDetails& details = script_details_.value();
+    script->set_origin_options(details.origin_options);
+    {
+      DisallowGarbageCollection no_gc;
+      SetScriptFieldsFromDetails(isolate_, *script, details, &no_gc);
+    }
+  } else {
+    DebuggableStackFrameIterator it(isolate_);
+    if (!it.done() && it.is_javascript()) {
+      FrameSummary summary = it.GetTopValidFrame();
+      script->set_eval_from_shared(summary.AsJavaScript().function()->shared());
+      if (IsScript(*summary.script())) {
+        script->set_origin_options(
+            Cast<Script>(*summary.script())->origin_options());
+      }
     }
   }
 
@@ -515,16 +526,16 @@ void JsonParser<Char>::ReportUnexpectedCharacter(base::uc32 c) {
 
 template <typename Char>
 JsonParser<Char>::~JsonParser() {
-  if (StringShape(*source_).IsExternal()) {
-    // Check that the string shape hasn't changed. Otherwise our GC hooks are
-    // broken.
-    Cast<SeqExternalString>(*source_);
-  } else {
+  if (chars_may_relocate_) {
     // Check that the string shape hasn't changed. Otherwise our GC hooks are
     // broken.
     Cast<SeqString>(*source_);
     isolate()->main_thread_local_heap()->RemoveGCEpilogueCallback(
         UpdatePointersCallback, this);
+  } else {
+    // Check that the string shape hasn't changed. Otherwise our GC hooks are
+    // broken.
+    Cast<SeqExternalString>(*source_);
   }
 }
 

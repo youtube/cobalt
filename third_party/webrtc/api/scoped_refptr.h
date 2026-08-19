@@ -219,12 +219,5 @@ bool operator<(const scoped_refptr<T>& a, const scoped_refptr<U>& b) {
 
 }  // namespace webrtc
 
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-// Backwards compatible alias.
-// TODO: bugs.webrtc.org/42225969 - Deprecate and remove.
-using ::webrtc::scoped_refptr;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // API_SCOPED_REFPTR_H_

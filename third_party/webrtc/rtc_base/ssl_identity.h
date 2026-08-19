@@ -165,33 +165,5 @@ extern const char kPemTypeEcPrivateKey[];
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::ASN1TimeToSec;
-using ::webrtc::EC_LAST;
-using ::webrtc::EC_NIST_P256;
-using ::webrtc::ECCurve;
-using ::webrtc::kCertificateWindowInSeconds;
-using ::webrtc::kDefaultCertificateLifetimeInSeconds;
-using ::webrtc::KeyParams;
-using ::webrtc::KeyType;
-using ::webrtc::kPemTypeCertificate;
-using ::webrtc::kPemTypeEcPrivateKey;
-using ::webrtc::kPemTypeRsaPrivateKey;
-using ::webrtc::kRsaDefaultExponent;
-using ::webrtc::kRsaDefaultModSize;
-using ::webrtc::kRsaMaxModSize;
-using ::webrtc::kRsaMinModSize;
-using ::webrtc::KT_DEFAULT;
-using ::webrtc::KT_ECDSA;
-using ::webrtc::KT_LAST;
-using ::webrtc::KT_RSA;
-using ::webrtc::RSAParams;
-using ::webrtc::SSLIdentity;
-using ::webrtc::SSLIdentityParams;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_SSL_IDENTITY_H_

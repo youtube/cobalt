@@ -70,8 +70,8 @@ class FieldTrials : public FieldTrialsRegistry {
   // Setting empty `group` is valid and removes the `trial`.
   void Set(absl::string_view trial, absl::string_view group);
 
-  // TODO: bugs.webrtc.org/42220378 - Deprecate and inline once no longer used
-  // within webrtc.
+  // TODO: bugs.webrtc.org/42220378 - Delete after August 1, 2025.
+  [[deprecated]]
   static std::unique_ptr<FieldTrials> CreateNoGlobal(absl::string_view s) {
     return std::make_unique<FieldTrials>(s);
   }

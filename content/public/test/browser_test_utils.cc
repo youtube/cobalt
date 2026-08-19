@@ -53,6 +53,7 @@
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/media/media_stream_manager.h"
 #include "content/browser/renderer_host/navigation_request.h"
+#include "content/browser/renderer_host/navigation_throttle_runner.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_frame_metadata_provider_impl.h"
 #include "content/browser/renderer_host/render_frame_proxy_host.h"
@@ -78,6 +79,7 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host_observer.h"
+#include "content/public/browser/screen_orientation_delegate.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
@@ -3507,7 +3509,9 @@ void TestNavigationManager::ResumeIfPaused() {
 
   navigation_paused_ = false;
 
-  request_->GetNavigationThrottleRunnerForTesting()->CallResumeForTesting();
+  request_->GetNavigationThrottleRegistryForTesting()
+      ->GetNavigationThrottleRunnerForTesting()
+      .CallResumeForTesting();
 }
 
 bool TestNavigationManager::ShouldMonitorNavigation(NavigationHandle* handle) {

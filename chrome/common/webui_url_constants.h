@@ -174,7 +174,6 @@ inline constexpr char kChromeUIMediaRouterInternalsHost[] =
     "media-router-internals";
 inline constexpr char kChromeUIMemoryInternalsHost[] = "memory-internals";
 inline constexpr char kChromeUIMetricsInternalsHost[] = "metrics-internals";
-inline constexpr char kChromeUINaClHost[] = "nacl";
 inline constexpr char kChromeUINetExportHost[] = "net-export";
 inline constexpr char kChromeUINetInternalsHost[] = "net-internals";
 inline constexpr char kChromeUINetInternalsURL[] = "chrome://net-internals/";
@@ -340,6 +339,8 @@ inline constexpr char kChromeUIWebApksHost[] = "webapks";
 inline constexpr char kAdPrivacySubPagePath[] = "/adPrivacy";
 inline constexpr char kChromeUIAppServiceInternalsHost[] =
     "app-service-internals";
+inline constexpr char kChromeUIAutofillMlInternalsHost[] =
+    "autofill-ml-internals";
 inline constexpr char kChromeUIBookmarksSidePanelHost[] =
     "bookmarks-side-panel.top-chrome";
 inline constexpr char kChromeUIBookmarksSidePanelURL[] =

@@ -40,7 +40,7 @@ found in the LICENSE file.
             <org.chromium.ui.widget.TextViewWithLeading
                 android:id="@+id/message_paragraph_1"
                 android:textAppearance="@style/TextAppearance.TextMedium.Secondary"
-                app:leading="20sp"
+                app:leading="@dimen/text_size_medium_leading"
                 style="@style/AlertDialogContent" />
 
             <org.chromium.ui.widget.TextViewWithLeading
@@ -48,8 +48,16 @@ found in the LICENSE file.
                 android:textAppearance="@style/TextAppearance.TextMedium.Secondary"
                 android:visibility="gone"
                 android:layout_marginBottom="16dp"
-                app:leading="20sp"
+                app:leading="@dimen/text_size_medium_leading"
                 style="@style/AlertDialogContent" />
+
+            <LinearLayout
+                android:id="@+id/message_paragraphs_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:orientation="vertical"
+                android:visibility="gone" />
 
         </LinearLayout>
 
@@ -90,6 +98,16 @@ found in the LICENSE file.
             </LinearLayout>
         </LinearLayout>
     </org.chromium.components.browser_ui.widget.FadingEdgeScrollView>
+
+    <CheckBox
+        android:id="@+id/modal_dialog_checkbox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginTop="16dp"
+        android:visibility="gone"
+        android:textAppearance="@style/TextAppearance.TextMedium.Secondary" />
 
     <org.chromium.components.browser_ui.widget.DualControlLayout
         android:id="@+id/button_bar"

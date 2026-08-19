@@ -257,6 +257,7 @@ TEST_F(FullScreenWinApplicationHandlerTest,
   EXPECT_EQ(FindFullScreenWindow(), correct_slide_show);
 }
 
+// TODO(crbug.com/409473386): Add DestroyTestWindow to clean the tests.
 TEST_F(FullScreenWinApplicationHandlerTest,
        FullScreenWindowsFoundWhenMultipleEditorsAndSlideShowsExist) {
   std::vector<WindowInfo> editors = {
@@ -288,6 +289,22 @@ TEST_F(FullScreenWinApplicationHandlerTest,
                                                         /*timestamp=*/0)),
               slide_shows[count]);
   }
+}
+
+TEST_F(FullScreenWinApplicationHandlerTest,
+       FullScreenWindowNotFoundWhenTwoEditorsWithSameTitleExist) {
+  const WCHAR* editor_title = L"My - Title - PowerPoint";
+  CreateEditorWindow(editor_title);
+  WindowInfo second_editor_window_info =
+      CreateTestWindow(editor_title, /*window_class=*/L"PPTFrameClass");
+  EXPECT_NE(editor_window_info_.hwnd, second_editor_window_info.hwnd);
+  HWND slide_show =
+      CreateSlideShowWindow(L"PowerPoint Slide Show - [My - Title]");
+
+  EXPECT_NE(FindFullScreenWindow(), slide_show);
+  EXPECT_EQ(FindFullScreenWindow(), reinterpret_cast<HWND>(0));
+
+  DestroyTestWindow(second_editor_window_info);
 }
 
 }  // namespace webrtc

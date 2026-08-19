@@ -61,17 +61,5 @@ void SetCurrentThreadName(const char* name);
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::CurrentThreadId;
-using ::webrtc::CurrentThreadRef;
-using ::webrtc::IsThreadRefEqual;
-using ::webrtc::PlatformThreadId;
-using ::webrtc::PlatformThreadRef;
-using ::webrtc::SetCurrentThreadName;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_PLATFORM_THREAD_TYPES_H_

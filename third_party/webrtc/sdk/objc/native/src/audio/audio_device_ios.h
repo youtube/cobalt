@@ -333,9 +333,6 @@ class AudioDeviceIOS : public AudioDeviceGeneric,
   std::atomic<uint64_t> total_playout_delay_ms_;
   std::atomic<double> hw_output_latency_;
   int last_hw_output_latency_update_sample_count_;
-  // Ratio between mach tick units and nanosecond. Used to change mach tick
-  // units to nanoseconds.
-  double machTickUnitsToNanoseconds_;
 };
 }  // namespace ios_adm
 }  // namespace webrtc

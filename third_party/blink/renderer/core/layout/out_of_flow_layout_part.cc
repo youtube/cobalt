@@ -114,7 +114,7 @@ class OOFCandidateStyleIterator {
       AnchorEvaluatorImpl& anchor_evaluator,
       WritingDirectionMode container_writing_direction)
       : element_(DynamicTo<Element>(object.GetNode())),
-        style_(object.Style()),
+        original_style_(object.StyleRef()),
         anchor_evaluator_(anchor_evaluator),
         container_writing_direction_(container_writing_direction) {
     Initialize();
@@ -240,6 +240,9 @@ class OOFCandidateStyleIterator {
 
  private:
   void Initialize() {
+    style_ = &original_style_;
+
+    // Not all OOFs have an element. LayoutViewTransitionRoot is one example.
     if (element_) {
       position_try_fallbacks_ = style_->GetPositionTryFallbacks();
 
@@ -319,6 +322,9 @@ class OOFCandidateStyleIterator {
   }
 
   Element* element_ = nullptr;
+
+  // The ComputedStyle stored on LayoutObject at construction time.
+  const ComputedStyle& original_style_;
 
   // The current candidate style if no auto anchor fallback is triggered.
   // Otherwise, the base style for generating auto anchor fallbacks.
@@ -454,12 +460,8 @@ std::optional<LogicalSize> OutOfFlowLayoutPart::InitialContainingBlockFixedSize(
     return std::nullopt;
   const auto* frame_view = container.GetDocument().View();
   DCHECK(frame_view);
-  PhysicalSize size =
-      RuntimeEnabledFeatures::ScrollbarGutterFixedPosBugfixEnabled()
-          ? PhysicalSize(frame_view->Size())
-          : PhysicalSize(frame_view->LayoutViewport()->ExcludeScrollbars(
-                frame_view->Size()));
-  return ToLogicalSize(size, container.Style().GetWritingMode());
+  return ToLogicalSize(PhysicalSize(frame_view->Size()),
+                       container.Style().GetWritingMode());
 }
 
 OutOfFlowLayoutPart::OutOfFlowLayoutPart(BoxFragmentBuilder* container_builder)
@@ -498,15 +500,10 @@ OutOfFlowLayoutPart::OutOfFlowLayoutPart(BoxFragmentBuilder* container_builder)
   if (container_builder_->HasBlockSize()) {
     default_containing_block_info_for_absolute_.rect.size =
         ShrinkLogicalSize(container_builder_->Size(), border_scrollbar);
-    default_containing_block_info_for_fixed_.rect.size =
-        RuntimeEnabledFeatures::ScrollbarGutterFixedPosBugfixEnabled()
-            ? ShrinkLogicalSize(
-                  InitialContainingBlockFixedSize(container_builder->Node())
-                      .value_or(container_builder_->Size()),
-                  border_scrollbar)
-            : InitialContainingBlockFixedSize(container_builder->Node())
-                  .value_or(
-                      default_containing_block_info_for_absolute_.rect.size);
+    default_containing_block_info_for_fixed_.rect.size = ShrinkLogicalSize(
+        InitialContainingBlockFixedSize(container_builder->Node())
+            .value_or(container_builder_->Size()),
+        border_scrollbar);
   }
   LogicalOffset container_offset = {border_scrollbar.inline_start,
                                     border_scrollbar.block_start};
@@ -2065,8 +2062,7 @@ OutOfFlowLayoutPart::OffsetInfo OutOfFlowLayoutPart::CalculateOffset(
   std::optional<wtf_size_t> last_successful_index;
   PhysicalOffset last_remembered_scroll_offset;
   bool find_last_successful_option = false;
-  if (oof_data &&
-      RuntimeEnabledFeatures::CSSAnchorRememberedScrollOffsetEnabled()) {
+  if (oof_data) {
     // Unless `position-try-fallbacks` has changed, prefer the last successful
     // option.
     if (oof_data->HasLastSuccessfulPositionFallback() &&
@@ -2257,18 +2253,16 @@ OutOfFlowLayoutPart::TryCalculateOffset(
   ContainingBlockInfo container_info = node_info.base_container_info;
   if (const std::optional<PositionAreaOffsets> offsets =
           candidate_style.PositionAreaOffsets()) {
-    if (RuntimeEnabledFeatures::CSSAnchorRememberedScrollOffsetEnabled()) {
-      Element* elm = To<Element>(node_info.node.GetDOMNode());
-      if (offsets->behaves_as_auto.top != offsets->behaves_as_auto.bottom ||
-          offsets->behaves_as_auto.left != offsets->behaves_as_auto.right) {
-        // When one inset for an axis is tethered to the default anchor, and the
-        // other one is tethered to the original containing block, the IMCB is
-        // affected by the default anchor scroll shift. Schedule for calculation
-        // of the default scroll shift.
-        elm->EnsureOutOfFlowData();
-        StyleEngine& style_engine = elm->GetDocument().GetStyleEngine();
-        style_engine.MarkForDefaultAnchorScrollShift(*elm);
-      }
+    Element* elm = To<Element>(node_info.node.GetDOMNode());
+    if (offsets->behaves_as_auto.top != offsets->behaves_as_auto.bottom ||
+        offsets->behaves_as_auto.left != offsets->behaves_as_auto.right) {
+      // When one inset for an axis is tethered to the default anchor, and the
+      // other one is tethered to the original containing block, the IMCB is
+      // affected by the default anchor scroll shift. Schedule for calculation
+      // of the default scroll shift.
+      elm->EnsureOutOfFlowData();
+      StyleEngine& style_engine = elm->GetDocument().GetStyleEngine();
+      style_engine.MarkForDefaultAnchorScrollShift(*elm);
     }
     container_info = ApplyPositionAreaOffsets(
         *offsets, default_anchor_scroll_shift, container_info);

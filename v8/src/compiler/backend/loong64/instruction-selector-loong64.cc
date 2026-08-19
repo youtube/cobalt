@@ -88,6 +88,8 @@ class Loong64OperandGenerator final : public OperandGenerator {
 
   bool CanBeImmediate(int64_t value, InstructionCode opcode) {
     switch (ArchOpcodeField::decode(opcode)) {
+      case kArchAtomicStoreWithWriteBarrier:
+        return false;
       case kLoong64Cmp32:
       case kLoong64Cmp64:
         return true;
@@ -1737,11 +1739,9 @@ void VisitAtomicLoad(InstructionSelector* selector, OpIndex node,
 
   bool traps_on_null;
   if (load.is_protected(&traps_on_null)) {
-    // Atomic loads and null dereference are mutually exclusive. This might
-    // change with multi-threaded wasm-gc in which case the access mode should
-    // probably be kMemoryAccessProtectedNullDereference.
-    DCHECK(!traps_on_null);
-    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+    code |= AccessModeField::encode(traps_on_null
+                                        ? kMemoryAccessProtectedNullDereference
+                                        : kMemoryAccessProtectedMemOutOfBounds);
   }
 
   if (g.CanBeImmediate(index, code)) {
@@ -1898,24 +1898,24 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
   OpIndex new_value = atomic_op.value();
 
   AddressingMode addressing_mode = kMode_MRI;
-  InstructionOperand inputs[4];
-  size_t input_count = 0;
-  inputs[input_count++] = g.UseUniqueRegister(base);
-  inputs[input_count++] = g.UseUniqueRegister(index);
-  inputs[input_count++] = g.UseUniqueRegister(old_value);
-  inputs[input_count++] = g.UseUniqueRegister(new_value);
+  bool has_write_barrier = opcode == kAtomicCompareExchangeWithWriteBarrier;
+  InstructionOperand inputs[] = {
+      has_write_barrier ? g.UseUniqueRegister(base) : g.UseRegister(base),
+      has_write_barrier ? g.UseUniqueRegister(index) : g.UseRegister(index),
+      g.UseUniqueRegister(old_value), g.UseUniqueRegister(new_value)};
   InstructionOperand outputs[1];
   outputs[0] = g.UseUniqueRegister(node);
-  InstructionOperand temp[3];
-  temp[0] = g.TempRegister();
-  temp[1] = g.TempRegister();
-  temp[2] = g.TempRegister();
+  InstructionOperand temps[3];
+  temps[0] = g.TempRegister();
+  temps[1] = g.TempRegister();
+  temps[2] = g.TempRegister();
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
-  selector->Emit(code, 1, outputs, input_count, inputs, 3, temp);
+  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+                 arraysize(temps), temps);
 }
 
 void VisitAtomicBinop(InstructionSelector* selector, OpIndex node,
@@ -2453,6 +2453,14 @@ void InstructionSelector::VisitWord64AtomicCompareExchange(OpIndex node) {
   }
   VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord64,
                              atomic_op.memory_access_kind);
+}
+
+void InstructionSelector::VisitTaggedAtomicCompareExchange(OpIndex node) {
+  const AtomicRMWOp& atomic_op = Cast<AtomicRMWOp>(node);
+  AtomicWidth width =
+      COMPRESS_POINTERS_BOOL ? AtomicWidth::kWord32 : AtomicWidth::kWord64;
+  VisitAtomicCompareExchange(this, node, kAtomicCompareExchangeWithWriteBarrier,
+                             width, atomic_op.memory_access_kind);
 }
 
 void InstructionSelector::VisitWord32AtomicBinaryOperation(

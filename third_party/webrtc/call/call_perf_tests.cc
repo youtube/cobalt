@@ -74,13 +74,11 @@
 #include "test/drifting_clock.h"
 #include "test/encoder_settings.h"
 #include "test/fake_encoder.h"
-#include "test/field_trial.h"
 #include "test/frame_generator_capturer.h"
 #include "test/gtest.h"
 #include "test/network/simulated_network.h"
 #include "test/rtp_rtcp_observer.h"
 #include "test/test_flags.h"
-#include "test/testsupport/file_utils.h"
 #include "test/video_encoder_proxy_factory.h"
 #include "test/video_test_constants.h"
 #include "video/config/video_encoder_config.h"
@@ -431,8 +429,7 @@ TEST_F(CallPerfTest,
 TEST_F(CallPerfTest, ReceivesCpuOveruseAndUnderuse) {
   // Minimal normal usage at the start, then 30s overuse to allow filter to
   // settle, and then 80s underuse to allow plenty of time for rampup again.
-  test::ScopedFieldTrials fake_overuse_settings(
-      "WebRTC-ForceSimulatedOveruseIntervalMs/1-30000-80000/");
+  field_trials().Set("WebRTC-ForceSimulatedOveruseIntervalMs", "1-30000-80000");
 
   class LoadObserver : public test::SendTest,
                        public test::FrameGeneratorCapturer::SinkWantsObserver {

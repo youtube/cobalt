@@ -323,6 +323,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   IF_WASM(V, LoadStackPointer)               \
   IF_WASM(V, SetStackPointer)                \
   IF_WASM(V, MemoryCopy)                     \
+  IF_WASM(V, MemoryFill)                     \
   V(Phi)                                     \
   V(FrameState)                              \
   V(Call)                                    \
@@ -337,7 +338,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(MemoryBarrier)                           \
   V(Comment)                                 \
   V(Dead)                                    \
-  V(AbortCSADcheck)
+  V(AbortCSADcheck)                          \
+  V(Pause)
 
 #define TURBOSHAFT_JS_THROWING_OPERATION_LIST(V) \
   V(GenericBinop)                                \
@@ -3381,6 +3383,25 @@ struct MemoryBarrierOp : FixedArityOperationT<0, MemoryBarrierOp> {
   void PrintOptions(std::ostream& os) const;
 };
 
+// "Pause" operation used to indicate the thread is doing something of
+// low-importance, e.g. a spinlock, see also the x86 pause instruction.
+struct PauseOp : FixedArityOperationT<0, PauseOp> {
+  // While this operation doesn't have any observable side effects, it should
+  // not be optimized away (its whole purpose is to affect the generated code.)
+  static constexpr OpEffects effects = OpEffects().RequiredWhenUnused();
+
+  PauseOp() = default;
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return {};
+  }
+
+  auto options() const { return std::tuple{}; }
+};
+
 // Store `value` to: base + offset + index * 2^element_size_log2.
 // For Kind::tagged_base: subtract kHeapObjectTag,
 //                        `base` has to be the object start.
@@ -3956,6 +3977,30 @@ struct MemoryCopyOp : FixedArityOperationT<3, MemoryCopyOp> {
 
   V<WordPtr> dst_base() const { return input<WordPtr>(0); }
   V<WordPtr> src_base() const { return input<WordPtr>(1); }
+  V<WordPtr> num_bytes() const { return input<WordPtr>(2); }
+};
+
+struct MemoryFillOp : FixedArityOperationT<3, MemoryFillOp> {
+  // Depends on one or more bounds checks.
+  static constexpr OpEffects effects =
+      OpEffects().CanWriteMemory().CanDependOnChecks();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::WordPtr(),
+                          MaybeRegisterRepresentation::Word32(),
+                          MaybeRegisterRepresentation::WordPtr()>();
+  }
+
+  MemoryFillOp(V<WordPtr> dst_base, V<Word32> value, V<WordPtr> num_bytes)
+      : Base(dst_base, value, num_bytes) {}
+
+  std::tuple<> options() const { return {}; }
+
+  V<WordPtr> dst_base() const { return input<WordPtr>(0); }
+  V<Word32> value() const { return input<Word32>(1); }
   V<WordPtr> num_bytes() const { return input<WordPtr>(2); }
 };
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -7371,7 +7416,7 @@ struct StructAtomicRMWOp : OperationT<StructAtomicRMWOp> {
     DCHECK(type->field(field_index) == wasm::kWasmI32 ||
            type->field(field_index) == wasm::kWasmI64 ||
            (type->field(field_index).is_reference() &&
-            bin_op == BinOp::kExchange));
+            (bin_op == BinOp::kExchange || bin_op == BinOp::kCompareExchange)));
     DCHECK_EQ(bin_op == BinOp::kCompareExchange, expected().valid());
   }
 
@@ -7525,7 +7570,8 @@ struct ArrayAtomicRMWOp : OperationT<ArrayAtomicRMWOp> {
 
   void Validate(const Graph& graph) const {
     DCHECK(element_type == wasm::kWasmI32 || element_type == wasm::kWasmI64 ||
-           (element_type.is_reference() && bin_op == BinOp::kExchange));
+           (element_type.is_reference() &&
+            (bin_op == BinOp::kExchange || bin_op == BinOp::kCompareExchange)));
     DCHECK_EQ(bin_op == BinOp::kCompareExchange, expected().valid());
   }
 

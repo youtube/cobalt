@@ -134,15 +134,6 @@ DirectHandle<WasmModuleObject> WasmModuleObject::New(
 }
 
 DirectHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-    Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
-    wasm::WireBytesRef ref, InternalizeString internalize) {
-  base::Vector<const uint8_t> wire_bytes =
-      module_object->native_module()->wire_bytes();
-  return ExtractUtf8StringFromModuleBytes(isolate, wire_bytes, ref,
-                                          internalize);
-}
-
-DirectHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
     Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
     wasm::WireBytesRef ref, InternalizeString internalize) {
   base::Vector<const uint8_t> name_vec =
@@ -160,23 +151,24 @@ DirectHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
 
 MaybeDirectHandle<String> WasmModuleObject::GetModuleNameOrNull(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object) {
-  const WasmModule* module = module_object->module();
+  wasm::NativeModule* native_module = module_object->native_module();
+  const WasmModule* module = native_module->module();
   if (!module->name.is_set()) return {};
-  return ExtractUtf8StringFromModuleBytes(isolate, module_object, module->name,
-                                          kNoInternalize);
+  return ExtractUtf8StringFromModuleBytes(isolate, native_module->wire_bytes(),
+                                          module->name, kNoInternalize);
 }
 
 MaybeDirectHandle<String> WasmModuleObject::GetFunctionNameOrNull(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
     uint32_t func_index) {
-  DCHECK_LT(func_index, module_object->module()->functions.size());
-  wasm::WireBytesRef name =
-      module_object->module()->lazily_generated_names.LookupFunctionName(
-          wasm::ModuleWireBytes(module_object->native_module()->wire_bytes()),
-          func_index);
+  wasm::NativeModule* native_module = module_object->native_module();
+  const WasmModule* module = native_module->module();
+  DCHECK_LT(func_index, module->functions.size());
+  wasm::WireBytesRef name = module->lazily_generated_names.LookupFunctionName(
+      wasm::ModuleWireBytes(native_module->wire_bytes()), func_index);
   if (!name.is_set()) return {};
-  return ExtractUtf8StringFromModuleBytes(isolate, module_object, name,
-                                          kNoInternalize);
+  return ExtractUtf8StringFromModuleBytes(isolate, native_module->wire_bytes(),
+                                          name, kNoInternalize);
 }
 
 base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
@@ -184,11 +176,12 @@ base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
   if (func_index == wasm::kAnonymousFuncIndex) {
     return base::Vector<const uint8_t>({nullptr, 0});
   }
-  DCHECK_GT(module()->functions.size(), func_index);
-  wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
+  wasm::NativeModule* native_mod = native_module();
+  const WasmModule* module = native_mod->module();
+  DCHECK_GT(module->functions.size(), func_index);
+  wasm::ModuleWireBytes wire_bytes(native_mod->wire_bytes());
   wasm::WireBytesRef name_ref =
-      module()->lazily_generated_names.LookupFunctionName(wire_bytes,
-                                                          func_index);
+      module->lazily_generated_names.LookupFunctionName(wire_bytes, func_index);
   wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
   return base::Vector<const uint8_t>::cast(name);
 }
@@ -658,7 +651,7 @@ void WasmTableObject::UpdateDispatchTable(
 #endif
 
   if (wrapper_handle->has_code()) {
-    DCHECK_EQ(wrapper_handle->code().instruction_start(), call_target);
+    DCHECK_EQ(wrapper_handle->code()->instruction_start(), call_target);
   } else {
     const wasm::CanonicalSig* sig =
         wasm::GetWasmEngine()->type_canonicalizer()->LookupFunctionSignature(
@@ -1336,7 +1329,7 @@ WasmMemoryMapDescriptor::NewFromFileDescriptor(Isolate* isolate,
       isolate->factory()->NewJSObject(descriptor_ctor, AllocationType::kOld));
 
   descriptor_object->set_file_descriptor(file_descriptor);
-  descriptor_object->set_memory(ClearedValue(isolate));
+  descriptor_object->set_memory(ClearedValue());
   descriptor_object->set_offset(0);
   descriptor_object->set_size(0);
 
@@ -1542,13 +1535,16 @@ void ImportedFunctionEntry::SetWasmToWrapper(
             instance_data_->ptr(), index_, callable->ptr(),
             wrapper_handle->has_code()
                 ? nullptr
-                : wrapper_handle->code().instructions().begin());
+                : wrapper_handle->code()->instructions().begin());
 
+#if DEBUG
   if (wrapper_handle->has_code()) {
-    DCHECK(wrapper_handle->code().kind() == wasm::WasmCode::kWasmToJsWrapper ||
-           wrapper_handle->code().kind() == wasm::WasmCode::kWasmToCapiWrapper);
-    DCHECK_EQ(wrapper_handle->code().signature_hash(), sig->signature_hash());
+    DCHECK(wrapper_handle->code()->kind() == wasm::WasmCode::kWasmToJsWrapper ||
+           wrapper_handle->code()->kind() ==
+               wasm::WasmCode::kWasmToCapiWrapper);
+    DCHECK_EQ(wrapper_handle->code()->signature_hash(), sig->signature_hash());
   }
+#endif  // DEBUG
 
   constexpr bool kShared = false;
   DirectHandle<WasmImportData> import_data =
@@ -2273,8 +2269,10 @@ DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
       isolate};
   DirectHandle<NativeContext> context(
       Cast<NativeContext>(trusted_data->native_context()), isolate);
-  DirectHandle<Map> rtt =
-      CreateStructMap(isolate, described_index, rtt_parent, context);
+  // There's always at least one supertype for {rtt_parent}.
+  int num_supertypes = module->type(type.describes).subtyping_depth + 1;
+  DirectHandle<Map> rtt = CreateStructMap(isolate, described_index, rtt_parent,
+                                          num_supertypes, context);
 
   if (v8_flags.wasm_explicit_prototypes && !IsSmi(*first_field) &&
       IsWasmDescriptorOptions(Cast<HeapObject>(*first_field))) {
@@ -2495,7 +2493,7 @@ void WasmDispatchTable::SetForWrapper(
     NewOrExistingEntry new_or_existing) {
   DCHECK_NE(implicit_arg, Smi::zero());
   SBXCHECK(v8_flags.wasm_jitless || !wrapper_handle->has_code() ||
-           !wrapper_handle->code().is_dying());
+           !wrapper_handle->code()->is_dying());
   SBXCHECK_BOUNDS(index, length());
   DCHECK(sig_id.valid());
   const int offset = OffsetOf(index);
@@ -3085,7 +3083,7 @@ bool WasmJSFunction::IsWasmJSFunction(Tagged<Object> object) {
 
 DirectHandle<Map> CreateStructMap(
     Isolate* isolate, wasm::CanonicalTypeIndex struct_index,
-    DirectHandle<Map> opt_rtt_parent,
+    DirectHandle<Map> opt_rtt_parent, int num_supertypes,
     DirectHandle<NativeContext> opt_native_context) {
   const wasm::CanonicalStructType* type =
       wasm::GetTypeCanonicalizer()->LookupStruct(struct_index);
@@ -3102,7 +3100,7 @@ DirectHandle<Map> CreateStructMap(
   wasm::CanonicalValueType heaptype = wasm::CanonicalValueType::Ref(
       struct_index, shared, wasm::RefTypeKind::kStruct);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      heaptype, no_array_element, opt_rtt_parent, shared);
+      heaptype, no_array_element, opt_rtt_parent, num_supertypes, shared);
   DirectHandle<Map> map;
   // TODO(manoskouk): Combine `shared` with contextful maps.
   if (shared) {
@@ -3126,7 +3124,8 @@ DirectHandle<Map> CreateStructMap(
 
 DirectHandle<Map> CreateArrayMap(Isolate* isolate,
                                  wasm::CanonicalTypeIndex array_index,
-                                 DirectHandle<Map> opt_rtt_parent) {
+                                 DirectHandle<Map> opt_rtt_parent,
+                                 int num_supertypes) {
   const wasm::CanonicalArrayType* type =
       wasm::GetTypeCanonicalizer()->LookupArray(array_index);
   wasm::CanonicalValueType element_type = type->element_type();
@@ -3138,7 +3137,7 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
   wasm::CanonicalValueType heaptype = wasm::CanonicalValueType::Ref(
       array_index, shared, wasm::RefTypeKind::kArray);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      heaptype, element_type, opt_rtt_parent, shared);
+      heaptype, element_type, opt_rtt_parent, num_supertypes, shared);
 
   DirectHandle<Map> map =
       shared ? isolate->factory()->NewMapWithMetaMap(
@@ -3160,7 +3159,7 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
 DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
                                    wasm::CanonicalTypeIndex type,
                                    DirectHandle<Map> opt_rtt_parent,
-                                   bool shared) {
+                                   int num_supertypes, bool shared) {
   const int inobject_properties = 0;
   const InstanceType instance_type = WASM_FUNC_REF_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
@@ -3168,7 +3167,7 @@ DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
   wasm::CanonicalValueType heaptype =
       wasm::CanonicalValueType::Ref(type, shared, wasm::RefTypeKind::kFunction);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      heaptype, no_array_element, opt_rtt_parent, shared);
+      heaptype, no_array_element, opt_rtt_parent, num_supertypes, shared);
   constexpr int kInstanceSize = WasmFuncRef::kSize;
   DCHECK_EQ(
       kInstanceSize,
@@ -3208,7 +3207,7 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
     rtt = direct_handle(
         Cast<Map>(maybe_canonical_map.GetHeapObjectAssumeWeak()), isolate);
   } else {
-    rtt = CreateFuncRefMap(isolate, sig_id, DirectHandle<Map>(), false);
+    rtt = CreateFuncRefMap(isolate, sig_id, DirectHandle<Map>(), 0, false);
     canonical_rtts->set(sig_id.index, MakeWeak(*rtt));
   }
 

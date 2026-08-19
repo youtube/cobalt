@@ -36,7 +36,6 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "net/base/net_errors.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "sandbox/policy/sandbox.h"
 #include "third_party/blink/public/platform/url_loader_throttle_provider.h"
 #include "third_party/blink/public/platform/web_url_error.h"
@@ -46,10 +45,6 @@
 #include "third_party/blink/public/web/web_view.h"
 #include "v8/include/v8-initialization.h"
 #include "v8/include/v8.h"
-
-#if BUILDFLAG(ENABLE_PLUGINS)
-#include "ppapi/shared_impl/ppapi_switches.h"  // nogncheck
-#endif
 
 #if BUILDFLAG(ENABLE_MOJO_CDM)
 #include "base/feature_list.h"
@@ -296,13 +291,13 @@ void ShellContentRendererClient::RenderThreadStarted() {
 void ShellContentRendererClient::ExposeInterfacesToBrowser(
     mojo::BinderMap* binders) {
   binders->Add<mojom::TestService>(
-      base::BindRepeating(&CreateRendererTestService),
+      &CreateRendererTestService,
       base::SingleThreadTaskRunner::GetCurrentDefault());
   binders->Add<mojom::PowerMonitorTest>(
-      base::BindRepeating(&PowerMonitorTestImpl::MakeSelfOwnedReceiver),
+      &PowerMonitorTestImpl::MakeSelfOwnedReceiver,
       base::SingleThreadTaskRunner::GetCurrentDefault());
   binders->Add<mojom::MainFrameCounterTest>(
-      base::BindRepeating(&MainFrameCounterTestImpl::Bind),
+      &MainFrameCounterTestImpl::Bind,
       base::SingleThreadTaskRunner::GetCurrentDefault());
   binders->Add<web_cache::mojom::WebCache>(
       base::BindRepeating(&web_cache::WebCacheImpl::BindReceiver,

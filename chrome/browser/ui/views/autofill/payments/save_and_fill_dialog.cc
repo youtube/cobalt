@@ -76,6 +76,32 @@ void SaveAndFillDialog::ContentsChanged(views::Textfield* sender,
     card_number_data_.SetErrorState(
         /*is_valid_input=*/controller_->IsValidCreditCardNumber(new_contents),
         /*error_message=*/controller_->GetInvalidCardNumberErrorMessage());
+  } else if (sender == &cvc_data_.GetInputTextField()) {
+    cvc_data_.SetErrorState(
+        /*is_valid_input=*/controller_->IsValidCvc(new_contents),
+        /*error_message=*/controller_->GetInvalidCvcErrorMessage());
+  } else if (sender == &name_on_card_data_.GetInputTextField()) {
+    name_on_card_data_.SetErrorState(
+        /*is_valid_input=*/controller_->IsValidNameOnCard(new_contents),
+        /*error_message=*/controller_->GetInvalidNameOnCardErrorMessage());
+  } else if (sender == &expiration_date_data_.GetInputTextField()) {
+    size_t new_cursor_position;
+
+    std::u16string formatted_input = controller_->FormatExpirationDateInput(
+        /*input=*/new_contents,
+        /*old_cursor_position=*/sender->GetCursorPosition(),
+        /*new_cursor_position=*/new_cursor_position);
+
+    // Only update the textfield and cursor if the formatting resulted in a
+    // change.
+    if (new_contents != formatted_input) {
+      sender->SetText(formatted_input);
+      sender->SelectSelectionModel(
+          gfx::SelectionModel(new_cursor_position, gfx::CURSOR_FORWARD));
+    }
+    expiration_date_data_.SetErrorState(
+        /*is_valid_input=*/controller_->IsValidExpirationDate(formatted_input),
+        /*error_message=*/controller_->GetInvalidExpirationDateErrorMessage());
   }
 }
 
@@ -150,12 +176,11 @@ void SaveAndFillDialog::InitViews() {
                       IDR_CREDIT_CARD_CVC_HINT_BACK))))
           .Build());
 
-  // TODO(crbug.com/378163937): Implement validation rule for the `name on card`
-  // field.
-  AddChildView(std::move(CreateLabelAndTextfieldView(
-                             /*label_text=*/controller_->GetNameOnCardLabel(),
-                             /*error_message=*/std::u16string())
-                             .container));
+  name_on_card_data_ = CreateLabelAndTextfieldView(
+      /*label_text=*/controller_->GetNameOnCardLabel(),
+      /*error_message=*/controller_->GetInvalidNameOnCardErrorMessage());
+  name_on_card_data_.GetInputTextField().SetController(this);
+  AddChildView(std::move(name_on_card_data_.container));
 }
 
 }  // namespace autofill

@@ -9,8 +9,8 @@ import("//third_party/jni_zero/jni_zero.gni")
 
 android_library("java") {
   sources = [
-    "java/src/org/chromium/chrome/browser/ui/extensions/ExtensionKeybindingRegistry.java",
-    "java/src/org/chromium/chrome/browser/ui/extensions/ExtensionService.java",
+    "java/src/org/chromium/chrome/browser/ui/extensions/ExtensionUi.java",
+    "java/src/org/chromium/chrome/browser/ui/extensions/ExtensionUiBackend.java",
   ]
   srcjar_deps = [ ":generate_buildflags" ]
 
@@ -21,7 +21,6 @@ android_library("java") {
     "//chrome/browser/profiles/android:java",
     "//chrome/browser/tab:java",
     "//chrome/browser/ui/android/theme:java",
-    "//chrome/browser/ui/android/toolbar:java",
     "//third_party/android_deps:material_design_java",
     "//ui/android:ui_full_java",
   ]
@@ -29,19 +28,32 @@ android_library("java") {
   if (enable_extensions_core) {
     deps += [
       "//chrome/browser/flags:java",
+      "//content/public/android:content_full_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/jni_zero:jni_zero_java",
     ]
     sources += [
-      "java/src/org/chromium/chrome/browser/ui/extensions/ExtensionKeybindingRegistryAndroid.java",
-      "java/src/org/chromium/chrome/browser/ui/extensions/ExtensionServiceImpl.java",
+      "java/src/org/chromium/chrome/browser/ui/extensions/ExtensionAction.java",
+      "java/src/org/chromium/chrome/browser/ui/extensions/ExtensionActionPopupContents.java",
+      "java/src/org/chromium/chrome/browser/ui/extensions/ExtensionActionsBridge.java",
+      "java/src/org/chromium/chrome/browser/ui/extensions/ExtensionUiBackendImpl.java",
     ]
-    srcjar_deps += [ ":jni_headers" ]
+    srcjar_deps += [
+      ":jni_headers",
+      "//extensions/browser:extension_action_enums",
+    ]
     resources_package = "org.chromium.chrome.browser.ui.extensions"
   }
 }
 
-generate_jni("jni_headers") {
-  sources = [ "java/src/org/chromium/chrome/browser/ui/extensions/ExtensionKeybindingRegistryAndroid.java" ]
+if (enable_extensions_core) {
+  generate_jni("jni_headers") {
+    sources = [
+      "java/src/org/chromium/chrome/browser/ui/extensions/ExtensionAction.java",
+      "java/src/org/chromium/chrome/browser/ui/extensions/ExtensionActionPopupContents.java",
+      "java/src/org/chromium/chrome/browser/ui/extensions/ExtensionActionsBridge.java",
+    ]
+  }
 }
 
 # Generate feature-specific flags to avoid dependency cycles with the main

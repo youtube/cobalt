@@ -7,6 +7,7 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
+#include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/ui/payments/save_and_fill_dialog_controller.h"
 #include "components/autofill/core/browser/ui/payments/save_and_fill_dialog_view.h"
 
@@ -24,8 +25,11 @@ class SaveAndFillDialogControllerImpl : public SaveAndFillDialogController {
       const SaveAndFillDialogControllerImpl&) = delete;
   ~SaveAndFillDialogControllerImpl() override;
 
-  void ShowDialog(base::OnceCallback<std::unique_ptr<SaveAndFillDialogView>()>
-                      create_and_show_view_callback);
+  void ShowDialog(
+      base::OnceCallback<std::unique_ptr<SaveAndFillDialogView>()>
+          create_and_show_view_callback,
+      payments::PaymentsAutofillClient::CardSaveAndFillDialogCallback
+          card_save_and_fill_dialog_callback);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   std::u16string GetWindowTitle() const override;
@@ -36,9 +40,20 @@ class SaveAndFillDialogControllerImpl : public SaveAndFillDialogController {
   std::u16string GetNameOnCardLabel() const override;
   std::u16string GetAcceptButtonText() const override;
   std::u16string GetInvalidCardNumberErrorMessage() const override;
+  std::u16string GetInvalidCvcErrorMessage() const override;
+  std::u16string GetInvalidExpirationDateErrorMessage() const override;
+  std::u16string GetInvalidNameOnCardErrorMessage() const override;
+  std::u16string FormatExpirationDateInput(
+      std::u16string_view input,
+      size_t old_cursor_position,
+      size_t& new_cursor_position) const override;
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   bool IsUploadSaveAndFill() const override;
   bool IsValidCreditCardNumber(std::u16string_view input_text) const override;
+  bool IsValidCvc(std::u16string_view input_text) const override;
+  bool IsValidExpirationDate(
+      std::u16string_view expiration_date) const override;
+  bool IsValidNameOnCard(std::u16string_view input_text) const override;
 
   base::WeakPtr<SaveAndFillDialogController> GetWeakPtr() override;
 

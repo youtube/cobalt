@@ -19,11 +19,13 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/candidate.h"
+#include "api/field_trials.h"
 #include "api/ice_transport_interface.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -50,7 +52,7 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/time_utils.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 
 namespace webrtc {
 using ::webrtc::SafeTask;
@@ -68,7 +70,7 @@ class FakeIceTransport : public IceTransportInternal {
       : name_(name),
         component_(component),
         network_thread_(network_thread ? network_thread : Thread::Current()),
-        field_trials_(field_trials_string) {
+        field_trials_(CreateTestFieldTrials(field_trials_string)) {
     RTC_DCHECK(network_thread_);
   }
 
@@ -579,8 +581,15 @@ class FakeIceTransport : public IceTransportInternal {
                         << " attr: " << (dtls_piggyback_attr != nullptr)
                         << " ack: " << (dtls_piggyback_ack != nullptr);
       if (!dtls_stun_piggyback_callbacks_.empty()) {
-        dtls_stun_piggyback_callbacks_.recv_data(dtls_piggyback_attr,
-                                                 dtls_piggyback_ack);
+        std::optional<ArrayView<uint8_t>> piggyback_attr;
+        if (dtls_piggyback_attr) {
+          piggyback_attr = dtls_piggyback_attr->array_view();
+        }
+        std::optional<std::vector<uint32_t>> piggyback_ack;
+        if (dtls_piggyback_ack) {
+          piggyback_ack = dtls_piggyback_ack->GetUInt32Vector();
+        }
+        dtls_stun_piggyback_callbacks_.recv_data(piggyback_attr, piggyback_ack);
       }
 
       if (msg->type() == STUN_BINDING_RESPONSE) {
@@ -658,7 +667,7 @@ class FakeIceTransport : public IceTransportInternal {
   DtlsStunPiggybackCallbacks dtls_stun_piggyback_callbacks_;
   std::map<int, int> received_stun_messages_per_type;
   int received_packets_ = 0;
-  test::ExplicitKeyValueConfig field_trials_;
+  FieldTrials field_trials_;
   bool drop_non_stun_unless_writable_ = false;
 };
 
@@ -675,15 +684,5 @@ class FakeIceTransportWrapper : public IceTransportInterface {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::FakeIceTransport;
-using ::webrtc::FakeIceTransportWrapper;
-using ::webrtc::SafeTask;
-using ::webrtc::TimeDelta;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_TEST_FAKE_ICE_TRANSPORT_H_

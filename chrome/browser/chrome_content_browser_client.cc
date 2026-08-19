@@ -63,7 +63,6 @@
 #include "chrome/browser/btm/btm_browser_signin_detector.h"
 #include "chrome/browser/btm/stateful_bounce_counter.h"
 #include "chrome/browser/child_process_host_flags.h"
-#include "chrome/browser/chrome_browser_main_extra_parts_nacl_deprecation.h"
 #include "chrome/browser/chrome_content_browser_client_binder_policies.h"
 #include "chrome/browser/chrome_content_browser_client_navigation_throttles.h"
 #include "chrome/browser/chrome_content_browser_client_parts.h"
@@ -198,7 +197,6 @@
 #include "chrome/common/env_vars.h"
 #include "chrome/common/google_url_loader_throttle.h"
 #include "chrome/common/logging_chrome.h"
-#include "chrome/common/ppapi_utils.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/profiler/main_thread_stack_sampling_profiler.h"
 #include "chrome/common/profiler/process_type.h"
@@ -305,7 +303,6 @@
 #include "content/public/browser/browser_child_process_host.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_main_parts.h"
-#include "content/public/browser/browser_ppapi_host.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/browser_url_handler.h"
@@ -332,7 +329,6 @@
 #include "content/public/browser/tts_controller.h"
 #include "content/public/browser/tts_platform.h"
 #include "content/public/browser/url_loader_request_interceptor.h"
-#include "content/public/browser/vpn_service_proxy.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
@@ -526,6 +522,8 @@
 #include "chrome/browser/chromeos/policy/dlp/dlp_scoped_file_access_delegate.h"
 #include "chrome/browser/chromeos/tablet_mode/chrome_content_browser_client_tablet_mode_part.h"
 #include "chrome/browser/file_system_access/cloud_identifier/cloud_identifier_util_cros.h"
+#include "chrome/browser/media/webrtc/multi_capture/multi_capture_usage_indicator_service.h"
+#include "chrome/browser/media/webrtc/multi_capture/multi_capture_usage_indicator_service_factory.h"
 #include "chrome/browser/policy/system_features_disable_list_policy_handler.h"
 #include "chrome/browser/smart_card/chromeos_smart_card_delegate.h"
 #include "chrome/browser/web_applications/chromeos_web_app_experiments.h"
@@ -595,13 +593,6 @@
 #if BUILDFLAG(ENABLE_CAPTIVE_PORTAL_DETECTION)
 #include "components/captive_portal/content/captive_portal_tab_helper.h"
 #include "components/captive_portal/content/captive_portal_url_loader_throttle.h"
-#endif
-
-#if BUILDFLAG(ENABLE_NACL)
-#include "components/nacl/browser/nacl_host_message_filter.h"
-#include "components/nacl/browser/nacl_process_host.h"
-#include "components/nacl/common/nacl_process_type.h"
-#include "components/nacl/common/nacl_switches.h"
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -1228,7 +1219,8 @@ void MaybeAddCondition(
 #if BUILDFLAG(IS_CHROMEOS)
 void NotifyMultiCaptureStarted(const std::string& label,
                                content::WebContents* web_contents,
-                               const webapps::AppId* app_id) {
+                               const webapps::AppId* app_id,
+                               content::BrowserContext* browser_context) {
   const url::Origin origin =
       url::Origin::Create(web_contents->GetLastCommittedURL());
   if (app_id) {
@@ -1240,19 +1232,27 @@ void NotifyMultiCaptureStarted(const std::string& label,
                 ->registrar_unsafe()
                 .GetAppShortName(*app_id),
             origin);
-  } else {
-    // TODO(b/319317165): Remove this case once the pivot to web apps is
-    // complete.
-    CHECK_DEREF(ash::Shell::Get())
-        .multi_capture_service()
-        ->NotifyMultiCaptureStarted(label, origin);
+
+    if (base::FeatureList::IsEnabled(
+            chromeos::features::kMultiCaptureReworkedUsageIndicators)) {
+      CHECK_DEREF(multi_capture::MultiCaptureUsageIndicatorServiceFactory::
+                      GetForBrowserContext(web_contents->GetBrowserContext()))
+          .MultiCaptureStarted(label, *app_id);
+    }
   }
 }
 
-void NotifyMultiCaptureStopped(const std::string& label) {
+void NotifyMultiCaptureStopped(const std::string& label,
+                               content::BrowserContext* browser_context) {
   CHECK_DEREF(ash::Shell::Get())
       .multi_capture_service()
       ->NotifyMultiCaptureStopped(label);
+  if (base::FeatureList::IsEnabled(
+          chromeos::features::kMultiCaptureReworkedUsageIndicators)) {
+    CHECK_DEREF(multi_capture::MultiCaptureUsageIndicatorServiceFactory::
+                    GetForBrowserContext(browser_context))
+        .MultiCaptureStopped(label);
+  }
 }
 
 bool IsSubAppsPermissionGrantedByAdmins(content::WebContents* contents) {
@@ -1709,9 +1709,6 @@ ChromeContentBrowserClient::CreateBrowserMainParts(bool is_integration_test) {
   main_parts->AddParts(
       std::make_unique<ChromeBrowserMainExtraPartsOptimizationGuide>());
 
-  main_parts->AddParts(
-      std::make_unique<ChromeBrowserMainExtraPartsNaclDeprecation>());
-
   return main_parts;
 }
 
@@ -1814,14 +1811,6 @@ void ChromeContentBrowserClient::RenderProcessWillLaunch(
       AudioDebugRecordingsHandler::kAudioDebugRecordingsHandlerKey,
       std::make_unique<base::UserDataAdapter<AudioDebugRecordingsHandler>>(
           audio_debug_recordings_handler));
-
-#if BUILDFLAG(ENABLE_NACL)
-  if (IsNaclAllowed() && !profile->IsSystemProfile()) {
-    host->AddFilter(new nacl::NaClHostMessageFilter(host->GetDeprecatedID(),
-                                                    profile->IsOffTheRecord(),
-                                                    profile->GetPath()));
-  }
-#endif
 
 #if BUILDFLAG(IS_ANDROID)
   // Register CrashMemoryMetricsCollector to report oom related metrics.
@@ -2164,14 +2153,14 @@ void ChromeContentBrowserClient::GetAdditionalViewSourceSchemes(
 network::mojom::IPAddressSpace
 ChromeContentBrowserClient::DetermineAddressSpaceFromURL(const GURL& url) {
   if (url.SchemeIs(chrome::kChromeSearchScheme)) {
-    return network::mojom::IPAddressSpace::kLocal;
+    return network::mojom::IPAddressSpace::kLoopback;
   }
   if (url.SchemeIs(dom_distiller::kDomDistillerScheme)) {
     return network::mojom::IPAddressSpace::kPublic;
   }
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   if (url.SchemeIs(extensions::kExtensionScheme)) {
-    return network::mojom::IPAddressSpace::kLocal;
+    return network::mojom::IPAddressSpace::kLoopback;
   }
 #endif
 
@@ -2913,10 +2902,6 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
     command_line->AppendSwitch(switches::kEnableDistillabilityService);
 #endif
 
-#if BUILDFLAG(ENABLE_NACL)
-    AppendDisableNaclSwitchIfNecessary(command_line);
-#endif
-
     // Please keep this in alphabetical order.
     static const char* const kSwitchNames[] = {
         autofill::switches::kIgnoreAutocompleteOffForAutofill,
@@ -2942,10 +2927,6 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
         variations::switches::kEnableBenchmarking,
         variations::switches::kEnableBenchmarkingApi,
         switches::kEnableDistillabilityService,
-        switches::kEnableNaCl,
-#if BUILDFLAG(ENABLE_NACL)
-        switches::kEnableNaClDebug,
-#endif
         switches::kEnableNetBenchmarking,
         switches::kExtensionAiDataCollection,
         switches::kExtensionExperimentalActor,
@@ -2953,9 +2934,6 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
         chromeos::switches::
             kTelemetryExtensionPwaOriginOverrideForTesting,  // For tests only.
         switches::kForceAppMode,
-#endif
-#if BUILDFLAG(ENABLE_NACL)
-        switches::kForcePNaClSubzero,
 #endif
         switches::kForceUIDirection,
         switches::kIgnoreGooglePortNumbers,
@@ -2982,21 +2960,6 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
 #endif
     MaybeAppendSecureOriginsAllowlistSwitch(command_line);
   } else if (process_type == switches::kZygoteProcess) {
-    // It would be preferable to call AppendDisableNaclSwitchIfNecessary to
-    // disable NaCl for the zygote process. Unfortunately that method depends on
-    // state (including policy) that is determined after the zygote is forked.
-    // Instead we rely on renderers overriding the zygote state.
-
-    // Load (in-process) Pepper plugins in-process in the zygote pre-sandbox.
-#if BUILDFLAG(ENABLE_NACL)
-    static const char* const kSwitchNames[] = {
-        switches::kEnableNaClDebug,
-        switches::kForcePNaClSubzero,
-        switches::kVerboseLoggingInNacl,
-    };
-
-    command_line->CopySwitchesFrom(browser_command_line, kSwitchNames);
-#endif
 #if BUILDFLAG(IS_CHROMEOS)
     // This is called before feature flags are parsed, so pass them in their raw
     // form.
@@ -4613,12 +4576,6 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
     web_prefs->strict_powerful_feature_restrictions = true;
   }
 
-  // See crbug.com/1238157: the Native Client flag (chrome://flags/#enable-nacl)
-  // can be manually re-enabled. In that case, we also need to return the full
-  // plugins list, for compat.
-  web_prefs->allow_non_empty_navigator_plugins |=
-      base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kEnableNaCl);
-
   web_prefs->data_saver_enabled = IsDataSaverEnabled(profile);
 
   if (web_contents) {
@@ -4953,65 +4910,6 @@ ChromeContentBrowserClient::GetLocalTracesDirectory() {
   }
   DCHECK(!user_data_dir.empty());
   return user_data_dir;
-}
-
-void ChromeContentBrowserClient::DidCreatePpapiPlugin(
-    content::BrowserPpapiHost* browser_host) {
-#if BUILDFLAG(ENABLE_PLUGINS)
-  ChromeContentBrowserClientPluginsPart::DidCreatePpapiPlugin(browser_host);
-#endif
-}
-
-content::BrowserPpapiHost*
-ChromeContentBrowserClient::GetExternalBrowserPpapiHost(int plugin_process_id) {
-#if BUILDFLAG(ENABLE_NACL)
-  content::BrowserChildProcessHostIterator iter(PROCESS_TYPE_NACL_LOADER);
-  while (!iter.Done()) {
-    nacl::NaClProcessHost* host =
-        static_cast<nacl::NaClProcessHost*>(iter.GetDelegate());
-    if (host->process() && host->process()->GetData().id == plugin_process_id) {
-      // Found the plugin.
-      return host->browser_ppapi_host();
-    }
-    ++iter;
-  }
-#endif
-  return nullptr;
-}
-
-bool ChromeContentBrowserClient::AllowPepperSocketAPI(
-    content::BrowserContext* browser_context,
-    const GURL& url,
-    bool private_api,
-    const content::SocketPermissionRequest* params) {
-#if BUILDFLAG(ENABLE_PLUGINS) && BUILDFLAG(ENABLE_EXTENSIONS)
-  return ChromeContentBrowserClientPluginsPart::AllowPepperSocketAPI(
-      browser_context, url, private_api, params);
-#else
-  return false;
-#endif
-}
-
-bool ChromeContentBrowserClient::IsPepperVpnProviderAPIAllowed(
-    content::BrowserContext* browser_context,
-    const GURL& url) {
-#if BUILDFLAG(ENABLE_PLUGINS) && BUILDFLAG(ENABLE_EXTENSIONS)
-  return ChromeContentBrowserClientPluginsPart::IsPepperVpnProviderAPIAllowed(
-      browser_context, url);
-#else
-  return false;
-#endif
-}
-
-std::unique_ptr<content::VpnServiceProxy>
-ChromeContentBrowserClient::GetVpnServiceProxy(
-    content::BrowserContext* browser_context) {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-  return ChromeContentBrowserClientExtensionsPart::GetVpnServiceProxy(
-      browser_context);
-#else
-  return nullptr;
-#endif
 }
 
 std::unique_ptr<ui::SelectFilePolicy>
@@ -5533,28 +5431,6 @@ ChromeContentBrowserClient::CreateTracingDelegate() {
 
 bool ChromeContentBrowserClient::IsSystemWideTracingEnabled() {
   return ChromeTracingDelegate::IsSystemWideTracingEnabled();
-}
-
-bool ChromeContentBrowserClient::IsPluginAllowedToCallRequestOSFileHandle(
-    content::BrowserContext* browser_context,
-    const GURL& url) {
-#if BUILDFLAG(ENABLE_PLUGINS) && BUILDFLAG(ENABLE_EXTENSIONS)
-  return ChromeContentBrowserClientPluginsPart::
-      IsPluginAllowedToCallRequestOSFileHandle(browser_context, url);
-#else
-  return false;
-#endif
-}
-
-bool ChromeContentBrowserClient::IsPluginAllowedToUseDevChannelAPIs(
-    content::BrowserContext* browser_context,
-    const GURL& url) {
-#if BUILDFLAG(ENABLE_PLUGINS) && BUILDFLAG(ENABLE_EXTENSIONS)
-  return ChromeContentBrowserClientPluginsPart::
-      IsPluginAllowedToUseDevChannelAPIs(browser_context, url);
-#else
-  return false;
-#endif
 }
 
 void ChromeContentBrowserClient::InitOnUIThread() {
@@ -6979,7 +6855,7 @@ bool ChromeContentBrowserClient::HandleWebUI(
 
   if (IsDisabledInternalWebUI(*url)) {
     GURL::Replacements replacements;
-    std::string query("host=" + url->host());
+    std::string query("host=" + url->spec());
     replacements.SetQueryStr(query);
     *url = GURL(chrome::kChromeUIInternalDebugPagesDisabledURL)
                .ReplaceComponents(replacements);
@@ -8434,20 +8310,20 @@ void ChromeContentBrowserClient::NotifyMultiCaptureStateChanged(
     content::GlobalRenderFrameHostId capturer_rfh_id,
     const std::string& label,
     MultiCaptureChanged state) {
+  content::WebContents* const web_contents = WebContents::FromRenderFrameHost(
+      RenderFrameHost::FromID(capturer_rfh_id));
+  if (!web_contents) {
+    return;
+  }
+
   switch (state) {
     case MultiCaptureChanged::kStarted: {
-      content::WebContents* const web_contents =
-          WebContents::FromRenderFrameHost(
-              RenderFrameHost::FromID(capturer_rfh_id));
-      if (!web_contents) {
-        return;
-      }
       NotifyMultiCaptureStarted(
-          label, web_contents,
-          web_app::WebAppTabHelper::GetAppId(web_contents));
+          label, web_contents, web_app::WebAppTabHelper::GetAppId(web_contents),
+          web_contents->GetBrowserContext());
     } break;
     case MultiCaptureChanged::kStopped:
-      NotifyMultiCaptureStopped(label);
+      NotifyMultiCaptureStopped(label, web_contents->GetBrowserContext());
       break;
   }
 }
@@ -8519,12 +8395,13 @@ void ChromeContentBrowserClient::BindAIManager(
 
 #if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
 void ChromeContentBrowserClient::BindTranslationManager(
+    content::RenderProcessHost* host,
     content::BrowserContext* browser_context,
     base::SupportsUserData* context_user_data,
     const url::Origin& origin,
     mojo::PendingReceiver<blink::mojom::TranslationManager> receiver) {
   on_device_translation::TranslationManagerImpl::Bind(
-      browser_context, context_user_data, origin, std::move(receiver));
+      host, browser_context, context_user_data, origin, std::move(receiver));
 }
 #endif
 

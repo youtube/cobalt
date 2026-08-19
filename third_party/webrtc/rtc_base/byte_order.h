@@ -209,32 +209,5 @@ inline uint64_t NetworkToHost64(uint64_t n) {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::Get8;
-using ::webrtc::GetBE16;
-using ::webrtc::GetBE32;
-using ::webrtc::GetBE64;
-using ::webrtc::GetLE16;
-using ::webrtc::GetLE32;
-using ::webrtc::GetLE64;
-using ::webrtc::HostToNetwork16;
-using ::webrtc::HostToNetwork32;
-using ::webrtc::HostToNetwork64;
-using ::webrtc::IsHostBigEndian;
-using ::webrtc::NetworkToHost16;
-using ::webrtc::NetworkToHost32;
-using ::webrtc::NetworkToHost64;
-using ::webrtc::Set8;
-using ::webrtc::SetBE16;
-using ::webrtc::SetBE32;
-using ::webrtc::SetBE64;
-using ::webrtc::SetLE16;
-using ::webrtc::SetLE32;
-using ::webrtc::SetLE64;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_BYTE_ORDER_H_

@@ -154,8 +154,7 @@ bool ssl_pkey_supports_algorithm(const SSL *ssl, EVP_PKEY *pkey,
     // EC keys have a curve requirement.
     if (alg->pkey_type == EVP_PKEY_EC &&
         (alg->curve == NID_undef ||
-         EC_GROUP_get_curve_name(
-             EC_KEY_get0_group(EVP_PKEY_get0_EC_KEY(pkey))) != alg->curve)) {
+         EVP_PKEY_get_ec_curve_nid(pkey) != alg->curve)) {
       return false;
     }
   } else if (!alg->tls12_ok) {

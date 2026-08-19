@@ -82,8 +82,8 @@ class DtlsStunPiggybackController {
       StunMessageType stun_message_type);
 
   // Called by Connection when receiving a STUN BINDING { REQUEST / RESPONSE }.
-  void ReportDataPiggybacked(const StunByteStringAttribute* data,
-                             const StunByteStringAttribute* ack);
+  void ReportDataPiggybacked(std::optional<ArrayView<uint8_t>> data,
+                             std::optional<std::vector<uint32_t>> acks);
 
   int GetCountOfReceivedData() const { return data_recv_count_; }
 
@@ -107,12 +107,5 @@ class DtlsStunPiggybackController {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::DtlsStunPiggybackController;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_DTLS_DTLS_STUN_PIGGYBACK_CONTROLLER_H_

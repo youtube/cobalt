@@ -80,6 +80,7 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(AtomicCompareExchangeInt16)                            \
   V(AtomicCompareExchangeUint16)                           \
   V(AtomicCompareExchangeWord32)                           \
+  V(AtomicCompareExchangeWithWriteBarrier)                 \
   V(AtomicAddInt8)                                         \
   V(AtomicAddUint8)                                        \
   V(AtomicAddInt16)                                        \
@@ -145,6 +146,7 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchBinarySearchSwitch)                                                \
   V(ArchTableSwitch)                                                       \
   V(ArchNop)                                                               \
+  V(ArchPause)                                                             \
   V(ArchAbortCSADcheck)                                                    \
   V(ArchDebugBreak)                                                        \
   V(ArchComment)                                                           \
@@ -226,7 +228,7 @@ enum FlagsMode {
   kFlags_set = 3,
   kFlags_trap = 4,
   kFlags_select = 5,
-  kFlags_conditional_set = 6,
+  kFlags_conditional_trap = 6,
   kFlags_conditional_branch = 7,
 };
 

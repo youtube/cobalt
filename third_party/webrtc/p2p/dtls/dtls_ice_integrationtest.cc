@@ -48,6 +48,7 @@
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
@@ -81,7 +82,7 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
  private:
   struct Endpoint {
     explicit Endpoint(bool dtls_in_stun, bool pqc_)
-        : env(CreateEnvironment(FieldTrials::CreateNoGlobal(
+        : env(CreateEnvironment(CreateTestFieldTrialsPtr(
               dtls_in_stun ? "WebRTC-IceHandshakeDtls/Enabled/" : ""))),
           dtls_stun_piggyback(dtls_in_stun),
           pqc(pqc_) {}

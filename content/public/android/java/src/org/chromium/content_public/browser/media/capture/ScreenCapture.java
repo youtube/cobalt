@@ -11,18 +11,15 @@ import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
-import android.media.Image;
 import android.media.Image.Plane;
-import android.media.ImageReader;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.os.ConditionVariable;
 import android.os.Handler;
-import android.os.HandlerThread;
+import android.os.Looper;
 import android.view.WindowManager;
 
 import androidx.activity.result.ActivityResult;
-import androidx.annotation.GuardedBy;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
@@ -34,12 +31,13 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** See comments on `DesktopCapturerAndroid`. */
 @NullMarked
 @JNINamespace("content")
-public class ScreenCapture {
+public class ScreenCapture implements ImageHandler.Delegate {
     private static final String TAG = "ScreenCapture";
 
     private static class PickState {
@@ -49,6 +47,21 @@ public class ScreenCapture {
         PickState(WebContents webContents, ActivityResult activityResult) {
             mWebContents = webContents;
             mActivityResult = activityResult;
+        }
+    }
+
+    /** Holds the state required for screen capture. */
+    static class CaptureState {
+        public final int width;
+        public final int height;
+        public final int dpi;
+        public final int format;
+
+        CaptureState(int width, int height, int dpi, int format) {
+            this.width = width;
+            this.height = height;
+            this.dpi = dpi;
+            this.format = format;
         }
     }
 
@@ -62,32 +75,25 @@ public class ScreenCapture {
     // until that foreground service is running.
     private static final ConditionVariable sLatch = new ConditionVariable(false);
 
-    // Lock to protect access to fields that are modified mainly on the background thread. This is
-    // also used to prevent destruction of the native side while JNI methods are running. See
-    // comments on `DesktopCapturerAndroid` for more information.
-    private final Object mBackgroundLock = new Object();
+    // Holds the pointer to the C++ side object. The C++ side has the ownership of the Java side.
     private long mNativeDesktopCapturerAndroid;
 
-    private final HandlerThread mBackgroundThread = new HandlerThread("ScreenCapture");
-    private @Nullable Handler mBackgroundHandler;
+    private final Handler mHandler;
 
-    @GuardedBy("mBackgroundLock")
     private @Nullable MediaProjection mMediaProjection;
 
-    @GuardedBy("mBackgroundLock")
     private @Nullable VirtualDisplay mVirtualDisplay;
 
-    @GuardedBy("mBackgroundLock")
-    private @Nullable ImageReader mImageReader;
+    // We need to store multiple ImageHandlers here because the native side may still be using
+    // Images from the previous ImageHandler when we do a resize. Once all the Images are no longer
+    // in use (the release callback is called), then we can close the ImageHandler.
+    private final ArrayList<ImageHandler> mImageHandlerQueue = new ArrayList<>();
 
-    @GuardedBy("mBackgroundLock")
     private @Nullable WebContents mWebContents;
-
-    @GuardedBy("mBackgroundLock")
-    private int mAcquiredImageCount;
 
     private ScreenCapture(long nativeDesktopCapturerAndroid) {
         mNativeDesktopCapturerAndroid = nativeDesktopCapturerAndroid;
+        mHandler = new Handler(assumeNonNull(Looper.myLooper()));
     }
 
     public static void onForegroundServiceRunning(boolean running) {
@@ -112,7 +118,6 @@ public class ScreenCapture {
         assert oldPickState == null;
     }
 
-    @GuardedBy("mBackgroundLock")
     private @Nullable Context maybeGetContext() {
         final WindowAndroid window = assumeNonNull(mWebContents).getTopLevelNativeWindow();
         if (window == null) return null;
@@ -136,206 +141,174 @@ public class ScreenCapture {
         // MediaProjection API. It's okay to block here since we are on the desktop capturer thread.
         sLatch.block();
 
-        synchronized (mBackgroundLock) {
-            mWebContents = pickState.mWebContents;
-            // TODO(crbug.com/352187279): Update the context if the WebContents is reparented.
-            final Context context = maybeGetContext();
-            if (context == null) return false;
+        mWebContents = pickState.mWebContents;
+        // TODO(crbug.com/352187279): Update the context if the WebContents is reparented.
+        final Context context = maybeGetContext();
+        if (context == null) return false;
 
-            var manager =
-                    (MediaProjectionManager)
-                            context.getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-            if (manager == null) return false;
+        final var manager =
+                (MediaProjectionManager) context.getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+        if (manager == null) return false;
 
-            mMediaProjection =
-                    manager.getMediaProjection(
-                            activityResult.getResultCode(), activityResult.getData());
-            if (mMediaProjection == null) return false;
+        mMediaProjection =
+                manager.getMediaProjection(
+                        activityResult.getResultCode(), activityResult.getData());
+        if (mMediaProjection == null) return false;
 
-            mBackgroundThread.start();
-            mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
+        mMediaProjection.registerCallback(new MediaProjectionCallback(), mHandler);
 
-            // We must use a background thread and `Handler` here since the current thread
-            // (DesktopCapturer thread) does not have a `Looper` set up.
-            mMediaProjection.registerCallback(new MediaProjectionCallback(), mBackgroundHandler);
+        final var windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+        final var windowMetrics = windowManager.getMaximumWindowMetrics();
+        final Rect bounds = windowMetrics.getBounds();
 
-            var windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-            var windowMetrics = windowManager.getMaximumWindowMetrics();
-            final Rect bounds = windowMetrics.getBounds();
-            int width = bounds.width();
-            int height = bounds.height();
-            int dpi = context.getResources().getConfiguration().densityDpi;
+        createListener(
+                new CaptureState(
+                        bounds.width(),
+                        bounds.height(),
+                        context.getResources().getConfiguration().densityDpi,
+                        PixelFormat.RGBA_8888));
 
-            recreateListener(width, height, PixelFormat.RGBA_8888, dpi);
-        }
         return true;
     }
 
     @CalledByNative
     void destroy() {
-        if (mBackgroundThread != null) {
-            // End the background thread before taking `mBackgroundLock` since messages run
-            // on this thread may need to take `mBackgroundLock` and could deadlock
-            // otherwise.
-            mBackgroundThread.quit();
+        mNativeDesktopCapturerAndroid = 0;
+
+        if (mMediaProjection != null) {
+            mMediaProjection.stop();
+            mMediaProjection = null;
         }
-        synchronized (mBackgroundLock) {
-            if (mMediaProjection != null) {
-                mMediaProjection.stop();
-                mMediaProjection = null;
-            }
-            destroyListener();
-            mNativeDesktopCapturerAndroid = 0;
+        // Iterate backwards since closeNow() will cause the `ImageHandler` to be removed from
+        // the queue.
+        for (int i = mImageHandlerQueue.size() - 1; i >= 0; i--) {
+            // Note that we can only immediately close the ImageHandler if we are guaranteed the
+            // native side will not try to access Images from it again. We are guaranteed this
+            // here since the native side is being destroyed.
+            mImageHandlerQueue.get(i).closeNow();
         }
-    }
+        assert mImageHandlerQueue.isEmpty();
+        mImageHandlerQueue.clear();
 
-    private class ImageListener implements ImageReader.OnImageAvailableListener {
-        @GuardedBy("mBackgroundLock")
-        private @Nullable Image maybeAcquireImage(ImageReader reader) {
-            assert mBackgroundThread.getLooper().isCurrentThread();
-            // If we have acquired the maximum number of images `acquireLatestImage`
-            // will print warning level logspam, so avoid this.
-            if (mAcquiredImageCount >= reader.getMaxImages()) return null;
-
-            try {
-                Image image = reader.acquireLatestImage();
-                if (image != null) mAcquiredImageCount++;
-                return image;
-            } catch (IllegalStateException ex) {
-                // This happens if we have acquired the maximum number of images without closing
-                // them. We will eventually close the images so this is not an error condition.
-            } catch (UnsupportedOperationException ex) {
-                // TODO(crbug.com/352187279): This can happen if the `PixelFormat` does not match.
-                // We should recreate the `ImageReader` with the correct `PixqelFormat` in this
-                // case.
-                throw ex;
-            }
-            return null;
-        }
-
-        private void releaseImage(ImageReader reader, Image image) {
-            assert mBackgroundThread.getLooper().isCurrentThread();
-
-            synchronized (mBackgroundLock) {
-                // If we recreate the ImageReader, we may get an old release here. The image will
-                // already have been closed since the ImageReader is closed, but it's safe to call
-                // close
-                // again here.
-                image.close();
-
-                // `mAcquiredImageCount` is only for the current ImageReader, so don't incorrectly
-                // decrement it for an old ImageReader.
-                if (reader == mImageReader) mAcquiredImageCount--;
-
-                // Now that we closed an image, we may be able to acquire a new image.
-                onImageAvailable(reader);
-            }
-        }
-
-        @Override
-        public void onImageAvailable(ImageReader reader) {
-            assert mBackgroundThread.getLooper().isCurrentThread();
-
-            synchronized (mBackgroundLock) {
-                // If the native side was destroyed, then exit without calling JNI methods.
-                if (mNativeDesktopCapturerAndroid == 0) return;
-
-                // If we recreate the ImageReader we may get a call with the old reader here. Skip
-                // this case.
-                if (reader != mImageReader) return;
-
-                // Note that we can't use `acquireLatestImage` here because we can't close older
-                // images until the C++ side is finished using them.
-                final Image image = maybeAcquireImage(reader);
-
-                // If we have not yet closed images, this may return null. We need to retry
-                // after closing an image.
-                if (image == null) return;
-
-                switch (image.getFormat()) {
-                    case PixelFormat.RGBA_8888:
-                        assert image.getPlanes().length == 1;
-                        final Plane plane = image.getPlanes()[0];
-                        final Rect cropRect = image.getCropRect();
-                        ScreenCaptureJni.get()
-                                .onRgbaFrameAvailable(
-                                        mNativeDesktopCapturerAndroid,
-                                        () -> {
-                                            assert mBackgroundHandler != null;
-                                            mBackgroundHandler.post(
-                                                    () -> releaseImage(reader, image));
-                                        },
-                                        image.getTimestamp(),
-                                        plane.getBuffer(),
-                                        plane.getPixelStride(),
-                                        plane.getRowStride(),
-                                        cropRect.left,
-                                        cropRect.top,
-                                        cropRect.right,
-                                        cropRect.bottom);
-                        break;
-                    default:
-                        throw new IllegalStateException(
-                                "Unexpected image format: " + image.getFormat());
-                }
-            }
-        }
-    }
-
-    private class MediaProjectionCallback extends MediaProjection.Callback {
-        @Override
-        public void onCapturedContentResize(int width, int height) {
-            // TODO(crbug.com/352187279): Handle content resize and rotate.
-            assert mBackgroundThread.getLooper().isCurrentThread();
-        }
-
-        @Override
-        public void onCapturedContentVisibilityChanged(boolean isVisible) {
-            // If the captured content is not visible we don't do anything special.
-            assert mBackgroundThread.getLooper().isCurrentThread();
-        }
-
-        @Override
-        public void onStop() {
-            assert mBackgroundThread.getLooper().isCurrentThread();
-            synchronized (mBackgroundLock) {
-                if (mNativeDesktopCapturerAndroid == 0) return;
-                mMediaProjection = null;
-                ScreenCaptureJni.get().onStop(mNativeDesktopCapturerAndroid);
-            }
-        }
-    }
-
-    @GuardedBy("mBackgroundLock")
-    private void destroyListener() {
-        if (mImageReader != null) {
-            mImageReader.close();
-            mImageReader = null;
-            mAcquiredImageCount = 0;
-        }
         if (mVirtualDisplay != null) {
             mVirtualDisplay.release();
             mVirtualDisplay = null;
         }
     }
 
-    @GuardedBy("mBackgroundLock")
-    private void recreateListener(int width, int height, int format, int dpi) {
-        destroyListener();
-        mImageReader = ImageReader.newInstance(width, height, format, /* maxImages= */ 2);
-        mImageReader.setOnImageAvailableListener(new ImageListener(), mBackgroundHandler);
+    private class MediaProjectionCallback extends MediaProjection.Callback {
+        @Override
+        public void onCapturedContentResize(int width, int height) {
+            if (mNativeDesktopCapturerAndroid == 0) return;
+
+            final Context context = maybeGetContext();
+            if (context == null) return;
+
+            final int format =
+                    mImageHandlerQueue.get(mImageHandlerQueue.size() - 1).getCaptureState().format;
+            recreateListener(
+                    new CaptureState(
+                            width,
+                            height,
+                            context.getResources().getConfiguration().densityDpi,
+                            format));
+        }
+
+        @Override
+        public void onCapturedContentVisibilityChanged(boolean isVisible) {
+            // If the captured content is not visible we don't do anything special.
+        }
+
+        @Override
+        public void onStop() {
+            if (mNativeDesktopCapturerAndroid == 0) return;
+            mMediaProjection = null;
+            ScreenCaptureJni.get().onStop(mNativeDesktopCapturerAndroid);
+        }
+    }
+
+    private ImageHandler createImageHandler(CaptureState captureState) {
+        final var imageHandler = new ImageHandler(captureState, this, mHandler);
+        mImageHandlerQueue.add(imageHandler);
+        return imageHandler;
+    }
+
+    private void closeImageHandlersBefore(ImageHandler imageHandler) {
+        final int idx = mImageHandlerQueue.indexOf(imageHandler);
+        assert idx != -1;
+        // Iterate backwards since `close` can cause `ImageHandler` to be removed from the queue.
+        for (int i = idx - 1; i >= 0; i--) {
+            mImageHandlerQueue.get(i).close();
+        }
+    }
+
+    private void recreateListener(CaptureState captureState) {
+        final var imageHandler = createImageHandler(captureState);
+
+        assert mVirtualDisplay != null;
+        mVirtualDisplay.resize(captureState.width, captureState.height, captureState.dpi);
+        mVirtualDisplay.setSurface(imageHandler.getSurface());
+    }
+
+    private void createListener(CaptureState captureState) {
+        final var imageHandler = createImageHandler(captureState);
 
         assert mMediaProjection != null;
+        assert mVirtualDisplay == null;
         mVirtualDisplay =
                 mMediaProjection.createVirtualDisplay(
                         "ScreenCapture",
-                        width,
-                        height,
-                        dpi,
+                        captureState.width,
+                        captureState.height,
+                        captureState.dpi,
                         DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                        mImageReader.getSurface(),
-                        /* callback= */ null,
-                        /* handler= */ null);
+                        imageHandler.getSurface(),
+                        null,
+                        null);
+    }
+
+    // ImageHandler.Delegate
+    @Override
+    public void onRgbaFrameAvailable(
+            ImageHandler imageHandler,
+            Runnable releaseCb,
+            long timestampNs,
+            Plane plane,
+            Rect cropRect) {
+        // If the native side was destroyed, then exit without calling JNI methods.
+        if (mNativeDesktopCapturerAndroid == 0) return;
+
+        // Don't close old `ImageHandler`s until we have a Image written to the new
+        // Image handler. This is to make sure that if the OS is still trying to write
+        // to an older Surface from `ImageReader` it can.
+        closeImageHandlersBefore(imageHandler);
+
+        ScreenCaptureJni.get()
+                .onRgbaFrameAvailable(
+                        mNativeDesktopCapturerAndroid,
+                        releaseCb,
+                        timestampNs,
+                        plane.getBuffer(),
+                        plane.getPixelStride(),
+                        plane.getRowStride(),
+                        cropRect.left,
+                        cropRect.top,
+                        cropRect.right,
+                        cropRect.bottom);
+    }
+
+    @Override
+    public void onClose(ImageHandler imageHandler) {
+        final boolean removed = mImageHandlerQueue.remove(imageHandler);
+        assert removed;
+    }
+
+    @Override
+    public void recreateImageHandler(CaptureState captureState) {
+        // If the native side was destroyed, then don't bother recreating the ImageHandler.
+        if (mNativeDesktopCapturerAndroid == 0) return;
+
+        recreateListener(captureState);
     }
 
     @NativeMethods
@@ -349,8 +322,8 @@ public class ScreenCapture {
                 int rowStride,
                 int left,
                 int top,
-                int width,
-                int height);
+                int right,
+                int bottom);
 
         void onStop(long nativeDesktopCapturerAndroid);
     }

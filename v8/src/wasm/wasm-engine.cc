@@ -1772,7 +1772,7 @@ void ReportLiveCodeFromFrameForGC(
     WasmCode* code = wasm_frame->wasm_code();
     live_wasm_code.insert(code);
 #if V8_TARGET_ARCH_X64
-    if (code->for_debugging()) {
+    if (code->is_inspectable()) {
       Address osr_target =
           base::Memory<Address>(wasm_frame->fp() - kOSRTargetOffset);
       if (osr_target) {
@@ -1793,7 +1793,8 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
   wasm::WasmCodeRefScope code_ref_scope;
   std::unordered_set<wasm::WasmCode*> live_wasm_code;
 
-  for (const std::unique_ptr<StackMemory>& stack : isolate->wasm_stacks()) {
+  for (const std::unique_ptr<StackMemory, StackMemoryDeleter>& stack :
+       isolate->wasm_stacks()) {
     if (stack->IsActive()) {
       // The active stack's jump buffer does not match the current state, use
       // the thread info below instead.

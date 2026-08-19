@@ -14,6 +14,10 @@
 #include <memory>
 #include <utility>
 
+#include "api/peer_connection_interface.h"
+#include "api/scoped_refptr.h"
+#include "rtc_base/socket_factory.h"
+#include "rtc_base/thread.h"
 #include "sdk/android/src/jni/pc/peer_connection_factory.h"
 
 namespace webrtc {

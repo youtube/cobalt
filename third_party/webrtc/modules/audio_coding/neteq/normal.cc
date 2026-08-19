@@ -10,10 +10,9 @@
 
 #include "modules/audio_coding/neteq/normal.h"
 
-#include <string.h>  // memset, memcpy
-
 #include <algorithm>  // min
 #include <cstdint>
+#include <cstring>  // memset, memcpy
 #include <memory>
 
 #include "api/array_view.h"

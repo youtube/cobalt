@@ -6,13 +6,14 @@
 #define CHROME_BROWSER_ACTOR_TOOLS_PAGE_TOOL_REQUEST_H_
 
 #include <memory>
+#include <optional>
 #include <string>
-#include <string_view>
 #include <variant>
 
+#include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/actor/tools/tool_request.h"
-#include "components/tabs/public/tab_interface.h"
-#include "content/public/browser/weak_document_ptr.h"
+#include "chrome/common/actor.mojom-forward.h"
+#include "ui/gfx/geometry/point.h"
 #include "url/gurl.h"
 
 namespace actor {
@@ -59,6 +60,9 @@ class PageToolRequest : public TabToolRequest {
     }
     const NodeTarget& node() const { return std::get<NodeTarget>(impl_); }
 
+    // Constructs an actor::mojom::ToolTarget.
+    mojom::ToolTargetPtr ToMojoToolTarget() const;
+
    private:
     std::variant<NodeTarget, CoordinateTarget> impl_;
   };
@@ -80,13 +84,7 @@ class PageToolRequest : public TabToolRequest {
   // Returns what in the page the tool should act upon.
   const Target& GetTarget() const;
 
- protected:
-  // Helper usable by child classes when implementing ToMojoToolAction.
-  // Constructs an actor::mojom::ToolTarget from a PageToolRequest::Target.
-  static mojom::ToolTargetPtr ToMojoToolTarget(const Target& target);
-
  private:
-  std::optional<std::string> document_identifier_;
   Target target_;
 };
 

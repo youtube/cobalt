@@ -332,16 +332,5 @@ inline ArrayView<U, Size> reinterpret_array_view(ArrayView<T, Size> view) {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-template <typename T,
-          std::ptrdiff_t Size = webrtc::array_view_internal::kArrayViewVarSize>
-using ArrayView = ::webrtc::ArrayView<T, Size>;
-using ::webrtc::MakeArrayView;
-using ::webrtc::reinterpret_array_view;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // API_ARRAY_VIEW_H_

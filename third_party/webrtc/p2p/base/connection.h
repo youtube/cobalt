@@ -11,8 +11,7 @@
 #ifndef P2P_BASE_CONNECTION_H_
 #define P2P_BASE_CONNECTION_H_
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -520,6 +519,7 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
       received_packet_callback_;
 
   void MaybeAddDtlsPiggybackingAttributes(StunMessage* msg);
+  void MaybeHandleDtlsPiggybackingAttributes(const StunMessage* msg);
   DtlsStunPiggybackCallbacks dtls_stun_piggyback_callbacks_;
 };
 
@@ -541,15 +541,5 @@ class ProxyConnection : public Connection {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::Connection;
-using ::webrtc::kGoogPingVersion;
-using ::webrtc::kMaxStunBindingLength;
-using ::webrtc::ProxyConnection;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_BASE_CONNECTION_H_

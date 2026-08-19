@@ -643,6 +643,10 @@ TEST(CookieUtilTest, PrefixedCookies) {
   GURL insecure_url("http://b.a.com");
   GURL trusted_url("http://localhost");
 
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      {features::kPrefixCookieHttp, features::kPrefixCookieHostHttp}, {});
+
   struct {
     CookiePrefix prefix;
     GURL url;
@@ -651,6 +655,7 @@ TEST(CookieUtilTest, PrefixedCookies) {
     bool secure = true;
     std::string domain = "";
     std::string path = "/";
+    bool http_only = true;
   } kTests[]{
       {COOKIE_PREFIX_HOST, secure_url, true, "__Host- on secure URL"},
       {COOKIE_PREFIX_HOST, insecure_url, false, "__Host- on insecure URL"},
@@ -674,12 +679,61 @@ TEST(CookieUtilTest, PrefixedCookies) {
        "__Host- on secure URL, with path", true, "", "/path"},
       {COOKIE_PREFIX_HOST, trusted_url, false,
        "__Host- on trusted URL, with path", true, "", "/path"},
+      {COOKIE_PREFIX_HTTP, secure_url, true,
+       "__Http- on secure URL, with http_only", true, "", "/", true},
+      {COOKIE_PREFIX_HTTP, secure_url, true,
+       "__Http- on secure URL, with http_only, non-root path", true, "",
+       "/cookies/", true},
+      {COOKIE_PREFIX_HTTP, insecure_url, false,
+       "__Http- on insecure URL, with secure, http_only", true, "", "/", true},
+      {COOKIE_PREFIX_HTTP, secure_url, false,
+       "__Http- on secure URL, without secure, with http_only", false, "", "/",
+       true},
+      {COOKIE_PREFIX_HTTP, secure_url, true,
+       "__Http- on secure URL, with http_only and non-root path", true, "",
+       "/cookies/", true},
+      {COOKIE_PREFIX_HTTP, trusted_url, true,
+       "__Http- on trusted URL, with http_only", true, "", "/", true},
+      {COOKIE_PREFIX_HTTP, trusted_url, true,
+       "__Http- on trusted URL, with http_only, non-root path", true, "",
+       "/cookies/", true},
+      {COOKIE_PREFIX_HTTP, secure_url, false,
+       "__Http- on secure URL, without http_only", true, "", "/", false},
+      {COOKIE_PREFIX_HTTP, trusted_url, false,
+       "__Http- on trusted URL, without http_only", true, "", "/", false},
+      {COOKIE_PREFIX_HTTP, secure_url, false,
+       "__Http- on secure URL, without http_only", true, "", "/", false},
+      {COOKIE_PREFIX_HTTP, trusted_url, false,
+       "__Http- on trusted URL, without http_only", true, "", "/", false},
+      {COOKIE_PREFIX_HTTP, insecure_url, false,
+       "__HostHttp- on insecure URL, with secure, http_only", true, "", "/",
+       true},
+      {COOKIE_PREFIX_HTTP, secure_url, false,
+       "__HostHttp- on secure URL, without secure, with http_only", false, "",
+       "/", true},
+      {COOKIE_PREFIX_HTTP, secure_url, false,
+       "__HostHttp- on secure URL, with secure, http_only and non-root path",
+       false, "", "/cookies/", true},
+      {COOKIE_PREFIX_HOSTHTTP, secure_url, true,
+       "__HostHttp- on secure URL, with http_only", true, "", "/", true},
+      {COOKIE_PREFIX_HOSTHTTP, trusted_url, true,
+       "__HostHttp- on trusted URL, with http_only", true, "", "/", true},
+      {COOKIE_PREFIX_HOSTHTTP, secure_url, false,
+       "__HostHttp- on secure URL, with http_only", true, "foo.com", "/", true},
+      {COOKIE_PREFIX_HOSTHTTP, trusted_url, false,
+       "__HostHttp- on trusted URL, with http_only", true, "foo.com", "/",
+       true},
+      {COOKIE_PREFIX_HOSTHTTP, secure_url, false,
+       "__HostHttp- on secure URL, with http_only", true, "", "/", false},
+      {COOKIE_PREFIX_HOSTHTTP, trusted_url, false,
+       "__HostHttp- on trusted URL, with http_only", true, "", "/", false},
   };
 
   for (const auto& test : kTests) {
     SCOPED_TRACE(test.description);
-    EXPECT_EQ(cookie_util::IsCookiePrefixValid(
-                  test.prefix, test.url, test.secure, test.domain, test.path),
+    EXPECT_EQ(cookie_util::IsCookiePrefixValid(test.prefix, test.url,
+                                               test.secure, test.http_only,
+                                               test.domain, test.path),
               test.expect_success);
   }
 }

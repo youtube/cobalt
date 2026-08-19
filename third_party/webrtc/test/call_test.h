@@ -27,6 +27,7 @@
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/fec_controller.h"
+#include "api/field_trials.h"
 #include "api/media_types.h"
 #include "api/network_state_predictor.h"
 #include "api/rtc_event_log/rtc_event_log.h"
@@ -58,7 +59,6 @@
 #include "test/gtest.h"
 #include "test/rtp_rtcp_observer.h"
 #include "test/run_loop.h"
-#include "test/scoped_key_value_config.h"
 #include "test/test_video_capturer.h"
 #include "video/config/video_encoder_config.h"
 
@@ -76,6 +76,7 @@ class CallTest : public ::testing::Test, public RtpPacketSinkInterface {
 
  protected:
   const Environment& env() const { return env_; }
+  FieldTrials& field_trials() { return field_trials_; }
 
   void SetSendEventLog(std::unique_ptr<RtcEventLog> event_log);
   void SetRecvEventLog(std::unique_ptr<RtcEventLog> event_log);
@@ -215,7 +216,7 @@ class CallTest : public ::testing::Test, public RtpPacketSinkInterface {
   void OnRtpPacket(const RtpPacketReceived& packet) override;
 
   test::RunLoop loop_;
-  test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_;
   Environment env_;
   Environment send_env_;
   Environment recv_env_;

@@ -142,10 +142,12 @@ SecurePaymentConfirmationDialogViewTest.InvokeUi_*
 SessionCrashedBubbleViewTest.*
 *SharedPasswordsNotificationBubbleInteractiveUiTest.*
 SharedTabGroupInteractiveUiTest.SharedTabGroupIn*
+SingleBookmarkUploadDialogPixelTest.InvokeUi
 SplitTabButtonInteractiveTest.ButtonUpdatesOnSplit
 SyncConfirmationUIDialogPixelTest.*
 SyncConfirmationUIWindowPixelTest.*
 SyncPassphraseDialogBrowserTest.*
+TabDialogManagerPixelTest.*
 TabGroupEditorBubbleViewDialogBrowserTest.*
 TabGroupShortcutsInteractiveTest.Screenshot*
 TabHoverCardBubbleViewDialogBrowserTest.*

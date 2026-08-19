@@ -425,12 +425,19 @@ static void* kObservingContext = &kObservingContext;
   if (entry.state == BEKeyPressState::BEKeyPressStateDown) {
     BEKeyEntryContext* contextForKeyDown =
         [[BEKeyEntryContext alloc] initWithKeyEntry:entry];
-    [contextForKeyDown setDocumentEditable:YES];
-    [contextForKeyDown setShouldInsertCharacter:YES];
-    [[self asyncInputDelegate]
+    [contextForKeyDown setDocumentEditable:[self isEditable]];
+    // To trigger key commands correctly, e.g. trigger
+    // `transposeCharactersAroundSelection` on Ctrl+T, we need to set
+    // `shouldInsertCharacter` to NO when users are not inputing characters.
+    // Otherwise, the key commands will not be triggered.
+    BOOL isCharInput = entry.key.characters.length == 1 &&
+                       (entry.key.modifierFlags == 0 ||
+                        entry.key.modifierFlags == UIKeyModifierShift);
+    [contextForKeyDown setShouldInsertCharacter:isCharInput];
+    BOOL handled = [[self asyncInputDelegate]
         shouldDeferEventHandlingToSystemForTextInput:self
                                              context:contextForKeyDown];
-    completionHandler(entry, YES);
+    completionHandler(entry, handled);
   } else {
     completionHandler(entry, NO);
   }
@@ -448,6 +455,27 @@ static void* kObservingContext = &kObservingContext;
 }
 
 - (void)transposeCharactersAroundSelection {
+  CHECK(_view);
+  _view->ExecuteEditCommand("transpose");
+}
+
+- (BOOL)replaceText:(NSString*)originalText
+           withText:(NSString*)replacementText {
+  if (replacementText == originalText) {
+    return NO;
+  }
+
+  // If we call ExtendSelectionAndReplace with an empty replacementText,
+  // textarea will be broken, users cannot focus and input in textarea.
+  // TODO(crbug.com/428561251): Call ExtendSelectionAndReplace with an empty
+  // replacementText will make textarea broken
+  if (!replacementText.length) {
+    _view->ExtendSelectionAndDelete(originalText.length, 0);
+  } else {
+    _view->ExtendSelectionAndReplace(originalText.length, 0,
+                                     base::SysNSStringToUTF16(replacementText));
+  }
+  return YES;
 }
 
 - (void)replaceText:(NSString*)originalText
@@ -455,35 +483,10 @@ static void* kObservingContext = &kObservingContext;
               options:(BETextReplacementOptions)options
     completionHandler:
         (void (^)(NSArray<UITextSelectionRect*>* rects))completionHandler {
-  if (replacementText == originalText) {
+  if (![self replaceText:originalText withText:replacementText]) {
     completionHandler(@[]);
     return;
   }
-
-  auto* state = [self editState];
-  if (!state) {
-    completionHandler(@[]);
-    return;
-  }
-
-  auto originalRange = state->selection;
-  if (state->selection.is_empty()) {
-    auto pos = state->selection.start();
-    auto len = originalText.length;
-    auto start = pos > len ? pos - len : 0;
-    auto end = start + len;
-    originalRange = gfx::Range(start, end);
-  }
-
-  auto textForRange =
-      [[self editText] substringWithRange:originalRange.ToNSRange()];
-  if (textForRange != originalText) {
-    completionHandler(@[]);
-    return;
-  }
-
-  _view->ImeCommitText(base::SysNSStringToUTF16(replacementText), originalRange,
-                       0);
 
   // TODO: bug 388320178 - still don't know what to do with this.
   completionHandler(@[]);
@@ -731,6 +734,7 @@ static void* kObservingContext = &kObservingContext;
 }
 
 - (void)replaceDictatedText:(NSString*)oldText withText:(NSString*)newText {
+  [self replaceText:oldText withText:newText];
 }
 
 - (void)didInsertFinalDictationResult {
@@ -744,6 +748,8 @@ static void* kObservingContext = &kObservingContext;
 }
 
 - (void)insertTextAlternatives:(BETextAlternatives*)alternatives {
+  auto text = alternatives.primaryString;
+  [self insertText:text];
 }
 
 - (void)insertTextPlaceholderWithSize:(CGSize)size

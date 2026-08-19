@@ -26,16 +26,17 @@ const char kPostMessageName[] = "postMessage";
 
 // The gin-backed scriptable object which is exposed by the BrowserPlugin for
 // PostMessageSupport. This currently only implements "postMessage".
-class ScriptableObject : public gin::Wrappable<ScriptableObject>,
-                         public gin::NamedPropertyInterceptor {
+class ScriptableObject
+    : public gin::DeprecatedWrappableWithNamedPropertyInterceptor<
+          ScriptableObject> {
  public:
-  static gin::WrapperInfo kWrapperInfo;
+  static gin::DeprecatedWrapperInfo kWrapperInfo;
 
   static v8::Local<v8::Object> Create(
       v8::Isolate* isolate,
       base::WeakPtr<PostMessageSupport> post_message_support) {
     ScriptableObject* scriptable_object =
-        new ScriptableObject(isolate, post_message_support);
+        new ScriptableObject(post_message_support);
     return gin::CreateHandle(isolate, scriptable_object)
         .ToV8()
         .As<v8::Object>();
@@ -66,15 +67,15 @@ class ScriptableObject : public gin::Wrappable<ScriptableObject>,
   }
 
  private:
-  ScriptableObject(v8::Isolate* isolate,
-                   base::WeakPtr<PostMessageSupport> post_message_support)
-      : gin::NamedPropertyInterceptor(isolate, this),
-        post_message_support_(post_message_support) {}
+  explicit ScriptableObject(
+      base::WeakPtr<PostMessageSupport> post_message_support)
+      : post_message_support_(post_message_support) {}
 
-  // gin::Wrappable
+  // gin::DeprecatedWrappable
   gin::ObjectTemplateBuilder GetObjectTemplateBuilder(
       v8::Isolate* isolate) override {
-    return gin::Wrappable<ScriptableObject>::GetObjectTemplateBuilder(isolate)
+    return gin::DeprecatedWrappable<ScriptableObject>::GetObjectTemplateBuilder(
+               isolate)
         .AddNamedPropertyInterceptor();
   }
 
@@ -83,7 +84,8 @@ class ScriptableObject : public gin::Wrappable<ScriptableObject>,
 };
 
 // static
-gin::WrapperInfo ScriptableObject::kWrapperInfo = {gin::kEmbedderNativeGin};
+gin::DeprecatedWrapperInfo ScriptableObject::kWrapperInfo = {
+    gin::kEmbedderNativeGin};
 
 }  // namespace
 

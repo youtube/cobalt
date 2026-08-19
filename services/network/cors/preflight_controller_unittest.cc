@@ -813,7 +813,7 @@ TEST_F(PreflightControllerTest, CheckPrivateNetworkAccessRequest) {
   request.credentials_mode = mojom::CredentialsMode::kOmit;
   request.url = url;
   request.request_initiator = test_initiator_origin();
-  request.target_ip_address_space = network::mojom::IPAddressSpace::kLocal;
+  request.target_ip_address_space = network::mojom::IPAddressSpace::kLoopback;
 
   mojom::ClientSecurityStatePtr client_security_state =
       ClientSecurityStateBuilder()
@@ -836,7 +836,7 @@ TEST_F(PreflightControllerTest, CheckPrivateNetworkAccessRequest) {
 
   CorsErrorStatus expected_status(
       mojom::CorsError::kPreflightMissingAllowPrivateNetwork, "");
-  expected_status.target_address_space = mojom::IPAddressSpace::kLocal;
+  expected_status.target_address_space = mojom::IPAddressSpace::kLoopback;
   EXPECT_THAT(status(), Optional(expected_status));
   EXPECT_EQ(1u, access_count());
 }
@@ -848,7 +848,7 @@ TEST_F(PreflightControllerTest, CheckPrivateNetworkAccessRequestWarningOnly) {
   request.credentials_mode = mojom::CredentialsMode::kOmit;
   request.url = url;
   request.request_initiator = test_initiator_origin();
-  request.target_ip_address_space = network::mojom::IPAddressSpace::kLocal;
+  request.target_ip_address_space = network::mojom::IPAddressSpace::kLoopback;
 
   mojom::ClientSecurityStatePtr client_security_state =
       ClientSecurityStateBuilder()
@@ -871,7 +871,7 @@ TEST_F(PreflightControllerTest, CheckPrivateNetworkAccessRequestWarningOnly) {
 
   CorsErrorStatus expected_status(
       mojom::CorsError::kPreflightMissingAllowPrivateNetwork, "");
-  expected_status.target_address_space = mojom::IPAddressSpace::kLocal;
+  expected_status.target_address_space = mojom::IPAddressSpace::kLoopback;
   EXPECT_THAT(status(), Optional(expected_status));
   EXPECT_EQ(1u, access_count());
 }
@@ -901,7 +901,7 @@ TEST_F(PreflightControllerTest,
   request.request_initiator = url::Origin::Create(url);
   request.mode = mojom::RequestMode::kCors;
   request.credentials_mode = mojom::CredentialsMode::kOmit;
-  request.target_ip_address_space = network::mojom::IPAddressSpace::kLocal;
+  request.target_ip_address_space = network::mojom::IPAddressSpace::kLoopback;
 
   mojom::ClientSecurityStatePtr client_security_state =
       ClientSecurityStateBuilder()
@@ -924,41 +924,6 @@ TEST_F(PreflightControllerTest,
 }
 
 TEST_F(PreflightControllerTest,
-       CheckPrivateNetworkAccessRequestTimeoutBehaviorWarnWithTimeout) {
-  net::EmbeddedTestServer delayed_server;
-  delayed_server.RegisterRequestHandler(
-      base::BindRepeating(&AllowPrivateNetworkAccess));
-  ASSERT_TRUE(delayed_server.Start());
-  ResourceRequest request;
-  request.method = std::string("GET");
-  GURL url = delayed_server.GetURL("/");
-  request.url = url;
-  request.request_initiator = url::Origin::Create(url);
-  request.mode = mojom::RequestMode::kCors;
-  request.credentials_mode = mojom::CredentialsMode::kOmit;
-  request.target_ip_address_space = network::mojom::IPAddressSpace::kLocal;
-
-  mojom::ClientSecurityStatePtr client_security_state =
-      ClientSecurityStateBuilder()
-          .WithPrivateNetworkRequestPolicy(
-              mojom::PrivateNetworkRequestPolicy::kPreflightWarn)
-          .Build();
-
-  // Set the client security state in the request's trusted params, because the
-  // test uses a shared factory with no client security state in its factory
-  // params, and URLLoader expects requests with a target IP address space to
-  // carry a client security state.
-  request.trusted_params = ResourceRequest::TrustedParams();
-  request.trusted_params->client_security_state = client_security_state.Clone();
-
-  PerformPreflightCheck(request, /*tainted=*/false, net::IsolationInfo(),
-                        PrivateNetworkAccessPreflightBehavior::kWarnWithTimeout,
-                        /*client_security_state=*/nullptr,
-                        PreflightMode{PreflightType::kPrivateNetworkAccess});
-  EXPECT_EQ(net::ERR_TIMED_OUT, net_error());
-}
-
-TEST_F(PreflightControllerTest,
        CheckPrivateNetworkAccessRequestPreflightTimeoutBehaviorWarn) {
   net::EmbeddedTestServer delayed_server;
   delayed_server.RegisterRequestHandler(
@@ -971,7 +936,7 @@ TEST_F(PreflightControllerTest,
   request.request_initiator = url::Origin::Create(url);
   request.mode = mojom::RequestMode::kCors;
   request.credentials_mode = mojom::CredentialsMode::kOmit;
-  request.target_ip_address_space = network::mojom::IPAddressSpace::kLocal;
+  request.target_ip_address_space = network::mojom::IPAddressSpace::kLoopback;
 
   mojom::ClientSecurityStatePtr client_security_state =
       ClientSecurityStateBuilder()
@@ -1018,7 +983,7 @@ TEST_F(PreflightControllerNoPNAPreflightShortTimeoutTest,
   request.request_initiator = url::Origin::Create(url);
   request.mode = mojom::RequestMode::kCors;
   request.credentials_mode = mojom::CredentialsMode::kOmit;
-  request.target_ip_address_space = network::mojom::IPAddressSpace::kLocal;
+  request.target_ip_address_space = network::mojom::IPAddressSpace::kLoopback;
 
   mojom::ClientSecurityStatePtr client_security_state =
       ClientSecurityStateBuilder()

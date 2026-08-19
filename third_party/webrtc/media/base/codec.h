@@ -192,9 +192,6 @@ struct RTC_EXPORT Codec {
         sink.Append("video/");
     }
     absl::Format(&sink, "%s/%d/%d", c.name, c.clockrate, c.channels);
-    if (c.packetization) {
-      absl::Format(&sink, ",packetization=%s", *c.packetization);
-    }
     for (auto param : c.params) {
       sink.Append(";");
       sink.Append(param.first);
@@ -268,97 +265,5 @@ RTC_EXPORT void AddH264ConstrainedBaselineProfileToSupportedFormats(
     std::vector<SdpVideoFormat>* supported_formats);
 }  // namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-
-using FeedbackParam ABSL_DEPRECATE_AND_INLINE() = webrtc::FeedbackParam;
-using FeedbackParams ABSL_DEPRECATE_AND_INLINE() = webrtc::FeedbackParams;
-using Codec ABSL_DEPRECATE_AND_INLINE() = webrtc::Codec;
-using Codecs ABSL_DEPRECATE_AND_INLINE() = webrtc::Codecs;
-
-// TODO(webrtc:15214): Compatibility names, to be migrated away and removed.
-using VideoCodec ABSL_DEPRECATE_AND_INLINE() = webrtc::Codec;
-using AudioCodec ABSL_DEPRECATE_AND_INLINE() = webrtc::Codec;
-using VideoCodecs ABSL_DEPRECATE_AND_INLINE() = webrtc::Codecs;
-using AudioCodecs ABSL_DEPRECATE_AND_INLINE() = webrtc::Codecs;
-using ::webrtc::AddH264ConstrainedBaselineProfileToSupportedFormats;
-
-ABSL_DEPRECATE_AND_INLINE()
-inline webrtc::Codec CreateAudioCodec(int id,
-                                      const std::string& name,
-                                      int clockrate,
-                                      size_t channels) {
-  return webrtc::CreateAudioCodec(id, name, clockrate, channels);
-}
-ABSL_DEPRECATE_AND_INLINE()
-inline webrtc::Codec CreateAudioCodec(const webrtc::SdpAudioFormat& c) {
-  return webrtc::CreateAudioCodec(c);
-}
-ABSL_DEPRECATE_AND_INLINE()
-inline webrtc::Codec CreateAudioRtxCodec(int rtx_payload_type,
-                                         int associated_payload_type) {
-  return webrtc::CreateAudioRtxCodec(rtx_payload_type, associated_payload_type);
-}
-ABSL_DEPRECATE_AND_INLINE()
-inline webrtc::Codec CreateVideoCodec(const std::string& name) {
-  return webrtc::CreateVideoCodec(name);
-}
-ABSL_DEPRECATE_AND_INLINE()
-inline webrtc::Codec CreateVideoCodec(int id, const std::string& name) {
-  return webrtc::CreateVideoCodec(id, name);
-}
-ABSL_DEPRECATE_AND_INLINE()
-inline webrtc::Codec CreateVideoCodec(const webrtc::SdpVideoFormat& c) {
-  return webrtc::CreateVideoCodec(c);
-}
-ABSL_DEPRECATE_AND_INLINE()
-inline webrtc::Codec CreateVideoCodec(int id, const webrtc::SdpVideoFormat& c) {
-  return webrtc::CreateVideoCodec(id, c);
-}
-ABSL_DEPRECATE_AND_INLINE()
-inline webrtc::Codec CreateVideoRtxCodec(int rtx_payload_type,
-                                         int associated_payload_type) {
-  return webrtc::CreateVideoRtxCodec(rtx_payload_type, associated_payload_type);
-}
-
-ABSL_DEPRECATE_AND_INLINE()
-inline const webrtc::Codec* FindCodecById(
-    const std::vector<webrtc::Codec>& codecs,
-    int payload_type) {
-  return webrtc::FindCodecById(codecs, payload_type);
-}
-
-ABSL_DEPRECATE_AND_INLINE()
-inline bool HasLntf(const webrtc::Codec& codec) {
-  return webrtc::HasLntf(codec);
-}
-ABSL_DEPRECATE_AND_INLINE()
-inline bool HasNack(const webrtc::Codec& codec) {
-  return webrtc::HasNack(codec);
-}
-ABSL_DEPRECATE_AND_INLINE()
-inline bool HasRemb(const webrtc::Codec& codec) {
-  return webrtc::HasRemb(codec);
-}
-ABSL_DEPRECATE_AND_INLINE() inline bool HasRrtr(const webrtc::Codec& codec) {
-  return webrtc::HasRrtr(codec);
-}
-ABSL_DEPRECATE_AND_INLINE()
-inline const webrtc::Codec* FindMatchingVideoCodec(
-    const webrtc::Codecs& supported_codecs,
-    const webrtc::Codec& codec) {
-  return webrtc::FindMatchingVideoCodec(supported_codecs, codec);
-}
-ABSL_DEPRECATE_AND_INLINE()
-inline std::vector<const webrtc::Codec*> FindAllMatchingCodecs(
-    const webrtc::Codecs& supported_codecs,
-    const webrtc::Codec& codec) {
-  return webrtc::FindAllMatchingCodecs(supported_codecs, codec);
-}
-
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // MEDIA_BASE_CODEC_H_

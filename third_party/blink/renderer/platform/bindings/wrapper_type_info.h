@@ -47,17 +47,34 @@ namespace blink {
 class DOMWrapperWorld;
 class ScriptWrappable;
 
-static constexpr v8::CppHeapPointerTag kDOMWrappersTag =
-    v8::CppHeapPointerTag::kDefaultTag;
-
 // LINT.IfChange(ScriptWrappableStartTag)
 constexpr std::underlying_type_t<v8::CppHeapPointerTag>
     kScriptWrappableStartTag = 256;
 // LINT.ThenChange(third_party/blink/renderer/bindings/scripts/web_idl/idl_compiler.py:ScriptWrappableStartTag)
 
+static constexpr v8::CppHeapPointerTag kDOMWrappersTag =
+    static_cast<v8::CppHeapPointerTag>(1500);
+
+// `kLastScriptWrappableTag` is an upper bound on the number of ScriptWrappable
+// sub-types. If more sub-types are added, the number can be increased
+// accordingly. Ideally this upper bound would be generated automatically, but
+// that may be difficult.
+static constexpr v8::CppHeapPointerTag kLastScriptWrappableTag =
+    kDOMWrappersTag;
+
+static_assert(static_cast<uint16_t>(kLastScriptWrappableTag) <
+                  static_cast<uint16_t>(gin::kFirstPointerTag),
+              "The tag range of ScriptWrappable and gin::Wrappable should be "
+              "disjoint. If they overlap, then the gin:Wrappable range should "
+              "be moved backwards");
+
 constexpr v8::CppHeapPointerTagRange kScriptWrappableTagRange(
     static_cast<v8::CppHeapPointerTag>(kScriptWrappableStartTag),
     v8::CppHeapPointerTag::kLastTag);
+
+constexpr v8::CppHeapPointerTagRange kScriptWrappableOrGinWrappableTagRange(
+    static_cast<v8::CppHeapPointerTag>(kScriptWrappableStartTag),
+    static_cast<v8::CppHeapPointerTag>(gin::kLastPointerTag));
 
 enum class CppHeapExternalTag : std::underlying_type_t<v8::CppHeapPointerTag> {
   kFirst = 1,
@@ -187,6 +204,12 @@ inline ScriptWrappable* ToAnyScriptWrappable(
     const v8::TracedReference<v8::Object>& wrapper) {
   return v8::Object::Unwrap<ScriptWrappable>(isolate, wrapper,
                                              kScriptWrappableTagRange);
+}
+
+inline v8::Object::Wrappable* ToAnyWrappable(v8::Isolate* isolate,
+                                             v8::Local<v8::Object> wrapper) {
+  return v8::Object::Unwrap<v8::Object::Wrappable>(
+      isolate, wrapper, kScriptWrappableOrGinWrappableTagRange);
 }
 
 inline ScriptWrappable* ToAnyScriptWrappable(v8::Isolate* isolate,

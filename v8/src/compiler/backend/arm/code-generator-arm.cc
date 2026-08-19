@@ -44,7 +44,7 @@ class ArmOperandConverter final : public InstructionOperandConverter {
       case kFlags_conditional_branch:
       case kFlags_deoptimize:
       case kFlags_set:
-      case kFlags_conditional_set:
+      case kFlags_conditional_trap:
       case kFlags_trap:
       case kFlags_select:
         return SetCC;
@@ -894,6 +894,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchNop:
       // don't emit code for nops.
       DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArchPause:
+      __ isb(SY);
       break;
     case kArchDeoptimize: {
       DeoptimizationExit* exit =
@@ -3450,6 +3453,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kAtomicExchangeWithWriteBarrier: {
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrex, strex);
+      if (v8_flags.disable_write_barriers) break;
       Register object = i.InputRegister(0);
       Register offset = i.InputRegister(1);
       Register value = i.InputRegister(2);
@@ -3494,6 +3498,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrex, strex,
                                                i.InputRegister(2));
       break;
+    case kAtomicCompareExchangeWithWriteBarrier: {
+      __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrex, strex,
+                                               i.InputRegister(2));
+      if (v8_flags.disable_write_barriers) break;
+      // Emit the write barrier.
+      Register object = i.InputRegister(0);
+      Register offset = i.InputRegister(1);
+      Register new_value = i.InputRegister(3);
+      RecordWriteMode mode = RecordWriteMode::kValueIsAny;
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, Operand(offset), new_value, mode,
+          DetermineStubCallMode(), &unwinding_info_writer_);
+      __ JumpIfSmi(new_value, ool->exit());
+      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
+                       ne, ool->entry());
+      __ bind(ool->exit());
+      break;
+    }
 #define ATOMIC_BINOP_CASE(op, inst)                    \
   case kAtomic##op##Int8:                              \
     ASSEMBLE_ATOMIC_BINOP(ldrexb, strexb, inst);       \
@@ -3710,9 +3733,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ mov(reg, Operand(1), LeaveCC, cc);
 }
 
-void CodeGenerator::AssembleArchConditionalBoolean(Instruction* instr) {
+#if V8_ENABLE_WEBASSEMBLY
+void CodeGenerator::AssembleArchConditionalTrap(Instruction* instr,
+                                                FlagsCondition condition) {
   UNREACHABLE();
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
                                                   BranchInfo* branch) {
@@ -3874,7 +3900,8 @@ void CodeGenerator::AssembleConstructFrame() {
             WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
             Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
                     CommonFrameConstants::kFixedFrameSizeAboveFp));
-        __ CallBuiltin(Builtin::kWasmHandleStackOverflow);
+        __ Call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
+                RelocInfo::WASM_STUB_CALL);
         __ vldm(ia_w, sp, fp_regs_to_save.first(), fp_regs_to_save.last());
         __ ldm(ia_w, sp, regs_to_save);
       } else {

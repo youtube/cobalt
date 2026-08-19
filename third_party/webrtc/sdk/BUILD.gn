@@ -184,6 +184,27 @@ if (is_ios || is_mac) {
     }
   }
 
+  rtc_library("core_audio_helpers_objc") {
+    sources = [
+      "objc/helpers/AudioTimeStamp+Nanoseconds.h",
+      "objc/helpers/AudioTimeStamp+Nanoseconds.mm",
+    ]
+
+    deps = [
+      ":base_objc",
+      "../rtc_base:checks",
+    ]
+
+    frameworks = [ "CoreAudio.framework" ]
+
+    configs += [
+      "..:common_objc",
+      ":used_from_extension",
+    ]
+
+    public_configs = [ ":common_config_objc" ]
+  }
+
   if (!build_with_chromium) {
     rtc_library("callback_logger_objc") {
       sources = [
@@ -310,6 +331,7 @@ if (is_ios || is_mac) {
           ":audio_objc",
           ":audio_session_observer",
           ":base_objc",
+          ":core_audio_helpers_objc",
           "../api:array_view",
           "../api:scoped_refptr",
           "../api:sequence_checker",
@@ -501,6 +523,7 @@ if (is_ios || is_mac) {
 
       deps = [
         ":audio_device_api_objc",
+        ":core_audio_helpers_objc",
         "../api:array_view",
         "../api:make_ref_counted",
         "../api:refcountedbase",

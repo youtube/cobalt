@@ -273,13 +273,13 @@ class ContentVerifierTest : public ExtensionBrowserTest {
   }
 
   // Creates a random signing key and sets |extension_id| according to it.
-  std::unique_ptr<crypto::RSAPrivateKey> CreateExtensionSigningKey(
+  crypto::keypair::PrivateKey CreateExtensionSigningKey(
       std::string& extension_id) {
-    auto signing_key = crypto::RSAPrivateKey::Create(2048);
-    std::vector<uint8_t> public_key;
-    signing_key->ExportPublicKey(&public_key);
+    auto signing_key = crypto::keypair::PrivateKey::GenerateRsa2048();
+    std::vector<uint8_t> public_key = signing_key.ToSubjectPublicKeyInfo();
     const std::string public_key_str(public_key.begin(), public_key.end());
-    extension_id = crx_file::id_util::GenerateId(public_key_str);
+    extension_id =
+        crx_file::id_util::GenerateId(base::as_string_view(public_key));
     return signing_key;
   }
 
@@ -290,7 +290,7 @@ class ContentVerifierTest : public ExtensionBrowserTest {
   testing::AssertionResult CreateCrxWithVerifiedContentsInHeader(
       base::ScopedTempDir* temp_dir,
       const base::FilePath& unpacked_path,
-      crypto::RSAPrivateKey* private_key,
+      const crypto::keypair::PrivateKey& private_key,
       const std::string& verified_contents,
       base::FilePath* crx_path) {
     std::string compressed_verified_contents;
@@ -960,7 +960,7 @@ IN_PROC_BROWSER_TEST_F(ContentVerifierTest, VerificationFailureOnNavigate) {
     ASSERT_TRUE(base::AppendToFile(real_path, extra));
   }
 
-  GURL page_url = extension->ResolveExtensionURL("script.js");
+  GURL page_url = extension->GetResourceURL("script.js");
   NavigateToResourceAndExpectExtensionDisabled(kExtensionId, page_url);
 }
 
@@ -1000,8 +1000,7 @@ IN_PROC_BROWSER_TEST_F(
 
   base::FilePath crx_path;
   ASSERT_TRUE(CreateCrxWithVerifiedContentsInHeader(
-      &temp_dir, extension_dir, signing_key.get(), verified_contents,
-      &crx_path));
+      &temp_dir, extension_dir, signing_key, verified_contents, &crx_path));
 
   TestContentVerifySingleJobObserver observer(extension_id, resource_path);
 
@@ -1027,7 +1026,7 @@ IN_PROC_BROWSER_TEST_F(
   base::FilePath crx_path;
   auto signing_key = CreateExtensionSigningKey(extension_id);
   ASSERT_TRUE(CreateCrxWithVerifiedContentsInHeader(
-      &temp_dir, test_dir, signing_key.get(), verified_contents, &crx_path));
+      &temp_dir, test_dir, signing_key, verified_contents, &crx_path));
 
   const Extension* extension = InstallExtensionFromWebstore(crx_path, 0);
   EXPECT_FALSE(extension);
@@ -1080,7 +1079,7 @@ IN_PROC_BROWSER_TEST_F(ContentVerifierTest, TamperLargeSizedResource) {
   }
 
   NavigateToResourceAndExpectExtensionDisabled(
-      extension->id(), extension->ResolveExtensionURL(kResource));
+      extension->id(), extension->GetResourceURL(kResource));
 }
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -1109,7 +1108,7 @@ IN_PROC_BROWSER_TEST_F(ContentVerifierTest,
   // the implementation detail a little too much.
   const char kLargeResource[] = "ten_meg_background.js";
   ui_test_utils::NavigateToURLWithDisposition(
-      browser(), extension->ResolveExtensionURL(kLargeResource),
+      browser(), extension->GetResourceURL(kLargeResource),
       WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui_test_utils::BROWSER_TEST_NO_WAIT);
 }
@@ -1191,7 +1190,7 @@ IN_PROC_BROWSER_TEST_F(ContentVerifierTest,
   TestContentVerifySingleJobObserver job_observer(
       extension_id, base::FilePath().AppendASCII(kIncorrectCasePath));
 
-  GURL page_url = extension->ResolveExtensionURL(kIncorrectCasePath);
+  GURL page_url = extension->GetResourceURL(kIncorrectCasePath);
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
   // Some platforms are case insensitive, load should succeed.
   ASSERT_TRUE(NavigateToURL(page_url));

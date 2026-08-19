@@ -36,7 +36,6 @@
 <translation id="1138458427267715730">値下げしたウェブサイトがあった場合にアラートを受け取ります</translation>
 <translation id="1140317858355046628">削除すると、全員が「<ph name="GROUP_NAME" />」タブグループに直ちにアクセスできなくなり、すべてのデバイスから削除されます。</translation>
 <translation id="1142732900304639782">これらのサイトを翻訳するか尋ねない</translation>
-<translation id="1145536944570833626">既存のデータを削除します。</translation>
 <translation id="1150263420752757504">Chrome で <ph name="APP_NAME" /> を開きます。続行すると、<ph name="BEGIN_LINK1" />Google 利用規約<ph name="END_LINK1" />と <ph name="BEGIN_LINK2" />Google Chrome および ChromeOS 追加利用規約<ph name="END_LINK2" />に同意したものと見なされます。</translation>
 <translation id="1154555449933432029">パスワードは Google パスワード マネージャーに保存されていません。</translation>
 <translation id="115483310321669804">パスワード <ph name="PASSWORD" /> を使用</translation>
@@ -74,6 +73,7 @@
 <translation id="1298077576058087471">最大 60% のデータを節約、今日のニュースもチェック</translation>
 <translation id="1303339473099049190">お探しのパスワードが見つかりません。誤字や脱字がないかご確認のうえ、もう一度お試しください。</translation>
 <translation id="1303507811548703290"><ph name="DOMAIN" /> - <ph name="DEVICE_NAME" /> から送信</translation>
+<translation id="1310482092992808703">タブをグループ化</translation>
 <translation id="1318262688555255786">ウェブページ「<ph name="PAGE_TITLE" />」へのリンクを共有します。ソース: <ph name="PAGE_URL" /></translation>
 <translation id="1320912611264252795">ブックマーク保存フロー フォルダが画面全体に表示されています</translation>
 <translation id="1327257854815634930">ナビゲーション履歴が開いています</translation>
@@ -151,6 +151,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="1671236975893690980">ダウンロードを待機しています...</translation>
 <translation id="1672586136351118594">次回から表示しない</translation>
 <translation id="1680919990519905526">Google レンズで画像を購入 <ph name="BEGIN_NEW" />New<ph name="END_NEW" /></translation>
+<translation id="1683774088349393383">\u0020<ph name="MONTHS_ARCHIVED" /> か月後に閉じられます</translation>
 <translation id="1687482373098770139">まもなく、[フォロー中] に <ph name="SITE_NAME" /> のコンテンツや関連するコンテンツが表示されるようになります。フォローするサイトや検索は Google アカウントに保存されます。フォローはいつでも設定で管理できます。</translation>
 <translation id="1689333818294560261">ニックネーム</translation>
 <translation id="1696555181932908973"><ph name="SITE_ETLD_PLUS_ONE" /> で続行するには、別の方法をお試しください。</translation>
@@ -183,8 +184,9 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="1825772852827001597">Google Pay のお支払い方法と住所は暗号化されません。また、Chrome の閲覧履歴は同期されません。
 パスフレーズを知っているユーザーだけが暗号化されたデータを見ることができます。パスフレーズは Google には送信されず、保存されることもありません。パスフレーズを忘れた場合や、この設定を変更する場合は、<ph name="BEGIN_LINK" />アカウントの Chrome データを削除<ph name="END_LINK" />してください。</translation>
 <translation id="1829244130665387512">ページ内検索</translation>
-<translation id="1832459821645506983">同意する</translation>
+<translation id="1832459821645506983">ON にする</translation>
 <translation id="1845958458910716240">データ保護のため、最近アクセスしていないサイトから権限を自動的に削除します</translation>
+<translation id="1850996571200618383">{NUM_REVOKED_PERMISSIONS,plural, =1{Chrome はこのサイトからの通知を停止しました。通知設定は確認、管理できます。}other{Chrome はこれらのサイトからの通知を停止しました。通知設定は確認、管理できます。}}</translation>
 <translation id="1871098866036088250">Chrome ブラウザで開く</translation>
 <translation id="1877026089748256423">Chrome は古いバージョンです</translation>
 <translation id="1877073879466606884">現在ログインしているプロフィールは、管理対象プロフィールです。管理者は、プロフィール設定をリモートで変更したり、レポートを通じてブラウザに関する情報を分析したり、その他の必要なタスクを行ったりすることができます。</translation>
@@ -255,6 +257,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2175927920773552910">QR コード</translation>
 <translation id="2184272387334793084">ログインすると、保存済みのパスワードなどをすべてのデバイスで使用できるようになります</translation>
 <translation id="218608176142494674">共有</translation>
+<translation id="2186779861549045980">Google アカウントに保存するデータを選択できます。\nこれらのデータは、ブックマーク、リーディング リスト、パスワード マネージャーで表示、管理することもできます。</translation>
 <translation id="219283042927675668">グループ内のタブ</translation>
 <translation id="2194856509914051091">留意事項</translation>
 <translation id="22091350895006575">ユーザー名を追加</translation>
@@ -263,6 +266,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2230777942707397948">空のウィンドウ</translation>
 <translation id="223356358902285214">ウェブとアプリのアクティビティ</translation>
 <translation id="2234827758954819389">プライバシー ガイド</translation>
+<translation id="2238038374973843156">グループを別のウィンドウに移動</translation>
 <translation id="2239812875700136898">Discover ボタンのオプションから記事を管理できます</translation>
 <translation id="2247789808226901522">カードの有効期限が切れています</translation>
 <translation id="2248941474044011069">Google パスワード マネージャーに保存する前にデバイス上でパスワードを暗号化します</translation>
@@ -311,7 +315,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2453860139492968684">終了</translation>
 <translation id="2461378706168271257">タブを検索</translation>
 <translation id="2461822463642141190">現在</translation>
-<translation id="2463770278804271243">ページ</translation>
 <translation id="2468444275314013497">お使いのブラウザは安全です</translation>
 <translation id="2472163211318554013">Chrome を最大限に活用するにはログインしてください</translation>
 <translation id="247737702124049222">画像の説明をオンにしました</translation>
@@ -339,7 +342,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2547843573592965873">プロフィールのロックを使用すると、Google アカウントに保存されている同期済みのパスワードやお支払い情報などを車内で安全に保護できます。</translation>
 <translation id="254973855621628293">このデバイスに保存されたパスワード</translation>
 <translation id="2566471851103108967">{FILE_COUNT,plural, =1{危険なダウンロードがブロックされました}other{# 件の危険なダウンロードがブロックされました}}</translation>
-<translation id="2567385386134582609">画像</translation>
 <translation id="2569733278091928697">メディア コントロール、シークレット モード セッション、ダウンロードなどを簡単に管理できるようになります</translation>
 <translation id="2571711316400087311">他の言語のページを Google で翻訳するか尋ねる</translation>
 <translation id="2571834852878229351">自分で作成</translation>
@@ -351,6 +353,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2593272815202181319">等幅</translation>
 <translation id="260403163289591229">フォロー中</translation>
 <translation id="2604446170045642109">このサイトのダークモードを設定でオフにできます。</translation>
+<translation id="2605017215201958293">AI でこのページを読み上げます</translation>
 <translation id="2607441479295509868">ログアウトしました。再度ログインすると、アカウントのブックマークやパスワードなどを使用できます。</translation>
 <translation id="2620314865574742210"><ph name="NAME" /> さんから共有アイテムに招待されました。</translation>
 <translation id="2625189173221582860">パスワードがコピーされました</translation>
@@ -390,6 +393,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2805756323405976993">アプリ</translation>
 <translation id="281504910091592009"><ph name="BEGIN_LINK" />Google アカウント<ph name="END_LINK" />での保存パスワードの表示と管理</translation>
 <translation id="2819849308549746319">すべてブロック</translation>
+<translation id="2820047235535485532">Google アカウント（<ph name="ACCOUNT_EMAIL" />）に保存するデータを選択できます。\nこれらのデータは、ブックマーク、リーディング リスト、パスワード マネージャーで表示、管理することもできます。</translation>
 <translation id="2826576843404243001">サイトで安全な接続がサポートされていない場合は、サイトにアクセスする前に警告が表示されます。高度な保護機能が有効になっているため、この設定は変更できません。</translation>
 <translation id="2827278682606527653">フィードカード メニューが画面の下半分に開いています</translation>
 <translation id="2830783625999891985">クリップボードの内容は非表示になっています</translation>
@@ -435,7 +439,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2977350910003566746">最終閲覧日で並べ替え</translation>
 <translation id="297771753501244313">最後に開いた日付で並べ替え</translation>
 <translation id="2979639724566107830">新しいウィンドウで開く</translation>
-<translation id="2981364137500752533">同時に開くことができるウィンドウは最大 5 つです。</translation>
 <translation id="2983102365694924129">ユーザーのウェブサイト上でのアクティビティに基づいて提案されます。この設定は無効になっています。</translation>
 <translation id="2983398917942897288">無効（<ph name="ITEM_COUNT" />）</translation>
 <translation id="2984978667043170458">Google 検索に周辺のテキストを含める</translation>
@@ -482,7 +485,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="3208584281581115441">今すぐ確認</translation>
 <translation id="3211426585530211793"><ph name="ITEM_TITLE" /> を削除しました</translation>
 <translation id="3220943972464248773">パスワードを同期するには、本人確認を行ってください</translation>
-<translation id="323213525320714789">デベロッパー</translation>
 <translation id="3232293466644486101">閲覧履歴データを削除...</translation>
 <translation id="3232754137068452469">ウェブアプリ</translation>
 <translation id="3236059992281584593">残り 1 分</translation>
@@ -497,6 +499,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="3280562213547448728">音声検索</translation>
 <translation id="3282568296779691940">Chrome にログイン</translation>
 <translation id="3285065882678541460">{TAB_COUNT,plural, =1{<ph name="TAB_GROUPS_PART" />、<ph name="TAB_COUNT_ONE" /> 個のタブ}other{<ph name="TAB_GROUPS_PART" />、<ph name="TAB_COUNT_MANY" /> 個のタブ}}</translation>
+<translation id="3286508210927575634">{PASSWORDS_COUNT,plural, =1{1 件のパスワードがこのデバイスのみに保存されています。他のデバイスで使用するには、Google アカウントに保存してください。}other{# 件のパスワードがこのデバイスのみに保存されています。他のデバイスで使用するには、Google アカウントに保存してください。}}</translation>
 <translation id="3293181007446299124">閲覧履歴はプライバシーを保つためデバイスに保存され、レポートはユーザーを特定できないように遅れて送信されます</translation>
 <translation id="3301936297336370235">パスワード候補の確認</translation>
 <translation id="3302615849591357577">「<ph name="TITLE_OF_GROUP" />」タブグループ（<ph name="COLOR_NAME" />）を新しいバックグラウンドのタブグループとして復元します。</translation>
@@ -580,6 +583,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="368329460027487650">ログアウトしています。ログインのオプションを開きます。</translation>
 <translation id="3684540848053703310">価格分析情報のボトムシートが閉じられています</translation>
 <translation id="3687645719033307815">このページのプレビューを表示しています</translation>
+<translation id="368978924030580338">{BOOKMARKS_COUNT,plural, =1{1 件のブックマークがこのデバイスのみに保存されています。他のデバイスで使用するには、Google アカウントに保存してください。}other{# 件のブックマークがこのデバイスのみに保存されています。他のデバイスで使用するには、Google アカウントに保存してください。}}</translation>
 <translation id="3692944402865947621">保存場所にアクセスできないため、<ph name="FILE_NAME" /> をダウンロードできませんでした。</translation>
 <translation id="3697705478071004188">サイトで並べ替え</translation>
 <translation id="3699022356773522638">ファイルをダウンロードしますか？</translation>
@@ -631,7 +635,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="3911609878849982353">降順で並べ替え</translation>
 <translation id="3924911262913579434"><ph name="SAFE_BROWSING_MODE" />: オン</translation>
 <translation id="3927692899758076493">Sans Serif</translation>
-<translation id="3928666092801078803">データを統合する</translation>
 <translation id="3931947361983910192">過去 4 週間</translation>
 <translation id="393697183122708255">有効な音声検索がありません</translation>
 <translation id="3950820424414687140">ログイン</translation>
@@ -671,7 +674,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="4116038641877404294">ページをダウンロードするとオフラインで使用できるようになります</translation>
 <translation id="4121654769234887259">このパスワードを覚えておく必要はありません。パスワードは、<ph name="USERNAME" /> の Google パスワード マネージャーに保存されます。</translation>
 <translation id="4124152339699379357">通知権限フローが画面全体に表示されています</translation>
-<translation id="4129668596244365470">{NUM_REVOKED_PERMISSIONS,plural, =1{Chrome はこのサイトからの通知を停止しました。通知設定は確認、管理できます。}other{Chrome はこれらのサイトからの通知を停止しました。通知設定は確認、管理できます。}}</translation>
 <translation id="4132137475637520539">リンクを使って他のユーザーが参加できるようにする</translation>
 <translation id="4135200667068010335">タブを共有するデバイスのリストが閉じられました。</translation>
 <translation id="4137746084635924146">現在のデバイスの言語</translation>
@@ -780,11 +782,11 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="4619564267100705184">本人確認</translation>
 <translation id="4624065194742029982">Chrome のシークレット モード</translation>
 <translation id="4634124774493850572">パスワードを使用</translation>
+<translation id="463471994228293091">{PASSWORDS_COUNT,plural, =1{1 件のパスワードとその他の項目がこのデバイスのみに保存されています。他のデバイスで使用するには、Google アカウントに保存してください。}other{# 件のパスワードとその他の項目がこのデバイスのみに保存されています。他のデバイスで使用するには、Google アカウントに保存してください。}}</translation>
 <translation id="4640331037679501949">{NUM_PASSWORDS,plural, =1{不正使用されたパスワード: 1 件}other{不正使用されたパスワード: # 件}}</translation>
 <translation id="4641919525231168205">次のページに移動</translation>
 <translation id="4642472735733036929">価格のトラッキングを停止しました</translation>
 <translation id="4645146721047390964">シークレット モードのとき、サイトは Cookie を使用して別のサイトでのあなたの閲覧アクティビティを確認できず、広告のカスタマイズなどを行えなくなります。一部サイトの機能が使用できなくなる可能性もあります。</translation>
-<translation id="4650364565596261010">システムのデフォルト</translation>
 <translation id="465657074423018424">セーフ ブラウジングでは不正なウェブサイトからデバイスを保護します。オフにする場合は、パスワード入力時など、ブラウジングの際は十分に気を付けてください。</translation>
 <translation id="4662373422909645029">ニックネームに数字を含めることはできません</translation>
 <translation id="4663756553811254707"><ph name="NUMBER_OF_BOOKMARKS" /> 件のブックマークを削除しました</translation>
@@ -862,6 +864,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="4913169188695071480">更新を停止</translation>
 <translation id="4925120120285606924">スクリーンショット <ph name="CURRENT_DATE_ISO" /></translation>
 <translation id="4926901776383726965">画像やファイルを保存してオフラインで表示したり、他のアプリで共有したりできます</translation>
+<translation id="492699891214363151">{BOOKMARKS_COUNT,plural, =1{1 件のブックマークとその他の項目がこのデバイスのみに保存されています。他のデバイスで使用するには、Google アカウントに保存してください。}other{# 件のブックマークとその他の項目がこのデバイスのみに保存されています。他のデバイスで使用するには、Google アカウントに保存してください。}}</translation>
 <translation id="4932247056774066048"><ph name="DOMAIN_NAME" /> で管理されているアカウントからログアウトするにあたり、Chrome データはこのデバイスから削除されます。Google アカウントからはデータは削除されません。</translation>
 <translation id="4943703118917034429">バーチャル リアリティ</translation>
 <translation id="4943872375798546930">結果はありません</translation>
@@ -872,6 +875,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="496607651705915226">Google アカウントに新しいパスワードを保存して使用するには、Google Play 開発者サービスを更新してください</translation>
 <translation id="4971753085054504448">さらに結果を表示するには、条件を変えて検索するか、Chrome の全履歴を開いてみてください。</translation>
 <translation id="497421865427891073">次に進む</translation>
+<translation id="497983151715419057">アクティブでないタブとグループをここで確認できます</translation>
 <translation id="498624032394115435">リンクを知っているユーザーは誰でも、すべてのタブを編集できます。</translation>
 <translation id="4987271110129728827">該当のページは見つかりません。つづりを確認するか、ウェブ検索をお試しください。</translation>
 <translation id="4988526792673242964">ページ</translation>
@@ -932,7 +936,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="5222676887888702881">ログアウト</translation>
 <translation id="5226378907213531272">車を使うたびに画面ロックが解除されます</translation>
 <translation id="5227554086496586518">タップして検索結果を見る</translation>
-<translation id="5229736206150093143">最新の検索結果</translation>
 <translation id="5233638681132016545">新しいタブ</translation>
 <translation id="5235196193381275927">ログイン中に問題が発生しました</translation>
 <translation id="5246093389635966745">ツールバー ショートカットの編集</translation>
@@ -983,14 +986,12 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="5454166040603940656">- <ph name="PROVIDER" /></translation>
 <translation id="5456381639095306749">ページをダウンロード</translation>
 <translation id="5458366071038729214">フォローしたサイトがここに表示されます</translation>
-<translation id="5468068603361015296"><ph name="FILE_NAME" /> のダウンロードを続行しますか？</translation>
 <translation id="5471273988133666918">タブ <ph name="TAB_TITLE" /> を移動できません</translation>
 <translation id="548278423535722844">マップアプリで開く</translation>
 <translation id="5492637351392383067">オンデバイスの暗号化</translation>
 <translation id="549660026907543296"><ph name="MEMBER_FULL_NAME" /> として参加</translation>
 <translation id="5503125329065007089">すべてのデバイスでパスワードが使用可能という通知が画面の半分に表示されています</translation>
 <translation id="5515439363601853141">パスワードを表示するにはロックを解除してください</translation>
-<translation id="5517095782334947753"><ph name="FROM_ACCOUNT" /> のブックマーク、履歴、パスワードとその他の設定を使用できます。</translation>
 <translation id="5517326820028369152">最近のアクティビティのボトムシート</translation>
 <translation id="5526281268548144413">複数のウィンドウでタブを閉じることはできません</translation>
 <translation id="5548606607480005320">安全チェック</translation>
@@ -1060,6 +1061,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="583281660410589416">不明</translation>
 <translation id="5833984609253377421">リンクを共有</translation>
 <translation id="5839058148541733625">Chrome Dino</translation>
+<translation id="5842871376175639063"><ph name="DAYS_INACTIVE" /> 日間使用していないタブとタブグループはここに移動され、<ph name="AUTODELETE_SECTION" />。この動作は [<ph name="SETTINGS_TITLE" />] でいつでも変更できます。</translation>
 <translation id="5848257610304005265"><ph name="APP_NAME" /> で PDF を開きますか？</translation>
 <translation id="5849288995120328556">共有を停止しますか？</translation>
 <translation id="5853623416121554550">一時停止中</translation>
@@ -1130,7 +1132,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="6138832295072039549">サイトの設定をここで変更</translation>
 <translation id="6140912465461743537">国 / 地域</translation>
 <translation id="6142183503755612900">既定の検索エンジンは [設定] でいつでも変更できます</translation>
-<translation id="6143892791267458416">\u0020<ph name="DAYS_ARCHIVED" /> 日後に閉じられます</translation>
 <translation id="6146563240635539929">動画</translation>
 <translation id="614890671148262506">このサイトからの通知を常に許可する</translation>
 <translation id="6150320133806434356">ブックマークを保存しました</translation>
@@ -1192,7 +1193,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="6382848304055775421">エクスポートしています</translation>
 <translation id="6388152137132427505">共有は慎重に行ってください。リンクは 48 時間で期限切れになります。</translation>
 <translation id="6394791151443660613">検索: <ph name="SEARCH_QUERY" /></translation>
-<translation id="6395288395575013217">リンク</translation>
 <translation id="6397616442223433927">オンラインに復帰</translation>
 <translation id="6399363707848566877">ここでグループにタブを簡単に追加できるようになりました</translation>
 <translation id="6401458660421980302">このタブを別のデバイスに送信するには、送信先のデバイスで Chrome にログインしてください</translation>
@@ -1232,6 +1232,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="6545017243486555795">すべてのデータを削除</translation>
 <translation id="6546511553472444032">有害なファイルの可能性があります</translation>
 <translation id="6550891580932862748">危険なウェブサイト、ダウンロード、拡張機能から保護しません。他の Google サービスのセーフ ブラウジング設定には影響しません。</translation>
+<translation id="6554822972009632311">コンテンツ フィルタはオンです</translation>
 <translation id="6556542240154580383">{TAB_COUNT,plural, =1{「<ph name="TAB_TITLE" />」と <ph name="TAB_COUNT_ONE" /> 個以上のタブが閉じられます}other{「<ph name="TAB_TITLE" />」と <ph name="TAB_COUNT_MANY" /> 個以上のタブが閉じられます}}</translation>
 <translation id="6560414384669816528">Sogou で検索します</translation>
 <translation id="656065428026159829">もっと見る</translation>
@@ -1273,7 +1274,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="670498945988402717">前回の確認: 昨日</translation>
 <translation id="6710213216561001401">前へ</translation>
 <translation id="671481426037969117"><ph name="FQDN" /> のタイマーが切れました。タイマーはまた明日開始されます。</translation>
-<translation id="6715020873764921614"><ph name="FILE_NAME" />（<ph name="FILE_SIZE" />）のダウンロードを続行しますか？</translation>
 <translation id="671928215901716392">画面をロック</translation>
 <translation id="6723740634201835758">Google アカウント</translation>
 <translation id="6734310707649923383">アクセスしたページを確認したり履歴から削除したりできます</translation>
@@ -1320,13 +1320,13 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="687838958001010630">リンクを知っているユーザーは誰でも、すべてのタブを編集できます</translation>
 <translation id="6880903702195291049">権限に問題は見受けられません</translation>
 <translation id="6883204995689174413">共有</translation>
+<translation id="6883264411109586397">{ITEMS_COUNT,plural, =1{1 件の項目がこのデバイスのみに保存されています。他のデバイスで使用するには、Google アカウントに保存してください。}other{# 件の項目がこのデバイスのみに保存されています。他のデバイスで使用するには、Google アカウントに保存してください。}}</translation>
 <translation id="6883606786470492001">広告トピックやその他の設定を管理して、パーソナライズド広告を表示するサイトがユーザーについて把握できる情報を制限します</translation>
 <translation id="6883906387682976294">このサイトからの通知をブロックする</translation>
 <translation id="688398477366397178">お使いの言語を指定すると、可能な場合はウェブサイトのコンテンツが指定した言語で表示されます。</translation>
 <translation id="6885933993535178919">{NUM_SITES,plural, =1{1 件のサイトの登録を解除しました}other{# 件のサイトの登録を解除しました}}</translation>
 <translation id="6886500155621657325">{ITEMS_COUNT,plural, =1{1 件のパスワード}other{# 件のパスワード}}</translation>
 <translation id="688730033107341407">ログアウトすると、Google アカウントのブックマークやパスワードなどの設定がこのデバイスから削除されます。</translation>
-<translation id="688738109438487280">既存のデータを <ph name="TO_ACCOUNT" /> に追加します。</translation>
 <translation id="6891726759199484455">パスワードをコピーするにはロックを解除してください</translation>
 <translation id="6896758677409633944">コピー</translation>
 <translation id="6898797562238201317">独自のパスフレーズを使用して Google アカウントの Chrome データをすべて暗号化する</translation>
@@ -1378,6 +1378,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="7088681679121566888">Chrome は最新の状態です</translation>
 <translation id="7106762743910369165">お使いのブラウザは組織によって管理されています</translation>
 <translation id="7111394291981742152">Chrome では、表示される広告を細かく管理でき、サイトがパーソナライズド広告を表示する際にユーザーについて把握できる情報も制限されます。</translation>
+<translation id="7115358764509798967">システムのデフォルト</translation>
 <translation id="7117485132243600300">フォローしているコンテンツ、おすすめのトピックと検索候補を管理します</translation>
 <translation id="7136902389402789299">{NUM_SITES,plural, =1{1 件のサイトの権限を確認しました}other{# 件のサイトの権限を確認しました}}</translation>
 <translation id="7138678301420049075">その他</translation>
@@ -1388,6 +1389,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="71503698506017927">Google Pay のお支払い方法と住所は、パスフレーズによる暗号化の対象には含まれません。
 
 この設定を変更するには、<ph name="BEGIN_LINK" />アカウントの Chrome データを削除<ph name="END_LINK" />します。</translation>
+<translation id="7165972437814027679">Chrome で一部のファイルがブロックされる理由の詳細</translation>
 <translation id="7168323970702333693"><ph name="USER_NAME" /> としてログインしています。設定を開きます。</translation>
 <translation id="7173114856073700355">設定を開く</translation>
 <translation id="7173338713290252554">ウェブ全体での価格の推移</translation>
@@ -1407,6 +1409,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="7224097611345298931">このデバイスのみに保存されている Chrome および <ph name="CHROME_CHANNEL" /> のすべてのパスワードが統合されました。どちらのアプリでも、保存されているすべてのパスワードを自動入力できます。</translation>
 <translation id="7227218174981371415">{FILE_COUNT,plural, =1{1 件のダウンロードが保留中です}other{# 件のダウンロードが保留中です}}</translation>
 <translation id="7230064152164845085">シークレット モードに切り替え</translation>
+<translation id="7230836263524391273">リーディング モードを非表示</translation>
 <translation id="7237724030342645845">Google パスワード マネージャーが動作を停止しました</translation>
 <translation id="72415438529550637">パスワードの候補が閉じられています。</translation>
 <translation id="7248671827512403053">アプリケーション</translation>
@@ -1425,6 +1428,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="7304873321153398381">オフラインです。Chrome でパスワードを確認できません。</translation>
 <translation id="7313188324932846546">タップして同期を設定する</translation>
 <translation id="7314734791127433392">パスワードを確認できません</translation>
+<translation id="7322804416315419767">{INACTIVE_TIME_DAYS,plural, =1{タブとタブグループは 1 日以上使用されていません}other{タブとタブグループは # 日以上使用されていません}}</translation>
 <translation id="7324354302972299151">「Do Not Track」リクエストを送信する</translation>
 <translation id="7333041109965360609">通知への登録を解除しました</translation>
 <translation id="7336259382292148213">通知に問題は見受けられません</translation>
@@ -1432,7 +1436,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="7340958967809483333">Discover のオプション</translation>
 <translation id="7352339641508007922">ロング スクリーンショットを撮るにはドラッグしてください</translation>
 <translation id="7352651011704765696">問題が発生しました</translation>
-<translation id="7352939065658542140">動画</translation>
 <translation id="7353894246028566792">{NUM_SELECTED,plural, =1{1 件の選択されたアイテムを共有します}other{# 件の選択されたアイテムを共有します}}</translation>
 <translation id="7359002509206457351">お支払い方法へのアクセス</translation>
 <translation id="7363349185727752629">プライバシー設定のガイド</translation>
@@ -1609,7 +1612,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8062594758852531064">拡張プリロード:</translation>
 <translation id="8063895661287329888">ブックマークを追加できませんでした。</translation>
 <translation id="8066816452984416180">このページをブックマークに簡単に追加できます。このショートカットを編集するには、長押ししてください。</translation>
-<translation id="806745655614357130">データを別に保持する</translation>
 <translation id="8073388330009372546">新しいタブで画像を開く</translation>
 <translation id="8076492880354921740">タブ</translation>
 <translation id="8078096376109663956">テキストのみを共有</translation>
@@ -1637,6 +1639,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8137562778192957619">このパスワードを覚えておく必要はありません。パスワードは Google パスワード マネージャーに保存されます。</translation>
 <translation id="8152331954420209374">レンズに移動</translation>
 <translation id="8163820386638255770">Google アカウントでパスワードを使用、保存するには、本人確認を行ってください</translation>
+<translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{（1 個）アクティブでないアイテム}other{（# 個）アクティブでないアイテム}}</translation>
 <translation id="8186512483418048923">残り <ph name="FILES" /> ファイル</translation>
 <translation id="8190358571722158785">残り 1 日</translation>
 <translation id="8192765420340770300">ログインのボトムシートが画面全体に表示されています</translation>
@@ -1684,7 +1687,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8361737703487394103">特定のタブに移動する（1～8）</translation>
 <translation id="8368001212524806591">価格のトラッキング</translation>
 <translation id="8368772330826888223">{TAB_GROUP_COUNT,plural, =1{<ph name="TAB_GROUPS_ONE" /> 個のタブグループ}other{<ph name="TAB_GROUPS_MANY" /> 個のタブグループ}}</translation>
-<translation id="8378850197701296741"><ph name="FROM_ACCOUNT" /> のブックマーク、履歴、その他の設定を使用できます。</translation>
 <translation id="8387617938027387193">本人確認</translation>
 <translation id="8393700583063109961">メッセージを送信</translation>
 <translation id="8396098434728053815">タブの音声も共有する</translation>
@@ -1705,6 +1707,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8439974325294139057"><ph name="LANG" /> - 言語を使用できるようになりました。<ph name="APP_NAME" /> を再起動してください。</translation>
 <translation id="8442258441309440798">表示できる記事はありません</translation>
 <translation id="8443209985646068659">Chrome を更新できません</translation>
+<translation id="8443600937324357591">タブを別のウィンドウに移動</translation>
 <translation id="8445448999790540984">パスワードをエクスポートできません</translation>
 <translation id="8446884382197647889">詳細</translation>
 <translation id="8449781591250785734">{NUM_SITES,plural, =1{1 件のサイトから権限を削除しました}other{# 件のサイトから権限を削除しました}}</translation>
@@ -1731,7 +1734,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8533670235862049797">セーフ ブラウジングはオンになっています</translation>
 <translation id="8540136935098276800">正しい形式の URL を入力してください</translation>
 <translation id="854522910157234410">このページを開く</translation>
-<translation id="8547025137714087639">{ARCHIVED_TAB_COUNT,plural, =1{アクティブでないタブ（1 個）}other{アクティブでないタブ（# 個）}}</translation>
 <translation id="8547466829003330976">AI を使用して PDF をレビュー</translation>
 <translation id="855081842937141170">タブを固定</translation>
 <translation id="8551513938758868521">Chrome を終了するときにシークレット タブをロックする</translation>
@@ -1769,6 +1771,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8699120352855309748">これらの言語を翻訳するか尋ねない</translation>
 <translation id="8712637175834984815">理解した</translation>
 <translation id="8715286883001906001">Google アカウントのパスワードを強化する</translation>
+<translation id="8715300232952757586"><ph name="TAB_TITLE" /> を閉じます</translation>
 <translation id="8723453889042591629">このページをすばやく翻訳します。このショートカットを編集するには、長押ししてください。</translation>
 <translation id="8725066075913043281">もう一度試す</translation>
 <translation id="8731268612289859741">セキュリティ コード</translation>

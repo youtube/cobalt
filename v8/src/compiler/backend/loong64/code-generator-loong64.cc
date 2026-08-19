@@ -898,6 +898,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchNop:
       // don't emit code for nops.
       break;
+    case kArchPause:
+      __ ibar(0);
+      break;
     case kArchDeoptimize: {
       DeoptimizationExit* exit =
           BuildTranslation(instr, -1, 0, 0, OutputFrameStateCombine::Ignore());
@@ -982,12 +985,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchAtomicStoreWithWriteBarrier: {
+      DCHECK_EQ(AddressingModeField::decode(instr->opcode()), kMode_MRR);
       MacroAssembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
       Register object = i.InputRegister(0);
-      int64_t offset = i.InputInt64(1);
+      Register offset = i.InputRegister(1);
       Register value = i.InputRegister(2);
 
       auto ool = zone()->New<OutOfLineRecordWrite>(
@@ -2062,6 +2066,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64Word64AtomicCompareExchangeUint64:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_d, Sc_d);
       break;
+    case kAtomicCompareExchangeWithWriteBarrier: {
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        __ slli_w(i.InputRegister(2), i.InputRegister(2), 0);
+        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_w, Sc_w);
+        // Contrary to x64, the instruction sequence we emit on loong64 always
+        // writes an uncompressed value into the output register, so we can
+        // unconditionally decompress it.
+        __ Bstrpick_d(i.OutputRegister(), i.OutputRegister(), 31, 0);
+        __ add_d(i.OutputRegister(), i.OutputRegister(),
+                 kPtrComprCageBaseRegister);
+      } else {
+        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_d, Sc_d);
+      }
+      if (v8_flags.disable_write_barriers) break;
+      // Emit the write barrier.
+      Register object = i.InputRegister(0);
+      Register offset = i.InputRegister(1);
+      Register new_value = i.InputRegister(3);
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, Operand(offset), new_value,
+          RecordWriteMode::kValueIsAny, DetermineStubCallMode());
+      __ JumpIfSmi(new_value, ool->exit());
+      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
+                       ne, ool->entry());
+      __ bind(ool->exit());
+      break;
+    }
     case kAtomicAddWord32:
       switch (AtomicWidthField::decode(opcode)) {
         case AtomicWidth::kWord32:
@@ -2461,9 +2492,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   }
 }
 
-void CodeGenerator::AssembleArchConditionalBoolean(Instruction* instr) {
+#if V8_ENABLE_WEBASSEMBLY
+void CodeGenerator::AssembleArchConditionalTrap(Instruction* instr,
+                                                FlagsCondition condition) {
   UNREACHABLE();
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   Loong64OperandConverter i(this, instr);
@@ -2620,7 +2654,8 @@ void CodeGenerator::AssembleConstructFrame() {
             WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
             Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
                     CommonFrameConstants::kFixedFrameSizeAboveFp));
-        __ CallBuiltin(Builtin::kWasmHandleStackOverflow);
+        __ Call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
+                RelocInfo::WASM_STUB_CALL);
         __ MultiPopFPU(fp_regs_to_save);
         __ MultiPop(regs_to_save);
       } else {

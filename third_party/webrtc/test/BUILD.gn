@@ -164,6 +164,7 @@ rtc_library("create_test_field_trials") {
   sources = [ "create_test_field_trials.h" ]
   deps = [
     "../api:field_trials",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 
@@ -221,7 +222,6 @@ rtc_library("video_test_common") {
     ":create_frame_generator_capturer",
     ":fileutils",
     ":frame_utils",
-    ":scoped_key_value_config",
     ":test_video_capturer",
     "../api:array_view",
     "../api:create_frame_generator",
@@ -315,7 +315,6 @@ if (!build_with_chromium) {
         "vcm_capturer.h",
       ]
       deps += [
-        ":scoped_key_value_config",
         "../api:scoped_refptr",
         "../modules/video_capture:video_capture_module",
         "../rtc_base:checks",
@@ -348,44 +347,6 @@ rtc_library("rtp_test_utils") {
     "../rtc_base:timeutils",
     "../rtc_base/synchronization:mutex",
     "../rtc_base/system:arch",
-    "//third_party/abseil-cpp/absl/strings:string_view",
-  ]
-}
-
-rtc_library("field_trial") {
-  testonly = true
-  visibility = [ "*" ]
-  sources = [
-    "field_trial.cc",
-    "field_trial.h",
-  ]
-
-  deps = [
-    "../rtc_base:checks",
-    "../system_wrappers:field_trial",
-    "//third_party/abseil-cpp/absl/strings:string_view",
-  ]
-}
-
-rtc_library("explicit_key_value_config") {
-  sources = [ "explicit_key_value_config.h" ]
-
-  deps = [ "../api:field_trials" ]
-}
-
-rtc_library("scoped_key_value_config") {
-  testonly = true
-  visibility = [ "*" ]
-  sources = [
-    "scoped_key_value_config.cc",
-    "scoped_key_value_config.h",
-  ]
-
-  deps = [
-    ":field_trial",
-    "../api:field_trials_registry",
-    "../rtc_base:checks",
-    "../system_wrappers:field_trial",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
@@ -635,7 +596,6 @@ if (rtc_include_tests) {
       ]
 
       deps = [
-        ":field_trial",
         ":fileutils",
         ":perf_test",
         ":resources_dir_flag",
@@ -653,7 +613,6 @@ if (rtc_include_tests) {
         "../rtc_base:logging",
         "../rtc_base:ssl_adapter",
         "../rtc_base:threading",
-        "../system_wrappers:field_trial",
         "../system_wrappers:metrics",
         "//third_party/abseil-cpp/absl/flags:flag",
         "//third_party/abseil-cpp/absl/memory",
@@ -752,7 +711,6 @@ if (rtc_include_tests) {
         ":rtc_expect_death",
         ":rtp_test_utils",
         ":run_loop",
-        ":scoped_key_value_config",
         ":test_main",
         ":test_support",
         ":test_support_test_artifacts",
@@ -1312,13 +1270,7 @@ if (!build_with_chromium) {
       "test_flags.h",
     ]
 
-    # TODO: bugs.webrtc.org/419453427 - remove dependency on
-    # `create_test_field_trials` when force_fieldtrials flags declaration
-    # is removed from the header.
-    deps = [
-      ":create_test_field_trials",
-      "//third_party/abseil-cpp/absl/flags:flag",
-    ]
+    deps = [ "//third_party/abseil-cpp/absl/flags:flag" ]
   }
 
   rtc_library("test_common") {
@@ -1334,6 +1286,7 @@ if (!build_with_chromium) {
     ]
 
     deps = [
+      ":create_test_field_trials",
       ":direct_transport",
       ":encoder_settings",
       ":fake_video_codecs",
@@ -1341,7 +1294,6 @@ if (!build_with_chromium) {
       ":frame_generator_capturer",
       ":mock_transport",
       ":run_loop",
-      ":scoped_key_value_config",
       ":test_flags",
       ":test_support",
       ":test_video_capturer",
@@ -1351,6 +1303,7 @@ if (!build_with_chromium) {
       "../api:array_view",
       "../api:create_frame_generator",
       "../api:fec_controller_api",
+      "../api:field_trials",
       "../api:frame_generator_api",
       "../api:network_state_predictor_api",
       "../api:rtp_headers",

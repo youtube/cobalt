@@ -30,6 +30,7 @@
 #include "absl/time/time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
@@ -154,8 +155,8 @@ class MoqtIngestionHandler {
         absl::StrSplit(track_list, ',', absl::AllowEmpty());
     for (absl::string_view track : tracks_to_subscribe) {
       FullTrackName full_track_name(track_namespace, track);
-      session_->JoiningFetch(full_track_name, &it->second, 0,
-                             VersionSpecificParameters());
+      session_->RelativeJoiningFetch(full_track_name, &it->second, 0,
+                                     VersionSpecificParameters());
     }
 
     return std::nullopt;
@@ -180,13 +181,12 @@ class MoqtIngestionHandler {
     void OnCanAckObjects(MoqtObjectAckFunction) override {}
 
     void OnObjectFragment(const FullTrackName& full_track_name,
-                          Location sequence,
-                          MoqtPriority /*publisher_priority*/,
-                          MoqtObjectStatus /*status*/, absl::string_view object,
+                          const PublishedObjectMetadata& metadata,
+                          absl::string_view object,
                           bool /*end_of_message*/) override {
       std::string file_name =
-          absl::StrCat(sequence.group, "-", sequence.object, ".",
-                       full_track_name.track_namespace().tuple().back());
+          absl::StrCat(metadata.location.group, "-", metadata.location.object,
+                       ".", full_track_name.track_namespace().tuple().back());
       std::string file_path = quiche::JoinPath(directory_, file_name);
       std::ofstream output(file_path, std::ios::binary | std::ios::ate);
       output.write(object.data(), object.size());

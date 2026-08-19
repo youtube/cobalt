@@ -16,10 +16,10 @@ import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
 import type {BrowserProxy} from '../browser_proxy.js';
 import {ContentSettingsType} from '../content_settings_types.mojom-webui.js';
-import type {FocusedTabData as FocusedTabDataMojo, GetTabContextOptionsMojoType as TabContextOptionsMojo, OpenPanelInfo as OpenPanelInfoMojo, OpenSettingsOptions as OpenSettingsOptionsMojo, PanelOpeningData as PanelOpeningDataMojo, PanelState as PanelStateMojo, ScrollToSelector as ScrollToSelectorMojo, TabContextMojoType as TabContextMojo, TabData as TabDataMojo, WebClientHandlerInterface, WebClientInterface} from '../glic.mojom-webui.js';
+import type {FocusedTabData as FocusedTabDataMojo, GetPinCandidatesOptionsMojoType as GetPinCandidatesOptionsMojo, GetTabContextOptionsMojoType as TabContextOptionsMojo, OpenPanelInfo as OpenPanelInfoMojo, OpenSettingsOptions as OpenSettingsOptionsMojo, PanelOpeningData as PanelOpeningDataMojo, PanelState as PanelStateMojo, ScrollToSelector as ScrollToSelectorMojo, TabContextMojoType as TabContextMojo, TabData as TabDataMojo, WebClientHandlerInterface, WebClientInterface, ZeroStateSuggestionsOptions as ZeroStateSuggestionsOptionsMojo, ZeroStateSuggestionsV2 as ZeroStateSuggestionsV2Mojo} from '../glic.mojom-webui.js';
 import {SettingsPageField as SettingsPageFieldMojo, WebClientHandlerRemote, WebClientMode, WebClientReceiver, WebClientSizingMode} from '../glic.mojom-webui.js';
-import type {ActInFocusedTabParams, DraggableArea, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, Screenshot, ScrollToParams, TabContextOptions, WebPageData, ZeroStateSuggestions} from '../glic_api/glic_api.js';
-import {ActInFocusedTabErrorReason, CaptureScreenshotErrorReason, DEFAULT_INNER_TEXT_BYTES_LIMIT, DEFAULT_PDF_SIZE_LIMIT, ScrollToErrorReason} from '../glic_api/glic_api.js';
+import type {ActInFocusedTabParams, DraggableArea, GetPinCandidatesOptions, Journal, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, Screenshot, ScrollToParams, TabContextOptions, WebPageData, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import {ActInFocusedTabErrorReason, CaptureScreenshotErrorReason, CreateTaskErrorReason, DEFAULT_INNER_TEXT_BYTES_LIMIT, DEFAULT_PDF_SIZE_LIMIT, PerformActionsErrorReason, ScrollToErrorReason} from '../glic_api/glic_api.js';
 import {ObservableValue} from '../observable.js';
 import type {ObservableValueReadOnly} from '../observable.js';
 import {OneShotTimer} from '../timer.js';
@@ -222,6 +222,14 @@ class WebClientImpl implements WebClientInterface {
         'glicWebClientNotifyPinnedTabDataChanged',
         {tabData: tabDataToClient(tabData, extras)}, extras.transfers);
   }
+
+  notifyZeroStateSuggestionsChanged(
+      suggestions: ZeroStateSuggestionsV2Mojo,
+      options: ZeroStateSuggestionsOptionsMojo): void {
+    this.sender.requestNoResponse(
+        'glicWebClientZeroStateSuggestionsChanged',
+        {suggestions: suggestions, options: options});
+  }
 }
 
 // Handles all requests to the host.
@@ -387,6 +395,40 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     return {effectiveMax};
   }
 
+  async glicBrowserCreateTask(_request: void): Promise<{taskId: number}> {
+    try {
+      const taskId = await this.handler.createTask();
+      return {
+        taskId: taskId,
+      };
+    } catch (errorReason) {
+      throw new ErrorWithReasonImpl(
+          'createTask',
+          (errorReason as CreateTaskErrorReason | undefined) ??
+              CreateTaskErrorReason.UNKNOWN);
+    }
+  }
+
+  async glicBrowserPerformActions(request: {actions: ArrayBuffer}):
+      Promise<{actionsResult: ArrayBuffer}> {
+    try {
+      const resultProto = await this.handler.performActions(
+          byteArrayFromClient(request.actions));
+      const buffer = getArrayBufferFromBigBuffer(resultProto.smuggled);
+      if (!buffer) {
+        throw PerformActionsErrorReason.UNKNOWN;
+      }
+      return {
+        actionsResult: buffer,
+      };
+    } catch (errorReason) {
+      throw new ErrorWithReasonImpl(
+          'performActions',
+          (errorReason as PerformActionsErrorReason | undefined) ??
+              PerformActionsErrorReason.UNKNOWN);
+    }
+  }
+
   async glicBrowserActInFocusedTab(
       request: {actInFocusedTabParams: ActInFocusedTabParams},
       extras: ResponseExtras):
@@ -550,8 +592,62 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     this.handler.onSessionTerminated();
   }
 
+  glicBrowserLogBeginAsyncEvent(request: {
+    asyncEventId: number,
+    taskId: number,
+    event: string,
+    details: string,
+  }): void {
+    this.handler.logBeginAsyncEvent(
+        BigInt(request.asyncEventId), request.taskId, request.event,
+        request.details);
+  }
+
+  glicBrowserLogEndAsyncEvent(request: {asyncEventId: number, details: string}):
+      void {
+    this.handler.logEndAsyncEvent(
+        BigInt(request.asyncEventId), request.details);
+  }
+
+  glicBrowserLogInstantEvent(
+      request: {taskId: number, event: string, details: string}): void {
+    this.handler.logInstantEvent(
+        request.taskId, request.event, request.details);
+  }
+
+  glicBrowserJournalClear(): void {
+    this.handler.journalClear();
+  }
+
+  async glicBrowserJournalSnapshot(
+      request: {clear: boolean},
+      extras: ResponseExtras): Promise<{journal: Journal}> {
+    const result = await this.handler.journalSnapshot(request.clear);
+    const journalArray = new Uint8Array(result.journal.data);
+    extras.addTransfer(journalArray.buffer);
+    return {
+      journal: {
+        data: journalArray.buffer,
+      },
+    };
+  }
+
+  glicBrowserJournalStart(
+      request: {maxBytes: number, captureScreenshots: boolean}): void {
+    this.handler.journalStart(
+        BigInt(request.maxBytes), request.captureScreenshots);
+  }
+
+  glicBrowserJournalStop(): void {
+    this.handler.journalStop();
+  }
+
   glicBrowserOnResponseRated(request: {positive: boolean}): void {
     this.handler.onResponseRated(request.positive);
+  }
+
+  glicBrowserOnClosedCaptionsShown(): void {
+    this.handler.onClosedCaptionsShown();
   }
 
   async glicBrowserScrollTo(request: {params: ScrollToParams}) {
@@ -660,6 +756,18 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     this.handler.unpinAllTabs();
   }
 
+  async glicBrowserGetPinCandidates(
+      request: {
+        options: GetPinCandidatesOptions,
+      },
+      extras: ResponseExtras): Promise<{candidates: TabDataPrivate[]}> {
+    const result = await this.handler.getPinCandidates(
+        getPinCandidatesOptionsFromClient(request.options));
+    return {
+      candidates: result.candidates.map((x) => tabDataToClient(x, extras)),
+    };
+  }
+
   async glicBrowserGetZeroStateSuggestionsForFocusedTab(request: {
     isFirstRun?: boolean,
   }): Promise<{suggestions?: ZeroStateSuggestions}> {
@@ -680,6 +788,25 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     }
   }
 
+  async glicBrowserGetZeroStateSuggestionsAndSubscribe(request: {
+    hasActiveSubscription: boolean,
+    options: ZeroStateSuggestionsOptions,
+  }): Promise<{suggestions?: ZeroStateSuggestionsV2}> {
+    const zeroStateResult =
+        await this.handler.getZeroStateSuggestionsAndSubscribe(
+            request.hasActiveSubscription, {
+              isFirstRun: request.options.isFirstRun ?? false,
+              supportedTools: request.options.supportedTools ?? [],
+            });
+    const zeroStateData = zeroStateResult.zeroStateSuggestions;
+    if (!zeroStateData) {
+      return {};
+    } else {
+      return {
+        suggestions: {suggestions: zeroStateData.suggestions},
+      };
+    }
+  }
   glicBrowserDropScrollToHighlight(): void {
     this.handler.dropScrollToHighlight();
   }
@@ -1062,6 +1189,11 @@ function tabDataToClient(tabData: TabDataMojo|null, extras: ResponseExtras):
     }
   }
 
+  let faviconUrl: string|undefined = undefined;
+  if (tabData.faviconUrl) {
+    faviconUrl = urlToClient(tabData.faviconUrl);
+  }
+
   const isObservable = optionalToClient(tabData.isObservable);
   return {
     tabId: tabIdToClient(tabData.tabId),
@@ -1069,6 +1201,7 @@ function tabDataToClient(tabData: TabDataMojo|null, extras: ResponseExtras):
     url: urlToClient(tabData.url),
     title: optionalToClient(tabData.title),
     favicon,
+    faviconUrl,
     documentMimeType: tabData.documentMimeType,
     isObservable,
   };
@@ -1248,6 +1381,15 @@ function tabContextOptionsFromClient(options: TabContextOptions):
     pdfSizeLimit: options.pdfSizeLimit === undefined ?
         DEFAULT_PDF_SIZE_LIMIT :
         Math.min(Number.MAX_SAFE_INTEGER, options.pdfSizeLimit),
+  };
+}
+
+// Taken from mojo_type_utils.ts
+function getPinCandidatesOptionsFromClient(options: GetPinCandidatesOptions):
+    GetPinCandidatesOptionsMojo {
+  return {
+    maxCandidates: options.maxCandidates,
+    query: options.query ?? null,
   };
 }
 

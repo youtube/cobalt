@@ -604,7 +604,7 @@ DEFINE_BOOL(maglev_cons_string_elision, true,
 DEFINE_BOOL(maglev_pretenure_store_values, true,
             "Recursively pretenure values which are stored into pretenured "
             "allocation sites.")
-DEFINE_BOOL(maglev_poly_calls, false, "Support (inlining) polymorphic calls")
+DEFINE_BOOL(maglev_poly_calls, true, "Support (inlining) polymorphic calls")
 DEFINE_EXPERIMENTAL_FEATURE(maglev_truncation, "Enable Maglev truncation pass")
 DEFINE_BOOL(trace_maglev_truncation, false, "Trace Maglev truncation pass")
 DEFINE_EXPERIMENTAL_FEATURE(maglev_licm, "loop invariant code motion")
@@ -613,9 +613,6 @@ DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_escape_analysis)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_licm)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_truncation)
-// This might be too big of a hammer but we must prohibit moving the C++
-// trampolines while we are executing a C++ code.
-DEFINE_NEG_IMPLICATION(maglev_inline_api_calls, compact_code_space_with_stack)
 
 DEFINE_UINT(
     concurrent_maglev_max_threads, 2,
@@ -726,9 +723,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "strings.")
 
 #ifdef V8_TARGET_ARCH_64_BIT
-DEFINE_BOOL(additive_safe_int_feedback, false,
+DEFINE_BOOL(additive_safe_int_feedback, true,
             "Enable the use of AdditiveSafeInteger feedback")
-DEFINE_WEAK_IMPLICATION(future, additive_safe_int_feedback)
 // Additive safe ints are only used by TurboFan.
 DEFINE_NEG_IMPLICATION(jitless, additive_safe_int_feedback)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, additive_safe_int_feedback)
@@ -1216,7 +1212,7 @@ DEFINE_BOOL(maglev_overwrite_budget, false,
 DEFINE_WEAK_IMPLICATION(maglev, maglev_overwrite_budget)
 DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, maglev_overwrite_budget)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_overwrite_budget,
-                              invocation_count_for_turbofan, 12000)
+                              invocation_count_for_turbofan, 16000)
 DEFINE_BOOL(maglev_overwrite_osr_budget, false,
             "whether maglev resets the OSR interrupt budget")
 DEFINE_WEAK_IMPLICATION(maglev_osr, maglev_overwrite_osr_budget)
@@ -1409,6 +1405,7 @@ DEFINE_INT(max_optimized_bytecode_size, 60 * KB,
            "be considered for turbofan optimization; too high values may cause "
            "the compiler to hit (release) assertions")
 DEFINE_FLOAT(min_inlining_frequency, 0.15, "minimum frequency for inlining")
+DEFINE_WEAK_VALUE_IMPLICATION(maglev, min_inlining_frequency, 0.05)
 DEFINE_BOOL(stress_inline, false,
             "set high thresholds for inlining to inline as much as possible")
 DEFINE_VALUE_IMPLICATION(stress_inline, max_inlined_bytecode_size, 999999)
@@ -2075,6 +2072,8 @@ DEFINE_BOOL(drumbrake_super_instructions, true,
             "enable drumbrake merged wasm instructions optimization")
 DEFINE_BOOL(drumbrake_register_optimization, true,
             "enable passing the top stack value in a register in drumbrake")
+DEFINE_BOOL(drumbrake_fuzzing_mode, false,
+            "enable drumbrake fuzzer mode (for testing)")
 
 // Directly interpret asm.js code as regular JavaScript code, instead of
 // translating it to Wasm bytecode first and then interpreting that with
@@ -2362,12 +2361,6 @@ DEFINE_BOOL(compact_on_every_full_gc, false,
             "Perform compaction on every full GC")
 DEFINE_BOOL(compact_with_stack, true,
             "Perform compaction when finalizing a full GC with stack")
-DEFINE_BOOL(
-    compact_code_space_with_stack, true,
-    "Perform code space compaction when finalizing a full GC with stack")
-// Disabling compaction with stack implies also disabling code space compaction
-// with stack.
-DEFINE_NEG_NEG_IMPLICATION(compact_with_stack, compact_code_space_with_stack)
 DEFINE_BOOL(shortcut_strings_with_stack, true,
             "Shortcut Strings during GC with stack")
 DEFINE_BOOL(stress_compaction, false,
@@ -2402,6 +2395,8 @@ DEFINE_BOOL(stress_per_context_marking_worklist, false,
 DEFINE_BOOL(stress_incremental_marking, false,
             "force incremental marking for small heaps and run it more often")
 
+DEFINE_BOOL(memory_pool, true,
+            "Pool memory globally before returning it to the operating system")
 DEFINE_BOOL(
     memory_pool_share_memory_on_teardown, true,
     "Share memory on Isolate teardown using other Isolate's task runners")
@@ -2416,6 +2411,7 @@ DEFINE_INT(large_page_pool_timeout, 3,
            "Release pooled large pages after X seconds.")
 DEFINE_BOOL(managed_zone_memory, false,
             "Manage zone memory in V8 instead of using malloc().")
+DEFINE_NEG_NEG_IMPLICATION(memory_pool, managed_zone_memory)
 
 DEFINE_BOOL(fuzzer_gc_analysis, false,
             "prints number of allocations and enables analysis mode for gc "
@@ -3066,6 +3062,25 @@ DEFINE_BOOL(
 //
 // Sandbox-related flags.
 //
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+DEFINE_BOOL(
+    strict_pkey_sandbox, false,
+    "Enable strict pkey-based hardware sandboxing for the V8 Sandbox. When "
+    "this is enabled, sandboxed code does not have write access to any "
+    "out-of-sandbox memory, except for \"sandbox extension\" memory "
+    "specifically marked as such. Under the hood, this works by removing write "
+    "access to the default pkey (key zero) in sandboxed execution mode. This "
+    "currently only works on x64 Linux and might require additional "
+    "workarounds: `LD_BIND_NOW=1` to avoid lazy resolving of imported "
+    "functions which would cause a write to out-of-sandbox memory (the GOT), "
+    "`GLIBC_TUNABLES=glibc.pthread.rseq=0` to disable rseq which is "
+    "incompatible with code running without write access to the default pkey "
+    "(otherwise, the kernel will attempt to write to thread-local storage "
+    "during context switches, which would segfault due to missing pkey "
+    "permissions). NOTE: this is an experimental proot-of-concept feature and "
+    "not meant for production use.")
+#endif
+
 #ifdef V8_ENABLE_SANDBOX
 DEFINE_BOOL(sandbox_testing, false,
             "Enable sandbox testing mode. This exposes the memory corruption "
@@ -3129,7 +3144,6 @@ DEFINE_BOOL(freeze_flags_after_init, true,
 #endif
 DEFINE_BOOL(cet_compatible, V8_CET_SHADOW_STACK_BOOL,
             "Generate Intel CET compatible code")
-DEFINE_NEG_IMPLICATION(cet_compatible, compact_code_space_with_stack)
 
 // mksnapshot.cc
 DEFINE_STRING(embedded_src, nullptr,

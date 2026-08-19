@@ -8,6 +8,10 @@
 #include "src/base/platform/platform.h"
 #include "src/flags/flags.h"
 
+#ifdef V8_OS_LINUX
+#include <sys/utsname.h>
+#endif  // V8_OS_LINUX
+
 namespace v8 {
 namespace internal {
 
@@ -34,19 +38,55 @@ bool SandboxHardwareSupport::IsActive() {
 }
 
 // static
-void SandboxHardwareSupport::RegisterSandboxMemory(Address addr, size_t size) {
+bool SandboxHardwareSupport::IsStrict() {
+  // In strict sandboxing mode, sandboxed code does not have access to any
+  // out-of-sandbox memory (except for "sandbox extension" memory). This is
+  // achieved by using the default pkey as out-of-sandbox pkey.
+  return out_of_sandbox_pkey_ ==
+         base::MemoryProtectionKey::kDefaultProtectionKey;
+}
+
+// static
+void SandboxHardwareSupport::EnableForCurrentThread() {
   if (!IsActive()) return;
 
-  CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
-      {addr, size}, v8::PageAllocator::Permission::kNoAccess, sandbox_pkey_));
+  // Per-thread setup is only required if the strict sandboxing mode is used.
+  if (!IsStrict()) return;
+
+  // TODO(350324877): it would be nice if we could guard against multi-enabling
+  // here. That should be easy if we ever need per-thread data for hardware
+  // sandboxing, for example the address of the thread's untrusted stack.
+
+  // Signal handlers may run without access to any non-default pkeys (for
+  // example on older Linux kernels). As such, they must all be registered with
+  // SA_ONSTACK and we must have an alternative stack available. Otherwise,
+  // they will immediately segfault as they cannot access stack memory.
+  // Note: this should happen before we assign a pkey to the stack below in
+  // case a signal is ever delivered between these two operations.
+  base::OS::EnsureAlternativeSignalStackIsAvailableForCurrentThread();
+
+  // We only need to set a pkey on stack memory in strict sandboxing mode.
+  //
+  // Note: we need an alternative stack in any case as for example Wasm stacks
+  // always use the sandbox extension PKEY and so a signal handler would not
+  // have access to them.
+  if (!IsStrict()) return;
+
+  // The current hardware sandboxing prototype still requires full write access
+  // to the regular stack in sandboxed mode. To support that, we need to assign
+  // the extension_pkey_ to it here.
+  // Note: this is unsafe. For any production use, we'd probably need to use
+  // untrusted stacks. See https://crbug.com/428680013.
+  CHECK(
+      base::MemoryProtectionKey::SetKeyForCurrentThreadsStack(extension_pkey_));
 }
 
 void SandboxHardwareSupport::RegisterOutOfSandboxMemory(
-    Address addr, size_t size, PageAllocator::Permission page_permission) {
+    Address addr, size_t size, PagePermissions permissions) {
   if (!IsActive()) return;
 
   CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
-      {addr, size}, page_permission, out_of_sandbox_pkey_));
+      {addr, size}, permissions, out_of_sandbox_pkey_));
 }
 
 void SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(Address addr,
@@ -54,19 +94,19 @@ void SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(Address addr,
   if (!IsActive()) return;
 
   CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
-      {addr, size}, v8::PageAllocator::Permission::kReadWrite,
-      extension_pkey_));
+      {addr, size}, PagePermissions::kReadWrite, extension_pkey_));
 }
 
 // static
 void SandboxHardwareSupport::RegisterReadOnlyMemoryInsideSandbox(
-    Address addr, size_t size, PageAllocator::Permission perm) {
+    Address addr, size_t size, PagePermissions current_permissions) {
   if (!IsActive()) return;
 
   // Reset the pkey of the read-only page to the default pkey, since some
   // SBXCHECKs will safely read read-only data from the heap.
   CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
-      {addr, size}, perm, base::MemoryProtectionKey::kDefaultProtectionKey));
+      {addr, size}, current_permissions,
+      base::MemoryProtectionKey::kDefaultProtectionKey));
 }
 
 // static
@@ -112,6 +152,25 @@ bool SandboxHardwareSupport::CurrentSandboxingModeIs(
 }
 
 // static
+bool SandboxHardwareSupport::KernelSupportsSignalDeliveryInSandbox() {
+#ifdef V8_OS_LINUX
+  struct utsname buffer;
+  CHECK_EQ(uname(&buffer), 0);
+
+  int major, minor;
+  CHECK_EQ(sscanf(buffer.release, "%d.%d", &major, &minor), 2);
+
+  // Kernel 6.12 seems to be the first release to have the necessary fixes
+  // that support signal delivery when the stack uses a non-default pkey:
+  // https://github.com/torvalds/linux/commit/24cf2bc982ffe02aeffb4a3885c71751a2c7023b
+  return major > 6 || (major == 6 && minor >= 12);
+#else
+  // Hardware-assisted sandboxing is currently only available on Linux.
+  UNREACHABLE();
+#endif  // V8_OS_LINUX
+}
+
+// static
 bool SandboxHardwareSupport::TryActivate() {
   DCHECK(!IsActive());
 
@@ -124,24 +183,44 @@ bool SandboxHardwareSupport::TryActivate() {
     return false;
   }
 
-  // Ideally, this would be the default protection key.
-  // See the comment at the declaration of these keys for more information
-  // about why that currently isn't the case.
-  out_of_sandbox_pkey_ = base::MemoryProtectionKey::AllocateKey();
-  if (out_of_sandbox_pkey_ ==
-      base::MemoryProtectionKey::kNoMemoryProtectionKey) {
+  extension_pkey_ = base::MemoryProtectionKey::AllocateKey();
+  if (extension_pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
     base::MemoryProtectionKey::FreeKey(sandbox_pkey_);
     sandbox_pkey_ = base::MemoryProtectionKey::kNoMemoryProtectionKey;
     return false;
   }
 
-  extension_pkey_ = base::MemoryProtectionKey::AllocateKey();
-  if (extension_pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
-    base::MemoryProtectionKey::FreeKey(sandbox_pkey_);
-    base::MemoryProtectionKey::FreeKey(out_of_sandbox_pkey_);
-    sandbox_pkey_ = base::MemoryProtectionKey::kNoMemoryProtectionKey;
-    out_of_sandbox_pkey_ = base::MemoryProtectionKey::kNoMemoryProtectionKey;
-    return false;
+  if (v8_flags.strict_pkey_sandbox) {
+    // In strict mode, we use the default pkey as out-of-sandbox pkey so that
+    // sandboxed code does not have write access to any out-of-sandbox memory
+    // except for "sandbox extension" memory (opt-out).
+    out_of_sandbox_pkey_ = base::MemoryProtectionKey::kDefaultProtectionKey;
+
+#ifdef V8_OS_LINUX
+    // Strict mode currently requires some special environment variables.
+    // See https://crbug.com/428179540 for more details. Check for them here.
+    char* bind_now = getenv("LD_BIND_NOW");
+    char* glibc_tunables = getenv("GLIBC_TUNABLES");
+    if (!bind_now || !glibc_tunables || strcmp(bind_now, "1") != 0 ||
+        strstr(glibc_tunables, "pthread.rseq=0") == nullptr) {
+      FATAL(
+          "Missing necessary environment variables: `LD_BIND_NOW=1` and "
+          "`GLIBC_TUNABLES=glibc.pthread.rseq=0`. See crbug.com/428179540");
+    }
+#endif  // V8_OS_LINUX
+  } else {
+    // In non-strict mode, we use a dedicated pkey as out-of-sandbox pkey.
+    // Memory that should be inaccessible to sandboxed code must manually be
+    // tagged with this key (opt-in).
+    out_of_sandbox_pkey_ = base::MemoryProtectionKey::AllocateKey();
+    if (out_of_sandbox_pkey_ ==
+        base::MemoryProtectionKey::kNoMemoryProtectionKey) {
+      base::MemoryProtectionKey::FreeKey(sandbox_pkey_);
+      sandbox_pkey_ = base::MemoryProtectionKey::kNoMemoryProtectionKey;
+      base::MemoryProtectionKey::FreeKey(extension_pkey_);
+      extension_pkey_ = base::MemoryProtectionKey::kNoMemoryProtectionKey;
+      return false;
+    }
   }
 
   // Compute the PKEY mask for entering sandboxed execution mode. For that, we
@@ -153,7 +232,13 @@ bool SandboxHardwareSupport::TryActivate() {
   // We use zero to indicate that sandbox hardware support is inactive.
   CHECK_NE(sandboxed_mode_pkey_mask_, 0);
 
+  // Enable sandboxing support for the current thread. We assume here that this
+  // function will run on the main thread and that the main thread will want to
+  // execute sandboxed code.
+  EnableForCurrentThread();
+
   CHECK(IsActive());
+  CHECK_EQ(v8_flags.strict_pkey_sandbox, IsStrict());
   return true;
 }
 

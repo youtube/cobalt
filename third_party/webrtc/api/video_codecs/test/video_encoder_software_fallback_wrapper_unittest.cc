@@ -40,7 +40,7 @@
 #include "modules/video_coding/include/video_error_codes.h"
 #include "modules/video_coding/utility/simulcast_rate_allocator.h"
 #include "rtc_base/fake_clock.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/fake_encoder.h"
 #include "test/fake_texture_frame.h"
 #include "test/gmock.h"
@@ -49,7 +49,6 @@
 namespace webrtc {
 namespace {
 
-using test::ExplicitKeyValueConfig;
 using ::testing::_;
 using ::testing::Return;
 using ::testing::ValuesIn;
@@ -560,19 +559,17 @@ class ForcedFallbackTest : public VideoEncoderSoftwareFallbackWrapperTestBase {
 class ForcedFallbackTestEnabled : public ForcedFallbackTest {
  public:
   ForcedFallbackTestEnabled()
-      : ForcedFallbackTest(
-            CreateEnvironment(std::make_unique<ExplicitKeyValueConfig>(
-                std::string(kFieldTrial) + "/Enabled-" +
-                std::to_string(kMinPixelsPerFrame) + "," +
-                std::to_string(kWidth * kHeight) + ",30000/"))) {}
+      : ForcedFallbackTest(CreateEnvironment(CreateTestFieldTrialsPtr(
+            std::string(kFieldTrial) + "/Enabled-" +
+            std::to_string(kMinPixelsPerFrame) + "," +
+            std::to_string(kWidth * kHeight) + ",30000/"))) {}
 };
 
 class ForcedFallbackTestDisabled : public ForcedFallbackTest {
  public:
   ForcedFallbackTestDisabled()
-      : ForcedFallbackTest(
-            CreateEnvironment(std::make_unique<ExplicitKeyValueConfig>(
-                std::string(kFieldTrial) + "/Disabled/"))) {}
+      : ForcedFallbackTest(CreateEnvironment(CreateTestFieldTrialsPtr(
+            std::string(kFieldTrial) + "/Disabled/"))) {}
 };
 
 TEST_F(ForcedFallbackTestDisabled, NoFallbackWithoutFieldTrial) {
@@ -1144,8 +1141,8 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(ResolutionBasedFallbackTest, VerifyForcedEncoderFallback) {
   const ResolutionBasedFallbackTestParams& params = GetParam();
-  const Environment env = CreateEnvironment(
-      std::make_unique<ExplicitKeyValueConfig>(params.field_trials));
+  const Environment env =
+      CreateEnvironment(CreateTestFieldTrialsPtr(params.field_trials));
   auto primary = std::make_unique<test::FakeEncoder>(env);
   primary->SetImplementationName("primary");
   auto fallback = std::make_unique<test::FakeEncoder>(env);

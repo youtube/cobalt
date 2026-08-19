@@ -29,6 +29,8 @@ mod ffi {
         url: String,
         title: String,
         time_usec: u64,
+        destination_url: String,
+        source_url: String,
         visit_count: u64,
     }
 
@@ -42,13 +44,24 @@ mod ffi {
         card_expiration_year: u64,
     }
 
+    unsafe extern "C++" {
+        include!("components/user_data_importer/utility/history_callback_from_rust.h");
+
+        type HistoryCallbackFromRust;
+        fn ImportHistoryEntries(
+            self: Pin<&mut HistoryCallbackFromRust>,
+            history_entries: Pin<&mut CxxVector<HistoryEntry>>,
+            completed: bool,
+        );
+    }
+
     extern "Rust" {
         type ResultOfZipFileArchive;
         fn err(self: &ResultOfZipFileArchive) -> bool;
         fn unwrap(self: &mut ResultOfZipFileArchive) -> Box<ZipFileArchive>;
 
         type ZipFileArchive;
-        fn get_file_size(self: &mut ZipFileArchive, file_type: FileType) -> u64;
+        fn get_file_size_bytes(self: &mut ZipFileArchive, file_type: FileType) -> u64;
         fn unzip(
             self: &mut ZipFileArchive,
             file_type: FileType,
@@ -56,8 +69,9 @@ mod ffi {
         ) -> bool;
         fn parse_history(
             self: &mut ZipFileArchive,
-            history: Pin<&mut CxxVector<HistoryEntry>>,
-        ) -> bool;
+            history_callback: UniquePtr<HistoryCallbackFromRust>,
+            history_size_threshold: usize,
+        );
         fn parse_payment_cards(
             self: &mut ZipFileArchive,
             history: Pin<&mut CxxVector<PaymentCardEntry>>,
@@ -81,7 +95,7 @@ struct HistoryJSONEntry {
     time_usec: u64,
 
     // An optional string that, if present, is the URL of the next item in the redirect chain.
-    // UNUSED: destination_url: Option<String>,
+    destination_url: Option<String>,
 
     // An optional integer that’s present if destination_url is also present and is the UNIX
     // timestamp (the number of microseconds since midnight UTC, January 1, 1970) of the next
@@ -90,7 +104,7 @@ struct HistoryJSONEntry {
 
     // An optional string that, if present, is the URL of the previous item in the redirect
     // chain.
-    // UNUSED: source_url: Option<String>,
+    source_url: Option<String>,
 
     // An optional integer that’s present if source_url is also present and is the UNIX
     // timestamp in microseconds of the previous navigation in the redirect chain.
@@ -165,6 +179,8 @@ impl From<HistoryJSONEntry> for ffi::HistoryEntry {
             url: entry.url,
             title: entry.title.unwrap_or(String::new()),
             time_usec: entry.time_usec,
+            destination_url: entry.destination_url.unwrap_or(String::new()),
+            source_url: entry.source_url.unwrap_or(String::new()),
             visit_count: entry.visit_count,
         }
     }
@@ -463,7 +479,8 @@ struct ZipFileArchive {
 }
 
 impl ZipFileArchive {
-    fn get_file_size(&mut self, file_type: ffi::FileType) -> u64 {
+    fn get_file_size_bytes(&mut self, file_type: ffi::FileType) -> u64 {
+        let mut total_file_size_bytes: u64 = 0;
         for i in 0..self.archive.len() {
             let Ok(file) = self.archive.by_index(i) else {
                 continue;
@@ -475,25 +492,28 @@ impl ZipFileArchive {
             // Read the first file matching the requested type found within the zip file.
             if has_extension(&outpath.as_path(), file_type) {
                 if file_type == ffi::FileType::Bookmarks || file_type == ffi::FileType::Passwords {
+                    // There can only be one bookmark or password file, so return immediately.
                     return file.size();
                 } else {
                     // Verify the data type in the JSON file.
-                    let file_size = file.size();
+                    let file_size_bytes = file.size();
                     let stream_reader = ZipEntryBufReader::new(file);
                     if file_type == ffi::FileType::History {
                         if is_history_file(stream_reader) {
-                            return file_size;
+                            // There could be multiple history files, so keep going.
+                            total_file_size_bytes += file_size_bytes;
                         }
                     } else if file_type == ffi::FileType::PaymentCards {
                         if is_payment_cards_file(stream_reader) {
-                            return file_size;
+                            // There can only be one payment cards file, so return immediately.
+                            return file_size_bytes;
                         }
                     }
                 }
             }
         }
 
-        0
+        total_file_size_bytes
     }
 
     fn unzip(
@@ -537,8 +557,10 @@ impl ZipFileArchive {
 
     fn parse_history(
         self: &mut ZipFileArchive,
-        mut history: Pin<&mut CxxVector<ffi::HistoryEntry>>,
-    ) -> bool {
+        mut history_callback: cxx::UniquePtr<ffi::HistoryCallbackFromRust>,
+        history_size_threshold: usize,
+    ) {
+        let mut history = CxxVector::<ffi::HistoryEntry>::new();
         for i in 0..self.archive.len() {
             let Ok(file) = self.archive.by_index(i) else {
                 continue;
@@ -549,15 +571,22 @@ impl ZipFileArchive {
 
             if has_extension(&outpath.as_path(), ffi::FileType::History) {
                 let stream_reader = ZipEntryBufReader::new(file);
-                if parse_history_file(stream_reader, |history_item| {
-                    history.as_mut().push(history_item.into());
-                }) {
-                    return true;
-                }
+                parse_history_file(stream_reader, |history_item| {
+                    history.as_mut().unwrap().push(history_item.into());
+                    if history.len() >= history_size_threshold {
+                        history_callback.as_mut().unwrap().ImportHistoryEntries(
+                            history.as_mut().unwrap(),
+                            /* completed= */ false,
+                        );
+                    }
+                });
             }
         }
 
-        false
+        history_callback
+            .as_mut()
+            .unwrap()
+            .ImportHistoryEntries(history.as_mut().unwrap(), /* completed= */ true);
     }
 
     fn parse_payment_cards(

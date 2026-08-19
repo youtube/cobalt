@@ -324,6 +324,24 @@ void Int32Multiply::GenerateCode(MaglevAssembler* masm,
   // TODO(leszeks): peephole optimise multiplication by a constant.
   __ Mul32(out, left, Operand(right));
 }
+
+void Int32MultiplyOverflownBits::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Int32MultiplyOverflownBits::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+
+  // TODO(leszeks): peephole optimise multiplication by a constant.
+  __ Mul32(out, left, right);
+  __ srai(out, out, 32);
+}
+
 void Int32Divide::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
@@ -834,6 +852,19 @@ void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
   AllowExternalCallThatCantCauseGC scope(masm);
   __ PrepareCallCFunction(0, 1);
   __ CallCFunction(ieee_function_ref(), 1);
+}
+
+int Float64Ieee754Binary::MaxCallStackArgs() const { return 0; }
+void Float64Ieee754Binary::SetValueLocationConstraints() {
+  UseFixed(input_lhs(), fa0);
+  UseFixed(input_rhs(), fa1);
+  DefineSameAsFirst(this);
+}
+void Float64Ieee754Binary::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  AllowExternalCallThatCantCauseGC scope(masm);
+  __ PrepareCallCFunction(0, 2);
+  __ CallCFunction(ieee_function_ref(), 2);
 }
 
 void LoadTypedArrayLength::SetValueLocationConstraints() {

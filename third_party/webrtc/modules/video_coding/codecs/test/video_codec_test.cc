@@ -23,7 +23,6 @@
 #include "absl/flags/flag.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
-#include "api/field_trials.h"
 #include "api/test/metrics/global_metrics_logger_and_exporter.h"
 #include "api/units/data_rate.h"
 #include "api/units/frequency.h"
@@ -575,8 +574,7 @@ INSTANTIATE_TEST_SUITE_P(All,
                          FramerateAdaptationTest::TestParamsToString);
 
 TEST(VideoCodecTest, DISABLED_EncodeDecode) {
-  const Environment env =
-      CreateEnvironment(std::make_unique<FieldTrials>(CreateTestFieldTrials()));
+  const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr());
 
   VideoSourceSettings source_settings{
       .file_path = absl::GetFlag(FLAGS_input_path),

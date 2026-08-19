@@ -59,7 +59,7 @@
 #include "rtc_base/random.h"
 #include "system_wrappers/include/clock.h"
 #include "system_wrappers/include/ntp_time.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -67,7 +67,6 @@ namespace webrtc {
 namespace {
 
 using rtcp::ReceiveTimeInfo;
-using test::ExplicitKeyValueConfig;
 using ::testing::_;
 using ::testing::AllOf;
 using ::testing::ElementsAre;
@@ -185,11 +184,9 @@ struct ReceiverMocks {
 };
 
 RTCPReceiver Create(ReceiverMocks& mocks) {
-  return RTCPReceiver(
-      CreateEnvironment(
-          &mocks.clock,
-          std::make_unique<test::ExplicitKeyValueConfig>(mocks.field_trials)),
-      mocks.config, &mocks.rtp_rtcp_impl);
+  return RTCPReceiver(CreateEnvironment(&mocks.clock, CreateTestFieldTrialsPtr(
+                                                          mocks.field_trials)),
+                      mocks.config, &mocks.rtp_rtcp_impl);
 }
 
 TEST(RtcpReceiverTest, BrokenPacketIsIgnored) {

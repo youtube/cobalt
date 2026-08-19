@@ -174,7 +174,7 @@ bool HTMLInputElement::HasPendingActivity() const {
 HTMLImageLoader& HTMLInputElement::EnsureImageLoader() {
   if (!image_loader_) {
     image_loader_ = MakeGarbageCollected<HTMLImageLoader>(this);
-    RegisterActiveScriptWrappable(GetExecutionContext()->GetIsolate());
+    RegisterActiveScriptWrappable();
   }
   return *image_loader_;
 }
@@ -310,7 +310,7 @@ bool HTMLInputElement::IsKeyboardFocusableSlow(
     UpdateBehavior update_behavior) const {
   // Interest invoker targets with partial interest aren't keyboard focusable.
   if (IsInPartialInterestPopover()) {
-    CHECK(RuntimeEnabledFeatures::HTMLInterestTargetAttributeEnabled(
+    CHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
         GetDocument().GetExecutionContext()));
     return false;
   }
@@ -2301,9 +2301,6 @@ void HTMLInputElement::AdjustStyle(ComputedStyleBuilder& builder) {
 
 void HTMLInputElement::DidNotifySubtreeInsertionsToDocument() {
   input_type_view_->ListAttributeTargetChanged();
-  if (!RuntimeEnabledFeatures::DOMInsertionFasterEnabled()) {
-    PseudoStateChanged(CSSSelector::kPseudoHasDatalist);
-  }
 }
 
 AXObject* HTMLInputElement::PopupRootAXObject() {

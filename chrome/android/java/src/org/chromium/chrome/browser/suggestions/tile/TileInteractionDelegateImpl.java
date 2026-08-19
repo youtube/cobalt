@@ -174,11 +174,17 @@ class TileInteractionDelegateImpl
     }
 
     @Override
+    public void openAllItems() {}
+
+    @Override
     public void removeItem() {
         if (mOnRemoveRunnable != null) mOnRemoveRunnable.run();
 
         mTileGroupDelegate.removeMostVisitedItem(mTile);
     }
+
+    @Override
+    public void removeAllItems() {}
 
     @Override
     public void pinItem() {
@@ -208,6 +214,16 @@ class TileInteractionDelegateImpl
     @Override
     public boolean isItemSupported(@ContextMenuItemId int menuItemId) {
         switch (menuItemId) {
+            case ContextMenuItemId.OPEN_IN_NEW_TAB:
+                return true;
+            case ContextMenuItemId.OPEN_IN_NEW_TAB_IN_GROUP:
+                return true;
+            case ContextMenuItemId.OPEN_IN_INCOGNITO_TAB:
+                return true;
+            case ContextMenuItemId.OPEN_IN_NEW_WINDOW:
+                return true;
+            case ContextMenuItemId.SAVE_FOR_OFFLINE:
+                return true;
             case ContextMenuItemId.REMOVE:
                 return !isCustomizationItemSupported(/* matchIsCustomLink= */ true);
             case ContextMenuItemId.PIN_THIS_SHORTCUT:
@@ -216,7 +232,7 @@ class TileInteractionDelegateImpl
             case ContextMenuItemId.UNPIN:
                 return isCustomizationItemSupported(/* matchIsCustomLink= */ true);
             default:
-                return true;
+                return false;
         }
     }
 
@@ -227,6 +243,9 @@ class TileInteractionDelegateImpl
 
     @Override
     public void onContextMenuCreated() {}
+
+    @Override
+    public void hideAllItems() {}
 
     // TileGroup.TileDragHandlerDelegate implementation.
     @Override

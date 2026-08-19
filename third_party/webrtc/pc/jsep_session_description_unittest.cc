@@ -43,20 +43,22 @@ using ::webrtc::MediaProtocolType;
 using webrtc::SdpType;
 using webrtc::SessionDescriptionInterface;
 
-static const char kCandidateUfrag[] = "ufrag";
-static const char kCandidatePwd[] = "pwd";
-static const char kCandidateUfragVoice[] = "ufrag_voice";
-static const char kCandidatePwdVoice[] = "pwd_voice";
-static const char kCandidateUfragVideo[] = "ufrag_video";
-static const char kCandidatePwdVideo[] = "pwd_video";
-static const char kCandidateFoundation[] = "a0+B/1";
-static const uint32_t kCandidatePriority = 2130706432U;  // pref = 1.0
-static const uint32_t kCandidateGeneration = 2;
+namespace {
+const char kAudioMid[] = "audio";
+const char kVideoMid[] = "video";
+const char kCandidateUfrag[] = "ufrag";
+const char kCandidatePwd[] = "pwd";
+const char kCandidateUfragVoice[] = "ufrag_voice";
+const char kCandidatePwdVoice[] = "pwd_voice";
+const char kCandidateUfragVideo[] = "ufrag_video";
+const char kCandidatePwdVideo[] = "pwd_video";
+const char kCandidateFoundation[] = "a0+B/1";
+const uint32_t kCandidatePriority = 2130706432U;  // pref = 1.0
+const uint32_t kCandidateGeneration = 2;
 
 // This creates a session description with both audio and video media contents.
 // In SDP this is described by two m lines, one audio and one video.
-static std::unique_ptr<webrtc::SessionDescription>
-CreateCricketSessionDescription() {
+std::unique_ptr<webrtc::SessionDescription> CreateCricketSessionDescription() {
   auto desc = std::make_unique<webrtc::SessionDescription>();
 
   // AudioContentDescription
@@ -65,23 +67,25 @@ CreateCricketSessionDescription() {
   auto video = std::make_unique<webrtc::VideoContentDescription>();
 
   audio->AddCodec(webrtc::CreateAudioCodec(103, "ISAC", 16000, 0));
-  desc->AddContent(webrtc::CN_AUDIO, MediaProtocolType::kRtp, std::move(audio));
+  desc->AddContent(kAudioMid, MediaProtocolType::kRtp, std::move(audio));
 
   video->AddCodec(webrtc::CreateVideoCodec(120, "VP8"));
-  desc->AddContent(webrtc::CN_VIDEO, MediaProtocolType::kRtp, std::move(video));
+  desc->AddContent(kVideoMid, MediaProtocolType::kRtp, std::move(video));
 
   desc->AddTransportInfo(webrtc::TransportInfo(
-      webrtc::CN_AUDIO,
+      kAudioMid,
       webrtc::TransportDescription(
           std::vector<std::string>(), kCandidateUfragVoice, kCandidatePwdVoice,
           webrtc::ICEMODE_FULL, webrtc::CONNECTIONROLE_NONE, nullptr)));
   desc->AddTransportInfo(webrtc::TransportInfo(
-      webrtc::CN_VIDEO,
+      kVideoMid,
       webrtc::TransportDescription(
           std::vector<std::string>(), kCandidateUfragVideo, kCandidatePwdVideo,
           webrtc::ICEMODE_FULL, webrtc::CONNECTIONROLE_NONE, nullptr)));
   return desc;
 }
+
+}  // namespace
 
 class JsepSessionDescriptionTest : public ::testing::Test {
  protected:

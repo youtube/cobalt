@@ -10,13 +10,17 @@
 #ifndef NET_DCSCTP_TX_OUTSTANDING_DATA_H_
 #define NET_DCSCTP_TX_OUTSTANDING_DATA_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <deque>
-#include <map>
+#include <functional>
 #include <optional>
 #include <set>
 #include <utility>
 #include <vector>
 
+#include "api/array_view.h"
+#include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "net/dcsctp/common/internal_types.h"
 #include "net/dcsctp/common/sequence_numbers.h"

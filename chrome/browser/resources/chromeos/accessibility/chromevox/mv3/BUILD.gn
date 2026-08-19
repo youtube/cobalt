@@ -19,7 +19,6 @@ group("build") {
   deps = [
     ":chromevox_phonetic_dictionaries_js",
     ":copied_files",
-    "//third_party/chromevox:chromevox_third_party_resources",
     "//third_party/liblouis",
   ]
 }
@@ -38,6 +37,9 @@ common_tsc_dir =
 
 # Messageformat third_party directory.
 messageformat_dir = "//third_party/node/node_modules/messageformat/lib/"
+
+# Location of sre dependency.
+sre_browser_file = "//third_party/chromevox/third_party/sre/sre_browser.js"
 
 # List of all modules that are included in one or more of the production
 # chromevox scripts.
@@ -69,7 +71,6 @@ ts_modules = [
   "background/console_tts.ts",
   "background/download_handler.ts",
   "background/earcons.ts",
-  "background/earcon_engine.ts",
   "background/editing/editable_line.ts",
   "background/editing/editable_text.ts",
   "background/editing/editable_text_base.ts",
@@ -78,7 +79,6 @@ ts_modules = [
   "background/editing/rich_editable_text.ts",
   "background/editing/text_edit_handler.ts",
   "background/editing/typing_echo.ts",
-  "background/es6_loader.ts",
   "background/event_source.ts",
   "background/event/base_automation_handler.ts",
   "background/event/desktop_automation_handler.ts",
@@ -147,7 +147,8 @@ ts_modules = [
   "common/locale_output_helper.ts",
   "common/log_types.ts",
   "common/msgs.ts",
-  "common/offscreen_command_type.ts",
+  "common/offscreen_bridge.ts",
+  "common/offscreen_bridge_constants.ts",
   "common/panel_bridge.ts",
   "common/panel_command.ts",
   "common/role_type.ts",
@@ -160,10 +161,12 @@ ts_modules = [
   "learn_mode/learn_mode.ts",
   "log_page/log.ts",
   "log_page/log_loader.ts",
+  "offscreen/earcon_engine.ts",
   "offscreen/offscreen.ts",
   "offscreen/liblouis_worker.ts",
   "panel/i_search_ui.ts",
   "panel/menu_manager.ts",
+  "panel/menu_manager_with_test_endpoints.ts",
   "panel/panel.ts",
   "panel/panel_captions.ts",
   "panel/panel_interface.ts",
@@ -194,6 +197,7 @@ ts_library("ts_build") {
   extra_deps = [
     #copied files
     ":stage_ts_build",
+    ":stage_ts_build_sre",
   ]
 
   definitions = [
@@ -224,6 +228,11 @@ ts_library("ts_build") {
     "/common/*|" + rebase_path("$common_tsc_dir/*", target_gen_dir),
     "/chromevox/mv3/third_party/messageformat/messageformat.rollup.js|" +
         rebase_path("$messageformat_dir/messageformat.d.ts", target_gen_dir),
+
+    # Point the TS compiler to the copied version of sre_browser.js.
+    "/chromevox/mv3/third_party/sre/sre_browser.js|" +
+        rebase_path("$ts_build_staging_dir/third_party/sre/sre_browser.js",
+                    target_gen_dir),
   ]
 
   in_files = ts_modules + js_modules
@@ -244,6 +253,7 @@ run_jsbundler("copied_files") {
   mode = "copy"
   dest_dir = chromevox_out_dir
   deps = [
+    ":copy_sre",
     ":minify_js_messageformat",
     ":ts_build",
     "../../common:copied_files",
@@ -483,4 +493,17 @@ minify_js("minify_js_messageformat") {
   in_folder = "$target_gen_dir/messageformat"
   in_files = [ "messageformat.rollup.js" ]
   out_folder = "$chromevox_out_dir/third_party/messageformat/"
+}
+
+# Copy sre_browser.js to the staging directory so that it can be used at build
+# time.
+copy("stage_ts_build_sre") {
+  sources = [ "$sre_browser_file" ]
+  outputs = [ "$ts_build_staging_dir/third_party/sre/sre_browser.js" ]
+}
+
+# Copy sre_browser.js to chromevox_out_dir so that it can be used at runtime.
+copy("copy_sre") {
+  sources = [ "$sre_browser_file" ]
+  outputs = [ "$chromevox_out_dir/third_party/sre/sre_browser.js" ]
 }

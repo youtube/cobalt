@@ -38,6 +38,7 @@
 <translation id="1547469039832541117">结束突出显示的任务。</translation>
 <translation id="1553461853655228091">Chromium 需要获得相应权限，才能使用您的摄像头为您的周边环境创建 3D 地图</translation>
 <translation id="1555494096857516577">{NUM_EXTENSIONS,plural, =1{此扩展程序已不再受支持。Chromium 建议您移除它。}other{这些扩展程序已不再受支持。Chromium 建议您移除它们。}}</translation>
+<translation id="1562320819937089394">固定 Chromium</translation>
 <translation id="1574377791422810894">Chromium 的安全工具</translation>
 <translation id="1594928384848033697">Chromium 想要删除您的密码管理工具数据。请输入您的 Windows 密码以允许此操作。</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{您的管理员要求您重新启动 Chromium 以应用一项更新}=1{您的管理员要求您重新启动 Chromium 以应用一项更新。您的无痕式窗口不会重新打开。}other{您的管理员要求您重新启动 Chromium 以应用一项更新。您的 # 个无痕式窗口不会重新打开。}}</translation>
@@ -246,6 +247,7 @@
 <translation id="4281844954008187215">服务条款</translation>
 <translation id="4285930937574705105">未知错误导致安装失败。如果 Chromium 正在运行，请将其关闭，然后重试。</translation>
 <translation id="4304713468139749426">密码管理工具</translation>
+<translation id="4334241893986177674">搜索此屏幕截图</translation>
 <translation id="4334294535648607276">下载完毕。</translation>
 <translation id="439358628917130594">根据 <ph name="MANAGER" /> 的要求，您必须先阅读并接受以下《服务条款》才能使用此设备。这些条款不会扩展、修改或限制 Chromium 操作系统条款。</translation>
 <translation id="4407044323746248786">仍要退出 Chromium？</translation>
@@ -289,7 +291,7 @@
 <translation id="4814736265800133385">在不登录账号的情况下使用 Chromium</translation>
 <translation id="4888717733111232871">Chromium的入站规则，允许mDNS流量。</translation>
 <translation id="4893347770495441059">重新启动以更新 Chromium(&amp;C)</translation>
-<translation id="4918844574251943176">图片已复制</translation>
+<translation id="4918844574251943176">已复制图片</translation>
 <translation id="4943838377383847465">Chromium处于后台运行模式。</translation>
 <translation id="494490797786467921">点击即可关闭 Chromium 登录对话框</translation>
 <translation id="4950660488495335294">借助 Chromium 个人资料，您可将所有 Chromium 内容分门别类。您可为朋友和家人创建专属资料，或者将工作和娱乐用资料分开。</translation>
@@ -519,6 +521,7 @@ Chromium 无法恢复您的设置。</translation>
 <translation id="8004582292198964060">浏览器</translation>
 <translation id="8010081455002666927">自动检测</translation>
 <translation id="8013436988911883588">一旦 Chromium 获得了使用权限，网站便能请求您向其授予使用权限。</translation>
+<translation id="8031714377769448844">将 Chromium 固定到任务栏，即可随时快速访问</translation>
 <translation id="80471789339884597">感谢您完成安装。您必须重启所有浏览器才能使用 <ph name="BUNDLE_NAME" />。</translation>
 <translation id="8054112667659782652">始终显示图片搜索快捷方式</translation>
 <translation id="8077498902115777962">为应用停用 Chromium 后台运行功能</translation>
@@ -574,6 +577,7 @@ Chromium 无法恢复您的设置。</translation>
 <translation id="8704119203788522458">这是您的专属Chromium</translation>
 <translation id="8719993436687031146">登录 Chromium？</translation>
 <translation id="8747073452963259673">搜索区域的左下角：左侧 <ph name="LEFT" />%，底部 <ph name="BOTTOM" />%</translation>
+<translation id="8768722695577490596">密码只能在 Chromium 之外删除</translation>
 <translation id="878572486461146056">安装时出错：您的网络管理员所应用的一项群组政策阻止了安装进程：<ph name="INSTALL_ERROR" /></translation>
 <translation id="8796602469536043152">Chromium 需要获得相应权限，才能允许此网站使用您的摄像头和麦克风</translation>
 <translation id="8818550178040858407">登录 Chromium？</translation>

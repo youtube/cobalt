@@ -18,11 +18,8 @@
 #include "third_party/blink/renderer/core/inspector/protocol/audits.h"
 #include "third_party/blink/renderer/platform/graphics/dom_node_id.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_initiator_info.h"
+#include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_position.h"
-
-namespace WTF {
-class String;
-}
 
 namespace blink {
 
@@ -65,12 +62,13 @@ enum class ClientHintIssueReason {
   kMetaTagModifiedHTML,
 };
 
-enum class SelectElementAccessibilityIssueReason {
+enum class ElementAccessibilityIssueReason {
   kDisallowedSelectChild,
   kDisallowedOptGroupChild,
   kNonPhrasingContentOptionChild,
   kInteractiveContentOptionChild,
   kInteractiveContentLegendChild,
+  kInteractiveContentSummaryDescendant,
   kValidChild,
 };
 
@@ -199,10 +197,10 @@ class CORE_EXPORT AuditsIssue {
       WTF::OrdinalNumber initiator_column,
       const String& failureMessage);
 
-  static void ReportSelectElementAccessibilityIssue(
+  static void ReportElementAccessibilityIssue(
       Document* document,
       DOMNodeId node_id,
-      SelectElementAccessibilityIssueReason issue_reason,
+      ElementAccessibilityIssueReason issue_reason,
       bool has_disallowed_attributes);
 
   static void ReportUserReidentificationIssue(

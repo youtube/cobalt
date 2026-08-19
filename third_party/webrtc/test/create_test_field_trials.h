@@ -10,6 +10,9 @@
 #ifndef TEST_CREATE_TEST_FIELD_TRIALS_H_
 #define TEST_CREATE_TEST_FIELD_TRIALS_H_
 
+#include <memory>
+
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "api/field_trials.h"
 
@@ -20,9 +23,15 @@ namespace webrtc {
 // the command line flag.
 // Crashes if command line flag or the `s` are not a valid field trial string.
 //
-// The intention of this function is to be the default source of field trials
+// The intention of these functions is to be the default source of field trials
 // in tests so that tests always use the command line flag.
+// The behavior of these two functions is identical, they differ only in the
+// return types for convenience.
 FieldTrials CreateTestFieldTrials(absl::string_view s = "");
+inline absl_nonnull std::unique_ptr<FieldTrials> CreateTestFieldTrialsPtr(
+    absl::string_view s = "") {
+  return std::make_unique<FieldTrials>(CreateTestFieldTrials(s));
+}
 
 }  // namespace webrtc
 

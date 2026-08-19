@@ -192,6 +192,10 @@ class MockBrowserAutofillManager : public TestBrowserAutofillManager {
   MOCK_METHOD(AutofillField*,
               GetAutofillField,
               (const FormData& form, const FormFieldData& field));
+  MOCK_METHOD(void,
+              LogAndRecordLoyaltyCardFill,
+              (const LoyaltyCard&, const FormGlobalId&, const FieldGlobalId&),
+              (override));
 };
 
 class TouchToFillDelegateAndroidImplUnitTest : public testing::Test {
@@ -292,7 +296,7 @@ class TouchToFillDelegateAndroidImplUnitTest : public testing::Test {
     OnFormsSeen();
     EXPECT_EQ(expected_success,
               touch_to_fill_delegate_->IntendsToShowTouchToFill(
-                  form_.global_id(), form_.fields()[0].global_id(), form_));
+                  form_.global_id(), form_.fields()[0].global_id()));
   }
 
   void TryToShowTouchToFill(bool expected_success) {
@@ -584,6 +588,8 @@ TEST_F(TouchToFillDelegateAndroidImplCreditCardUnitTest,
   // TODO(crbug.com/40900766): Retrieve the card number field by name here.
   ASSERT_EQ(form_.fields()[1].name(), u"cardnumber");
   test_api(form_).field(1).set_value(u"411111111111");
+  // Force a cache update so it knows about the field edit.
+  browser_autofill_manager_->OnFormsSeen({form_}, {});
   ASSERT_FALSE(touch_to_fill_delegate_->IsShowingTouchToFill());
 
   TryToShowTouchToFill(/*expected_success=*/false);
@@ -1021,17 +1027,6 @@ TEST_F(TouchToFillDelegateAndroidImplCreditCardUnitTest,
       true, 1);
 }
 
-TEST_F(TouchToFillDelegateAndroidImplCreditCardUnitTest,
-       IsFormPrefilledHandlesNullAutofillField) {
-  // `IntendsToShowTouchToFill()` invokes `DryRun()` that checks if form_ is
-  // prefilled. `IsFormPrefilled()` calls
-  // BrowserAutofillManager::GetAutofillField(). This tests the scenario where
-  // `GetAutofillField()` returns a nullptr does not crash.
-  ON_CALL(*browser_autofill_manager_, GetAutofillField(_, _))
-      .WillByDefault(Return(nullptr));
-  IntendsToShowTouchToFill(/*expected_success=*/true);
-}
-
 class TouchToFillDelegateAndroidImplIbanUnitTest
     : public TouchToFillDelegateAndroidImplUnitTest {
  protected:
@@ -1191,17 +1186,19 @@ TEST_F(TouchToFillDelegateAndroidImplLoyaltyCardUnitTest,
 
 TEST_F(TouchToFillDelegateAndroidImplLoyaltyCardUnitTest,
        LoyaltyCardSelectionFillsFormAndHidesSheet) {
-  const std::string kLoyaltyCardNumber = "1234";
+  const LoyaltyCard kLoyaltyCard = test::CreateLoyaltyCard();
   TryToShowTouchToFill(/*expected_success=*/true);
 
   EXPECT_CALL(payments_autofill_client(), HideTouchToFillPaymentMethod);
+  EXPECT_CALL(
+      *browser_autofill_manager_,
+      FillOrPreviewField(
+          mojom::ActionPersistence::kFill, mojom::FieldActionType::kReplaceAll,
+          _, _, base::UTF8ToUTF16(kLoyaltyCard.loyalty_card_number()),
+          SuggestionType::kLoyaltyCardEntry, Optional(LOYALTY_MEMBERSHIP_ID)));
   EXPECT_CALL(*browser_autofill_manager_,
-              FillOrPreviewField(mojom::ActionPersistence::kFill,
-                                 mojom::FieldActionType::kReplaceAll, _, _,
-                                 base::UTF8ToUTF16(kLoyaltyCardNumber),
-                                 SuggestionType::kLoyaltyCardEntry,
-                                 Optional(LOYALTY_MEMBERSHIP_ID)));
-  touch_to_fill_delegate_->LoyaltyCardSuggestionSelected(kLoyaltyCardNumber);
+              LogAndRecordLoyaltyCardFill(kLoyaltyCard, _, _));
+  touch_to_fill_delegate_->LoyaltyCardSuggestionSelected(kLoyaltyCard);
 }
 
 class TouchToFillDelegateAndroidImplVcnGrayOutForMerchantOptOutUnitTest

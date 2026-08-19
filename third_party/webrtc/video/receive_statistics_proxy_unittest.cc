@@ -40,7 +40,6 @@
 #include "system_wrappers/include/metrics.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 #include "test/time_controller/simulated_time_controller.h"
 #include "video/video_quality_observer2.h"
 #include "video/video_receive_stream2.h"
@@ -121,7 +120,6 @@ class ReceiveStatisticsProxyTest : public ::testing::Test {
     return VideoFrameMetaData(frame, Now());
   }
 
-  test::ScopedKeyValueConfig field_trials_;
   GlobalSimulatedTimeController time_controller_;
   std::unique_ptr<ReceiveStatisticsProxy> statistics_proxy_;
 };

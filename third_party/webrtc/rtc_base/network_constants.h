@@ -69,36 +69,5 @@ constexpr AdapterType kAllAdapterTypes[] = {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::ADAPTER_TYPE_ANY;
-using ::webrtc::ADAPTER_TYPE_CELLULAR;
-using ::webrtc::ADAPTER_TYPE_CELLULAR_2G;
-using ::webrtc::ADAPTER_TYPE_CELLULAR_3G;
-using ::webrtc::ADAPTER_TYPE_CELLULAR_4G;
-using ::webrtc::ADAPTER_TYPE_CELLULAR_5G;
-using ::webrtc::ADAPTER_TYPE_ETHERNET;
-using ::webrtc::ADAPTER_TYPE_LOOPBACK;
-using ::webrtc::ADAPTER_TYPE_UNKNOWN;
-using ::webrtc::ADAPTER_TYPE_VPN;
-using ::webrtc::ADAPTER_TYPE_WIFI;
-using ::webrtc::AdapterType;
-using ::webrtc::AdapterTypeToString;
-using ::webrtc::kAllAdapterTypes;
-using ::webrtc::kNetworkCostCellular;
-using ::webrtc::kNetworkCostCellular2G;
-using ::webrtc::kNetworkCostCellular3G;
-using ::webrtc::kNetworkCostCellular4G;
-using ::webrtc::kNetworkCostCellular5G;
-using ::webrtc::kNetworkCostHigh;
-using ::webrtc::kNetworkCostLow;
-using ::webrtc::kNetworkCostMax;
-using ::webrtc::kNetworkCostMin;
-using ::webrtc::kNetworkCostUnknown;
-using ::webrtc::kNetworkCostVpn;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_NETWORK_CONSTANTS_H_

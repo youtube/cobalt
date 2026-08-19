@@ -137,7 +137,10 @@ v8_flag(name = "v8_enable_snapshot_code_comments")
 
 v8_flag(name = "v8_enable_snapshot_native_code_counters")
 
-v8_flag(name = "v8_enable_static_roots")
+v8_flag(
+  name = "v8_enable_static_roots",
+  default = True,
+)
 
 v8_flag(name = "v8_enable_trace_maps")
 
@@ -405,6 +408,24 @@ config_setting(
     },
 )
 
+# Explicity defined v8_enable_static_roots
+config_setting(
+    name = "v8_enable_static_roots_is_true",
+    flag_values = {
+        ":v8_enable_static_roots": "True",
+    },
+)
+
+# Enable static roots when pointer compression and external code space is enabled
+selects.config_setting_group(
+    name = "enable_static_roots",
+    match_all = [
+        ":v8_enable_static_roots_is_true",
+        ":is_v8_enable_pointer_compression",
+        ":enable_external_code_space",
+    ],
+)
+
 # Enable VTune jit profiling
 v8_flag(
     name = "v8_enable_vtunejit",
@@ -473,7 +494,6 @@ v8_config(
         "v8_enable_slow_dchecks": "ENABLE_SLOW_DCHECKS",
         "v8_enable_runtime_call_stats": "V8_RUNTIME_CALL_STATS",
         "v8_enable_snapshot_native_code_counters": "V8_SNAPSHOT_NATIVE_CODE_COUNTERS",
-        "v8_enable_static_roots": "V8_STATIC_ROOTS",
         "v8_enable_trace_maps": "V8_TRACE_MAPS",
         "v8_enable_turbofan": "V8_ENABLE_TURBOFAN",
         "v8_enable_v8_checks": "V8_ENABLE_CHECKS",
@@ -568,6 +588,11 @@ v8_config(
     }) + select({
         ":enable_external_code_space": [
             "V8_EXTERNAL_CODE_SPACE",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":enable_static_roots": [
+            "V8_STATIC_ROOTS",
         ],
         "//conditions:default": [],
     }) + select({
@@ -800,6 +825,8 @@ filegroup(
         "src/base/flags.h",
         "src/base/fpu.cc",
         "src/base/fpu.h",
+        "src/base/functional/bind-internal.h",
+        "src/base/functional/function-ref.h",
         "src/base/free_deleter.h",
         "src/base/hashing.h",
         "src/base/hashmap.h",
@@ -891,6 +918,7 @@ filegroup(
         "src/base/template-utils.h",
         "src/base/threaded-list.h",
         "src/base/timezone-cache.h",
+        "src/base/types/is-instantiation.h",
         "src/base/utils/random-number-generator.cc",
         "src/base/utils/random-number-generator.h",
         "src/base/vector.h",
@@ -1804,6 +1832,8 @@ filegroup(
         "src/heap/memory-measurement.cc",
         "src/heap/memory-measurement.h",
         "src/heap/memory-measurement-inl.h",
+        "src/heap/memory-pool.cc",
+        "src/heap/memory-pool.h",
         "src/heap/memory-reducer.cc",
         "src/heap/memory-reducer.h",
         "src/heap/minor-gc-job.cc",
@@ -1821,8 +1851,6 @@ filegroup(
         "src/heap/page-metadata.cc",
         "src/heap/page-metadata.h",
         "src/heap/page-metadata-inl.h",
-        "src/heap/page-pool.cc",
-        "src/heap/page-pool.h",
         "src/heap/paged-spaces.cc",
         "src/heap/paged-spaces.h",
         "src/heap/paged-spaces-inl.h",
@@ -2383,6 +2411,10 @@ filegroup(
         "src/roots/roots.h",
         "src/roots/roots-inl.h",
         "src/roots/static-roots.h",
+        "src/roots/static-roots-intl-nowasm.h",
+        "src/roots/static-roots-intl-wasm.h",
+        "src/roots/static-roots-nointl-nowasm.h",
+        "src/roots/static-roots-nointl-wasm.h",
         "src/runtime/runtime.cc",
         "src/runtime/runtime.h",
         "src/runtime/runtime-array.cc",
@@ -2457,6 +2489,7 @@ filegroup(
         "src/sandbox/hardware-support.h",
         "src/sandbox/sandbox.cc",
         "src/sandbox/sandbox.h",
+        "src/sandbox/sandbox-malloc.h",
         "src/sandbox/sandboxed-pointer.h",
         "src/sandbox/sandboxed-pointer-inl.h",
         "src/sandbox/tagged-payload.h",
@@ -2856,6 +2889,7 @@ filegroup(
             "src/maglev/maglev-deopt-frame-visitor.h",
             "src/maglev/maglev-graph-builder.h",
             "src/maglev/maglev-graph-labeller.h",
+            "src/maglev/maglev-graph-optimizer.h",
             "src/maglev/maglev-graph-printer.h",
             "src/maglev/maglev-graph-processor.h",
             "src/maglev/maglev-graph-verifier.h",
@@ -2865,9 +2899,12 @@ filegroup(
             "src/maglev/maglev-ir-inl.h",
             "src/maglev/maglev-ir.h",
             "src/maglev/maglev-phi-representation-selector.h",
+            "src/maglev/maglev-truncation.h",
             "src/maglev/maglev-pipeline-statistics.h",
             "src/maglev/maglev-post-hoc-optimizations-processors.h",
             "src/maglev/maglev-pre-regalloc-codegen-processors.h",
+            "src/maglev/maglev-reducer-inl.h",
+            "src/maglev/maglev-reducer.h",
             "src/maglev/maglev-regalloc-data.h",
             "src/maglev/maglev-regalloc.h",
             "src/maglev/maglev-register-frame-array.h",
@@ -2879,11 +2916,15 @@ filegroup(
             "src/maglev/maglev-compiler.cc",
             "src/maglev/maglev-concurrent-dispatcher.cc",
             "src/maglev/maglev-graph-builder.cc",
+            "src/maglev/maglev-graph-labeller.cc",
+            "src/maglev/maglev-graph-optimizer.cc",
             "src/maglev/maglev-graph-printer.cc",
             "src/maglev/maglev-graph.cc",
+            "src/maglev/maglev-inlining.cc",
             "src/maglev/maglev-interpreter-frame-state.cc",
             "src/maglev/maglev-ir.cc",
             "src/maglev/maglev-phi-representation-selector.cc",
+            "src/maglev/maglev-truncation.cc",
             "src/maglev/maglev-pipeline-statistics.cc",
             "src/maglev/maglev-regalloc.cc",
             "src/maglev/maglev.cc",
@@ -3200,6 +3241,8 @@ filegroup(
         "src/compiler/common-operator.h",
         "src/compiler/common-operator-reducer.cc",
         "src/compiler/common-operator-reducer.h",
+        "src/compiler/common-utils.cc",
+        "src/compiler/common-utils.h",
         "src/compiler/compilation-dependencies.cc",
         "src/compiler/compilation-dependencies.h",
         "src/compiler/compiler-source-position-table.cc",
@@ -3641,22 +3684,30 @@ filegroup(
             "src/maglev/maglev-compilation-unit.h",
             "src/maglev/maglev-graph-builder.cc",
             "src/maglev/maglev-graph-builder.h",
+            "src/maglev/maglev-graph-optimizer.cc",
+            "src/maglev/maglev-graph-optimizer.h",
             "src/maglev/maglev-graph.cc",
             "src/maglev/maglev-graph.h",
             "src/maglev/maglev-graph-labeller.h",
+            "src/maglev/maglev-graph-labeller.cc",
             "src/maglev/maglev-graph-printer.cc",
             "src/maglev/maglev-graph-printer.h",
             "src/maglev/maglev-graph-processor.h",
             "src/maglev/maglev-graph-verifier.h",
+            "src/maglev/maglev-inlining.cc",
             "src/maglev/maglev-inlining.h",
             "src/maglev/maglev-interpreter-frame-state.cc",
             "src/maglev/maglev-interpreter-frame-state.h",
             "src/maglev/maglev-ir.cc",
             "src/maglev/maglev-ir.h",
             "src/maglev/maglev-ir-inl.h",
+            "src/maglev/maglev-reducer-inl.h",
+            "src/maglev/maglev-reducer.h",
             "src/maglev/maglev-register-frame-array.h",
             "src/maglev/maglev-phi-representation-selector.cc",
             "src/maglev/maglev-phi-representation-selector.h",
+            "src/maglev/maglev-truncation.cc",
+            "src/maglev/maglev-truncation.h",
             "src/maglev/maglev-post-hoc-optimizations-processors.h",
             "src/maglev/maglev-pre-regalloc-codegen-processors.h",
         ],

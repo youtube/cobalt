@@ -798,8 +798,7 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
       });
 
   IceConfig ice_config(configuration);
-  ice_config.dtls_handshake_in_stun =
-      CanAttemptDtlsStunPiggybacking(configuration);
+  ice_config.dtls_handshake_in_stun = CanAttemptDtlsStunPiggybacking();
 
   transport_controller_->SetIceConfig(ice_config);
   return transport_controller_.get();
@@ -1528,8 +1527,7 @@ RTCError PeerConnection::SetConfiguration(
       modified_config.GetTurnPortPrunePolicy() !=
           configuration_.GetTurnPortPrunePolicy();
   IceConfig ice_config(modified_config);
-  ice_config.dtls_handshake_in_stun =
-      CanAttemptDtlsStunPiggybacking(modified_config);
+  ice_config.dtls_handshake_in_stun = CanAttemptDtlsStunPiggybacking();
 
   // Apply part of the configuration on the network thread.  In theory this
   // shouldn't fail.
@@ -3006,13 +3004,8 @@ PeerConnection::InitializeUnDemuxablePacketHandler() {
   };
 }
 
-bool PeerConnection::CanAttemptDtlsStunPiggybacking(
-    const RTCConfiguration& configuration) {
-  // Enable DTLS-in-STUN only if no certificates were passed those
-  // may be RSA certificates and this feature only works with small
-  // ECDSA certificates. Determining the type of the key is
-  // not trivially possible at this point.
-  return dtls_enabled_ && configuration.certificates.empty() &&
+bool PeerConnection::CanAttemptDtlsStunPiggybacking() {
+  return dtls_enabled_ &&
          env_.field_trials().IsEnabled("WebRTC-IceHandshakeDtls");
 }
 

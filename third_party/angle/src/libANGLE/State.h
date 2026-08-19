@@ -139,10 +139,10 @@ enum DirtyBitType
     DIRTY_BIT_TEXTURE_BINDINGS,
     DIRTY_BIT_IMAGE_BINDINGS,
     DIRTY_BIT_TRANSFORM_FEEDBACK_BINDING,
-    // Top-level dirty bit. Also see mUniformBufferBlocksDirtyTypeMask.
-    DIRTY_BIT_UNIFORM_BUFFER_BINDINGS,
     DIRTY_BIT_SHADER_STORAGE_BUFFER_BINDING,
     DIRTY_BIT_ATOMIC_COUNTER_BUFFER_BINDING,
+    // Top-level dirty bit. Also see mUniformBufferBlocksDirtyTypeMask.
+    DIRTY_BIT_UNIFORM_BUFFER_BINDINGS,
     DIRTY_BIT_MULTISAMPLING,
     DIRTY_BIT_SAMPLE_ALPHA_TO_ONE,
     DIRTY_BIT_COVERAGE_MODULATION,                  // CHROMIUM_framebuffer_mixed_samples
@@ -1146,7 +1146,7 @@ class State : angle::NonCopyable
     angle::Result syncDirtyObjects(const Context *context,
                                    const state::DirtyObjects &bitset,
                                    Command command);
-    angle::Result syncDirtyObject(const Context *context, GLenum target);
+    angle::Result syncDirtyObject(const Context *context, GLenum target, Command command);
     void setObjectDirty(GLenum target);
     void setTextureDirty(size_t textureUnitIndex);
     void setSamplerDirty(size_t samplerIndex);

@@ -11,9 +11,8 @@
 #ifndef SYSTEM_WRAPPERS_INCLUDE_METRICS_H_
 #define SYSTEM_WRAPPERS_INCLUDE_METRICS_H_
 
-#include <stddef.h>
-
 #include <atomic>  // IWYU pragma: keep
+#include <cstddef>
 #include <map>
 #include <memory>
 #include <string>

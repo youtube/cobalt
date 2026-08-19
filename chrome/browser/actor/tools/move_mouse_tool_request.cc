@@ -4,6 +4,7 @@
 
 #include "chrome/browser/actor/tools/move_mouse_tool_request.h"
 
+#include "chrome/browser/actor/tools/tool_request_visitor_functor.h"
 #include "chrome/common/actor.mojom.h"
 
 namespace actor {
@@ -16,15 +17,16 @@ MoveMouseToolRequest::MoveMouseToolRequest(TabHandle tab_handle,
 
 MoveMouseToolRequest::~MoveMouseToolRequest() = default;
 
+void MoveMouseToolRequest::Apply(ToolRequestVisitorFunctor& f) const {
+  f.Apply(*this);
+}
+
 std::string MoveMouseToolRequest::JournalEvent() const {
   return "MoveMouse";
 }
 
 mojom::ToolActionPtr MoveMouseToolRequest::ToMojoToolAction() const {
   auto move_mouse = mojom::MouseMoveAction::New();
-
-  move_mouse->target = PageToolRequest::ToMojoToolTarget(GetTarget());
-
   return mojom::ToolAction::NewMouseMove(std::move(move_mouse));
 }
 

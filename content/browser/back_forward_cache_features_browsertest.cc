@@ -43,7 +43,7 @@
 #endif
 #include "net/test/embedded_test_server/controllable_http_response.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
-#include "net/test/spawned_test_server/spawned_test_server.h"
+#include "net/test/embedded_test_server/install_default_websocket_handlers.h"
 #include "net/test/test_data_directory.h"
 #include "services/device/public/cpp/test/fake_hid_manager.h"
 #include "services/device/public/cpp/test/fake_sensor_and_provider.h"
@@ -2167,10 +2167,6 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
 #endif
 IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
                        MAYBE_MultipleBlocksFromJavaScriptFile) {
-  net::SpawnedTestServer ws_server(net::SpawnedTestServer::TYPE_WS,
-                                   net::GetWebSocketTestDataDirectory());
-  ASSERT_TRUE(ws_server.Start());
-
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // 1) Navigate to a page with multiple WebSocket usage.
@@ -2183,18 +2179,16 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
 
   RenderFrameHostImplWrapper rfh_a(current_frame_host());
   // Open WebSocket connections.
-  const char scriptA[] = R"(
+  const char kScriptA[] = R"(
     openWebSocketConnectionA($1);
   )";
-  const char scriptB[] = R"(
+  const char kScriptB[] = R"(
     openWebSocketConnectionB($1);
   )";
-  ASSERT_EQ(123, EvalJs(rfh_a.get(),
-                        JsReplace(scriptA,
-                                  ws_server.GetURL("echo-with-no-extension"))));
-  ASSERT_EQ(123, EvalJs(rfh_a.get(),
-                        JsReplace(scriptB,
-                                  ws_server.GetURL("echo-with-no-extension"))));
+  GURL ws_url = net::test_server::GetWebSocketURL(*embedded_test_server(),
+                                                  "/echo-with-no-extension");
+  ASSERT_EQ(123, EvalJs(rfh_a.get(), JsReplace(kScriptA, ws_url)));
+  ASSERT_EQ(123, EvalJs(rfh_a.get(), JsReplace(kScriptB, ws_url)));
   ASSERT_EQ(true, EvalJs(rfh_a.get(), "isSocketAOpen()"));
   ASSERT_EQ(true, EvalJs(rfh_a.get(), "isSocketBOpen()"));
 
@@ -2236,10 +2230,6 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
 #endif
 IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
                        MAYBE_BlockAndUnblockFromJavaScriptFile) {
-  net::SpawnedTestServer ws_server(net::SpawnedTestServer::TYPE_WS,
-                                   net::GetWebSocketTestDataDirectory());
-  ASSERT_TRUE(ws_server.Start());
-
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // 1) Navigate to a page with multiple WebSocket usage.
@@ -2254,18 +2244,16 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
   rfh_a->GetBackForwardCacheMetrics()->SetObserverForTesting(this);
   // Open WebSocket connections socketA and socketB, but close socketA
   // immediately..
-  const char scriptA[] = R"(
+  const char kScriptA[] = R"(
     openWebSocketConnectionA($1);
   )";
-  const char scriptB[] = R"(
+  const char kScriptB[] = R"(
     openWebSocketConnectionB($1);
   )";
-  ASSERT_EQ(123, EvalJs(rfh_a.get(),
-                        JsReplace(scriptA,
-                                  ws_server.GetURL("echo-with-no-extension"))));
-  ASSERT_EQ(123, EvalJs(rfh_a.get(),
-                        JsReplace(scriptB,
-                                  ws_server.GetURL("echo-with-no-extension"))));
+  GURL ws_url = net::test_server::GetWebSocketURL(*embedded_test_server(),
+                                                  "/echo-with-no-extension");
+  ASSERT_EQ(123, EvalJs(rfh_a.get(), JsReplace(kScriptA, ws_url)));
+  ASSERT_EQ(123, EvalJs(rfh_a.get(), JsReplace(kScriptB, ws_url)));
   ASSERT_EQ(true, EvalJs(rfh_a.get(), "isSocketAOpen()"));
   ASSERT_EQ(true, EvalJs(rfh_a.get(), "isSocketBOpen()"));
   ASSERT_TRUE(ExecJs(rfh_a.get(), "closeConnection();"));
@@ -2302,9 +2290,6 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
 #endif
 IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
                        MAYBE_MultipleBlocksFromHTMLFile) {
-  net::SpawnedTestServer ws_server(net::SpawnedTestServer::TYPE_WS,
-                                   net::GetWebSocketTestDataDirectory());
-  ASSERT_TRUE(ws_server.Start());
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // 1) Navigate to a page with multiple WebSocket usage.
@@ -2315,18 +2300,16 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
 
   RenderFrameHostImplWrapper rfh_a(current_frame_host());
   // Open WebSocket connections.
-  const char scriptA[] = R"(
+  const char kScriptA[] = R"(
     openWebSocketConnectionA($1);
   )";
-  const char scriptB[] = R"(
+  const char kScriptB[] = R"(
     openWebSocketConnectionB($1);
   )";
-  ASSERT_EQ(123, EvalJs(rfh_a.get(),
-                        JsReplace(scriptA,
-                                  ws_server.GetURL("echo-with-no-extension"))));
-  ASSERT_EQ(123, EvalJs(rfh_a.get(),
-                        JsReplace(scriptB,
-                                  ws_server.GetURL("echo-with-no-extension"))));
+  GURL ws_url = net::test_server::GetWebSocketURL(*embedded_test_server(),
+                                                  "/echo-with-no-extension");
+  ASSERT_EQ(123, EvalJs(rfh_a.get(), JsReplace(kScriptA, ws_url)));
+  ASSERT_EQ(123, EvalJs(rfh_a.get(), JsReplace(kScriptB, ws_url)));
   ASSERT_EQ(true, EvalJs(rfh_a.get(), "isSocketAOpen()"));
   ASSERT_EQ(true, EvalJs(rfh_a.get(), "isSocketBOpen()"));
   // Call this to access tree result later.
@@ -2365,9 +2348,6 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
 #endif
 IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
                        MAYBE_BlockAndUnblockFromHTMLFile) {
-  net::SpawnedTestServer ws_server(net::SpawnedTestServer::TYPE_WS,
-                                   net::GetWebSocketTestDataDirectory());
-  ASSERT_TRUE(ws_server.Start());
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // 1) Navigate to a page with multiple broadcast channel usage.
@@ -2381,18 +2361,16 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
   rfh_a->GetBackForwardCacheMetrics()->SetObserverForTesting(this);
   // Open WebSocket connections socketA and socketB, but close socketA
   // immediately.
-  const char scriptA[] = R"(
+  const char kScriptA[] = R"(
     openWebSocketConnectionA($1);
   )";
-  const char scriptB[] = R"(
+  const char kScriptB[] = R"(
     openWebSocketConnectionB($1);
   )";
-  ASSERT_EQ(123, EvalJs(rfh_a.get(),
-                        JsReplace(scriptA,
-                                  ws_server.GetURL("echo-with-no-extension"))));
-  ASSERT_EQ(123, EvalJs(rfh_a.get(),
-                        JsReplace(scriptB,
-                                  ws_server.GetURL("echo-with-no-extension"))));
+  GURL ws_url = net::test_server::GetWebSocketURL(*embedded_test_server(),
+                                                  "/echo-with-no-extension");
+  ASSERT_EQ(123, EvalJs(rfh_a.get(), JsReplace(kScriptA, ws_url)));
+  ASSERT_EQ(123, EvalJs(rfh_a.get(), JsReplace(kScriptB, ws_url)));
   ASSERT_EQ(true, EvalJs(rfh_a.get(), "isSocketAOpen()"));
   ASSERT_EQ(true, EvalJs(rfh_a.get(), "isSocketBOpen()"));
   ASSERT_TRUE(ExecJs(rfh_a.get(), "closeConnection();"));
@@ -2428,9 +2406,6 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
 #endif
 IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
                        MAYBE_StickyFeaturesWithDetails) {
-  net::SpawnedTestServer ws_server(net::SpawnedTestServer::TYPE_WS,
-                                   net::GetWebSocketTestDataDirectory());
-  ASSERT_TRUE(ws_server.Start());
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url_a_no_store(embedded_test_server()->GetURL(
       "a.com", "/set-header?Cache-Control: no-store"));
@@ -2449,8 +2424,9 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
         socket.addEventListener('open', () => resolve(42));
       });)";
   ASSERT_EQ(42, EvalJs(rfh_a.get(),
-                       JsReplace(script,
-                                 ws_server.GetURL("echo-with-no-extension"))));
+                       JsReplace(script, net::test_server::GetWebSocketURL(
+                                             *embedded_test_server(),
+                                             "/echo-with-no-extension"))));
 
   // 3) Navigate away to `url_b`.
   ASSERT_TRUE(NavigateToURL(shell(), url_b));
@@ -3183,10 +3159,6 @@ IN_PROC_BROWSER_TEST_P(BackForwardCacheWithBroadcastChannelTest,
 // Pages with WebSocket should be cached if the connection is closed.
 IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
                        MAYBE_WebSocketCachedIfClosed) {
-  net::SpawnedTestServer ws_server(net::SpawnedTestServer::TYPE_WS,
-                                   net::GetWebSocketTestDataDirectory());
-  ASSERT_TRUE(ws_server.Start());
-
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url_a(embedded_test_server()->GetURL("a.com", "/title1.html"));
@@ -3207,8 +3179,9 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
         socket.addEventListener('open', () => resolve(42));
       });)";
   ASSERT_EQ(42, EvalJs(rfh_a.get(),
-                       JsReplace(script,
-                                 ws_server.GetURL("echo-with-no-extension"))));
+                       JsReplace(script, net::test_server::GetWebSocketURL(
+                                             *embedded_test_server(),
+                                             "/echo-with-no-extension"))));
 
   // 2) Navigate to B.
   ASSERT_TRUE(NavigateToURL(shell(), url_b));
@@ -3309,10 +3282,6 @@ IN_PROC_BROWSER_TEST_F(WebTransportBackForwardCacheBrowserTest,
 #define MAYBE_WebSocketNotCached WebSocketNotCached
 #endif
 IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, MAYBE_WebSocketNotCached) {
-  net::SpawnedTestServer ws_server(net::SpawnedTestServer::TYPE_WS,
-                                   net::GetWebSocketTestDataDirectory());
-  ASSERT_TRUE(ws_server.Start());
-
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url_a(embedded_test_server()->GetURL("a.com", "/title1.html"));
@@ -3329,9 +3298,10 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, MAYBE_WebSocketNotCached) {
         const socket = new WebSocket($1);
         socket.addEventListener('open', () => resolve(42));
       });)";
-  ASSERT_EQ(
-      42, EvalJs(rfh_a, JsReplace(script,
-                                  ws_server.GetURL("echo-with-no-extension"))));
+  ASSERT_EQ(42,
+            EvalJs(rfh_a, JsReplace(script, net::test_server::GetWebSocketURL(
+                                                *embedded_test_server(),
+                                                "/echo-with-no-extension"))));
 
   // 2) Navigate to B.
   ASSERT_TRUE(NavigateToURL(shell(), url_b));

@@ -136,11 +136,13 @@ if (is_android) {
     ]
 
     deps = [
+      ":internal_jni",
       ":libjingle_peerconnection_jni",
       ":libjingle_peerconnection_metrics_default_jni",
       ":native_api_jni",
       ":video_egl_jni",
       "../../pc:libjingle_peerconnection",
+      "../../rtc_base:checks",
       "../../rtc_base:logging",
       "../../rtc_base:ssl_adapter",
       "//third_party/jni_zero",
@@ -698,13 +700,17 @@ if (current_os == "linux" || is_android) {
       ":generated_video_jni",
       ":native_api_jni",
       ":videoframe_jni",
+      "../../api:array_view",
       "../../api:libjingle_peerconnection_api",
+      "../../api:make_ref_counted",
       "../../api:media_stream_interface",
+      "../../api:scoped_refptr",
       "../../api:sequence_checker",
       "../../api/environment",
       "../../api/task_queue",
       "../../api/video:encoded_image",
       "../../api/video:render_resolution",
+      "../../api/video:video_bitrate_allocation",
       "../../api/video:video_frame",
       "../../api/video:video_frame_type",
       "../../api/video:video_rtp_headers",
@@ -718,6 +724,7 @@ if (current_os == "linux" || is_android) {
       "../../modules/video_coding/svc:scalable_video_controller",
       "../../rtc_base:checks",
       "../../rtc_base:logging",
+      "../../rtc_base:macromagic",
       "../../rtc_base:race_checker",
       "../../rtc_base:refcount",
       "../../rtc_base:safe_conversions",
@@ -908,6 +915,7 @@ if (current_os == "linux" || is_android) {
     deps = [
       ":base_jni",
       ":generated_libvpx_vp8_jni",
+      ":native_api_jni",
       ":video_jni",
       "../../api/environment",
       "../../modules/video_coding:webrtc_vp8",
@@ -921,6 +929,7 @@ if (current_os == "linux" || is_android) {
     deps = [
       ":base_jni",
       ":generated_libvpx_vp9_jni",
+      ":native_api_jni",
       ":video_jni",
       "../../api/environment",
       "../../modules/video_coding:webrtc_vp9",
@@ -934,6 +943,7 @@ if (current_os == "linux" || is_android) {
     deps = [
       ":base_jni",
       ":generated_libaom_av1_encoder_jni",
+      ":native_api_jni",
       ":video_jni",
       "../../api/environment",
       "../../modules/video_coding/codecs/av1:libaom_av1_encoder",
@@ -1104,7 +1114,9 @@ if (current_os == "linux" || is_android) {
       ":base_jni",
       ":peerconnection_jni",
       "../../api:libjingle_peerconnection_api",
+      "../../api:scoped_refptr",
       "../../api/video_codecs:video_codecs_api",
+      "../../rtc_base:socket_factory",
       "../../rtc_base:threading",
     ]
   }
@@ -1143,6 +1155,7 @@ if (current_os == "linux" || is_android) {
       ":videoframe_jni",
       "../../api:libjingle_peerconnection_api",
       "../../api:media_stream_interface",
+      "../../api:scoped_refptr",
       "../../api/video:video_frame",
       "../../api/video:video_rtp_headers",
       "../../rtc_base:refcount",
@@ -1646,10 +1659,12 @@ if (is_android) {
 
     deps = [
       ":instrumentationtests_jni",
+      ":internal_jni",
       ":libjingle_peerconnection_jni",
       ":libjingle_peerconnection_metrics_default_jni",
       ":native_api_jni",
       "../../pc:libjingle_peerconnection",
+      "../../rtc_base:checks",
       "../../rtc_base:logging",
       "../../rtc_base:ssl_adapter",
     ]
@@ -1686,6 +1701,7 @@ if (is_android) {
       ":native_api_jni",
       "../../rtc_base:checks",
       "../../rtc_base:logging",
+      "//third_party/jni_zero",
     ]
   }
 
@@ -1749,8 +1765,8 @@ if (is_android) {
       "../../rtc_base:timeutils",
       "../../rtc_base/synchronization:mutex",
       "../../rtc_base/system:inline",
+      "../../test:create_test_field_trials",
       "../../test:fileutils",
-      "../../test:scoped_key_value_config",
       "../../test:test_support",
       "../../testing/gtest",
       "//third_party/abseil-cpp/absl/memory",

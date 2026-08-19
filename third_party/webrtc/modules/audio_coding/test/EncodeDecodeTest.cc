@@ -10,10 +10,9 @@
 
 #include "modules/audio_coding/test/EncodeDecodeTest.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <map>
 #include <memory>
 #include <string>

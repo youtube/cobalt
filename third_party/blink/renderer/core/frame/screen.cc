@@ -92,21 +92,6 @@ bool Screen::AreWebExposedScreenPropertiesEqual(
     return false;
   }
 
-  if (RuntimeEnabledFeatures::CanvasHDREnabled()) {
-    // (red|green|blue)Primary(X|Y) and whitePoint(X|Y).
-    const auto& prev_dcs = prev.display_color_spaces;
-    const auto& current_dcs = current.display_color_spaces;
-    if (prev_dcs.GetPrimaries() != current_dcs.GetPrimaries()) {
-      return false;
-    }
-
-    // highDynamicRangeHeadroom.
-    if (prev_dcs.GetHDRMaxLuminanceRelative() !=
-        current_dcs.GetHDRMaxLuminanceRelative()) {
-      return false;
-    }
-  }
-
   return true;
 }
 
@@ -201,7 +186,7 @@ void Screen::Trace(Visitor* visitor) const {
   Supplementable<Screen>::Trace(visitor);
 }
 
-const WTF::AtomicString& Screen::InterfaceName() const {
+const AtomicString& Screen::InterfaceName() const {
   return event_target_names::kScreen;
 }
 

@@ -53,7 +53,7 @@ String CanonicalizeProtocol(const String& input,
   url::RawCanonOutputT<char> canon_output;
   url::Component component;
   if (stripped.Is8Bit()) {
-    StringUTF8Adaptor utf8(stripped);
+    StringUtf8Adaptor utf8(stripped);
     result =
         url::CanonicalizeScheme(utf8.AsStringView(), &canon_output, &component);
   } else {
@@ -89,8 +89,8 @@ void CanonicalizeUsernameAndPassword(const String& username,
   url::Component password_component;
 
   if (username && password && username.Is8Bit() && password.Is8Bit()) {
-    StringUTF8Adaptor username_utf8(username);
-    StringUTF8Adaptor password_utf8(password);
+    StringUtf8Adaptor username_utf8(username);
+    StringUtf8Adaptor password_utf8(password);
     result = url::CanonicalizeUserInfo(
         username_utf8.AsStringView(), password_utf8.AsStringView(),
         &canon_output, &username_component, &password_component);
@@ -148,13 +148,13 @@ String CanonicalizePort(const String& input,
 
   int default_port = url::PORT_UNSPECIFIED;
   if (!input.empty()) {
-    StringUTF8Adaptor protocol_utf8(protocol);
+    StringUtf8Adaptor protocol_utf8(protocol);
     default_port = url::DefaultPortForScheme(protocol_utf8.AsStringView());
   }
 
   // Since ports only consist of digits there should be no encoding needed.
   // Therefore we directly use the UTF8 encoding version of CanonicalizePort().
-  StringUTF8Adaptor utf8(input);
+  StringUtf8Adaptor utf8(input);
   url::RawCanonOutputT<char> canon_output;
   url::Component component;
   if (!url::CanonicalizePort(utf8.data(), url::Component(0, utf8.size()),
@@ -191,7 +191,7 @@ String CanonicalizePathname(const String& protocol,
   if (protocol.empty()) {
     standard = true;
   } else if (protocol.Is8Bit()) {
-    StringUTF8Adaptor utf8(protocol);
+    StringUtf8Adaptor utf8(protocol);
     standard = url::IsStandard(utf8.AsStringView());
   } else {
     standard = url::IsStandard(protocol.View16());
@@ -211,26 +211,14 @@ String CanonicalizePathname(const String& protocol,
   const auto canonicalize_path =
       [&]<typename CharType>(std::basic_string_view<CharType> data) {
         if (standard) {
-          // TODO(crbug.com/351564777, crbug.com/420421613): Remove the
-          // UNSAFE_TODO after we finish transition in
-          // `url::CanonicalizePartialPath` to use
-          // `std::basic_string_view<CharType>`.
-          return UNSAFE_TODO(url::CanonicalizePartialPath(
-              data.data(), url::Component(0, data.size()), &canon_output,
-              &component));
+          return url::CanonicalizePartialPath(data, &canon_output, &component);
         }
-        // TODO(crbug.com/351564777, crbug.com/420421613): Remove the
-        // UNSAFE_TODO after we finish transition in
-        // `url::CanonicalizePathURLPath` to use
-        // `std::basic_string_view<CharType>`.
-        UNSAFE_TODO(url::CanonicalizePathURLPath(data.data(),
-                                                 url::Component(0, data.size()),
-                                                 &canon_output, &component));
+        url::CanonicalizePathURLPath(data, &canon_output, &component);
         return true;
       };
 
   if (input.Is8Bit()) {
-    StringUTF8Adaptor utf8(input);
+    StringUtf8Adaptor utf8(input);
     result = canonicalize_path(utf8.AsStringView());
   } else {
     result = canonicalize_path(input.View16());
@@ -260,7 +248,7 @@ String CanonicalizeSearch(const String& input,
   url::RawCanonOutputT<char> canon_output;
   url::Component component;
   if (stripped.Is8Bit()) {
-    StringUTF8Adaptor utf8(stripped);
+    StringUtf8Adaptor utf8(stripped);
     url::CanonicalizeQuery(utf8.AsStringView(),
                            /*converter=*/nullptr, &canon_output, &component);
   } else {
@@ -287,7 +275,7 @@ String CanonicalizeHash(const String& input,
   url::RawCanonOutputT<char> canon_output;
   url::Component component;
   if (stripped.Is8Bit()) {
-    StringUTF8Adaptor utf8(stripped);
+    StringUtf8Adaptor utf8(stripped);
     url::CanonicalizeRef(utf8.AsStringView(), &canon_output, &component);
   } else {
     url::CanonicalizeRef(stripped.View16(), &canon_output, &component);

@@ -462,10 +462,6 @@
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
-  #
-  # Test262 needs to expose CanBlock.
-  'built-ins/Atomics/wait/bigint/cannot-suspend-throws': [SKIP],
-  'built-ins/Atomics/wait/cannot-suspend-throws': [SKIP],
   # Flaky.
   'built-ins/Atomics/wait/undefined-index-defaults-to-zero': [SKIP],
 
@@ -807,15 +803,6 @@
 # Roll-watcher patch
 [ALWAYS, {
   'intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle-default': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'built-ins/TypedArray/prototype/values/make-in-bounds-after-exhausted': [FAIL],
-  'built-ins/TypedArray/prototype/values/make-out-of-bounds-after-exhausted': [FAIL],
 }],
 # End roll-watcher patch
 ####
@@ -1304,5 +1291,13 @@
   'intl402/RelativeTimeFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
 }],
 # End roll-watcher patch
+
+####
+# import test262@a073f479f80b336256b7fc4e04700c827293e2fe
+[ALWAYS, {
+  'built-ins/Map/prototype/getOrInsertComputed/canonical-key-passed-to-callback': [FAIL],
+}],
+# end import test262@a073f479f80b336256b7fc4e04700c827293e2fe
+###
 ####
 ]

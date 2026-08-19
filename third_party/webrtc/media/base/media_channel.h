@@ -1006,45 +1006,5 @@ class VideoMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
 
 }  // namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using RtcpParameters = ::webrtc::MediaChannelParameters::RtcpParameters;
-using ::webrtc::AudioReceiverParameters;
-using ::webrtc::AudioSenderParameter;
-using ::webrtc::BandwidthEstimationInfo;
-using ::webrtc::kScreencastDefaultFps;
-using ::webrtc::MediaChannelNetworkInterface;
-using ::webrtc::MediaChannelParameters;
-using ::webrtc::MediaReceiveChannelInterface;
-using ::webrtc::MediaReceiverInfo;
-using ::webrtc::MediaSendChannelInterface;
-using ::webrtc::MediaSenderInfo;
-using ::webrtc::RtpCodecParametersMap;
-using ::webrtc::SenderParameters;
-using ::webrtc::SsrcReceiverInfo;
-using ::webrtc::SsrcSenderInfo;
-using ::webrtc::ToStringIfSet;
-using ::webrtc::VectorToString;
-using ::webrtc::VideoMediaInfo;
-using ::webrtc::VideoMediaReceiveChannelInterface;
-using ::webrtc::VideoMediaReceiveInfo;
-using ::webrtc::VideoMediaSendChannelInterface;
-using ::webrtc::VideoMediaSendInfo;
-using ::webrtc::VideoOptions;
-using ::webrtc::VideoReceiverInfo;
-using ::webrtc::VideoReceiverParameters;
-using ::webrtc::VideoSenderInfo;
-using ::webrtc::VideoSenderParameters;
-using ::webrtc::VoiceMediaInfo;
-using ::webrtc::VoiceMediaReceiveChannelInterface;
-using ::webrtc::VoiceMediaReceiveInfo;
-using ::webrtc::VoiceMediaSendChannelInterface;
-using ::webrtc::VoiceMediaSendInfo;
-using ::webrtc::VoiceReceiverInfo;
-using ::webrtc::VoiceSenderInfo;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // MEDIA_BASE_MEDIA_CHANNEL_H_

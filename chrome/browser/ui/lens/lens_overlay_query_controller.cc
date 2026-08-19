@@ -31,7 +31,6 @@
 #include "chrome/browser/ui/lens/lens_overlay_image_helper.h"
 #include "chrome/browser/ui/lens/lens_overlay_proto_converter.h"
 #include "chrome/browser/ui/lens/lens_overlay_url_builder.h"
-#include "chrome/browser/ui/lens/ref_counted_lens_overlay_client_logs.h"
 #include "chrome/common/channel_info.h"
 #include "components/base32/base32.h"
 #include "components/endpoint_fetcher/endpoint_fetcher.h"
@@ -39,6 +38,7 @@
 #include "components/lens/lens_overlay_mime_type.h"
 #include "components/lens/lens_request_construction.h"
 #include "components/lens/proto/server/lens_overlay_response.pb.h"
+#include "components/lens/ref_counted_lens_overlay_client_logs.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/access_token_info.h"
@@ -1847,21 +1847,28 @@ void LensOverlayQueryController::
         std::optional<std::string> query_text,
         std::optional<std::string> object_id,
         scoped_refptr<lens::RefCountedLensOverlayClientLogs> ref_counted_logs,
-        std::optional<lens::ImageCrop> image_crop) {
+        std::optional<lens::ImageCropAndBitmap> image_crop_and_bitmap) {
   // The request index should match our counter after encoding finishes.
   CHECK(sequence_id == latest_interaction_request_data_->sequence_id());
 
-  // Pass the image crop for this request to the thumbnail created callback.
-  if (image_crop.has_value()) {
+  // Pass the image crop and region bitmap for this request to the thumbnail
+  // created callback.
+  if (image_crop_and_bitmap.has_value()) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(thumbnail_created_callback_,
-                                  image_crop->image().image_content()));
+        FROM_HERE,
+        base::BindOnce(
+            thumbnail_created_callback_,
+            image_crop_and_bitmap->image_crop.image().image_content(),
+            image_crop_and_bitmap->region_bitmap));
   }
 
   // Create the interaction request.
-  lens::LensOverlayServerRequest server_request =
-      CreateInteractionRequest(std::move(region), query_text, object_id,
-                               image_crop, ref_counted_logs->client_logs());
+  lens::LensOverlayServerRequest server_request = CreateInteractionRequest(
+      std::move(region), query_text, object_id,
+      image_crop_and_bitmap
+          ? std::make_optional(image_crop_and_bitmap->image_crop)
+          : std::nullopt,
+      ref_counted_logs->client_logs());
 
   // Continue the async process.
   InteractionRequestDataReady(sequence_id, std::move(server_request));

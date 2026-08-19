@@ -307,7 +307,7 @@ void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
 void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index) &&
       is_int12(ReadOnlyRootPtr(index))) {
-    li(destination, (int32_t)ReadOnlyRootPtr(index));
+    li(destination, static_cast<int32_t>(ReadOnlyRootPtr(index)));
     return;
   }
   LoadWord(destination,
@@ -2652,9 +2652,9 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     if (v8_flags.riscv_constant_pool && count >= 4 && reverse_count >= 4) {
       // Ld/Lw an Address from a constant pool.
 #if V8_TARGET_ARCH_RISCV32
-      RecordEntry((uint32_t)j.immediate(), j.rmode());
+      RecordEntry(static_cast<uint32_t>(j.immediate()), j.rmode());
 #elif V8_TARGET_ARCH_RISCV64
-      RecordEntry((uint64_t)j.immediate(), j.rmode());
+      RecordEntry(static_cast<uint64_t>(j.immediate()), j.rmode());
 #endif
       auipc(rd, 0);
       // Record a value into constant pool, passing 1 as the offset makes the
@@ -2678,9 +2678,9 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
       DCHECK(is_int32(j.immediate()) || is_uint32(j.immediate()));
       RecordRelocInfo(j.rmode());
 #if V8_TARGET_ARCH_RISCV64
-      li_constant32(rd, int32_t(j.immediate()));
+      li_constant32(rd, static_cast<int32_t>(j.immediate()));
 #elif V8_TARGET_ARCH_RISCV32
-      li_constant(rd, int32_t(j.immediate()));
+      li_constant(rd, static_cast<int32_t>(j.immediate()));
 #endif
       return;
     } else if (RelocInfo::IsCompressedEmbeddedObject(j.rmode())) {
@@ -4511,39 +4511,37 @@ void MacroAssembler::Branch(Label* L) {
 
 void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
                             const Operand& rt, Label::Distance distance) {
+  DEBUG_PRINTF("\t Branch is_trampoline_emitted %d\n", is_trampoline_emitted());
   if (L->is_bound()) {
-    if (!BranchShortCheck(0, L, cond, rs, rt)) {
-      if (cond != cc_always) {
-        Label skip;
-        Condition neg_cond = NegateCondition(cond);
-        BlockPoolsScope block_pools(this, 3 * kInstrSize);
-        BranchShort(&skip, neg_cond, rs, rt);
-        BranchLong(L);
-        bind(&skip);
-      } else {
-        BranchLong(L);
-        EmitConstPoolWithJumpIfNeeded();
-      }
-    }
-  } else {
-    DEBUG_PRINTF("\t Branch is_trampoline_emitted %d\n",
-                 is_trampoline_emitted());
-    if (is_trampoline_emitted()) {
-      if (cond != cc_always) {
-        Label skip;
-        Condition neg_cond = NegateCondition(cond);
-        BlockPoolsScope block_pools(this, 3 * kInstrSize);
-        BranchShort(&skip, neg_cond, rs, rt);
-        BranchLong(L);
-        bind(&skip);
-      } else {
-        BranchLong(L);
-        EmitConstPoolWithJumpIfNeeded();
-      }
-    } else {
-      BranchShort(L, cond, rs, rt);
-    }
+    // Go ahead and emit the branch as a short branch if possible.
+    if (BranchShortCheck(0, L, cond, rs, rt)) return;
+  } else if (!is_trampoline_emitted()) {
+    // We know that we're going to insert a trampoline for this branch if
+    // needed, so we can safely emit it as a short branch.
+    BranchShort(L, cond, rs, rt);
+    return;
   }
+
+  if (cond == cc_always) {
+    // We either have a branch backward to a position too far away to reach with
+    // a short branch - or a branch forward where we are unable to go through
+    // the trampoline pool because it has already been emitted.
+    BranchLong(L);
+    return;
+  }
+
+  // We're are going to use a short forward branch to skip the longer branch, so
+  // we need to make sure that we do not get a large constant pool emitted here.
+  // Otherwise, the short branch may not be able to reach the other side.
+  BlockPoolsScope block_pools(this);
+
+  // The short branch may span several instructions because we may have to
+  // materialize the 'rt' operand in a register. This can involve loading from a
+  // constant pool entry or constructing a complex immediate.
+  Label skip;
+  BranchShort(&skip, NegateCondition(cond), rs, rt);
+  BranchLong(L);
+  bind(&skip);
 }
 
 void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
@@ -4661,7 +4659,7 @@ bool MacroAssembler::BranchShortHelper(int32_t offset, Label* L, Condition cond,
       case cc_always:
         if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
         j(offset);
-        EmitConstPoolWithJumpIfNeeded();
+        EmitConstPoolWithoutJumpIfNeeded();
         break;
       case eq:
         // rs == rt
@@ -4976,17 +4974,7 @@ void MacroAssembler::Jump(Register target, Condition cond, Register rs,
                   "don't use x5 as target for jumps to avoid RAS pollution");
   if (cond == cc_always) {
     jr(target);
-    DEBUG_PRINTF("\tCheckTrampolinePool pc_offset:%d %d\n", pc_offset(),
-                 next_buffer_check() - ConstpoolComputesize());
-    if (!is_trampoline_emitted() &&
-        pc_offset() >= (next_buffer_check() - ConstpoolComputesize())) {
-      // We need to check trampoline pool before Constant pool.
-      // Here need to emit trampoline first.
-      // Jump(ra, al) will block trampoline pool for 1 instr.
-      nop();
-      CheckTrampolinePool();
-    }
-    ForceConstantPoolEmissionWithoutJump();
+    EmitConstPoolWithoutJumpIfNeeded();
   } else {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     BRANCH_ARGS_CHECK(cond, rs, rt);
@@ -5005,7 +4993,7 @@ void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
     BlockTrampolinePoolScope block_trampoline_pool(this);
     li(t6, Operand(target, rmode));
     Jump(t6, al, zero_reg, Operand(zero_reg));
-    EmitConstPoolWithJumpIfNeeded();
+    EmitConstPoolWithoutJumpIfNeeded();
     bind(&skip);
   }
 }
@@ -5345,23 +5333,6 @@ MemOperand MacroAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
                     IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
-void MacroAssembler::PatchAndJump(Address target) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  auipc(scratch, 0);  // Load PC into scratch
-  LoadWord(t6, MemOperand(scratch, kInstrSize * 4));
-  jr(t6);
-  nop();  // For alignment
-#if V8_TARGET_ARCH_RISCV64
-  DCHECK_EQ(reinterpret_cast<uint64_t>(pc_) % 8, 0);
-#elif V8_TARGET_ARCH_RISCV32
-  DCHECK_EQ(reinterpret_cast<uint32_t>(pc_) % 4, 0);
-#endif
-  *reinterpret_cast<uintptr_t*>(pc_) = target;  // pc_ should be align.
-  pc_ += sizeof(uintptr_t);
-}
-
 void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   // This generates the final instruction sequence for calls to C functions
   // once an exit frame has been constructed.
@@ -5412,12 +5383,11 @@ void MacroAssembler::BranchLong(Label* L) {
   if (L->is_bound() && is_intn(imm, Assembler::kJumpOffsetBits) &&
       (imm & 1) == 0) {
     j(imm);
-    NOP();
-    EmitConstPoolWithJumpIfNeeded();
+    EmitConstPoolWithoutJumpIfNeeded();
     return;
   }
   GenPCRelativeJump(t6, imm);
-  EmitConstPoolWithJumpIfNeeded();
+  EmitConstPoolWithoutJumpIfNeeded();
 }
 
 void MacroAssembler::BranchAndLinkLong(Label* L) {
@@ -5428,7 +5398,6 @@ void MacroAssembler::BranchAndLinkLong(Label* L) {
   if (L->is_bound() && is_intn(imm, Assembler::kJumpOffsetBits) &&
       (imm & 1) == 0) {
     jal(t6, imm);
-    NOP();
     return;
   }
   GenPCRelativeJumpAndLink(t6, imm);
@@ -5504,8 +5473,8 @@ void MacroAssembler::LoadAddress(Register dst, Label* target,
   int32_t offset;
   if (CalculateOffset(target, &offset, OffsetSize::kOffset32)) {
     CHECK(is_int32(offset + 0x800));
-    int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
-    int32_t Lo12 = (int32_t)offset << 20 >> 20;
+    int32_t Hi20 = (static_cast<int32_t>(offset) + 0x800) >> 12;
+    int32_t Lo12 = static_cast<int32_t>(offset) << 20 >> 20;
     BlockTrampolinePoolScope block_trampoline_pool(this);
     auipc(dst, Hi20);
     AddWord(dst, dst, Lo12);
@@ -6073,29 +6042,29 @@ void MacroAssembler::WasmRvvS128const(VRegister dst, const uint8_t imms[16]) {
 }
 #endif
 
-void MacroAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
+void MacroAssembler::LoadLane(VSew sew, VRegister dst, uint8_t laneidx,
                               MemOperand src, Trapper&& trapper) {
   DCHECK_NE(kScratchReg, src.rm());
-  if (ts == 8) {
+  if (sew == E8) {
     Lbu(kScratchReg2, src, std::forward<Trapper>(trapper));
     VU.set(kScratchReg, E32, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
     VU.set(kScratchReg, E8, m1);
     vmerge_vx(dst, kScratchReg2, dst);
-  } else if (ts == 16) {
+  } else if (sew == E16) {
     Lhu(kScratchReg2, src, std::forward<Trapper>(trapper));
     VU.set(kScratchReg, E16, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
     vmerge_vx(dst, kScratchReg2, dst);
-  } else if (ts == 32) {
+  } else if (sew == E32) {
     Load32U(kScratchReg2, src, std::forward<Trapper>(trapper));
     VU.set(kScratchReg, E32, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
     vmerge_vx(dst, kScratchReg2, dst);
-  } else if (ts == 64) {
+  } else if (sew == E64) {
 #if V8_TARGET_ARCH_RISCV64
     LoadWord(kScratchReg2, src, std::forward<Trapper>(trapper));
     VU.set(kScratchReg, E64, m1);
@@ -6114,29 +6083,28 @@ void MacroAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
   }
 }
 
-void MacroAssembler::StoreLane(int sz, VRegister src, uint8_t laneidx,
+void MacroAssembler::StoreLane(VSew sew, VRegister src, uint8_t laneidx,
                                MemOperand dst, Trapper&& trapper) {
   DCHECK_NE(kScratchReg, dst.rm());
-  if (sz == 8) {
+  if (sew == E8) {
     VU.set(kScratchReg, E8, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
     vmv_xs(kScratchReg, kSimd128ScratchReg);
     trapper(pc_offset());
     Sb(kScratchReg, dst, std::forward<Trapper>(trapper));
-  } else if (sz == 16) {
+  } else if (sew == E16) {
     VU.set(kScratchReg, E16, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
     vmv_xs(kScratchReg, kSimd128ScratchReg);
     trapper(pc_offset());
     Sh(kScratchReg, dst, std::forward<Trapper>(trapper));
-  } else if (sz == 32) {
+  } else if (sew == E32) {
     VU.set(kScratchReg, E32, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
     vmv_xs(kScratchReg, kSimd128ScratchReg);
     trapper(pc_offset());
     Sw(kScratchReg, dst, std::forward<Trapper>(trapper));
-  } else {
-    DCHECK_EQ(sz, 64);
+  } else if (sew == E64) {
     VU.set(kScratchReg, E64, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
 #if V8_TARGET_ARCH_RISCV64
@@ -6148,6 +6116,8 @@ void MacroAssembler::StoreLane(int sz, VRegister src, uint8_t laneidx,
     trapper(pc_offset());
     StoreDouble(kScratchDoubleReg, dst, std::forward<Trapper>(trapper));
 #endif
+  } else {
+    UNREACHABLE();
   }
 }
 // -----------------------------------------------------------------------------
@@ -6284,6 +6254,15 @@ void MacroAssembler::MulOverflow32(Register dst, Register left,
                                    const Operand& right, Register overflow,
                                    bool sign_extend_inputs) {
   ASM_CODE_COMMENT(this);
+
+  // Validate that the inputs are already sign extended if we're asked not to
+  // take care of the sign extending. Do this before we block the trampoline
+  // pool to avoid emitting too much code while blocked.
+  if (!sign_extend_inputs) {
+    AssertSignExtended(left);
+    if (right.is_reg()) AssertSignExtended(right.rm());
+  }
+
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Register right_reg = no_reg;
@@ -6312,14 +6291,8 @@ void MacroAssembler::MulOverflow32(Register dst, Register left,
     rs1 = overflow;
     rs2 = scratch;
   } else {
-    // we can skip sext_w on register inputs if not requested
     rs1 = left;
     rs2 = right_reg;
-    // no need in assert if input was imm
-    if (right.is_reg()) {
-      AssertSignExtended(rs2);
-    }
-    AssertSignExtended(rs1);
   }
   mul(overflow, rs1, rs2);
   sext_w(dst, overflow);
@@ -6573,9 +6546,6 @@ void MacroAssembler::Abort(AbortReason reason) {
     return;
   }
 
-  Label abort_start;
-  bind(&abort_start);
-
   Move(a0, Smi::FromInt(static_cast<int>(reason)));
 
   {
@@ -6593,20 +6563,8 @@ void MacroAssembler::Abort(AbortReason reason) {
       CallBuiltin(Builtin::kAbort);
     }
   }
+
   // Will not return here.
-  if (is_trampoline_pool_blocked()) {
-    // If the calling code cares about the exact number of
-    // instructions generated, we insert padding here to keep the size
-    // of the Abort macro constant.
-    // Currently in debug mode with debug_code enabled the number of
-    // generated instructions is 10, so we use this as a maximum value.
-    static const int kExpectedAbortInstructions = 10;
-    int abort_instructions = InstructionsGeneratedSince(&abort_start);
-    DCHECK_LE(abort_instructions, kExpectedAbortInstructions);
-    while (abort_instructions++ < kExpectedAbortInstructions) {
-      NOP();
-    }
-  }
 }
 
 // Sets condition flags based on comparison, and returns type in type_reg.
@@ -6921,7 +6879,7 @@ void MacroAssembler::JumpIfCodeIsMarkedForDeoptimization(
 }
 
 Operand MacroAssembler::ClearedValue() const {
-  return Operand(static_cast<int32_t>(i::ClearedValue(isolate()).ptr()));
+  return Operand(static_cast<int32_t>(i::kClearedWeakValue.ptr()));
 }
 
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label,
@@ -8083,6 +8041,21 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   Branch(fbv_undef);
 
   bind(&done);
+}
+
+void MacroAssembler::LoadInterpreterDataBytecodeArray(
+    Register destination, Register interpreter_data) {
+  LoadProtectedPointerField(
+      destination, FieldMemOperand(interpreter_data,
+                                   offsetof(InterpreterData, bytecode_array_)));
+}
+
+void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
+    Register destination, Register interpreter_data) {
+  LoadProtectedPointerField(
+      destination,
+      FieldMemOperand(interpreter_data,
+                      offsetof(InterpreterData, interpreter_trampoline_)));
 }
 
 void MacroAssembler::BranchRange(Label* L, Condition cond, Register value,

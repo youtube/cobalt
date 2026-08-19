@@ -586,34 +586,5 @@ enum ContentSource { CS_LOCAL, CS_REMOTE };
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::AudioContentDescription;
-using ::webrtc::ContentGroup;
-using ::webrtc::ContentGroups;
-using ::webrtc::ContentInfo;
-using ::webrtc::ContentInfos;
-using ::webrtc::ContentNames;
-using ::webrtc::ContentSource;
-using ::webrtc::CS_LOCAL;
-using ::webrtc::CS_REMOTE;
-using ::webrtc::kAutoBandwidth;
-using ::webrtc::kMsidSignalingMediaSection;
-using ::webrtc::kMsidSignalingNotUsed;
-using ::webrtc::kMsidSignalingSemantic;
-using ::webrtc::kMsidSignalingSsrcAttribute;
-using ::webrtc::MediaContentDescription;
-using ::webrtc::MediaProtocolType;
-using ::webrtc::MsidSignaling;
-using ::webrtc::RtpHeaderExtensions;
-using ::webrtc::RtpMediaContentDescription;
-using ::webrtc::SctpDataContentDescription;
-using ::webrtc::SessionDescription;
-using ::webrtc::UnsupportedContentDescription;
-using ::webrtc::VideoContentDescription;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // PC_SESSION_DESCRIPTION_H_

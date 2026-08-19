@@ -1158,7 +1158,7 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
 
 #define ASSEMBLE_SIMD_INSTR(opcode, dst_operand, index)      \
   do {                                                       \
-    if (instr->InputAt(index)->IsSimd128Register()) {        \
+    if (instr->InputAt(index)->CanBeSimd128Register()) {     \
       __ opcode(dst_operand, i.InputSimd128Register(index)); \
     } else {                                                 \
       __ opcode(dst_operand, i.InputOperand(index));         \
@@ -1167,26 +1167,26 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
 
 #define ASSEMBLE_SIMD_IMM_INSTR(opcode, dst_operand, index, imm)  \
   do {                                                            \
-    if (instr->InputAt(index)->IsSimd128Register()) {             \
+    if (instr->InputAt(index)->CanBeSimd128Register()) {          \
       __ opcode(dst_operand, i.InputSimd128Register(index), imm); \
     } else {                                                      \
       __ opcode(dst_operand, i.InputOperand(index), imm);         \
     }                                                             \
   } while (false)
 
-#define ASSEMBLE_SIMD_PUNPCK_SHUFFLE(opcode)                    \
-  do {                                                          \
-    XMMRegister dst = i.OutputSimd128Register();                \
-    uint8_t input_index = instr->InputCount() == 2 ? 1 : 0;     \
-    if (CpuFeatures::IsSupported(AVX)) {                        \
-      CpuFeatureScope avx_scope(masm(), AVX);                   \
-      DCHECK(instr->InputAt(input_index)->IsSimd128Register()); \
-      __ v##opcode(dst, i.InputSimd128Register(0),              \
-                   i.InputSimd128Register(input_index));        \
-    } else {                                                    \
-      DCHECK_EQ(dst, i.InputSimd128Register(0));                \
-      ASSEMBLE_SIMD_INSTR(opcode, dst, input_index);            \
-    }                                                           \
+#define ASSEMBLE_SIMD_PUNPCK_SHUFFLE(opcode)                       \
+  do {                                                             \
+    XMMRegister dst = i.OutputSimd128Register();                   \
+    uint8_t input_index = instr->InputCount() == 2 ? 1 : 0;        \
+    if (CpuFeatures::IsSupported(AVX)) {                           \
+      CpuFeatureScope avx_scope(masm(), AVX);                      \
+      DCHECK(instr->InputAt(input_index)->CanBeSimd128Register()); \
+      __ v##opcode(dst, i.InputSimd128Register(0),                 \
+                   i.InputSimd128Register(input_index));           \
+    } else {                                                       \
+      DCHECK_EQ(dst, i.InputSimd128Register(0));                   \
+      ASSEMBLE_SIMD_INSTR(opcode, dst, input_index);               \
+    }                                                              \
   } while (false)
 
 #define ASSEMBLE_SIMD_IMM_SHUFFLE(opcode, imm)                \
@@ -1195,7 +1195,7 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
     XMMRegister src = i.InputSimd128Register(0);              \
     if (CpuFeatures::IsSupported(AVX)) {                      \
       CpuFeatureScope avx_scope(masm(), AVX);                 \
-      DCHECK(instr->InputAt(1)->IsSimd128Register());         \
+      DCHECK(instr->InputAt(1)->CanBeSimd128Register());      \
       __ v##opcode(dst, src, i.InputSimd128Register(1), imm); \
     } else {                                                  \
       DCHECK_EQ(dst, src);                                    \
@@ -1493,8 +1493,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallCodeObject: {
+      // We need to manually manage the sandboxing mode here and cannot let
+      // CallBuiltin do that since we assume that the last instruction emitted
+      // by it is the `call` instruction (so that RecordCallPosition works
+      // correctly).
+      // TODO(428152530): once we perform the mode switching via a dedicated
+      // trampoline, we no longer need this workaround.
+      CodeSandboxingMode previous_sandboxing_mode = __ sandboxing_mode();
       if (HasImmediateInput(instr, 0)) {
         Handle<Code> code = i.InputCode(0);
+        previous_sandboxing_mode =
+            __ SwitchSandboxingModeBeforeCallIfNeeded(code->sandboxing_mode());
         __ Call(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
@@ -1509,6 +1518,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       RecordCallPosition(instr);
       AssemblePlaceHolderForLazyDeopt(instr);
       frame_access_state()->ClearSPDelta();
+      __ SwitchSandboxingModeAfterCallIfNeeded(previous_sandboxing_mode);
       break;
     }
     case kArchCallBuiltinPointer: {
@@ -1747,6 +1757,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchNop:
       // don't emit code for nops.
+      break;
+    case kArchPause:
+      __ pause();
       break;
     case kArchDeoptimize: {
       DeoptimizationExit* exit =
@@ -3342,7 +3355,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           DCHECK_GE(stack_decrement, kSystemPointerSize);
           __ AllocateStackSpace(stack_decrement);
           __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(1));
-        } else if (input->IsSimd128Register()) {
+        } else if (input->CanBeSimd128Register()) {
           DCHECK_GE(stack_decrement, kSimd128Size);
           __ AllocateStackSpace(stack_decrement);
           // TODO(bbudge) Use Movaps when slots are aligned.
@@ -6992,8 +7005,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       // Decompress pointer.
       if constexpr (COMPRESS_POINTERS_BOOL) {
+        DCHECK_EQ(i.InputRegister(0), i.OutputRegister(0));
         __ addq(i.InputRegister(0), kPtrComprCageBaseRegister);
       }
+      if (v8_flags.disable_write_barriers) break;
       // Emit write barrier.
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, i.MemoryOperand(1), written_value, scratch0, scratch1,
@@ -7064,6 +7079,50 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Zero-extend the 32 bit value to 64 bit.
         __ movl(rax, rax);
       }
+      break;
+    }
+    case kAtomicCompareExchangeWithWriteBarrier: {
+      DCHECK_EQ(AtomicWidthField::decode(opcode), COMPRESS_POINTERS_BOOL
+                                                      ? AtomicWidth::kWord32
+                                                      : AtomicWidth::kWord64);
+      DCHECK_EQ(i.InputRegister(0), i.OutputRegister(0));
+      // Perform compare-exchange.
+      Register scratch0 = i.TempRegister(0);
+      Register scratch1 = i.TempRegister(1);
+      Register object = i.InputRegister(2);
+      Register written_value = i.TempRegister(2);
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        __ movl(written_value, i.InputRegister(1));
+        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+        __ lock();
+        __ cmpxchgl(i.MemoryOperand(2), i.InputRegister(1));
+        // Decompress pointer if not yet decompressed. (It is already
+        // decompressed if the compared value matches the memory location.)
+        __ orq(i.OutputRegister(0), kPtrComprCageBaseRegister);
+      } else {
+        __ movq(written_value, i.InputRegister(1));
+        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+        __ lock();
+        __ cmpxchgq(i.MemoryOperand(2), i.InputRegister(1));
+      }
+
+      if (v8_flags.disable_write_barriers) break;
+      // Emit write barrier.
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, i.MemoryOperand(2), written_value, scratch0, scratch1,
+          RecordWriteMode::kValueIsAny, DetermineStubCallMode());
+      __ JumpIfSmi(written_value, ool->exit());
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+      __ CheckPageFlag(object, scratch0, MemoryChunk::kIncrementalMarking,
+                       not_zero, ool->stub_call());
+      __ CheckMarkBit(object, scratch0, scratch1, carry, ool->entry());
+#else   // !V8_ENABLE_STICKY_MARK_BITS_BOOL
+      static_assert(WriteBarrier::kUninterestingPagesCanBeSkipped);
+      __ CheckPageFlag(object, scratch0,
+                       MemoryChunk::kPointersFromHereAreInterestingMask,
+                       not_zero, ool->entry());
+#endif  // !V8_ENABLE_STICKY_MARK_BITS_BOOL
+      __ bind(ool->exit());
       break;
     }
     case kX64Word64AtomicExchangeUint64: {
@@ -7555,9 +7614,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ bind(&done);
 }
 
-void CodeGenerator::AssembleArchConditionalBoolean(Instruction* instr) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+void CodeGenerator::AssembleArchConditionalTrap(Instruction* instr,
+                                                FlagsCondition condition) {
   UNREACHABLE();
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
                                                   BranchInfo* branch) {
@@ -7806,7 +7868,8 @@ void CodeGenerator::AssembleConstructFrame() {
                 Immediate(static_cast<int32_t>(
                     call_descriptor->ParameterSlotCount() * kSystemPointerSize +
                     CommonFrameConstants::kFixedFrameSizeAboveFp)));
-        __ CallBuiltin(Builtin::kWasmHandleStackOverflow);
+        __ Call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
+                RelocInfo::WASM_STUB_CALL);
         __ PopAll(fp_regs_to_save);
         __ PopAll(regs_to_save);
       } else {

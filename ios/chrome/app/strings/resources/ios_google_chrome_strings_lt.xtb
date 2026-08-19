@@ -90,6 +90,7 @@ Pabandykite palaukti kelias minutes prieš atsijungdami. Jei atsijungsite dabar,
 <translation id="2957447865124070833">Pasirinkite <ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" /></translation>
 <translation id="2986402782150919988">Žymių pridėjimas prie „Chrome“</translation>
 <translation id="3030414234702425231">Atsijungiate nuo paskyros, kurią valdo <ph name="SIGNOUT_MANAGED_DOMAIN" />, todėl „Chrome“ duomenys bus ištrinti iš šio įrenginio. Duomenys išliks jūsų „Google“ paskyroje.</translation>
+<translation id="3042447686908081308">Importuoti į „Chrome“</translation>
 <translation id="3051521853355903257">Slaptažodžių tvarkymas naršyklėje „Chrome“</translation>
 <translation id="309672519329227863">Pasiekite „Chrome“ slaptažodžius ir kitas funkcijas kitose programose.</translation>
 <translation id="3109170945534582468">„Chrome“ veiksmai</translation>
@@ -316,6 +317,7 @@ Duomenys užšifruoti naudojant slaptafrazę <ph name="TIME" />. Įveskite ją, 
 <translation id="855027533751209304">„Chrome“ patarimas: ieškokite to, ką matote</translation>
 <translation id="8558480467877843976">Dabar galite naudoti „Chrome“ bet kada naršydami ar paliesdami nuorodas pranešimuose, dokumentuose ir kitose programose.</translation>
 <translation id="8603022514504485810">„Google“ slaptažodžių tvarkyklei nepavyko patikrinti visų slaptažodžių. Bandykite dar kartą rytoj arba <ph name="BEGIN_LINK" />patikrinkite slaptažodžius „Google“ paskyroje<ph name="END_LINK" />.</translation>
+<translation id="8610372330814566250">Naudokite „Safari“ slaptažodžius, istoriją, žymes ir kredito korteles naršyklėje „Chrome“</translation>
 <translation id="8630122478628016441">Įjunkite parinktį „Užrakinti inkognito skirtukus uždarius „Chrome“.</translation>
 <translation id="8673726683583791503">Apsipirkimas naudojant „Google Lens“</translation>
 <translation id="8765470054473112089">Kai įvedate tekstą adreso juostoje ar paieškos laukelyje, „Chrome“ siunčia tai, ką įvedate, į numatytąjį paieškos variklį, kad gautų geresnių pasiūlymų. Ši funkcija inkognito režimu išjungta.</translation>
@@ -337,6 +339,7 @@ Duomenys užšifruoti naudojant slaptafrazę <ph name="TIME" />. Įveskite ją, 
 <translation id="9176561303811134420">Mokėjimo metodų tvarkymas naršyklėje „Chrome“</translation>
 <translation id="9181628561061032322">Atidaromi „Chrome“ naujausi skirtukai.</translation>
 <translation id="948597495737267756">Atidaromas „Chrome“ istorijos puslapis.</translation>
+<translation id="954347330803595209">Importuokite duomenis, kad galėtumėte naudoti slaptažodžius, istoriją, žymes ir kredito korteles naršyklėje „Chrome“</translation>
 <translation id="97300214378190234">Naudokite „Chrome“ bet kada palietę nuorodas kitose programose.</translation>
 <translation id="997929539742564806">Greitai prisijunkite prie programų ir svetainių automatiškai užpildydami slaptažodžius ir prieigos raktus iš „Chrome“</translation>
 <translation id="998677222109959694">Tvarkyti „Chrome“ nustatymus</translation>

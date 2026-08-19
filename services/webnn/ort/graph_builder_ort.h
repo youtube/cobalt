@@ -100,45 +100,99 @@ class GraphBuilderOrt {
   std::string CreateInitializer(base::span<const int64_t> shape,
                                 base::span<const DataType> data);
 
-  // A helper method wrapping the `CreateInitializer` above. It creates a
+  // A helper method wrapping the `CreateInitializer` method above. It adds a
   // scalar initializer with the given scalar value (tensor of empty shape) to
   // the graph, returning the name of the initializer.
   template <typename DataType>
     requires internal::IsSupportedTensorType<DataType>
   std::string CreateScalarInitializer(const DataType& value);
 
-  // A helper method creating an int64 tensor with the given shape value.
-  // It can be used by `reshape` and `expand` to create an initializer that
-  // specifies the output's shape.
-  std::string CreateInitializerForShape(base::span<const uint32_t> shape);
+  // A helper method wrapping the `CreateInitializer` method above. It adds a
+  // 1D initializer with the given data (tensor of shape [data.size()]) to the
+  // graph, returning the name of the initializer.
+  template <typename DataType>
+    requires internal::IsSupportedTensorType<DataType>
+  std::string Create1DInitializer(base::span<const DataType> data);
+
+  // A helper method wrapping the `CreateInitializer` method above. It adds a 1D
+  // int64 initializer with the given uint32 array (shape is [array.size()]) to
+  // the graph, returning the name of the initializer.
+  std::string CreateInt64InitializerForUint32Array(
+      base::span<const uint32_t> array);
+
+  void AddCastNode(base::cstring_view node_name,
+                   base::cstring_view input,
+                   base::cstring_view output,
+                   ONNXTensorElementDataType to_data_type);
+  std::string CreateCastNode(base::cstring_view input,
+                             ONNXTensorElementDataType to_data_type);
+  void InsertCastNode(base::cstring_view input,
+                      base::cstring_view output,
+                      ONNXTensorElementDataType to_data_type);
 
   void AddExpandNode(base::cstring_view node_name,
                      base::cstring_view input,
                      base::cstring_view output,
                      base::span<const uint32_t> shape);
-
   std::string CreateExpandNode(base::cstring_view input,
                                base::span<const uint32_t> shape);
+
+  void AddSliceNode(base::cstring_view node_name,
+                    base::cstring_view input,
+                    base::cstring_view output,
+                    base::span<const int64_t> axes_value,
+                    base::span<const int64_t> starts_value,
+                    base::span<const int64_t> ends_value,
+                    base::span<const int64_t> steps_value);
+
+  // Clamp the indices to the range [-dim_size, dim_size), the given data type
+  // should be indices's data type.
+  std::string ClampIndices(base::cstring_view indices,
+                           OperandDataType data_type,
+                           uint32_t dim_size);
+
+  // Clamp the indices to ensure that all values in indices are within bounds
+  // [-s, s) along axis of size s, i.e. -input_shape[i] <= indices[..., i] <=
+  // input_shape[i] - 1. The data type of indices is assumed to be int64.
+  std::string ClampGatherNDIndices(base::cstring_view indices,
+                                   base::span<const uint32_t> input_shape,
+                                   base::span<const uint32_t> indices_shape);
+
   template <typename T>
   void AddBinaryOperation(const T& operation, base::cstring_view op_type);
   template <typename T>
   void AddUnaryOperation(const T& operation, base::cstring_view op_type);
+  template <typename T>
+  void AddGatherOperation(const T& operation, base::cstring_view op_type);
 
+  void AddArgMinMaxOperation(const mojom::ArgMinMax& arg_min_max);
   void AddCastOperation(const mojom::ElementWiseUnary& cast);
-
   void AddClampOperation(const mojom::Clamp& clamp);
+  void AddConcatOperation(const mojom::Concat& concat);
   void AddConv2dOperation(const mojom::Conv2d& conv2d);
+  void AddLogicalBinaryOperation(const mojom::ElementWiseBinary& logical_binary,
+                                 base::cstring_view op_type);
+  void AddLogicalNotOperation(const mojom::ElementWiseUnary& logical_not);
+  void AddLogicalNotEqualOperation(const mojom::ElementWiseBinary& not_equal);
   void AddElementWiseBinaryOperation(
       const mojom::ElementWiseBinary& element_wise_binary);
   void AddElementWiseUnaryOperation(
       const mojom::ElementWiseUnary& element_wise_unary);
   void AddExpandOperation(const mojom::Expand& expand);
+  void AddGatherNDOperation(const mojom::GatherND& gather_nd);
   void AddGemmOperation(const mojom::Gemm& gemm);
   void AddLeakyReluOperation(const mojom::LeakyRelu& leaky_relu);
   void AddPool2dOperation(const mojom::Pool2d& pool2d);
   void AddPreluOperation(const mojom::Prelu& prelu);
   void AddReshapeOperation(const mojom::Reshape& reshape);
+  void AddReverseOperation(const mojom::Reverse& reverse);
+  void AddScatterElementsOperation(
+      const mojom::ScatterElements& scatter_elements);
+  void AddScatterNDOperation(const mojom::ScatterND& scatter_nd);
+  void AddSliceOperation(const mojom::Slice& slice);
   void AddSoftmaxOperation(const mojom::Softmax& softmax);
+  void AddSplitOperation(const mojom::Split& split);
+  void AddTileOperation(const mojom::Tile& tile);
   void AddTransposeOperation(const mojom::Transpose& transpose);
 
   [[nodiscard]] base::expected<std::unique_ptr<ModelEditor::ModelInfo>,

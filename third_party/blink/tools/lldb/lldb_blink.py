@@ -34,13 +34,13 @@ import lldb
 
 def __lldb_init_module(debugger, dict):
     debugger.HandleCommand(
-        'type summary add --expand -F lldb_blink.WTFString_SummaryProvider WTF::String'
+        'type summary add --expand -F lldb_blink.BlinkString_SummaryProvider blink::String'
     )
     debugger.HandleCommand(
-        'type summary add --expand -F lldb_blink.WTFStringImpl_SummaryProvider WTF::StringImpl'
+        'type summary add --expand -F lldb_blink.BlinkStringImpl_SummaryProvider blink::StringImpl'
     )
     debugger.HandleCommand(
-        'type summary add --expand -F lldb_blink.WTFAtomicString_SummaryProvider WTF::AtomicString'
+        'type summary add --expand -F lldb_blink.BlinkAtomicString_SummaryProvider blink::AtomicString'
     )
     debugger.HandleCommand(
         'type summary add --expand -F lldb_blink.WTFVector_SummaryProvider -x "WTF::Vector<.+>$"'
@@ -65,20 +65,20 @@ def __lldb_init_module(debugger, dict):
     )
 
 
-def WTFString_SummaryProvider(valobj, dict):
-    provider = WTFStringProvider(valobj, dict)
+def BlinkString_SummaryProvider(valobj, dict):
+    provider = BlinkStringProvider(valobj, dict)
     return "{ length = %d, contents = '%s' }" % (provider.get_length(),
                                                  provider.to_string())
 
 
-def WTFStringImpl_SummaryProvider(valobj, dict):
-    provider = WTFStringImplProvider(valobj, dict)
+def BlinkStringImpl_SummaryProvider(valobj, dict):
+    provider = BlinkStringImplProvider(valobj, dict)
     return "{ length = %d, is8bit = %d, contents = '%s' }" % (
         provider.get_length(), provider.is_8bit(), provider.to_string())
 
 
-def WTFAtomicString_SummaryProvider(valobj, dict):
-    return WTFString_SummaryProvider(
+def BlinkAtomicString_SummaryProvider(valobj, dict):
+    return BlinkString_SummaryProvider(
         valobj.GetChildMemberWithName('string_'), dict)
 
 
@@ -153,7 +153,7 @@ def lstring_to_string(valobj, error, length=None):
     return out_string.encode('utf-8')
 
 
-class WTFStringImplProvider:
+class BlinkStringImplProvider:
     def __init__(self, valobj, dict):
         self.valobj = valobj
 
@@ -191,14 +191,14 @@ class WTFStringImplProvider:
             'is_8bit_').GetValueAsUnsigned(0)
 
 
-class WTFStringProvider:
+class BlinkStringProvider:
     def __init__(self, valobj, dict):
         self.valobj = valobj
 
     def stringimpl(self):
         impl_ptr = self.valobj.GetChildMemberWithName(
             'impl_').GetChildMemberWithName('ptr_')
-        return WTFStringImplProvider(impl_ptr, dict)
+        return BlinkStringImplProvider(impl_ptr, dict)
 
     def get_length(self):
         impl = self.stringimpl()

@@ -15,19 +15,19 @@
 #include <tuple>
 #include <vector>
 
+#include "api/field_trials.h"
 #include "api/units/data_rate.h"
 #include "api/video/resolution.h"
 #include "api/video/video_codec_type.h"
 #include "api/video_codecs/video_codec.h"
 #include "media/base/media_constants.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "video/config/video_encoder_config.h"
 
 namespace webrtc {
 namespace {
-using test::ExplicitKeyValueConfig;
 using ::testing::Combine;
 using ::testing::SizeIs;
 using ::testing::TestParamInfo;
@@ -122,7 +122,7 @@ TEST(SimulcastTest, BandwidthAboveTotalMaxBitrateGivenToHighestStream) {
 }
 
 TEST(SimulcastTest, GetConfig) {
-  const ExplicitKeyValueConfig trials("");
+  const FieldTrials trials = CreateTestFieldTrials();
 
   const std::vector<VideoStream> kExpected = GetSimulcastBitrates720p();
 
@@ -151,7 +151,7 @@ TEST(SimulcastTest, GetConfig) {
 }
 
 TEST(SimulcastTest, GetConfigH265) {
-  const ExplicitKeyValueConfig trials("");
+  const FieldTrials trials = CreateTestFieldTrials();
   const std::vector<VideoStream> kExpected = GetH265SimulcastBitrates720p();
 
   const size_t kMaxLayers = 3;
@@ -180,8 +180,8 @@ TEST(SimulcastTest, GetConfigH265) {
 }
 
 TEST(SimulcastTest, GetConfigWithBaseHeavyVP8TL3RateAllocation) {
-  ExplicitKeyValueConfig trials(
-      "WebRTC-UseBaseHeavyVP8TL3RateAllocation/Enabled/");
+  FieldTrials trials =
+      CreateTestFieldTrials("WebRTC-UseBaseHeavyVP8TL3RateAllocation/Enabled/");
 
   const std::vector<VideoStream> kExpected = GetSimulcastBitrates720p();
 
@@ -204,7 +204,7 @@ TEST(SimulcastTest, GetConfigWithBaseHeavyVP8TL3RateAllocation) {
 }
 
 TEST(SimulcastTest, GetConfigWithLimitedMaxLayers) {
-  ExplicitKeyValueConfig trials("");
+  FieldTrials trials = CreateTestFieldTrials();
 
   const size_t kMaxLayers = 2;
   std::vector<VideoStream> streams =
@@ -219,7 +219,7 @@ TEST(SimulcastTest, GetConfigWithLimitedMaxLayers) {
 }
 
 TEST(SimulcastTest, GetConfigForScreenshareSimulcast) {
-  ExplicitKeyValueConfig trials("");
+  FieldTrials trials = CreateTestFieldTrials();
   std::vector<VideoStream> streams = GetSimulcastConfig(
       std::vector<Resolution>{{.width = 1400, .height = 800},
                               {.width = 1400, .height = 800},
@@ -241,7 +241,7 @@ TEST(SimulcastTest, GetConfigForScreenshareSimulcast) {
 }
 
 TEST(SimulcastTest, GetConfigForScreenshareSimulcastWithLimitedMaxLayers) {
-  ExplicitKeyValueConfig trials("");
+  FieldTrials trials = CreateTestFieldTrials();
   std::vector<VideoStream> streams = GetSimulcastConfig(
       std::vector<Resolution>{{.width = 1400, .height = 800}}, kScreenshare,
       true, trials, kVideoCodecVP8);
@@ -249,7 +249,7 @@ TEST(SimulcastTest, GetConfigForScreenshareSimulcastWithLimitedMaxLayers) {
 }
 
 TEST(SimulcastTest, AveragesBitratesForNonStandardResolution) {
-  ExplicitKeyValueConfig trials("");
+  FieldTrials trials = CreateTestFieldTrials();
   std::vector<VideoStream> streams =
       GetSimulcastConfig(std::vector<Resolution>{{.width = 900, .height = 800}},
                          !kScreenshare, true, trials, kVideoCodecVP8);
@@ -263,7 +263,7 @@ TEST(SimulcastTest, AveragesBitratesForNonStandardResolution) {
 }
 
 TEST(SimulcastTest, BitratesForCloseToStandardResolution) {
-  ExplicitKeyValueConfig trials("");
+  FieldTrials trials = CreateTestFieldTrials();
 
   const size_t kMaxLayers = 3;
   // Resolution very close to 720p in number of pixels
@@ -289,8 +289,8 @@ TEST(SimulcastTest, BitratesForCloseToStandardResolution) {
 }
 
 TEST(SimulcastTest, MaxLayersWithRoundUpDisabled) {
-  ExplicitKeyValueConfig trials(
-      "WebRTC-SimulcastLayerLimitRoundUp/max_ratio:0.0/");
+  FieldTrials trials =
+      CreateTestFieldTrials("WebRTC-SimulcastLayerLimitRoundUp/max_ratio:0.0/");
 
   const size_t kMinLayers = 1;
   const int kMaxLayers = 3;
@@ -313,7 +313,7 @@ TEST(SimulcastTest, MaxLayersWithRoundUpDisabled) {
 
 TEST(SimulcastTest, MaxLayersWithDefaultRoundUpRatio) {
   // Default: "WebRTC-SimulcastLayerLimitRoundUp/max_ratio:0.1/"
-  ExplicitKeyValueConfig trials("");
+  FieldTrials trials = CreateTestFieldTrials();
   const size_t kMinLayers = 1;
   const int kMaxLayers = 3;
 
@@ -340,7 +340,7 @@ TEST(SimulcastTest, MaxLayersWithDefaultRoundUpRatio) {
 }
 
 TEST(SimulcastTest, MaxLayersWithRoundUpRatio) {
-  ExplicitKeyValueConfig trials(
+  FieldTrials trials = CreateTestFieldTrials(
       "WebRTC-SimulcastLayerLimitRoundUp/max_ratio:0.13/");
 
   const size_t kMinLayers = 1;
@@ -360,7 +360,7 @@ TEST(SimulcastTest, MaxLayersWithRoundUpRatio) {
 
 TEST(SimulcastTest, BitratesInterpolatedForResBelow180p) {
   // TODO(webrtc:12415): Remove when feature launches.
-  ExplicitKeyValueConfig trials(
+  FieldTrials trials = CreateTestFieldTrials(
       "WebRTC-LowresSimulcastBitrateInterpolation/Enabled/");
 
   const size_t kMaxLayers = 3;
@@ -378,7 +378,7 @@ TEST(SimulcastTest, BitratesInterpolatedForResBelow180p) {
 
 TEST(SimulcastTest, BitratesConsistentForVerySmallRes) {
   // TODO(webrtc:12415): Remove when feature launches.
-  ExplicitKeyValueConfig trials(
+  FieldTrials trials = CreateTestFieldTrials(
       "WebRTC-LowresSimulcastBitrateInterpolation/Enabled/");
 
   std::vector<VideoStream> streams =
@@ -395,7 +395,7 @@ TEST(SimulcastTest, BitratesConsistentForVerySmallRes) {
 
 TEST(SimulcastTest,
      BitratesNotInterpolatedForResBelow180pWhenDisabledTrialSet) {
-  ExplicitKeyValueConfig trials(
+  FieldTrials trials = CreateTestFieldTrials(
       "WebRTC-LowresSimulcastBitrateInterpolation/Disabled/");
 
   const size_t kMaxLayers = 3;
@@ -424,7 +424,7 @@ using BitrateLimitsTest =
 TEST_P(BitrateLimitsTest, VerifyBitrateLimits) {
   const auto codec_type = std::get<VideoCodecType>(GetParam());
   const auto test_params = std::get<BitrateLimitsTestParams>(GetParam());
-  ExplicitKeyValueConfig trials("");
+  FieldTrials trials = CreateTestFieldTrials();
   std::vector<VideoStream> streams = GetSimulcastConfig(
       CreateResolutions(test_params.width, test_params.height,
                         /*num_streams=*/3),
@@ -499,7 +499,7 @@ INSTANTIATE_TEST_SUITE_P(
 // Test that for H.265, the simulcast layers are created with the correct
 // default temporal layers, before that is overrided by application settings.
 TEST(SimulcastTest, GetConfigForH265) {
-  const ExplicitKeyValueConfig trials("");
+  FieldTrials trials = CreateTestFieldTrials();
 
   const size_t kMaxLayers = 3;
   std::vector<VideoStream> streams =

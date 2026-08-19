@@ -62,12 +62,12 @@ All changes to this list should go through Blink's feature review process: http:
     animation-range-start
     animation-timeline
     animation-timing-function
+    animation-trigger-behavior
     animation-trigger-exit-range-end
     animation-trigger-exit-range-start
     animation-trigger-range-end
     animation-trigger-range-start
     animation-trigger-timeline
-    animation-trigger-type
     app-region
     appearance
     aspect-ratio
@@ -246,8 +246,8 @@ All changes to this list should go through Blink's feature review process: http:
     inset-inline-end
     inset-inline-start
     interactivity
-    interest-target-hide-delay
-    interest-target-show-delay
+    interest-hide-delay
+    interest-show-delay
     interpolate-size
     isolation
     item-tolerance
@@ -442,6 +442,13 @@ All changes to this list should go through Blink's feature review process: http:
     text-wrap-mode
     text-wrap-style
     timeline-scope
+    timeline-trigger-behavior
+    timeline-trigger-exit-range-end
+    timeline-trigger-exit-range-start
+    timeline-trigger-name
+    timeline-trigger-range-end
+    timeline-trigger-range-start
+    timeline-trigger-timeline
     top
     touch-action
     transform
@@ -509,12 +516,12 @@ All changes to this list should go through Blink's feature review process: http:
         animation-range-end
         animation-range-start
     animation-trigger
+        animation-trigger-behavior
         animation-trigger-exit-range-end
         animation-trigger-exit-range-start
         animation-trigger-range-end
         animation-trigger-range-start
         animation-trigger-timeline
-        animation-trigger-type
     animation-trigger-exit-range
         animation-trigger-exit-range-end
         animation-trigger-exit-range-start
@@ -770,9 +777,9 @@ All changes to this list should go through Blink's feature review process: http:
     inset-inline
         inset-inline-end
         inset-inline-start
-    interest-target-delay
-        interest-target-hide-delay
-        interest-target-show-delay
+    interest-delay
+        interest-hide-delay
+        interest-show-delay
     list-style
         list-style-image
         list-style-position

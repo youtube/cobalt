@@ -302,7 +302,7 @@
 //   // initialized `T`.
 //   MSAN_UNPOISON(ptr, sizeof(T));
 // ```
-#if defined(MEMORY_SANITIZER) && !BUILDFLAG(IS_NACL)
+#if defined(MEMORY_SANITIZER)
 #include <sanitizer/msan_interface.h>
 #define MSAN_UNPOISON(p, size) __msan_unpoison(p, size)
 #else
@@ -325,7 +325,7 @@
 //   // not point to an initialized `T`.
 //   MSAN_CHECK_MEM_IS_INITIALIZED(ptr, sizeof(T));
 // ```
-#if defined(MEMORY_SANITIZER) && !BUILDFLAG(IS_NACL)
+#if defined(MEMORY_SANITIZER)
 #define MSAN_CHECK_MEM_IS_INITIALIZED(p, size) \
   __msan_check_mem_is_initialized(p, size)
 #else

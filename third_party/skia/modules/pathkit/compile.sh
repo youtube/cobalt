@@ -102,7 +102,7 @@ echo "Compiling bitcode"
   skia_use_libwebp_encode = false \
   skia_use_wuffs = false"
 
-${NINJA} -C ${BUILD_DIR} libpathops.a libskia.a
+${NINJA} -C ${BUILD_DIR} libpathkit.a libskia.a
 
 echo "Generating WASM"
 
@@ -126,6 +126,7 @@ $WASM_CONF \
 -sSTRICT=1 \
 $OUTPUT \
 $BASE_DIR/pathkit_wasm_bindings.cpp \
-${BUILD_DIR}/libpathops.a \
+${BUILD_DIR}/libpathkit.a \
 ${BUILD_DIR}/libskia.a
+
 

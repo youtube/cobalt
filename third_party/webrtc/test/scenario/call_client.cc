@@ -291,11 +291,6 @@ DataRate CallClient::target_rate() const {
   return network_controller_factory_.GetUpdate().target_rate->target_rate;
 }
 
-DataRate CallClient::stable_target_rate() const {
-  return network_controller_factory_.GetUpdate()
-      .target_rate->stable_target_rate;
-}
-
 DataRate CallClient::padding_rate() const {
   return network_controller_factory_.GetUpdate().pacer_config->pad_rate();
 }

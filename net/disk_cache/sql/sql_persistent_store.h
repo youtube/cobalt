@@ -6,6 +6,7 @@
 #define NET_DISK_CACHE_SQL_SQL_PERSISTENT_STORE_H_
 
 #include <optional>
+#include <set>
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
@@ -27,6 +28,7 @@ class SequencedTaskRunner;
 
 namespace net {
 class GrowableIOBuffer;
+class IOBuffer;
 }  // namespace net
 
 namespace disk_cache {
@@ -57,7 +59,8 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
     kInvalidData = 11,
     kAlreadyExists = 12,
     kNotFound = 13,
-    kMaxValue = kNotFound
+    kInvalidArgument = 14,
+    kMaxValue = kInvalidArgument
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/net/enums.xml:SqlDiskCacheStoreError)
 
@@ -80,6 +83,19 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
     bool opened = false;
   };
 
+  // Holds information about a specific cache entry, including its `res_id` and
+  // `key`. This is used when iterating through entries.
+  struct NET_EXPORT_PRIVATE EntryInfoWithIdAndKey {
+    EntryInfoWithIdAndKey();
+    ~EntryInfoWithIdAndKey();
+    EntryInfoWithIdAndKey(EntryInfoWithIdAndKey&&);
+    EntryInfoWithIdAndKey& operator=(EntryInfoWithIdAndKey&&);
+
+    EntryInfo info;
+    int64_t res_id;
+    CacheEntryKey key;
+  };
+
   using ErrorCallback = base::OnceCallback<void(Error)>;
   using Int32Callback = base::OnceCallback<void(int32_t)>;
   using Int64Callback = base::OnceCallback<void(int64_t)>;
@@ -89,6 +105,9 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
       base::expected<std::optional<EntryInfo>, Error>;
   using OptionalEntryInfoOrErrorCallback =
       base::OnceCallback<void(OptionalEntryInfoOrError)>;
+  using OptionalEntryInfoWithIdAndKey = std::optional<EntryInfoWithIdAndKey>;
+  using OptionalEntryInfoWithIdAndKeyCallback =
+      base::OnceCallback<void(OptionalEntryInfoWithIdAndKey)>;
 
   // Creates a new instance of the persistent store. The returned object must be
   // initialized by calling `Initialize()`. This function never returns a null
@@ -151,6 +170,44 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
 
   // Deletes all entries from the cache. `callback` is invoked on completion.
   virtual void DeleteAllEntries(ErrorCallback callback) = 0;
+
+  // Deletes all "live" (not doomed) entries whose `last_used` time falls
+  // within the range [`initial_time`, `end_time`), excluding any entries whose
+  // keys are present in `excluded_keys`. `callback` is invoked on completion.
+  virtual void DeleteLiveEntriesBetween(base::Time initial_time,
+                                        base::Time end_time,
+                                        std::set<CacheEntryKey> excluded_keys,
+                                        ErrorCallback callback) = 0;
+
+  // Updates the `last_used` timestamp for the entry with the specified `key`.
+  // `callback` is invoked with `kOk` on success, or `kNotFound` if the entry
+  // does not exist or is already doomed.
+  virtual void UpdateEntryLastUsed(const CacheEntryKey& key,
+                                   base::Time last_used,
+                                   ErrorCallback callback) = 0;
+
+  // Updates the header data (stream 0) and the `last_used` timestamp for a
+  // specific cache entry. The `bytes_usage` for the entry is adjusted based
+  // on `header_size_delta`. `callback` is invoked with `kOk` on success,
+  // `kNotFound` if the entry (matching `key` and `token`) is not found or is
+  // doomed, or `kInvalidData` if internal data consistency checks fail.
+  // `buffer` must not be null. `header_size_delta` is the change in the size
+  // of the header data.
+  virtual void UpdateEntryHeaderAndLastUsed(const CacheEntryKey& key,
+                                            const base::UnguessableToken& token,
+                                            base::Time last_used,
+                                            scoped_refptr<net::IOBuffer> buffer,
+                                            int64_t header_size_delta,
+                                            ErrorCallback callback) = 0;
+
+  // Opens the latest (highest `res_id`) cache entry that has a `res_id` less
+  // than `res_id_cursor`. This method is used for iterating through entries
+  // in reverse `res_id` order. To fetch all entries, start with
+  // `res_id_cursor` set to `std::numeric_limits<int64_t>::max()`. `callback`
+  // receives the entry (or `std::nullopt` if no more entries exist).
+  virtual void OpenLatestEntryBeforeResId(
+      int64_t res_id_cursor,
+      OptionalEntryInfoWithIdAndKeyCallback callback) = 0;
 
   // The maximum size of an individual cache entry's data stream.
   virtual int64_t MaxFileSize() const = 0;

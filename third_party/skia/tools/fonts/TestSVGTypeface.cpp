@@ -29,10 +29,10 @@
 #include "include/core/SkStream.h"
 #include "include/core/SkSurface.h"
 #include "include/encode/SkPngEncoder.h"
+#include "include/pathops/SkPathOps.h"
 #include "include/private/base/SkTDArray.h"
 #include "include/private/base/SkTemplates.h"
 #include "include/utils/SkNoDrawCanvas.h"
-#include "modules/pathops/include/SkPathOps.h"
 #include "modules/svg/include/SkSVGDOM.h"
 #include "modules/svg/include/SkSVGNode.h"
 #include "src/base/SkUtils.h"
@@ -136,10 +136,11 @@ void TestSVGTypeface::onFilterRec(SkScalerContextRec* rec) const {
     rec->setHinting(SkFontHinting::kNone);
 }
 
-void TestSVGTypeface::getGlyphToUnicodeMap(SkUnichar* glyphToUnicode) const {
+void TestSVGTypeface::getGlyphToUnicodeMap(SkSpan<SkUnichar> glyphToUnicode) const {
     SkDEBUGCODE(unsigned glyphCount = this->countGlyphs());
     fCMap.foreach ([=](const SkUnichar& c, const SkGlyphID& g) {
         SkASSERT(g < glyphCount);
+        SkASSERT(g < glyphToUnicode.size());
         glyphToUnicode[g] = c;
     });
 }
@@ -156,8 +157,9 @@ void TestSVGTypeface::onGetFontDescriptor(SkFontDescriptor* desc, bool* serializ
     *serialize = true;
 }
 
-void TestSVGTypeface::onCharsToGlyphs(const SkUnichar uni[], int count, SkGlyphID glyphs[]) const {
-    for (int i = 0; i < count; i++) {
+void TestSVGTypeface::onCharsToGlyphs(SkSpan<const SkUnichar> uni, SkSpan<SkGlyphID> glyphs) const {
+    SkASSERT(uni.size() == glyphs.size());
+    for (size_t i = 0; i < uni.size(); i++) {
         SkGlyphID* g = fCMap.find(uni[i]);
         glyphs[i]    = g ? *g : 0;
     }
@@ -1362,7 +1364,9 @@ public:
 
         // Apply the path effect.
         if (paint.getPathEffect() || paint.getStyle() != SkPaint::kFill_Style) {
-            bool fill = skpathutils::FillPathWithPaint(path, paint, &path);
+            SkPathBuilder builder;
+            bool fill = skpathutils::FillPathWithPaint(path, paint, &builder);
+            path = builder.detach();
 
             paint.setPathEffect(nullptr);
             if (fill) {

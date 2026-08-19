@@ -53,11 +53,17 @@ struct JumpBuffer {
   StackState state;
 };
 
+// TODO(427946951): this custom deleter is only needed because we currently
+// need to allocate StackMemory objects on sandbox-accessible pages for our
+// hardware sandboxing prototype. Once we have a proper solution for
+// https://crbug.com/427946951, we can remove this custom deleter again.
+struct StackMemoryDeleter {
+  void operator()(StackMemory* p) const;
+};
+
 class StackMemory {
  public:
-  static std::unique_ptr<StackMemory> New() {
-    return std::unique_ptr<StackMemory>(new StackMemory());
-  }
+  static std::unique_ptr<StackMemory, StackMemoryDeleter> New();
 
   // Returns a non-owning view of the central stack. This may be
   // the simulator's stack when running on the simulator.
@@ -164,20 +170,21 @@ class StackMemory {
     stack_switch_info_.source_fp = kNullAddress;
   }
 
-  static int JSStackLimitMarginKB() {
-    if (v8_flags.experimental_wasm_growable_stacks) {
-      // The limiting factor for this margin is the stack space used by outgoing
-      // stack parameters in wasm. They can take up to 16KB (1000 simd
-      // parameters, minus register parameters) and are not taken into account
-      // by stack checks.
-      // TODO(42204615): look into changing the stack check to take outgoing
-      // stack parameters into account.
-      static_assert(kMaxValueTypeSize == 16);
-      static_assert(kV8MaxWasmFunctionParams == 1000);
-      return 20;
-    } else {
-      return DEBUG_BOOL ? 80 : 40;
+  static int JSCentralStackLimitMarginKB() { return DEBUG_BOOL ? 80 : 40; }
+
+  static int JSGrowableStackLimitMarginKB() {
+    if (!v8_flags.experimental_wasm_growable_stacks) {
+      return JSCentralStackLimitMarginKB();
     }
+    // The limiting factor for this margin is the stack space used by outgoing
+    // stack parameters in wasm. They can take up to 16KB (1000 simd
+    // parameters, minus register parameters) and are not taken into account
+    // by stack checks.
+    // TODO(42204615): look into changing the stack check to take outgoing
+    // stack parameters into account.
+    static_assert(kMaxValueTypeSize == 16);
+    static_assert(kV8MaxWasmFunctionParams == 1000);
+    return 20;
   }
 
   friend class StackPool;
@@ -235,15 +242,15 @@ constexpr int kStackStateOffset =
 class StackPool {
  public:
   // Gets a stack from the free list if one exists, else allocates it.
-  std::unique_ptr<StackMemory> GetOrAllocate();
+  std::unique_ptr<StackMemory, StackMemoryDeleter> GetOrAllocate();
   // Adds a finished stack to the free list.
-  void Add(std::unique_ptr<StackMemory> stack);
+  void Add(std::unique_ptr<StackMemory, StackMemoryDeleter> stack);
   // Decommit the stack memories and empty the freelist.
   void ReleaseFinishedStacks();
   size_t Size() const;
 
  private:
-  std::vector<std::unique_ptr<StackMemory>> freelist_;
+  std::vector<std::unique_ptr<StackMemory, StackMemoryDeleter>> freelist_;
   size_t size_ = 0;
   // If the next finished stack would move the total size above this limit, the
   // stack is freed instead of being added to the free list.

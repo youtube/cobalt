@@ -56,6 +56,7 @@ if (is_android) {
       "../../api/video:video_frame",
       "../../rtc_base:checks",
       "../../rtc_base:logging",
+      "../../rtc_base:macromagic",
       "../../rtc_base:ssl",
       "../../rtc_base:ssl_adapter",
       "../../rtc_base:threading",

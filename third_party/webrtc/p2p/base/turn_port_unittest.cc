@@ -7,69 +7,70 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
+#include "p2p/base/turn_port.h"
+
 #include <cstddef>
 #include <cstdint>
+#include <list>
+#include <memory>
+#include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/functional/any_invocable.h"
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
 #include "api/test/mock_async_dns_resolver.h"
+#include "api/test/mock_local_network_access_permission.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/transport/stun.h"
-#include "p2p/base/connection_info.h"
-#include "p2p/base/port.h"
-#include "p2p/base/port_interface.h"
-#include "p2p/base/stun_request.h"
-#include "p2p/client/relay_port_factory_interface.h"
-#include "rtc_base/async_packet_socket.h"
-#include "rtc_base/ip_address.h"
-#include "rtc_base/net_helpers.h"
-#include "rtc_base/network.h"
-#include "rtc_base/network/received_packet.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
-#include "system_wrappers/include/metrics.h"
-#include "test/gmock.h"
-#include "test/wait_until.h"
-#if defined(WEBRTC_POSIX)
-#include <dirent.h>  // IWYU pragma: keep
-
-#include "absl/strings/string_view.h"
-#endif
-
-#include <list>
-#include <memory>
-#include <optional>
-#include <utility>
-#include <vector>
-
 #include "api/units/time_delta.h"
 #include "p2p/base/basic_packet_socket_factory.h"
 #include "p2p/base/connection.h"
+#include "p2p/base/connection_info.h"
 #include "p2p/base/p2p_constants.h"
+#include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
+#include "p2p/base/port_interface.h"
 #include "p2p/base/stun_port.h"
+#include "p2p/base/stun_request.h"
 #include "p2p/base/transport_description.h"
-#include "p2p/base/turn_port.h"
+#include "p2p/client/relay_port_factory_interface.h"
 #include "p2p/test/mock_dns_resolving_packet_socket_factory.h"
 #include "p2p/test/test_turn_customizer.h"
 #include "p2p/test/test_turn_server.h"
 #include "p2p/test/turn_server.h"
+#include "rtc_base/async_packet_socket.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/byte_buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/gunit.h"
+#include "rtc_base/ip_address.h"
 #include "rtc_base/net_helper.h"
+#include "rtc_base/net_helpers.h"
+#include "rtc_base/network.h"
+#include "rtc_base/network/received_packet.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
+#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "system_wrappers/include/metrics.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/wait_until.h"
+
+#if defined(WEBRTC_POSIX)
+#include <dirent.h>  // IWYU pragma: keep
+#endif
 
 namespace {
 using ::testing::_;
@@ -280,9 +281,12 @@ class TurnPortTest : public ::testing::Test,
   bool CreateTurnPort(const SocketAddress& local_address,
                       absl::string_view username,
                       absl::string_view password,
-                      const ProtocolAddress& server_address) {
+                      const ProtocolAddress& server_address,
+                      LocalNetworkAccessPermissionFactoryInterface*
+                          lna_permission_factory = nullptr) {
     return CreateTurnPortWithAllParams(MakeNetwork(local_address), username,
-                                       password, server_address);
+                                       password, server_address,
+                                       lna_permission_factory);
   }
 
   bool CreateTurnPortWithNetwork(const Network* network,
@@ -299,7 +303,9 @@ class TurnPortTest : public ::testing::Test,
   bool CreateTurnPortWithAllParams(const Network* network,
                                    absl::string_view username,
                                    absl::string_view password,
-                                   const ProtocolAddress& server_address) {
+                                   const ProtocolAddress& server_address,
+                                   LocalNetworkAccessPermissionFactoryInterface*
+                                       lna_permission_factory = nullptr) {
     RelayServerConfig config;
     config.credentials = RelayCredentials(username, password);
     CreateRelayPortArgs args = {.env = env_};
@@ -311,6 +317,7 @@ class TurnPortTest : public ::testing::Test,
     args.server_address = &server_address;
     args.config = &config;
     args.turn_customizer = turn_customizer_.get();
+    args.lna_permission_factory = lna_permission_factory;
 
     turn_port_ = TurnPort::Create(args, 0, 0);
     if (!turn_port_) {
@@ -2237,5 +2244,151 @@ TEST_P(TurnPortIPAddressTypeMetricsTest, TestIPAddressTypeMetrics) {
 INSTANTIATE_TEST_SUITE_P(All,
                          TurnPortIPAddressTypeMetricsTest,
                          ::testing::ValuesIn(kAllIPAddressTypeTestConfigs));
+
+struct LocalAreaNetworkPermissionTestConfig {
+  template <typename Sink>
+  friend void AbslStringify(
+      Sink& sink,
+      const LocalAreaNetworkPermissionTestConfig& config) {
+    sink.Append(config.address);
+    sink.Append("_");
+    switch (config.lna_permission_status) {
+      case webrtc::LocalNetworkAccessPermissionStatus::kDenied:
+        sink.Append("Denied");
+        break;
+      case webrtc::LocalNetworkAccessPermissionStatus::kGranted:
+        sink.Append("Granted");
+        break;
+    }
+  }
+
+  webrtc::LocalNetworkAccessPermissionStatus lna_permission_status;
+  absl::string_view address;
+  bool should_succeed;
+} kAllLocalAreNetworkPermissionTestConfigs[] = {
+    {webrtc::LocalNetworkAccessPermissionStatus::kDenied, "127.0.0.1",
+     /*should_succeed=*/false},
+    {webrtc::LocalNetworkAccessPermissionStatus::kDenied, "10.0.0.3",
+     /*should_succeed=*/false},
+    {webrtc::LocalNetworkAccessPermissionStatus::kDenied, "1.1.1.1",
+     /*should_succeed=*/true},
+    {webrtc::LocalNetworkAccessPermissionStatus::kDenied, "::1",
+     /*should_succeed=*/false},
+    {webrtc::LocalNetworkAccessPermissionStatus::kDenied,
+     "fd00:4860:4860::8844",
+     /*should_succeed=*/false},
+    {webrtc::LocalNetworkAccessPermissionStatus::kDenied,
+     "2001:4860:4860::8888",
+     /*should_succeed=*/true},
+    {webrtc::LocalNetworkAccessPermissionStatus::kGranted, "127.0.0.1",
+     /*should_succeed=*/true},
+    {webrtc::LocalNetworkAccessPermissionStatus::kGranted, "10.0.0.3",
+     /*should_succeed=*/true},
+    {webrtc::LocalNetworkAccessPermissionStatus::kGranted, "1.1.1.1",
+     /*should_succeed=*/true},
+    {webrtc::LocalNetworkAccessPermissionStatus::kGranted, "::1",
+     /*should_succeed=*/true},
+    {webrtc::LocalNetworkAccessPermissionStatus::kGranted,
+     "fd00:4860:4860::8844",
+     /*should_succeed=*/true},
+    {webrtc::LocalNetworkAccessPermissionStatus::kGranted,
+     "2001:4860:4860::8888",
+     /*should_succeed=*/true},
+};
+
+class TurnPortLocalNetworkAccessPermissionTest
+    : public TurnPortWithMockDnsResolverTest,
+      public ::testing::WithParamInterface<
+          LocalAreaNetworkPermissionTestConfig> {
+ protected:
+  void CreateTurnPort(
+      absl::string_view address,
+      LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory) {
+    ProtocolAddress server_address({address, 5000}, PROTO_UDP);
+
+    // Use the test's address instead of `server_address` because
+    // `server_address` might not be a resolved address with an unknown family.
+    SocketAddress local_address =
+        SocketAddress(GetParam().address, 5000).family() == AF_INET6
+            ? kLocalIPv6Addr
+            : kLocalAddr1;
+    TurnPortWithMockDnsResolverTest::CreateTurnPort(
+        local_address, kTurnUsername, kTurnPassword, server_address,
+        lna_permission_factory);
+  }
+
+  void setup_dns_resolver_mock() {
+    auto expectations =
+        [](webrtc::MockAsyncDnsResolver* resolver,
+           webrtc::MockAsyncDnsResolverResult* resolver_result) {
+          EXPECT_CALL(*resolver, Start(_, _, _))
+              .WillOnce(
+                  [](const webrtc::SocketAddress& /* addr */, int /* family */,
+                     absl::AnyInvocable<void()> callback) { callback(); });
+
+          EXPECT_CALL(*resolver, result)
+              .WillRepeatedly(ReturnPointee(resolver_result));
+          EXPECT_CALL(*resolver_result, GetError).WillRepeatedly(Return(0));
+          EXPECT_CALL(*resolver_result, GetResolvedAddress(_, _))
+              .WillOnce(DoAll(
+                  SetArgPointee<1>(SocketAddress(GetParam().address, 5000)),
+                  Return(true)));
+        };
+
+    SetDnsResolverExpectations(std::move(expectations));
+  }
+};
+
+TEST_P(TurnPortLocalNetworkAccessPermissionTest, ResolvedAddresses) {
+  turn_server_.AddInternalSocket({GetParam().address, 5000}, PROTO_UDP);
+
+  FakeLocalNetworkAccessPermissionFactory factory(
+      GetParam().lna_permission_status);
+  CreateTurnPort(GetParam().address, &factory);
+  turn_port_->PrepareAddress();
+
+  if (GetParam().should_succeed) {
+    EXPECT_THAT(WaitUntil([&] { return turn_ready_; }, IsTrue(),
+                          {.clock = &fake_clock_}),
+                IsRtcOk());
+    EXPECT_EQ(1u, turn_port_->Candidates().size());
+    EXPECT_NE(SOCKET_ERROR, turn_port_->error());
+  } else {
+    EXPECT_THAT(WaitUntil([&] { return turn_error_; }, IsTrue(),
+                          {.clock = &fake_clock_}),
+                IsRtcOk());
+    EXPECT_EQ(0u, turn_port_->Candidates().size());
+    EXPECT_NE(SOCKET_ERROR, turn_port_->error());
+  }
+}
+
+TEST_P(TurnPortLocalNetworkAccessPermissionTest, UnresolvedAddresses) {
+  turn_server_.AddInternalSocket({GetParam().address, 5000}, PROTO_UDP);
+  setup_dns_resolver_mock();
+
+  FakeLocalNetworkAccessPermissionFactory factory(
+      GetParam().lna_permission_status);
+  CreateTurnPort("fakehost.test", &factory);
+  turn_port_->PrepareAddress();
+
+  if (GetParam().should_succeed) {
+    EXPECT_THAT(WaitUntil([&] { return turn_ready_; }, IsTrue(),
+                          {.clock = &fake_clock_}),
+                IsRtcOk());
+    EXPECT_EQ(1u, turn_port_->Candidates().size());
+    EXPECT_NE(SOCKET_ERROR, turn_port_->error());
+  } else {
+    EXPECT_THAT(WaitUntil([&] { return turn_error_; }, IsTrue(),
+                          {.clock = &fake_clock_}),
+                IsRtcOk());
+    EXPECT_EQ(0u, turn_port_->Candidates().size());
+    EXPECT_NE(SOCKET_ERROR, turn_port_->error());
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    TurnPortLocalNetworkAccessPermissionTest,
+    ::testing::ValuesIn(kAllLocalAreNetworkPermissionTestConfigs));
 
 }  // namespace webrtc

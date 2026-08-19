@@ -24,10 +24,8 @@
 #include "api/video_codecs/video_codec.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "system_wrappers/include/field_trial.h"
 #include "test/gtest.h"
 #include "test/run_test.h"
-#include "test/test_flags.h"
 #include "video/video_quality_test.h"
 
 // Flags common with screenshare loopback, with different default values.
@@ -437,11 +435,6 @@ int RunLoopbackTest(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
 
   LogMessage::SetLogToStderr(absl::GetFlag(FLAGS_logs));
-
-  // InitFieldTrialsFromString stores the char*, so the char array must outlive
-  // the application.
-  const std::string field_trials = absl::GetFlag(FLAGS_force_fieldtrials);
-  field_trial::InitFieldTrialsFromString(field_trials.c_str());
 
   test::RunTest(Loopback);
   return 0;

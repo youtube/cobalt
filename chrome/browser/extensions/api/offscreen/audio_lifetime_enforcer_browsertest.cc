@@ -12,6 +12,7 @@
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/version_info/channel.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
@@ -125,7 +126,7 @@ IN_PROC_BROWSER_TEST_F(AudioLifetimeEnforcerBrowserTest,
   scoped_refptr<const Extension> extension = LoadOffscreenDocumentExtension();
   ASSERT_TRUE(extension);
 
-  const GURL offscreen_url = extension->ResolveExtensionURL("offscreen.html");
+  const GURL offscreen_url = extension->GetResourceURL("offscreen.html");
   std::unique_ptr<OffscreenDocumentHost> offscreen_document =
       CreateOffscreenDocument(*extension, offscreen_url);
 
@@ -199,7 +200,7 @@ IN_PROC_BROWSER_TEST_F(AudioLifetimeEnforcerBrowserTest,
   scoped_refptr<const Extension> extension = LoadOffscreenDocumentExtension();
   ASSERT_TRUE(extension);
 
-  const GURL offscreen_url = extension->ResolveExtensionURL("offscreen.html");
+  const GURL offscreen_url = extension->GetResourceURL("offscreen.html");
   std::unique_ptr<OffscreenDocumentHost> offscreen_document =
       CreateOffscreenDocument(*extension, offscreen_url);
 

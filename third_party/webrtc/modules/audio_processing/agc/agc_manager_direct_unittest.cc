@@ -26,7 +26,6 @@
 #include "api/audio/audio_processing.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
-#include "api/field_trials.h"
 #include "modules/audio_processing/agc/agc.h"
 #include "modules/audio_processing/agc/gain_control.h"
 #include "modules/audio_processing/agc/mock_agc.h"
@@ -34,6 +33,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_minmax.h"
 #include "rtc_base/strings/string_builder.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
@@ -105,8 +105,7 @@ struct AgcManagerDirectTestParams {
 std::unique_ptr<AgcManagerDirect> CreateAgcManagerDirect(
     AgcManagerDirectTestParams p = {}) {
   auto manager = std::make_unique<AgcManagerDirect>(
-      CreateEnvironment(FieldTrials::CreateNoGlobal(p.field_trials)),
-      kNumChannels,
+      CreateEnvironment(CreateTestFieldTrialsPtr(p.field_trials)), kNumChannels,
       AnalogAgcConfig{.startup_min_volume = kInitialInputVolume,
                       .clipped_level_min = p.clipped_level_min,
                       .enable_digital_adaptive = p.enable_digital_adaptive,
@@ -459,7 +458,7 @@ class AgcManagerDirectParametrizedTest
     : public ::testing::TestWithParam<std::tuple<std::optional<int>, bool>> {
  protected:
   AgcManagerDirectParametrizedTest()
-      : env_(CreateEnvironment(FieldTrials::CreateNoGlobal(
+      : env_(CreateEnvironment(CreateTestFieldTrialsPtr(
             GetAgcMinMicLevelExperimentFieldTrial(std::get<0>(GetParam()))))) {}
 
   bool IsMinMicLevelOverridden() const {

@@ -137,35 +137,5 @@ RTC_EXPORT int64_t TimeUTCMillis();
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::ClockInterface;
-using ::webrtc::GetClockForTesting;
-using ::webrtc::kNtpJan1970Millisecs;
-using ::webrtc::kNumMicrosecsPerMillisec;
-using ::webrtc::kNumMicrosecsPerSec;
-using ::webrtc::kNumMillisecsPerSec;
-using ::webrtc::kNumNanosecsPerMicrosec;
-using ::webrtc::kNumNanosecsPerMillisec;
-using ::webrtc::kNumNanosecsPerSec;
-using ::webrtc::SetClockForTesting;
-using ::webrtc::SystemTimeMillis;
-using ::webrtc::Time;
-using ::webrtc::Time32;
-using ::webrtc::TimeAfter;
-using ::webrtc::TimeDiff;
-using ::webrtc::TimeDiff32;
-using ::webrtc::TimeMicros;
-using ::webrtc::TimeMillis;
-using ::webrtc::TimeNanos;
-using ::webrtc::TimeSince;
-using ::webrtc::TimeUntil;
-using ::webrtc::TimeUTCMicros;
-using ::webrtc::TimeUTCMillis;
-using ::webrtc::TmToSeconds;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_TIME_UTILS_H_

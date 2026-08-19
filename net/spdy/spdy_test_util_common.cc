@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "net/spdy/spdy_test_util_common.h"
 
 #include <cstddef>
@@ -92,17 +87,17 @@ void ParseUrl(std::string_view url,
 // Chop a frame into an array of MockWrites.
 // |frame| is the frame to chop.
 // |num_chunks| is the number of chunks to create.
-std::unique_ptr<MockWrite[]> ChopWriteFrame(
-    const spdy::SpdySerializedFrame& frame,
-    int num_chunks) {
-  auto chunks = std::make_unique<MockWrite[]>(num_chunks);
+std::vector<MockWrite> ChopWriteFrame(const spdy::SpdySerializedFrame& frame,
+                                      int num_chunks) {
+  std::vector<MockWrite> chunks(num_chunks);
   int chunk_size = frame.size() / num_chunks;
+  std::string_view frame_data(frame);
   for (int index = 0; index < num_chunks; index++) {
-    const char* ptr = frame.data() + (index * chunk_size);
+    int start = index * chunk_size;
     if (index == num_chunks - 1)
       chunk_size +=
           frame.size() % chunk_size;  // The last chunk takes the remainder.
-    chunks[index] = MockWrite(ASYNC, ptr, chunk_size);
+    chunks[index] = MockWrite(ASYNC, frame_data.substr(start, chunk_size));
   }
   return chunks;
 }
@@ -134,7 +129,7 @@ void AppendToHeaderBlock(base::span<const std::string_view> extra_headers,
 
 // Create a MockWrite from the given spdy::SpdySerializedFrame.
 MockWrite CreateMockWrite(const spdy::SpdySerializedFrame& req) {
-  return MockWrite(ASYNC, req.data(), req.size());
+  return MockWrite(ASYNC, std::string_view(req));
 }
 
 // Create a MockWrite from the given spdy::SpdySerializedFrame and sequence
@@ -148,12 +143,12 @@ MockWrite CreateMockWrite(const spdy::SpdySerializedFrame& req, int seq) {
 MockWrite CreateMockWrite(const spdy::SpdySerializedFrame& req,
                           int seq,
                           IoMode mode) {
-  return MockWrite(mode, req.data(), req.size(), seq);
+  return MockWrite(mode, std::string_view(req), /*result=*/0, /*seq=*/seq);
 }
 
 // Create a MockRead from the given spdy::SpdySerializedFrame.
 MockRead CreateMockRead(const spdy::SpdySerializedFrame& resp) {
-  return MockRead(ASYNC, resp.data(), resp.size());
+  return MockRead(ASYNC, std::string_view(resp));
 }
 
 // Create a MockRead from the given spdy::SpdySerializedFrame and sequence
@@ -167,7 +162,7 @@ MockRead CreateMockRead(const spdy::SpdySerializedFrame& resp, int seq) {
 MockRead CreateMockRead(const spdy::SpdySerializedFrame& resp,
                         int seq,
                         IoMode mode) {
-  return MockRead(mode, resp.data(), resp.size(), seq);
+  return MockRead(mode, std::string_view(resp), /*result=*/0, /*seq=*/seq);
 }
 
 // Combines the given vector of spdy::SpdySerializedFrame into a single frame.
@@ -178,10 +173,11 @@ spdy::SpdySerializedFrame CombineFrames(
     total_size += frame->size();
   }
   auto data = std::make_unique<char[]>(total_size);
-  char* ptr = data.get();
+  // SAFETY: We just allocated this buffer with size `total_size`.
+  // This is using a unique_ptr<T[]> to interface with Quiche.
+  UNSAFE_BUFFERS(base::span<char> out(data.get(), total_size));
   for (const auto* frame : frames) {
-    memcpy(ptr, frame->data(), frame->size());
-    ptr += frame->size();
+    out.take_first(frame->size()).copy_from(std::string_view(*frame));
   }
   return spdy::SpdySerializedFrame(std::move(data), total_size);
 }

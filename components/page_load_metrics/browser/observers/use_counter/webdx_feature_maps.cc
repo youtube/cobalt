@@ -418,6 +418,11 @@ UseCounterMetricsRecorder::GetWebFeatureToWebDXFeatureMap() {
           {WebFeature::kNavigatorUAData_toJSON, WebDXFeature::kUaClientHints},
           {WebFeature::kSelectElementAppearanceBaseSelect,
            WebDXFeature::kCustomizableSelect},
+          {WebFeature::kCSSSelectorPseudoNot, WebDXFeature::kNot},
+          {WebFeature::kScriptingMediaFeature, WebDXFeature::kScripting},
+          {WebFeature::kEffectiveAlignContentForBlock,
+           WebDXFeature::kAlignContentBlock},
+          {WebFeature::kAutoSizesLazy, WebDXFeature::kSizesAuto},
           // Add new features above this line.
       }};
 

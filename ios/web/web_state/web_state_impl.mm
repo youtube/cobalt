@@ -535,12 +535,20 @@ bool WebStateImpl::IsRealized() const {
   return !!pimpl_;
 }
 
-WebState* WebStateImpl::ForceRealized() {
+WebState* WebStateImpl::ForceRealizedWithPolicy(RealizationPolicy policy) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!is_being_destroyed_);
 
   if (!pimpl_) [[unlikely]] {
     DCHECK(saved_);
+
+    if (policy == RealizationPolicy::kEnforceNoAttachedData) {
+      // WebStateImpl attaches a base::SupportsUserData::Data object in its
+      // constructor (see AddWebStateImplMarker() method) in order to check
+      // the cast from WebState* to WebStateImpl* is valid. This is why the
+      // check here assert that there is exactly one object attached.
+      CHECK_EQ(UserDataCount(), 1u, base::NotFatalUntil::M160);
+    }
 
     // Create the RealizedWebState. At this point the WebStateImpl has
     // both `pimpl_` and `saved_` that are non-null. This is one of the
@@ -568,11 +576,9 @@ WebState* WebStateImpl::ForceRealized() {
     // RealizedWebState in WebStateImpl destructor.
     saved.reset();
 
-    // Notify all observers that the WebState has become realized.
-    for (auto& observer : observers_) {
-      observer.WebStateRealized(this);
-    }
-
+    // Notify all observers that the WebState has become realized but take
+    // care to not notify any observer that is registered while iterating.
+    NotifyWebStateRealized(observers_);
     CheckForOverRealization();
   }
 
@@ -1087,7 +1093,7 @@ UIColor* WebStateImpl::GetUnderPageBackgroundColor() {
 WebStateImpl::RealizedWebState* WebStateImpl::RealizedState() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!IsRealized()) [[unlikely]] {
-    ForceRealized();
+    std::ignore = ForceRealized();
   }
 
   DCHECK(pimpl_);

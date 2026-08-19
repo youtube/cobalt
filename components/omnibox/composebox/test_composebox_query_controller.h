@@ -6,10 +6,19 @@
 #define COMPONENTS_OMNIBOX_COMPOSEBOX_TEST_COMPOSEBOX_QUERY_CONTROLLER_H_
 
 #include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "base/functional/callback.h"
 #include "components/endpoint_fetcher/endpoint_fetcher.h"
 #include "composebox_query_controller.h"
+#include "third_party/lens_server_proto/lens_overlay_server.pb.h"
+
+namespace lens {
+class LensOverlayClientContext;
+}  // namespace lens
 
 class FakeEndpointFetcher : public endpoint_fetcher::EndpointFetcher {
  public:
@@ -32,7 +41,9 @@ class TestComposeboxQueryController : public ComposeboxQueryController {
   explicit TestComposeboxQueryController(
       signin::IdentityManager* identity_manager,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      version_info::Channel channel);
+      version_info::Channel channel,
+      std::string locale,
+      TemplateURLService* template_url_service);
   ~TestComposeboxQueryController() override;
 
   // Mutators.
@@ -47,6 +58,12 @@ class TestComposeboxQueryController : public ComposeboxQueryController {
         set_next_cluster_info_request_should_return_error;
   }
 
+  void set_next_file_upload_request_should_return_error(
+      bool set_next_file_upload_request_should_return_error) {
+    next_file_upload_request_should_return_error_ =
+        set_next_file_upload_request_should_return_error;
+  }
+
   void set_on_query_controller_state_changed_callback(
       QueryControllerStateChangedCallback callback) {
     on_query_controller_state_changed_callback_ = std::move(callback);
@@ -57,8 +74,35 @@ class TestComposeboxQueryController : public ComposeboxQueryController {
     return num_cluster_info_fetch_requests_sent_;
   }
 
+  const int& num_file_upload_requests_sent() const {
+    return num_file_upload_requests_sent_;
+  }
+
   QueryControllerState query_controller_state() const {
     return query_controller_state_;
+  }
+
+  const GURL& last_sent_fetch_url() const { return last_sent_fetch_url_; }
+
+  // Gets the file info pointer for the given client token.
+  ComposeboxQueryController::FileInfo* GetFileInfo(
+      const base::UnguessableToken& client_token) {
+    auto it = active_files_.find(client_token);
+    if (it == active_files_.end()) {
+      return nullptr;
+    }
+    return it->second.get();
+  }
+
+  // Gets the last sent file upload request.
+  std::optional<lens::LensOverlayServerRequest> last_sent_file_upload_request()
+      const {
+    return last_sent_file_upload_request_;
+  }
+
+  // Gets the client context used for the requests.
+  lens::LensOverlayClientContext client_context() const {
+    return ComposeboxQueryController::CreateClientContext();
   }
 
  protected:
@@ -77,8 +121,20 @@ class TestComposeboxQueryController : public ComposeboxQueryController {
   // The number of cluster info fetch requests sent by the query controller.
   int num_cluster_info_fetch_requests_sent_ = 0;
 
+  // The number of file upload requests sent by the query controller.
+  int num_file_upload_requests_sent_ = 0;
+
   // If true, the next cluster info request will return an error.
   bool next_cluster_info_request_should_return_error_ = false;
+
+  // If true, the next file upload request will return an error.
+  bool next_file_upload_request_should_return_error_ = false;
+
+  // The last url for which a fetch request was sent by the query controller.
+  GURL last_sent_fetch_url_;
+
+  // The last sent file upload request.
+  std::optional<lens::LensOverlayServerRequest> last_sent_file_upload_request_;
 };
 
 #endif  // COMPONENTS_OMNIBOX_COMPOSEBOX_TEST_COMPOSEBOX_QUERY_CONTROLLER_H_

@@ -6,7 +6,6 @@ package org.chromium.chrome.browser.multiwindow;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.multiwindow.UiUtils.INVALID_TASK_ID;
-import static org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils.buildMenuListItem;
 
 import android.annotation.SuppressLint;
 import android.app.Dialog;
@@ -15,6 +14,7 @@ import android.content.res.Resources;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.CheckBox;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 
@@ -37,6 +37,7 @@ import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.components.browser_ui.util.TimeTextResolver;
 import org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils;
+import org.chromium.components.browser_ui.widget.ListItemBuilder;
 import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.ui.listmenu.BasicListMenu;
 import org.chromium.ui.listmenu.ListMenu;
@@ -45,6 +46,7 @@ import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogType;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
+import org.chromium.ui.modaldialog.ModalDialogProperties.ButtonStyles;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.ModelListAdapter;
@@ -93,10 +95,14 @@ public class InstanceSwitcherCoordinator {
     private @Nullable PropertyModel mDialog;
     private @Nullable InstanceInfo mItemToDelete;
     private @Nullable PropertyModel mNewWindowModel;
+    private @MonotonicNonNull LinearLayout mNewWindowLayout;
     private @MonotonicNonNull TextView mMaxInfoView;
     private @Nullable InstanceInfo mSelectedItem;
     private boolean mNewWindowEnabled;
     private boolean mIsInactiveListShowing;
+
+    private @MonotonicNonNull RecyclerView mActiveInstancesList;
+    private @MonotonicNonNull DialogListItemDecoration mActiveListItemDecoration;
 
     /**
      * Show instance switcher modal dialog UI.
@@ -153,25 +159,28 @@ public class InstanceSwitcherCoordinator {
             mDialogView =
                     LayoutInflater.from(context)
                             .inflate(R.layout.instance_switcher_dialog_v2, null);
+            mMaxInfoView = mDialogView.findViewById(R.id.max_instance_info);
+            mNewWindowLayout = mDialogView.findViewById(R.id.new_window);
 
             int itemVerticalSpacing =
                     mContext.getResources()
                             .getDimensionPixelSize(
                                     R.dimen.instance_switcher_dialog_list_item_padding);
-            var itemDecoration = new DialogListItemDecoration(itemVerticalSpacing);
+            mActiveListItemDecoration = new DialogListItemDecoration(itemVerticalSpacing);
+            var inactiveListItemDecoration = new DialogListItemDecoration(itemVerticalSpacing);
 
-            RecyclerView activeInstancesList = mDialogView.findViewById(R.id.active_instance_list);
-            activeInstancesList.setLayoutManager(
+            mActiveInstancesList = mDialogView.findViewById(R.id.active_instance_list);
+            mActiveInstancesList.setLayoutManager(
                     new LinearLayoutManager(mContext, LinearLayoutManager.VERTICAL, false));
-            activeInstancesList.setAdapter(activeListAdapter);
-            activeInstancesList.addItemDecoration(itemDecoration);
+            mActiveInstancesList.setAdapter(activeListAdapter);
+            mActiveInstancesList.addItemDecoration(mActiveListItemDecoration);
 
             RecyclerView inactiveInstancesList =
                     mDialogView.findViewById(R.id.inactive_instance_list);
             inactiveInstancesList.setLayoutManager(
                     new LinearLayoutManager(mContext, LinearLayoutManager.VERTICAL, false));
             inactiveInstancesList.setAdapter(inactiveListAdapter);
-            inactiveInstancesList.addItemDecoration(itemDecoration);
+            inactiveInstancesList.addItemDecoration(inactiveListItemDecoration);
 
             mTabHeaderRow = mDialogView.findViewById(R.id.tabs);
             mTabHeaderRow.addOnTabSelectedListener(
@@ -179,13 +188,12 @@ public class InstanceSwitcherCoordinator {
                         @Override
                         public void onTabSelected(Tab tab) {
                             boolean isActiveTab = tab.getPosition() == 0;
-                            activeInstancesList.setVisibility(
+                            mActiveInstancesList.setVisibility(
                                     isActiveTab ? View.VISIBLE : View.GONE);
                             inactiveInstancesList.setVisibility(
                                     isActiveTab ? View.GONE : View.VISIBLE);
-
                             mIsInactiveListShowing = !isActiveTab;
-                            updateMaxInfoTextView();
+                            updateCommandUiState(getTotalInstanceCount() < mMaxInstanceCount);
                             unselectItems();
                             updatePositiveButtonText();
                         }
@@ -227,12 +235,6 @@ public class InstanceSwitcherCoordinator {
                         LayoutInflater.from(mContext)
                                 .inflate(R.layout.instance_switcher_item_v2, null),
                 InstanceSwitcherItemViewBinder::bind);
-        adapter.registerType(
-                EntryType.COMMAND,
-                parentView ->
-                        LayoutInflater.from(mContext)
-                                .inflate(R.layout.instance_switcher_cmd_item_v2, null),
-                InstanceSwitcherItemViewBinder::bind);
         return adapter;
     }
 
@@ -256,11 +258,16 @@ public class InstanceSwitcherCoordinator {
             }
         }
         mNewWindowModel = new PropertyModel(InstanceSwitcherItemProperties.ALL_KEYS);
-        enableNewWindowCommand(items.size() < mMaxInstanceCount);
-        mModelList.add(new ModelListAdapter.ListItem(EntryType.COMMAND, mNewWindowModel));
 
-        // Update UI state for instance switcher v2.
-        updateCommandUiState();
+        if (UiUtils.isInstanceSwitcherV2Enabled()) {
+            // Update UI state for instance switcher v2.
+            updateCommandUiState(getTotalInstanceCount() < mMaxInstanceCount);
+            updateTabTitle(mActiveModelList.size(), mInactiveModelList.size());
+        } else {
+            // Add new window command item to the list for v1.
+            enableNewWindowCommand(items.size() < mMaxInstanceCount);
+            mModelList.add(new ModelListAdapter.ListItem(EntryType.COMMAND, mNewWindowModel));
+        }
 
         mDialog = createDialog(mDialogView);
         mModalDialogManager.showDialog(mDialog, ModalDialogType.APP);
@@ -301,7 +308,10 @@ public class InstanceSwitcherCoordinator {
                                 R.string.cancel)
                         .with(
                                 ModalDialogProperties.DIALOG_STYLES,
-                                ModalDialogProperties.DialogStyles.DIALOG_WHEN_LARGE);
+                                ModalDialogProperties.DialogStyles.DIALOG_WHEN_LARGE)
+                        .with(
+                                ModalDialogProperties.BUTTON_STYLES,
+                                ButtonStyles.PRIMARY_FILLED_NEGATIVE_OUTLINE);
 
         if (UiUtils.isInstanceSwitcherV2Enabled()) {
             builder.with(
@@ -361,6 +371,10 @@ public class InstanceSwitcherCoordinator {
         if (enabled) {
             mNewWindowModel.set(
                     InstanceSwitcherItemProperties.CLICK_LISTENER, this::newWindowAction);
+        } else {
+            mNewWindowModel.set(
+                    InstanceSwitcherItemProperties.MAX_INFO_TEXT,
+                    mContext.getString(R.string.max_number_of_windows, mMaxInstanceCount));
         }
         mNewWindowEnabled = enabled;
     }
@@ -372,7 +386,10 @@ public class InstanceSwitcherCoordinator {
 
     private void buildMoreMenu(PropertyModel.Builder builder, InstanceInfo item) {
         ModelList moreMenu = new ModelList();
-        moreMenu.add(buildMenuListItem(R.string.instance_switcher_close_window, 0, 0));
+        moreMenu.add(
+                new ListItemBuilder()
+                        .withTitleRes(R.string.instance_switcher_close_window)
+                        .build());
         ListMenu.Delegate moreMenuDelegate =
                 (model) -> {
                     int textId = model.get(ListMenuItemProperties.TITLE_ID);
@@ -413,8 +430,11 @@ public class InstanceSwitcherCoordinator {
     private void selectInstance(InstanceInfo clickedItem) {
         int instanceId = clickedItem.instanceId;
 
-        // Skip selection if the instance is already selected or is the current instance.
-        if (mSelectedItem != null && mSelectedItem.instanceId == instanceId) return;
+        // Clear selection if the instance is already selected.
+        if (mSelectedItem != null && mSelectedItem.instanceId == instanceId) {
+            unselectItems();
+            return;
+        }
 
         assumeNonNull(mDialog);
         Iterator<ListItem> it =
@@ -423,16 +443,19 @@ public class InstanceSwitcherCoordinator {
                         : mActiveModelList.iterator();
         while (it.hasNext()) {
             ListItem li = it.next();
-            if (li.type == EntryType.COMMAND) continue;
             int id = li.model.get(InstanceSwitcherItemProperties.INSTANCE_ID);
             if (mSelectedItem != null && id == mSelectedItem.instanceId) {
                 // Unselect the previous selected item.
                 li.model.set(InstanceSwitcherItemProperties.IS_SELECTED, false);
             } else if (id == instanceId) {
                 li.model.set(InstanceSwitcherItemProperties.IS_SELECTED, true);
-                // Enables the positive button (e.g. "Open" or "Restore") once a valid selection is
-                // made.
-                mDialog.set(ModalDialogProperties.POSITIVE_BUTTON_DISABLED, false);
+                // Block inactive instance restoration when active instance count is at instance
+                // limit.
+                if (!mIsInactiveListShowing || mActiveModelList.size() < mMaxInstanceCount) {
+                    // Enables the positive button (e.g. "Open" or "Restore") once a valid selection
+                    // is made.
+                    mDialog.set(ModalDialogProperties.POSITIVE_BUTTON_DISABLED, false);
+                }
             }
         }
         mSelectedItem = clickedItem;
@@ -470,40 +493,28 @@ public class InstanceSwitcherCoordinator {
     }
 
     /**
-     * Updates the UI state for Instance Switcher V2 when the dialog starts showing or needs
-     * refresh.
-     *
-     * <p>This includes:
-     *
-     * <ul>
-     *   <li>Conditionally appending the "+ New window" command to the active model list.
-     *   <li>Updating the message and visibility of the max_instance_info TextView.
-     *   <li>Refreshing the tab title with the current number of active and inactive instances.
-     * </ul>
+     * Updates the command UI state for Instance Switcher V2 when the dialog starts showing or needs
+     * refresh. Conditionally show the "+New window" layout or the max_instance_info TextView
+     * depending on the instance count.
      */
-    private void updateCommandUiState() {
-        if (!UiUtils.isInstanceSwitcherV2Enabled()) return;
-        int numActiveInstances = mActiveModelList.size();
-        int numInactiveInstances = mInactiveModelList.size();
-        if (mNewWindowEnabled) {
-            if (mActiveModelList.get(numActiveInstances - 1).type != EntryType.COMMAND) {
-                // "+New window" should only be added to the active instances list when new window
-                // command is enabled.
-                mActiveModelList.add(
-                        new ModelListAdapter.ListItem(
-                                EntryType.COMMAND, assumeNonNull(mNewWindowModel)));
-            } else {
-                numActiveInstances -= 1;
-            }
+    private void updateCommandUiState(boolean isNewWindowEnabled) {
+        assumeNonNull(mActiveListItemDecoration);
+        assumeNonNull(mActiveInstancesList);
+        assumeNonNull(mNewWindowLayout);
+        mActiveListItemDecoration.setCommandUiEnabled(isNewWindowEnabled);
+        mActiveInstancesList.invalidateItemDecorations();
+        mNewWindowEnabled = isNewWindowEnabled;
+        if (mNewWindowEnabled && !mIsInactiveListShowing) {
+            mNewWindowLayout.setVisibility(View.VISIBLE);
+            mNewWindowLayout.setOnClickListener(this::newWindowAction);
+        } else {
+            mNewWindowLayout.setVisibility(View.GONE);
         }
         updateMaxInfoTextView();
-        updateTabTitle(numActiveInstances, numInactiveInstances);
     }
 
     private void updateMaxInfoTextView() {
-        if (mMaxInfoView == null) {
-            mMaxInfoView = mDialogView.findViewById(R.id.max_instance_info);
-        }
+        assumeNonNull(mMaxInfoView);
         if (mNewWindowEnabled) {
             mMaxInfoView.setVisibility(View.GONE);
         } else {
@@ -512,7 +523,7 @@ public class InstanceSwitcherCoordinator {
                     mIsInactiveListShowing
                             ? R.string.max_number_of_windows_instance_switcher_v2_inactive_tab
                             : R.string.max_number_of_windows_instance_switcher_v2_active_tab;
-            String text = mContext.getString(textRes, mMaxInstanceCount, mMaxInstanceCount - 1);
+            String text = mContext.getString(textRes, mMaxInstanceCount - 1);
             mMaxInfoView.setText(text);
             mMaxInfoView.setVisibility(View.VISIBLE);
         }
@@ -525,33 +536,24 @@ public class InstanceSwitcherCoordinator {
         }
         int numActiveInstances = mActiveModelList.size();
         int numInactiveInstances = mInactiveModelList.size();
-        // Exclude COMMAND item from active list size if exists.
-        if (mActiveModelList.get(numActiveInstances - 1).type == EntryType.COMMAND) {
-            numActiveInstances -= 1;
-        }
         return numActiveInstances + numInactiveInstances;
     }
 
     private void removeInstance(InstanceInfo item) {
         int instanceId = item.instanceId;
-
         if (UiUtils.isInstanceSwitcherV2Enabled()) {
             removeItemFromModelList(
                     instanceId,
                     item.taskId == INVALID_TASK_ID ? mInactiveModelList : mActiveModelList);
+            updateCommandUiState(getTotalInstanceCount() < mMaxInstanceCount);
+            updateTabTitle(mActiveModelList.size(), mInactiveModelList.size());
         } else {
             removeItemFromModelList(instanceId, mModelList);
+            // Update new window item based on instance count after instance removal.
+            enableNewWindowCommand(getTotalInstanceCount() < mMaxInstanceCount);
         }
-
         mCloseCallback.onResult(item);
         RecordUserAction.record("Android.WindowManager.CloseWindow");
-        int instanceCount = getTotalInstanceCount();
-
-        // Update new window item based on instance count after instance removal.
-        enableNewWindowCommand(instanceCount < mMaxInstanceCount);
-
-        // Update UI State for Instance Switcher v2.
-        updateCommandUiState();
     }
 
     private void removeItemFromModelList(int instanceId, ModelList list) {

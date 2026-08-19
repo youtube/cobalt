@@ -17,10 +17,6 @@ namespace features {
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kAlignSurfaceLayerImplToPixelGrid);
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSynchronizedScrolling);
 
-// Enables partial raster in ZeroCopyRasterBufferProvider when used with the GPU
-// compositor.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kZeroCopyRBPPartialRasterWithGpuCompositor);
-
 // Sets raster tree priority to NEW_CONTENT_TAKES_PRIORITY when performing a
 // unified scroll with main-thread repaint reasons.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kMainRepaintScrollPrefersNewContent);
@@ -34,12 +30,6 @@ CC_BASE_EXPORT extern const base::FeatureParam<int>
 
 // Use DMSAA instead of MSAA for rastering tiles.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kUseDMSAAForTiles);
-
-// When LayerTreeHostImpl::ReclaimResources() is called in background, trigger a
-// additional delayed flush to reclaim resources.
-//
-// Enabled 03/2024, kept to run a holdback experiment.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kReclaimResourcesDelayedFlushInBackground);
 
 // When no frames are produced in a certain time interval, reclaim prepaint
 // tiles.
@@ -56,9 +46,6 @@ CC_BASE_EXPORT extern const base::FeatureParam<int> kInterestAreaSizeInPixels;
 // after some time.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kReclaimOldPrepaintTiles);
 CC_BASE_EXPORT extern const base::FeatureParam<int> kReclaimDelayInSeconds;
-
-// Kill switch for using MapRect() to compute filter pixel movement.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kUseMapRectForPixelMovement);
 
 // When enabled, we will not schedule drawing for viz::Surfaces that have been
 // evicted. Instead waiting for an ActiveTree that is defining a newer

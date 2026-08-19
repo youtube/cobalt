@@ -78,6 +78,7 @@
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/memory-measurement.h"
+#include "src/heap/memory-pool.h"
 #include "src/heap/memory-reducer.h"
 #include "src/heap/minor-gc-job.h"
 #include "src/heap/minor-mark-sweep.h"
@@ -85,7 +86,6 @@
 #include "src/heap/new-spaces.h"
 #include "src/heap/object-lock.h"
 #include "src/heap/object-stats.h"
-#include "src/heap/page-pool.h"
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/pretenuring-handler.h"
@@ -1004,7 +1004,9 @@ void Heap::GarbageCollectionPrologueInSafepoint(GarbageCollector collector) {
   new_space_allocation_counter_ = NewSpaceAllocationCounter();
   if (v8_flags.large_page_pool_timeout == 0 &&
       collector == GarbageCollector::MARK_COMPACTOR) {
-    memory_allocator()->pool()->ReleaseLargeImmediately();
+    if (auto* memory_pool = isolate_->isolate_group()->memory_pool()) {
+      memory_pool->ReleaseLargeImmediately();
+    }
   }
 }
 
@@ -1353,8 +1355,10 @@ void FreeCachesOnMemoryPressure(Isolate* isolate) {
 
   // TODO(ishell): consider trimming number to string caches to initial size.
 
-  if (v8_flags.memory_pool_release_before_memory_pressure_gcs) {
-    IsolateGroup::current()->page_pool()->ReleaseImmediately(isolate);
+  if (auto* memory_pool = IsolateGroup::current()->memory_pool()) {
+    if (v8_flags.memory_pool_release_before_memory_pressure_gcs) {
+      memory_pool->ReleaseImmediately(isolate);
+    }
   }
 }
 
@@ -5865,7 +5869,8 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
 
   // Set up memory allocator.
   memory_allocator_.reset(new MemoryAllocator(
-      isolate_, code_page_allocator, trusted_page_allocator, MaxReserved()));
+      isolate_, code_page_allocator, trusted_page_allocator,
+      isolate_->isolate_group()->memory_pool(), MaxReserved()));
 
   sweeper_.reset(new Sweeper(this));
 
@@ -6455,7 +6460,6 @@ void Heap::TearDown() {
 
   read_only_space_ = nullptr;
 
-  memory_allocator()->pool()->ReleaseOnTearDown(isolate());
   memory_allocator()->TearDown();
 
   StrongRootsEntry* next = nullptr;

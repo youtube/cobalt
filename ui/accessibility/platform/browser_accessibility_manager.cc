@@ -15,6 +15,7 @@
 #include "base/check_deref.h"
 #include "base/containers/adapters.h"
 #include "base/logging.h"
+#include "base/memory/safety_checks.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
@@ -429,6 +430,13 @@ bool BrowserAccessibilityManager::OnAccessibilityEvents(
   SCOPED_UMA_HISTOGRAM_TIMER_MICROS(
       "Accessibility.Performance.BrowserAccessibilityManager::"
       "OnAccessibilityEvents2");
+
+  // This function is known to be heap allocation heavy and performance
+  // critical. Extra memory safety checks can introduce regression
+  // (https://crbug.com/388873485) and these are disabled here.
+  // TODO(https://crbug.com/391797366): Optimize memory allocation patterns and
+  // remove this exclusion.
+  base::ScopedSafetyChecksExclusion scoped_unsafe;
 
 #if DCHECK_IS_ON()
   base::AutoReset<bool> auto_reset(&in_on_accessibility_events_, true);
@@ -1650,8 +1658,8 @@ void BrowserAccessibilityManager::OnNodeReparented(AXTree* tree, AXNode* node) {
 
 void BrowserAccessibilityManager::OnAtomicUpdateStarting(
     AXTree* tree,
-    const std::set<AXNodeID>& deleted_node_ids,
-    const std::set<AXNodeID>& reparented_node_ids) {
+    const absl::flat_hash_set<AXNodeID>& deleted_node_ids,
+    const absl::flat_hash_set<AXNodeID>& reparented_node_ids) {
   for (const auto& id : deleted_node_ids) {
     id_wrapper_map_.erase(id);
     popup_root_ids_.erase(id);
@@ -1923,7 +1931,7 @@ float BrowserAccessibilityManager::GetPageScaleFactor() const {
 void BrowserAccessibilityManager::CollectChangedNodesAndParentsForAtomicUpdate(
     AXTree* tree,
     const std::vector<AXTreeObserver::Change>& changes,
-    std::set<AXPlatformNode*>* nodes_needing_update) {
+    absl::flat_hash_set<AXPlatformNode*>* nodes_needing_update) {
   // The nodes that need to be updated are all of the nodes that were changed,
   // plus some parents.
   for (const auto& change : changes) {

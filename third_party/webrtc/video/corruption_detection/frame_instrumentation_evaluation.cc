@@ -15,9 +15,7 @@
 #include <vector>
 
 #include "api/array_view.h"
-#include "api/scoped_refptr.h"
 #include "api/video/video_frame.h"
-#include "api/video/video_frame_buffer.h"
 #include "common_video/frame_instrumentation_data.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
@@ -51,16 +49,6 @@ std::optional<double> GetCorruptionScore(const FrameInstrumentationData& data,
     return std::nullopt;
   }
 
-  scoped_refptr<I420BufferInterface> frame_buffer_as_i420 =
-      frame.video_frame_buffer()->ToI420();
-  if (!frame_buffer_as_i420) {
-    RTC_LOG(LS_ERROR) << "Failed to convert "
-                      << VideoFrameBufferTypeToString(
-                             frame.video_frame_buffer()->type())
-                      << " image to I420";
-    return std::nullopt;
-  }
-
   HaltonFrameSampler frame_sampler;
   frame_sampler.SetCurrentIndex(data.sequence_index);
   std::vector<HaltonFrameSampler::Coordinates> sample_coordinates =
@@ -70,9 +58,8 @@ std::optional<double> GetCorruptionScore(const FrameInstrumentationData& data,
     return std::nullopt;
   }
 
-  std::vector<FilteredSample> samples =
-      GetSampleValuesForFrame(frame_buffer_as_i420, sample_coordinates,
-                              frame.width(), frame.height(), data.std_dev);
+  std::vector<FilteredSample> samples = GetSampleValuesForFrame(
+      frame, sample_coordinates, frame.width(), frame.height(), data.std_dev);
   if (samples.empty()) {
     RTC_LOG(LS_ERROR) << "Failed to get sample values for frame";
     return std::nullopt;

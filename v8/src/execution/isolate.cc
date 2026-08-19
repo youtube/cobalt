@@ -643,7 +643,8 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeRefScope wasm_code_ref_scope;
 
-  for (const std::unique_ptr<wasm::StackMemory>& stack : wasm_stacks_) {
+  for (const std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter>&
+           stack : wasm_stacks_) {
     if (stack->IsActive()) {
       continue;
     }
@@ -987,7 +988,7 @@ class CallSiteBuilder {
     if (summary.code()->kind() != wasm::WasmCode::kWasmFunction) return;
     DirectHandle<WasmInstanceObject> instance = summary.wasm_instance();
     int flags = CallSiteInfo::kIsWasm;
-    if (instance->module_object()->is_asm_js()) {
+    if (wasm::is_asmjs_module(instance->module())) {
       flags |= CallSiteInfo::kIsAsmJsWasm;
       if (summary.at_to_number_conversion()) {
         flags |= CallSiteInfo::kIsAsmJsAtNumberConversion;
@@ -1006,7 +1007,7 @@ class CallSiteBuilder {
       FrameSummary::WasmInterpretedFrameSummary const& summary) {
     Handle<WasmInstanceObject> instance = summary.wasm_instance();
     int flags = CallSiteInfo::kIsWasm | CallSiteInfo::kIsWasmInterpretedFrame;
-    DCHECK(!instance->module_object()->is_asm_js());
+    DCHECK(!wasm::is_asmjs_module(instance->module()));
     // We don't have any code object in the interpreter, so we pass 'undefined'.
     auto code = isolate_->factory()->undefined_value();
     AppendFrame(instance,
@@ -2367,8 +2368,13 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
   // Compute handler and stack unwinding information by performing a full walk
   // over the stack and dispatching according to the frame type.
   int visited_frames = 0;
+  bool ignore_next_frame = false;
   for (StackFrameIterator iter(this, thread_local_top());;
        iter.Advance(), visited_frames++) {
+    if (ignore_next_frame) {
+      ignore_next_frame = false;
+      continue;
+    }
 #if V8_ENABLE_WEBASSEMBLY
     if (iter.frame()->type() == StackFrame::STACK_SWITCH) {
       if (catchable_by_js && iter.frame()->LookupCode()->builtin_id() !=
@@ -2704,6 +2710,16 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
           HandlerTable table(caller_code->UnsafeCastToCode());
           int handler_offset = table.LookupReturn(caller_offset);
           if (handler_offset < 0) {
+            // No handler was registered for the fast call. The stack iteration
+            // would therefore continue with the next frame, which is the frame
+            // of the caller of the fast API call. We checked that frame already
+            // here, so there is no need to check it again. Additionally, the
+            // `pc` of the next frame is off by a call instruction, because for
+            // a normal deopt, the return address on the stack would point to
+            // the deopt exit of the call, but to reach the current code
+            // location, the deopt exit has already been called, to the address
+            // after the deopt exit is on the stack as the return address.
+            ignore_next_frame = true;
             break;
           }
 
@@ -3980,7 +3996,7 @@ void Isolate::RetireWasmStack(wasm::StackMemory* stack) {
   size_t index = stack->index();
   // We can only return from a stack that was still in the global list.
   DCHECK_LT(index, wasm_stacks().size());
-  std::unique_ptr<wasm::StackMemory> stack_ptr =
+  std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter> stack_ptr =
       std::move(wasm_stacks()[index]);
   DCHECK_EQ(stack_ptr.get(), stack);
   if (index != wasm_stacks().size() - 1) {
@@ -4182,6 +4198,13 @@ Isolate* Isolate::Allocate(IsolateGroup* group) {
   void* isolate_ptr = base::AlignedAlloc(sizeof(Isolate), kMinimumOSPageSize);
   // IsolateAllocator manages the virtual memory resources for the Isolate.
   Isolate* isolate = new (isolate_ptr) Isolate(group);
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // TODO(427392572): sandboxed code currently still requires write access to
+  // the Isolate object. This is unsafe and we'll need to fix that eventually.
+  SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(
+      reinterpret_cast<Address>(isolate_ptr), sizeof(Isolate));
+#endif
 
 #ifdef DEBUG
   non_disposed_isolates_++;
@@ -4563,7 +4586,11 @@ void Isolate::Deinit() {
 
   // Delete any remaining RegExpResultVector instances.
   for (int32_t* v : active_dynamic_regexp_result_vectors_) {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+    SandboxFree(v);
+#else
     delete[] v;
+#endif
   }
   active_dynamic_regexp_result_vectors_.clear();
 
@@ -4778,7 +4805,7 @@ Isolate::~Isolate() {
   delete date_cache_;
   date_cache_ = nullptr;
 
-  delete regexp_stack_;
+  RegExpStack::Delete(regexp_stack_);
   regexp_stack_ = nullptr;
 
   delete descriptor_lookup_cache_;
@@ -5586,7 +5613,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   store_stub_cache_ = new StubCache(this);
   define_own_stub_cache_ = new StubCache(this);
   materialized_object_store_ = new MaterializedObjectStore(this);
-  regexp_stack_ = new RegExpStack();
+  regexp_stack_ = RegExpStack::New();
   isolate_data()->set_regexp_static_result_offsets_vector(
       jsregexp_static_offsets_vector());
   date_cache_ = new DateCache();
@@ -6600,7 +6627,7 @@ MaybeDirectHandle<JSPromise> NewRejectedPromise(
                                        v8::Promise::Resolver::New(api_context),
                                        MaybeDirectHandle<JSPromise>());
 
-  MAYBE_RETURN_ON_EXCEPTION_VALUE(
+  RETURN_ON_EXCEPTION_VALUE(
       isolate, resolver->Reject(api_context, v8::Utils::ToLocal(exception)),
       MaybeDirectHandle<JSPromise>());
 
@@ -7250,9 +7277,8 @@ void Isolate::CheckDetachedContextsAfterGC() {
   }
 }
 
-void Isolate::DetachGlobal(DirectHandle<Context> env) {
-  counters()->errors_thrown_per_context()->AddSample(
-      env->native_context()->GetErrorsThrown());
+void Isolate::DetachGlobal(DirectHandle<NativeContext> env) {
+  counters()->errors_thrown_per_context()->AddSample(env->GetErrorsThrown());
 
   ReadOnlyRoots roots(this);
   DirectHandle<JSGlobalProxy> global_proxy(env->global_proxy(), this);
@@ -7266,8 +7292,10 @@ void Isolate::DetachGlobal(DirectHandle<Context> env) {
                                                        kRelaxedStore);
   if (v8_flags.track_detached_contexts) AddDetachedContext(env);
   DCHECK(global_proxy->IsDetached());
-
-  env->native_context()->set_microtask_queue(this, nullptr);
+  env->set_microtask_queue(this, nullptr);
+  // Set security token back to default (unique) state making sure that only
+  // accesses from the same native context are allowed.
+  env->set_security_token(env->global_object());
 }
 
 void Isolate::SetIsLoading(bool is_loading) {
@@ -7767,25 +7795,28 @@ base::LazyMutex read_only_dispatch_entries_mutex_ = LAZY_MUTEX_INITIALIZER;
 
 void Isolate::InitializeBuiltinJSDispatchTable() {
 #ifdef V8_ENABLE_LEAPTIERING
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
+
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+
+#if V8_STATIC_DISPATCH_HANDLES_BOOL
+  // For static dispatch handles we need:
+  // 1. Builtins be shared across isolates.
+  // 2. Predictable handles in the dispatch table's r/o segment.
+  static_assert(Builtins::kCodeObjectsAreInROSpace);
+  static_assert(JSDispatchTable::kUseContiguousMemory);
+
   // Ideally these entries would be created when the read only heap is
   // initialized. However, since builtins are deserialized later, we need to
   // patch it up here. Also, we need a mutex so the shared read only heaps space
   // is not initialized multiple times. This must be blocking as no isolate
   // should be allowed to proceed until the table is initialized.
   base::MutexGuard guard(read_only_dispatch_entries_mutex_.Pointer());
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
 
-  bool needs_initialization =
-      !V8_STATIC_DISPATCH_HANDLES_BOOL ||
-      jdt->PreAllocatedEntryNeedsInitialization(
+  if (jdt->PreAllocatedEntryNeedsInitialization(
           read_only_heap_->js_dispatch_table_space(),
-          builtin_dispatch_handle(JSBuiltinDispatchHandleRoot::Idx::kFirst));
-
-  if (needs_initialization) {
-    std::optional<JSDispatchTable::UnsealReadOnlySegmentScope> unseal_scope;
-    if (V8_STATIC_DISPATCH_HANDLES_BOOL) {
-      unseal_scope.emplace(jdt);
-    }
+          builtin_dispatch_handle(JSBuiltinDispatchHandleRoot::Idx::kFirst))) {
+    JSDispatchTable::UnsealReadOnlySegmentScope unseal_scope(jdt);
     for (JSBuiltinDispatchHandleRoot::Idx idx =
              JSBuiltinDispatchHandleRoot::kFirst;
          idx < JSBuiltinDispatchHandleRoot::kCount;
@@ -7794,24 +7825,38 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
       Builtin builtin = JSBuiltinDispatchHandleRoot::to_builtin(idx);
       DCHECK(Builtins::IsIsolateIndependent(builtin));
       Tagged<Code> code = builtins_.code(builtin);
-      DCHECK(code->entrypoint_tag() == CodeEntrypointTag::kJSEntrypointTag);
+      DCHECK_EQ(code->entrypoint_tag(), CodeEntrypointTag::kJSEntrypointTag);
+      // Since we are sharing the dispatch handles we need all isolates to
+      // share the builtin code objects.
+      DCHECK_IMPLIES(!serializer_enabled_, HeapLayout::InReadOnlySpace(code));
+
       // TODO(olivf, 40931165): It might be more robust to get the static
       // parameter count of this builtin.
       int parameter_count = code->parameter_count();
-#if V8_STATIC_DISPATCH_HANDLES_BOOL
+
       JSDispatchHandle handle = builtin_dispatch_handle(builtin);
+      DCHECK_EQ(builtin_dispatch_handle(idx), handle);
       jdt->InitializePreAllocatedEntry(
           read_only_heap_->js_dispatch_table_space(), handle, code,
           parameter_count);
-#else
-      CHECK_LT(idx, JSBuiltinDispatchHandleRoot::kTableSize);
-      JSDispatchHandle handle = jdt->AllocateAndInitializeEntry(
-          read_only_heap_->js_dispatch_table_space(), parameter_count, code);
-      isolate_data_.builtin_dispatch_table()[idx] = handle;
-#endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
     }
   }
-#endif
+#else
+  for (JSBuiltinDispatchHandleRoot::Idx idx =
+           JSBuiltinDispatchHandleRoot::kFirst;
+       idx < JSBuiltinDispatchHandleRoot::kCount;
+       idx = static_cast<JSBuiltinDispatchHandleRoot::Idx>(
+           static_cast<int>(idx) + 1)) {
+    Builtin builtin = JSBuiltinDispatchHandleRoot::to_builtin(idx);
+    Tagged<Code> code = builtins_.code(builtin);
+    int parameter_count = code->parameter_count();
+    DCHECK_LT(idx, JSBuiltinDispatchHandleRoot::kTableSize);
+    JSDispatchHandle handle = jdt->AllocateAndInitializeEntry(
+        heap()->js_dispatch_table_space(), parameter_count, code);
+    isolate_data_.builtin_dispatch_table()[idx] = handle;
+  }
+#endif  // !V8_STATIC_DISPATCH_HANDLES_BOOL
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void Isolate::PrintNumberStringCacheStats(const char* comment,

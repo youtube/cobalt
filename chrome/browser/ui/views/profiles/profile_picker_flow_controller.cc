@@ -153,8 +153,7 @@ class ProfileCreationSignedInFlowController
       const CoreAccountInfo& account_info,
       std::unique_ptr<content::WebContents> contents,
       std::optional<SkColor> profile_color,
-      base::OnceCallback<
-          void(PostHostClearedCallback, bool, StepSwitchFinishedCallback)>
+      base::OnceCallback<void(PostHostClearedCallback, bool)>
           step_completed_callback)
       : ProfilePickerSignedInFlowController(host,
                                             profile,
@@ -180,14 +179,15 @@ class ProfileCreationSignedInFlowController
   }
 
   // ProfilePickerSignedInFlowController:
-  void Init() override {
+  void Init(StepSwitchFinishedCallback step_switch_callback) override {
     // Stop with the sign-in navigation and show a spinner instead. The spinner
     // will be shown until TurnSyncOnHelper figures out whether it's a
     // managed account and whether sync is disabled by policies (which in some
     // cases involves fetching policies and can take a couple of seconds).
-    host()->ShowScreen(contents(), GetSyncConfirmationURL(/*loading=*/true));
+    host()->ShowScreen(contents(), GetSyncConfirmationURL(/*loading=*/true),
+                       base::OnceClosure());
 
-    ProfilePickerSignedInFlowController::Init();
+    ProfilePickerSignedInFlowController::Init(std::move(step_switch_callback));
 
     // Listen for extended account info getting fetched.
     signin::IdentityManager* identity_manager =
@@ -214,11 +214,8 @@ class ProfileCreationSignedInFlowController
       return;
     }
     is_finishing_ = true;
-    callback =
-        callback->is_null()
-            ? CreateFreshProfileExperienceCallback()
-            : CombinePostHostClearedCallbacks(
-                  std::move(callback), CreateFreshProfileExperienceCallback());
+    callback = CombineCallbacks<PostHostClearedCallback, Browser*>(
+        std::move(callback), CreateFreshProfileExperienceCallback());
 
     profile_name_resolver_->RunWithProfileName(base::BindOnce(
         &ProfileCreationSignedInFlowController::FinishFlow,
@@ -267,8 +264,7 @@ class ProfileCreationSignedInFlowController
         ProfileMetrics::ADD_NEW_PROFILE_PICKER_SIGNED_IN);
 
     std::move(step_completed_callback_)
-        .Run(std::move(post_host_cleared_callback), is_continue_callback,
-             StepSwitchFinishedCallback());
+        .Run(std::move(post_host_cleared_callback), is_continue_callback);
   }
 
   // Controls whether the flow still needs to finalize (which includes showing
@@ -276,8 +272,7 @@ class ProfileCreationSignedInFlowController
   bool is_finishing_ = false;
 
   std::unique_ptr<ProfileNameResolver> profile_name_resolver_;
-  base::OnceCallback<
-      void(PostHostClearedCallback, bool, StepSwitchFinishedCallback)>
+  base::OnceCallback<void(PostHostClearedCallback, bool)>
       step_completed_callback_;
 };
 
@@ -293,9 +288,9 @@ class ReauthFlowStepController : public ProfileManagementStepController {
 
   ~ReauthFlowStepController() override = default;
 
-  void Show(base::OnceCallback<void(bool)> step_shown_callback,
+  void Show(StepSwitchFinishedCallback step_shown_callback,
             bool reset_state) override {
-    reauth_provider_->SwitchToReauth();
+    reauth_provider_->SwitchToReauth(std::move(step_shown_callback));
   }
 
   void OnHidden() override { host()->SetNativeToolbarVisible(false); }
@@ -481,7 +476,10 @@ ProfilePickerFlowController::ProfilePickerFlowController(
     ClearHostClosure clear_host_callback,
     ProfilePicker::EntryPoint entry_point,
     const GURL& selected_profile_target_url)
-    : ProfileManagementFlowControllerImpl(host, std::move(clear_host_callback)),
+    : ProfileManagementFlowControllerImpl(
+          host,
+          std::move(clear_host_callback),
+          /*flow_type_string=*/"ProfilePickerFlow"),
       entry_point_(entry_point),
       selected_profile_target_url_(selected_profile_target_url) {}
 
@@ -557,9 +555,9 @@ void ProfilePickerFlowController::OnReauthCompleted(
 
     SwitchToStep(
         Step::kProfilePicker, /*reset_state=*/true,
-        base::BindOnce(
+        StepSwitchFinishedCallback(base::BindOnce(
             &ProfilePickerFlowController::OnProfilePickerStepShownReauthError,
-            base::Unretained(this), std::move(on_error_callback), error));
+            base::Unretained(this), std::move(on_error_callback), error)));
     return;
   }
 
@@ -660,8 +658,7 @@ ProfilePickerFlowController::CreateSignedInFlowController(
 }
 
 void ProfilePickerFlowController::SwitchToSignedOutPostIdentityFlow(
-    Profile* profile,
-    StepSwitchFinishedCallback step_switch_finished_callback) {
+    Profile* profile) {
   CHECK(profile);
   created_profile_ = profile->GetWeakPtr();
   CreateSignedOutFlowWebContents(created_profile_.get());
@@ -670,7 +667,7 @@ void ProfilePickerFlowController::SwitchToSignedOutPostIdentityFlow(
       created_profile_.get(),
       PostHostClearedCallback(base::BindOnce(&ShowLocalProfileCustomization,
                                              profile_picked_time_on_startup_)),
-      /*is_continue_callback=*/false, std::move(step_switch_finished_callback));
+      /*is_continue_callback=*/false);
 }
 
 void ProfilePickerFlowController::PickProfile(

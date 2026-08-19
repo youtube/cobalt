@@ -317,6 +317,7 @@ if (rtc_include_tests) {
       "..:audio_processing",
       "..:high_pass_filter",
       "../../../api:array_view",
+      "../../../api:field_trials",
       "../../../api/audio:aec3_config",
       "../../../api/audio:echo_control",
       "../../../api/environment",
@@ -328,8 +329,7 @@ if (rtc_include_tests) {
       "../../../rtc_base:stringutils",
       "../../../rtc_base/system:arch",
       "../../../system_wrappers:metrics",
-      "../../../test:explicit_key_value_config",
-      "../../../test:field_trial",
+      "../../../test:create_test_field_trials",
       "../../../test:test_support",
       "../utility:cascaded_biquad_filter",
     ]

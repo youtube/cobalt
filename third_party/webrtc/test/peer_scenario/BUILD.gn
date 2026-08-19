@@ -27,7 +27,6 @@ if (rtc_include_tests) {
       "..:fake_video_codecs",
       "..:fileutils",
       "..:frame_generator_capturer",
-      "..:scoped_key_value_config",
       "..:test_support",
       "../../api:array_view",
       "../../api:audio_options_api",

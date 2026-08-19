@@ -33,6 +33,7 @@
 #include "chrome/browser/ui/views/extensions/extension_keybinding_registry_views.h"
 #include "chrome/browser/ui/views/frame/browser_frame.h"
 #include "chrome/browser/ui/views/frame/browser_view_layout.h"
+#include "chrome/browser/ui/views/frame/contents_container_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/intent_picker_bubble_view.h"
@@ -42,7 +43,6 @@
 #include "chrome/common/buildflags.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/infobars/core/infobar_container.h"
-#include "components/user_education/common/feature_promo/feature_promo_controller.h"
 #include "components/user_education/common/feature_promo/feature_promo_handle.h"
 #include "components/webapps/browser/banners/app_banner_manager.h"
 #include "content/public/browser/page_user_data.h"
@@ -71,6 +71,7 @@
 class AccessibilityFocusHighlight;
 class BookmarkBarView;
 class Browser;
+class ContentsContainerView;
 class ContentsLayoutManager;
 struct DropData;
 class ExclusiveAccessBubbleViews;
@@ -206,6 +207,8 @@ class BrowserView : public BrowserWindow,
   // Returns an empty size if this browser is not for a web app.
   gfx::Size GetWebAppFrameToolbarPreferredSize() const;
 
+  ContentsContainerView* GetActiveContentsContainerView();
+
   // Container for the tabstrip, toolbar, etc.
   TopContainerView* top_container() { return top_container_; }
 
@@ -298,7 +301,9 @@ class BrowserView : public BrowserWindow,
   }
   views::WebView* devtools_web_view() { return devtools_web_view_; }
 
-  ScrimView* contents_scrim_view() { return contents_scrim_view_; }
+  ScrimView* contents_scrim_view() {
+    return GetActiveContentsContainerView()->GetContentsScrimView();
+  }
 
   ScrimView* devtools_scrim_view() { return devtools_scrim_view_; }
 
@@ -375,16 +380,6 @@ class BrowserView : public BrowserWindow,
   // allowed to slide up and down with the gesture scrolls on the current tab's
   // page.
   bool GetTopControlsSlideBehaviorEnabled() const;
-
-#if BUILDFLAG(IS_WIN)
-  // Returns whether the browser can ever display a titlebar. Used in Windows
-  // touch mode. Possibly expand to ChromeOS if we add a titlebar back there in
-  // touch mode.
-  bool GetSupportsTitle() const;
-
-  // Returns whether the browser can ever display a window icon.
-  bool GetSupportsIcon() const;
-#endif
 
   // Returns the current shown ratio of the top browser controls.
   float GetTopControlsSlideBehaviorShownRatio() const;
@@ -679,25 +674,6 @@ class BrowserView : public BrowserWindow,
   BookmarkBarView* GetBookmarkBarView() const;
   LocationBarView* GetLocationBarView() const;
 
-  bool IsFeaturePromoQueued(const base::Feature& iph_feature) const override;
-  bool IsFeaturePromoActive(const base::Feature& iph_feature) const override;
-  user_education::FeaturePromoResult CanShowFeaturePromo(
-      const base::Feature& iph_feature) const override;
-  void MaybeShowFeaturePromo(
-      user_education::FeaturePromoParams params) override;
-  void MaybeShowStartupFeaturePromo(
-      user_education::FeaturePromoParams params) override;
-  bool AbortFeaturePromo(const base::Feature& iph_feature) override;
-  user_education::FeaturePromoHandle CloseFeaturePromoAndContinue(
-      const base::Feature& iph_feature) override;
-  bool NotifyFeaturePromoFeatureUsed(
-      const base::Feature& feature,
-      FeaturePromoFeatureUsedAction action) override;
-  void NotifyAdditionalConditionEvent(const char* event_name) override;
-  user_education::DisplayNewBadge MaybeShowNewBadgeFor(
-      const base::Feature& feature) override;
-  void NotifyNewBadgeFeatureUsed(const base::Feature& feature) override;
-
   void ShowIncognitoClearBrowsingDataDialog() override;
 
   void ShowIncognitoHistoryDisclaimerDialog() override;
@@ -968,10 +944,6 @@ class BrowserView : public BrowserWindow,
 
   // Updates stored focus for web contents that is being activated.
   void MaybeUpdateStoredFocusForWebContents(content::WebContents*);
-
-  // BrowserUserEducationInterface private methods:
-  user_education::FeaturePromoControllerCommon* GetFeaturePromoControllerImpl()
-      override;
 
   // Shared implementation by cut, copy and paste.
   void CutCopyPaste(int command_id);
@@ -1310,6 +1282,12 @@ class BrowserView : public BrowserWindow,
   // Handled by ContentsLayoutManager.
   raw_ptr<views::View> contents_container_ = nullptr;
 
+  // The view that will replace |contents_container_| and manage devtools and
+  // contents positions as well as other content related features (i.e. contents
+  // scrim, ntp footer, etc). contents_container_view_ only exists if the split
+  // view feature is disabled.
+  raw_ptr<ContentsContainerView> contents_container_view_ = nullptr;
+
   // The side panel aligned to the left or the right side of the browser window
   // depending on the kSidePanelHorizontalAlignment pref's value.
   // Conceptually this member should exist if and only if the
@@ -1432,9 +1410,6 @@ class BrowserView : public BrowserWindow,
 #if !BUILDFLAG(IS_CHROMEOS)
   std::unique_ptr<AccessibilityFocusHighlight> accessibility_focus_highlight_;
 #endif
-
-  std::unique_ptr<user_education::FeaturePromoControllerCommon>
-      feature_promo_controller_ = nullptr;
 
   OnLinkOpeningFromGestureCallbackList link_opened_from_gesture_callbacks_;
 

@@ -8,9 +8,9 @@
 #import "build/branding_buildflags.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_consent_mutator.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_consent_view_controller.h"
-#import "ios/chrome/browser/intelligence/bwg/ui/bwg_constants.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_promo_view_controller.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_promo_view_controller_delegate.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
@@ -66,17 +66,17 @@ const CGFloat kLogoStackViewHeight = 62.0;
 - (void)viewDidLoad {
   [super viewDidLoad];
   self.delegate = self;
-  if (!_showPromo) {
     [self createConsentView];
-    [self pushViewController:_consentViewController animated:NO];
-  } else {
-    _promoViewController = [[BWGPromoViewController alloc] init];
-    _promoViewController.BWGPromoDelegate = self;
-    _promoViewController.mutator = self.mutator;
-    _promoViewController.navigationItem.largeTitleDisplayMode =
-        UINavigationItemLargeTitleDisplayModeAlways;
-    [self pushViewController:_promoViewController animated:NO];
-  }
+    if (!_showPromo) {
+      [self pushViewController:_consentViewController animated:NO];
+    } else {
+      _promoViewController = [[BWGPromoViewController alloc] init];
+      _promoViewController.BWGPromoDelegate = self;
+      _promoViewController.mutator = self.mutator;
+      _promoViewController.navigationItem.largeTitleDisplayMode =
+          UINavigationItemLargeTitleDisplayModeAlways;
+      [self pushViewController:_promoViewController animated:NO];
+    }
   [self createLogos];
   [self configureNavigationController];
 }
@@ -111,7 +111,7 @@ const CGFloat kLogoStackViewHeight = 62.0;
                             resolver:resolver];
   self.sheetPresentationController.detents = @[ detent ];
 
-  self.modalInPresentation = NO;
+  self.modalInPresentation = YES;
   self.modalPresentationStyle = UIModalPresentationPageSheet;
   self.sheetPresentationController.selectedDetentIdentifier =
       kBWGPromoConsentFullDetentIdentifier;
@@ -190,7 +190,6 @@ const CGFloat kLogoStackViewHeight = 62.0;
 #pragma mark - BWGPromoViewControllerDelegate
 
 - (void)didAcceptPromo {
-  [self createConsentView];
   [self pushViewController:_consentViewController animated:YES];
   __weak BWGNavigationController* weakSelf = self;
   [self.sheetPresentationController animateChanges:^{

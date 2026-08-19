@@ -26,7 +26,6 @@
 #include "modules/audio_coding/codecs/pcm16b/pcm16b.h"
 #include "modules/audio_coding/include/audio_coding_module.h"
 #include "test/gtest.h"
-#include "test/testsupport/file_utils.h"
 
 namespace webrtc {
 

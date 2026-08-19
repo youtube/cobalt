@@ -25,6 +25,7 @@
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/call/audio_sink.h"
+#include "api/crypto/frame_decryptor_interface.h"
 #include "api/environment/environment.h"
 #include "api/frame_transformer_interface.h"
 #include "api/neteq/neteq_factory.h"

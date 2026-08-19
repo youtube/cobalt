@@ -10,9 +10,8 @@
 
 #include "p2p/base/connection.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -630,6 +629,25 @@ void Connection::MaybeAddDtlsPiggybackingAttributes(StunMessage* msg) {
   }
 }
 
+void Connection::MaybeHandleDtlsPiggybackingAttributes(const StunMessage* msg) {
+  if (dtls_stun_piggyback_callbacks_.empty()) {
+    return;
+  }
+  const StunByteStringAttribute* dtls_piggyback_attr =
+      msg->GetByteString(STUN_ATTR_META_DTLS_IN_STUN);
+  const StunByteStringAttribute* dtls_piggyback_ack =
+      msg->GetByteString(STUN_ATTR_META_DTLS_IN_STUN_ACK);
+  std::optional<ArrayView<uint8_t>> piggyback_data;
+  if (dtls_piggyback_attr != nullptr) {
+    piggyback_data = dtls_piggyback_attr->array_view();
+  }
+  std::optional<std::vector<uint32_t>> piggyback_acks;
+  if (dtls_piggyback_ack != nullptr) {
+    piggyback_acks = dtls_piggyback_ack->GetUInt32Vector();
+  }
+  dtls_stun_piggyback_callbacks_.recv_data(piggyback_data, piggyback_acks);
+}
+
 void Connection::HandleStunBindingOrGoogPingRequest(IceMessage* msg) {
   RTC_DCHECK_RUN_ON(network_thread_);
   // This connection should now be receiving.
@@ -672,14 +690,7 @@ void Connection::HandleStunBindingOrGoogPingRequest(IceMessage* msg) {
 
   // This is a validated stun request from remote peer.
   if (msg->type() == STUN_BINDING_REQUEST) {
-    if (!dtls_stun_piggyback_callbacks_.empty()) {
-      const StunByteStringAttribute* dtls_piggyback_attribute =
-          msg->GetByteString(STUN_ATTR_META_DTLS_IN_STUN);
-      const StunByteStringAttribute* dtls_piggyback_ack =
-          msg->GetByteString(STUN_ATTR_META_DTLS_IN_STUN_ACK);
-      dtls_stun_piggyback_callbacks_.recv_data(dtls_piggyback_attribute,
-                                               dtls_piggyback_ack);
-    }
+    MaybeHandleDtlsPiggybackingAttributes(msg);
     SendStunBindingResponse(msg);
   } else {
     RTC_DCHECK(msg->type() == GOOG_PING_REQUEST);
@@ -1542,20 +1553,12 @@ void Connection::OnConnectionRequestResponse(StunRequest* request,
     RTC_LOG(LS_ERROR) << "Discard GOOG_DELTA_ACK, no consumer";
   }
 
-  if (!dtls_stun_piggyback_callbacks_.empty()) {
-    const bool sent_dtls_piggyback =
-        request->msg()->GetByteString(STUN_ATTR_META_DTLS_IN_STUN) != nullptr;
-    const bool sent_dtls_piggyback_ack =
-        request->msg()->GetByteString(STUN_ATTR_META_DTLS_IN_STUN_ACK) !=
-        nullptr;
-    const StunByteStringAttribute* dtls_piggyback_attr =
-        response->GetByteString(STUN_ATTR_META_DTLS_IN_STUN);
-    const StunByteStringAttribute* dtls_piggyback_ack =
-        response->GetByteString(STUN_ATTR_META_DTLS_IN_STUN_ACK);
-    if (sent_dtls_piggyback || sent_dtls_piggyback_ack) {
-      dtls_stun_piggyback_callbacks_.recv_data(dtls_piggyback_attr,
-                                               dtls_piggyback_ack);
-    }
+  const bool sent_dtls_piggyback =
+      request->msg()->GetByteString(STUN_ATTR_META_DTLS_IN_STUN) != nullptr;
+  const bool sent_dtls_piggyback_ack =
+      request->msg()->GetByteString(STUN_ATTR_META_DTLS_IN_STUN_ACK) != nullptr;
+  if (sent_dtls_piggyback || sent_dtls_piggyback_ack) {
+    MaybeHandleDtlsPiggybackingAttributes(response);
   }
 }
 

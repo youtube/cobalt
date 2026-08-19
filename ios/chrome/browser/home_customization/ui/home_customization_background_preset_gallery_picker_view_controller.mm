@@ -9,10 +9,12 @@
 #import "base/check.h"
 #import "ios/chrome/browser/home_customization/model/background_collection_configuration.h"
 #import "ios/chrome/browser/home_customization/model/background_customization_configuration.h"
+#import "ios/chrome/browser/home_customization/model/background_customization_configuration_item.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_cell.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_picker_action_sheet_presentation_delegate.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_preset_gallery_picker_mutator.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_preset_header_view.h"
+#import "ios/chrome/browser/home_customization/ui/home_customization_background_skeleton_cell.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_collection_configurator.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_header_view.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_logo_vendor_provider.h"
@@ -28,6 +30,15 @@
 namespace {
 // The left and right padding for the header in the collection view.
 const CGFloat kHeaderInsetSides = 7.5;
+
+// The number of skeleton sections to display while content is loading.
+const NSInteger kSkeletonSectionCount = 3;
+
+// The number of skeleton items to show in each section during loading.
+const NSInteger kSkeletonItemsPerSection = 4;
+
+// The time interval between loading animation updates, in seconds.
+const NSTimeInterval kAnimationIntervalSeconds = 0.5;
 }  // namespace
 
 @interface HomeCustomizationBackgroundPresetGalleryPickerViewController () <
@@ -37,6 +48,9 @@ const CGFloat kHeaderInsetSides = 7.5;
 
   // Registration for the background cell.
   UICollectionViewCellRegistration* _backgroundCellRegistration;
+
+  // Registration for the background skeleton cell.
+  UICollectionViewCellRegistration* _backgroundSkeletonCellRegistration;
 
   // Registration for the collection's header.
   UICollectionViewSupplementaryRegistration* _headerRegistration;
@@ -53,6 +67,12 @@ const CGFloat kHeaderInsetSides = 7.5;
 
   // The id of the selected background cell.
   NSString* _selectedBackgroundId;
+
+  // Timer used to periodically trigger the loading animation update.
+  NSTimer* _loadingTimer;
+
+  // The current index of the cell being dimmed in the loading animation.
+  NSInteger _skeletonAnimationIndex;
 }
 @end
 
@@ -106,8 +126,15 @@ const CGFloat kHeaderInsetSides = 7.5;
         return [weakSelf configuredHeaderForIndexPath:indexPath];
       };
 
-  [_diffableDataSource applySnapshot:[self dataSnapshot]
+  [_diffableDataSource applySnapshot:[self skeletonSnapshot]
                 animatingDifferences:NO];
+
+  _loadingTimer =
+      [NSTimer scheduledTimerWithTimeInterval:(kAnimationIntervalSeconds)
+                                       target:self
+                                     selector:@selector(updateLoadingAnimation)
+                                     userInfo:nil
+                                      repeats:YES];
 
   _collectionView.translatesAutoresizingMaskIntoConstraints = NO;
   [self.view addSubview:_collectionView];
@@ -121,6 +148,7 @@ const CGFloat kHeaderInsetSides = 7.5;
             (NSArray<BackgroundCollectionConfiguration*>*)
                 backgroundCollectionConfigurations
                          selectedBackgroundId:(NSString*)selectedBackgroundId {
+  [self stopLoadingAnimation];
   NSMutableDictionary<NSString*, id<BackgroundCustomizationConfiguration>>*
       backgroundCustomizationConfigurationMap =
           [NSMutableDictionary dictionary];
@@ -145,6 +173,10 @@ const CGFloat kHeaderInsetSides = 7.5;
                 animatingDifferences:NO];
 }
 
+- (void)viewWillDisappear:(BOOL)animated {
+  [self stopLoadingAnimation];
+}
+
 #pragma mark - UICollectionViewDelegate
 
 // Returns a configured header for the given path in the collection view.
@@ -158,10 +190,23 @@ const CGFloat kHeaderInsetSides = 7.5;
 // Returns a configured cell for the given index path and item identifier.
 - (UICollectionViewCell*)configuredCellForIndexPath:(NSIndexPath*)indexPath
                                      itemIdentifier:(NSString*)itemIdentifier {
+  if (_backgroundCollectionConfigurations) {
+    return [_collectionView
+        dequeueConfiguredReusableCellWithRegistration:
+            _backgroundCellRegistration
+                                         forIndexPath:indexPath
+                                                 item:itemIdentifier];
+  }
   return [_collectionView
-      dequeueConfiguredReusableCellWithRegistration:_backgroundCellRegistration
+      dequeueConfiguredReusableCellWithRegistration:
+          _backgroundSkeletonCellRegistration
                                        forIndexPath:indexPath
                                                item:itemIdentifier];
+}
+
+- (BOOL)collectionView:(UICollectionView*)collectionView
+    shouldSelectItemAtIndexPath:(NSIndexPath*)indexPath {
+  return _backgroundCollectionConfigurations;
 }
 
 - (void)collectionView:(UICollectionView*)collectionView
@@ -181,7 +226,8 @@ const CGFloat kHeaderInsetSides = 7.5;
   id<BackgroundCustomizationConfiguration> backgroundConfiguration =
       _backgroundCustomizationConfigurationMap[itemIdentifier];
 
-  if (!backgroundConfiguration.thumbnailURL.is_empty()) {
+  if (backgroundConfiguration &&
+      !backgroundConfiguration.thumbnailURL.is_empty()) {
     [self.mutator
         fetchBackgroundCustomizationThumbnailURLImage:backgroundConfiguration
                                                           .thumbnailURL
@@ -202,25 +248,52 @@ const CGFloat kHeaderInsetSides = 7.5;
 
 #pragma mark - Private
 
+// Creates a skeleton snapshot representing the loading content of the
+// collection view.
+- (NSDiffableDataSourceSnapshot<CustomizationSection*, NSString*>*)
+    skeletonSnapshot {
+  NSDiffableDataSourceSnapshot<NSString*, NSString*>* snapshot =
+      [[NSDiffableDataSourceSnapshot alloc] init];
+
+  for (NSInteger row = 0; row < kSkeletonSectionCount; row++) {
+    NSString* sectionId =
+        [NSString stringWithFormat:@"%@_%ld", kBackgroundCellIdentifier, row];
+    [snapshot appendSectionsWithIdentifiers:@[ sectionId ]];
+
+    NSMutableArray* skeletonIds = [NSMutableArray array];
+
+    for (NSInteger col = 0; col < kSkeletonItemsPerSection; col++) {
+      NSString* id = [NSString
+          stringWithFormat:@"%@_%ld_%ld", kBackgroundCellIdentifier, row, col];
+      [skeletonIds addObject:id];
+    }
+
+    [snapshot appendItemsWithIdentifiers:skeletonIds
+               intoSectionWithIdentifier:sectionId];
+  }
+
+  return snapshot;
+}
+
 // Creates a data snapshot representing the content of the collection view.
 - (NSDiffableDataSourceSnapshot<CustomizationSection*, NSString*>*)
     dataSnapshot {
   NSDiffableDataSourceSnapshot<NSString*, NSString*>* snapshot =
       [[NSDiffableDataSourceSnapshot alloc] init];
 
-  for (BackgroundCollectionConfiguration* BackgroundCollectionConfiguration in
+  for (BackgroundCollectionConfiguration* backgroundCollectionConfiguration in
            _backgroundCollectionConfigurations) {
     [snapshot appendSectionsWithIdentifiers:@[
-      BackgroundCollectionConfiguration.collectionName
+      backgroundCollectionConfiguration.collectionName
     ]];
     NSMutableArray* backgroundIds = [NSMutableArray array];
     for (id<BackgroundCustomizationConfiguration> backgroundConfiguration in
-             BackgroundCollectionConfiguration.configurations) {
+             backgroundCollectionConfiguration.configurations) {
       [backgroundIds addObject:backgroundConfiguration.configurationID];
     }
 
     [snapshot appendItemsWithIdentifiers:backgroundIds
-               intoSectionWithIdentifier:BackgroundCollectionConfiguration
+               intoSectionWithIdentifier:backgroundCollectionConfiguration
                                              .collectionName];
   }
 
@@ -257,6 +330,10 @@ const CGFloat kHeaderInsetSides = 7.5;
 - (void)configureHeaderView:(HomeCustomizationBackgroundPresetHeaderView*)header
                 elementKind:(NSString*)elementKind
                   indexPath:(NSIndexPath*)indexPath {
+  if (!_backgroundCollectionConfigurations) {
+    return;
+  }
+
   NSString* collectionName =
       [_diffableDataSource snapshot].sectionIdentifiers[indexPath.section];
 
@@ -275,6 +352,13 @@ const CGFloat kHeaderInsetSides = 7.5;
              [weakSelf configureBackgroundCell:cell
                                    atIndexPath:indexPath
                             withItemIdentifier:itemIdentifier];
+           }];
+
+  _backgroundSkeletonCellRegistration = [UICollectionViewCellRegistration
+      registrationWithCellClass:[HomeCustomizationBackgroundSkeletonCell class]
+           configurationHandler:^(HomeCustomizationBackgroundSkeletonCell* cell,
+                                  NSIndexPath* indexPath,
+                                  NSString* itemIdentifier){
            }];
 
   _headerRegistration = [UICollectionViewSupplementaryRegistration
@@ -296,6 +380,9 @@ const CGFloat kHeaderInsetSides = 7.5;
 - (void)configureBackgroundCell:(HomeCustomizationBackgroundCell*)cell
                     atIndexPath:(NSIndexPath*)indexPath
              withItemIdentifier:(NSString*)itemIdentifier {
+  if (!_backgroundCustomizationConfigurationMap) {
+    return;
+  }
   id<BackgroundCustomizationConfiguration> backgroundConfiguration =
       _backgroundCustomizationConfigurationMap[itemIdentifier];
   id<LogoVendor> logoVendor = [self.logoVendorProvider provideLogoVendor];
@@ -314,6 +401,53 @@ const CGFloat kHeaderInsetSides = 7.5;
 // Dismisses the current customization menu page.
 - (void)dismissCustomizationMenuPage {
   [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+// This method simulates a loading shimmer effect by dimming one cell at a time.
+// Only one cell per section is dimmed at any given moment.
+- (void)updateLoadingAnimation {
+  NSInteger previousIndex =
+      (_skeletonAnimationIndex - 1 + kSkeletonItemsPerSection) %
+      kSkeletonItemsPerSection;
+
+  for (NSInteger section = 0; section < kSkeletonSectionCount; section++) {
+    NSIndexPath* previousIndexPath = [NSIndexPath indexPathForItem:previousIndex
+                                                         inSection:section];
+    NSIndexPath* currentIndexPath =
+        [NSIndexPath indexPathForItem:_skeletonAnimationIndex
+                            inSection:section];
+
+    UICollectionViewCell* previousCell =
+        [self.collectionView cellForItemAtIndexPath:previousIndexPath];
+    UICollectionViewCell* currentCell =
+        [self.collectionView cellForItemAtIndexPath:currentIndexPath];
+
+    previousCell.alpha = 1;
+    currentCell.alpha = 0.5;
+  }
+
+  _skeletonAnimationIndex =
+      (_skeletonAnimationIndex + 1) % kSkeletonItemsPerSection;
+}
+
+// Stops the loading animation by invalidating the timer and resetting the alpha
+// of currently dimmed cells back to fully opaque.
+- (void)stopLoadingAnimation {
+  if (!_loadingTimer) {
+    return;
+  }
+
+  [_loadingTimer invalidate];
+  _loadingTimer = nil;
+
+  for (NSInteger section = 0; section < kSkeletonSectionCount; section++) {
+    NSIndexPath* indexPath =
+        [NSIndexPath indexPathForItem:_skeletonAnimationIndex
+                            inSection:section];
+    UICollectionViewCell* cell =
+        [self.collectionView cellForItemAtIndexPath:indexPath];
+    cell.alpha = 1.0;
+  }
 }
 
 @end

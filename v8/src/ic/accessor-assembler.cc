@@ -993,14 +993,6 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
   BIND(rebox_double);
   {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-    Label if_not_undefined(this);
-    GotoIfNot(IsDoubleUndefined(var_double_value->value()), &if_not_undefined);
-    GotoIfNot(IsSetWord32<LoadHandler::AllowHandlingHole>(handler_word), miss);
-    exit_point->Return(UndefinedConstant());
-
-    BIND(&if_not_undefined);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     exit_point->Return(AllocateHeapNumberWithValue(var_double_value->value()));
   }
 }
@@ -1117,9 +1109,15 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
   //
   // Check prototype validity cell.
   //
-  TNode<Object> maybe_validity_cell =
-      LoadObjectField(handler, offsetof(ICHandler, validity_cell_));
-  CheckPrototypeValidityCell(maybe_validity_cell, miss);
+  TNode<MaybeObject> validity_cell_value;
+  {
+    TNode<Object> maybe_validity_cell =
+        LoadObjectField(handler, offsetof(ICHandler, validity_cell_));
+    validity_cell_value = CheckPrototypeValidityCell(maybe_validity_cell, miss);
+    // CheckPrototypeValidityCell guarantees that the returned value is not
+    // a cleared weak reference value.
+    CSA_DCHECK(this, IsNotCleared(validity_cell_value));
+  }
 
   //
   // Check smi handler bits.
@@ -1162,12 +1160,11 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
 
       BIND(&if_do_access_check);
       {
-        // Load expected native context from the validity cell.
-        TNode<MaybeObject> maybe_expected_native_context =
-            LoadCellMaybeValue(CAST(maybe_validity_cell));
-        CSA_DCHECK(this, IsWeakOrCleared(maybe_expected_native_context));
-        TNode<Context> expected_native_context =
-            CAST(GetHeapObjectAssumeWeak(maybe_expected_native_context, miss));
+        // The expected native context is stored as a weak reference in
+        // the validity cell and validity cell check guarantees that it's not
+        // cleared.
+        TNode<NativeContext> expected_native_context =
+            CAST(GetHeapObjectAssumeWeak(validity_cell_value));
         EmitAccessCheck(expected_native_context, p->context(),
                         p->lookup_start_object(), &done, miss);
       }
@@ -1275,19 +1272,39 @@ void AccessorAssembler::HandleLoadICProtoHandler(
   }
 }
 
-void AccessorAssembler::EmitAccessCheck(TNode<Context> expected_native_context,
-                                        TNode<Context> context,
-                                        TNode<Object> receiver,
-                                        Label* can_access, Label* miss) {
+void AccessorAssembler::EmitAccessCheck(
+    TNode<NativeContext> expected_native_context, TNode<Context> context,
+    TNode<Object> lookup_start_object, Label* can_access, Label* miss) {
   CSA_DCHECK(this, IsNativeContext(expected_native_context));
 
   TNode<NativeContext> native_context = LoadNativeContext(context);
   GotoIf(TaggedEqual(expected_native_context, native_context), can_access);
-  // If the receiver is not a JSGlobalProxy then we miss.
-  GotoIf(TaggedIsSmi(receiver), miss);
-  GotoIfNot(IsJSGlobalProxy(CAST(receiver)), miss);
-  // For JSGlobalProxy receiver try to compare security tokens of current
-  // and expected native contexts.
+
+  // If the |lookup_start_object| is primitive then we have to take a slow
+  // path because primitive maps are context-independent and thus the data
+  // handler can encode the prototype chain state only for one native context
+  // (namely for the |expected_native_context|) while the data handler can
+  // be used in another native context via megamorphic stub cache.
+  // TODO(ishell): consider jumping to |slow| case instead of |miss|.
+  GotoIf(TaggedIsSmi(lookup_start_object), miss);
+  GotoIf(JSAnyIsPrimitive(CAST(lookup_start_object)), miss);
+
+  if (DEBUG_BOOL) {
+    // Check that the |lookup_start_object| is bound to some native context.
+    Label ok(this), no_creation_context(this);
+    GetCreationContext(CAST(lookup_start_object), &no_creation_context);
+    Goto(&ok);
+
+    BIND(&no_creation_context);
+    Check(Int32FalseConstant(),
+          "lookup_start_object does not have creation context");
+    Unreachable();
+
+    BIND(&ok);
+  }
+
+  // For |lookup_start_object|s bound to a native context we can proceed
+  // with comparing security tokens of current and expected native contexts.
   TNode<Object> expected_token = LoadContextElementNoCell(
       expected_native_context, Context::SECURITY_TOKEN_INDEX);
   TNode<Object> current_token =
@@ -1923,8 +1940,11 @@ void AccessorAssembler::StoreJSSharedStructField(
   BIND(&done);
 }
 
-void AccessorAssembler::CheckPrototypeValidityCell(
+TNode<MaybeObject> AccessorAssembler::CheckPrototypeValidityCell(
     TNode<Object> maybe_validity_cell, Label* miss) {
+  TVARIABLE(MaybeObject, var_cell_value,
+            SmiConstant(Map::kNoValidityCellSentinel));
+
   Label done(this);
   GotoIf(TaggedEqual(maybe_validity_cell,
                      SmiConstant(Map::kNoValidityCellSentinel)),
@@ -1932,10 +1952,11 @@ void AccessorAssembler::CheckPrototypeValidityCell(
   CSA_DCHECK(this, TaggedIsNotSmi(maybe_validity_cell));
 
   TNode<MaybeObject> cell_value = LoadCellMaybeValue(CAST(maybe_validity_cell));
-  Branch(TaggedEqual(cell_value, SmiConstant(Map::kPrototypeChainInvalid)),
-         miss, &done);
+  var_cell_value = cell_value;
+  Branch(TaggedEqual(cell_value, PrototypeChainInvalidConstant()), miss, &done);
 
   BIND(&done);
+  return var_cell_value.value();
 }
 
 void AccessorAssembler::HandleStoreICProtoHandler(
@@ -3221,13 +3242,10 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
 
   TVARIABLE(MaybeObject, var_handler);
   Label if_handler(this, &var_handler), non_inlined(this, Label::kDeferred),
-      try_polymorphic(this), miss(this, Label::kDeferred),
-      no_feedback(this, Label::kDeferred);
+      try_polymorphic(this), miss(this, Label::kDeferred);
 
   TNode<Map> lookup_start_object_map =
       LoadReceiverMap(p->receiver_and_lookup_start_object());
-
-  GotoIf(IsUndefined(p->vector()), &no_feedback);
 
   // Check monomorphic case.
   TNode<HeapObjectReference> weak_lookup_start_object_map =
@@ -3255,15 +3273,6 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
   {
     LoadIC_Noninlined(p, lookup_start_object_map, strong_feedback, &var_handler,
                       &if_handler, &miss, &direct_exit);
-  }
-
-  BIND(&no_feedback);
-  {
-    Comment("LoadIC_nofeedback");
-    // Call into the stub that implements the non-inlined parts of LoadIC.
-    direct_exit.ReturnCallBuiltin(Builtin::kLoadIC_NoFeedback, p->context(),
-                                  p->receiver(), p->name(),
-                                  SmiConstant(FeedbackSlotKind::kLoadProperty));
   }
 
   BIND(&miss);
@@ -4457,7 +4466,8 @@ void AccessorAssembler::GenerateLoadICBaseline() {
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
   TNode<Context> context = LoadContextFromBaseline();
 
-  TailCallBuiltin(Builtin::kLoadIC, context, receiver, name, slot, vector);
+  LoadICParameters p(context, receiver, name, slot, vector);
+  LoadIC(&p);
 }
 
 void AccessorAssembler::GenerateLoadICTrampoline_Megamorphic() {

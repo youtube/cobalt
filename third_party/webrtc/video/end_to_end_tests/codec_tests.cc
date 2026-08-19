@@ -32,7 +32,6 @@
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
 #include "modules/video_coding/codecs/vp9/include/vp9.h"
 #include "test/call_test.h"
-#include "test/field_trial.h"
 #include "test/frame_generator_capturer.h"
 #include "test/gtest.h"
 #include "test/video_test_constants.h"
@@ -216,13 +215,10 @@ TEST_F(CodecEndToEndTest,
 class EndToEndTestH264 : public test::CallTest,
                          public ::testing::WithParamInterface<std::string> {
  public:
-  EndToEndTestH264() : field_trial_(GetParam()) {
+  EndToEndTestH264() : CallTest(/*field_trials=*/GetParam()) {
     RegisterRtpExtension(RtpExtension(RtpExtension::kVideoRotationUri,
                                       kVideoRotationExtensionId));
   }
-
- private:
-  test::ScopedFieldTrials field_trial_;
 };
 
 INSTANTIATE_TEST_SUITE_P(

@@ -105,6 +105,7 @@ import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.DeviceInput;
 import org.chromium.ui.base.UiAndroidFeatures;
 import org.chromium.ui.listmenu.MenuModelBridge;
+import org.chromium.ui.modelutil.MVCListAdapter;
 import org.chromium.ui.mojom.MenuSourceType;
 import org.chromium.url.GURL;
 
@@ -223,6 +224,7 @@ public class ContextMenuTest {
         setupLensChipDelegate();
         DownloadUtils.setIsDownloadRestrictedByPolicyForTesting(false);
         DataProtectionBridgeJni.setInstanceForTesting(mDataProtectionBridgeMock);
+        when(mMenuModelBridge.populateModelList()).thenReturn(new MVCListAdapter.ModelList());
     }
 
     @After
@@ -1131,8 +1133,8 @@ public class ContextMenuTest {
                         0,
                         MenuSourceType.TOUCH,
                         /* openedFromHighlight= */ true,
-                        /* openedFromInterestTarget= */ false,
-                        /* interestTargetNodeID= */ 0,
+                        /* openedFromInterestFor= */ false,
+                        /* interestForNodeID= */ 0,
                         /* additionalNavigationParams= */ null);
         ContextMenuPopulatorFactory populatorFactory =
                 new ChromeContextMenuPopulatorFactory(

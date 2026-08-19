@@ -16,11 +16,9 @@ BASE_FEATURE(kBackForwardCacheUnblockPermissionRequest,
              "BackForwardCacheUnblockPermissionRequest",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if !BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kKeyboardLockPrompt,
              "KeyboardLockPrompt",
              base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 // Enables different positioning of the permission dialog, so that it's placed
 // near the permission element, if possible.
@@ -77,20 +75,6 @@ BASE_FEATURE(kAllowMultipleOriginsForWebKioskPermissions,
 BASE_FEATURE(kPermissionDedicatedCpssSettingAndroid,
              "PermissionDedicatedCpssSettingAndroid",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kApproximateGeolocationPermission,
-             "ApproximateGeolocationPermission",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-const base::FeatureParam<bool> kApproximateGeolocationPermissionSampleData(
-    &features::kApproximateGeolocationPermission,
-    "sample_data",
-    false);
-
-const base::FeatureParam<int> kApproximateGeolocationPermissionPromptArm(
-    &features::kApproximateGeolocationPermission,
-    "prompt_arm",
-    0);
 
 #else
 

@@ -33,12 +33,15 @@ rtc_library("timer") {
 rtc_library("task_queue_timeout") {
   deps = [
     "../../../api:array_view",
+    "../../../api:scoped_refptr",
+    "../../../api:sequence_checker",
     "../../../api/task_queue:pending_task_safety_flag",
     "../../../api/task_queue:task_queue",
     "../../../api/units:time_delta",
     "../../../api/units:timestamp",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
+    "../../../rtc_base/system:no_unique_address",
     "../public:socket",
     "../public:types",
   ]
@@ -60,11 +63,14 @@ if (rtc_include_tests) {
       "../../../api/task_queue:task_queue",
       "../../../api/task_queue/test:mock_task_queue_base",
       "../../../api/units:time_delta",
+      "../../../api/units:timestamp",
       "../../../rtc_base:checks",
       "../../../rtc_base:gunit_helpers",
+      "../../../rtc_base:threading",
       "../../../test:test_support",
       "../../../test/time_controller:time_controller",
       "../public:socket",
+      "../public:types",
     ]
     sources = [
       "task_queue_timeout_test.cc",

@@ -1,4 +1,3 @@
-// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,7 +17,6 @@
 #include "cc/raster/playback_image_provider.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_host.h"
 #include "third_party/blink/renderer/platform/graphics/flush_reason.h"
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
 #include "third_party/blink/renderer/platform/graphics/memory_managed_paint_recorder.h"
@@ -64,6 +62,13 @@ class MemoryManagedPaintCanvas;
 class WebGraphicsContext3DProviderWrapper;
 class WebGraphicsSharedImageInterfaceProvider;
 
+// Specifies whether the provider should rasterize paint commands on the CPU
+// or GPU. This is used to support software raster with GPU compositing.
+enum class RasterMode {
+  kGPU,
+  kCPU,
+};
+
 // CanvasResourceProvider
 //==============================================================================
 //
@@ -86,6 +91,16 @@ class PLATFORM_EXPORT CanvasResourceProvider
       public MemoryManagedPaintRecorder::Client,
       public ScopedRasterTimer::Host {
  public:
+  class Delegate {
+   public:
+    virtual ~Delegate() = default;
+
+    virtual void NotifyGpuContextLost() = 0;
+    virtual void InitializeForRecording(cc::PaintCanvas* canvas) const = 0;
+    virtual bool IsPrinting() const { return false; }
+    virtual bool TransferToGPUTextureWasInvoked() { return false; }
+  };
+
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
 #pragma GCC diagnostic push
@@ -98,15 +113,14 @@ class PLATFORM_EXPORT CanvasResourceProvider
     kBitmapGpuMemoryBuffer [[deprecated]] = 4,
     kSharedImage = 5,
     kDirectGpuMemoryBuffer [[deprecated]] = 6,
-    kPassThrough = 7,
+    kPassThrough [[deprecated]] = 7,
     kSwapChain = 8,
     kSkiaDawnSharedImage [[deprecated]] = 9,
     kMaxValue = kSkiaDawnSharedImage,
   };
 #pragma GCC diagnostic pop
 
-  // Used to determine if the provider is going to be initialized or not,
-  // ignored by PassThrough
+  // Used to determine if the provider is going to be initialized or not.
   enum class ShouldInitialize { kNo, kCallClear };
 
   static std::unique_ptr<CanvasResourceProvider> CreateBitmapProvider(
@@ -115,7 +129,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
       SkAlphaType alpha_type,
       const gfx::ColorSpace& color_space,
       ShouldInitialize initialize_provider,
-      CanvasResourceHost* resource_host = nullptr);
+      Delegate* delegate = nullptr);
 
   static std::unique_ptr<CanvasResourceProvider>
   CreateSharedImageProviderForSoftwareCompositor(
@@ -125,7 +139,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
       const gfx::ColorSpace& color_space,
       ShouldInitialize initialize_provider,
       WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
-      CanvasResourceHost* resource_host = nullptr);
+      Delegate* delegate = nullptr);
 
   static std::unique_ptr<CanvasResourceProvider> CreateSharedImageProvider(
       gfx::Size size,
@@ -136,7 +150,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
       base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
       RasterMode raster_mode,
       gpu::SharedImageUsageSet shared_image_usage_flags,
-      CanvasResourceHost* resource_host = nullptr);
+      Delegate* delegate = nullptr);
 
   static std::unique_ptr<CanvasResourceProvider> CreateWebGPUImageProvider(
       gfx::Size size,
@@ -144,15 +158,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
       SkAlphaType alpha_type,
       const gfx::ColorSpace& color_space,
       gpu::SharedImageUsageSet shared_image_usage_flags = {},
-      CanvasResourceHost* resource_host = nullptr);
-
-  static std::unique_ptr<CanvasResourceProvider> CreatePassThroughProvider(
-      gfx::Size size,
-      viz::SharedImageFormat format,
-      SkAlphaType alpha_type,
-      const gfx::ColorSpace& color_space,
-      base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
-      CanvasResourceHost* resource_host = nullptr);
+      Delegate* delegate = nullptr);
 
   static std::unique_ptr<CanvasResourceProvider> CreateSwapChainProvider(
       gfx::Size size,
@@ -161,7 +167,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
       const gfx::ColorSpace& color_space,
       ShouldInitialize initialize_provider,
       base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
-      CanvasResourceHost* resource_host = nullptr);
+      Delegate* delegate = nullptr);
 
   // Use Snapshot() for capturing a frame that is intended to be displayed via
   // the compositor. Cases that are destined to be transferred via a
@@ -173,9 +179,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
       FlushReason,
       ImageOrientation = ImageOrientationEnum::kDefault) = 0;
 
-  void SetCanvasResourceHost(CanvasResourceHost* resource_host) {
-    resource_host_ = resource_host;
-  }
+  void SetDelegate(Delegate* delegate) { delegate_ = delegate; }
 
   // WebGraphicsContext3DProvider::DestructionObserver implementation.
   void OnContextDestroyed() override;
@@ -314,7 +318,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
 
   void InitializeForRecording(cc::PaintCanvas* canvas) const override;
 
-  bool IsPrinting() { return resource_host_ && resource_host_->IsPrinting(); }
+  bool IsPrinting() { return delegate_ && delegate_->IsPrinting(); }
 
   static void NotifyWillTransfer(cc::PaintImage::ContentId content_id);
 
@@ -370,7 +374,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
                          const gfx::ColorSpace& color_space,
                          base::WeakPtr<WebGraphicsContext3DProviderWrapper>
                              context_provider_wrapper,
-                         CanvasResourceHost* resource_host);
+                         Delegate* delegate);
 
   // Its important to use this method for generating PaintImage wrapped canvas
   // snapshots to get a cache hit from cc's ImageDecodeCache. This method
@@ -396,8 +400,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
 
   virtual void OnFlushForImage(cc::PaintImage::ContentId content_id);
   void OnMemoryDump(base::trace_event::ProcessMemoryDump*) override;
-
-  CanvasResourceHost* resource_host() { return resource_host_; }
 
  private:
   friend class FlushForImageListener;
@@ -439,7 +441,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
   gfx::ColorSpace color_space_;
   std::unique_ptr<CanvasImageProvider> canvas_image_provider_;
   std::unique_ptr<cc::SkiaPaintCanvas> skia_canvas_;
-  raw_ptr<CanvasResourceHost> resource_host_ = nullptr;
+  raw_ptr<Delegate> delegate_ = nullptr;
   // Recording accumulating draw ops. This pointer is always valid and safe to
   // dereference.
   std::unique_ptr<MemoryManagedPaintRecorder> recorder_;

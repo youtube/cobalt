@@ -207,6 +207,18 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="Address is not validated by NSDataDetector"/>
 </enum>
 
+<!-- LINT.IfChange(IOSAIHubAction) -->
+
+<enum name="IOSAIHubAction">
+  <summary>The set of actions that can be performed on the AI Hub.</summary>
+  <int value="0" label="Lens"/>
+  <int value="1" label="ReaderMode"/>
+  <int value="2" label="Gemini"/>
+  <int value="3" label="Dismiss"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/intelligence/page_action_menu/utils/ai_hub_metrics.h:IOSAIHubAction) -->
+
 <enum name="IOSAnnotationType">
   <int value="0" label="Unknown"/>
   <int value="1" label="Date"/>
@@ -643,6 +655,7 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Message (e.g. translate)"/>
   <int value="2" label="Price insight"/>
   <int value="3" label="Lens overlay"/>
+  <int value="4" label="Reader mode"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/location_bar/ui_bundled/location_bar_metrics.h:IOSLocationBarLeadingIconType) -->
@@ -746,9 +759,10 @@ chromium-metrics-reviews@google.com.
 
 <enum name="IOSNTPNewBadgeShownResult">
   <int value="0" label="Shown"/>
-  <int value="1" label="Not shown due to limit reached"/>
+  <int value="1" label="Obsolete in M140 - Not shown due to limit reached"/>
   <int value="2"
-      label="Not shown due to the button already having been pressed"/>
+      label="Obsolete in M140 - Not shown due to the button already having
+             been pressed"/>
 </enum>
 
 <enum name="IOSNTPOverscrollAction">
@@ -1384,27 +1398,9 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Not a new user (user is new for 30 days after FRE)"/>
 </enum>
 
-<enum name="OmniboxPositionChoiceScreenEvents">
-  <int value="0" label="Unknown"/>
-  <int value="1" label="Screen Was Displayed"/>
-  <int value="2" label="Top Selected"/>
-  <int value="3" label="Bottom Selected"/>
-  <int value="4" label="Position Validated"/>
-  <int value="5" label="Position Discarded"/>
-  <int value="6" label="Screen Skipped"/>
-  <int value="7" label="Promo Registered"/>
-</enum>
-
 <enum name="OmniboxPositionType">
   <int value="0" label="Top"/>
   <int value="1" label="Bottom"/>
-</enum>
-
-<enum name="OmniboxPromoSelectedPositions">
-  <int value="0" label="Top default"/>
-  <int value="1" label="Bottom default"/>
-  <int value="2" label="Top not default"/>
-  <int value="3" label="Bottom not default"/>
 </enum>
 
 <enum name="PageLoadedSnapshotResult">

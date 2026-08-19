@@ -62,6 +62,7 @@
 #include "ipc/ipc_sync_channel.h"
 #include "ipc/ipc_sync_message_filter.h"
 #include "mojo/core/embedder/scoped_ipc_support.h"
+#include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -162,7 +163,8 @@ bool CreateWaitAndExitThread(base::TimeDelta duration) {
 }
 #endif
 
-void TerminateSelfOnDisconnect() {
+void TerminateSelfOnDisconnect(
+    scoped_refptr<base::SequencedTaskRunner> io_task_runner) {
   // For renderer/worker processes:
   // On POSIX, at least, one can install an unload handler which loops
   // forever and leave behind a renderer process which eats 100% CPU forever.
@@ -192,6 +194,7 @@ void TerminateSelfOnDisconnect() {
   __lsan_do_leak_check();
 #endif
 #else
+
 #if BUILDFLAG(IS_ANDROID) && BUILDFLAG(CLANG_PROFILING)
   // TerminateSelfOnDisconnect() is called upon an IPC `OnChannelError`. Then,
   // clang will dump the profile to a file in
@@ -201,6 +204,27 @@ void TerminateSelfOnDisconnect() {
   // `_exit()` without dumping the `clang` profile.
   _exit(0);
 #else
+  if (base::FeatureList::IsEnabled(features::kKeepChildProcessAfterIPCReset)) {
+    // On Android, the browser process unbinds all service bindings to the child
+    // process to terminate the child process and AMS (ActivityManagerService)
+    // kills the child process. The child process should keep alive after IPC
+    // disconnection. Otherwise AMS tries to restart the child process
+    // immediately and kills it again when the service unbinding request
+    // arrives.
+
+    // The browser process must unbind all service bindings to the child process
+    // to terminate the child process if the mojo connection is disconnected.
+    // However, the child process may leak if mojo/RenderProcessHost have a bug.
+    // Leaked child processes will crash so that we can notice the leak and the
+    // bug.
+    io_task_runner->PostDelayedTask(
+        FROM_HERE, base::BindOnce([]() {
+          LOG(FATAL) << "child process leaks after channel error.";
+        }),
+        base::Minutes(1));
+    return;
+  }
+
   base::Process::TerminateCurrentProcessImmediately(0);
 #endif  // IS_ANDROID && CLANG_PROFILING
 #endif
@@ -208,11 +232,18 @@ void TerminateSelfOnDisconnect() {
 
 class SuicideOnChannelErrorFilter : public IPC::MessageFilter {
  public:
+  explicit SuicideOnChannelErrorFilter(
+      scoped_refptr<base::SequencedTaskRunner> io_task_runner)
+      : io_task_runner_(std::move(io_task_runner)) {}
+
   // IPC::MessageFilter
-  void OnChannelError() override { TerminateSelfOnDisconnect(); }
+  void OnChannelError() override { TerminateSelfOnDisconnect(io_task_runner_); }
 
  protected:
   ~SuicideOnChannelErrorFilter() override = default;
+
+ private:
+  scoped_refptr<base::SequencedTaskRunner> io_task_runner_;
 };
 
 #endif  // OS(POSIX)
@@ -562,38 +593,12 @@ ChildThreadImpl::Options ChildThreadImpl::Options::Builder::Build() {
   return options_;
 }
 
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-ChildThreadImpl::ChildThreadMessageRouter::ChildThreadMessageRouter(
-    IPC::Sender* sender)
-    : sender_(sender) {}
-
-bool ChildThreadImpl::ChildThreadMessageRouter::Send(IPC::Message* msg) {
-  return sender_->Send(msg);
-}
-
-bool ChildThreadImpl::ChildThreadMessageRouter::RouteMessage(
-    const IPC::Message& msg) {
-  bool handled = IPC::MessageRouter::RouteMessage(msg);
-#if BUILDFLAG(IS_ANDROID)
-  if (!handled && msg.is_sync()) {
-    IPC::Message* reply = IPC::SyncMessage::GenerateReply(&msg);
-    reply->set_reply_error();
-    Send(reply);
-  }
-#endif
-  return handled;
-}
-#endif
-
 ChildThreadImpl::ChildThreadImpl(base::RepeatingClosure quit_closure)
     : ChildThreadImpl(std::move(quit_closure), Options::Builder().Build()) {}
 
 ChildThreadImpl::ChildThreadImpl(base::RepeatingClosure quit_closure,
                                  const Options& options)
     : resetter_(&child_thread_impl, this),
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-      router_(this),
-#endif
       quit_closure_(std::move(quit_closure)),
       browser_process_io_runner_(options.browser_process_io_runner),
       channel_connected_factory_(
@@ -650,10 +655,6 @@ void ChildThreadImpl::Init(const Options& options) {
     if (options.urgent_message_observer) {
       channel_->SetUrgentMessageObserver(options.urgent_message_observer);
     }
-#if BUILDFLAG(IPC_MESSAGE_LOG_ENABLED) && BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-    if (!IsInBrowserProcess())
-      IPC::Logging::GetInstance()->SetIPCSender(this);
-#endif
   }
 
   mojo::ScopedMessagePipeHandle child_process_pipe_for_receiver;
@@ -747,10 +748,11 @@ void ChildThreadImpl::Init(const Options& options) {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kProcessType)) {
     if (options.with_legacy_ipc_channel) {
-      channel_->AddFilter(new SuicideOnChannelErrorFilter());
+      channel_->AddFilter(new SuicideOnChannelErrorFilter(GetIOTaskRunner()));
     } else {
       child_process_host_.set_disconnect_handler(
-          base::BindOnce(&TerminateSelfOnDisconnect), GetIOTaskRunner());
+          base::BindOnce(&TerminateSelfOnDisconnect, GetIOTaskRunner()),
+          GetIOTaskRunner());
     }
   }
 #endif
@@ -811,10 +813,6 @@ void ChildThreadImpl::Init(const Options& options) {
 }
 
 ChildThreadImpl::~ChildThreadImpl() {
-#if BUILDFLAG(IPC_MESSAGE_LOG_ENABLED) && BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  IPC::Logging::GetInstance()->SetIPCSender(NULL);
-#endif
-
   if (channel_) {
     channel_->RemoveFilter(sync_message_filter_.get());
 
@@ -863,18 +861,6 @@ void ChildThreadImpl::OnChannelError() {
     quit_closure_.Run();
 }
 
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-bool ChildThreadImpl::Send(IPC::Message* msg) {
-  DCHECK(main_thread_runner_->BelongsToCurrentThread());
-  if (!channel_) {
-    delete msg;
-    return false;
-  }
-
-  return channel_->Send(msg);
-}
-#endif
-
 #if BUILDFLAG(IS_WIN)
 void ChildThreadImpl::PreCacheFont(const LOGFONT& log_font) {
   GetFontCacheWin()->PreCacheFont(log_font);
@@ -904,22 +890,8 @@ void ChildThreadImpl::BindHostReceiver(mojo::GenericPendingReceiver receiver) {
     child_process_host_->BindHostReceiver(std::move(receiver));
 }
 
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-IPC::MessageRouter* ChildThreadImpl::GetRouter() {
-  DCHECK(main_thread_runner_->BelongsToCurrentThread());
-  return &router_;
-}
-#endif
-
 bool ChildThreadImpl::OnMessageReceived(const IPC::Message& msg) {
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  if (msg.routing_id() == MSG_ROUTING_CONTROL)
-    return OnControlMessageReceived(msg);
-
-  return router_.OnMessageReceived(msg);
-#else
   return false;
-#endif
 }
 
 void ChildThreadImpl::OnAssociatedInterfaceRequest(
@@ -942,12 +914,6 @@ void ChildThreadImpl::ExposeInterfacesToBrowser(mojo::BinderMap binders) {
       FROM_HERE, base::BindOnce(&IOThreadState::ExposeInterfacesToBrowser,
                                 io_thread_state_, std::move(binders)));
 }
-
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-bool ChildThreadImpl::OnControlMessageReceived(const IPC::Message& msg) {
-  return false;
-}
-#endif
 
 void ChildThreadImpl::GetBackgroundTracingAgentProvider(
     mojo::PendingReceiver<tracing::mojom::BackgroundTracingAgentProvider>

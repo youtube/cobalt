@@ -43,6 +43,8 @@
 #include "components/services/storage/public/cpp/constants.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "storage/common/database/database_identifier.h"
+#include "storage/common/database/db_status.h"
+#include "storage/common/database/leveldb_status_helper.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 
 namespace storage {
@@ -145,7 +147,7 @@ void SuccessResponse(base::OnceClosure callback, bool success) {
   std::move(callback).Run();
 }
 
-void IgnoreStatus(base::OnceClosure callback, leveldb::Status status) {
+void IgnoreStatus(base::OnceClosure callback, DbStatus status) {
   std::move(callback).Run();
 }
 
@@ -167,7 +169,7 @@ DomStorageDatabase::Key MakeStorageKeyPrefix(
 
 void DeleteStorageKeys(AsyncDomStorageDatabase* database,
                        std::vector<blink::StorageKey> storage_keys,
-                       base::OnceCallback<void(leveldb::Status)> callback) {
+                       base::OnceCallback<void(DbStatus)> callback) {
   database->RunDatabaseTask(
       base::BindOnce(
           [](std::vector<blink::StorageKey> storage_keys,
@@ -256,7 +258,7 @@ class LocalStorageImpl::StorageAreaHolder final
               return db.Commit(&batch);
             },
             storage_key_),
-        base::BindOnce([](leveldb::Status status) {
+        base::BindOnce([](DbStatus status) {
           base::UmaHistogramBoolean(
               "LocalStorage.AccessMetaDataUpdateAtShutdown", status.ok());
         }));
@@ -316,9 +318,7 @@ class LocalStorageImpl::StorageAreaHolder final
     }
   }
 
-  void DidCommit(leveldb::Status status) override {
-    context_->OnCommitResult(status);
-  }
+  void DidCommit(DbStatus status) override { context_->OnCommitResult(status); }
   void Bind(mojo::PendingReceiver<blink::mojom::StorageArea> receiver) {
     has_bindings_ = true;
     storage_area()->Bind(std::move(receiver));
@@ -402,7 +402,7 @@ void LocalStorageImpl::DeleteStorage(const blink::StorageKey& storage_key,
     DeleteStorageKeys(
         database_.get(), {storage_key},
         base::BindOnce([](base::OnceClosure callback,
-                          leveldb::Status) { std::move(callback).Run(); },
+                          DbStatus) { std::move(callback).Run(); },
                        std::move(callback)));
   } else {
     std::move(callback).Run();
@@ -667,18 +667,14 @@ void LocalStorageImpl::InitiateConnection(bool in_memory_only) {
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
-void LocalStorageImpl::OnDatabaseOpened(leveldb::Status status) {
-  base::UmaHistogramEnumeration("LocalStorage.DatabaseOpen",
-                                leveldb_env::GetLevelDBStatusUMAValue(status),
-                                leveldb_env::LEVELDB_STATUS_MAX);
+void LocalStorageImpl::OnDatabaseOpened(DbStatus status) {
+  LogLevelDBStatusHistogram("LocalStorage.DatabaseOpen", status);
 
   if (!status.ok()) {
     // If we failed to open the database, try to delete and recreate the
     // database, or ultimately fallback to an in-memory database.
 #if BUILDFLAG(IS_COBALT)
-    base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseOpenError",
-                                  leveldb_env::GetLevelDBStatusUMAValue(status),
-                                  leveldb_env::LEVELDB_STATUS_MAX);
+    LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseOpenError", status);
 #endif
     DeleteAndRecreateDatabase();
     return;
@@ -690,7 +686,7 @@ void LocalStorageImpl::OnDatabaseOpened(leveldb::Status status) {
         base::BindOnce(
             [](const std::vector<uint8_t>& key, const DomStorageDatabase& db) {
               DomStorageDatabase::Value value;
-              leveldb::Status status = db.Get(key, &value);
+              DbStatus status = db.Get(key, &value);
               return std::make_tuple(status, std::move(value));
             },
             std::vector<uint8_t>(kVersionKey.begin(), kVersionKey.end())),
@@ -702,7 +698,7 @@ void LocalStorageImpl::OnDatabaseOpened(leveldb::Status status) {
   OnConnectionFinished();
 }
 
-void LocalStorageImpl::OnGotDatabaseVersion(leveldb::Status status,
+void LocalStorageImpl::OnGotDatabaseVersion(DbStatus status,
                                             DomStorageDatabase::Value value) {
   if (status.IsNotFound()) {
     // New database, nothing more to do. Current version will get written
@@ -716,9 +712,8 @@ void LocalStorageImpl::OnGotDatabaseVersion(leveldb::Status status,
         db_version < kMinSchemaVersion ||
         db_version > kCurrentLocalStorageSchemaVersion) {
 #if BUILDFLAG(IS_COBALT)
-      base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseVersionMismatch",
-                                  leveldb_env::GetLevelDBStatusUMAValue(status),
-                                  leveldb_env::LEVELDB_STATUS_MAX);
+      LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseVersionMismatch",
+                                status);
 #endif
       DeleteAndRecreateDatabase();
       return;
@@ -728,9 +723,7 @@ void LocalStorageImpl::OnGotDatabaseVersion(leveldb::Status status,
   } else {
     // Other read error. Possibly database corruption.
 #if BUILDFLAG(IS_COBALT)
-    base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseReadError",
-                                  leveldb_env::GetLevelDBStatusUMAValue(status),
-                                  leveldb_env::LEVELDB_STATUS_MAX);
+    LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseReadError", status);
 #endif
     DeleteAndRecreateDatabase();
     return;
@@ -808,8 +801,7 @@ void LocalStorageImpl::DeleteAndRecreateDatabase() {
   }
 }
 
-void LocalStorageImpl::OnDBDestroyed(bool recreate_in_memory,
-                                     leveldb::Status status) {
+void LocalStorageImpl::OnDBDestroyed(bool recreate_in_memory, DbStatus status) {
   // We're essentially ignoring the status here. Even if destroying failed we
   // still want to go ahead and try to recreate.
   InitiateConnection(recreate_in_memory);
@@ -941,7 +933,7 @@ void LocalStorageImpl::OnGotStorageUsageForShutdown(
   }
 }
 
-void LocalStorageImpl::OnStorageKeysDeleted(leveldb::Status status) {
+void LocalStorageImpl::OnStorageKeysDeleted(DbStatus status) {
   OnShutdownComplete();
 }
 
@@ -965,7 +957,7 @@ void LocalStorageImpl::GetStatistics(size_t* total_cache_size,
   }
 }
 
-void LocalStorageImpl::OnCommitResult(leveldb::Status status) {
+void LocalStorageImpl::OnCommitResult(DbStatus status) {
   DCHECK(connection_state_ == CONNECTION_FINISHED ||
          connection_state_ == CONNECTION_SHUTDOWN)
       << connection_state_;
@@ -989,9 +981,8 @@ void LocalStorageImpl::OnCommitResult(leveldb::Status status) {
     // errors), but those commits won't reach OnCommitResult because the area
     // will have been deleted before the commit finishes.
 #if BUILDFLAG(IS_COBALT)
-    base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseCommitError",
-                                  leveldb_env::GetLevelDBStatusUMAValue(status),
-                                  leveldb_env::LEVELDB_STATUS_MAX);
+    LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseCommitError",
+                              status);
 #endif
     DeleteAndRecreateDatabase();
   }
@@ -1100,7 +1091,7 @@ void LocalStorageImpl::OnGotMetaDataToDeleteStaleStorageAreas(
   DeleteStorageKeys(
       database_.get(), stale_storage_keys,
       base::BindOnce(
-          [](size_t keys_deleted, leveldb::Status status) {
+          [](size_t keys_deleted, DbStatus status) {
             base::UmaHistogramBoolean(
                 "LocalStorage.StaleStorageAreasDeletedOnStartupSuccess",
                 status.ok());

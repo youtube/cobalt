@@ -185,14 +185,5 @@ class UsedRtpHeaderExtensionIds : public UsedIds<RtpExtension> {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::UsedIds;
-using ::webrtc::UsedPayloadTypes;
-using ::webrtc::UsedRtpHeaderExtensionIds;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // PC_USED_IDS_H_

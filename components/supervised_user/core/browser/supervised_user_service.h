@@ -125,7 +125,10 @@ class SupervisedUserService : public KeyedService {
   bool IsSupervisedLocally() const;
   // Returns true if the user is supervised locally (e.g. on the device) and
   // requested browser content to be filtered.
-  bool IsLocalContentFilteringEnabled() const;
+  bool IsLocalBrowserFilteringEnabled() const;
+  // Returns true if the user is supervised locally (e.g. on the device) and
+  // requested search content to be filtered.
+  bool IsLocalSearchFilteringEnabled() const;
 
   std::optional<Custodian> GetCustodian() const;
   std::optional<Custodian> GetSecondCustodian() const;
@@ -167,12 +170,17 @@ class SupervisedUserService : public KeyedService {
 #endif
   );
 
+ protected:
+#if BUILDFLAG(IS_ANDROID)
+  ContentFiltersObserverBridge* browser_content_filters_observer();
+  ContentFiltersObserverBridge* search_content_filters_observer();
+#endif  // BUILDFLAG(IS_ANDROID)
+
  private:
   // Activates the service which controls managed settings of url filtering and
   // incognito mode.
   void SetSettingsServiceActive(bool active);
-  // Activates the settings that manually control url filtering and incognito
-  // mode.
+  // Activates the settings that manually control url filtering.
   void SetUserSettingsActive(bool active);
 
   void OnCustodianInfoChanged();
@@ -209,8 +217,11 @@ class SupervisedUserService : public KeyedService {
   void RemoveCustodianPrefChangeHandlers();
 
 #if BUILDFLAG(IS_ANDROID)
-  // Enables search content filters and then notifies observers that the search content filters are enabled.
+  // Enables content filters and then notifies observers.
   void EnableSearchContentFilters();
+  void DisableSearchContentFilters();
+  void EnableBrowserContentFilters();
+  void DisableBrowserContentFilters();
 #endif  // BUILDFLAG(IS_ANDROID)
 
   const raw_ref<PrefService> user_prefs_;
@@ -248,6 +259,7 @@ class SupervisedUserService : public KeyedService {
       browser_content_filters_observer_;
   std::unique_ptr<ContentFiltersObserverBridge>
       search_content_filters_observer_;
+
 #endif  // BUILDFLAG(IS_ANDROID)
 
   // True only when |Shutdown()| method has been called.
@@ -261,8 +273,6 @@ class SupervisedUserService : public KeyedService {
 #if BUILDFLAG(IS_CHROMEOS)
   bool signout_required_after_supervision_enabled_ = false;
 #endif
-
-  base::WeakPtrFactory<SupervisedUserService> weak_ptr_factory_{this};
 };
 
 }  // namespace supervised_user

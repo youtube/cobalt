@@ -49,14 +49,6 @@ BASE_DECLARE_FEATURE(kClearUndecryptablePasswords);
 // Delete undecryptable passwords from the store when Sync is active.
 BASE_DECLARE_FEATURE(kClearUndecryptablePasswordsOnSync);
 
-// Marks form submission as failed whenever a POST request has failed for the
-// same iframe with 400-403 status code.
-BASE_DECLARE_FEATURE(kFailedLoginDetectionBasedOnResourceLoadingErrors);
-
-// Marks form submission as failed whenever a password field is cleared for the
-// sign-in forms.
-BASE_DECLARE_FEATURE(kFailedLoginDetectionBasedOnFormClearEvent);
-
 #if BUILDFLAG(IS_ANDROID)
 // Enables reading credentials from SharedPreferences.
 BASE_DECLARE_FEATURE(kFetchGaiaHashOnSignIn);
@@ -180,6 +172,20 @@ BASE_DECLARE_FEATURE(kMarkAllCredentialsAsLeaked);
 
 // Enables improvements to password change functionality.
 BASE_DECLARE_FEATURE(kImprovedPasswordChangeService);
+
+inline constexpr base::FeatureParam<std::string>
+    kPasswordChangeSuccessSurveyTriggerId{
+        &kImprovedPasswordChangeService, "PasswordChangeSuccessSurveyTriggerId",
+        /*default_value=*/""};
+inline constexpr base::FeatureParam<std::string>
+    kPasswordChangeErrorSurveyTriggerId{&kImprovedPasswordChangeService,
+                                        "PasswordChangeErrorSurveyTriggerId",
+                                        /*default_value=*/""};
+inline constexpr base::FeatureParam<std::string>
+    kPasswordChangeCanceledSurveyTriggerId{
+        &kImprovedPasswordChangeService,
+        "PasswordChangeCanceledSurveyTriggerId",
+        /*default_value=*/""};
 
 // All features parameters in alphabetical order.
 }  // namespace password_manager::features

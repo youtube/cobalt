@@ -351,11 +351,11 @@ class KeepAliveURLLoaderServiceTestBase : public RenderViewHostTestHarness {
 
     test_web_contents()->NavigateAndCommit(GURL("https://example.com"));
 
-    pending_navigation_ = NavigationSimulator::CreateBrowserInitiated(
+    // Start a navigation but don't commit just yet, since we want to inject the
+    // context created in `BindKeepAliveURLLoaderFactory()`.
+    pending_navigation_ = NavigationSimulatorImpl::CreateBrowserInitiated(
         GURL("https://example.com"), web_contents());
-    pending_navigation_->ReadyToCommit();
-
-    AddConnectSrcCSPToRFH(kTestRedirectRequestUrl);
+    pending_navigation_->Start();
   }
 
   void TearDown() override {
@@ -371,7 +371,7 @@ class KeepAliveURLLoaderServiceTestBase : public RenderViewHostTestHarness {
     EXPECT_EQ(mojo_bad_message_, message);
   }
 
-  NavigationHandle* GetNavigationHandle() {
+  NavigationRequest* GetNavigationRequest() {
     return pending_navigation_->GetNavigationHandle();
   }
 
@@ -394,7 +394,19 @@ class KeepAliveURLLoaderServiceTestBase : public RenderViewHostTestHarness {
         static_cast<RenderFrameHostImpl*>(main_rfh())
             ->policy_container_host()
             ->Clone());
-    context->OnDidCommitNavigation(GetNavigationHandle());
+
+    // Ensure that the context above is the one used in the NavigationRequest.
+    // This is to make sure the OnDidCommitNavigation call that happens during
+    // navigation commit below will use the the loader & context that is
+    // expected by the test. We no longer call OnDidCommitNavigation manually
+    // since if we change RFHs we might not have a PolicyContainerHost or
+    // RFH origin yet here, causing problems with tests, attribution context
+    // etc.
+    GetNavigationRequest()->SetKeepAliveURLLoaderFactoryContextForTesting(
+        context);
+    pending_navigation_->Commit();
+
+    AddConnectSrcCSPToRFH(kTestRedirectRequestUrl);
   }
 
   network::TestURLLoaderFactory::PendingRequest* GetLastPendingRequest() {
@@ -422,7 +434,8 @@ class KeepAliveURLLoaderServiceTestBase : public RenderViewHostTestHarness {
   KeepAliveURLLoaderService& loader_service() {
     if (!loader_service_) {
       loader_service_ = std::make_unique<KeepAliveURLLoaderService>(
-          main_rfh()->GetBrowserContext());
+          static_cast<StoragePartitionImpl*>(
+              main_rfh()->GetStoragePartition()));
     }
     return *loader_service_;
   }
@@ -431,6 +444,8 @@ class KeepAliveURLLoaderServiceTestBase : public RenderViewHostTestHarness {
   TestWebContents* test_web_contents() {
     return static_cast<TestWebContents*>(web_contents());
   }
+
+  std::unique_ptr<NavigationSimulatorImpl> pending_navigation_;
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -441,7 +456,6 @@ class KeepAliveURLLoaderServiceTestBase : public RenderViewHostTestHarness {
   // The test target.
   std::unique_ptr<KeepAliveURLLoaderService> loader_service_ = nullptr;
   std::optional<std::string> mojo_bad_message_;
-  std::unique_ptr<NavigationSimulator> pending_navigation_;
 };
 
 class KeepAliveURLLoaderServiceTest : public KeepAliveURLLoaderServiceTestBase {
@@ -564,13 +578,18 @@ TEST_F(KeepAliveURLLoaderServiceTest, LoadRequestAfterUpdateFactory) {
   // to nothing.
   auto unbound_factory =
       std::make_unique<network::WrapperPendingSharedURLLoaderFactory>();
+  scoped_refptr<PolicyContainerHost> policy_container_host =
+      static_cast<RenderFrameHostImpl*>(main_rfh())
+          ->policy_container_host()
+          ->Clone();
   auto context = loader_service().BindFactory(
       renderer_loader_factory.BindNewPipeAndPassReceiver(),
       network::SharedURLLoaderFactory::Create(std::move(unbound_factory)),
-      static_cast<RenderFrameHostImpl*>(main_rfh())
-          ->policy_container_host()
-          ->Clone());
-  context->OnDidCommitNavigation(GetNavigationHandle());
+      policy_container_host);
+  GetNavigationRequest()->SetKeepAliveURLLoaderFactoryContextForTesting(
+      context);
+  pending_navigation_->Commit();
+
   {
     // Load a keepalive request. There should be no network loader created.
     MockReceiverURLLoaderClient renderer_loader_client;
@@ -1304,10 +1323,17 @@ TEST_F(KeepAliveURLLoaderServiceTest,
 class FetchLaterKeepAliveURLLoaderServiceTest
     : public KeepAliveURLLoaderServiceTestBase {
  protected:
+  static constexpr base::TimeDelta kDisconnectedLoaderTimeoutForTesting =
+      base::Seconds(15);
+
   void SetUp() override {
-    feature_list().InitWithFeatures(
-        {blink::features::kFetchLaterAPI,
-         blink::features::kAttributionReportingInBrowserMigration},
+    feature_list().InitWithFeaturesAndParameters(
+        {{blink::features::kFetchLaterAPI, {}},
+         {blink::features::kAttributionReportingInBrowserMigration, {}},
+         {blink::features::kKeepAliveInBrowserMigration,
+          {{"disconnected_loader_timeout_seconds",
+            base::NumberToString(
+                kDisconnectedLoaderTimeoutForTesting.InSeconds())}}}},
         {});
     KeepAliveURLLoaderServiceTestBase::SetUp();
   }
@@ -1332,7 +1358,11 @@ class FetchLaterKeepAliveURLLoaderServiceTest
         static_cast<RenderFrameHostImpl*>(main_rfh())
             ->policy_container_host()
             ->Clone());
-    context->OnDidCommitNavigation(GetNavigationHandle());
+
+    GetNavigationRequest()->SetFetchLaterLoaderFactoryContextForTesting(
+        context);
+    pending_navigation_->Commit();
+    AddConnectSrcCSPToRFH(kTestRedirectRequestUrl);
   }
 };
 
@@ -1437,8 +1467,8 @@ TEST_F(FetchLaterKeepAliveURLLoaderServiceTest,
   // KeepAliveURLLoader.
   renderer_loader_factory.reset_remote_fetch_later_loader();
   base::RunLoop().RunUntilIdle();
-  // Fast forwards `kDefaultDisconnectedKeepAliveURLLoaderTimeout` (30s).
-  task_environment()->FastForwardBy(base::Seconds(30));
+  // Fast forwards to the keepalive disconnect timeout.
+  task_environment()->FastForwardBy(kDisconnectedLoaderTimeoutForTesting);
 
   // Disconnected KeepAliveURLLoader should be killed.
   EXPECT_EQ(loader_service().NumDisconnectedLoadersForTesting(), 0u);
@@ -1707,31 +1737,20 @@ TEST_F(KeepAliveURLLoaderServiceRetryTest, ErrorCodeRetryEligibility) {
   base::WeakPtr<KeepAliveURLLoader> loader =
       loader_service().GetLoaderWithRequestIdForTesting(
           FakeRemoteURLLoaderFactory::kRequestId);
-  net::Error eligible_errors[] = {
-      net::ERR_TIMED_OUT, net::ERR_CONNECTION_TIMED_OUT,
-      net::ERR_CONNECTION_CLOSED, net::ERR_CONNECTION_REFUSED,
-      net::ERR_CONNECTION_RESET, net::ERR_CONNECTION_FAILED,
-      net::ERR_ADDRESS_UNREACHABLE, net::ERR_NETWORK_CHANGED,
-      // Proxy/tunnel-specific connection issues.
-      net::ERR_TUNNEL_CONNECTION_FAILED, net::ERR_PROXY_CONNECTION_FAILED,
-      net::ERR_SOCKS_CONNECTION_FAILED, net::ERR_HTTP2_PING_FAILED,
-      net::ERR_HTTP2_PROTOCOL_ERROR, net::ERR_QUIC_PROTOCOL_ERROR,
-      // DNS failures.
-      net::ERR_NAME_NOT_RESOLVED, net::ERR_INTERNET_DISCONNECTED,
-      net::ERR_NAME_RESOLUTION_FAILED};
-  for (net::Error error : eligible_errors) {
-    ASSERT_TRUE(
-        loader->IsEligibleForRetry(network::URLLoaderCompletionStatus(error)))
-        << " Should be eligible for retry: " << error;
+  std::vector<int> error_codes({
+#define NET_ERROR(label, value) value,
+#include "net/base/net_error_list.h"
+#undef NET_ERROR
+  });
+  for (int error_code : error_codes) {
+    // All non-OK error code is eligible for retry.
+    ASSERT_TRUE(loader->IsEligibleForRetry(
+        network::URLLoaderCompletionStatus(error_code)))
+        << " error code is: " << error_code;
   }
   // Not passing an error code is possible for disconnect loader timeout
   // failure.
   ASSERT_TRUE(loader->IsEligibleForRetry(std::nullopt));
-  // Other error codes are not eligible for retry. Testing a sample here.
-  ASSERT_FALSE(
-      loader->IsEligibleForRetry(network::URLLoaderCompletionStatus(net::OK)));
-  ASSERT_FALSE(loader->IsEligibleForRetry(
-      network::URLLoaderCompletionStatus(net::ERR_ABORTED)));
 }
 
 // Test failing with an eligible error with OnComplete causes the fetch to be
@@ -1758,63 +1777,6 @@ TEST_F(KeepAliveURLLoaderServiceRetryTest, OnCompleteWillBeRetried) {
   loader->OnComplete(
       network::URLLoaderCompletionStatus(net::ERR_NETWORK_CHANGED));
   EXPECT_TRUE(loader->IsAttemptingRetry());
-}
-// Test which errors are eligible for retry when opting in to retry only if the
-// server is not reached yet.
-TEST_F(KeepAliveURLLoaderServiceRetryTest,
-       ErrorCodeRetryEligibility_OnlyIfServerUnreached) {
-  FakeRemoteURLLoaderFactory renderer_loader_factory;
-  MockReceiverURLLoaderClient renderer_loader_client;
-  BindKeepAliveURLLoaderFactory(renderer_loader_factory);
-
-  auto resource_request = CreateResourceRequest(GURL(kTestRequestUrl));
-  network::FetchRetryOptions options;
-  options.max_attempts = 1;
-  options.retry_only_if_server_unreached = true;
-  resource_request.fetch_retry_options = options;
-
-  // Loads keepalive request:
-  renderer_loader_factory.CreateLoaderAndStart(
-      resource_request, renderer_loader_client.BindNewPipeAndPassRemote());
-  ASSERT_EQ(network_url_loader_factory().NumPending(), 1);
-  ASSERT_EQ(loader_service().NumLoadersForTesting(), 1u);
-
-  base::WeakPtr<KeepAliveURLLoader> loader =
-      loader_service().GetLoaderWithRequestIdForTesting(
-          FakeRemoteURLLoaderFactory::kRequestId);
-  net::Error eligible_errors[] = {
-      net::ERR_CONNECTION_REFUSED,       net::ERR_ADDRESS_UNREACHABLE,
-      net::ERR_TUNNEL_CONNECTION_FAILED, net::ERR_PROXY_CONNECTION_FAILED,
-      net::ERR_SOCKS_CONNECTION_FAILED,  net::ERR_NAME_NOT_RESOLVED,
-      net::ERR_NAME_RESOLUTION_FAILED};
-  for (net::Error error : eligible_errors) {
-    ASSERT_TRUE(
-        loader->IsEligibleForRetry(network::URLLoaderCompletionStatus(error)))
-        << " Should be eligible for retry: " << error;
-  }
-  net::Error ineligible_errors[] = {
-      net::ERR_TIMED_OUT, net::ERR_CONNECTION_TIMED_OUT,
-      net::ERR_CONNECTION_CLOSED, net::ERR_CONNECTION_RESET,
-      net::ERR_CONNECTION_FAILED, net::ERR_NETWORK_CHANGED,
-      // Proxy/tunnel-specific connection issues.
-      net::ERR_HTTP2_PING_FAILED, net::ERR_HTTP2_PROTOCOL_ERROR,
-      net::ERR_QUIC_PROTOCOL_ERROR,
-      // DNS failures.
-      net::ERR_INTERNET_DISCONNECTED};
-  for (net::Error error : ineligible_errors) {
-    ASSERT_FALSE(
-        loader->IsEligibleForRetry(network::URLLoaderCompletionStatus(error)))
-        << " Should not be eligible for retry: " << error;
-  }
-  // Not passing an error code is possible for disconnect loader timeout
-  // failure. We can't guarantee that the server has not been reached yet since
-  // there's no error information.
-  ASSERT_FALSE(loader->IsEligibleForRetry(std::nullopt));
-  // Other error codes are also not eligible for retry. Testing a sample here.
-  ASSERT_FALSE(
-      loader->IsEligibleForRetry(network::URLLoaderCompletionStatus(net::OK)));
-  ASSERT_FALSE(loader->IsEligibleForRetry(
-      network::URLLoaderCompletionStatus(net::ERR_ABORTED)));
 }
 
 // Test failing with an eligible error with CancelWithStatus causes the fetch to

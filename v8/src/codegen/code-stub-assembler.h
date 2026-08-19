@@ -143,6 +143,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 #error Unknown architecture.
 #endif
 
+  // Convert<T> is intended to handle all converting type changes, i.e. when
+  // the underlying representation may change (extend, truncate, ...) in
+  // some way.
+  //
+  // See also convert.tq.
+  //
+  // Please add new overloads as convenient.
+  template <class To, class From>
+  TNode<To> Convert(TNode<From> from);
+
   TNode<IntPtrT> TaggedIndexToIntPtr(TNode<TaggedIndex> value);
   TNode<TaggedIndex> IntPtrToTaggedIndex(TNode<IntPtrT> value);
   // TODO(v8:10047): Get rid of these conversions eventually.
@@ -609,6 +619,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> NumberSub(TNode<Number> a, TNode<Number> b);
   void GotoIfNotNumber(TNode<Object> value, Label* is_not_number);
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  void GotoIfNumberOrUndefined(TNode<Object> value,
+                               Label* is_number_or_undefined);
   void GotoIfNotNumberOrUndefined(TNode<Object> value,
                                   Label* is_not_number_or_undefined);
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
@@ -1475,6 +1487,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return Word32BinaryNot(IsCleared(value));
   }
 
+  TNode<MaybeObject> PrototypeChainInvalidConstant();
+
   // Removes the weak bit + asserts it was set.
   TNode<HeapObject> GetHeapObjectAssumeWeak(TNode<MaybeObject> value);
 
@@ -1724,6 +1738,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<SharedFunctionInfo> sfi);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+  TNode<BytecodeArray> LoadInterpreterDataBytecodeArray(
+      TNode<InterpreterData> data);
+  TNode<Code> LoadInterpreterDataInterpreterTrampoline(
+      TNode<InterpreterData> data);
+
   TNode<Int32T> LoadBytecodeArrayParameterCount(
       TNode<BytecodeArray> bytecode_array);
   TNode<Int32T> LoadBytecodeArrayParameterCountWithoutReceiver(
@@ -1952,8 +1971,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
                                  TNode<IntPtrT> index);
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  template <typename TIndex>
+    requires(std::is_same_v<TIndex, Smi> || std::is_same_v<TIndex, UintPtrT> ||
+             std::is_same_v<TIndex, IntPtrT>)
   void StoreFixedDoubleArrayUndefined(TNode<FixedDoubleArray> array,
-                                      TNode<IntPtrT> index);
+                                      TNode<TIndex> index);
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   void StoreFeedbackVectorSlot(
       TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
@@ -2838,10 +2860,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSReceiverInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSReceiverMap(TNode<Map> map);
   TNode<BoolT> IsJSReceiver(TNode<HeapObject> object);
-  // The following two methods assume that we deal either with a primitive
+  // The following four methods assume that we deal either with a primitive
   // object or a JS receiver.
   TNode<BoolT> JSAnyIsNotPrimitiveMap(TNode<Map> map);
   TNode<BoolT> JSAnyIsNotPrimitive(TNode<HeapObject> object);
+  TNode<BoolT> JSAnyIsPrimitiveMap(TNode<Map> map);
+  TNode<BoolT> JSAnyIsPrimitive(TNode<HeapObject> object);
   TNode<BoolT> IsJSRegExp(TNode<HeapObject> object);
   TNode<BoolT> IsJSTypedArrayInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSTypedArrayMap(TNode<Map> map);

@@ -20,6 +20,7 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
@@ -182,17 +183,15 @@ class MoqtSessionPeer {
         0,
         128,
         std::nullopt,
-        std::nullopt,
-        FullTrackName{"foo", "bar"},
-        Location{0, 0},
-        4,
-        std::nullopt,
+        StandaloneFetch(FullTrackName{"foo", "bar"}, Location{0, 0}, 4,
+                        std::nullopt),
         VersionSpecificParameters(),
     };
     std::unique_ptr<MoqtFetchTask> task;
     auto [it, success] = session->upstream_by_id_.try_emplace(
         0, std::make_unique<UpstreamFetch>(
-               fetch_message, [&](std::unique_ptr<MoqtFetchTask> fetch_task) {
+               fetch_message, std::get<StandaloneFetch>(fetch_message.fetch),
+               [&](std::unique_ptr<MoqtFetchTask> fetch_task) {
                  task = std::move(fetch_task);
                }));
     QUICHE_DCHECK(success);
@@ -247,11 +246,10 @@ class MoqtSessionPeer {
   }
 
   static bool SubgroupHasBeenReset(MoqtObjectListener* subscription,
-                                   Location sequence) {
-    sequence.object = 0;
+                                   DataStreamIndex index) {
     return static_cast<MoqtSession::PublishedSubscription*>(subscription)
         ->reset_subgroups()
-        .contains(sequence);
+        .contains(index);
   }
 };
 

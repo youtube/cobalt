@@ -10,11 +10,10 @@
 
 #include "p2p/base/pseudo_tcp.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <utility>
 #include <vector>

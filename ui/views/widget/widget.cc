@@ -50,7 +50,7 @@
 #include "ui/views/event_monitor.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/focus/focus_manager_factory.h"
-#include "ui/views/focus/widget_focus_manager.h"
+#include "ui/views/focus/native_view_focus_manager.h"
 #include "ui/views/views_delegate.h"
 #include "ui/views/widget/any_widget_observer_singleton.h"
 #include "ui/views/widget/native_widget_private.h"
@@ -1836,6 +1836,9 @@ bool Widget::OnNativeWidgetActivationChanged(bool active) {
   observers_.Notify(&WidgetObserver::OnWidgetActivationChanged, this, active);
 
   if (active) {
+    internal::AnyWidgetObserverSingleton::GetInstance()->OnAnyWidgetActivated(
+        this);
+
     base::AutoReset<bool> is_traversing_widget_tree(&is_traversing_widget_tree_,
                                                     true);
     Widget* root = nullptr;
@@ -1895,17 +1898,17 @@ bool Widget::ShouldHandleNativeWidgetActivationChanged(bool active) {
 }
 
 void Widget::OnNativeFocus() {
-  WidgetFocusManager::GetInstance()->OnNativeFocusChanged(GetNativeView());
+  NativeViewFocusManager::GetInstance()->OnNativeFocusChanged(GetNativeView());
 }
 
 void Widget::OnNativeBlur() {
-  WidgetFocusManager::GetInstance()->OnNativeFocusChanged(gfx::NativeView());
+  NativeViewFocusManager::GetInstance()->OnNativeFocusChanged(gfx::NativeView());
 }
 
 void Widget::OnNativeWidgetVisibilityChanged(bool visible) {
   View* root = GetRootView();
   if (root) {
-    root->PropagateVisibilityNotifications(root, visible);
+    root->PropagateVisibilityNotifications(nullptr, visible);
   }
   observers_.Notify(&WidgetObserver::OnWidgetVisibilityChanged, this, visible);
   if (GetCompositor() && root && root->layer()) {

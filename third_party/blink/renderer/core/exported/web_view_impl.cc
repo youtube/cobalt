@@ -1608,8 +1608,6 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
   settings->SetSyncXHRInDocumentsEnabled(prefs.sync_xhr_in_documents_enabled);
   settings->SetTargetBlankImpliesNoOpenerEnabledWillBeRemoved(
       prefs.target_blank_implies_no_opener_enabled_will_be_removed);
-  settings->SetAllowNonEmptyNavigatorPlugins(
-      prefs.allow_non_empty_navigator_plugins);
   settings->SetIgnorePermissionForDeviceChangedEvent(
       prefs.ignore_permission_for_device_changed_event);
   settings->SetShouldProtectAgainstIpcFlooding(
@@ -1706,11 +1704,6 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
   settings->SetSmartInsertDeleteEnabled(prefs.smart_insert_delete_enabled);
 
   settings->SetSpatialNavigationEnabled(prefs.spatial_navigation_enabled);
-  // Spatnav depends on KeyboardFocusableScrollers. The WebUI team has
-  // disabled KFS because they need more time to update their custom elements,
-  // crbug.com/907284. Meanwhile, we pre-ship KFS to spatnav users.
-  if (prefs.spatial_navigation_enabled)
-    RuntimeEnabledFeatures::SetKeyboardFocusableScrollersEnabled(true);
 
   settings->SetSelectionIncludesAltImageText(true);
 
@@ -2540,7 +2533,7 @@ void WebViewImpl::SetPageLifecycleStateInternal(
     SetVisibilityState(new_state->visibility, /*is_initial_state=*/false);
   }
   if (storing_in_bfcache) {
-    // TODO(https://crbug.com/1378279): Consider moving this to happen earlier
+    // TODO(https://crbug.com/427130212): Consider moving this to happen earlier
     // and together with other page state updates so that the ordering is clear.
     Scheduler()->SetPageBackForwardCached(new_state->is_in_back_forward_cache);
   }
@@ -2553,7 +2546,7 @@ void WebViewImpl::SetPageLifecycleStateInternal(
       }
     }
 
-    // TODO(https://crbug.com/1378279): Consider moving this to happen earlier
+    // TODO(https://crbug.com/427130212): Consider moving this to happen earlier
     // and together with other page state updates so that the ordering is clear.
     SetPageFrozen(true);
   }
@@ -2569,7 +2562,7 @@ void WebViewImpl::SetPageLifecycleStateInternal(
   if (eviction_changed)
     HookBackForwardCacheEviction(new_state->eviction_enabled);
   if (resuming_page) {
-    // TODO(https://crbug.com/1378279): Consider moving this to happen earlier
+    // TODO(https://crbug.com/427130212): Consider moving this to happen earlier
     // and together with other page state updates so that the ordering is clear.
     SetPageFrozen(false);
   }
@@ -2582,7 +2575,7 @@ void WebViewImpl::SetPageLifecycleStateInternal(
 
     DispatchPersistedPageshow(page_restore_params->navigation_start);
 
-    // TODO(https://crbug.com/1378279): Consider moving this to happen earlier
+    // TODO(https://crbug.com/427130212): Consider moving this to happen earlier
     // and together with other page state updates so that the ordering is clear.
     Scheduler()->SetPageBackForwardCached(new_state->is_in_back_forward_cache);
     if (MainFrame()->IsWebLocalFrame()) {
@@ -2605,7 +2598,7 @@ void WebViewImpl::SetPageLifecycleStateInternal(
   // move SchedulerTrackedFeatures to core/ and remove the back and forth.
   ReportActiveSchedulerTrackedFeatures();
 
-  // TODO(https://crbug.com/1378279): Consider moving this to happen earlier
+  // TODO(https://crbug.com/427130212): Consider moving this to happen earlier
   // and together with other page state updates so that the ordering is clear.
   GetPage()->SetPageLifecycleState(std::move(new_state));
 

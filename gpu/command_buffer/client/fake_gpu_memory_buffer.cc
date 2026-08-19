@@ -67,23 +67,15 @@ gfx::GpuMemoryBufferHandle CreatePixmapHandleForTesting(
 }
 #endif
 
-FakeGpuMemoryBuffer::FakeGpuMemoryBuffer(const gfx::Size& size,
-                                         gfx::BufferFormat format)
-    : FakeGpuMemoryBuffer(size, format, gfx::NativePixmapHandle::kNoModifier) {}
-
-FakeGpuMemoryBuffer::FakeGpuMemoryBuffer(const gfx::Size& size,
-                                         gfx::BufferFormat format,
-                                         bool premapped,
-                                         MapCallbackController* controller)
-    : FakeGpuMemoryBuffer(size, format, gfx::NativePixmapHandle::kNoModifier) {
-  premapped_ = premapped;
-  map_callback_controller_ = controller;
-}
-
-FakeGpuMemoryBuffer::FakeGpuMemoryBuffer(const gfx::Size& size,
-                                         gfx::BufferFormat format,
-                                         uint64_t modifier)
-    : size_(size), format_(format) {
+FakeGpuMemoryBuffer::FakeGpuMemoryBuffer(
+    const gfx::Size& size,
+    gfx::BufferFormat format,
+    bool premapped,
+    ClientSharedImage::MapCallbackControllerForTesting* controller)
+    : size_(size),
+      format_(format),
+      premapped_(premapped),
+      map_callback_controller_(controller) {
   std::optional<media::VideoPixelFormat> video_pixel_format =
       media::GfxBufferFormatToVideoPixelFormat(format);
   CHECK(video_pixel_format);
@@ -141,10 +133,6 @@ int FakeGpuMemoryBuffer::stride(size_t plane) const {
       .width();
 }
 
-gfx::GpuMemoryBufferId FakeGpuMemoryBuffer::GetId() const {
-  return handle_.id;
-}
-
 gfx::GpuMemoryBufferType FakeGpuMemoryBuffer::GetType() const {
   return gfx::SHARED_MEMORY_BUFFER;
 }
@@ -152,11 +140,5 @@ gfx::GpuMemoryBufferType FakeGpuMemoryBuffer::GetType() const {
 gfx::GpuMemoryBufferHandle FakeGpuMemoryBuffer::CloneHandle() const {
   return handle_.Clone();
 }
-
-void FakeGpuMemoryBuffer::OnMemoryDump(
-    base::trace_event::ProcessMemoryDump* pmd,
-    const base::trace_event::MemoryAllocatorDumpGuid& buffer_dump_guid,
-    uint64_t tracing_process_id,
-    int importance) const {}
 
 }  // namespace gpu

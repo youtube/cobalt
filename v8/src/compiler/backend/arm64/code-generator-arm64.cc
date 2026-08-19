@@ -1148,6 +1148,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchNop:
       // don't emit code for nops.
       break;
+    case kArchPause:
+      __ Isb();
+      break;
     case kArchDeoptimize: {
       DeoptimizationExit* exit =
           BuildTranslation(instr, -1, 0, 0, OutputFrameStateCombine::Ignore());
@@ -1933,6 +1936,70 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Rev32:
       __ Rev(i.OutputRegister32(), i.InputRegister32(0));
       break;
+    case kArm64Smax32: {
+      DCHECK(CpuFeatures::IsSupported(CSSC));
+
+      CpuFeatureScope scope(masm(), CSSC);
+
+      __ Smax(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      break;
+    }
+    case kArm64Smax64: {
+      DCHECK(CpuFeatures::IsSupported(CSSC));
+
+      CpuFeatureScope scope(masm(), CSSC);
+
+      __ Smax(i.OutputRegister64(), i.InputRegister64(0), i.InputOperand64(1));
+      break;
+    }
+    case kArm64Smin32: {
+      DCHECK(CpuFeatures::IsSupported(CSSC));
+
+      CpuFeatureScope scope(masm(), CSSC);
+
+      __ Smin(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      break;
+    }
+    case kArm64Smin64: {
+      DCHECK(CpuFeatures::IsSupported(CSSC));
+
+      CpuFeatureScope scope(masm(), CSSC);
+
+      __ Smin(i.OutputRegister64(), i.InputRegister64(0), i.InputOperand64(1));
+      break;
+    }
+    case kArm64Umax32: {
+      DCHECK(CpuFeatures::IsSupported(CSSC));
+
+      CpuFeatureScope scope(masm(), CSSC);
+
+      __ Umax(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      break;
+    }
+    case kArm64Umax64: {
+      DCHECK(CpuFeatures::IsSupported(CSSC));
+
+      CpuFeatureScope scope(masm(), CSSC);
+
+      __ Umax(i.OutputRegister64(), i.InputRegister64(0), i.InputOperand64(1));
+      break;
+    }
+    case kArm64Umin32: {
+      DCHECK(CpuFeatures::IsSupported(CSSC));
+
+      CpuFeatureScope scope(masm(), CSSC);
+
+      __ Umin(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      break;
+    }
+    case kArm64Umin64: {
+      DCHECK(CpuFeatures::IsSupported(CSSC));
+
+      CpuFeatureScope scope(masm(), CSSC);
+
+      __ Umin(i.OutputRegister64(), i.InputRegister64(0), i.InputOperand64(1));
+      break;
+    }
     case kArm64Cmp:
       __ Cmp(i.InputOrZeroRegister64(0), i.InputOperand2_64(1));
       break;
@@ -2483,6 +2550,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Word64AtomicCompareExchangeUint64:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(, UXTX, Register);
       break;
+    case kAtomicCompareExchangeWithWriteBarrier: {
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(, UXTW, Register32);
+        // Contrary to x64, the instruction sequence we emit on arm64 always
+        // writes an uncompressed value into the output register, so we can
+        // unconditionally decompress it.
+        __ Add(i.OutputRegister(), i.OutputRegister(),
+               kPtrComprCageBaseRegister);
+      } else {
+        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(, UXTX, Register);
+      }
+      if (v8_flags.disable_write_barriers) break;
+      // Emit the write barrier.
+      Register object = i.InputRegister(0);
+      Register offset = i.InputRegister(1);
+      Register new_value = i.InputRegister(3);
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, offset, new_value, RecordWriteMode::kValueIsAny,
+          DetermineStubCallMode(), &unwinding_info_writer_);
+      __ JumpIfSmi(new_value, ool->exit());
+      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
+                       ne, ool->entry());
+      __ Bind(ool->exit());
+      break;
+    }
     case kAtomicSubInt8:
       ASSEMBLE_ATOMIC_SUB(b, Register32);
       __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
@@ -3389,6 +3481,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Cpy(dst, src, num_bytes);
       break;
     }
+    case kArm64Set: {
+      DCHECK(CpuFeatures::IsSupported(MOPS));
+      CpuFeatureScope feature_scope(masm(), MOPS);
+      Register dst = i.InputRegister64(0);
+      Register value = i.InputRegister64(1);
+      Register num_bytes = i.InputRegister64(2);
+      // The set instructions take the 'num_bytes' and 'value' operands in
+      // reverse order.
+      __ Set(dst, num_bytes, value);
+      break;
+    }
     case kArm64LoadLane: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
@@ -3720,31 +3823,35 @@ void AssembleConditionalCompareChain(Instruction* instr, int64_t num_ccmps,
   }
 }
 
-// Assemble a conditional compare and boolean materializations after this
-// instruction.
-void CodeGenerator::AssembleArchConditionalBoolean(Instruction* instr) {
-  // Materialize a full 64-bit 1 or 0 value. The result register is always the
-  // last output of the instruction.
-  DCHECK_NE(0u, instr->OutputCount());
-  Arm64OperandConverter i(this, instr);
-  Register reg = i.OutputRegister(instr->OutputCount() - 1);
+#if V8_ENABLE_WEBASSEMBLY
+void CodeGenerator::AssembleArchConditionalTrap(Instruction* instr,
+                                                FlagsCondition condition) {
   DCHECK_GE(instr->InputCount(), 6);
-
+  Arm64OperandConverter i(this, instr);
   // Input ordering:
-  // > InputCount - 1: number of ccmps.
-  // > InputCount - 2: branch condition.
+  // > InputCount - 1: trap id.
+  // > InputCount - 2: number of ccmps.
+  // > InputCount - 3: branch condition.
   size_t num_ccmps_index =
-      instr->InputCount() - kConditionalSetEndOffsetOfNumCcmps;
-  size_t set_condition_index =
-      instr->InputCount() - kConditionalSetEndOffsetOfCondition;
+      instr->InputCount() - kConditionalTrapEndOffsetOfNumCcmps;
   int64_t num_ccmps = i.ToConstant(instr->InputAt(num_ccmps_index)).ToInt64();
-  size_t ccmp_base_index = set_condition_index - kNumCcmpOperands * num_ccmps;
+  size_t ccmp_base_index = instr->InputCount() -
+                           kConditionalTrapEndOffsetOfCondition -
+                           kNumCcmpOperands * num_ccmps;
   AssembleConditionalCompareChain(instr, num_ccmps, ccmp_base_index, this);
-
-  FlagsCondition set_condition = static_cast<FlagsCondition>(
-      i.ToConstant(instr->InputAt(set_condition_index)).ToInt64());
-  __ Cset(reg, FlagsConditionToCondition(set_condition));
+  Condition cc = FlagsConditionToCondition(condition);
+  auto ool = zone()->New<WasmOutOfLineTrap>(this, instr);
+  Label* tlabel = ool->entry();
+  // Assume traps aren't taken, so they're consistent.
+  if (CpuFeatures::IsSupported(HBC)) {
+    CpuFeatureScope scope(masm(), HBC);
+    __ Bc(cc, tlabel);
+  } else {
+    __ B(cc, tlabel);
+  }
 }
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
                                                   BranchInfo* branch) {
@@ -4006,7 +4113,8 @@ void CodeGenerator::AssembleConstructFrame() {
             WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
             Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
                     CommonFrameConstants::kFixedFrameSizeAboveFp));
-        __ CallBuiltin(Builtin::kWasmHandleStackOverflow);
+        __ Call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
+                RelocInfo::WASM_STUB_CALL);
         __ PopCPURegList(fp_regs_to_save);
         __ PopCPURegList(regs_to_save);
       } else {

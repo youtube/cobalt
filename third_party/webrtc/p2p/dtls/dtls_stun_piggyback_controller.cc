@@ -139,8 +139,8 @@ std::optional<absl::string_view> DtlsStunPiggybackController::GetAckToPiggyback(
 }
 
 void DtlsStunPiggybackController::ReportDataPiggybacked(
-    const StunByteStringAttribute* data,
-    const StunByteStringAttribute* ack) {
+    std::optional<ArrayView<uint8_t>> data,
+    std::optional<std::vector<uint32_t>> acks) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
 
   // Drop silently when receiving acked data when the peer previously did not
@@ -152,7 +152,7 @@ void DtlsStunPiggybackController::ReportDataPiggybacked(
   // We sent dtls piggybacked but got nothing in return or
   // we received a stun request with neither attribute set
   // => peer does not support.
-  if (state_ == State::TENTATIVE && data == nullptr && ack == nullptr) {
+  if (state_ == State::TENTATIVE && !data.has_value() && !acks.has_value()) {
     RTC_LOG(LS_INFO) << "DTLS-STUN piggybacking not supported by peer.";
     state_ = State::OFF;
     return;
@@ -160,7 +160,7 @@ void DtlsStunPiggybackController::ReportDataPiggybacked(
 
   // In PENDING state the peer may have stopped sending the ack
   // when it moved to the COMPLETE state. Move to the same state.
-  if (state_ == State::PENDING && data == nullptr && ack == nullptr) {
+  if (state_ == State::PENDING && !data.has_value() && !acks.has_value()) {
     RTC_LOG(LS_INFO) << "DTLS-STUN piggybacking complete.";
     state_ = State::COMPLETE;
     pending_packets_.clear();
@@ -174,16 +174,12 @@ void DtlsStunPiggybackController::ReportDataPiggybacked(
     state_ = State::CONFIRMED;
   }
 
-  if (ack != nullptr) {
+  if (acks.has_value()) {
     if (!pending_packets_.empty()) {
       // Unpack the ACK attribute (a list of uint32_t)
       absl::flat_hash_set<uint32_t> acked_packets;
-      {
-        ByteBufferReader ack_reader(ack->array_view());
-        uint32_t packet_hash;
-        while (ack_reader.ReadUInt32(&packet_hash)) {
-          acked_packets.insert(packet_hash);
-        }
+      for (const auto& ack : *acks) {
+        acked_packets.insert(ack);
       }
       RTC_LOG(LS_VERBOSE) << "DTLS-STUN piggybacking ACK: "
                           << StrJoin(acked_packets, ",");
@@ -197,7 +193,7 @@ void DtlsStunPiggybackController::ReportDataPiggybacked(
   // the DTLS data but will contain an ack.
   // Must not happen on the initial server to client packet which
   // has no DTLS data yet.
-  if (data == nullptr && ack != nullptr && state_ == State::PENDING) {
+  if (!data.has_value() && acks.has_value() && state_ == State::PENDING) {
     RTC_LOG(LS_INFO) << "DTLS-STUN piggybacking complete.";
     state_ = State::COMPLETE;
     pending_packets_.clear();
@@ -206,12 +202,12 @@ void DtlsStunPiggybackController::ReportDataPiggybacked(
     return;
   }
 
-  if (!data || data->length() == 0) {
+  if (!data.has_value() || data->size() == 0) {
     return;
   }
 
   // Drop non-DTLS packets.
-  if (!IsDtlsPacket(data->array_view())) {
+  if (!IsDtlsPacket(*data)) {
     RTC_LOG(LS_WARNING) << "Dropping non-DTLS data.";
     return;
   }
@@ -219,7 +215,7 @@ void DtlsStunPiggybackController::ReportDataPiggybacked(
 
   // Extract the received message id of the handshake
   // from the packet and prepare the ack to be sent.
-  uint32_t hash = ComputeDtlsPacketHash(data->array_view());
+  uint32_t hash = ComputeDtlsPacketHash(*data);
 
   // Check if we already received this packet.
   if (std::find(handshake_messages_received_.begin(),
@@ -240,7 +236,7 @@ void DtlsStunPiggybackController::ReportDataPiggybacked(
     RTC_DCHECK(handshake_ack_writer_.Length() <= kMaxAckSize);
   }
 
-  dtls_data_callback_(data->array_view());
+  dtls_data_callback_(*data);
 }
 
 }  // namespace webrtc

@@ -40,6 +40,9 @@ import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
+import org.chromium.chrome.browser.browser_controls.TopControlLayer;
+import org.chromium.chrome.browser.browser_controls.TopControlsStacker.TopControlType;
+import org.chromium.chrome.browser.browser_controls.TopControlsStacker.TopControlVisibility;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
@@ -51,6 +54,7 @@ import org.chromium.chrome.browser.toolbar.ControlContainer;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.toolbar.ToolbarCaptureType;
 import org.chromium.chrome.browser.toolbar.ToolbarFeatures;
+import org.chromium.chrome.browser.toolbar.ToolbarHairlineView;
 import org.chromium.chrome.browser.toolbar.ToolbarProgressBar;
 import org.chromium.chrome.browser.toolbar.top.CaptureReadinessResult.TopToolbarBlockCaptureReason;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
@@ -74,7 +78,7 @@ import java.util.function.BooleanSupplier;
 /** Layout for the browser controls (omnibox, menu, tab strip, etc..). */
 @NullMarked
 public class ToolbarControlContainer extends OptimizedFrameLayout
-        implements ControlContainer, DesktopWindowStateManager.AppHeaderObserver {
+        implements ControlContainer, DesktopWindowStateManager.AppHeaderObserver, TopControlLayer {
     private boolean mIncognito;
     private boolean mMidVisibilityToggle;
     private boolean mIsCompositorInitialized;
@@ -511,7 +515,7 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
         private final Rect mLocationBarRect = new Rect();
         private final Rect mToolbarRect = new Rect();
         private final View mToolbarContainer;
-        private final View mToolbarHairline;
+        private final ToolbarHairlineView mToolbarHairline;
         private final Callback<Boolean> mOnCompositorInMotionChange =
                 this::onCompositorInMotionChange;
 
@@ -871,5 +875,25 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
 
     public void onXrSpaceModeChanged(Boolean fullSpaceMode) {
         setVisibility(Boolean.TRUE.equals(fullSpaceMode) ? View.INVISIBLE : View.VISIBLE);
+    }
+
+    // TopControlLayer implementation:
+
+    @Override
+    public @TopControlType int getTopControlType() {
+        return TopControlType.TOOLBAR;
+    }
+
+    @Override
+    public int getTopControlHeight() {
+        return getToolbarHeight();
+    }
+
+    @Override
+    public int getTopControlVisibility() {
+        // TODO(crbug.com/417238089): Possibly add way to notify stacker of visibility changes.
+        return isToolbarContainerFullyVisible()
+                ? TopControlVisibility.VISIBLE
+                : TopControlVisibility.HIDDEN;
     }
 }

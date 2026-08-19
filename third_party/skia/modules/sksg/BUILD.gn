@@ -16,8 +16,8 @@ skia_component("sksg") {
   sources = skia_sksg_sources
   configs = [ "../../:skia_private" ]
   deps = [
+    "../..:pathops",
     "../..:skia",
-    "../pathops",
   ]
 }
 

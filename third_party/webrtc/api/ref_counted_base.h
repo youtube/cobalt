@@ -96,14 +96,5 @@ class RefCountedNonVirtual {
 
 }  // namespace webrtc
 
-// Backwards compatibe aliases.
-// TODO: https://issues.webrtc.org/42225969 - deprecate and remove.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using RefCountedBase = webrtc::RefCountedBase;
-template <typename T>
-using RefCountedNonVirtual = webrtc::RefCountedNonVirtual<T>;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // API_REF_COUNTED_BASE_H_

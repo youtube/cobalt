@@ -3120,6 +3120,9 @@ TEST_F(QuicSentPacketManagerTest, ClearDataInMessageFrameAfterPacketSent) {
   EXPECT_EQ(message_frame->message_length, 0);
 }
 
+// TODO(b/389762349): Re-enable these tests when sending AckFrequency is
+// restored.
+#if 0
 TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrame) {
   SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
@@ -3150,6 +3153,7 @@ TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrame) {
   EXPECT_EQ(frame.ack_eliciting_threshold, 10u);
 #endif
 }
+#endif
 
 TEST_F(QuicSentPacketManagerTest, SmoothedRttIgnoreAckDelay) {
   QuicConfig config;
@@ -3263,6 +3267,9 @@ TEST_F(QuicSentPacketManagerTest, IgnorePeerMaxAckDelayDuringHandshake) {
   EXPECT_EQ(kTestRTT, manager_.GetRttStats()->latest_rtt());
 }
 
+// TODO(b/389762349): Re-enable these tests when sending AckFrequency is
+// restored.
+#if 0
 TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrameWithSRTT) {
   SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
@@ -3291,6 +3298,7 @@ TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrameWithSRTT) {
             std::max(rtt_stats->SmoothedOrInitialRtt() * 0.25,
                      QuicTime::Delta::FromMilliseconds(1u)));
 }
+#endif
 
 TEST_F(QuicSentPacketManagerTest, SetInitialRtt) {
   // Upper bounds.

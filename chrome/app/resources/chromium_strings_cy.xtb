@@ -41,6 +41,7 @@ Mae'n bosib na fydd rhai nodweddion ar gael ac ni fydd newidiadau o ran dewisiad
 <translation id="1547469039832541117">Yn gorffen y dasg a amlygwyd.</translation>
 <translation id="1553461853655228091">Mae angen caniatâd ar Chromium i gael mynediad at eich camera i greu map 3D o'ch amgylchoedd</translation>
 <translation id="1555494096857516577">{NUM_EXTENSIONS,plural, =1{Nid yw'r estyniad hwn yn cael ei gefnogi mwyach. Mae Chromium yn argymell eich bod yn ei dynnu.}zero{Nid yw'r estyniadau hyn yn cael eu cefnogi mwyach. Mae Chromium yn argymell eich bod yn eu tynnu}two{Nid yw'r estyniadau hyn yn cael eu cefnogi mwyach. Mae Chromium yn argymell eich bod yn eu tynnu}few{Nid yw'r estyniadau hyn yn cael eu cefnogi mwyach. Mae Chromium yn argymell eich bod yn eu tynnu}many{Nid yw'r estyniadau hyn yn cael eu cefnogi mwyach. Mae Chromium yn argymell eich bod yn eu tynnu}other{Nid yw'r estyniadau hyn yn cael eu cefnogi mwyach. Mae Chromium yn argymell eich bod yn eu tynnu}}</translation>
+<translation id="1562320819937089394">Pinio Chromium</translation>
 <translation id="1574377791422810894">Offer diogelwch Chromium</translation>
 <translation id="1594928384848033697">Mae Chromium eisiau dileu eich data Rheolwr Cyfrineiriau. Teipiwch eich cyfrinair Windows i ganiatáu hyn.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{Mae eich gweinyddwr yn gofyn i chi ail-lansio Chromium i gymhwyso diweddariad}=1{Mae eich gweinyddwr yn gofyn i chi ail-lansio Chromium i gymhwyso diweddariad. Ni fydd eich ffenestr Anhysbys yn ailagor.}two{Mae eich gweinyddwr yn gofyn i chi ail-lansio Chromium i gymhwyso diweddariad. Ni fydd eich # ffenestr Anhysbys yn ailagor.}few{Mae eich gweinyddwr yn gofyn i chi ail-lansio Chromium i gymhwyso diweddariad. Ni fydd eich # ffenestr Anhysbys yn ailagor.}many{Mae eich gweinyddwr yn gofyn i chi ail-lansio Chromium i gymhwyso diweddariad. Ni fydd eich # ffenestr Anhysbys yn ailagor.}other{Mae eich gweinyddwr yn gofyn i chi ail-lansio Chromium i gymhwyso diweddariad. Ni fydd eich # ffenestr Anhysbys yn ailagor.}}</translation>
@@ -249,6 +250,7 @@ Mae'n bosib na fydd rhai nodweddion ar gael ac ni fydd newidiadau o ran dewisiad
 <translation id="4281844954008187215">Telerau Gwasanaeth</translation>
 <translation id="4285930937574705105">Methwyd y gosodiad oherwydd gwall amhenodol. Os yw Chromium yn rhedeg ar hyn o bryd, caewch ef a rhowch gynnig arall arni.</translation>
 <translation id="4304713468139749426">Rheolwr Cyfrineiriau</translation>
+<translation id="4334241893986177674">Chwilio'r sgrinlun hwn</translation>
 <translation id="4334294535648607276">Lawrlwytho wedi'i gwblhau.</translation>
 <translation id="439358628917130594">Mae <ph name="MANAGER" /> yn gofyn i chi ddarllen a derbyn y Telerau Gwasanaeth canlynol cyn defnyddio'r ddyfais hon. Nid yw'r telerau hyn yn ehangu, addasu na chyfyngu ar Delerau ChromiumOS.</translation>
 <translation id="4407044323746248786">Gadael Chromium beth bynnag?</translation>
@@ -522,6 +524,7 @@ Ni all Chromium adfer eich gosodiadau.</translation>
 <translation id="8004582292198964060">Porwr</translation>
 <translation id="8010081455002666927">Awto-ganfod</translation>
 <translation id="8013436988911883588">Unwaith y bydd gan Chromium fynediad, bydd gwefannau yn gallu gofyn i chi am fynediad.</translation>
+<translation id="8031714377769448844">Pinio Chromium i'ch bar tasgau i'w gyrraedd yn gyflym unrhyw bryd</translation>
 <translation id="80471789339884597">Diolch am osod. Rhaid i chi ailgychwyn eich holl borwyr cyn defnyddio <ph name="BUNDLE_NAME" />.</translation>
 <translation id="8054112667659782652">Dangos llwybr byr Chwilio Lluniau bob amser</translation>
 <translation id="8077498902115777962">Analluogi rhedeg Chromium yn y cefndir ar gyfer apiau</translation>
@@ -577,6 +580,7 @@ Ni all Chromium adfer eich gosodiadau.</translation>
 <translation id="8704119203788522458">Dyma eich Chromium</translation>
 <translation id="8719993436687031146">Mewngofnodi i Chromium?</translation>
 <translation id="8747073452963259673">cornel chwith isaf yr ardal chwilio: <ph name="LEFT" />% i'r chwith, <ph name="BOTTOM" />% ar y gwaelod</translation>
+<translation id="8768722695577490596">Dim ond y tu allan i Chromium y gellir dileu cyfrineiriau</translation>
 <translation id="878572486461146056">Gwall gosod: Mae gweinyddwr eich rhwydwaith wedi defnyddio Polisi Grŵp sy'n atal gosod: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8796602469536043152">Mae angen caniatâd ar Chromium i gael mynediad at eich camera a'ch meicroffon ar gyfer y wefan hon</translation>
 <translation id="8818550178040858407">Mewngofnodi i Chromium?</translation>

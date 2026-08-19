@@ -94,6 +94,8 @@ const uint32_t kSsrc3 = 0x3333;
 const uint32_t kSsrc4 = 0x4444;
 const int kAudioPts[] = {0, 8};
 const int kVideoPts[] = {97, 99};
+const char kAudioMid[] = "0";
+const char kVideoMid[] = "1";
 enum class NetworkIsWorker { Yes, No };
 
 template <class ChannelT,
@@ -1609,7 +1611,7 @@ std::unique_ptr<webrtc::VoiceChannel> ChannelTest<VoiceTraits>::CreateChannel(
   webrtc::Thread* signaling_thread = webrtc::Thread::Current();
   auto channel = std::make_unique<webrtc::VoiceChannel>(
       worker_thread, network_thread, signaling_thread, std::move(send_ch),
-      std::move(receive_ch), webrtc::CN_AUDIO, (flags & DTLS) != 0,
+      std::move(receive_ch), kAudioMid, (flags & DTLS) != 0,
       webrtc::CryptoOptions(), &ssrc_generator_);
   SendTask(network_thread, [&]() {
     RTC_DCHECK_RUN_ON(channel->network_thread());
@@ -1689,7 +1691,7 @@ std::unique_ptr<webrtc::VideoChannel> ChannelTest<VideoTraits>::CreateChannel(
   webrtc::Thread* signaling_thread = webrtc::Thread::Current();
   auto channel = std::make_unique<webrtc::VideoChannel>(
       worker_thread, network_thread, signaling_thread, std::move(send_ch),
-      std::move(receive_ch), webrtc::CN_VIDEO, (flags & DTLS) != 0,
+      std::move(receive_ch), kVideoMid, (flags & DTLS) != 0,
       webrtc::CryptoOptions(), &ssrc_generator_);
   SendTask(network_thread, [&]() {
     RTC_DCHECK_RUN_ON(channel->network_thread());
@@ -2385,22 +2387,18 @@ TEST_F(VideoChannelSingleThreadTest,
 
   EXPECT_THAT(
       media_receive_channel1_impl()->recv_codecs(),
-      ElementsAre(
-          AllOf(Field("id", &webrtc::Codec::id, 96),
-                Field("packetization", &webrtc::Codec::packetization, "foo")),
-          AllOf(Field("id", &webrtc::Codec::id, 98),
-                Field("packetization", &webrtc::Codec::packetization,
-                      std::nullopt))));
+      ElementsAre(AllOf(Field(&webrtc::Codec::id, 96),
+                        Field(&webrtc::Codec::packetization, "foo")),
+                  AllOf(Field(&webrtc::Codec::id, 98),
+                        Field(&webrtc::Codec::packetization, std::nullopt))));
   EXPECT_THAT(
       media_send_channel1_impl()->send_codecs(),
-      ElementsAre(
-          AllOf(Field("id", &webrtc::Codec::id, 96),
-                Field("packetization", &webrtc::Codec::packetization, "foo")),
-          AllOf(Field("id", &webrtc::Codec::id, 97),
-                Field("packetization", &webrtc::Codec::packetization, "bar")),
-          AllOf(Field("id", &webrtc::Codec::id, 99),
-                Field("packetization", &webrtc::Codec::packetization,
-                      std::nullopt))));
+      ElementsAre(AllOf(Field(&webrtc::Codec::id, 96),
+                        Field(&webrtc::Codec::packetization, "foo")),
+                  AllOf(Field(&webrtc::Codec::id, 97),
+                        Field(&webrtc::Codec::packetization, "bar")),
+                  AllOf(Field(&webrtc::Codec::id, 99),
+                        Field(&webrtc::Codec::packetization, std::nullopt))));
 }
 
 TEST_F(VideoChannelSingleThreadTest,

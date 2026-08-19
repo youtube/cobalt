@@ -18,6 +18,7 @@ EXTRA_FLAGS = [
     (0.1, '--force-slow-path'),
     (0.2, '--future'),
     (0.5, '--harmony'),
+    (0.1, '--hashes-collide'),
     (0.5, '--experimental-fuzzing'),
     # TODO(v8:13524): Enable when issue is fixed
     # TODO(v8:13528): Enable when issue is fixed
@@ -71,6 +72,7 @@ EXTRA_FLAGS = [
     (0.1, '--ephemeron-fixpoint-iterations=0'),
     (0.25, '--experimental-wasm-revectorize'),
     (0.5, '--additive-safe-int-feedback'),
+    (0.1, '--no-memory-pool'),
 ]
 
 MIN_DEOPT = 1

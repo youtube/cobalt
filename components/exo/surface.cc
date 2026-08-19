@@ -110,13 +110,9 @@ bool ListContainsEntry(T& list, U key) {
   return FindListEntry(list, key) != list.end();
 }
 
-bool FormatHasAlpha(gfx::BufferFormat format) {
-  return gfx::AlphaBitsForBufferFormat(format) != 0;
-}
-
 // TODO(crbug.com/369003507): Remove this check once we found the root
 // cause of crash on specific hatch platform.
-bool ShouldDisableOverlay(gfx::BufferFormat format) {
+bool ShouldDisableOverlay(viz::SharedImageFormat format) {
   static bool is_blocked_device = false;
   static bool is_initialized = false;
   static const base::flat_set<std::string> blocked_devices = {
@@ -130,18 +126,12 @@ bool ShouldDisableOverlay(gfx::BufferFormat format) {
   if (!is_blocked_device) {
     return false;
   }
-  switch (format) {
-    case gfx::BufferFormat::YVU_420:
-      return false;
-    case gfx::BufferFormat::YUV_420_BIPLANAR:
-      return false;
-    case gfx::BufferFormat::YUVA_420_TRIPLANAR:
-      return false;
-    case gfx::BufferFormat::P010:
-      return false;
-    default:
-      return true;
+
+  if (format.is_multi_plane()) {
+    return false;
   }
+
+  return true;
 }
 
 Transform InvertY(Transform transform) {
@@ -1544,24 +1534,28 @@ void Surface::UpdateResource(FrameSinkResourceManager* resource_manager) {
         state_.per_commit_explicit_release_callback_) {
       state_.buffer->buffer()->SkipLegacyRelease();
     }
-    // TODO(crbug.com/421207623): Update ProduceTransferableResource to return
-    // optional instead.
-    if (!current_resource_) {
-      current_resource_.emplace();
-    }
+    // TODO(crbug.com/421207623): These only two fields that might be preserved
+    // across calls. Preserving synchronization type is likely bug and we should
+    // move sync token inside.
+    auto prev_sync_token =
+        current_resource_.value_or(viz::TransferableResource()).sync_token();
+    auto prev_synchronization_type =
+        current_resource_.value_or(viz::TransferableResource())
+            .synchronization_type;
 
-    if (state_.buffer->buffer()->ProduceTransferableResource(
-            resource_manager, std::move(state_.acquire_fence),
-            state_.basic_state.only_visible_on_secure_output,
-            &current_resource_.value(), buffer_color_space,
-            window_->GetToplevelWindow()->GetProperty(
-                kProtectedNativePixmapQueryDelegate),
-            std::move(state_.per_commit_explicit_release_callback_))) {
+    current_resource_ = state_.buffer->buffer()->ProduceTransferableResource(
+        resource_manager, std::move(state_.acquire_fence),
+        state_.basic_state.only_visible_on_secure_output, buffer_color_space,
+        window_->GetToplevelWindow()->GetProperty(
+            kProtectedNativePixmapQueryDelegate),
+        std::move(state_.per_commit_explicit_release_callback_),
+        prev_sync_token, prev_synchronization_type);
+
+    if (current_resource_) {
       current_resource_has_alpha_ =
-          FormatHasAlpha(state_.buffer->buffer()->GetFormat());
+          state_.buffer->buffer()->GetFormat().HasAlpha();
       current_resource_->color_space = state_.basic_state.color_space;
     } else {
-      current_resource_.reset();
       SkColor4f color = state_.buffer->buffer()->GetColor();
       current_resource_has_alpha_ = !color.isOpaque();
     }
@@ -2079,10 +2073,9 @@ std::string Surface::DumpDebugInfo() const {
          " " +
          (has_buffer
               ? (std::string("format=") +
-                 gfx::BufferFormatToString(
-                     state_.buffer->buffer()->GetFormat()) +
-                 (FormatHasAlpha(state_.buffer->buffer()->GetFormat()) ? "(a)"
-                                                                       : ""))
+
+                 state_.buffer->buffer()->GetFormat().ToString() +
+                 (state_.buffer->buffer()->GetFormat().HasAlpha() ? "(a)" : ""))
               : "");
 }
 

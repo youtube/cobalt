@@ -24,9 +24,10 @@ class ToolBase {
  public:
   ToolBase(content::RenderFrame& frame,
            Journal::TaskId task_id,
-           Journal& journal)
-      : frame_(frame), task_id_(task_id), journal_(journal) {}
-  virtual ~ToolBase() = default;
+           Journal& journal,
+           mojom::ToolTargetPtr target,
+           mojom::ObservedToolTargetPtr observed_target);
+  virtual ~ToolBase();
 
   // Executes the tool and returns the result code.
   virtual mojom::ActionResultPtr Execute() = 0;
@@ -35,10 +36,11 @@ class ToolBase {
   // Used primarily for logging and debugging.
   virtual std::string DebugString() const = 0;
 
-  // The minimum amount of time to wait before allowing an observation. 0 by
-  // default, meaning no delay, but tools can override this on a case-by-case
-  // basis when needed to ensure an observation isn't captured before this time.
-  virtual base::TimeDelta MinimumObservationDelay() const;
+  // The amount of time to wait when observing tool execution before starting to
+  // wait for page stability. 0 by default, meaning no delay, but tools can
+  // override this on a case-by-case basis when the expected effects of tool use
+  // may happen asynchronously outside of the injected events.
+  virtual base::TimeDelta ExecutionObservationDelay() const;
 
  protected:
   // Raw ref since this is owned by ToolExecutor whose lifetime is tied to
@@ -46,6 +48,8 @@ class ToolBase {
   base::raw_ref<content::RenderFrame> frame_;
   Journal::TaskId task_id_;
   base::raw_ref<Journal> journal_;
+  mojom::ToolTargetPtr target_;
+  mojom::ObservedToolTargetPtr observed_target_;
 };
 }  // namespace actor
 

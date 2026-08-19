@@ -78,7 +78,6 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "services/device/public/cpp/device_features.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
@@ -1792,13 +1791,9 @@ void ContentSettingQuietRequestBubbleModel::OnManageButtonClicked() {
     switch (request_type) {
       case permissions::RequestType::kNotifications:
         delegate()->ShowContentSettingsPage(ContentSettingsType::NOTIFICATIONS);
-        base::RecordAction(base::UserMetricsAction(
-            "Permissions.Prompt.QuietBubble.Notifications.ManageClicked"));
         break;
       case permissions::RequestType::kGeolocation:
         delegate()->ShowContentSettingsPage(ContentSettingsType::GEOLOCATION);
-        base::RecordAction(base::UserMetricsAction(
-            "Permissions.Prompt.QuietBubble.Geolocation.ManageClicked"));
         break;
       default:
         NOTREACHED();
@@ -1846,10 +1841,6 @@ void ContentSettingQuietRequestBubbleModel::OnDoneButtonClicked() {
     case QuietUiReason::kServicePredictedVeryUnlikelyGrant:
     case QuietUiReason::kOnDevicePredictedVeryUnlikelyGrant:
       manager->Accept();
-      base::RecordAction(base::UserMetricsAction(
-          request_type == permissions::RequestType::kNotifications
-              ? "Permissions.Prompt.QuietBubble.Notifications.AllowClicked"
-              : "Permissions.Prompt.QuietBubble.Geolocation.AllowClicked"));
       break;
     case QuietUiReason::kTriggeredDueToAbusiveRequests:
     case QuietUiReason::kTriggeredDueToAbusiveContent:

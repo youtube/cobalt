@@ -8,9 +8,11 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <map>
+#include <functional>
 #include <optional>
 #include <ostream>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/container/inlined_vector.h"
@@ -20,9 +22,8 @@
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
-#include "quiche/common/quiche_endian.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace quic {
@@ -77,7 +78,7 @@ struct QUICHE_EXPORT QuicConsumedData {
 
   // By default, gtest prints the raw bytes of an object. The bool data
   // member causes this object to have padding bytes, which causes the
-  // default gtest object printer to read uninitialize memory. So we need
+  // default gtest object printer to read uninitialized memory. So we need
   // to teach gtest how to print this object.
   QUICHE_EXPORT friend std::ostream& operator<<(std::ostream& os,
                                                 const QuicConsumedData& s);
@@ -228,7 +229,7 @@ QUICHE_EXPORT std::ostream& operator<<(
     std::ostream& os, const ConnectionCloseSource& connection_close_source);
 
 // Should a connection be closed silently or not.
-enum class ConnectionCloseBehavior {
+enum class ConnectionCloseBehavior : uint8_t {
   SILENT_CLOSE,
   SILENT_CLOSE_WITH_CONNECTION_CLOSE_PACKET_SERIALIZED,
   SEND_CONNECTION_CLOSE_PACKET
@@ -558,9 +559,24 @@ enum SentPacketState : uint8_t {
 };
 
 enum PacketHeaderFormat : uint8_t {
+  // Indicates that the packet is either an IETF QUIC long header packet or a
+  // Google-QUIC Q046 long header packet. The Q046 long header format differs
+  // from true IETF-QUIC in that each connection ID length is encoded in 4 bits
+  // instead of 8.
   IETF_QUIC_LONG_HEADER_PACKET,
+  // Indicates that the packet is either an IETF QUIC short header packet or a
+  // Google-QUIC Q046 short header packet. The formats are identical.
   IETF_QUIC_SHORT_HEADER_PACKET,
-  GOOGLE_QUIC_PACKET,
+  // Indicates that the packet is an obsolete Google-QUIC Q043 packet. While
+  // QUICHE no longer supports Q043 (which had a very different packet header
+  // format) GOOGLE_QUIC_Q043_PACKET is only used to detect these packets in
+  // order to send an appropriately formatted Q043 version negotiation packet.
+  // There are bits in the first byte to indicate if there is a connection ID
+  // present (which must be 8 bytes long) and if there is a version present.
+  // Connection ID (with no length prefix) and version follow, in that order.
+  // The first byte bit-pattern that indicates Q043 (or earlier) is
+  // 0b00xx1xxx, where 'x' is any value.
+  GOOGLE_QUIC_Q043_PACKET,
 };
 
 QUICHE_EXPORT std::string PacketHeaderFormatToString(PacketHeaderFormat format);
@@ -907,7 +923,7 @@ QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
 
 // The two bits in the IP header for Explicit Congestion Notification can take
 // one of four values.
-enum QuicEcnCodepoint {
+enum QuicEcnCodepoint : uint8_t {
   // The NOT-ECT codepoint, indicating the packet sender is not using (or the
   // network has disabled) ECN.
   ECN_NOT_ECT = 0,
@@ -938,10 +954,7 @@ struct QUICHE_EXPORT QuicEcnCounts {
                            std::to_string(ce));
   }
 
-  bool operator==(const QuicEcnCounts& other) const {
-    return (this->ect0 == other.ect0 && this->ect1 == other.ect1 &&
-            this->ce == other.ce);
-  }
+  bool operator==(const QuicEcnCounts& other) const = default;
 
   QuicPacketCount ect0 = 0;
   QuicPacketCount ect1 = 0;

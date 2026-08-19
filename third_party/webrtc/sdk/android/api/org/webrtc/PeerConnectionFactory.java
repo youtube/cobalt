@@ -95,6 +95,9 @@ public class PeerConnectionFactory {
         this.applicationContext = applicationContext;
       }
 
+      // Deprecated, use PeerConnectionFactory.Builder.setFieldTrials instead.
+      // TODO: bugs.webrtc.org/42220378 - Delete after January 1, 2026.
+      @Deprecated
       public Builder setFieldTrials(String fieldTrials) {
         this.fieldTrials = fieldTrials;
         return this;
@@ -341,7 +344,8 @@ public class PeerConnectionFactory {
 
   // Field trial initialization. Must be called before PeerConnectionFactory
   // is created.
-  // Deprecated, use PeerConnectionFactory.initialize instead.
+  // Deprecated, use PeerConnectionFactory.Builder.setFieldTrials instead.
+  // TODO: bugs.webrtc.org/42220378 - Delete after January 1, 2026.
   @Deprecated
   public static void initializeFieldTrials(String fieldTrialsInitString) {
     nativeInitializeFieldTrials(fieldTrialsInitString);

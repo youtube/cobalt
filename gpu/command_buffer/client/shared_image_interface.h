@@ -26,11 +26,8 @@
 #include "ui/gfx/buffer_types.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/gpu_memory_buffer_handle.h"
-
-#if !BUILDFLAG(IS_NACL)
 #include "ui/gfx/native_pixmap.h"
 #include "ui/gfx/native_pixmap_handle.h"
-#endif
 
 #if BUILDFLAG(IS_FUCHSIA)
 #include <lib/zx/channel.h>
@@ -382,6 +379,10 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT SharedImageInterface
       const SharedImageInfo& si_info,
       base::WritableSharedMemoryMapping& mapping,
       gfx::GpuMemoryBufferHandle& handle);
+
+  // Returns CPU read | write shared image usages based on BufferUsage passed
+  // in.
+  gpu::SharedImageUsageSet GetCpuSIUsage(gfx::BufferUsage buffer_usage);
 
   scoped_refptr<SharedImageInterfaceHolder> holder_;
 

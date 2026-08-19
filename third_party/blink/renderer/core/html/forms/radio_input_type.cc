@@ -46,10 +46,7 @@ namespace {
 HTMLInputElement* NextInputElement(const HTMLInputElement& element,
                                    const HTMLFormElement* form,
                                    bool forward) {
-  const Node* stay_within =
-      form && RuntimeEnabledFeatures::RadioInputNextButtonInScopeEnabled()
-          ? form->GetListedElementsScope()
-          : form;
+  const Node* stay_within = form ? form->GetListedElementsScope() : nullptr;
   return forward ? Traversal<HTMLInputElement>::Next(element, stay_within)
                  : Traversal<HTMLInputElement>::Previous(element, stay_within);
 }
@@ -219,8 +216,13 @@ bool RadioInputType::IsKeyboardFocusableSlow(
   }
 
   // Allow keyboard focus if we're checked or if nothing in the group is
-  // checked.
-  return GetElement().Checked() || !CheckedRadioButtonForGroup();
+  // checked or the checked radio button is not keyboard focusable.
+  // A checked radio button can be disabled, in which case it is not keyboard
+  // focusable. The radio group should be keyboard accessible.
+  HTMLInputElement* checked_radio_button = CheckedRadioButtonForGroup();
+  return GetElement().Checked() || !checked_radio_button ||
+         (RuntimeEnabledFeatures::RadioInputNextKeyboardFocusableEnabled() &&
+          !checked_radio_button->IsKeyboardFocusableSlow(update_behavior));
 }
 
 bool RadioInputType::ShouldSendChangeEventAfterCheckedChanged() {

@@ -18,13 +18,19 @@ BASE_FEATURE(kIPHDemoMode, "IPH_DemoMode", base::FEATURE_DISABLED_BY_DEFAULT);
 // Features used by various clients to show their In-Product Help messages.
 BASE_FEATURE(kIPHDummyFeature, "IPH_Dummy", base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_IOS)
 // Feature used to add on-device storage for feature engagement.
 BASE_FEATURE(kOnDeviceStorage,
              "OnDeviceStorage",
              base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 bool IsOnDeviceStorageEnabled() {
+#if BUILDFLAG(IS_IOS)
   return base::FeatureList::IsEnabled(kOnDeviceStorage);
+#else
+  return false;
+#endif
 }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) || \
@@ -450,6 +456,9 @@ BASE_FEATURE(kIPHMicToolbarFeature,
 BASE_FEATURE(kIPHMenuAddToGroup,
              "IPH_MenuAddToGroup",
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHMostVisitedTilesCustomizationPinFeature,
+             "IPH_MostVisitedTilesCustomizationPin",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHPageInfoFeature,
              "IPH_PageInfo",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -503,6 +512,9 @@ BASE_FEATURE(kIPHTabSwitcherButtonFeature,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHTabSwitcherButtonSwitchIncognitoFeature,
              "IPH_TabSwitcherButtonSwitchIncognito",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHTouchToSearchCalloutFeature,
+             "IPH_TouchToSearchCallout",
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHTranslateMenuButtonFeature,
              "IPH_TranslateMenuButton",
@@ -781,6 +793,14 @@ BASE_FEATURE(kIPHIOSBWGPromoFeature,
 
 BASE_FEATURE(kIPHIOSPageActionMenu,
              "IPH_iOSPageActionMenu",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kIPHiOSHomepageLensNewBadge,
+             "IPH_iOSHomepageLensNewBadge",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kIPHiOSHomepageCustomizationNewBadge,
+             "IPH_iOSHomepageCustomizationNewBadge",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Non-FET feature.

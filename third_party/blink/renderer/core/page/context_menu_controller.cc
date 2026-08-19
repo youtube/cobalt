@@ -202,8 +202,7 @@ void ContextMenuController::DocumentDetached(Document* document) {
 
 void ContextMenuController::HandleContextMenuEvent(MouseEvent* mouse_event) {
   DCHECK(mouse_event->type() == event_type_names::kContextmenu);
-  LocalFrame* frame =
-      mouse_event->RawTarget()->ToNode()->GetDocument().GetFrame();
+  LocalFrame* frame = mouse_event->target()->ToNode()->GetDocument().GetFrame();
   PhysicalOffset location =
       PhysicalOffset::FromPointFRound(mouse_event->AbsoluteLocation());
 
@@ -489,7 +488,7 @@ bool ContextMenuController::ShowContextMenu(LocalFrame* frame,
           ->GetEditor());
 
   if (mouse_event && source_type == kMenuSourceKeyboard) {
-    Node* target_node = mouse_event->RawTarget()->ToNode();
+    Node* target_node = mouse_event->target()->ToNode();
     if (target_node && IsA<Element>(target_node)) {
       // Get the url from an explicitly set target, e.g. the focused element
       // when the context menu is evoked from the keyboard. Note: the innerNode
@@ -515,18 +514,17 @@ bool ContextMenuController::ShowContextMenu(LocalFrame* frame,
       source_type == kMenuSourceLongTap) {
     for (Node* node = result.InnerNode(); node; node = node->parentNode()) {
       if (HTMLElement* element = DynamicTo<HTMLElement>(node);
-          element && element->InterestTargetElement()) {
+          element && element->InterestForElement()) {
         auto* context = element->GetDocument().GetExecutionContext();
-        CHECK(RuntimeEnabledFeatures::HTMLInterestTargetAttributeEnabled(
-            context));
-        data.opened_from_interest_target = true;
-        if (RuntimeEnabledFeatures::
-                HTMLInterestTargetContextMenuItemOnlyEnabled(context)) {
-          data.interest_target_node_id = element->NodeID();
+        CHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(context));
+        data.opened_from_interest_for = true;
+        if (RuntimeEnabledFeatures::HTMLInterestForContextMenuItemOnlyEnabled(
+                context)) {
+          data.interest_for_node_id = element->NodeID();
         } else {
           static_assert(kInvalidDOMNodeId == 0,
                         "The Android Java code assumes 0 === invalid");
-          data.interest_target_node_id = kInvalidDOMNodeId;
+          data.interest_for_node_id = kInvalidDOMNodeId;
         }
         break;
       }

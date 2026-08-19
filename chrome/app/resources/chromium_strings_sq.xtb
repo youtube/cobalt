@@ -40,6 +40,7 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="1547469039832541117">Përfundon detyrën e theksuar.</translation>
 <translation id="1553461853655228091">Chromium ka nevojë për leje për t'u qasur te kamera jote për të krijuar një hartë 3D të ambientit tënd rrethues</translation>
 <translation id="1555494096857516577">{NUM_EXTENSIONS,plural, =1{Kjo shtesë nuk mbështetet më. Chromium rekomandon që ta heqësh atë.}other{Këto shtesa nuk mbështeten më. Chromium rekomandon që t'i heqësh ato.}}</translation>
+<translation id="1562320819937089394">Gozhdo Chromium</translation>
 <translation id="1574377791422810894">Veglat e sigurisë të Chromium</translation>
 <translation id="1594928384848033697">Chromium dëshiron të fshijë të dhënat e tua të "Menaxherit të fjalëkalimeve". Shkruaj fjalëkalimin tënd të Windows për ta lejuar këtë.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{Administratori yt kërkon që të hapësh përsëri Chromium për të zbatuar këtë përditësim}=1{Administratori yt kërkon që të hapësh përsëri Chromium për të zbatuar këtë përditësim Dritarja jote "e fshehtë" nuk do të rihapet.}other{Administratori yt kërkon që të hapësh përsëri Chromium për të zbatuar këtë përditësim # dritaret e tua "të fshehta" nuk do të rihapen.}}</translation>
@@ -248,6 +249,7 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="4281844954008187215">Kushtet e shërbimit</translation>
 <translation id="4285930937574705105">Instalimi dështoi për shkak të një gabimi të paspecifikuar. Nëse Chromium është aktualisht në ekzekutim, mbylle dhe provo përsëri.</translation>
 <translation id="4304713468139749426">Menaxheri i fjalëkalimeve</translation>
+<translation id="4334241893986177674">Kërko në këtë pamje ekrani</translation>
 <translation id="4334294535648607276">Shkarkimi përfundoi</translation>
 <translation id="439358628917130594"><ph name="MANAGER" /> kërkon që të lexosh dhe të pranosh "Kushtet e shërbimit" më poshtë para se ta përdorësh këtë pajisje. Këto kushte nuk i zgjerojnë, modifikojnë ose kufizojnë "Kushtet e ChromiumOS".</translation>
 <translation id="4407044323746248786">Dëshiron të dalësh nga Chromium gjithsesi?</translation>
@@ -521,6 +523,7 @@ Chromium nuk është në gjendje të rikuperojë cilësimet e tua.</translation>
 <translation id="8004582292198964060">Shfletuesi</translation>
 <translation id="8010081455002666927">Zbulo automatikisht</translation>
 <translation id="8013436988911883588">Pasi Chromium të ketë qasje, uebsajtet do të jenë në gjendje të kërkojnë prej teje qasje.</translation>
+<translation id="8031714377769448844">Gozhdo Chromium te shiriti i veglave për të shkuar tek ai me shpejtësi në çdo kohë</translation>
 <translation id="80471789339884597">Faleminderit që e instalove. Duhet të rinisësh të gjithë shfletuesit e tu përpara se të përdorësh <ph name="BUNDLE_NAME" />.</translation>
 <translation id="8054112667659782652">Shfaq gjithmonë shkurtoren e "Kërkimit nëpërmjet imazheve"</translation>
 <translation id="8077498902115777962">Çaktivizo ekzekutimin e Chromium në sfond për aplikacionet</translation>
@@ -576,6 +579,7 @@ Chromium nuk është në gjendje të rikuperojë cilësimet e tua.</translation>
 <translation id="8704119203788522458">Ky është Chromium për ty</translation>
 <translation id="8719993436687031146">Do të identifikohesh në Chromium?</translation>
 <translation id="8747073452963259673">këndi poshtë majtas i zonës së kërkimit: majtas <ph name="LEFT" />%, poshtë <ph name="BOTTOM" />%</translation>
+<translation id="8768722695577490596">Fjalëkalimet mund të fshihen vetëm jashtë Chromium</translation>
 <translation id="878572486461146056">Gabim gjatë instalimit: Administratori i rrjetit ka zbatuar një politikë grupi që parandalon instalimin: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8796602469536043152">Chromium ka nevojë për leje për t'u qasur te kamera dhe mikrofoni yt për këtë sajt</translation>
 <translation id="8818550178040858407">Do të identifikohesh në Chromium?</translation>

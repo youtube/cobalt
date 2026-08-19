@@ -11,10 +11,13 @@
 #ifndef AUDIO_AUDIO_TRANSPORT_IMPL_H_
 #define AUDIO_AUDIO_TRANSPORT_IMPL_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <vector>
 
-#include "api/audio/audio_device.h"
+#include "api/audio/audio_device_defines.h"
 #include "api/audio/audio_mixer.h"
 #include "api/audio/audio_processing.h"
 #include "api/scoped_refptr.h"

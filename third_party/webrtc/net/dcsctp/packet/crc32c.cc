@@ -11,6 +11,7 @@
 
 #include <cstdint>
 
+#include "api/array_view.h"
 #include "third_party/crc32c/src/include/crc32c/crc32c.h"
 
 namespace dcsctp {

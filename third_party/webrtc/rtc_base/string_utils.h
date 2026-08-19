@@ -132,16 +132,5 @@ constexpr auto MakeCompileTimeString(const char (&a)[N]) {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::AbslStringViewCmp;
-using ::webrtc::MakeCompileTimeString;
-using ::webrtc::SIZE_UNKNOWN;
-using ::webrtc::strcpyn;
-using ::webrtc::ToHex;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_STRING_UTILS_H_

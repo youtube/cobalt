@@ -10,6 +10,7 @@
 #include <type_traits>
 #include <unordered_map>
 
+#include "maglev-graph-labeller.h"
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/threaded-list.h"
@@ -47,6 +48,7 @@
 #include "src/maglev/maglev-pre-regalloc-codegen-processors.h"
 #include "src/maglev/maglev-regalloc-data.h"
 #include "src/maglev/maglev-regalloc.h"
+#include "src/maglev/maglev-truncation.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/js-function.h"
 #include "src/utils/identity-map.h"
@@ -61,6 +63,12 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                              MaglevCompilationInfo* compilation_info) {
   compiler::CurrentHeapBrokerScope current_broker(compilation_info->broker());
   Graph* graph = Graph::New(compilation_info);
+
+  // TODO(b/428630874): Assign MaglevGraphLabeller lazily and only register
+  // nodes when needed
+  compilation_info->set_graph_labeller(new MaglevGraphLabeller());
+  MaglevGraphLabellerScope current_thread_graph_labeller(
+      compilation_info->graph_labeller());
 
   bool is_tracing_enabled = false;
   {
@@ -78,7 +86,6 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                                ->shared_function_info()
                                .object()
                                ->PassesFilter(v8_flags.maglev_print_filter);
-      compilation_info->set_graph_labeller(new MaglevGraphLabeller());
     }
 
     if (is_tracing_enabled &&
@@ -147,7 +154,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.Maglev.Truncation");
 
-      GraphProcessor<TruncationProcessor> truncate(graph);
+      GraphProcessor<MaglevTruncationProcessor> truncate(graph);
       truncate.ProcessGraph(graph);
 
       if (is_tracing_enabled && v8_flags.print_maglev_graphs) {
@@ -305,6 +312,9 @@ std::pair<MaybeHandle<Code>, BailoutReason> MaglevCompiler::GenerateCode(
   MaglevCodeGenerator* const code_generator =
       compilation_info->code_generator();
   DCHECK_NOT_NULL(code_generator);
+
+  MaglevGraphLabellerScope current_thread_graph_labeller(
+      compilation_info->graph_labeller());
 
   Handle<Code> code;
   {

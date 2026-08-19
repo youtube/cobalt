@@ -550,6 +550,8 @@ void RtpVideoStreamReceiver2::SetLastCorruptionDetectionIndex(
     const std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>&
         frame_instrumentation_data,
     int spatial_idx) {
+  RTC_CHECK_GE(spatial_idx, 0);
+  RTC_CHECK_LT(spatial_idx, kMaxSpatialLayers);
   if (const auto* sync_data = std::get_if<FrameInstrumentationSyncData>(
           &frame_instrumentation_data)) {
     last_corruption_detection_state_by_layer_[spatial_idx].sequence_index =
@@ -677,6 +679,7 @@ bool RtpVideoStreamReceiver2::OnReceivedPayloadData(
     std::optional<CorruptionDetectionMessage> message =
         rtp_packet.GetExtension<CorruptionDetectionExtension>();
     if (message.has_value() && spatial_id.has_value()) {
+      RTC_CHECK_GE(*spatial_id, 0);
       if (message->sample_values().empty()) {
         video_header.frame_instrumentation_data =
             ConvertCorruptionDetectionMessageToFrameInstrumentationSyncData(

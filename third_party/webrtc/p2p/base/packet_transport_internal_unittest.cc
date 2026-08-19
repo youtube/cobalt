@@ -12,8 +12,8 @@
 
 #include <optional>
 
+#include "api/transport/ecn_marking.h"
 #include "p2p/test/fake_packet_transport.h"
-#include "rtc_base/network/ecn_marking.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/socket_address.h"
 #include "test/gmock.h"

@@ -380,6 +380,11 @@ TabStripActionContainer::CreateAutoTabGroupButton(
 #if BUILDFLAG(ENABLE_GLIC)
 std::unique_ptr<glic::GlicButton> TabStripActionContainer::CreateGlicButton(
     TabStripController* tab_strip_controller) {
+  glic::GlicKeyedService* service =
+      glic::GlicKeyedService::Get(tab_strip_controller_->GetProfile());
+  std::u16string tooltip_text = l10n_util::GetStringUTF16(
+      service->IsWindowOrFreShowing() ? IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP_CLOSE
+                                      : IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP);
   std::unique_ptr<glic::GlicButton> glic_button =
       std::make_unique<glic::GlicButton>(
           tab_strip_controller,
@@ -393,7 +398,7 @@ std::unique_ptr<glic::GlicButton> TabStripActionContainer::CreateGlicButton(
                               base::Unretained(this)),
           glic::GlicVectorIconManager::GetVectorIcon(
               IDR_GLIC_BUTTON_VECTOR_ICON),
-          l10n_util::GetStringUTF16(IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP));
+          tooltip_text);
 
   glic_button->SetProperty(views::kCrossAxisAlignmentKey,
                            views::LayoutAlignment::kCenter);
@@ -451,8 +456,8 @@ void TabStripActionContainer::OnGlicButtonClicked() {
   // Indicate that the glic button was pressed so that we can either close the
   // IPH promo (if present) or note that it has already been used to prevent
   // unnecessarily displaying the promo.
-  tab_strip_controller_->GetBrowserWindowInterface()
-      ->GetUserEducationInterface()
+  BrowserUserEducationInterface::From(
+      tab_strip_controller_->GetBrowserWindowInterface())
       ->NotifyFeaturePromoFeatureUsed(
           feature_engagement::kIPHGlicPromoFeature,
           FeaturePromoFeatureUsedAction::kClosePromoIfPresent);

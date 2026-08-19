@@ -209,7 +209,7 @@ class LCharLiteralBuffer : public LiteralBufferBase<LChar, kInlineSize> {
 
   ALWAYS_INLINE void AddChar(LChar val) { this->AddCharImpl(val); }
 
-  String AsString() const { return String(*this); }
+  blink::String AsString() const { return blink::String(*this); }
 };
 
 template <wtf_size_t kInlineSize>
@@ -264,17 +264,17 @@ class UCharLiteralBuffer : public LiteralBufferBase<UChar, kInlineSize> {
     this->AppendLiteralImpl(val);
   }
 
-  String AsString() const {
+  blink::String AsString() const {
     if (Is8Bit()) {
-      return String::Make8BitFrom16BitSource(base::span(*this));
+      return blink::String::Make8BitFrom16BitSource(base::span(*this));
     }
-    return String(*this);
+    return blink::String(*this);
   }
 
-  AtomicString AsAtomicString() const {
-    return AtomicString(*this, Is8Bit()
-                                   ? WTF::AtomicStringUCharEncoding::kIs8Bit
-                                   : WTF::AtomicStringUCharEncoding::kIs16Bit);
+  blink::AtomicString AsAtomicString() const {
+    return blink::AtomicString(
+        *this, Is8Bit() ? blink::AtomicStringUCharEncoding::kIs8Bit
+                        : blink::AtomicStringUCharEncoding::kIs16Bit);
   }
 
   ALWAYS_INLINE bool Is8Bit() const {

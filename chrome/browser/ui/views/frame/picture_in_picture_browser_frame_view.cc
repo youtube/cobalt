@@ -4,6 +4,9 @@
 
 #include "chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h"
 
+#include <algorithm>
+#include <memory>
+
 #include "base/metrics/histogram_functions.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_tracker.h"
@@ -18,6 +21,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/overlay/overlay_window_image_button.h"
+#include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
 #include "chrome/browser/ui/views/picture_in_picture/picture_in_picture_bounds_change_animation.h"
 #include "chrome/browser/ui/views/picture_in_picture/picture_in_picture_tucker.h"
@@ -81,6 +85,8 @@ constexpr int kContentSettingIconSize = 16;
 
 // The height of the controls bar at the top of the window.
 constexpr int kTopControlsHeight = 34;
+// The vertical margin for IconLabelBubbleView to have 24px height.
+constexpr int KIconViewVerticalMargin = 5;
 
 constexpr int kResizeBorder = 10;
 constexpr int kResizeAreaCornerSize = 16;
@@ -328,6 +334,7 @@ void PictureInPictureBrowserFrameView::ChildDialogObserverHelper::
 
   resizing_state_ = ResizingState::kResizeForChildInProgress;
   pip_widget_->SetBoundsConstrained(pending_bounds_);
+  pip_frame_->EnforceTucking();
   resizing_state_ = ResizingState::kSizedToChildren;
 }
 
@@ -408,6 +415,7 @@ void PictureInPictureBrowserFrameView::ChildDialogObserverHelper::
   resizing_state_ = ResizingState::kNotSizedToChildren;
   resize_timer_.Stop();
   pip_widget_->SetBoundsConstrained(latest_user_desired_bounds_);
+  pip_frame_->EnforceTucking();
 }
 
 PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
@@ -477,9 +485,11 @@ PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
   location_icon_view_ = top_bar_container_view_->AddChildView(
       std::make_unique<LocationIconView>(font_list, this, this));
   // The PageInfo icon should be 8px from the left of the window and 4px from
-  // the right of the origin.
-  location_icon_view_->SetProperty(views::kMarginsKey,
-                                   gfx::Insets::TLBR(0, 8, 0, 4));
+  // the right of the origin. Meanwhile, it should have vertical margins set to
+  // keep the hover-over highlight circular.
+  location_icon_view_->SetProperty(
+      views::kMarginsKey, gfx::Insets::TLBR(KIconViewVerticalMargin, 8,
+                                            KIconViewVerticalMargin, 4));
 
   // For file URLs, we want to elide the tail, since the file name and/or query
   // part of the file URL can be made to look like an origin for spoofing. For
@@ -538,9 +548,15 @@ PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
     auto image_view = std::make_unique<ContentSettingImageView>(
         std::move(model), this, this, browser_view->browser(), font_list);
 
-    // The ContentSettingImageView loses 4px of margin that we don't want to
-    // lose in the document picture-in-picture toolbar.
-    image_view->SetProperty(views::kMarginsKey, gfx::Insets::TLBR(0, 0, 0, 4));
+    // The ContentSettingImageView should have vertical margins set to keep the
+    // hover-over highlight circular. Otherwise, the highlight will occupy the
+    // full height of the top control.
+    image_view->SetProperty(views::kMarginsKey,
+                            gfx::Insets::VH(KIconViewVerticalMargin, 0));
+    // Adjust internal padding on each side to 4px to ensure a min size of
+    // 24x24, consistent with other icon views. The default paddings are
+    // narrower.
+    image_view->SetBorder(views::CreateEmptyBorder((gfx::Insets(4))));
 
     content_setting_views_.push_back(
         button_container_view_->AddChildView(std::move(image_view)));
@@ -1022,13 +1038,15 @@ bool PictureInPictureBrowserFrameView::ShowPageInfoDialog() {
     return false;
   }
 
-  views::BubbleDialogDelegateView* bubble =
-      PageInfoBubbleView::CreatePageInfoBubble(
-          location_icon_view_, gfx::Rect(), GetWidget()->GetNativeWindow(),
-          contents, contents->GetLastCommittedURL(),
-          /*initialized_callback=*/base::DoNothing(),
-          /*closing_callback=*/base::DoNothing(),
-          /*allow_extended_site_info=*/false);
+  std::unique_ptr<PageInfoBubbleSpecification> specification =
+      PageInfoBubbleSpecification::Builder(
+          location_icon_view_, GetWidget()->GetNativeWindow(), contents,
+          contents->GetLastCommittedURL())
+          .HideExtendedSiteInfo()
+          .Build();
+
+  views::BubbleDialogDelegateView* const bubble =
+      PageInfoBubbleView::CreatePageInfoBubble(std::move(specification));
   bubble->SetHighlightedButton(location_icon_view_);
   bubble->GetWidget()->Show();
 

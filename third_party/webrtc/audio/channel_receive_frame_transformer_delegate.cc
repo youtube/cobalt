@@ -26,7 +26,7 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/buffer.h"
-#include "rtc_base/string_encode.h"
+#include "rtc_base/checks.h"
 #include "system_wrappers/include/ntp_time.h"
 
 namespace webrtc {

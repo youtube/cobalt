@@ -55,8 +55,7 @@ PeerConfigurer::PeerConfigurer(PeerNetworkDependencies& network)
           network.socket_factory())),
       params_(std::make_unique<Params>()),
       configurable_params_(std::make_unique<ConfigurableParams>()) {
-  components_->pcf_dependencies->field_trials =
-      std::make_unique<FieldTrials>(CreateTestFieldTrials());
+  components_->pcf_dependencies->field_trials = CreateTestFieldTrialsPtr();
 }
 
 PeerConfigurer* PeerConfigurer::SetName(absl::string_view name) {

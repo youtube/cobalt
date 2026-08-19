@@ -5,6 +5,7 @@
 
 import("gn/codec.gni")
 import("gn/fuchsia_defines.gni")
+import("gn/pathops.gni")
 import("gn/shared_sources.gni")
 import("gn/skia.gni")
 import("gn/toolchain/wasm.gni")
@@ -308,7 +309,6 @@ optional("fontmgr_android") {
   enabled = skia_enable_fontmgr_android
 
   deps = [
-    ":typeface_freetype",
     ":typeface_proxy",
     "//third_party/expat",
   ]
@@ -323,10 +323,7 @@ optional("fontmgr_android") {
 optional("fontmgr_android_ndk") {
   enabled = skia_enable_fontmgr_android_ndk
 
-  deps = [
-    ":typeface_freetype",
-    ":typeface_proxy",
-  ]
+  deps = [ ":typeface_proxy" ]
   libs = [ "android" ]
   public_defines = [ "SK_FONTMGR_ANDROID_NDK_AVAILABLE" ]
   public = skia_ports_fontmgr_android_ndk_public
@@ -387,10 +384,7 @@ optional("fontmgr_fontconfig") {
   # The public header includes fontconfig.h and uses FcConfig*
   public_deps = [ "//third_party:fontconfig" ]
   public = skia_ports_fontmgr_fontconfig_public
-  deps = [
-    ":typeface_freetype",
-    ":typeface_proxy",
-  ]
+  deps = [ ":typeface_proxy" ]
   sources = skia_ports_fontmgr_fontconfig_sources
   sources_for_tests = [ "tests/FontMgrFontConfigTest.cpp" ]
 }
@@ -408,10 +402,7 @@ skia_source_set("fontscanner_tests") {
 optional("fontmgr_FontConfigInterface") {
   enabled = skia_enable_fontmgr_FontConfigInterface
   public_defines = [ "SK_FONTMGR_FCI_AVAILABLE" ]
-  deps = [
-    ":typeface_freetype",
-    "//third_party:fontconfig",
-  ]
+  deps = [ "//third_party:fontconfig" ]
   public = skia_ports_fci_public
   sources = skia_ports_fci_sources
   sources_for_tests = [ "tests/FCITest.cpp" ]
@@ -1257,12 +1248,20 @@ optional("graphite") {
   }
 }
 
-skia_component("clipstack_utils") {
-  deps = [
-    ":skia",
-    "//modules/pathops",
-  ]
+skia_source_set("pathops") {
+  configs = skia_library_configs
+  public = skia_pathops_public
+  sources = skia_pathops_sources
+  deps = [ ":core" ]
+}
+
+skia_source_set("clipstack_utils") {
+  configs = skia_library_configs
   sources = skia_clipstack_utils_sources
+  deps = [
+    ":core",
+    ":pathops",
+  ]
 }
 
 optional("pdf") {
@@ -1271,6 +1270,7 @@ optional("pdf") {
 
   deps = [
     ":clipstack_utils",
+    ":pathops",
     "//third_party/zlib",
   ]
   public = skia_pdf_public
@@ -1296,7 +1296,10 @@ optional("pdf_jpeg_helpers") {
 optional("xps") {
   enabled = skia_use_xps && is_win
   public_defines = [ "SK_SUPPORT_XPS" ]
-  deps = [ ":clipstack_utils" ]
+  deps = [
+    ":clipstack_utils",
+    ":pathops",
+  ]
   public = skia_xps_public
   sources = skia_xps_sources
 }
@@ -1652,10 +1655,13 @@ if (skia_enable_ganesh && skia_generate_workarounds) {
 
 import("gn/codec.gni")
 
-skia_component("skia") {
+skia_source_set("core") {
   public_configs = [ ":skia_public" ]
   configs = skia_library_configs
+  public = skia_core_public
+  sources = skia_core_sources
 
+  # These deps don't belong to :core, but they are currently needed to support (de)serialization.
   public_deps = [
     ":fontmgr_FontConfigInterface",
     ":fontmgr_android",
@@ -1669,11 +1675,25 @@ skia_component("skia") {
     ":fontmgr_mac_ct",
     ":fontmgr_win",
     ":fontmgr_win_gdi",
+    ":png_decode_libpng",
+    ":png_encode_libpng",
+  ]
+  deps = [ ":typeface_fontations" ]
+}
+
+skia_component("skia") {
+  public_configs = [ ":skia_public" ]
+  configs = skia_library_configs
+
+  public_deps = [
+    ":core",
     ":gpu",
     ":graphite",
     ":jpeg_encode",
-    ":png_encode_libpng",
+    ":pdf",
+    ":pdf_jpeg_helpers",
     ":webp_encode",
+    ":xps",
   ]
 
   deps = [
@@ -1687,7 +1707,6 @@ skia_component("skia") {
     ":lasx",
     ":minify_sksl",
     ":ndk_images",
-    ":png_decode_libpng",
     ":png_decode_rust",
     ":raw",
     ":skx",
@@ -1699,14 +1718,13 @@ skia_component("skia") {
     "modules/skcms",
   ]
 
-  public = skia_core_public
+  public = []
   public += skia_codec_public
   public += skia_utils_public
   public += skia_effects_public
   public += skia_effects_imagefilter_public
 
   sources = []
-  sources += skia_core_sources
   sources += skia_utils_private
   sources += skia_utils_chromium
   sources += skia_effects_sources
@@ -1863,10 +1881,19 @@ if (is_wasm) {
   }
 }
 
+skia_static_library("pathkit") {
+  check_includes = false
+  public_configs = [ ":skia_public" ]
+  configs = skia_library_configs
+
+  sources = skia_pathops_sources
+
+  deps = [ ":skia" ]
+}
+
 group("modules") {
   deps = [
     "modules/bentleyottmann",
-    "modules/pathops",
     "modules/skottie",
     "modules/skparagraph",
     "modules/skshaper",
@@ -1887,51 +1914,105 @@ config("vulkan_memory_allocator") {
   include_dirs = [ "$skia_vulkan_memory_allocator_dir/include" ]
 }
 
-# Targets guarded by skia_enable_tools may use //third_party freely.
-if (skia_enable_tools) {
-  skia_public_includes = [
-    "client_utils/android",
-    "include/android",
-    "include/codec",
-    "include/config",
-    "include/core",
-    "include/docs",
-    "include/effects",
-    "include/encode",
-    "include/gpu",
-    "include/pathops",
-    "include/ports",
-    "include/svg",
-    "include/utils",
-    "include/utils/mac",
-    "modules/pathops/include",
-    "modules/skottie/include",
-    "modules/skparagraph/include",
-    "modules/skshaper/include",
-    "modules/svg/include",
+skia_public_includes = [
+  "client_utils/android",
+  "include/android",
+  "include/codec",
+  "include/config",
+  "include/core",
+  "include/docs",
+  "include/effects",
+  "include/encode",
+  "include/gpu",
+  "include/pathops",
+  "include/ports",
+  "include/svg",
+  "include/utils",
+  "include/utils/mac",
+  "modules/skottie/include",
+  "modules/skparagraph/include",
+  "modules/skshaper/include",
+  "modules/svg/include",
+]
+
+# Used by gn_to_bp.py to list our public include dirs.
+skia_source_set("public") {
+  configs = [ ":skia_public" ]
+  include_dirs = skia_public_includes
+}
+
+config("skia.h_config") {
+  include_dirs = [ "$target_gen_dir" ]
+}
+action("skia.h") {
+  public_configs = [ ":skia.h_config" ]
+  skia_h = "$target_gen_dir/skia.h"
+  script = "gn/find_headers.py"
+
+  args = [ rebase_path("//bin/gn") ] + [ rebase_path("//") ] +
+         [ rebase_path(skia_h, root_build_dir) ] +
+         rebase_path(skia_public_includes)
+  depfile = "$skia_h.deps"
+  outputs = [ skia_h ]
+}
+
+config("cpp17") {
+  if (is_win) {
+    cflags_cc = [ "/std:c++17" ]
+  } else {
+    cflags_cc = [ "-std=c++17" ]
+  }
+}
+
+skia_source_set("public_headers_warnings_check") {
+  sources = [ "tools/public_headers_warnings_check.cpp" ]
+  configs = [
+    ":use_skia_vulkan_headers",
+    ":cpp17",
+  ]
+  if (defined(skia_header_target_default_configs)) {
+    configs += skia_header_target_default_configs
+  }
+  deps = [
+    ":skia",
+    ":skia.h",
+    "modules/skottie",
+    "modules/skshaper",
   ]
 
-  # Used by gn_to_bp.py to list our public include dirs.
-  skia_source_set("public") {
-    configs = [ ":skia_public" ]
-    include_dirs = skia_public_includes
+  if (skia_use_dawn) {
+    deps += [ "//third_party/externals/dawn/include/dawn:headers" ]
   }
+}
 
-  config("skia.h_config") {
-    include_dirs = [ "$target_gen_dir" ]
+# TODO: have each optional provide a target with examples and depend on those.
+if (((skia_enable_fontmgr_fontconfig && skia_use_freetype) ||
+     skia_use_fonthost_mac || skia_enable_fontmgr_win ||
+     skia_enable_fontmgr_custom_directory) && skia_enable_ganesh &&
+    skia_use_libjpeg_turbo_encode && skia_use_libjpeg_turbo_decode &&
+    (skia_use_libpng_encode && !skia_use_ndk_images) && skia_use_zlib &&
+    skia_enable_pdf && !skia_use_vulkan) {
+  skia_executable("fiddle_examples") {
+    sources = [
+      "tools/fiddle/all_examples.cpp",
+      "tools/fiddle/examples.cpp",
+      "tools/fiddle/examples.h",
+    ]
+    if (is_win) {
+      cflags = [
+        "/wd4756",  # Overflow in constant arithmetic
+        "/wd4305",  # truncation from 'double' to 'float'
+      ]
+    }
+    deps = [
+      ":skia",
+      ":skia.h",
+    ]
   }
-  action("skia.h") {
-    public_configs = [ ":skia.h_config" ]
-    skia_h = "$target_gen_dir/skia.h"
-    script = "gn/find_headers.py"
+}
 
-    args = [ rebase_path("//bin/gn") ] + [ rebase_path("//") ] +
-           [ rebase_path(skia_h, root_build_dir) ] +
-           rebase_path(skia_public_includes)
-    depfile = "$skia_h.deps"
-    outputs = [ skia_h ]
-  }
-
+# Targets guarded by skia_enable_tools may use //third_party freely.
+if (skia_enable_tools) {
   if (is_linux && target_cpu == "x64") {
     skia_executable("fiddle") {
       check_includes = false
@@ -1950,46 +2031,13 @@ if (skia_enable_tools) {
       deps = [
         ":flags",
         ":gpu_tool_utils",
-        ":pdf",
-        ":pdf_jpeg_helpers",
         ":skia",
         ":skia.h",
-        "modules/pathops",
         "modules/skottie",
         "modules/skparagraph",
         "modules/skshaper",
         "modules/svg",
       ]
-    }
-  }
-
-  config("cpp17") {
-    if (is_win) {
-      cflags_cc = [ "/std:c++17" ]
-    } else {
-      cflags_cc = [ "-std=c++17" ]
-    }
-  }
-
-  skia_source_set("public_headers_warnings_check") {
-    sources = [ "tools/public_headers_warnings_check.cpp" ]
-    configs = [
-      ":use_skia_vulkan_headers",
-      ":cpp17",
-    ]
-    if (defined(skia_header_target_default_configs)) {
-      configs += skia_header_target_default_configs
-    }
-    deps = [
-      ":skia",
-      ":skia.h",
-      "modules/pathops",
-      "modules/skottie",
-      "modules/skshaper",
-    ]
-
-    if (skia_use_dawn) {
-      deps += [ "//third_party/externals/dawn/include/dawn:headers" ]
     }
   }
 
@@ -2440,7 +2488,6 @@ if (skia_enable_tools) {
       ":flags",
       ":skia",
       ":tool_utils",
-      "modules/pathops",
       "modules/skottie",
       "modules/skottie:gm",
       "modules/skparagraph",
@@ -2558,8 +2605,6 @@ if (skia_enable_tools) {
       ":flags",
       ":gm",
       ":gpu_tool_utils",
-      ":pdf",
-      ":pdf_jpeg_helpers",
       ":skia",
       ":tool_utils",
       "modules/skparagraph:bench",
@@ -2632,14 +2677,10 @@ if (skia_enable_tools) {
         ":gm",
         ":gpu_tool_utils",
         ":hash_and_encode",
-        ":pdf",
-        ":pdf_jpeg_helpers",
         ":skia",
         ":tests",
         ":tool_utils",
         ":trace",
-        ":xps",
-        "modules/pathops",
         "modules/skottie",
         "modules/skottie:utils",
         "modules/skshaper",
@@ -2751,10 +2792,7 @@ if (skia_enable_tools) {
     test_app("sktexttopdf") {
       sources = [ "tools/using_skia_and_harfbuzz.cpp" ]
       deps = [
-        ":pdf",
-        ":pdf_jpeg_helpers",
         ":skia",
-        "modules/pathops",
         "modules/skshaper",
       ]
     }
@@ -2853,8 +2891,6 @@ if (skia_enable_tools) {
     deps = [
       ":flags",
       ":gpu_tool_utils",
-      ":pdf",
-      ":pdf_jpeg_helpers",
       ":skia",
       "modules/jsonreader",
       "modules/skottie:fuzz",
@@ -2903,8 +2939,6 @@ if (skia_enable_tools) {
       ]
       deps = [
         ":gm",
-        ":pdf",
-        ":pdf_jpeg_helpers",
         ":skia",
         ":tests",
         ":tool_utils",
@@ -3067,32 +3101,6 @@ if (skia_enable_tools) {
     }
     if (skia_use_gl && skia_use_angle) {
       deps += [ "//third_party/angle2" ]
-    }
-  }
-
-  if (!skia_use_vulkan && (is_mac || is_linux || is_win)) {
-    test_app("fiddle_examples") {
-      sources = [
-        "tools/fiddle/all_examples.cpp",
-        "tools/fiddle/examples.cpp",
-        "tools/fiddle/examples.h",
-      ]
-      if (is_win) {
-        cflags = [
-          "/wd4756",  # Overflow in constant arithmetic
-          "/wd4305",  # truncation from 'double' to 'float'
-        ]
-      }
-      deps = [
-        ":pdf",
-        ":pdf_jpeg_helpers",
-        ":skia",
-        ":skia.h",
-        "modules/skottie",
-        "modules/skparagraph",
-        "modules/skshaper",
-        "modules/svg",
-      ]
     }
   }
 
@@ -3306,8 +3314,6 @@ if (skia_enable_tools) {
         deps += [
           ":flags",
           ":gpu_tool_utils",
-          ":pdf",
-          ":pdf_jpeg_helpers",
           ":skia",
           ":tool_utils",
         ]

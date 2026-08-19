@@ -301,6 +301,9 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // Begin executing the monitoring loop on the HangWatcher thread.
   void Start();
 
+  // Stop all monitoring and join the HangWatcher thread.
+  void Stop();
+
   // Returns true if Start() has been called and Stop() has not been called
   // since.
   bool IsStarted() const { return thread_started_; }
@@ -416,9 +419,6 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // and after.
   void DoDumpWithoutCrashing(const WatchStateSnapShot& watch_state_snapshot)
       EXCLUSIVE_LOCKS_REQUIRED(watch_state_lock_) LOCKS_EXCLUDED(capture_lock_);
-
-  // Stop all monitoring and join the HangWatcher thread.
-  void Stop();
 
   // Wait until it's time to monitor.
   void Wait();

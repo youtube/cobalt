@@ -40,6 +40,16 @@ class MockLocalNetworkAccessPermissionFactory
               (override));
 };
 
+// Class that returns LocalNetworkAccessPermission's that run their callback
+// with the provided status.
+class FakeLocalNetworkAccessPermissionFactory
+    : public MockLocalNetworkAccessPermissionFactory {
+ public:
+  explicit FakeLocalNetworkAccessPermissionFactory(
+      LocalNetworkAccessPermissionStatus status);
+  ~FakeLocalNetworkAccessPermissionFactory() override;
+};
+
 }  // namespace webrtc
 
 #endif  // API_TEST_MOCK_LOCAL_NETWORK_ACCESS_PERMISSION_H_

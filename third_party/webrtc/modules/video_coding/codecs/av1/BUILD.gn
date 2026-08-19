@@ -114,7 +114,6 @@ if (rtc_include_tests) {
       "../../../../api/video_codecs:video_codecs_api",
       "../../../../rtc_base:checks",
       "../../../../test:create_test_field_trials",
-      "../../../../test:explicit_key_value_config",
       "../../../../test:test_support",
     ]
 
@@ -133,7 +132,6 @@ if (rtc_include_tests) {
         "../../../../api/units:time_delta",
         "../../../../modules/rtp_rtcp:rtp_rtcp_format",
         "../../../../test:fileutils",
-        "../../../../test:scoped_key_value_config",
         "../../../../test:video_test_support",
         "../../svc:scalability_mode_util",
         "../../svc:scalability_structures",

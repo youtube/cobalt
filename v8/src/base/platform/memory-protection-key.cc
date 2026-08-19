@@ -6,6 +6,7 @@
 
 #if V8_HAS_PKU_SUPPORT
 
+#include <pthread.h>  // For SetKeyForCurrentThreadsStack.
 #include <sys/mman.h>  // For {mprotect()} protection macros.
 #undef MAP_TYPE  // Conflicts with MAP_TYPE in Torque-generated instance-types.h
 
@@ -25,17 +26,17 @@ namespace base {
 
 namespace {
 
-int GetProtectionFromMemoryPermission(PageAllocator::Permission permission) {
+int GetProtectionFromMemoryPermission(PagePermissions permission) {
   // Mappings for PKU are either RWX (for code), no access (for uncommitted
   // memory), or RO for globals.
   switch (permission) {
-    case PageAllocator::kNoAccess:
+    case PagePermissions::kNoAccess:
       return PROT_NONE;
-    case PageAllocator::kRead:
+    case PagePermissions::kRead:
       return PROT_READ;
-    case PageAllocator::kReadWrite:
+    case PagePermissions::kReadWrite:
       return PROT_READ | PROT_WRITE;
-    case PageAllocator::kReadWriteExecute:
+    case PagePermissions::kReadWriteExecute:
       return PROT_READ | PROT_WRITE | PROT_EXEC;
     default:
       UNREACHABLE();
@@ -101,16 +102,16 @@ void MemoryProtectionKey::RegisterExternallyAllocatedKey(int key) {
 }
 
 // static
-bool MemoryProtectionKey::SetPermissionsAndKey(
-    base::AddressRegion region, v8::PageAllocator::Permission page_permissions,
-    int key) {
+bool MemoryProtectionKey::SetPermissionsAndKey(base::AddressRegion region,
+                                               PagePermissions permissions,
+                                               int key) {
   DCHECK_NE(key, kNoMemoryProtectionKey);
   CHECK_NOT_NULL(pkey_mprotect);
 
   void* address = reinterpret_cast<void*>(region.begin());
   size_t size = region.size();
 
-  int protection = GetProtectionFromMemoryPermission(page_permissions);
+  int protection = GetProtectionFromMemoryPermission(permissions);
 
   return pkey_mprotect(address, size, protection, key) == 0;
 }
@@ -165,6 +166,31 @@ void MemoryProtectionKey::SetDefaultPermissionsForAllKeysInSignalHandler() {
       SetPermissionsForKey(key, kDisableWrite);
     }
   }
+}
+
+bool MemoryProtectionKey::SetKeyForCurrentThreadsStack(int key) {
+  DCHECK_NE(kNoMemoryProtectionKey, key);
+
+  pthread_attr_t attr;
+  void* stackaddr;
+  size_t stacksize;
+
+  // Obtain this thread's stack bounds through the pthreads API.
+  // TODO(saelo): consider generalizing this and moving it into the platform
+  // API once we support other platforms here.
+  CHECK_EQ(pthread_getattr_np(pthread_self(), &attr), 0);
+  CHECK_EQ(pthread_attr_getstack(&attr, &stackaddr, &stacksize), 0);
+  CHECK_EQ(pthread_attr_destroy(&attr), 0);
+
+  int flags = PROT_READ | PROT_WRITE;
+  bool success = pkey_mprotect(stackaddr, stacksize, flags, key) == 0;
+  if (!success) {
+    // Retry with PROT_GROWSDOWN. This is typically required for the main
+    // thread's stack.
+    flags |= PROT_GROWSDOWN;
+    success = pkey_mprotect(stackaddr, stacksize, flags, key) == 0;
+  }
+  return success;
 }
 
 }  // namespace base

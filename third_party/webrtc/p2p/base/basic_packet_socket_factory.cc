@@ -10,8 +10,6 @@
 
 #include "p2p/base/basic_packet_socket_factory.h"
 
-#include <stddef.h>
-
 #include <cstdint>
 #include <memory>
 #include <string>

@@ -149,26 +149,5 @@ class RTC_EXPORT StreamInterface {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::SE_CLOSE;
-using ::webrtc::SE_OPEN;
-using ::webrtc::SE_READ;
-using ::webrtc::SE_WRITE;
-using ::webrtc::SR_BLOCK;
-using ::webrtc::SR_EOS;
-using ::webrtc::SR_ERROR;
-using ::webrtc::SR_SUCCESS;
-using ::webrtc::SS_CLOSED;
-using ::webrtc::SS_OPEN;
-using ::webrtc::SS_OPENING;
-using ::webrtc::StreamEvent;
-using ::webrtc::StreamInterface;
-using ::webrtc::StreamResult;
-using ::webrtc::StreamState;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_STREAM_H_

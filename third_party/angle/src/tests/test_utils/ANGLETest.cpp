@@ -205,6 +205,9 @@ GPUTestConfig::API GetTestConfigAPIFromRenderer(angle::GLESDriverType driverType
                                                 EGLenum deviceType)
 {
     if (driverType != angle::GLESDriverType::AngleEGL &&
+#if defined(ANGLE_TEST_ENABLE_SYSTEM_EGL)
+        driverType != angle::GLESDriverType::SystemEGL &&
+#endif
         driverType != angle::GLESDriverType::AngleVulkanSecondariesEGL)
     {
         return GPUTestConfig::kAPIUnknown;
@@ -402,6 +405,19 @@ bool IsFormatEmulated(GLenum target)
 
     // This helper only works for compressed formats
     return gl::IsEmulatedCompressedFormat(readFormat);
+}
+
+EGLenum GetEglPlatform()
+{
+    EGLenum eglPlatform = EGL_PLATFORM_ANGLE_ANGLE;
+
+#if defined(ANGLE_TEST_ENABLE_SYSTEM_EGL)
+    if (angle::IsAndroid())
+    {
+        eglPlatform = EGL_PLATFORM_ANDROID_KHR;
+    }
+#endif
+    return eglPlatform;
 }
 
 }  // namespace angle
@@ -832,6 +848,15 @@ void ANGLETestBase::ANGLETestSetUp()
     if (!mDeferContextInit && !mFixture->eglWindow->initializeContext())
     {
         FAIL() << "GL Context init failed.";
+    }
+
+    if (mFixture->eglWindow->getClientMajorVersion() != mCurrentParams->majorVersion ||
+        mFixture->eglWindow->getClientMinorVersion() != mCurrentParams->minorVersion)
+    {
+        WARN() << "Requested Context version does not match the version created. Requested: "
+               << mCurrentParams->majorVersion << "." << mCurrentParams->minorVersion
+               << ", Actual: " << mFixture->eglWindow->getClientMajorVersion() << "."
+               << mFixture->eglWindow->getClientMinorVersion();
     }
 
     if (needSwap)

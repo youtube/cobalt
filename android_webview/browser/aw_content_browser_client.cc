@@ -334,8 +334,8 @@ void AwContentBrowserClient::ConfigureNetworkContextParams(
       std::move(cookie_manager_remote));
 }
 
-AwBrowserContext* AwContentBrowserClient::InitBrowserContext() {
-  return AwBrowserContextStore::GetOrCreateInstance()->GetDefault();
+void AwContentBrowserClient::InitBrowserContextStore() {
+  AwBrowserContextStore::GetOrCreateInstance();
 }
 
 std::unique_ptr<content::BrowserMainParts>
@@ -343,10 +343,9 @@ AwContentBrowserClient::CreateBrowserMainParts(bool /* is_integration_test */) {
   return std::make_unique<AwBrowserMainParts>(this);
 }
 
-bool IsStartupTaskExperimentEnabled() {
-  auto* command_line = base::CommandLine::ForCurrentProcess();
+bool IsAnyStartupTaskExperimentEnabled() {
   return AwBrowserMainParts::isWebViewStartupTasksExperimentEnabled() ||
-         command_line->HasSwitch(switches::kWebViewUseStartupTasksLogic);
+         AwBrowserMainParts::isWebViewStartupTasksExperimentEnabledP2();
 }
 
 void AwContentBrowserClient::PostAfterStartupTask(
@@ -354,7 +353,7 @@ void AwContentBrowserClient::PostAfterStartupTask(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     base::OnceClosure task) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  if (!IsStartupTaskExperimentEnabled()) {
+  if (!IsAnyStartupTaskExperimentEnabled()) {
     task_runner->PostTask(from_here, std::move(task));
     return;
   }
@@ -391,7 +390,7 @@ void AwContentBrowserClient::OnStartupComplete() {
 
 void AwContentBrowserClient::OnUiTaskRunnerReady(
     base::OnceClosure enable_native_task_execution_callback) {
-  if (!IsStartupTaskExperimentEnabled()) {
+  if (!IsAnyStartupTaskExperimentEnabled()) {
     std::move(enable_native_task_execution_callback).Run();
     return;
   }
@@ -606,25 +605,6 @@ AwContentBrowserClient::GetLocalTracesDirectory() {
   }
   DCHECK(!user_data_dir.empty());
   return user_data_dir;
-}
-
-void AwContentBrowserClient::DidCreatePpapiPlugin(
-    content::BrowserPpapiHost* browser_host) {
-  NOTREACHED() << "Android WebView does not support plugins";
-}
-
-bool AwContentBrowserClient::AllowPepperSocketAPI(
-    content::BrowserContext* browser_context,
-    const GURL& url,
-    bool private_api,
-    const content::SocketPermissionRequest* params) {
-  NOTREACHED() << "Android WebView does not support plugins";
-}
-
-bool AwContentBrowserClient::IsPepperVpnProviderAPIAllowed(
-    content::BrowserContext* browser_context,
-    const GURL& url) {
-  NOTREACHED() << "Android WebView does not support plugins";
 }
 
 std::unique_ptr<content::TracingDelegate>

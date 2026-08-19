@@ -17,6 +17,7 @@ if (rtc_include_tests) {
       "../../../api/task_queue:task_queue",
       "../../../api/task_queue/test:mock_task_queue_base",
       "../../../test:test_support",
+      "//third_party/abseil-cpp/absl/strings:string_view",
     ]
   }
 
@@ -26,10 +27,15 @@ if (rtc_include_tests) {
       sources = [ "voip_core_unittest.cc" ]
       deps = [
         "..:voip_core",
+        "../../../api:make_ref_counted",
+        "../../../api:scoped_refptr",
+        "../../../api/audio:audio_processing",
+        "../../../api/audio_codecs:audio_codecs_api",
         "../../../api/audio_codecs:builtin_audio_decoder_factory",
         "../../../api/audio_codecs:builtin_audio_encoder_factory",
         "../../../api/environment:environment_factory",
         "../../../api/task_queue:default_task_queue_factory",
+        "../../../api/voip:voip_api",
         "../../../modules/audio_device:mock_audio_device",
         "../../../modules/audio_processing:mocks",
         "../../../test:audio_codec_mocks",
@@ -77,7 +83,13 @@ if (rtc_include_tests) {
     deps = [
       "..:audio_egress",
       "..:audio_ingress",
+      "../../../api:array_view",
+      "../../../api:rtp_headers",
+      "../../../api:scoped_refptr",
       "../../../api:transport_api",
+      "../../../api/audio:audio_frame_api",
+      "../../../api/audio:audio_mixer_api",
+      "../../../api/audio_codecs:audio_codecs_api",
       "../../../api/audio_codecs:builtin_audio_decoder_factory",
       "../../../api/audio_codecs:builtin_audio_encoder_factory",
       "../../../api/environment",
@@ -101,7 +113,12 @@ if (rtc_include_tests) {
     sources = [ "audio_egress_unittest.cc" ]
     deps = [
       "..:audio_egress",
+      "../../../api:array_view",
+      "../../../api:rtp_headers",
+      "../../../api:scoped_refptr",
       "../../../api:transport_api",
+      "../../../api/audio:audio_frame_api",
+      "../../../api/audio_codecs:audio_codecs_api",
       "../../../api/audio_codecs:builtin_audio_encoder_factory",
       "../../../api/environment",
       "../../../api/environment:environment_factory",

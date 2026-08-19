@@ -13,7 +13,6 @@
 
 #include <jni.h>
 
-#include "api/scoped_refptr.h"
 #include "rtc_base/thread.h"
 #include "sdk/android/native_api/jni/scoped_java_ref.h"
 

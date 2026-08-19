@@ -182,10 +182,6 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::WebPreferencesDataView,
     return r.webgl2_enabled;
   }
 
-  static bool pepper_3d_enabled(const blink::web_pref::WebPreferences& r) {
-    return r.pepper_3d_enabled;
-  }
-
   static bool privileged_webgl_extensions_enabled(
       const blink::web_pref::WebPreferences& r) {
     return r.privileged_webgl_extensions_enabled;
@@ -354,11 +350,6 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::WebPreferencesDataView,
   static bool target_blank_implies_no_opener_enabled_will_be_removed(
       const blink::web_pref::WebPreferences& r) {
     return r.target_blank_implies_no_opener_enabled_will_be_removed;
-  }
-
-  static bool allow_non_empty_navigator_plugins(
-      const blink::web_pref::WebPreferences& r) {
-    return r.allow_non_empty_navigator_plugins;
   }
 
   static bool ignore_permission_for_device_changed_event(

@@ -770,7 +770,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Capture.SCK.ContentEnumerationTimedOut"
-    enum="Boolean" expires_after="2025-09-21">
+    enum="Boolean" expires_after="2025-12-28">
   <owner>mfoltz@chromium.org</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -782,7 +782,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Capture.SCK.ContentEnumerationTimeMs" units="ms"
-    expires_after="2025-09-21">
+    expires_after="2025-12-28">
   <owner>mfoltz@chromium.org</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -1309,7 +1309,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Processing.RenderDelayMs" units="ms"
-    expires_after="2025-09-28">
+    expires_after="2025-12-28">
   <owner>saza@chromium.org</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -1660,7 +1660,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.{Type}.SystemGlitchDuration" units="ms"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>fhernqvist@google.com</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -3374,6 +3374,8 @@ chromium-metrics-reviews@google.com.
   <summary>
     The time spent to get CdmCapability for {KeySystem}. The value will be
     reported once per CDM instance for hw security in MediaFoundationService.
+    This value will only be reported for successful retrievals of the CDM
+    Capability.
   </summary>
   <token key="KeySystem" variants="KeySystemForHardwareSecureOnly"/>
 </histogram>
@@ -3805,6 +3807,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Media.GetDisplayMedia.Constraints.RestrictOwnAudio"
+    enum="GetDisplayMediaBooleanConstraint" expires_after="2026-06-30">
+  <owner>brandstrom@chromium.org</owner>
+  <owner>webrtc-audio-uma@google.com</owner>
+  <summary>
+    Records whether getDisplayMedia was called with the RestrictOwnAudio
+    constraint.
+  </summary>
+</histogram>
+
 <histogram name="Media.GetDisplayMedia.Constraints.SelfBrowserSurface"
     enum="GetDisplayMediaIncludeExcludeConstraint" expires_after="2023-05-07">
   <owner>eladalon@chromium.org</owner>
@@ -3837,12 +3849,23 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.GetDisplayMedia.Constraints.SystemAudio"
-    enum="GetDisplayMediaIncludeExcludeConstraint" expires_after="2025-10-26">
+    enum="GetDisplayMediaIncludeExcludeConstraint" expires_after="2025-12-28">
   <owner>eladalon@chromium.org</owner>
   <owner>fbeaufort@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
   <summary>
     Records whether getDisplayMedia was called with the systemAudio constraint.
+  </summary>
+</histogram>
+
+<histogram name="Media.GetDisplayMedia.Constraints.WindowAudio"
+    enum="GetDisplayMediaSystemWindowOrExcludeConstraint"
+    expires_after="2026-06-27">
+  <owner>brandstrom@chromium.org</owner>
+  <owner>kron@chromium.org</owner>
+  <owner>webrtc-audio-uma@google.com</owner>
+  <summary>
+    Records whether getDisplayMedia was called with the windowAudio constraint.
   </summary>
 </histogram>
 
@@ -4124,7 +4147,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.HLS.Adaptation" enum="AdaptationReason"
-    expires_after="2025-07-27">
+    expires_after="2025-12-31">
   <owner>tmathmeyer@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -4134,7 +4157,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.HLS.AdvancedFeatureTags" enum="AdvancedFeatureTagType"
-    expires_after="2025-07-27">
+    expires_after="2025-12-31">
   <owner>tmathmeyer@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -4146,7 +4169,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.HLS.CrossOriginContent" enum="Boolean"
-    expires_after="2025-09-28">
+    expires_after="2025-12-31">
   <owner>tmathmeyer@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -4156,7 +4179,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.HLS.EncryptionMode" enum="HLSEncryptionMode"
-    expires_after="2025-07-27">
+    expires_after="2025-12-31">
   <owner>tmathmeyer@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -4167,7 +4190,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.HLS.InitializationError" enum="HlsDemuxerStatus"
-    expires_after="2025-10-26">
+    expires_after="2025-12-31">
   <owner>tmathmeyer@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -4175,20 +4198,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Media.HLS.InvalidRenditions" units="count"
-    expires_after="2024-12-31">
-  <owner>tmathmeyer@chromium.org</owner>
-  <owner>media-dev-uma@chromium.org</owner>
-  <summary>
-    Logs whether there are no selectable renditions in a multivariant playlist.
-    Recorded only when a multivariant playlist contains no valid selection.
-    Recorded whenever MediaPlayer successfully plays multivariant HLS media that
-    the built-in player would not be able to play.
-  </summary>
-</histogram>
-
 <histogram name="Media.HLS.LiveContent" enum="Boolean"
-    expires_after="2025-10-26">
+    expires_after="2025-12-31">
   <owner>tmathmeyer@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -4198,7 +4209,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.HLS.MultivariantPlaylist" enum="Boolean"
-    expires_after="2025-10-19">
+    expires_after="2025-12-21">
   <owner>tmathmeyer@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -4208,7 +4219,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.HLS.ParserError" units="sparse"
-    expires_after="2025-10-26">
+    expires_after="2025-12-31">
   <owner>tmathmeyer@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -4218,7 +4229,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.HLS.PlaybackError" enum="HlsDemuxerStatus"
-    expires_after="2025-10-26">
+    expires_after="2025-12-31">
   <owner>tmathmeyer@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -4227,19 +4238,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Media.HLS.PlaylistSegmentExtension" enum="PlaylistSegmentType"
-    expires_after="2024-12-31">
-  <owner>tmathmeyer@chromium.org</owner>
-  <owner>media-dev-uma@chromium.org</owner>
-  <summary>
-    Logs the type of extension for segments in a top-level-media playlist. This
-    histogram is _not_ recorded when the top level manifest is a multivariant
-    playlist. Recorded whenever MediaPlayer successfully plays HLS media.
-  </summary>
-</histogram>
-
 <histogram name="Media.HLS.UnparsableManifest" units="sparse"
-    expires_after="2025-07-27">
+    expires_after="2025-12-31">
   <owner>tmathmeyer@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -4415,6 +4415,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="Media.MediaDevices.GetDisplayMedia.Audio.PermissionDeniedBySystem"
+    enum="Boolean" expires_after="2026-05-01">
+  <owner>kron@chromium.org</owner>
+  <owner>video-cmi-apis@google.com</owner>
+  <summary>
+    Tracks the number of attempts to start an audio track from getDisplayMedia
+    that results in PermissionDeniedBySystem. This is recorded in
+    UserMediaProcessor::RequestInfo::OnTrackStarted when the result of the
+    attempt to start the track is availble.
+  </summary>
+</histogram>
+
 <histogram name="Media.MediaDevices.GetDisplayMedia.Latency" units="ms"
     expires_after="2025-11-02">
   <owner>toprice@chromium.org</owner>
@@ -4442,7 +4455,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.MediaDevices.GetUserMedia.CameraCaptureCapability"
-    enum="CameraCaptureCapability" expires_after="2025-09-26">
+    enum="CameraCaptureCapability" expires_after="2025-12-21">
   <owner>hbos@chromium.org</owner>
   <owner>video-cmi-mpp@google.com</owner>
   <summary>
@@ -4466,7 +4479,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.MediaDevices.GetUserMedia.Result2"
-    enum="UserMediaRequestResult" expires_after="2025-10-26">
+    enum="UserMediaRequestResult" expires_after="2025-12-28">
   <owner>toprice@chromium.org</owner>
   <owner>agpalak@chromium.org</owner>
   <owner>video-cmi-apis@google.com</owner>
@@ -4870,7 +4883,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Midi.SendReceiveUsage{BackendType}"
-    enum="MidiSendReceiveUsage" expires_after="2025-10-19">
+    enum="MidiSendReceiveUsage" expires_after="2025-12-21">
   <owner>mjwilson@chromium.org</owner>
   <owner>hongchan@chromium.org</owner>
   <owner>src/third_party/blink/renderer/modules/webaudio/OWNERS</owner>
@@ -5245,6 +5258,9 @@ chromium-metrics-reviews@google.com.
         summary="RendererImpl with software decoder and
                  DecryptingDemuxerStream"/>
     <variant name="DVD" summary="RendererImpl with DecryptingVideoDecoder"/>
+    <variant name="HardwareSecure.HW"
+        summary="RendererImpl with hardware decoder and hardware secure
+                 decryption"/>
     <variant name="HW" summary="RendererImpl with hardware decoder"/>
     <variant name="MediaDrm.HardwareSecure"
         summary="RendererImpl with requested hardware secure decryption and
@@ -6125,7 +6141,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Media.Ui.GetDisplayMedia.BasicFlow.UserInteraction"
     enum="MediaUiGetDisplayMediaBasicFlowUserInteraction"
-    expires_after="2025-10-19">
+    expires_after="2025-12-21">
   <owner>eladalon@chromium.org</owner>
   <owner>fbeaufort@chromium.org</owner>
   <summary>
@@ -6751,7 +6767,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.VideoCapture.StartErrorCode" enum="VideoCaptureError"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>toprice@chromium.org</owner>
   <owner>video-cmi-apis@google.com</owner>
   <summary>
@@ -7360,47 +7376,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Media.WebMediaPlayerImpl.HLS.HasAccessControl" enum="Boolean"
-    expires_after="2025-03-09">
-  <owner>tmathmeyer@chromium.org</owner>
-  <owner>tguilbert@chromium.org</owner>
-  <owner>media-dev-uma@chromium.org</owner>
-  <summary>
-    When an HLS manifest is found during loading (on Android only), and the
-    response is CORS cross-origin, this histogram records whether the response
-    included an Access-Control-Allow-Origin header. Such requests are likely to
-    be supported by fetch() if the mode is correctly configured.
-  </summary>
-</histogram>
-
-<histogram name="Media.WebMediaPlayerImpl.HLS.IsCorsCrossOrigin" enum="Boolean"
-    expires_after="2025-03-09">
-  <owner>tmathmeyer@chromium.org</owner>
-  <owner>tguilbert@chromium.org</owner>
-  <owner>media-dev-uma@chromium.org</owner>
-  <summary>
-    When an HLS manifest is found during loading (on Android only), records
-    whether the request was CORS cross-origin. These are cases that could not be
-    implemented using fetch(). Note: subresources referenced by the manifest are
-    not considered; they may have different origins or CORS configurations.
-  </summary>
-</histogram>
-
-<histogram name="Media.WebMediaPlayerImpl.HLS.IsMixedContent" enum="Boolean"
-    expires_after="2025-03-09">
-  <owner>cassew@chromium.org</owner>
-  <owner>tguilbert@chromium.org</owner>
-  <owner>media-dev-uma@chromium.org</owner>
-  <summary>
-    When an HLS manifest is found during loading (on Android only), records
-    whether the request would be mixed content. These are cases that could not
-    be implemented using fetch(). Note: subresources referenced by the manifest
-    are not considered; they may have different origins.
-  </summary>
-</histogram>
-
 <histogram name="Media.WebMediaPlayerImpl.HLS{Variant}.MimeType"
-    enum="MimeTypeOfHlsManifest" expires_after="2025-11-16">
+    enum="MimeTypeOfHlsManifest" expires_after="2025-12-31">
   <owner>tmathmeyer@chromium.org</owner>
   <owner>lukasza@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
@@ -7802,7 +7779,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Cast.Channel.Error"
-    enum="MediaRouterCastChannelError" expires_after="2025-10-19">
+    enum="MediaRouterCastChannelError" expires_after="2025-12-21">
   <owner>muyaoxu@google.com</owner>
   <owner>mfoltz@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
@@ -8066,7 +8043,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Discovery.LocalNetworkAccessPermissionGranted"
-    enum="Boolean" expires_after="2025-10-26">
+    enum="Boolean" expires_after="2025-12-28">
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -8207,7 +8184,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Sink.SelectedType" enum="MediaSinkType"
-    expires_after="2025-10-19">
+    expires_after="2025-12-21">
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -8218,7 +8195,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Sink.SelectedType.{Ui}" enum="MediaSinkType"
-    expires_after="2025-10-19">
+    expires_after="2025-12-21">
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>

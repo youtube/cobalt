@@ -4,6 +4,7 @@
 
 #include "chrome/browser/actor/tools/scroll_tool_request.h"
 
+#include "chrome/browser/actor/tools/tool_request_visitor_functor.h"
 #include "chrome/common/actor.mojom.h"
 
 namespace actor {
@@ -20,6 +21,10 @@ ScrollToolRequest::ScrollToolRequest(TabHandle tab_handle,
 
 ScrollToolRequest::~ScrollToolRequest() = default;
 
+void ScrollToolRequest::Apply(ToolRequestVisitorFunctor& f) const {
+  f.Apply(*this);
+}
+
 std::string ScrollToolRequest::JournalEvent() const {
   return "Scroll";
 }
@@ -27,7 +32,6 @@ std::string ScrollToolRequest::JournalEvent() const {
 mojom::ToolActionPtr ScrollToolRequest::ToMojoToolAction() const {
   auto scroll = mojom::ScrollAction::New();
 
-  scroll->target = PageToolRequest::ToMojoToolTarget(GetTarget());
   switch (direction_) {
     case Direction::kLeft:
       scroll->direction = mojom::ScrollAction::ScrollDirection::kLeft;

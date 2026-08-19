@@ -8,8 +8,15 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <cstdint>
+#include <vector>
+
+#include "api/test/simulated_network.h"
 #include "audio/test/audio_end_to_end_test.h"
+#include "call/audio_receive_stream.h"
+#include "call/audio_send_stream.h"
 #include "rtc_base/thread.h"
+#include "test/call_test.h"
 #include "test/gtest.h"
 
 namespace webrtc {

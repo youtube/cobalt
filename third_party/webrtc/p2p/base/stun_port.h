@@ -269,15 +269,5 @@ class StunPort : public UDPPort {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::HIGH_COST_PORT_KEEPALIVE_LIFETIME;
-using ::webrtc::INFINITE_LIFETIME;
-using ::webrtc::StunPort;
-using ::webrtc::UDPPort;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_BASE_STUN_PORT_H_

@@ -10,10 +10,28 @@
 
 #include "modules/audio_device/linux/audio_device_alsa_linux.h"
 
-#include "modules/audio_device/audio_device_config.h"
+#include <asm-generic/errno.h>
+
+#include <cerrno>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <vector>
+
+#include "api/audio/audio_device.h"
+#include "api/audio/audio_device_defines.h"
+#include "modules/audio_device/audio_device_buffer.h"
+#include "modules/audio_device/audio_device_generic.h"
+#include "modules/audio_device/linux/latebindingsymboltable_linux.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/system/arch.h"
+#include "rtc_base/platform_thread.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread.h"
+
+#if defined(WEBRTC_USE_X11)
+#include <X11/Xlib.h>
+#endif
 
 WebRTCAlsaSymbolTable* GetAlsaSymbolTable() {
   static WebRTCAlsaSymbolTable* alsa_symbol_table = new WebRTCAlsaSymbolTable();

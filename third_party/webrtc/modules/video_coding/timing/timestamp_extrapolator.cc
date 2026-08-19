@@ -11,6 +11,7 @@
 #include "modules/video_coding/timing/timestamp_extrapolator.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
@@ -32,6 +33,7 @@ constexpr double kLambda = 1;
 constexpr int kStartUpFilterDelayInPackets = 2;
 constexpr double kP00 = 1.0;
 constexpr double kP11 = 1e10;
+constexpr double kStartResidualVariance = 3000 * 3000;
 
 }  // namespace
 
@@ -47,6 +49,39 @@ TimestampExtrapolator::Config TimestampExtrapolator::Config::ParseAndValidate(
     RTC_LOG(LS_WARNING) << "Skipping invalid hard_reset_timeout="
                         << config.hard_reset_timeout;
     config.hard_reset_timeout = defaults.hard_reset_timeout;
+  }
+  if (config.hard_reset_rtp_timestamp_jump_threshold <= 0) {
+    RTC_LOG(LS_WARNING)
+        << "Skipping invalid hard_reset_rtp_timestamp_jump_threshold="
+        << config.hard_reset_rtp_timestamp_jump_threshold;
+    config.hard_reset_rtp_timestamp_jump_threshold =
+        defaults.hard_reset_rtp_timestamp_jump_threshold;
+  }
+  if (config.outlier_rejection_startup_delay < 0) {
+    RTC_LOG(LS_WARNING) << "Skipping invalid outlier_rejection_startup_delay="
+                        << config.outlier_rejection_startup_delay;
+    config.outlier_rejection_startup_delay =
+        defaults.outlier_rejection_startup_delay;
+  }
+  if (config.outlier_rejection_max_consecutive <= 0) {
+    RTC_LOG(LS_WARNING) << "Skipping invalid outlier_rejection_max_consecutive="
+                        << config.outlier_rejection_max_consecutive;
+    config.outlier_rejection_max_consecutive =
+        defaults.outlier_rejection_max_consecutive;
+  }
+  if (config.outlier_rejection_forgetting_factor < 0 ||
+      config.outlier_rejection_forgetting_factor >= 1) {
+    RTC_LOG(LS_WARNING)
+        << "Skipping invalid outlier_rejection_forgetting_factor="
+        << config.outlier_rejection_forgetting_factor;
+    config.outlier_rejection_forgetting_factor =
+        defaults.outlier_rejection_forgetting_factor;
+  }
+  if (config.outlier_rejection_stddev.has_value() &&
+      *config.outlier_rejection_stddev <= 0) {
+    RTC_LOG(LS_WARNING) << "Skipping invalid outlier_rejection_stddev="
+                        << *config.outlier_rejection_stddev;
+    config.outlier_rejection_stddev = defaults.outlier_rejection_stddev;
   }
   if (config.alarm_threshold <= 0) {
     RTC_LOG(LS_WARNING) << "Skipping invalid alarm_threshold="
@@ -73,6 +108,9 @@ TimestampExtrapolator::TimestampExtrapolator(
       start_(Timestamp::Zero()),
       prev_(Timestamp::Zero()),
       packet_count_(0),
+      residual_mean_(0),
+      residual_variance_(kStartResidualVariance),
+      outliers_consecutive_count_(0),
       detector_accumulator_pos_(0),
       detector_accumulator_neg_(0) {
   Reset(start);
@@ -99,23 +137,47 @@ void TimestampExtrapolator::Reset(Timestamp start) {
   p_[0][1] = p_[1][0] = 0;
   unwrapper_ = RtpTimestampUnwrapper();
   packet_count_ = 0;
+  // Hard outlier rejection.
+  residual_mean_ = 0.0;
+  residual_variance_ = kStartResidualVariance;
+  outliers_consecutive_count_ = 0;
+  // Soft outlier attenuation.
   detector_accumulator_pos_ = 0;
   detector_accumulator_neg_ = 0;
 }
 
 void TimestampExtrapolator::Update(Timestamp now, uint32_t ts90khz) {
+  // Hard reset based local clock timeouts.
   if (now - prev_ > config_.hard_reset_timeout) {
-    // No complete frame within the timeout.
     Reset(now);
   } else {
     prev_ = now;
   }
 
+  const int64_t unwrapped_ts90khz = unwrapper_.Unwrap(ts90khz);
+
+  // Hard reset based on large RTP timestamp jumps. This is only enabled if
+  // outlier rejection is enabled, since that feature would by itself
+  // consistently block any long-term static offset changes due to, e.g.,
+  // remote clock source replacements.
+  if (config_.OutlierRejectionEnabled() && prev_unwrapped_timestamp_) {
+    // Predict the expected RTP timestamp change based on elapsed wall clock
+    // time.
+    int64_t expected_rtp_diff =
+        static_cast<int64_t>((now - prev_).ms() * w_[0]);
+    int64_t actual_rtp_diff = unwrapped_ts90khz - *prev_unwrapped_timestamp_;
+    int64_t rtp_jump = actual_rtp_diff - expected_rtp_diff;
+    if (std::abs(rtp_jump) > config_.hard_reset_rtp_timestamp_jump_threshold) {
+      RTC_LOG(LS_WARNING) << "Large jump in RTP timestamp detected. "
+                             "Difference between actual and expected change: "
+                          << rtp_jump << " ticks. Resetting filter.";
+      Reset(now);
+    }
+  }
+
   // Remove offset to prevent badly scaled matrices
   const TimeDelta offset = now - start_;
   double t_ms = offset.ms();
-
-  int64_t unwrapped_ts90khz = unwrapper_.Unwrap(ts90khz);
 
   if (!first_unwrapped_timestamp_) {
     // Make an initial guess of the offset,
@@ -128,22 +190,45 @@ void TimestampExtrapolator::Update(Timestamp now, uint32_t ts90khz) {
   double residual =
       (static_cast<double>(unwrapped_ts90khz) - *first_unwrapped_timestamp_) -
       t_ms * w_[0] - w_[1];
+
+  // Hard outlier rejection: reject outliers and avoid updating the filter state
+  // for frames whose residuals are too large.
+  if (config_.OutlierRejectionEnabled() && OutlierDetection(residual)) {
+    ++outliers_consecutive_count_;
+    if (outliers_consecutive_count_ <=
+        config_.outlier_rejection_max_consecutive) {
+      // This appears to be a transient spike. Reject it.
+      return;
+    } else {
+      // This appears to be a persistent delay change. Force the filter to
+      // adapt.
+      SoftReset();
+    }
+  }
+  // Frame is an inlier, or we have reached `outlier_rejection_max_consecutive`.
+  outliers_consecutive_count_ = 0;
+
+  // Soft outlier attenuation: boost the filter's uncertainty if the integrated
+  // delay has changed too much.
+  // TODO(brandtr): Move the packet count check into DelayChangeDetection.
   if (DelayChangeDetection(residual) &&
       packet_count_ >= kStartUpFilterDelayInPackets) {
     // Force the filter to adjust its offset parameter by changing
     // the uncertainties. Don't do this during startup.
-    if (config_.reset_full_cov_on_alarm) {
-      p_[0][0] = kP00;
-      p_[0][1] = p_[1][0] = 0;
-    }
-    p_[1][1] = kP11;
+    SoftReset();
   }
 
-  if (prev_unwrapped_timestamp_ &&
-      unwrapped_ts90khz < prev_unwrapped_timestamp_) {
+  // If hard outlier rejection is enabled, we handle large RTP timestamp jumps
+  // above.
+  if (!config_.OutlierRejectionEnabled() &&
+      (prev_unwrapped_timestamp_ &&
+       unwrapped_ts90khz < prev_unwrapped_timestamp_)) {
     // Drop reordered frames.
     return;
   }
+
+  // Update recursive least squares filter.
+  // TODO(b/428657776): Document better.
 
   // T = [t(k) 1]';
   // that = T'*w;
@@ -209,15 +294,55 @@ std::optional<Timestamp> TimestampExtrapolator::ExtrapolateLocalTime(
   return start_ + diff;
 }
 
-bool TimestampExtrapolator::DelayChangeDetection(double error) {
+void TimestampExtrapolator::SoftReset() {
+  if (config_.reset_full_cov_on_alarm) {
+    p_[0][0] = kP00;
+    p_[0][1] = p_[1][0] = 0;
+  }
+  p_[1][1] = kP11;
+}
+
+bool TimestampExtrapolator::OutlierDetection(double residual) {
+  if (!config_.outlier_rejection_stddev.has_value()) {
+    return false;
+  }
+
+  if (packet_count_ >= config_.outlier_rejection_startup_delay) {
+    double threshold =
+        *config_.outlier_rejection_stddev * std::sqrt(residual_variance_);
+    // Outlier frames trigger the alarm.
+    // We intentionally use a symmetric detection here, meaning that
+    // significantly early frames are also alarmed on. The main reason is to
+    // ensure a symmetric update to the running statistics below.
+    if (std::abs(residual - residual_mean_) > threshold) {
+      // Alarm.
+      return true;
+    }
+  }
+
+  // Update residual statistics only with inliers.
+  double forgetting_factor = config_.outlier_rejection_forgetting_factor;
+  residual_mean_ =
+      forgetting_factor * residual_mean_ + (1.0 - forgetting_factor) * residual;
+  double residual_deviation = residual - residual_mean_;
+  double squared_residual_deviation = residual_deviation * residual_deviation;
+  residual_variance_ =
+      std::max(forgetting_factor * residual_variance_ +
+                   (1.0 - forgetting_factor) * squared_residual_deviation,
+               1.0);
+
+  return false;
+}
+
+bool TimestampExtrapolator::DelayChangeDetection(double residual) {
   // CUSUM detection of sudden delay changes
   double acc_max_error = static_cast<double>(config_.acc_max_error);
-  error = (error > 0) ? std::min(error, acc_max_error)
-                      : std::max(error, -acc_max_error);
+  residual = (residual > 0) ? std::min(residual, acc_max_error)
+                            : std::max(residual, -acc_max_error);
   detector_accumulator_pos_ = std::max(
-      detector_accumulator_pos_ + error - config_.acc_drift, double{0});
+      detector_accumulator_pos_ + residual - config_.acc_drift, double{0});
   detector_accumulator_neg_ = std::min(
-      detector_accumulator_neg_ + error + config_.acc_drift, double{0});
+      detector_accumulator_neg_ + residual + config_.acc_drift, double{0});
   if (detector_accumulator_pos_ > config_.alarm_threshold ||
       detector_accumulator_neg_ < -config_.alarm_threshold) {
     // Alarm

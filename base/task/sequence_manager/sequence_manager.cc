@@ -180,4 +180,8 @@ SequenceManager::Settings SequenceManager::Settings::Builder::Build() {
   return std::move(settings_);
 }
 
+SequenceManagerSettings::SequenceManagerSettings(
+    SequenceManager::Settings settings)
+    : settings(std::move(settings)) {}
+
 }  // namespace base::sequence_manager

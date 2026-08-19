@@ -238,9 +238,14 @@ class NetEq {
   virtual void SetCodecs(const std::map<int, SdpAudioFormat>& codecs) = 0;
 
   // Associates `rtp_payload_type` with the given codec, which NetEq will
-  // instantiate when it needs it. Returns true iff successful.
+  // instantiate when it needs it. Returns true if successful.
   virtual bool RegisterPayloadType(int rtp_payload_type,
                                    const SdpAudioFormat& audio_format) = 0;
+
+  // Creates a decoder for `rtp_payload_type`. Can be used to instantiate a
+  // decoder ahead of time to avoid blocking when needed. Returns true if
+  // successful.
+  virtual bool CreateDecoder(int rtp_payload_type) { return false; }
 
   // Removes `rtp_payload_type` from the codec database. Returns 0 on success,
   // -1 on failure. Removing a payload type that is not registered is ok and

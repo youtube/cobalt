@@ -593,7 +593,6 @@ void SharedScreenCastStreamPrivate::StopAndCleanupStream() {
 
   // While we can stop the thread now, we cannot destroy it until we've cleaned
   // up the other members.
-  pw_thread_loop_wait(pw_main_loop_);
   pw_thread_loop_stop(pw_main_loop_);
 
   if (pw_stream_) {

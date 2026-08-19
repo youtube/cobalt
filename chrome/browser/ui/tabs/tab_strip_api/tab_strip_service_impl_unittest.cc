@@ -12,11 +12,11 @@
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/adapters/browser_adapter.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/adapters/tab_strip_model_adapter.h"
-#include "chrome/browser/ui/tabs/tab_strip_api/node_id.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_api.mojom.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/testing/toy_tab_strip.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/testing/toy_tab_strip_browser_adapter.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/testing/toy_tab_strip_model_adapter.h"
+#include "chrome/browser/ui/tabs/tab_strip_api/types/node_id.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/tabs/public/tab_collection.h"
@@ -61,7 +61,7 @@ TEST_F(TabStripServiceImplTest, CreateNewTab) {
   // We should start with nothing.
   ASSERT_EQ(0ul, tab_strip_->GetTabs().size());
 
-  bool success = client_->CreateTabAt(nullptr, std::nullopt, &result);
+  bool success = client_->CreateTabAt(std::nullopt, std::nullopt, &result);
 
   ASSERT_TRUE(success);
   ASSERT_TRUE(result.has_value());
@@ -243,8 +243,7 @@ TEST_F(TabStripServiceImplTest, MoveTab) {
 
   tabs_api::NodeId tab_id(NodeId::Type::kContent, "1");
 
-  auto position = mojom::Position::New();
-  position->index = 2;
+  auto position = tabs_api::Position(2);
 
   auto target_handle = tabs::TabHandle(1);
   // Check that the target is at the beginning before the move.
@@ -272,8 +271,7 @@ TEST_F(TabStripServiceImplTest, MoveTab_OutOfRange) {
 
   tabs_api::NodeId tab_id(NodeId::Type::kContent, "1");
 
-  auto position = mojom::Position::New();
-  position->index = 9001;
+  auto position = tabs_api::Position(9001);
 
   mojom::TabStripService::MoveTabResult result;
   bool success = client_->MoveTab(tab_id, std::move(position), &result);

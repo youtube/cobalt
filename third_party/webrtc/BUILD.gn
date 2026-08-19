@@ -70,7 +70,6 @@ if (!build_with_chromium) {
         "pc:rtc_pc_unittests",
         "pc:slow_peer_connection_unittests",
         "pc:svc_tests",
-        "rtc_tools:rtp_generator",
         "rtc_tools:video_encoder",
         "rtc_tools:video_replay",
         "stats:rtc_stats_unittests",
@@ -250,10 +249,6 @@ config("common_inherited_config") {
 
   if (is_ubsan) {
     cflags += [ "-fsanitize=float-cast-overflow" ]
-  }
-
-  if (rtc_allow_deprecated_namespaces) {
-    defines += [ "WEBRTC_ALLOW_DEPRECATED_NAMESPACES" ]
   }
 }
 
@@ -536,7 +531,6 @@ if (!build_with_chromium) {
       "api:libjingle_peerconnection_api",
       "api:rtc_error",
       "api:transport_api",
-      "api/audio:create_audio_device_module",
       "api/audio_codecs:opus_audio_decoder_factory",
       "api/crypto",
       "api/rtc_event_log:rtc_event_log_factory",
@@ -583,6 +577,10 @@ if (!build_with_chromium) {
 
     if (rtc_enable_protobuf) {
       deps += [ "logging:rtc_event_log_proto" ]
+    }
+
+    if (rtc_include_internal_audio_device) {
+      deps += [ "api/audio:create_audio_device_module" ]
     }
   }
 

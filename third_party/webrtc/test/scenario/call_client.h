@@ -131,7 +131,6 @@ class CallClient : public EmulatedNetworkReceiverInterface {
     return DataRate::BitsPerSec(GetStats().send_bandwidth_bps);
   }
   DataRate target_rate() const;
-  DataRate stable_target_rate() const;
   DataRate padding_rate() const;
   void UpdateBitrateConstraints(const BitrateConstraints& constraints);
   void SetRemoteBitrate(DataRate bitrate);

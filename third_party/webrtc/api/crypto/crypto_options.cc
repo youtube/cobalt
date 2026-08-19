@@ -12,7 +12,9 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <optional>
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -103,6 +105,11 @@ bool CryptoOptions::EphemeralKeyExchangeCipherGroups::operator==(
 std::set<uint16_t>
 CryptoOptions::EphemeralKeyExchangeCipherGroups::GetSupported() {
   return SSLStreamAdapter::GetSupportedEphemeralKeyExchangeCipherGroups();
+}
+
+std::optional<std::string>
+CryptoOptions::EphemeralKeyExchangeCipherGroups::GetName(uint16_t group_id) {
+  return SSLStreamAdapter::GetEphemeralKeyExchangeCipherGroupName(group_id);
 }
 
 void CryptoOptions::EphemeralKeyExchangeCipherGroups::AddFirst(uint16_t group) {

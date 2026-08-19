@@ -22,6 +22,7 @@ source_set("commerce") {
     "//chrome/browser/ui/page_action:icon_type",
     "//chrome/browser/ui/tabs",
     "//chrome/browser/ui/tabs:tab_strip_model_observer",
+    "//chrome/browser/ui/views/page_action",
     "//chrome/browser/ui/webui/commerce",
     "//components/commerce/core:commerce_types",
     "//components/commerce/core:shopping_service",
@@ -54,9 +55,11 @@ source_set("impl") {
 
   deps = [
     ":commerce",
+    "//chrome/browser/feature_engagement",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/browser_window",
-    "//chrome/browser/ui/toasts:toasts",
+    "//chrome/browser/ui/tabs:tab_strip",
+    "//chrome/browser/ui/toasts",
     "//chrome/browser/ui/toasts/api:toasts",
     "//chrome/browser/ui/toolbar",
     "//chrome/browser/ui/views/side_panel",

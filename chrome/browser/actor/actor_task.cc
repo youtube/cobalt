@@ -51,6 +51,7 @@ void ActorTask::SetState(State state) {
 #endif  // DCHECK_IS_ON()
 
   state_ = state;
+  task_state_change_callback_list_.Notify(id_, state_);
 }
 
 void ActorTask::Stop() {
@@ -59,6 +60,7 @@ void ActorTask::Stop() {
         mojom::ActionResultCode::kTaskWentAway);
   }
   SetState(State::kFinished);
+  end_time_ = base::Time::Now();
 }
 
 void ActorTask::Pause() {
@@ -82,6 +84,10 @@ bool ActorTask::IsPaused() const {
   return GetState() == State::kPausedByClient;
 }
 
+base::Time ActorTask::GetEndTime() const {
+  return end_time_;
+}
+
 std::ostream& operator<<(std::ostream& os, const ActorTask::State& state) {
   using enum ActorTask::State;
   switch (state) {
@@ -96,6 +102,11 @@ std::ostream& operator<<(std::ostream& os, const ActorTask::State& state) {
     case kFinished:
       return os << "Finished";
   }
+}
+
+base::CallbackListSubscription ActorTask::RegisterTaskStateChange(
+    TaskStateChangeCallback callback) {
+  return task_state_change_callback_list_.Add(std::move(callback));
 }
 
 }  // namespace actor

@@ -64,8 +64,9 @@ BN_MONT_CTX *BN_MONT_CTX_copy(BN_MONT_CTX *to, const BN_MONT_CTX *from) {
   if (!BN_copy(&to->RR, &from->RR) || !BN_copy(&to->N, &from->N)) {
     return NULL;
   }
-  to->n0[0] = from->n0[0];
-  to->n0[1] = from->n0[1];
+  for (size_t i = 0; i < BN_MONT_CTX_N0_LIMBS; i++) {
+    to->n0[i] = from->n0[i];
+  }
   return to;
 }
 
@@ -111,8 +112,6 @@ static int bn_mont_ctx_set_N_and_n0(BN_MONT_CTX *mont, const BIGNUM *mod) {
   mont->n0[0] = (BN_ULONG)n0;
 #if BN_MONT_CTX_N0_LIMBS == 2
   mont->n0[1] = (BN_ULONG)(n0 >> BN_BITS2);
-#else
-  mont->n0[1] = 0;
 #endif
   return 1;
 }

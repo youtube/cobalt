@@ -11,18 +11,26 @@
 #include "audio/audio_state.h"
 
 #include <algorithm>
-#include <memory>
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 #include <vector>
 
 #include "api/audio/audio_device.h"
+#include "api/audio/audio_device_defines.h"
+#include "api/audio/audio_processing.h"
+#include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
-#include "audio/audio_receive_stream.h"
 #include "audio/audio_send_stream.h"
+#include "call/audio_receive_stream.h"
+#include "call/audio_sender.h"
+#include "call/audio_state.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/task_utils/repeating_task.h"
 
 namespace webrtc {
 namespace internal {

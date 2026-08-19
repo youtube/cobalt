@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.tabbed_mode;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.util.SparseArray;
+import android.view.LayoutInflater;
 import android.view.View;
 
 import androidx.annotation.IdRes;
@@ -19,10 +20,10 @@ import androidx.core.graphics.drawable.DrawableCompat;
 
 import org.chromium.base.BuildInfo;
 import org.chromium.base.CallbackController;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.Supplier;
-import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
@@ -58,7 +59,7 @@ import org.chromium.chrome.browser.toolbar.menu_button.MenuItemState;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuDelegate;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties;
-import org.chromium.chrome.browser.ui.extensions.ExtensionService;
+import org.chromium.chrome.browser.ui.extensions.ExtensionUi;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.components.browser_ui.accessibility.PageZoomCoordinator;
 import org.chromium.components.dom_distiller.core.DomDistillerFeatures;
@@ -99,7 +100,6 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
     WebFeedSnackbarController.FeedLauncher mFeedLauncher;
     ModalDialogManager mModalDialogManager;
     SnackbarManager mSnackbarManager;
-    @Nullable ExtensionService mExtensionService;
 
     private boolean mUpdateMenuItemVisible;
 
@@ -126,7 +126,6 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
             WebFeedSnackbarController.FeedLauncher feedLauncher,
             ModalDialogManager modalDialogManager,
             SnackbarManager snackbarManager,
-            @Nullable ExtensionService extensionService,
             @NonNull
                     OneshotSupplier<IncognitoReauthController>
                             incognitoReauthControllerOneshotSupplier,
@@ -145,7 +144,6 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         mFeedLauncher = feedLauncher;
         mModalDialogManager = modalDialogManager;
         mSnackbarManager = snackbarManager;
-        mExtensionService = extensionService;
 
         incognitoReauthControllerOneshotSupplier.onAvailable(
                 mIncognitoReauthCallbackController.makeCancelable(
@@ -320,7 +318,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
 
         // Universal Install / Open Web APK
         if (shouldShowHomeScreenMenuItem(
-                isNativePage, isFileScheme, isContentScheme, isIncgnitoShowing(), url)) {
+                isNativePage, isFileScheme, isContentScheme, isIncognitoShowing(), url)) {
             modelList.add(buildAddToHomescreenListItem(currentTab, shouldShowIconBeforeItem()));
         }
 
@@ -469,12 +467,12 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                         shouldShowIconBeforeItem() ? R.drawable.ic_add_box_rounded_corner : 0));
     }
 
-    private boolean isIncgnitoShowing() {
+    private boolean isIncognitoShowing() {
         return mTabModelSelector.getCurrentModel().isIncognito();
     }
 
     private boolean isIncognitoReauthShowing() {
-        return isIncgnitoShowing()
+        return isIncognitoShowing()
                 && (mIncognitoReauthController != null)
                 && mIncognitoReauthController.isReauthPageShowing();
     }
@@ -585,7 +583,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
     }
 
     private boolean shouldShowRecentTabsItem() {
-        return !isIncgnitoShowing();
+        return !isIncognitoShowing();
     }
 
     private MVCListAdapter.ListItem buildRecentTabsItem() {
@@ -600,7 +598,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
 
     private boolean shouldShowExtensionsItem() {
         // TODO(crbug.com/422307625): Remove this check once extensions are ready for dogfooding.
-        return mExtensionService != null && mExtensionService.areExtensionsEnabled();
+        return ExtensionUi.isEnabled(mTabModelSelector.getCurrentModel().getProfile());
     }
 
     private MVCListAdapter.ListItem buildExtensionsItem() {
@@ -642,7 +640,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
     private boolean shouldShowPrintItem(@Nullable Tab currentTab) {
         return currentTab != null
                 && ShareUtils.shouldEnableShare(currentTab)
-                && BuildConfig.IS_DESKTOP_ANDROID
+                && DeviceInfo.isDesktop()
                 && UserPrefs.get(currentTab.getProfile()).getBoolean(Pref.PRINTING_ENABLED);
     }
 
@@ -706,21 +704,24 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
     }
 
     private MVCListAdapter.ListItem buildCloseAllTabsItem() {
-        if (isIncgnitoShowing()) {
-            return new MVCListAdapter.ListItem(
-                    AppMenuHandler.AppMenuItemType.STANDARD,
+        final PropertyModel model;
+        if (isIncognitoShowing()) {
+            model =
                     buildModelForStandardMenuItem(
                             R.id.close_all_incognito_tabs_menu_id,
                             R.string.menu_close_all_incognito_tabs,
-                            shouldShowIconBeforeItem() ? R.drawable.ic_close_all_tabs : 0));
+                            shouldShowIconBeforeItem() ? R.drawable.ic_close_all_tabs : 0);
+            model.set(
+                    AppMenuItemProperties.ENABLED, mTabModelSelector.getModel(true).getCount() > 0);
         } else {
-            return new MVCListAdapter.ListItem(
-                    AppMenuHandler.AppMenuItemType.STANDARD,
+            model =
                     buildModelForStandardMenuItem(
                             R.id.close_all_tabs_menu_id,
                             R.string.menu_close_all_tabs,
-                            shouldShowIconBeforeItem() ? R.drawable.btn_close_white : 0));
+                            shouldShowIconBeforeItem() ? R.drawable.btn_close_white : 0);
+            model.set(AppMenuItemProperties.ENABLED, mTabModelSelector.getTotalTabCount() > 0);
         }
+        return new MVCListAdapter.ListItem(AppMenuHandler.AppMenuItemType.STANDARD, model);
     }
 
     private boolean shouldShowTinkerTank() {
@@ -769,7 +770,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
      */
     private boolean shouldShowNtpCustomizations(@Nullable Tab currentTab) {
         return ChromeFeatureList.sNewTabPageCustomization.isEnabled()
-                && !isIncgnitoShowing()
+                && !isIncognitoShowing()
                 && currentTab != null
                 && UrlUtilities.isNtpUrl(currentTab.getUrl());
     }
@@ -794,7 +795,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
     }
 
     private boolean shouldShowQuickDeleteItem() {
-        return !isIncgnitoShowing();
+        return !isIncognitoShowing();
     }
 
     private MVCListAdapter.ListItem buildQuickDeleteItem() {
@@ -873,7 +874,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         return currentTab != null
                 && ChromeFeatureList.sPaintPreviewDemo.isEnabled()
                 && !isNativePage
-                && !isIncgnitoShowing();
+                && !isIncognitoShowing();
     }
 
     private MVCListAdapter.ListItem buildPaintPreviewItem(boolean isNativePage, Tab currentTab) {
@@ -954,42 +955,24 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
     }
 
     @Override
-    public int getFooterResourceId() {
-        if (shouldShowWebFeedMenuItem()) {
-            return R.layout.web_feed_main_menu_item;
+    public @Nullable View buildFooterView(AppMenuHandler appMenuHandler) {
+        if (!shouldShowWebFeedMenuItem()) {
+            return null;
         }
-        return 0;
-    }
 
-    @Override
-    public void onFooterViewInflated(AppMenuHandler appMenuHandler, View view) {
-        if (view instanceof WebFeedMainMenuItem) {
-            ((WebFeedMainMenuItem) view)
-                    .initialize(
-                            mActivityTabProvider.get(),
-                            appMenuHandler,
-                            WebFeedFaviconFetcher.createDefault(),
-                            mFeedLauncher,
-                            mModalDialogManager,
-                            mSnackbarManager,
-                            CreatorActivity.class);
-        }
-    }
-
-    @Override
-    public int getHeaderResourceId() {
-        return 0;
-    }
-
-    @Override
-    public void onHeaderViewInflated(AppMenuHandler appMenuHandler, View view) {}
-
-    @Override
-    public boolean shouldShowFooter(int maxMenuHeight) {
-        if (shouldShowWebFeedMenuItem()) {
-            return true;
-        }
-        return super.shouldShowFooter(maxMenuHeight);
+        WebFeedMainMenuItem footer =
+                (WebFeedMainMenuItem)
+                        LayoutInflater.from(mContext)
+                                .inflate(R.layout.web_feed_main_menu_item, null);
+        footer.initialize(
+                mActivityTabProvider.get(),
+                appMenuHandler,
+                WebFeedFaviconFetcher.createDefault(),
+                mFeedLauncher,
+                mModalDialogManager,
+                mSnackbarManager,
+                CreatorActivity.class);
+        return footer;
     }
 
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)

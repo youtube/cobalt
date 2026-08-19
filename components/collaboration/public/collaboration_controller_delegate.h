@@ -23,6 +23,8 @@ namespace collaboration {
 class CollaborationControllerDelegate {
  public:
   struct ErrorInfo {
+    // GENERATED_JAVA_ENUM_PACKAGE: (
+    //   org.chromium.components.collaboration.error_info)
     enum class Type {
       kUnknown = 0,
       // Show the generic error dialog.
@@ -90,11 +92,11 @@ class CollaborationControllerDelegate {
           switch (flow_type.value()) {
             case FlowType::kJoin:
               error_body = l10n_util::GetStringUTF8(
-                  IDS_COLLABORATION_SHARE_BUTTON_CHROME_OUT_OF_DATE_ERROR_DIALOG_BODY);
+                  IDS_COLLABORATION_JOIN_BUTTON_CHROME_OUT_OF_DATE_ERROR_DIALOG_BODY);
               break;
             case FlowType::kShareOrManage:
               error_body = l10n_util::GetStringUTF8(
-                  IDS_COLLABORATION_JOIN_BUTTON_CHROME_OUT_OF_DATE_ERROR_DIALOG_BODY);
+                  IDS_COLLABORATION_SHARE_BUTTON_CHROME_OUT_OF_DATE_ERROR_DIALOG_BODY);
               break;
             default:
               NOTREACHED();

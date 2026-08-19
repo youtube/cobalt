@@ -12,6 +12,7 @@
 #include "chrome/browser/ui/webui/customize_buttons/customize_buttons.mojom.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "components/feature_engagement/public/feature_constants.h"
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
@@ -256,6 +257,8 @@ class CustomizeButtonsHandlerBrowserTestWithParam
         return CustomizeChromeSection::kWallpaperSearch;
       case customize_buttons::mojom::CustomizeChromeSection::kToolbar:
         return CustomizeChromeSection::kToolbar;
+      case customize_buttons::mojom::CustomizeChromeSection::kFooter:
+        return CustomizeChromeSection::kFooter;
     }
   }
 

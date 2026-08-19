@@ -1004,7 +1004,6 @@ void AudioManagerAndroid::OnStopAAudioInputStream(AAudioInputStream* stream) {
 }
 
 void AudioManagerAndroid::SetMute(JNIEnv* env,
-                                  const JavaParamRef<jobject>& obj,
                                   jboolean muted) {
   GetTaskRunner()->PostTask(
       FROM_HERE, base::BindOnce(&AudioManagerAndroid::DoSetMuteOnAudioThread,

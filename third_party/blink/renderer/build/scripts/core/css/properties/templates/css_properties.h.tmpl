@@ -63,7 +63,6 @@ namespace {{namespace}} {
   (property.is_border_radius and 'kBorderRadius' or ''),
   (property.is_highlight_colors and 'kHighlightColors' or ''),
   (property.is_visited_highlight_colors and 'kVisitedHighlightColors' or ''),
-  (property.valid_for_highlight_legacy and 'kValidForHighlightLegacy' or ''),
   (property.valid_for_highlight and 'kValidForHighlight' or ''),
   (property.logical_property_group and 'kInLogicalPropertyGroup' or ''),
 ] | reject('==', '') | join(' | ') %}
@@ -76,7 +75,7 @@ class CORE_EXPORT {{class_name}} final : public {{property.superclass}} {
  public:
   constexpr {{class_name}}() : {{property.superclass}}({{ctor_args | join(', ')}}) { }
   const char* GetPropertyName() const override;
-  const WTF::AtomicString& GetPropertyNameAtomicString() const override;
+  const AtomicString& GetPropertyNameAtomicString() const override;
   const char* GetJSPropertyName() const override;
   {% if not property.known_exposed %}
   CSSExposure Exposure(const ExecutionContext*) const override;

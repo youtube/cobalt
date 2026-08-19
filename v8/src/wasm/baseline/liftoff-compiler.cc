@@ -1162,6 +1162,7 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(ool->position), true);
     __ CallBuiltin(ool->builtin);
+    auto pc_offset_after_call = __ pc_offset_for_safepoint();
     // It is safe to not check for existing safepoint at this address since we
     // just emitted a call.
     auto safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
@@ -1186,7 +1187,7 @@ class LiftoffCompiler {
 
     DCHECK_EQ(!debug_sidetable_builder_, !ool->debug_sidetable_entry_builder);
     if (V8_UNLIKELY(ool->debug_sidetable_entry_builder)) {
-      ool->debug_sidetable_entry_builder->set_pc_offset(__ pc_offset());
+      ool->debug_sidetable_entry_builder->set_pc_offset(pc_offset_after_call);
     }
     DCHECK_EQ(ool->continuation.get()->is_bound(), is_stack_check || is_tierup);
     if (is_stack_check) {
@@ -1828,7 +1829,7 @@ class LiftoffCompiler {
     VarState exn = __ PopVarState();
     CallBuiltin(Builtin::kWasmThrowRef, MakeSig::Params(kRef), {exn},
                 decoder->position());
-    int pc_offset = __ pc_offset();
+    int pc_offset = __ pc_offset_for_safepoint();
     MaybeOSR();
     EmitLandingPad(decoder, pc_offset);
   }
@@ -2447,6 +2448,8 @@ class LiftoffCompiler {
     LiftoffRegister dst =
         CpuFeatures::IsSupported(AVX)
             ? __ GetUnusedRegister(result_rc, {src, mask}, {})
+        : src == mask
+            ? __ GetUnusedRegister(result_rc, LiftoffRegList{mask})
             : __ GetUnusedRegister(result_rc, {src}, LiftoffRegList{mask});
 #else
     LiftoffRegister dst = __ GetUnusedRegister(result_rc, {src, mask}, {});
@@ -4256,7 +4259,7 @@ class LiftoffCompiler {
       DebugSideTableBuilder::AssumeSpilling assume_spilling) {
     if (V8_LIKELY(!debug_sidetable_builder_)) return;
     debug_sidetable_builder_->NewEntry(
-        __ pc_offset(),
+        __ pc_offset_for_safepoint(),
         GetCurrentDebugSideTableEntries(decoder, assume_spilling).as_vector());
   }
 
@@ -5224,8 +5227,9 @@ class LiftoffCompiler {
         LiftoffRegister lhs = pinned.set(__ PopToRegister(pinned));
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
         // x86 platforms save a move when dst == acc, so prefer that.
-        LiftoffRegister dst =
-            __ GetUnusedRegister(res_rc, {acc}, LiftoffRegList{lhs, rhs});
+        LiftoffRegister dst = (acc == lhs || acc == rhs)
+                                  ? __ GetUnusedRegister(res_rc, pinned)
+                                  : __ GetUnusedRegister(res_rc, {acc}, pinned);
 #else
         // On other platforms, for simplicity, we ensure that none of the
         // registers alias. (If we cared, it would probably be feasible to
@@ -5694,10 +5698,10 @@ class LiftoffCompiler {
                 {VarState{kIntPtrKind, exception_tag, 0},
                  VarState{kIntPtrKind, values_array, 0}},
                 decoder->position());
+    int pc_offset = __ pc_offset_for_safepoint();
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
-    int pc_offset = __ pc_offset();
     MaybeOSR();
     EmitLandingPad(decoder, pc_offset);
   }
@@ -5729,7 +5733,8 @@ class LiftoffCompiler {
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory) && index != no_reg) {
       outer_pinned.set(index);
     }
-    __ AtomicStore(addr, index, offset, value, type, outer_pinned, i64_offset);
+    __ AtomicStore(addr, index, offset, value, type, nullptr, outer_pinned,
+                   i64_offset);
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
       TraceMemoryOperation(true, imm.mem_index, type.mem_rep(), index, offset,
                            decoder->position());
@@ -5761,7 +5766,8 @@ class LiftoffCompiler {
     Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
     RegClass rc = reg_class_for(kind);
     LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
-    __ AtomicLoad(value, addr, index, offset, type, pinned, i64_offset);
+    __ AtomicLoad(value, addr, index, offset, type, nullptr, pinned,
+                  i64_offset);
     __ PushRegister(kind, value);
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
@@ -5771,12 +5777,12 @@ class LiftoffCompiler {
     }
   }
 
-  void AtomicBinop(FullDecoder* decoder, StoreType type,
-                   const MemoryAccessImmediate& imm,
-                   void (LiftoffAssembler::*emit_fn)(Register, Register,
-                                                     uintptr_t, LiftoffRegister,
-                                                     LiftoffRegister, StoreType,
-                                                     bool)) {
+  void AtomicBinop(
+      FullDecoder* decoder, StoreType type, const MemoryAccessImmediate& imm,
+      void (LiftoffAssembler::*emit_fn)(Register, Register, uintptr_t,
+                                        LiftoffRegister, LiftoffRegister,
+                                        StoreType, uint32_t*, bool,
+                                        LiftoffAssembler::Endianness)) {
     ValueKind result_kind = type.value_type().kind();
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
@@ -5817,7 +5823,8 @@ class LiftoffCompiler {
     }
 
     Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
-    (asm_.*emit_fn)(addr, index, offset, value, result, type, i64_offset);
+    (asm_.*emit_fn)(addr, index, offset, value, result, type, nullptr,
+                    i64_offset, LiftoffAssembler::kLittle);
     __ PushRegister(result_kind, result);
   }
 
@@ -5864,7 +5871,7 @@ class LiftoffCompiler {
     // We already added the index to addr, so we can just pass no_reg to the
     // assembler now.
     __ AtomicCompareExchange(addr, no_reg, offset, expected, new_value, result,
-                             type, i64_offset);
+                             type, nullptr, i64_offset);
     __ PushRegister(type.value_type().kind(), result);
     return;
 #else
@@ -5896,7 +5903,7 @@ class LiftoffCompiler {
 
     Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
     __ AtomicCompareExchange(addr, index, offset, expected, new_value, result,
-                             type, i64_offset);
+                             type, nullptr, i64_offset);
     __ PushRegister(result_kind, result);
 #endif
   }
@@ -6179,6 +6186,8 @@ class LiftoffCompiler {
 
   void AtomicFence(FullDecoder* decoder) { __ AtomicFence(); }
 
+  void Pause(FullDecoder* decoder) { __ Pause(); }
+
   void StructAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
                        const Value& struct_object, const FieldImmediate& field,
                        const Value& field_value, AtomicMemoryOrder order,
@@ -6190,16 +6199,9 @@ class LiftoffCompiler {
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    auto [explicit_check, implicit_check] =
-        null_checks_for_struct_op(struct_object.type, field.field_imm.index);
-    if (implicit_check) {
-      // TODO(mliedtke): Support implicit null checks for atomic operations.
-      // Note that we can't do implicit null checks for i64 due to WasmNull not
-      // being 8-byte-aligned!
-      implicit_check = false;
-      explicit_check = true;
-    }
-
+    const bool requires_aligned_access = field_kind == ValueKind::kI64;
+    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
+        struct_object.type, field.field_imm.index, requires_aligned_access);
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_object.type);
     }
@@ -6208,13 +6210,10 @@ class LiftoffCompiler {
 // (ia32 doesn't require any alignment for these operation) and there are only
 // painfully few registers available on ia32.
 #if !V8_TARGET_ARCH_IA32
-    if (!field.struct_imm.shared) {
+    if (!field.struct_imm.shared && field_kind == ValueKind::kI64) {
       // On some architectures atomic operations require aligned accesses while
-      // unshared objects don't have the required alignment. For simplicity we
-      // do the same on all platforms and for all rmw operations (even though
-      // only 64 bit operations should run into alignment problems).
-      // TODO(mliedtke): Reconsider this if atomic operations on unshared
-      // objects remain part of the spec proposal.
+      // unshared objects don't have the required alignment for 64 bit
+      // operations.
       LiftoffRegister result_reg =
           pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
       LoadObjectField(decoder, result_reg, obj.gp(), no_reg, offset, field_kind,
@@ -6224,54 +6223,26 @@ class LiftoffCompiler {
                                       : pinned.set(__ GetUnusedRegister(
                                             reg_class_for(field_kind), pinned));
 
-      if (field_kind == ValueKind::kI32) {
-        switch (opcode) {
-          case kExprStructAtomicAdd:
-            __ emit_i32_add(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprStructAtomicSub:
-            __ emit_i32_sub(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprStructAtomicAnd:
-            __ emit_i32_and(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprStructAtomicOr:
-            __ emit_i32_or(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprStructAtomicXor:
-            __ emit_i32_xor(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprStructAtomicExchange:
-            break;
-          default:
-            UNREACHABLE();
-        }
-      } else if (field_kind == ValueKind::kI64) {
-        switch (opcode) {
-          case kExprStructAtomicAdd:
-            __ emit_i64_add(new_value, result_reg, value);
-            break;
-          case kExprStructAtomicSub:
-            __ emit_i64_sub(new_value, result_reg, value);
-            break;
-          case kExprStructAtomicAnd:
-            __ emit_i64_and(new_value, result_reg, value);
-            break;
-          case kExprStructAtomicOr:
-            __ emit_i64_or(new_value, result_reg, value);
-            break;
-          case kExprStructAtomicXor:
-            __ emit_i64_xor(new_value, result_reg, value);
-            break;
-          case kExprStructAtomicExchange:
-            break;
-          default:
-            UNREACHABLE();
-        }
-      } else {
-        CHECK(is_reference(field_kind));
-        CHECK_EQ(opcode, kExprStructAtomicExchange);
-        // Nothing to be done here.
+      switch (opcode) {
+        case kExprStructAtomicAdd:
+          __ emit_i64_add(new_value, result_reg, value);
+          break;
+        case kExprStructAtomicSub:
+          __ emit_i64_sub(new_value, result_reg, value);
+          break;
+        case kExprStructAtomicAnd:
+          __ emit_i64_and(new_value, result_reg, value);
+          break;
+        case kExprStructAtomicOr:
+          __ emit_i64_or(new_value, result_reg, value);
+          break;
+        case kExprStructAtomicXor:
+          __ emit_i64_xor(new_value, result_reg, value);
+          break;
+        case kExprStructAtomicExchange:
+          break;
+        default:
+          UNREACHABLE();
       }
       __ PushRegister(field_kind, result_reg);
       StoreObjectField(decoder, obj.gp(), no_reg, offset, new_value, false,
@@ -6304,38 +6275,49 @@ class LiftoffCompiler {
     LiftoffRegister result_reg =
         pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
 #endif
+    uint32_t protected_load_pc = 0;
     switch (opcode) {
       case kExprStructAtomicAdd:
         __ AtomicAdd(obj.gp(), no_reg, offset, value, result_reg,
-                     StoreType::ForValueKind(field_kind), false);
+                     StoreType::ForValueKind(field_kind), &protected_load_pc,
+                     false, LiftoffAssembler::kNative);
         break;
       case kExprStructAtomicSub:
         __ AtomicSub(obj.gp(), no_reg, offset, value, result_reg,
-                     StoreType::ForValueKind(field_kind), false);
+                     StoreType::ForValueKind(field_kind), &protected_load_pc,
+                     false, LiftoffAssembler::kNative);
         break;
       case kExprStructAtomicAnd:
         __ AtomicAnd(obj.gp(), no_reg, offset, value, result_reg,
-                     StoreType::ForValueKind(field_kind), false);
+                     StoreType::ForValueKind(field_kind), &protected_load_pc,
+                     false, LiftoffAssembler::kNative);
         break;
       case kExprStructAtomicOr:
         __ AtomicOr(obj.gp(), no_reg, offset, value, result_reg,
-                    StoreType::ForValueKind(field_kind), false);
+                    StoreType::ForValueKind(field_kind), &protected_load_pc,
+                    false, LiftoffAssembler::kNative);
         break;
       case kExprStructAtomicXor:
         __ AtomicXor(obj.gp(), no_reg, offset, value, result_reg,
-                     StoreType::ForValueKind(field_kind), false);
+                     StoreType::ForValueKind(field_kind), &protected_load_pc,
+                     false, LiftoffAssembler::kNative);
         break;
       case kExprStructAtomicExchange:
         if (is_reference(field_kind)) {
           __ AtomicExchangeTaggedPointer(obj.gp(), no_reg, offset, value,
-                                         result_reg, pinned);
+                                         result_reg, &protected_load_pc,
+                                         pinned);
           break;
         }
         __ AtomicExchange(obj.gp(), no_reg, offset, value, result_reg,
-                          StoreType::ForValueKind(field_kind), false);
+                          StoreType::ForValueKind(field_kind),
+                          &protected_load_pc, false, LiftoffAssembler::kNative);
         break;
       default:
         UNREACHABLE();
+    }
+    if (implicit_check) {
+      RegisterProtectedInstruction(decoder, protected_load_pc);
     }
     __ PushRegister(field_kind, result_reg);
   }
@@ -6349,8 +6331,9 @@ class LiftoffCompiler {
     const StructType* struct_type = field.struct_imm.struct_type;
     ValueKind field_kind = struct_type->field(field.field_imm.index).kind();
     int offset = StructFieldOffset(struct_type, field.field_imm.index);
-    auto [explicit_check, implicit_check] =
-        null_checks_for_struct_op(struct_object.type, field.field_imm.index);
+    const bool requires_aligned_access = field_kind == ValueKind::kI64;
+    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
+        struct_object.type, field.field_imm.index, requires_aligned_access);
 
 #if V8_TARGET_ARCH_IA32
     DCHECK(!implicit_check);  // No trap handler on 32-bit.
@@ -6378,14 +6361,6 @@ class LiftoffCompiler {
     LiftoffRegister new_value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister expected_value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
-
-    if (implicit_check) {
-      // TODO(mliedtke): Support implicit null checks for atomic operations.
-      // Note that we can't do implicit null checks for i64 due to WasmNull not
-      // being 8-byte-aligned!
-      implicit_check = false;
-      explicit_check = true;
-    }
 
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_object.type);
@@ -6424,14 +6399,21 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
 #endif  // V8_TARGET_ARCH_IA32
 
+    uint32_t protected_load_pc = 0;
     if (is_reference(field_kind)) {
-      UNIMPLEMENTED();
+      __ AtomicCompareExchangeTaggedPointer(
+          obj.gp(), no_reg, offset, expected_value, new_value, result_reg,
+          &protected_load_pc, pinned);
     } else {
-      __ AtomicCompareExchange(obj.gp(), no_reg, offset, expected_value,
-                               new_value, result_reg,
-                               StoreType::ForValueKind(field_kind), false);
-      __ PushRegister(field_kind, result_reg);
+      __ AtomicCompareExchange(
+          obj.gp(), no_reg, offset, expected_value, new_value, result_reg,
+          StoreType::ForValueKind(field_kind), &protected_load_pc, false,
+          LiftoffAssembler::kNative);
     }
+    if (implicit_check) {
+      RegisterProtectedInstruction(decoder, protected_load_pc);
+    }
+    __ PushRegister(field_kind, result_reg);
   }
 
   void ArrayAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
@@ -6464,13 +6446,10 @@ class LiftoffCompiler {
     // needed (ia32 doesn't require any alignment for these operation) and there
     // are only painfully few registers available on ia32.
 #if !V8_TARGET_ARCH_IA32
-    if (!array_obj.type.is_shared()) {
+    if (!array_obj.type.is_shared() && elem_kind == ValueKind::kI64) {
       // On some architectures atomic operations require aligned accesses while
-      // unshared objects don't have the required alignment. For simplicity we
-      // do the same on all platforms and for all rmw operations (even though
-      // only 64 bit operations should run into alignment problems).
-      // TODO(mliedtke): Reconsider this if atomic operations on unshared
-      // objects remain part of the spec proposal.
+      // unshared objects don't have the required alignment for 64 bit
+      // operations.
       LiftoffRegister result_reg =
           pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
       LoadObjectField(decoder, result_reg, array.gp(), index.gp(),
@@ -6480,55 +6459,26 @@ class LiftoffCompiler {
                                       ? value
                                       : pinned.set(__ GetUnusedRegister(
                                             reg_class_for(elem_kind), pinned));
-
-      if (elem_kind == ValueKind::kI32) {
-        switch (opcode) {
-          case kExprArrayAtomicAdd:
-            __ emit_i32_add(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprArrayAtomicSub:
-            __ emit_i32_sub(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprArrayAtomicAnd:
-            __ emit_i32_and(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprArrayAtomicOr:
-            __ emit_i32_or(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprArrayAtomicXor:
-            __ emit_i32_xor(new_value.gp(), result_reg.gp(), value.gp());
-            break;
-          case kExprArrayAtomicExchange:
-            break;
-          default:
-            UNREACHABLE();
-        }
-      } else if (elem_kind == ValueKind::kI64) {
-        switch (opcode) {
-          case kExprArrayAtomicAdd:
-            __ emit_i64_add(new_value, result_reg, value);
-            break;
-          case kExprArrayAtomicSub:
-            __ emit_i64_sub(new_value, result_reg, value);
-            break;
-          case kExprArrayAtomicAnd:
-            __ emit_i64_and(new_value, result_reg, value);
-            break;
-          case kExprArrayAtomicOr:
-            __ emit_i64_or(new_value, result_reg, value);
-            break;
-          case kExprArrayAtomicXor:
-            __ emit_i64_xor(new_value, result_reg, value);
-            break;
-          case kExprArrayAtomicExchange:
-            break;
-          default:
-            UNREACHABLE();
-        }
-      } else {
-        CHECK(is_reference(elem_kind));
-        CHECK_EQ(opcode, kExprArrayAtomicExchange);
-        // Nothing to be done here.
+      switch (opcode) {
+        case kExprArrayAtomicAdd:
+          __ emit_i64_add(new_value, result_reg, value);
+          break;
+        case kExprArrayAtomicSub:
+          __ emit_i64_sub(new_value, result_reg, value);
+          break;
+        case kExprArrayAtomicAnd:
+          __ emit_i64_and(new_value, result_reg, value);
+          break;
+        case kExprArrayAtomicOr:
+          __ emit_i64_or(new_value, result_reg, value);
+          break;
+        case kExprArrayAtomicXor:
+          __ emit_i64_xor(new_value, result_reg, value);
+          break;
+        case kExprArrayAtomicExchange:
+          break;
+        default:
+          UNREACHABLE();
       }
       __ PushRegister(elem_kind, result_reg);
       StoreObjectField(decoder, array.gp(), index.gp(),
@@ -6555,32 +6505,38 @@ class LiftoffCompiler {
     switch (opcode) {
       case kExprArrayAtomicAdd:
         __ AtomicAdd(array.gp(), index.gp(), offset, value, result_reg,
-                     StoreType::ForValueKind(elem_kind), false);
+                     StoreType::ForValueKind(elem_kind), nullptr, false,
+                     LiftoffAssembler::kNative);
         break;
       case kExprArrayAtomicSub:
         __ AtomicSub(array.gp(), index.gp(), offset, value, result_reg,
-                     StoreType::ForValueKind(elem_kind), false);
+                     StoreType::ForValueKind(elem_kind), nullptr, false,
+                     LiftoffAssembler::kNative);
         break;
       case kExprArrayAtomicAnd:
         __ AtomicAnd(array.gp(), index.gp(), offset, value, result_reg,
-                     StoreType::ForValueKind(elem_kind), false);
+                     StoreType::ForValueKind(elem_kind), nullptr, false,
+                     LiftoffAssembler::kNative);
         break;
       case kExprArrayAtomicOr:
         __ AtomicOr(array.gp(), index.gp(), offset, value, result_reg,
-                    StoreType::ForValueKind(elem_kind), false);
+                    StoreType::ForValueKind(elem_kind), nullptr, false,
+                    LiftoffAssembler::kNative);
         break;
       case kExprArrayAtomicXor:
         __ AtomicXor(array.gp(), index.gp(), offset, value, result_reg,
-                     StoreType::ForValueKind(elem_kind), false);
+                     StoreType::ForValueKind(elem_kind), nullptr, false,
+                     LiftoffAssembler::kNative);
         break;
       case kExprArrayAtomicExchange:
         if (is_reference(elem_kind)) {
           __ AtomicExchangeTaggedPointer(array.gp(), index.gp(), offset, value,
-                                         result_reg, pinned);
+                                         result_reg, nullptr, pinned);
           break;
         }
         __ AtomicExchange(array.gp(), index.gp(), offset, value, result_reg,
-                          StoreType::ForValueKind(elem_kind), false);
+                          StoreType::ForValueKind(elem_kind), nullptr, false,
+                          LiftoffAssembler::kNative);
         break;
       default:
         UNREACHABLE();
@@ -6638,11 +6594,14 @@ class LiftoffCompiler {
     LiftoffRegister result_reg = expected_value;
     const int offset = wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize);
     if (is_reference(elem_kind)) {
-      UNIMPLEMENTED();
+      __ AtomicCompareExchangeTaggedPointer(mem_location.gp(), no_reg, offset,
+                                            expected_value, new_value,
+                                            result_reg, nullptr, pinned);
     } else {
       __ AtomicCompareExchange(mem_location.gp(), no_reg, offset,
                                expected_value, new_value, result_reg,
-                               StoreType::ForValueKind(elem_kind), false);
+                               StoreType::ForValueKind(elem_kind), nullptr,
+                               false, LiftoffAssembler::kNative);
     }
     __ PushRegister(elem_kind, result_reg);
 #else
@@ -6699,13 +6658,16 @@ class LiftoffCompiler {
     LiftoffRegister result_reg =
         pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
     const int offset = wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize);
+    Register offset_reg = index.gp();
     if (is_reference(elem_kind)) {
-      UNIMPLEMENTED();
+      __ AtomicCompareExchangeTaggedPointer(array.gp(), offset_reg, offset,
+                                            expected_value, new_value,
+                                            result_reg, nullptr, pinned);
     } else {
-      Register offset_reg = index.gp();
       __ AtomicCompareExchange(array.gp(), offset_reg, offset, expected_value,
                                new_value, result_reg,
-                               StoreType::ForValueKind(elem_kind), false);
+                               StoreType::ForValueKind(elem_kind), nullptr,
+                               false, LiftoffAssembler::kNative);
     }
     __ PushRegister(elem_kind, result_reg);
 #endif
@@ -7235,8 +7197,9 @@ class LiftoffCompiler {
                                               const Value& descriptor_value) {
     LiftoffRegList pinned;
     LiftoffRegister descriptor = pinned.set(__ PopToRegister({}));
-    auto [explicit_check, implicit_check] =
-        null_checks_for_struct_op(descriptor_value.type, 0);
+    const bool requires_aligned_access = false;
+    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
+        descriptor_value.type, 0, requires_aligned_access);
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, descriptor.gp(), pinned,
                          descriptor_value.type);
@@ -7341,8 +7304,9 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    auto [explicit_check, implicit_check] =
-        null_checks_for_struct_op(struct_obj.type, field.field_imm.index);
+    const bool requires_aligned_access = false;
+    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
+        struct_obj.type, field.field_imm.index, requires_aligned_access);
 
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
@@ -7363,15 +7327,9 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    auto [explicit_check, implicit_check] =
-        null_checks_for_struct_op(struct_obj.type, field.field_imm.index);
-    if (implicit_check) {
-      // TODO(mliedtke): Support implicit null checks for atomic loads.
-      // Note that we can't do implicit null checks for i64 due to WasmNull not
-      // being 8-byte-aligned!
-      implicit_check = false;
-      explicit_check = true;
-    }
+    const bool requires_aligned_access = field_kind == ValueKind::kI64;
+    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
+        struct_obj.type, field.field_imm.index, requires_aligned_access);
 
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
@@ -7392,8 +7350,9 @@ class LiftoffCompiler {
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    auto [explicit_check, implicit_check] =
-        null_checks_for_struct_op(struct_obj.type, field.field_imm.index);
+    const bool requires_aligned_access = false;
+    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
+        struct_obj.type, field.field_imm.index, requires_aligned_access);
 
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
@@ -7415,16 +7374,9 @@ class LiftoffCompiler {
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    auto [explicit_check, implicit_check] =
-        null_checks_for_struct_op(struct_obj.type, field.field_imm.index);
-    if (implicit_check) {
-      // TODO(mliedtke): Support implicit null checks for atomic loads.
-      // Note that we can't do implicit null checks for i64 due to WasmNull not
-      // being 8-byte-aligned!
-      implicit_check = false;
-      explicit_check = true;
-    }
-
+    const bool requires_aligned_access = field_kind == ValueKind::kI64;
+    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
+        struct_obj.type, field.field_imm.index, requires_aligned_access);
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
     }
@@ -7899,11 +7851,12 @@ class LiftoffCompiler {
 
   // Falls through on match (=successful type check).
   // Returns the register containing the object.
-  void SubtypeCheck(const WasmModule* module, Register obj_reg,
-                    ValueType obj_type, Register rtt_reg, HeapType target_type,
+  void SubtypeCheck(FullDecoder* decoder, Register obj_reg, ValueType obj_type,
+                    Register rtt_reg, HeapType target_type,
                     Register scratch_null, Register scratch2, Label* no_match,
-                    NullSucceeds null_succeeds,
+                    NullSucceeds null_succeeds, bool rtt_is_custom_descriptor,
                     const FreezeCacheState& frozen) {
+    const WasmModule* module = decoder->module_;
     Label match;
     bool is_cast_from_any = obj_type.is_reference_to(HeapType::kAny);
 
@@ -7925,15 +7878,38 @@ class LiftoffCompiler {
     __ LoadMap(tmp1, obj_reg);
     // {tmp1} now holds the object's map.
 
-    if (module->type(target_type.ref_index()).is_final ||
-        target_type.is_exact()) {
-      // In this case, simply check for map equality.
+    // We need to do one of three things:
+    // (1) Compare only the object's map against the target RTT. That's
+    //     appropriate for any of these cases:
+    //     - target RTT is a canonical RTT for a final or exact target type
+    //       that doesn't have a custom descriptor
+    //     - target RTT is a custom descriptor
+    // (2) Compare only the last (most specific) type in the object's map's
+    //     supertypes list against the target RTT. That's appropriate for:
+    //     - target RTT is a canonical RTT for an exact target type that does
+    //       have a custom descriptor.
+    //       The object's map will be that custom descriptor, its immediate
+    //       super-RTT will be the same type's canonical RTT.
+    // (3) Perform the full flexible subtype check: compare the object's map
+    //     against the target RTT, and if they're not equal, load the right
+    //     entry from the supertypes list and compare with that. This is for:
+    //     - any case not listed above.
+    // Cases (2) and (3) can share most of their implementation.
+    const TypeDefinition& type = module->type(target_type.ref_index());
+    bool compare_map =
+        (!type.has_descriptor() && (type.is_final || target_type.is_exact())) ||
+        rtt_is_custom_descriptor;
+    bool compare_last_super = type.has_descriptor() && target_type.is_exact();
+
+    if (compare_map) {
       __ emit_cond_jump(kNotEqual, no_match, ValueKind::kRef, tmp1, rtt_reg,
                         frozen);
     } else {
-      // Check for rtt equality, and if not, check if the rtt is a struct/array
-      // rtt.
-      __ emit_cond_jump(kEqual, &match, ValueKind::kRef, tmp1, rtt_reg, frozen);
+      if (!compare_last_super) {
+        // Check for rtt equality.
+        __ emit_cond_jump(kEqual, &match, ValueKind::kRef, tmp1, rtt_reg,
+                          frozen);
+      }
 
       if (is_cast_from_any) {
         // Check for map being a map for a wasm object (struct, array, func).
@@ -7948,25 +7924,36 @@ class LiftoffCompiler {
 
       // Constant-time subtyping check: load exactly one candidate RTT from the
       // supertypes list.
-      // Step 1: load the WasmTypeInfo into {tmp1}.
+      // Load the WasmTypeInfo into {tmp1}.
       constexpr int kTypeInfoOffset = wasm::ObjectAccess::ToTagged(
           Map::kConstructorOrBackPointerOrNativeContextOffset);
       __ LoadTaggedPointer(tmp1, tmp1, no_reg, kTypeInfoOffset);
-      // Step 2: check the list's length if needed.
-      uint32_t rtt_depth = GetSubtypingDepth(module, target_type.ref_index());
-      if (rtt_depth >= kMinimumSupertypeArraySize) {
+      constexpr int kLengthOffset =
+          ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesLengthOffset);
+      if (compare_last_super) {
         LiftoffRegister list_length(scratch2);
-        int offset =
-            ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesLengthOffset);
-        __ LoadSmiAsInt32(list_length, tmp1, offset);
-        __ emit_i32_cond_jumpi(kUnsignedLessThanEqual, no_match,
-                               list_length.gp(), rtt_depth, frozen);
+        __ LoadSmiAsInt32(list_length, tmp1, kLengthOffset);
+        // Load the candidate list slot into {tmp1}.
+        __ emit_i32_shli(list_length.gp(), list_length.gp(), kTaggedSizeLog2);
+        __ LoadTaggedPointer(
+            tmp1, tmp1, list_length.gp(),
+            ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset -
+                                   kTaggedSize));
+      } else {
+        // Check the list's length if needed.
+        uint32_t rtt_depth = GetSubtypingDepth(module, target_type.ref_index());
+        if (rtt_depth >= kMinimumSupertypeArraySize) {
+          LiftoffRegister list_length(scratch2);
+          __ LoadSmiAsInt32(list_length, tmp1, kLengthOffset);
+          __ emit_i32_cond_jumpi(kUnsignedLessThanEqual, no_match,
+                                 list_length.gp(), rtt_depth, frozen);
+        }
+        // Load the candidate list slot into {tmp1}.
+        __ LoadTaggedPointer(
+            tmp1, tmp1, no_reg,
+            ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
+                                   rtt_depth * kTaggedSize));
       }
-      // Step 3: load the candidate list slot into {tmp1}, and compare it.
-      __ LoadTaggedPointer(
-          tmp1, tmp1, no_reg,
-          ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
-                                 rtt_depth * kTaggedSize));
       __ emit_cond_jump(kNotEqual, no_match, ValueKind::kRef, tmp1, rtt_reg,
                         frozen);
     }
@@ -7991,9 +7978,11 @@ class LiftoffCompiler {
 
     {
       FREEZE_STATE(frozen);
-      SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                   target_type, scratch_null, result.gp(), &return_false,
-                   null_succeeds ? kNullSucceeds : kNullFails, frozen);
+      constexpr bool kNoCustomDescriptor = false;
+      SubtypeCheck(decoder, obj_reg.gp(), obj.type, rtt_reg.gp(), target_type,
+                   scratch_null, result.gp(), &return_false,
+                   null_succeeds ? kNullSucceeds : kNullFails,
+                   kNoCustomDescriptor, frozen);
 
       __ LoadConstant(result, WasmValue(1));
       // TODO(jkummerow): Emit near jumps on platforms that have them.
@@ -8082,7 +8071,7 @@ class LiftoffCompiler {
   void RefCast(FullDecoder* decoder, const Value& obj, Value* result) {
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) return;
     LiftoffRegister rtt = RttCanon(decoder, result->type.ref_index(), {});
-    return RefCastImpl(decoder, result->type, obj, rtt);
+    return RefCastImpl(decoder, result->type, obj, rtt, false);
   }
 
   void RefCastDesc(FullDecoder* decoder, const Value& obj, const Value& desc,
@@ -8092,12 +8081,12 @@ class LiftoffCompiler {
       return;
     }
     LiftoffRegister rtt = GetRttFromDescriptorOnStack(decoder, desc);
-    // Pretending that the target type is exact skips the supertype check.
-    return RefCastImpl(decoder, result->type.AsExact(), obj, rtt);
+    return RefCastImpl(decoder, result->type, obj, rtt, true);
   }
 
   void RefCastImpl(FullDecoder* decoder, ValueType target_type,
-                   const Value& obj, LiftoffRegister rtt) {
+                   const Value& obj, LiftoffRegister rtt,
+                   bool rtt_is_custom_descriptor) {
     LiftoffRegList pinned{rtt};
     LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
     Register scratch_null =
@@ -8112,9 +8101,10 @@ class LiftoffCompiler {
           target_type.is_nullable() ? kNullSucceeds : kNullFails;
       OolTrapLabel trap =
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapIllegalCast);
-      SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt.gp(),
+      SubtypeCheck(decoder, obj_reg.gp(), obj.type, rtt.gp(),
                    target_type.heap_type(), scratch_null, scratch2,
-                   trap.label(), on_null, trap.frozen());
+                   trap.label(), on_null, rtt_is_custom_descriptor,
+                   trap.frozen());
     }
     __ PushRegister(obj.type.kind(), obj_reg);
   }
@@ -8196,7 +8186,8 @@ class LiftoffCompiler {
                 Value* /* result_on_branch */, uint32_t depth,
                 bool null_succeeds) {
     LiftoffRegister rtt = RttCanon(decoder, target_type.ref_index(), {});
-    return BrOnCastImpl(decoder, target_type, obj, rtt, depth, null_succeeds);
+    return BrOnCastImpl(decoder, target_type, obj, rtt, depth, null_succeeds,
+                        false);
   }
 
   void BrOnCastDesc(FullDecoder* decoder, HeapType target_type,
@@ -8206,11 +8197,11 @@ class LiftoffCompiler {
     LiftoffRegister rtt = GetRttFromDescriptorOnStack(decoder, descriptor);
     // Pretending that the target type is exact skips the supertype check.
     return BrOnCastImpl(decoder, target_type.AsExact(), obj, rtt, depth,
-                        null_succeeds);
+                        null_succeeds, true);
   }
   void BrOnCastImpl(FullDecoder* decoder, HeapType target_type,
                     const Value& obj, LiftoffRegister rtt, uint32_t depth,
-                    bool null_succeeds) {
+                    bool null_succeeds, bool rtt_is_custom_descriptor) {
     LiftoffRegList pinned{rtt};
     // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
@@ -8229,9 +8220,9 @@ class LiftoffCompiler {
     FREEZE_STATE(frozen);
 
     NullSucceeds null_handling = null_succeeds ? kNullSucceeds : kNullFails;
-    SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt.gp(),
-                 target_type, scratch_null, scratch2, &cont_false,
-                 null_handling, frozen);
+    SubtypeCheck(decoder, obj_reg.gp(), obj.type, rtt.gp(), target_type,
+                 scratch_null, scratch2, &cont_false, null_handling,
+                 rtt_is_custom_descriptor, frozen);
 
     BrOrRet(decoder, depth);
 
@@ -8243,7 +8234,7 @@ class LiftoffCompiler {
                     uint32_t depth, bool null_succeeds) {
     LiftoffRegister rtt = RttCanon(decoder, target_type.ref_index(), {});
     return BrOnCastFailImpl(decoder, target_type, obj, rtt, depth,
-                            null_succeeds);
+                            null_succeeds, false);
   }
 
   void BrOnCastDescFail(FullDecoder* decoder, HeapType target_type,
@@ -8253,12 +8244,12 @@ class LiftoffCompiler {
     LiftoffRegister rtt = GetRttFromDescriptorOnStack(decoder, descriptor);
     // Pretending that the target type is exact skips the supertype check.
     return BrOnCastFailImpl(decoder, target_type.AsExact(), obj, rtt, depth,
-                            null_succeeds);
+                            null_succeeds, true);
   }
 
   void BrOnCastFailImpl(FullDecoder* decoder, HeapType target_type,
                         const Value& obj, LiftoffRegister rtt, uint32_t depth,
-                        bool null_succeeds) {
+                        bool null_succeeds, bool rtt_is_custom_descriptor) {
     LiftoffRegList pinned{rtt};
     // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
@@ -8278,9 +8269,9 @@ class LiftoffCompiler {
     FREEZE_STATE(frozen);
 
     NullSucceeds null_handling = null_succeeds ? kNullSucceeds : kNullFails;
-    SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt.gp(),
-                 target_type, scratch_null, scratch2, &cont_branch,
-                 null_handling, frozen);
+    SubtypeCheck(decoder, obj_reg.gp(), obj.type, rtt.gp(), target_type,
+                 scratch_null, scratch2, &cont_branch, null_handling,
+                 rtt_is_custom_descriptor, frozen);
     __ emit_jump(&fallthrough);
 
     __ bind(&cont_branch);
@@ -9498,7 +9489,8 @@ class LiftoffCompiler {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
         __ CallIndirect(&sig, call_descriptor, target);
-        FinishCall(decoder, &sig, call_descriptor);
+        int pc_offset = __ pc_offset_for_safepoint();
+        FinishCall(decoder, &sig, call_descriptor, pc_offset);
       }
     } else {
       // Update call counts for inlining.
@@ -9526,7 +9518,8 @@ class LiftoffCompiler {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
         __ CallNativeWasmCode(addr);
-        FinishCall(decoder, &sig, call_descriptor);
+        int pc_offset = __ pc_offset_for_safepoint();
+        FinishCall(decoder, &sig, call_descriptor, pc_offset);
       }
     }
   }
@@ -9868,7 +9861,8 @@ class LiftoffCompiler {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
         __ CallIndirect(&sig, call_descriptor, target);
-        FinishCall(decoder, &sig, call_descriptor);
+        int pc_offset = __ pc_offset_for_safepoint();
+        FinishCall(decoder, &sig, call_descriptor, pc_offset);
       }
     }
   }
@@ -10021,7 +10015,8 @@ class LiftoffCompiler {
       source_position_table_builder_.AddPosition(
           __ pc_offset(), SourcePosition(decoder->position()), true);
       __ CallIndirect(&sig, call_descriptor, target_reg);
-      FinishCall(decoder, &sig, call_descriptor);
+      int pc_offset = __ pc_offset_for_safepoint();
+      FinishCall(decoder, &sig, call_descriptor, pc_offset);
     }
   }
 
@@ -10094,12 +10089,13 @@ class LiftoffCompiler {
                                         struct_type->field_offset(field_index));
   }
 
-  std::pair<bool, bool> null_checks_for_struct_op(ValueType struct_type,
-                                                  int field_index) {
+  std::pair<bool, bool> null_checks_for_struct_op(
+      ValueType struct_type, int field_index, bool requires_aligned_access) {
     bool explicit_null_check =
         struct_type.is_nullable() &&
         (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit ||
-         field_index > wasm::kMaxStructFieldIndexForImplicitNullCheck);
+         field_index > wasm::kMaxStructFieldIndexForImplicitNullCheck ||
+         requires_aligned_access);
     bool implicit_null_check =
         struct_type.is_nullable() && !explicit_null_check;
     return {explicit_null_check, implicit_null_check};
@@ -10134,11 +10130,10 @@ class LiftoffCompiler {
     } else {
       // Primitive kind.
       LoadType load_type = LoadType::ForValueKind(kind, is_signed);
-      // TODO(mliedtke): Mark load trapping if trapping
-      if (trapping) UNIMPLEMENTED();
       // TODO(mliedtke): Can we emit something better if the memory order is
       // acqrel?
-      __ AtomicLoad(dst, src, offset_reg, offset, load_type, pinned, false);
+      __ AtomicLoad(dst, src, offset_reg, offset, load_type, &protected_load_pc,
+                    pinned, false, LiftoffAssembler::kNative);
     }
     if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
   }
@@ -10170,14 +10165,14 @@ class LiftoffCompiler {
     uint32_t protected_load_pc = 0;
     if (is_reference(kind)) {
       __ AtomicStoreTaggedPointer(obj, offset_reg, offset, value.gp(), pinned,
-                                  memory_order,
-                                  trapping ? &protected_load_pc : nullptr);
+                                  memory_order, &protected_load_pc);
     } else {
       // Primitive kind.
       StoreType store_type = StoreType::ForValueKind(kind);
       // TODO(mliedtke): Mark load trapping if trapping
-      if (trapping) UNIMPLEMENTED();
-      __ AtomicStore(obj, offset_reg, offset, value, store_type, pinned, false);
+      __ AtomicStore(obj, offset_reg, offset, value, store_type,
+                     &protected_load_pc, pinned, false,
+                     LiftoffAssembler::kNative);
     }
     if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
   }
@@ -10216,8 +10211,9 @@ class LiftoffCompiler {
   }
 
   void FinishCall(FullDecoder* decoder, ValueKindSig* sig,
-                  compiler::CallDescriptor* call_descriptor) {
-    DefineSafepoint();
+                  compiler::CallDescriptor* call_descriptor,
+                  int pc_offset_after_call) {
+    DefineSafepoint(pc_offset_after_call);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     if (deopt_info_bytecode_offset_ == decoder->pc_offset() &&
@@ -10241,9 +10237,8 @@ class LiftoffCompiler {
       StoreFrameDescriptionForDeopt(decoder, adapt_shadow_stack_pc_offset);
     }
 
-    int pc_offset = __ pc_offset();
     MaybeOSR();
-    EmitLandingPad(decoder, pc_offset);
+    EmitLandingPad(decoder, pc_offset_after_call);
     __ FinishCall(sig, call_descriptor);
   }
 

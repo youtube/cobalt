@@ -88,6 +88,7 @@ using RTCOfferAnswerOptions = PeerConnectionInterface::RTCOfferAnswerOptions;
 using ::testing::Combine;
 using ::testing::ElementsAre;
 using ::testing::Pair;
+using ::testing::SizeIs;
 using ::testing::Values;
 
 constexpr int kIceCandidatesTimeout = 10000;
@@ -488,13 +489,17 @@ TEST_P(PeerConnectionIceTest, CannotAddCandidateWhenRemoteDescriptionNotSet) {
   const SocketAddress kCalleeAddress("1.1.1.1", 1111);
 
   auto caller = CreatePeerConnectionWithAudioVideo();
+  auto offer = caller->CreateOffer();
+  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer->description()->contents(), SizeIs(2));
+  std::string mid = offer->description()->contents()[0].mid();
   Candidate candidate = CreateLocalUdpCandidate(kCalleeAddress);
   std::unique_ptr<IceCandidate> jsep_candidate =
-      CreateIceCandidate(CN_AUDIO, 0, candidate);
+      CreateIceCandidate(mid, 0, candidate);
 
   EXPECT_FALSE(caller->pc()->AddIceCandidate(jsep_candidate.get()));
 
-  caller->CreateOfferAndSetAsLocal();
+  caller->SetLocalDescription(std::move(offer));
 
   EXPECT_FALSE(caller->pc()->AddIceCandidate(jsep_candidate.get()));
   EXPECT_METRIC_THAT(
@@ -640,7 +645,7 @@ TEST_P(PeerConnectionIceTest,
 
   // Expect both candidates to appear in the callee's remote description.
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
-  EXPECT_EQ(2u, callee->GetIceCandidatesFromRemoteDescription().size());
+  EXPECT_THAT(callee->GetIceCandidatesFromRemoteDescription(), SizeIs(2));
 }
 
 // The follow test verifies that SetLocal/RemoteDescription fails when an offer
@@ -759,7 +764,7 @@ TEST_P(PeerConnectionIceTest, TwoTrickledCandidatesAddedToRemoteDescription) {
   caller->AddIceCandidate(&candidate2);
 
   auto candidates = caller->GetIceCandidatesFromRemoteDescription();
-  ASSERT_EQ(2u, candidates.size());
+  ASSERT_THAT(candidates, SizeIs(2));
   EXPECT_PRED_FORMAT2(AssertCandidatesEqual, candidate1,
                       candidates[0]->candidate());
   EXPECT_PRED_FORMAT2(AssertCandidatesEqual, candidate2,
@@ -848,8 +853,12 @@ TEST_P(PeerConnectionIceTest,
   auto candidate = CreateLocalUdpCandidate(SocketAddress("1.1.1.1", 1111));
 
   auto caller = CreatePeerConnectionWithAudioVideo();
+  auto offer = caller->CreateOffer();
+  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer->description()->contents(), SizeIs(2));
+  std::string mid = offer->description()->contents()[0].mid();
   std::unique_ptr<IceCandidate> jsep_candidate =
-      CreateIceCandidate(CN_AUDIO, 0, candidate);
+      CreateIceCandidate(mid, 0, candidate);
 
   bool operation_completed = false;
   caller->pc()->AddIceCandidate(

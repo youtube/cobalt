@@ -52,6 +52,7 @@
 #include "ui/base/ui_base_types.h"
 #include "ui/display/display.h"
 #include "ui/display/display_finder.h"
+#include "ui/display/display_observer.h"
 #include "ui/display/screen.h"
 #include "ui/events/event_observer.h"
 #include "ui/views/controls/webview/webview.h"
@@ -391,12 +392,19 @@ void GlicWindowControllerImpl::OnWidgetUserResizeEnded() {
   }
 
   if (GetGlicWidget()) {
-    glic_size_ = GetGlicWidget()->GetSize();
+    glic_size_ = GetGlicWidget()->GetClientAreaBoundsInScreen().size();
     SaveWidgetPosition(/*user_modified=*/true);
   }
 
   glic_window_animator_->ResetLastTargetSize();
   user_resizing_ = false;
+}
+
+void GlicWindowControllerImpl::OnDisplayMetricsChanged(
+    const display::Display& display,
+    uint32_t changed_metrics) {
+  MaybeAdjustSizeForDisplay(/*animate=*/false);
+  AdjustPositionIfNeeded();
 }
 
 void GlicWindowControllerImpl::ShowAfterSignIn(base::WeakPtr<Browser> browser) {
@@ -985,9 +993,44 @@ void GlicWindowControllerImpl::EnableDragResize(bool enabled) {
     SetGlicWindowToFloatingMode(!enabled);
   }
 
-  GetGlicWidget()->widget_delegate()->SetCanResize(enabled);
+  MaybeSetWidgetCanResize();
   GetGlicView()->UpdateBackgroundColor();
   glic_window_animator_->MaybeAnimateToTargetSize();
+}
+
+void GlicWindowControllerImpl::MaybeSetWidgetCanResize() {
+  if (!GetGlicWidget()) {
+    return;
+  }
+  if (GetGlicWidget()->widget_delegate()->CanResize() == user_resizable_ ||
+      glic_window_animator_->IsAnimating()) {
+    // If the resize state is already correct or the widget is animating do not
+    // update the resize state.
+    return;
+  }
+
+#if BUILDFLAG(IS_WIN)
+  // On Windows when resize is enabled there is an invisible border added
+  // around the client area. We need to make the widget larger or smaller to
+  // keep the visible client area the same size.
+  gfx::Rect previous_client_bounds =
+      GetGlicWidget()->GetClientAreaBoundsInScreen();
+#endif  // BUILDFLAG(IS_WIN)
+
+  // Update resize state on widget delegate.
+  GetGlicWidget()->widget_delegate()->SetCanResize(user_resizable_);
+
+#if BUILDFLAG(IS_WIN)
+  if (user_resizable_) {
+    // Resizable so the widget area is larger than the client area.
+    gfx::Rect new_widget_bounds =
+        GetGlicWidget()->VisibleToWidgetBounds(previous_client_bounds);
+    GetGlicWidget()->SetBoundsConstrained(new_widget_bounds);
+  } else {
+    // Not resizable so the client and widget areas are the same.
+    GetGlicWidget()->SetBoundsConstrained(previous_client_bounds);
+  }
+#endif  // BUILDFLAG(IS_WIN)
 }
 
 gfx::Size GlicWindowControllerImpl::GetSize() {
@@ -1132,6 +1175,7 @@ void GlicWindowControllerImpl::HandleWindowDragWithOffset(
     // request.
     glic_window_animator_->MaybeAnimateToTargetSize();
 
+    MaybeAdjustSizeForDisplay(/*animate=*/false);
     AdjustPositionIfNeeded();
     SaveWidgetPosition(/*user_modified=*/true);
 
@@ -1150,6 +1194,9 @@ const mojom::PanelState& GlicWindowControllerImpl::GetPanelState() const {
 }
 
 void GlicWindowControllerImpl::AdjustPositionIfNeeded() {
+  if (!GetGlicWidget()) {
+    return;
+  }
   // Always have at least `kMinimumVisible` px visible from glic window in
   // both vertical and horizontal directions.
   constexpr int kMinimumVisible = 40;

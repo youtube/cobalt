@@ -28,5 +28,7 @@ RTC_EXTERN NSString *const kRTCFieldTrialEnabledValue;
  * values. See above for valid keys and values. Must be called before any other
  * call into WebRTC. See: webrtc/system_wrappers/include/field_trial.h
  */
+// TODO: bugs.webrtc.org/42220378 - Delete after January 1, 2026.
+RTC_OBJC_DEPRECATED("Pass field trials when building PeerConnectionFactory")
 RTC_EXTERN void RTCInitFieldTrialDictionary(
     NSDictionary<NSString *, NSString *> *fieldTrials);

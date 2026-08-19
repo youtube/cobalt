@@ -10,10 +10,9 @@
 
 #include "api/audio_codecs/audio_decoder.h"
 
-#include <stdlib.h>
-
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <optional>
 #include <tuple>

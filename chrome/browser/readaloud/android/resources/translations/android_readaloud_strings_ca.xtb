@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">Més opcions</translation>
 <translation id="565342223183747919">Toca per canviar el mode de reproducció</translation>
 <translation id="5694491020339060116">Menú de velocitat de reproducció</translation>
+<translation id="5961164658295696940">Toca per desplegar el reproductor i veure més opcions</translation>
 <translation id="5965409657393819302">Problema tècnic</translation>
 <translation id="6218961554829577610">No m'ha agradat la veu</translation>
 <translation id="6315170314923504164">Veu</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">S'està carregant…</translation>
 <translation id="6889157801232138307">Reproductor "Escolta aquesta pàgina"</translation>
 <translation id="7051308646573997571">Corall</translation>
-<translation id="7112750136794557642">Toca per desplegar el reproductor i veure més opcions.</translation>
 <translation id="7138678301420049075">Altres</translation>
 <translation id="7221920857098237570">Agradable</translation>
 <translation id="7237590978482584900">Despreocupada</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">Serena</translation>
 <translation id="8756370108715456837">Informació objectivament incorrecta</translation>
 <translation id="8953618380150219653">El reproductor "Escolta aquesta pàgina" s'ha obert a alçada completa.</translation>
+<translation id="9087782179025630211">Control de cerca. Han transcorregut <ph name="ELAPSED" /> de <ph name="TOTAL" />.</translation>
 <translation id="978117257931832348">Greu</translation>
 </translationbundle>

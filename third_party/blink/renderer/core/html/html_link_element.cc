@@ -117,6 +117,13 @@ void HTMLLinkElement::ParseAttribute(
           });
     }
     rel_list_->DidUpdateAttributeValue(params.old_value, value);
+    // We can respond to attribute mutations as usual, per the above code, but
+    // the link fetch & processing model must not be re-invoked for idempotent
+    // attribute mutations. See https://github.com/whatwg/html/issues/11400.
+    if (value == params.old_value &&
+        RuntimeEnabledFeatures::HTMLLinkElementAttributeValueChangesEnabled()) {
+      return;
+    }
     Process();
   } else if (name == html_names::kBlockingAttr) {
     blocking_attribute_->OnAttributeValueChanged(params.old_value, value);
@@ -130,12 +137,33 @@ void HTMLLinkElement::ParseAttribute(
     LogUpdateAttributeIfIsolatedWorldAndInDocument("link", params);
     HandleExpectHrefChanges(params.old_value, value);
     MaybeHandlePaymentLink();
+    // We can respond to attribute mutations as usual, per the above code, but
+    // the link fetch & processing model must not be re-invoked for idempotent
+    // attribute mutations. See https://github.com/whatwg/html/issues/11400.
+    if (value == params.old_value &&
+        RuntimeEnabledFeatures::HTMLLinkElementAttributeValueChangesEnabled()) {
+      return;
+    }
     Process();
   } else if (name == html_names::kTypeAttr) {
     type_ = value;
+    // We can respond to attribute mutations as usual, per the above code, but
+    // the link fetch & processing model must not be re-invoked for idempotent
+    // attribute mutations. See https://github.com/whatwg/html/issues/11400.
+    if (type_ == params.old_value &&
+        RuntimeEnabledFeatures::HTMLLinkElementAttributeValueChangesEnabled()) {
+      return;
+    }
     Process();
   } else if (name == html_names::kAsAttr) {
     as_ = value;
+    // We can respond to attribute mutations as usual, per the above code, but
+    // the link fetch & processing model must not be re-invoked for idempotent
+    // attribute mutations. See https://github.com/whatwg/html/issues/11400.
+    if (as_ == params.old_value &&
+        RuntimeEnabledFeatures::HTMLLinkElementAttributeValueChangesEnabled()) {
+      return;
+    }
     Process();
   } else if (name == html_names::kReferrerpolicyAttr) {
     if (!value.IsNull()) {
@@ -155,6 +183,13 @@ void HTMLLinkElement::ParseAttribute(
   } else if (name == html_names::kMediaAttr) {
     media_ = value.LowerASCII();
     HandleExpectMediaChanges();
+    // We can respond to attribute mutations as usual, per the above code, but
+    // the link fetch & processing model must not be re-invoked for idempotent
+    // attribute mutations. See https://github.com/whatwg/html/issues/11400.
+    if (media_ == params.old_value &&
+        RuntimeEnabledFeatures::HTMLLinkElementAttributeValueChangesEnabled()) {
+      return;
+    }
     Process(LinkLoadParameters::Reason::kMediaChange);
   } else if (name == html_names::kIntegrityAttr) {
     integrity_ = value;
@@ -503,12 +538,12 @@ AtomicString HTMLLinkElement::ParseSameDocumentIdFromHref(const String& href) {
   String actual_href =
       href.IsNull() ? FastGetAttribute(html_names::kHrefAttr) : href;
   if (actual_href.empty()) {
-    return WTF::g_null_atom;
+    return g_null_atom;
   }
 
   KURL url = GetDocument().CompleteURL(actual_href);
   if (!url.HasFragmentIdentifier()) {
-    return WTF::g_null_atom;
+    return g_null_atom;
   }
 
   return EqualIgnoringFragmentIdentifier(url, GetDocument().Url())

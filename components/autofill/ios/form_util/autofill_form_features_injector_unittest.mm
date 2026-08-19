@@ -62,9 +62,11 @@ TEST_F(AutofillFormInjectorTest, InjectFlagsWebFrames) {
       {kAutofillIsolatedWorldForJavascriptIos,
        autofill::features::kAutofillAcrossIframesIos,
        autofill::features::kAutofillAcrossIframesIosThrottling,
+       autofill::features::kAutofillIgnoreCheckableElements,
        kAutofillCorrectUserEditedBitInParsedField,
        kAutofillAllowDefaultPreventedSubmission, kAutofillDedupeFormSubmission,
-       kAutofillReportFormSubmissionErrors},
+       kAutofillReportFormSubmissionErrors,
+       kAutofillCountFormSubmissionInRenderer},
       /* disabled_features= */ {});
 
   AutofillFormFeaturesInjector injector(&fake_web_state_,
@@ -83,13 +85,17 @@ TEST_F(AutofillFormInjectorTest, InjectFlagsWebFrames) {
                     u"__gCrWeb.autofill_form_features."
                     u"setAutofillAcrossIframesThrottling(true);",
                     u"__gCrWeb.autofill_form_features."
+                    u"setAutofillIgnoreCheckableElements(true);",
+                    u"__gCrWeb.autofill_form_features."
                     u"setAutofillCorrectUserEditedBitInParsedField(true);",
                     u"__gCrWeb.autofill_form_features."
                     u"setAutofillAllowDefaultPreventedSubmission(true);",
                     u"__gCrWeb.autofill_form_features."
                     u"setAutofillDedupeFormSubmission(true);",
                     u"__gCrWeb.autofill_form_features."
-                    u"setAutofillReportFormSubmissionErrors(true);"));
+                    u"setAutofillReportFormSubmissionErrors(true);",
+                    u"__gCrWeb.autofill_form_features."
+                    u"setAutofillCountFormSubmissionInRenderer(true);"));
   }
 }
 

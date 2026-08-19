@@ -267,8 +267,8 @@
       <message name="IDS_IOS_ADVANCED_SIGNIN_SETTINGS_CANCEL_SYNC_ALERT_MESSAGE" desc="Alert title to ask if the user really wants to cancel sign-in and sync.">
         Cancel sync? You can turn on sync anytime in settings.
       </message>
-      <message name="IDS_IOS_AI_HUB_BWG_LABEL" translateable="false" desc="The button label for the Gemini entry point of the AI hub.">
-        Ask Me
+      <message name="IDS_IOS_AI_HUB_GEMINI_LABEL" translateable="false" desc="The button label for the Gemini entry point of the AI hub.">
+        Ask Gemini
       </message>
       <message name="IDS_IOS_AI_HUB_HIDE_READER_MODE_LABEL" desc="The button label for hiding Reader mode when it's active from the AI hub.">
         Hide Reader
@@ -1041,17 +1041,65 @@
           =1 {Item saved in your Google Account, {email}}
           other {Items saved in your Google Account, {email}}}
       </message>
-      <message name="IDS_IOS_BWG_CONSENT_PRIMARY_BUTTON" desc="Text for the BWG Consent primary button.">
+      <message name="IDS_IOS_BWG_CONSENT_FIRST_BOX_TITLE" desc="First box title text for the Gemini Consent page for managed accounts.">
+          Your page content is shared for more relevant answers
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_MANAGED_FIRST_BOX_BODY" desc="First box body text for the Gemini Consent page for managed accounts.">
+        When you use this feature, page content and URLs are sent to Google but won't be used to improve generative AI models. You can turn this off in settings anytime.
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_MANAGED_FOOTNOTE" desc="Footnote text for the Gemini Consent page for non managed accounts.">
+        Your organization's chats aren't used to improve our models. Gemini may display inaccurate info, including about people, so double-check it. Your privacy &amp; Gemini
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_MANAGED_SECOND_BOX_BODY" desc="Second box body text for the Gemini Consent page for managed accounts.">
+        Chats are reviewed and used to improve Google AI. Learn about your choices. Info about your location is also stored with your activity.
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_MANAGED_SECOND_BOX_TITLE" desc="Second box title text for the Gemini Consent page for managed accounts.">
+        Your organisation's data is private and secure
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_NON_MANAGED_FIRST_BOX_BODY" desc="First box body text for the Gemini Consent page for non managed accounts.">
+        When you use this feature, page content and URLs are sent to Google. You can turn this off in settings anytime.
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_NON_MANAGED_FOOTNOTE" desc="Footnote text for the Gemini Consent page for non managed accounts.">
+        Google Terms and the Gemini Apps Privacy Notice apply. Gemini can make mistakes, so double-check it.
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_BODY" desc="Second box body text for the Gemini Consent page for non managed accounts.">
+        Neither your conversations with Gemini nor your Google Workspace data will be reviewed by human reviewers or used to improve generative AI models.
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_TITLE" desc="Second box title text for the Gemini Consent page for non managed accounts.">
+        Your activity improves Google AI
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_PRIMARY_BUTTON" desc="Primary button text for the Gemini Consent page.">
         Yes, I'm in
       </message>
-      <message name="IDS_IOS_BWG_FIRST_RUN_SECONDARY_BUTTON" desc="Text for the BWG First Run secondary button.">
+      <message name="IDS_IOS_BWG_CONSENT_SECONDARY_BUTTON" desc="Secondary button text for the Gemini Consent page.">
         No thanks
       </message>
       <message name="IDS_IOS_BWG_IPH_TEXT" desc="Text for the BWG In-Product Help bubble.">
         You can open Gemini here
       </message>
-      <message name="IDS_IOS_BWG_PROMO_PRIMARY_BUTTON" desc="Text for the BWG Promo primary button.">
-        Try it out
+      <message name="IDS_IOS_BWG_PROMO_FIRST_BOX_BODY" desc="First box body text for the Gemini Promo page.">
+        Get relevant answers based on the content of the page you're on
+      </message>
+      <message name="IDS_IOS_BWG_PROMO_FIRST_BOX_TITLE" desc="First box title text for the Gemini Promo page.">
+        Ask about any page
+      </message>
+      <message name="IDS_IOS_BWG_PROMO_GRADIENT_TEXT" desc="Text for the BWG Promo that will have a gradient color.">
+        Gemini
+      </message>
+      <message name="IDS_IOS_BWG_PROMO_MAIN_TITLE" desc="Main title text for the Gemini Promo page.">
+        Get answers faster with Gemini in Chrome
+      </message>
+      <message name="IDS_IOS_BWG_PROMO_PRIMARY_BUTTON" desc="Primary button text for the Gemini Promo page.">
+        Get started
+      </message>
+      <message name="IDS_IOS_BWG_PROMO_SECONDARY_BUTTON" desc="Secondary button text for the Gemini Promo page.">
+        Cancel
+      </message>
+      <message name="IDS_IOS_BWG_PROMO_SECOND_BOX_BODY" desc="Second box body text for the Gemini Promo page.">
+        Get key takeaways and insights that help you understand any topic
+      </message>
+      <message name="IDS_IOS_BWG_PROMO_SECOND_BOX_TITLE" desc="Second box title text for the Gemini Promo page.">
+        Summarize
       </message>
       <message name="IDS_IOS_CALL_OMNIBOX_ACTION" desc="Call suggestion action button [iOS only]">
         Call
@@ -3113,6 +3161,9 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_KEEP_RECENT_PASSWORD" desc="Action button which will keep the most recently used password for a given site, and discard any older passwords, when the user is moving a password to their Google Account. [iOS only]">
         Keep recent password
       </message>
+      <message name="IDS_IOS_KEYBOARD_ACCESSORY_RECOVERY_PASSWORD_ACCESSIBILITY_LABEL" desc="Accessibility label for a recovery password suggestion available in the keyboard accessory. Indicates to the user that the recovery password can be used to log in if the main password doesn't work. [iOS only]">
+        Temp recovery in case of trouble
+      </message>
       <message name="IDS_IOS_KEYBOARD_ACCESSORY_VIEW_LENS" desc="Accessibility label for a button that opens Lens [iOS only].">
         Search with Lens
       </message>
@@ -4974,6 +5025,48 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_QR_SCANNER_VIEWPORT_CAPTION" desc="Message displayed below the QR scanner viewport instructing the user to position the scanned QR or bar code inside the viewport. [Length: unlimited] [iOS only]">
         Position QR code or barcode in this frame
       </message>
+      <message name="IDS_IOS_READER_MODE_OPTIONS_COLOR_THEME_BUTTON_ACCESSIBILITY_LABEL_DARK" desc="Label of a Reading mode options button which changes the Reading mode dark color scheme.">
+        Dark
+      </message>
+      <message name="IDS_IOS_READER_MODE_OPTIONS_COLOR_THEME_BUTTON_ACCESSIBILITY_LABEL_LIGHT" desc="Label of a Reading mode options button which changes the Reading mode light color scheme.">
+        Light
+      </message>
+      <message name="IDS_IOS_READER_MODE_OPTIONS_COLOR_THEME_BUTTON_ACCESSIBILITY_LABEL_SEPIA" desc="Label of a Reading mode options button which changes the Reading mode sepia color scheme.">
+        Sepia
+      </message>
+      <message name="IDS_IOS_READER_MODE_OPTIONS_COLOR_THEME_BUTTON_LABEL" desc="Label of a Reading mode options button which changes the Reading mode color scheme." meaning="Label of a Reading mode options button which changes the Reading mode color scheme. This should be one, at most two characters to preview the color scheme e.g. Aa in English.">
+        Aa
+      </message>
+      <message name="IDS_IOS_READER_MODE_OPTIONS_FONT_FAMILY_MENU_TITLE" desc="Title of the Reading mode font family drop-down menu which contains font families to choose from.">
+        Font
+      </message>
+      <message name="IDS_IOS_READER_MODE_OPTIONS_FONT_FAMILY_MONOSPACE_LABEL" desc="Title of the Monospace option in the Reading mode font family drop-down menu.">
+        Monospace
+      </message>
+      <message name="IDS_IOS_READER_MODE_OPTIONS_FONT_FAMILY_SANS_SERIF_LABEL" desc="Title of the Sans-Serif option in the Reading mode font family drop-down menu.">
+        Sans-Serif
+      </message>
+      <message name="IDS_IOS_READER_MODE_OPTIONS_FONT_FAMILY_SERIF_LABEL" desc="Title of the Serif option in the Reading mode font family drop-down menu.">
+        Serif
+      </message>
+      <message name="IDS_IOS_READER_MODE_OPTIONS_FONT_SIZE_DECREASE_BUTTON_ACCESSIBILITY_LABEL" desc="Accessibillity label of the Reading mode options button which decreases the font size in Reading mode.">
+        Decrease text size
+      </message>
+      <message name="IDS_IOS_READER_MODE_OPTIONS_FONT_SIZE_DECREASE_BUTTON_LABEL" desc="Label of the Reading mode options button which decreases the font size in Reading mode." meaning="Label of the Reading mode options button which decreases the font size in Reading mode. This should be one, at most two preview characters e.g. A in English, あ in Japanese, 小 in Chinese (to indicate smaller text). This button's text is smaller than average to indicate than tapping the button will decrease the font size in Reading mode.">
+        A
+      </message>
+      <message name="IDS_IOS_READER_MODE_OPTIONS_FONT_SIZE_INCREASE_BUTTON_ACCESSIBILITY_LABEL" desc="Accessibillity label of the Reading mode options button which increases the font size in Reading mode.">
+        Increase text size
+      </message>
+      <message name="IDS_IOS_READER_MODE_OPTIONS_FONT_SIZE_INCREASE_BUTTON_LABEL" desc="Label of the Reading mode options button which increases the font size in Reading mode." meaning="Label of the Reading mode options button which increases the font size in Reading mode. This should be one, at most two preview characters e.g. A in English, あ in Japanese, 大 in Chinese (to indicate larger text). This button's text is larger than average to indicate than tapping the button will increase the font size in Reading mode.">
+        A
+      </message>
+      <message name="IDS_IOS_READER_MODE_OPTIONS_HIDE_BUTTON_LABEL" desc="Label of a Reading mode options button which closes Reading mode.">
+        Turn Off
+      </message>
+      <message name="IDS_IOS_READER_MODE_OPTIONS_TITLE" desc="Title of the Reading mode options UI which gives user control over the Reading mode font family, font size, color scheme.">
+        Reading Mode
+      </message>
       <message name="IDS_IOS_READING_LIST_ACCESSIBILITY_STATE_DOWNLOADED" desc="Accessibility label for the offline status of the reading list entry. Read by Text To Speech.">
         Available offline
       </message>
@@ -5222,6 +5315,21 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       </message>
       <message name="IDS_IOS_SAFARI_IMPORT_ENTRY_POINT_TITLE" desc="Safari import entry point screen - Title.">
         Bring your data from Safari
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ACTION_BUTTON_SELECT_YOUR_FILE" desc="Safari import screen that handles the import process - Button text to select the file to import data from Safari. [iOS only]">
+        Select your file
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_INSTRUCTIONS_ONE" desc="Instructions view to teach users how to import data from Safari - step 1. [iOS only]">
+        Tap <ph name="BEGIN_BOLD">BEGIN_BOLD</ph>Select your file<ph name="END_BOLD">END_BOLD</ph>
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_INSTRUCTIONS_THREE" desc="Instructions view to teach users how to import data from Safari - step 2. [iOS only]">
+        Tap <ph name="BEGIN_BOLD">BEGIN_BOLD</ph>Done<ph name="END_BOLD">END_BOLD</ph>
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_INSTRUCTIONS_TWO" desc="Instructions view to teach users how to import data from Safari - step 3. [iOS only]">
+        Select your Safari export <ph name="BEGIN_BOLD">BEGIN_BOLD</ph>.zip<ph name="END_BOLD">END_BOLD</ph> file
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_TITLE" desc="Safari import screen that handles the import process - Title. [iOS only]">
+        Import your data
       </message>
       <message name="IDS_IOS_SAFETY_CHECK_COMPACT_DESCRIPTION_COMPROMISED_PASSWORD" desc="Tag label description displayed for the Safety Check module in the Magic Stack when the Password check finds a compromised password issue. [iOS only]">
         You have compromised passwords.
@@ -7022,8 +7130,8 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_TOOLS_MENU_HELP_URL" translateable="false">
         https://support.google.com/chrome/?p=chrome_help&amp;hl=[GRITLANGCODE]&amp;ios=1
       </message>
-      <message name="IDS_IOS_TOOLS_MENU_HIDE_READER_MODE" desc="The iOS menu item for closing the Reader Mode UI displayed for the current page. [iOS only]" meaning="[Length: 16em] [iOS only] This is a feature name in title case.">
-        Hide Reader Mode
+      <message name="IDS_IOS_TOOLS_MENU_HIDE_READER_MODE" desc="The iOS menu item for closing the Reading Mode UI displayed for the current page. [iOS only]" meaning="[Length: 16em] [iOS only] This is a feature name in title case.">
+        Hide Reading Mode
       </message>
       <message name="IDS_IOS_TOOLS_MENU_HISTORY" desc="The Tools menu item for opening the navigation history menu" meaning="[Length: 16em] [iOS only] This is a feature name in title case.">
         History
@@ -7067,8 +7175,8 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_TOOLS_MENU_QR_SCANNER" desc="The iOS menu item for opening the QR Code Scanner screen, allowing the user to scan QR code.">
         Scan QR Code
       </message>
-      <message name="IDS_IOS_TOOLS_MENU_READER_MODE" desc="The iOS menu item for opening the current page in Reader Mode. [iOS only]" meaning="[Length: 16em] [iOS only] This is a feature name in title case.">
-        Show Reader Mode
+      <message name="IDS_IOS_TOOLS_MENU_READER_MODE" desc="The iOS menu item for opening the current page in Reading Mode. [iOS only]" meaning="[Length: 16em] [iOS only] This is a feature name in title case.">
+        Show Reading Mode
       </message>
       <message name="IDS_IOS_TOOLS_MENU_READING_LIST" desc="The iOS menu item for opening the reading list [iOS only]" meaning="[Length: 16em] [iOS only] This is a feature name in title case.">
         Reading List

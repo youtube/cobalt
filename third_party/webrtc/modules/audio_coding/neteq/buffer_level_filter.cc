@@ -10,10 +10,9 @@
 
 #include "modules/audio_coding/neteq/buffer_level_filter.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 
 #include "rtc_base/numerics/safe_conversions.h"
 

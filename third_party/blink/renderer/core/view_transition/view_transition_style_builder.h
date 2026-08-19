@@ -33,16 +33,20 @@ class ViewTransitionStyleBuilder {
                      const String& tag,
                      const ContainerProperties& source_properties,
                      const CapturedCssProperties& animated_css_properties,
-                     const gfx::Transform& parent_inverse_transform);
+                     const gfx::Transform& parent_transform);
 
   void AddContainerStyles(const String& tag,
                           const ContainerProperties& properties,
                           const CapturedCssProperties& captured_css_properites,
-                          const gfx::Transform& parent_inverse_transform);
+                          const gfx::Transform& parent_transform);
 
   void AddGroupChildrenStyles(
       const String& name,
       const CapturedCssProperties& captured_css_properites);
+
+  // Adds styles that normally would go into transition_animation.css, except
+  // that they are currently being flag guarded.
+  void AddFlagGuardedDefaultAnimationStyles();
 
   String Build();
 
@@ -51,7 +55,7 @@ class ViewTransitionStyleBuilder {
   String AddKeyframes(const String& tag,
                       const ContainerProperties& source_properties,
                       const CapturedCssProperties& captured_css_properties,
-                      const gfx::Transform& parent_inverse_transform);
+                      const gfx::Transform& parent_transform);
   void AddRules(const String& selector, const String& tag, const String& rules);
   void AddSelector(const String& name, const String& tag);
 

@@ -673,8 +673,8 @@ class QUICHE_NO_EXPORT UnsubscribeMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtUnsubscribe>(values);
-    if (cast.subscribe_id != unsubscribe_.subscribe_id) {
-      QUIC_LOG(INFO) << "UNSUBSCRIBE subscribe ID mismatch";
+    if (cast.request_id != unsubscribe_.request_id) {
+      QUIC_LOG(INFO) << "UNSUBSCRIBE request ID mismatch";
       return false;
     }
     return true;
@@ -688,11 +688,11 @@ class QUICHE_NO_EXPORT UnsubscribeMessage : public TestMessageBase {
 
  private:
   uint8_t raw_packet_[4] = {
-      0x0a, 0x00, 0x01, 0x03,  // subscribe_id = 3
+      0x0a, 0x00, 0x01, 0x03,  // request_id = 3
   };
 
   MoqtUnsubscribe unsubscribe_ = {
-      /*subscribe_id=*/3,
+      /*request_id=*/3,
   };
 };
 
@@ -704,8 +704,8 @@ class QUICHE_NO_EXPORT SubscribeDoneMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtSubscribeDone>(values);
-    if (cast.subscribe_id != subscribe_done_.subscribe_id) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_DONE subscribe ID mismatch";
+    if (cast.request_id != subscribe_done_.request_id) {
+      QUIC_LOG(INFO) << "SUBSCRIBE_DONE request ID mismatch";
       return false;
     }
     if (cast.status_code != subscribe_done_.status_code) {
@@ -716,8 +716,8 @@ class QUICHE_NO_EXPORT SubscribeDoneMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE_DONE stream count mismatch";
       return false;
     }
-    if (cast.reason_phrase != subscribe_done_.reason_phrase) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_DONE reason phrase mismatch";
+    if (cast.error_reason != subscribe_done_.error_reason) {
+      QUIC_LOG(INFO) << "SUBSCRIBE_DONE error reason mismatch";
       return false;
     }
 
@@ -732,16 +732,16 @@ class QUICHE_NO_EXPORT SubscribeDoneMessage : public TestMessageBase {
 
  private:
   uint8_t raw_packet_[9] = {
-      0x0b, 0x00, 0x06, 0x02, 0x02,  // subscribe_id = 2, error_code = 2,
+      0x0b, 0x00, 0x06, 0x02, 0x02,  // request_id = 2, error_code = 2,
       0x05,                          // stream_count = 5
-      0x02, 0x68, 0x69,              // reason_phrase = "hi"
+      0x02, 0x68, 0x69,              // error_reason = "hi"
   };
 
   MoqtSubscribeDone subscribe_done_ = {
-      /*subscribe_id=*/2,
+      /*request_id=*/2,
       /*error_code=*/SubscribeDoneCode::kTrackEnded,
       /*stream_count=*/5,
-      /*reason_phrase=*/"hi",
+      /*error_reason=*/"hi",
   };
 };
 
@@ -1321,38 +1321,9 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "FETCH group_order mismatch";
       return false;
     }
-    if (cast.joining_fetch.has_value() != fetch_.joining_fetch.has_value()) {
-      QUIC_LOG(INFO) << "FETCH type mismatch";
+    if (cast.fetch != fetch_.fetch) {
+      QUIC_LOG(INFO) << "FETCH mismatch";
       return false;
-    }
-    if (cast.joining_fetch.has_value()) {
-      if (cast.joining_fetch->joining_subscribe_id !=
-          fetch_.joining_fetch->joining_subscribe_id) {
-        QUIC_LOG(INFO) << "FETCH joining_subscribe_id mismatch";
-        return false;
-      }
-      if (cast.joining_fetch->preceding_group_offset !=
-          fetch_.joining_fetch->preceding_group_offset) {
-        QUIC_LOG(INFO) << "FETCH preceding_group_offset mismatch";
-        return false;
-      }
-    } else {
-      if (cast.full_track_name != fetch_.full_track_name) {
-        QUIC_LOG(INFO) << "FETCH full_track_name mismatch";
-        return false;
-      }
-      if (cast.start_object != fetch_.start_object) {
-        QUIC_LOG(INFO) << "FETCH start_object mismatch";
-        return false;
-      }
-      if (cast.end_group != fetch_.end_group) {
-        QUIC_LOG(INFO) << "FETCH end_group mismatch";
-        return false;
-      }
-      if (cast.end_object != fetch_.end_object) {
-        QUIC_LOG(INFO) << "FETCH end_object mismatch";
-        return false;
-      }
     }
     if (cast.parameters != fetch_.parameters) {
       QUIC_LOG(INFO) << "FETCH parameters mismatch";
@@ -1373,8 +1344,8 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
     // Avoid varint nonsense.
     QUICHE_CHECK(group < 64);
     QUICHE_CHECK(!object.has_value() || *object < 64);
-    fetch_.end_group = group;
-    fetch_.end_object = object;
+    std::get<StandaloneFetch>(fetch_.fetch).end_group = group;
+    std::get<StandaloneFetch>(fetch_.fetch).end_object = object;
     raw_packet_[18] = group;
     raw_packet_[19] = object.has_value() ? (*object + 1) : 0;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
@@ -1403,20 +1374,22 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
       /*fetch_id =*/1,
       /*subscriber_priority=*/2,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*joining_fetch=*/std::optional<JoiningFetch>(),
-      FullTrackName("foo", "bar"),
-      /*start_object=*/Location{1, 2},
-      /*end_group=*/5,
-      /*end_object=*/6,
+      /*fetch =*/
+      StandaloneFetch{
+          FullTrackName("foo", "bar"),
+          /*start_object=*/Location{1, 2},
+          /*end_group=*/5,
+          /*end_object=*/6,
+      },
       VersionSpecificParameters(AuthTokenType::kOutOfBand, "baz"),
   };
 };
 
 // This is not used in the parameterized Parser and Framer tests, because it
 // does not have its own MoqtMessageType.
-class QUICHE_NO_EXPORT JoiningFetchMessage : public TestMessageBase {
+class QUICHE_NO_EXPORT RelativeJoiningFetchMessage : public TestMessageBase {
  public:
-  JoiningFetchMessage() : TestMessageBase() {
+  RelativeJoiningFetchMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
   bool EqualFieldValues(MessageStructuredData& values) const override {
@@ -1433,38 +1406,9 @@ class QUICHE_NO_EXPORT JoiningFetchMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "FETCH group_order mismatch";
       return false;
     }
-    if (cast.joining_fetch.has_value() != fetch_.joining_fetch.has_value()) {
-      QUIC_LOG(INFO) << "FETCH type mismatch";
+    if (cast.fetch != fetch_.fetch) {
+      QUIC_LOG(INFO) << "FETCH mismatch";
       return false;
-    }
-    if (cast.joining_fetch.has_value()) {
-      if (cast.joining_fetch->joining_subscribe_id !=
-          fetch_.joining_fetch->joining_subscribe_id) {
-        QUIC_LOG(INFO) << "FETCH joining_subscribe_id mismatch";
-        return false;
-      }
-      if (cast.joining_fetch->preceding_group_offset !=
-          fetch_.joining_fetch->preceding_group_offset) {
-        QUIC_LOG(INFO) << "FETCH preceding_group_offset mismatch";
-        return false;
-      }
-    } else {
-      if (cast.full_track_name != fetch_.full_track_name) {
-        QUIC_LOG(INFO) << "FETCH full_track_name mismatch";
-        return false;
-      }
-      if (cast.start_object != fetch_.start_object) {
-        QUIC_LOG(INFO) << "FETCH start_object mismatch";
-        return false;
-      }
-      if (cast.end_group != fetch_.end_group) {
-        QUIC_LOG(INFO) << "FETCH end_group mismatch";
-        return false;
-      }
-      if (cast.end_object != fetch_.end_object) {
-        QUIC_LOG(INFO) << "FETCH end_object mismatch";
-        return false;
-      }
     }
     if (cast.parameters != fetch_.parameters) {
       QUIC_LOG(INFO) << "FETCH parameters mismatch";
@@ -1492,7 +1436,7 @@ class QUICHE_NO_EXPORT JoiningFetchMessage : public TestMessageBase {
       0x01,        // fetch_id = 1
       0x02,        // priority = kHigh
       0x01,        // group_order = kAscending
-      0x02,        // type = kJoining
+      0x02,        // type = kRelativeJoining
       0x02, 0x02,  // joining_subscribe_id = 2, 2 groups
       0x01, 0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
   };
@@ -1501,12 +1445,72 @@ class QUICHE_NO_EXPORT JoiningFetchMessage : public TestMessageBase {
       /*fetch_id =*/1,
       /*subscriber_priority=*/2,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*joining_fetch=*/JoiningFetch{2, 2},
-      /* the next four are ignored for joining fetches*/
-      FullTrackName("foo", "bar"),
-      /*start_object=*/Location{1, 2},
-      /*end_group=*/5,
-      /*end_object=*/6,
+      /*fetch=*/JoiningFetchRelative{2, 2},
+      VersionSpecificParameters(AuthTokenType::kOutOfBand, "baz"),
+  };
+};
+
+// This is not used in the parameterized Parser and Framer tests, because it
+// does not have its own MoqtMessageType.
+class QUICHE_NO_EXPORT AbsoluteJoiningFetchMessage : public TestMessageBase {
+ public:
+  AbsoluteJoiningFetchMessage() : TestMessageBase() {
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+  }
+  bool EqualFieldValues(MessageStructuredData& values) const override {
+    auto cast = std::get<MoqtFetch>(values);
+    if (cast.fetch_id != fetch_.fetch_id) {
+      QUIC_LOG(INFO) << "FETCH fetch_id mismatch";
+      return false;
+    }
+    if (cast.subscriber_priority != fetch_.subscriber_priority) {
+      QUIC_LOG(INFO) << "FETCH subscriber_priority mismatch";
+      return false;
+    }
+    if (cast.group_order != fetch_.group_order) {
+      QUIC_LOG(INFO) << "FETCH group_order mismatch";
+      return false;
+    }
+    if (cast.fetch != fetch_.fetch) {
+      QUIC_LOG(INFO) << "FETCH mismatch";
+      return false;
+    }
+    if (cast.parameters != fetch_.parameters) {
+      QUIC_LOG(INFO) << "FETCH parameters mismatch";
+      return false;
+    }
+    return true;
+  }
+
+  void ExpandVarints() override {
+    ExpandVarintsImpl("v--vvv---v---vvvvvv-----");
+  }
+
+  MessageStructuredData structured_data() const override {
+    return TestMessageBase::MessageStructuredData(fetch_);
+  }
+
+  void SetGroupOrder(uint8_t group_order) {
+    raw_packet_[5] = static_cast<uint8_t>(group_order);
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+  }
+
+ private:
+  uint8_t raw_packet_[17] = {
+      0x16, 0x00, 0x0e,
+      0x01,        // fetch_id = 1
+      0x02,        // priority = kHigh
+      0x01,        // group_order = kAscending
+      0x03,        // type = kAbsoluteJoining
+      0x02, 0x02,  // joining_subscribe_id = 2, group_id = 2
+      0x01, 0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
+  };
+
+  MoqtFetch fetch_ = {
+      /*fetch_id =*/1,
+      /*subscriber_priority=*/2,
+      /*group_order=*/MoqtDeliveryOrder::kAscending,
+      /*fetch=*/JoiningFetchAbsolute{2, 2},
       VersionSpecificParameters(AuthTokenType::kOutOfBand, "baz"),
   };
 };

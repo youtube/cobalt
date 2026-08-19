@@ -18,7 +18,7 @@
 /*                            if x1 & (2^256-1) < 2^255 then x1 & (2^256-1) else (x1 & (2^256-1)) - 2^256 */
 
 #include "bedrock_unverified_platform.c.inc"
-#include "p256_bedrock.c.inc"
+#include "p256_field_64.br.c.inc"
 #include <stdint.h>
 #include <intrin.h>
 #if defined(_M_X64)
@@ -773,45 +773,8 @@ static FIAT_P256_FIAT_INLINE void fiat_p256_square(fiat_p256_montgomery_domain_f
  *
  */
 static FIAT_P256_FIAT_INLINE void fiat_p256_add(fiat_p256_montgomery_domain_field_element out1, const fiat_p256_montgomery_domain_field_element arg1, const fiat_p256_montgomery_domain_field_element arg2) {
-  uint64_t x1;
-  fiat_p256_uint1 x2;
-  uint64_t x3;
-  fiat_p256_uint1 x4;
-  uint64_t x5;
-  fiat_p256_uint1 x6;
-  uint64_t x7;
-  fiat_p256_uint1 x8;
-  uint64_t x9;
-  fiat_p256_uint1 x10;
-  uint64_t x11;
-  fiat_p256_uint1 x12;
-  uint64_t x13;
-  fiat_p256_uint1 x14;
-  uint64_t x15;
-  fiat_p256_uint1 x16;
-  uint64_t x17;
-  fiat_p256_uint1 x18;
-  uint64_t x19;
-  uint64_t x20;
-  uint64_t x21;
-  uint64_t x22;
-  fiat_p256_addcarryx_u64(&x1, &x2, 0x0, (arg1[0]), (arg2[0]));
-  fiat_p256_addcarryx_u64(&x3, &x4, x2, (arg1[1]), (arg2[1]));
-  fiat_p256_addcarryx_u64(&x5, &x6, x4, (arg1[2]), (arg2[2]));
-  fiat_p256_addcarryx_u64(&x7, &x8, x6, (arg1[3]), (arg2[3]));
-  fiat_p256_subborrowx_u64(&x9, &x10, 0x0, x1, UINT64_C(0xffffffffffffffff));
-  fiat_p256_subborrowx_u64(&x11, &x12, x10, x3, UINT32_C(0xffffffff));
-  fiat_p256_subborrowx_u64(&x13, &x14, x12, x5, 0x0);
-  fiat_p256_subborrowx_u64(&x15, &x16, x14, x7, UINT64_C(0xffffffff00000001));
-  fiat_p256_subborrowx_u64(&x17, &x18, x16, x8, 0x0);
-  fiat_p256_cmovznz_u64(&x19, x18, x9, x1);
-  fiat_p256_cmovznz_u64(&x20, x18, x11, x3);
-  fiat_p256_cmovznz_u64(&x21, x18, x13, x5);
-  fiat_p256_cmovznz_u64(&x22, x18, x15, x7);
-  out1[0] = x19;
-  out1[1] = x20;
-  out1[2] = x21;
-  out1[3] = x22;
+  // NOTE: edited by hand, see third_party/fiat/README.md
+  p256_coord_add((br_word_t)out1, (br_word_t)arg1, (br_word_t)arg2);
 }
 
 /*

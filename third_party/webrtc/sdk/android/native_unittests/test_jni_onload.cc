@@ -12,11 +12,10 @@
 #undef JNIEXPORT
 #define JNIEXPORT __attribute__((visibility("default")))
 
-#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "sdk/android/native_api/base/init.h"
-#include "sdk/android/native_api/jni/java_types.h"
 #include "test/android/native_test_launcher.h"  // nogncheck
+#include "third_party/jni_zero/jni_zero.h"
 
 // This is called by the VM when the shared library is first loaded.
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {

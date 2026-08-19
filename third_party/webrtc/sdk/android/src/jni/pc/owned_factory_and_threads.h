@@ -11,12 +11,12 @@
 #ifndef SDK_ANDROID_SRC_JNI_PC_OWNED_FACTORY_AND_THREADS_H_
 #define SDK_ANDROID_SRC_JNI_PC_OWNED_FACTORY_AND_THREADS_H_
 
-#include <jni.h>
 
 #include <memory>
-#include <utility>
 
 #include "api/peer_connection_interface.h"
+#include "api/scoped_refptr.h"
+#include "rtc_base/socket_factory.h"
 #include "rtc_base/thread.h"
 
 namespace webrtc {

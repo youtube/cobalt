@@ -184,23 +184,20 @@ bool IsStoreToNonEscapedObject(const NodeBase* node) {
   return false;
 }
 
-void PrintInputs(std::ostream& os, MaglevGraphLabeller* graph_labeller,
-                 const NodeBase* node) {
+void PrintInputs(std::ostream& os, const NodeBase* node) {
   if (!node->has_inputs()) return;
 
   os << " [";
   for (int i = 0; i < node->input_count(); i++) {
     if (i != 0) os << ", ";
-    graph_labeller->PrintInput(os, node->input(i));
+    GetCurrentGraphLabeller()->PrintInput(os, node->input(i));
   }
   os << "]";
 }
 
-void PrintResult(std::ostream& os, MaglevGraphLabeller* graph_labeller,
-                 const NodeBase* node) {}
+void PrintResult(std::ostream& os, const NodeBase* node) {}
 
-void PrintResult(std::ostream& os, MaglevGraphLabeller* graph_labeller,
-                 const ValueNode* node) {
+void PrintResult(std::ostream& os, const ValueNode* node) {
   os << " → " << node->result().operand();
   if (node->result().operand().IsAllocated() && node->is_spilled() &&
       node->spill_slot() != node->result().operand()) {
@@ -228,21 +225,17 @@ void PrintResult(std::ostream& os, MaglevGraphLabeller* graph_labeller,
   }
 }
 
-void PrintTargets(std::ostream& os, MaglevGraphLabeller* graph_labeller,
-                  const NodeBase* node) {}
+void PrintTargets(std::ostream& os, const NodeBase* node) {}
 
-void PrintTargets(std::ostream& os, MaglevGraphLabeller* graph_labeller,
-                  const UnconditionalControlNode* node) {
+void PrintTargets(std::ostream& os, const UnconditionalControlNode* node) {
   os << " b" << node->target()->id();
 }
 
-void PrintTargets(std::ostream& os, MaglevGraphLabeller* graph_labeller,
-                  const BranchControlNode* node) {
+void PrintTargets(std::ostream& os, const BranchControlNode* node) {
   os << " b" << node->if_true()->id() << " b" << node->if_false()->id();
 }
 
-void PrintTargets(std::ostream& os, MaglevGraphLabeller* graph_labeller,
-                  const Switch* node) {
+void PrintTargets(std::ostream& os, const Switch* node) {
   for (int i = 0; i < node->size(); i++) {
     const BasicBlockRef& target = node->Cast<Switch>()->targets()[i];
     os << " b" << target.block_ptr()->id();
@@ -271,18 +264,17 @@ class MaybeUnparkForPrint {
 };
 
 template <typename NodeT>
-void PrintImpl(std::ostream& os, MaglevGraphLabeller* graph_labeller,
-               const NodeT* node, bool skip_targets) {
+void PrintImpl(std::ostream& os, const NodeT* node, bool skip_targets) {
   MaybeUnparkForPrint unpark;
   os << node->opcode();
-  node->PrintParams(os, graph_labeller);
-  PrintInputs(os, graph_labeller, node);
-  PrintResult(os, graph_labeller, node);
+  node->PrintParams(os);
+  PrintInputs(os, node);
+  PrintResult(os, node);
   if (IsStoreToNonEscapedObject(node)) {
     os << " 🪦";
   }
   if (!skip_targets) {
-    PrintTargets(os, graph_labeller, node);
+    PrintTargets(os, node);
   }
 }
 
@@ -327,12 +319,10 @@ bool CheckToBooleanOnAllRoots(LocalIsolate* local_isolate) {
 
 }  // namespace
 
-void VirtualObjectList::Print(std::ostream& os, const char* prefix,
-                              MaglevGraphLabeller* labeller) const {
-  CHECK_NOT_NULL(labeller);
+void VirtualObjectList::Print(std::ostream& os, const char* prefix) const {
   os << prefix;
   for (const VirtualObject* vo : *this) {
-    labeller->PrintNodeLabel(os, vo);
+    GetCurrentGraphLabeller()->PrintNodeLabel(os, vo);
     os << "; ";
   }
   os << std::endl;
@@ -446,12 +436,11 @@ const InterpretedDeoptFrame& LazyDeoptInfo::GetFrameForExceptionHandler(
   return target_frame->as_interpreted();
 }
 
-void NodeBase::Print(std::ostream& os, MaglevGraphLabeller* graph_labeller,
-                     bool skip_targets) const {
+void NodeBase::Print(std::ostream& os, bool skip_targets) const {
   switch (opcode()) {
 #define V(Name)         \
   case Opcode::k##Name: \
-    return PrintImpl(os, graph_labeller, this->Cast<Name>(), skip_targets);
+    return PrintImpl(os, this->Cast<Name>(), skip_targets);
     NODE_BASE_LIST(V)
 #undef V
   }
@@ -459,8 +448,7 @@ void NodeBase::Print(std::ostream& os, MaglevGraphLabeller* graph_labeller,
 }
 
 void NodeBase::Print() const {
-  MaglevGraphLabeller labeller;
-  Print(std::cout, &labeller);
+  Print(std::cout);
   std::cout << std::endl;
 }
 
@@ -696,6 +684,9 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kLoadFixedDoubleArrayElement:
     case Opcode::kLoadHoleyFixedDoubleArrayElement:
     case Opcode::kLoadHoleyFixedDoubleArrayElementCheckedNotHole:
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    case Opcode::kLoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole:
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case Opcode::kLoadSignedIntDataViewElement:
     case Opcode::kLoadDoubleDataViewElement:
     case Opcode::kLoadTypedArrayLength:
@@ -802,6 +793,7 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kFloat64Round:
     case Opcode::kFloat64ToBoolean:
     case Opcode::kFloat64Ieee754Unary:
+    case Opcode::kFloat64Ieee754Binary:
     case Opcode::kInt32CountLeadingZeros:
     case Opcode::kTaggedCountLeadingZeros:
     case Opcode::kFloat64CountLeadingZeros:
@@ -840,6 +832,16 @@ ExternalReference Float64Ieee754Unary::ieee_function_ref() const {
   }
 }
 
+ExternalReference Float64Ieee754Binary::ieee_function_ref() const {
+  switch (ieee_function_) {
+#define CASE(MathName, ExtName, EnumName) \
+  case Ieee754Function::k##EnumName:      \
+    return ExternalReference::ieee754_##ExtName##_function();
+    IEEE_754_BINARY_LIST(CASE)
+#undef CASE
+  }
+}
+
 // ---
 // Check input value representation
 // ---
@@ -861,20 +863,16 @@ ValueRepresentation ToValueRepresentation(MachineType type) {
 }
 
 void CheckValueInputIs(const NodeBase* node, int i,
-                       ValueRepresentation expected,
-                       MaglevGraphLabeller* graph_labeller) {
+                       ValueRepresentation expected) {
   ValueNode* input = node->input(i).node();
   DCHECK(!input->Is<Identity>());
   ValueRepresentation got = input->properties().value_representation();
-  // Allow Float64 values to be inputs when HoleyFloat64 is expected.
-  bool valid =
-      (got == expected) || (got == ValueRepresentation::kFloat64 &&
-                            expected == ValueRepresentation::kHoleyFloat64);
+  bool valid = ValueRepresentationIs(got, expected);
   if (!valid) {
     std::ostringstream str;
     str << "Type representation error: node ";
-    if (graph_labeller) {
-      str << "#" << graph_labeller->NodeId(node) << " : ";
+    if (GetCurrentGraphLabeller()) {
+      str << "#" << GetCurrentGraphLabeller()->NodeId(node) << " : ";
     }
     str << node->opcode() << " (input @" << i << " = " << input->opcode()
         << ") type " << got << " is not " << expected;
@@ -882,15 +880,14 @@ void CheckValueInputIs(const NodeBase* node, int i,
   }
 }
 
-void CheckValueInputIs(const NodeBase* node, int i, Opcode expected,
-                       MaglevGraphLabeller* graph_labeller) {
+void CheckValueInputIs(const NodeBase* node, int i, Opcode expected) {
   ValueNode* input = node->input(i).node();
   Opcode got = input->opcode();
   if (got != expected) {
     std::ostringstream str;
     str << "Opcode error: node ";
-    if (graph_labeller) {
-      str << "#" << graph_labeller->NodeId(node) << " : ";
+    if (GetCurrentGraphLabeller()) {
+      str << "#" << GetCurrentGraphLabeller()->NodeId(node) << " : ";
     }
     str << node->opcode() << " (input @" << i << " = " << input->opcode()
         << ") opcode " << got << " is not " << expected;
@@ -898,20 +895,19 @@ void CheckValueInputIs(const NodeBase* node, int i, Opcode expected,
   }
 }
 
-void GeneratorStore::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+void GeneratorStore::VerifyInputs() const {
   for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
   }
 }
 
-void Phi::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+void Phi::VerifyInputs() const {
   switch (value_representation()) {
-#define CASE_REPR(repr)                                        \
-  case ValueRepresentation::k##repr:                           \
-    for (int i = 0; i < input_count(); i++) {                  \
-      CheckValueInputIs(this, i, ValueRepresentation::k##repr, \
-                        graph_labeller);                       \
-    }                                                          \
+#define CASE_REPR(repr)                                         \
+  case ValueRepresentation::k##repr:                            \
+    for (int i = 0; i < input_count(); i++) {                   \
+      CheckValueInputIs(this, i, ValueRepresentation::k##repr); \
+    }                                                           \
     break;
 
     CASE_REPR(Tagged)
@@ -925,9 +921,9 @@ void Phi::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   }
 }
 
-void Call::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+void Call::VerifyInputs() const {
   for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
   }
 }
 
@@ -939,10 +935,9 @@ void Call::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
-void CallForwardVarargs::VerifyInputs(
-    MaglevGraphLabeller* graph_labeller) const {
+void CallForwardVarargs::VerifyInputs() const {
   for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
   }
 }
 
@@ -954,10 +949,9 @@ void CallForwardVarargs::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
-void CallWithArrayLike::VerifyInputs(
-    MaglevGraphLabeller* graph_labeller) const {
+void CallWithArrayLike::VerifyInputs() const {
   for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
   }
 }
 
@@ -969,9 +963,9 @@ void CallWithArrayLike::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
-void CallWithSpread::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+void CallWithSpread::VerifyInputs() const {
   for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
   }
 }
 
@@ -983,9 +977,9 @@ void CallWithSpread::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
-void CallSelf::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+void CallSelf::VerifyInputs() const {
   for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
   }
 }
 
@@ -997,10 +991,9 @@ void CallSelf::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
-void CallKnownJSFunction::VerifyInputs(
-    MaglevGraphLabeller* graph_labeller) const {
+void CallKnownJSFunction::VerifyInputs() const {
   for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
   }
 }
 
@@ -1012,10 +1005,9 @@ void CallKnownJSFunction::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
-void CallKnownApiFunction::VerifyInputs(
-    MaglevGraphLabeller* graph_labeller) const {
+void CallKnownApiFunction::VerifyInputs() const {
   for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
   }
 }
 
@@ -1027,9 +1019,9 @@ void CallKnownApiFunction::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
-void Construct::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+void Construct::VerifyInputs() const {
   for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
   }
 }
 
@@ -1041,10 +1033,9 @@ void Construct::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
-void ConstructWithSpread::VerifyInputs(
-    MaglevGraphLabeller* graph_labeller) const {
+void ConstructWithSpread::VerifyInputs() const {
   for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
   }
 }
 
@@ -1056,13 +1047,12 @@ void ConstructWithSpread::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
-void CallBuiltin::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+void CallBuiltin::VerifyInputs() const {
   auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
   int count = input_count();
   // Verify context.
   if (descriptor.HasContextParameter()) {
-    CheckValueInputIs(this, count - 1, ValueRepresentation::kTagged,
-                      graph_labeller);
+    CheckValueInputIs(this, count - 1, ValueRepresentation::kTagged);
     count--;
   }
 
@@ -1081,7 +1071,7 @@ void CallBuiltin::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
     MachineType type = i < descriptor.GetParameterCount()
                            ? descriptor.GetParameterType(i)
                            : MachineType::AnyTagged();
-    CheckValueInputIs(this, i, ToValueRepresentation(type), graph_labeller);
+    CheckValueInputIs(this, i, ToValueRepresentation(type));
   }
 }
 
@@ -1107,9 +1097,9 @@ void CallBuiltin::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
-void CallCPPBuiltin::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+void CallCPPBuiltin::VerifyInputs() const {
   for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
   }
 }
 
@@ -1121,9 +1111,9 @@ void CallCPPBuiltin::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
-void CallRuntime::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+void CallRuntime::VerifyInputs() const {
   for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
   }
 }
 
@@ -1135,9 +1125,8 @@ void CallRuntime::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
-void StoreTaggedFieldNoWriteBarrier::VerifyInputs(
-    MaglevGraphLabeller* graph_labeller) const {
-  Base::VerifyInputs(graph_labeller);
+void StoreTaggedFieldNoWriteBarrier::VerifyInputs() const {
+  Base::VerifyInputs();
   if (auto host_alloc =
           input(kObjectIndex).node()->TryCast<InlinedAllocation>()) {
     if (input(kValueIndex).node()->Is<InlinedAllocation>()) {
@@ -1147,10 +1136,9 @@ void StoreTaggedFieldNoWriteBarrier::VerifyInputs(
   }
 }
 
-void InlinedAllocation::VerifyInputs(
-    MaglevGraphLabeller* graph_labeller) const {
-  Base::VerifyInputs(graph_labeller);
-  CheckValueInputIs(this, 0, Opcode::kAllocationBlock, graph_labeller);
+void InlinedAllocation::VerifyInputs() const {
+  Base::VerifyInputs();
+  CheckValueInputIs(this, 0, Opcode::kAllocationBlock);
   CHECK_LE(object()->type(), VirtualObject::Type::kLast);
 }
 
@@ -3243,6 +3231,29 @@ void LoadHoleyFixedDoubleArrayElementCheckedNotHole::GenerateCode(
   __ JumpIfHoleNan(result_reg, temps.Acquire(),
                    __ GetDeoptLabel(this, DeoptimizeReason::kHole));
 }
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+void LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole::
+    SetValueLocationConstraints() {
+  UseRegister(elements_input());
+  UseRegister(index_input());
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+}
+void LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register elements = ToRegister(elements_input());
+  Register index = ToRegister(index_input());
+  DoubleRegister result_reg = ToDoubleRegister(result());
+  __ LoadFixedDoubleArrayElement(result_reg, elements, index);
+  // TODO(nicohartmann): Should have a combined JumpIfUndefinedOrHoleNan.
+  Register scratch = temps.Acquire();
+  Label* deopt_label = __ GetDeoptLabel(this, DeoptimizeReason::kHole);
+  __ JumpIfUndefinedNan(result_reg, scratch, deopt_label);
+  __ JumpIfHoleNan(result_reg, scratch, deopt_label);
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 void StoreFixedDoubleArrayElement::SetValueLocationConstraints() {
   UseRegister(elements_input());
@@ -7935,33 +7946,27 @@ void HandleNoHeapWritesInterrupt::GenerateCode(MaglevAssembler* masm,
 // Print params
 // ---
 
-void SmiConstant::PrintParams(std::ostream& os,
-                              MaglevGraphLabeller* graph_labeller) const {
+void SmiConstant::PrintParams(std::ostream& os) const {
   os << "(" << value() << ")";
 }
 
-void TaggedIndexConstant::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void TaggedIndexConstant::PrintParams(std::ostream& os) const {
   os << "(" << value() << ")";
 }
 
-void Int32Constant::PrintParams(std::ostream& os,
-                                MaglevGraphLabeller* graph_labeller) const {
+void Int32Constant::PrintParams(std::ostream& os) const {
   os << "(" << value() << ")";
 }
 
-void Uint32Constant::PrintParams(std::ostream& os,
-                                 MaglevGraphLabeller* graph_labeller) const {
+void Uint32Constant::PrintParams(std::ostream& os) const {
   os << "(" << value() << ")";
 }
 
-void IntPtrConstant::PrintParams(std::ostream& os,
-                                 MaglevGraphLabeller* graph_labeller) const {
+void IntPtrConstant::PrintParams(std::ostream& os) const {
   os << "(" << value() << ")";
 }
 
-void Float64Constant::PrintParams(std::ostream& os,
-                                  MaglevGraphLabeller* graph_labeller) const {
+void Float64Constant::PrintParams(std::ostream& os) const {
   if (value().is_nan()) {
     os << "(NaN [0x" << std::hex << value().get_bits() << std::dec << "]";
     if (value().is_hole_nan()) {
@@ -7978,59 +7983,48 @@ void Float64Constant::PrintParams(std::ostream& os,
   }
 }
 
-void Constant::PrintParams(std::ostream& os,
-                           MaglevGraphLabeller* graph_labeller) const {
+void Constant::PrintParams(std::ostream& os) const {
   os << "(" << *object_.object() << ")";
 }
 
-void TrustedConstant::PrintParams(std::ostream& os,
-                                  MaglevGraphLabeller* graph_labeller) const {
+void TrustedConstant::PrintParams(std::ostream& os) const {
   os << "(" << *object_.object() << ")";
 }
 
-void DeleteProperty::PrintParams(std::ostream& os,
-                                 MaglevGraphLabeller* graph_labeller) const {
+void DeleteProperty::PrintParams(std::ostream& os) const {
   os << "(" << LanguageMode2String(mode()) << ")";
 }
 
-void InitialValue::PrintParams(std::ostream& os,
-                               MaglevGraphLabeller* graph_labeller) const {
+void InitialValue::PrintParams(std::ostream& os) const {
   os << "(" << source().ToString() << ")";
 }
 
-void LoadGlobal::PrintParams(std::ostream& os,
-                             MaglevGraphLabeller* graph_labeller) const {
+void LoadGlobal::PrintParams(std::ostream& os) const {
   os << "(" << *name().object() << ")";
 }
 
-void StoreGlobal::PrintParams(std::ostream& os,
-                              MaglevGraphLabeller* graph_labeller) const {
+void StoreGlobal::PrintParams(std::ostream& os) const {
   os << "(" << *name().object() << ")";
 }
 
-void RegisterInput::PrintParams(std::ostream& os,
-                                MaglevGraphLabeller* graph_labeller) const {
+void RegisterInput::PrintParams(std::ostream& os) const {
   os << "(" << input() << ")";
 }
 
-void RootConstant::PrintParams(std::ostream& os,
-                               MaglevGraphLabeller* graph_labeller) const {
+void RootConstant::PrintParams(std::ostream& os) const {
   os << "(" << RootsTable::name(index()) << ")";
 }
 
-void CreateFunctionContext::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void CreateFunctionContext::PrintParams(std::ostream& os) const {
   os << "(" << *scope_info().object() << ", " << slot_count() << ")";
 }
 
-void FastCreateClosure::PrintParams(std::ostream& os,
-                                    MaglevGraphLabeller* graph_labeller) const {
+void FastCreateClosure::PrintParams(std::ostream& os) const {
   os << "(" << *shared_function_info().object() << ", "
      << feedback_cell().object() << ")";
 }
 
-void CreateClosure::PrintParams(std::ostream& os,
-                                MaglevGraphLabeller* graph_labeller) const {
+void CreateClosure::PrintParams(std::ostream& os) const {
   os << "(" << *shared_function_info().object() << ", "
      << feedback_cell().object();
   if (pretenured()) {
@@ -8039,13 +8033,11 @@ void CreateClosure::PrintParams(std::ostream& os,
   os << ")";
 }
 
-void AllocationBlock::PrintParams(std::ostream& os,
-                                  MaglevGraphLabeller* graph_labeller) const {
+void AllocationBlock::PrintParams(std::ostream& os) const {
   os << "(" << allocation_type() << ")";
 }
 
-void InlinedAllocation::PrintParams(std::ostream& os,
-                                    MaglevGraphLabeller* graph_labeller) const {
+void InlinedAllocation::PrintParams(std::ostream& os) const {
   os << "(" << object()->type();
   if (object()->has_static_map()) {
     os << " " << *object()->map().object();
@@ -8053,23 +8045,20 @@ void InlinedAllocation::PrintParams(std::ostream& os,
   os << ")";
 }
 
-void VirtualObject::PrintParams(std::ostream& os,
-                                MaglevGraphLabeller* graph_labeller) const {
+void VirtualObject::PrintParams(std::ostream& os) const {
   os << "(" << *map().object() << ")";
 }
 
-void Abort::PrintParams(std::ostream& os,
-                        MaglevGraphLabeller* graph_labeller) const {
+void Abort::PrintParams(std::ostream& os) const {
   os << "(" << GetAbortReason(reason()) << ")";
 }
 
-void AssertInt32::PrintParams(std::ostream& os,
-                              MaglevGraphLabeller* graph_labeller) const {
+void AssertInt32::PrintParams(std::ostream& os) const {
   os << "(" << condition_ << ")";
 }
 
 void BuiltinStringPrototypeCharCodeOrCodePointAt::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+    std::ostream& os) const {
   switch (mode()) {
     case BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt:
       os << "(CharCodeAt)";
@@ -8080,8 +8069,7 @@ void BuiltinStringPrototypeCharCodeOrCodePointAt::PrintParams(
   }
 }
 
-void CheckMaps::PrintParams(std::ostream& os,
-                            MaglevGraphLabeller* graph_labeller) const {
+void CheckMaps::PrintParams(std::ostream& os) const {
   os << "(";
   bool first = true;
   for (compiler::MapRef map : maps()) {
@@ -8095,8 +8083,7 @@ void CheckMaps::PrintParams(std::ostream& os,
   os << ")";
 }
 
-void CheckMapsWithAlreadyLoadedMap::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void CheckMapsWithAlreadyLoadedMap::PrintParams(std::ostream& os) const {
   os << "(";
   bool first = true;
   for (compiler::MapRef map : maps()) {
@@ -8110,8 +8097,7 @@ void CheckMapsWithAlreadyLoadedMap::PrintParams(
   os << ")";
 }
 
-void CheckMapsWithMigrationAndDeopt::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void CheckMapsWithMigrationAndDeopt::PrintParams(std::ostream& os) const {
   os << "(";
   bool first = true;
   for (compiler::MapRef map : maps()) {
@@ -8125,8 +8111,7 @@ void CheckMapsWithMigrationAndDeopt::PrintParams(
   os << ")";
 }
 
-void TransitionElementsKindOrCheckMap::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void TransitionElementsKindOrCheckMap::PrintParams(std::ostream& os) const {
   os << "(" << Node::input(0).node() << ", [";
   os << *transition_target().object();
   for (compiler::MapRef source : transition_sources()) {
@@ -8135,37 +8120,31 @@ void TransitionElementsKindOrCheckMap::PrintParams(
   os << "]-->" << *transition_target().object() << ")";
 }
 
-void CheckDynamicValue::PrintParams(std::ostream& os,
-                                    MaglevGraphLabeller* graph_labeller) const {
+void CheckDynamicValue::PrintParams(std::ostream& os) const {
   os << "(" << DeoptimizeReasonToString(deoptimize_reason()) << ")";
 }
 
-void CheckValue::PrintParams(std::ostream& os,
-                             MaglevGraphLabeller* graph_labeller) const {
+void CheckValue::PrintParams(std::ostream& os) const {
   os << "(" << *value().object() << ", "
      << DeoptimizeReasonToString(deoptimize_reason()) << ")";
 }
 
-void CheckValueEqualsInt32::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void CheckValueEqualsInt32::PrintParams(std::ostream& os) const {
   os << "(" << value() << ", " << DeoptimizeReasonToString(deoptimize_reason())
      << ")";
 }
 
-void CheckFloat64SameValue::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void CheckFloat64SameValue::PrintParams(std::ostream& os) const {
   os << "(" << value().get_scalar() << ", "
      << DeoptimizeReasonToString(deoptimize_reason()) << ")";
 }
 
-void CheckValueEqualsString::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void CheckValueEqualsString::PrintParams(std::ostream& os) const {
   os << "(" << *value().object() << ", "
      << DeoptimizeReasonToString(deoptimize_reason()) << ")";
 }
 
-void CheckInstanceType::PrintParams(std::ostream& os,
-                                    MaglevGraphLabeller* graph_labeller) const {
+void CheckInstanceType::PrintParams(std::ostream& os) const {
   os << "(" << first_instance_type_;
   if (first_instance_type_ != last_instance_type_) {
     os << " - " << last_instance_type_;
@@ -8173,8 +8152,7 @@ void CheckInstanceType::PrintParams(std::ostream& os,
   os << ")";
 }
 
-void CheckMapsWithMigration::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void CheckMapsWithMigration::PrintParams(std::ostream& os) const {
   os << "(";
   bool first = true;
   for (compiler::MapRef map : maps()) {
@@ -8188,42 +8166,37 @@ void CheckMapsWithMigration::PrintParams(
   os << ")";
 }
 
-void CheckInt32Condition::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void CheckInt32Condition::PrintParams(std::ostream& os) const {
   os << "(" << condition() << ", " << deoptimize_reason() << ")";
 }
 
-void StoreContextSlotWithWriteBarrier::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void StoreContextSlotWithWriteBarrier::PrintParams(std::ostream& os) const {
   os << "(" << index_ << ")";
 }
 
 template <typename Derived, ValueRepresentation FloatType>
   requires(FloatType == ValueRepresentation::kFloat64 ||
            FloatType == ValueRepresentation::kHoleyFloat64)
-void CheckedNumberOrOddballToFloat64OrHoleyFloat64<Derived, FloatType>::
-    PrintParams(std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void CheckedNumberOrOddballToFloat64OrHoleyFloat64<
+    Derived, FloatType>::PrintParams(std::ostream& os) const {
   os << "(" << conversion_type() << ")";
 }
 
-void UncheckedNumberOrOddballToFloat64::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void UncheckedNumberOrOddballToFloat64::PrintParams(std::ostream& os) const {
   os << "(" << conversion_type() << ")";
 }
 
 void CheckedTruncateNumberOrOddballToInt32::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+    std::ostream& os) const {
   os << "(" << conversion_type() << ")";
 }
 
-void TruncateNumberOrOddballToInt32::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void TruncateNumberOrOddballToInt32::PrintParams(std::ostream& os) const {
   os << "(" << conversion_type() << ")";
 }
 
 template <typename T>
-void AbstractLoadTaggedField<T>::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void AbstractLoadTaggedField<T>::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec;
   // Print compression status only after the result is allocated, since that's
   // when we do decompression marking.
@@ -8237,28 +8210,23 @@ void AbstractLoadTaggedField<T>::PrintParams(
   os << ")";
 }
 
-void LoadTaggedFieldForContextSlot::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void LoadTaggedFieldForContextSlot::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
-void LoadDoubleField::PrintParams(std::ostream& os,
-                                  MaglevGraphLabeller* graph_labeller) const {
+void LoadDoubleField::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
-void LoadFloat64::PrintParams(std::ostream& os,
-                              MaglevGraphLabeller* graph_labeller) const {
+void LoadFloat64::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
-void LoadInt32::PrintParams(std::ostream& os,
-                            MaglevGraphLabeller* graph_labeller) const {
+void LoadInt32::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
-void LoadFixedArrayElement::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void LoadFixedArrayElement::PrintParams(std::ostream& os) const {
   // Print compression status only after the result is allocated, since that's
   // when we do decompression marking.
   if (!result().operand().IsUnallocated()) {
@@ -8270,23 +8238,19 @@ void LoadFixedArrayElement::PrintParams(
   }
 }
 
-void StoreDoubleField::PrintParams(std::ostream& os,
-                                   MaglevGraphLabeller* graph_labeller) const {
+void StoreDoubleField::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
-void StoreFloat64::PrintParams(std::ostream& os,
-                               MaglevGraphLabeller* graph_labeller) const {
+void StoreFloat64::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
-void StoreInt32::PrintParams(std::ostream& os,
-                             MaglevGraphLabeller* graph_labeller) const {
+void StoreInt32::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
-void StoreTaggedFieldNoWriteBarrier::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void StoreTaggedFieldNoWriteBarrier::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
@@ -8305,91 +8269,76 @@ std::ostream& operator<<(std::ostream& os, StoreMap::Kind kind) {
   return os;
 }
 
-void StoreMap::PrintParams(std::ostream& os,
-                           MaglevGraphLabeller* graph_labeller) const {
+void StoreMap::PrintParams(std::ostream& os) const {
   os << "(" << *map_.object() << ", " << kind() << ")";
 }
 
-void StoreTaggedFieldWithWriteBarrier::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void StoreTaggedFieldWithWriteBarrier::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
 void StoreTrustedPointerFieldWithWriteBarrier::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+    std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
-void LoadNamedGeneric::PrintParams(std::ostream& os,
-                                   MaglevGraphLabeller* graph_labeller) const {
+void LoadNamedGeneric::PrintParams(std::ostream& os) const {
   os << "(" << *name_.object() << ")";
 }
 
-void LoadNamedFromSuperGeneric::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void LoadNamedFromSuperGeneric::PrintParams(std::ostream& os) const {
   os << "(" << *name_.object() << ")";
 }
 
-void SetNamedGeneric::PrintParams(std::ostream& os,
-                                  MaglevGraphLabeller* graph_labeller) const {
+void SetNamedGeneric::PrintParams(std::ostream& os) const {
   os << "(" << *name_.object() << ")";
 }
 
-void DefineNamedOwnGeneric::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void DefineNamedOwnGeneric::PrintParams(std::ostream& os) const {
   os << "(" << *name_.object() << ")";
 }
 
-void HasInPrototypeChain::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void HasInPrototypeChain::PrintParams(std::ostream& os) const {
   os << "(" << *prototype_.object() << ")";
 }
 
-void GapMove::PrintParams(std::ostream& os,
-                          MaglevGraphLabeller* graph_labeller) const {
+void GapMove::PrintParams(std::ostream& os) const {
   os << "(" << source() << " → " << target() << ")";
 }
 
-void ConstantGapMove::PrintParams(std::ostream& os,
-                                  MaglevGraphLabeller* graph_labeller) const {
+void ConstantGapMove::PrintParams(std::ostream& os) const {
   os << "(";
-  graph_labeller->PrintNodeLabel(os, node_);
+  GetCurrentGraphLabeller()->PrintNodeLabel(os, node_);
   os << " → " << target() << ")";
 }
 
-void Float64Compare::PrintParams(std::ostream& os,
-                                 MaglevGraphLabeller* graph_labeller) const {
+void Float64Compare::PrintParams(std::ostream& os) const {
   os << "(" << operation() << ")";
 }
 
-void Float64ToBoolean::PrintParams(std::ostream& os,
-                                   MaglevGraphLabeller* graph_labeller) const {
+void Float64ToBoolean::PrintParams(std::ostream& os) const {
   if (flip()) {
     os << "(flipped)";
   }
 }
 
-void Int32Compare::PrintParams(std::ostream& os,
-                               MaglevGraphLabeller* graph_labeller) const {
+void Int32Compare::PrintParams(std::ostream& os) const {
   os << "(" << operation() << ")";
 }
 
-void Int32ToBoolean::PrintParams(std::ostream& os,
-                                 MaglevGraphLabeller* graph_labeller) const {
+void Int32ToBoolean::PrintParams(std::ostream& os) const {
   if (flip()) {
     os << "(flipped)";
   }
 }
 
-void IntPtrToBoolean::PrintParams(std::ostream& os,
-                                  MaglevGraphLabeller* graph_labeller) const {
+void IntPtrToBoolean::PrintParams(std::ostream& os) const {
   if (flip()) {
     os << "(flipped)";
   }
 }
 
-void Float64Ieee754Unary::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void Float64Ieee754Unary::PrintParams(std::ostream& os) const {
   switch (ieee_function_) {
 #define CASE(MathName, ExtName, EnumName) \
   case Ieee754Function::k##EnumName:      \
@@ -8400,8 +8349,18 @@ void Float64Ieee754Unary::PrintParams(
   }
 }
 
-void Float64Round::PrintParams(std::ostream& os,
-                               MaglevGraphLabeller* graph_labeller) const {
+void Float64Ieee754Binary::PrintParams(std::ostream& os) const {
+  switch (ieee_function_) {
+#define CASE(MathName, ExtName, EnumName) \
+  case Ieee754Function::k##EnumName:      \
+    os << "(" << #EnumName << ")";        \
+    break;
+    IEEE_754_BINARY_LIST(CASE)
+#undef CASE
+  }
+}
+
+void Float64Round::PrintParams(std::ostream& os) const {
   switch (kind_) {
     case Kind::kCeil:
       os << "(ceil)";
@@ -8415,13 +8374,11 @@ void Float64Round::PrintParams(std::ostream& os,
   }
 }
 
-void Phi::PrintParams(std::ostream& os,
-                      MaglevGraphLabeller* graph_labeller) const {
+void Phi::PrintParams(std::ostream& os) const {
   os << "(" << (owner().is_valid() ? owner().ToString() : "VO") << ")";
 }
 
-void Call::PrintParams(std::ostream& os,
-                       MaglevGraphLabeller* graph_labeller) const {
+void Call::PrintParams(std::ostream& os) const {
   os << "(" << receiver_mode_ << ", ";
   switch (target_type_) {
     case TargetType::kJSFunction:
@@ -8434,16 +8391,13 @@ void Call::PrintParams(std::ostream& os,
   os << ")";
 }
 
-void CallSelf::PrintParams(std::ostream& os,
-                           MaglevGraphLabeller* graph_labeller) const {}
+void CallSelf::PrintParams(std::ostream& os) const {}
 
-void CallKnownJSFunction::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void CallKnownJSFunction::PrintParams(std::ostream& os) const {
   os << "(" << shared_function_info_.object() << ")";
 }
 
-void CallKnownApiFunction::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void CallKnownApiFunction::PrintParams(std::ostream& os) const {
   os << "(";
   switch (mode()) {
     case kNoProfiling:
@@ -8458,74 +8412,60 @@ void CallKnownApiFunction::PrintParams(
   os << function_template_info_.object() << ")";
 }
 
-void CallBuiltin::PrintParams(std::ostream& os,
-                              MaglevGraphLabeller* graph_labeller) const {
+void CallBuiltin::PrintParams(std::ostream& os) const {
   os << "(" << Builtins::name(builtin()) << ")";
 }
 
-void CallCPPBuiltin::PrintParams(std::ostream& os,
-                                 MaglevGraphLabeller* graph_labeller) const {
+void CallCPPBuiltin::PrintParams(std::ostream& os) const {
   os << "(" << Builtins::name(builtin()) << ")";
 }
 
-void CallForwardVarargs::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void CallForwardVarargs::PrintParams(std::ostream& os) const {
   if (start_index_ == 0) return;
   os << "(" << start_index_ << ")";
 }
 
-void CallRuntime::PrintParams(std::ostream& os,
-                              MaglevGraphLabeller* graph_labeller) const {
+void CallRuntime::PrintParams(std::ostream& os) const {
   os << "(" << Runtime::FunctionForId(function_id())->name << ")";
 }
 
-void TestTypeOf::PrintParams(std::ostream& os,
-                             MaglevGraphLabeller* graph_labeller) const {
+void TestTypeOf::PrintParams(std::ostream& os) const {
   os << "(" << interpreter::TestTypeOfFlags::ToString(literal_) << ")";
 }
 
-void ReduceInterruptBudgetForLoop::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void ReduceInterruptBudgetForLoop::PrintParams(std::ostream& os) const {
   os << "(" << amount() << ")";
 }
 
-void ReduceInterruptBudgetForReturn::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void ReduceInterruptBudgetForReturn::PrintParams(std::ostream& os) const {
   os << "(" << amount() << ")";
 }
 
-void Deopt::PrintParams(std::ostream& os,
-                        MaglevGraphLabeller* graph_labeller) const {
+void Deopt::PrintParams(std::ostream& os) const {
   os << "(" << DeoptimizeReasonToString(deoptimize_reason()) << ")";
 }
 
-void BranchIfRootConstant::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void BranchIfRootConstant::PrintParams(std::ostream& os) const {
   os << "(" << RootsTable::name(root_index_) << ")";
 }
 
-void BranchIfFloat64Compare::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void BranchIfFloat64Compare::PrintParams(std::ostream& os) const {
   os << "(" << operation_ << ")";
 }
 
-void BranchIfInt32Compare::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void BranchIfInt32Compare::PrintParams(std::ostream& os) const {
   os << "(" << operation_ << ")";
 }
 
-void BranchIfUint32Compare::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void BranchIfUint32Compare::PrintParams(std::ostream& os) const {
   os << "(" << operation_ << ")";
 }
 
-void BranchIfTypeOf::PrintParams(std::ostream& os,
-                                 MaglevGraphLabeller* graph_labeller) const {
+void BranchIfTypeOf::PrintParams(std::ostream& os) const {
   os << "(" << interpreter::TestTypeOfFlags::ToString(literal_) << ")";
 }
 
-void ExtendPropertiesBackingStore::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void ExtendPropertiesBackingStore::PrintParams(std::ostream& os) const {
   os << "(" << old_length_ << ")";
 }
 

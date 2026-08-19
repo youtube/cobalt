@@ -69,7 +69,6 @@ class ProcessingState;
 class MaglevAssembler;
 class MaglevCodeGenState;
 class MaglevCompilationUnit;
-class MaglevGraphLabeller;
 class MaglevVregAllocationState;
 class CompactInterpreterFrameState;
 class MergePointInterpreterFrameState;
@@ -143,7 +142,8 @@ class ExceptionHandlerInfo;
   V(Float64Round)                       \
   V(Float64Compare)                     \
   V(Float64ToBoolean)                   \
-  V(Float64Ieee754Unary)
+  V(Float64Ieee754Unary)                \
+  V(Float64Ieee754Binary)
 
 #define SMI_OPERATIONS_NODE_LIST(V) \
   V(CheckedSmiIncrement)            \
@@ -173,168 +173,169 @@ class ExceptionHandlerInfo;
 
 #define TURBOLEV_NON_VALUE_NODE_LIST(V) V(TransitionAndStoreArrayElement)
 
-#define VALUE_NODE_LIST(V)                          \
-  V(Identity)                                       \
-  V(AllocationBlock)                                \
-  V(ArgumentsElements)                              \
-  V(ArgumentsLength)                                \
-  V(RestLength)                                     \
-  V(Call)                                           \
-  V(CallBuiltin)                                    \
-  V(CallCPPBuiltin)                                 \
-  V(CallForwardVarargs)                             \
-  V(CallRuntime)                                    \
-  V(CallWithArrayLike)                              \
-  V(CallWithSpread)                                 \
-  V(CallKnownApiFunction)                           \
-  V(CallKnownJSFunction)                            \
-  V(CallSelf)                                       \
-  V(Construct)                                      \
-  V(CheckConstructResult)                           \
-  V(CheckDerivedConstructResult)                    \
-  V(ConstructWithSpread)                            \
-  V(ConvertReceiver)                                \
-  V(ConvertHoleToUndefined)                         \
-  V(CreateArrayLiteral)                             \
-  V(CreateShallowArrayLiteral)                      \
-  V(CreateObjectLiteral)                            \
-  V(CreateShallowObjectLiteral)                     \
-  V(CreateFunctionContext)                          \
-  V(CreateClosure)                                  \
-  V(FastCreateClosure)                              \
-  V(CreateRegExpLiteral)                            \
-  V(DeleteProperty)                                 \
-  V(EnsureWritableFastElements)                     \
-  V(ExtendPropertiesBackingStore)                   \
-  V(InlinedAllocation)                              \
-  V(ForInPrepare)                                   \
-  V(ForInNext)                                      \
-  V(GeneratorRestoreRegister)                       \
-  V(GetIterator)                                    \
-  V(GetSecondReturnedValue)                         \
-  V(GetTemplateObject)                              \
-  V(HasInPrototypeChain)                            \
-  V(InitialValue)                                   \
-  V(LoadTaggedField)                                \
-  V(LoadTaggedFieldForProperty)                     \
-  V(LoadTaggedFieldForContextSlotNoCells)           \
-  V(LoadTaggedFieldForContextSlot)                  \
-  V(LoadDoubleField)                                \
-  V(LoadFloat64)                                    \
-  V(LoadInt32)                                      \
-  V(LoadTaggedFieldByFieldIndex)                    \
-  V(LoadFixedArrayElement)                          \
-  V(LoadFixedDoubleArrayElement)                    \
-  V(LoadHoleyFixedDoubleArrayElement)               \
-  V(LoadHoleyFixedDoubleArrayElementCheckedNotHole) \
-  V(LoadSignedIntDataViewElement)                   \
-  V(LoadDoubleDataViewElement)                      \
-  V(LoadTypedArrayLength)                           \
-  V(LoadSignedIntTypedArrayElement)                 \
-  V(LoadUnsignedIntTypedArrayElement)               \
-  V(LoadDoubleTypedArrayElement)                    \
-  V(LoadSignedIntConstantTypedArrayElement)         \
-  V(LoadUnsignedIntConstantTypedArrayElement)       \
-  V(LoadDoubleConstantTypedArrayElement)            \
-  V(LoadEnumCacheLength)                            \
-  V(LoadGlobal)                                     \
-  V(LoadNamedGeneric)                               \
-  V(LoadNamedFromSuperGeneric)                      \
-  V(MaybeGrowFastElements)                          \
-  V(MigrateMapIfNeeded)                             \
-  V(SetNamedGeneric)                                \
-  V(DefineNamedOwnGeneric)                          \
-  V(StoreInArrayLiteralGeneric)                     \
-  V(StoreGlobal)                                    \
-  V(GetKeyedGeneric)                                \
-  V(SetKeyedGeneric)                                \
-  V(DefineKeyedOwnGeneric)                          \
-  V(Phi)                                            \
-  V(RegisterInput)                                  \
-  V(CheckedSmiSizedInt32)                           \
-  V(CheckedSmiTagInt32)                             \
-  V(CheckedSmiTagUint32)                            \
-  V(CheckedSmiTagIntPtr)                            \
-  V(UnsafeSmiTagInt32)                              \
-  V(UnsafeSmiTagUint32)                             \
-  V(UnsafeSmiTagIntPtr)                             \
-  V(CheckedSmiUntag)                                \
-  V(UnsafeSmiUntag)                                 \
-  V(CheckedInternalizedString)                      \
-  V(CheckedObjectToIndex)                           \
-  V(CheckedTruncateNumberOrOddballToInt32)          \
-  V(CheckedInt32ToUint32)                           \
-  V(CheckedIntPtrToUint32)                          \
-  V(UnsafeInt32ToUint32)                            \
-  V(CheckedUint32ToInt32)                           \
-  V(CheckedIntPtrToInt32)                           \
-  V(ChangeInt32ToFloat64)                           \
-  V(ChangeUint32ToFloat64)                          \
-  V(ChangeIntPtrToFloat64)                          \
-  V(CheckedTruncateFloat64ToInt32)                  \
-  V(CheckedTruncateFloat64ToUint32)                 \
-  V(TruncateNumberOrOddballToInt32)                 \
-  V(TruncateUint32ToInt32)                          \
-  V(TruncateFloat64ToInt32)                         \
-  V(UnsafeTruncateUint32ToInt32)                    \
-  V(UnsafeTruncateFloat64ToInt32)                   \
-  V(Int32ToUint8Clamped)                            \
-  V(Uint32ToUint8Clamped)                           \
-  V(Float64ToUint8Clamped)                          \
-  V(CheckedNumberToUint8Clamped)                    \
-  V(Int32ToNumber)                                  \
-  V(Uint32ToNumber)                                 \
-  V(Int32CountLeadingZeros)                         \
-  V(TaggedCountLeadingZeros)                        \
-  V(Float64CountLeadingZeros)                       \
-  V(IntPtrToBoolean)                                \
-  V(IntPtrToNumber)                                 \
-  V(Float64ToTagged)                                \
-  V(Float64ToHeapNumberForField)                    \
-  V(HoleyFloat64ToTagged)                           \
-  V(CheckedSmiTagFloat64)                           \
-  V(CheckedNumberToInt32)                           \
-  V(CheckedNumberOrOddballToFloat64)                \
-  V(UncheckedNumberOrOddballToFloat64)              \
-  V(CheckedNumberOrOddballToHoleyFloat64)           \
-  V(CheckedHoleyFloat64ToFloat64)                   \
-  V(HoleyFloat64ToMaybeNanFloat64)                  \
-  IF_UD(V, Float64ToHoleyFloat64)                   \
-  IF_UD(V, ConvertHoleNanToUndefinedNan)            \
-  IF_UD(V, HoleyFloat64IsUndefinedOrHole)           \
-  IF_NOT_UD(V, HoleyFloat64IsHole)                  \
-  V(LogicalNot)                                     \
-  V(SetPendingMessage)                              \
-  V(StringAt)                                       \
-  V(StringEqual)                                    \
-  V(StringLength)                                   \
-  V(StringConcat)                                   \
-  V(SeqOneByteStringAt)                             \
-  V(ConsStringMap)                                  \
-  V(UnwrapStringWrapper)                            \
-  V(ToBoolean)                                      \
-  V(ToBooleanLogicalNot)                            \
-  V(AllocateElementsArray)                          \
-  V(TaggedEqual)                                    \
-  V(TaggedNotEqual)                                 \
-  V(TestInstanceOf)                                 \
-  V(TestUndetectable)                               \
-  V(TestTypeOf)                                     \
-  V(ToName)                                         \
-  V(ToNumberOrNumeric)                              \
-  V(ToObject)                                       \
-  V(ToString)                                       \
-  V(TransitionElementsKind)                         \
-  V(NumberToString)                                 \
-  V(UpdateJSArrayLength)                            \
-  V(VirtualObject)                                  \
-  V(GetContinuationPreservedEmbedderData)           \
-  CONSTANT_VALUE_NODE_LIST(V)                       \
-  INT32_OPERATIONS_NODE_LIST(V)                     \
-  FLOAT64_OPERATIONS_NODE_LIST(V)                   \
-  SMI_OPERATIONS_NODE_LIST(V)                       \
-  GENERIC_OPERATIONS_NODE_LIST(V)                   \
-  INLINE_BUILTIN_NODE_LIST(V)                       \
+#define VALUE_NODE_LIST(V)                                            \
+  V(Identity)                                                         \
+  V(AllocationBlock)                                                  \
+  V(ArgumentsElements)                                                \
+  V(ArgumentsLength)                                                  \
+  V(RestLength)                                                       \
+  V(Call)                                                             \
+  V(CallBuiltin)                                                      \
+  V(CallCPPBuiltin)                                                   \
+  V(CallForwardVarargs)                                               \
+  V(CallRuntime)                                                      \
+  V(CallWithArrayLike)                                                \
+  V(CallWithSpread)                                                   \
+  V(CallKnownApiFunction)                                             \
+  V(CallKnownJSFunction)                                              \
+  V(CallSelf)                                                         \
+  V(Construct)                                                        \
+  V(CheckConstructResult)                                             \
+  V(CheckDerivedConstructResult)                                      \
+  V(ConstructWithSpread)                                              \
+  V(ConvertReceiver)                                                  \
+  V(ConvertHoleToUndefined)                                           \
+  V(CreateArrayLiteral)                                               \
+  V(CreateShallowArrayLiteral)                                        \
+  V(CreateObjectLiteral)                                              \
+  V(CreateShallowObjectLiteral)                                       \
+  V(CreateFunctionContext)                                            \
+  V(CreateClosure)                                                    \
+  V(FastCreateClosure)                                                \
+  V(CreateRegExpLiteral)                                              \
+  V(DeleteProperty)                                                   \
+  V(EnsureWritableFastElements)                                       \
+  V(ExtendPropertiesBackingStore)                                     \
+  V(InlinedAllocation)                                                \
+  V(ForInPrepare)                                                     \
+  V(ForInNext)                                                        \
+  V(GeneratorRestoreRegister)                                         \
+  V(GetIterator)                                                      \
+  V(GetSecondReturnedValue)                                           \
+  V(GetTemplateObject)                                                \
+  V(HasInPrototypeChain)                                              \
+  V(InitialValue)                                                     \
+  V(LoadTaggedField)                                                  \
+  V(LoadTaggedFieldForProperty)                                       \
+  V(LoadTaggedFieldForContextSlotNoCells)                             \
+  V(LoadTaggedFieldForContextSlot)                                    \
+  V(LoadDoubleField)                                                  \
+  V(LoadFloat64)                                                      \
+  V(LoadInt32)                                                        \
+  V(LoadTaggedFieldByFieldIndex)                                      \
+  V(LoadFixedArrayElement)                                            \
+  V(LoadFixedDoubleArrayElement)                                      \
+  V(LoadHoleyFixedDoubleArrayElement)                                 \
+  V(LoadHoleyFixedDoubleArrayElementCheckedNotHole)                   \
+  IF_UD(V, LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole) \
+  V(LoadSignedIntDataViewElement)                                     \
+  V(LoadDoubleDataViewElement)                                        \
+  V(LoadTypedArrayLength)                                             \
+  V(LoadSignedIntTypedArrayElement)                                   \
+  V(LoadUnsignedIntTypedArrayElement)                                 \
+  V(LoadDoubleTypedArrayElement)                                      \
+  V(LoadSignedIntConstantTypedArrayElement)                           \
+  V(LoadUnsignedIntConstantTypedArrayElement)                         \
+  V(LoadDoubleConstantTypedArrayElement)                              \
+  V(LoadEnumCacheLength)                                              \
+  V(LoadGlobal)                                                       \
+  V(LoadNamedGeneric)                                                 \
+  V(LoadNamedFromSuperGeneric)                                        \
+  V(MaybeGrowFastElements)                                            \
+  V(MigrateMapIfNeeded)                                               \
+  V(SetNamedGeneric)                                                  \
+  V(DefineNamedOwnGeneric)                                            \
+  V(StoreInArrayLiteralGeneric)                                       \
+  V(StoreGlobal)                                                      \
+  V(GetKeyedGeneric)                                                  \
+  V(SetKeyedGeneric)                                                  \
+  V(DefineKeyedOwnGeneric)                                            \
+  V(Phi)                                                              \
+  V(RegisterInput)                                                    \
+  V(CheckedSmiSizedInt32)                                             \
+  V(CheckedSmiTagInt32)                                               \
+  V(CheckedSmiTagUint32)                                              \
+  V(CheckedSmiTagIntPtr)                                              \
+  V(UnsafeSmiTagInt32)                                                \
+  V(UnsafeSmiTagUint32)                                               \
+  V(UnsafeSmiTagIntPtr)                                               \
+  V(CheckedSmiUntag)                                                  \
+  V(UnsafeSmiUntag)                                                   \
+  V(CheckedInternalizedString)                                        \
+  V(CheckedObjectToIndex)                                             \
+  V(CheckedTruncateNumberOrOddballToInt32)                            \
+  V(CheckedInt32ToUint32)                                             \
+  V(CheckedIntPtrToUint32)                                            \
+  V(UnsafeInt32ToUint32)                                              \
+  V(CheckedUint32ToInt32)                                             \
+  V(CheckedIntPtrToInt32)                                             \
+  V(ChangeInt32ToFloat64)                                             \
+  V(ChangeUint32ToFloat64)                                            \
+  V(ChangeIntPtrToFloat64)                                            \
+  V(CheckedTruncateFloat64ToInt32)                                    \
+  V(CheckedTruncateFloat64ToUint32)                                   \
+  V(TruncateNumberOrOddballToInt32)                                   \
+  V(TruncateUint32ToInt32)                                            \
+  V(TruncateFloat64ToInt32)                                           \
+  V(UnsafeTruncateUint32ToInt32)                                      \
+  V(UnsafeTruncateFloat64ToInt32)                                     \
+  V(Int32ToUint8Clamped)                                              \
+  V(Uint32ToUint8Clamped)                                             \
+  V(Float64ToUint8Clamped)                                            \
+  V(CheckedNumberToUint8Clamped)                                      \
+  V(Int32ToNumber)                                                    \
+  V(Uint32ToNumber)                                                   \
+  V(Int32CountLeadingZeros)                                           \
+  V(TaggedCountLeadingZeros)                                          \
+  V(Float64CountLeadingZeros)                                         \
+  V(IntPtrToBoolean)                                                  \
+  V(IntPtrToNumber)                                                   \
+  V(Float64ToTagged)                                                  \
+  V(Float64ToHeapNumberForField)                                      \
+  V(HoleyFloat64ToTagged)                                             \
+  V(CheckedSmiTagFloat64)                                             \
+  V(CheckedNumberToInt32)                                             \
+  V(CheckedNumberOrOddballToFloat64)                                  \
+  V(UncheckedNumberOrOddballToFloat64)                                \
+  V(CheckedNumberOrOddballToHoleyFloat64)                             \
+  V(CheckedHoleyFloat64ToFloat64)                                     \
+  V(HoleyFloat64ToMaybeNanFloat64)                                    \
+  IF_UD(V, Float64ToHoleyFloat64)                                     \
+  IF_UD(V, ConvertHoleNanToUndefinedNan)                              \
+  IF_UD(V, HoleyFloat64IsUndefinedOrHole)                             \
+  IF_NOT_UD(V, HoleyFloat64IsHole)                                    \
+  V(LogicalNot)                                                       \
+  V(SetPendingMessage)                                                \
+  V(StringAt)                                                         \
+  V(StringEqual)                                                      \
+  V(StringLength)                                                     \
+  V(StringConcat)                                                     \
+  V(SeqOneByteStringAt)                                               \
+  V(ConsStringMap)                                                    \
+  V(UnwrapStringWrapper)                                              \
+  V(ToBoolean)                                                        \
+  V(ToBooleanLogicalNot)                                              \
+  V(AllocateElementsArray)                                            \
+  V(TaggedEqual)                                                      \
+  V(TaggedNotEqual)                                                   \
+  V(TestInstanceOf)                                                   \
+  V(TestUndetectable)                                                 \
+  V(TestTypeOf)                                                       \
+  V(ToName)                                                           \
+  V(ToNumberOrNumeric)                                                \
+  V(ToObject)                                                         \
+  V(ToString)                                                         \
+  V(TransitionElementsKind)                                           \
+  V(NumberToString)                                                   \
+  V(UpdateJSArrayLength)                                              \
+  V(VirtualObject)                                                    \
+  V(GetContinuationPreservedEmbedderData)                             \
+  CONSTANT_VALUE_NODE_LIST(V)                                         \
+  INT32_OPERATIONS_NODE_LIST(V)                                       \
+  FLOAT64_OPERATIONS_NODE_LIST(V)                                     \
+  SMI_OPERATIONS_NODE_LIST(V)                                         \
+  GENERIC_OPERATIONS_NODE_LIST(V)                                     \
+  INLINE_BUILTIN_NODE_LIST(V)                                         \
   TURBOLEV_VALUE_NODE_LIST(V)
 
 #define GAP_MOVE_NODE_LIST(V) \
@@ -609,6 +610,53 @@ constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
   }
 }
 
+// MAP_OPERATION_TO_NODES are tuples with the following format:
+// - Operation name,
+// - Int32 operation node,
+// - Identity of int32 operation (e.g, 0 for add/sub and 1 for mul/div), if it
+//   exists, or otherwise {}.
+#define MAP_BINARY_OPERATION_TO_INT32_NODE(V) \
+  V(Add, Int32AddWithOverflow, 0)             \
+  V(Subtract, Int32SubtractWithOverflow, 0)   \
+  V(Multiply, Int32MultiplyWithOverflow, 1)   \
+  V(Divide, Int32DivideWithOverflow, 1)       \
+  V(Modulus, Int32ModulusWithOverflow, {})    \
+  V(BitwiseAnd, Int32BitwiseAnd, ~0)          \
+  V(BitwiseOr, Int32BitwiseOr, 0)             \
+  V(BitwiseXor, Int32BitwiseXor, 0)           \
+  V(ShiftLeft, Int32ShiftLeft, 0)             \
+  V(ShiftRight, Int32ShiftRight, 0)           \
+  V(ShiftRightLogical, Int32ShiftRightLogical, {})
+
+#define MAP_UNARY_OPERATION_TO_INT32_NODE(V) \
+  V(BitwiseNot, Int32BitwiseNot)             \
+  V(Increment, Int32IncrementWithOverflow)   \
+  V(Decrement, Int32DecrementWithOverflow)   \
+  V(Negate, Int32NegateWithOverflow)
+
+// MAP_OPERATION_TO_FLOAT64_NODE are tuples with the following format:
+// (Operation name, Float64 operation node).
+#define MAP_OPERATION_TO_FLOAT64_NODE(V) \
+  V(Add, Float64Add)                     \
+  V(Subtract, Float64Subtract)           \
+  V(Multiply, Float64Multiply)           \
+  V(Divide, Float64Divide)               \
+  V(Modulus, Float64Modulus)             \
+  V(Exponentiate, Float64Exponentiate)
+
+template <Operation kOperation>
+static constexpr std::optional<int> Int32Identity() {
+  switch (kOperation) {
+#define CASE(op, _, identity) \
+  case Operation::k##op:      \
+    return identity;
+    MAP_BINARY_OPERATION_TO_INT32_NODE(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+
 // Forward-declare NodeBase sub-hierarchies.
 class Node;
 class ControlNode;
@@ -641,6 +689,31 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
           repr == ValueRepresentation::kInt32);
 #endif
 }
+
+inline bool ValueRepresentationIs(ValueRepresentation got,
+                                  ValueRepresentation expected) {
+  // Allow Float64 values to be inputs when HoleyFloat64 is expected.
+  return (got == expected) || (got == ValueRepresentation::kFloat64 &&
+                               expected == ValueRepresentation::kHoleyFloat64);
+}
+
+// ValueRepresentation doesn't distinguish between Int32 and TruncatedInt32:
+// both are Int32. For Phi untagging however, it's interesting to have a
+// difference between the 2, as a TruncatedInt32 would allow untagging to
+// Float64, whereas an Int32 use wouldn't (because it would require a deopting
+// Float64->Int32 conversion, whereas the truncating version of this conversion
+// cannot deopt). We thus use a UseRepresentation to record use hints for Phis.
+enum class UseRepresentation : uint8_t {
+  kTagged,
+  kInt32,
+  kTruncatedInt32,
+  kUint32,
+  kFloat64,
+  kHoleyFloat64,
+};
+
+typedef base::EnumSet<ValueRepresentation, int8_t> ValueRepresentationSet;
+typedef base::EnumSet<UseRepresentation, int8_t> UseRepresentationSet;
 
 // TODO(olivf): Rename Unknown to Any.
 
@@ -1421,10 +1494,12 @@ class OpProperties {
     return OpProperties(kNeedsRegisterSnapshotBit::encode(true));
   }
 
-  const uint32_t bitfield_;
+  const uint16_t bitfield_;
 
  public:
-  static const size_t kSize = kNeedsRegisterSnapshotBit::kLastUsedBit + 1;
+  static const size_t kUsedSize = kNeedsRegisterSnapshotBit::kLastUsedBit + 1;
+  static const size_t kSize = 16;
+  static_assert(kUsedSize <= kSize);
 
   constexpr bool is_deferred_call() const {
     // Currently, there is no kDeferredCall bit, but DeferredCall only sets a
@@ -2094,19 +2169,18 @@ struct KnownNodeAspects;
 class NodeBase : public ZoneObject {
  private:
   // Bitfield specification.
+  // [opcode:16][input_count:16][properties:16][extras:16]
   using OpcodeField = base::BitField64<Opcode, 0, 16>;
   static_assert(OpcodeField::is_valid(kLastOpcode));
+  using InputCountField = OpcodeField::Next<size_t, 16>;
   using OpPropertiesField =
-      OpcodeField::Next<OpProperties, OpProperties::kSize>;
+      InputCountField::Next<OpProperties, OpProperties::kSize>;
   using NumTemporariesNeededField = OpPropertiesField::Next<uint8_t, 2>;
   using NumDoubleTemporariesNeededField =
       NumTemporariesNeededField::Next<uint8_t, 1>;
-  using InputCountField = NumDoubleTemporariesNeededField::Next<size_t, 17>;
-  static_assert(InputCountField::kShift == 32);
-
  protected:
   // Reserved for intermediate superclasses such as ValueNode.
-  using ReservedField = InputCountField::Next<bool, 1>;
+  using ReservedField = NumDoubleTemporariesNeededField::Next<bool, 1>;
   // Subclasses may use the remaining bitfield bits.
   template <class T, int size>
   using NextBitField = ReservedField::Next<T, size>;
@@ -2248,8 +2322,7 @@ class NodeBase : public ZoneObject {
   template <typename Function>
   void ForAllInputsInRegallocAssignmentOrder(Function&& f);
 
-  void Print(std::ostream& os, MaglevGraphLabeller*,
-             bool skip_targets = false) const;
+  void Print(std::ostream& os, bool skip_targets = false) const;
 
   // For GDB: Print any Node with `print node->Print()`.
   void Print() const;
@@ -2591,8 +2664,7 @@ constexpr bool NodeBase::Is<TerminalControlNode>() const {
 }
 
 void CheckValueInputIs(const NodeBase* node, int i,
-                       ValueRepresentation expected,
-                       MaglevGraphLabeller* graph_labeller);
+                       ValueRepresentation expected);
 
 // The Node class hierarchy contains all non-control nodes.
 class Node : public NodeBase {
@@ -2800,6 +2872,8 @@ class ValueNode : public Node {
     return NodeTypeIs(GetStaticType(broker), type);
   }
 
+  inline void RecordUseReprHintIfPhi(UseRepresentation repr);
+
   void InitializeRegisterData() {
     if (use_double_register()) {
       double_registers_with_result_ = kEmptyDoubleRegList;
@@ -2942,6 +3016,22 @@ inline DoubleRegList ValueNode::ClearRegisters() {
   return std::exchange(double_registers_with_result_, kEmptyDoubleRegList);
 }
 
+void NodeBase::change_input(int index, ValueNode* node) {
+  DCHECK_NE(input(index).node(), nullptr);
+  if (input(index).node() == node) return;
+  // After the AnyUseMarkingProcessor the use count can be -1.
+  if (input(index).node()->is_used()) {
+    input(index).node()->remove_use();
+  } else {
+    DCHECK_EQ(input(index).node()->use_count(), -1);
+  }
+
+#ifdef DEBUG
+  input(index) = Input(nullptr);
+#endif
+  set_input(index, node);
+}
+
 ValueLocation& Node::result() {
   DCHECK(Is<ValueNode>());
   return Cast<ValueNode>()->result();
@@ -3006,13 +3096,13 @@ class FixedInputNodeTMixin : public NodeTMixin<Base, Derived> {
     return std::make_reverse_iterator(&this->input(input_count() - 1));
   }
 
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+  void VerifyInputs() const {
     if constexpr (kInputCount != 0) {
       static_assert(
           std::is_same_v<const InputTypes, decltype(Derived::kInputTypes)>);
       static_assert(kInputCount == Derived::kInputTypes.size());
       for (int i = 0; i < static_cast<int>(kInputCount); ++i) {
-        CheckValueInputIs(this, i, Derived::kInputTypes[i], graph_labeller);
+        CheckValueInputIs(this, i, Derived::kInputTypes[i]);
       }
     }
   }
@@ -3072,7 +3162,7 @@ class Identity : public FixedInputValueNodeT<1, Identity> {
 
   explicit Identity(uint64_t bitfield) : Base(bitfield) {}
 
-  void VerifyInputs(MaglevGraphLabeller*) const {
+  void VerifyInputs() const {
     // Identity is valid for all input types.
   }
 #ifdef V8_COMPRESS_POINTERS
@@ -3084,7 +3174,7 @@ class Identity : public FixedInputValueNodeT<1, Identity> {
 #endif
   void SetValueLocationConstraints() {}
   void GenerateCode(MaglevAssembler*, const ProcessingState&) {}
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 template <class Derived, Operation kOperation>
@@ -3108,7 +3198,7 @@ class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   const compiler::FeedbackSource feedback_;
 };
@@ -3136,7 +3226,7 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   const compiler::FeedbackSource feedback_;
 };
@@ -3151,7 +3241,7 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
     int MaxCallStackArgs() const { return 0; }                        \
     void SetValueLocationConstraints();                               \
     void GenerateCode(MaglevAssembler*, const ProcessingState&);      \
-    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}    \
+    void PrintParams(std::ostream&) const {}                          \
   };
 
 #define DEF_UNARY_WITH_FEEDBACK_NODE(Name) \
@@ -3183,18 +3273,18 @@ class Int32BinaryWithOverflowNode : public FixedInputValueNodeT<2, Derived> {
  protected:
   explicit Int32BinaryWithOverflowNode(uint64_t bitfield) : Base(bitfield) {}
 
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
-#define DEF_OPERATION_NODE(Name, Super, OpName)                    \
-  class Name : public Super<Name, Operation::k##OpName> {          \
-    using Base = Super<Name, Operation::k##OpName>;                \
-                                                                   \
-   public:                                                         \
-    explicit Name(uint64_t bitfield) : Base(bitfield) {}           \
-    void SetValueLocationConstraints();                            \
-    void GenerateCode(MaglevAssembler*, const ProcessingState&);   \
-    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {} \
+#define DEF_OPERATION_NODE(Name, Super, OpName)                  \
+  class Name : public Super<Name, Operation::k##OpName> {        \
+    using Base = Super<Name, Operation::k##OpName>;              \
+                                                                 \
+   public:                                                       \
+    explicit Name(uint64_t bitfield) : Base(bitfield) {}         \
+    void SetValueLocationConstraints();                          \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&); \
+    void PrintParams(std::ostream&) const {}                     \
   };
 
 #define DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Name)                            \
@@ -3256,7 +3346,7 @@ class Int32MultiplyOverflownBits
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class Int32BitwiseNot : public FixedInputValueNodeT<1, Int32BitwiseNot> {
@@ -3274,7 +3364,7 @@ class Int32BitwiseNot : public FixedInputValueNodeT<1, Int32BitwiseNot> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 template <class Derived, Operation kOperation>
@@ -3322,7 +3412,7 @@ class Int32ShiftRightLogical
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class Int32Compare : public FixedInputValueNodeT<2, Int32Compare> {
@@ -3346,7 +3436,7 @@ class Int32Compare : public FixedInputValueNodeT<2, Int32Compare> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{operation()}; }
 
@@ -3369,7 +3459,7 @@ class Int32ToBoolean : public FixedInputValueNodeT<1, Int32ToBoolean> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{flip()}; }
 
@@ -3392,7 +3482,7 @@ class IntPtrToBoolean : public FixedInputValueNodeT<1, IntPtrToBoolean> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{flip()}; }
 
@@ -3416,7 +3506,7 @@ class CheckedSmiIncrement
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckedSmiDecrement
@@ -3435,7 +3525,7 @@ class CheckedSmiDecrement
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 template <class Derived, Operation kOperation>
@@ -3455,19 +3545,19 @@ class Float64BinaryNode : public FixedInputValueNodeT<2, Derived> {
  protected:
   explicit Float64BinaryNode(uint64_t bitfield) : Base(bitfield) {}
 
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
-#define DEF_OPERATION_NODE_WITH_CALL(Name, Super, OpName)          \
-  class Name : public Super<Name, Operation::k##OpName> {          \
-    using Base = Super<Name, Operation::k##OpName>;                \
-                                                                   \
-   public:                                                         \
-    explicit Name(uint64_t bitfield) : Base(bitfield) {}           \
-    int MaxCallStackArgs() const;                                  \
-    void SetValueLocationConstraints();                            \
-    void GenerateCode(MaglevAssembler*, const ProcessingState&);   \
-    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {} \
+#define DEF_OPERATION_NODE_WITH_CALL(Name, Super, OpName)        \
+  class Name : public Super<Name, Operation::k##OpName> {        \
+    using Base = Super<Name, Operation::k##OpName>;              \
+                                                                 \
+   public:                                                       \
+    explicit Name(uint64_t bitfield) : Base(bitfield) {}         \
+    int MaxCallStackArgs() const;                                \
+    void SetValueLocationConstraints();                          \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&); \
+    void PrintParams(std::ostream&) const {}                     \
   };
 
 template <class Derived, Operation kOperation>
@@ -3488,7 +3578,7 @@ class Float64BinaryNodeWithCall : public FixedInputValueNodeT<2, Derived> {
  protected:
   explicit Float64BinaryNodeWithCall(uint64_t bitfield) : Base(bitfield) {}
 
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 #define DEF_FLOAT64_BINARY_NODE(Name) \
@@ -3535,7 +3625,7 @@ class Float64Compare : public FixedInputValueNodeT<2, Float64Compare> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{operation()}; }
 
@@ -3559,7 +3649,7 @@ class Float64ToBoolean : public FixedInputValueNodeT<1, Float64ToBoolean> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{flip()}; }
 
@@ -3581,7 +3671,7 @@ class Float64Negate : public FixedInputValueNodeT<1, Float64Negate> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 #define IEEE_754_UNARY_LIST(V) \
@@ -3627,7 +3717,47 @@ class Float64Ieee754Unary
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
+
+  auto options() const { return std::tuple{ieee_function_}; }
+
+  Ieee754Function ieee_function() const { return ieee_function_; }
+  ExternalReference ieee_function_ref() const;
+
+ private:
+  Ieee754Function ieee_function_;
+};
+
+#define IEEE_754_BINARY_LIST(V) \
+  V(MathAtan2, atan2, Atan2)    \
+  V(MathPow, pow, Power)
+
+class Float64Ieee754Binary
+    : public FixedInputValueNodeT<2, Float64Ieee754Binary> {
+  using Base = FixedInputValueNodeT<2, Float64Ieee754Binary>;
+
+ public:
+  enum class Ieee754Function : uint8_t {
+#define DECL_ENUM(MathName, ExtName, EnumName) k##EnumName,
+    IEEE_754_BINARY_LIST(DECL_ENUM)
+#undef DECL_ENUM
+  };
+  explicit Float64Ieee754Binary(uint64_t bitfield,
+                                Ieee754Function ieee_function)
+      : Base(bitfield), ieee_function_(ieee_function) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Float64() | OpProperties::Call();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kHoleyFloat64, ValueRepresentation::kHoleyFloat64};
+
+  Input& input_lhs() { return Node::input(0); }
+  Input& input_rhs() { return Node::input(1); }
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{ieee_function_}; }
 
@@ -3652,7 +3782,7 @@ class CheckInt32IsSmi : public FixedInputNodeT<1, CheckInt32IsSmi> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckUint32IsSmi : public FixedInputNodeT<1, CheckUint32IsSmi> {
@@ -3669,7 +3799,7 @@ class CheckUint32IsSmi : public FixedInputNodeT<1, CheckUint32IsSmi> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckIntPtrIsSmi : public FixedInputNodeT<1, CheckIntPtrIsSmi> {
@@ -3686,7 +3816,7 @@ class CheckIntPtrIsSmi : public FixedInputNodeT<1, CheckIntPtrIsSmi> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckHoleyFloat64IsSmi
@@ -3704,7 +3834,7 @@ class CheckHoleyFloat64IsSmi
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckedSmiTagInt32 : public FixedInputValueNodeT<1, CheckedSmiTagInt32> {
@@ -3722,7 +3852,7 @@ class CheckedSmiTagInt32 : public FixedInputValueNodeT<1, CheckedSmiTagInt32> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 // This is a check disguised as a conversion node so we can use it to override
@@ -3746,7 +3876,7 @@ class CheckedSmiSizedInt32
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckedSmiTagUint32
@@ -3765,7 +3895,7 @@ class CheckedSmiTagUint32
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckedSmiTagIntPtr
@@ -3784,7 +3914,7 @@ class CheckedSmiTagIntPtr
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 // Input must guarantee to fit in a Smi.
@@ -3808,7 +3938,7 @@ class UnsafeSmiTagInt32 : public FixedInputValueNodeT<1, UnsafeSmiTagInt32> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 // Input must guarantee to fit in a Smi.
@@ -3832,7 +3962,7 @@ class UnsafeSmiTagUint32 : public FixedInputValueNodeT<1, UnsafeSmiTagUint32> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 // Input must guarantee to fit in a Smi.
@@ -3856,7 +3986,7 @@ class UnsafeSmiTagIntPtr : public FixedInputValueNodeT<1, UnsafeSmiTagIntPtr> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckedSmiUntag : public FixedInputValueNodeT<1, CheckedSmiUntag> {
@@ -3881,7 +4011,7 @@ class CheckedSmiUntag : public FixedInputValueNodeT<1, CheckedSmiUntag> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class UnsafeSmiUntag : public FixedInputValueNodeT<1, UnsafeSmiUntag> {
@@ -3905,7 +4035,7 @@ class UnsafeSmiUntag : public FixedInputValueNodeT<1, UnsafeSmiUntag> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
@@ -3925,7 +4055,7 @@ class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
   DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
@@ -3951,7 +4081,7 @@ class Uint32Constant : public FixedInputValueNodeT<0, Uint32Constant> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
   DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
@@ -3977,7 +4107,7 @@ class IntPtrConstant : public FixedInputValueNodeT<0, IntPtrConstant> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
   DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
@@ -4008,7 +4138,7 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
   DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
@@ -4032,7 +4162,7 @@ class Int32ToUint8Clamped
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class Uint32ToUint8Clamped
@@ -4050,7 +4180,7 @@ class Uint32ToUint8Clamped
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class Float64ToUint8Clamped
@@ -4068,7 +4198,7 @@ class Float64ToUint8Clamped
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckedNumberToUint8Clamped
@@ -4087,7 +4217,7 @@ class CheckedNumberToUint8Clamped
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class Int32ToNumber : public FixedInputValueNodeT<1, Int32ToNumber> {
@@ -4107,7 +4237,7 @@ class Int32ToNumber : public FixedInputValueNodeT<1, Int32ToNumber> {
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class Uint32ToNumber : public FixedInputValueNodeT<1, Uint32ToNumber> {
@@ -4127,7 +4257,7 @@ class Uint32ToNumber : public FixedInputValueNodeT<1, Uint32ToNumber> {
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class IntPtrToNumber : public FixedInputValueNodeT<1, IntPtrToNumber> {
@@ -4147,7 +4277,7 @@ class IntPtrToNumber : public FixedInputValueNodeT<1, IntPtrToNumber> {
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class Float64ToTagged : public FixedInputValueNodeT<1, Float64ToTagged> {
@@ -4169,7 +4299,7 @@ class Float64ToTagged : public FixedInputValueNodeT<1, Float64ToTagged> {
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{conversion_mode()}; }
 
@@ -4206,7 +4336,7 @@ class Float64ToHeapNumberForField
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class HoleyFloat64ToTagged
@@ -4229,7 +4359,7 @@ class HoleyFloat64ToTagged
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   void SetMode(ConversionMode mode) {
     set_bitfield(ConversionModeBitField::update(bitfield(), mode));
@@ -4266,7 +4396,7 @@ class CheckedSmiTagFloat64
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckedInt32ToUint32
@@ -4286,7 +4416,7 @@ class CheckedInt32ToUint32
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckedIntPtrToUint32
@@ -4306,7 +4436,7 @@ class CheckedIntPtrToUint32
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class UnsafeInt32ToUint32
@@ -4325,7 +4455,7 @@ class UnsafeInt32ToUint32
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckedUint32ToInt32
@@ -4345,7 +4475,7 @@ class CheckedUint32ToInt32
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckedIntPtrToInt32
@@ -4365,7 +4495,7 @@ class CheckedIntPtrToInt32
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class ChangeInt32ToFloat64
@@ -4384,7 +4514,7 @@ class ChangeInt32ToFloat64
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class ChangeUint32ToFloat64
@@ -4403,7 +4533,7 @@ class ChangeUint32ToFloat64
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class ChangeIntPtrToFloat64
@@ -4422,7 +4552,7 @@ class ChangeIntPtrToFloat64
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckedTruncateFloat64ToInt32
@@ -4442,7 +4572,7 @@ class CheckedTruncateFloat64ToInt32
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class Int32AbsWithOverflow
@@ -4462,7 +4592,7 @@ class Int32AbsWithOverflow
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class Float64Abs : public FixedInputValueNodeT<1, Float64Abs> {
@@ -4479,7 +4609,7 @@ class Float64Abs : public FixedInputValueNodeT<1, Float64Abs> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class Int32CountLeadingZeros
@@ -4497,7 +4627,7 @@ class Int32CountLeadingZeros
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class TaggedCountLeadingZeros
@@ -4516,7 +4646,7 @@ class TaggedCountLeadingZeros
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class Float64CountLeadingZeros
@@ -4536,7 +4666,7 @@ class Float64CountLeadingZeros
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
@@ -4567,7 +4697,7 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{kind_}; }
 
@@ -4592,25 +4722,25 @@ class CheckedTruncateFloat64ToUint32
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
-#define DEFINE_TRUNCATE_NODE(name, from_repr, properties)          \
-  class name : public FixedInputValueNodeT<1, name> {              \
-    using Base = FixedInputValueNodeT<1, name>;                    \
-                                                                   \
-   public:                                                         \
-    explicit name(uint64_t bitfield) : Base(bitfield) {}           \
-                                                                   \
-    static constexpr OpProperties kProperties = properties;        \
-    static constexpr typename Base::InputTypes kInputTypes{        \
-        ValueRepresentation::k##from_repr};                        \
-                                                                   \
-    Input& input() { return Node::input(0); }                      \
-                                                                   \
-    void SetValueLocationConstraints();                            \
-    void GenerateCode(MaglevAssembler*, const ProcessingState&);   \
-    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {} \
+#define DEFINE_TRUNCATE_NODE(name, from_repr, properties)        \
+  class name : public FixedInputValueNodeT<1, name> {            \
+    using Base = FixedInputValueNodeT<1, name>;                  \
+                                                                 \
+   public:                                                       \
+    explicit name(uint64_t bitfield) : Base(bitfield) {}         \
+                                                                 \
+    static constexpr OpProperties kProperties = properties;      \
+    static constexpr typename Base::InputTypes kInputTypes{      \
+        ValueRepresentation::k##from_repr};                      \
+                                                                 \
+    Input& input() { return Node::input(0); }                    \
+                                                                 \
+    void SetValueLocationConstraints();                          \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&); \
+    void PrintParams(std::ostream&) const {}                     \
   };
 
 DEFINE_TRUNCATE_NODE(TruncateUint32ToInt32, Uint32, OpProperties::Int32())
@@ -4657,7 +4787,7 @@ class CheckedNumberOrOddballToFloat64OrHoleyFloat64
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{conversion_type()}; }
 
@@ -4700,7 +4830,7 @@ class CheckedNumberOrOddballToHoleyFloat64
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckedNumberToInt32
@@ -4720,7 +4850,7 @@ class CheckedNumberToInt32
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class UncheckedNumberOrOddballToFloat64
@@ -4742,7 +4872,7 @@ class UncheckedNumberOrOddballToFloat64
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   TaggedToFloat64ConversionType conversion_type() const {
     return TaggedToFloat64ConversionTypeOffset::decode(bitfield());
@@ -4773,7 +4903,7 @@ class CheckedHoleyFloat64ToFloat64
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class HoleyFloat64ToMaybeNanFloat64
@@ -4792,7 +4922,7 @@ class HoleyFloat64ToMaybeNanFloat64
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
@@ -4812,7 +4942,7 @@ class Float64ToHoleyFloat64
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class ConvertHoleNanToUndefinedNan
@@ -4831,7 +4961,7 @@ class ConvertHoleNanToUndefinedNan
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class HoleyFloat64IsUndefinedOrHole
@@ -4848,7 +4978,7 @@ class HoleyFloat64IsUndefinedOrHole
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 #else
@@ -4866,7 +4996,7 @@ class HoleyFloat64IsHole : public FixedInputValueNodeT<1, HoleyFloat64IsHole> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
@@ -4889,7 +5019,7 @@ class TruncateNumberOrOddballToInt32
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   TaggedToFloat64ConversionType conversion_type() const {
     return TaggedToFloat64ConversionTypeOffset::decode(bitfield());
@@ -4921,7 +5051,7 @@ class CheckedTruncateNumberOrOddballToInt32
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   TaggedToFloat64ConversionType conversion_type() const {
     return TaggedToFloat64ConversionTypeOffset::decode(bitfield());
@@ -4947,7 +5077,7 @@ class LogicalNot : public FixedInputValueNodeT<1, LogicalNot> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class SetPendingMessage : public FixedInputValueNodeT<1, SetPendingMessage> {
@@ -4965,7 +5095,7 @@ class SetPendingMessage : public FixedInputValueNodeT<1, SetPendingMessage> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 enum class CheckType { kCheckHeapObject, kOmitHeapObjectCheck };
@@ -4984,7 +5114,7 @@ class ToBoolean : public FixedInputValueNodeT<1, ToBoolean> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{check_type()}; }
 
@@ -5008,7 +5138,7 @@ class ToBooleanLogicalNot
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{check_type()}; }
 
@@ -5039,7 +5169,7 @@ class StringEqual : public FixedInputValueNodeT<2, StringEqual> {
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   StringEqualInputs inputs() const { return inputs_; }
   auto options() const { return std::tuple(inputs_); }
@@ -5068,7 +5198,7 @@ class TaggedEqual : public FixedInputValueNodeT<2, TaggedEqual> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class TaggedNotEqual : public FixedInputValueNodeT<2, TaggedNotEqual> {
@@ -5091,7 +5221,7 @@ class TaggedNotEqual : public FixedInputValueNodeT<2, TaggedNotEqual> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
@@ -5116,7 +5246,7 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::FeedbackSource feedback_;
@@ -5137,7 +5267,7 @@ class TestUndetectable : public FixedInputValueNodeT<1, TestUndetectable> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{check_type()}; }
 
@@ -5160,7 +5290,7 @@ class TestTypeOf : public FixedInputValueNodeT<1, TestTypeOf> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{literal_}; }
 
@@ -5187,7 +5317,7 @@ class ToName : public FixedInputValueNodeT<2, ToName> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class ToNumberOrNumeric : public FixedInputValueNodeT<1, ToNumberOrNumeric> {
@@ -5208,7 +5338,7 @@ class ToNumberOrNumeric : public FixedInputValueNodeT<1, ToNumberOrNumeric> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const Object::Conversion mode_;
@@ -5236,7 +5366,7 @@ class DeleteProperty : public FixedInputValueNodeT<3, DeleteProperty> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const LanguageMode mode_;
@@ -5281,7 +5411,7 @@ class GeneratorStore : public NodeT<GeneratorStore> {
   }
 
   int MaxCallStackArgs() const;
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void VerifyInputs() const;
 
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing() {
@@ -5291,7 +5421,7 @@ class GeneratorStore : public NodeT<GeneratorStore> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const int suspend_id_;
@@ -5325,7 +5455,7 @@ class TryOnStackReplacement : public FixedInputNodeT<1, TryOnStackReplacement> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   // For OSR.
@@ -5357,7 +5487,7 @@ class ForInPrepare : public FixedInputValueNodeT<2, ForInPrepare> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::FeedbackSource feedback_;
@@ -5387,7 +5517,7 @@ class ForInNext : public FixedInputValueNodeT<5, ForInNext> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::FeedbackSource feedback_;
@@ -5418,7 +5548,7 @@ class GetIterator : public FixedInputValueNodeT<2, GetIterator> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const int load_slot_;
@@ -5439,7 +5569,7 @@ class GetSecondReturnedValue
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class ToObject : public FixedInputValueNodeT<2, ToObject> {
@@ -5461,7 +5591,7 @@ class ToObject : public FixedInputValueNodeT<2, ToObject> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
@@ -5489,7 +5619,7 @@ class ToString : public FixedInputValueNodeT<2, ToString> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   using ConversionModeBitField = NextBitField<ConversionMode, 1>;
@@ -5512,7 +5642,7 @@ class NumberToString : public FixedInputValueNodeT<1, NumberToString> {
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class GeneratorRestoreRegister
@@ -5533,7 +5663,7 @@ class GeneratorRestoreRegister
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const int index_;
@@ -5551,7 +5681,7 @@ class InitialValue : public FixedInputValueNodeT<0, InitialValue> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{source()}; }
 
@@ -5572,7 +5702,7 @@ class RegisterInput : public FixedInputValueNodeT<0, RegisterInput> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const Register input_;
@@ -5597,7 +5727,7 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
   DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
@@ -5624,7 +5754,7 @@ class TaggedIndexConstant
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
   DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
@@ -5652,7 +5782,7 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   compiler::HeapObjectRef object() { return object_; }
 
@@ -5680,7 +5810,7 @@ class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
   Handle<Object> DoReify(LocalIsolate* isolate) const;
@@ -5705,7 +5835,7 @@ class TrustedConstant : public FixedInputValueNodeT<0, TrustedConstant> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   compiler::HeapObjectRef object() const { return object_; }
   IndirectPointerTag tag() const { return tag_; }
@@ -5744,7 +5874,7 @@ class CreateArrayLiteral : public FixedInputValueNodeT<0, CreateArrayLiteral> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::HeapObjectRef constant_elements_;
@@ -5777,7 +5907,7 @@ class CreateShallowArrayLiteral
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::HeapObjectRef constant_elements_;
@@ -5814,7 +5944,7 @@ class CreateObjectLiteral
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::ObjectBoilerplateDescriptionRef boilerplate_descriptor_;
@@ -5851,7 +5981,7 @@ class CreateShallowObjectLiteral
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::ObjectBoilerplateDescriptionRef boilerplate_descriptor_;
@@ -5941,7 +6071,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
 
   void SetValueLocationConstraints() { UNREACHABLE(); }
   void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   constexpr bool has_static_map() const {
     switch (type_) {
@@ -6261,8 +6391,7 @@ class VirtualObjectList {
     return result;
   }
 
-  void Print(std::ostream& os, const char* prefix,
-             MaglevGraphLabeller* labeller) const;
+  void Print(std::ostream& os, const char* prefix) const;
 
   // It iterates both list in reverse other of ids until a common point.
   template <typename Function>
@@ -6337,9 +6466,9 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void VerifyInputs() const;
 
   size_t size() const { return object_->size(); }
 
@@ -6422,6 +6551,17 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
   friend List;
   friend base::ThreadedListTraits<InlinedAllocation>;
 };
+
+void ValueNode::remove_use() {
+  // Make sure a saturated use count won't drop below zero.
+  DCHECK_GT(use_count_, 0);
+  use_count_--;
+  if (auto alloc = TryCast<InlinedAllocation>()) {
+    // Unfortunately we cannot know if the removed use was escaping or not. To
+    // be safe we need to assume it wasn't.
+    alloc->RemoveNonEscapingUses(1);
+  }
+}
 
 template <typename Function>
 inline void VirtualObject::ForEachNestedRuntimeInput(
@@ -6515,7 +6655,7 @@ class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   AllocationType allocation_type() const { return allocation_type_; }
   int size() const { return size_; }
@@ -6555,7 +6695,7 @@ class ArgumentsLength : public FixedInputValueNodeT<0, ArgumentsLength> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class RestLength : public FixedInputValueNodeT<0, RestLength> {
@@ -6567,7 +6707,7 @@ class RestLength : public FixedInputValueNodeT<0, RestLength> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   int formal_parameter_count() const { return formal_parameter_count_; }
 
@@ -6599,7 +6739,7 @@ class ArgumentsElements : public FixedInputValueNodeT<1, ArgumentsElements> {
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   CreateArgumentsType type() const { return type_; }
   int formal_parameter_count() const { return formal_parameter_count_; }
@@ -6632,7 +6772,7 @@ class AllocateElementsArray
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   AllocationType allocation_type() const { return allocation_type_; }
 
@@ -6669,7 +6809,7 @@ class CreateFunctionContext
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const compiler::ScopeInfoRef scope_info_;
@@ -6705,7 +6845,7 @@ class FastCreateClosure : public FixedInputValueNodeT<1, FastCreateClosure> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const compiler::SharedFunctionInfoRef shared_function_info_;
@@ -6734,7 +6874,7 @@ class CreateRegExpLiteral
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   compiler::StringRef pattern_;
@@ -6773,7 +6913,7 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const compiler::SharedFunctionInfoRef shared_function_info_;
@@ -6831,7 +6971,7 @@ class AssertInt32 : public FixedInputNodeT<2, AssertInt32> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{condition_, reason_}; }
 
@@ -6869,7 +7009,7 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{maps_, check_type()}; }
 
@@ -6910,7 +7050,7 @@ class CheckMapsWithMigrationAndDeopt
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{maps_, check_type()}; }
 
@@ -6943,7 +7083,7 @@ class CheckMapsWithAlreadyLoadedMap
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{maps_}; }
 
@@ -6976,7 +7116,7 @@ class CheckValue : public FixedInputNodeT<1, CheckValue> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{value_, deoptimize_reason()}; }
 
@@ -7005,7 +7145,7 @@ class CheckValueEqualsInt32 : public FixedInputNodeT<1, CheckValueEqualsInt32> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{value_, deoptimize_reason()}; }
 
@@ -7034,7 +7174,7 @@ class CheckFloat64SameValue : public FixedInputNodeT<1, CheckFloat64SameValue> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{value_, deoptimize_reason()}; }
 
@@ -7069,7 +7209,7 @@ class CheckValueEqualsString
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{value_, deoptimize_reason()}; }
 
@@ -7103,7 +7243,7 @@ class CheckDynamicValue : public FixedInputNodeT<2, CheckDynamicValue> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{deoptimize_reason()}; }
 
@@ -7133,7 +7273,7 @@ class CheckSmi : public FixedInputNodeT<1, CheckSmi> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckNumber : public FixedInputNodeT<1, CheckNumber> {
@@ -7153,7 +7293,7 @@ class CheckNumber : public FixedInputNodeT<1, CheckNumber> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{mode_}; }
 
@@ -7182,7 +7322,7 @@ class CheckHeapObject : public FixedInputNodeT<1, CheckHeapObject> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckSymbol : public FixedInputNodeT<1, CheckSymbol> {
@@ -7202,7 +7342,7 @@ class CheckSymbol : public FixedInputNodeT<1, CheckSymbol> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{check_type()}; }
 
@@ -7234,7 +7374,7 @@ class CheckInstanceType : public FixedInputNodeT<1, CheckInstanceType> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const {
     return std::tuple{check_type(), first_instance_type_, last_instance_type_};
@@ -7266,7 +7406,7 @@ class CheckString : public FixedInputNodeT<1, CheckString> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{check_type()}; }
 
@@ -7291,7 +7431,7 @@ class CheckSeqOneByteString : public FixedInputNodeT<1, CheckSeqOneByteString> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{check_type()}; }
 
@@ -7317,7 +7457,7 @@ class CheckStringOrStringWrapper
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{check_type()}; }
 
@@ -7342,7 +7482,7 @@ class CheckStringOrOddball : public FixedInputNodeT<1, CheckStringOrOddball> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{check_type()}; }
 
@@ -7368,7 +7508,7 @@ class CheckDetectableCallable
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream& out, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream& out) const {}
 
   auto options() const { return std::tuple{check_type()}; }
 
@@ -7402,7 +7542,7 @@ class CheckMapsWithMigration
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   void ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects);
 
@@ -7434,7 +7574,7 @@ class MigrateMapIfNeeded : public FixedInputValueNodeT<2, MigrateMapIfNeeded> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   void ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects);
 };
@@ -7457,7 +7597,7 @@ class CheckCacheIndicesNotCleared
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {
@@ -7480,7 +7620,7 @@ class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{element_type_}; }
 
@@ -7507,7 +7647,7 @@ class LoadTypedArrayLength
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{elements_kind_}; }
 
@@ -7533,7 +7673,7 @@ class CheckTypedArrayNotDetached
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckTypedArrayBounds : public FixedInputNodeT<2, CheckTypedArrayBounds> {
@@ -7552,7 +7692,7 @@ class CheckTypedArrayBounds : public FixedInputNodeT<2, CheckTypedArrayBounds> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
@@ -7579,7 +7719,7 @@ class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{condition(), deoptimize_reason()}; }
 
@@ -7602,7 +7742,7 @@ class DebugBreak : public FixedInputNodeT<0, DebugBreak> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class Dead : public NodeT<Dead> {
@@ -7611,8 +7751,8 @@ class Dead : public NodeT<Dead> {
  public:
   void SetValueLocationConstraints() {}
   void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-  void VerifyInputs(MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
+  void VerifyInputs() const {}
   void MarkTaggedInputsAsDecompressing() { UNREACHABLE(); }
 
  private:
@@ -7637,7 +7777,7 @@ class FunctionEntryStackCheck
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckedInternalizedString
@@ -7661,7 +7801,7 @@ class CheckedInternalizedString
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{check_type()}; }
 
@@ -7690,7 +7830,7 @@ class CheckedObjectToIndex
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{check_type()}; }
 
@@ -7725,7 +7865,7 @@ class GetTemplateObject : public FixedInputValueNodeT<1, GetTemplateObject> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   compiler::SharedFunctionInfoRef shared_function_info_;
@@ -7755,7 +7895,7 @@ class HasInPrototypeChain
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   compiler::HeapObjectRef prototype_;
@@ -7778,7 +7918,7 @@ class BuiltinStringFromCharCode
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class BuiltinStringPrototypeCharCodeOrCodePointAt
@@ -7811,7 +7951,7 @@ class BuiltinStringPrototypeCharCodeOrCodePointAt
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{mode()}; }
 
@@ -7841,7 +7981,7 @@ class BuiltinSeqOneByteStringCharCodeAt
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class MapPrototypeGet : public FixedInputValueNodeT<2, MapPrototypeGet> {
@@ -7866,7 +8006,7 @@ class MapPrototypeGet : public FixedInputValueNodeT<2, MapPrototypeGet> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class MapPrototypeGetInt32Key
@@ -7887,7 +8027,7 @@ class MapPrototypeGetInt32Key
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class SetPrototypeHas : public FixedInputValueNodeT<2, SetPrototypeHas> {
@@ -7914,7 +8054,7 @@ class SetPrototypeHas : public FixedInputValueNodeT<2, SetPrototypeHas> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CreateFastArrayElements
@@ -7938,7 +8078,7 @@ class CreateFastArrayElements
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const AllocationType allocation_type_;
@@ -7974,7 +8114,7 @@ class TransitionAndStoreArrayElement
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::MapRef fast_map_;
@@ -8179,7 +8319,7 @@ class AbstractLoadTaggedField : public FixedInputValueNodeT<1, Derived> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{offset()}; }
 
@@ -8246,7 +8386,7 @@ class LoadTaggedFieldForContextSlot
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{offset()}; }
 
@@ -8275,7 +8415,7 @@ class LoadDoubleField : public FixedInputValueNodeT<1, LoadDoubleField> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{offset()}; }
 
@@ -8302,7 +8442,7 @@ class LoadFloat64 : public FixedInputValueNodeT<1, LoadFloat64> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{offset()}; }
 
@@ -8329,7 +8469,7 @@ class LoadInt32 : public FixedInputValueNodeT<1, LoadInt32> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{offset()}; }
 
@@ -8365,7 +8505,7 @@ class LoadTaggedFieldByFieldIndex
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class LoadFixedArrayElement
@@ -8386,7 +8526,7 @@ class LoadFixedArrayElement
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 };
 
 class EnsureWritableFastElements
@@ -8410,7 +8550,7 @@ class EnsureWritableFastElements
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class ExtendPropertiesBackingStore
@@ -8437,7 +8577,7 @@ class ExtendPropertiesBackingStore
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   int old_length() const { return old_length_; }
 
@@ -8474,7 +8614,7 @@ class MaybeGrowFastElements
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{elements_kind()}; }
 
@@ -8506,7 +8646,7 @@ class StoreFixedArrayElementWithWriteBarrier
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 // StoreFixedArrayElementNoWriteBarrier never does a Deferred Call. However,
@@ -8542,7 +8682,7 @@ class StoreFixedArrayElementNoWriteBarrier
   }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class LoadFixedDoubleArrayElement
@@ -8564,7 +8704,7 @@ class LoadFixedDoubleArrayElement
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class LoadHoleyFixedDoubleArrayElement
@@ -8587,7 +8727,7 @@ class LoadHoleyFixedDoubleArrayElement
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class LoadHoleyFixedDoubleArrayElementCheckedNotHole
@@ -8613,8 +8753,37 @@ class LoadHoleyFixedDoubleArrayElementCheckedNotHole
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+class LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole
+    : public FixedInputValueNodeT<
+          2, LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole> {
+  using Base = FixedInputValueNodeT<
+      2, LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole>;
+
+ public:
+  explicit LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole(
+      uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::CanRead() |
+                                              OpProperties::Float64() |
+                                              OpProperties::EagerDeopt();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
+
+  static constexpr int kElementsIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  Input& elements_input() { return input(kElementsIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const {}
+};
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 class StoreFixedDoubleArrayElement
     : public FixedInputNodeT<3, StoreFixedDoubleArrayElement> {
@@ -8637,7 +8806,7 @@ class StoreFixedDoubleArrayElement
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class LoadSignedIntDataViewElement
@@ -8672,7 +8841,7 @@ class LoadSignedIntDataViewElement
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{type_}; }
 
@@ -8713,7 +8882,7 @@ class LoadDoubleDataViewElement
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{type_}; }
 };
@@ -8741,7 +8910,7 @@ class LoadDoubleDataViewElement
                                                                        \
     void SetValueLocationConstraints();                                \
     void GenerateCode(MaglevAssembler*, const ProcessingState&);       \
-    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}     \
+    void PrintParams(std::ostream&) const {}                           \
                                                                        \
     auto options() const { return std::tuple{elements_kind_}; }        \
                                                                        \
@@ -8787,7 +8956,7 @@ LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElement, OpProperties::Float64(),
                                                                               \
     void SetValueLocationConstraints();                                       \
     void GenerateCode(MaglevAssembler*, const ProcessingState&);              \
-    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}            \
+    void PrintParams(std::ostream&) const {}                                  \
                                                                               \
     auto options() const { return std::tuple{typed_array_, elements_kind_}; } \
                                                                               \
@@ -8838,7 +9007,7 @@ LOAD_CONSTANT_TYPED_ARRAY(LoadDoubleConstantTypedArrayElement,
                                                                            \
     void SetValueLocationConstraints();                                    \
     void GenerateCode(MaglevAssembler*, const ProcessingState&);           \
-    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}         \
+    void PrintParams(std::ostream&) const {}                               \
                                                                            \
     ElementsKind elements_kind() const { return elements_kind_; }          \
                                                                            \
@@ -8880,7 +9049,7 @@ STORE_TYPED_ARRAY(StoreDoubleTypedArrayElement, OpProperties::CanWrite(),
                                                                             \
     void SetValueLocationConstraints();                                     \
     void GenerateCode(MaglevAssembler*, const ProcessingState&);            \
-    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}          \
+    void PrintParams(std::ostream&) const {}                                \
                                                                             \
     ElementsKind elements_kind() const { return elements_kind_; }           \
     compiler::JSTypedArrayRef typed_array() const { return typed_array_; }  \
@@ -8935,7 +9104,7 @@ class StoreSignedIntDataViewElement
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   ExternalArrayType type() const { return type_; }
 
@@ -8973,7 +9142,7 @@ class StoreDoubleDataViewElement
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class StoreDoubleField : public FixedInputNodeT<2, StoreDoubleField> {
@@ -8996,7 +9165,7 @@ class StoreDoubleField : public FixedInputNodeT<2, StoreDoubleField> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const int offset_;
@@ -9022,7 +9191,7 @@ class StoreInt32 : public FixedInputNodeT<2, StoreInt32> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const int offset_;
@@ -9048,7 +9217,7 @@ class StoreFloat64 : public FixedInputNodeT<2, StoreFloat64> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const int offset_;
@@ -9109,9 +9278,9 @@ class StoreTaggedFieldNoWriteBarrier
   }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void VerifyInputs() const;
 
  private:
   using InitializingOrTransitioningField = NextBitField<bool, 1>;
@@ -9145,7 +9314,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   void ClearUnstableNodeAspects(KnownNodeAspects&);
 
@@ -9191,7 +9360,7 @@ class StoreTaggedFieldWithWriteBarrier
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   using InitializingOrTransitioningField = NextBitField<bool, 1>;
@@ -9231,7 +9400,7 @@ class StoreContextSlotWithWriteBarrier
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const int index_;
@@ -9277,7 +9446,7 @@ class StoreTrustedPointerFieldWithWriteBarrier
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   using InitializingOrTransitioningField = NextBitField<bool, 1>;
@@ -9312,7 +9481,7 @@ class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const compiler::NameRef name_;
@@ -9342,7 +9511,7 @@ class StoreGlobal : public FixedInputValueNodeT<2, StoreGlobal> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const compiler::NameRef name_;
@@ -9374,7 +9543,7 @@ class UpdateJSArrayLength
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
@@ -9401,7 +9570,7 @@ class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const compiler::NameRef name_;
@@ -9436,7 +9605,7 @@ class LoadNamedFromSuperGeneric
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const compiler::NameRef name_;
@@ -9470,7 +9639,7 @@ class SetNamedGeneric : public FixedInputValueNodeT<3, SetNamedGeneric> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const compiler::NameRef name_;
@@ -9494,7 +9663,7 @@ class LoadEnumCacheLength
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class StringAt : public FixedInputValueNodeT<2, StringAt> {
@@ -9517,7 +9686,7 @@ class StringAt : public FixedInputValueNodeT<2, StringAt> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class SeqOneByteStringAt : public FixedInputValueNodeT<2, SeqOneByteStringAt> {
@@ -9537,7 +9706,7 @@ class SeqOneByteStringAt : public FixedInputValueNodeT<2, SeqOneByteStringAt> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class StringLength : public FixedInputValueNodeT<1, StringLength> {
@@ -9557,7 +9726,7 @@ class StringLength : public FixedInputValueNodeT<1, StringLength> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class StringConcat : public FixedInputValueNodeT<2, StringConcat> {
@@ -9578,7 +9747,7 @@ class StringConcat : public FixedInputValueNodeT<2, StringConcat> {
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 /*
@@ -9614,7 +9783,7 @@ class ConsStringMap : public FixedInputValueNodeT<2, ConsStringMap> {
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class UnwrapStringWrapper
@@ -9634,7 +9803,7 @@ class UnwrapStringWrapper
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class DefineNamedOwnGeneric
@@ -9665,7 +9834,7 @@ class DefineNamedOwnGeneric
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const compiler::NameRef name_;
@@ -9701,7 +9870,7 @@ class StoreInArrayLiteralGeneric
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::FeedbackSource feedback_;
@@ -9733,7 +9902,7 @@ class GetKeyedGeneric : public FixedInputValueNodeT<3, GetKeyedGeneric> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::FeedbackSource feedback_;
@@ -9767,7 +9936,7 @@ class SetKeyedGeneric : public FixedInputValueNodeT<4, SetKeyedGeneric> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::FeedbackSource feedback_;
@@ -9805,7 +9974,7 @@ class DefineKeyedOwnGeneric
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::FeedbackSource feedback_;
@@ -9824,7 +9993,7 @@ class GapMove : public FixedInputNodeT<0, GapMove> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   compiler::AllocatedOperand source_;
@@ -9844,7 +10013,7 @@ class ConstantGapMove : public FixedInputNodeT<0, ConstantGapMove> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   ValueNode* node_;
@@ -9854,41 +10023,6 @@ class ConstantGapMove : public FixedInputNodeT<0, ConstantGapMove> {
 
 class MergePointInterpreterFrameState;
 
-// ValueRepresentation doesn't distinguish between Int32 and TruncatedInt32:
-// both are Int32. For Phi untagging however, it's interesting to have a
-// difference between the 2, as a TruncatedInt32 would allow untagging to
-// Float64, whereas an Int32 use wouldn't (because it would require a deopting
-// Float64->Int32 conversion, whereas the truncating version of this conversion
-// cannot deopt). We thus use a UseRepresentation to record use hints for Phis.
-enum class UseRepresentation : uint8_t {
-  kTagged,
-  kInt32,
-  kTruncatedInt32,
-  kUint32,
-  kFloat64,
-  kHoleyFloat64,
-};
-
-inline std::ostream& operator<<(std::ostream& os,
-                                const UseRepresentation& repr) {
-  switch (repr) {
-    case UseRepresentation::kTagged:
-      return os << "Tagged";
-    case UseRepresentation::kInt32:
-      return os << "Int32";
-    case UseRepresentation::kTruncatedInt32:
-      return os << "TruncatedInt32";
-    case UseRepresentation::kUint32:
-      return os << "Uint32";
-    case UseRepresentation::kFloat64:
-      return os << "Float64";
-    case UseRepresentation::kHoleyFloat64:
-      return os << "HoleyFloat64";
-  }
-}
-
-typedef base::EnumSet<ValueRepresentation, int8_t> ValueRepresentationSet;
-typedef base::EnumSet<UseRepresentation, int8_t> UseRepresentationSet;
 
 // TODO(verwaest): It may make more sense to buffer phis in merged_states until
 // we set up the interpreter frame state for code generation. At that point we
@@ -9928,7 +10062,7 @@ class Phi : public ValueNodeT<Phi> {
     return is_loop_phi() && i == input_count() - 1;
   }
 
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void VerifyInputs() const;
 
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing() {
@@ -9940,7 +10074,7 @@ class Phi : public ValueNodeT<Phi> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   BasicBlock* predecessor_at(int i);
 
@@ -10048,6 +10182,12 @@ class Phi : public ValueNodeT<Phi> {
   friend base::ThreadedListTraits<Phi>;
 };
 
+void ValueNode::RecordUseReprHintIfPhi(UseRepresentation repr) {
+  if (Phi* phi = TryCast<Phi>()) {
+    phi->RecordUseReprHint(repr);
+  }
+}
+
 class Call : public ValueNodeT<Call> {
   using Base = ValueNodeT<Call>;
 
@@ -10088,14 +10228,14 @@ class Call : public ValueNodeT<Call> {
         std::make_reverse_iterator(&arg(num_args() - 1)));
   }
 
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void VerifyInputs() const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
 #endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   ConvertReceiverMode receiver_mode() const { return receiver_mode_; }
   TargetType target_type() const { return target_type_; }
@@ -10150,14 +10290,14 @@ class Construct : public ValueNodeT<Construct> {
 
   compiler::FeedbackSource feedback() const { return feedback_; }
 
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void VerifyInputs() const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
 #endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::FeedbackSource feedback_;
@@ -10251,14 +10391,14 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
     return Builtins::CallInterfaceDescriptorFor(builtin_).GetReturnCount();
   }
 
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void VerifyInputs() const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
 #endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   template <typename... Args>
@@ -10318,14 +10458,14 @@ class CallCPPBuiltin : public ValueNodeT<CallCPPBuiltin> {
         std::make_reverse_iterator(&arg(num_args() - 1)));
   }
 
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void VerifyInputs() const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
 #endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   Builtin builtin_;
@@ -10369,14 +10509,14 @@ class CallForwardVarargs : public ValueNodeT<CallForwardVarargs> {
         std::make_reverse_iterator(&arg(num_args() - 1)));
   }
 
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void VerifyInputs() const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
 #endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   int start_index() const { return start_index_; }
   Call::TargetType target_type() const { return target_type_; }
@@ -10423,14 +10563,14 @@ class CallRuntime : public ValueNodeT<CallRuntime> {
     return Runtime::FunctionForId(function_id())->result_size;
   }
 
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void VerifyInputs() const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
 #endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   Runtime::FunctionId function_id_;
@@ -10479,14 +10619,14 @@ class CallWithSpread : public ValueNodeT<CallWithSpread> {
   }
   Input& receiver() { return arg(0); }
 
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void VerifyInputs() const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
 #endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CallWithArrayLike : public FixedInputValueNodeT<4, CallWithArrayLike> {
@@ -10513,14 +10653,14 @@ class CallWithArrayLike : public FixedInputValueNodeT<4, CallWithArrayLike> {
   Input& arguments_list() { return input(kArgumentsListIndex); }
   Input& context() { return input(kContextIndex); }
 
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void VerifyInputs() const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
 #endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CallSelf : public ValueNodeT<CallSelf> {
@@ -10569,14 +10709,14 @@ class CallSelf : public ValueNodeT<CallSelf> {
         std::make_reverse_iterator(&arg(num_args() - 1)));
   }
 
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void VerifyInputs() const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
 #endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   int expected_parameter_count_;
@@ -10631,14 +10771,14 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
     return shared_function_info_;
   }
 
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void VerifyInputs() const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
 #endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   int expected_parameter_count() const { return expected_parameter_count_; }
 
@@ -10713,14 +10853,14 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
 
   bool inline_builtin() const { return mode() == kNoProfilingInlined; }
 
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void VerifyInputs() const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
 #endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   using ModeField = NextBitField<Mode, 2>;
@@ -10781,14 +10921,14 @@ class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
   }
   compiler::FeedbackSource feedback() const { return feedback_; }
 
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void VerifyInputs() const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
 #endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::FeedbackSource feedback_;
@@ -10815,7 +10955,7 @@ class ConvertReceiver : public FixedInputValueNodeT<1, ConvertReceiver> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{native_context_, mode_}; }
 
@@ -10843,7 +10983,7 @@ class CheckConstructResult
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckDerivedConstructResult
@@ -10866,7 +11006,7 @@ class CheckDerivedConstructResult
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckJSReceiverOrNullOrUndefined
@@ -10887,7 +11027,7 @@ class CheckJSReceiverOrNullOrUndefined
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{check_type()}; }
 
@@ -10909,7 +11049,7 @@ class CheckNotHole : public FixedInputNodeT<1, CheckNotHole> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class CheckHoleyFloat64NotHole
@@ -10927,7 +11067,7 @@ class CheckHoleyFloat64NotHole
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class ConvertHoleToUndefined
@@ -10944,7 +11084,7 @@ class ConvertHoleToUndefined
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class HandleNoHeapWritesInterrupt
@@ -10960,7 +11100,7 @@ class HandleNoHeapWritesInterrupt
 
   void SetValueLocationConstraints() {}
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
   int MaxCallStackArgs() const { return 0; }
 };
 
@@ -10988,7 +11128,7 @@ class ReduceInterruptBudgetForLoop
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const int amount_;
@@ -11017,7 +11157,7 @@ class ReduceInterruptBudgetForReturn
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const int amount_;
@@ -11044,7 +11184,7 @@ class ThrowReferenceErrorIfHole
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   auto options() const { return std::tuple{name_}; }
 
@@ -11069,7 +11209,7 @@ class ThrowSuperNotCalledIfHole
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class ThrowSuperAlreadyCalledIfNotHole
@@ -11090,7 +11230,7 @@ class ThrowSuperAlreadyCalledIfNotHole
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class ThrowIfNotCallable : public FixedInputNodeT<1, ThrowIfNotCallable> {
@@ -11109,7 +11249,7 @@ class ThrowIfNotCallable : public FixedInputNodeT<1, ThrowIfNotCallable> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class ThrowIfNotSuperConstructor
@@ -11130,7 +11270,7 @@ class ThrowIfNotSuperConstructor
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class TransitionElementsKind
@@ -11157,7 +11297,7 @@ class TransitionElementsKind
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   const ZoneVector<compiler::MapRef>& transition_sources() const {
     return transition_sources_;
@@ -11196,7 +11336,7 @@ class TransitionElementsKindOrCheckMap
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   const ZoneVector<compiler::MapRef>& transition_sources() const {
     return transition_sources_;
@@ -11220,7 +11360,7 @@ class GetContinuationPreservedEmbedderData
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanRead() | OpProperties::TaggedValue();
@@ -11241,7 +11381,7 @@ class SetContinuationPreservedEmbedderData
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
 };
@@ -11367,7 +11507,7 @@ class Jump : public UnconditionalControlNodeT<Jump> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 // TODO(olivf): Unify implementation with Jump.
@@ -11383,7 +11523,7 @@ class CheckpointedJump : public UnconditionalControlNodeT<CheckpointedJump> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class JumpLoop : public UnconditionalControlNodeT<JumpLoop> {
@@ -11398,7 +11538,7 @@ class JumpLoop : public UnconditionalControlNodeT<JumpLoop> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
   base::Vector<Input> used_nodes() { return used_node_locations_; }
   void set_used_nodes(base::Vector<Input> locations) {
@@ -11425,7 +11565,7 @@ class Abort : public TerminalControlNodeT<0, Abort> {
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   const AbortReason reason_;
@@ -11446,7 +11586,7 @@ class Return : public TerminalControlNodeT<1, Return> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class Deopt : public TerminalControlNodeT<0, Deopt> {
@@ -11462,7 +11602,7 @@ class Deopt : public TerminalControlNodeT<0, Deopt> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   DEOPTIMIZE_REASON_FIELD
 };
@@ -11509,7 +11649,7 @@ class Switch : public FixedInputNodeTMixin<1, ConditionalControlNode, Switch> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   const int value_base_;
@@ -11539,7 +11679,7 @@ class BranchIfSmi : public BranchControlNodeT<1, BranchIfSmi> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class BranchIfRootConstant
@@ -11566,7 +11706,7 @@ class BranchIfRootConstant
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   RootIndex root_index_;
@@ -11595,7 +11735,7 @@ class BranchIfUndefinedOrNull
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class BranchIfUndetectable
@@ -11617,7 +11757,7 @@ class BranchIfUndetectable
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
@@ -11638,7 +11778,7 @@ class BranchIfJSReceiver : public BranchControlNodeT<1, BranchIfJSReceiver> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class BranchIfToBooleanTrue
@@ -11660,7 +11800,7 @@ class BranchIfToBooleanTrue
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
@@ -11683,7 +11823,7 @@ class BranchIfInt32ToBooleanTrue
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class BranchIfIntPtrToBooleanTrue
@@ -11703,7 +11843,7 @@ class BranchIfIntPtrToBooleanTrue
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class BranchIfFloat64ToBooleanTrue
@@ -11723,7 +11863,7 @@ class BranchIfFloat64ToBooleanTrue
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
@@ -11744,7 +11884,7 @@ class BranchIfFloat64IsUndefinedOrHole
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
@@ -11764,7 +11904,7 @@ class BranchIfFloat64IsHole
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class BranchIfInt32Compare
@@ -11787,7 +11927,7 @@ class BranchIfInt32Compare
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   Operation operation() const { return operation_; }
 
@@ -11815,7 +11955,7 @@ class BranchIfUint32Compare
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   Operation operation() const { return operation_; }
 
@@ -11843,7 +11983,7 @@ class BranchIfFloat64Compare
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
   Operation operation() const { return operation_; }
 
@@ -11877,7 +12017,7 @@ class BranchIfReferenceEqual
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&) const {}
 };
 
 class BranchIfTypeOf : public BranchControlNodeT<1, BranchIfTypeOf> {
@@ -11898,7 +12038,7 @@ class BranchIfTypeOf : public BranchControlNodeT<1, BranchIfTypeOf> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+  void PrintParams(std::ostream&) const;
 
  private:
   interpreter::TestTypeOfFlags::LiteralFlag literal_;

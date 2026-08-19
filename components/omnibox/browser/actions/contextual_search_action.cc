@@ -4,6 +4,8 @@
 
 #include "components/omnibox/browser/actions/contextual_search_action.h"
 
+#include "base/metrics/histogram_functions.h"
+#include "components/omnibox/browser/actions/omnibox_action_concepts.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/search_engines/template_url_starter_pack_data.h"
 #include "components/strings/grit/components_strings.h"
@@ -40,9 +42,8 @@ ContextualSearchFulfillmentAction::ContextualSearchFulfillmentAction(
       match_type_(match_type),
       is_zero_prefix_suggestion_(is_zero_prefix_suggestion) {}
 
-void ContextualSearchFulfillmentAction::RecordActionShown(size_t position,
-                                                          bool executed) const {
-  // TODO(crbug.com/403644258): Add UMA logging.
+OmniboxActionId ContextualSearchFulfillmentAction::ActionId() const {
+  return OmniboxActionId::CONTEXTUAL_SEARCH_FULFILLMENT;
 }
 
 void ContextualSearchFulfillmentAction::Execute(
@@ -50,10 +51,6 @@ void ContextualSearchFulfillmentAction::Execute(
   // Delegate fulfillment to Lens.
   context.client_->IssueContextualSearchRequest(url_, match_type_,
                                                 is_zero_prefix_suggestion_);
-}
-
-OmniboxActionId ContextualSearchFulfillmentAction::ActionId() const {
-  return OmniboxActionId::CONTEXTUAL_SEARCH_FULFILLMENT;
 }
 
 ContextualSearchFulfillmentAction::~ContextualSearchFulfillmentAction() =
@@ -70,14 +67,20 @@ ContextualSearchOpenLensAction::ContextualSearchOpenLensAction()
                     IDS_ACC_CONTEXTUAL_SEARCH_OPEN_LENS_ACTION_SUFFIX,
                     IDS_ACC_CONTEXTUAL_SEARCH_OPEN_LENS_ACTION)
               : OmniboxAction::LabelStrings(
-                    l10n_util::GetStringUTF16(GetOpenLensActionLabelId()),
-                    u"",
-                    u"",
-                    u""),
+                    GetOpenLensActionLabelId(),
+                    GetOpenLensActionLabelId(),
+                    IDS_ACC_CONTEXTUAL_SEARCH_OPEN_LENS_ACTION_SUFFIX,
+                    IDS_ACC_CONTEXTUAL_SEARCH_OPEN_LENS_ACTION),
           GURL()) {}
 
 OmniboxActionId ContextualSearchOpenLensAction::ActionId() const {
   return OmniboxActionId::CONTEXTUAL_SEARCH_OPEN_LENS;
+}
+
+void ContextualSearchOpenLensAction::RecordActionShown(size_t position,
+                                                       bool executed) const {
+  base::UmaHistogramBoolean("Omnibox.ContextualSearchOpenLensAction.Ctr",
+                            executed);
 }
 
 void ContextualSearchOpenLensAction::Execute(ExecutionContext& context) const {
@@ -110,6 +113,11 @@ OmniboxActionId StarterPackBookmarksAction::ActionId() const {
   return OmniboxActionId::STARTER_PACK_BOOKMARKS;
 }
 
+void StarterPackBookmarksAction::RecordActionShown(size_t position,
+                                                   bool executed) const {
+  base::UmaHistogramBoolean("Omnibox.StarterPackBookmarksAction.Ctr", executed);
+}
+
 void StarterPackBookmarksAction::Execute(ExecutionContext& context) const {
   context.enter_starter_pack_id_ =
       template_url_starter_pack_data::StarterPackId::kBookmarks;
@@ -135,6 +143,11 @@ StarterPackHistoryAction::StarterPackHistoryAction()
 
 OmniboxActionId StarterPackHistoryAction::ActionId() const {
   return OmniboxActionId::STARTER_PACK_HISTORY;
+}
+
+void StarterPackHistoryAction::RecordActionShown(size_t position,
+                                                 bool executed) const {
+  base::UmaHistogramBoolean("Omnibox.StarterPackHistoryAction.Ctr", executed);
 }
 
 void StarterPackHistoryAction::Execute(ExecutionContext& context) const {
@@ -164,6 +177,11 @@ OmniboxActionId StarterPackTabsAction::ActionId() const {
   return OmniboxActionId::STARTER_PACK_TABS;
 }
 
+void StarterPackTabsAction::RecordActionShown(size_t position,
+                                              bool executed) const {
+  base::UmaHistogramBoolean("Omnibox.StarterPackTabsAction.Ctr", executed);
+}
+
 void StarterPackTabsAction::Execute(ExecutionContext& context) const {
   context.enter_starter_pack_id_ =
       template_url_starter_pack_data::StarterPackId::kTabs;
@@ -176,3 +194,35 @@ const gfx::VectorIcon& StarterPackTabsAction::GetVectorIcon() const {
 #endif  // defined(SUPPORT_PEDALS_VECTOR_ICONS)
 
 StarterPackTabsAction::~StarterPackTabsAction() = default;
+
+////////////////////////////////////////////////////////////////////////////////
+
+StarterPackAiModeAction::StarterPackAiModeAction()
+    : OmniboxAction(OmniboxAction::LabelStrings(
+                        IDS_STARTER_PACK_AI_MODE_ACTION_HINT,
+                        IDS_STARTER_PACK_AI_MODE_ACTION_SUGGESTION_CONTENTS,
+                        IDS_ACC_STARTER_PACK_AI_MODE_ACTION_SUFFIX,
+                        IDS_ACC_STARTER_PACK_AI_MODE_ACTION),
+                    GURL()) {}
+
+OmniboxActionId StarterPackAiModeAction::ActionId() const {
+  return OmniboxActionId::STARTER_PACK_AI_MODE;
+}
+
+void StarterPackAiModeAction::RecordActionShown(size_t position,
+                                                bool executed) const {
+  base::UmaHistogramBoolean("Omnibox.StarterPackAiModeAction.Ctr", executed);
+}
+
+void StarterPackAiModeAction::Execute(ExecutionContext& context) const {
+  context.enter_starter_pack_id_ =
+      template_url_starter_pack_data::StarterPackId::kAiMode;
+}
+
+#if defined(SUPPORT_PEDALS_VECTOR_ICONS)
+const gfx::VectorIcon& StarterPackAiModeAction::GetVectorIcon() const {
+  return omnibox::kSearchSparkIcon;
+}
+#endif  // defined(SUPPORT_PEDALS_VECTOR_ICONS)
+
+StarterPackAiModeAction::~StarterPackAiModeAction() = default;

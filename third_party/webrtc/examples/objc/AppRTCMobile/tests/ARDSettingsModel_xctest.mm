@@ -45,6 +45,7 @@
   NSString *string = [_model currentVideoResolutionSettingFromStore];
 
   XCTAssertEqualObjects(string, @"640x480");
+  [storeMock verify];
 }
 
 - (void)testStoringInvalidConstraintReturnsNo {

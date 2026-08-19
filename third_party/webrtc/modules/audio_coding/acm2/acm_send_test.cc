@@ -10,10 +10,9 @@
 
 #include "modules/audio_coding/acm2/acm_send_test.h"
 
-#include <stdio.h>
-#include <string.h>
-
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <memory>
 #include <utility>
 

@@ -10,12 +10,10 @@
 
 #include "api/neteq/neteq.h"
 
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>  // memset
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>  // memset
 #include <map>
 #include <memory>
 #include <optional>

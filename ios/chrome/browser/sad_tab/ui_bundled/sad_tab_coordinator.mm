@@ -16,28 +16,28 @@
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/named_guide.h"
+#import "ios/chrome/browser/tabs/model/tabs_dependency_installer_bridge.h"
 #import "ios/chrome/browser/web/model/sad_tab_tab_helper.h"
 #import "ios/chrome/browser/web/model/web_navigation_browser_agent.h"
-#import "ios/chrome/browser/web_state_list/model/web_state_dependency_installer_bridge.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/web/public/web_state.h"
 
 @interface SadTabCoordinator () <SadTabViewControllerDelegate,
-                                 DependencyInstalling> {
-  SadTabViewController* _viewController;
-  // Bridge to observe the web state list from Objective-C.
-  std::unique_ptr<WebStateDependencyInstallerBridge> _dependencyInstallerBridge;
-}
+                                 TabsDependencyInstalling>
 @end
 
-@implementation SadTabCoordinator
+@implementation SadTabCoordinator {
+  SadTabViewController* _viewController;
+  // Bridge to observe the web state list from Objective-C.
+  std::unique_ptr<TabsDependencyInstallerBridge> _dependencyInstallerBridge;
+}
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
                                    browser:(Browser*)browser {
   self = [super initWithBaseViewController:viewController browser:browser];
   if (self) {
     _dependencyInstallerBridge =
-        std::make_unique<WebStateDependencyInstallerBridge>(
+        std::make_unique<TabsDependencyInstallerBridge>(
             self, self.browser->GetWebStateList());
   }
   return self;
@@ -157,7 +157,7 @@
   [self stop];
 }
 
-#pragma mark - DependencyInstalling
+#pragma mark - TabsDependencyInstalling
 
 - (void)installDependencyForWebState:(web::WebState*)webState {
   SadTabTabHelper::FromWebState(webState)->SetDelegate(self);

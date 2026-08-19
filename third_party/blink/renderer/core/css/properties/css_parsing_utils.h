@@ -28,7 +28,6 @@
 namespace blink {
 
 namespace cssvalue {
-class CSSFontFeatureValue;
 class CSSScopedKeywordValue;
 class CSSURIValue;
 }  // namespace cssvalue
@@ -194,6 +193,9 @@ template <CSSValueID... allowedIdents>
 cssvalue::CSSScopedKeywordValue* ConsumeScopedKeywordValue(
     CSSParserTokenStream&);
 
+// https://drafts.csswg.org/css-values-5/#ident
+CSSFunctionValue* ConsumeIdentFunction(CSSParserTokenStream&,
+                                       const CSSParserContext&);
 CSSCustomIdentValue* ConsumeCustomIdent(CSSParserTokenStream&,
                                         const CSSParserContext&);
 CSSCustomIdentValue* ConsumeDashedIdent(CSSParserTokenStream&,
@@ -534,8 +536,8 @@ CSSValue* ConsumeFontStyle(CSSParserTokenStream&, const CSSParserContext&);
 CSSValue* ConsumeFontWeight(CSSParserTokenStream&, const CSSParserContext&);
 CSSValue* ConsumeFontFeatureSettings(CSSParserTokenStream&,
                                      const CSSParserContext&);
-cssvalue::CSSFontFeatureValue* ConsumeFontFeatureTag(CSSParserTokenStream&,
-                                                     const CSSParserContext&);
+CSSValue* ConsumeFontVariationSettings(CSSParserTokenStream&,
+                                       const CSSParserContext&);
 CSSIdentifierValue* ConsumeFontVariantCSS21(CSSParserTokenStream&);
 CSSIdentifierValue* ConsumeFontTechIdent(CSSParserTokenStream&);
 CSSIdentifierValue* ConsumeFontFormatIdent(CSSParserTokenStream&);
@@ -678,6 +680,10 @@ CSSValue* ConsumePositionArea(CSSParserTokenStream&);
 // the first is repeated, or the second is span-all. This method returns true if
 // the omitted value should be the first one repeated.
 bool IsRepeatedPositionAreaValue(CSSValueID value_id);
+
+// https://drafts.csswg.org/css-animations-2/#animation-trigger
+CSSValue* ConsumeSingleTimelineTriggerName(CSSParserTokenStream& stream,
+                                           const CSSParserContext& context);
 
 // Template implementations are at the bottom of the file for readability.
 

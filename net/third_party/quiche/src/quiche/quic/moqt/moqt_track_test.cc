@@ -96,19 +96,17 @@ TEST_F(SubscribeRemoteTrackTest, Windows) {
 class UpstreamFetchTest : public quic::test::QuicTest {
  protected:
   UpstreamFetchTest()
-      : fetch_(fetch_message_, [&](std::unique_ptr<MoqtFetchTask> task) {
-          fetch_task_ = std::move(task);
-        }) {}
+      : fetch_(fetch_message_, std::get<StandaloneFetch>(fetch_message_.fetch),
+               [&](std::unique_ptr<MoqtFetchTask> task) {
+                 fetch_task_ = std::move(task);
+               }) {}
 
   MoqtFetch fetch_message_ = {
       /*request_id=*/1,
       /*subscriber_priority=*/128,
       /*group_order=*/std::nullopt,
-      /*joining_fetch=*/std::nullopt,
-      /*full_track_name=*/FullTrackName("foo", "bar"),
-      /*start_object=*/Location(1, 1),
-      /*end_group=*/3,
-      /*end_object=*/100,
+      /*fetch=*/
+      StandaloneFetch(FullTrackName("foo", "bar"), Location(1, 1), 3, 100),
       VersionSpecificParameters(),
   };
   // The pointer held by the application.
@@ -179,7 +177,8 @@ TEST_F(UpstreamFetchTest, ObjectRetrieval) {
     got_object = true;
     EXPECT_EQ(fetch_task_->GetNextObject(object),
               MoqtFetchTask::GetNextObjectResult::kSuccess);
-    EXPECT_EQ(object.sequence, Location(3, 0, 0));
+    EXPECT_EQ(object.metadata.location, Location(3, 0));
+    EXPECT_EQ(object.metadata.subgroup, 0);
     EXPECT_EQ(object.payload.AsStringView(), "foobar");
   });
   int got_read_callback = 0;

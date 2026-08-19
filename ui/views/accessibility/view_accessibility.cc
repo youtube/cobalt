@@ -193,7 +193,8 @@ std::optional<size_t> ViewAccessibility::GetIndexOf(
 }
 
 void ViewAccessibility::GetAccessibleNodeData(ui::AXNodeData* data) const {
-  CHECK(view_);
+  // TODO(crbug.com/40672441): Investigate if we can safely remove this now that
+  // all accessibility attributes are cached directly.
   if (is_widget_closed_) {
     // Views may misbehave if their widget is closed; set "null-like" attributes
     // rather than possibly crashing.
@@ -201,26 +202,7 @@ void ViewAccessibility::GetAccessibleNodeData(ui::AXNodeData* data) const {
     return;
   }
 
-  data->role = data_.role;
-  data->SetNameFrom(GetCachedNameFrom());
-  if (!GetCachedName().empty()) {
-    data->SetName(GetCachedName());
-  }
-
-  DCHECK(!data->HasChildTreeID()) << "Please annotate child tree ids using "
-                                     "ViewAccessibility::SetChildTreeID.";
-
-  // Copy the attributes that are in the cache (`data_`) into the computed
-  // `data` object. This is done after the `data` object was initialized with
-  // the attributes computed by `View::GetAccessibleNodeData` to ensure that the
-  // cached attributes take precedence.
-  views::ViewAccessibilityUtils::Merge(/*source*/ data_, /*destination*/ *data);
-
-  data->relative_bounds.bounds = gfx::RectF(view_->bounds());
-
-  // Nothing should be added beyond this point. Reach out to the Chromium
-  // accessibility team in Slack, or to benjamin.beaudry@microsoft.com if you
-  // absolutely need to add something past this point.
+  *data = data_;
 }
 
 void ViewAccessibility::NotifyEvent(ax::mojom::Event event_type,
@@ -1485,12 +1467,62 @@ Widget* ViewAccessibility::GetWidget() const {
   return view_->GetWidget();
 }
 
+ViewAccessibility* ViewAccessibility::GetViewAccessibilityParent() const {
+  if (!view_) {
+    return nullptr;
+  }
+  if (auto* parent = view_->parent()) {
+    return &parent->GetViewAccessibility();
+  }
+  return nullptr;
+}
+
+ViewAccessibility* ViewAccessibility::GetUnignoredParent() const {
+  ViewAccessibility* parent = GetViewAccessibilityParent();
+  while (parent && parent->GetIsIgnored()) {
+    parent = parent->GetViewAccessibilityParent();
+  }
+  return parent;
+}
+
 gfx::NativeViewAccessible ViewAccessibility::GetFocusedDescendant() {
   CHECK(view_);
   if (focused_virtual_child_) {
     return focused_virtual_child_->GetNativeObject();
   }
   return view_->GetNativeViewAccessible();
+}
+
+std::vector<raw_ptr<ViewAccessibility>> ViewAccessibility::GetChildren() const {
+  std::vector<raw_ptr<ViewAccessibility>> out;
+
+  if (IsLeaf()) {
+    return out;
+  }
+
+  // The virtual children always override any real children the view might have.
+  if (!virtual_children_.empty()) {
+    out.reserve(virtual_children_.size());
+    for (auto& v : virtual_children_) {
+      out.push_back(v.get());
+    }
+    return out;
+  }
+
+  if (!view_) {
+    return out;
+  }
+
+  const auto& view_children = view_->children();
+  out.reserve(view_children.size());
+  for (auto child_view : view_children) {
+    out.push_back(&child_view->GetViewAccessibility());
+  }
+  return out;
+}
+
+std::string ViewAccessibility::GetDebugString() const {
+  return std::string(view_ ? view_->GetClassName() : "ViewAccessibility");
 }
 
 void ViewAccessibility::FireNativeEvent(ax::mojom::Event event_type) {

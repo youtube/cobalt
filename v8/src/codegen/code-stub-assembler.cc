@@ -2804,6 +2804,11 @@ TNode<MaybeObject> CodeStubAssembler::ClearedValue() {
       BitcastWordToTagged(IntPtrConstant(kClearedWeakHeapObjectLower32)));
 }
 
+TNode<MaybeObject> CodeStubAssembler::PrototypeChainInvalidConstant() {
+  static_assert(Map::kPrototypeChainInvalid.IsCleared());
+  return ClearedValue();
+}
+
 template <>
 TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(TNode<FixedArray> array) {
   return LoadAndUntagFixedArrayBaseLength(array);
@@ -3788,8 +3793,8 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
   BIND(&check_for_interpreter_data);
 
   GotoIfNot(HasInstanceType(var_result.value(), INTERPRETER_DATA_TYPE), &done);
-  TNode<BytecodeArray> bytecode_array = CAST(LoadProtectedPointerField(
-      CAST(var_result.value()), InterpreterData::kBytecodeArrayOffset));
+  TNode<BytecodeArray> bytecode_array =
+      LoadInterpreterDataBytecodeArray(CAST(var_result.value()));
   var_result = bytecode_array;
   Goto(&done);
 
@@ -3835,6 +3840,18 @@ CodeStubAssembler::LoadSharedFunctionInfoWasmJSFunctionData(
   return CAST(function_data);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+TNode<BytecodeArray> CodeStubAssembler::LoadInterpreterDataBytecodeArray(
+    TNode<InterpreterData> data) {
+  return CAST(LoadProtectedPointerField(
+      data, offsetof(InterpreterData, bytecode_array_)));
+}
+
+TNode<Code> CodeStubAssembler::LoadInterpreterDataInterpreterTrampoline(
+    TNode<InterpreterData> data) {
+  return CAST(LoadProtectedPointerField(
+      data, offsetof(InterpreterData, interpreter_trampoline_)));
+}
 
 TNode<Int32T> CodeStubAssembler::LoadBytecodeArrayParameterCount(
     TNode<BytecodeArray> bytecode_array) {
@@ -4223,8 +4240,8 @@ void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind, Label* bailout,
 
     BIND(&undefined);
     {
-      StoreFixedDoubleArrayUndefined(
-          TNode<FixedDoubleArray>::UncheckedCast(elements), index);
+      StoreFixedDoubleArrayUndefined(UncheckedCast<FixedDoubleArray>(elements),
+                                     index);
       Goto(&done);
     }
     BIND(&done);
@@ -5933,8 +5950,11 @@ void CodeStubAssembler::StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
 }
 
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+template <typename TIndex>
+  requires(std::is_same_v<TIndex, Smi> || std::is_same_v<TIndex, UintPtrT> ||
+           std::is_same_v<TIndex, IntPtrT>)
 void CodeStubAssembler::StoreFixedDoubleArrayUndefined(
-    TNode<FixedDoubleArray> array, TNode<IntPtrT> index) {
+    TNode<FixedDoubleArray> array, TNode<TIndex> index) {
   TNode<IntPtrT> offset =
       ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS,
                              OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
@@ -5944,6 +5964,11 @@ void CodeStubAssembler::StoreFixedDoubleArrayUndefined(
                               PACKED_DOUBLE_ELEMENTS));
   StoreDoubleUndefined(array, offset);
 }
+
+// Export the Smi version which is used outside of code-stub-assembler.
+template V8_EXPORT_PRIVATE void
+    CodeStubAssembler::StoreFixedDoubleArrayUndefined<Smi>(
+        TNode<FixedDoubleArray>, TNode<Smi>);
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 void CodeStubAssembler::FillFixedArrayWithSmiZero(ElementsKind kind,
@@ -8149,6 +8174,14 @@ TNode<BoolT> CodeStubAssembler::JSAnyIsNotPrimitive(TNode<HeapObject> object) {
 #else
   return IsJSReceiver(object);
 #endif
+}
+
+TNode<BoolT> CodeStubAssembler::JSAnyIsPrimitiveMap(TNode<Map> map) {
+  return Word32BinaryNot(JSAnyIsNotPrimitiveMap(map));
+}
+
+TNode<BoolT> CodeStubAssembler::JSAnyIsPrimitive(TNode<HeapObject> object) {
+  return Word32BinaryNot(JSAnyIsNotPrimitive(object));
 }
 
 TNode<BoolT> CodeStubAssembler::IsNullOrJSReceiver(TNode<HeapObject> object) {
@@ -17084,6 +17117,12 @@ void CodeStubAssembler::GotoIfNotNumberOrUndefined(
          is_not_number_or_undefined);
   BIND(&is_number_or_undefined);
 }
+void CodeStubAssembler::GotoIfNumberOrUndefined(TNode<Object> input,
+                                                Label* is_number_or_undefined) {
+  GotoIf(TaggedIsSmi(input), is_number_or_undefined);
+  GotoIf(IsHeapNumber(CAST(input)), is_number_or_undefined);
+  GotoIf(IsUndefined(input), is_number_or_undefined);
+}
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 void CodeStubAssembler::GotoIfNumber(TNode<Object> input, Label* is_number) {
@@ -17968,8 +18007,8 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
     // IsInterpreterData: Interpret bytecode
     BIND(&check_is_interpreter_data);
     {
-      TNode<Code> trampoline = CAST(LoadProtectedPointerField(
-          CAST(sfi_data), InterpreterData::kInterpreterTrampolineOffset));
+      TNode<Code> trampoline =
+          LoadInterpreterDataInterpreterTrampoline(CAST(sfi_data));
       sfi_code = trampoline;
     }
     Goto(&done);
@@ -19586,6 +19625,78 @@ void CodeStubAssembler::GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
     // WordAnd(r1, IntPtrConstant((1 << kBitsPerByte) - 1)));
     *mask = WordShl(IntPtrConstant(1), r1);
   }
+}
+
+// Word-to-Word32:
+template <>
+TNode<Int32T> CodeStubAssembler::Convert(TNode<IntPtrT> from) {
+  return TruncateIntPtrToInt32(from);
+}
+template <>
+TNode<Uint32T> CodeStubAssembler::Convert(TNode<IntPtrT> from) {
+  return Unsigned(TruncateIntPtrToInt32(from));
+}
+template <>
+TNode<Uint32T> CodeStubAssembler::Convert(TNode<WordT> from) {
+  return Convert<Uint32T>(Signed(from));
+}
+template <>
+TNode<Int32T> CodeStubAssembler::Convert(TNode<UintPtrT> from) {
+  return Convert<Int32T>(Signed(from));
+}
+template <>
+TNode<Uint32T> CodeStubAssembler::Convert(TNode<UintPtrT> from) {
+  return Convert<Uint32T>(Signed(from));
+}
+
+// Word32-to-Word.
+template <>
+TNode<UintPtrT> CodeStubAssembler::Convert(TNode<Uint32T> from) {
+  // Zero-extend.
+  return ChangeUint32ToWord(from);
+}
+template <>
+TNode<UintPtrT> CodeStubAssembler::Convert(TNode<Word32T> from) {
+  // Zero-extend.
+  return Convert<UintPtrT>(Unsigned(from));
+}
+template <>
+TNode<IntPtrT> CodeStubAssembler::Convert(TNode<Uint32T> from) {
+  // Zero-extend.
+  return Signed(ChangeUint32ToWord(from));
+}
+template <>
+TNode<IntPtrT> CodeStubAssembler::Convert(TNode<Int32T> from) {
+  // Sign-extend.
+  return ChangeInt32ToIntPtr(from);
+}
+
+// To-tagged.
+template <>
+TNode<Smi> CodeStubAssembler::Convert(TNode<IntPtrT> from) {
+  return SmiFromIntPtr(from);
+}
+template <>
+TNode<Smi> CodeStubAssembler::Convert(TNode<Int32T> from) {
+  return SmiFromInt32(from);
+}
+template <>
+TNode<Smi> CodeStubAssembler::Convert(TNode<Uint32T> from) {
+  return SmiFromUint32(from);
+}
+
+// From-tagged.
+template <>
+TNode<IntPtrT> CodeStubAssembler::Convert(TNode<Smi> from) {
+  return SmiToIntPtr(from);
+}
+template <>
+TNode<Int32T> CodeStubAssembler::Convert(TNode<Smi> from) {
+  return SmiToInt32(from);
+}
+template <>
+TNode<Uint32T> CodeStubAssembler::Convert(TNode<Smi> from) {
+  return PositiveSmiToUint32(from);
 }
 
 #undef CSA_DCHECK_BRANCH

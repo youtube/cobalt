@@ -10,10 +10,9 @@
 
 #include "modules/audio_coding/neteq/background_noise.h"
 
-#include <string.h>  // memcpy
-
 #include <algorithm>  // min, max
 #include <cstdint>
+#include <cstring>  // memcpy
 
 #include "api/array_view.h"
 #include "common_audio/signal_processing/dot_product_with_scale.h"

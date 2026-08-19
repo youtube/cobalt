@@ -330,7 +330,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
  private:
   i::Sandbox* sandbox_ = nullptr;
-  i::SandboxedArrayBufferAllocator* allocator_ = nullptr;
+  i::SandboxedArrayBufferAllocatorBase* allocator_ = nullptr;
 };
 
 #else
@@ -701,9 +701,7 @@ void InternalFieldOutOfBounds(int index) {
 
 // --- H a n d l e s ---
 
-HandleScope::HandleScope(Isolate* v8_isolate) { Initialize(v8_isolate); }
-
-void HandleScope::Initialize(Isolate* v8_isolate) {
+void HandleScope::DoInitializeAsserts(Isolate* v8_isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   // We do not want to check the correct usage of the Locker class all over the
   // place, so we do it only here: Without a HandleScope, an embedder can do
@@ -715,21 +713,32 @@ void HandleScope::Initialize(Isolate* v8_isolate) {
                       i_isolate->serializer_enabled(),
                   "HandleScope::HandleScope",
                   "Entering the V8 API without proper locking in place");
-  i::HandleScopeData* current = i_isolate->handle_scope_data();
-  i_isolate_ = i_isolate;
-  prev_next_ = current->next;
-  prev_limit_ = current->limit;
-  current->level++;
+}
+
+void HandleScope::AssertScopeLevelsMatch() {
 #ifdef V8_ENABLE_CHECKS
-  scope_level_ = current->level;
+  auto i_isolate = reinterpret_cast<internal::Isolate*>(isolate_);
+  CHECK_EQ(scope_level_, i_isolate->handle_scope_data()->level);
 #endif
 }
 
-HandleScope::~HandleScope() {
+void HandleScope::DoCloseScopeAsserts(int before, internal::Address* limit,
+                                      internal::HandleScopeData* current) {
 #ifdef V8_ENABLE_CHECKS
-  CHECK_EQ(scope_level_, i_isolate_->handle_scope_data()->level);
+#ifdef ENABLE_LOCAL_HANDLE_ZAPPING
+  internal::HandleScope::ZapRange(current->next, limit);
 #endif
-  i::HandleScope::CloseScope(i_isolate_, prev_next_, prev_limit_);
+
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(
+      current->next,
+      static_cast<size_t>(reinterpret_cast<internal::Address>(limit) -
+                          reinterpret_cast<internal::Address>(current->next)));
+  if (internal::v8_flags.check_handle_count) {
+    int after = NumberOfHandles(isolate_);
+    DCHECK_LT(after - before, internal::HandleScope::kCheckHandleThreshold);
+    DCHECK_LT(before, internal::HandleScope::kCheckHandleThreshold);
+  }
+#endif
 }
 
 void* HandleScope::operator new(size_t) { base::OS::Abort(); }
@@ -742,8 +751,16 @@ int HandleScope::NumberOfHandles(Isolate* v8_isolate) {
       reinterpret_cast<i::Isolate*>(v8_isolate));
 }
 
-i::Address* HandleScope::CreateHandle(i::Isolate* i_isolate, i::Address value) {
-  return i::HandleScope::CreateHandle(i_isolate, value);
+i::Address* HandleScope::Extend(Isolate* isolate) {
+  return i::HandleScope::Extend(reinterpret_cast<i::Isolate*>(isolate));
+}
+
+void HandleScope::DeleteExtensions(Isolate* v8_isolate) {
+  using I = internal::Internals;
+  internal::HandleScopeData* current = I::GetHandleScopeData(v8_isolate);
+  reinterpret_cast<internal::Isolate*>(v8_isolate)
+      ->handle_scope_implementer()
+      ->DeleteExtensions(current->limit);
 }
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
@@ -758,7 +775,7 @@ i::Address* HandleScope::CreateHandleForCurrentIsolate(i::Address value) {
 EscapableHandleScopeBase::EscapableHandleScopeBase(Isolate* v8_isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   escape_slot_ = CreateHandle(
-      i_isolate, i::ReadOnlyRoots(i_isolate).the_hole_value().ptr());
+      v8_isolate, i::ReadOnlyRoots(i_isolate).the_hole_value().ptr());
   Initialize(v8_isolate);
 }
 
@@ -3212,17 +3229,26 @@ bool StackFrame::IsUserJavaScript() const {
 
 // --- J S O N ---
 
-MaybeLocal<Value> JSON::Parse(Local<Context> context,
-                              Local<String> json_string) {
+MaybeLocal<Value> JSON::Parse(Local<Context> context, Local<String> json_string,
+                              std::optional<ScriptOrigin> origin) {
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_JSON_Parse};
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto string = Utils::OpenHandle(*json_string);
   i::Handle<i::String> source = i::String::Flatten(i_isolate, string);
   i::Handle<i::Object> undefined = i_isolate->factory()->undefined_value();
-  auto maybe_result =
-      source->IsOneByteRepresentation()
-          ? i::JsonParser<uint8_t>::Parse(i_isolate, source, undefined)
-          : i::JsonParser<uint16_t>::Parse(i_isolate, source, undefined);
+  std::optional<i::ScriptDetails> script_details;
+  if (origin.has_value()) {
+    const ScriptOrigin& script_origin = origin.value();
+    script_details.emplace(GetScriptDetails(
+        i_isolate, script_origin.ResourceName(), script_origin.LineOffset(),
+        script_origin.ColumnOffset(), script_origin.SourceMapUrl(),
+        script_origin.GetHostDefinedOptions(), script_origin.Options()));
+  }
+  auto maybe_result = source->IsOneByteRepresentation()
+                          ? i::JsonParser<uint8_t>::Parse(
+                                i_isolate, source, undefined, script_details)
+                          : i::JsonParser<uint16_t>::Parse(
+                                i_isolate, source, undefined, script_details);
   return api_scope.EscapeMaybe(maybe_result);
 }
 
@@ -3270,11 +3296,9 @@ SharedValueConveyor::SharedValueConveyor(Isolate* v8_isolate)
 Maybe<bool> ValueSerializer::Delegate::WriteHostObject(Isolate* v8_isolate,
                                                        Local<Object> object) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  THROW_NEW_ERROR_RETURN_VALUE(
-      i_isolate,
-      NewError(i_isolate->error_function(), i::MessageTemplate::kDataCloneError,
-               Utils::OpenDirectHandle(*object)),
-      Nothing<bool>());
+  THROW_NEW_ERROR(i_isolate, NewError(i_isolate->error_function(),
+                                      i::MessageTemplate::kDataCloneError,
+                                      Utils::OpenDirectHandle(*object)));
 }
 
 bool ValueSerializer::Delegate::HasCustomHostObject(Isolate* v8_isolate) {
@@ -6982,11 +7006,10 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
           isolate_, NewTypeError(error_->msg_id, error_->name), false);
     }
     for (const auto& obj : objects_to_freeze_) {
-      MAYBE_RETURN_ON_EXCEPTION_VALUE(
-          isolate_,
-          i::JSReceiver::SetIntegrityLevel(isolate_, obj, i::FROZEN,
-                                           i::kThrowOnError),
-          false);
+      RETURN_ON_EXCEPTION_VALUE(isolate_,
+                                i::JSReceiver::SetIntegrityLevel(
+                                    isolate_, obj, i::FROZEN, i::kThrowOnError),
+                                false);
     }
     return true;
   }
@@ -7222,14 +7245,8 @@ void Context::SetMicrotaskQueue(v8::MicrotaskQueue* queue) {
 v8::Local<v8::Object> Context::Global() {
   auto context = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::Isolate::Current();
-  i::DirectHandle<i::JSGlobalProxy> global(context->global_proxy(), i_isolate);
-  // TODO(chromium:324812): This should always return the global proxy
-  // but can't presently as calls to GetPrototype will return the wrong result.
-  if (global->IsDetachedFrom(i_isolate, context->global_object())) {
-    i::DirectHandle<i::JSObject> result(context->global_object(), i_isolate);
-    return Utils::ToLocal(result);
-  }
-  return Utils::ToLocal(i::Cast<i::JSObject>(global));
+  i::DirectHandle<i::JSObject> global(context->global_proxy(), i_isolate);
+  return Utils::ToLocal(global);
 }
 
 void Context::DetachGlobal() {
@@ -11034,11 +11051,10 @@ Maybe<std::string> Isolate::ValidateAndCanonicalizeUnicodeLocaleId(
 #ifdef V8_INTL_SUPPORT
   return i::Intl::ValidateAndCanonicalizeUnicodeLocaleId(i_isolate, tag);
 #else
-  THROW_NEW_ERROR_RETURN_VALUE(
+  THROW_NEW_ERROR(
       i_isolate,
       NewRangeError(i::MessageTemplate::kInvalidLanguageTag,
-                    i_isolate->factory()->NewStringFromAsciiChecked(tag)),
-      Nothing<std::string>());
+                    i_isolate->factory()->NewStringFromAsciiChecked(tag)));
 #endif
 }
 

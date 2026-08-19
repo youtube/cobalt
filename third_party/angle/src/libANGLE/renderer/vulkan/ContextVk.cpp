@@ -2896,7 +2896,8 @@ void ContextVk::updateUniformBufferBlocksOffset()
     ASSERT(executableVk);
     ASSERT(executableVk->usesDynamicUniformBufferDescriptors());
 
-    gl::ProgramUniformBlockMask dirtyBlocks = mState.getAndResetDirtyUniformBlocks();
+    gl::ProgramUniformBlockMask dirtyBlocks =
+        mState.getAndResetDirtyUniformBlocks() & executable->getActiveUniformBufferBlocks();
     for (size_t blockIndex : dirtyBlocks)
     {
         const GLuint binding = executable->getUniformBlockBinding(blockIndex);
@@ -2922,8 +2923,9 @@ angle::Result ContextVk::handleDirtyUniformBuffersImpl(CommandBufferT *commandBu
     const VkPhysicalDeviceLimits &limits = mRenderer->getPhysicalDeviceProperties().limits;
     ProgramExecutableVk *executableVk    = vk::GetImpl(executable);
 
-    gl::ProgramUniformBlockMask dirtyBits = mState.getAndResetDirtyUniformBlocks();
-    for (size_t blockIndex : dirtyBits)
+    gl::ProgramUniformBlockMask dirtyBlocks =
+        mState.getAndResetDirtyUniformBlocks() & executable->getActiveUniformBufferBlocks();
+    for (size_t blockIndex : dirtyBlocks)
     {
         const GLuint binding = executable->getUniformBlockBinding(blockIndex);
         mShaderBuffersDescriptorDesc.updateOneShaderBuffer(
@@ -5944,6 +5946,15 @@ angle::Result ContextVk::syncState(const gl::Context *context,
                               "Dirty bit order");
                 iter.setLaterBit(gl::state::DIRTY_BIT_ATOMIC_COUNTER_BUFFER_BINDING);
                 break;
+            case gl::state::DIRTY_BIT_ATOMIC_COUNTER_BUFFER_BINDING:
+                ANGLE_TRY(invalidateCurrentShaderResources(command));
+                // invalidateCurrentShaderResources(...) already dirties all uniform buffers
+                static_assert(gl::state::DIRTY_BIT_UNIFORM_BUFFER_BINDINGS >
+                                  gl::state::DIRTY_BIT_ATOMIC_COUNTER_BUFFER_BINDING,
+                              "Dirty bit order");
+                iter.resetLaterBit(gl::state::DIRTY_BIT_UNIFORM_BUFFER_BINDINGS);
+                invalidateDriverUniforms();
+                break;
             case gl::state::DIRTY_BIT_UNIFORM_BUFFER_BINDINGS:
             {
                 constexpr gl::BufferDirtyTypeBitMask kOnlyOffsetDirtyMask{
@@ -5962,10 +5973,6 @@ angle::Result ContextVk::syncState(const gl::Context *context,
                 }
                 break;
             }
-            case gl::state::DIRTY_BIT_ATOMIC_COUNTER_BUFFER_BINDING:
-                ANGLE_TRY(invalidateCurrentShaderResources(command));
-                invalidateDriverUniforms();
-                break;
             case gl::state::DIRTY_BIT_MULTISAMPLING:
                 // When disabled, this should configure the pipeline to render as if single-sampled,
                 // and write the results to all samples of a pixel regardless of coverage. See

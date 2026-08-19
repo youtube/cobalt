@@ -10,10 +10,9 @@
 
 #include "modules/audio_coding/neteq/statistics_calculator.h"
 
-#include <string.h>  // memset
-
 #include <algorithm>
 #include <cstdint>
+#include <cstring>  // memset
 
 #include "absl/strings/string_view.h"
 #include "api/neteq/neteq.h"

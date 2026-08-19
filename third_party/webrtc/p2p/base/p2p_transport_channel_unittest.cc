@@ -96,6 +96,7 @@
 #include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "system_wrappers/include/metrics.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
@@ -280,32 +281,6 @@ class ResolverFactoryFixture : public webrtc::MockAsyncDnsResolverFactory {
   std::unique_ptr<webrtc::MockAsyncDnsResolver> mock_async_dns_resolver_;
   webrtc::MockAsyncDnsResolverResult mock_async_dns_resolver_result_;
   absl::AnyInvocable<void()> saved_callback_;
-};
-
-class PermissionFactoryFixture
-    : public webrtc::MockLocalNetworkAccessPermissionFactory {
- public:
-  explicit PermissionFactoryFixture(
-      webrtc::LocalNetworkAccessPermissionStatus result) {
-    EXPECT_CALL(*this, Create()).WillRepeatedly([result]() {
-      auto mock_lna_permission =
-          std::make_unique<webrtc::MockLocalNetworkAccessPermission>();
-
-      EXPECT_CALL(*mock_lna_permission, RequestPermission(_, _))
-          .WillRepeatedly(
-              [result](
-                  const SocketAddress& /* addr */,
-                  absl::AnyInvocable<void(
-                      webrtc::LocalNetworkAccessPermissionStatus)> callback) {
-                webrtc::Thread::Current()->PostTask(
-                    [callback = std::move(callback), result]() mutable {
-                      callback(result);
-                    });
-              });
-
-      return mock_lna_permission;
-    });
-  }
 };
 
 bool HasLocalAddress(const webrtc::CandidatePairInterface* pair,
@@ -1304,7 +1279,7 @@ const P2PTransportChannelMatrixTest::Result*
 #define P2P_TEST_DECLARATION(x, y, z)                                 \
   TEST_P(P2PTransportChannelMatrixTest, z##Test##x##To##y) {          \
     const Environment env =                                           \
-        CreateEnvironment(FieldTrials::CreateNoGlobal(GetParam()));   \
+        CreateEnvironment(CreateTestFieldTrialsPtr(GetParam()));      \
     ConfigureEndpoints(env, x, y, PORTALLOCATOR_ENABLE_SHARED_SOCKET, \
                        PORTALLOCATOR_ENABLE_SHARED_SOCKET);           \
     if (kMatrix[x][y] != NULL)                                        \
@@ -2568,7 +2543,7 @@ TEST_F(P2PTransportChannelTest,
 TEST_F(P2PTransportChannelTest,
        CanConnectWithPiggybackCheckAcknowledgementWhenCheckResponseBlocked) {
   ScopedFakeClock clock;
-  const Environment env = CreateEnvironment(FieldTrials::CreateNoGlobal(
+  const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr(
       "WebRTC-PiggybackIceCheckAcknowledgement/Enabled/"));
   ConfigureEndpoints(env, OPEN, OPEN, kOnlyLocalPorts, kOnlyLocalPorts);
   IceConfig ep1_config;
@@ -4617,7 +4592,7 @@ TEST_F(P2PTransportChannelPingTest, TestSelectConnectionBeforeNomination) {
 // that sends a ping directly when a connection has been nominated
 // i.e on the ICE_CONTROLLED-side.
 TEST_F(P2PTransportChannelPingTest, TestPingOnNomination) {
-  const Environment env = CreateEnvironment(FieldTrials::CreateNoGlobal(
+  const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr(
       "WebRTC-IceFieldTrials/send_ping_on_nomination_ice_controlled:true/"));
   FakePortAllocator pa(env, ss());
   P2PTransportChannel ch("receiving state change", 1, &pa, &env.field_trials());
@@ -4663,7 +4638,7 @@ TEST_F(P2PTransportChannelPingTest, TestPingOnNomination) {
 // that sends a ping directly when switching to a new connection
 // on the ICE_CONTROLLING-side.
 TEST_F(P2PTransportChannelPingTest, TestPingOnSwitch) {
-  const Environment env = CreateEnvironment(FieldTrials::CreateNoGlobal(
+  const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr(
       "WebRTC-IceFieldTrials/send_ping_on_switch_ice_controlling:true/"));
   FakePortAllocator pa(env, ss());
   P2PTransportChannel ch("receiving state change", 1, &pa, &env.field_trials());
@@ -4706,7 +4681,7 @@ TEST_F(P2PTransportChannelPingTest, TestPingOnSwitch) {
 // that sends a ping directly when selecteing a new connection
 // on the ICE_CONTROLLING-side (i.e also initial selection).
 TEST_F(P2PTransportChannelPingTest, TestPingOnSelected) {
-  const Environment env = CreateEnvironment(FieldTrials::CreateNoGlobal(
+  const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr(
       "WebRTC-IceFieldTrials/send_ping_on_selected_ice_controlling:true/"));
   FakePortAllocator pa(env, ss());
   P2PTransportChannel ch("receiving state change", 1, &pa, &env.field_trials());
@@ -5570,7 +5545,7 @@ TEST_F(P2PTransportChannelPingTest, TestPortDestroyedAfterTimeoutAndPruned) {
 }
 
 TEST_F(P2PTransportChannelPingTest, TestMaxOutstandingPingsFieldTrial) {
-  const Environment env = CreateEnvironment(FieldTrials::CreateNoGlobal(
+  const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr(
       "WebRTC-IceFieldTrials/max_outstanding_pings:3/"));
   FakePortAllocator pa(env, ss());
   P2PTransportChannel ch("max", 1, &pa, &env.field_trials());
@@ -5831,7 +5806,7 @@ TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
 // I.e that we never create connection between relay and non-relay.
 TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
        TestSkipRelayToNonRelayConnectionsFieldTrial) {
-  const Environment env = CreateEnvironment(FieldTrials::CreateNoGlobal(
+  const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr(
       "WebRTC-IceFieldTrials/skip_relay_to_non_relay_connections:true/"));
   CreatePortAllocator(env);
   P2PTransportChannel& ch = StartTransportChannel(env, true, 500);
@@ -6818,7 +6793,7 @@ TEST_F(P2PTransportChannelTest,
 // coordination outside of webrtc to function properly.
 TEST_F(P2PTransportChannelTest, SurfaceRequiresCoordination) {
   ScopedFakeClock clock;
-  const Environment env = CreateEnvironment(FieldTrials::CreateNoGlobal(
+  const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr(
       "WebRTC-IceFieldTrials/skip_relay_to_non_relay_connections:true/"));
 
   ConfigureEndpoints(
@@ -6898,7 +6873,7 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampening0) {
   constexpr int kMargin = 10;
   ScopedFakeClock clock;
   clock.AdvanceTime(TimeDelta::Seconds(1));
-  const Environment env = CreateEnvironment(FieldTrials::CreateNoGlobal(
+  const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr(
       "WebRTC-IceFieldTrials/initial_select_dampening:0/"));
 
   FakePortAllocator pa(env, ss());
@@ -6925,7 +6900,7 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampening) {
   constexpr int kMargin = 10;
   ScopedFakeClock clock;
   clock.AdvanceTime(TimeDelta::Seconds(1));
-  const Environment env = CreateEnvironment(FieldTrials::CreateNoGlobal(
+  const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr(
       "WebRTC-IceFieldTrials/initial_select_dampening:100/"));
 
   FakePortAllocator pa(env, ss());
@@ -6952,7 +6927,7 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampeningPingReceived) {
   constexpr int kMargin = 10;
   ScopedFakeClock clock;
   clock.AdvanceTime(TimeDelta::Seconds(1));
-  const Environment env = CreateEnvironment(FieldTrials::CreateNoGlobal(
+  const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr(
       "WebRTC-IceFieldTrials/initial_select_dampening_ping_received:100/"));
 
   FakePortAllocator pa(env, ss());
@@ -6980,7 +6955,7 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampeningBoth) {
   constexpr int kMargin = 10;
   ScopedFakeClock clock;
   clock.AdvanceTime(TimeDelta::Seconds(1));
-  const Environment env = CreateEnvironment(FieldTrials::CreateNoGlobal(
+  const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr(
       "WebRTC-IceFieldTrials/"
       "initial_select_dampening:100,initial_select_dampening_ping_received:"
       "50/"));
@@ -7262,7 +7237,7 @@ class LocalAreaNetworkPermissionTest
 TEST_P(LocalAreaNetworkPermissionTest, LiteralAddresses) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  PermissionFactoryFixture lna_permission_factory(
+  webrtc::FakeLocalNetworkAccessPermissionFactory lna_permission_factory(
       GetParam().lna_permission_status);
 
   IceTransportInit init;
@@ -7291,7 +7266,7 @@ TEST_P(LocalAreaNetworkPermissionTest, LiteralAddresses) {
 TEST_P(LocalAreaNetworkPermissionTest, UnresolvedAddresses) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  PermissionFactoryFixture lna_permission_factory(
+  webrtc::FakeLocalNetworkAccessPermissionFactory lna_permission_factory(
       GetParam().lna_permission_status);
 
   ResolverFactoryFixture resolver_fixture;
@@ -7339,7 +7314,7 @@ TEST_P(GatherAfterConnectedTest, GatherAfterConnected) {
 
   ScopedFakeClock clock;
   const Environment env =
-      CreateEnvironment(FieldTrials::CreateNoGlobal(field_trial));
+      CreateEnvironment(CreateTestFieldTrialsPtr(field_trial));
   // Use local + relay
   constexpr uint32_t flags =
       kDefaultPortAllocatorFlags | PORTALLOCATOR_ENABLE_SHARED_SOCKET |
@@ -7419,7 +7394,7 @@ TEST_P(GatherAfterConnectedTest, GatherAfterConnectedMultiHomed) {
 
   ScopedFakeClock clock;
   const Environment env =
-      CreateEnvironment(FieldTrials::CreateNoGlobal(field_trial));
+      CreateEnvironment(CreateTestFieldTrialsPtr(field_trial));
 
   // Use local + relay
   constexpr uint32_t flags =
@@ -7574,8 +7549,8 @@ class P2PTransportChannelTestDtlsInStun : public P2PTransportChannelTestBase {
     return make_pair(absl::string_view(pending_packet_), std::nullopt);
   }
 
-  void piggyback_data_received(const StunByteStringAttribute* data,
-                               const StunByteStringAttribute* ack) {}
+  void piggyback_data_received(std::optional<ArrayView<uint8_t>> data,
+                               std::optional<std::vector<uint32_t>> ack) {}
 
   ScopedFakeClock clock_;
   Buffer pending_packet_;

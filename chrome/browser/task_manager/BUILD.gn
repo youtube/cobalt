@@ -4,7 +4,6 @@
 
 import("//chrome/common/features.gni")
 import("//components/guest_view/buildflags/buildflags.gni")
-import("//components/nacl/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 
 if (is_android) {
@@ -64,7 +63,6 @@ source_set("task_manager") {
     "//chrome/common:buildflags",
     "//components/favicon/core",
     "//components/guest_view/buildflags",
-    "//components/nacl/common:buildflags",
     "//components/sessions:session_id",
     "//components/webapps/common",
     "//content/public/browser",
@@ -206,12 +204,6 @@ source_set("impl") {
     sources += [ "sampling/shared_sampler_win.cc" ]
   } else {
     sources += [ "sampling/shared_sampler_stub.cc" ]
-  }
-  if (is_chromeos) {
-    deps += [ "//components/nacl/common:buildflags" ]
-  }
-  if (enable_nacl) {
-    deps += [ "//components/nacl/browser" ]
   }
   if (is_chromeos) {
     sources += [

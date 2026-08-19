@@ -35,6 +35,7 @@
 <translation id="141901961143729572">Comparteix què penses</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{Chrome s'ha acabat d'actualitzar. Pots utilitzar-ne la versió més recent tan bon punt reiniciïs Chrome. Després, es tornaran a obrir les pestanyes actuals.}=1{Chrome s'ha acabat d'actualitzar. Pots utilitzar-ne la versió més recent tan bon punt reiniciïs Chrome. Després, es tornaran a obrir les pestanyes actuals. La finestra d'incògnit no es tornarà a obrir.}other{Chrome s'ha acabat d'actualitzar. Pots utilitzar-ne la versió més recent tan bon punt reiniciïs Chrome. Després, es tornaran a obrir les pestanyes actuals. Les # finestres d'incògnit no es tornaran a obrir.}}</translation>
 <translation id="1434626383986940139">Aplicacions de Chrome Canary</translation>
+<translation id="1439793550875056299">Fixa Chrome</translation>
 <translation id="146866447420868597">Vols iniciar la sessió a Chrome?</translation>
 <translation id="1492280395845991349">Reinicia per finalitzar l'actualització de Chrome</translation>
 <translation id="1497802159252041924">Error d'instal·lació: <ph name="INSTALL_ERROR" /></translation>
@@ -120,6 +121,7 @@
 <translation id="2569974318947988067">Chrome provarà de navegar mitjançant HTTPS</translation>
 <translation id="2571392474191184472">La teva organització gestiona Chrome</translation>
 <translation id="2574930892358684005"><ph name="EXISTING_USER" /> ja té la sessió iniciada en aquest perfil de Chrome. Per continuar amb la teva navegació per separat, Chrome et pot crear un perfil propi.</translation>
+<translation id="2579190314336775785">Les contrasenyes només es poden suprimir fora de Chrome</translation>
 <translation id="2580411288591421699">No es pot instal·lar la mateixa versió de Google Chrome que s'executa actualment. Tanqueu Google Chrome i torneu-ho a provar.</translation>
 <translation id="2586406160782125153">Amb aquesta acció, se suprimiran les teves dades de navegació d'aquest dispositiu. Per recuperar les teves dades més endavant, inicia la sessió a Chrome com a <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">No s'ha pogut desar l'instal·lador baixat a la memòria cau. Error: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -268,6 +270,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chrome recomana posar en pausa la pestanya que està alentint el navegador}other{Chrome recomana posar en pausa les pestanyes que estan alentint el navegador}}</translation>
 <translation id="4328355335528187361">Google Chrome Dev (mDNS-In)</translation>
 <translation id="4329315893554541805">Per obtenir personalització i altres funcions, inclou Chrome a Activitat al web i en aplicacions i als serveis de Google enllaçats</translation>
+<translation id="4334241893986177674">Cerca aquesta captura de pantalla</translation>
 <translation id="4334294535648607276">S'ha completat la baixada.</translation>
 <translation id="4337324600316876133">Per obtenir actualitzacions de Google Chrome en un futur, necessitaràs macOS 12 o una versió posterior. Aquest ordinador utilitza macOS 11.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> s'ha afegit a Chrome</translation>
@@ -351,6 +354,7 @@
 <translation id="5566025111015594046">Google Chrome (mDNS-In)</translation>
 <translation id="5579324208890605088">Error d'arrencada: executa l'instal·lador com a usuari normal, no com a administrador.</translation>
 <translation id="5596627076506792578">Més opcions</translation>
+<translation id="5600352656975192682">Fixa Chrome a la barra de tasques per accedir-hi ràpidament en qualsevol moment</translation>
 <translation id="5602351063754773347">Chrome et recomana que la suprimeixis. <ph name="BEGIN_LINK" />Més informació sobre les extensions admeses<ph name="END_LINK" /></translation>
 <translation id="5649156266046089790">Els perfils de Chrome et permeten separar tot el teu contingut de Chrome. Crea perfils per a amics i familiars, o separa la feina de la diversió.</translation>
 <translation id="565744775970812598">Chrome ha bloquejat <ph name="FILE_NAME" /> perquè pot ser perillós.</translation>

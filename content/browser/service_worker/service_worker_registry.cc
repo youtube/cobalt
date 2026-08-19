@@ -57,6 +57,10 @@ BASE_FEATURE(kServiceWorkerBackgroundUpdateForServiceWorkerScopeCache,
              "ServiceWorkerBackgroundUpdateForServiceWorkerScopeCache",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kServiceWorkerBackgroundUpdateForFindRegistrationForClientUrl,
+             "ServiceWorkerBackgroundUpdateForFindRegistrationForClientUrl",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kReduceCallingServiceWorkerRegisteredStorageKeysOnStartup,
              "ReduceCallingServiceWorkerRegisteredStorageKeysOnStartup",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -250,7 +254,9 @@ ServiceWorkerRegistry::ServiceWorkerRegistry(
               base::FeatureList::IsEnabled(
                   kServiceWorkerBackgroundUpdateForRegisteredStorageKeysFieldTrialControlled),
           base::FeatureList::IsEnabled(
-              kServiceWorkerBackgroundUpdateForServiceWorkerScopeCache))),
+              kServiceWorkerBackgroundUpdateForServiceWorkerScopeCache),
+          base::FeatureList::IsEnabled(
+              kServiceWorkerBackgroundUpdateForFindRegistrationForClientUrl))),
       quota_manager_proxy_(quota_manager_proxy),
       special_storage_policy_(special_storage_policy),
       registration_scope_cache_(kServiceWorkerScopeCacheLimitSize),
@@ -344,18 +350,30 @@ void ServiceWorkerRegistry::FindRegistrationForClientUrl(
       TRACE_ID_WITH_SCOPE("ServiceWorkerRegistry", trace_event_id),
       TRACE_EVENT_FLAG_FLOW_OUT, "URL", client_url.spec());
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  bool is_mojo_called = false;
+  base::ScopedClosureRunner run_at_return(
+      purpose == Purpose::kNavigation
+          ? base::BindOnce(
+                [](bool* is_mojo_called) {
+                  base::UmaHistogramBoolean(
+                      "ServiceWorker.FindRegistrationForClientUrl."
+                      "SkippedMojoCall.OnNavigation2",
+                      !(*is_mojo_called));
+                },
+                base::Unretained(&is_mojo_called))
+          : base::DoNothing());
+
   // The following code implements a performance optimization: it retrieves the
   // registration scopes from the `ServiceWorkerStorage` in the thread pool
   // without waiting for `DidFindRegistrationForClientUrl()` to be called.
-  if (storage_shared_buffer_) {
-    for (const auto& [storage_key, scopes] :
-         storage_shared_buffer_->TakeRegistrationScopes()) {
-      // Although StorageSharedBuffer ignores the ordering of the
-      // FindRegistrationForClientUrl mojo calls, we believe this
-      // is fine since `registration_scope_cache_` is a large enough cache.
-      registration_scope_cache_.Put(
-          storage_key, std::set<GURL>(scopes.begin(), scopes.end()));
-    }
+  for (const auto& [storage_key, scopes] :
+       storage_shared_buffer().TakeRegistrationScopes()) {
+    // Although StorageSharedBuffer ignores the ordering of the
+    // FindRegistrationForClientUrl mojo calls, we believe this
+    // is fine since `registration_scope_cache_` is a large enough cache.
+    registration_scope_cache_.Put(storage_key,
+                                  std::set<GURL>(scopes.begin(), scopes.end()));
   }
   // `registration_scope_cache_` provides a full list of scope URLs for the
   // given blink::StorageKey if the matched entry exists. There are the
@@ -373,10 +391,10 @@ void ServiceWorkerRegistry::FindRegistrationForClientUrl(
   // (https://crbug.com/1446216)
   bool no_registration = false;
   std::optional<GURL> matched_scope;
-  std::optional<std::set<GURL>> scopes;
+  std::optional<std::vector<GURL>> scopes;
   auto iter = registration_scope_cache_.Get(key);
   if (iter != registration_scope_cache_.end()) {
-    scopes = iter->second;
+    scopes = std::vector(iter->second.begin(), iter->second.end());
     blink::ServiceWorkerLongestScopeMatcher matcher(client_url);
     for (const GURL& scope : *scopes) {
       if (matcher.MatchLongest(scope)) {
@@ -384,12 +402,6 @@ void ServiceWorkerRegistry::FindRegistrationForClientUrl(
       }
     }
     no_registration = !matched_scope;
-  }
-  if (purpose == Purpose::kNavigation) {
-    base::UmaHistogramBoolean(
-        "ServiceWorker.FindRegistrationForClientUrl.SkippedMojoCall."
-        "OnNavigation",
-        no_registration);
   }
   base::UmaHistogramBoolean(
       "ServiceWorker.FindRegistrationForClientUrl.IsCalledForNavigation",
@@ -400,7 +412,9 @@ void ServiceWorkerRegistry::FindRegistrationForClientUrl(
       int64_t registration_id = it->second;
       std::optional<scoped_refptr<ServiceWorkerRegistration>> registration =
           FindFromLiveRegistrationsForId(registration_id);
-      if (registration) {
+      // Since FindFromLiveRegistrationsForId() can return std::nullopt or
+      // nullptr, both cases must be checked.
+      if (registration.has_value() && registration.value()) {
         FindRegistrationForClientUrlTraceEventBegin(trace_event_id, client_url);
         FindRegistrationForClientUrlTraceEventEnd(
             trace_event_id, blink::ServiceWorkerStatusCode::kOk, std::nullopt);
@@ -421,80 +435,55 @@ void ServiceWorkerRegistry::FindRegistrationForClientUrl(
       // Merges duplicate requests into the preceding in-flight request.
       return;
     }
-    FindRegistrationForClientUrlTraceEventBegin(trace_event_id, client_url);
-    if (no_registration) {
-      DidFindRegistrationForClientUrl(
-          client_url, key, trace_event_id,
-          // Pass a fake callback here as the proper callback will
-          // be invoked via find_registration_callbacks_
-          /*callback=*/base::DoNothing(),
-          storage::mojom::ServiceWorkerDatabaseStatus::kErrorNotFound, nullptr,
-          std::vector(scopes->begin(), scopes->end()));
-      return;
-    }
-    // TODO(crbug.com/352578800): Consider moving this block before
-    // kServiceWorkerMergeFindRegistrationForClientUrl check since this block
-    // will be skipped when no_registration is true.
-    if (service_worker_loader_helpers::IsEligibleForSyntheticResponse(
-            context_->wrapper()->browser_context(), client_url)) {
-      // If `client_url` is eligible for SyntheticResponse, create a fake
-      // ServiceWorker registration so that the navigation is handled by
-      // ServiceWorker main resource loader.
-      CreateInvokerAndStartRemoteCall(
-          &storage::mojom::ServiceWorkerStorageControl::
-              GetFakeRegistrationForClientUrl,
-          base::BindOnce(
-              &ServiceWorkerRegistry::DidFindRegistrationForClientUrl,
-              weak_factory_.GetWeakPtr(), client_url, key, trace_event_id,
-              base::DoNothing()),
-          client_url, key);
-      return;
-    }
+    // Overwrite with a fake callback here as the actual callback is stored in
+    // `find_registration_callbacks_`, and will be invoked in
+    // `RunFindRegistrationCallbacks()`.
+    callback = base::DoNothing();
+  }
+
+  FindRegistrationForClientUrlTraceEventBegin(trace_event_id, client_url);
+  if (no_registration) {
+    DidFindRegistrationForClientUrl(
+        client_url, key, trace_event_id, std::move(callback),
+        storage::mojom::ServiceWorkerDatabaseStatus::kErrorNotFound, nullptr,
+        scopes);
+    return;
+  }
+  storage::mojom::ServiceWorkerFindRegistrationResultPtr preflight_result =
+      storage_shared_buffer().TakeFindRegistrationResult(client_url, key);
+  if (!preflight_result.is_null()) {
+    DidFindRegistrationForClientUrl(
+        client_url, key, trace_event_id, std::move(callback),
+        storage::mojom::ServiceWorkerDatabaseStatus::kOk,
+        std::move(preflight_result), scopes);
+    return;
+  }
+  // TODO(crbug.com/352578800): Consider moving this block before
+  // kServiceWorkerMergeFindRegistrationForClientUrl check since this block
+  // will be skipped when no_registration is true.
+  if (service_worker_loader_helpers::IsEligibleForSyntheticResponse(
+          context_->wrapper()->browser_context(), client_url)) {
+    // If `client_url` is eligible for SyntheticResponse, create a fake
+    // ServiceWorker registration so that the navigation is handled by
+    // ServiceWorker main resource loader.
+    is_mojo_called = true;
     CreateInvokerAndStartRemoteCall(
         &storage::mojom::ServiceWorkerStorageControl::
-            FindRegistrationForClientUrl,
-        base::BindOnce(&ServiceWorkerRegistry::DidFindRegistrationForClientUrl,
-                       weak_factory_.GetWeakPtr(), client_url, key,
-                       trace_event_id,
-                       // Pass a fake callback here as the proper callback will
-                       // be invoked via find_registration_callbacks_
-                       /*callback=*/base::DoNothing()),
-        client_url, key);
-  } else {
-    FindRegistrationForClientUrlTraceEventBegin(trace_event_id, client_url);
-    if (no_registration) {
-      DidFindRegistrationForClientUrl(
-          client_url, key, trace_event_id, std::move(callback),
-          storage::mojom::ServiceWorkerDatabaseStatus::kErrorNotFound, nullptr,
-          std::vector(scopes->begin(), scopes->end()));
-      return;
-    }
-    // TODO(crbug.com/352578800): Consider moving this block before
-    // kServiceWorkerMergeFindRegistrationForClientUrl check since this block
-    // will be skipped when no_registration is true.
-    if (service_worker_loader_helpers::IsEligibleForSyntheticResponse(
-            context_->wrapper()->browser_context(), client_url)) {
-      // If `client_url` is eligible for SyntheticResponse, create a fake
-      // ServiceWorker registration so that the navigation is handled by
-      // ServiceWorker main resource loader.
-      CreateInvokerAndStartRemoteCall(
-          &storage::mojom::ServiceWorkerStorageControl::
-              GetFakeRegistrationForClientUrl,
-          base::BindOnce(
-              &ServiceWorkerRegistry::DidFindRegistrationForClientUrl,
-              weak_factory_.GetWeakPtr(), client_url, key, trace_event_id,
-              std::move(callback)),
-          client_url, key);
-      return;
-    }
-    CreateInvokerAndStartRemoteCall(
-        &storage::mojom::ServiceWorkerStorageControl::
-            FindRegistrationForClientUrl,
+            GetFakeRegistrationForClientUrl,
         base::BindOnce(&ServiceWorkerRegistry::DidFindRegistrationForClientUrl,
                        weak_factory_.GetWeakPtr(), client_url, key,
                        trace_event_id, std::move(callback)),
         client_url, key);
+    return;
   }
+  is_mojo_called = true;
+  CreateInvokerAndStartRemoteCall(
+      &storage::mojom::ServiceWorkerStorageControl::
+          FindRegistrationForClientUrl,
+      base::BindOnce(&ServiceWorkerRegistry::DidFindRegistrationForClientUrl,
+                     weak_factory_.GetWeakPtr(), client_url, key,
+                     trace_event_id, std::move(callback)),
+      client_url, key);
 }
 
 void ServiceWorkerRegistry::FindRegistrationForScope(
@@ -1010,10 +999,8 @@ void ServiceWorkerRegistry::DidGetRegisteredStorageKeysOnStartupDeprecated(
       "ServiceWorkerRegistry::DidGetRegisteredStorageKeysOnStartupDeprecated");
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  if (storage_shared_buffer_) {
-    // Discard RegisteredKeys from `storage_shared_buffer_`.
-    storage_shared_buffer_->TakeRegisteredKeys();
-  }
+  // Discard RegisteredKeys from `storage_shared_buffer_`.
+  storage_shared_buffer().TakeRegisteredKeys();
 
   if (!registrations_initialized_) {
     SetRegisteredStorageKeys(storage_keys);
@@ -1050,9 +1037,9 @@ bool ServiceWorkerRegistry::MaybeHasRegistrationForStorageKey(
   // `storage_keys` from the `ServiceWorkerStorage` in the thread pool without
   // waiting for `DidGetRegisteredStorageKeys()` to be called. This can speed up
   // navigation during the browser startup phase.
-  if (!registrations_initialized_ && storage_shared_buffer_) {
+  if (!registrations_initialized_) {
     if (std::optional<std::vector<blink::StorageKey>> storage_keys =
-            storage_shared_buffer_->TakeRegisteredKeys()) {
+            storage_shared_buffer().TakeRegisteredKeys()) {
       SetRegisteredStorageKeys(*storage_keys);
     }
   }
@@ -1339,9 +1326,9 @@ void ServiceWorkerRegistry::DidFindRegistrationForClientUrl(
       TRACE_EVENT_FLAG_FLOW_IN);
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   // Discard RegistrationScopes from storage_shared_buffer.
-  if (storage_shared_buffer_) {
-    storage_shared_buffer_->TakeRegistrationScopes();
-  }
+  storage_shared_buffer().TakeRegistrationScopes();
+  // Discard FindRegistrationResult from storage_shared_buffer.
+  storage_shared_buffer().TakeFindRegistrationResult(client_url, key);
   if (database_status != storage::mojom::ServiceWorkerDatabaseStatus::kOk &&
       database_status !=
           storage::mojom::ServiceWorkerDatabaseStatus::kErrorNotFound) {

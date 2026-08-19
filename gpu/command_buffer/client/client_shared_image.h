@@ -15,12 +15,12 @@
 #include "base/memory/unsafe_shared_memory_pool.h"
 #include "base/task/single_thread_task_runner.h"
 #include "gpu/command_buffer/client/gpu_command_buffer_client_export.h"
-#include "gpu/command_buffer/client/gpu_memory_buffer_manager.h"
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/shared_image_trace_utils.h"
 #include "gpu/ipc/common/exported_shared_image.mojom-shared.h"
 #include "gpu/ipc/common/gpu_memory_buffer_handle_info.h"
+#include "gpu/ipc/common/gpu_memory_buffer_impl.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
 #include "third_party/skia/include/core/SkPixmap.h"
 #include "ui/gfx/color_space.h"
@@ -40,7 +40,7 @@ class VideoFrame;
 }  // namespace media
 
 namespace viz {
-class CopyOutputTextureResult;
+class CopyOutputSharedImageResult;
 }  // namespace viz
 
 namespace gpu {
@@ -148,14 +148,6 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT ClientSharedImage
   // GpuMemoryBuffer.
   gfx::GpuMemoryBufferHandle CloneGpuMemoryBufferHandle() const;
 
-#if BUILDFLAG(IS_APPLE)
-  // Sets the color space in which the native buffer backing this SharedImage
-  // should be interpreted when used as an overlay. Note that this will not
-  // impact texturing from the buffer. Used only for SharedImages backed by a
-  // client-accessible IOSurface.
-  void SetColorSpaceOnNativeBuffer(const gfx::ColorSpace& color_space);
-#endif
-
   // Returns the GL texture target to use for this SharedImage.
   uint32_t GetTextureTarget();
 
@@ -218,8 +210,18 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT ClientSharedImage
   static scoped_refptr<ClientSharedImage> CreateForTesting(
       SharedImageUsageSet usage);
   static scoped_refptr<ClientSharedImage> CreateForTesting(
+      const SharedImageMetadata& metadata);
+  static scoped_refptr<ClientSharedImage> CreateForTesting(
       const SharedImageMetadata& metadata,
       uint32_t texture_target);
+
+  // Used to defer execution of `MapAsync()` result callback. The callbacks
+  // will be passed to the configured instance of this class, which can execute
+  // them as the test requires.
+  class MapCallbackControllerForTesting {
+   public:
+    virtual void RegisterCallback(base::OnceCallback<void(bool)> result_cb) = 0;
+  };
 
   static scoped_refptr<ClientSharedImage> CreateForTesting(
       const Mailbox& mailbox,
@@ -267,54 +269,16 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT ClientSharedImage
   friend class SharedImageTexture;
   ~ClientSharedImage();
 
-  // Helper class that implements the GpuMemoryBufferManager interface.
-  // Note that this is primarily needed for transition to MappableSI where some
-  // clients will be using GpuMemoryBufferManager and some will want to use SII
-  // instead.
-  // TODO(crbug.com/368562234): Once all the clients and tests using
-  // GpuMemoryBufferManager are converted to use MappableSI,
-  // GpuMemoryBufferManager and all  its implementations might be removed
-  // including this.
-  class HelperGpuMemoryBufferManager : public gpu::GpuMemoryBufferManager {
-   public:
-    explicit HelperGpuMemoryBufferManager(
-        ClientSharedImage* client_shared_image);
-
-    ~HelperGpuMemoryBufferManager() override;
-
-    // GpuMemoryBufferManager interface implementation.
-    void CopyGpuMemoryBufferAsync(
-        gfx::GpuMemoryBufferHandle buffer_handle,
-        base::UnsafeSharedMemoryRegion memory_region,
-        base::OnceCallback<void(bool)> callback) final;
-
-   private:
-    // Points to the parent ClientSharedImage. It will be used to access SII via
-    // SII holder.
-    raw_ptr<ClientSharedImage> client_shared_image_;
-
-    // Allows accessing SharedImageInterface from ClientSharedImage.
-    scoped_refptr<SharedImageInterface> GetSharedImageInterface();
-
-    // HelperGpuMemoryBufferManager uses this task runner for
-    // CopyGpuMemoryBufferAsync() operations to prevent deadlocks.
-    //
-    // Deadlock Scenario:
-    // 1. Client thread calls CopyGpuMemoryBufferAsync() with a completion
-    // callback.
-    // 2. Client thread blocks, waiting for an event which is often signaled by
-    // the callback.
-    // 3. If the copy ran on the client thread, the callback would also need to
-    // run on the *same*, now-blocked thread.
-    // 4. The callback can't run, the event isn't signaled, and a deadlock
-    // occurs.
-    //
-    // Solution:
-    // This dedicated task runner ensures the copy and callback execute
-    // independently of the client thread, allowing the callback to signal the
-    // event and prevent the deadlock.
-    std::optional<scoped_refptr<base::SingleThreadTaskRunner>> task_runner_;
-  };
+  // static
+  std::unique_ptr<GpuMemoryBufferImpl> CreateGpuMemoryBufferImplFromHandle(
+      gfx::GpuMemoryBufferHandle handle,
+      const gfx::Size& size,
+      gfx::BufferFormat format,
+      gfx::BufferUsage usage,
+      GpuMemoryBufferImpl::CopyNativeBufferToShMemCallback
+          copy_native_buffer_to_shmem_callback =
+              GpuMemoryBufferImpl::CopyNativeBufferToShMemCallback(),
+      scoped_refptr<base::UnsafeSharedMemoryPool> pool = nullptr);
 
   // This constructor is used only when importing an owned ClientSharedImage,
   // which should only be done via implementations of
@@ -339,7 +303,7 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT ClientSharedImage
   // SharedImageInterface.
   explicit ClientSharedImage(ExportedSharedImage exported_si);
 
-  friend class ::viz::CopyOutputTextureResult;
+  friend class ::viz::CopyOutputSharedImageResult;
   // Creates unowned (no `sii_holder`) `ClientSharedImage`
   explicit ClientSharedImage(const Mailbox& mailbox,
                              const SharedImageInfo& info);
@@ -358,6 +322,11 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT ClientSharedImage
 
   bool AsyncMappingIsNonBlocking() const;
 
+  void CopyNativeGmbToSharedMemoryAsync(
+      gfx::GpuMemoryBufferHandle buffer_handle,
+      base::UnsafeSharedMemoryRegion memory_region,
+      base::OnceCallback<void(bool)> callback);
+
   // This pair of functions are used by SharedImageTexture to notify
   // ClientSharedImage of the beginning and the end of a scoped access.
   void BeginAccess(bool readonly);
@@ -368,12 +337,31 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT ClientSharedImage
   const std::string debug_label_;
   SyncToken creation_sync_token_;
   SyncToken destruction_sync_token_;
-  // Helper to hold the instance of GpuMemoryBufferManager.
-  std::unique_ptr<HelperGpuMemoryBufferManager> gpu_memory_buffer_manager_;
+
   std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer_;
   base::WritableSharedMemoryMapping shared_memory_mapping_;
   std::optional<gfx::BufferUsage> buffer_usage_;
   scoped_refptr<SharedImageInterfaceHolder> sii_holder_;
+
+  // CopyNativeGmbToSharedMemoryAsync uses this task runner for
+  // operations to prevent deadlocks.
+  //
+  // Deadlock Scenario:
+  // 1. Client thread calls CopyGpuMemoryBufferAsync() with a completion
+  // callback.
+  // 2. Client thread blocks, waiting for an event which is often signaled by
+  // the callback.
+  // 3. If the copy ran on the client thread, the callback would also need to
+  // run on the *same*, now-blocked thread.
+  // 4. The callback can't run, the event isn't signaled, and a deadlock
+  // occurs.
+  //
+  // Solution:
+  // This dedicated task runner ensures the copy and callback execute
+  // independently of the client thread, allowing the callback to signal the
+  // event and prevent the deadlock.
+  scoped_refptr<base::SingleThreadTaskRunner>
+      copy_native_buffer_to_shmem_task_runner_;
 
   bool is_software_ = false;
 

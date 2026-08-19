@@ -13,7 +13,11 @@
 
 #include <jni.h>
 
+#include <memory>
+
 #include "api/peer_connection_interface.h"
+#include "api/scoped_refptr.h"
+#include "rtc_base/socket_factory.h"
 #include "rtc_base/thread.h"
 
 namespace webrtc {

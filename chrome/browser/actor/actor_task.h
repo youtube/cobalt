@@ -8,6 +8,8 @@
 #include <iosfwd>
 #include <memory>
 
+#include "base/callback_list.h"
+#include "base/functional/callback.h"
 #include "base/types/pass_key.h"
 #include "chrome/browser/actor/task_id.h"
 
@@ -43,6 +45,8 @@ class ActorTask {
   State GetState() const;
   void SetState(State state);
 
+  base::Time GetEndTime() const;
+
   // Sets State to kFinished and cancels any pending actions.
   void Stop();
 
@@ -58,14 +62,27 @@ class ActorTask {
 
   ExecutionEngine* GetExecutionEngine() const;
 
+  // Register for this callback to detect changes to actor task states.
+  using TaskStateChangeCallback =
+      base::RepeatingCallback<void(TaskId, ActorTask::State)>;
+  base::CallbackListSubscription RegisterTaskStateChange(
+      TaskStateChangeCallback callback);
+
  private:
   State state_ = State::kCreated;
+
+  // The time at which the task was completed or cancelled.
+  base::Time end_time_;
 
   // There are multiple possible execution engines. For now we only support
   // ExecutionEngine.
   std::unique_ptr<ExecutionEngine> execution_engine_;
 
   TaskId id_;
+
+  using TaskStateChangeCallbackList =
+      base::RepeatingCallbackList<void(TaskId, ActorTask::State)>;
+  TaskStateChangeCallbackList task_state_change_callback_list_;
 };
 
 std::ostream& operator<<(std::ostream& os, const ActorTask::State& state);

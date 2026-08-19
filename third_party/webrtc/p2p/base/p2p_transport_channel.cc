@@ -10,12 +10,11 @@
 
 #include "p2p/base/p2p_transport_channel.h"
 
-#include <errno.h>
-#include <stdlib.h>
-
 #include <algorithm>
+#include <cerrno>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <memory>
 #include <optional>

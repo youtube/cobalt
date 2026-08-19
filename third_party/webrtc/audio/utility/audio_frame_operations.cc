@@ -10,12 +10,13 @@
 
 #include "audio/utility/audio_frame_operations.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <utility>
 
+#include "api/audio/audio_frame.h"
+#include "api/audio/audio_view.h"
 #include "common_audio/include/audio_util.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_conversions.h"

@@ -12,8 +12,7 @@
 
 #include "modules/audio_coding/neteq/dtmf_tone_generator.h"
 
-#include <math.h>
-
+#include <cmath>
 #include <cstddef>
 #include <numbers>
 

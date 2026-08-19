@@ -45,6 +45,7 @@ import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
@@ -216,7 +217,7 @@ public class LocationBarTest {
                     mediator.onPrimaryColorChanged();
                     mediator.onSecurityStateChanged();
                     mediator.onTemplateURLServiceChanged();
-                    mediator.onUrlChanged();
+                    mediator.onUrlChanged(false);
                 });
     }
 
@@ -338,14 +339,14 @@ public class LocationBarTest {
     @Test
     @MediumTest
     public void testEditingText_withRetainOmniboxOnFocusDisabled() {
-        OmniboxFeatures.setShouldRetainOmniboxOnFocusForTesting(Boolean.FALSE);
+        OmniboxFeatures.setShouldRetainOmniboxOnFocusForTesting(false);
         testEditingText(/* expectRetainOmniboxOnFocus= */ false);
     }
 
     @Test
     @MediumTest
     public void testEditingText_withRetainOmniboxOnFocusEnabled() {
-        OmniboxFeatures.setShouldRetainOmniboxOnFocusForTesting(Boolean.TRUE);
+        OmniboxFeatures.setShouldRetainOmniboxOnFocusForTesting(true);
         testEditingText(/* expectRetainOmniboxOnFocus= */ true);
     }
 
@@ -610,8 +611,8 @@ public class LocationBarTest {
         doReturn(true).when(mLensController).isLensEnabled(any());
         doReturn(true).when(mTemplateUrlService).isDefaultSearchEngineGoogle();
         mActivityTestRule.loadUrlInNewTab(url, /* incognito= */ false);
-        updateLocationBar();
         onView(withId(R.id.lens_camera_button)).check(matches(not(isDisplayed())));
+        updateLocationBar();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mUrlBar.requestFocus();
@@ -643,7 +644,7 @@ public class LocationBarTest {
     })
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     public void testFocusLogic_buttonVisibilityTabletWithRetainOmniboxOnFocusDisabled() {
-        OmniboxFeatures.setShouldRetainOmniboxOnFocusForTesting(Boolean.FALSE);
+        OmniboxFeatures.setShouldRetainOmniboxOnFocusForTesting(false);
         testFocusLogic_buttonVisibilityTablet(/* expectRetainOmniboxOnFocus= */ false);
     }
 
@@ -654,7 +655,7 @@ public class LocationBarTest {
     })
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     public void testFocusLogic_buttonVisibilityTabletWithRetainOmniboxOnFocusEnabled() {
-        OmniboxFeatures.setShouldRetainOmniboxOnFocusForTesting(Boolean.TRUE);
+        OmniboxFeatures.setShouldRetainOmniboxOnFocusForTesting(true);
         testFocusLogic_buttonVisibilityTablet(/* expectRetainOmniboxOnFocus= */ true);
     }
 
@@ -768,6 +769,9 @@ public class LocationBarTest {
     @SmallTest
     @Restriction(DeviceFormFactor.PHONE)
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_MOBILE_PARITY_UPDATE)
+    // TODO(https://crbug.com/426594110): Removes this once feature
+    // OmniboxFeatureList.OMNIBOX_MOBILE_PARITY_UPDATE_V2 is launched.
+    @DisableFeatures(OmniboxFeatureList.OMNIBOX_MOBILE_PARITY_UPDATE_V2)
     public void testOmniboxSearchEngineLogo_unfocusedOnSRP_nonGoogleSearchEngine() {
         setupSearchEngineLogo(NON_GOOGLE_URL);
         startActivityNormally();

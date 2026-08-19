@@ -24,7 +24,6 @@
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/create_peerconnection_factory.h"
-#include "api/field_trials.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
@@ -123,8 +122,7 @@ class SdpOfferAnswerTest : public ::testing::Test {
       absl::string_view field_trials) {
     auto observer = std::make_unique<MockPeerConnectionObserver>();
     PeerConnectionDependencies pc_deps(observer.get());
-    pc_deps.trials =
-        std::make_unique<FieldTrials>(CreateTestFieldTrials(field_trials));
+    pc_deps.trials = CreateTestFieldTrialsPtr(field_trials);
     auto result =
         pc_factory_->CreatePeerConnectionOrError(config, std::move(pc_deps));
     EXPECT_TRUE(result.ok());

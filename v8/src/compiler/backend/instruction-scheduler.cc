@@ -258,6 +258,7 @@ void InstructionScheduler::Schedule() {
 int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
   switch (instr->arch_opcode()) {
     case kArchNop:
+    case kArchPause:
     case kArchStackCheckOffset:
     case kArchFramePointer:
     case kArchParentFramePointer:
@@ -371,6 +372,7 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kAtomicCompareExchangeInt16:
     case kAtomicCompareExchangeUint16:
     case kAtomicCompareExchangeWord32:
+    case kAtomicCompareExchangeWithWriteBarrier:
     case kAtomicAddInt8:
     case kAtomicAddUint8:
     case kAtomicAddInt16:

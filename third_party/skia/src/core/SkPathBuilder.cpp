@@ -79,6 +79,7 @@ SkPathBuilder& SkPathBuilder::reset() {
 
 SkPathBuilder& SkPathBuilder::operator=(const SkPath& src) {
     this->reset().setFillType(src.getFillType());
+    this->setIsVolatile(src.isVolatile());
 
     for (auto [verb, pts, w] : SkPathPriv::Iterate(src)) {
         switch (verb) {
@@ -1084,6 +1085,15 @@ SkPathBuilder& SkPathBuilder::transform(const SkMatrix& matrix, SkApplyPerspecti
     // TODO: handle bounds, convexity, and direction when added.
 
     return *this;
+}
+
+bool SkPathBuilder::isFinite() const {
+    for (auto p : fPts) {
+        if (!p.isFinite()) {
+            return false;
+        }
+    }
+    return true;
 }
 
 bool SkPathBuilder::isZeroLengthSincePoint(int startPtIndex) const {

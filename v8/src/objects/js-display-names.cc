@@ -137,9 +137,8 @@ class LanguageNames : public LocaleDisplayNamesCommon {
     icu::Locale l(tagLocale.getBaseName());
     if (U_FAILURE(status) || tagLocale != l ||
         !JSLocale::StartsWithUnicodeLanguageId(code)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
-          Nothing<icu::UnicodeString>());
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kInvalidArgument));
     }
 
     // 1.b If IsStructurallyValidLanguageTag(code) is false, throw a RangeError
@@ -150,9 +149,8 @@ class LanguageNames : public LocaleDisplayNamesCommon {
     std::string checked = l.toLanguageTag<std::string>(status);
 
     if (U_FAILURE(status)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
-          Nothing<icu::UnicodeString>());
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kInvalidArgument));
     }
 
     icu::UnicodeString result;
@@ -176,9 +174,8 @@ class RegionNames : public LocaleDisplayNamesCommon {
                                const char* code) const override {
     std::string code_str(code);
     if (!IsUnicodeRegionSubtag(code_str)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
-          Nothing<icu::UnicodeString>());
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kInvalidArgument));
     }
 
     icu::UnicodeString result;
@@ -201,9 +198,8 @@ class ScriptNames : public LocaleDisplayNamesCommon {
                                const char* code) const override {
     std::string code_str(code);
     if (!IsUnicodeScriptSubtag(code_str)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
-          Nothing<icu::UnicodeString>());
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kInvalidArgument));
     }
 
     icu::UnicodeString result;
@@ -260,9 +256,8 @@ class CurrencyNames : public KeyValueDisplayNames {
                                const char* code) const override {
     std::string code_str(code);
     if (!Intl::IsWellFormedCurrency(code_str)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
-          Nothing<icu::UnicodeString>());
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kInvalidArgument));
     }
     return KeyValueDisplayNames::of(isolate, code);
   }
@@ -281,9 +276,8 @@ class CalendarNames : public KeyValueDisplayNames {
                                const char* code) const override {
     std::string code_str(code);
     if (!Intl::IsWellFormedCalendar(code_str)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
-          Nothing<icu::UnicodeString>());
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kInvalidArgument));
     }
     return KeyValueDisplayNames::of(isolate, strcmp(code, "gregory") == 0
                                                  ? "gregorian"
@@ -364,9 +358,8 @@ class DateTimeFieldNames : public DisplayNamesInternal {
                                const char* code) const override {
     UDateTimePatternField field = StringToUDateTimePatternField(code);
     if (field == UDATPG_FIELD_COUNT) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
-          Nothing<icu::UnicodeString>());
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kInvalidArgument));
     }
     return Just(generator_->getFieldDisplayName(field, width_));
   }
@@ -450,7 +443,7 @@ MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
   // 10. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
   Maybe<Style> maybe_style = GetStringOption<Style>(
-      isolate, options, "style", service,
+      isolate, options, isolate->factory()->style_string(), service,
       std::to_array<const std::string_view>({"long", "short", "narrow"}),
       std::array{Style::kLong, Style::kShort, Style::kNarrow}, Style::kLong);
   MAYBE_RETURN(maybe_style, MaybeDirectHandle<JSDisplayNames>());
@@ -462,7 +455,7 @@ MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
   // "region", "script", "currency" , "calendar", "dateTimeField", "unit"»,
   // undefined).
   Maybe<Type> maybe_type = GetStringOption<Type>(
-      isolate, options, "type", service,
+      isolate, options, isolate->factory()->type_string(), service,
       std::to_array<const std::string_view>({"language", "region", "script",
                                              "currency", "calendar",
                                              "dateTimeField"}),
@@ -482,7 +475,7 @@ MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
   // 15. Let fallback be ? GetOption(options, "fallback", "string",
   //     « "code", "none" », "code").
   Maybe<Fallback> maybe_fallback = GetStringOption<Fallback>(
-      isolate, options, "fallback", service,
+      isolate, options, isolate->factory()->fallback_string(), service,
       std::to_array<const std::string_view>({"code", "none"}),
       std::array{Fallback::kCode, Fallback::kNone}, Fallback::kCode);
   MAYBE_RETURN(maybe_fallback, MaybeDirectHandle<JSDisplayNames>());
@@ -495,7 +488,8 @@ MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
   // "string", « "dialect", "standard" », "dialect").
   Maybe<LanguageDisplay> maybe_language_display =
       GetStringOption<LanguageDisplay>(
-          isolate, options, "languageDisplay", service,
+          isolate, options, isolate->factory()->languageDisplay_string(),
+          service,
           std::to_array<const std::string_view>({"dialect", "standard"}),
           std::array{LanguageDisplay::kDialect, LanguageDisplay::kStandard},
           LanguageDisplay::kDialect);

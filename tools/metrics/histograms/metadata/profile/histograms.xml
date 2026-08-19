@@ -22,6 +22,13 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<variants name="ProfilePickerFlowType">
+  <variant name="FREFlow" summary="Recorded for the FRE flow."/>
+  <variant name="GlicFlow" summary="Recorded for the Glic flow."/>
+  <variant name="ProfilePickerFlow"
+      summary="Recorded for the regular Profile Picker Flow."/>
+</variants>
+
 <variants name="ProfileStateGroup">
   <variant name="_ActiveMultiProfile"
       summary="Recorded only for users with &gt;=2 active profiles; recorded
@@ -85,20 +92,20 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Avatar" enum="ProfileAvatar"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>The frequency of selection of each avatar.</summary>
 </histogram>
 
-<histogram name="Profile.BookmarksSize" units="MB" expires_after="2025-10-26">
+<histogram name="Profile.BookmarksSize" units="MB" expires_after="2025-12-28">
   <owner>etienneb@chromium.org</owner>
   <owner>gab@chromium.org</owner>
   <summary>Size of the bookmarks database.</summary>
 </histogram>
 
 <histogram name="Profile.BrowserActive.PerProfile" enum="Profile"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>msarda@chromium.org</owner>
   <owner>tangltom@chromium.org</owner>
   <summary>
@@ -196,7 +203,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Guest.ForcedByPolicy" enum="BooleanForced"
-    expires_after="2025-06-27">
+    expires_after="2025-12-27">
   <owner>duellweber@chromium.org</owner>
   <owner>arabm@google.com</owner>
   <owner>chrome-incognito@google.com</owner>
@@ -207,7 +214,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Guest.OTR.Lifetime" units="minutes"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>arabm@google.com</owner>
   <owner>chrome-incognito@google.com</owner>
   <summary>
@@ -240,7 +247,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Incognito.MainFrameNavigationsPerSession"
-    units="navigations" expires_after="2025-10-26">
+    units="navigations" expires_after="2025-12-28">
   <owner>rhalavati@chromium.org</owner>
   <owner>chrome-incognito@google.com</owner>
   <summary>
@@ -252,7 +259,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Incognito.MovedToBackgroundAfterDuration"
-    units="minutes" expires_after="2025-10-26">
+    units="minutes" expires_after="2025-12-28">
   <owner>arabm@google.com</owner>
   <owner>chrome-incognito@google.com</owner>
   <summary>
@@ -331,7 +338,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.NetUserCount" enum="ProfileNetUserCount"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>rogerta@chromium.org</owner>
   <summary>
     Counts of users added and deleted. Percentages are not meaningful. Please
@@ -357,7 +364,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.NumberOfAccountsPerProfile" units="units"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>msarda@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <summary>
@@ -443,7 +450,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.NumberOfSignedInProfiles" units="profiles"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -529,7 +536,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.State.SyncEnabled{ProfileStateGroup}"
-    enum="BooleanEnabled" expires_after="2025-10-26">
+    enum="BooleanEnabled" expires_after="2025-12-28">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -557,7 +564,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.TotalSizeRecursive" units="MB"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>anthonyvd@chromium.org</owner>
   <owner>chrome-catan@google.com</owner>
   <summary>
@@ -788,7 +795,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.Shown" enum="ProfilePickerEntryPoint"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -900,12 +907,94 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.UserAction" enum="ProfilePickerAction"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
     Records the action performed by the user in the profile picker.
   </summary>
+</histogram>
+
+<histogram name="ProfilePicker.{ProfilePickerFlowType}.FlowEndedAtStep"
+    enum="ProfileManagementFlowStep" expires_after="2026-07-01">
+  <owner>rsult@google.com</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records the step at which the flow was ended. The value is emitted when the
+    flow is completed or aborted.
+
+    {ProfilePickerFlowType}
+  </summary>
+</histogram>
+
+<histogram name="ProfilePicker.{ProfilePickerFlowType}.FlowTotalDuration"
+    units="ms" expires_after="2026-07-01">
+  <owner>rsult@google.com</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records the total flow duration. The value is emitted when the flow is
+    completed or aborted.
+
+    {ProfilePickerFlowType}
+  </summary>
+</histogram>
+
+<histogram
+    name="ProfilePicker.{ProfilePickerFlowType}.{StepFlowDuration}{StepName}"
+    units="ms" expires_after="2026-07-01">
+  <owner>rsult@google.com</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records the duration of {StepName} {StepFlowDuration}. The value is emitted
+    when the step is ended or switched.
+
+    {ProfilePickerFlowType}
+  </summary>
+  <token key="StepName">
+<!-- LINT.IfChange(StepName) -->
+
+    <variant name="" summary="a single step"/>
+    <variant name=".DefaultBrowser" summary="the default browser promo step"/>
+    <variant name=".FinishFlow" summary="the Finish flow step"/>
+    <variant name=".FinishSamlFlow" summary="the Finish SAML flow step"/>
+    <variant name=".FREIntro" summary="the FRE main page step"/>
+    <variant name=".PickerMainApp" summary="the profile picker main page step"/>
+    <variant name=".PostSignInSteps" summary="the post sign in steps"/>
+    <variant name=".Reauth" summary="the reauth step"/>
+    <variant name=".SearchEngineChoice"
+        summary="the search engine choice screen step"/>
+    <variant name=".SigninFlow" summary="the sign in flow step"/>
+<!-- LINT.ThenChange(//chrome/browser/ui/views/profiles/profile_management_flow_controller.cc:GetStepHistogramSuffix) -->
+
+  </token>
+  <token key="StepFlowDuration">
+    <variant name="StepShownDuration"
+        summary="from the time the step was shown to the user until it ended
+                 (includes the user action duration only). This is not
+                 recorded for skipped steps."/>
+    <variant name="StepTotalDuration"
+        summary="from the trigger of the step until it ended (includes step
+                 latency and user action duration). This is recorded for
+                 skipped steps; only includes latency."/>
+  </token>
+</histogram>
+
+<histogram name="ProfilePicker.{ProfilePickerFlowType}.{StepStatus}"
+    enum="ProfileManagementFlowStep" expires_after="2026-07-01">
+  <owner>rsult@google.com</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records the step that {StepStatus}. Recorded when the step status change
+    happens.
+
+    {ProfilePickerFlowType}
+  </summary>
+  <token key="StepStatus">
+    <variant name="StepEnd" summary="has ended"/>
+    <variant name="StepShown" summary="was shown"/>
+    <variant name="StepSkipped" summary="was skipped"/>
+    <variant name="StepStart" summary="has started"/>
+  </token>
 </histogram>
 
 </histograms>

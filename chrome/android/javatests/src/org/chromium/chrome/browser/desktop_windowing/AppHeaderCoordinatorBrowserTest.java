@@ -64,8 +64,10 @@ import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderCoordinator;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent.ContentPriority;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.SheetState;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider;
@@ -103,7 +105,8 @@ public class AppHeaderCoordinatorBrowserTest {
                     .build();
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
@@ -112,6 +115,7 @@ public class AppHeaderCoordinatorBrowserTest {
     private final Rect mWidestUnoccludedRect = new Rect();
     private final Rect mWindowRect = new Rect();
     private int mTestAppHeaderHeight;
+    private WebPageStation mPage;
 
     @Before
     public void setup() {
@@ -122,7 +126,7 @@ public class AppHeaderCoordinatorBrowserTest {
         doAnswer(args -> mWidestUnoccludedRect).when(mInsetsRectProvider).getWidestUnoccludedRect();
         doAnswer(args -> mWindowRect).when(mInsetsRectProvider).getWindowRect();
 
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mPage = mActivityTestRule.startOnBlankPage();
 
         // Initialize the strip height for testing. This is due to bots might have different
         // densities.
@@ -422,6 +426,69 @@ public class AppHeaderCoordinatorBrowserTest {
                                     .getInsets(WindowInsetsCompat.Type.navigationBars())
                                     .bottom;
                     Criteria.checkThat(rootView.getPaddingBottom(), Matchers.is(navBarBottomInset));
+                });
+
+        // Dispatch window insets to simulate no overlap of the app window with the nav bar.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    insetObserver.onApplyWindowInsets(
+                            rootView,
+                            new WindowInsetsCompat.Builder()
+                                    .setInsets(
+                                            WindowInsetsCompat.Type.navigationBars(),
+                                            Insets.of(0, 0, 0, 0))
+                                    .build());
+                });
+
+        // Verify that the root view bottom padding is reset.
+        CriteriaHelper.pollUiThread(
+                () -> Criteria.checkThat(rootView.getPaddingBottom(), Matchers.is(0)));
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures({ChromeFeatureList.EDGE_TO_EDGE_TABLET})
+    @Restriction(DeviceFormFactor.ONLY_TABLET)
+    public void testKeyboardInDesktopWindow_RootViewNotPadded() throws TimeoutException {
+        ChromeTabbedActivity activity = mActivityTestRule.getActivity();
+        triggerDesktopWindowingModeChange(activity, true);
+        var insetObserver = activity.getWindowAndroid().getInsetObserver();
+
+        // Navigate to a URL with an input field. Clicking on it should trigger the OSK.
+        mActivityTestRule.loadUrl(
+                mActivityTestRule
+                        .getTestServer()
+                        .getURL("/chrome/test/data/android/page_with_editable.html"));
+        DOMUtils.clickNode(activity.getActivityTab().getWebContents(), TEXTFIELD_DOM_ID);
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    boolean isKeyboardShowing =
+                            mActivityTestRule
+                                    .getKeyboardDelegate()
+                                    .isKeyboardShowing(activity, activity.getTabsView());
+                    Criteria.checkThat(isKeyboardShowing, Matchers.is(true));
+                },
+                KEYBOARD_TIMEOUT,
+                CriteriaHelper.DEFAULT_POLLING_INTERVAL);
+
+        // Verify that the root view is not padded by keyboard insets because it has been handled
+        // by E2E controller.
+        var rootView = activity.getWindow().getDecorView().getRootView();
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    Criteria.checkThat(rootView.getPaddingBottom(), Matchers.is(0));
+                });
+
+        // Remove input field focus to hide the keyboard.
+        JavaScriptUtils.executeJavaScript(
+                activity.getActivityTab().getWebContents(),
+                "document.querySelector('input').blur()");
+
+        // Verify that the root view is not padded by any inset because it has been handled
+        // by E2E controller.
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    Criteria.checkThat(rootView.getPaddingBottom(), Matchers.is(0));
                 });
 
         // Dispatch window insets to simulate no overlap of the app window with the nav bar.

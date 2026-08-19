@@ -83,12 +83,6 @@ namespace blink {
 
 namespace {
 
-// Controls if VideoFrame.copyTo() reads GPU frames asynchronously when it's given a
-// SharedArrayBuffer.
-BASE_FEATURE(kVideoFrameAsyncCopyTo,
-             "VideoFrameAsyncCopyTo",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 media::VideoPixelFormat ToMediaPixelFormat(V8VideoPixelFormat::Enum fmt) {
   switch (fmt) {
     case V8VideoPixelFormat::Enum::kI420:
@@ -120,7 +114,7 @@ media::VideoPixelFormat ToMediaPixelFormat(V8VideoPixelFormat::Enum fmt) {
     case V8VideoPixelFormat::Enum::kI444A:
       return media::PIXEL_FORMAT_I444A;
     case V8VideoPixelFormat::Enum::kI444AP10:
-      return media::PIXEL_FORMAT_YUV422AP10;
+      return media::PIXEL_FORMAT_YUV444AP10;
     case V8VideoPixelFormat::Enum::kNV12:
       return media::PIXEL_FORMAT_NV12;
     case V8VideoPixelFormat::Enum::kRGBA:
@@ -1404,12 +1398,10 @@ ScriptPromise<IDLSequence<PlaneLayout>> VideoFrame::copyTo(
   } else {
     DCHECK(local_frame->HasSharedImage());
 
-    if (base::FeatureList::IsEnabled(kVideoFrameAsyncCopyTo)) {
-      // Check if we can run copyTo() asynchronously.
-      if (CopyToAsync(resolver, local_frame, src_rect, destination,
-                      dest_layout)) {
-        return promise;
-      }
+    // Check if we can run copyTo() asynchronously.
+    if (CopyToAsync(resolver, local_frame, src_rect, destination,
+                    dest_layout)) {
+      return promise;
     }
 
     // Async version didn't work, let's copy planes synchronously.

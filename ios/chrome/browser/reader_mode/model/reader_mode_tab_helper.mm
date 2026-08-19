@@ -11,18 +11,23 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/time/time.h"
+#import "components/dom_distiller/core/extraction_utils.h"
 #import "components/ukm/ios/ukm_url_recorder.h"
+#import "ios/chrome/browser/browser_container/model/edit_menu_tab_helper.h"
 #import "ios/chrome/browser/dom_distiller/model/offline_page_distiller_viewer.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_content_tab_helper.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_distiller_page.h"
+#import "ios/chrome/browser/reader_mode/model/reader_mode_distiller_viewer.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_java_script_feature.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/url/url_util.h"
 #import "ios/chrome/browser/shared/public/commands/reader_mode_commands.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
+#import "ios/chrome/browser/web_selection/model/web_selection_tab_helper.h"
 #import "ios/web/navigation/wk_navigation_util.h"
+#import "ios/web/public/js_messaging/web_frame.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/navigation/navigation_context.h"
 #import "ios/web/public/navigation/navigation_item.h"
@@ -115,6 +120,23 @@ bool CurrentPageSupportsReaderModeHeuristic(web::WebState* web_state) {
          !IsUrlNtp(web_state->GetVisibleURL()) && web_state->ContentIsHTML();
 }
 
+// Returns the Readability heuristic result if it is available otherwise returns
+// `kMalformedResponse`.
+ReaderModeHeuristicResult GetReaderModeHeuristicResult(
+    const base::Value* result) {
+  if (!result) {
+    return ReaderModeHeuristicResult::kMalformedResponse;
+  }
+  std::optional<bool> result_conversion = result->GetIfBool();
+  if (result_conversion.has_value()) {
+    return result_conversion.value()
+               ? ReaderModeHeuristicResult::kReaderModeEligible
+               : ReaderModeHeuristicResult::
+                     kReaderModeNotEligibleContentAndLength;
+  }
+  return ReaderModeHeuristicResult::kMalformedResponse;
+}
+
 }  // namespace
 
 ReaderModeTabHelper::ReaderModeTabHelper(web::WebState* web_state,
@@ -168,10 +190,6 @@ bool ReaderModeTabHelper::IsReaderModeWebStateAvailable() const {
 web::WebState* ReaderModeTabHelper::GetReaderModeWebState() {
   CHECK(IsReaderModeWebStateAvailable());
   return reader_mode_web_state_.get();
-}
-
-void ReaderModeTabHelper::ShowReaderModeOptions() {
-  // TODO(crbug.com/409941529): Show the Reader mode options UI.
 }
 
 bool ReaderModeTabHelper::CurrentPageSupportsReaderMode() const {
@@ -264,7 +282,11 @@ void ReaderModeTabHelper::ReaderModeContentDidLoadData(
   // Generic snapshot image generation on side-swipe has a long tail latency.
   // Force update the snapshot storage to ensure that the latest snapshot is
   // presented before a transition.
-  SnapshotTabHelper::FromWebState(web_state_)->UpdateSnapshotWithCallback(nil);
+  SnapshotTabHelper* snapshot_tab_helper =
+      SnapshotTabHelper::FromWebState(web_state_);
+  if (snapshot_tab_helper) {
+    snapshot_tab_helper->UpdateSnapshotWithCallback(nil);
+  }
 }
 
 void ReaderModeTabHelper::ReaderModeContentDidCancelRequest(
@@ -283,6 +305,12 @@ void ReaderModeTabHelper::ReaderModeContentDidCancelRequest(
   }
   params.transition_type = request_info.transition_type;
   web_state_->GetNavigationManager()->LoadURLWithParams(params);
+}
+
+void ReaderModeTabHelper::HandleReadabilityHeuristicResult(
+    const GURL& url,
+    const base::Value* result) {
+  HandleReaderModeHeuristicResult(url, GetReaderModeHeuristicResult(result));
 }
 
 void ReaderModeTabHelper::HandleReaderModeHeuristicResult(
@@ -337,18 +365,27 @@ void ReaderModeTabHelper::TriggerReaderModeHeuristic(const GURL& url) {
     CallLastCommittedUrlEligibilityCallbacks(false);
     return;
   }
+
   web::WebFramesManager* web_frames_manager =
       ReaderModeJavaScriptFeature::GetInstance()->GetWebFramesManager(
           web_state_);
   if (!web_frames_manager) {
     return;
   }
-  web::WebFrame* web_frame = web_frames_manager->GetMainWebFrame();
-  if (!web_frame) {
+  web::WebFrame* main_frame = web_frames_manager->GetMainWebFrame();
+  if (!main_frame) {
     return;
   }
-  ReaderModeJavaScriptFeature::GetInstance()->TriggerReaderModeHeuristic(
-      web_frame);
+
+  if (base::FeatureList::IsEnabled(kEnableReadabilityHeuristic)) {
+    main_frame->ExecuteJavaScript(
+        base::UTF8ToUTF16(dom_distiller::GetReadabilityTriggeringScript()),
+        base::BindOnce(&ReaderModeTabHelper::HandleReadabilityHeuristicResult,
+                       weak_ptr_factory_.GetWeakPtr(), url));
+  } else {
+    ReaderModeJavaScriptFeature::GetInstance()->TriggerReaderModeHeuristic(
+        main_frame);
+  }
 }
 
 void ReaderModeTabHelper::PageDistillationCompleted(
@@ -412,11 +449,22 @@ void ReaderModeTabHelper::CreateReaderModeWebState() {
       ->SetDelegate(this);
   reader_mode_web_state_->SetWebUsageEnabled(true);
 
+  // Inherit edit menu from the current webState.
+  EditMenuTabHelper* main_tab_edit_menu_builder_tab_helper =
+      EditMenuTabHelper::FromWebState(web_state_);
+  if (main_tab_edit_menu_builder_tab_helper) {
+    EditMenuTabHelper::CreateForWebState(reader_mode_web_state_.get());
+    EditMenuTabHelper::FromWebState(reader_mode_web_state_.get())
+        ->SetEditMenuBuilder(
+            main_tab_edit_menu_builder_tab_helper->GetEditMenuBuilder());
+    WebSelectionTabHelper::CreateForWebState(reader_mode_web_state_.get());
+  }
+
   std::unique_ptr<ReaderModeDistillerPage> distiller_page =
       std::make_unique<ReaderModeDistillerPage>(web_state_);
-  distiller_viewer_.reset(new OfflinePageDistillerViewer(
-      distiller_service_, std::move(distiller_page),
-      web_state_->GetLastCommittedURL(),
+  distiller_viewer_.reset(new ReaderModeDistillerViewer(
+      reader_mode_web_state_.get(), distiller_service_,
+      std::move(distiller_page), web_state_->GetLastCommittedURL(),
       base::BindRepeating(&ReaderModeTabHelper::PageDistillationCompleted,
                           weak_ptr_factory_.GetWeakPtr(),
                           base::TimeTicks::Now())));
@@ -431,7 +479,11 @@ void ReaderModeTabHelper::DestroyReaderModeWebState() {
   // Cancel any ongoing distillation task.
   distiller_viewer_.reset();
   // Update the snapshot with the original web page.
-  SnapshotTabHelper::FromWebState(web_state_)->UpdateSnapshotWithCallback(nil);
+  SnapshotTabHelper* snapshot_tab_helper =
+      SnapshotTabHelper::FromWebState(web_state_);
+  if (snapshot_tab_helper) {
+    snapshot_tab_helper->UpdateSnapshotWithCallback(nil);
+  }
 }
 
 void ReaderModeTabHelper::SetLastCommittedUrl(const GURL& url) {

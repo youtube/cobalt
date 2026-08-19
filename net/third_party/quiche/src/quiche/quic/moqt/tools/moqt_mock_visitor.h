@@ -10,7 +10,6 @@
 #include <optional>
 #include <utility>
 #include <variant>
-#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -65,9 +64,7 @@ class MockTrackPublisher : public MoqtTrackPublisher {
   const FullTrackName& GetTrackName() const override { return track_name_; }
 
   MOCK_METHOD(std::optional<PublishedObject>, GetCachedObject,
-              (Location sequence), (const, override));
-  MOCK_METHOD(std::vector<Location>, GetCachedObjectsInRange,
-              (Location start, Location end), (const, override));
+              (uint64_t, uint64_t, uint64_t), (const, override));
   MOCK_METHOD(void, AddObjectListener, (MoqtObjectListener * listener),
               (override));
   MOCK_METHOD(void, RemoveObjectListener, (MoqtObjectListener * listener),
@@ -97,8 +94,8 @@ class MockSubscribeRemoteTrackVisitor : public SubscribeRemoteTrack::Visitor {
   MOCK_METHOD(void, OnCanAckObjects, (MoqtObjectAckFunction ack_function),
               (override));
   MOCK_METHOD(void, OnObjectFragment,
-              (const FullTrackName& full_track_name, Location sequence,
-               MoqtPriority publisher_priority, MoqtObjectStatus status,
+              (const FullTrackName& full_track_name,
+               const PublishedObjectMetadata& metadata,
                absl::string_view object, bool end_of_message),
               (override));
   MOCK_METHOD(void, OnSubscribeDone, (FullTrackName full_track_name),

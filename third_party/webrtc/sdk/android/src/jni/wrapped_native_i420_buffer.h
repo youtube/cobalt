@@ -13,6 +13,7 @@
 
 #include <jni.h>
 
+#include "api/scoped_refptr.h"
 #include "api/video/video_frame_buffer.h"
 #include "sdk/android/native_api/jni/scoped_java_ref.h"
 

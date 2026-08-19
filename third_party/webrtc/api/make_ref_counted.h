@@ -121,12 +121,5 @@ absl_nonnull scoped_refptr<FinalRefCountedObject<T>> make_ref_counted(
 
 }  // namespace webrtc
 
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-// Backwards compatibe alias.
-// TODO: bugs.webrtc.org/42225969 - deprecate and remove.
-using ::webrtc::make_ref_counted;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // API_MAKE_REF_COUNTED_H_

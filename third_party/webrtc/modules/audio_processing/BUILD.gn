@@ -400,7 +400,6 @@ if (rtc_include_tests) {
         "../../rtc_base/synchronization:mutex",
         "../../rtc_base/system:arch",
         "../../rtc_base/system:file_wrapper",
-        "../../test:field_trial",
         "../../test:fileutils",
         "../../test:rtc_expect_death",
         "../../test:test_support",

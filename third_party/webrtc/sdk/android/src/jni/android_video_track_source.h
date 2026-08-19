@@ -13,12 +13,13 @@
 
 #include <jni.h>
 
-#include "common_video/libyuv/include/webrtc_libyuv.h"
+#include <atomic>
+#include <optional>
+
 #include "media/base/adapted_video_track_source.h"
-#include "rtc_base/checks.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/timestamp_aligner.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 
 namespace webrtc {
 namespace jni {

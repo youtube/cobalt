@@ -19,6 +19,7 @@
 #include "base/task/bind_post_task.h"
 #include "cobalt/media/audio/audio_helpers.h"
 #include "media/base/audio_glitch_info.h"
+#include "media/base/audio_sample_types.h"
 
 namespace media {
 

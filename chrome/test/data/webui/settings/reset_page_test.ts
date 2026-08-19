@@ -140,4 +140,21 @@ suite('DialogTests', function() {
     await resetPageBrowserProxy.whenCalled('onShowResetProfileDialog');
     await testResetRequestOrigin('triggeredreset');
   });
+
+  test('searchContents', async function() {
+    let result = await resetPage.searchContents('restore');
+    assertFalse(result.canceled);
+    assertEquals(1, result.matchCount);
+    assertFalse(result.wasClearSearch);
+
+    result = await resetPage.searchContents('non-existing-text');
+    assertFalse(result.canceled);
+    assertEquals(0, result.matchCount);
+    assertFalse(result.wasClearSearch);
+
+    result = await resetPage.searchContents('');
+    assertFalse(result.canceled);
+    assertEquals(0, result.matchCount);
+    assertTrue(result.wasClearSearch);
+  });
 });

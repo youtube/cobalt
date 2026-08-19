@@ -61,6 +61,8 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.android_webview.AwDisplayCutoutController.Delegate;
+import org.chromium.android_webview.AwDisplayCutoutController.Insets;
 import org.chromium.android_webview.autofill.AndroidAutofillSafeModeAction;
 import org.chromium.android_webview.common.AwFeatureMap;
 import org.chromium.android_webview.common.AwFeatures;
@@ -992,8 +994,8 @@ public class AwContents implements SmartClipProvider {
                             },
                             containerView);
             mDisplayCutoutController =
-                    AwDisplayCutoutController.maybeCreate(
-                            new AwDisplayCutoutController.Delegate() {
+                    new AwDisplayCutoutController(
+                            new Delegate() {
                                 @Override
                                 public float getDipScale() {
                                     WindowAndroid windowAndroid = mWindowAndroid.getWindowAndroid();
@@ -1001,8 +1003,7 @@ public class AwContents implements SmartClipProvider {
                                 }
 
                                 @Override
-                                public void setDisplayCutoutSafeArea(
-                                        AwDisplayCutoutController.Insets insets) {
+                                public void setDisplayCutoutSafeArea(Insets insets) {
                                     if (mWebContents == null) return;
                                     mWebContents.setDisplayCutoutSafeArea(
                                             insets.toRect(mCachedSafeAreaRect));
@@ -2943,7 +2944,7 @@ public class AwContents implements SmartClipProvider {
         }
 
         return new ScriptHandler(
-                AwContents.this,
+                this,
                 AwContentsJni.get()
                         .addDocumentStartJavaScript(mNativeAwContents, script, allowedOriginRules));
     }
@@ -4417,7 +4418,7 @@ public class AwContents implements SmartClipProvider {
         public boolean onKeyUp(int keyCode, KeyEvent event) {
             return isDestroyed(NO_WARN)
                     ? false
-                    : mWebContents.getEventForwarder().onKeyUp(keyCode, event);
+                    : mWebContents.getEventForwarder().onKeyUp(event);
         }
 
         @Override

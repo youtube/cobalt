@@ -25,11 +25,11 @@
 #include "base/trace_event/process_memory_dump.h"
 #include "build/build_config.h"
 #include "gpu/config/gpu_info.h"  // nogncheck
-#include "gpu/config/vulkan_info.h"
 #include "gpu/vulkan/vulkan_command_pool.h"
 #include "gpu/vulkan/vulkan_crash_keys.h"
 #include "gpu/vulkan/vulkan_fence_helper.h"
 #include "gpu/vulkan/vulkan_function_pointers.h"
+#include "gpu/vulkan/vulkan_info.h"
 #include "gpu/vulkan/vulkan_util.h"
 #include "ui/gl/gl_angle_util_vulkan.h"
 
@@ -323,6 +323,23 @@ bool VulkanDeviceQueue::Initialize(
     protected_memory_features_.pNext = enabled_device_features_2_.pNext;
     enabled_device_features_2_.pNext = &protected_memory_features_;
   }
+
+  // Add Skia features to query
+  instance_->skia_features().addFeaturesToQuery(
+      physical_device_info.extensions.data(),
+      physical_device_info.extensions.size(), enabled_device_features_2_);
+
+  // Query the physical device features.
+  vkGetPhysicalDeviceFeatures2(vk_physical_device_,
+                               &enabled_device_features_2_);
+
+  // TODO(syoussefi): feature_sampler_ycbcr_conversion and
+  // feature_protected_memory can be removed from physical_device_info and
+  // checked after the vkGetPhysicalDeviceFeatures2 query here.
+
+  // Enable Skia extensions and features
+  instance_->skia_features().addFeaturesToEnable(enabled_extensions,
+                                                 enabled_device_features_2_);
 
   VkDeviceCreateInfo device_create_info = {
       VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};

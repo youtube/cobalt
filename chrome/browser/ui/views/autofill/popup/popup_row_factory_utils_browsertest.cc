@@ -12,6 +12,7 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/cancelable_task_tracker.h"
+#include "build/branding_buildflags.h"
 #include "chrome/browser/ui/autofill/autofill_popup_controller.h"
 #include "chrome/browser/ui/autofill/mock_autofill_popup_controller.h"
 #include "chrome/browser/ui/browser.h"
@@ -83,9 +84,20 @@ Suggestion CreateFreeformFooter() {
 }
 
 Suggestion CreateSuggestionWithChildren(const std::u16string& main_text,
+                                        SuggestionType type,
                                         std::vector<Suggestion> children) {
-  Suggestion suggestion(main_text, SuggestionType::kAddressEntry);
+  Suggestion suggestion(main_text, type);
   suggestion.children = std::move(children);
+  return suggestion;
+}
+
+Suggestion CreateAllLoyaltyCardsEntry() {
+  Suggestion suggestion = CreateSuggestionWithChildren(
+      u"All_loyalty_cards_entry", SuggestionType::kAllLoyaltyCardsEntry,
+      {Suggestion(u"CVS", SuggestionType::kLoyaltyCardEntry)});
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  suggestion.icon = Suggestion::Icon::kGoogleWalletMonochrome;
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
   return suggestion;
 }
 
@@ -117,9 +129,12 @@ const Suggestion kSuggestions[] = {
                Suggestion::Icon::kGlobe,
                SuggestionType::kSeePromoCodeDetails)};
 
-const Suggestion kExpandableSuggestions[] = {CreateSuggestionWithChildren(
-    u"Address_entry",
-    {Suggestion(u"Username", SuggestionType::kPasswordEntry)})};
+const Suggestion kExpandableSuggestions[] = {
+    CreateSuggestionWithChildren(
+        u"Address_entry",
+        SuggestionType::kAddressEntry,
+        {Suggestion(u"Username", SuggestionType::kPasswordEntry)}),
+    CreateAllLoyaltyCardsEntry()};
 
 class MockPasswordFaviconLoader : public PasswordFaviconLoader {
  public:

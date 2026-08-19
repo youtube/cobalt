@@ -752,6 +752,7 @@ if (rtc_build_dcsctp) {
       "../net/dcsctp/timer:task_queue_timeout",
       "../p2p:dtls_transport_internal",
       "../p2p:packet_transport_internal",
+      "../rtc_base:async_packet_socket",
       "../rtc_base:checks",
       "../rtc_base:copy_on_write_buffer",
       "../rtc_base:event_tracer",

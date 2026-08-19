@@ -11,16 +11,20 @@
 #ifndef AUDIO_CHANNEL_RECEIVE_FRAME_TRANSFORMER_DELEGATE_H_
 #define AUDIO_CHANNEL_RECEIVE_FRAME_TRANSFORMER_DELEGATE_H_
 
+#include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 
+#include "api/array_view.h"
 #include "api/frame_transformer_interface.h"
 #include "api/rtp_headers.h"
+#include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/system/no_unique_address.h"
-#include "rtc_base/thread.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 

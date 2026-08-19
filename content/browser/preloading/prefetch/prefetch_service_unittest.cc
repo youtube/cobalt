@@ -4182,6 +4182,7 @@ class PrefetchServiceAlwaysBlockUntilHeadTest
               {"prefetch_container_lifetime_s", "-1"},
               {"prefetch_timeout_ms", "10000"},
               // Initialize timeouts > 0ms for testing purposes.
+              {"block_until_head_timeout_immediate_prefetch", "1000"},
               {"block_until_head_timeout_eager_prefetch", "1000"},
               {"block_until_head_timeout_moderate_prefetch", "1000"},
               {"block_until_head_timeout_conservative_prefetch", "1000"},
@@ -7213,9 +7214,6 @@ TEST_P(
 TEST_P(
     PrefetchServiceTest,
     DISABLED_CHROMEOS(MultipleConcurrentNavigationSuccessBeforeNavigations)) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures({features::kPrefetchReusable}, {});
-
   base::HistogramTester histogram_tester;
 
   MakePrefetchService(
@@ -7276,9 +7274,6 @@ TEST_P(
 TEST_P(
     PrefetchServiceTest,
     DISABLED_CHROMEOS(MultipleConcurrentNavigationBlockUntilHeadThenSuccess)) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures({features::kPrefetchReusable}, {});
-
   base::HistogramTester histogram_tester;
 
   MakePrefetchService(
@@ -7349,9 +7344,6 @@ TEST_P(
 TEST_P(PrefetchServiceTest,
        DISABLED_CHROMEOS(
            MultipleConcurrentNavigationBlockUntilHeadThenSuccessFail)) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures({features::kPrefetchReusable}, {});
-
   base::HistogramTester histogram_tester;
 
   MakePrefetchService(
@@ -7428,9 +7420,6 @@ TEST_P(PrefetchServiceTest,
 TEST_P(PrefetchServiceTest,
        DISABLED_CHROMEOS(
            MultipleConcurrentNavigationBlockUntilHeadThenCookiesChanged)) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures({features::kPrefetchReusable}, {});
-
   base::HistogramTester histogram_tester;
 
   MakePrefetchService(

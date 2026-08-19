@@ -23,7 +23,7 @@
 namespace v8 {
 namespace internal {
 
-#define xlen (uint8_t(sizeof(void*) * 8))
+#define xlen (static_cast<uint8_t>(sizeof(void*) * 8))
 // Forward declarations.
 enum class AbortReason : uint8_t;
 
@@ -314,7 +314,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
   static int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
                                        uint8_t* pc);
-  void PatchAndJump(Address target);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(const ExternalReference& reference);
   void Call(Register target, COND_ARGS);
@@ -1126,10 +1125,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadCompressedTaggedRoot(Register destination, RootIndex index);
 
   void LoadMap(Register destination, Register object);
+  void LoadCompressedMap(Register dst, Register object);
 
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef);
-  void LoadCompressedMap(Register dst, Register object);
+
+  void LoadInterpreterDataBytecodeArray(Register destination,
+                                        Register interpreter_data);
+  void LoadInterpreterDataInterpreterTrampoline(Register destination,
+                                                Register interpreter_data);
 
   // If the value is a NaN, canonicalize the value else, do nothing.
   void FPUCanonicalizeNaN(const DoubleRegister dst, const DoubleRegister src);
@@ -1502,11 +1506,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void WasmRvvS128const(VRegister dst, const uint8_t imms[16]);
 
   void LoadLane(
-      int sz, VRegister dst, uint8_t laneidx, MemOperand src,
-      Trapper&& trapper = [](int){});
+      VSew sew, VRegister dst, uint8_t laneidx, MemOperand src,
+      Trapper&& trapper = [](int) {});
   void StoreLane(
-      int sz, VRegister src, uint8_t laneidx, MemOperand dst,
-      Trapper&& trapper = [](int){});
+      VSew sew, VRegister src, uint8_t laneidx, MemOperand dst,
+      Trapper&& trapper = [](int) {});
 
   // It assumes that the arguments are located below the stack pointer.
   void LoadReceiver(Register dest) { LoadWord(dest, MemOperand(sp, 0)); }
@@ -1982,15 +1986,10 @@ void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
   // Calculate label area size and let MASM know that it will be impossible to
   // create the trampoline within the range. That forces MASM to create the
   // trampoline right here if necessary, i.e. if label area is too large and
-  // all unbound forward branches cannot be bound over it. Use nop() because the
-  // trampoline cannot be emitted right after Jump().
-  NOP();
-  static constexpr int mask = kInstrSize - 1;
+  // all unbound forward branches cannot be bound over it.
   int aligned_label_area_size =
       static_cast<int>(case_count) * kUIntptrSize + kSystemPointerSize;
-  int instructions_per_label_area =
-      ((aligned_label_area_size + mask) & ~mask) >> kInstrSizeLog2;
-  BlockTrampolinePoolFor(instructions_per_label_area);
+  BlockTrampolinePoolScope block_trampoline_pool(this, aligned_label_area_size);
   // Emit the jump table inline, under the assumption that it's not too big.
   Align(kSystemPointerSize);
   bind(&jump_table);

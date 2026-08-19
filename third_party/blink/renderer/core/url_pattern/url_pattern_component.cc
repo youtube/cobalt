@@ -205,7 +205,7 @@ Component* Component::Compile(v8::Isolate* isolate,
   // Parse the pattern.
   // Lossy UTF8 conversion is fine given the input has come through a
   // USVString webidl argument.
-  StringUTF8Adaptor utf8(final_pattern);
+  StringUtf8Adaptor utf8(final_pattern);
 
   auto parse_result =
       liburlpattern::Parse(utf8.AsStringView(),
@@ -229,8 +229,8 @@ Component* Component::Compile(v8::Isolate* isolate,
         parse_result.value().GenerateRegexString(&name_list);
 
     // Compile the regular expression to verify it is valid.
-    auto case_sensitive = options.sensitive ? WTF::kTextCaseSensitive
-                                            : WTF::kTextCaseASCIIInsensitive;
+    auto case_sensitive =
+        options.sensitive ? kTextCaseSensitive : kTextCaseASCIIInsensitive;
     DCHECK(base::IsStringASCII(regexp_string));
     regexp = MakeGarbageCollected<ScriptRegexp>(
         isolate, String(regexp_string), case_sensitive,
@@ -347,7 +347,7 @@ bool Component::Match(StringView input,
       pattern_group_list;
   // Lossy UTF8 conversion is fine given the input has come through a
   // USVString webidl argument.
-  StringUTF8Adaptor utf8(input);
+  StringUtf8Adaptor utf8(input);
   bool result = pattern_.DirectMatch(
       utf8.AsStringView(), group_list ? &pattern_group_list : nullptr);
   if (group_list) {
@@ -403,8 +403,8 @@ std::optional<String> Component::Generate(
 
   std::unordered_map<std::string, std::string> groups_map;
   for (auto&& [key, value] : groups) {
-    StringUTF8Adaptor utf8_key(key);
-    StringUTF8Adaptor utf8_value(value);
+    StringUtf8Adaptor utf8_key(key);
+    StringUtf8Adaptor utf8_value(value);
 
     auto [it, inserted] = groups_map.insert(
         std::make_pair(utf8_key.AsStringView(), utf8_value.AsStringView()));

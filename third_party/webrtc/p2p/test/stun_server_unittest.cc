@@ -10,8 +10,7 @@
 
 #include "p2p/test/stun_server.h"
 
-#include <string.h>
-
+#include <cstring>
 #include <memory>
 #include <string>
 

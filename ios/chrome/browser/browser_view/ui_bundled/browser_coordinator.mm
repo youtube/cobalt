@@ -34,6 +34,7 @@
 #import "components/safe_browsing/core/common/features.h"
 #import "components/segmentation_platform/embedder/home_modules/tips_manager/signal_constants.h"
 #import "components/send_tab_to_self/features.h"
+#import "components/signin/public/base/signin_metrics.h"
 #import "components/supervised_user/core/browser/supervised_user_utils.h"
 #import "components/supervised_user/core/common/features.h"
 #import "components/supervised_user/core/common/supervised_user_constants.h"
@@ -113,6 +114,7 @@
 #import "ios/chrome/browser/find_in_page/model/java_script_find_tab_helper.h"
 #import "ios/chrome/browser/find_in_page/model/util.h"
 #import "ios/chrome/browser/first_run/ui_bundled/omnibox_position/omnibox_position_choice_coordinator.h"
+#import "ios/chrome/browser/first_run/ui_bundled/welcome_back/coordinator/welcome_back_coordinator.h"
 #import "ios/chrome/browser/follow/model/follow_browser_agent.h"
 #import "ios/chrome/browser/follow/model/followed_web_site.h"
 #import "ios/chrome/browser/follow/ui_bundled/first_follow_coordinator.h"
@@ -245,6 +247,7 @@
 #import "ios/chrome/browser/shared/public/commands/promos_manager_commands.h"
 #import "ios/chrome/browser/shared/public/commands/qr_generation_commands.h"
 #import "ios/chrome/browser/shared/public/commands/quick_delete_commands.h"
+#import "ios/chrome/browser/shared/public/commands/reader_mode_chip_commands.h"
 #import "ios/chrome/browser/shared/public/commands/reader_mode_commands.h"
 #import "ios/chrome/browser/shared/public/commands/reminder_notifications_commands.h"
 #import "ios/chrome/browser/shared/public/commands/save_image_to_photos_command.h"
@@ -259,6 +262,7 @@
 #import "ios/chrome/browser/shared/public/commands/toolbar_commands.h"
 #import "ios/chrome/browser/shared/public/commands/unit_conversion_commands.h"
 #import "ios/chrome/browser/shared/public/commands/web_content_commands.h"
+#import "ios/chrome/browser/shared/public/commands/welcome_back_promo_commands.h"
 #import "ios/chrome/browser/shared/public/commands/whats_new_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/elements/activity_overlay_coordinator.h"
@@ -407,6 +411,7 @@ enum class ToolbarKind {
     WebContentCommands,
     WebNavigationNTPDelegate,
     WebUsageEnablerBrowserAgentObserving,
+    WelcomeBackPromoCommands,
     WhatsNewCommands>
 
 // Whether the coordinator is started.
@@ -711,6 +716,9 @@ enum class ToolbarKind {
 
   // The coordinator for the notifications opt-in screen.
   NotificationsOptInCoordinator* _notificationsOptInCoordinator;
+
+  // The coordinator for the Welcome Back promo.
+  WelcomeBackCoordinator* _welcomeBackCoordinator;
 }
 
 #pragma mark - ChromeCoordinator
@@ -918,6 +926,7 @@ enum class ToolbarKind {
   [self dismissAutoDeletionActionSheet];
   [self dismissSearchWhatYouSeePromo];
   [self dismissNotificationsOptIn];
+  [self hideWelcomeBackPromo];
 
   [self cancelCollaborationFlows];
   [self.NTPCoordinator clearPresentedState];
@@ -1147,6 +1156,7 @@ enum class ToolbarKind {
     @protocol(CountryCodePickerCommands),
     @protocol(WhatsNewCommands),
     @protocol(GoogleOneCommands),
+    @protocol(WelcomeBackPromoCommands)
   ];
 
   for (Protocol* protocol in protocols) {
@@ -1733,6 +1743,7 @@ enum class ToolbarKind {
   [self stopTrustedVaultReauthentication];
   [self dismissSearchWhatYouSeePromo];
   [self dismissNotificationsOptIn];
+  [self hideWelcomeBackPromo];
 }
 
 // Starts independent mediators owned by this coordinator.
@@ -2492,6 +2503,29 @@ enum class ToolbarKind {
   _notificationsOptInCoordinator = nil;
 }
 
+- (void)showAddAccountWithAccessPoint:(signin_metrics::AccessPoint)accessPoint {
+  if (_signinCoordinator) {
+    // The browser agent may trigger the add account any time in case of network
+    // delay. Early return ensure we don’t interrupt the sign-in operation the
+    // user is currently doing.
+    return;
+  }
+  SigninContextStyle contextStyle = SigninContextStyle::kDefault;
+  _signinCoordinator = [SigninCoordinator
+      addAccountCoordinatorWithBaseViewController:self.viewController
+                                          browser:self.browser
+                                     contextStyle:contextStyle
+                                      accessPoint:accessPoint
+                             continuationProvider:
+                                 DoNothingContinuationProvider()];
+  __weak __typeof(self) weakSelf = self;
+  _signinCoordinator.signinCompletion =
+      ^(SigninCoordinatorResult result, id<SystemIdentity> identity) {
+        [weakSelf stopSigninCoordinator];
+      };
+  [_signinCoordinator start];
+}
+
 #pragma mark - ContextualPanelEntrypointIPHCommands
 
 - (BOOL)showContextualPanelEntrypointIPHWithConfig:
@@ -3040,6 +3074,14 @@ enum class ToolbarKind {
   }
 }
 
+- (void)showWelcomeBackPromo {
+  _welcomeBackCoordinator = [[WelcomeBackCoordinator alloc]
+      initWithBaseViewController:self.viewController
+                         browser:self.browser];
+
+  [_welcomeBackCoordinator start];
+}
+
 #pragma mark - PageActionMenuCommands
 
 - (void)showPageActionMenu {
@@ -3283,6 +3325,8 @@ enum class ToolbarKind {
   if (readerModeBrowserAgent) {
     readerModeBrowserAgent->SetReaderModeHandler(HandlerForProtocol(
         self.browser->GetCommandDispatcher(), ReaderModeCommands));
+    readerModeBrowserAgent->SetReaderModeChipHandler(HandlerForProtocol(
+        self.browser->GetCommandDispatcher(), ReaderModeChipCommands));
   }
 }
 
@@ -3324,6 +3368,7 @@ enum class ToolbarKind {
       ReaderModeBrowserAgent::FromBrowser(self.browser);
   if (readerModeBrowserAgent) {
     readerModeBrowserAgent->SetReaderModeHandler(nil);
+    readerModeBrowserAgent->SetReaderModeChipHandler(nil);
   }
 }
 
@@ -3692,9 +3737,11 @@ enum class ToolbarKind {
 
 #pragma mark - EditMenuBuilder
 
-- (void)buildEditMenuWithBuilder:(id<UIMenuBuilder>)builder {
+- (void)buildEditMenuWithBuilder:(id<UIMenuBuilder>)builder
+                      inWebState:(web::WebState*)webState {
   return [self.browserContainerCoordinator.editMenuBuilder
-      buildEditMenuWithBuilder:builder];
+      buildEditMenuWithBuilder:builder
+                    inWebState:webState];
 }
 
 #pragma mark - EnterprisePromptCoordinatorDelegate
@@ -4228,7 +4275,9 @@ enum class ToolbarKind {
   // Attempting to snapshot while the overscroll "bounce back" animation is
   // occurring will cut the animation short.
   web::WebState* activeWebState = self.activeWebState;
-  DCHECK(activeWebState);
+  if (!activeWebState) {
+    return;
+  }
   ProfileIOS* profile = self.profile;
   feature_engagement::Tracker* engagementTracker =
       feature_engagement::TrackerFactory::GetForProfile(profile);
@@ -4528,6 +4577,13 @@ enum class ToolbarKind {
 - (void)showWhatsNewIPH {
   [HandlerForProtocol(_dispatcher, HelpCommands)
       presentInProductHelpWithType:InProductHelpType::kWhatsNew];
+}
+
+#pragma mark - WelcomeBackPromoCommands
+
+- (void)hideWelcomeBackPromo {
+  [_welcomeBackCoordinator stop];
+  _welcomeBackCoordinator = nil;
 }
 
 #pragma mark - NotificationsOptInCoordinatorDelegate

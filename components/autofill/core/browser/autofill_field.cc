@@ -22,7 +22,6 @@
 #include "components/autofill/core/browser/field_type_utils.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/heuristic_source.h"
-#include "components/autofill/core/browser/ml_model/field_classification_model_handler.h"
 #include "components/autofill/core/browser/proto/server.pb.h"
 #include "components/autofill/core/common/autofill_constants.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -192,11 +191,14 @@ bool PreferHeuristicOverServer(FieldType heuristic_type,
   }
   // Until we gain confidence in the precision of AutofillAI predictions, they
   // should not overrule local heuristics. The AutofillAI prediction itself can
-  // always be retrieved via `GetAutofillAiServerTypePredictions`.
+  // always be retrieved via `GetAutofillAiServerTypePredictions`. The
+  // killswitch below is meant to experiment with removing this logic.
   return base::Contains(kAutofillHeuristicsVsServerOverrides,
                         std::make_pair(heuristic_type, server_type)) ||
          (heuristic_type != UNKNOWN_TYPE &&
-          GroupTypeOfFieldType(server_type) == FieldTypeGroup::kAutofillAi);
+          GroupTypeOfFieldType(server_type) == FieldTypeGroup::kAutofillAi &&
+          !base::FeatureList::IsEnabled(
+              features::kAutofillAiPreferModelResponseOverHeuristics));
 }
 
 // Util function for `ComputedType`. Returns the values of HtmlFieldType that
@@ -381,6 +383,14 @@ void AutofillField::MaybeAddServerPrediction(
   const FieldType field_type =
       ToSafeFieldType(prediction.type(), NO_SERVER_DATA);
   prediction.set_type(field_type);
+
+  // LOYALTY_MEMBERSHIP_ID server predictions are only available for clients
+  // with the flag `kAutofillEnableLoyaltyCardsFilling` enabled.
+  if (field_type == LOYALTY_MEMBERSHIP_ID &&
+      !base::FeatureList::IsEnabled(
+          features::kAutofillEnableLoyaltyCardsFilling)) {
+    return;
+  }
 
   if (!prediction.has_source()) {
     // TODO(crbug.com/40243028): captured tests store old autofill api

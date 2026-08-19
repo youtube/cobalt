@@ -36,6 +36,7 @@
 <translation id="1409338233051621926">"Қолданбалар", содан кейін "Әдепкі қолданбалар" түймесін түртіңіз.</translation>
 <translation id="1415402041810619267">URL қысқартылды</translation>
 <translation id="1415855080660575082">Соңғы қойындыларды құрылғының қолданбалар тізімінен және іздеу нәтижелерінен көру үшін Chrome-ға соңғы қойындыларыңызды құрылғымен бөлісуге рұқсат беріңіз. Мұны Chrome параметрлерінде қосуға не өшіруге болады.</translation>
+<translation id="1432650420699700107">Сайттар жергілікті желідегі құрылғыларға қосылуды сұрай алады</translation>
 <translation id="1448064542941920355">Масштабты азайту</translation>
 <translation id="1464044141348608623">Сайттардың құрылғыңызды белсенді пайдаланатын уақытыңыз туралы білуіне рұқсат бермеу</translation>
 <translation id="146867109637325312">{COUNT,plural, =1{<ph name="SITE_COUNT" /> сайт}other{<ph name="SITE_COUNT" /> сайт}}</translation>
@@ -60,6 +61,7 @@
 <translation id="1703666494654169921">Сайттардың виртуалдық шындық құрылғыларын немесе деректерді пайдалануына рұқсат бермеу</translation>
 <translation id="1704230497453185209">Сайттардың дыбысты шығаруына рұқсат бермеу</translation>
 <translation id="1717218214683051432">Қозғалыс датчиктері</translation>
+<translation id="1717996979683942279">Қосулы болса, сайттар барлық дисплейде терезелерді басқаруды сұрай алады. Өшірулі болса, бұл терезелерді басқара алмайды.</translation>
 <translation id="1743802530341753419">Сайттардың құрылғыға жалғануына рұқсат бермес бұрын сұрау (ұсынылады)</translation>
 <translation id="1777815584158991902">Discover фидінің төменгі парақшасы</translation>
 <translation id="1779089405699405702">Кескін декодері</translation>
@@ -68,6 +70,7 @@
 <translation id="1799920918471566157">Chrome-ды пайдалану кеңестері</translation>
 <translation id="1816835383954230954">Қосулы болса, Chrome жылдам жұмыс істейді және JavaScript қолданатын функциялар тиісті түрде жұмыс істеуі керек. Өшірілсе, өнімділік азаяды, бірақ V8 оңтайлаушысы шабуылдарға төзімді болады.</translation>
 <translation id="1818308510395330587"><ph name="APP_NAME" /> браузеріне AR режимін пайдалануға рұқсат ету үшін <ph name="BEGIN_LINK" />Android параметрлерінде<ph name="END_LINK" /> камераны да қосыңыз.</translation>
+<translation id="1881806992065048905">Жаңа қойынды беті көрінісінің төменгі парақшасы</translation>
 <translation id="1887786770086287077">Бұл құрылғыда орынды анықтау қызметі өшірулі. Оны <ph name="BEGIN_LINK" />Android параметрлері<ph name="END_LINK" /> арқылы қосыңыз.</translation>
 <translation id="1906181697255754968">Жұмысыңызды автоматты түрде сақтау сияқты функциялар үшін сайттар құрылғыңыздағы файлдар мен қалталарға кіреді.</translation>
 <translation id="1915307458270490472">Жабу</translation>
@@ -116,6 +119,7 @@
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> МБ</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> және тағы <ph name="NUM_MORE" /> қызметті пайдалануға рұқсат етілген.}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> және тағы <ph name="NUM_MORE" /> қызметті пайдалануға рұқсат етілген.}}</translation>
 <translation id="2410940059315936967">Сіз кірген сайт басқа сайттардан алынған контентті (мысалы, суреттерді, жарнамаларды және мәтінді) ендіре алады. Осындай басқа сайттар орнатқан cookie файлдары үшінші тарап cookie файлдары деп аталады.</translation>
+<translation id="2433507940547922241">Көрініс</translation>
 <translation id="2434158240863470628"><ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /> жүктеп алынды</translation>
 <translation id="2438120137003069591">Сіз бұл сайтқа үшінші тарап cookie файлдарын пайдалануға уақытша рұқсат бердіңіз. Бұл жағдайда қорғаныс дәрежесі төмендейді, бірақ сайт функцияларының ойдағыдай жұмыс істеу ықтималдығы артады. <ph name="BEGIN_LINK" />Пікір жіберу<ph name="END_LINK" /></translation>
 <translation id="244264527810019436">Инкогнито режимінде кейбір сайттардағы функциялар істемеуі мүмкін.</translation>
@@ -128,6 +132,7 @@
 <translation id="2490684707762498678"><ph name="APP_NAME" /> басқарады</translation>
 <translation id="2498359688066513246">Анықтама және пікір</translation>
 <translation id="2501278716633472235">Артқа қайту</translation>
+<translation id="2533138527374486328">Қосулы болса, сайттар жергілікті желідегі кез келген құрылғыға қосылуды сұрай алады. Өшірулі болса, сайттар жергілікті желідегі құрылғыларға қосыла алмайды.</translation>
 <translation id="2546283357679194313">Cookie файлдары және торап деректері</translation>
 <translation id="2570922361219980984">Бұл құрылғыда да орынды анықтау қызметі өшірулі. Оны <ph name="BEGIN_LINK" />Android параметрлері<ph name="END_LINK" /> арқылы қосыңыз.</translation>
 <translation id="257931822824936280">Жайылған – жию үшін басыңыз.</translation>
@@ -151,6 +156,7 @@
 <translation id="2789132527330338807">Сайттар айналаңыздың 3D картасын жасауды немесе камераның орналасуын қадағалауды сұрай алады.</translation>
 <translation id="2790501146643349491">Қосылса, соңғы жабылған сайттар деректер жіберу және алу процесін аяқтай алады. Өшірілсе, аяқтай алмайды.</translation>
 <translation id="2795716239552913152">Сайттар әдетте қажетті функциялар немесе ақпарат (мысалы, жергілікті жаңалықтар не маңайдағы дүкендер) алу үшін геодерегіңізді пайдаланады.</translation>
+<translation id="2800760947029405028">Кескін жүктеп салу</translation>
 <translation id="2802908157808345702">Сайттардың қалқымалы терезелерді жіберуіне немесе басқа жаққа бағыттауына рұқсат бермеу</translation>
 <translation id="2814830417943086299">Chrome енді соңғы қойындыларды құрылғының қолданбалар тізімінен және іздеу нәтижелерінен көрсетеді. Бұл функцияны Chrome параметрлерінен кез келген уақытта өшіруге болады.</translation>
 <translation id="2822354292072154809"><ph name="CHOSEN_OBJECT_NAME" /> үшін барлық сайт рұқсаттары шынымен бастапқы күйіне қайтарылсын ба?</translation>
@@ -166,6 +172,7 @@
 <translation id="2968755619301702150">Сертификат көру құралы</translation>
 <translation id="2979365474350987274">Үшінші тарап cookie файлдарына шектеу қойылды.</translation>
 <translation id="2990583317361835189">Сайттардың қозғалыс датчиктерін пайдалануына рұқсат бермеу</translation>
+<translation id="3004438526346162184">Сайттар барлық дисплейде терезелерді басқару үшін осы функцияны пайдалана алады</translation>
 <translation id="3008272652534848354">Рұқсаттарды бастапқы күйіне қайтару</translation>
 <translation id="301521992641321250">Автоматты түрде блокталған</translation>
 <translation id="3064871050034234884">Сайттар дыбысты ойната алады</translation>
@@ -236,6 +243,7 @@
 <translation id="3779154269823594982">Құпия сөздерді өзгерту</translation>
 <translation id="3797520601150691162">Белгілі бір сайтқа қараңғы режим қолданылмайды.</translation>
 <translation id="3803367742635802571">Сіз кірген сайттар жобаланғандай жұмысын тоқтатуы мүмкін</translation>
+<translation id="3816118180265633665">Chrome түстері</translation>
 <translation id="381841723434055211">Телефон нөмірлері</translation>
 <translation id="3826050100957962900">Үшінші тараптың кіруі</translation>
 <translation id="3835233591525155343">Құрылғыны пайдалануыңыз</translation>
@@ -254,6 +262,7 @@
 <translation id="3955321697524543127">Сайттардың USB құрылғыларына қосылуына рұқсат бермеу</translation>
 <translation id="3965467402665811906">Сайттар сіз туралы өздері сақтаған ақпаратты пайдалануды сұрай алады.</translation>
 <translation id="3967822245660637423">Жүктеп алынды</translation>
+<translation id="3969869202926863008">Жергілікті желіге кіру</translation>
 <translation id="3981465354637804599">Сайттар әдетте жарнамалар көрсетеді, сондықтан олар контентті немесе қызметтерді тегін ұсынады. Бірақ кейбір сайттар мазаны алатын немесе жалған ақпаратты жарнамаларды көрсетеді.</translation>
 <translation id="3987993985790029246">Сілтемені көшіру</translation>
 <translation id="3991845972263764475"><ph name="BYTES_DOWNLOADED_WITH_UNITS" />/?</translation>
@@ -320,6 +329,7 @@
 <translation id="4882919381756638075">Сайттар әдетте бейнечат сияқты байланыс функциялары үшін микрофон пайдаланады.</translation>
 <translation id="4883854917563148705">Басқарылатын параметрлер бастапқы күйге қайтарылмайды.</translation>
 <translation id="4887024562049524730">Cайттарға виртуалдық шындық құрылғыңызды немесе деректерді пайдалануға рұқсат беру алдында сұрау (ұсынылады)</translation>
+<translation id="4934780484581617878">Терезені басқару</translation>
 <translation id="4936863036653376783">Топтарыңыз барлық құрылғыңыздағы қойындылар тобы бөлімінде орналасқан.</translation>
 <translation id="4945443401464700059"><ph name="SITE" /> сайтына келесі сайттардағы ақпаратыңызды пайдалануға блок қойылады:</translation>
 <translation id="4953688446973710931">Қосылса, сайттар бірнеше файлды автоматты түрде жүктеп алуға рұқсат сұрай алады. Өшірілсе, сайттар бірнеше файлды автоматты түрде жүктеп ала алмайды.</translation>
@@ -327,6 +337,7 @@
 <translation id="4972737347717125191">Сайттар виртуалдық шындық құрылғыларын және деректерді пайдалануға рұқсат сұрай алады.</translation>
 <translation id="497421865427891073">Алға өту</translation>
 <translation id="4976702386844183910">Cоңғы кіру: <ph name="DATE" /></translation>
+<translation id="4978178243417029856">Discover фиді туралы толық ақпарат</translation>
 <translation id="4994033804516042629">Ешқандай контакт табылмады.</translation>
 <translation id="4996978546172906250">Бөлісу</translation>
 <translation id="5001526427543320409">Үшінші тарап cookie файлдары</translation>
@@ -422,6 +433,7 @@
 <translation id="5968921426641056619">Веб-мекенжайды енгізіңіз</translation>
 <translation id="5975083100439434680">Кішірейту</translation>
 <translation id="5976059395673079613"><ph name="PERMISSION" /> – <ph name="WARNING_MESSAGE" /></translation>
+<translation id="5998071268779572583">Discover фидін қосу</translation>
 <translation id="6015775454662021376">Осы сайттың құрылғыңызға кіруін басқарыңыз.</translation>
 <translation id="6040143037577758943">Жабу</translation>
 <translation id="6042308850641462728">Жаю</translation>
@@ -429,6 +441,7 @@
 <translation id="6071501408666570960">Сіз бұл сайтта аккаунттан шығарылуыңыз мүмкін.</translation>
 <translation id="6085954183010297841">Файл өзгерту рұқсатын жою қажет пе? <ph name="FILE" /></translation>
 <translation id="6120483543004435978">Қосылса, сайттар құрылғыны белсенді пайдаланатын уақытыңызды білуге рұқсат сұрай алады. Өшірілсе, біле алмайды.</translation>
+<translation id="615886654739818377">Сайттарға барлық дисплейде терезелерді басқаруға рұқсат бермеу</translation>
 <translation id="6165508094623778733">Толық ақпарат</translation>
 <translation id="6171020522141473435">Қосылса, сайттар Bluetooth құрылғыларын пайдалануға рұқсат сұрай алады. Өшірілсе, пайдалана алмайды.</translation>
 <translation id="6177128806592000436">Бұл сайтпен байланысыңыз қауіпсіз емес</translation>
@@ -450,6 +463,7 @@
 <translation id="6398765197997659313">Толық экраннан шығу</translation>
 <translation id="640163077447496506">Мерзімі бүгін бітеді</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
+<translation id="6413980879783180524">Тақырып жинақтары</translation>
 <translation id="6439114592976064011">Сайттардың виртуалдық шындық құрылғыңызды және деректеріңізді пайдалануына тыйым салу</translation>
 <translation id="6447842834002726250">Cookie файлдары</translation>
 <translation id="6452138246455930388">Ашық қойындыда баға төмендеді: <ph name="OLD_PRICE" /> &gt; <ph name="NEW_PRICE" /> (<ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" />)</translation>
@@ -461,8 +475,10 @@
 <translation id="6545864417968258051">Bluetooth құрылғыларын іздеу</translation>
 <translation id="6552800053856095716">{PERMISSIONS_SUMMARY_BLOCKED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> және тағы <ph name="NUM_MORE" /> қызметті пайдалануға тыйым салынған.}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> және тағы <ph name="NUM_MORE" /> қызметті пайдалануға тыйым салынған.}}</translation>
 <translation id="6554732001434021288">Соңғы кіру: <ph name="NUM_DAYS" /> күн бұрын</translation>
+<translation id="6557290421156335491">Таңбашаларым</translation>
 <translation id="656065428026159829">Басқаларын көру</translation>
 <translation id="6561560012278703671">Дыбыссыз хабарландыру функциясын пайдалану (хабарландырулар кедергі келтірмейді)</translation>
+<translation id="6565144332292237355">Сайттар бұл функцияны жергілікті желідегі құрылғыларды іздеу және қосылу үшін пайдалана алады.</translation>
 <translation id="6593061639179217415">Компьютерге арналған сайт</translation>
 <translation id="659938948789980540">{COUNT,plural, =1{Cookie файлдарына <ph name="RWS_MEMBERS_COUNT" /> <ph name="RWS_OWNER" /> сайтында рұқсат етілді.}other{Cookie файлдарына <ph name="RWS_MEMBERS_COUNT" /> <ph name="RWS_OWNER" /> сайтында рұқсат етілді.}}</translation>
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> ГБ</translation>
@@ -508,8 +524,10 @@
 <translation id="7188508872042490670">Құрылғыдағы сайт деректері</translation>
 <translation id="7201549776650881587"><ph name="ORIGIN" /> доменіндегі барлық сайт немесе негізгі экрандағы оның қолданбасы сақтаған барлық дерек пен cookie файлы жойылады.</translation>
 <translation id="7203150201908454328">Кеңейтілген</translation>
+<translation id="7213166370492037743">Сайттарға жергілікті желідегі құрылғыларға қосылуға рұқсат бермеу</translation>
 <translation id="7219254577985949841">Сайт деректерін жою керек пе?</translation>
 <translation id="723171743924126238">Кескіндерді таңдау</translation>
+<translation id="7243246278722455312">"Жаңа қойынды бетін бейімдеу" төменгі парақшасы</translation>
 <translation id="7243308994586599757">Опциялар экранның төменгі жағында тұрады</translation>
 <translation id="7250468141469952378"><ph name="ITEM_COUNT" /> таңдалды</translation>
 <translation id="7260727271532453612"><ph name="PERMISSION_1" /> және <ph name="PERMISSION_2" /> үшін рұқсат етілген.</translation>
@@ -549,6 +567,7 @@
 <translation id="7791543448312431591">Қосу</translation>
 <translation id="780301667611848630">Жоқ, рақмет</translation>
 <translation id="7804248752222191302">Сайт камераны пайдаланып жатыр.</translation>
+<translation id="7805832099057502789">Толығымен ашылған жаңа қойынды беті көрінісінің төменгі парақшасы</translation>
 <translation id="7807060072011926525">Google ұсынған деректер</translation>
 <translation id="7815680994978050279">Қауіпті жүктеп алу әрекеті бөгелді</translation>
 <translation id="7835852323729233924">Медиамазмұн ойнату</translation>
@@ -568,9 +587,11 @@
 <translation id="802154636333426148">Жүктеу сәтсіз аяқталды</translation>
 <translation id="8042586301629853791">Сұрыптау шарты:</translation>
 <translation id="8051193500142930381">Камераны қажет ететін функциялар жұмыс істемейді.</translation>
+<translation id="8056330801132235235">Chrome әдепкі опциясы</translation>
 <translation id="8067883171444229417">Бейнені ойнату</translation>
 <translation id="8068648041423924542">Сертификатты таңдау мүмкін емес.</translation>
 <translation id="8077120325605624147">Сіз кірген кез келген сайт сізге кез келген жарнаманы көрсете алады</translation>
+<translation id="80798452873915119">Сайттар барлық дисплейде терезелерді басқаруды сұрай алады.</translation>
 <translation id="8087000398470557479">Бұл контент Google ұсынған <ph name="DOMAIN_NAME" /> доменінен алынған.</translation>
 <translation id="8088603949666785339"><ph name="BANNER_TITLE" /> ішіндегі қосымша опциялар</translation>
 <translation id="8112925981674547014">Қойындыларды қолданбалар тізімінен көру</translation>

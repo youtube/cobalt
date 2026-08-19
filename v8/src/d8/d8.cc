@@ -2380,6 +2380,11 @@ void Shell::PerformanceMeasureMemory(
   info.GetReturnValue().Set(promise_resolver->GetPromise());
 }
 
+// Stub for differential fuzzing.
+void Shell::PerformanceStub(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(v8::Undefined(info.GetIsolate()));
+}
+
 // Realm.current() returns the index of the currently active realm.
 void Shell::RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
@@ -2424,20 +2429,10 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
   PerIsolateData* data = PerIsolateData::Get(isolate);
   int index = data->RealmIndexOrThrow(info, 0);
   if (index == -1) return;
-  // TODO(chromium:324812): Ideally Context::Global should never return raw
-  // global objects but return a global proxy. Currently it returns global
-  // object when the global proxy is detached from the global object. The
-  // following is a workaround till we fix Context::Global so we don't leak
-  // global objects.
   Local<Object> global =
       Local<Context>::New(isolate, data->realms_[index])->Global();
-  i::DirectHandle<i::Object> i_global = Utils::OpenDirectHandle(*global);
-  if (IsJSGlobalObject(*i_global)) {
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    i::DirectHandle<i::JSObject> i_global_proxy(
-        i::Cast<i::JSGlobalObject>(i_global)->global_proxy(), i_isolate);
-    global = Utils::ToLocal(i_global_proxy);
-  }
+  // Sanity check that v8::Context::Global() returned global proxy.
+  CHECK(IsJSGlobalProxy(*Utils::OpenDirectHandle(*global)));
   info.GetReturnValue().Set(global);
 }
 
@@ -4115,15 +4110,27 @@ Local<ObjectTemplate> Shell::CreateAsyncHookTemplate(Isolate* isolate) {
 
 Local<ObjectTemplate> Shell::CreatePerformanceTemplate(Isolate* isolate) {
   Local<ObjectTemplate> performance_template = ObjectTemplate::New(isolate);
-  performance_template->Set(isolate, "now",
-                            FunctionTemplate::New(isolate, PerformanceNow));
-  performance_template->Set(isolate, "mark",
-                            FunctionTemplate::New(isolate, PerformanceMark));
-  performance_template->Set(isolate, "measure",
-                            FunctionTemplate::New(isolate, PerformanceMeasure));
-  performance_template->Set(
-      isolate, "measureMemory",
-      FunctionTemplate::New(isolate, PerformanceMeasureMemory));
+  if (i::v8_flags.correctness_fuzzer_suppressions) {
+    // Stubs for differential fuzzing.
+    performance_template->Set(isolate, "now",
+                              FunctionTemplate::New(isolate, PerformanceStub));
+    performance_template->Set(isolate, "mark",
+                              FunctionTemplate::New(isolate, PerformanceStub));
+    performance_template->Set(isolate, "measure",
+                              FunctionTemplate::New(isolate, PerformanceStub));
+    performance_template->Set(isolate, "measureMemory",
+                              FunctionTemplate::New(isolate, PerformanceStub));
+  } else {
+    performance_template->Set(isolate, "now",
+                              FunctionTemplate::New(isolate, PerformanceNow));
+    performance_template->Set(isolate, "mark",
+                              FunctionTemplate::New(isolate, PerformanceMark));
+    performance_template->Set(
+        isolate, "measure", FunctionTemplate::New(isolate, PerformanceMeasure));
+    performance_template->Set(
+        isolate, "measureMemory",
+        FunctionTemplate::New(isolate, PerformanceMeasureMemory));
+  }
   return performance_template;
 }
 
@@ -4394,6 +4401,8 @@ void Shell::InitializeDefaultCounters(Isolate* v8_isolate) {
 
 void Shell::Initialize(Isolate* isolate, D8Console* console,
                        bool isOnMainThread) {
+  if (!options.can_block) isolate->SetAllowAtomicsWait(false);
+
   isolate->SetPromiseRejectCallback(PromiseRejectCallback);
   isolate->SetWasmAsyncResolvePromiseCallback(
       D8WasmAsyncResolvePromiseCallback);
@@ -5461,6 +5470,10 @@ bool Worker::StartWorkerThread(Isolate* requester,
 }
 
 void Worker::WorkerThread::Run() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  i::SandboxHardwareSupport::EnableForCurrentThread();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   // Prevent a lifetime cycle from Worker -> WorkerThread -> Worker.
   // We must clear the worker_ field of the thread, but we keep the
   // worker alive via a stack root until the thread finishes execution
@@ -6036,6 +6049,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (FlagWithArgMatches("--thread-pool-size", &flag_value, argc, argv,
                                   &i)) {
       options.thread_pool_size = atoi(flag_value);
+    } else if (FlagMatches("--no-can-block", &argv[i])) {
+      options.can_block = false;
     } else if (FlagMatches("--stress-delay-tasks", &argv[i])) {
       // Delay execution of tasks by 0-100ms randomly (based on --random-seed).
       options.stress_delay_tasks = true;
@@ -6909,6 +6924,13 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
+  // TODO(429173713): currently we need to disable the trap handler if hardware
+  // sandboxing is active and the kernel version is too old.
+  if (!i::HardwareSandboxingDisabledOrSupportsSignalDeliveryInSandbox()) {
+    fprintf(stderr, "Disabling Wasm trap handler as the kernel is too old\n");
+    options.wasm_trap_handler = false;
+  }
+
   if (V8_TRAP_HANDLER_SUPPORTED && options.wasm_trap_handler) {
     constexpr bool kUseDefaultTrapHandler = true;
     if (!v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler)) {

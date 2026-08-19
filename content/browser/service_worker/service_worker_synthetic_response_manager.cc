@@ -4,6 +4,12 @@
 
 #include "content/browser/service_worker/service_worker_synthetic_response_manager.h"
 
+#include <cstddef>
+
+#include "base/feature_list.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/trace_event/trace_event.h"
 #include "content/browser/service_worker/service_worker_fetch_dispatcher.h"
 #include "content/common/service_worker/race_network_request_url_loader_client.h"
@@ -14,6 +20,37 @@
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_response.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_stream_handle.mojom.h"
+
+namespace {
+
+constexpr char kHistogramIsHeaderConsistent[] =
+    "ServiceWorker.SyntheticResponse.IsHeaderConsistent";
+
+// When this is enabled, the browser stores response headers for synthetic
+// responses even if there is no opt-in header in its response. This is for
+// local development and testing.
+BASE_FEATURE(kServiceWorkerBypassSyntheticResponseHeaderCheck,
+             "ServiceWorkerBypassSyntheticResponseHeaderCheck",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<std::string>
+    kServiceWorkerBypassSyntheticResponseIgnoredHeaders{
+        &kServiceWorkerBypassSyntheticResponseHeaderCheck, "ignored_headers",
+        ""};
+
+bool IsBypassSyntheticResponseHeaderCheckEnabled() {
+  static const bool kIsEnabled = base::FeatureList::IsEnabled(
+      kServiceWorkerBypassSyntheticResponseHeaderCheck);
+  return kIsEnabled;
+}
+
+const std::string& GetIgnoredHeadersForBypass() {
+  static const base::NoDestructor<std::string> ignored_headers(
+      kServiceWorkerBypassSyntheticResponseIgnoredHeaders.Get());
+  return *ignored_headers;
+}
+
+}  // namespace
 
 namespace content {
 namespace {
@@ -27,7 +64,8 @@ constexpr std::string_view kOptInHeaderValue = "?1";
 // TODO(crbug.com/352578800): Ensure converted fields are really sufficient.
 blink::mojom::FetchAPIResponsePtr GetFetchAPIResponse(
     network::mojom::URLResponseHeadPtr head) {
-  CHECK(head->headers->HasHeaderValue(kOptInHeaderName, kOptInHeaderValue));
+  CHECK(IsBypassSyntheticResponseHeaderCheckEnabled() ||
+        head->headers->HasHeaderValue(kOptInHeaderName, kOptInHeaderValue));
   auto out_response = blink::mojom::FetchAPIResponse::New();
   out_response->status_code = net::HTTP_OK;
   out_response->response_time = base::Time::Now();
@@ -187,7 +225,8 @@ void ServiceWorkerSyntheticResponseManager::MaybeSetResponseHead(
     // If the response is not successful, do not update the response head.
     return;
   }
-  if (!response_head->headers->HasHeaderValue(kOptInHeaderName,
+  if (!IsBypassSyntheticResponseHeaderCheckEnabled() &&
+      !response_head->headers->HasHeaderValue(kOptInHeaderName,
                                               kOptInHeaderValue)) {
     // If there is no opt-in header, do not update the response head.
     return;
@@ -203,20 +242,35 @@ void ServiceWorkerSyntheticResponseManager::OnReceiveResponse(
     mojo::ScopedDataPipeConsumerHandle body) {
   TRACE_EVENT("ServiceWorker",
               "ServiceWorkerSyntheticResponseManager::OnReceiveResponse");
-  MaybeSetResponseHead(response_head.Clone());
   switch (status_) {
-    case SyntheticResponseStatus::kReady:
+    case SyntheticResponseStatus::kReady: {
       CHECK(write_buffer_manager_.has_value());
-      read_buffer_manager_.emplace(std::move(body));
-      read_buffer_manager_->Watch(
-          base::BindRepeating(&ServiceWorkerSyntheticResponseManager::Read,
-                              weak_factory_.GetWeakPtr()));
-      write_buffer_manager_->Watch(
-          base::BindRepeating(&ServiceWorkerSyntheticResponseManager::Write,
-                              weak_factory_.GetWeakPtr()));
-      read_buffer_manager_->ArmOrNotify();
+      bool is_header_consistent =
+          CheckHeaderConsistency(response_head->headers);
+      if (is_header_consistent) {
+        simple_buffer_manager_.emplace(std::move(body));
+        simple_buffer_manager_->Clone(
+            write_buffer_manager_->ReleaseProducerHandle(),
+            base::BindOnce(
+                &ServiceWorkerSyntheticResponseManager::OnCloneCompleted,
+                weak_factory_.GetWeakPtr()));
+      } else {
+        // Clear the stored header when it's inconsistent with the header from
+        // the network so that the next navigation won't get the header mismatch
+        // and reloading consistently.
+        //
+        // TODO(crbug.com/352578800): Consider setting the response header here
+        // rather than resetting it in order to improve the synthetic response
+        // coverage. Revisit this after collecting coverage data.
+        version_->ResetResponseHeadForSyntheticResponse();
+        NotifyReloading();
+      }
+      base::UmaHistogramBoolean(kHistogramIsHeaderConsistent,
+                                is_header_consistent);
       break;
+    }
     case SyntheticResponseStatus::kNotReady:
+      MaybeSetResponseHead(response_head.Clone());
       std::move(response_callback_)
           .Run(std::move(response_head), std::move(body));
       break;
@@ -230,72 +284,55 @@ void ServiceWorkerSyntheticResponseManager::OnComplete(
   std::move(complete_callback_).Run(status);
 }
 
-void ServiceWorkerSyntheticResponseManager::Read(
-    MojoResult result,
-    const mojo::HandleSignalsState& state) {
-  if (result != MOJO_RESULT_OK) {
-    return;
-  }
-
-  CHECK(read_buffer_manager_.has_value());
-  if (read_buffer_manager_->BytesRemaining() > 0) {
-    write_buffer_manager_->ArmOrNotify();
-    return;
-  }
-  auto [read_result, read_buffer] = read_buffer_manager_->ReadData();
-  switch (read_result) {
-    case MOJO_RESULT_OK:
-      write_buffer_manager_->ArmOrNotify();
-      return;
-    case MOJO_RESULT_FAILED_PRECONDITION:
-      read_buffer_manager_->CancelWatching();
-      write_buffer_manager_->CancelWatching();
-      write_buffer_manager_->ResetProducer();
-      CHECK(stream_callback_);
-      // Perhaps this assumption is wrong because the write operation may not be
-      // completed at the timing of when the read buffer is empty.
-      stream_callback_->OnCompleted();
-      return;
-    case MOJO_RESULT_BUSY:
-    case MOJO_RESULT_SHOULD_WAIT:
-      return;
-    default:
-      return;
-  }
+void ServiceWorkerSyntheticResponseManager::OnCloneCompleted() {
+  write_buffer_manager_->ResetProducer();
+  CHECK(stream_callback_);
+  // Perhaps this assumption is wrong because the write operation may not be
+  // completed at the timing of when the read buffer is empty.
+  stream_callback_->OnCompleted();
 }
 
-void ServiceWorkerSyntheticResponseManager::Write(
-    MojoResult result,
-    const mojo::HandleSignalsState& state) {
+bool ServiceWorkerSyntheticResponseManager::CheckHeaderConsistency(
+    scoped_refptr<net::HttpResponseHeaders> headers) {
+  CHECK(version_->GetResponseHeadForSyntheticResponse());
+  // TODO(crbug.com/352578800): Handle other necessary headers e.g. encoding.
+  base::flat_set<std::string> ignored_headers = {"date", "alt-svc"};
+  if (IsBypassSyntheticResponseHeaderCheckEnabled()) {
+    const std::string& ignored_headers_str = GetIgnoredHeadersForBypass();
+    std::vector<std::string_view> testing_ignored_headers =
+        base::SplitStringPiece(ignored_headers_str, ",", base::TRIM_WHITESPACE,
+                               base::SPLIT_WANT_NONEMPTY);
+    for (const auto& header : testing_ignored_headers) {
+      ignored_headers.insert(base::ToLowerASCII(header));
+    }
+  }
+  auto collect_significant_headers =
+      [&](const net::HttpResponseHeaders& headers) {
+        base::flat_map<std::string, std::multiset<std::string>> collected;
+        size_t iter = 0;
+        std::string name;
+        std::string value;
+        while (headers.EnumerateHeaderLines(&iter, &name, &value)) {
+          if (!ignored_headers.contains(base::ToLowerASCII(name))) {
+            collected[name].insert(value);
+          }
+        }
+        return collected;
+      };
+  auto incoming_headers = collect_significant_headers(*headers);
+  auto stored_headers = collect_significant_headers(
+      *version_->GetResponseHeadForSyntheticResponse()->headers);
+
+  return incoming_headers == stored_headers;
+}
+
+void ServiceWorkerSyntheticResponseManager::NotifyReloading() {
+  auto body_for_reload = base::span_from_cstring<const char>(
+      "<meta http-equiv=\"refresh\" content=\"0;\" />");
+  auto [result, size] = write_buffer_manager_->WriteData(body_for_reload);
   if (result != MOJO_RESULT_OK) {
     return;
   }
-
-  CHECK(read_buffer_manager_.has_value());
-  if (read_buffer_manager_->BytesRemaining() == 0) {
-    read_buffer_manager_->ArmOrNotify();
-    return;
-  }
-  base::span<const char> read_buffer = read_buffer_manager_->RemainingBuffer();
-
-  size_t num_bytes_to_consume = read_buffer.size();
-  if (write_buffer_manager_->IsWatching()) {
-    result = write_buffer_manager_->BeginWriteData();
-    switch (result) {
-      case MOJO_RESULT_OK:
-        num_bytes_to_consume =
-            write_buffer_manager_->CopyAndCompleteWriteData(read_buffer);
-        read_buffer_manager_->ConsumeData(num_bytes_to_consume);
-        read_buffer_manager_->ArmOrNotify();
-        return;
-      case MOJO_RESULT_FAILED_PRECONDITION:
-        // abort
-        return;
-      case MOJO_RESULT_SHOULD_WAIT:
-        write_buffer_manager_->EndWriteData(0);
-        write_buffer_manager_->ArmOrNotify();
-        return;
-    }
-  }
+  OnCloneCompleted();
 }
 }  // namespace content

@@ -10,9 +10,8 @@
 
 #include "modules/audio_coding/neteq/tools/rtp_file_source.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 

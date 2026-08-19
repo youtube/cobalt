@@ -10,23 +10,15 @@
 #ifndef NET_DCSCTP_PACKET_PARAMETER_PARAMETER_H_
 #define NET_DCSCTP_PACKET_PARAMETER_PARAMETER_H_
 
-#include <stddef.h>
 
-#include <algorithm>
 #include <cstdint>
-#include <iterator>
-#include <memory>
 #include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
-#include "absl/algorithm/container.h"
-#include "absl/strings/string_view.h"
 #include "api/array_view.h"
-#include "net/dcsctp/packet/tlv_trait.h"
-#include "rtc_base/strings/string_builder.h"
 
 namespace dcsctp {
 

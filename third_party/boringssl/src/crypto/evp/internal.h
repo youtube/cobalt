@@ -188,7 +188,10 @@ struct evp_pkey_ctx_st {
   bssl::UniquePtr<EVP_PKEY> peerkey;
   // operation contains one of the |EVP_PKEY_OP_*| values.
   int operation = EVP_PKEY_OP_UNDEFINED;
-  // Algorithm specific data
+  // Algorithm specific data.
+  // TODO(davidben): Since a |EVP_PKEY_CTX| never has its type change after
+  // creation, this should instead be a base class, with the algorithm-specific
+  // data on the subclass, coming from the same allocation.
   void *data = nullptr;
 } /* EVP_PKEY_CTX */;
 

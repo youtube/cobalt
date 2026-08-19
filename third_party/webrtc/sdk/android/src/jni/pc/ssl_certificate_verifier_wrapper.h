@@ -13,10 +13,8 @@
 
 #include <jni.h>
 
-#include <vector>
-
 #include "rtc_base/ssl_certificate.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 
 namespace webrtc {
 namespace jni {

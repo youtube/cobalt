@@ -40,7 +40,6 @@
 #include "test/call_test.h"
 #include "test/direct_transport.h"
 #include "test/fake_videorenderer.h"
-#include "test/field_trial.h"
 #include "test/frame_generator_capturer.h"
 #include "test/gtest.h"
 #include "test/network/simulated_network.h"
@@ -342,8 +341,7 @@ TEST_F(TransportFeedbackEndToEndTest, AudioVideoReceivesTransportFeedback) {
 
 TEST_F(TransportFeedbackEndToEndTest,
        StopsAndResumesMediaWhenCongestionWindowFull) {
-  test::ScopedFieldTrials override_field_trials(
-      "WebRTC-CongestionWindow/QueueSize:250/");
+  field_trials().Set("WebRTC-CongestionWindow", "QueueSize:250");
 
   class TransportFeedbackTester : public test::EndToEndTest {
    public:

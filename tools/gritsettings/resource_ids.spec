@@ -123,10 +123,6 @@
     "META": {"sizes": {"includes": [150]}},
     "includes": [2400],
   },
-  "chrome/browser/resources/chromeos/seal/resources.grd": {
-    "META": {"sizes": {"includes": [50]}},
-    "includes": [2420],
-  },
   "chrome/browser/resources/component_extension_resources.grd": {
     "includes": [2440],
     "structures": [2460],
@@ -1073,6 +1069,10 @@
   "<(SHARED_INTERMEDIATE_DIR)/components/autofill/core/browser/autofill_and_password_manager_internals/resources.grd": {
     "META": {"sizes": {"includes": [5]}},
     "includes": [7290],
+  },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/autofill_ml_internals/resources.grd": {
+    "META": {"sizes": {"includes": [10]}},
+    "includes": [7295],
   },
   "<(SHARED_INTERMEDIATE_DIR)/components/commerce/core/internals/resources/resources.grd": {
     "META": {"sizes": {"includes": [30]}},

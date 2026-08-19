@@ -47,9 +47,7 @@ class Graph final : public ZoneObject {
         constants_(zone()),
         trusted_constants_(zone()),
         inlined_functions_(zone()),
-        node_buffer_(zone()),
         scope_infos_(zone()) {
-    node_buffer_.reserve(32);
   }
 
   BasicBlock* operator[](int i) { return blocks_[i]; }
@@ -140,8 +138,6 @@ class Graph final : public ZoneObject {
   ZoneVector<MaglevCallSiteInfo*>& inlineable_calls() {
     return inlineable_calls_;
   }
-
-  ZoneVector<Node*>& node_buffer() { return node_buffer_; }
 
   // Running JS2, 99.99% of the cases, we have less than 2 dependencies.
   using SmallAllocationVector = SmallZoneVector<InlinedAllocation*, 2>;
@@ -280,7 +276,6 @@ class Graph final : public ZoneObject {
       trusted_constants_;
   ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>
       inlined_functions_;
-  ZoneVector<Node*> node_buffer_;
 
   bool has_recursive_calls_ = false;
   int total_inlined_bytecode_size_ = 0;
@@ -302,9 +297,8 @@ class Graph final : public ZoneObject {
     static_assert(!NodeT::kProperties.can_write());
     if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
     if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  " << node << "  "
-                << PrintNodeLabel(graph_labeller(), node) << ": "
-                << PrintNode(graph_labeller(), node) << std::endl;
+      std::cout << "  " << node << "  " << PrintNodeLabel(node) << ": "
+                << PrintNode(node) << std::endl;
     }
     return node;
   }

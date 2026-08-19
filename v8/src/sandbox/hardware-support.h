@@ -34,10 +34,22 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   // before and succeeded in allocating the memory protection keys.
   static bool IsActive();
 
-  // Register the memory for the sandbox.
+  // Returns true if strict sandboxing mode is enabled.
   //
-  // This will set up the memory protection keys for the sandbox address space.
-  static void RegisterSandboxMemory(Address addr, size_t size);
+  // In strict mode, we use the default pkey (key zero) as out-of-sandbox pkey,
+  // thereby removing write access to all memory outside the sandbox in
+  // sandboxed execution mode, with the exception of "sandbox extension" memory
+  // (opt-out). If strict mode is not active, we use a dedicated out-of-sandbox
+  // pkey and require memory that should be inaccessible to manually be tagged
+  // with this key (opt-in).
+  static bool IsStrict();
+
+  // Enable sandbox hardware support for the current thread.
+  //
+  // Any thread that wishes to use EnterSandbox/ExitSandbox must first call
+  // this function. Internally, this will ensure that the thread's stack memory
+  // is correctly set up for hardware sandboxing.
+  static void EnableForCurrentThread();
 
   // Register memory outside of the sandbox.
   //
@@ -46,8 +58,8 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   // method, which will assign the proper memory protection key to it. Once we
   // always use the default pkey as out_of_sandbox_pkey_, this method will no
   // longer be required.
-  static void RegisterOutOfSandboxMemory(
-      Address addr, size_t size, PageAllocator::Permission page_permission);
+  static void RegisterOutOfSandboxMemory(Address addr, size_t size,
+                                         PagePermissions permissions);
 
   // Make additional out-of-sandbox memory accessible to sandboxed code.
   //
@@ -64,7 +76,7 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   // active DisallowSandboxAccess scope, and this function configures the
   // memory protection keys accordingly.
   static void RegisterReadOnlyMemoryInsideSandbox(
-      Address addr, size_t size, PageAllocator::Permission current_permissions);
+      Address addr, size_t size, PagePermissions current_permissions);
 
   // Enter and exit sandboxed execution mode for the current thread.
   //
@@ -93,11 +105,28 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
     return reinterpret_cast<Address>(&sandboxed_mode_pkey_mask_);
   }
 
+  // Returns whether the kernel supports signal delivery in sandboxed code.
+  //
+  // Older Linux kernel versions wouldn't correctly handle the case of signal
+  // delivery on an alternate stack when the executing code doesn't have access
+  // to the default pkey. This routine checks if the kernel version is new
+  // enough. If not, signal handlers should not be used if they could trigger
+  // during execution of sandboxed code. See also https://crbug.com/429173713.
+  static bool KernelSupportsSignalDeliveryInSandbox();
+
  private:
-  friend class DisallowSandboxAccess;
   friend class AllowSandboxAccess;
+  friend class DisallowSandboxAccess;
+  friend class Sandbox;
 
   static bool TryActivate();
+
+  // Returns the pkey used for in-sandbox memory.
+  //
+  // This should only be used by the Sandbox class during initialization.
+  // TODO(416209124): this should probably return an
+  // std::optional<MemoryProtectionKeyId> or similar.
+  static int SandboxPkey() { return sandbox_pkey_; }
 
   // This PKEY is used for all (writable) memory inside the sandbox. It can be
   // used for two different purposes:
@@ -224,6 +253,17 @@ class V8_NODISCARD V8_ALLOW_UNUSED AllowSandboxAccess {
   int pkey_;
 #endif  // DEBUG && V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 };
+
+// Convenience function to test whether we can use signal handlers from
+// sandboxed code. See https://crbug.com/429173713 for more details.
+inline bool HardwareSandboxingDisabledOrSupportsSignalDeliveryInSandbox() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  return !SandboxHardwareSupport::IsActive() ||
+         SandboxHardwareSupport::KernelSupportsSignalDeliveryInSandbox();
+#else
+  return true;
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+}
 
 }  // namespace internal
 }  // namespace v8

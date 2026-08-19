@@ -9,10 +9,14 @@
  */
 #include "net/dcsctp/socket/packet_sender.h"
 
+#include <cstdint>
+#include <functional>
 #include <utility>
 #include <vector>
 
-#include "net/dcsctp/public/types.h"
+#include "api/array_view.h"
+#include "net/dcsctp/packet/sctp_packet.h"
+#include "net/dcsctp/public/dcsctp_socket.h"
 
 namespace dcsctp {
 

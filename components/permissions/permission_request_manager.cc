@@ -157,6 +157,15 @@ bool RequestExistsExactlyOnce(
          });
 }
 
+void EraseRequest(std::vector<base::WeakPtr<PermissionRequest>>& requests,
+                  PermissionRequest* request) {
+  std::erase_if(requests,
+                [request](base::WeakPtr<PermissionRequest> weak_ptr) -> bool {
+                  CHECK(weak_ptr);
+                  return weak_ptr.get() == request;
+                });
+}
+
 }  // namespace
 
 // PermissionRequestManager ----------------------------------------------------
@@ -310,8 +319,10 @@ bool PermissionRequestManager::ReprioritizeCurrentRequestIfNeeded() {
 
   // Pop out all invalid requests in front of the queue.
   while (!pending_permission_requests_.IsEmpty() &&
-         !ValidateRequest(pending_permission_requests_.Peek())) {
-    pending_permission_requests_.Pop();
+         !HasActiveSourceFrameOrDisallowActivationOtherwise(
+             pending_permission_requests_.Peek())) {
+    auto request = pending_permission_requests_.Pop();
+    FinalizeAndCancelRequest(request.get());
   }
 
   if (pending_permission_requests_.IsEmpty()) {
@@ -388,30 +399,22 @@ bool PermissionRequestManager::ReprioritizeCurrentRequestIfNeeded() {
   return true;
 }
 
-bool PermissionRequestManager::ValidateRequest(PermissionRequest* request,
-                                               bool should_finalize) {
+bool PermissionRequestManager::
+    HasActiveSourceFrameOrDisallowActivationOtherwise(
+        PermissionRequest* request) const {
   const auto iter = request_sources_map_.find(request);
-  if (iter == request_sources_map_.end()) {
-    return false;
+  if (iter != request_sources_map_.end()) {
+    return !iter->second.IsSourceFrameInactiveAndDisallowActivation();
   }
-
-  if (!iter->second.IsSourceFrameInactiveAndDisallowActivation()) {
-    return true;
-  }
-
-  if (should_finalize) {
-    // |RequestFinished| destroys the request. Erase it from
-    // |validated_requests_| before its destruction.
-    std::erase_if(validated_requests_,
-                  [request](base::WeakPtr<PermissionRequest> weak_ptr) -> bool {
-                    CHECK(weak_ptr);
-                    return weak_ptr.get() == request;
-                  });
-    request_sources_map_.erase(request);
-    request->Cancelled();
-  }
-
   return false;
+}
+
+void PermissionRequestManager::FinalizeAndCancelRequest(
+    PermissionRequest* request) {
+  if (request_sources_map_.erase(request) > 0) {
+    EraseRequest(validated_requests_, request);
+  }
+  request->Cancelled();
 }
 
 void PermissionRequestManager::QueueRequest(
@@ -705,7 +708,7 @@ void PermissionRequestManager::Dismiss() {
     StorePermissionActionForUMA((*requests_iter)->requesting_origin(),
                                 (*requests_iter)->request_type(),
                                 PermissionAction::DISMISSED);
-    CancelledIncludingDuplicates(requests_iter->get());
+    CancelRequestIncludingDuplicates(requests_iter->get());
   }
 
   NotifyRequestDecided(PermissionAction::DISMISSED);
@@ -724,7 +727,7 @@ void PermissionRequestManager::Ignore() {
     StorePermissionActionForUMA((*requests_iter)->requesting_origin(),
                                 (*requests_iter)->request_type(),
                                 PermissionAction::IGNORED);
-    CancelledIncludingDuplicates(requests_iter->get());
+    CancelRequestIncludingDuplicates(requests_iter->get());
   }
 
   NotifyRequestDecided(PermissionAction::IGNORED);
@@ -737,18 +740,13 @@ void PermissionRequestManager::FinalizeCurrentRequests() {
   base::AutoReset<bool> block_preempt(&can_preempt_current_request_, false);
   std::vector<std::unique_ptr<PermissionRequest>>::iterator requests_iter;
 
+  //  Erase the request from |validated_requests_| before its destruction
+  //  during requests_.clear() at the end of this function.
   for (requests_iter = requests_.begin(); requests_iter != requests_.end();
        requests_iter++) {
-    // |RequestFinishedIncludingDuplicates| ends up destroying the
-    // request. Erase it from |validated_requests_| before its destruction.
-    std::erase_if(
-        validated_requests_,
-        [requests_iter](base::WeakPtr<PermissionRequest> weak_ptr) -> bool {
-          CHECK(weak_ptr);
-          return weak_ptr.get() == requests_iter->get();
-        });
+    EraseRequest(validated_requests_, requests_iter->get());
     request_sources_map_.erase(requests_iter->get());
-    RequestFinishedIncludingDuplicates(requests_iter->get());
+    FinishRequestIncludingDuplicates(requests_iter->get());
   }
 
   // No need to execute the preignore logic as we canceling currently active
@@ -804,8 +802,8 @@ void PermissionRequestManager::PreIgnoreQuietPromptInternal() {
 
   for (requests_iter = requests_.begin(); requests_iter != requests_.end();
        requests_iter++) {
-    CancelledIncludingDuplicates(requests_iter->get(),
-                                 /*is_final_decision=*/false);
+    CancelRequestIncludingDuplicates(requests_iter->get(),
+                                     /*is_final_decision=*/false);
   }
 
   blink::PermissionType permission;
@@ -925,11 +923,12 @@ void PermissionRequestManager::DequeueRequestIfNeeded() {
   // Find first valid request.
   while (!pending_permission_requests_.IsEmpty()) {
     auto next = pending_permission_requests_.Pop();
-    if (ValidateRequest(next.get())) {
+    if (HasActiveSourceFrameOrDisallowActivationOtherwise(next.get())) {
       validated_requests_.push_back(next->GetWeakPtr());
       requests_.push_back(std::move(next));
       break;
     }
+    FinalizeAndCancelRequest(next.get());
   }
 
   if (requests_.empty()) {
@@ -939,7 +938,8 @@ void PermissionRequestManager::DequeueRequestIfNeeded() {
   // Find additional requests that can be grouped with the first one.
   for (; !pending_permission_requests_.IsEmpty();) {
     auto* front = pending_permission_requests_.Peek();
-    if (!ValidateRequest(front)) {
+    if (!HasActiveSourceFrameOrDisallowActivationOtherwise(front)) {
+      FinalizeAndCancelRequest(front);
       continue;
     }
 
@@ -956,7 +956,7 @@ void PermissionRequestManager::DequeueRequestIfNeeded() {
   // priority order
   for (const auto& request_list : pending_permission_requests_) {
     for (auto& request : request_list) {
-      if (ValidateRequest(request.get(), /* should_finalize */ false)) {
+      if (HasActiveSourceFrameOrDisallowActivationOtherwise(request.get())) {
         validated_requests_.push_back(request->GetWeakPtr());
       }
     }
@@ -1220,15 +1220,10 @@ void PermissionRequestManager::CleanUpRequests() {
   for (; !pending_permission_requests_.IsEmpty();
        pending_permission_requests_.Pop()) {
     auto* pending_request = pending_permission_requests_.Peek();
-    std::erase_if(
-        validated_requests_,
-        [pending_request](base::WeakPtr<PermissionRequest> weak_ptr) -> bool {
-          CHECK(weak_ptr);
-          return weak_ptr.get() == pending_request;
-        });
+    EraseRequest(validated_requests_, pending_request);
     request_sources_map_.erase(pending_request);
-    CancelledIncludingDuplicates(pending_request);
-    RequestFinishedIncludingDuplicates(pending_request);
+    CancelRequestIncludingDuplicates(pending_request);
+    FinishRequestIncludingDuplicates(pending_request);
   }
 
   if (IsRequestInProgress()) {
@@ -1236,7 +1231,7 @@ void PermissionRequestManager::CleanUpRequests() {
 
     for (requests_iter = requests_.begin(); requests_iter != requests_.end();
          requests_iter++) {
-      CancelledIncludingDuplicates(requests_iter->get());
+      CancelRequestIncludingDuplicates(requests_iter->get());
     }
 
     CurrentRequestsDecided(should_dismiss_current_request_
@@ -1329,7 +1324,7 @@ void PermissionRequestManager::PermissionDeniedIncludingDuplicates(
       request);
 }
 
-void PermissionRequestManager::CancelledIncludingDuplicates(
+void PermissionRequestManager::CancelRequestIncludingDuplicates(
     PermissionRequest* request,
     bool is_final_decision) {
   CHECK(RequestExistsExactlyOnce(request, pending_permission_requests_,
@@ -1345,7 +1340,7 @@ void PermissionRequestManager::CancelledIncludingDuplicates(
       request);
 }
 
-void PermissionRequestManager::RequestFinishedIncludingDuplicates(
+void PermissionRequestManager::FinishRequestIncludingDuplicates(
     PermissionRequest* request) {
   CHECK(RequestExistsExactlyOnce(request, pending_permission_requests_,
                                  requests_))
@@ -1611,7 +1606,6 @@ void PermissionRequestManager::DoAutoResponseForTesting() {
       NOTREACHED();
   }
 }
-
 
 bool PermissionRequestManager::IsCurrentRequestExclusiveAccess() const {
 #if !BUILDFLAG(IS_ANDROID)

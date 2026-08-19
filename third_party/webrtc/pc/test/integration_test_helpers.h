@@ -34,7 +34,6 @@
 #include "api/crypto/crypto_options.h"
 #include "api/data_channel_interface.h"
 #include "api/dtls_transport_interface.h"
-#include "api/field_trials.h"
 #include "api/field_trials_view.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
@@ -1469,12 +1468,11 @@ class PeerConnectionIntegrationBaseTest : public ::testing::Test {
     if (it != field_trials_overrides_.end()) {
       field_trials = it->second;
     }
-    if (!client->Init(
-            options, &modified_config, std::move(dependencies), fss_.get(),
-            network_thread_.get(), worker_thread_.get(),
-            std::make_unique<FieldTrials>(CreateTestFieldTrials(field_trials)),
-            std::move(event_log_factory), reset_encoder_factory,
-            reset_decoder_factory, create_media_engine)) {
+    if (!client->Init(options, &modified_config, std::move(dependencies),
+                      fss_.get(), network_thread_.get(), worker_thread_.get(),
+                      CreateTestFieldTrialsPtr(field_trials),
+                      std::move(event_log_factory), reset_encoder_factory,
+                      reset_decoder_factory, create_media_engine)) {
       return nullptr;
     }
     return client;

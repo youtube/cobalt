@@ -16,7 +16,7 @@
 #include "absl/strings/string_view.h"
 #include "api/scoped_refptr.h"
 #include "api/video/corruption_detection_filter_settings.h"
-#include "api/video/i420_buffer.h"
+#include "api/video/video_frame.h"
 #include "api/video/video_frame_buffer.h"
 #include "rtc_base/checks.h"
 #include "video/corruption_detection/generic_mapping_functions.h"
@@ -73,22 +73,24 @@ double FramePairCorruptionScorer::CalculateScore(
       halton_frame_sampler_.GetSampleCoordinatesForFrame(num_samples);
   RTC_DCHECK_EQ(halton_samples.size(), num_samples);
 
-  scoped_refptr<I420Buffer> reference_i420_buffer =
-      GetAsI420Buffer(reference_buffer.ToI420());
-  scoped_refptr<I420Buffer> test_i420_buffer =
-      GetAsI420Buffer(test_buffer.ToI420());
+  VideoFrame reference_frame =
+      VideoFrame::Builder()
+          .set_video_frame_buffer(reference_buffer.ToI420())
+          .build();
+  VideoFrame test_frame = VideoFrame::Builder()
+                              .set_video_frame_buffer(test_buffer.ToI420())
+                              .build();
 
   CorruptionDetectionFilterSettings filter_settings =
       GetCorruptionFilterSettings(qp, codec_type_);
 
   const std::vector<FilteredSample> filtered_reference_sample_values =
-      GetSampleValuesForFrame(
-          reference_i420_buffer, halton_samples, test_i420_buffer->width(),
-          test_i420_buffer->height(), filter_settings.std_dev);
+      GetSampleValuesForFrame(reference_frame, halton_samples,
+                              test_frame.width(), test_frame.height(),
+                              filter_settings.std_dev);
   const std::vector<FilteredSample> filtered_test_sample_values =
-      GetSampleValuesForFrame(
-          test_i420_buffer, halton_samples, test_i420_buffer->width(),
-          test_i420_buffer->height(), filter_settings.std_dev);
+      GetSampleValuesForFrame(test_frame, halton_samples, test_frame.width(),
+                              test_frame.height(), filter_settings.std_dev);
   RTC_CHECK_EQ(filtered_reference_sample_values.size(),
                filtered_test_sample_values.size());
 

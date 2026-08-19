@@ -124,19 +124,28 @@ DesktopCapturer::SourceId FullScreenPowerPointHandler::FindFullScreenWindow(
     return 0;
   }
 
+  DesktopCapturer::SourceId full_screen_slide_show_id = 0;
   const std::string original_document_title =
       GetDocumentTitleFromEditor(original_window);
   for (const auto& source : powerpoint_windows) {
     HWND window = reinterpret_cast<HWND>(source.id);
 
+    // If another PowerPoint editor window with the same title exists, then we
+    // don't use the heuristic as we don't know which editor has opened the
+    // slide show.
+    if (GetWindowType(window) == WindowType::kEditor &&
+        GetDocumentTitleFromEditor(window) == original_document_title) {
+      return 0;
+    }
+
     // Looking for fullscreen slide show window for the corresponding editor
     // document.
     if (GetWindowType(window) == WindowType::kSlideShow &&
         GetDocumentTitleFromSlideShow(window) == original_document_title) {
-      return source.id;
+      full_screen_slide_show_id = source.id;
     }
   }
-  return 0;
+  return full_screen_slide_show_id;
 }
 
 FullScreenPowerPointHandler::WindowType

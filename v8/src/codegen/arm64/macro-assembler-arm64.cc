@@ -1301,7 +1301,7 @@ void MacroAssembler::PushHelper(int count, int size, const CPURegister& src0,
                                 const CPURegister& src2,
                                 const CPURegister& src3) {
   // Ensure that we don't unintentially modify scratch or debug registers.
-  InstructionAccurateScope scope(this);
+  InstructionAccurateScope scope(this, count <= 2 ? 1 : 2);
 
   DCHECK(AreSameSizeAndType(src0, src1, src2, src3));
   DCHECK(size == src0.SizeInBytes());
@@ -1338,7 +1338,7 @@ void MacroAssembler::PopHelper(int count, int size, const CPURegister& dst0,
                                const CPURegister& dst1, const CPURegister& dst2,
                                const CPURegister& dst3) {
   // Ensure that we don't unintentially modify scratch or debug registers.
-  InstructionAccurateScope scope(this);
+  InstructionAccurateScope scope(this, count <= 2 ? 1 : 2);
 
   DCHECK(AreSameSizeAndType(dst0, dst1, dst2, dst3));
   DCHECK(size == dst0.SizeInBytes());
@@ -1388,8 +1388,14 @@ void MacroAssembler::PeekPair(const CPURegister& dst1, const CPURegister& dst2,
 
 void MacroAssembler::PushCalleeSavedRegisters() {
   ASM_CODE_COMMENT(this);
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  constexpr int kInstrCount = 11;
+#else
+  constexpr int kInstrCount = 10;
+#endif
+
   // Ensure that the macro-assembler doesn't use any scratch registers.
-  InstructionAccurateScope scope(this);
+  InstructionAccurateScope scope(this, kInstrCount);
 
   MemOperand tos(sp, -2 * static_cast<int>(kXRegSize), PreIndex);
 
@@ -1422,8 +1428,14 @@ void MacroAssembler::PushCalleeSavedRegisters() {
 
 void MacroAssembler::PopCalleeSavedRegisters() {
   ASM_CODE_COMMENT(this);
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  constexpr int kInstrCount = 11;
+#else
+  constexpr int kInstrCount = 10;
+#endif
+
   // Ensure that the macro-assembler doesn't use any scratch registers.
-  InstructionAccurateScope scope(this);
+  InstructionAccurateScope scope(this, kInstrCount);
 
   MemOperand tos(sp, 2 * kXRegSize, PostIndex);
 
@@ -3184,7 +3196,7 @@ void MacroAssembler::JumpIfCodeIsTurbofanned(Register code, Register scratch,
 }
 
 Operand MacroAssembler::ClearedValue() const {
-  return Operand(static_cast<int32_t>(i::ClearedValue(isolate()).ptr()));
+  return Operand(static_cast<int32_t>(i::kClearedWeakValue.ptr()));
 }
 
 Operand MacroAssembler::ReceiverOperand() { return Operand(0); }
@@ -3600,6 +3612,21 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   B(fbv_undef);
 
   Bind(&done);
+}
+
+void MacroAssembler::LoadInterpreterDataBytecodeArray(
+    Register destination, Register interpreter_data) {
+  LoadProtectedPointerField(
+      destination, FieldMemOperand(interpreter_data,
+                                   offsetof(InterpreterData, bytecode_array_)));
+}
+
+void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
+    Register destination, Register interpreter_data) {
+  LoadProtectedPointerField(
+      destination,
+      FieldMemOperand(interpreter_data,
+                      offsetof(InterpreterData, interpreter_trampoline_)));
 }
 
 // Sets condition flags based on comparison, and returns type in type_reg.

@@ -90,6 +90,7 @@
 <translation id="2957447865124070833">[<ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" />] を選択する</translation>
 <translation id="2986402782150919988">ブックマークを Chrome に追加する</translation>
 <translation id="3030414234702425231"><ph name="SIGNOUT_MANAGED_DOMAIN" /> で管理されているアカウントからログアウトするにあたり、Chrome データはこのデバイスから削除されます（ただし Google アカウントには残ります）。</translation>
+<translation id="3042447686908081308">Chrome にインポート</translation>
 <translation id="3051521853355903257">Chrome でパスワードを管理する</translation>
 <translation id="309672519329227863">他のアプリから Chrome のパスワードなどにアクセスできます。</translation>
 <translation id="3109170945534582468">Chrome アクション</translation>
@@ -316,6 +317,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="855027533751209304">Chrome のヒント: 見たものをそのまま検索</translation>
 <translation id="8558480467877843976">ブラウジングするときや、メッセージ、ドキュメント、他のアプリのリンクをタップしたときに、常に Chrome が使えるようになります。</translation>
 <translation id="8603022514504485810">Google パスワード マネージャーですべてのパスワードを確認できませんでした。明日もう一度お試しいただくか、<ph name="BEGIN_LINK" />Google アカウント内のパスワードをご確認ください<ph name="END_LINK" />。</translation>
+<translation id="8610372330814566250">Safari のパスワード、履歴、ブックマーク、クレジット カードを Chrome で使用する</translation>
 <translation id="8630122478628016441">[Chrome を終了するときにシークレット タブをロックする] をオンにする。</translation>
 <translation id="8673726683583791503">Google レンズを使用して購入</translation>
 <translation id="8765470054473112089">Chrome でアドレスバーや検索ボックスに入力を始めると、入力内容がデフォルトの検索エンジンに送信され、より関連性の高い検索候補が表示されます。シークレット モードの場合、この設定はオフになっています。</translation>
@@ -337,6 +339,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="9176561303811134420">Chrome でお支払い方法を管理する</translation>
 <translation id="9181628561061032322">Chrome で最近使ったタブを開きます。</translation>
 <translation id="948597495737267756">Chrome の履歴ページを開きます。</translation>
+<translation id="954347330803595209">データをインポートすると、Chrome でパスワード、履歴、ブックマーク、クレジット カードを使用できます</translation>
 <translation id="97300214378190234">他のアプリのリンクをタップしたときに、常に Chrome で開くよう設定できます。</translation>
 <translation id="997929539742564806">Chrome からパスワードやパスキーを自動入力して、アプリやサイトにすばやくログインできます</translation>
 <translation id="998677222109959694">Chrome の設定を管理</translation>

@@ -22,6 +22,22 @@ source_set("ui_bundled") {
   ]
 }
 
+source_set("color") {
+  sources = [
+    "new_tab_page_color_palette.h",
+    "new_tab_page_color_palette.mm",
+    "new_tab_page_color_palette_util.h",
+    "new_tab_page_color_palette_util.mm",
+  ]
+  deps = [
+    "//base",
+    "//skia",
+    "//skia:skia_core_public_headers",
+    "//third_party/material_color_utilities",
+    "//ui/color/dynamic_color",
+  ]
+}
+
 source_set("logo") {
   sources = [
     "logo_animation_controller.h",
@@ -55,6 +71,8 @@ source_set("component_factory") {
     ":component_factory_protocol",
     ":constants",
     ":ntp_internal",
+    "//components/feature_engagement/public",
+    "//components/feature_engagement/public:feature_constants",
     "//components/prefs",
     "//components/regional_capabilities",
     "//ios/chrome/app/profile",
@@ -64,6 +82,7 @@ source_set("component_factory") {
     "//ios/chrome/browser/discover_feed/model",
     "//ios/chrome/browser/discover_feed/model:discover_feed_factory",
     "//ios/chrome/browser/discover_feed/model:discover_feed_visibility_browser_agent",
+    "//ios/chrome/browser/feature_engagement/model",
     "//ios/chrome/browser/home_customization/model",
     "//ios/chrome/browser/image_fetcher/model",
     "//ios/chrome/browser/ntp/shared/metrics",
@@ -100,6 +119,7 @@ source_set("coordinator") {
     "//components/feature_engagement/public",
     "//components/feed/core/v2/public:common",
     "//components/feed/core/v2/public/ios:feed_ios_public",
+    "//components/omnibox/browser",
     "//components/omnibox/common",
     "//components/policy:policy_code_generate",
     "//components/pref_registry",
@@ -142,7 +162,7 @@ source_set("coordinator") {
     "//ios/chrome/browser/ntp/ui_bundled:utils",
     "//ios/chrome/browser/ntp/ui_bundled/feed_top_section",
     "//ios/chrome/browser/ntp/ui_bundled/incognito",
-    "//ios/chrome/browser/omnibox/model:placeholder_service",
+    "//ios/chrome/browser/omnibox/model/placeholder_service",
     "//ios/chrome/browser/overscroll_actions/ui_bundled",
     "//ios/chrome/browser/search_engines/model:template_url_service_factory",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
@@ -209,12 +229,13 @@ source_set("ntp_internal") {
     "new_tab_page_view_controller.mm",
   ]
   deps = [
+    ":color",
     ":constants",
     ":feature_flags",
     ":logo",
     ":ui_bundled",
-    ":utils",
     "//base",
+    "//components/feature_engagement/public",
     "//components/image_fetcher/core",
     "//components/prefs",
     "//components/prefs/ios",
@@ -253,7 +274,7 @@ source_set("ntp_internal") {
     "//ios/chrome/browser/ntp/shared/metrics:home_metrics",
     "//ios/chrome/browser/ntp/ui_bundled/resources",
     "//ios/chrome/browser/ntp/ui_bundled/resources:animation_files",
-    "//ios/chrome/browser/omnibox/model:placeholder_service",
+    "//ios/chrome/browser/omnibox/model/placeholder_service",
     "//ios/chrome/browser/omnibox/public",
     "//ios/chrome/browser/omnibox/public:features",
     "//ios/chrome/browser/omnibox/ui:omnibox_internal",
@@ -325,6 +346,7 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//components/commerce/core:shopping_service_test_support",
     "//components/feature_engagement/public",
+    "//components/feature_engagement/test:test_support",
     "//components/feed/core/v2/public:common",
     "//components/feed/core/v2/public/ios:feed_ios_public",
     "//components/ntp_tiles",
@@ -365,6 +387,7 @@ source_set("unit_tests") {
     "//ios/chrome/browser/shared/model/prefs:pref_names",
     "//ios/chrome/browser/shared/model/profile/test",
     "//ios/chrome/browser/shared/model/url:constants",
+    "//ios/chrome/browser/shared/model/utils:test_support",
     "//ios/chrome/browser/shared/model/web_state_list",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
@@ -413,6 +436,8 @@ source_set("eg2_tests") {
     "//ios/chrome/browser/popup_menu/ui_bundled:constants",
     "//ios/chrome/browser/settings/ui_bundled/google_services:constants",
     "//ios/chrome/browser/shared/model/url:constants",
+    "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/shared/public/features:system_flags",
     "//ios/chrome/browser/signin/model:fake_system_identity",
     "//ios/chrome/test/earl_grey:eg_test_support+eg2",
     "//ios/testing/earl_grey:eg_test_support+eg2",
@@ -446,9 +471,8 @@ source_set("utils") {
   ]
   deps = [
     ":feature_flags",
-    "//components/google/core/common",
+    "//components/search_engines",
     "//ios/chrome/browser/first_run/ui_bundled:utils",
-    "//net",
   ]
   public_deps = [ "//base" ]
 }

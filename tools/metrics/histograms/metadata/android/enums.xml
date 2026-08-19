@@ -217,6 +217,7 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="Failed: Sign-in timed-out or interrupted"/>
   <int value="8" label="Failed: Restore flow timed-out or crashed"/>
   <int value="9" label="Failed: Backup contains no signed-in account"/>
+  <int value="10" label="Failed: User already signed-in"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/backup/ChromeBackupAgentImpl.java:RestoreStatus)-->
@@ -791,6 +792,14 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/back_press/android/java/src/org/chromium/chrome/browser/back_press/MinimizeAppAndCloseTabBackPressHandler.java:TabClosureType)-->
 
+<enum name="BackupNavbarInsetsSource">
+  <int value="0" label="None"/>
+  <int value="1" label="Tappable Element"/>
+  <int value="2" label="Mandatory system gestures"/>
+  <int value="3" label="Filtered explicitly disabled"/>
+  <int value="4" label="Filtered weaker signals"/>
+</enum>
+
 <enum name="BiometricsAvailability">
   <int value="0" label="Other error"/>
   <int value="1" label="Available"/>
@@ -1265,6 +1274,7 @@ chromium-metrics-reviews@google.com.
   <int value="59" label="PromptHatsClearBrowsingData"/>
   <int value="60" label="OsAdvancedProtectionSettingChangedMessage"/>
   <int value="61" label="MultiInstanceRestorationOnDowngradedLimit"/>
+  <int value="62" label="UpdateChromeForTabGroupShare"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/messages/android/message_enums.h:MessageIdentifier) -->

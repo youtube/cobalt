@@ -44,7 +44,7 @@ namespace compiler {
   V(RiscvRvvLd)                                            \
   V(RiscvRvvSt)
 
-#define TARGET_ARCH_OPCODE_LIST_SPECAIL(V)           \
+#define TARGET_ARCH_OPCODE_LIST_SPECIAL(V)           \
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
   V(RiscvAdd64)                                      \
   V(RiscvAddOvf32)                                   \
@@ -100,7 +100,7 @@ namespace compiler {
   V(RiscvCmpZero32)                                  \
   V(RiscvTst64)
 #elif V8_TARGET_ARCH_RISCV32
-#define TARGET_ARCH_OPCODE_LIST_SPECAIL(V) \
+#define TARGET_ARCH_OPCODE_LIST_SPECIAL(V) \
   V(RiscvAddPair)                          \
   V(RiscvSubPair)                          \
   V(RiscvMulPair)                          \
@@ -244,6 +244,7 @@ namespace compiler {
   V(RiscvSignExtendShort)                 \
   V(RiscvSync)                            \
   V(RiscvAssertEqual)                     \
+  V(RiscvS128AndNot)                      \
   V(RiscvS128Const)                       \
   V(RiscvS128Zero)                        \
   V(RiscvS128AllOnes)                     \
@@ -261,6 +262,12 @@ namespace compiler {
   V(RiscvI32x4Shl)                        \
   V(RiscvI32x4ShrS)                       \
   V(RiscvI32x4ShrU)                       \
+  V(RiscvFEq)                             \
+  V(RiscvFNe)                             \
+  V(RiscvFLt)                             \
+  V(RiscvFLe)                             \
+  V(RiscvFMin)                            \
+  V(RiscvFMax)                            \
   V(RiscvF64x2Sqrt)                       \
   V(RiscvF64x2ConvertLowI32x4S)           \
   V(RiscvF64x2ConvertLowI32x4U)           \
@@ -293,8 +300,30 @@ namespace compiler {
   V(RiscvF32x4Floor)                      \
   V(RiscvF32x4Trunc)                      \
   V(RiscvF32x4NearestInt)                 \
+  V(RiscvI32x4SConvertI16x8Low)           \
+  V(RiscvI32x4UConvertI16x8Low)           \
+  V(RiscvI16x8SConvertI8x16High)          \
+  V(RiscvI16x8SConvertI32x4)              \
+  V(RiscvI16x8UConvertI32x4)              \
+  V(RiscvI8x16SConvertI16x8)              \
+  V(RiscvI8x16UConvertI16x8)              \
+  V(RiscvI16x8RoundingAverageU)           \
+  V(RiscvI32x4DotI16x8S)                  \
+  V(RiscvI16x8DotI8x16I7x16S)             \
+  V(RiscvI32x4DotI8x16I7x16AddS)          \
   V(RiscvI32x4SConvertF32x4)              \
   V(RiscvI32x4UConvertF32x4)              \
+  V(RiscvI32x4SConvertI16x8High)          \
+  V(RiscvI32x4UConvertI16x8High)          \
+  V(RiscvI16x8SConvertI8x16Low)           \
+  V(RiscvI16x8UConvertI8x16High)          \
+  V(RiscvI16x8UConvertI8x16Low)           \
+  V(RiscvExtAddPairwiseS)                 \
+  V(RiscvExtAddPairwiseU)                 \
+  V(RiscvExtMulLowS)                      \
+  V(RiscvExtMulHighS)                     \
+  V(RiscvExtMulLowU)                      \
+  V(RiscvExtMulHighU)                     \
   V(RiscvI32x4TruncSatF64x2SZero)         \
   V(RiscvI32x4TruncSatF64x2UZero)         \
   V(RiscvI16x8ExtractLaneU)               \
@@ -323,7 +352,7 @@ namespace compiler {
   V(RiscvVwmul)                           \
   V(RiscvVwmulu)                          \
   V(RiscvVmvSx)                           \
-  V(RiscvVmvXs)                           \
+  V(RiscvBitMask)                         \
   V(RiscvVcompress)                       \
   V(RiscvVaddVv)                          \
   V(RiscvVsubVv)                          \
@@ -343,7 +372,6 @@ namespace compiler {
   V(RiscvVminsVv)                         \
   V(RiscvVmulVv)                          \
   V(RiscvVdivu)                           \
-  V(RiscvVmslt)                           \
   V(RiscvVgtsVv)                          \
   V(RiscvVgesVv)                          \
   V(RiscvVgeuVv)                          \
@@ -426,7 +454,7 @@ namespace compiler {
 
 #define TARGET_ARCH_OPCODE_LIST(V)   \
   TARGET_ARCH_OPCODE_LIST_COMMON(V)  \
-  TARGET_ARCH_OPCODE_LIST_SPECAIL(V) \
+  TARGET_ARCH_OPCODE_LIST_SPECIAL(V) \
   TARGET_ARCH_OPCODE_LIST_ZBB(V)     \
   TARGET_ARCH_OPCODE_LIST_ZBS(V)     \
   TARGET_ARCH_OPCODE_LIST_ZBA(V)     \

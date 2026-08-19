@@ -522,9 +522,15 @@ void ReadAnythingUntrustedPageHandler::GetDependencyParserModel(
 
 #if !BUILDFLAG(IS_CHROMEOS)
 void ReadAnythingUntrustedPageHandler::OnUpdateLanguageStatus(
+    content::BrowserContext* browser_context,
     const std::string& language,
     content::LanguageInstallStatus install_status,
     const std::string& error) {
+  // Language status is profile-dependent so only send the update if the status
+  // is for this profile.
+  if (browser_context->UniqueId() != profile_->UniqueId()) {
+    return;
+  }
   auto voicePackInfo = read_anything::mojom::VoicePackInfo::New();
   voicePackInfo->language = language;
   voicePackInfo->pack_state = VoicePackInstallationState::NewInstallationState(
@@ -536,9 +542,7 @@ void ReadAnythingUntrustedPageHandler::OnExtensionReady(
     content::BrowserContext* browser_context,
     const extensions::Extension* extension) {
   const auto& extensionId =
-      features::IsWasmTtsComponentUpdaterEnabled()
-          ? extension_misc::kComponentUpdaterTTSEngineExtensionId
-          : extension_misc::kTTSEngineExtensionId;
+      extension_misc::kComponentUpdaterTTSEngineExtensionId;
   if (extension->id() != extensionId || extension_installed_) {
     return;
   }

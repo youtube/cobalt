@@ -10,9 +10,8 @@
 #ifndef MODULES_AUDIO_DEVICE_INCLUDE_TEST_AUDIO_DEVICE_H_
 #define MODULES_AUDIO_DEVICE_INCLUDE_TEST_AUDIO_DEVICE_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include "absl/strings/string_view.h"

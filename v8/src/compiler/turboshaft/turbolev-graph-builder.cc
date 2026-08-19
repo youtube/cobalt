@@ -52,6 +52,7 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-phi-representation-selector.h"
 #include "src/maglev/maglev-post-hoc-optimizations-processors.h"
+#include "src/maglev/maglev-truncation.h"
 #include "src/objects/contexts.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/heap-object.h"
@@ -257,13 +258,8 @@ class GeneratorAnalyzer {
   //                 |-------------------------------------|
 
  public:
-  explicit GeneratorAnalyzer(Zone* phase_zone,
-                             maglev::MaglevGraphLabeller* labeller)
-      : labeller_(labeller),
-        block_to_header_(phase_zone),
-        visit_queue_(phase_zone) {
-    USE(labeller_);
-  }
+  explicit GeneratorAnalyzer(Zone* phase_zone)
+      : block_to_header_(phase_zone), visit_queue_(phase_zone) {}
 
   void Analyze(maglev::Graph* graph) {
     for (auto it = graph->rbegin(); it != graph->rend(); ++it) {
@@ -393,8 +389,6 @@ class GeneratorAnalyzer {
     }
   }
 
-  maglev::MaglevGraphLabeller* labeller_;
-
   // Map from blocks inside loops to the header of said loops.
   ZoneAbslFlatHashMap<const maglev::BasicBlock*, const maglev::BasicBlock*>
       block_to_header_;
@@ -499,8 +493,7 @@ class GraphBuildingNodeProcessor {
         regs_to_vars_(temp_zone),
         loop_single_edge_predecessors_(temp_zone),
         maglev_representations_(temp_zone),
-        generator_analyzer_(temp_zone,
-                            maglev_compilation_unit_->graph_labeller()),
+        generator_analyzer_(temp_zone),
         bailout_(bailout) {}
 
   void PreProcessGraph(maglev::Graph* graph) {
@@ -3057,6 +3050,21 @@ class GraphBuildingNodeProcessor {
     SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  maglev::ProcessResult Process(
+      maglev::LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole* node,
+      const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    V<Float64> result = __ LoadFixedDoubleArrayElement(
+        Map(node->elements_input()),
+        __ ChangeInt32ToIntPtr(Map(node->index_input())));
+    __ DeoptimizeIf(__ Float64IsUndefinedOrHole(result), frame_state,
+                    DeoptimizeReason::kHole,
+                    node->eager_deopt_info()->feedback_to_update());
+    SetMap(node, result);
+    return maglev::ProcessResult::kContinue;
+  }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
   maglev::ProcessResult Process(maglev::StoreTaggedFieldNoWriteBarrier* node,
                                 const maglev::ProcessingState& state) {
@@ -4194,6 +4202,22 @@ class GraphBuildingNodeProcessor {
 #undef CASE
     }
     SetMap(node, __ Float64Unary(Map(node->input()), kind));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::Float64Ieee754Binary* node,
+                                const maglev::ProcessingState& state) {
+    FloatBinopOp::Kind kind;
+    switch (node->ieee_function()) {
+#define CASE(MathName, ExpName, EnumName)                          \
+  case maglev::Float64Ieee754Binary::Ieee754Function::k##EnumName: \
+    kind = FloatBinopOp::Kind::k##EnumName;                        \
+    break;
+      IEEE_754_BINARY_LIST(CASE)
+#undef CASE
+    }
+    SetMap(node, __ Float64Binary(Map(node->input_lhs()),
+                                  Map(node->input_rhs()), kind));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -6274,8 +6298,7 @@ class NodeProcessorBase : public GraphBuildingNodeProcessor {
                     std::optional<BailoutReason>* bailout)
       : GraphBuildingNodeProcessor(data, graph, temp_zone,
                                    maglev_compilation_unit, bailout),
-        graph_(graph),
-        labeller_(maglev_compilation_unit->graph_labeller()) {}
+        graph_(graph) {}
 
   template <typename NodeT>
   maglev::ProcessResult Process(NodeT* node,
@@ -6298,7 +6321,8 @@ class NodeProcessorBase : public GraphBuildingNodeProcessor {
                    IsMapped(node));
 
     // Recording the SourcePositions of the OpIndex that were just created.
-    SourcePosition source = labeller_->GetNodeProvenance(node).position;
+    SourcePosition source =
+        maglev::GetCurrentGraphLabeller()->GetNodeProvenance(node).position;
     for (OpIndex idx = end_index_before; idx != graph_.EndIndex();
          idx = graph_.NextIndex(idx)) {
       graph_.source_positions()[idx] = source;
@@ -6309,7 +6333,6 @@ class NodeProcessorBase : public GraphBuildingNodeProcessor {
 
  private:
   Graph& graph_;
-  maglev::MaglevGraphLabeller* labeller_;
 };
 
 void PrintBytecode(PipelineData& data,
@@ -6335,6 +6358,7 @@ void PrintMaglevGraph(PipelineData& data,
   CodeTracer* code_tracer = data.GetCodeTracer();
   CodeTracer::StreamScope tracing_scope(code_tracer);
   tracing_scope.stream() << "\n----- " << msg << " -----" << std::endl;
+
   maglev::PrintGraph(tracing_scope.stream(), maglev_graph);
 }
 
@@ -6360,7 +6384,8 @@ void RunMaglevOptimizations(PipelineData* data,
 
   // Truncation pass.
   if (v8_flags.maglev_truncation) {
-    maglev::GraphProcessor<maglev::TruncationProcessor> processor(maglev_graph);
+    maglev::GraphProcessor<maglev::MaglevTruncationProcessor> processor(
+        maglev_graph);
     processor.ProcessGraph(maglev_graph);
   }
 
@@ -6431,7 +6456,11 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
   maglev::Graph* maglev_graph = maglev::Graph::New(compilation_info.get());
 
   // We always create a MaglevGraphLabeller in order to record source positions.
+  // TODO(victorgomes): Investigate support for Turbolev without
+  // MaglevGraphLabeller
   compilation_info->set_graph_labeller(new maglev::MaglevGraphLabeller());
+  maglev::MaglevGraphLabellerScope current_thread_graph_labeller(
+      compilation_info->graph_labeller());
 
   maglev::MaglevGraphBuilder maglev_graph_builder(
       local_isolate, compilation_info->toplevel_compilation_unit(),

@@ -16,6 +16,7 @@
 #include "build/build_config.h"
 #include "components/content_settings/core/browser/content_settings_registry.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/content_settings/core/browser/permission_settings_info.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/content_settings/core/common/content_settings_utils.h"
@@ -56,6 +57,15 @@ const ContentSetting kContentSettingOrder[] = {
     CONTENT_SETTING_DETECT_IMPORTANT_CONTENT,
     CONTENT_SETTING_ASK,
     CONTENT_SETTING_BLOCK
+    // clang-format on
+};
+
+// PermissionOptions sorted from most to least permissive.
+const PermissionOption kPermissionOptionOrder[] = {
+    // clang-format off
+    PermissionOption::kAllowed,
+    PermissionOption::kAsk,
+    PermissionOption::kDenied,
     // clang-format on
 };
 
@@ -142,10 +152,27 @@ bool IsMorePermissive(ContentSetting a, ContentSetting b) {
   // Check whether |a| or |b| is reached first in kContentSettingOrder.
   // If |a| is first, it means that |a| is more permissive than |b|.
   for (ContentSetting setting : kContentSettingOrder) {
-    if (setting == b)
+    if (setting == b) {
       return false;
-    if (setting == a)
+    }
+    if (setting == a) {
       return true;
+    }
+  }
+  NOTREACHED();
+}
+
+bool IsMorePermissive(PermissionOption a, PermissionOption b) {
+  // Check whether |a| or |b| is reached first in
+  // kPermissionOptionOrder. If |a| is first, it means that |a| is more
+  // permissive than |b|.
+  for (PermissionOption setting : kPermissionOptionOrder) {
+    if (setting == b) {
+      return false;
+    }
+    if (setting == a) {
+      return true;
+    }
   }
   NOTREACHED();
 }
@@ -272,6 +299,14 @@ bool ShouldTypeExpireActively(ContentSettingsType type) {
   return base::FeatureList::IsEnabled(
              content_settings::features::kActiveContentSettingExpiry) &&
          base::Contains(GetTypesWithTemporaryGrantsInHcsm(), type);
+}
+
+PermissionSetting ValueToPermissionSetting(const PermissionSettingsInfo* info,
+                                           const base::Value& value) {
+  auto setting = info->delegate().FromValue(value);
+  DCHECK(setting.has_value()) << value.DebugString();
+  DCHECK(info->delegate().IsValid(*setting)) << value.DebugString();
+  return setting.value_or(info->GetInitialDefaultSetting());
 }
 
 }  // namespace content_settings

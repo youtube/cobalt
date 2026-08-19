@@ -63,6 +63,7 @@
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_view_delegate.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
@@ -79,6 +80,7 @@
 #include "content/shell/common/shell_switches.h"
 #include "media/mojo/buildflags.h"
 #include "media/mojo/mojom/media_service.mojom.h"
+#include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "net/base/features.h"
@@ -671,11 +673,10 @@ void ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
   PerformanceManagerRegistry::GetInstance()
       ->GetBinders()
       .ExposeInterfacesToRenderFrame(map);
-  map->Add<network_hints::mojom::NetworkHintsHandler>(
-      base::BindRepeating(&BindNetworkHintsHandler));
+  map->Add<network_hints::mojom::NetworkHintsHandler>(&BindNetworkHintsHandler);
 #if BUILDFLAG(IS_WIN)
   map->Add<media::mojom::MediaFoundationPreferences>(
-      base::BindRepeating(&BindMediaFoundationPreferences));
+      &BindMediaFoundationPreferences);
 #endif  // BUILDFLAG(IS_WIN)
 }
 

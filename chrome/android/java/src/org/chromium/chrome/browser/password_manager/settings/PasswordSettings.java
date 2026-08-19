@@ -422,9 +422,6 @@ public class PasswordSettings extends ChromeBaseSettingsFragment
                 getPreferenceScreen().removePreference(passwordParent);
             } else {
                 displayPasswordNoResultScreenMessage();
-                getView()
-                        .announceForAccessibility(
-                                getString(R.string.accessible_find_in_page_no_results));
             }
         }
     }
@@ -567,9 +564,6 @@ public class PasswordSettings extends ChromeBaseSettingsFragment
                 (preference, newValue) -> {
                     getPrefService()
                             .setBoolean(Pref.CREDENTIALS_ENABLE_SERVICE, (boolean) newValue);
-                    RecordHistogram.recordBooleanHistogram(
-                            "PasswordManager.Settings.ToggleOfferToSavePasswords",
-                            (boolean) newValue);
                     // TODO(http://crbug.com/1371422): Remove method and manage evictions from
                     // native code as this is covered by chrome://password-manager-internals page.
                     if ((boolean) newValue) {
@@ -607,8 +601,6 @@ public class PasswordSettings extends ChromeBaseSettingsFragment
                 (preference, newValue) -> {
                     getPrefService()
                             .setBoolean(Pref.CREDENTIALS_ENABLE_AUTOSIGNIN, (boolean) newValue);
-                    RecordHistogram.recordBooleanHistogram(
-                            "PasswordManager.Settings.ToggleAutoSignIn", (boolean) newValue);
                     return true;
                 });
         autoSignInSwitch.setManagedPreferenceDelegate(

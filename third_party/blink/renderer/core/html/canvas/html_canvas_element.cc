@@ -37,6 +37,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/metrics/histogram.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notimplemented.h"
 #include "base/numerics/checked_math.h"
@@ -108,7 +109,6 @@
 #include "third_party/blink/renderer/platform/fonts/plain_text_painter.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_hibernation_handler.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_dispatcher.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_host.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_context_rate_limiter.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
@@ -374,7 +374,7 @@ bool HTMLCanvasElement::PrepareTransferableResource(
     return false;
   }
 
-  if (!IsCanvas2DResourceValid()) {
+  if (!RenderingContext()->IsCanvas2DResourceValid()) {
     return false;
   }
 
@@ -384,7 +384,9 @@ bool HTMLCanvasElement::PrepareTransferableResource(
   // preserve the display list for printing, FlushRecording needs to know
   // whether any printing occurred in the current task.
   FlushReason reason = FlushReason::kCanvasPushFrame;
-  if (PrintedInCurrentTask() || IsPrinting()) {
+  bool printed_in_current_task =
+      RenderingContext() && RenderingContext()->did_print_in_current_task();
+  if (printed_in_current_task || IsPrinting()) {
     reason = FlushReason::kCanvasPushFrameWhilePrinting;
   }
   FlushRecordingForCanvas2D(reason);
@@ -423,26 +425,6 @@ bool HTMLCanvasElement::PrepareTransferableResource(
       ReleaseCanvasResource, std::move(release_callback), std::move(frame));
 
   return true;
-}
-
-bool HTMLCanvasElement::IsCanvas2DResourceValid() {
-  // This should be called only for 2D contexts.
-  CHECK(IsRenderingContext2D());
-
-  if (IsHibernating()) {
-    return true;
-  }
-
-  if (IsContextLost()) {
-    return false;
-  }
-
-  if (GetResourceProviderForCanvas2D() &&
-      !GetResourceProviderForCanvas2D()->IsValid()) {
-    return false;
-  }
-
-  return !!GetOrCreateCanvasResourceProviderForCanvas2D();
 }
 
 void HTMLCanvasElement::Dispose() {
@@ -737,6 +719,22 @@ CanvasRenderingContext* HTMLCanvasElement::GetCanvasRenderingContextInternal(
     SetNeedsUnbufferedInputEvents(true);
     GetOrCreateResourceDispatcher();
     UseCounter::Count(GetDocument(), WebFeature::kHTMLCanvasElementLowLatency);
+    if (IsRenderingContext2D()) {
+      UseCounter::Count(GetDocument(),
+                        WebFeature::kHTMLCanvasElementLowLatency_2D);
+    } else {
+      UseCounter::Count(GetDocument(),
+                        WebFeature::kHTMLCanvasElementLowLatency_WebGL);
+      if (context_->CreationAttributes().preserve_drawing_buffer) {
+        UseCounter::Count(
+            GetDocument(),
+            WebFeature::kHTMLCanvasElementLowLatency_WebGL_Preserve);
+      } else {
+        UseCounter::Count(
+            GetDocument(),
+            WebFeature::kHTMLCanvasElementLowLatency_WebGL_Discard);
+      }
+    }
   }
 
   // A 2D context does not know before lazy creation whether or not it is
@@ -751,6 +749,11 @@ CanvasRenderingContext* HTMLCanvasElement::GetCanvasRenderingContextInternal(
   }
 
   return context_.Get();
+}
+
+bool HTMLCanvasElement::IsContextLost() const {
+  CanvasRenderingContext* context = RenderingContext();
+  return !context || context->isContextLost();
 }
 
 void HTMLCanvasElement::configureHighDynamicRange(
@@ -1311,7 +1314,7 @@ UkmParameters HTMLCanvasElement::GetUkmParameters() {
 }
 
 void HTMLCanvasElement::SetSurfaceSize(gfx::Size size) {
-  CanvasResourceHost::SetSize(size);
+  CanvasRenderingContextHost::SetSize(size);
   did_fail_to_create_resource_provider_ = false;
   if (RenderingContext()) {
     RenderingContext()->SizeChanged();
@@ -1798,7 +1801,7 @@ void HTMLCanvasElement::SetCanvas2DResourceProviderForTesting(
   DiscardResources();
   SetIntegralAttribute(html_names::kWidthAttr, size.width());
   SetIntegralAttribute(html_names::kHeightAttr, size.height());
-  CanvasResourceHost::SetSize(size);
+  CanvasRenderingContextHost::SetSize(size);
   hibernation_handler_ = std::make_unique<CanvasHibernationHandler>(*this);
   ReplaceResourceProviderForCanvas2D(std::move(provider));
 }
@@ -1813,7 +1816,8 @@ void HTMLCanvasElement::DiscardResources() {
     GetHibernationHandler()->Clear();
   }
   ResetLayer();
-  CanvasRenderingContextHost::DiscardResources();
+  resource_provider_for_canvas2d_ = nullptr;
+  UpdateMemoryUsage();
   dirty_rect_ = gfx::Rect();
 }
 
@@ -1922,11 +1926,27 @@ void HTMLCanvasElement::RemovedFrom(ContainerNode& insertion_point) {
   ColorSchemeMayHaveChanged();
 }
 
-void HTMLCanvasElement::WillDrawImageInCanvas2D(CanvasImageSource* source) {
+void HTMLCanvasElement::WillDrawImageInCanvas2D(CanvasImageSource* source,
+                                                bool image_is_texture_backed) {
   CHECK(IsRenderingContext2D());
 
+  // For images coming from WebGL canvases, use the image itself as the source
+  // of truth for whether the canvas is accelerated as it's more accurate than
+  // IsAccelerated().
+  // TODO(crbug.com/352263194): Do this universally when the source is a
+  // canvas, as it's more accurate for all context types than using
+  // source->IsAccelerated().
+  bool source_is_webgl = false;
+  if (source->IsCanvasElement() || source->IsOffscreenCanvas()) {
+    auto* source_as_host = static_cast<CanvasRenderingContextHost*>(source);
+    source_is_webgl = source_as_host->IsWebGL();
+  }
+
+  bool source_is_accelerated =
+      source_is_webgl ? image_is_texture_backed : source->IsAccelerated();
+
   // If the source is GPU-accelerated, and the canvas is not, but could be...
-  if (source->IsAccelerated() && ShouldAccelerate() &&
+  if (source_is_accelerated && ShouldAccelerate() &&
       GetRasterModeForCanvas2D() == RasterMode::kCPU) {
     // Recreate the canvas in GPU raster mode, and update its contents.
     if (RecreateCanvasInGPURasterModeForCanvas2D()) {
@@ -1935,10 +1955,25 @@ void HTMLCanvasElement::WillDrawImageInCanvas2D(CanvasImageSource* source) {
   }
 }
 
-bool HTMLCanvasElement::EnableAccelerationForCanvas2D() {
+void HTMLCanvasElement::EnableAccelerationForCanvas2D() {
   CHECK(IsRenderingContext2D());
-  return GetRasterModeForCanvas2D() != RasterMode::kCPU ||
-         RecreateCanvasInGPURasterModeForCanvas2D();
+  if (GetRasterModeForCanvas2D() == RasterMode::kCPU) {
+    RecreateCanvasInGPURasterModeForCanvas2D();
+  }
+}
+
+std::unique_ptr<CanvasResourceProvider>
+HTMLCanvasElement::ReplaceResourceProviderForCanvas2D(
+    std::unique_ptr<CanvasResourceProvider> new_resource_provider) {
+  CHECK(IsRenderingContext2D());
+  std::unique_ptr<CanvasResourceProvider> old_resource_provider =
+      std::move(resource_provider_for_canvas2d_);
+  resource_provider_for_canvas2d_ = std::move(new_resource_provider);
+  UpdateMemoryUsage();
+  if (old_resource_provider) {
+    old_resource_provider->SetDelegate(nullptr);
+  }
+  return old_resource_provider;
 }
 
 bool HTMLCanvasElement::RecreateCanvasInGPURasterModeForCanvas2D() {
@@ -2292,11 +2327,21 @@ HTMLCanvasElement::RecreateCanvasResourceProviderForCanvas2D(
     CanvasHibernationHandler& hibernation_handler) {
   CHECK(IsRenderingContext2D());
 
-  // We call
-  // CanvasRenderingContextHost::GetOrCreateCanvasResourceProviderForCanvas2D()
-  // directly here to prevent a circular callstack.
-  CanvasResourceProvider* resource_provider = CanvasRenderingContextHost::
-      GetOrCreateCanvasResourceProviderForCanvas2D();
+  auto* resource_provider = GetResourceProviderForCanvas2D();
+  if (!resource_provider && !did_fail_to_create_resource_provider_) {
+    if (IsValidImageSize()) {
+      CreateCanvasResourceProviderForCanvas2D();
+      resource_provider = GetResourceProviderForCanvas2D();
+    }
+    if (!resource_provider) {
+      did_fail_to_create_resource_provider_ = true;
+    } else if (resource_provider->IsValid()) {
+      base::UmaHistogramBoolean("Blink.Canvas.ResourceProviderIsAccelerated",
+                                resource_provider->IsAccelerated());
+      base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
+                                    resource_provider->GetType());
+    }
+  }
   if (!resource_provider || !resource_provider->IsValid()) {
     return nullptr;
   }
@@ -2334,6 +2379,103 @@ HTMLCanvasElement::RecreateCanvasResourceProviderForCanvas2D(
   SetNeedsCompositingUpdate();
 
   return resource_provider;
+}
+
+void HTMLCanvasElement::CreateCanvasResourceProviderForCanvas2D() {
+  CHECK(!GetResourceProviderForCanvas2D());
+
+  base::WeakPtr<CanvasResourceDispatcher> dispatcher =
+      GetOrCreateResourceDispatcher()
+          ? GetOrCreateResourceDispatcher()->GetWeakPtr()
+          : nullptr;
+
+  std::unique_ptr<CanvasResourceProvider> provider;
+  const SkAlphaType alpha_type = GetRenderingContextAlphaType();
+  const viz::SharedImageFormat format = GetRenderingContextFormat();
+  const gfx::ColorSpace color_space = GetRenderingContextColorSpace();
+  const bool use_gpu = ShouldTryToUseGpuRaster() && ShouldAccelerate2dContext();
+  constexpr auto kShouldInitialize =
+      CanvasResourceProvider::ShouldInitialize::kCallClear;
+  if (use_gpu && LowLatencyEnabled()) {
+    // If we can use the gpu and low latency is enabled, we will try to use a
+    // SwapChain if possible.
+    provider = CanvasResourceProvider::CreateSwapChainProvider(
+        Size(), format, alpha_type, color_space, kShouldInitialize,
+        SharedGpuContext::ContextProviderWrapper(), this);
+    // If SwapChain failed or it was not possible, we will try a SharedImage
+    // with a set of flags trying to add Usage Display and Usage Scanout and
+    // Concurrent Read and Write if possible.
+    if (!provider) {
+      gpu::SharedImageUsageSet shared_image_usage_flags =
+          gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
+      if (SharedGpuContext::MaySupportImageChromium() &&
+          (RuntimeEnabledFeatures::Canvas2dImageChromiumEnabled() ||
+           base::FeatureList::IsEnabled(
+               features::kLowLatencyCanvas2dImageChromium))) {
+        shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
+        shared_image_usage_flags |=
+            gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE;
+      }
+      provider = CanvasResourceProvider::CreateSharedImageProvider(
+          Size(), format, alpha_type, color_space, kShouldInitialize,
+          SharedGpuContext::ContextProviderWrapper(), RasterMode::kGPU,
+          shared_image_usage_flags, this);
+    }
+  } else if (use_gpu) {
+    // First try to be optimized for displaying on screen. In the case we are
+    // hardware compositing, we also try to enable the usage of the image as
+    // scanout buffer (overlay)
+    gpu::SharedImageUsageSet shared_image_usage_flags =
+        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
+    if (SharedGpuContext::MaySupportImageChromium() &&
+        RuntimeEnabledFeatures::Canvas2dImageChromiumEnabled()) {
+      shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
+    }
+    provider = CanvasResourceProvider::CreateSharedImageProvider(
+        Size(), format, alpha_type, color_space, kShouldInitialize,
+        SharedGpuContext::ContextProviderWrapper(), RasterMode::kGPU,
+        shared_image_usage_flags, this);
+  } else if (SharedGpuContext::MaySupportImageChromium() &&
+             RuntimeEnabledFeatures::Canvas2dImageChromiumEnabled()) {
+    // In this case, we are using CPU raster and GPU compositing and native
+    // mappable buffers are supported. Try to use a
+    // CanvasResourceProviderSharedImage, which if successful will result in
+    // using a SharedImage that can be mapped onto the CPU for software raster
+    // writes and then read by the display compositor (and potentially used as
+    // an overlay).
+    const gpu::SharedImageUsageSet shared_image_usage_flags =
+        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_SCANOUT;
+    provider = CanvasResourceProvider::CreateSharedImageProvider(
+        Size(), format, alpha_type, color_space, kShouldInitialize,
+        SharedGpuContext::ContextProviderWrapper(), RasterMode::kCPU,
+        shared_image_usage_flags, this);
+  }
+
+  // If either of the other modes failed and / or it was not possible to do, we
+  // will backup with a software SharedImage, and if that was not possible with
+  // a Bitmap provider.
+  if (!provider && !SharedGpuContext::IsGpuCompositingEnabled()) {
+    // In this case, we are using CPU raster and CPU compositing. Create a
+    // CanvasResourceProvider that uses a SharedImage backed by a shared-memory
+    // buffer that can be written by canvas raster and read by the compositor.
+    provider =
+        CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositor(
+            Size(), format, alpha_type, color_space, kShouldInitialize,
+            SharedGpuContext::SharedImageInterfaceProvider(), this);
+  }
+  if (!provider) {
+    // The final fallback is to raster into a bitmap that will then either be
+    // uploaded into GPU memory (for GPU compositing) or copied into the Viz
+    // process (for software compositing).
+    provider = CanvasResourceProvider::CreateBitmapProvider(
+        Size(), format, alpha_type, color_space, kShouldInitialize, this);
+  }
+
+  if (provider) {
+    provider->SetResourceRecyclingEnabled(true);
+  }
+
+  SetResourceProviderForCanvas2D(std::move(provider));
 }
 
 scoped_refptr<StaticBitmapImage> HTMLCanvasElement::GetTransparentImage() {

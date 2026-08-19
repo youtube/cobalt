@@ -887,14 +887,6 @@ class IntegrationTest : public ::testing::Test {
     test_commands_->InstallEnterpriseCompanionApp();
   }
 
-  void InstallBrokenEnterpriseCompanionApp() {
-    test_commands_->InstallBrokenEnterpriseCompanionApp();
-  }
-
-  void UninstallBrokenEnterpriseCompanionApp() {
-    test_commands_->UninstallBrokenEnterpriseCompanionApp();
-  }
-
   void InstallEnterpriseCompanionAppOverrides(
       const base::Value::Dict& external_overrides) {
     test_commands_->InstallEnterpriseCompanionAppOverrides(external_overrides);
@@ -2624,16 +2616,6 @@ class IntegrationTestDeviceManagement : public IntegrationTest {
 #endif  // BUILDFLAG(IS_WIN)
   }
 
-  // It is difficult to create a valid app registration when installing the
-  // broken enterprise companion app, especially before the updater is
-  // installed. Instead, provide the 'do nothing' CRX for the OTA installation.
-  void ExpectBrokenEnterpriseCompanionAppOTAInstallSequence() {
-    ASSERT_NO_FATAL_FAILURE(ExpectInstallSequence(
-        test_server_.get(), enterprise_companion::kCompanionAppId,
-        /*install_data_index=*/{}, UpdateService::Priority::kForeground,
-        base::Version({0, 0, 0, 0}), base::Version({0, 1, 0, 0})));
-  }
-
   std::unique_ptr<ScopedServer> test_server_;
   // A test server that is not configured with any expectations or interesting
   // responses. This is useful for providing addresses to the enterprise
@@ -2731,7 +2713,6 @@ TEST_F(IntegrationTestDeviceManagement,
   ASSERT_NO_FATAL_FAILURE(InstallAppViaService(kApp1.appid));
   ASSERT_NO_FATAL_FAILURE(ExpectRegistered(kApp1.appid));
   ASSERT_NO_FATAL_FAILURE(ExpectUninstallPing(test_server_.get()));
-  ASSERT_NO_FATAL_FAILURE(UninstallBrokenEnterpriseCompanionApp());
   ASSERT_NO_FATAL_FAILURE(Uninstall());
 }
 
@@ -2764,7 +2745,6 @@ TEST_F(IntegrationTestDeviceManagement, PolicyFetchFailedButAppUpdatedAnyway) {
 
   ASSERT_NO_FATAL_FAILURE(ExpectAppVersion(kApp1.appid, kApp1.v2));
   ASSERT_NO_FATAL_FAILURE(ExpectUninstallPing(test_server_.get()));
-  ASSERT_NO_FATAL_FAILURE(UninstallBrokenEnterpriseCompanionApp());
   ASSERT_NO_FATAL_FAILURE(Uninstall());
 }
 
@@ -3330,7 +3310,6 @@ TEST_P(IntegrationTestCloudPolicyOverridesPlatformPolicy, UseCloudPolicy) {
   ASSERT_NO_FATAL_FAILURE(UninstallApp(kApp1.appid));
   ASSERT_NO_FATAL_FAILURE(UninstallApp(kApp2.appid));
   ASSERT_NO_FATAL_FAILURE(UninstallApp(kApp3.appid));
-  ASSERT_NO_FATAL_FAILURE(UninstallBrokenEnterpriseCompanionApp());
   ASSERT_NO_FATAL_FAILURE(Uninstall());
 }
 

@@ -237,7 +237,7 @@ void WgcCaptureSession::EnsureFrame() {
 
   // We failed to process the frame, but we do have a frame so just return that.
   if (queue_.current_frame()) {
-    RTC_LOG(LS_ERROR) << "ProcessFrame failed, using existing frame: " << hr;
+    RTC_LOG(LS_VERBOSE) << "ProcessFrame failed, using existing frame: " << hr;
     return;
   }
 
@@ -583,6 +583,15 @@ HRESULT WgcCaptureSession::ProcessFrame() {
         // Mark resized frames as damaged.
         damage_region_.SetRect(DesktopRect::MakeSize(current_frame->size()));
       }
+    } else{
+      // Mark a `damage_region_` even if there is no previous frame. This
+      // condition does not create any increased overhead but is useful while
+      // using FullScreenWindowDetector, where it would create a new
+      // WgcCaptureSession(with no previous frame) for the slide show window but
+      // the DesktopCaptureDevice instance might have already received frames
+      // from the editor window's WgcCaptureSession which would have activated
+      // the zero-hertz mode.
+      damage_region_.SetRect(DesktopRect::MakeSize(current_frame->size()));
     }
   }
 

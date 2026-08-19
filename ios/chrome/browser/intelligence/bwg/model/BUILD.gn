@@ -4,6 +4,71 @@
 
 source_set("model") {
   sources = [
+    "bwg_link_opening_delegate.h",
+    "bwg_link_opening_handler.h",
+    "bwg_link_opening_handler.mm",
+    "bwg_session_delegate.h",
+    "bwg_session_handler.h",
+    "bwg_session_handler.mm",
+  ]
+  deps = [
+    ":tab_helper",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/url_loading/model",
+    "//ios/web/public",
+  ]
+  public_deps = [ "//base" ]
+  frameworks = [ "UIKit.framework" ]
+}
+
+source_set("browser_agent") {
+  sources = [
+    "bwg_browser_agent.h",
+    "bwg_browser_agent.mm",
+  ]
+  deps = [
+    ":config",
+    ":model",
+    ":tab_helper",
+    "//base",
+    "//components/favicon/ios",
+    "//components/optimization_guide/proto:optimization_guide_proto",
+    "//ios/chrome/browser/intelligence/proto_wrappers",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/shared/ui/symbols",
+    "//ios/chrome/browser/signin/model:authentication_service_factory",
+    "//ios/chrome/browser/url_loading/model",
+    "//ios/public/provider/chrome/browser/bwg:bwg_api",
+    "//ui/gfx",
+  ]
+}
+
+source_set("tab_helper") {
+  sources = [
+    "bwg_tab_helper.h",
+    "bwg_tab_helper.mm",
+  ]
+  deps = [
+    ":bwg_service",
+    ":bwg_service_factory",
+    "//components/google/core/common",
+    "//ios/chrome/browser/intelligence/bwg/utils:constants",
+    "//ios/chrome/browser/intelligence/features",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/url",
+    "//ios/chrome/browser/shared/public/commands",
+    "//ios/web/public",
+    "//ios/web/util",
+  ]
+}
+
+source_set("bwg_service") {
+  sources = [
     "bwg_service.h",
     "bwg_service.mm",
   ]
@@ -12,15 +77,8 @@ source_set("model") {
     "//components/prefs",
     "//components/signin/public/identity_manager",
     "//ios/chrome/browser/intelligence/bwg/metrics",
-    "//ios/chrome/browser/intelligence/bwg/model:config",
-    "//ios/chrome/browser/intelligence/proto_wrappers",
     "//ios/chrome/browser/shared/model/prefs:pref_names",
-    "//ios/chrome/browser/signin/model:authentication_service",
-    "//ios/chrome/browser/signin/model:authentication_service_factory",
-    "//ios/public/provider/chrome/browser/bwg:bwg_api",
   ]
-  public_deps = [ "//base" ]
-  frameworks = [ "UIKit.framework" ]
 }
 
 source_set("bwg_service_factory") {
@@ -29,15 +87,12 @@ source_set("bwg_service_factory") {
     "bwg_service_factory.mm",
   ]
   deps = [
-    ":model",
+    ":bwg_service",
     "//components/signin/public/identity_manager",
     "//ios/chrome/browser/intelligence/features",
-    "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/model/profile:profile_keyed_service_factory",
     "//ios/chrome/browser/signin/model",
-    "//ios/chrome/browser/signin/model:authentication_service_factory",
-    "//ios/public/provider/chrome/browser/bwg:bwg_api",
   ]
 }
 
@@ -56,7 +111,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [ "bwg_service_unittest.mm" ]
   deps = [
-    ":model",
+    ":bwg_service",
     "//base/test:test_support",
     "//components/prefs:test_support",
     "//components/signin/public/identity_manager:test_support",
@@ -70,7 +125,6 @@ source_set("unit_tests") {
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/model/profile/test",
     "//ios/chrome/browser/signin/model",
-    "//ios/chrome/browser/signin/model:authentication_service",
     "//ios/chrome/browser/signin/model:authentication_service_factory",
     "//ios/chrome/browser/signin/model:test_support",
     "//ios/chrome/test:test_support",

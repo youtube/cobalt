@@ -559,6 +559,8 @@ if (v8_multi_arch_build &&
     rebase_path(get_label_info(":d8", "root_out_dir"), root_build_dir) ==
     "clang_x64_fuzzer_experiments") {
   v8_enable_pointer_compression = !v8_enable_pointer_compression
+  v8_enable_experimental_undefined_double =
+      !v8_enable_experimental_undefined_double
   v8_lower_limits_mode = !v8_lower_limits_mode
 }
 
@@ -662,19 +664,12 @@ if (v8_enable_sandbox == "") {
 if (v8_enable_static_roots == "") {
   # Static roots are only valid for builds with pointer compression and a
   # shared read-only heap.
-  # TODO(olivf, v8:13466) Some configurations could be supported if we
-  # introduce different static root files for different build configurations:
-  # Non-wasm and non-i18n builds have fewer read only roots. Configurations
-  # without external code space allocate read only roots at a further
-  # location relative to the cage base.
   v8_enable_static_roots =
-      v8_enable_pointer_compression && v8_enable_external_code_space &&
-      v8_enable_webassembly && v8_enable_i18n_support
+      v8_enable_pointer_compression && v8_enable_external_code_space
 }
 
 assert(!v8_enable_static_roots ||
-           (v8_enable_pointer_compression && v8_enable_external_code_space &&
-                v8_enable_webassembly && v8_enable_i18n_support),
+           (v8_enable_pointer_compression && v8_enable_external_code_space),
        "Trying to enable static roots in a configuration that is not supported")
 
 assert(
@@ -1450,6 +1445,9 @@ config("features") {
   }
   if (v8_enable_leaptiering) {
     defines += [ "V8_ENABLE_LEAPTIERING" ]
+  }
+  if (v8_enable_partition_alloc) {
+    defines += [ "V8_ENABLE_PARTITION_ALLOC" ]
   }
   if (v8_wasm_random_fuzzers) {
     defines += [ "V8_WASM_RANDOM_FUZZERS" ]
@@ -2866,6 +2864,7 @@ action("v8_dump_build_config") {
     "pointer_compression_shared_cage=$v8_enable_pointer_compression_shared_cage",
     "runtime_call_stats=$v8_enable_runtime_call_stats",
     "sandbox=$v8_enable_sandbox",
+    "sandbox_hardware_support=$v8_enable_sandbox_hardware_support",
     "simd_mips=$simd_mips",
     "simulator_run=$simulator_run",
     "single_generation=$v8_enable_single_generation",
@@ -3507,6 +3506,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/common-node-cache.h",
     "src/compiler/common-operator-reducer.h",
     "src/compiler/common-operator.h",
+    "src/compiler/common-utils.h",
     "src/compiler/compilation-dependencies.h",
     "src/compiler/compiler-source-position-table.h",
     "src/compiler/constant-folding-reducer.h",
@@ -3609,7 +3609,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/copying-phase.h",
     "src/compiler/turboshaft/csa-branch-elimination-phase.h",
     "src/compiler/turboshaft/csa-early-machine-optimization-phase.h",
-    "src/compiler/turboshaft/csa-effects-computation-phase.h",
+    "src/compiler/turboshaft/csa-effects-computation.h",
     "src/compiler/turboshaft/csa-late-escape-analysis-phase.h",
     "src/compiler/turboshaft/csa-load-elimination-phase.h",
     "src/compiler/turboshaft/csa-memory-optimization-phase.h",
@@ -3871,6 +3871,7 @@ v8_header_set("v8_internal_headers") {
     "src/heap/memory-chunk.h",
     "src/heap/memory-measurement-inl.h",
     "src/heap/memory-measurement.h",
+    "src/heap/memory-pool.h",
     "src/heap/memory-reducer.h",
     "src/heap/minor-gc-job.h",
     "src/heap/minor-mark-sweep-inl.h",
@@ -3883,7 +3884,6 @@ v8_header_set("v8_internal_headers") {
     "src/heap/object-lock.h",
     "src/heap/object-stats.h",
     "src/heap/page-metadata.h",
-    "src/heap/page-pool.h",
     "src/heap/paged-spaces-inl.h",
     "src/heap/paged-spaces.h",
     "src/heap/parallel-work-item.h",
@@ -4260,6 +4260,10 @@ v8_header_set("v8_internal_headers") {
     "src/regexp/special-case.h",
     "src/roots/roots-inl.h",
     "src/roots/roots.h",
+    "src/roots/static-roots-intl-nowasm.h",
+    "src/roots/static-roots-intl-wasm.h",
+    "src/roots/static-roots-nointl-nowasm.h",
+    "src/roots/static-roots-nointl-wasm.h",
     "src/roots/static-roots.h",
     "src/runtime/runtime-utils.h",
     "src/runtime/runtime.h",
@@ -4292,6 +4296,7 @@ v8_header_set("v8_internal_headers") {
     "src/sandbox/isolate.h",
     "src/sandbox/js-dispatch-table-inl.h",
     "src/sandbox/js-dispatch-table.h",
+    "src/sandbox/sandbox-malloc.h",
     "src/sandbox/sandbox.h",
     "src/sandbox/sandboxed-pointer-inl.h",
     "src/sandbox/sandboxed-pointer.h",
@@ -4342,7 +4347,6 @@ v8_header_set("v8_internal_headers") {
     "src/tasks/operations-barrier.h",
     "src/tasks/task-utils.h",
     "src/temporal/temporal-parser.h",
-    "src/third_party/rapidhash-v8/rapidhash.h",
     "src/torque/runtime-macro-shims.h",
     "src/tracing/trace-event-no-perfetto.h",
     "src/tracing/trace-event.h",
@@ -4380,6 +4384,7 @@ v8_header_set("v8_internal_headers") {
     "src/zone/zone-type-traits.h",
     "src/zone/zone-utils.h",
     "src/zone/zone.h",
+    "third_party/rapidhash-v8/rapidhash.h",
     "third_party/siphash/halfsiphash.h",
     "third_party/utf8-decoder/utf8-decoder.h",
   ]
@@ -4429,6 +4434,7 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-deopt-frame-visitor.h",
       "src/maglev/maglev-graph-builder.h",
       "src/maglev/maglev-graph-labeller.h",
+      "src/maglev/maglev-graph-optimizer.h",
       "src/maglev/maglev-graph-printer.h",
       "src/maglev/maglev-graph-processor.h",
       "src/maglev/maglev-graph-verifier.h",
@@ -4441,9 +4447,12 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-pipeline-statistics.h",
       "src/maglev/maglev-post-hoc-optimizations-processors.h",
       "src/maglev/maglev-pre-regalloc-codegen-processors.h",
+      "src/maglev/maglev-reducer-inl.h",
+      "src/maglev/maglev-reducer.h",
       "src/maglev/maglev-regalloc-data.h",
       "src/maglev/maglev-regalloc.h",
       "src/maglev/maglev-register-frame-array.h",
+      "src/maglev/maglev-truncation.h",
       "src/maglev/maglev.h",
     ]
     if (v8_current_cpu == "arm") {
@@ -5013,6 +5022,10 @@ v8_header_set("v8_internal_headers") {
     "//third_party/fp16",
   ]
 
+  if (v8_enable_partition_alloc) {
+    public_deps += [ "//third_party/partition_alloc" ]
+  }
+
   deps = [
     ":cppgc_headers",
     ":generate_bytecode_builtins_list",
@@ -5054,6 +5067,7 @@ v8_compiler_sources = [
   "src/compiler/common-node-cache.cc",
   "src/compiler/common-operator-reducer.cc",
   "src/compiler/common-operator.cc",
+  "src/compiler/common-utils.cc",
   "src/compiler/compilation-dependencies.cc",
   "src/compiler/compiler-source-position-table.cc",
   "src/compiler/constant-folding-reducer.cc",
@@ -5189,11 +5203,15 @@ if (!v8_enable_maglev) {
     "src/maglev/maglev-compilation-info.cc",
     "src/maglev/maglev-compilation-unit.cc",
     "src/maglev/maglev-graph-builder.cc",
+    "src/maglev/maglev-graph-labeller.cc",
+    "src/maglev/maglev-graph-optimizer.cc",
     "src/maglev/maglev-graph-printer.cc",
     "src/maglev/maglev-graph.cc",
+    "src/maglev/maglev-inlining.cc",
     "src/maglev/maglev-interpreter-frame-state.cc",
     "src/maglev/maglev-ir.cc",
     "src/maglev/maglev-phi-representation-selector.cc",
+    "src/maglev/maglev-truncation.cc",
   ]
 }
 
@@ -5611,6 +5629,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/memory-chunk-metadata.cc",
     "src/heap/memory-chunk.cc",
     "src/heap/memory-measurement.cc",
+    "src/heap/memory-pool.cc",
     "src/heap/memory-reducer.cc",
     "src/heap/minor-gc-job.cc",
     "src/heap/minor-mark-sweep.cc",
@@ -5618,7 +5637,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/new-spaces.cc",
     "src/heap/object-stats.cc",
     "src/heap/page-metadata.cc",
-    "src/heap/page-pool.cc",
     "src/heap/paged-spaces.cc",
     "src/heap/pretenuring-handler.cc",
     "src/heap/read-only-heap.cc",
@@ -5924,13 +5942,17 @@ v8_source_set("v8_base_without_compiler") {
       "src/maglev/maglev-compiler.cc",
       "src/maglev/maglev-concurrent-dispatcher.cc",
       "src/maglev/maglev-graph-builder.cc",
+      "src/maglev/maglev-graph-labeller.cc",
+      "src/maglev/maglev-graph-optimizer.cc",
       "src/maglev/maglev-graph-printer.cc",
       "src/maglev/maglev-graph.cc",
+      "src/maglev/maglev-inlining.cc",
       "src/maglev/maglev-interpreter-frame-state.cc",
       "src/maglev/maglev-ir.cc",
       "src/maglev/maglev-phi-representation-selector.cc",
       "src/maglev/maglev-pipeline-statistics.cc",
       "src/maglev/maglev-regalloc.cc",
+      "src/maglev/maglev-truncation.cc",
       "src/maglev/maglev.cc",
     ]
     if (v8_current_cpu == "arm") {
@@ -6596,6 +6618,8 @@ v8_component("v8_libbase") {
     "src/base/fpu.cc",
     "src/base/fpu.h",
     "src/base/free_deleter.h",
+    "src/base/functional/bind-internal.h",
+    "src/base/functional/function-ref.h",
     "src/base/hashing.h",
     "src/base/hashmap-entry.h",
     "src/base/hashmap.h",
@@ -6694,6 +6718,7 @@ v8_component("v8_libbase") {
     "src/base/template-utils.h",
     "src/base/threaded-list.h",
     "src/base/timezone-cache.h",
+    "src/base/types/is-instantiation.h",
     "src/base/utils/random-number-generator.cc",
     "src/base/utils/random-number-generator.h",
     "src/base/vector.h",
@@ -7699,6 +7724,7 @@ group("v8_fuzzers") {
       data_deps += [
         ":v8_simple_wasm_fast_interpreter_fuzzer",
         ":v8_simple_wasm_interpreter_all_fuzzer",
+        ":v8_simple_wasm_interpreter_all_multiple_modules_fuzzer",
         ":v8_simple_wasm_interpreter_base_fuzzer",
         ":v8_simple_wasm_interpreter_code_fuzzer",
         ":v8_simple_wasm_interpreter_diff_fuzzer",
@@ -7882,11 +7908,6 @@ v8_executable("d8") {
   }
   if (current_os == "zos" && is_component_build) {
     deps += [ ":zoslib" ]
-  }
-
-  if (v8_enable_partition_alloc) {
-    defines += [ "V8_ENABLE_PARTITION_ALLOC" ]
-    deps += [ "//third_party/partition_alloc" ]
   }
 }
 
@@ -8087,6 +8108,12 @@ if (v8_enable_webassembly) {
     v8_fuzzer("wasm_interpreter_all_fuzzer") {
       sources = [ "test/fuzzer/wasm/interpreter/interpreter-all.cc" ]
 
+      deps = [ ":lib_wasm_interpreter_fuzzer_common" ]
+    }
+
+    v8_fuzzer("wasm_interpreter_all_multiple_modules_fuzzer") {
+      sources =
+          [ "test/fuzzer/wasm/interpreter/interpreter-all-multiple-modules.cc" ]
       deps = [ ":lib_wasm_interpreter_fuzzer_common" ]
     }
 

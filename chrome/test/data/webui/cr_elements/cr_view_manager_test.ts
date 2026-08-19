@@ -42,7 +42,7 @@ suite('CrElementsViewManagerTest', function() {
     viewManager = document.body.querySelector('#viewManager')!;
   });
 
-  test('visibility', async function() {
+  test('switchView', async function() {
     assertViewVisible('viewOne', false);
     assertViewVisible('viewTwo', false);
     assertViewVisible('viewThree', false);
@@ -56,6 +56,52 @@ suite('CrElementsViewManagerTest', function() {
     assertViewVisible('viewOne', false);
     assertViewVisible('viewTwo', false);
     assertViewVisible('viewThree', true);
+  });
+
+  test('switchViews', async function() {
+    assertViewVisible('viewOne', false);
+    assertViewVisible('viewTwo', false);
+    assertViewVisible('viewThree', false);
+
+    await viewManager.switchViews(['viewOne', 'viewTwo']);
+    assertViewVisible('viewOne', true);
+    assertViewVisible('viewTwo', true);
+    assertViewVisible('viewThree', false);
+
+    await viewManager.switchViews(['viewTwo', 'viewThree']);
+    assertViewVisible('viewOne', false);
+    assertViewVisible('viewTwo', true);
+    assertViewVisible('viewThree', true);
+
+    await viewManager.switchViews(['viewOne', 'viewTwo', 'viewThree']);
+    assertViewVisible('viewOne', true);
+    assertViewVisible('viewTwo', true);
+    assertViewVisible('viewThree', true);
+
+    await viewManager.switchViews([]);
+    assertViewVisible('viewOne', false);
+    assertViewVisible('viewTwo', false);
+    assertViewVisible('viewThree', false);
+  });
+
+  test('visibility with show-all', async function() {
+    // Initial state.
+    await viewManager.switchView('viewOne');
+    assertViewVisible('viewOne', true);
+    assertViewVisible('viewTwo', false);
+    assertViewVisible('viewThree', false);
+
+    // Turn on, check that everything is visible.
+    viewManager.toggleAttribute('show-all', true);
+    assertViewVisible('viewOne', true);
+    assertViewVisible('viewTwo', true);
+    assertViewVisible('viewThree', true);
+
+    // Turn off. Check that initial state is restored.
+    viewManager.toggleAttribute('show-all', false);
+    assertViewVisible('viewOne', true);
+    assertViewVisible('viewTwo', false);
+    assertViewVisible('viewThree', false);
   });
 
   test('event firing', async function() {

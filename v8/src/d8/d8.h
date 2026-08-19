@@ -435,7 +435,7 @@ class ShellOptions {
     T value_;
     bool specified_ = false;
   };
-
+  DisallowReassignment<bool> can_block = {"can_block", true};
   DisallowReassignment<const char*> d8_path = {"d8-path", ""};
   DisallowReassignment<bool> fuzzilli_coverage_statistics = {
       "fuzzilli-coverage-statistics", false};
@@ -588,6 +588,7 @@ class Shell : public i::AllStatic {
       const v8::FunctionCallbackInfo<v8::Value>& info);
   static void PerformanceMeasureMemory(
       const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void PerformanceStub(const v8::FunctionCallbackInfo<v8::Value>& info);
 
   static void RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& info);

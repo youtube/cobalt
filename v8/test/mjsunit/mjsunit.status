@@ -191,7 +191,7 @@
   'unicode-case-overoptimization1': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mips64el, mips64, riscv64, riscv32, loong64)', SKIP]],
   'regress/regress-3976': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mips64el, mips64, riscv64, riscv32, loong64)', SKIP]],
   'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mips64el, riscv64, riscv32, loong64)', SKIP]],
-  'regress/regress-740784': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mips64el, riscv64,riscv32, loong64)', SKIP]],
+  'regress/regress-740784': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mips64el, riscv64, riscv32, loong64)', SKIP]],
 
   # TODO(bmeurer): Flaky timeouts (sometimes <1s, sometimes >3m).
   'unicodelctest': [PASS, NO_VARIANTS],
@@ -311,6 +311,9 @@
   'es6/block-conflicts': [PASS, SLOW],
   'es6/typedarray-of': [PASS, SLOW],
   'compiler/inlining-exponential': [PASS, SLOW],
+
+  # BUG(https://crbug.com/422346609): Verification of regalloc is too slow.
+  'wasm/max-params': [SKIP],
 }],  # mode == debug
 
 ['novfp3', {
@@ -642,6 +645,8 @@
   'wasm/atomic-wait-multi-memory': [SKIP],
   'wasm/generate-random-module*': [SKIP],
   'wasm/js-api': [SKIP],
+  'wasm/memory-copy-inline': [SKIP],
+  'wasm/memory-fill-inline': [SKIP],
   'wasm/memory-huge-constant-index': [SKIP],
   'wasm/multi-memory*': [SKIP],
 
@@ -649,6 +654,9 @@
   'regress/wasm/regress-v8-14471': [SKIP],
   'wasm/stack-switching*': [SKIP],
   'wasm/growable-stacks': [SKIP],
+
+  # --experimental-wasm-growable-stacks
+  'regress/wasm/regress-421055121': [SKIP],
 
   # --experimental-wasm-stringref
   'regress/wasm/regress-324475066': [SKIP],
@@ -797,6 +805,7 @@
   'wasm/async-compile': [SKIP],
   'wasm/log-code-after-post-message': [SKIP],
   'wasm/multiple-code-spaces': [SKIP],
+  'wasm/wasm-code-coverage': [SKIP],
   'wasm/wrapper-compilation': [SKIP],
 
   # Tests that expect different profiling samples.
@@ -849,6 +858,9 @@
   # --wasm_tier_up
   'wasm/graceful_shutdown_during_tierup': [SKIP],
 
+  # --turboshaft-wasm-in-js-inlining
+  'regress/wasm/regress-422639603': [SKIP],
+
   # asm.js tests
   'asm/*': [SKIP],
   'regress/asm/*': [SKIP],
@@ -897,6 +909,7 @@
   'compiler/fast-api-calls': [SKIP],
   'compiler/fast-api-attributes': [SKIP],
   'compiler/fast-api-interface-types': [SKIP],
+  'compiler/fast-api-deopt': [SKIP],
   'compiler/regress-crbug-1201011': [SKIP],
   'compiler/regress-crbug-1201057': [SKIP],
   'compiler/regress-crbug-1201082': [SKIP],
@@ -1450,7 +1463,10 @@
   'd8/flush-denormals-flag': [SKIP],
   'd8/flush-denormals-helper': [SKIP],
   'd8/flush-denormals-worker': [SKIP],
-  'wasm/denormals': [SKIP]
+  'wasm/denormals': [SKIP],
+
+  # wasm deopt don't support simd128
+  'wasm/deopt/deopt-many-params-many-locals-s128': [SKIP],
 }],  # 'arch == riscv64 or arch == riscv32'
 
 ['variant == stress and (arch == riscv64 or arch == riscv32)', {
@@ -1788,6 +1804,7 @@
 
   # Tests using a shared heap are inherently non-deterministic.
   'shared-memory/*': [SKIP],
+  'wasm/shared-everything/post-message': [SKIP],
 
   # BUG(v8:7166).
   'd8/enable-tracing': [SKIP],
@@ -1936,6 +1953,13 @@
   # Manipulating addresses in in tools/system-analyzer/processor.mjs can cause
   # computation errors due to unsafe integers (v8:13440)
   'tools/processor': [PASS, ['component_build', SKIP]],
+  # triggers OOM condition
+  'huge-typedarrays': [SKIP],
+  'es6/typedarray-construct-by-array-like': [SKIP],
+  'es6/typedarray-construct-by-array-like-prototype-element-added': [SKIP],
+  'regress/regress-324028': [SKIP],
+  'regress/regress-crbug-1029658': [SKIP],
+  'regress/regress-crbug-650933': [SKIP],
 }],  # 'system == aix'
 
 ##############################################################################
@@ -2324,7 +2348,6 @@
   'wasm/js-to-wasm-invalid-sig': [SKIP],
   'wasm/shuffles': [SKIP],
   'wasm/redundant-shuffle-lanes': [SKIP],
-  'wasm/shared-everything/atomic-instructions': [SKIP],
   'wasm/simd-*': [SKIP],
   'wasm/turboshaft/array-new-unreachable': [SKIP],
   'wasm/turboshaft/reduction-shuffle': [SKIP],
@@ -2533,7 +2556,7 @@
 # TODO(ports): Support Wasm deopts on all platforms.
 # If you need to add your architecture here, you will need to disable the
 # wasm_deopt flag by default on your platform as well!
-['arch in [riscv32, riscv64, mips64, ppc64, s390x]', {
+['arch in [mips64, ppc64, s390x]', {
   # --wasm-deopt implementation not ported to all  architectures, yet.
   'wasm/deopt/*': [SKIP],
   'regress/wasm/regress-350779988': [SKIP],
@@ -2556,6 +2579,7 @@
   'json2': [SKIP],
   'es6/typedarray-of': [SKIP],
   'compiler/osr-block-scope': [SKIP],
+  'regress/regress-425583995': [SKIP],
 
   # TODO(victorgomes):
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
@@ -2666,10 +2690,12 @@
   'compiler/fast-api-attributes': [FAIL],
   'compiler/fast-api-calls': [FAIL],
   'compiler/fast-api-calls-8args': [FAIL],
+  'compiler/fast-api-calls-nested': [FAIL],
   'compiler/fast-api-calls-string': [FAIL],
   'compiler/fast-api-calls-pointer': [FAIL],
   'compiler/fast-api-calls-64-bit-integer-values': [FAIL],
   'compiler/fast-api-calls-throw': [FAIL],
+  'compiler/fast-api-deopt': [FAIL],
   'compiler/fast-api-interface-types': [FAIL],
   'compiler/fast-api-sequences*': [FAIL],
   'wasm/fast-api-calls-with-wellknown-imports*': [SKIP],
@@ -2855,6 +2881,11 @@
 }],  # variant == conservative_stack_scanning
 
 ##############################################################################
+['variant == code_serializer', {
+  'compiler/fast-api-calls-nested': [SKIP],
+}],  # variant == code_serializer
+
+##############################################################################
 ['variant in [jit_fuzzing, jit_fuzzing_maglev]', {
   # Extremely slow tests.
   'regress/wasm/regress-808848': [SKIP],
@@ -2878,8 +2909,39 @@
   'regress/regress-392928803': [FAIL],
 }],  # not disassembler
 
+##############################################################################
 # https://issues.chromium.org/issues/404881599
 ['(arch == arm64) and simulator_run', {
 'wasm/growable-stacks': [SKIP],
-}]
+}], # (arch == arm64) and simulator_run
+
+##############################################################################
+['sandbox_hardware_support', {
+  # Skip tests for unsupported features. See https://crbug.com/428674890.
+
+  # Multi-mapped mock allocator is not currently supported.
+  'regress/regress-crbug-1041232': [SKIP],
+  'regress/regress-crbug-1209152': [SKIP],
+
+  # Wasm code coverage is not currently supported.
+  'wasm/wasm-code-coverage': [SKIP],
+
+  # Tests that require the sampler/profiler, which doesn't work on older kernel
+  # versions if hardware sandboxing is active. See https://crbug.com/429173713.
+  'regress/regress-381390367': [SKIP],
+  'regress-332570754': [SKIP],
+  'asm/regress-1395401': [SKIP],
+  'asm/log-lazy-code': [SKIP],
+  'regress/regress-1394663': [SKIP],
+  'regress/wasm/regress-crbug-1502180': [SKIP],
+  'regress/wasm/regress-392928805': [SKIP],
+  'regress/wasm/regress-406043349': [SKIP],
+  'regress/wasm/regress-413963387': [SKIP],
+  'wasm/interrupt-worker-with-perf': [SKIP],
+  'wasm/liftoff-trap-handler': [SKIP],
+  'wasm/log-code-after-post-message': [SKIP],
+  'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
+  'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
+}] # sandbox_hardware_support
+
 ]

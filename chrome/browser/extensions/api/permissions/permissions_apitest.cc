@@ -242,7 +242,7 @@ IN_PROC_BROWSER_TEST_F(PermissionsApiTest, OptionalPermissionsFileAccess) {
 // Tests loading of files or directory listings when an extension has file
 // access.
 IN_PROC_BROWSER_TEST_F(PermissionsApiTest, FileLoad) {
-#if BUILDFLAG(IS_DESKTOP_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   // Enable access to arbitrary files via file: schema. Ordinarily Chrome on
   // Android blocks access to many directories, which affects the built-in
   // web server this test extension accesses.
@@ -321,6 +321,9 @@ class PermissionsApiHostAccessRequestsTest : public PermissionsApiTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+// TODO(crbug.com/371432404): Port to desktop Android once
+// the webNavigation API and permission are supported.
 IN_PROC_BROWSER_TEST_F(PermissionsApiHostAccessRequestsTest,
                        InvalidAddHostAccessRequests) {
   ASSERT_TRUE(StartEmbeddedTestServer());
@@ -328,6 +331,7 @@ IN_PROC_BROWSER_TEST_F(PermissionsApiHostAccessRequestsTest,
   ASSERT_TRUE(RunExtensionTest("permissions/add_host_access_request"))
       << message_;
 }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_F(PermissionsApiHostAccessRequestsTest,
                        InvalidRemoveHostAccessRequests) {

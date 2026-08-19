@@ -23,6 +23,7 @@
 #include "api/candidate.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/transport/enums.h"
 #include "api/units/time_delta.h"
@@ -56,9 +57,9 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "system_wrappers/include/metrics.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 #include "test/wait_until.h"
 
 using ::testing::Contains;
@@ -1272,7 +1273,7 @@ TEST_F(BasicPortAllocatorTest, TestGetAllPortsWithOneSecondStepDelay) {
 
 TEST_F(BasicPortAllocatorTest, TestSetupVideoRtpPortsWithNormalSendBuffers) {
   AddInterface(kClientAddr);
-  ASSERT_TRUE(CreateSession(ICE_CANDIDATE_COMPONENT_RTP, CN_VIDEO));
+  ASSERT_TRUE(CreateSession(ICE_CANDIDATE_COMPONENT_RTP, "video"));
   session_->StartGettingPorts();
   ASSERT_THAT(
       WaitUntil([&] { return candidate_allocation_done_; }, IsTrue(),
@@ -2727,8 +2728,8 @@ TEST_F(BasicPortAllocatorTest, TestUseTurnServerAsStunSever) {
 }
 
 TEST_F(BasicPortAllocatorTest, TestDoNotUseTurnServerAsStunSever) {
-  test::ScopedKeyValueConfig field_trials(
-      "WebRTC-UseTurnServerAsStunServer/Disabled/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-UseTurnServerAsStunServer/Disabled/");
   ServerAddresses stun_servers;
   stun_servers.insert(kStunAddr);
   PortConfiguration port_config(stun_servers, "" /* user_name */,

@@ -14,6 +14,8 @@
 #include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_switches.h"
+#include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/ai/ai_data_keyed_service_factory.h"
 #include "chrome/browser/history_embeddings/history_embeddings_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -526,6 +528,11 @@ class AiDataKeyedServiceActorBrowserTest
   ~AiDataKeyedServiceActorBrowserTest() override = default;
   AiDataKeyedServiceActorBrowserTest() {
     scoped_feature_list_.InitWithFeatures({features::kGlicActor}, {});
+  }
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    AiDataKeyedServiceBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitch(actor::switches::kDisableActorSafetyChecks);
   }
 
  private:

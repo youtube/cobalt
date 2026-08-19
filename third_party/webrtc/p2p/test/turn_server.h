@@ -368,20 +368,5 @@ class TurnServer : public sigslot::has_slots<> {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::kMaxTurnChannelNumber;
-using ::webrtc::kMinTurnChannelNumber;
-using ::webrtc::StunMessageObserver;
-using ::webrtc::TURN_SERVER_PORT;
-using ::webrtc::TurnAuthInterface;
-using ::webrtc::TurnRedirectInterface;
-using ::webrtc::TurnServer;
-using ::webrtc::TurnServerAllocation;
-using ::webrtc::TurnServerConnection;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_TEST_TURN_SERVER_H_

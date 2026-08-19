@@ -477,6 +477,9 @@ export declare interface GlicBrowserHost {
    */
   setAudioDucking?(enabled: boolean): void;
 
+  /** Returns an object that holds journal-related functionality. */
+  getJournalHost?(): GlicBrowserHostJournal;
+
   /** Returns an object that holds metrics-related functionality. */
   getMetrics?(): GlicBrowserHostMetrics;
 
@@ -524,8 +527,6 @@ export declare interface GlicBrowserHost {
   isManuallyResizing?(): ObservableValue<boolean>;
 
   /**
-   * @todo Not yet implemented. https://crbug.com/404617216
-   *
    * Returns the set of zero state suggestions for the currently focused tab
    * based on if the client is currently in it's is_first_run.
    * Callers should verify the current focused tab matches the
@@ -575,6 +576,31 @@ export declare interface GlicBrowserHost {
    * to chrome in order to attempt to pin.
    */
   getPinnedTabs?(): ObservableValue<TabData[]>;
+
+  /**
+   * Returns an observable that emits a ranked list of pin tab candidates per
+   * the given options. The list is currently only returned once. The results
+   * are sorted by string match and then last active time.
+   *
+   * If a query is provided, it currently returns all top sorted results, even
+   * if entries don't match the query.
+   *
+   * @todo Actually implement dynamic updates based on tab changes.
+   * crbug.com/429022523
+   */
+  getPinCandidates?
+      (options: GetPinCandidatesOptions): ObservableValue<PinCandidate[]>;
+
+  /**
+   * Returns an observable unique to the supplied options that emits zero state
+   * suggestions for the currently shared context. The observer will continue
+   * to emit subsequent zero state suggestions until it has no more
+   * subscribers. Chrome will only maintain one zero state suggestion observer,
+   * so calling this again with different options will also cause the previous
+   * observer to stop emitting.
+   */
+  getZeroStateSuggestions?(options?: ZeroStateSuggestionsOptions):
+      ObservableValue<ZeroStateSuggestionsV2>;
 }
 /** Fields of interest from the system settings page. */
 export type OsPermissionType = 'media'|'geolocation';
@@ -658,6 +684,12 @@ export declare interface GlicBrowserHostMetrics {
 
   /** Called when the user rates a response. */
   onResponseRated?(positive: boolean): void;
+
+  /**
+   * Called when the first caption is shown for the current request or response.
+   * This can get fired multiple times in a single session.
+   */
+  onClosedCaptionsShown?(): void;
 }
 
 /** Web client's operation modes */
@@ -666,6 +698,69 @@ export enum WebClientMode {
   TEXT = 0,
   /** Audio operation mode. */
   AUDIO = 1,
+}
+
+/** An encoded journal. */
+export declare interface Journal {
+  /**
+   * Encoded journal data. ArrayBuffer is transferable, so it should be copied
+   * more efficiently over postMessage.
+   */
+  data: ArrayBuffer;
+}
+
+/**
+ * Provides journal related functionality to the Glic web client.
+ * This allows the web client to log entries into the journal and
+ * to get a serialized capture (`snapshot`) of the journal.
+ * To listen to new events to the journal `start` must
+ * be called before any events can be serialized to the journal.
+ * `start` does not need to be called before events are logged to
+ * the journal as there may be other sinks of the journal that
+ * wish to receive events.
+ */
+export declare interface GlicBrowserHostJournal {
+  /**
+   * Logs the start of an async event to the journal. A corresponding
+   * endAsyncEvent must be called to terminate this event.
+   */
+  beginAsyncEvent(
+      asynEventId: number, taskId: number, event: string,
+      details: string): void;
+
+  /**
+   * Clears the contents of a started journal. No-op if a journal was not
+   * started.
+   */
+  clear(): void;
+
+  /**
+   * Logs the end of an async event to the journal. A corresponding
+   * `beginAsyncEvent` must have been previously called.
+   */
+  endAsyncEvent(asyncEventId: number, details: string): void;
+
+  /**
+   * Logs an instant event to the journal.
+   */
+  instantEvent(taskId: number, event: string, details: string): void;
+
+  /**
+   * Requests a snapshot of the current contents of the journal. Optionally
+   * clear the journal after taking the snapshot.
+   */
+  snapshot(clear: boolean): Promise<Journal>;
+
+  /**
+   * Requests a journal to start logging. Calls to `snapshot`, `clear` or `stop`
+   * can be made after this.
+   */
+  start(maxBytes: number, captureScreenshots: boolean): void;
+
+  /**
+   * Requests journal stop logging.
+   */
+  stop(): void;
 }
 
 /** Data sent back to the host about the opening of the panel. */
@@ -842,6 +937,16 @@ export declare interface TabContextResult {
   annotatedPageData?: AnnotatedPageData;
 }
 
+/**
+ * Used for customizing the list of pin candidates.
+ */
+export declare interface GetPinCandidatesOptions {
+  /** The maximum number of candidates to consider. Can return fewer. */
+  maxCandidates: number;
+  /** A query string. */
+  query?: string;
+}
+
 /** Information about a web page being rendered in a tab. */
 export declare interface WebPageData {
   mainDocument: DocumentData;
@@ -939,6 +1044,13 @@ export declare interface TabData {
    */
   favicon?(): Promise<Blob|undefined>;
   /**
+   * The favicon URL. Only available if the page is loaded enough and it
+   * specifies a favicon.
+   *
+   * @todo Investigate render performance of data urls. crbug.com/429237829
+   */
+  faviconUrl?: string;
+  /**
    * MIME type of the main document. Returned only if the page is loaded enough
    * for it to be available.
    */
@@ -950,6 +1062,12 @@ export declare interface TabData {
    * be visible.
    */
   isObservable?: boolean;
+}
+
+/** A candidate for pinning. */
+export declare interface PinCandidate {
+  /** The tab that is a candidate for pinning. */
+  tabData: TabData;
 }
 
 /**
@@ -1017,6 +1135,7 @@ export declare interface ErrorReasonTypes {
   webClientInitialize: WebClientInitializeErrorReason;
   actInFocusedTab: ActInFocusedTabErrorReason;
   createTask: CreateTaskErrorReason;
+  performActions: PerformActionsErrorReason;
 }
 
 /** Reason why the web client could not initialize. */
@@ -1060,6 +1179,13 @@ export enum CreateTaskErrorReason {
   TASK_SYSTEM_UNAVAILABLE = 1,
 }
 
+export enum PerformActionsErrorReason {
+  UNKNOWN = 0,
+
+  /** The serialized Actions proto failed to parse. */
+  INVALID_ACTION_PROTO = 1,
+}
+
 /**
  * Reason why capturing desktop screenshot failed. NOTE: This may be extended in
  * the future so avoid using complete switches on the currently used enum
@@ -1099,6 +1225,9 @@ export type ActInFocusedTabError = ErrorWithReason<'actInFocusedTab'>;
 
 /** Error type used for create task errors. */
 export type CreateTaskError = ErrorWithReason<'createTask'>;
+
+/** Error type used for perform actions errors. */
+export type PerformActionsError = ErrorWithReason<'performActions'>;
 
 /** Params for scrollTo(). */
 export declare interface ScrollToParams {
@@ -1320,6 +1449,26 @@ export declare interface GlicApiBootMessage {
   glicApiSource: string;
 }
 
+/** Zero-state suggestions for the current tab context. */
+export declare interface ZeroStateSuggestionsV2 {
+  /**
+   * A collection of suggestions associated with current tab context. This may
+   * be empty.
+   */
+  suggestions: SuggestionContent[];
+}
+
+/**
+ * Options for ensuring chrome will create Zero State Suggestions for a
+ * specific webui context.
+ */
+export declare interface ZeroStateSuggestionsOptions {
+  /** If the suggestions will be used in a first run context. */
+  isFirstRun?: boolean;
+  /** The list of tools that are currently supported. */
+  supportedTools?: string[];
+}
+
 /** Zero-state suggestions for the current tab. */
 export declare interface ZeroStateSuggestions {
   /**
@@ -1355,6 +1504,7 @@ export interface BackwardsCompatibleTypes {
   documentData: DocumentData;
   draggableArea: DraggableArea;
   focusedTabData: FocusedTabData;
+  glicBrowserHostJournal: GlicBrowserHostJournal;
   glicBrowserHostMetrics: GlicBrowserHostMetrics;
   hostRegistry: GlicHostRegistry;
   imageOriginAnnotations: ImageOriginAnnotations;
@@ -1378,6 +1528,8 @@ export interface BackwardsCompatibleTypes {
   openSettingsOptions: OpenSettingsOptions;
   osPermissionType: OsPermissionType;
   zeroStateSuggestions: ZeroStateSuggestions;
+  zeroStateSuggestionsV2: ZeroStateSuggestionsV2;
+  zeroStateSuggestionsOptions: ZeroStateSuggestionsOptions;
 }
 
 // Enums that should not be changed.
@@ -1394,5 +1546,6 @@ export interface ExtensibleEnums {
   invocationSource: typeof InvocationSource;
   actInFocusedTabErrorReason: typeof ActInFocusedTabErrorReason;
   createTaskErrorReason: typeof CreateTaskErrorReason;
+  performActionsErrorReason: typeof PerformActionsErrorReason;
   settingsPageField: typeof SettingsPageField;
 }

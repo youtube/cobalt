@@ -22,6 +22,7 @@
 #include <variant>
 #include <vector>
 
+#include "api/field_trials.h"
 #include "api/metronome/test/fake_metronome.h"
 #include "api/units/frequency.h"
 #include "api/units/time_delta.h"
@@ -32,10 +33,10 @@
 #include "modules/video_coding/timing/timing.h"
 #include "rtc_base/checks.h"
 #include "system_wrappers/include/clock.h"
+#include "test/create_test_field_trials.h"
 #include "test/fake_encoded_frame.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 #include "test/time_controller/simulated_time_controller.h"
 #include "video/decode_synchronizer.h"
 #include "video/task_queue_frame_decode_scheduler.h"
@@ -139,7 +140,7 @@ class VideoStreamBufferControllerFixture
  public:
   VideoStreamBufferControllerFixture()
       : sync_decoding_(std::get<0>(GetParam())),
-        field_trials_(std::get<1>(GetParam())),
+        field_trials_(CreateTestFieldTrials(std::get<1>(GetParam()))),
         time_controller_(kClockStart),
         clock_(time_controller_.GetClock()),
         fake_metronome_(TimeDelta::Millis(16)),
@@ -228,7 +229,7 @@ class VideoStreamBufferControllerFixture
 
  protected:
   const bool sync_decoding_;
-  test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_;
   GlobalSimulatedTimeController time_controller_;
   Clock* const clock_;
   test::FakeMetronome fake_metronome_;

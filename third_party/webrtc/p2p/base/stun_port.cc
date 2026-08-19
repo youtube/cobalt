@@ -23,6 +23,7 @@
 #include "api/async_dns_resolver.h"
 #include "api/candidate.h"
 #include "api/field_trials_view.h"
+#include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
 #include "api/transport/stun.h"
 #include "p2p/base/connection.h"
@@ -479,7 +480,7 @@ void UDPPort::SendStunBindingRequest(const SocketAddress& stun_addr) {
     return;
   }
 
-    // Check if `server_addr_` is compatible with the port's ip.
+  // Check if `server_addr_` is compatible with the port's ip.
   if (!IsCompatibleAddress(stun_addr)) {
     // Since we can't send stun messages to the server, we should mark this
     // port ready. This is not an error but similar to ignoring
@@ -495,7 +496,21 @@ void UDPPort::SendStunBindingRequest(const SocketAddress& stun_addr) {
                             static_cast<int>(stun_addr.GetIPAddressType()),
                             static_cast<int>(IPAddressType::kMaxValue));
 
-  request_manager_.Send(new StunBindingRequest(this, stun_addr, TimeMillis()));
+  MaybeRequestLocalNetworkAccessPermission(
+      stun_addr, [this, stun_addr](LocalNetworkAccessPermissionStatus status) {
+        if (status != LocalNetworkAccessPermissionStatus::kGranted) {
+          RTC_LOG(LS_WARNING)
+              << ToString() << ": Permission denied to connect to STUN server "
+              << stun_addr.HostAsSensitiveURIString();
+          OnStunBindingOrResolveRequestFailed(
+              stun_addr, STUN_ERROR_NOT_AN_ERROR,
+              "Not allowed to connecto to STUN server.");
+          return;
+        }
+
+        request_manager_.Send(
+            new StunBindingRequest(this, stun_addr, TimeMillis()));
+      });
 }
 
 bool UDPPort::MaybeSetDefaultLocalAddress(SocketAddress* addr) const {

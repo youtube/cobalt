@@ -65,7 +65,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kBrokerFileOperationsOnDiskCacheInNetworkService);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCacheControlNoStoreEnterBackForwardCache);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCapturedSurfaceControlKillswitch);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kCheckSiteInstanceOnHistoryNavigation);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kClearCrossSiteCrossBrowsingContextGroupWindowName);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCompositeBGColorAnimation);
@@ -288,6 +287,8 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kV8AndroidDesktopHighEndConfig);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kWebAppSystemMediaControls);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kWebAssemblyBaseline);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kEnableExperimentalWebAssemblyJSPI);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(
+    kEnableExperimentalWebAssemblySharedEverything);
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kElementCaptureOfOtherTabs);
 #endif

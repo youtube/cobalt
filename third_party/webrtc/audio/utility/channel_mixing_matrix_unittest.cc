@@ -10,8 +10,7 @@
 
 #include "audio/utility/channel_mixing_matrix.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <vector>
 
 #include "api/audio/channel_layout.h"

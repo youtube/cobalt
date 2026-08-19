@@ -41,7 +41,6 @@
 #include "mojo/public/cpp/bindings/message.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "net/base/features.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "services/device/public/mojom/screen_orientation.mojom.h"
 #include "services/network/public/cpp/features.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
@@ -56,11 +55,6 @@
 #include "third_party/blink/public/mojom/manifest/manifest_observer.mojom.h"
 #include "third_party/blink/public/mojom/page/display_cutout.mojom.h"
 #include "third_party/blink/public/mojom/shared_storage/shared_storage.mojom.h"
-
-#if BUILDFLAG(ENABLE_PPAPI)
-#include "content/browser/renderer_host/render_frame_host_impl_ppapi_support.h"
-#include "content/common/pepper_plugin.mojom.h"
-#endif
 
 namespace content {
 
@@ -310,15 +304,6 @@ void RenderFrameHostImpl::SetUpMojoConnection() {
       GetProcess()->GetStoragePartition()->GetFileSystemContext(),
       ChromeBlobStorageContext::GetFor(GetProcess()->GetBrowserContext())));
 
-#if BUILDFLAG(ENABLE_PPAPI)
-  associated_registry_->AddInterface<mojom::PepperHost>(base::BindRepeating(
-      [](RenderFrameHostImpl* impl,
-         mojo::PendingAssociatedReceiver<mojom::PepperHost> receiver) {
-        impl->GetPpapiSupport().Bind(std::move(receiver));
-      },
-      base::Unretained(this)));
-#endif
-
   associated_registry_->AddInterface<media::mojom::MediaPlayerHost>(
       base::BindRepeating(
           [](RenderFrameHostImpl* impl,
@@ -414,10 +399,6 @@ void RenderFrameHostImpl::TearDownMojoConnection() {
   render_accessibility_host_.Reset();
 
   dom_automation_controller_receiver_.reset();
-
-#if BUILDFLAG(ENABLE_PPAPI)
-  ppapi_support_.reset();
-#endif
 
   // Audio stream factories are tied to a live RenderFrame: see
   // //content/browser/media/forwarding_audio_stream_factory.h.

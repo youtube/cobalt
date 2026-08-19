@@ -10,12 +10,25 @@
 
 #include "modules/audio_device/linux/audio_device_pulse_linux.h"
 
-#include <string.h>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 
+#include "api/audio/audio_device.h"
+#include "api/audio/audio_device_defines.h"
+#include "api/units/time_delta.h"
+#include "modules/audio_device/audio_device_buffer.h"
+#include "modules/audio_device/audio_device_generic.h"
 #include "modules/audio_device/linux/latebindingsymboltable_linux.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/platform_thread.h"
+#include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
+
+#if defined(WEBRTC_USE_X11)
+#include <X11/Xlib.h>
+#endif
 
 WebRTCPulseSymbolTable* GetPulseSymbolTable() {
   static WebRTCPulseSymbolTable* pulse_symbol_table =

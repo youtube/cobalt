@@ -11,8 +11,6 @@
 #ifndef P2P_TEST_STUN_SERVER_H_
 #define P2P_TEST_STUN_SERVER_H_
 
-#include <stddef.h>
-
 #include <memory>
 
 #include "absl/strings/string_view.h"
@@ -65,13 +63,5 @@ class StunServer {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::STUN_SERVER_PORT;
-using ::webrtc::StunServer;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_TEST_STUN_SERVER_H_

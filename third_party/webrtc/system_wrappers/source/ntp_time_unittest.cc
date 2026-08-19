@@ -10,6 +10,9 @@
 
 #include "system_wrappers/include/ntp_time.h"
 
+#include <cstdint>
+#include <cstdlib>
+#include <limits>
 #include <random>
 
 #include "system_wrappers/include/clock.h"

@@ -10,8 +10,7 @@
 
 #include "modules/audio_coding/codecs/pcm16b/pcm16b_common.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <initializer_list>
 #include <vector>
 

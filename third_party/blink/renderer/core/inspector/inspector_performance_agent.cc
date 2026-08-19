@@ -266,12 +266,13 @@ protocol::Response InspectorPerformanceAgent::getMetrics(
                      .DomContentLoadedEventStart()
                      .since_origin()
                      .InSecondsF());
-    AppendMetric(result.get(), "NavigationStart",
-                 document->Loader()
-                     ->GetTiming()
-                     .NavigationStart()
-                     .since_origin()
-                     .InSecondsF());
+    // Loader() can be null if the document is not associated with a frame at
+    // this point in time.
+    if (DocumentLoader* loader = document->Loader()) {
+      AppendMetric(
+          result.get(), "NavigationStart",
+          loader->GetTiming().NavigationStart().since_origin().InSecondsF());
+    }
   }
 
 #if BUILDFLAG(IS_COBALT) && !defined(OFFICIAL_BUILD)

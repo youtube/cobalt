@@ -3,7 +3,7 @@
 <link rel="help" href="https://drafts.csswg.org/css-grid-3">
 <link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
 <style>
-.grid {
+#grid {
     display: grid;
     grid-template-columns: 200px 200px;
     background: gray;
@@ -31,12 +31,25 @@
 </style>
 <body>
   <p>Test that masonry items with explicit placement are correctly positioned within the grid axis.</p>
-  <div class="grid">
-    <div class="first-track">This is some text</div>
+  <div id="grid">
+    <div id="first-item" class="first-track" style="width: fit-content">This is some text</div>
     <div class="second-track">Some larger words in this sentence</div>
     <div class="third-track">The cat cannot be separated from milk</div>
-    <div class="first-track">Some larger words in this sentence</div>
+    <div id="fourth-item" class="first-track" style="position: relative;">Some larger words in this sentence</div>
     <div class="second-track">The cat cannot be separated from milk</div>
   </div>
+  <script>
+    const grid = document.getElementById('grid');
+    const gridrect = grid.getBoundingClientRect();
+     // Width of the grid, minus padding.
+    const gridwidth = gridrect.width - 40;
+
+    const first_item = document.getElementById('first-item');
+    const width = first_item.getBoundingClientRect().width;
+
+    const fourth_item = document.getElementById('fourth-item');
+    const translation = gridwidth - width;
+    fourth_item.style.left = '-' + translation + 'px';
+  </script>
 </body>
 </html>

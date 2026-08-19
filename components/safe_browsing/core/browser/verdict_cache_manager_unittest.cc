@@ -8,6 +8,7 @@
 #include "base/command_line.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/values.h"
@@ -413,7 +414,7 @@ TEST_F(VerdictCacheManagerTest, TestRemoveCachedVerdictOnURLsDeleted) {
 }
 
 // TODO(crbug.com/40203584): This test is flaky on device.
-#if TARGET_OS_IOS && !TARGET_IPHONE_SIMULATOR
+#if TARGET_OS_IOS && !TARGET_OS_SIMULATOR
 #define MAYBE_TestCleanUpExpiredVerdict DISABLED_TestCleanUpExpiredVerdict
 #else
 #define MAYBE_TestCleanUpExpiredVerdict TestCleanUpExpiredVerdict

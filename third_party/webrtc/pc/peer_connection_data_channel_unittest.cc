@@ -19,7 +19,6 @@
 #include "api/peer_connection_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/sctp_transport_interface.h"
-#include "p2p/base/p2p_constants.h"
 #include "pc/media_session.h"
 #include "pc/peer_connection.h"
 #include "pc/peer_connection_wrapper.h"
@@ -45,6 +44,7 @@ namespace webrtc {
 using RTCConfiguration = PeerConnectionInterface::RTCConfiguration;
 using RTCOfferAnswerOptions = PeerConnectionInterface::RTCOfferAnswerOptions;
 using ::testing::HasSubstr;
+using ::testing::IsEmpty;
 using ::testing::Not;
 using ::testing::Values;
 
@@ -239,9 +239,7 @@ TEST_P(PeerConnectionDataChannelTest,
        CreateOfferWithNoDataChannelsGivesNoDataSection) {
   auto caller = CreatePeerConnection();
   auto offer = caller->CreateOffer();
-
-  EXPECT_FALSE(offer->description()->GetContentByName(CN_DATA));
-  EXPECT_FALSE(offer->description()->GetTransportInfoByName(CN_DATA));
+  EXPECT_THAT(offer->description()->contents(), IsEmpty());
 }
 
 TEST_P(PeerConnectionDataChannelTest,

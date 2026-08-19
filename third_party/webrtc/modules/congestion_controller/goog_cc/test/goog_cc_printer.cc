@@ -103,7 +103,6 @@ std::deque<FieldLogger*> GoogCcStatePrinter::CreateLoggers() {
       Log("time", [this] { return target_.at_time; }),
       Log("rtt", [this] { return target_.network_estimate.round_trip_time; }),
       Log("target", [this] { return target_.target_rate; }),
-      Log("stable_target", [this] { return target_.stable_target_rate; }),
       Log("pacing", [this] { return pacing_.data_rate(); }),
       Log("padding", [this] { return pacing_.pad_rate(); }),
       Log("window", [this] { return congestion_window_; }),

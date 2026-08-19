@@ -578,23 +578,5 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::BasicNetworkManager;
-using ::webrtc::DefaultLocalAddressProvider;
-using ::webrtc::GetAdapterTypeFromName;
-using ::webrtc::kDefaultNetworkIgnoreMask;
-using ::webrtc::kPublicIPv4Host;
-using ::webrtc::kPublicIPv6Host;
-using ::webrtc::MakeNetworkKey;
-using ::webrtc::MdnsResponderProvider;
-using ::webrtc::Network;
-using ::webrtc::NetworkManager;
-using ::webrtc::NetworkManagerBase;
-using ::webrtc::NetworkMask;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_NETWORK_H_

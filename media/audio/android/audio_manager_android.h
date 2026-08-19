@@ -153,7 +153,6 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
 #endif
 
   void SetMute(JNIEnv* env,
-               const base::android::JavaParamRef<jobject>& obj,
                jboolean muted);
 
   // Sets a volume that applies to all this manager's output audio streams.

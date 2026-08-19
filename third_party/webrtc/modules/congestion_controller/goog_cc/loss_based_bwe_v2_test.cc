@@ -1793,5 +1793,30 @@ TEST_F(LossBasedBweV2Test,
       kStartBitrate);
 }
 
+TEST_F(LossBasedBweV2Test, SelectHigherCandidateIfHavingSameObjective) {
+  FieldTrials key_value_config = ShortObservationConfig("");
+  LossBasedBweV2 loss_based_bandwidth_estimator(&key_value_config);
+  const DataRate kStartBitrate = DataRate::KilobitsPerSec(1000);
+  loss_based_bandwidth_estimator.SetBandwidthEstimate(kStartBitrate);
+  std::vector<PacketResult> enough_feedback_01 =
+      CreatePacketResultsWithReceivedPackets(
+          /*first_packet_timestamp=*/Timestamp::Zero());
+  std::vector<PacketResult> enough_feedback_02 =
+      CreatePacketResultsWithReceivedPackets(
+          /*first_packet_timestamp=*/Timestamp::Zero() +
+          kObservationDurationLowerBound);
+  loss_based_bandwidth_estimator.UpdateBandwidthEstimate(enough_feedback_01,
+                                                         kStartBitrate,
+                                                         /*in_alr=*/false);
+  DataRate delay_based_estimate =
+      DataRate::BytesPerSec(kStartBitrate.bytes_per_sec() * 1.02 + 1);
+  loss_based_bandwidth_estimator.UpdateBandwidthEstimate(enough_feedback_02,
+                                                         delay_based_estimate,
+                                                         /*in_alr=*/false);
+
+  EXPECT_EQ(
+      loss_based_bandwidth_estimator.GetLossBasedResult().bandwidth_estimate,
+      delay_based_estimate);
+}
 }  // namespace
 }  // namespace webrtc

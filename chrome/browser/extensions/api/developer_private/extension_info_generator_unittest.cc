@@ -21,7 +21,6 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "chrome/browser/extensions/account_extension_tracker.h"
 #include "chrome/browser/extensions/api/developer_private/developer_private_api.h"
 #include "chrome/browser/extensions/api/developer_private/inspectable_views_finder.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
@@ -29,7 +28,6 @@
 #include "chrome/browser/extensions/extension_action_test_util.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_service_test_with_install.h"
-#include "chrome/browser/extensions/extension_sync_util.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
 #include "chrome/browser/extensions/mv2_experiment_stage.h"
@@ -37,6 +35,8 @@
 #include "chrome/browser/extensions/permissions/permissions_updater.h"
 #include "chrome/browser/extensions/permissions/scripting_permissions_modifier.h"
 #include "chrome/browser/extensions/signin_test_util.h"
+#include "chrome/browser/extensions/sync/account_extension_tracker.h"
+#include "chrome/browser/extensions/sync/extension_sync_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/supervised_user/supervised_user_extensions_delegate_impl.h"
@@ -919,17 +919,20 @@ TEST_F(ExtensionInfoGeneratorUnitTest,
   scoped_refptr<const Extension> active_tab_extension =
       CreateExtension("activeTab", base::Value::List().Append("activeTab"),
                       ManifestLocation::kInternal);
+  std::unique_ptr<developer::ExtensionInfo> active_tab_info =
+      GenerateExtensionInfo(active_tab_extension->id());
+  EXPECT_TRUE(active_tab_info->permissions.can_access_site_data);
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  // TODO(crbug.com/427285233): Desktop Android does not support the debugger
+  // API nor its permission.
   scoped_refptr<const Extension> debugger_extension =
       CreateExtension("activeTab", base::Value::List().Append("debugger"),
                       ManifestLocation::kInternal);
-
-  std::unique_ptr<developer::ExtensionInfo> active_tab_info =
-      GenerateExtensionInfo(active_tab_extension->id());
   std::unique_ptr<developer::ExtensionInfo> debugger_info =
       GenerateExtensionInfo(debugger_extension->id());
-
-  EXPECT_TRUE(active_tab_info->permissions.can_access_site_data);
   EXPECT_TRUE(debugger_info->permissions.can_access_site_data);
+#endif
 }
 
 // Tests that the granted optional API permissions, when revoked, are not

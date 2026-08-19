@@ -45,7 +45,7 @@
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
 #include "third_party/blink/renderer/core/page/page_visibility_observer.h"
 #include "third_party/blink/renderer/platform/bindings/v8_external_memory_accounter.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_host.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_hibernation_handler.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_types_3d.h"
 #include "third_party/blink/renderer/platform/graphics/offscreen_canvas_placeholder.h"
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
@@ -94,7 +94,8 @@ class CORE_EXPORT HTMLCanvasElement final
       public CanvasRenderingContextHost,
       public cc::TextureLayerClient,
       public WebSurfaceLayerBridgeObserver,
-      public OffscreenCanvasPlaceholder {
+      public OffscreenCanvasPlaceholder,
+      public CanvasHibernationHandler::Delegate {
   DEFINE_WRAPPERTYPEINFO();
   USING_PRE_FINALIZER(HTMLCanvasElement, Dispose);
 
@@ -110,7 +111,6 @@ class CORE_EXPORT HTMLCanvasElement final
   bool PrepareTransferableResource(
       viz::TransferableResource* out_resource,
       viz::ReleaseCallback* out_release_callback) override;
-  bool IsCanvas2DResourceValid();
 
   // Attributes and functions exposed to script
   unsigned width() const { return Size().width(); }
@@ -244,26 +244,50 @@ class CORE_EXPORT HTMLCanvasElement final
   void RegisterContentsLayer(cc::Layer*) override;
   void UnregisterContentsLayer(cc::Layer*) override;
 
-  // CanvasResourceHost implementation
+  // CanvasHibernationHandler::Delegate implementation
+  bool IsContextLost() const override;
   bool IsPageVisible() const override;
-  void NotifyGpuContextLost() override;
+  CanvasResourceProvider* GetResourceProviderForCanvas2D() const override {
+    CHECK(IsRenderingContext2D());
+    return resource_provider_for_canvas2d_.get();
+  }
+  void ResetResourceProviderForCanvas2D() override {
+    ReplaceResourceProviderForCanvas2D(nullptr);
+  }
   void SetNeedsCompositingUpdate() override;
+
+  // CanvasResourceProvider::Delegate implementation
+  void NotifyGpuContextLost() override;
+  bool IsPrinting() const override;
+  bool TransferToGPUTextureWasInvoked() override;
+
+  // CanvasRenderingContextHost implementation
   void UpdateMemoryUsage() override;
   size_t GetMemoryUsage() const override;
   bool ShouldAccelerate2dContext() const override;
   bool LowLatencyEnabled() const override;
-  CanvasResourceProvider* GetOrCreateCanvasResourceProviderForCanvas2D()
-      override;
-  bool IsPrinting() const override;
   bool IsHibernating() const override;
   void SetTransferToGPUTextureWasInvoked() override;
-  bool TransferToGPUTextureWasInvoked() override;
-
-  // CanvasRenderingContextHost implementation.
   UkmParameters GetUkmParameters() override;
+  std::unique_ptr<CanvasResourceProvider> ReplaceResourceProviderForCanvas2D(
+      std::unique_ptr<CanvasResourceProvider>) override;
+
+  // This method attempts to ensure that the canvas' resource exists on the GPU.
+  // A HTMLCanvasElement can downgrade itself from GPU to CPU when readback
+  // occurs too frequently, so a canvas may exist on the CPU even if the browser
+  // is normally GPU-capable. If the canvas needed to be migrated off of the
+  // CPU, the canvas resource provider and canvas 2D layer bridge will be
+  // destroyed and recreated; when this occurs, any existing pointers to these
+  // objects will be invalidated. If the canvas resource provider did not exist
+  // at all, it may be created.  NOTE: This method might fail to enable
+  // acceleration. Clients needing to know whether it succeeded should check
+  // whether the Canvas2D resource provider is accelerated after calling this
+  // method.
+  void EnableAccelerationForCanvas2D();
+
+  CanvasResourceProvider* GetOrCreateCanvasResourceProviderForCanvas2D();
 
   void DisableAccelerationForCanvas2D();
-  bool EnableAccelerationForCanvas2D() final;
 
   // ImageBitmapSource implementation
   ScriptPromise<ImageBitmap> CreateImageBitmap(
@@ -301,7 +325,8 @@ class CORE_EXPORT HTMLCanvasElement final
 
   void DetachContext() override { context_ = nullptr; }
 
-  void WillDrawImageInCanvas2D(CanvasImageSource*);
+  void WillDrawImageInCanvas2D(CanvasImageSource*,
+                               bool image_is_texture_backed);
 
   ExecutionContext* GetTopExecutionContext() const override {
     return GetDocument().GetExecutionContext();
@@ -378,6 +403,7 @@ class CORE_EXPORT HTMLCanvasElement final
   // an instance variable of this class.
   CanvasResourceProvider* RecreateCanvasResourceProviderForCanvas2D(
       CanvasHibernationHandler& hibernation_handler);
+  void CreateCanvasResourceProviderForCanvas2D();
 
   void ColorSchemeMayHaveChanged();
 
@@ -435,7 +461,21 @@ class CORE_EXPORT HTMLCanvasElement final
 
   bool RecreateCanvasInGPURasterModeForCanvas2D();
 
+  // `resource_provider_` must be null.
+  void SetResourceProviderForCanvas2D(
+      std::unique_ptr<CanvasResourceProvider> resource_provider) {
+    CHECK(IsRenderingContext2D());
+    CHECK(!resource_provider_for_canvas2d_);
+    resource_provider_for_canvas2d_ = std::move(resource_provider);
+    UpdateMemoryUsage();
+  }
+
   FRIEND_TEST_ALL_PREFIXES(HTMLCanvasElementTest, BrokenCanvasHighRes);
+
+  std::unique_ptr<CanvasResourceProvider> resource_provider_for_canvas2d_;
+  // `did_fail_to_create_resource_provider_` prevents repeated attempts in
+  // allocating resources after the first attempt failed.
+  bool did_fail_to_create_resource_provider_ = false;
 
   HeapHashSet<WeakMember<CanvasDrawListener>> listeners_;
 

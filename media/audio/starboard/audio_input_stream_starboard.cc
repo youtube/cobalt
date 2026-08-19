@@ -19,6 +19,7 @@
 #include "base/notreached.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_manager_base.h"
+#include "media/base/audio_sample_types.h"
 
 namespace media {
 

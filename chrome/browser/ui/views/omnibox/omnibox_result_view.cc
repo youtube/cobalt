@@ -174,6 +174,7 @@ OmniboxResultView::OmniboxResultView(OmniboxPopupViewViews* popup_view,
   //   selection_indicator_
   //   local_answer_header_and_suggestion_and_buttons_ (BoxLayout vertical)
   //     local_answer_header_ (added lazily)
+  //     divider_line_
   //     suggestion_and_buttons (FlexLayout horizontal)
   //       suggestion_and_button_row (FlexLayout horizontal)
   //         suggestion_view_
@@ -203,11 +204,7 @@ OmniboxResultView::OmniboxResultView(OmniboxPopupViewViews* popup_view,
   divider_line_ = local_answer_header_and_suggestion_and_buttons_->AddChildView(
       std::make_unique<views::Separator>());
   divider_line_->SetOrientation(views::Separator::Orientation::kHorizontal);
-  // TODO(crbug.com/423729255): The mocks extend to the edge but without
-  //  any adjustment, the right edge only doesn't extend all the way.
-  //  This just pushes the left edge so it doesn't look asymmetrical.
-  divider_line_->SetProperty(views::kMarginsKey,
-                             gfx::Insets::TLBR(0, 16, 8, 0));
+  divider_line_->SetProperty(views::kMarginsKey, gfx::Insets::TLBR(8, 0, 2, 0));
 
   auto* suggestion_and_buttons =
       local_answer_header_and_suggestion_and_buttons_->AddChildView(
@@ -377,7 +374,7 @@ void OmniboxResultView::SetMatch(const AutocompleteMatch& match) {
   UpdateDividerLineVisibility();
   UpdateFeedbackButtonsVisibility();
   UpdateRemoveSuggestionVisibility();
-  if (match_.IsIPHSuggestion()) {
+  if (match_.IsIphSuggestion()) {
     remove_suggestion_button_->SetTooltipText(
         l10n_util::GetStringUTF16(IDS_OMNIBOX_CLOSE_IPH_SUGGESTION));
     remove_suggestion_button_->GetViewAccessibility().SetName(
@@ -483,7 +480,7 @@ void OmniboxResultView::ApplyThemeAndRefreshIcons(bool force_reapply_styles) {
       GetNativeTheme() && GetNativeTheme()->UserHasContrastPreference();
   if (match_.type == AutocompleteMatchType::NULL_RESULT_MESSAGE) {
     suggestion_view_->content()->ApplyTextColor(
-        match_.IsIPHSuggestion() ? kColorOmniboxResultsTextDimmed
+        match_.IsIphSuggestion() ? kColorOmniboxResultsTextDimmed
                                  : kColorOmniboxText);
   } else if (prefers_contrast || force_reapply_styles) {
     // Normally, OmniboxTextView caches its appearance, but in high contrast,
@@ -571,7 +568,10 @@ OmniboxPartState OmniboxResultView::GetThemeState() const {
   // message. The selected and hovered states imply an action can be taken from
   // that suggestion, so do not allow those states for this result.
   if (match_.type == AutocompleteMatchType::NULL_RESULT_MESSAGE) {
-    return match_.IsIPHSuggestion() ? OmniboxPartState::IPH
+    if (match_.IsToolbelt()) {
+      return OmniboxPartState::TOOLBELT;
+    }
+    return match_.IsIphSuggestion() ? OmniboxPartState::IPH
                                     : OmniboxPartState::NORMAL;
   }
 

@@ -13,21 +13,30 @@
 
 #include <jni.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <memory>
 #include <optional>
-#include <string>
 #include <vector>
 
+#include "api/array_view.h"
+#include "api/video/encoded_image.h"
+#include "api/video/video_bitrate_allocation.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_frame_type.h"
+#include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
 #include "common_video/h264/h264_bitstream_parser.h"
-#ifdef RTC_ENABLE_H265
-#include "common_video/h265/h265_bitstream_parser.h"
-#endif
 #include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
 #include "modules/video_coding/svc/scalable_video_controller_no_layering.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "rtc_base/thread_annotations.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
+
+#ifdef RTC_ENABLE_H265
+#include "common_video/h265/h265_bitstream_parser.h"
+#endif
 
 namespace webrtc {
 namespace jni {

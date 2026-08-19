@@ -61,6 +61,15 @@ void AutofillFormFeaturesJavaScriptFeature::SetAutofillAcrossIframesThrottling(
       base::Value::List().Append(enabled));
 }
 
+void AutofillFormFeaturesJavaScriptFeature::SetAutofillIgnoreCheckableElements(
+    web::WebFrame* frame,
+    bool enabled) {
+  CHECK(frame);
+  frame->CallJavaScriptFunction(
+      "autofill_form_features.setAutofillIgnoreCheckableElements",
+      base::Value::List().Append(enabled));
+}
+
 void AutofillFormFeaturesJavaScriptFeature::SetAutofillIsolatedContentWorld(
     web::WebFrame* frame,
     bool enabled) {
@@ -102,6 +111,14 @@ void AutofillFormFeaturesJavaScriptFeature::
     SetAutofillReportFormSubmissionErrors(web::WebFrame* frame, bool enabled) {
   frame->CallJavaScriptFunction(
       "autofill_form_features.setAutofillReportFormSubmissionErrors",
+      base::Value::List().Append(enabled));
+}
+
+void AutofillFormFeaturesJavaScriptFeature::
+    SetAutofillCountFormSubmissionInRenderer(web::WebFrame* frame,
+                                             bool enabled) {
+  frame->CallJavaScriptFunction(
+      "autofill_form_features.setAutofillCountFormSubmissionInRenderer",
       base::Value::List().Append(enabled));
 }
 

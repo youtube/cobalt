@@ -35,6 +35,8 @@
 
 namespace blink {
 
+class MediaQueryEvaluator;
+class StyleEngine;
 class StyleSheet;
 class StyleSheetCollection;
 class RuleSetDiff;
@@ -51,9 +53,15 @@ class DocumentStyleSheetCollector {
   DocumentStyleSheetCollector(StyleSheetCollection*,
                               HeapVector<Member<StyleSheet>>*);
 
-  void AppendActiveStyleSheet(const ActiveStyleSheet&);
+  // NOTE: You will need to call FinishCollectingStylesheets()
+  // after this.
+  void AppendActiveStyleSheet(CSSStyleSheet*);
   void AppendSheetForList(StyleSheet*);
   void AppendRuleSetDiff(RuleSetDiff*);
+
+  // Can only be called once.
+  void FinishCollectingStylesheets(StyleEngine& engine,
+                                   const MediaQueryEvaluator& medium);
 
  private:
   StyleSheetCollection* collection_;
@@ -63,7 +71,7 @@ class DocumentStyleSheetCollector {
 class ActiveDocumentStyleSheetCollector final
     : public DocumentStyleSheetCollector {
  public:
-  ActiveDocumentStyleSheetCollector(StyleSheetCollection&);
+  explicit ActiveDocumentStyleSheetCollector(StyleSheetCollection&);
 };
 
 class ImportedDocumentStyleSheetCollector final

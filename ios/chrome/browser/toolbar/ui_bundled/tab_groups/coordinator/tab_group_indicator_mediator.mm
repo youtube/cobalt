@@ -19,10 +19,8 @@
 #import "ios/chrome/browser/data_sharing/model/data_sharing_service_observer_bridge.h"
 #import "ios/chrome/browser/saved_tab_groups/model/ios_tab_group_sync_util.h"
 #import "ios/chrome/browser/saved_tab_groups/ui/tab_group_utils.h"
-#import "ios/chrome/browser/share_kit/model/share_kit_face_pile_configuration.h"
 #import "ios/chrome/browser/share_kit/model/share_kit_manage_configuration.h"
 #import "ios/chrome/browser/share_kit/model/share_kit_service.h"
-#import "ios/chrome/browser/share_kit/model/share_kit_share_group_configuration.h"
 #import "ios/chrome/browser/share_kit/model/sharing_state.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/model/web_state_list/tab_group.h"
@@ -47,11 +45,6 @@ using ScopedDataSharingSyncObservation =
     base::ScopedObservation<data_sharing::DataSharingService,
                             data_sharing::DataSharingService::Observer>;
 using tab_groups::SharingState;
-
-namespace {
-// The preferred size in points for the avatar icons.
-constexpr CGFloat kFacePileAvatarSize = 20;
-}  // namespace
 
 @interface TabGroupIndicatorMediator () <DataSharingServiceObserverDelegate,
                                          TabGroupSyncServiceObserverDelegate,
@@ -414,17 +407,12 @@ constexpr CGFloat kFacePileAvatarSize = 20;
 
   // Prevent the face pile from being set up for tab groups that are not shared.
   if (!isShared) {
-    [_consumer setFacePileView:nil];
+    [_consumer setFacePileProvider:nil];
   }
 
-  // Configure the face pile.
-  ShareKitFacePileConfiguration* config =
-      [[ShareKitFacePileConfiguration alloc] init];
-  config.collabID = base::SysUTF8ToNSString(savedCollabID.value());
-  config.showsEmptyState = NO;
-  config.avatarSize = kFacePileAvatarSize;
-
-  [_consumer setFacePileView:_shareKitService->FacePileView(config)];
+  [_consumer
+      setFacePileProvider:[_delegate facePileProviderForGroupID:savedCollabID
+                                                                    .value()]];
 }
 
 // Closes all tabs in `tabGroup`. If `deleteGroup` is false, the group is closed

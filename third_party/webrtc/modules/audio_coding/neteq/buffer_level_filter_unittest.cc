@@ -12,7 +12,7 @@
 
 #include "modules/audio_coding/neteq/buffer_level_filter.h"
 
-#include <math.h>  // Access to pow function.
+#include <cmath>  // Access to pow function.
 
 #include "rtc_base/strings/string_builder.h"
 #include "test/gtest.h"

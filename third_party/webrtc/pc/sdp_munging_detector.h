@@ -11,6 +11,7 @@
 #ifndef PC_SDP_MUNGING_DETECTOR_H_
 #define PC_SDP_MUNGING_DETECTOR_H_
 
+#include "api/field_trials_view.h"
 #include "api/jsep.h"
 #include "api/uma_metrics.h"
 
@@ -23,6 +24,11 @@ SdpMungingType DetermineSdpMungingType(
 // Determines if the ICE ufrag or pwd of the SDP were modified.
 bool HasUfragSdpMunging(const SessionDescriptionInterface* sdesc,
                         const SessionDescriptionInterface* last_created_desc);
+
+// Determines if SDP munging is allowed. This is determined based on the field
+// trials WebRTC-NoSdpMangle and WebRTC-NoSdpMangleForTesting.
+bool IsSdpMungingAllowed(SdpMungingType sdp_munging_type,
+                         const FieldTrialsView& trials);
 
 }  // namespace webrtc
 

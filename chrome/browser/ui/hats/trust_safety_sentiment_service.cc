@@ -15,7 +15,6 @@
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/hats/survey_config.h"
-#include "chrome/browser/ui/safety_hub/card_data_helper.h"
 #include "chrome/browser/ui/safety_hub/menu_notification_service_factory.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_constants.h"
 #include "chrome/browser/ui/webui/settings/site_settings_helper.h"
@@ -232,16 +231,17 @@ TrustSafetySentimentService::TrustSafetySentimentService(Profile* profile)
   }
 
   if (base::FeatureList::IsEnabled(features::kTrustSafetySentimentSurveyV2)) {
-    metrics::DesktopSessionDurationTracker::Get()->AddObserver(this);
+    if (metrics::DesktopSessionDurationTracker::IsInitialized()) {
+      session_duration_observation_.Observe(
+          metrics::DesktopSessionDurationTracker::Get());
+    } else {
+      CHECK_IS_TEST();
+    }
     performed_control_group_dice_roll_ = false;
   }
 }
 
-TrustSafetySentimentService::~TrustSafetySentimentService() {
-  if (base::FeatureList::IsEnabled(features::kTrustSafetySentimentSurveyV2)) {
-    metrics::DesktopSessionDurationTracker::Get()->RemoveObserver(this);
-  }
-}
+TrustSafetySentimentService::~TrustSafetySentimentService() = default;
 
 void TrustSafetySentimentService::OpenedNewTabPage() {
   // Explicit early exit for the common path, where the user has not performed

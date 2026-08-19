@@ -176,6 +176,18 @@ Color ResolveQuirkOrLinkOrFocusRingColor(
   }
 }
 
+ScopedCSSNameList* ConvertNoneOrCustomIdentList(StyleResolverState& state,
+                                                const CSSValue& value) {
+  DCHECK(value.IsScopedValue());
+  DCHECK(value.IsBaseValueList());
+  HeapVector<Member<const ScopedCSSName>> names;
+  for (const Member<const CSSValue>& item : To<CSSValueList>(value)) {
+    names.push_back(
+        StyleBuilderConverter::ConvertNoneOrCustomIdent(state, *item));
+  }
+  return MakeGarbageCollected<ScopedCSSNameList>(std::move(names));
+}
+
 }  // namespace
 
 StyleReflection* StyleBuilderConverter::ConvertBoxReflect(
@@ -1566,14 +1578,14 @@ static void ConvertGridLineNamesList(
   }
 }
 
-NGGridTrackList StyleBuilderConverter::ConvertGridTrackSizeList(
+GridTrackList StyleBuilderConverter::ConvertGridTrackSizeList(
     StyleResolverState& state,
     const CSSValue& value) {
   const CSSValueList* list = DynamicTo<CSSValueList>(value);
   if (!list) {
     const auto& ident = To<CSSIdentifierValue>(value);
     DCHECK_EQ(ident.GetValueID(), CSSValueID::kAuto);
-    return NGGridTrackList(GridTrackSize(Length::Auto()));
+    return GridTrackList(GridTrackSize(Length::Auto()));
   }
 
   Vector<GridTrackSize, 1> track_sizes;
@@ -1583,7 +1595,7 @@ NGGridTrackList StyleBuilderConverter::ConvertGridTrackSizeList(
     track_sizes.push_back(ConvertGridTrackSize(state, *curr_value));
   }
 
-  NGGridTrackList track_list;
+  GridTrackList track_list;
   track_list.AddRepeater(track_sizes);
   return track_list;
 }
@@ -1597,7 +1609,7 @@ void StyleBuilderConverter::ConvertGridTrackList(
     return;
   }
 
-  NGGridTrackList& track_list = computed_grid_track_list.track_list;
+  GridTrackList& track_list = computed_grid_track_list.track_list;
 
   wtf_size_t current_named_grid_line = 0;
   auto ConvertLineNameOrTrackSize =
@@ -1665,7 +1677,7 @@ void StyleBuilderConverter::ConvertGridTrackList(
       }
       // `repeat_count` is always 1 for auto-repeaters.
       track_list.AddRepeater(repeated_track_sizes,
-                             static_cast<NGGridTrackRepeater::RepeatType>(
+                             static_cast<GridTrackRepeater::RepeatType>(
                                  computed_grid_track_list.auto_repeat_type),
                              /*repeat_count=*/1u, auto_repeat_index);
       computed_grid_track_list.auto_repeat_insertion_point =
@@ -1714,7 +1726,7 @@ void StyleBuilderConverter::ConvertGridTrackList(
       const wtf_size_t repeat_number_of_lines =
           is_subgrid ? line_name_indices_count : 1u;
       track_list.AddRepeater(repeater_track_sizes,
-                             NGGridTrackRepeater::RepeatType::kInteger,
+                             GridTrackRepeater::RepeatType::kInteger,
                              repetitions, repeat_number_of_lines);
       continue;
     }
@@ -2484,7 +2496,7 @@ ShadowData StyleBuilderConverter::ConvertShadow(
       black_text_link_colors.SetActiveLinkColor(Color::kBlack);
 
       const ResolveColorValueContext context{
-          .length_resolver = conversion_data,
+          .conversion_data = conversion_data,
           .text_link_colors = black_text_link_colors};
       color = ResolveColorValue(*shadow.color, context);
       if (!color.IsAbsoluteColor()) {
@@ -2689,7 +2701,7 @@ StyleColor ResolveColorValueImpl(const CSSValue& value,
     // TODO(crbug.com/40238188): Not sure what is appropriate to return when
     // both mix amounts are zero.
     color_mix_value->NormalizePercentages(mix_amount, alpha_multiplier,
-                                          context.length_resolver);
+                                          context.conversion_data);
     const StyleColor::UnresolvedColorMix* unresolved_color_mix =
         MakeGarbageCollected<StyleColor::UnresolvedColorMix>(
             color_mix_value->ColorInterpolationSpace(),
@@ -2715,7 +2727,7 @@ StyleColor ResolveColorValueImpl(const CSSValue& value,
             origin_color, relative_color_value->ColorInterpolationSpace(),
             relative_color_value->Channel0(), relative_color_value->Channel1(),
             relative_color_value->Channel2(), relative_color_value->Alpha(),
-            context.length_resolver);
+            context.conversion_data);
     // https://drafts.csswg.org/css-color-5/#resolving-rcs
     // If the origin color is resolvable at computed-value time, the relative
     // color function should be resolved at computed-value time as well.
@@ -2729,7 +2741,7 @@ StyleColor ResolveColorValueImpl(const CSSValue& value,
 
   if (auto* unresolved_color_value =
           DynamicTo<cssvalue::CSSUnresolvedColorValue>(value)) {
-    return StyleColor(unresolved_color_value->Resolve(context.length_resolver));
+    return StyleColor(unresolved_color_value->Resolve(context.conversion_data));
   }
 
   auto& light_dark_pair = To<CSSLightDarkValuePair>(value);
@@ -2786,7 +2798,7 @@ StyleColor StyleBuilderConverter::ConvertStyleColor(StyleResolverState& state,
       state.StyleBuilder().UsedColorScheme();
   auto& document = state.GetDocument();
   const ResolveColorValueContext context{
-      .length_resolver = state.CssToLengthConversionData(),
+      .conversion_data = state.CssToLengthConversionData(),
       .text_link_colors = document.GetTextLinkColors(),
       .used_color_scheme = color_scheme,
       .color_provider = document.GetColorProviderForPainting(color_scheme),
@@ -3208,12 +3220,12 @@ BasicShape* StyleBuilderConverter::ConvertObjectViewBox(
 }
 
 static const CSSValue& ComputeColorValue(
-    const CSSLengthResolver& length_resolver,
+    const CSSToLengthConversionData& conversion_data,
     const CSSValue& color_value,
     const Document& document,
     mojom::blink::ColorScheme color_scheme) {
   const ResolveColorValueContext context{
-      .length_resolver = length_resolver,
+      .conversion_data = conversion_data,
       .text_link_colors = document.GetTextLinkColors(),
       .used_color_scheme = color_scheme,
       .color_provider = document.GetColorProviderForPainting(color_scheme),
@@ -3721,13 +3733,7 @@ Vector<TimelineInset> StyleBuilderConverter::ConvertViewTimelineInset(
 ScopedCSSNameList* StyleBuilderConverter::ConvertViewTimelineName(
     StyleResolverState& state,
     const CSSValue& value) {
-  DCHECK(value.IsScopedValue());
-  DCHECK(value.IsBaseValueList());
-  HeapVector<Member<const ScopedCSSName>> names;
-  for (const Member<const CSSValue>& item : To<CSSValueList>(value)) {
-    names.push_back(ConvertNoneOrCustomIdent(state, *item));
-  }
-  return MakeGarbageCollected<ScopedCSSNameList>(std::move(names));
+  return ConvertNoneOrCustomIdentList(state, value);
 }
 
 ScopedCSSNameList* StyleBuilderConverter::ConvertTimelineScope(
@@ -4022,6 +4028,12 @@ FitText StyleBuilderConverter::ConvertFitText(StyleResolverState& state,
         To<CSSPrimitiveValue>(list.Item(next_index)), parent_size));
   }
   return FitText(target, method, size_limit);
+}
+
+ScopedCSSNameList* StyleBuilderConverter::ConvertTimelineTriggerName(
+    StyleResolverState& state,
+    const CSSValue& value) {
+  return ConvertNoneOrCustomIdentList(state, value);
 }
 
 }  // namespace blink

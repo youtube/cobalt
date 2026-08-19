@@ -210,18 +210,11 @@ class MockCompositorFrameSink : public viz::mojom::CompositorFrameSink {
       viz::CompositorFrame frame,
       std::optional<viz::HitTestRegionList> hit_test_region_list,
       uint64_t) override {}
-  void SubmitCompositorFrameSync(
-      const viz::LocalSurfaceId&,
-      viz::CompositorFrame frame,
-      std::optional<viz::HitTestRegionList> hit_test_region_list,
-      uint64_t,
-      SubmitCompositorFrameSyncCallback cb) override {
-    std::move(cb).Run(std::vector<viz::ReturnedResource>());
-  }
   MOCK_METHOD1(DidNotProduceFrame, void(const viz::BeginFrameAck&));
   MOCK_METHOD1(SetPreferredFrameInterval, void(base::TimeDelta));
   MOCK_METHOD2(BindLayerContext,
-               void(viz::mojom::PendingLayerContextPtr, bool));
+               void(viz::mojom::PendingLayerContextPtr,
+                    viz::mojom::LayerContextSettingsPtr));
   MOCK_METHOD1(SetThreads, void(const std::vector<viz::Thread>&));
   MOCK_METHOD0(NotifyNewLocalSurfaceIdExpectedWhilePaused, void(void));
 

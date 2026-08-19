@@ -53,15 +53,5 @@ StreamParams CreatePrimaryWithFecFrStreamParams(const std::string& cname,
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::CreatePrimaryWithFecFrStreamParams;
-using ::webrtc::CreateSimStreamParams;
-using ::webrtc::CreateSimWithRtxStreamParams;
-using ::webrtc::MakeVector;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // MEDIA_BASE_TEST_UTILS_H_

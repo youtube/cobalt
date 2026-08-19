@@ -16,6 +16,7 @@
 #import "ios/chrome/browser/authentication/ui_bundled/views/identity_button_control.h"
 #import "ios/chrome/browser/authentication/ui_bundled/views/identity_view.h"
 #import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
+#import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/button_util.h"
@@ -118,33 +119,47 @@ UIFont* GetNavigationBarTitleFont() {
 
 - (void)viewDidLoad {
   [super viewDidLoad];
-  // Set the navigation title in the left bar button item to have left
-  // alignment.
-  UILabel* titleLabel = [[UILabel alloc] init];
-  titleLabel.adjustsFontForContentSizeCategory = YES;
-  titleLabel.font = GetNavigationBarTitleFont();
-  titleLabel.text =
-      l10n_util::GetNSString(IDS_IOS_CONSISTENCY_PROMO_DEFAULT_ACCOUNT_TITLE);
-  titleLabel.textAlignment = NSTextAlignmentLeft;
-  titleLabel.adjustsFontSizeToFitWidth = YES;
-  titleLabel.minimumScaleFactor = 0.1;
-  titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+  if (@available(iOS 26, *)) {
+    self.navigationItem.title =
+        l10n_util::GetNSString(IDS_IOS_CONSISTENCY_PROMO_DEFAULT_ACCOUNT_TITLE);
+  } else {
+    // Set the navigation title in the left bar button item to have left
+    // alignment.
+    UILabel* titleLabel = [[UILabel alloc] init];
+    titleLabel.adjustsFontForContentSizeCategory = YES;
+    titleLabel.font = GetNavigationBarTitleFont();
+    titleLabel.text =
+        l10n_util::GetNSString(IDS_IOS_CONSISTENCY_PROMO_DEFAULT_ACCOUNT_TITLE);
+    titleLabel.textAlignment = NSTextAlignmentLeft;
+    titleLabel.adjustsFontSizeToFitWidth = YES;
+    titleLabel.minimumScaleFactor = 0.1;
+    titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
 
-  // Add the title label to the navigation bar.
-  UIBarButtonItem* leftItem =
-      [[UIBarButtonItem alloc] initWithCustomView:titleLabel];
-  self.navigationItem.leftBarButtonItem = leftItem;
+    // Add the title label to the navigation bar.
+    UIBarButtonItem* leftItem =
+        [[UIBarButtonItem alloc] initWithCustomView:titleLabel];
+    self.navigationItem.leftBarButtonItem = leftItem;
+  }
   self.navigationController.navigationBar.minimumContentSizeCategory =
       UIContentSizeCategoryLarge;
   self.navigationController.navigationBar.maximumContentSizeCategory =
       UIContentSizeCategoryExtraExtraLarge;
   // Create the skip button.
   CHECK(self.skipButtonText);
-  UIBarButtonItem* rightItem =
-      [[UIBarButtonItem alloc] initWithTitle:self.skipButtonText
-                                       style:UIBarButtonItemStylePlain
-                                      target:self
-                                      action:@selector(skipButtonAction:)];
+  UIBarButtonItem* rightItem;
+  if (@available(iOS 26, *)) {
+    rightItem =
+        [[UIBarButtonItem alloc] initWithImage:DefaultCloseButtonForToolbar()
+                                         style:UIBarButtonItemStylePlain
+                                        target:self
+                                        action:@selector(skipButtonAction:)];
+  } else {
+    rightItem =
+        [[UIBarButtonItem alloc] initWithTitle:self.skipButtonText
+                                         style:UIBarButtonItemStylePlain
+                                        target:self
+                                        action:@selector(skipButtonAction:)];
+  }
   rightItem.accessibilityIdentifier =
       kWebSigninSkipButtonAccessibilityIdentifier;
   self.navigationItem.rightBarButtonItem = rightItem;

@@ -1280,8 +1280,16 @@ LayoutBlockFlow* LayoutObject::FragmentItemsContainer() const {
 
 LayoutBox* LayoutObject::ContainingNGBox() const {
   NOT_DESTROYED();
-  if (Parent() && Parent()->IsMedia()) {
-    return To<LayoutBox>(Parent());
+  if (auto* parent = Parent()) {
+    // Media and Canvas elements may have children that participate
+    // in layout with fragments that need invalidation after subtree layout.
+    if (parent->IsMedia()) {
+      return To<LayoutBox>(parent);
+    }
+    if (parent->IsCanvas() &&
+        RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
+      return To<LayoutBox>(parent);
+    }
   }
   LayoutBlock* containing_block = ContainingBlock();
   if (!containing_block)
@@ -2817,8 +2825,7 @@ void LayoutObject::SetStyle(const ComputedStyle* style,
     // We don't do anything regarding ::selection, as ::selection
     // uses its own mechanism for this (see
     // LayoutObject::InvalidateSelectionOnStyleChange()).
-    if (RuntimeEnabledFeatures::SearchTextHighlightPseudoEnabled() &&
-        UsesHighlightPseudoInheritance(kPseudoIdSearchText)) {
+    if (RuntimeEnabledFeatures::SearchTextHighlightPseudoEnabled()) {
       HighlightPseudoUpdateDiff(kPseudoIdSearchText,
                                 style_->HighlightData().SearchTextCurrent(),
                                 style->HighlightData().SearchTextCurrent());
@@ -2826,21 +2833,15 @@ void LayoutObject::SetStyle(const ComputedStyle* style,
                                 style_->HighlightData().SearchTextNotCurrent(),
                                 style->HighlightData().SearchTextNotCurrent());
     }
-    if (UsesHighlightPseudoInheritance(kPseudoIdTargetText)) {
-      HighlightPseudoUpdateDiff(kPseudoIdTargetText,
-                                style_->HighlightData().TargetText(),
-                                style->HighlightData().TargetText());
-    }
-    if (UsesHighlightPseudoInheritance(kPseudoIdSpellingError)) {
-      HighlightPseudoUpdateDiff(kPseudoIdSpellingError,
-                                style_->HighlightData().SpellingError(),
-                                style->HighlightData().SpellingError());
-    }
-    if (UsesHighlightPseudoInheritance(kPseudoIdGrammarError)) {
-      HighlightPseudoUpdateDiff(kPseudoIdGrammarError,
-                                style_->HighlightData().GrammarError(),
-                                style->HighlightData().GrammarError());
-    }
+    HighlightPseudoUpdateDiff(kPseudoIdTargetText,
+                              style_->HighlightData().TargetText(),
+                              style->HighlightData().TargetText());
+    HighlightPseudoUpdateDiff(kPseudoIdSpellingError,
+                              style_->HighlightData().SpellingError(),
+                              style->HighlightData().SpellingError());
+    HighlightPseudoUpdateDiff(kPseudoIdGrammarError,
+                              style_->HighlightData().GrammarError(),
+                              style->HighlightData().GrammarError());
   }
 
   diff = AdjustStyleDifference(diff);
@@ -4149,9 +4150,8 @@ void LayoutObject::DestroyAndCleanupAnonymousWrappers(
 
 void LayoutObject::Destroy() {
   NOT_DESTROYED();
-  DCHECK(
-      g_allow_destroying_layout_object_in_finalizer ||
-      !ThreadState::IsSweepingOnOwningThread(*ThreadStateStorage::Current()));
+  DCHECK(g_allow_destroying_layout_object_in_finalizer ||
+         !ThreadState::Current()->IsSweepingOnOwningThread());
 
   // Mark as being destroyed to avoid trouble with merges in |RemoveChild()| and
   // other house keepings.
@@ -4380,14 +4380,6 @@ const ComputedStyle* LayoutObject::GetUncachedPseudoElementStyle(
     return nullptr;
 
   return element->UncachedStyleForPseudoElement(request);
-}
-
-const ComputedStyle* LayoutObject::GetSelectionStyle() const {
-  NOT_DESTROYED();
-  if (UsesHighlightPseudoInheritance(kPseudoIdSelection)) {
-    return StyleRef().HighlightData().Selection();
-  }
-  return GetCachedPseudoElementStyle(kPseudoIdSelection);
 }
 
 void LayoutObject::AddDraggableRegions(Vector<DraggableRegionValue>& regions) {
@@ -4746,7 +4738,7 @@ void LayoutObject::SetShouldInvalidateSelection() {
   // Invalidate overflow for ::selection styles that contain overflowing
   // effects.
   if (IsText()) {
-    if (auto* computed_style = GetSelectionStyle()) {
+    if (auto* computed_style = StyleRef().HighlightData().Selection()) {
       if (computed_style->HasAppliedTextDecorations() ||
           computed_style->HasVisualOverflowingEffect()) {
         InvalidateVisualOverflow();
@@ -5370,7 +5362,7 @@ void ShowLayoutTree(const blink::LayoutObject* object1,
     while (root->Parent())
       root = root->Parent();
     if (object1) {
-      StringBuilder string_builder;
+      blink::StringBuilder string_builder;
       root->DumpLayoutTreeAndMark(string_builder, object1, "*", object2, "-",
                                   0);
       DLOG(INFO) << "\n" << string_builder.ToString().Utf8();

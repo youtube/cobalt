@@ -62,13 +62,6 @@ class RTC_SCOPED_LOCKABLE RaceCheckerScopeDoNothing {
 }  // namespace internal
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::RaceChecker;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #define RTC_CHECK_RUNS_SERIALIZED(x) RTC_CHECK_RUNS_SERIALIZED_NEXT(x, __LINE__)
 

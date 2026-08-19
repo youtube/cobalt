@@ -8,6 +8,7 @@ import static org.chromium.content.browser.accessibility.AccessibilityContentShe
 import static org.chromium.content.browser.accessibility.AccessibilityContentShellTestUtils.END_OF_TEST_ERROR;
 import static org.chromium.content.browser.accessibility.AccessibilityContentShellTestUtils.NODE_TIMEOUT_ERROR;
 import static org.chromium.content.browser.accessibility.AccessibilityContentShellTestUtils.READY_FOR_TEST_ERROR;
+import static org.chromium.content.browser.accessibility.AccessibilityContentShellTestUtils.sClassNameMatcher;
 import static org.chromium.content.browser.accessibility.AccessibilityContentShellTestUtils.sContentShellDelegate;
 import static org.chromium.ui.accessibility.AccessibilityState.EVENT_TYPE_MASK_ALL;
 import static org.chromium.ui.accessibility.AccessibilityState.StateIdentifierForTesting.EVENT_TYPE_MASK;
@@ -17,7 +18,6 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.accessibility.AccessibilityNodeInfo;
 
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.core.view.accessibility.AccessibilityNodeProviderCompat;
@@ -36,8 +36,6 @@ import org.chromium.ui.accessibility.AccessibilityState;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
@@ -216,28 +214,17 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
     }
 
     /**
-     * Helper method to call AccessibilityNodeInfo.getChildId and convert to a virtual
-     * view ID using reflection, since the needed methods are hidden.
+     * Helper method to get the virtual view ID of a child node at a given index.
+     *
+     * @param nodeId The virtual view ID of the parent node whose child is being requested.
+     * @param index The index of the child to retrieve from the parent's list of children.
+     * @return The virtual view ID of the child at the specified index.
      */
-    protected int getChildId(AccessibilityNodeInfoCompat node, int index) {
-        try {
-            // The methods found through reflection are only available in |AccessibilityNodeInfo|,
-            // so we will unwrap |node| to perform the calls.
-            AccessibilityNodeInfo nodeInfo = (AccessibilityNodeInfo) node.getInfo();
-            // mChildNodeIds contains the IDs of all the children but is private so we need to use
-            // setAccessible to access it.
-            Field childNodeIdsField = nodeInfo.getClass().getDeclaredField("mChildNodeIds");
-            childNodeIdsField.setAccessible(true);
-            // Get the ID of the child at the correct index.
-            Object childNodeIds = childNodeIdsField.get(nodeInfo);
-            Method get = childNodeIds.getClass().getMethod("get", int.class);
-            Long childId = (Long) get.invoke(childNodeIds, index);
-            // The virtual view ID is stored in the left half of the source node ID.
-            return (int) (childId.longValue() >> 32);
-        } catch (Exception ex) {
-            Assert.fail("Unable to get AccessibilityNodeInfoCompat child ID: " + ex.toString());
-            return 0;
-        }
+    protected int getChildId(int nodeId, int index) {
+        int[] childIds = mWcax.getChildIdsForTesting(nodeId);
+        Assert.assertNotNull("Unable to find the parent node with ID: " + nodeId, childIds);
+        Assert.assertTrue(index < childIds.length);
+        return childIds[index];
     }
 
     /**
@@ -251,11 +238,10 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
             T element) {
         AccessibilityNodeInfoCompat node = mNodeProvider.createAccessibilityNodeInfo(virtualViewId);
         Assert.assertNotEquals(node, null);
-
         if (matcher.matches(node, element)) return virtualViewId;
 
         for (int i = 0; i < node.getChildCount(); i++) {
-            int childId = getChildId(node, i);
+            int childId = getChildId(virtualViewId, i);
             AccessibilityNodeInfoCompat child = mNodeProvider.createAccessibilityNodeInfo(childId);
             if (child != null) {
                 int result = findNodeMatching(childId, matcher, element);
@@ -395,10 +381,90 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
     }
 
     /**
+     * {@return the WebView's full AccessibilityNodeInfo tree as a String, excluding screen size
+     * dependent attributes}
+     */
+    public String generateAccessibilityNodeInfoTree() {
+        return generateAccessibilityNodeInfoTree(false);
+    }
+
+    /**
+     * {@return the WebView's full AccessibilityNodeInfo tree as a String}
+     *
+     * @param includeScreenSizeDependentAttributes whether to include attributes that depend on
+     *     screen size (e.g. bounds).
+     */
+    public String generateAccessibilityNodeInfoTree(boolean includeScreenSizeDependentAttributes) {
+        StringBuilder builder = new StringBuilder();
+
+        // Find the root node and generate its string.
+        int rootNodevvId = waitForNodeMatching(sClassNameMatcher, "android.webkit.WebView");
+        AccessibilityNodeInfoCompat nodeInfo = createAccessibilityNodeInfoBlocking(rootNodevvId);
+        builder.append(
+                AccessibilityNodeInfoUtils.toString(
+                        nodeInfo, includeScreenSizeDependentAttributes));
+
+        // Recursively generate strings for all descendants.
+        for (int i = 0; i < nodeInfo.getChildCount(); ++i) {
+            int childId = getChildId(rootNodevvId, i);
+            AccessibilityNodeInfoCompat childNodeInfo =
+                    createAccessibilityNodeInfoBlocking(childId);
+            recursivelyFormatTree(
+                    childNodeInfo, childId, builder, "++", includeScreenSizeDependentAttributes);
+        }
+
+        return builder.toString();
+    }
+
+    /**
+     * Recursively add AccessibilityNodeInfo descendants to the given builder.
+     *
+     * @param node the node to print all descendants for
+     * @param nodeId the virtual id to the node to print all descendants for
+     * @param builder the builder to add generated Strings to
+     * @param indent the prefix to indent each generation with, e.g. "++"
+     * @param includeScreenSizeDependentAttributes whether to include attributes that depend on
+     *     screen size (e.g. bounds).
+     */
+    private void recursivelyFormatTree(
+            AccessibilityNodeInfoCompat node,
+            int nodeId,
+            StringBuilder builder,
+            String indent,
+            boolean includeScreenSizeDependentAttributes) {
+        builder.append("\n")
+                .append(indent)
+                .append(
+                        AccessibilityNodeInfoUtils.toString(
+                                node, includeScreenSizeDependentAttributes));
+        for (int j = 0; j < node.getChildCount(); ++j) {
+            int childId = getChildId(nodeId, j);
+            AccessibilityNodeInfoCompat childNodeInfo =
+                    createAccessibilityNodeInfoBlocking(childId);
+            recursivelyFormatTree(
+                    childNodeInfo,
+                    childId,
+                    builder,
+                    indent + "++",
+                    includeScreenSizeDependentAttributes);
+        }
+    }
+
+    /**
+     * {@return the AccessibilityNodeInfoCompat object for the given virtual view ID}
+     *
+     * @param virtualViewId the virtual view ID of the node to create.
+     */
+    private AccessibilityNodeInfoCompat createAccessibilityNodeInfoBlocking(int virtualViewId) {
+        return ThreadUtils.runOnUiThreadBlocking(
+                () -> mNodeProvider.createAccessibilityNodeInfo(virtualViewId));
+    }
+
+    /**
      * Read the contents of a file, and return as a String.
      *
-     * @param file                  File to read (including path and name)
-     * @return String               Contents of the given file.
+     * @param file relative file path to read (including path and name)
+     * @return contents of the given file.
      */
     protected String readExpectationFile(String file) {
         String directory = Environment.getExternalStorageDirectory().getPath() + BASE_DIRECTORY;

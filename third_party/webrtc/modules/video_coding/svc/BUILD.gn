@@ -156,7 +156,6 @@ if (rtc_include_tests) {
       "../../../api/video_codecs:video_codecs_api",
       "../../../rtc_base:checks",
       "../../../test:create_test_field_trials",
-      "../../../test:explicit_key_value_config",
       "../../../test:test_support",
       "../codecs/av1:av1_svc_config",
       "//third_party/abseil-cpp/absl/container:inlined_vector",

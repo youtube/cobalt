@@ -10,6 +10,7 @@
 #include "third_party/blink/renderer/core/css/parser/css_parser_token_stream.h"
 #include "third_party/blink/renderer/core/css/parser/css_selector_parser.h"
 #include "third_party/blink/renderer/core/css/properties/css_parsing_utils.h"
+#include "third_party/blink/renderer/core/css/style_rule.h"
 #include "third_party/blink/renderer/core/css_value_keywords.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
@@ -273,6 +274,9 @@ bool CSSSupportsParser::ConsumeAtRuleFn(CSSParserTokenStream& stream) {
     case CSSAtRuleID::kCSSAtRuleApplyMixin:
       rule_type = StyleRule::kApplyMixin;
       break;
+    case CSSAtRuleID::kCSSAtRuleContents:
+      rule_type = StyleRule::kContents;
+      break;
     case CSSAtRuleID::kCSSAtRulePositionTry:
       rule_type = StyleRule::kPositionTry;
       break;
@@ -310,6 +314,9 @@ bool CSSSupportsParser::ConsumeAtRuleFn(CSSParserTokenStream& stream) {
     case CSSAtRuleID::kCSSAtRuleRightMiddle:
     case CSSAtRuleID::kCSSAtRuleRightBottom:
       rule_type = StyleRule::kPageMargin;
+      break;
+    case CSSAtRuleID::kCSSAtRuleCustomMedia:
+      rule_type = StyleRule::kCustomMedia;
       break;
   };
 

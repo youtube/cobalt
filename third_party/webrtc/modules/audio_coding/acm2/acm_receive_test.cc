@@ -10,9 +10,8 @@
 
 #include "modules/audio_coding/acm2/acm_receive_test.h"
 
-#include <stdio.h>
-
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <ostream>
 #include <utility>

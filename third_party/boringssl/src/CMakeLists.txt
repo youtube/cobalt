@@ -43,7 +43,13 @@ include(GNUInstallDirs)
 
 set(INSTALL_ENABLED 1)
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_CROSSCOMPILING)
+if(CMAKE_VERSION VERSION_LESS 3.21 AND
+   CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  set(PROJECT_IS_TOP_LEVEL 1)
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_CROSSCOMPILING AND
+   BUILD_TESTING)
   find_package(PkgConfig QUIET)
   if (PkgConfig_FOUND)
     pkg_check_modules(LIBUNWIND libunwind-generic>=1.3.0)
@@ -110,10 +116,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   set(CLANG 1)
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-  set(EMSCRIPTEN 1)
-endif()
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 11)
@@ -129,7 +131,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
     # See http://llvm.org/viewvc/llvm-project?view=revision&revision=319116
     set(C_CXX_FLAGS "${C_CXX_FLAGS} -W3 -Wno-unused-parameter -fmsc-version=1900")
   else()
-    if(EMSCRIPTEN)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
       # emscripten's emcc/clang does not accept the "-ggdb" flag.
       set(C_CXX_FLAGS "${C_CXX_FLAGS} -g")
     else()
@@ -502,7 +504,7 @@ if(BUILD_TESTING)
 
   # Declare a dummy target to build all unit tests. Test targets should inject
   # themselves as dependencies next to the target definition.
-  add_custom_target(all_tests)
+  add_custom_target(boringssl_all_tests)
 
   add_subdirectory(ssl/test)
 endif()
@@ -690,24 +692,24 @@ if(BUILD_TESTING)
   # it does.
   add_executable(urandom_test ${URANDOM_TEST_SOURCES})
   target_link_libraries(urandom_test test_support_lib boringssl_gtest crypto)
-  add_dependencies(all_tests urandom_test)
+  add_dependencies(boringssl_all_tests urandom_test)
 
   add_executable(crypto_test ${CRYPTO_TEST_SOURCES})
   target_link_libraries(crypto_test test_support_lib boringssl_gtest crypto)
-  add_dependencies(all_tests crypto_test)
+  add_dependencies(boringssl_all_tests crypto_test)
 
   add_executable(ssl_test ${SSL_TEST_SOURCES})
   target_link_libraries(ssl_test test_support_lib boringssl_gtest ssl crypto)
-  add_dependencies(all_tests ssl_test)
+  add_dependencies(boringssl_all_tests ssl_test)
   add_executable(decrepit_test ${DECREPIT_TEST_SOURCES})
   target_link_libraries(decrepit_test test_support_lib boringssl_gtest
                         decrepit ssl crypto)
-  add_dependencies(all_tests decrepit_test)
+  add_dependencies(boringssl_all_tests decrepit_test)
 
   add_executable(pki_test ${PKI_TEST_SOURCES})
   target_link_libraries(pki_test test_support_lib boringssl_gtest pki crypto)
   target_compile_options(pki_test PRIVATE ${PKI_CXX_FLAGS})
-  add_dependencies(all_tests pki_test)
+  add_dependencies(boringssl_all_tests pki_test)
 
   add_executable(test_fips util/fipstools/test_fips.cc)
   target_link_libraries(test_fips crypto)
@@ -778,28 +780,33 @@ if(BUILD_TESTING)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
               util/go_tests.txt)
 
-  if(GO_EXECUTABLE)
-    add_custom_target(
-        run_tests
-        COMMAND ${CMAKE_COMMAND} -E echo "Running Go tests"
-        COMMAND ${GO_EXECUTABLE} test ${GO_TESTS}
-        COMMAND ${CMAKE_COMMAND} -E echo
-        COMMAND ${CMAKE_COMMAND} -E echo "Running unit tests"
-        COMMAND ${GO_EXECUTABLE} run util/all_tests.go -build-dir
-                ${CMAKE_CURRENT_BINARY_DIR}
-        COMMAND ${CMAKE_COMMAND} -E echo
-        COMMAND ${CMAKE_COMMAND} -E echo "Running SSL tests"
-        COMMAND cd ssl/test/runner &&
-                ${GO_EXECUTABLE} test -shim-path $<TARGET_FILE:bssl_shim>
-                  ${HANDSHAKER_ARGS} ${RUNNER_ARGS}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        DEPENDS all_tests bssl_shim handshaker fips_specific_tests_if_any
-        USES_TERMINAL)
-  else()
-    add_custom_target(
-        run_tests
-        COMMAND ${CMAKE_COMMAND} -E echo "Running tests requires Go"
-        COMMAND ${CMAKE_COMMAND} -E false)
+  # CMake target names can clash when projects are imported with
+  # add_subdirectory. Only emit the run_tests target if we're the top-level
+  # target. See https://crbug.com/428112180.
+  if(PROJECT_IS_TOP_LEVEL)
+    if(GO_EXECUTABLE)
+      add_custom_target(
+          run_tests
+          COMMAND ${CMAKE_COMMAND} -E echo "Running Go tests"
+          COMMAND ${GO_EXECUTABLE} test ${GO_TESTS}
+          COMMAND ${CMAKE_COMMAND} -E echo
+          COMMAND ${CMAKE_COMMAND} -E echo "Running unit tests"
+          COMMAND ${GO_EXECUTABLE} run util/all_tests.go -build-dir
+                  ${CMAKE_CURRENT_BINARY_DIR}
+          COMMAND ${CMAKE_COMMAND} -E echo
+          COMMAND ${CMAKE_COMMAND} -E echo "Running SSL tests"
+          COMMAND cd ssl/test/runner &&
+                  ${GO_EXECUTABLE} test -shim-path $<TARGET_FILE:bssl_shim>
+                    ${HANDSHAKER_ARGS} ${RUNNER_ARGS}
+          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+          DEPENDS boringssl_all_tests bssl_shim handshaker fips_specific_tests_if_any
+          USES_TERMINAL)
+    else()
+      add_custom_target(
+          run_tests
+          COMMAND ${CMAKE_COMMAND} -E echo "Running tests requires Go"
+          COMMAND ${CMAKE_COMMAND} -E false)
+    endif()
   endif()
 endif()
 

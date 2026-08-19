@@ -2367,11 +2367,6 @@ type Credential struct {
 	// SignatureAlgorithms, if not nil, overrides the default set of
 	// supported signature algorithms to sign with.
 	SignatureAlgorithms []signatureAlgorithm
-	// Leaf is the parsed form of the leaf certificate, which may be
-	// initialized using x509.ParseCertificate to reduce per-handshake
-	// processing for TLS clients doing client authentication. If nil, the
-	// leaf certificate will be parsed as needed.
-	Leaf *x509.Certificate
 	// DelegatedCredential is the delegated credential to use
 	// with the certificate.
 	DelegatedCredential []byte
@@ -2664,7 +2659,6 @@ func generateSingleCertChain(template *x509.Certificate, key crypto.Signer) Cred
 		Certificate:     [][]byte{cert.Raw},
 		RootCertificate: cert.Raw,
 		PrivateKey:      key,
-		Leaf:            cert,
 		ChainPath:       tmpCertPath,
 		KeyPath:         tmpKeyPath,
 		RootPath:        tmpCertPath,

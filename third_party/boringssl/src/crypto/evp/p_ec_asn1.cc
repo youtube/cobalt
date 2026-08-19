@@ -284,3 +284,23 @@ EC_KEY *EVP_PKEY_get1_EC_KEY(const EVP_PKEY *pkey) {
   }
   return ec_key;
 }
+
+int EVP_PKEY_get_ec_curve_nid(const EVP_PKEY *pkey) {
+  const EC_KEY *ec_key = EVP_PKEY_get0_EC_KEY(pkey);
+  if (ec_key == nullptr) {
+    return NID_undef;
+  }
+  const EC_GROUP *group = EC_KEY_get0_group(ec_key);
+  if (group == nullptr) {
+    return NID_undef;
+  }
+  return EC_GROUP_get_curve_name(group);
+}
+
+int EVP_PKEY_get_ec_point_conv_form(const EVP_PKEY *pkey) {
+  const EC_KEY *ec_key = EVP_PKEY_get0_EC_KEY(pkey);
+  if (ec_key == nullptr) {
+    return 0;
+  }
+  return EC_KEY_get_conv_form(ec_key);
+}

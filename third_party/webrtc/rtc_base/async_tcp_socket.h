@@ -123,14 +123,5 @@ class AsyncTcpListenSocket : public AsyncListenSocket {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::AsyncTcpListenSocket;
-using ::webrtc::AsyncTCPSocket;
-using ::webrtc::AsyncTCPSocketBase;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_ASYNC_TCP_SOCKET_H_

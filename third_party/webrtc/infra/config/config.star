@@ -829,7 +829,9 @@ try_builder("mac_asan")
 ci_builder("MacARM64 M1 Release", "Mac|arm64M1|rel", cpu = "arm64-64-Apple_M1")
 try_builder("mac_rel_m1")
 try_builder("mac_dbg_m1")
-chromium_try_builder("mac_chromium_compile")
+
+# TODO b/427073823 - Re-enable once the slow compilation issue is fixed.
+chromium_try_builder("mac_chromium_compile", cq = None)
 
 ci_builder("Win32 Debug (Clang)", "Win Clang|x86|dbg")
 try_builder("win_x86_clang_dbg", cq = None)
@@ -896,10 +898,8 @@ lkgr_config = {
             # bucket alias: luci.chromium.webrtc.fyi
             "builders": [
                 "WebRTC Chromium FYI Android Builder (dbg)",
-                "WebRTC Chromium FYI Android Builder ARM64 (dbg)",
                 "WebRTC Chromium FYI Android Builder",
-                "WebRTC Chromium FYI Android Tests (dbg)",
-                "WebRTC Chromium FYI Android Tests ARM64 (dbg)",
+                "WebRTC Chromium FYI Android Tester",
                 "WebRTC Chromium FYI Linux Builder (dbg)",
                 "WebRTC Chromium FYI Linux Builder",
                 "WebRTC Chromium FYI Linux Tester",

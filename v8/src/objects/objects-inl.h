@@ -695,8 +695,7 @@ double Object::NumberValue(Tagged<Smi> obj) {
 template <typename T, template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 Maybe<double> Object::IntegerValue(Isolate* isolate, HandleType<T> input) {
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, input, ConvertToNumber(isolate, input), Nothing<double>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ConvertToNumber(isolate, input));
   if (IsSmi(*input)) {
     return Just(static_cast<double>(Cast<Smi>(*input).value()));
   }
@@ -1090,6 +1089,18 @@ void HeapObject::InitSelfIndirectPointerField(
       IndirectPointerTagFromInstanceType(instance_type, shared);
   i::InitSelfIndirectPointerField(field_address(offset), isolate, *this, tag,
                                   opt_publishing_scope);
+}
+
+void HeapObjectLayout::InitSelfIndirectPointerField(
+    std::atomic<IndirectPointerHandle>* field_ptr, IsolateForSandbox isolate,
+    TrustedPointerPublishingScope* opt_publishing_scope) {
+  DCHECK(IsExposedTrustedObject(this));
+  InstanceType instance_type = map()->instance_type();
+  bool shared = HeapLayout::InAnySharedSpace(this);
+  IndirectPointerTag tag =
+      IndirectPointerTagFromInstanceType(instance_type, shared);
+  i::InitSelfIndirectPointerField(reinterpret_cast<Address>(field_ptr), isolate,
+                                  this, tag, opt_publishing_scope);
 }
 #endif  // V8_ENABLE_SANDBOX
 

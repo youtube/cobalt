@@ -618,7 +618,7 @@ class PeerConnection : public PeerConnectionInternal,
   std::function<void(const RtpPacketReceived& parsed_packet)>
   InitializeUnDemuxablePacketHandler();
 
-  bool CanAttemptDtlsStunPiggybacking(const RTCConfiguration& configuration);
+  bool CanAttemptDtlsStunPiggybacking();
 
   const Environment env_;
   const scoped_refptr<ConnectionContext> context_;

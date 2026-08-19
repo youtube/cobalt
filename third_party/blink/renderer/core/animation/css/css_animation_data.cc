@@ -18,7 +18,7 @@ CSSAnimationData::CSSAnimationData() : CSSTimingData(InitialDuration()) {
   range_start_list_.push_back(InitialRangeStart());
   range_end_list_.push_back(InitialRangeEnd());
   composition_list_.push_back(InitialComposition());
-  trigger_type_list_.push_back(InitialTriggerType());
+  trigger_behavior_list_.push_back(InitialTriggerBehavior());
   trigger_timeline_list_.push_back(InitialTriggerTimeline());
   trigger_range_start_list_.push_back(InitialTriggerRangeStart());
   trigger_range_end_list_.push_back(InitialTriggerRangeEnd());
@@ -46,6 +46,12 @@ const StyleTimeline& CSSAnimationData::InitialTriggerTimeline() {
   DEFINE_STATIC_LOCAL(const StyleTimeline, trigger_timeline,
                       (CSSValueID::kAuto));
   return trigger_timeline;
+}
+
+const StyleTimeline& CSSAnimationData::InitialTimelineTriggerTimeline() {
+  DEFINE_STATIC_LOCAL(const StyleTimeline, timeline_trigger_timeline,
+                      (CSSValueID::kAuto));
+  return timeline_trigger_timeline;
 }
 
 bool CSSAnimationData::AnimationsMatchForStyleRecalc(

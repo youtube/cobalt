@@ -57,9 +57,6 @@ uint8_t* raw_buffer_ptr(MaybeDirectHandle<JSArrayBuffer> buffer, int offset) {
 void CreateMapForType(Isolate* isolate, const WasmModule* module,
                       ModuleTypeIndex type_index,
                       DirectHandle<FixedArray> maybe_shared_maps) {
-  // Recursive calls for supertypes may already have created this map.
-  if (IsMap(maybe_shared_maps->get(type_index.index))) return;
-
   CanonicalTypeIndex canonical_type_index =
       module->canonical_type_id(type_index);
 
@@ -76,34 +73,36 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
     return;
   }
 
+  const TypeDefinition type = module->type(type_index);
+  int num_supertypes = type.subtyping_depth;
   DirectHandle<Map> rtt_parent;
-  // If the type with {type_index} has an explicit supertype, make sure the
-  // map for that supertype is created first, so that the supertypes list
-  // that's cached on every RTT can be set up correctly.
   ModuleTypeIndex supertype = module->supertype(type_index);
   if (supertype.valid()) {
-    // This recursion is safe, because kV8MaxRttSubtypingDepth limits the
-    // number of recursive steps, so we won't overflow the stack.
-    CreateMapForType(isolate, module, supertype, maybe_shared_maps);
+    // Validation guarantees that supertypes have lower indices, and we
+    // create maps in order, so the supertype map must exist already.
+    DCHECK_LT(supertype.index, type_index.index);
+    DCHECK(IsMap(maybe_shared_maps->get(supertype.index)));
+    DCHECK(num_supertypes == module->type(supertype).subtyping_depth + 1);
     // We look up the supertype in {maybe_shared_maps} as a shared type can only
     // inherit from a shared type and vice verca.
     rtt_parent = direct_handle(
         Cast<Map>(maybe_shared_maps->get(supertype.index)), isolate);
   }
   DirectHandle<Map> map;
-  switch (module->type(type_index).kind) {
+  switch (type.kind) {
     case TypeDefinition::kStruct: {
       DirectHandle<NativeContext> context_independent;
       map = CreateStructMap(isolate, canonical_type_index, rtt_parent,
-                            context_independent);
+                            num_supertypes, context_independent);
       break;
     }
     case TypeDefinition::kArray:
-      map = CreateArrayMap(isolate, canonical_type_index, rtt_parent);
+      map = CreateArrayMap(isolate, canonical_type_index, rtt_parent,
+                           num_supertypes);
       break;
     case TypeDefinition::kFunction:
       map = CreateFuncRefMap(isolate, canonical_type_index, rtt_parent,
-                             module->type(type_index).is_shared);
+                             num_supertypes, type.is_shared);
       break;
     case TypeDefinition::kCont:
       UNIMPLEMENTED();
@@ -1230,10 +1229,11 @@ class InstanceBuilder {
  private:
   Isolate* isolate_;
   v8::metrics::Recorder::ContextId context_id_;
+  NativeModule* native_module_;
   const WasmEnabledFeatures enabled_;
   const WasmModule* const module_;
   ErrorThrower* thrower_;
-  DirectHandle<WasmModuleObject> module_object_;
+  DirectHandle<WasmModuleObject> untrusted_module_object_;
   DirectHandle<WasmTrustedInstanceData> trusted_data_;
   DirectHandle<WasmTrustedInstanceData> shared_trusted_data_;
   MaybeDirectHandle<JSReceiver> ffi_;
@@ -1260,8 +1260,8 @@ class InstanceBuilder {
 
   std::string ImportName(uint32_t index) {
     const WasmImport& import = module_->import_table[index];
-    const char* wire_bytes_start = reinterpret_cast<const char*>(
-        module_object_->native_module()->wire_bytes().data());
+    const char* wire_bytes_start =
+        reinterpret_cast<const char*>(native_module_->wire_bytes().data());
     std::ostringstream oss;
     oss << "Import #" << index << " \"";
     oss.write(wire_bytes_start + import.module_name.offset(),
@@ -1439,10 +1439,11 @@ InstanceBuilder::InstanceBuilder(
     MaybeDirectHandle<JSArrayBuffer> asmjs_memory_buffer)
     : isolate_(isolate),
       context_id_(context_id),
-      enabled_(module_object->native_module()->enabled_features()),
-      module_(module_object->module()),
+      native_module_(module_object->native_module()),
+      enabled_(native_module_->enabled_features()),
+      module_(native_module_->module()),
       thrower_(thrower),
-      module_object_(module_object),
+      untrusted_module_object_(module_object),
       ffi_(ffi),
       asmjs_memory_buffer_(asmjs_memory_buffer),
       tags_wrappers_(isolate),
@@ -1503,21 +1504,21 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
   // We assume failure for now, and will update to success later.
   TrustedPointerPublishingScope publish_trusted_objects(isolate_, no_js);
   publish_trusted_objects.MarkFailure();
-  NativeModule* native_module = module_object_->native_module();
 
   //--------------------------------------------------------------------------
   // Create the WebAssembly.Instance object.
   //--------------------------------------------------------------------------
-  TRACE("New module instantiation for %p\n", native_module);
-  trusted_data_ = WasmTrustedInstanceData::New(isolate_, module_object_, false);
-  bool shared = module_object_->module()->has_shared_part;
+  TRACE("New module instantiation for %p\n", native_module_);
+  trusted_data_ =
+      WasmTrustedInstanceData::New(isolate_, untrusted_module_object_, false);
+  bool shared = module_->has_shared_part;
   if (shared) {
     // For now, allocate the shared part in non-shared space. We do not need it
     // in shared space yet since no shared objects point to it.
     // TODO(42204563): This will change once we introduce shared globals,
     // tables, or functions.
     shared_trusted_data_ =
-        WasmTrustedInstanceData::New(isolate_, module_object_, false);
+        WasmTrustedInstanceData::New(isolate_, untrusted_module_object_, false);
     trusted_data_->set_shared_part(*shared_trusted_data_);
   }
 
@@ -1868,8 +1869,7 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
   }
 
   DCHECK(!isolate_->has_exception());
-  TRACE("Successfully built instance for module %p\n",
-        module_object_->native_module());
+  TRACE("Successfully built instance for module %p\n", native_module_);
 
 #if V8_ENABLE_DRUMBRAKE
   // Skip this event because not (yet) supported by Chromium.
@@ -2097,8 +2097,7 @@ MaybeDirectHandle<Object> InstanceBuilder::LookupImportAsm(
 // Load data segments into the memory.
 // TODO(14616): Consider what to do with shared memories.
 void InstanceBuilder::LoadDataSegments() {
-  base::Vector<const uint8_t> wire_bytes =
-      module_object_->native_module()->wire_bytes();
+  base::Vector<const uint8_t> wire_bytes = native_module_->wire_bytes();
   for (const WasmDataSegment& segment : module_->data_segments) {
     uint32_t size = segment.source.length();
 
@@ -2226,14 +2225,13 @@ void InstanceBuilder::FinalizeExportsObject(
 }
 
 void InstanceBuilder::SanitizeImports() {
-  NativeModule* native_module = module_object_->native_module();
-  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  base::Vector<const uint8_t> wire_bytes = native_module_->wire_bytes();
   const WellKnownImportsList& well_known_imports =
       module_->type_feedback.well_known_imports;
   const std::string& magic_string_constants =
-      native_module->compile_imports().constants_module();
+      native_module_->compile_imports().constants_module();
   const bool has_magic_string_constants =
-      native_module->compile_imports().contains(
+      native_module_->compile_imports().contains(
           CompileTimeImport::kStringConstants);
   const std::vector<WasmImport>& import_table = module_->import_table;
   sanitized_imports_.resize(import_table.size());
@@ -2769,8 +2767,7 @@ int InstanceBuilder::ProcessImports() {
     }
   }
   if (num_imported_functions > 0) {
-    module_object_->native_module()->UpdateWellKnownImports(
-        base::VectorOf(well_known_imports_));
+    native_module_->UpdateWellKnownImports(base::VectorOf(well_known_imports_));
   }
   return num_imported_functions;
 }
@@ -2952,7 +2949,7 @@ void InstanceBuilder::ProcessExports() {
   for (const WasmExport& exp : module_->export_table) {
     DirectHandle<String> name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate_, module_object_, exp.name, kInternalize);
+            isolate_, native_module_->wire_bytes(), exp.name, kInternalize);
     DirectHandle<JSAny> value;
     switch (exp.kind) {
       case kExternalFunction: {

@@ -242,13 +242,13 @@ webrtc_fuzzer_test("rtcp_receiver_fuzzer") {
   sources = [ "rtcp_receiver_fuzzer.cc" ]
   deps = [
     "../../api:array_view",
+    "../../api:field_trials",
     "../../api/environment",
     "../../api/environment:environment_factory",
     "../../modules/rtp_rtcp",
     "../../modules/rtp_rtcp:rtp_rtcp_format",
     "../../rtc_base:checks",
     "../../system_wrappers",
-    "../../test:explicit_key_value_config",
   ]
   seed_corpus = "corpora/rtcp-corpus"
 }
@@ -702,10 +702,10 @@ webrtc_fuzzer_test("frame_buffer_fuzzer") {
   deps = [
     ":fuzz_data_helper",
     "../../api:array_view",
+    "../../api:field_trials",
     "../../api/video:encoded_frame",
     "../../api/video:frame_buffer",
     "../../rtc_base:rtc_numerics",
-    "../../test:scoped_key_value_config",
   ]
 }
 

@@ -10,9 +10,8 @@
 
 #include "modules/audio_coding/codecs/g722/audio_decoder_g722.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <utility>
 #include <vector>
 

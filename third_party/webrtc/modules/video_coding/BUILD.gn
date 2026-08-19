@@ -556,6 +556,9 @@ rtc_library("mock_libvpx_interface") {
     ":webrtc_libvpx_interface",
     "../../test:test_support",
   ]
+  if (rtc_build_libvpx) {
+    deps += [ rtc_libvpx_dir ]
+  }
 }
 
 # This target includes the internal SW codec.

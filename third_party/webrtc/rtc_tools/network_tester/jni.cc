@@ -9,13 +9,15 @@
  */
 
 #include <jni.h>
-#undef JNIEXPORT
-#define JNIEXPORT __attribute__((visibility("default")))
+
+#include <cstdint>
 #include <string>
 
-#include "rtc_base/logging.h"
 #include "rtc_base/thread.h"
 #include "rtc_tools/network_tester/test_controller.h"
+
+#undef JNIEXPORT
+#define JNIEXPORT __attribute__((visibility("default")))
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_google_media_networktester_NetworkTester_CreateTestController(

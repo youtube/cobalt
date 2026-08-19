@@ -535,7 +535,9 @@ if (!is_robolectric && enable_java_templates) {
     forward_variables_from(invoker, [ "testonly" ])
     _build_config = "$target_gen_dir/${target_name}.build_config.json"
     _rtxt_out_path = "$target_gen_dir/${target_name}.R.txt"
-    write_build_config("$target_name$build_config_target_suffix") {
+
+    # Writes a .params.json via write_file(), but does not define a target.
+    write_build_config("unused") {
       forward_variables_from(invoker, [ "resource_overlay" ])
 
       build_config = _build_config
@@ -548,10 +550,7 @@ if (!is_robolectric && enable_java_templates) {
     }
     action_with_pydeps(target_name) {
       forward_variables_from(invoker, [ "visibility" ])
-      public_deps = [
-        ":$target_name$build_config_target_suffix",
-        invoker.generating_target,
-      ]
+      public_deps = [ invoker.generating_target ]
       inputs = [ invoker.generated_resources_zip ]
       outputs = [ _rtxt_out_path ]
       script = "//build/android/gyp/create_r_txt.py"
@@ -748,7 +747,6 @@ if (!is_robolectric && enable_java_templates) {
     _resources_zip = "$target_out_dir/$target_name.resources.zip"
     _rtxt_out_path = _base_path + "_R.txt"
     _build_config = _base_path + ".build_config.json"
-    _build_config_target_name = "$target_name$build_config_target_suffix"
 
     _deps = []
     if (defined(invoker.deps)) {
@@ -779,7 +777,8 @@ if (!is_robolectric && enable_java_templates) {
                          [ "*\bthird_party\b*" ]) != []
     }
 
-    write_build_config(_build_config_target_name) {
+    # Writes a .params.json via write_file(), but does not define a target.
+    write_build_config("unused") {
       type = "android_resources"
       build_config = _build_config
       resources_zip = _resources_zip
@@ -888,7 +887,6 @@ if (!is_robolectric && enable_java_templates) {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
 
     _build_config = "$target_gen_dir/$target_name.build_config.json"
-    _build_config_target_name = "$target_name$build_config_target_suffix"
 
     _sources = []
     if (defined(invoker.sources)) {
@@ -913,7 +911,8 @@ if (!is_robolectric && enable_java_templates) {
           "android_assets() renaming_sources.length != renaming_destinations.length")
     }
 
-    write_build_config(_build_config_target_name) {
+    # Writes a .params.json via write_file(), but does not define a target.
+    write_build_config("unused") {
       type = "android_assets"
       build_config = _build_config
 
@@ -936,15 +935,11 @@ if (!is_robolectric && enable_java_templates) {
 
     # Use an action in order to mark sources as "inputs" to a GN target so that
     # GN will fail if the appropriate deps do not exist, and so that "gn refs"
-    # will know about the sources. We do not add these inputs & deps to the
-    # __build_config target because we want building .build_config.json files
-    # to be fast (and because write_build_config.py does not need the files to
-    # exist).
+    # will know about the sources.
     _all_sources = _sources + _renaming_sources
     if (_all_sources != []) {
       action(target_name) {
         forward_variables_from(invoker, [ "deps" ])
-        public_deps = [ ":$_build_config_target_name" ]
 
         script = "//build/android/gyp/validate_inputs.py"
         inputs = _all_sources
@@ -957,7 +952,6 @@ if (!is_robolectric && enable_java_templates) {
     } else {
       group(target_name) {
         forward_variables_from(invoker, [ "deps" ])
-        public_deps = [ ":$_build_config_target_name" ]
       }
     }
   }
@@ -986,7 +980,9 @@ if (!is_robolectric && enable_java_templates) {
     if (defined(invoker.public_deps)) {
       _invoker_deps += invoker.public_deps
     }
-    write_build_config("$target_name$build_config_target_suffix") {
+
+    # Writes a .params.json via write_file(), but does not define a target.
+    write_build_config("unused") {
       forward_variables_from(invoker, _build_config_vars)
       type = "group"
       build_config = "$target_gen_dir/${invoker.target_name}.build_config.json"
@@ -1029,10 +1025,6 @@ if (!is_robolectric && enable_java_templates) {
       forward_variables_from(invoker,
                              "*",
                              _build_config_vars + TESTONLY_AND_VISIBILITY)
-      if (!defined(deps)) {
-        deps = []
-      }
-      deps += [ ":$target_name$build_config_target_suffix" ]
       if (is_cronet_for_aosp_build) {
         metadata = {
           java_library_deps = []
@@ -1372,7 +1364,6 @@ if (!is_robolectric && enable_java_templates) {
   #
   #   chromium_code: If true, extra analysis warning/errors will be enabled.
   #   enable_errorprone: If true, enables the errorprone compiler.
-  #   skip_build_server: If true, avoids sending tasks to the build server.
   #
   #   jar_excluded_patterns: List of patterns of .class files to exclude.
   #   jar_included_patterns: List of patterns of .class files to include.
@@ -1776,7 +1767,8 @@ if (!is_robolectric && enable_java_templates) {
       if (_direct_deps_only) {
         args += [ "--jars=@FileArg($_rebased_build_config:classpath)" ]
       } else {
-        args += [ "--jars=@FileArg($_rebased_build_config:device_classpath)" ]
+        args +=
+            [ "--jars=@FileArg($_rebased_build_config:processed_classpath)" ]
       }
 
       if (defined(invoker.android_manifest)) {
@@ -2801,6 +2793,9 @@ if (!is_robolectric && enable_java_templates) {
           invoker.add_view_trace_events && enable_trace_event_bytecode_rewriting
     }
 
+    _enable_lint = defined(invoker.enable_lint) && invoker.enable_lint &&
+                   !disable_android_lint
+
     # We cannot skip this target when omit_dex = true because it writes the
     # build_config.json.
     java_library_impl(_java_target_name) {
@@ -2818,18 +2813,22 @@ if (!is_robolectric && enable_java_templates) {
                                "jacoco_never_instrument",
                                "jar_excluded_patterns",
                                "javac_args",
+                               "library_always_compress",
                                "mergeable_android_manifests",
+                               "min_sdk_version",
                                "native_lib_placeholders",
                                "parent_module_target",
                                "processor_args_javac",
+                               "skip_build_server",
                                "secondary_abi_loadable_modules",
                                "secondary_native_lib_placeholders",
                                "sources",
                                "suffix_apk_assets_used_by",
-                               "library_always_compress",
+                               "uses_split",
                              ])
       version_code = _version_code
       version_name = _version_name
+      enable_lint = _enable_lint
       if (_is_bundle_module) {
         type = "android_app_bundle_module"
         res_size_info_path = _res_size_info_path
@@ -2937,7 +2936,6 @@ if (!is_robolectric && enable_java_templates) {
           # Generates proguard configs
           deps += [ ":$_compile_resources_target" ]
           proguard_mapping_path = _proguard_mapping_path
-          has_apk_under_test = defined(invoker.apk_under_test)
 
           # Must not be set via write_build_config, because that will cause it
           # to be picked up by test apks that use apk_under_test.
@@ -2961,7 +2959,7 @@ if (!is_robolectric && enable_java_templates) {
             enable_desugar = false
           } else {
             input_classes_filearg =
-                "@FileArg($_rebased_build_config:device_classpath)"
+                "@FileArg($_rebased_build_config:processed_classpath)"
           }
         }
 
@@ -3245,8 +3243,6 @@ if (!is_robolectric && enable_java_templates) {
       _final_deps += [ ":$_apk_operations_target_name" ]
     }
 
-    _enable_lint = defined(invoker.enable_lint) && invoker.enable_lint &&
-                   !disable_android_lint
     if (_enable_lint) {
       android_lint("${target_name}__lint") {
         forward_variables_from(invoker,
@@ -3587,10 +3583,6 @@ if (!is_robolectric && enable_java_templates) {
           ])
       is_bundle_module = true
       generate_buildconfig_java = _is_base_module
-      if (defined(uses_split)) {
-        assert(defined(parent_module_target),
-               "Must set parent_module_target when uses_split is set")
-      }
     }
   }
 
@@ -4819,6 +4811,9 @@ if (!is_robolectric && enable_java_templates) {
       not_needed(invoker, [ "add_view_trace_events" ])
     }
 
+    _enable_lint = defined(invoker.enable_lint) && invoker.enable_lint &&
+                   !disable_android_lint
+
     _build_config_target_name = "$_target_name$build_config_target_suffix"
     _build_config_target = ":$_build_config_target_name"
     write_build_config(_build_config_target_name) {
@@ -4826,7 +4821,7 @@ if (!is_robolectric && enable_java_templates) {
       possible_config_deps = _module_targets + [ _android_sdk_dep ]
       build_config = _build_config
       proguard_enabled = _proguard_enabled
-      modules = _modules
+      enable_lint = _enable_lint
 
       if (_proguard_enabled) {
         add_view_trace_events = _add_view_trace_events
@@ -4859,9 +4854,9 @@ if (!is_robolectric && enable_java_templates) {
             "--classpath",
             "@FileArg($_rebased_build_config:sdk_jars)",
             "--input-jars",
-            "@FileArg($_rebased_build_config:device_classpath)",
+            "@FileArg($_rebased_build_config:processed_classpath)",
             "--output-jars",
-            "@FileArg($_rebased_build_config:trace_event_rewritten_device_classpath)",
+            "@FileArg($_rebased_build_config:trace_event_rewritten_classpath)",
           ]
           deps = [
                    _build_config_target,
@@ -5233,8 +5228,6 @@ if (!is_robolectric && enable_java_templates) {
       }
     }
 
-    _enable_lint = defined(invoker.enable_lint) && invoker.enable_lint &&
-                   !disable_android_lint
     if (_enable_lint) {
       android_lint("${target_name}__lint") {
         forward_variables_from(invoker,

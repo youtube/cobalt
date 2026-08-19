@@ -35,6 +35,7 @@
 <translation id="141901961143729572">Comparte tu opinión</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{Chrome terminó de actualizarse. Puedes usar la versión más reciente cuando reinicies el dispositivo. Luego, se volverán a abrir las pestañas actuales.}=1{Chrome terminó de actualizarse. Puedes usar la versión más reciente cuando reinicies el dispositivo. Luego, se volverán a abrir las pestañas actuales. No se volverá a abrir la ventana de incógnito.}other{Chrome terminó de actualizarse. Puedes usar la versión más reciente cuando reinicies el dispositivo. Luego, se volverán a abrir las pestañas actuales. No se volverán a abrir # ventanas de incógnito.}}</translation>
 <translation id="1434626383986940139">Aplicaciones de Chrome Canary</translation>
+<translation id="1439793550875056299">Fijar Chrome</translation>
 <translation id="146866447420868597">¿Quieres acceder a Chrome?</translation>
 <translation id="1492280395845991349">Reinicia para finalizar la actualización de Chrome</translation>
 <translation id="1497802159252041924">Error de instalación: <ph name="INSTALL_ERROR" /></translation>
@@ -120,6 +121,7 @@
 <translation id="2569974318947988067">Chrome intentará actualizar las navegaciones a HTTPS</translation>
 <translation id="2571392474191184472">Tu organización administra Chrome</translation>
 <translation id="2574930892358684005"><ph name="EXISTING_USER" /> ya accedió a este perfil de Chrome. Para mantener separados los datos de navegación, Chrome puede crear un perfil individual para ti.</translation>
+<translation id="2579190314336775785">Las contraseñas solo se pueden borrar fuera de Chrome</translation>
 <translation id="2580411288591421699">No se puede instalar la misma versión de Google Chrome que se está ejecutando actualmente. Cierra Google Chrome e intenta nuevamente.</translation>
 <translation id="2586406160782125153">Esta acción borrará tus datos de navegación de este dispositivo. Si más adelante deseas recuperarlos, accede a tu cuenta en Chrome como <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">El instalador que se descargó no se almacenó en la caché. Error: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -268,6 +270,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chrome recomienda pausar la pestaña que ralentiza tu navegador}other{Chrome recomienda pausar las pestañas que ralentizan tu navegador}}</translation>
 <translation id="4328355335528187361">Google Chrome Dev (mDNS-In)</translation>
 <translation id="4329315893554541805">Para obtener la personalización y otras funciones, incluye Chrome en la Actividad web y de aplicaciones y los servicios de Google vinculados</translation>
+<translation id="4334241893986177674">Buscar esta captura de pantalla</translation>
 <translation id="4334294535648607276">Descarga completa</translation>
 <translation id="4337324600316876133">Para recibir las próximas actualizaciones de Google Chrome, necesitarás macOS 12 o versiones posteriores. Esta computadora usa macOS 11.</translation>
 <translation id="4343195214584226067">Se agregó <ph name="EXTENSION_NAME" /> a Chrome</translation>
@@ -351,6 +354,7 @@
 <translation id="5566025111015594046">Google Chrome (tráfico mDNS entrante)</translation>
 <translation id="5579324208890605088">Error de inicio: Ejecuta el instalador como usuario normal, no como administrador.</translation>
 <translation id="5596627076506792578">Más opciones</translation>
+<translation id="5600352656975192682">Fija Chrome a la barra de tareas para acceder rápidamente en cualquier momento</translation>
 <translation id="5602351063754773347">Chrome te recomienda quitarla. <ph name="BEGIN_LINK" />Más información sobre las extensiones compatibles<ph name="END_LINK" /></translation>
 <translation id="5649156266046089790">Con los perfiles de Chrome, puedes separar todo lo que tienes en Chrome. Crea perfiles para amigos y familiares, o diferencia el trabajo de la diversión.</translation>
 <translation id="565744775970812598">Chrome bloqueó <ph name="FILE_NAME" /> porque es posible que sea un archivo peligroso.</translation>

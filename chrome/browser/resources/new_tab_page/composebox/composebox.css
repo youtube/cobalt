@@ -43,7 +43,6 @@
 
   --height-expand-duration: 600ms;
 
-  background-color: var(--ntp-composebox-background-color);
   border-radius: 24px;
   font-size: var(--cr-composebox-font-size, 18px);
   width: var(--ntp-composebox-width, 337px);
@@ -94,10 +93,10 @@
   font-family: inherit;
   font-size: inherit;
   line-height: 24px;
-  max-height: calc-size(fit-content, min(size, 196px));
-  min-height: 48px;
+  max-height: calc-size(fit-content, min(size - 24px, 190px));
+  min-height: 72px;
   outline: none;
-  padding: 0;
+  padding: 24px 0 0;
   position: relative;
   resize: none;
   scrollbar-width: none;
@@ -128,6 +127,7 @@
       var(--color-new-tab-page-composebox-hover);
   --cr-icon-button-size: 48px;
   animation: icon-fade-in var(--expand-duration) linear;
+  color: var(--color-new-tab-page-composebox-upload-button);
   opacity: 1;
 }
 
@@ -262,16 +262,13 @@
 }
 
 .background {
+  animation: gradient-border-width var(--glif-rotation-duration)
+    var(--standard-curve);
   border: 0 solid transparent;
   border-radius: inherit;
   contain: paint;
   inset: 0;
   position: absolute;
-}
-
-.background {
-  animation: gradient-border-width var(--glif-rotation-duration)
-    var(--standard-curve);
 }
 
 @keyframes gradient-border-width {
@@ -313,10 +310,10 @@
 
 @keyframes color-pulse-on-expand {
     40% {
-        background: var(--color-new-tab-page-background);
+        background: var(--color-new-tab-page-composebox-scrim-background);
     }
     58% {
-        background: var(--color-new-tab-page-background);
+        background: var(--color-new-tab-page-composebox-scrim-background);
     }
 }
 

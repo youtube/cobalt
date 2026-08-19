@@ -31,12 +31,15 @@ class TypeTool : public ToolBase {
   TypeTool(content::RenderFrame& frame,
            Journal::TaskId task_id,
            Journal& journal,
-           mojom::TypeActionPtr action);
+           mojom::TypeActionPtr action,
+           mojom::ToolTargetPtr target,
+           mojom::ObservedToolTargetPtr observed_target);
   ~TypeTool() override;
 
   // actor::ToolBase
   mojom::ActionResultPtr Execute() override;
   std::string DebugString() const override;
+  base::TimeDelta ExecutionObservationDelay() const override;
 
  private:
   // Structure to hold all necessary parameters for generating keyboard events

@@ -200,16 +200,5 @@ void CopySocketInformationToPacketInfo(size_t packet_size_bytes,
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::AsyncListenSocket;
-using ::webrtc::AsyncPacketSocket;
-using ::webrtc::CopySocketInformationToPacketInfo;
-using ::webrtc::PacketTimeUpdateParams;
-using PacketOptions = ::webrtc::AsyncSocketPacketOptions;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_ASYNC_PACKET_SOCKET_H_

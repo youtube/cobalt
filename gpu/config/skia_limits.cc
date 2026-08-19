@@ -28,7 +28,6 @@ MIRACLE_PARAMETER_FOR_INT(GetMaxDefaultGlyphCacheTextureBytes,
                           "MaxDefaultGlyphCacheTextureBytes",
                           2048 * 1024 * 4)
 
-#if !BUILDFLAG(IS_NACL)
 // The limit of the bytes allocated toward GPU resources in the GrContext's
 // GPU cache.
 [[maybe_unused]] MIRACLE_PARAMETER_FOR_INT(
@@ -53,7 +52,6 @@ MIRACLE_PARAMETER_FOR_INT(GetHighEndMemoryThresholdMB,
                           kGrCacheLimitsFeature,
                           "HighEndMemoryThresholdMB",
                           4096)
-#endif
 
 // Limits for the Graphite client image provider which is responsible for
 // uploading non-GPU backed images (e.g. raster, lazy/generated) to Graphite.
@@ -90,8 +88,6 @@ void DetermineGrCacheLimitsFromAvailableMemory(
   *max_resource_cache_bytes = GetMaxGaneshResourceCacheBytes();
   *max_glyph_cache_texture_bytes = GetMaxDefaultGlyphCacheTextureBytes();
 
-// We can't call AmountOfPhysicalMemory under NACL, so leave the default.
-#if !BUILDFLAG(IS_NACL)
   if (base::SysInfo::IsLowEndDevice()) {
 #if BUILDFLAG(IS_COBALT)
     constexpr size_t kLowEndCobaltMaxResourceCacheBytes = 2 * 1024 * 1024;
@@ -104,7 +100,6 @@ void DetermineGrCacheLimitsFromAvailableMemory(
              GetHighEndMemoryThresholdMB()) {
     *max_resource_cache_bytes = GetMaxHighEndGaneshResourceCacheBytes();
   }
-#endif
 }
 
 void DefaultGrCacheLimitsForTests(size_t* max_resource_cache_bytes,

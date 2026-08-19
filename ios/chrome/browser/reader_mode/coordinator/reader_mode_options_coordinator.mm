@@ -4,7 +4,10 @@
 
 #import "ios/chrome/browser/reader_mode/coordinator/reader_mode_options_coordinator.h"
 
+#import "ios/chrome/browser/dom_distiller/model/distiller_service.h"
+#import "ios/chrome/browser/dom_distiller/model/distiller_service_factory.h"
 #import "ios/chrome/browser/reader_mode/coordinator/reader_mode_options_mediator.h"
+#import "ios/chrome/browser/reader_mode/ui/reader_mode_options_controls_view.h"
 #import "ios/chrome/browser/reader_mode/ui/reader_mode_options_view_controller.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
@@ -25,10 +28,18 @@
 - (void)start {
   _viewController = [[ReaderModeOptionsViewController alloc] init];
   _viewController.presentationController.delegate = self;
-  _mediator = [[ReaderModeOptionsMediator alloc] init];
+  _viewController.readerModeOptionsHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), ReaderModeOptionsCommands);
+  DistillerService* distillerService =
+      DistillerServiceFactory::GetForProfile(self.browser->GetProfile());
+  _mediator = [[ReaderModeOptionsMediator alloc]
+      initWithDistilledPagePrefs:distillerService->GetDistilledPagePrefs()
+                    webStateList:self.browser->GetWebStateList()];
+  _viewController.mutator = _mediator;
   [self.baseViewController presentViewController:_viewController
                                         animated:YES
                                       completion:nil];
+  _mediator.consumer = _viewController.controlsView;
 }
 
 - (void)stop {

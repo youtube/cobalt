@@ -12,8 +12,12 @@
 #define NET_DCSCTP_PACKET_BOUNDED_BYTE_WRITER_H_
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 
 #include "api/array_view.h"
+#include "rtc_base/checks.h"
 
 namespace dcsctp {
 

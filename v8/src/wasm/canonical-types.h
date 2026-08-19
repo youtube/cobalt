@@ -252,14 +252,13 @@ class TypeCanonicalizer {
 
     void Add(CanonicalValueType value_type) {
       if (value_type.has_index() && recgroup.Contains(value_type.ref_index())) {
-        // For relative indexed types, add their nullability, exactness, and
-        // the relative index to the hash.
+        // For relative indexed types, add the relative index and the other bits
+        // separately.
         // Shift the relative index by {kMaxCanonicalTypes} to map it to a
         // different index space (note that collisions in hashing are OK
         // though).
         static_assert(kMaxCanonicalTypes <= kMaxUInt32 / 2);
-        // TODO(403372470): Add the 'exact' bit.
-        hasher.Add((value_type.is_exact() << 1) | value_type.is_nullable());
+        hasher.Add(value_type.all_bits_without_index());
         hasher.Add((value_type.ref_index().index - recgroup.first.index) +
                    kMaxCanonicalTypes);
       } else {
@@ -565,9 +564,12 @@ class TypeCanonicalizer {
 
   std::vector<CanonicalTypeIndex> canonical_supertypes_;
   // Set of all known canonical recgroups of size >=2.
-  std::unordered_set<CanonicalGroup> canonical_groups_;
+  std::unordered_set<CanonicalGroup, base::hash<CanonicalGroup>>
+      canonical_groups_;
   // Set of all known canonical recgroups of size 1.
-  std::unordered_set<CanonicalSingletonGroup> canonical_singleton_groups_;
+  std::unordered_set<CanonicalSingletonGroup,
+                     base::hash<CanonicalSingletonGroup>>
+      canonical_singleton_groups_;
   // Maps canonical indices back to the types.
   CanonicalTypeVector canonical_types_;
   AccountingAllocator allocator_;

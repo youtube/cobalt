@@ -217,6 +217,8 @@ DEFINE_STATIC_QUIC_TAG(AFF1);  // Use SRTT in building
                                // AckFrequencyFrame.
 DEFINE_STATIC_QUIC_TAG(AFF2);  // Send AckFrequencyFrame upon
                                // handshake completion.
+DEFINE_STATIC_QUIC_TAG(AFIA);  // Send MinAckDelay transport parameter to allow
+                               // receipt of ACK_FREQUENCY and IMMEDIATE_ACK
 DEFINE_STATIC_QUIC_TAG(SSLR);  // Slow Start Large Reduction.
 DEFINE_STATIC_QUIC_TAG(NPRR);  // Pace at unity instead of PRR
 DEFINE_STATIC_QUIC_TAG(5RTO);  // Close connection on 5 RTOs
@@ -445,6 +447,13 @@ DEFINE_STATIC_QUIC_TAG(ROWF);  // Send first 1-RTT packet on
                                // ROWP timeout.
 DEFINE_STATIC_QUIC_TAG(ROWR);  // Send random bytes on ROWP
                                // timeout.
+
+// Retransmittable on wire timeout experiment.
+// TODO: b/427246911 - Remove these tags once the experiment is complete.
+DEFINE_STATIC_QUIC_TAG(ROW1);  // Set retransmittable on wire timeout to 1*PTO.
+DEFINE_STATIC_QUIC_TAG(ROW2);  // Set retransmittable on wire timeout to 2*PTO.
+DEFINE_STATIC_QUIC_TAG(ROW3);  // Set retransmittable on wire timeout to 3*PTO.
+
 // Selective Resumption variants.
 DEFINE_STATIC_QUIC_TAG(GSR0);
 DEFINE_STATIC_QUIC_TAG(GSR1);

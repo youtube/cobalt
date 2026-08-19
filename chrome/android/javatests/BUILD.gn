@@ -1247,6 +1247,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.sync") {
 
   deps = [
     ":chrome_test_java_helper",
+    "//chrome/browser/ui/android/extensions:java",
     "//chrome/browser/user_education:java",
   ]
 }
@@ -1488,6 +1489,7 @@ android_library("chrome_test_java_various") {
     "src/org/chromium/chrome/browser/messages/MessageTest.java",
     "src/org/chromium/chrome/browser/modaldialog/ChromeTabModalPresenterTest.java",
     "src/org/chromium/chrome/browser/modaldialog/ModalDialogViewRenderTest.java",
+    "src/org/chromium/chrome/browser/multiwindow/MultiInstanceManagerApi31Test.java",
     "src/org/chromium/chrome/browser/multiwindow/MultiWindowIntegrationTest.java",
     "src/org/chromium/chrome/browser/multiwindow/MultiWindowUtilsTest.java",
     "src/org/chromium/chrome/browser/net/connectivitydetector/ConnectivityDetectorDelegateStub.java",
@@ -1773,5 +1775,8 @@ android_library("chrome_unit_test_java_various") {
     "src/org/chromium/chrome/browser/webapps/WebappLaunchCauseMetricsTest.java",
   ]
 
-  deps = [ ":common_unit_test_deps_java" ]
+  deps = [
+    ":common_unit_test_deps_java",
+    "//components/omnibox/common:features_java",
+  ]
 }

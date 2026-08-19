@@ -204,7 +204,6 @@ rtc_library("deprecated_unittests") {
     "../../../rtc_base:checks",
     "../../../system_wrappers",
     "../../../test:create_test_field_trials",
-    "../../../test:scoped_key_value_config",
     "../../../test:test_support",
     "//third_party/abseil-cpp/absl/memory",
   ]

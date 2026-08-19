@@ -58,6 +58,7 @@
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/passwords/manage_passwords_page_action_controller.h"
+#include "chrome/browser/ui/views/passwords/password_bubble_view_base.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/branded_strings.h"
@@ -159,7 +160,7 @@ void MaybeShowPasswordManagerShortcutIPH(Browser* browser) {
   if (!web_app::AreWebAppsEnabled(browser->profile())) {
     return;
   }
-  browser->window()->MaybeShowFeaturePromo(
+  BrowserUserEducationInterface::From(browser)->MaybeShowFeaturePromo(
       feature_engagement::kIPHPasswordManagerShortcutFeature);
 }
 
@@ -437,7 +438,7 @@ void ManagePasswordsUIController::OnPasswordAutofilled(
   // Only one of these promos will be able to show. Try the more specific one
   // first.
   if (has_non_empty_note) {
-    browser->window()->MaybeShowFeaturePromo(
+    BrowserUserEducationInterface::From(browser)->MaybeShowFeaturePromo(
         feature_engagement::kIPHPasswordsManagementBubbleDuringSigninFeature);
   }
   MaybeShowPasswordManagerShortcutIPH(browser);
@@ -722,10 +723,14 @@ ManagePasswordsUIController::GetPasswordFeatureManager() {
 
 password_manager::ui::State ManagePasswordsUIController::GetState() const {
   PasswordChangeDelegate* delegate = GetPasswordChangeDelegate();
-  if (delegate &&
-      delegate->GetCurrentState() ==
-          PasswordChangeDelegate::State::kPasswordSuccessfullyChanged) {
-    return password_manager::ui::State::PASSWORD_CHANGE_STATE;
+  if (delegate) {
+    if (delegate->GetCurrentState() ==
+        PasswordChangeDelegate::State::kPasswordSuccessfullyChanged) {
+      // Prevent any UI being displayed instead of the password change bubble.
+      return password_manager::ui::State::PASSWORD_CHANGE_STATE;
+    }
+    // Prevent any UI being displayed during ongoing password change flow.
+    return password_manager::ui::State::INACTIVE_STATE;
   }
   return passwords_data_.state();
 }
@@ -808,6 +813,16 @@ bool ManagePasswordsUIController::GpmPinCreatedDuringRecentPasskeyCreation()
 
 const std::string& ManagePasswordsUIController::PasskeyRpId() const {
   return passwords_data_.passkey_rp_id();
+}
+
+const std::u16string& ManagePasswordsUIController::PasswordChangeUsername()
+    const {
+  return passwords_data_.password_change_username();
+}
+
+const std::u16string& ManagePasswordsUIController::PasswordChangeNewPassword()
+    const {
+  return passwords_data_.password_change_new_password();
 }
 
 void ManagePasswordsUIController::OnBubbleShown() {
@@ -945,7 +960,7 @@ void ManagePasswordsUIController::SavePassword(const std::u16string& username,
   if (browser && !signin::ShouldShowPasswordSignInPromo(*browser->profile())) {
     // Only one of these promos will be able to show. Try the more specific one
     // first.
-    browser->window()->MaybeShowFeaturePromo(
+    BrowserUserEducationInterface::From(browser)->MaybeShowFeaturePromo(
         feature_engagement::kIPHPasswordsManagementBubbleAfterSaveFeature);
     MaybeShowPasswordManagerShortcutIPH(browser);
   }
@@ -1151,8 +1166,10 @@ void ManagePasswordsUIController::HidePasswordBubble() {
   }
 }
 
-void ManagePasswordsUIController::ShowChangePasswordBubble() {
-  CHECK_EQ(password_manager::ui::PASSWORD_CHANGE_STATE, GetState());
+void ManagePasswordsUIController::ShowChangePasswordBubble(
+    const std::u16string& username,
+    const std::u16string& new_password) {
+  passwords_data_.OpenPasswordChangedBubble(username, new_password);
   bubble_status_ = BubbleStatus::SHOULD_POP_UP;
   UpdateBubbleAndIconVisibility();
 }
@@ -1176,11 +1193,35 @@ void ManagePasswordsUIController::UpdateBubbleAndIconVisibility() {
     CHECK(tab_features);
     auto* const controller =
         tab_features->manage_passwords_page_action_controller();
+
+    password_manager::ui::State state = GetState();
+    const bool is_blocklisted = IsExplicitlyBlocklisted();
+
+    if (dialog_controller_ &&
+        state == password_manager::ui::CREDENTIAL_REQUEST_STATE) {
+      state = password_manager::ui::INACTIVE_STATE;
+    }
+
+    if (state != last_page_action_state_ ||
+        is_blocklisted != last_page_action_is_blocklisted_) {
+      PasswordBubbleViewBase::CloseCurrentBubble();
+    }
+    last_page_action_state_ = state;
+    last_page_action_is_blocklisted_ = is_blocklisted;
+
+    if (IsAutomaticallyOpeningBubble() ||
+        bubble_status_ == BubbleStatus::SHOULD_POP_UP_WITH_FOCUS) {
+      // This will detach any existing bubble so OnBubbleHidden() isn't called.
+      weak_ptr_factory_.InvalidateWeakPtrs();
+      ShowBubbleWithoutUserInteraction();
+      // If the bubble appeared then the status is updated in OnBubbleShown().
+      ClearPopUpFlagForBubble();
+    }
     actions::ActionItem* passwords_action_item =
         actions::ActionManager::Get().FindAction(
             kActionShowPasswordsBubbleOrPage,
             browser->browser_actions()->root_action_item());
-    controller->UpdateVisibility(GetState(), IsExplicitlyBlocklisted(), *this,
+    controller->UpdateVisibility(state, is_blocklisted, *this,
                                  *passwords_action_item);
   } else {
     browser->window()->UpdatePageActionIcon(

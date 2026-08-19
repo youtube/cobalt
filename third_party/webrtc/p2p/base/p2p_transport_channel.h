@@ -20,9 +20,8 @@
 #ifndef P2P_BASE_P2P_TRANSPORT_CHANNEL_H_
 #define P2P_BASE_P2P_TRANSPORT_CHANNEL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
@@ -544,14 +543,5 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::IceCredentialsChanged;
-using ::webrtc::P2PTransportChannel;
-using ::webrtc::RemoteCandidate;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_BASE_P2P_TRANSPORT_CHANNEL_H_

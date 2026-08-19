@@ -12,8 +12,6 @@
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-// TODO(crbug.com/40263579): Remove.
-#include "gpu/ipc/common/gpu_memory_buffer_support.h"
 #include "media/base/color_plane_layout.h"
 #include "media/base/format_utils.h"
 #include "media/mojo/mojom/video_frame_metadata_mojom_traits.h"
@@ -27,6 +25,13 @@
 #include "base/posix/eintr_wrapper.h"
 #include "media/gpu/buffer_validation.h"
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_CHROMEOS)
+// TODO(crbug.com/40263579): Remove.
+#include "gpu/ipc/common/gpu_memory_buffer_impl_native_pixmap.h"
+#include "ui/ozone/public/client_native_pixmap_factory_ozone.h"  // nogncheck
+#include "ui/ozone/public/ozone_platform.h"                      // nogncheck
+#endif
 
 namespace mojo {
 
@@ -124,6 +129,7 @@ media::mojom::VideoFrameDataPtr MakeVideoFrameData(
     // STORAGE_GPU_MEMORY_BUFFER may carry meaningful or dummy shared_image.
     std::optional<gpu::ExportedSharedImage> shared_image;
     gpu::SyncToken sync_token;
+#if BUILDFLAG(IS_CHROMEOS)
     if (input->HasSharedImage()) {
       shared_image = input->shared_image()->Export(
           /*with_buffer_handle=*/is_mappable_si_enabled);
@@ -133,8 +139,7 @@ media::mojom::VideoFrameDataPtr MakeVideoFrameData(
         return media::mojom::VideoFrameData::NewSharedImageData(
             media::mojom::SharedImageVideoFrameData::New(
                 std::move(shared_image.value()), std::move(sync_token),
-                /*is_mappable_si_enabled=*/true,
-                std::move(input->ycbcr_info())));
+                /*is_mappable_si_enabled=*/true));
       }
     }
 
@@ -142,6 +147,24 @@ media::mojom::VideoFrameDataPtr MakeVideoFrameData(
         media::mojom::GpuMemoryBufferSharedImageVideoFrameData::New(
             std::move(gpu_memory_buffer_handle), std::move(shared_image),
             std::move(sync_token)));
+#else
+    CHECK(input->HasSharedImage());
+    CHECK(is_mappable_si_enabled);
+    shared_image = input->shared_image()->Export(
+        /*with_buffer_handle=*/true);
+    sync_token = input->acquire_sync_token();
+#if BUILDFLAG(IS_ANDROID)
+    return media::mojom::VideoFrameData::NewSharedImageData(
+        media::mojom::SharedImageVideoFrameData::New(
+            std::move(shared_image.value()), std::move(sync_token),
+            /*is_mappable_si_enabled=*/true, std::move(input->ycbcr_info())));
+#else
+    return media::mojom::VideoFrameData::NewSharedImageData(
+        media::mojom::SharedImageVideoFrameData::New(
+            std::move(shared_image.value()), std::move(sync_token),
+            /*is_mappable_si_enabled=*/true));
+#endif
+#endif
   }
 
   if (input->HasSharedImage()) {
@@ -149,10 +172,17 @@ media::mojom::VideoFrameDataPtr MakeVideoFrameData(
     // VideoFrames.
     CHECK(!is_mappable_si_enabled);
     gpu::ExportedSharedImage shared_image = input->shared_image()->Export();
+#if BUILDFLAG(IS_ANDROID)
     return media::mojom::VideoFrameData::NewSharedImageData(
         media::mojom::SharedImageVideoFrameData::New(
             std::move(shared_image), input->acquire_sync_token(),
             /*is_mappable_si_enabled=*/false, std::move(input->ycbcr_info())));
+#else
+    return media::mojom::VideoFrameData::NewSharedImageData(
+        media::mojom::SharedImageVideoFrameData::New(
+            std::move(shared_image), input->acquire_sync_token(),
+            /*is_mappable_si_enabled=*/false));
+#endif
   }
 
   if (input->storage_type() == media::VideoFrame::STORAGE_OPAQUE) {
@@ -328,6 +358,7 @@ bool StructTraits<media::mojom::VideoFrameDataView,
       frame->BackWithOwnedSharedMemory(std::move(region), std::move(mapping));
     }
   } else if (data.is_gpu_memory_buffer_shared_image_data()) {
+#if BUILDFLAG(IS_CHROMEOS)
     media::mojom::GpuMemoryBufferSharedImageVideoFrameDataDataView
         gpu_memory_buffer_data;
     data.GetGpuMemoryBufferSharedImageDataDataView(&gpu_memory_buffer_data);
@@ -361,20 +392,23 @@ bool StructTraits<media::mojom::VideoFrameDataView,
       return false;
     }
 
-    // Shared memory GMBs do not support VEA/CAMERA usage.
+    if (gpu_memory_buffer_handle.type !=
+        gfx::GpuMemoryBufferType::NATIVE_PIXMAP) {
+      return false;
+    }
+
     gfx::BufferUsage buffer_usage;
     if (metadata.protected_video) {
       buffer_usage = gfx::BufferUsage::PROTECTED_SCANOUT_VDA_WRITE;
-    } else if (gpu_memory_buffer_handle.type ==
-               gfx::GpuMemoryBufferType::SHARED_MEMORY_BUFFER) {
-      buffer_usage = gfx::BufferUsage::SCANOUT_CPU_READ_WRITE;
     } else {
       buffer_usage = gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE;
     }
 
-    gpu::GpuMemoryBufferSupport support;
+    auto client_native_pixmap_factory =
+        ui::CreateClientNativePixmapFactoryOzone();
     std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer =
-        support.CreateGpuMemoryBufferImplFromHandleForVideoFrame(
+        gpu::GpuMemoryBufferImplNativePixmap::CreateFromHandleForVideoFrame(
+            client_native_pixmap_factory.get(),
             std::move(gpu_memory_buffer_handle), coded_size, *buffer_format,
             buffer_usage);
     if (!gpu_memory_buffer) {
@@ -383,7 +417,10 @@ bool StructTraits<media::mojom::VideoFrameDataView,
 
     frame = media::VideoFrame::WrapExternalGpuMemoryBuffer(
         visible_rect, natural_size, std::move(gpu_memory_buffer), shared_image,
-        sync_token, base::NullCallback(), timestamp);
+        sync_token, timestamp);
+#else
+    return false;
+#endif  // BUILDFLAG(IS_CHROMEOS)
   } else if (data.is_shared_image_data()) {
     media::mojom::SharedImageVideoFrameDataDataView shared_image_data;
     data.GetSharedImageDataDataView(&shared_image_data);
@@ -399,10 +436,6 @@ bool StructTraits<media::mojom::VideoFrameDataView,
     if (!shared_image_data.ReadSyncToken(&sync_token)) {
       return false;
     }
-    std::optional<gpu::VulkanYCbCrInfo> ycbcr_info;
-    if (!shared_image_data.ReadYcbcrData(&ycbcr_info)) {
-      return false;
-    }
 
     bool is_mappable_si_enabled = shared_image_data.is_mappable_si_enabled();
     if (is_mappable_si_enabled) {
@@ -414,9 +447,8 @@ bool StructTraits<media::mojom::VideoFrameDataView,
         return false;
       }
       frame = media::VideoFrame::WrapMappableSharedImage(
-          shared_image, sync_token,
-          media::VideoFrame::ReleaseMailboxAndGpuMemoryBufferCB(), visible_rect,
-          natural_size, timestamp);
+          shared_image, sync_token, media::VideoFrame::ReleaseMailboxCB(),
+          visible_rect, natural_size, timestamp);
     } else {
       frame = media::VideoFrame::WrapSharedImage(
           format, shared_image, sync_token,
@@ -424,7 +456,13 @@ bool StructTraits<media::mojom::VideoFrameDataView,
           natural_size, timestamp);
     }
 
+#if BUILDFLAG(IS_ANDROID)
+    std::optional<gpu::VulkanYCbCrInfo> ycbcr_info;
+    if (!shared_image_data.ReadYcbcrData(&ycbcr_info)) {
+      return false;
+    }
     frame->set_ycbcr_info(ycbcr_info);
+#endif
   } else if (data.is_opaque_data()) {
     DCHECK(metadata.tracking_token.has_value());
     frame = media::VideoFrame::WrapTrackingToken(

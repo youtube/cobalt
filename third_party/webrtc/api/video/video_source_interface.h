@@ -134,12 +134,4 @@ class VideoSourceInterface {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::VideoSinkWants;
-using ::webrtc::VideoSourceInterface;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 #endif  // API_VIDEO_VIDEO_SOURCE_INTERFACE_H_

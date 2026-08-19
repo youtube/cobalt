@@ -43,19 +43,13 @@ MaybeDirectHandle<JSReceiver> CoerceOptionsToObject(
 }
 
 Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
-                            const char* property,
-                            const std::span<const std::string_view> values,
+                            DirectHandle<String> property,
                             const char* method_name,
                             DirectHandle<String>* result) {
-  DirectHandle<String> property_str =
-      isolate->factory()->NewStringFromAsciiChecked(property);
-
   // 1. Let value be ? Get(options, property).
   DirectHandle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value,
-      Object::GetPropertyOrElement(isolate, options, property_str),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, value, Object::GetPropertyOrElement(isolate, options, property));
 
   if (IsUndefined(*value, isolate)) {
     return Just(false);
@@ -63,29 +57,11 @@ Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
 
   // 2. c. Let value be ? ToString(value).
   DirectHandle<String> value_str;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value_str, Object::ToString(isolate, value), Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value_str,
+                             Object::ToString(isolate, value));
 
   // 2. d. if values is not undefined, then
-  if (!values.empty()) {
-    // 2. d. i. If values does not contain an element equal to value,
-    // throw a RangeError exception.
-    for (const auto& val : values) {
-      if (value_str->IsEqualTo(val, isolate)) {
-        // 2. e. return value
-        *result = value_str;
-        return Just(true);
-      }
-    }
-
-    DirectHandle<String> method_str =
-        isolate->factory()->NewStringFromAsciiChecked(method_name);
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kValueOutOfRange, value, method_str,
-                      property_str),
-        Nothing<bool>());
-  }
+  // Skip: this overload is only for when values is undefined
 
   // 2. e. return value
   *result = value_str;
@@ -93,17 +69,12 @@ Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
 }
 
 V8_WARN_UNUSED_RESULT Maybe<bool> GetBoolOption(
-    Isolate* isolate, DirectHandle<JSReceiver> options, const char* property,
-    const char* method_name, bool* result) {
-  DirectHandle<String> property_str =
-      isolate->factory()->NewStringFromAsciiChecked(property);
-
+    Isolate* isolate, DirectHandle<JSReceiver> options,
+    DirectHandle<String> property, const char* method_name, bool* result) {
   // 1. Let value be ? Get(options, property).
   DirectHandle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value,
-      Object::GetPropertyOrElement(isolate, options, property_str),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, value, Object::GetPropertyOrElement(isolate, options, property));
 
   // 2. If value is not undefined, then
   if (!IsUndefined(*value, isolate)) {
@@ -127,18 +98,17 @@ Maybe<int> DefaultNumberOption(Isolate* isolate, DirectHandle<Object> value,
   // 1. If value is not undefined, then
   // a. Let value be ? ToNumber(value).
   DirectHandle<Number> value_num;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value_num, Object::ToNumber(isolate, value), Nothing<int>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value_num,
+                             Object::ToNumber(isolate, value));
   DCHECK(IsNumber(*value_num));
 
   // b. If value is NaN or less than minimum or greater than maximum, throw a
   // RangeError exception.
   if (IsNaN(*value_num) || Object::NumberValue(*value_num) < min ||
       Object::NumberValue(*value_num) > max) {
-    THROW_NEW_ERROR_RETURN_VALUE(
+    THROW_NEW_ERROR(
         isolate,
-        NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
-        Nothing<int>());
+        NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property));
   }
 
   // The max and min arguments are integers and the above check makes
@@ -155,9 +125,8 @@ Maybe<int> GetNumberOption(Isolate* isolate, DirectHandle<JSReceiver> options,
                            int fallback) {
   // 1. Let value be ? Get(options, property).
   DirectHandle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, JSReceiver::GetProperty(isolate, options, property),
-      Nothing<int>());
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, value, JSReceiver::GetProperty(isolate, options, property));
 
   // Return ? DefaultNumberOption(value, minimum, maximum, fallback).
   return DefaultNumberOption(isolate, value, min, max, fallback, property);
@@ -170,9 +139,8 @@ Maybe<double> GetNumberOptionAsDouble(Isolate* isolate,
                                       double default_value) {
   // 1. Let value be ? Get(options, property).
   DirectHandle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, JSReceiver::GetProperty(isolate, options, property),
-      Nothing<double>());
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, value, JSReceiver::GetProperty(isolate, options, property));
   // 2. If value is undefined, then
   if (IsUndefined(*value)) {
     // b. Return default.
@@ -181,14 +149,13 @@ Maybe<double> GetNumberOptionAsDouble(Isolate* isolate,
   // 4. Else if type is "number", then
   // a. Set value to ? ToNumber(value).
   DirectHandle<Number> value_num;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value_num, Object::ToNumber(isolate, value), Nothing<double>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value_num,
+                             Object::ToNumber(isolate, value));
   // b. If value is NaN, throw a RangeError exception.
   if (IsNaN(*value_num)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
+    THROW_NEW_ERROR(
         isolate,
-        NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
-        Nothing<double>());
+        NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property));
   }
 
   // 7. Return value.

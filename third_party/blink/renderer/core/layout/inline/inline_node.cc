@@ -554,15 +554,6 @@ void TruncateOrPadText(String* text, unsigned length) {
   }
 }
 
-bool SetParagraphTo(const String& text,
-                    const ComputedStyle& block_style,
-                    BidiParagraph& bidi) {
-  if (block_style.GetUnicodeBidi() == UnicodeBidi::kPlaintext) [[unlikely]] {
-    return bidi.SetParagraph(text, std::nullopt);
-  }
-  return bidi.SetParagraph(text, block_style.Direction());
-}
-
 }  // namespace
 
 InlineNode::InlineNode(LayoutBlockFlow* block)
@@ -1290,9 +1281,14 @@ void InlineNode::SegmentBidiRuns(InlineNodeData* data) const {
     return;
   }
 
+  const ComputedStyle& block_style = Style();
+  std::optional<TextDirection> base_direction;
+  if (block_style.GetUnicodeBidi() != UnicodeBidi::kPlaintext) {
+    base_direction = block_style.Direction();
+  }
   BidiParagraph bidi;
   data->text_content.Ensure16Bit();
-  if (!SetParagraphTo(data->text_content, Style(), bidi)) {
+  if (!bidi.SetParagraph(data->text_content, base_direction)) {
     // On failure, give up bidi resolving and reordering.
     data->is_bidi_enabled_ = false;
     data->SetBaseDirection(TextDirection::kLtr);
@@ -1382,7 +1378,8 @@ void InlineNode::ShapeText(InlineItemsData* data,
 #endif  // EXPENSIVE_DCHECKS_ARE_ON()
 
   ShapeResultSpacing<String> spacing(text_content, IsSvgText());
-  TextAutoSpace auto_space(*data);
+  const ComputedStyle& block_style = Style();
+  TextAutoSpace auto_space(block_style, *data);
 
   const bool allow_shape_cache =
       IsNGShapeCacheAllowed(text_content, override_font, *items, spacing) &&
@@ -1399,7 +1396,9 @@ void InlineNode::ShapeText(InlineItemsData* data,
     InlineItem& start_item = *(*items)[index];
     if (start_item.Type() != InlineItem::kText || !start_item.Length()) {
       index++;
-      is_next_start_of_paragraph = start_item.IsForcedLineBreak();
+      if (!start_item.IsOpaqueForTextProcessing()) {
+        is_next_start_of_paragraph = start_item.IsForcedLineBreak();
+      }
       continue;
     }
 

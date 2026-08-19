@@ -7,9 +7,10 @@
 
 #include <memory>
 
-#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/ui/unowned_user_data/user_data_factory.h"
 #include "chrome/common/buildflags.h"
+#include "extensions/buildflags/buildflags.h"
 
 #if BUILDFLAG(ENABLE_GLIC)
 namespace glic {
@@ -23,15 +24,20 @@ class Browser;
 class BrowserInstantController;
 class BrowserLocationBarModelDelegate;
 class BrowserSyncedWindowDelegate;
+class BrowserUserEducationInterface;
 class BrowserView;
 class BrowserWindowInterface;
 class ChromeLabsCoordinator;
+class ColorProviderBrowserHelper;
 class CookieControlsBubbleCoordinator;
+class DataSharingBubbleController;
 class DesktopBrowserWindowCapabilities;
 class DownloadToolbarUIController;
 class ExclusiveAccessManager;
 class FindBarController;
+class HistoryClustersSidePanelCoordinator;
 class HistorySidePanelCoordinator;
+class IncognitoClearBrowsingDataDialogCoordinator;
 class LocationBarModel;
 class MemorySaverOptInIPHController;
 class ProfileMenuCoordinator;
@@ -41,11 +47,13 @@ class SidePanelUI;
 class SigninViewController;
 class TabMenuModelDelegate;
 class TabSearchToolbarButtonController;
+class TabListBridge;
 class TabStripModel;
 class TabStripServiceRegister;
 class ToastController;
 class ToastService;
 class TranslateBubbleController;
+class UpgradeNotificationController;
 
 #if BUILDFLAG(IS_WIN)
 class WindowsTaskbarIconUpdater;
@@ -57,8 +65,15 @@ class PdfInfoBarController;
 }  // namespace pdf::infobar
 #endif
 
+#if defined(USE_AURA)
+class OverscrollPrefManager;
+#endif  // defined(USE_AURA)
+
 namespace extensions {
 class BrowserExtensionWindowController;
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+class ExtensionBrowserWindowHelper;
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 class ExtensionSidePanelManager;
 class Mv2DisabledDialogController;
 }  // namespace extensions
@@ -111,21 +126,19 @@ class SplitTabScrimController;
 }  // namespace split_tabs
 
 // This class owns the core controllers for features that are scoped to a given
-// browser window on desktop. It can be subclassed by tests to perform
-// dependency injection.
+// browser window on desktop.
+//
+// To inject alternative versions of features or mocks for testing, make your
+// feature compatible with `UnownedUserDataHost` and then use
+// `GetUserDataFactoryForTesting()` to inject your test-specific feature
+// object(s).
 class BrowserWindowFeatures {
  public:
-  static std::unique_ptr<BrowserWindowFeatures> CreateBrowserWindowFeatures();
-  virtual ~BrowserWindowFeatures();
+  BrowserWindowFeatures();
+  ~BrowserWindowFeatures();
 
   BrowserWindowFeatures(const BrowserWindowFeatures&) = delete;
   BrowserWindowFeatures& operator=(const BrowserWindowFeatures&) = delete;
-
-  // Call this method to stub out BrowserWindowFeatures for tests.
-  using BrowserWindowFeaturesFactory =
-      base::RepeatingCallback<std::unique_ptr<BrowserWindowFeatures>()>;
-  static void ReplaceBrowserWindowFeaturesForTesting(
-      BrowserWindowFeaturesFactory factory);
 
   // Called exactly once to initialize features. This is called prior to
   // instantiating BrowserView, to allow the view hierarchy to depend on state
@@ -262,6 +275,8 @@ class BrowserWindowFeatures {
     return tab_group_deletion_dialog_controller_.get();
   }
 
+  // TODO(https://crbug.com/428946261): Update callers to use
+  // BrowserExtensionWindowController::From() and remove this method.
   extensions::BrowserExtensionWindowController* extension_window_controller() {
     return extension_window_controller_.get();
   }
@@ -302,6 +317,17 @@ class BrowserWindowFeatures {
     return profile_menu_coordinator_.get();
   }
 
+  IncognitoClearBrowsingDataDialogCoordinator*
+  incognito_clear_browsing_data_dialog_coordinator() {
+    return incognito_clear_browsing_data_dialog_coordinator_.get();
+  }
+
+#if defined(USE_AURA)
+  OverscrollPrefManager* overscroll_pref_manager() {
+    return overscroll_pref_manager_.get();
+  }
+#endif  // defined(USE_AURA)
+
   // Get the FindBarController for this browser window, creating it if it does
   // not yet exist.
   FindBarController* GetFindBarController();
@@ -309,18 +335,29 @@ class BrowserWindowFeatures {
   // Returns true if a FindBarController exists for this browser window.
   bool HasFindBarController() const;
 
+  DataSharingBubbleController* data_sharing_bubble_controller() {
+    return data_sharing_bubble_controller_.get();
+  }
+
   ExclusiveAccessManager* exclusive_access_manager() {
     return exclusive_access_manager_.get();
   }
 
- protected:
-  BrowserWindowFeatures();
+  HistoryClustersSidePanelCoordinator*
+  history_clusters_side_panel_coordinator() {
+    return history_clusters_side_panel_coordinator_.get();
+  }
 
-  // Override these methods to stub out individual feature controllers for
-  // testing. e.g.
-  // virtual std::unique_ptr<FooFeature> CreateFooFeature();
+  UpgradeNotificationController* upgrade_notification_controller() {
+    return upgrade_notification_controller_.get();
+  }
+
+  static UserDataFactoryWithOwner<BrowserWindowInterface>&
+  GetUserDataFactoryForTesting();
 
  private:
+  static UserDataFactoryWithOwner<BrowserWindowInterface>& GetUserDataFactory();
+
   // A collection of features specific to desktop versions of Chrome.
   std::unique_ptr<DesktopBrowserWindowCapabilities>
       desktop_browser_window_capabilities_;
@@ -430,12 +467,36 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<ProfileMenuCoordinator> profile_menu_coordinator_;
 
+  std::unique_ptr<IncognitoClearBrowsingDataDialogCoordinator>
+      incognito_clear_browsing_data_dialog_coordinator_;
+
+#if defined(USE_AURA)
+  std::unique_ptr<OverscrollPrefManager> overscroll_pref_manager_;
+#endif  // defined(USE_AURA)
+
+  std::unique_ptr<ColorProviderBrowserHelper> color_provider_browser_helper_;
+
   // This is an experimental API that interacts with the TabStripModel.
   std::unique_ptr<TabStripServiceRegister> tab_strip_service_;
 
   // The Find Bar. This may be NULL if there is no Find Bar, and if it is
   // non-NULL, it may or may not be visible.
   std::unique_ptr<FindBarController> find_bar_controller_;
+
+  std::unique_ptr<DataSharingBubbleController> data_sharing_bubble_controller_;
+
+  std::unique_ptr<TabListBridge> tab_list_bridge_;
+
+  std::unique_ptr<HistoryClustersSidePanelCoordinator>
+      history_clusters_side_panel_coordinator_;
+
+  std::unique_ptr<UpgradeNotificationController>
+      upgrade_notification_controller_;
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  std::unique_ptr<extensions::ExtensionBrowserWindowHelper>
+      extension_browser_window_helper_;
+#endif
 
   // TODO(crbug.com/423956131): Remove this.
   raw_ptr<BrowserWindowInterface> browser_ = nullptr;
@@ -446,6 +507,8 @@ class BrowserWindowFeatures {
 #if BUILDFLAG(IS_WIN)
   std::unique_ptr<WindowsTaskbarIconUpdater> windows_taskbar_icon_updater_;
 #endif
+
+  std::unique_ptr<BrowserUserEducationInterface> user_education_;
 };
 
 #endif  // CHROME_BROWSER_UI_BROWSER_WINDOW_PUBLIC_BROWSER_WINDOW_FEATURES_H_

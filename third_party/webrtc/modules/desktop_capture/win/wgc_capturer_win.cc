@@ -115,14 +115,15 @@ bool IsWgcSupported(CaptureType capture_type) {
     // There is a bug in `CreateForMonitor` that causes a crash if there are no
     // active displays. The crash was fixed in Win11, but we are still unable
     // to capture screens without an active display.
-    if (capture_type == CaptureType::kScreen)
+    if (capture_type == CaptureType::kScreen) {
       return false;
-
+    }
     // There is a bug in the DWM (Desktop Window Manager) that prevents it from
     // providing image data if there are no displays attached. This was fixed in
     // Windows 11.
-    if (rtc_win::GetVersion() < rtc_win::Version::VERSION_WIN11)
+    if (rtc_win::GetVersion() < rtc_win::Version::VERSION_WIN11) {
       return false;
+    }
   }
 
   // A bug in the WGC API `CreateForMonitor` prevents capturing the entire
@@ -134,8 +135,9 @@ bool IsWgcSupported(CaptureType capture_type) {
     return false;
   }
 
-  if (!ResolveCoreWinRTDelayload())
+  if (!ResolveCoreWinRTDelayload()) {
     return false;
+  }
 
   // We need to check if the WGC APIs are present on the system. Certain SKUs
   // of Windows ship without these APIs.
@@ -145,32 +147,37 @@ bool IsWgcSupported(CaptureType capture_type) {
       ABI::Windows::Foundation::Metadata::IApiInformationStatics,
       RuntimeClass_Windows_Foundation_Metadata_ApiInformation>(
       &api_info_statics);
-  if (FAILED(hr))
+  if (FAILED(hr)) {
     return false;
+  }
 
   HSTRING api_contract;
   hr = CreateHstring(kApiContract, wcslen(kApiContract), &api_contract);
-  if (FAILED(hr))
+  if (FAILED(hr)) {
     return false;
+  }
 
   boolean is_api_present;
   hr = api_info_statics->IsApiContractPresentByMajor(
       api_contract, kRequiredApiContractVersion, &is_api_present);
   DeleteHstring(api_contract);
-  if (FAILED(hr) || !is_api_present)
+  if (FAILED(hr) || !is_api_present) {
     return false;
+  }
 
   HSTRING wgc_session_type;
   hr = CreateHstring(kWgcSessionType, wcslen(kWgcSessionType),
                      &wgc_session_type);
-  if (FAILED(hr))
+  if (FAILED(hr)) {
     return false;
+  }
 
   boolean is_type_present;
   hr = api_info_statics->IsTypePresent(wgc_session_type, &is_type_present);
   DeleteHstring(wgc_session_type);
-  if (FAILED(hr) || !is_type_present)
+  if (FAILED(hr) || !is_type_present) {
     return false;
+  }
 
   // If the APIs are present, we need to check that they are supported.
   ComPtr<WGC::IGraphicsCaptureSessionStatics> capture_session_statics;
@@ -178,13 +185,15 @@ bool IsWgcSupported(CaptureType capture_type) {
       WGC::IGraphicsCaptureSessionStatics,
       RuntimeClass_Windows_Graphics_Capture_GraphicsCaptureSession>(
       &capture_session_statics);
-  if (FAILED(hr))
+  if (FAILED(hr)) {
     return false;
+  }
 
   boolean is_supported;
   hr = capture_session_statics->IsSupported(&is_supported);
-  if (FAILED(hr) || !is_supported)
+  if (FAILED(hr) || !is_supported) {
     return false;
+  }
 
   return true;
 }
@@ -197,9 +206,11 @@ WgcCapturerWin::WgcCapturerWin(
     : options_(options),
       source_factory_(std::move(source_factory)),
       source_enumerator_(std::move(source_enumerator)),
-      allow_delayed_capturable_check_(allow_delayed_capturable_check) {
-  if (!core_messaging_library_)
+      allow_delayed_capturable_check_(allow_delayed_capturable_check),
+      full_screen_window_detector_(options.full_screen_window_detector()) {
+  if (!core_messaging_library_) {
     core_messaging_library_ = LoadLibraryW(kCoreMessagingDll);
+  }
 
   if (core_messaging_library_) {
     create_dispatcher_queue_controller_func_ =
@@ -210,8 +221,9 @@ WgcCapturerWin::WgcCapturerWin(
 }
 
 WgcCapturerWin::~WgcCapturerWin() {
-  if (core_messaging_library_)
+  if (core_messaging_library_) {
     FreeLibrary(core_messaging_library_);
+  }
 }
 
 // static
@@ -238,16 +250,41 @@ bool WgcCapturerWin::GetSourceList(SourceList* sources) {
 }
 
 bool WgcCapturerWin::SelectSource(DesktopCapturer::SourceId id) {
-  capture_source_ = source_factory_->CreateCaptureSource(id);
-  if (allow_delayed_capturable_check_)
+  selected_source_id_ = id;
+
+  // Use `full_screen_window_detector_` to check if there is a corresponding
+  // full screen window for the `selected_source_id_`.
+  const DesktopCapturer::SourceId full_screen_source_id =
+      full_screen_window_detector_ &&
+              full_screen_window_detector_->UseHeuristicForWGC()
+          ? full_screen_window_detector_->FindFullScreenWindow(id)
+          : 0;
+
+  // `capture_id` represents the SourceId used to create  the `capture_source_`,
+  // which is the module responsible for capturing the frames.
+  auto capture_id = full_screen_source_id ? full_screen_source_id : id;
+  if (capture_id != id && !fullscreen_usage_logged_) {
+    // Log the usage of FullScreenDetector only once and only if it's
+    // successful.
+    fullscreen_usage_logged_ = true;
+    LogDesktopCapturerFullscreenDetectorUsage();
+  }
+
+  if (!capture_source_ || capture_source_->GetSourceId() != capture_id) {
+    capture_source_ = source_factory_->CreateCaptureSource(capture_id);
+  }
+
+  if (allow_delayed_capturable_check_) {
     return true;
+  }
 
   return capture_source_->IsCapturable();
 }
 
 bool WgcCapturerWin::FocusOnSelectedSource() {
-  if (!capture_source_)
+  if (!capture_source_) {
     return false;
+  }
 
   return capture_source_->FocusOnSource();
 }
@@ -307,6 +344,15 @@ void WgcCapturerWin::CaptureFrame() {
     callback_->OnCaptureResult(DesktopCapturer::Result::ERROR_PERMANENT,
                                /*frame=*/nullptr);
     return;
+  }
+
+  // Feed the actual list of windows into full screen window detector.
+  if (full_screen_window_detector_) {
+    full_screen_window_detector_->UpdateWindowListIfNeeded(
+        selected_source_id_, [this](DesktopCapturer::SourceList* sources) {
+          return GetSourceList(sources);
+        });
+    SelectSource(selected_source_id_);
   }
 
   HRESULT hr;
@@ -407,10 +453,22 @@ void WgcCapturerWin::CaptureFrame() {
 bool WgcCapturerWin::IsSourceBeingCaptured(DesktopCapturer::SourceId id) {
   std::map<DesktopCapturer::SourceId, WgcCaptureSession>::iterator
       session_iter = ongoing_captures_.find(id);
-  if (session_iter == ongoing_captures_.end())
+  if (session_iter == ongoing_captures_.end()) {
     return false;
+  }
 
   return session_iter->second.IsCaptureStarted();
+}
+
+void WgcCapturerWin::SetUpFullScreenDetectorForTest(
+    bool use_heuristic,
+    DesktopCapturer::SourceId source_id) {
+  if (full_screen_window_detector_) {
+    full_screen_window_detector_->SetUseHeuristicFullscreenPowerPointWindows(
+        /*use_heuristic_fullscreen_powerpoint_windows=*/true, use_heuristic);
+    full_screen_window_detector_->CreateFullScreenApplicationHandlerForTest(
+        source_id);
+  }
 }
 
 }  // namespace webrtc

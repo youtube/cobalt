@@ -10,12 +10,11 @@
 
 #include "modules/audio_coding/test/PCMFile.h"
 
-#include <ctype.h>
-#include <stdio.h>
-#include <string.h>
-
+#include <cctype>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 
 #include "absl/strings/string_view.h"

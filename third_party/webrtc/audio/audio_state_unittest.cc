@@ -10,18 +10,35 @@
 
 #include "audio/audio_state.h"
 
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <numbers>
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
+#include "absl/strings/string_view.h"
+#include "api/audio/audio_frame.h"
+#include "api/audio/audio_frame_processor.h"
+#include "api/audio/audio_mixer.h"
+#include "api/location.h"
+#include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
+#include "api/task_queue/task_queue_base.h"
+#include "api/task_queue/task_queue_factory.h"
 #include "api/task_queue/test/mock_task_queue_base.h"
+#include "call/audio_state.h"
 #include "call/test/mock_audio_receive_stream.h"
 #include "call/test/mock_audio_send_stream.h"
+#include "modules/async_audio_processing/async_audio_processing.h"
 #include "modules/audio_device/include/mock_audio_device.h"
 #include "modules/audio_mixer/audio_mixer_impl.h"
 #include "modules/audio_processing/include/mock_audio_processing.h"
 #include "rtc_base/thread.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {

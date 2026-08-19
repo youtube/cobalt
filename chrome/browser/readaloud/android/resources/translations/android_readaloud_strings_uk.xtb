@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">Інші опції</translation>
 <translation id="565342223183747919">Натисніть, щоб змінити режим відтворення</translation>
 <translation id="5694491020339060116">Меню швидкості відтворення</translation>
+<translation id="5961164658295696940">Натисніть, щоб розгорнути програвач і переглянути інші опції</translation>
 <translation id="5965409657393819302">Технічна проблема</translation>
 <translation id="6218961554829577610">Не сподобався голос</translation>
 <translation id="6315170314923504164">Голос</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">Завантаження…</translation>
 <translation id="6889157801232138307">Програвач функції "Прослухати цю сторінку"</translation>
 <translation id="7051308646573997571">Кораловий</translation>
-<translation id="7112750136794557642">Натисніть, щоб розгорнути програвач і переглянути інші опції.</translation>
 <translation id="7138678301420049075">Інше</translation>
 <translation id="7221920857098237570">Тихий</translation>
 <translation id="7237590978482584900">Свіжий</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">спокійний</translation>
 <translation id="8756370108715456837">Недостовірна інформація</translation>
 <translation id="8953618380150219653">Програвач функції "Прослухати цю сторінку" відкрито на всю висоту.</translation>
+<translation id="9087782179025630211">Повзунок. Минуло <ph name="ELAPSED" /> із <ph name="TOTAL" />.</translation>
 <translation id="978117257931832348">Низький тембр</translation>
 </translationbundle>

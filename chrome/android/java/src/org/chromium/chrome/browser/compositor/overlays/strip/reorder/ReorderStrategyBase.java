@@ -15,6 +15,7 @@ import android.view.View;
 import androidx.annotation.NonNull;
 
 import org.chromium.base.MathUtils;
+import org.chromium.base.Token;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.Supplier;
@@ -22,6 +23,7 @@ import org.chromium.chrome.browser.compositor.overlays.strip.AnimationHost;
 import org.chromium.chrome.browser.compositor.overlays.strip.ScrollDelegate;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutGroupTitle;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutTab;
+import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutTabDelegate;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripTabModelActionListener;
@@ -55,7 +57,7 @@ abstract class ReorderStrategyBase implements ReorderStrategy {
     protected final TabModel mModel;
     protected final TabGroupModelFilter mTabGroupModelFilter;
     protected final View mContainerView;
-    protected final ObservableSupplierImpl<Integer> mGroupIdToHideSupplier;
+    protected final ObservableSupplierImpl<Token> mGroupIdToHideSupplier;
     protected final Supplier<Float> mTabWidthSupplier;
     private final Supplier<Long> mLastReorderScrollTimeSupplier;
 
@@ -67,7 +69,7 @@ abstract class ReorderStrategyBase implements ReorderStrategy {
             TabModel model,
             TabGroupModelFilter tabGroupModelFilter,
             View containerView,
-            ObservableSupplierImpl<Integer> groupIdToHideSupplier,
+            ObservableSupplierImpl<Token> groupIdToHideSupplier,
             Supplier<Float> tabWidthSupplier,
             Supplier<Long> lastReorderScrollTimeSupplier) {
         // TODO(crbug.com/409392603): Investigate splitting this class even further.
@@ -120,7 +122,7 @@ abstract class ReorderStrategyBase implements ReorderStrategy {
         // strip when user cancel the delete.
         StripTabModelActionListener listener =
                 new StripTabModelActionListener(
-                        tab.getRootId(),
+                        tab.getTabGroupId(),
                         actionType,
                         mGroupIdToHideSupplier,
                         mContainerView,
@@ -135,7 +137,7 @@ abstract class ReorderStrategyBase implements ReorderStrategy {
                         listener);
 
         // Run indicator animations. Find the group title after handling the removal, since the
-        // group may have been deleted OR the rootID may have changed.
+        // group may have been deleted.
         if (groupTitleToAnimate != null
                 && StripLayoutUtils.arrayContains(groupTitles, groupTitleToAnimate)) {
             animateGroupIndicatorForTabReorder(
@@ -332,13 +334,13 @@ abstract class ReorderStrategyBase implements ReorderStrategy {
             StripLayoutTab tab, boolean attached, @NonNull List<Animator> animationList) {
         float startValue =
                 attached
-                        ? StripLayoutUtils.FOLIO_DETACHED_BOTTOM_MARGIN_DP
-                        : StripLayoutUtils.FOLIO_ATTACHED_BOTTOM_MARGIN_DP;
+                        ? StripLayoutTabDelegate.FOLIO_DETACHED_BOTTOM_MARGIN_DP
+                        : StripLayoutTabDelegate.FOLIO_ATTACHED_BOTTOM_MARGIN_DP;
         float intermediateValue = FOLIO_ANIM_INTERMEDIATE_MARGIN_DP;
         float endValue =
                 attached
-                        ? StripLayoutUtils.FOLIO_ATTACHED_BOTTOM_MARGIN_DP
-                        : StripLayoutUtils.FOLIO_DETACHED_BOTTOM_MARGIN_DP;
+                        ? StripLayoutTabDelegate.FOLIO_ATTACHED_BOTTOM_MARGIN_DP
+                        : StripLayoutTabDelegate.FOLIO_DETACHED_BOTTOM_MARGIN_DP;
 
         ArrayList<Animator> attachAnimationList = new ArrayList<>();
         CompositorAnimator dropAnimation =

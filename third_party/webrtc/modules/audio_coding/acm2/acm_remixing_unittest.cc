@@ -18,7 +18,6 @@
 #include "api/audio/audio_view.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/testsupport/file_utils.h"
 
 using ::testing::AllOf;
 using ::testing::Each;

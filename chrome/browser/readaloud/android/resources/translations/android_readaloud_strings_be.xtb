@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">Дадатковыя параметры</translation>
 <translation id="565342223183747919">Націсніце, каб пераключыць рэжым прайгравання</translation>
 <translation id="5694491020339060116">Меню хуткасці прайгравання</translation>
+<translation id="5961164658295696940">Націсніце, каб разгарнуць прайгравальнік і атрымаць доступ да іншых параметраў</translation>
 <translation id="5965409657393819302">Тэхнічная праблема</translation>
 <translation id="6218961554829577610">Не падабаецца голас</translation>
 <translation id="6315170314923504164">Галасавы ўвод</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">Ідзе загрузка…</translation>
 <translation id="6889157801232138307">Прайгравальнік "Агучыць гэту старонку"</translation>
 <translation id="7051308646573997571">Каралавы</translation>
-<translation id="7112750136794557642">Націсніце, каб разгарнуць прайгравальнік і атрымаць доступ да іншых параметраў.</translation>
 <translation id="7138678301420049075">Іншыя</translation>
 <translation id="7221920857098237570">Мяккі</translation>
 <translation id="7237590978482584900">Бестурботны</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">Спакойны голас</translation>
 <translation id="8756370108715456837">Змяшчаліся няправільныя звесткі</translation>
 <translation id="8953618380150219653">Прайгравальнік "Агучыць гэту старонку" адкрыты на ўсю вышыню.</translation>
+<translation id="9087782179025630211">Паўзунок. <ph name="ELAPSED" /> з <ph name="TOTAL" />.</translation>
 <translation id="978117257931832348">нізкі тон</translation>
 </translationbundle>

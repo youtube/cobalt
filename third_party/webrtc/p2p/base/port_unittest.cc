@@ -10,10 +10,10 @@
 
 #include "p2p/base/port.h"
 
-#include <string.h>
-
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <list>
 #include <memory>
@@ -29,6 +29,7 @@
 #include "api/candidate.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/packet_socket_factory.h"
 #include "api/rtc_error.h"
 #include "api/test/rtc_error_matchers.h"
@@ -71,9 +72,9 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 #include "test/wait_until.h"
 
 using ::testing::Eq;
@@ -2808,7 +2809,7 @@ TEST_F(PortTest, TestComputeCandidatePriority) {
 }
 
 TEST_F(PortTest, TestComputeCandidatePriorityWithPriorityAdjustment) {
-  test::ScopedKeyValueConfig field_trials(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-IncreaseIceCandidatePriorityHostSrflx/Enabled/");
   auto port = CreateTestPort(kLocalAddr1, "name", "pass", &field_trials);
   port->SetIceTiebreaker(kTiebreakerDefault);
@@ -3025,7 +3026,7 @@ TEST_F(PortTest, TestConnectionPriority) {
 
 // Test the Connection priority is calculated correctly.
 TEST_F(PortTest, TestConnectionPriorityWithPriorityAdjustment) {
-  test::ScopedKeyValueConfig field_trials(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-IncreaseIceCandidatePriorityHostSrflx/Enabled/");
   auto lport = CreateTestPort(kLocalAddr1, "lfrag", "lpass", &field_trials);
   lport->SetIceTiebreaker(kTiebreakerDefault);

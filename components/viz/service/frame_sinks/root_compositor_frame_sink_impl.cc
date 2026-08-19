@@ -556,7 +556,7 @@ void RootCompositorFrameSinkImpl::SubmitCompositorFrame(
 
   const auto result = support_->MaybeSubmitCompositorFrame(
       local_surface_id, std::move(frame), std::move(hit_test_region_list),
-      submit_time, SubmitCompositorFrameSyncCallback());
+      submit_time);
   if (result == SubmitResult::ACCEPTED)
     return;
 
@@ -566,15 +566,6 @@ void RootCompositorFrameSinkImpl::SubmitCompositorFrame(
               << " because " << reason;
   compositor_frame_sink_receiver_.ResetWithReason(static_cast<uint32_t>(result),
                                                   reason);
-}
-
-void RootCompositorFrameSinkImpl::SubmitCompositorFrameSync(
-    const LocalSurfaceId& local_surface_id,
-    CompositorFrame frame,
-    std::optional<HitTestRegionList> hit_test_region_list,
-    uint64_t submit_time,
-    SubmitCompositorFrameSyncCallback callback) {
-  NOTIMPLEMENTED();
 }
 
 void RootCompositorFrameSinkImpl::NotifyNewLocalSurfaceIdExpectedWhilePaused() {
@@ -588,8 +579,8 @@ void RootCompositorFrameSinkImpl::DidNotProduceFrame(
 
 void RootCompositorFrameSinkImpl::BindLayerContext(
     mojom::PendingLayerContextPtr context,
-    bool draw_mode_is_gpu) {
-  support_->BindLayerContext(*context, draw_mode_is_gpu);
+    mojom::LayerContextSettingsPtr settings) {
+  support_->BindLayerContext(*context, std::move(settings));
 }
 
 #if BUILDFLAG(IS_ANDROID)

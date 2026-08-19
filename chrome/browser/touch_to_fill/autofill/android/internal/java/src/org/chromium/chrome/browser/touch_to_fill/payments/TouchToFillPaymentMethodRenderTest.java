@@ -4,6 +4,10 @@
 
 package org.chromium.chrome.browser.touch_to_fill.payments;
 
+import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.matcher.ViewMatchers.withId;
+
 import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
 import static org.chromium.base.test.util.ApplicationTestUtils.finishActivity;
 import static org.chromium.chrome.browser.autofill.AutofillTestHelper.createCreditCard;
@@ -32,6 +36,7 @@ import org.chromium.base.test.params.ParameterAnnotations;
 import org.chromium.base.test.params.ParameterSet;
 import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.RequiresRestart;
 import org.chromium.chrome.browser.autofill.AutofillTestHelper;
@@ -179,13 +184,21 @@ public class TouchToFillPaymentMethodRenderTest {
                     /* nickname= */ "",
                     /* value= */ "FR7630006000011234567890189");
 
-    private static final LoyaltyCard LOYALTY_CARD =
+    private static final LoyaltyCard CVS_LOYALTY_CARD =
             new LoyaltyCard(
                     /* loyaltyCardId= */ "cvs",
                     /* merchantName= */ "CVS Pharmacy",
                     /* programName= */ "Loyalty program",
                     /* programLogo= */ new GURL("https://site.com/icon.png"),
                     /* loyaltyCardNumber= */ "1234",
+                    /* merchantDomains= */ Collections.emptyList());
+    private static final LoyaltyCard DB_LOYALTY_CARD =
+            new LoyaltyCard(
+                    /* loyaltyCardId= */ "db",
+                    /* merchantName= */ "Deutsche Bahn",
+                    /* programName= */ "Loyalty program",
+                    /* programLogo= */ new GURL("https://db.com/icon.png"),
+                    /* loyaltyCardNumber= */ "4321",
                     /* merchantDomains= */ Collections.emptyList());
 
     private static final AutofillSuggestion VISA_SUGGESTION =
@@ -686,8 +699,8 @@ public class TouchToFillPaymentMethodRenderTest {
         runOnUiThreadBlocking(
                 () -> {
                     mCoordinator.showLoyaltyCards(
-                            List.of(LOYALTY_CARD),
-                            List.of(LOYALTY_CARD),
+                            List.of(CVS_LOYALTY_CARD),
+                            List.of(CVS_LOYALTY_CARD, DB_LOYALTY_CARD),
                             /* firstTimeUsage= */ false);
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
@@ -697,5 +710,28 @@ public class TouchToFillPaymentMethodRenderTest {
                         mActivityTestRule.getActivity().findViewById(R.id.bottom_sheet).getParent();
         mRenderTestRule.render(
                 bottomSheetParentView, "touch_to_fill_loyalty_card_sheet_one_loyalty_card");
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"RenderTest"})
+    @DisabledTest(message = "crbug.com/428186413")
+    public void testShowsAllLoyaltyCardsScreen() throws IOException {
+        runOnUiThreadBlocking(
+                () -> {
+                    mCoordinator.showLoyaltyCards(
+                            List.of(CVS_LOYALTY_CARD),
+                            List.of(CVS_LOYALTY_CARD, DB_LOYALTY_CARD),
+                            /* firstTimeUsage= */ false);
+                });
+        BottomSheetTestSupport.waitForOpen(mBottomSheetController);
+
+        onView(withId(R.id.all_loyalty_cards_item_title)).perform(click());
+
+        ViewGroup bottomSheetParentView =
+                (ViewGroup)
+                        mActivityTestRule.getActivity().findViewById(R.id.bottom_sheet).getParent();
+        mRenderTestRule.render(
+                bottomSheetParentView, "touch_to_fill_loyalty_card_all_loyalty_cards_screen");
     }
 }

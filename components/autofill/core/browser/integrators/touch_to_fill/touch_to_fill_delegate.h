@@ -7,6 +7,7 @@
 
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/data_model/payments/iban.h"
+#include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
 #include "components/autofill/core/common/form_data.h"
 #include "components/autofill/core/common/form_field_data.h"
 #include "components/autofill/core/common/unique_ids.h"
@@ -16,7 +17,6 @@
 
 namespace autofill {
 
-class AutofillManager;
 class FormStructure;
 
 // An interface for interaction with the bottom sheet UI controller, which is
@@ -26,11 +26,8 @@ class TouchToFillDelegate {
  public:
   virtual ~TouchToFillDelegate() = default;
 
-  virtual AutofillManager* GetManager() = 0;
-
   virtual bool IntendsToShowTouchToFill(FormGlobalId form_id,
-                                        FieldGlobalId field_id,
-                                        const FormData& form) = 0;
+                                        FieldGlobalId field_id) = 0;
 
   // Checks whether TTF is eligible for the given web form data and, if
   // successful, triggers the corresponding surface and returns |true|.
@@ -60,7 +57,7 @@ class TouchToFillDelegate {
   // Called when the user taps on a loyalty card in the payments TTF bottom
   // sheet.
   virtual void LoyaltyCardSuggestionSelected(
-      const std::string& loyalty_card_number) = 0;
+      const LoyaltyCard& loyalty_card) = 0;
   virtual void OnDismissed(bool dismissed_by_user) = 0;
 
   virtual void LogMetricsAfterSubmission(

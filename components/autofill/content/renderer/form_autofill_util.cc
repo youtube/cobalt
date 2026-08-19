@@ -211,6 +211,19 @@ WebString GetAttribute(const WebElement& element) {
   return element.GetAttribute(GetWebString<attribute>());
 }
 
+// Indicates whether we want to extract forms on `url`.
+bool IsAdmissibleUrl(const blink::WebURL& url) {
+  if (url.ProtocolIs("https") || url.ProtocolIs("http") ||
+      url.ProtocolIs("data")) {
+    return true;
+  }
+  if (url.ProtocolIs("about") && GURL(url).IsAboutSrcdoc()) {
+    return true;
+  }
+  return !base::FeatureList::IsEnabled(
+      features::kAutofillExtractOnlyOnAdmissibleUrls);
+}
+
 // Returns the form's |name| attribute if non-empty; otherwise the form's |id|
 // attribute.
 std::u16string GetFormIdentifier(const WebFormElement& form) {
@@ -284,12 +297,16 @@ bool IsSelectElement(const WebFormControlElement& element) {
   return GetAutofillFormControlType(element) == FormControlType::kSelectOne;
 }
 
+// TODO(crbug.com/402071086): Remove when AutofillIgnoreCheckableElements is
+// removed.
 bool IsCheckableElement(const WebFormControlElement& element) {
   using enum blink::mojom::FormControlType;
   return element && (element.FormControlTypeForAutofill() == kInputCheckbox ||
                      element.FormControlTypeForAutofill() == kInputRadio);
 }
 
+// TODO(crbug.com/402071086): Remove when AutofillIgnoreCheckableElements is
+// removed.
 bool IsCheckableElement(const WebElement& element) {
   return IsCheckableElement(element.DynamicTo<WebInputElement>());
 }
@@ -2065,6 +2082,10 @@ std::optional<FormData> ExtractFormDataWithFieldsAndFrames(
     return std::nullopt;
   }
 
+  if (!IsAdmissibleUrl(document.Url())) {
+    return std::nullopt;
+  }
+
   std::vector<WebFormControlElement> control_elements =
       GetOwnedAutofillableFormControls(document, form_element);
   if (base::FeatureList::IsEnabled(features::kAutofillOptimizeFormExtraction) &&
@@ -2287,11 +2308,22 @@ bool IsAutofillableElement(const WebFormControlElement& element) {
 
 std::optional<FormControlType> ToAutofillFormControlType(
     blink::mojom::FormControlType type) {
+  // We cache this for performance reasons (crbug.com/428506178). This should
+  // not affect tests because the only tests that explicitly set the feature are
+  // two browser tests (form_autofill_util_browsertest.cc and
+  // form_structure_browsertest.cc) whose renderer processes are hopefully never
+  // shared with other tests.
+  const static bool g_autofill_ignore_checkable_elements_enabled =
+      base::FeatureList::IsEnabled(features::kAutofillIgnoreCheckableElements);
+
   // Note that adding a new field type here automatically makes
   // IsAutofillableElement() return true.
   switch (type) {
     case blink::mojom::FormControlType::kInputCheckbox:
-      return FormControlType::kInputCheckbox;
+      if (!g_autofill_ignore_checkable_elements_enabled) {
+        return FormControlType::kInputCheckbox;
+      }
+      break;
     case blink::mojom::FormControlType::kInputEmail:
       return FormControlType::kInputEmail;
     case blink::mojom::FormControlType::kInputMonth:
@@ -2301,7 +2333,10 @@ std::optional<FormControlType> ToAutofillFormControlType(
     case blink::mojom::FormControlType::kInputPassword:
       return FormControlType::kInputPassword;
     case blink::mojom::FormControlType::kInputRadio:
-      return FormControlType::kInputRadio;
+      if (!g_autofill_ignore_checkable_elements_enabled) {
+        return FormControlType::kInputRadio;
+      }
+      break;
     case blink::mojom::FormControlType::kInputSearch:
       return FormControlType::kInputSearch;
     case blink::mojom::FormControlType::kInputTelephone:
@@ -2527,17 +2562,18 @@ FindFormAndFieldForFormControlElement(
 
 std::optional<FormData> FindFormForContentEditable(
     const WebElement& content_editable) {
+  WebDocument document = content_editable.GetDocument();
+
   if (content_editable.DynamicTo<WebFormElement>() ||
       content_editable.DynamicTo<WebFormControlElement>() ||
       !content_editable.IsContentEditable() ||
       content_editable != content_editable.RootEditableElement() ||
-      !IsAccessible(content_editable)) {
+      !IsAccessible(content_editable) || !IsAdmissibleUrl(document.Url())) {
     return std::nullopt;
   }
 
   std::vector<FormFieldData> fields(1);
   FormFieldData& field = fields.back();
-  WebDocument document = content_editable.GetDocument();
   field.set_id_attribute(content_editable.GetIdAttribute().Utf16());
   field.set_name_attribute(GetAttribute<kName>(content_editable).Utf16());
   field.set_name(!field.id_attribute().empty() ? field.id_attribute()

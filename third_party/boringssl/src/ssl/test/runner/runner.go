@@ -261,7 +261,6 @@ func initCertificates() {
 		Certificate:     [][]byte{leafCert.Raw, intermediateCert.Raw},
 		RootCertificate: rootCert.Raw,
 		PrivateKey:      &rsa2048Key,
-		Leaf:            leafCert,
 		ChainPath:       chainPath,
 		KeyPath:         keyPath,
 		RootPath:        rootCertPath,

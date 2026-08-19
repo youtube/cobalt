@@ -9,11 +9,15 @@
 #include <unordered_set>
 #include <vector>
 
+#include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "ui/accessibility/ax_enums.mojom-forward.h"
 #include "ui/accessibility/ax_node_id_forward.h"
 #include "ui/accessibility/ax_tree_id.h"
+#include "ui/accessibility/ax_tree_serializer.h"
 #include "ui/accessibility/platform/ax_mode_observer.h"
+#include "ui/accessibility/platform/ax_platform_tree_manager_delegate.h"
+#include "ui/views/accessibility/tree/view_accessibility_ax_tree_source.h"
 #include "ui/views/views_export.h"
 
 namespace views {
@@ -21,10 +25,18 @@ namespace views {
 class ViewAccessibility;
 class Widget;
 
+using ViewAccessibilityAXTreeSerializer = ui::AXTreeSerializer<
+    ViewAccessibility*,
+    std::vector<raw_ptr<ViewAccessibility, VectorExperimental>>,
+    ui::AXTreeUpdate*,
+    ui::AXTreeData*,
+    ui::AXNodeData>;
+
 // This class owns and manages the accessibility tree for a Widget. It is owned
 // by the `widget_` and must never outlive its owner. This is currently under
 // construction.
-class VIEWS_EXPORT WidgetAXManager : public ui::AXModeObserver {
+class VIEWS_EXPORT WidgetAXManager : public ui::AXModeObserver,
+                                     ui::AXPlatformTreeManagerDelegate {
  public:
   explicit WidgetAXManager(Widget* widget);
   WidgetAXManager(const WidgetAXManager&) = delete;
@@ -44,6 +56,31 @@ class VIEWS_EXPORT WidgetAXManager : public ui::AXModeObserver {
   // ui::AXModeObserver:
   void OnAXModeAdded(ui::AXMode mode) override;
 
+  // ui::AXPlatformTreeManagerDelegate:
+  void AccessibilityPerformAction(const ui::AXActionData& data) override;
+  bool AccessibilityViewHasFocus() override;
+  void AccessibilityViewSetFocus() override;
+  gfx::Rect AccessibilityGetViewBounds() override;
+  float AccessibilityGetDeviceScaleFactor() override;
+  void UnrecoverableAccessibilityError() override;
+  gfx::AcceleratedWidget AccessibilityGetAcceleratedWidget() override;
+  gfx::NativeViewAccessible AccessibilityGetNativeViewAccessible() override;
+  gfx::NativeViewAccessible AccessibilityGetNativeViewAccessibleForWindow()
+      override;
+  void AccessibilityHitTest(
+      const gfx::Point& point_in_view_pixels,
+      const ax::mojom::Event& opt_event_to_fire,
+      int opt_request_id,
+      base::OnceCallback<void(ui::AXPlatformTreeManager* hit_manager,
+                              ui::AXNodeID hit_node_id)> opt_callback) override;
+  gfx::NativeWindow GetTopLevelNativeWindow() override;
+  bool CanFireAccessibilityEvents() const override;
+  bool AccessibilityIsRootFrame() const override;
+  bool ShouldSuppressAXLoadComplete() override;
+  content::WebContentsAccessibility* AccessibilityGetWebContentsAccessibility()
+      override;
+  bool AccessibilityIsWebContentSource() override;
+
  private:
   friend class WidgetAXManagerTestApi;
 
@@ -58,6 +95,15 @@ class VIEWS_EXPORT WidgetAXManager : public ui::AXModeObserver {
 
   // The AXTreeID of the parent widget's accessibility tree, if any.
   ui::AXTreeID parent_ax_tree_id_;
+
+  std::unique_ptr<WidgetViewAXCache> cache_;
+
+  // Holds the active views-based tree. A tree consists of all the views in the
+  // widget.
+  std::unique_ptr<ViewAccessibilityAXTreeSource> tree_source_;
+
+  // Serializes incremental updates on the currently active `tree_source_`.
+  std::unique_ptr<ViewAccessibilityAXTreeSerializer> tree_serializer_;
 
   // Indicates whether we're actively serializing widget accessibility data.
   bool is_enabled_ = false;

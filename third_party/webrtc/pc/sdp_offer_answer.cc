@@ -717,7 +717,9 @@ RTCError DisableSimulcastInSender(scoped_refptr<RtpSenderInternal> sender) {
 
 // The SDP parser used to populate these values by default for the 'content
 // name' if an a=mid line was absent.
-absl::string_view GetDefaultMidForPlanB(MediaType media_type) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+std::string GetDefaultMidForPlanB(MediaType media_type) {
   switch (media_type) {
     case MediaType::AUDIO:
       return CN_AUDIO;
@@ -734,6 +736,7 @@ absl::string_view GetDefaultMidForPlanB(MediaType media_type) {
   RTC_DCHECK_NOTREACHED();
   return "";
 }
+#pragma clang diagnostic pop
 
 // Add options to |[audio/video]_media_description_options| from `senders`.
 void AddPlanBRtpSenderOptions(
@@ -2483,6 +2486,8 @@ void SdpOfferAnswerHandler::DoSetLocalDescription(
                !pc_->trials().IsDisabled(
                    "WebRTC-NoSdpMangleNumberOfContents")) {
       reject_error = true;
+    } else {
+      reject_error = !IsSdpMungingAllowed(sdp_munging_type, pc_->trials());
     }
     SdpMungingOutcome outcome = reject_error ? SdpMungingOutcome::kRejected
                                              : SdpMungingOutcome::kAccepted;
@@ -4254,8 +4259,7 @@ void SdpOfferAnswerHandler::FillInMissingRemoteMids(
         source_explanation = "generated just now";
       }
     } else {
-      new_mid = std::string(
-          GetDefaultMidForPlanB(content.media_description()->type()));
+      new_mid = GetDefaultMidForPlanB(content.media_description()->type());
       source_explanation = "to match pre-existing behavior";
     }
     RTC_DCHECK(!new_mid.empty());
@@ -4400,7 +4404,7 @@ void SdpOfferAnswerHandler::GetOptionsForPlanBOffer(
     // Add audio/video/data m= sections to the end if needed.
     if (!audio_index && offer_new_audio_description) {
       MediaDescriptionOptions options(
-          MediaType::AUDIO, CN_AUDIO,
+          MediaType::AUDIO, GetDefaultMidForPlanB(MediaType::AUDIO),
           RtpTransceiverDirectionFromSendRecv(send_audio, recv_audio), false);
       options.header_extensions =
           media_engine()->voice().GetRtpHeaderExtensions();
@@ -4409,7 +4413,7 @@ void SdpOfferAnswerHandler::GetOptionsForPlanBOffer(
     }
     if (!video_index && offer_new_video_description) {
       MediaDescriptionOptions options(
-          MediaType::VIDEO, CN_VIDEO,
+          MediaType::VIDEO, GetDefaultMidForPlanB(MediaType::VIDEO),
           RtpTransceiverDirectionFromSendRecv(send_video, recv_video), false);
       options.header_extensions =
           media_engine()->video().GetRtpHeaderExtensions();
@@ -4432,7 +4436,8 @@ void SdpOfferAnswerHandler::GetOptionsForPlanBOffer(
   }
   if (!data_index && offer_new_data_description) {
     session_options->media_description_options.push_back(
-        GetMediaDescriptionOptionsForActiveData(CN_DATA));
+        GetMediaDescriptionOptionsForActiveData(
+            GetDefaultMidForPlanB(MediaType::DATA)));
   }
 }
 
@@ -5099,8 +5104,7 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
     }
     // If local and remote are both set, we assume that it's safe to trigger
     // CCFB.
-    if (context_->env().field_trials().IsEnabled(
-            "WebRTC-RFC8888CongestionControlFeedback")) {
+    if (pc_->trials().IsEnabled("WebRTC-RFC8888CongestionControlFeedback")) {
       if (use_ccfb && local_description() && remote_description()) {
         // The call and the congestion controller live on the worker thread.
         context_->worker_thread()->PostTask([call = pc_->call_ptr()] {
@@ -5338,6 +5342,7 @@ bool SdpOfferAnswerHandler::ReadyToUseRemoteCandidate(
     const std::string host = candidate->candidate().address().HostAsURIString();
     const std::vector<absl::string_view> restricted_address_list =
         absl::StrSplit(restricted_addresses, '|');
+    bool allowed = true;
     for (const absl::string_view restricted_address : restricted_address_list) {
       const std::pair<absl::string_view, absl::string_view> address =
           absl::StrSplit(restricted_address, ':');
@@ -5358,11 +5363,14 @@ bool SdpOfferAnswerHandler::ReadyToUseRemoteCandidate(
         RTC_HISTOGRAM_ENUMERATION_SPARSE(
             "WebRTC.PeerConnection.RestrictedCandidates.Port",
             candidate->candidate().address().port(), 65536);
-        return false;
+        allowed = false;
+        break;
       }
     }
+    RTC_HISTOGRAM_BOOLEAN(
+        "WebRTC.PeerConnection.RestrictedCandidates.MungeAllowed", allowed);
+    return allowed;
   }
-
   return true;
 }
 

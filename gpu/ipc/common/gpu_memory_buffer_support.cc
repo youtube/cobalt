@@ -12,23 +12,12 @@
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "build/build_config.h"
-#include "gpu/command_buffer/client/gpu_memory_buffer_manager.h"
 #include "gpu/ipc/common/gpu_memory_buffer_impl_shared_memory.h"
 #include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/buffer_usage_util.h"
 
-#if BUILDFLAG(IS_MAC)
-#include "gpu/ipc/common/gpu_memory_buffer_impl_io_surface.h"
-#endif
-
 #if BUILDFLAG(IS_OZONE)
-#include "gpu/ipc/common/gpu_memory_buffer_impl_native_pixmap.h"
-#include "ui/ozone/public/client_native_pixmap_factory_ozone.h"
 #include "ui/ozone/public/ozone_platform.h"
-#endif
-
-#if BUILDFLAG(IS_WIN)
-#include "gpu/ipc/common/gpu_memory_buffer_impl_dxgi.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -55,11 +44,7 @@ gfx::GpuMemoryBufferType GetNativeGpuMemoryBufferType() {
 
 }  // namespace
 
-GpuMemoryBufferSupport::GpuMemoryBufferSupport() {
-#if BUILDFLAG(IS_OZONE)
-  client_native_pixmap_factory_ = ui::CreateClientNativePixmapFactoryOzone();
-#endif
-}
+GpuMemoryBufferSupport::GpuMemoryBufferSupport() = default;
 
 GpuMemoryBufferSupport::~GpuMemoryBufferSupport() = default;
 
@@ -216,97 +201,10 @@ bool GpuMemoryBufferSupport::IsConfigurationSupportedForTest(
   }
 
   if (type == gfx::SHARED_MEMORY_BUFFER) {
-    return GpuMemoryBufferImplSharedMemory::IsConfigurationSupported(format,
-                                                                     usage);
+    return GpuMemoryBufferImplSharedMemory::IsUsageSupported(usage);
   }
 
   NOTREACHED();
-}
-
-std::unique_ptr<GpuMemoryBufferImpl>
-GpuMemoryBufferSupport::CreateGpuMemoryBufferImplFromHandle(
-    gfx::GpuMemoryBufferHandle handle,
-    const gfx::Size& size,
-    gfx::BufferFormat format,
-    gfx::BufferUsage usage,
-    GpuMemoryBufferImpl::DestructionCallback callback,
-    gpu::GpuMemoryBufferManager* gpu_memory_buffer_manager,
-    scoped_refptr<base::UnsafeSharedMemoryPool> pool) {
-  switch (handle.type) {
-    case gfx::SHARED_MEMORY_BUFFER:
-      return GpuMemoryBufferImplSharedMemory::CreateFromHandle(
-          std::move(handle), size, format, usage, std::move(callback));
-#if BUILDFLAG(IS_MAC)
-    case gfx::IO_SURFACE_BUFFER:
-      return GpuMemoryBufferImplIOSurface::CreateFromHandle(
-          std::move(handle), size, format, usage, std::move(callback));
-#endif
-#if BUILDFLAG(IS_OZONE)
-    case gfx::NATIVE_PIXMAP:
-      return GpuMemoryBufferImplNativePixmap::CreateFromHandle(
-          client_native_pixmap_factory_.get(), std::move(handle), size, format,
-          usage, std::move(callback));
-#endif
-#if BUILDFLAG(IS_WIN)
-    case gfx::DXGI_SHARED_HANDLE:
-      return GpuMemoryBufferImplDXGI::CreateFromHandle(
-          std::move(handle), size, format, usage, std::move(callback),
-          gpu_memory_buffer_manager, std::move(pool));
-#endif
-#if BUILDFLAG(IS_ANDROID)
-    case gfx::ANDROID_HARDWARE_BUFFER:
-      return nullptr;
-#endif
-    default:
-      // TODO(dcheng): Remove default case (https://crbug.com/676224).
-      NOTREACHED() << gfx::BufferFormatToString(format) << ", "
-                   << gfx::BufferUsageToString(usage);
-  }
-}
-
-AllocatedBufferInfo::AllocatedBufferInfo(
-    const gfx::GpuMemoryBufferHandle& handle,
-    const gfx::Size& size,
-    gfx::BufferFormat format)
-    : buffer_id_(handle.id),
-      type_(handle.type),
-      size_in_bytes_(gfx::BufferSizeForBufferFormat(size, format)) {
-  DCHECK_NE(gfx::EMPTY_BUFFER, type_);
-
-  if (type_ == gfx::SHARED_MEMORY_BUFFER) {
-    shared_memory_guid_ = handle.region().GetGUID();
-  }
-}
-
-AllocatedBufferInfo::~AllocatedBufferInfo() = default;
-
-bool AllocatedBufferInfo::OnMemoryDump(
-    base::trace_event::ProcessMemoryDump* pmd,
-    int client_id,
-    uint64_t client_tracing_process_id) const {
-  base::trace_event::MemoryAllocatorDump* dump = pmd->CreateAllocatorDump(
-      base::StringPrintf("gpu/gpumemorybuffer/client_0x%" PRIX32 "/buffer_%d",
-                         client_id, buffer_id_.id));
-  if (!dump) {
-    return false;
-  }
-
-  dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
-                  base::trace_event::MemoryAllocatorDump::kUnitsBytes,
-                  size_in_bytes_);
-
-  // Create the shared ownership edge to avoid double counting memory.
-  if (type_ == gfx::SHARED_MEMORY_BUFFER) {
-    pmd->CreateSharedMemoryOwnershipEdge(dump->guid(), shared_memory_guid_,
-                                         /*importance=*/0);
-  } else {
-    auto shared_buffer_guid = gfx::GetGenericSharedGpuMemoryGUIDForTracing(
-        client_tracing_process_id, buffer_id_);
-    pmd->CreateSharedGlobalAllocatorDump(shared_buffer_guid);
-    pmd->AddOwnershipEdge(dump->guid(), shared_buffer_guid);
-  }
-
-  return true;
 }
 
 }  // namespace gpu

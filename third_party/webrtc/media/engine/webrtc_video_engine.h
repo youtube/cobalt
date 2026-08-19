@@ -861,17 +861,5 @@ class WebRtcVideoChannel : public WebRtcVideoSendChannel {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::MergeInfoAboutOutboundRtpSubstreamsForTesting;
-using ::webrtc::VideoCodecSettings;
-using ::webrtc::WebRtcVideoChannel;
-using ::webrtc::WebRtcVideoEngine;
-using ::webrtc::WebRtcVideoReceiveChannel;
-using ::webrtc::WebRtcVideoSendChannel;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // MEDIA_ENGINE_WEBRTC_VIDEO_ENGINE_H_

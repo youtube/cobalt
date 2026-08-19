@@ -8,7 +8,6 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -588,43 +587,6 @@ TEST(GoogCcScenario, LimitsToFloorIfRttIsHighInTrial) {
 
 TEST(GoogCcScenario, UpdatesTargetRateBasedOnLinkCapacity) {
   UpdatesTargetRateBasedOnLinkCapacity();
-}
-
-TEST(GoogCcScenario, StableEstimateDoesNotVaryInSteadyState) {
-  GoogCcNetworkControllerFactory factory;
-  Scenario s("googcc_unit/stable_target", false);
-  CallClientConfig config;
-  config.transport.cc_factory = &factory;
-  NetworkSimulationConfig net_conf;
-  net_conf.bandwidth = DataRate::KilobitsPerSec(500);
-  net_conf.delay = TimeDelta::Millis(100);
-  auto send_net = s.CreateSimulationNode(net_conf);
-  auto ret_net = s.CreateSimulationNode(net_conf);
-
-  auto* client = CreateVideoSendingClient(&s, config, {send_net}, {ret_net});
-  // Run for a while to allow the estimate to stabilize.
-  s.RunFor(TimeDelta::Seconds(30));
-  DataRate min_stable_target = DataRate::PlusInfinity();
-  DataRate max_stable_target = DataRate::MinusInfinity();
-  DataRate min_target = DataRate::PlusInfinity();
-  DataRate max_target = DataRate::MinusInfinity();
-
-  // Measure variation in steady state.
-  for (int i = 0; i < 20; ++i) {
-    auto stable_target_rate = client->stable_target_rate();
-    auto target_rate = client->target_rate();
-    EXPECT_LE(stable_target_rate, target_rate);
-
-    min_stable_target = std::min(min_stable_target, stable_target_rate);
-    max_stable_target = std::max(max_stable_target, stable_target_rate);
-    min_target = std::min(min_target, target_rate);
-    max_target = std::max(max_target, target_rate);
-    s.RunFor(TimeDelta::Seconds(1));
-  }
-  // We should expect drops by at least 15% (default backoff.)
-  EXPECT_LT(min_target / max_target, 0.85);
-  // We should expect the stable target to be more stable than the immediate one
-  EXPECT_GE(min_stable_target / max_stable_target, min_target / max_target);
 }
 
 TEST(GoogCcScenario, LossBasedControlDoesModestBackoffToHighLoss) {

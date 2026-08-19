@@ -17,7 +17,7 @@
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/permissions/permission_request_enums.h"
-#include "components/permissions/prediction_service/prediction_service_messages.pb.h"
+#include "components/permissions/permission_ui_selector.h"
 #include "components/permissions/request_type.h"
 #include "content/public/browser/permission_result.h"
 #include "url/gurl.h"
@@ -467,32 +467,6 @@ enum class PermissionPredictionSource {
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/permissions/enums.xml:PermissionPredictionSource)
 
-// This enum backs up the 'PageInfoDialogAccessType' histogram enum.
-// It is used for collecting page info access type metrics in the context of
-// the confirmation chip.
-enum class PageInfoDialogAccessType {
-  // The user opened page info by clicking on the lock in a situation that is
-  // considered independent of the display of a confirmation chip.
-  LOCK_CLICK = 0,
-  // The user opened page info by clicking on the lock while a confirmation chip
-  // was being displayed.
-  LOCK_CLICK_DURING_CONFIRMATION_CHIP = 1,
-  // The user opened page info by clicking on the confirmation chip while it was
-  // being displayed.
-  CONFIRMATION_CHIP_CLICK = 2,
-
-  // The user opened page info by clicking on the lock within
-  // 'kConfirmationConsiderationDurationForUma' after confirmation chip has
-  // collapsed. This click may be considered influenced by the displaying of the
-  // confirmation chip.
-  LOCK_CLICK_SHORTLY_AFTER_CONFIRMATION_CHIP = 3,
-
-  // Always keep at the end.
-  kMaxValue = LOCK_CLICK_SHORTLY_AFTER_CONFIRMATION_CHIP,
-};
-
-constexpr auto kConfirmationConsiderationDurationForUma = base::Seconds(20);
-
 // This enum backs up the
 // 'Permissions.PageInfo.ChangedWithin1m.{PermissionType}' histograms enum. It
 // is used for collecting page info permission change metrics following in the
@@ -635,9 +609,6 @@ enum class DismissalType {
 // Provides a convenient way of logging UMA for permission related operations.
 class PermissionUmaUtil {
  public:
-  using PredictionGrantLikelihood =
-      PermissionPrediction_Likelihood_DiscretizedLikelihood;
-
   static const char kPermissionsPromptShown[];
   static const char kPermissionsPromptShownGesture[];
   static const char kPermissionsPromptShownNoGesture[];
@@ -725,7 +696,8 @@ class PermissionUmaUtil {
       PermissionPromptDisposition ui_disposition,
       std::optional<PermissionPromptDispositionReason> ui_reason,
       std::optional<std::vector<ElementAnchoredBubbleVariant>> variants,
-      std::optional<PredictionGrantLikelihood> predicted_grant_likelihood,
+      std::optional<PermissionUiSelector::PredictionGrantLikelihood>
+          predicted_grant_likelihood,
       std::optional<PermissionRequestRelevance> permission_request_relevance,
       std::optional<bool> prediction_decision_held_back,
       std::optional<permissions::PermissionIgnoredReason> ignored_reason,
@@ -797,9 +769,6 @@ class PermissionUmaUtil {
       RequestType request_type,
       PredictionModelType model_type,
       bool is_heldback);
-
-  static void RecordPageInfoDialogAccessType(
-      PageInfoDialogAccessType access_type);
 
   static std::string GetOneTimePermissionEventHistogram(
       ContentSettingsType type);
@@ -970,7 +939,8 @@ class PermissionUmaUtil {
       content::WebContents* web_contents,
       content::BrowserContext* browser_context,
       content::RenderFrameHost* render_frame_host,
-      std::optional<PredictionGrantLikelihood> predicted_grant_likelihood,
+      std::optional<PermissionUiSelector::PredictionGrantLikelihood>
+          predicted_grant_likelihood,
       std::optional<PermissionRequestRelevance> permission_request_relevance,
       std::optional<bool> prediction_decision_held_back);
 

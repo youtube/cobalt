@@ -320,7 +320,7 @@
 <translation id="2017998995161831444">在「探索」應用程式中開啟「說明」</translation>
 <translation id="2018630726571919839">講個笑話</translation>
 <translation id="2021864487439853900">按一下即可解鎖</translation>
-<translation id="2034971124472263449">繼續儲存</translation>
+<translation id="2034971124472263449">仍要儲存</translation>
 <translation id="2041220428661959602">電池電量：<ph name="BATTERY_PERCENTAGE" />%</translation>
 <translation id="204259843076055848">「<ph name="SIX_PACK_KEY_NAME" />」快速鍵目前已關閉</translation>
 <translation id="2049240716062114887">已將桌面名稱變更為「<ph name="DESK_NAME" />」</translation>
@@ -606,7 +606,6 @@
 <translation id="3033545621352269033">開啟</translation>
 <translation id="3033912566804961911">與「<ph name="DESK_NAME" />」合併</translation>
 <translation id="3036649622769666520">開啟檔案</translation>
-<translation id="3038571455154067151">如要登入帳戶，請輸入 Family Link 家長存取碼</translation>
 <translation id="3039939407102840004">觸控筆電量：<ph name="PERCENTAGE" />%。</translation>
 <translation id="304097922505898963">開啟 Key Shortcuts 應用程式</translation>
 <translation id="304417730895741346">檔案櫃會顯示已固定及開啟的應用程式。如要將應用程式固定到檔案櫃，請在應用程式上按一下滑鼠右鍵，或在觸控板上用兩指輕觸應用程式。</translation>

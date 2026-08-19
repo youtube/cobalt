@@ -345,7 +345,6 @@ if (!build_with_chromium) {
         "../../../rtc_base:logging",
         "../../../rtc_base:rtc_event",
         "../../../system_wrappers:field_trial",
-        "../../../test:field_trial",
         "../../../test:fileutils",
         "../../../test:test_support",
         "analyzer/video:default_video_quality_analyzer",

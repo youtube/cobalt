@@ -116,14 +116,21 @@ bool IsValid(const mojom::SecurePaymentConfirmationRequestPtr& request,
     return false;
   }
 
-  if (!base::IsStringUTF8(request->instrument->details)) {
-    *error_message = errors::kNonUtf8InstrumentDetailsString;
-    return false;
-  }
+  if (request->instrument->details.has_value()) {
+    if (!base::IsStringUTF8(*request->instrument->details)) {
+      *error_message = errors::kNonUtf8InstrumentDetailsString;
+      return false;
+    }
 
-  if (request->instrument->details.size() > kMaxInstrumentDetailsSize) {
-    *error_message = errors::kTooLongInstrumentDetailsString;
-    return false;
+    if (request->instrument->details->empty()) {
+      *error_message = errors::kEmptyInstrumentDetailsString;
+      return false;
+    }
+
+    if (request->instrument->details->size() > kMaxInstrumentDetailsSize) {
+      *error_message = errors::kTooLongInstrumentDetailsString;
+      return false;
+    }
   }
 
   if (!IsValidDomain(request->rp_id)) {
@@ -142,28 +149,6 @@ bool IsValid(const mojom::SecurePaymentConfirmationRequestPtr& request,
       request->payee_origin->scheme() != url::kHttpsScheme) {
     *error_message = errors::kPayeeOriginMustBeHttps;
     return false;
-  }
-
-  if (request->network_info) {
-    if (request->network_info->name.empty()) {
-      *error_message = errors::kNetworkNameRequired;
-      return false;
-    }
-    if (!request->network_info->icon.is_valid()) {
-      *error_message = errors::kValidNetworkIconRequired;
-      return false;
-    }
-  }
-
-  if (request->issuer_info) {
-    if (request->issuer_info->name.empty()) {
-      *error_message = errors::kIssuerNameRequired;
-      return false;
-    }
-    if (!request->issuer_info->icon.is_valid()) {
-      *error_message = errors::kValidIssuerIconRequired;
-      return false;
-    }
   }
 
   if (!request->payment_entities_logos.empty()) {
@@ -275,6 +260,17 @@ void SecurePaymentConfirmationAppFactory::
   if (!request->authenticator ||
       (!is_available && !base::FeatureList::IsEnabled(
                             ::features::kSecurePaymentConfirmationDebug))) {
+#if BUILDFLAG(IS_ANDROID)
+    if (base::FeatureList::IsEnabled(
+            blink::features::kSecurePaymentConfirmationUxRefresh)) {
+      request->delegate->SetCanMakePaymentEvenWithoutApps();
+      // Skip getting matching credential IDs since the authenticator is not
+      // available.
+      OnRetrievedCredentials(std::move(request), /*credentials=*/{});
+      return;
+    }
+#endif  // BUILDFLAG(IS_ANDROID)
+
     request->delegate->OnDoneCreatingPaymentApps();
     return;
   }
@@ -357,49 +353,8 @@ void SecurePaymentConfirmationAppFactory::Create(
         return;
       }
 
-      // We currently support two ways to specify logos to be shown on the UX:
-      // the old (experimental) network_info/issuer_info fields, and the new
-      // payment_entities_logos field. Both are flag-guarded, and only one flow
-      // is supported at a time, so to simplify the rest of the logic we
-      // consolidate issuer_info/network_info (if set) into
-      // payment_entities_logos.
-      //
-      // If both flags are turned on then payment_entities_logos will 'win' and
-      // network_info and issuer_info will be ignored.
-      //
-      // TODO(crbug.com/417683819): Remove this code once network_info and
-      // issuer_info have been fully deprecated and removed.
       mojom::SecurePaymentConfirmationRequestPtr spc_request =
           method_data->secure_payment_confirmation.Clone();
-      if (!base::FeatureList::IsEnabled(
-              blink::features::kSecurePaymentConfirmationUxRefresh) &&
-          (spc_request->network_info || spc_request->issuer_info)) {
-        spc_request->payment_entities_logos.clear();
-
-        // We encode the network and issuer info as network first, issuer
-        // second. If network was not provided, we insert a placeholder so that
-        // later code can properly map the order back.
-        if (spc_request->network_info) {
-          spc_request->payment_entities_logos.emplace_back(
-              mojom::PaymentEntityLogo::New(
-                  /*url=*/spc_request->network_info->icon,
-                  /*label=*/spc_request->network_info->name));
-        } else {
-          spc_request->payment_entities_logos.emplace_back(
-              mojom::PaymentEntityLogo::New(/*url=*/GURL(), /*label=*/""));
-        }
-
-        if (spc_request->issuer_info) {
-          spc_request->payment_entities_logos.emplace_back(
-              mojom::PaymentEntityLogo::New(
-                  /*url=*/spc_request->issuer_info->icon,
-                  /*label=*/spc_request->issuer_info->name));
-        }
-      }
-
-      // Only spc_request->payment_entities_logos should be used from here out.
-      spc_request->network_info = nullptr;
-      spc_request->issuer_info = nullptr;
 
       // Since only the first 2 icons are shown, remove the remaining logos.
       // Note that the SPC dialog on Chrome Android will CHECK() that no more
@@ -581,20 +536,25 @@ void SecurePaymentConfirmationAppFactory::DidDownloadAllIcons(
     request->mojo_request->instrument->icon = GURL();
   }
 
-  if (!request->delegate->GetSpec() ||
-      ((!request->authenticator || !request->credential) &&
-       !(PaymentsExperimentalFeatures::IsEnabled(
-             features::kSecurePaymentConfirmationFallback) ||
-         base::FeatureList::IsEnabled(
-             blink::features::kSecurePaymentConfirmationUxRefresh)))) {
+  bool skipSpcAppCreation = !request->delegate->GetSpec() ||
+                            !request->authenticator || !request->credential;
+#if BUILDFLAG(IS_ANDROID)
+  skipSpcAppCreation =
+      skipSpcAppCreation &&
+      !PaymentsExperimentalFeatures::IsEnabled(
+          features::kSecurePaymentConfirmationFallback) &&
+      !base::FeatureList::IsEnabled(
+          blink::features::kSecurePaymentConfirmationUxRefresh);
+#endif  // BUILDFLAG(IS_ANDROID)
+  if (skipSpcAppCreation) {
     request->delegate->OnDoneCreatingPaymentApps();
     return;
   }
 
   std::u16string payment_instrument_label =
       base::UTF8ToUTF16(request->mojo_request->instrument->display_name);
-  std::u16string payment_instrument_details =
-      base::UTF8ToUTF16(request->mojo_request->instrument->details);
+  std::u16string payment_instrument_details = base::UTF8ToUTF16(
+      request->mojo_request->instrument->details.value_or(""));
 
   CHECK_EQ(request->mojo_request->payment_entities_logos.size(),
            request->payment_entities_logos_infos.size());

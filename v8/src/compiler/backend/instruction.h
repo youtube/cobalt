@@ -107,6 +107,10 @@ class V8_EXPORT_PRIVATE INSTRUCTION_OPERAND_ALIGN InstructionOperand {
   inline bool IsSimd128StackSlot() const;
   inline bool IsSimd256StackSlot() const;
 
+#if defined(V8_TARGET_ARCH_X64)
+  inline bool CanBeSimd128Register() const;
+#endif
+
   template <typename SubKindOperand>
   static SubKindOperand* New(Zone* zone, const SubKindOperand& op) {
     return zone->New<SubKindOperand>(op);
@@ -677,6 +681,20 @@ bool InstructionOperand::IsSimd128Register() const {
                                 MachineRepresentation::kSimd128;
 }
 
+#if defined(V8_TARGET_ARCH_X64)
+bool InstructionOperand::CanBeSimd128Register() const {
+  // IsSimd128Register is called for multiple purposes. Use this function when
+  // we need to use a simd128 register only. On x64, Simd256 and Simd128 share
+  // identical register code.
+  if (IsAnyRegister()) {
+    MachineRepresentation rep = LocationOperand::cast(this)->representation();
+    return rep == MachineRepresentation::kSimd128 ||
+           rep == MachineRepresentation::kSimd256;
+  }
+  return false;
+}
+#endif
+
 bool InstructionOperand::IsSimd256Register() const {
   return IsAnyRegister() && LocationOperand::cast(this)->representation() ==
                                 MachineRepresentation::kSimd256;
@@ -1028,6 +1046,10 @@ class V8_EXPORT_PRIVATE Instruction final {
 
   bool IsTrap() const {
     return FlagsModeField::decode(opcode()) == kFlags_trap;
+  }
+
+  bool IsConditionalTrap() const {
+    return FlagsModeField::decode(opcode()) == kFlags_conditional_trap;
   }
 
   bool IsJump() const { return arch_opcode() == ArchOpcode::kArchJmp; }
@@ -2078,8 +2100,8 @@ constexpr size_t kCcmpOffsetOfLhs = 1;
 constexpr size_t kCcmpOffsetOfRhs = 2;
 constexpr size_t kCcmpOffsetOfDefaultFlags = 3;
 constexpr size_t kCcmpOffsetOfCompareCondition = 4;
-constexpr size_t kConditionalSetEndOffsetOfNumCcmps = 1;
-constexpr size_t kConditionalSetEndOffsetOfCondition = 2;
+constexpr size_t kConditionalTrapEndOffsetOfNumCcmps = 2;
+constexpr size_t kConditionalTrapEndOffsetOfCondition = 3;
 constexpr size_t kBranchEndOffsetOfFalseBlock = 1;
 constexpr size_t kBranchEndOffsetOfTrueBlock = 2;
 constexpr size_t kConditionalBranchEndOffsetOfNumCcmps = 3;

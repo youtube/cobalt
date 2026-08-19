@@ -205,6 +205,8 @@ class GlicMetrics {
   void OnDetachedFromBrowser(AttachChangeReason reason);
 
   // ----Public API called by other glic classes-----
+  // Called when the user clicks Accept in the FRE.
+  void OnFreAccepted();
   // Called when the glic window starts to open.
   void OnGlicWindowOpen(bool attached, mojom::InvocationSource source);
   // Called just after the the glic window has been loaded into the UI.
@@ -227,6 +229,9 @@ class GlicMetrics {
   // the operation fails. `success` is true if a scroll was successfully
   // triggered.
   void OnGlicScrollComplete(bool success);
+
+  // Called when a response is received with closed captions showing.
+  void LogClosedCaptionsShown();
 
   // Must be called immediately after constructor before any calls from
   // glic.mojom.
@@ -267,6 +272,8 @@ class GlicMetrics {
   DisplayPosition GetDisplayPositionOfPoint(
       std::optional<display::Display> display,
       const gfx::Point& glic_center_point);
+
+  base::TimeTicks fre_accepted_time_;
 
   // These members are cleared in OnResponseStopped.
   base::TimeTicks input_submitted_time_;

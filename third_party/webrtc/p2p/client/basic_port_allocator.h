@@ -24,6 +24,7 @@
 #include "api/candidate.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
+#include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/transport/enums.h"
@@ -55,7 +56,9 @@ class RTC_EXPORT BasicPortAllocator : public PortAllocator {
       NetworkManager* absl_nonnull network_manager,
       PacketSocketFactory* absl_nonnull socket_factory,
       TurnCustomizer* absl_nullable turn_customizer = nullptr,
-      RelayPortFactoryInterface* absl_nullable relay_port_factory = nullptr);
+      RelayPortFactoryInterface* absl_nullable relay_port_factory = nullptr,
+      std::unique_ptr<LocalNetworkAccessPermissionFactoryInterface>
+          absl_nullable lna_permission_factory = nullptr);
 
   BasicPortAllocator(const BasicPortAllocator&) = delete;
   BasicPortAllocator& operator=(const BasicPortAllocator&) = delete;
@@ -76,6 +79,11 @@ class RTC_EXPORT BasicPortAllocator : public PortAllocator {
   PacketSocketFactory* socket_factory() {
     CheckRunOnValidThreadIfInitialized();
     return socket_factory_;
+  }
+
+  LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory() {
+    CheckRunOnValidThreadIfInitialized();
+    return lna_permission_factory_.get();
   }
 
   PortAllocatorSession* CreateSessionInternal(
@@ -107,6 +115,9 @@ class RTC_EXPORT BasicPortAllocator : public PortAllocator {
 
   AlwaysValidPointer<RelayPortFactoryInterface, TurnPortFactory>
       relay_port_factory_;
+
+  std::unique_ptr<LocalNetworkAccessPermissionFactoryInterface>
+      lna_permission_factory_;
 };
 
 struct PortConfiguration;
@@ -416,16 +427,5 @@ class AllocationSequence {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::AllocationSequence;
-using ::webrtc::BasicPortAllocator;
-using ::webrtc::BasicPortAllocatorSession;
-using ::webrtc::PortConfiguration;
-using ::webrtc::SessionState;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_CLIENT_BASIC_PORT_ALLOCATOR_H_

@@ -146,14 +146,11 @@ namespace internal {
 #ifdef V8_ENABLE_LEAPTIERING
 #define V8_ENABLE_LEAPTIERING_BOOL true
 
-// If we have predictable and shared builtin objects, then dispatch handles of
-// builtins are stored in the read only segment of the JSDispatchTable.
-// Otherwise, we need a table of per-isolate dispatch handles of builtins.
-#ifdef V8_STATIC_ROOTS
+#ifdef V8_COMPRESS_POINTERS
 #define V8_STATIC_DISPATCH_HANDLES_BOOL true
 #else
 #define V8_STATIC_DISPATCH_HANDLES_BOOL false
-#endif  // !V8_STATIC_ROOTS
+#endif  // !V8_COMPRESS_POINTERS
 
 #else
 #define V8_ENABLE_LEAPTIERING_BOOL false
@@ -696,6 +693,9 @@ constexpr int kOneByteSize = kCharSize;
 // 128 bit SIMD value size.
 constexpr int kSimd128Size = 16;
 
+// Half of 128 bit SIMD value size.
+constexpr int kSimd128HalfSize = kSimd128Size / 2;
+
 // 256 bit SIMD value size.
 constexpr int kSimd256Size = 32;
 
@@ -963,11 +963,11 @@ const Address kWeakHeapObjectMask = 1 << 1;
 // The lower 32 bits of the cleared weak reference value is always equal to
 // the |kClearedWeakHeapObjectLower32| constant but on 64-bit architectures
 // the value of the upper 32 bits part may be
-// 1) zero when pointer compression is disabled,
-// 2) upper 32 bits of the isolate root value when pointer compression is
-//    enabled.
-// This is necessary to make pointer decompression computation also suitable
-// for cleared weak reference.
+// 1) zero when pointer compression is disabled or for a kClearedWeakValue
+//    constant,
+// 2) upper 32 bits of the respective cage base when pointer compression is
+//    enabled (this is useful for detecting cases when a cleared value loaded
+//    from once cage is written to another cage).
 // Note, that real heap objects can't have lower 32 bits equal to 3 because
 // this offset belongs to page header. So, in either case it's enough to
 // compare only the lower 32 bits of a Tagged<MaybeObject> value in order to

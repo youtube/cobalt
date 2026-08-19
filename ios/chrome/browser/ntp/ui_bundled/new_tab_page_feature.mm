@@ -131,8 +131,7 @@ bool ShouldRemoveDiscoverLabel(bool is_google_default_search_engine) {
 }
 
 bool ShouldEnlargeLogoAndFakebox() {
-  if (GetNTPMIAEntrypointVariation() ==
-      NTPMIAEntrypointVariation::kOmniboxContainedEnlargedFakebox) {
+  if (ShouldEnlargeNTPFakeboxForMIA()) {
     return YES;
   }
 
@@ -183,6 +182,14 @@ NTPMIAEntrypointVariation GetNTPMIAEntrypointVariation() {
     return NTPMIAEntrypointVariation::kDisabled;
   }
 
+  BOOL isUSCountry = [NSLocale.currentLocale.countryCode isEqual:@"US"];
+  BOOL isEnglishLocale = [NSLocale.currentLocale.languageCode hasPrefix:@"en"];
+  BOOL allowedByLocale = isUSCountry && isEnglishLocale;
+
+  if (!allowedByLocale) {
+    return NTPMIAEntrypointVariation::kDisabled;
+  }
+
   std::string feature_param = base::GetFieldTrialParamValueByFeature(
       kNTPMIAEntrypoint, kNTPMIAEntrypointParam);
   if (feature_param == kNTPMIAEntrypointParamOmniboxContainedSingleButton) {
@@ -192,6 +199,9 @@ NTPMIAEntrypointVariation GetNTPMIAEntrypointVariation() {
   } else if (feature_param ==
              kNTPMIAEntrypointParamOmniboxContainedEnlargedFakebox) {
     return NTPMIAEntrypointVariation::kOmniboxContainedEnlargedFakebox;
+  } else if (feature_param ==
+             kNTPMIAEntrypointParamEnlargedFakeboxNoIncognito) {
+    return NTPMIAEntrypointVariation::kEnlargedFakeboxNoIncognito;
   } else {
     return NTPMIAEntrypointVariation::kDisabled;
   }
@@ -202,9 +212,17 @@ bool ShowOnlyMIAEntrypointInNTPFakebox() {
   return variation ==
              NTPMIAEntrypointVariation::kOmniboxContainedSingleButton ||
          variation ==
-             NTPMIAEntrypointVariation::kOmniboxContainedEnlargedFakebox;
+             NTPMIAEntrypointVariation::kOmniboxContainedEnlargedFakebox ||
+         variation == NTPMIAEntrypointVariation::kEnlargedFakeboxNoIncognito;
 }
 
 bool ShouldShowQuickActionsRow() {
   return ShowOnlyMIAEntrypointInNTPFakebox();
+}
+
+bool ShouldEnlargeNTPFakeboxForMIA() {
+  NTPMIAEntrypointVariation variation = GetNTPMIAEntrypointVariation();
+  return variation ==
+             NTPMIAEntrypointVariation::kOmniboxContainedEnlargedFakebox ||
+         variation == NTPMIAEntrypointVariation::kEnlargedFakeboxNoIncognito;
 }

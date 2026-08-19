@@ -30,6 +30,7 @@
 #include "ui/android/window_android.h"
 #include "ui/events/android/motion_event_android_java.h"
 #include "ui/events/base_event_utils.h"
+#include "ui/events/motionevent_jni_headers/MotionEvent_jni.h"
 
 namespace content {
 
@@ -342,14 +343,14 @@ TEST_F(RenderWidgetHostViewAndroidTest, InsetVisualViewport) {
   // known to our ViewAndroid.
   test_view_android_delegate.InsetViewportBottom(100);
   EXPECT_EQ(100, rwhva->GetNativeView()->GetViewportInsetBottom());
-  rwhva->OnViewportInsetBottomChanged(env, nullptr);
+  rwhva->OnViewportInsetBottomChanged(env);
   viz::LocalSurfaceId inset_surface = rwhva->GetLocalSurfaceId();
   EXPECT_TRUE(inset_surface.IsNewerThan(original_local_surface_id));
 
   // Reset the bottom; should go back to the original inset and have a new
   // surface.
   test_view_android_delegate.InsetViewportBottom(0);
-  rwhva->OnViewportInsetBottomChanged(env, nullptr);
+  rwhva->OnViewportInsetBottomChanged(env);
   EXPECT_EQ(0, rwhva->GetNativeView()->GetViewportInsetBottom());
   EXPECT_TRUE(rwhva->GetLocalSurfaceId().IsNewerThan(inset_surface));
 }
@@ -366,7 +367,7 @@ TEST_F(RenderWidgetHostViewAndroidTest, HideWindowRemoveViewAddViewShowWindow) {
                    ->hide_layer_and_subtree());
 
   // Hiding the window should and removing the view should hide the layer.
-  window->get()->OnVisibilityChanged(nullptr, nullptr, false);
+  window->get()->OnVisibilityChanged(nullptr, false);
   GetParentView()->RemoveFromParent();
   EXPECT_TRUE(render_widget_host_view_android()->IsShowing());
   EXPECT_TRUE(render_widget_host_view_android()
@@ -377,7 +378,7 @@ TEST_F(RenderWidgetHostViewAndroidTest, HideWindowRemoveViewAddViewShowWindow) {
   // Adding the view back to a window and notifying the window is visible should
   // make the layer visible again.
   window->get()->AddChild(GetParentView());
-  window->get()->OnVisibilityChanged(nullptr, nullptr, true);
+  window->get()->OnVisibilityChanged(nullptr, true);
   EXPECT_TRUE(render_widget_host_view_android()->IsShowing());
   EXPECT_FALSE(render_widget_host_view_android()
                    ->GetNativeView()
@@ -476,10 +477,15 @@ TEST_F(RenderWidgetHostViewAndroidTest,
   JNIEnv* env = base::android::AttachCurrentThread();
   auto time_ns = (ui::EventTimeForNow() - base::TimeTicks()).InNanoseconds();
   auto action = ui::MotionEvent::Action::DOWN;
+
+  base::android::ScopedJavaLocalRef<jobject> obj =
+      JNI_MotionEvent::Java_MotionEvent_obtain(
+          env, /*downTime=*/0, /*eventTime=*/0, /*action=*/0, /*x=*/0, /*y=*/0,
+          /*metaState=*/0);
   ui::MotionEventAndroidJava touch_down(
-      env, nullptr, 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
+      env, obj.obj(), 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
       ui::MotionEventAndroid::GetAndroidAction(action), 1, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, false, &p, nullptr);
+      0, false, &p, nullptr);
 
   EXPECT_CALL(*handler, OnTouchEventImpl(_, _)).WillOnce(Return(true));
   EXPECT_EQ(gesture_provider.GetCurrentDownEvent(), nullptr);
@@ -499,10 +505,15 @@ TEST_F(RenderWidgetHostViewAndroidTest, ResetGestureDetectionGeneratesCancel) {
   JNIEnv* env = base::android::AttachCurrentThread();
   auto time_ns = (ui::EventTimeForNow() - base::TimeTicks()).InNanoseconds();
   auto action = ui::MotionEvent::Action::DOWN;
+
+  base::android::ScopedJavaLocalRef<jobject> obj =
+      JNI_MotionEvent::Java_MotionEvent_obtain(
+          env, /*downTime=*/0, /*eventTime=*/0, /*action=*/0, /*x=*/0, /*y=*/0,
+          /*metaState=*/0);
   ui::MotionEventAndroidJava touch_down(
-      env, nullptr, 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
+      env, obj.obj(), 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
       ui::MotionEventAndroid::GetAndroidAction(action), 1, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, false, &p, nullptr);
+      0, false, &p, nullptr);
   rwhva->OnTouchEvent(touch_down);
 
   auto& gesture_provider = rwhva->GetGestureProvider();
@@ -563,19 +574,29 @@ TEST_F(RenderWidgetHostViewAndroidTest, StopFlingingOnViz) {
   JNIEnv* env = base::android::AttachCurrentThread();
   auto time_ns = (ui::EventTimeForNow() - base::TimeTicks()).InNanoseconds();
   auto action = ui::MotionEvent::Action::DOWN;
+
+  base::android::ScopedJavaLocalRef<jobject> obj1 =
+      JNI_MotionEvent::Java_MotionEvent_obtain(
+          env, /*downTime=*/0, /*eventTime=*/0, /*action=*/0, /*x=*/0, /*y=*/0,
+          /*metaState=*/0);
   ui::MotionEventAndroidJava touch_down1(
-      env, nullptr, 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
+      env, obj1.obj(), 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
       ui::MotionEventAndroid::GetAndroidAction(action), 1, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, false, &p, nullptr);
+      0, false, &p, nullptr);
 
   EXPECT_CALL(*handler, OnTouchEventImpl(_, _)).WillOnce(Return(true));
   rwhva->OnTouchEvent(touch_down1);
 
   time_ns = (ui::EventTimeForNow() - base::TimeTicks()).InNanoseconds();
+
+  base::android::ScopedJavaLocalRef<jobject> obj2 =
+      JNI_MotionEvent::Java_MotionEvent_obtain(
+          env, /*downTime=*/0, /*eventTime=*/0, /*action=*/0, /*x=*/0, /*y=*/0,
+          /*metaState=*/0);
   ui::MotionEventAndroidJava touch_down2(
-      env, nullptr, 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
+      env, obj2.obj(), 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
       ui::MotionEventAndroid::GetAndroidAction(action), 1, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, false, &p, nullptr);
+      0, false, &p, nullptr);
 
   EXPECT_CALL(*handler, OnTouchEventImpl(_, _)).WillOnce(Return(false));
   rwhva->OnTouchEvent(touch_down2);

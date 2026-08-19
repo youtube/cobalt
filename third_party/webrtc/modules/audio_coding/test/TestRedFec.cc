@@ -33,7 +33,6 @@
 #include "api/audio_codecs/opus/audio_decoder_opus.h"
 #include "api/audio_codecs/opus/audio_encoder_opus.h"
 #include "api/environment/environment_factory.h"
-#include "api/field_trials.h"
 #include "api/neteq/default_neteq_factory.h"
 #include "api/neteq/neteq.h"
 #include "common_audio/vad/include/vad.h"
@@ -49,8 +48,7 @@
 namespace webrtc {
 
 TestRedFec::TestRedFec()
-    : env_(CreateEnvironment(
-          std::make_unique<FieldTrials>(CreateTestFieldTrials()))),
+    : env_(CreateEnvironment(CreateTestFieldTrialsPtr())),
       encoder_factory_(CreateAudioEncoderFactory<AudioEncoderG711,
                                                  AudioEncoderG722,
                                                  AudioEncoderL16,

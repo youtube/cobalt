@@ -25,6 +25,7 @@
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/candidate.h"
+#include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
 #include "api/scoped_refptr.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -392,6 +393,24 @@ void TurnPort::PrepareAddress() {
       static_cast<int>(server_address_.address.GetIPAddressType()),
       static_cast<int>(IPAddressType::kMaxValue));
 
+  MaybeRequestLocalNetworkAccessPermission(
+      server_address_.address,
+      [this](LocalNetworkAccessPermissionStatus status) {
+        if (status != LocalNetworkAccessPermissionStatus::kGranted) {
+          RTC_LOG(LS_ERROR)
+              << ToString() << ": Permission denied to connect to TURN server "
+              << server_address_.address.HostAsSensitiveURIString();
+          OnAllocateError(STUN_ERROR_NOT_AN_ERROR,
+                          "Attempt to start allocation without Local Network "
+                          "Access Permission.");
+          return;
+        }
+
+        OnLocalNetworkAccessPermissionGranted();
+      });
+}
+
+void TurnPort::OnLocalNetworkAccessPermissionGranted() {
   // Insert the current address to prevent redirection pingpong.
   attempted_server_addresses_.insert(server_address_.address);
 

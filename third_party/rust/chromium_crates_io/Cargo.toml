@@ -28,7 +28,7 @@ lazy_static = "1"
 libc = "0.2"
 png = "=0.18.0-rc"
 proc-macro2 = "1"
-prost = "0.13.3"
+prost = "0.14.1"
 qr_code = "2"
 quote = "1"
 read-fonts = "0.30.1"
@@ -83,7 +83,7 @@ version = "2.0.0"
 default-features = false
 
 [dependencies.llguidance]
-version = "0.7.13"
+version = "1.0.0"
 default-features = false
 features = ["lark"]
 
@@ -112,7 +112,7 @@ version = "2"
 features = ["full"]
 
 [dependencies.temporal_capi]
-version = "0.0.9"
+version = "0.0.10"
 features = ["compiled_data"]
 
 [dependencies.zip]

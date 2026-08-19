@@ -2,8 +2,19 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//extensions/buildflags/buildflags.gni")
 import("//third_party/jni_zero/jni_zero.gni")
 import("//tools/grit/grit_rule.gni")
+
+source_set("supervised_user") {
+  sources = []
+  public_deps = []
+
+  if (enable_extensions_core) {
+    sources += [ "supervised_user_extensions_metrics_recorder.h" ]
+    public_deps += [ "//extensions/browser" ]
+  }
+}
 
 static_library("test_support") {
   testonly = true
@@ -30,11 +41,12 @@ static_library("test_support") {
   ]
   if (is_android) {
     sources += [
-      "android/supervised_user_preferences_test_bridge.cc",
+      "android/supervised_user_service_test_bridge.cc",
       "android/supervised_user_settings_test_bridge.cc",
     ]
     deps += [
       ":test_support_jni_headers",
+      "//components/safe_search_api:test_support",
       "//components/signin/public/identity_manager:test_support",
       "//components/supervised_user/core/browser/android:content_filters_observer_bridge",
       "//services/network:test_support",
@@ -153,7 +165,7 @@ if (is_android) {
   generate_jni("test_support_jni_headers") {
     testonly = true
     sources = [
-      "android/java/src/org/chromium/chrome/browser/supervised_user/SupervisedUserPreferencesTestBridge.java",
+      "android/java/src/org/chromium/chrome/browser/supervised_user/SupervisedUserServiceTestBridge.java",
       "android/java/src/org/chromium/chrome/browser/supervised_user/SupervisedUserSettingsTestBridge.java",
     ]
   }
@@ -162,7 +174,7 @@ if (is_android) {
     testonly = true
     srcjar_deps = [ ":test_support_jni_headers" ]
     sources = [
-      "android/java/src/org/chromium/chrome/browser/supervised_user/SupervisedUserPreferencesTestBridge.java",
+      "android/java/src/org/chromium/chrome/browser/supervised_user/SupervisedUserServiceTestBridge.java",
       "android/java/src/org/chromium/chrome/browser/supervised_user/SupervisedUserSettingsTestBridge.java",
     ]
     deps = [
@@ -253,6 +265,7 @@ if (is_android) {
         "//chrome/browser/sync:sync",
         "//chrome/test:test_support",
         "//components/messages/android/test:test_support_cpp",
+        "//components/safe_search_api:test_support",
         "//components/supervised_user/core/browser:test_support",
         "//components/supervised_user/core/browser/android:content_filters_observer_bridge",
         "//content/test:test_support",

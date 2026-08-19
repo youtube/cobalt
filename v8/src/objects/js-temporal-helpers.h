@@ -20,26 +20,24 @@
 
 #ifdef DEBUG
 #define TEMPORAL_DEBUG_INFO AT
-#define TEMPORAL_ENTER_FUNC()
-// #define TEMPORAL_ENTER_FUNC()  do { PrintF("Start: %s\n", __func__); } while
-// (false)
 #else
-// #define TEMPORAL_DEBUG_INFO ""
-#define TEMPORAL_DEBUG_INFO AT
-#define TEMPORAL_ENTER_FUNC()
-// #define TEMPORAL_ENTER_FUNC()  do { PrintF("Start: %s\n", __func__); } while
-// (false)
+#define TEMPORAL_DEBUG_INFO ""
 #endif  // DEBUG
 
-#define NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR()       \
-  NewTypeError(                                     \
-      MessageTemplate::kInvalidArgumentForTemporal, \
-      isolate->factory()->NewStringFromStaticChars(TEMPORAL_DEBUG_INFO))
+#define NEW_TEMPORAL_TYPE_ERROR(str)       \
+  NewTypeError(MessageTemplate::kTemporal, \
+               isolate->factory()->NewStringFromStaticChars(str))
+#define NEW_TEMPORAL_RANGE_ERROR(str)       \
+  NewRangeError(MessageTemplate::kTemporal, \
+                isolate->factory()->NewStringFromStaticChars(str))
 
-#define NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR()       \
-  NewRangeError(                                     \
-      MessageTemplate::kInvalidTimeValueForTemporal, \
-      isolate->factory()->NewStringFromStaticChars(TEMPORAL_DEBUG_INFO))
+#define NEW_TEMPORAL_RANGE_ERROR_WITH_ARG(str, arg) \
+  NewRangeError(MessageTemplate::kTemporalWithArg,  \
+                isolate->factory()->NewStringFromStaticChars(str), arg)
+
+#define NEW_TEMPORAL_TYPE_ERROR_WITH_ARG(str, arg) \
+  NewTypeError(MessageTemplate::kTemporalWithArg,  \
+               isolate->factory()->NewStringFromStaticChars(str), arg)
 
 namespace v8 {
 namespace internal {

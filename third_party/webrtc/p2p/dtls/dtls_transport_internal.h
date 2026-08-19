@@ -11,9 +11,8 @@
 #ifndef P2P_DTLS_DTLS_TRANSPORT_INTERNAL_H_
 #define P2P_DTLS_DTLS_TRANSPORT_INTERNAL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -158,15 +157,5 @@ class DtlsTransportInternal : public PacketTransportInternal {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::DtlsTransportInternal;
-using ::webrtc::PacketFlags;
-using ::webrtc::PF_NORMAL;
-using ::webrtc::PF_SRTP_BYPASS;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_DTLS_DTLS_TRANSPORT_INTERNAL_H_

@@ -670,7 +670,10 @@ crypto_internal_headers = [
     "third_party/fiat/p256_32.h",
     "third_party/fiat/p256_64.h",
     "third_party/fiat/p256_64_msvc.h",
-    "third_party/fiat/p256_bedrock.c.inc",
+    "third_party/fiat/p256_field.c.inc",
+    "third_party/fiat/p256_field_32.br.c.inc",
+    "third_party/fiat/p256_field_64.br.c.inc",
+    "third_party/fiat/p256_point.br.c.inc",
 ]
 
 crypto_sources_asm = [

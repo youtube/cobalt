@@ -127,10 +127,6 @@
 #include "chrome/browser/plugins/plugin_observer.h"
 #endif
 
-#if BUILDFLAG(ENABLE_PPAPI)
-#include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
-#endif
-
 #if BUILDFLAG(ENABLE_OFFLINE_PAGES)
 #include "chrome/browser/offline_pages/offline_page_tab_helper.h"
 #endif
@@ -372,8 +368,7 @@ void ChromeContentBrowserClient::
         mojo::BinderMapWithContext<
             const content::ServiceWorkerVersionBaseInfo&>* map) {
 #if !BUILDFLAG(IS_ANDROID)
-  map->Add<blink::mojom::BadgeService>(
-      base::BindRepeating(&BindBadgeServiceForServiceWorker));
+  map->Add<blink::mojom::BadgeService>(&BindBadgeServiceForServiceWorker);
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -710,11 +705,4 @@ void ChromeContentBrowserClient::BindHostReceiverForRenderer(
   }
 #endif  // BUILDFLAG(HAS_SPELLCHECK_PANEL)
 #endif  // BUILDFLAG(ENABLE_SPELLCHECK)
-
-#if BUILDFLAG(ENABLE_PPAPI)
-  if (auto host_receiver = receiver.As<chrome::mojom::PpapiMetricsService>()) {
-    ChromeMetricsServiceAccessor::BindPpapiMetricsServiceReceiver(
-        std::move(host_receiver));
-  }
-#endif  // BUILDFLAG(ENABLE_PPAPI)
 }

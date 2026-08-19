@@ -36,6 +36,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="1409338233051621926">Ilovalar &gt; Birlamchi ilovalar ustiga bosing</translation>
 <translation id="1415402041810619267">URL manzil qisqartirildi</translation>
 <translation id="1415855080660575082">Qurilmadagi ilovalar roʻyxati va qidiruv natijalarida oxirgi varaqlar chiqishi uchun Chrome ularni qurilmaga ulashishiga ruxsat bering. Buni Chrome sozlamalarida faolsizlantirish mumkin.</translation>
+<translation id="1432650420699700107">Saytlar mahalliy tarmoqdagi istalgan qurilmaga ulanish uchun ruxsat soʻrashi mumkin</translation>
 <translation id="1448064542941920355">Kichiklashtirish</translation>
 <translation id="1464044141348608623">Saytlarning qurilmadan foydalanish axborotidan foydalanishini taqiqlash</translation>
 <translation id="146867109637325312">{COUNT,plural, =1{<ph name="SITE_COUNT" /> ta sayt}other{<ph name="SITE_COUNT" /> ta sayt}}</translation>
@@ -60,6 +61,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="1703666494654169921">Saytlarga virtual reallik qurilmalari yoki maʼlumotlardan foydalanishni taqiqlash</translation>
 <translation id="1704230497453185209">Saytlarga tovush ijro qilishni taqiqlash</translation>
 <translation id="1717218214683051432">Harakat sensorlari</translation>
+<translation id="1717996979683942279">Yoqilsa, saytlar barcha displeylardagi oynalarni boshqarishga ruxsat soʻrashi mumkin. Yoqilmasa, saytlar barcha displeylardagi oynalarni boshqara olmaydi.</translation>
 <translation id="1743802530341753419">Saytlar qurilmaga ulanishiga ruxsat so‘ralsin (tavsiya etiladi)</translation>
 <translation id="1777815584158991902">Tasmani varaqlash quyi ekrani</translation>
 <translation id="1779089405699405702">Tasvir dekoderi</translation>
@@ -68,6 +70,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="1799920918471566157">Chrome maslahatlari</translation>
 <translation id="1816835383954230954">Yoqilsa, Chrome tezroq ishlaydi va JavaScript ishlatadigan funksiyalar bexato ishlaydi. Yoqilmasa, unumdorlik pasayadi, ammo V8 hujumlarga yaxshiroq qarshilik qiladi.</translation>
 <translation id="1818308510395330587"><ph name="APP_NAME" /> AR ishlatishi uchun <ph name="BEGIN_LINK" />Android sozlamalari<ph name="END_LINK" /> orqali kamerani yoqing.</translation>
+<translation id="1881806992065048905">Yangi varaq sahifasi dizayni quyi ekrani</translation>
 <translation id="1887786770086287077">Bu qurilmada Joylashuvni aniqlash xizmati yoqilmagan, uni <ph name="BEGIN_LINK" />Android sozlamalari<ph name="END_LINK" /> orqali yoqing.</translation>
 <translation id="1906181697255754968">Saytlar odatda yopilmagan ishlaringizni saqlash maqsadida qurilmangizdagi fayllar va jildlar bilan ishlaydi</translation>
 <translation id="1915307458270490472">Tugatish</translation>
@@ -116,6 +119,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Ruxsat berildi: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> va yana <ph name="NUM_MORE" /> ta}other{Ruxsat berildi: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> va yana <ph name="NUM_MORE" /> ta}}</translation>
 <translation id="2410940059315936967">Siz kirgan sayt boshqa saytlardagi kontentni, masalan, rasmlar, reklamalar va matnlarni joylashtirishi mumkin. Ushbu boshqa saytlar belgilaydigan cookie fayllar tashqi cookie fayllar hisoblanadi.</translation>
+<translation id="2433507940547922241">Tashqi ko‘rinish</translation>
 <translation id="2434158240863470628">Yuklab olindi: <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">Siz bu saytga tashqi cookie fayllaridan foydalanishga vaqtincha ruxsat berdingiz, bu esa kuzatuvdan himoyani kamaytiradi, lekin sayt funksiyalari kutilganidek ishlaydi. <ph name="BEGIN_LINK" />Fikr-mulohaza<ph name="END_LINK" /></translation>
 <translation id="244264527810019436">Ayrim saytlardagi funksiyalar Inkognito rejimida ishlamasligi mumkin</translation>
@@ -128,6 +132,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="2490684707762498678"><ph name="APP_NAME" /> tomonidan boshqariladi</translation>
 <translation id="2498359688066513246">Yordam/fikr-mulohaza</translation>
 <translation id="2501278716633472235">Ortga qaytish</translation>
+<translation id="2533138527374486328">Yoqilsa, saytlar mahalliy tarmoqdagi istalgan qurilmaga ulanish uchun ruxsat soʻrashi mumkin. Yoqilmasa, saytlar mahalliy tarmoqdagi qurilmalarga ulana olmaydi.</translation>
 <translation id="2546283357679194313">Cookie fayllari va sayt ma’lumotlari</translation>
 <translation id="2570922361219980984">Bu qurilmada joylashuv xizmati yoqilmagan, uni <ph name="BEGIN_LINK" />Android sozlamalari<ph name="END_LINK" /> orqali yoqing.</translation>
 <translation id="257931822824936280">Kengaytirilgan - yig‘ish uchun bosing</translation>
@@ -151,6 +156,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="2789132527330338807">Sites atrofingiz 3D xaritasini yaratish yoki kamera holatini kuzatish uchun ruxsat soʻrashi mumkin</translation>
 <translation id="2790501146643349491">Yoqilsa, yaqinda yopilgan saytlar axborot yuborish va qabul qilishni toʻxtatishi mumkin. Oʻchirilsa, toʻxtata olmaydi.</translation>
 <translation id="2795716239552913152">Saytlar odatda mahalliy yangiliklar yoki atrofdagi doʻkonlar kabi tegishli funksiya yoki axborotlar uchun joylashuvingizdan foydalanadi</translation>
+<translation id="2800760947029405028">Rasm yuklash</translation>
 <translation id="2802908157808345702">Saytlarga qalqib chiquvchi oynalar ochish yoki tashrifni yoʻnaltirish taqiqlansin</translation>
 <translation id="2814830417943086299">Chrome endi oxirgi varaqlarni qurilmadagi ilovalar roʻyxati va qidiruv natijalarida chiqaradi. Buni istalgan vaqt Chrome sozlamalarida faolsizlantirishingiz mumkin.</translation>
 <translation id="2822354292072154809"><ph name="CHOSEN_OBJECT_NAME" /> uchun barcha sayt ruxsatnomalari ilk holatga qaytarilsinmi?</translation>
@@ -166,6 +172,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="2968755619301702150">Sertifikatlarni ko‘rish vositasi</translation>
 <translation id="2979365474350987274">Tashqi cookie fayllar cheklangan</translation>
 <translation id="2990583317361835189">Saytlarga harakat sensorlaridan foydalanishni taqiqlash</translation>
+<translation id="3004438526346162184">Saytlar bu funksiya yordamida barcha displeylardagi oynalarni boshqarishi mumkin</translation>
 <translation id="3008272652534848354">Ruxsatlarni qasliga qaytarish</translation>
 <translation id="301521992641321250">Avtomatik bloklangan</translation>
 <translation id="3064871050034234884">Saytlar ovoz chiqarishi mumkin</translation>
@@ -236,6 +243,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="3779154269823594982">Parollarni yangilash</translation>
 <translation id="3797520601150691162">Maxsus saytlar uchun tungi mavzu tatbiq etilmaydi</translation>
 <translation id="3803367742635802571">Siz tashrif buyurgan saytlar toʻgʻri ishlamay qolishi mumkin</translation>
+<translation id="3816118180265633665">Chrome ranglari</translation>
 <translation id="381841723434055211">Telefon raqamlari</translation>
 <translation id="3826050100957962900">Tashqi xizmatga kirish</translation>
 <translation id="3835233591525155343">Qurilmadan foydalanish</translation>
@@ -254,6 +262,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="3955321697524543127">Saytlarga USB qurilmalarga ulanishni taqiqlash</translation>
 <translation id="3965467402665811906">Saytlar shaxsiy maʼlumotlaringizdan foydalanishga ruxsat soʻrashi mumkin</translation>
 <translation id="3967822245660637423">Yuklab olindi</translation>
+<translation id="3969869202926863008">Mahalliy tarmoqqa ruxsat</translation>
 <translation id="3981465354637804599">Saytlar odatda bepul kontent yoki xizmatlar taqdim qilish maqsadida reklama chiqaradi. Lekin ayrim saytlarda yoqimsiz yoki befoyda reklamalar chiqishi ham mumkin.</translation>
 <translation id="3987993985790029246">Nusxalash</translation>
 <translation id="3991845972263764475"><ph name="BYTES_DOWNLOADED_WITH_UNITS" /> / ?</translation>
@@ -320,6 +329,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="4882919381756638075">Saytlar odatda video chat kabi aloqa xizmatlarida mikrofondan foydalanadi</translation>
 <translation id="4883854917563148705">Boshqariladigan sozlamalarni oʻzgartirish imkonsiz</translation>
 <translation id="4887024562049524730">Saytlar virtual reallik qurilmalari yoki maʼlumotlaridan foydalanishi oldidan ruxsat olsin (tavsiya etiladi)</translation>
+<translation id="4934780484581617878">Oyna boshqaruvi</translation>
 <translation id="4936863036653376783">Guruhlaringizni barcha qurilmalaringizda varaqlar guruhi boʻlimida topishingiz mumkin</translation>
 <translation id="4945443401464700059"><ph name="SITE" /> shaxsiy maʼlumotlaringizdan foydalanishi bloklangan</translation>
 <translation id="4953688446973710931">Yoqilsa, saytlar avtomat tarzda bir nechta fayl yuklab olish uchun ruxsat soʻrashi mumkin Oʻchirilsa, yuklay olmaydi.</translation>
@@ -327,6 +337,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="4972737347717125191">Saytlar virtual reallik qurilmalari va axborotlardan foydalanishga ruxsat soʻray oladi</translation>
 <translation id="497421865427891073">Oldinga</translation>
 <translation id="4976702386844183910">Oxirgi tashrif: <ph name="DATE" /></translation>
+<translation id="4978178243417029856">Discover tasmasi haqida batafsil</translation>
 <translation id="4994033804516042629">Hech qanday kontakt topilmadi</translation>
 <translation id="4996978546172906250">Yuborish usuli</translation>
 <translation id="5001526427543320409">Tashqi cookie fayllar</translation>
@@ -422,6 +433,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="5968921426641056619">Veb-manzilni kiriting</translation>
 <translation id="5975083100439434680">Kichiklashtirish</translation>
 <translation id="5976059395673079613"><ph name="PERMISSION" /> – <ph name="WARNING_MESSAGE" /></translation>
+<translation id="5998071268779572583">Discover tasmasini yoqish</translation>
 <translation id="6015775454662021376">Bu saytning qurilmangizni boshqarish ruxsatlarini boshqaring</translation>
 <translation id="6040143037577758943">Yopish</translation>
 <translation id="6042308850641462728">Yana</translation>
@@ -429,6 +441,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="6071501408666570960">Bu saytda hisobingizdan chiqasiz</translation>
 <translation id="6085954183010297841">Fayllarni tahrirlash ruxsati oʻchirilsinmi? <ph name="FILE" /></translation>
 <translation id="6120483543004435978">Yoqilsa, saytlar qachon qurilmadan faol foydalanishingizni soʻrashi mumkin. Oʻchirilsa, saytlar bu maʼlumotlarni bila olmaydi.</translation>
+<translation id="615886654739818377">Saytlarga barcha displeylardagi oynalarni boshqarish ruxsati berilmasin</translation>
 <translation id="6165508094623778733">Batafsil</translation>
 <translation id="6171020522141473435">Yoqilsa, saytlar Bluetooth qurilmalardan foydalanishni soʻrashi mumkin. Oʻchirilsa, bunday qurilmalardan foydalana olmaydi.</translation>
 <translation id="6177128806592000436">Bu sayt bilan o‘rnatilgan aloqa himoyalanmagan.</translation>
@@ -450,6 +463,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="6398765197997659313">To‘liq ekran rejimidan chiqish</translation>
 <translation id="640163077447496506">Muddati bugun tugaydi</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
+<translation id="6413980879783180524">Mavzullar termasi</translation>
 <translation id="6439114592976064011">Saytlarga virtual reallik qurilmalari yoki maʼlumotlaridan foydalanishni taqiqlash</translation>
 <translation id="6447842834002726250">Cookie fayllari</translation>
 <translation id="6452138246455930388">Ochiq varaqda narx pasaydi: <ph name="OLD_PRICE" />dan <ph name="NEW_PRICE" />ga, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
@@ -461,8 +475,10 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="6545864417968258051">Bluetooth qurilmalarni qidirish</translation>
 <translation id="6552800053856095716">{PERMISSIONS_SUMMARY_BLOCKED,plural, =1{Bloklandi: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> va yana <ph name="NUM_MORE" /> ta}other{Bloklandi: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> va yana <ph name="NUM_MORE" /> ta}}</translation>
 <translation id="6554732001434021288">Oxirgi tashrif: <ph name="NUM_DAYS" /> kun oldin</translation>
+<translation id="6557290421156335491">Yorliqlarim</translation>
 <translation id="656065428026159829">Yana</translation>
 <translation id="6561560012278703671">Xabarlar tinchroq kelsin (bezovta qiluvchi bildirishnomalar bloklanadi)</translation>
+<translation id="6565144332292237355">Saytlar bu funksiya yordamida mahalliy tarmoqdagi istalgan qurilmani topishi va unga ulanishi mumkin</translation>
 <translation id="6593061639179217415">Desktop versiya</translation>
 <translation id="659938948789980540">{COUNT,plural, =1{<ph name="RWS_OWNER" /> guruhidagi <ph name="RWS_MEMBERS_COUNT" /> ta sayt uchun cookie fayllarga ruxsat berilgan}other{<ph name="RWS_OWNER" /> guruhidagi <ph name="RWS_MEMBERS_COUNT" /> ta sayt uchun cookie fayllarga ruxsat berilgan}}</translation>
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
@@ -508,8 +524,10 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="7188508872042490670">Qurilmada saqlangan sayt maʼlumotlari</translation>
 <translation id="7201549776650881587"><ph name="ORIGIN" /> saytiga bogʻlangan saytlar yoki ularning bosh ekrandagi ilovasi saqlangan barcha maʼlumotlar va cookie fayllari oʻchirib tashlanadi.</translation>
 <translation id="7203150201908454328">Yoyilgan</translation>
+<translation id="7213166370492037743">Saytlarga mahalliy tarmoqdagi istalgan qurilmaga ulanishni taqiqlash</translation>
 <translation id="7219254577985949841">Sayt maʼlumotlari oʻchirilsinmi?</translation>
 <translation id="723171743924126238">Tasvirni tanlang</translation>
+<translation id="7243246278722455312">Yangi varaq sahifasini moslash quyi ekrani</translation>
 <translation id="7243308994586599757">Parametrlar ekranning quyi qismiga yaqinroq joyda</translation>
 <translation id="7250468141469952378"><ph name="ITEM_COUNT" /> ta element tanlandi</translation>
 <translation id="7260727271532453612">Ruxsat berildi: <ph name="PERMISSION_1" /> va <ph name="PERMISSION_2" /></translation>
@@ -549,6 +567,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="7791543448312431591">Qo‘shish</translation>
 <translation id="780301667611848630">Kerak emas</translation>
 <translation id="7804248752222191302">Sayt kameradan foydalanmoqda</translation>
+<translation id="7805832099057502789">Yangi varaq sahifasi dizayni quyi ekrani toʻliq hajmda ochildi</translation>
 <translation id="7807060072011926525">Google taqdim qilgan</translation>
 <translation id="7815680994978050279">Xavfli yuklanma bloklandi</translation>
 <translation id="7835852323729233924">Mediani ijro etish</translation>
@@ -568,9 +587,11 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="802154636333426148">Yuklab olib bo‘lmadi</translation>
 <translation id="8042586301629853791">Saralash:</translation>
 <translation id="8051193500142930381">Kamera ishlatadigan funksiyalar ishlamaydi</translation>
+<translation id="8056330801132235235">Chrome (standart)</translation>
 <translation id="8067883171444229417">Videoni ijro qilish</translation>
 <translation id="8068648041423924542">Sertifikatni tanlab bo‘lmadi.</translation>
 <translation id="8077120325605624147">Siz ochgan har qanday sayt istalgan reklamani koʻrsatishi mumkin</translation>
+<translation id="80798452873915119">Saytlar barcha displeylaringizda oynalarni boshqarishni soʻrashi mumkin</translation>
 <translation id="8087000398470557479"><ph name="DOMAIN_NAME" /> sayti kontenti, Google tomonidan taqdim etildi.</translation>
 <translation id="8088603949666785339"><ph name="BANNER_TITLE" />: boshqa amallar</translation>
 <translation id="8112925981674547014">Ilovalar roʻyxatida varaqlarni ochish</translation>

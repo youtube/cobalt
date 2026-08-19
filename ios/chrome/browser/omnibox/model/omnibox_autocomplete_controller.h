@@ -9,17 +9,20 @@
 
 #import <string>
 
-#import "ios/chrome/browser/omnibox/model/autocomplete_result_wrapper_delegate.h"
+#import "base/time/time.h"
+#import "components/omnibox/browser/omnibox_popup_selection.h"
+#import "ios/chrome/browser/omnibox/model/suggestions/autocomplete_result_wrapper_delegate.h"
 #import "ui/base/window_open_disposition.h"
 
 @protocol AutocompleteSuggestion;
 struct AutocompleteMatch;
+class AutocompleteController;
 class AutocompleteResult;
 @class AutocompleteResultWrapper;
 @protocol OmniboxAutocompleteControllerDelegate;
 @protocol OmniboxAutocompleteControllerDebuggerDelegate;
-class OmniboxControllerIOS;
-class OmniboxEditModelIOS;
+class OmniboxClient;
+@class OmniboxMetricsRecorder;
 @class OmniboxTextController;
 struct OmniboxTextModel;
 
@@ -42,16 +45,20 @@ struct OmniboxTextModel;
 /// Controller of the omnibox text.
 @property(nonatomic, weak) OmniboxTextController* omniboxTextController;
 
+/// Metrics recorder.
+@property(nonatomic, weak) OmniboxMetricsRecorder* omniboxMetricsRecorder;
+
 // Whether or not the popup has suggestions.
 @property(nonatomic, assign, readonly) BOOL hasSuggestions;
 
-/// Initializes with an OmniboxController.
-- (instancetype)initWithOmniboxController:
-                    (OmniboxControllerIOS*)omniboxController
-                         omniboxEditModel:(OmniboxEditModelIOS*)omniboxEditModel
-                         omniboxTextModel:(OmniboxTextModel*)omniboxTextModel
+- (instancetype)initWithOmniboxClient:(OmniboxClient*)omniboxClient
+                     omniboxTextModel:(OmniboxTextModel*)omniboxTextModel
     NS_DESIGNATED_INITIALIZER;
+
 - (instancetype)init NS_UNAVAILABLE;
+
+/// Returns the underlying autocomplete controller.
+- (AutocompleteController*)autocompleteController;
 
 /// Removes all C++ references.
 - (void)disconnect;
@@ -62,6 +69,18 @@ struct OmniboxTextModel;
 /// Cancels any pending asynchronous query. If `clearSuggestions` is true, will
 /// also erase the suggestions.
 - (void)stopAutocompleteWithClearSuggestions:(BOOL)clearSuggestions;
+
+/// Opens given selection. Most kinds of selection invoke an action or
+/// otherwise call `openMatch`, but some may `acceptInputWithDisposition` which
+/// is not guaranteed to open a match or commit the omnibox.
+- (void)openSelection:(OmniboxPopupSelection)selection
+            timestamp:(base::TimeTicks)timestamp
+          disposition:(WindowOpenDisposition)disposition;
+
+/// A simplified version of OpenSelection that opens the model's current
+/// selection.
+- (void)openCurrentSelectionWithDisposition:(WindowOpenDisposition)disposition
+                                  timestamp:(base::TimeTicks)timestamp;
 
 #pragma mark - OmniboxPopup event
 

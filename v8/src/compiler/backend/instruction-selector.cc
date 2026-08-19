@@ -1021,7 +1021,7 @@ Instruction* InstructionSelector::EmitWithContinuation(
     AppendDeoptimizeArguments(&continuation_inputs_, cont->reason(),
                               cont->node_id(), cont->feedback(),
                               cont->frame_state());
-  } else if (cont->IsSet() || cont->IsConditionalSet()) {
+  } else if (cont->IsSet()) {
     continuation_outputs_.push_back(g.DefineAsRegister(cont->result()));
   } else if (cont->IsSelect()) {
     // The {Select} should put one of two values into the output register,
@@ -1031,7 +1031,7 @@ Instruction* InstructionSelector::EmitWithContinuation(
     // condition.
     AddOutputToSelectContinuation(&g, static_cast<int>(input_count) - 2,
                                   cont->result());
-  } else if (cont->IsTrap()) {
+  } else if (cont->IsTrap() || cont->IsConditionalTrap()) {
     int trap_id = static_cast<int>(cont->trap_id());
     continuation_inputs_.push_back(g.UseImmediate(trap_id));
   } else {
@@ -1953,6 +1953,7 @@ IF_WASM(VISIT_UNSUPPORTED_OP, I8x4Shuffle)
 IF_WASM(VISIT_UNSUPPORTED_OP, I8x8Shuffle)
 
 IF_WASM(VISIT_UNSUPPORTED_OP, MemoryCopy)
+IF_WASM(VISIT_UNSUPPORTED_OP, MemoryFill)
 #endif  // !V8_TARGET_ARCH_ARM64
 
 void InstructionSelector::VisitParameter(OpIndex node) {
@@ -2593,6 +2594,10 @@ void InstructionSelector::VisitComment(OpIndex node) {
   InstructionOperand operand = sequence()->AddImmediate(
       Constant{reinterpret_cast<ptrsize_int_t>(comment.message)});
   Emit(kArchComment, 0, nullptr, 1, &operand);
+}
+
+void InstructionSelector::VisitPause(OpIndex node) {
+  Emit(kArchPause, 0, nullptr, 0, nullptr);
 }
 
 void InstructionSelector::VisitRetain(OpIndex node) {
@@ -3552,13 +3557,19 @@ void InstructionSelector::VisitNode(OpIndex node) {
         }
       } else {
         CHECK_EQ(atomic_op.in_out_rep, Rep::Tagged());
-        CHECK_EQ(atomic_op.bin_op, AtomicRMWOp::BinOp::kExchange);
-        return VisitTaggedAtomicExchange(node);
+        if (atomic_op.bin_op == AtomicRMWOp::BinOp::kExchange) {
+          return VisitTaggedAtomicExchange(node);
+        }
+        CHECK_EQ(atomic_op.bin_op, AtomicRMWOp::BinOp::kCompareExchange);
+        return VisitTaggedAtomicCompareExchange(node);
       }
       UNREACHABLE();
     }
     case Opcode::kMemoryBarrier:
       return VisitMemoryBarrier(node);
+
+    case Opcode::kPause:
+      return VisitPause(node);
 
     case Opcode::kComment:
       return VisitComment(node);
@@ -3846,6 +3857,9 @@ void InstructionSelector::VisitNode(OpIndex node) {
 
     case Opcode::kMemoryCopy:
       return VisitMemoryCopy(node);
+
+    case Opcode::kMemoryFill:
+      return VisitMemoryFill(node);
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 #define UNREACHABLE_CASE(op) case Opcode::k##op:

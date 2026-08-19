@@ -685,7 +685,7 @@ void FormStructureRationalizer::RationalizeCreditCardNumberOffsets(
   }
 }
 
-void FormStructureRationalizer::RationalizeFormatStrings(
+void FormStructureRationalizer::RationalizeDateFormatStrings(
     LogManager* log_manager) {
   if (!base::FeatureList::IsEnabled(features::kAutofillAiWithDataSchema)) {
     return;
@@ -946,6 +946,33 @@ void FormStructureRationalizer::RationalizeRepeatedStreetAddressFields(
   }
 }
 
+void FormStructureRationalizer::RationalizeRepeatedZipCodeFields(
+    LogManager* log_manager) {
+  auto has_zip_type = [](const std::unique_ptr<AutofillField>& field) {
+    return field->is_visible() &&
+           field->ComputedType().GetStorableType() == ADDRESS_HOME_ZIP;
+  };
+  // Invariant: All fields in [begin, end[ are ADDRESS_HOME_ZIP.
+  auto begin = fields_->begin();
+  auto end = begin;
+  while ((begin = std::find_if(end, fields_->end(), has_zip_type)) !=
+         fields_->end()) {
+    end = std::find_if_not(begin + 1, fields_->end(), has_zip_type);
+    if (end - begin == 2) {
+      AutofillField& first_zip = **begin;
+      AutofillField& second_zip = **(begin + 1);
+      LOG_AF(log_manager)
+          << LoggingScope::kRationalization << LogMessage::kRationalization
+          << "Zip Code Rationalization: Converting sequence of (zip, "
+             "zip) to (zip_prefix, zip_suffix)";
+      first_zip.SetTypeTo(AutofillType(ADDRESS_HOME_ZIP_PREFIX),
+                          AutofillPredictionSource::kRationalization);
+      second_zip.SetTypeTo(AutofillType(ADDRESS_HOME_ZIP_SUFFIX),
+                           AutofillPredictionSource::kRationalization);
+    }
+  }
+}
+
 void FormStructureRationalizer::RationalizeFieldTypePredictions(
     const url::Origin& main_origin,
     const GeoIpCountryCode& client_country,
@@ -954,8 +981,11 @@ void FormStructureRationalizer::RationalizeFieldTypePredictions(
   RationalizeCreditCardFieldPredictions(log_manager);
   RationalizeMultiOriginCreditCardFields(main_origin, log_manager);
   RationalizeCreditCardNumberOffsets(log_manager);
-  RationalizeFormatStrings(log_manager);
+  RationalizeDateFormatStrings(log_manager);
   RationalizeRepeatedStreetAddressFields(log_manager);
+  if (base::FeatureList::IsEnabled(features::kAutofillSupportSplitZipCode)) {
+    RationalizeRepeatedZipCodeFields(log_manager);
+  }
   RationalizeStreetAddressAndAddressLine(log_manager);
   RationalizeBetweenStreetFields(log_manager);
   RationalizePhoneNumberTrunkTypes(log_manager);

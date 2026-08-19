@@ -17,6 +17,7 @@
 class HostContentSettingsMap;
 
 namespace content_settings {
+class PermissionSettingsInfo;
 
 typedef std::pair<ContentSettingsPattern, ContentSettingsPattern> PatternPair;
 
@@ -67,6 +68,10 @@ void GetRendererContentSettingRules(const HostContentSettingsMap* map,
 // Returns true if setting |a| is more permissive than setting |b|.
 bool IsMorePermissive(ContentSetting a, ContentSetting b);
 
+// Returns true if permission option |a| is more permissive than permission
+// option |b|.
+bool IsMorePermissive(PermissionOption a, PermissionOption b);
+
 // Returns whether or not the supplied constraint should be persistently stored.
 bool IsConstraintPersistent(const ContentSettingConstraints& constraints);
 
@@ -115,6 +120,11 @@ const std::vector<ContentSettingsType>& GetTypesWithTemporaryGrantsInHcsm();
 // upon their expiration. All other expired content settings will only be
 // expired upon the first reload after the expiration date.
 bool ShouldTypeExpireActively(ContentSettingsType type);
+
+// Convert a base::Value to a permission setting for a permission represented by
+// |info|. Expects that the value represents a valid setting.
+PermissionSetting ValueToPermissionSetting(const PermissionSettingsInfo* info,
+                                           const base::Value& value);
 
 }  // namespace content_settings
 

@@ -123,6 +123,7 @@
 #include "chrome/browser/ui/views/frame/browser_frame.h"
 #include "chrome/browser/ui/views/frame/browser_view_layout.h"
 #include "chrome/browser/ui/views/frame/browser_view_layout_delegate.h"
+#include "chrome/browser/ui/views/frame/contents_container_view.h"
 #include "chrome/browser/ui/views/frame/contents_layout_manager.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
@@ -184,7 +185,6 @@
 #include "chrome/browser/ui/views/translate/translate_bubble_controller.h"
 #include "chrome/browser/ui/views/translate/translate_bubble_view.h"
 #include "chrome/browser/ui/views/update_recommended_message_box.h"
-#include "chrome/browser/ui/views/upgrade_notification_controller.h"
 #include "chrome/browser/ui/views/user_education/browser_user_education_service.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_view.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
@@ -227,7 +227,6 @@
 #include "components/tabs/public/tab_interface.h"
 #include "components/translate/core/browser/language_state.h"
 #include "components/translate/core/browser/translate_manager.h"
-#include "components/user_education/common/feature_promo/feature_promo_controller.h"
 #include "components/user_education/common/feature_promo/feature_promo_handle.h"
 #include "components/user_education/common/feature_promo/feature_promo_result.h"
 #include "components/user_education/common/help_bubble/help_bubble_factory_registry.h"
@@ -965,10 +964,6 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
   // Add any legal notices required for the user to the queue.
   QueueLegalAndPrivacyNotices(browser_->profile());
 
-  // Not all browsers do feature promos. Conditionally create one (or don't) for
-  // this browser window.
-  feature_promo_controller_ = CreateUserEducationResources(this);
-
   browser_->tab_strip_model()->AddObserver(this);
   immersive_mode_controller_ = chrome::CreateImmersiveModeController(this);
 
@@ -979,9 +974,6 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
   if (browser_->app_controller()) {
     tab_menu_model_factory =
         browser_->app_controller()->GetTabMenuModelFactory();
-
-    UpdateWindowControlsOverlayEnabled();
-    UpdateBorderlessModeEnabled();
   }
 
   // TabStrip takes ownership of the controller.
@@ -994,20 +986,8 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
   tabstrip_controller_ptr->InitFromModel(tabstrip_);
   top_container_ = AddChildView(std::make_unique<TopContainerView>(this));
 
-  if (GetIsWebAppType()) {
-    web_app_frame_toolbar_ = top_container_->AddChildView(
-        std::make_unique<WebAppFrameToolbarView>(this));
-    top_container_->set_web_app_frame_toolbar(web_app_frame_toolbar_);
-    if (ShouldShowWindowTitle()) {
-      web_app_window_title_ = top_container_->AddChildView(
-          std::make_unique<views::Label>(GetWindowTitle()));
-      web_app_window_title_->SetID(VIEW_ID_WINDOW_TITLE);
-    }
-  }
   tab_strip_region_view_ = top_container_->AddChildView(
       std::make_unique<TabStripRegionView>(std::move(tabstrip)));
-
-  ColorProviderBrowserHelper::CreateForBrowser(browser_.get());
 
   // Create WebViews early so |webui_tab_strip_| can observe their size.
   auto devtools_web_view =
@@ -1040,13 +1020,12 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
     multi_contents_view_->SetID(VIEW_ID_TAB_CONTAINER);
     contents_view = multi_contents_view_;
   } else {
-    auto contents_web_view =
-        std::make_unique<ContentsWebView>(browser_->profile());
-    contents_web_view_ =
-        contents_container->AddChildView(std::move(contents_web_view));
+    contents_container_view_ = contents_container->AddChildView(
+        std::make_unique<ContentsContainerView>(this));
+    contents_web_view_ = contents_container_view_->GetContentsView();
     contents_web_view_->SetID(VIEW_ID_TAB_CONTAINER);
     contents_web_view_->set_is_primary_web_contents_for_window(true);
-    contents_view = contents_web_view_;
+    contents_view = contents_container_view_;
   }
 
   if (base::FeatureList::IsEnabled(ntp_features::kNtpFooter) &&
@@ -1072,10 +1051,6 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
   lens_overlay_view_ =
       contents_container->AddChildView(std::move(lens_overlay_view));
 
-  contents_scrim_view_ =
-      contents_container->AddChildView(std::make_unique<ScrimView>());
-  contents_scrim_view_->layer()->SetName("ContentsScrimView");
-
 #if BUILDFLAG(ENABLE_GLIC)
   // `IsProfileEligible` returns true if the feature flags are present and the
   // profile can potentially enable the feature. If the feature is disabled the
@@ -1099,12 +1074,12 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
 #if BUILDFLAG(ENABLE_GLIC)
   contents_container->SetLayoutManager(std::make_unique<ContentsLayoutManager>(
       devtools_web_view_, devtools_scrim_view_, contents_view,
-      lens_overlay_view_, contents_scrim_view_, glic_border_, watermark_view_,
+      lens_overlay_view_, glic_border_, watermark_view_,
       new_tab_footer_web_view_separator_, new_tab_footer_web_view_));
 #else
   contents_container->SetLayoutManager(std::make_unique<ContentsLayoutManager>(
       devtools_web_view_, devtools_scrim_view_, contents_view,
-      lens_overlay_view_, contents_scrim_view_, nullptr, watermark_view_,
+      lens_overlay_view_, nullptr, watermark_view_,
       new_tab_footer_web_view_separator_, new_tab_footer_web_view_));
 #endif
 
@@ -1151,8 +1126,6 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
 
   window_scrim_view_ = AddChildView(std::make_unique<ScrimView>());
   window_scrim_view_->layer()->SetName("WindowScrimView");
-
-  UpgradeNotificationController::CreateForBrowser(browser_.get());
 
 #if BUILDFLAG(IS_WIN)
   // Create a custom JumpList and add it to an observer of TabRestoreService
@@ -1237,11 +1210,11 @@ BrowserView::~BrowserView() {
   download_shelf_ = nullptr;
   infobar_container_ = nullptr;
   multi_contents_view_ = nullptr;
+  contents_container_view_ = nullptr;
   contents_web_view_ = nullptr;
   lens_overlay_view_ = nullptr;
   devtools_web_view_ = nullptr;
   devtools_scrim_view_ = nullptr;
-  contents_scrim_view_ = nullptr;
   window_scrim_view_ = nullptr;
   watermark_view_ = nullptr;
   glic_border_ = nullptr;
@@ -1345,6 +1318,13 @@ int BrowserView::GetTabStripHeight() const {
 gfx::Size BrowserView::GetWebAppFrameToolbarPreferredSize() const {
   return web_app_frame_toolbar_ ? web_app_frame_toolbar_->GetPreferredSize()
                                 : gfx::Size();
+}
+
+ContentsContainerView* BrowserView::GetActiveContentsContainerView() {
+  if (multi_contents_view_) {
+    return multi_contents_view_->GetActiveContentsContainerView();
+  }
+  return contents_container_view_;
 }
 
 #if BUILDFLAG(IS_MAC)
@@ -2743,10 +2723,20 @@ void BrowserView::UpdateWindowControlsOverlayToggleVisible() {
 void BrowserView::UpdateBorderlessModeEnabled() {
   bool borderless_mode_enabled = AppUsesBorderlessMode();
 
-  if (toolbar_ && toolbar_->custom_tab_bar() &&
+  // The final visibility of both the CustomTabBarView and the
+  // InfobarContainerView is determined by BrowserView::Layout() - initially
+  // they will start as visible by default. However BrowserView::Layout() is
+  // also dependent on the state of `borderless_mode_enabled_`. To ensure these
+  // visibility checks are performed once both views have reached a valid state
+  // we must wait for BrowserView::Layout() to resolve first.
+  // TODO(crbug.com/429093006): This circular dependency should be resolved and
+  // checks against the existence of the custom tab bar or infobar container
+  // should be independent of layout state.
+  if (!needs_layout() && toolbar_ && toolbar_->custom_tab_bar() &&
       toolbar_->custom_tab_bar()->GetVisible()) {
     borderless_mode_enabled = false;
-  } else if (infobar_container_ && infobar_container_->GetVisible()) {
+  } else if (!needs_layout() && infobar_container_ &&
+             infobar_container_->GetVisible()) {
     borderless_mode_enabled = false;
   } else if (IsImmersiveModeEnabled()) {
     borderless_mode_enabled = false;
@@ -2953,9 +2943,10 @@ void BrowserView::FocusWebContentsPane() {
 }
 
 bool BrowserView::ActivateFirstInactiveBubbleForAccessibility() {
-  if (feature_promo_controller_ &&
-      feature_promo_controller_->bubble_factory_registry()
-          ->ToggleFocusForAccessibility(GetElementContext())) {
+  auto* const user_education =
+      UserEducationServiceFactory::GetForBrowserContext(GetProfile());
+  if (user_education && user_education->help_bubble_factory_registry()
+                            .ToggleFocusForAccessibility(GetElementContext())) {
     // Record that the user successfully used the accelerator to focus the
     // bubble, reducing the need to describe the accelerator the next time a
     // help bubble is shown.
@@ -3180,7 +3171,7 @@ void BrowserView::MaybeShowReadingListInSidePanelIPH() {
   if (pref_service &&
       pref_service->GetBoolean(
           reading_list::prefs::kReadingListDesktopFirstUseExperienceShown)) {
-    MaybeShowFeaturePromo(
+    BrowserUserEducationInterface::From(browser())->MaybeShowFeaturePromo(
         feature_engagement::kIPHReadingListInSidePanelFeature);
   }
 }
@@ -3194,8 +3185,9 @@ void BrowserView::MaybeShowTabStripToolbarButtonIPH() {
       toolbar_->pinned_toolbar_actions_container()->IsActionPinned(
           kActionTabSearch);
   if (should_show) {
-    MaybeShowStartupFeaturePromo(
-        feature_engagement::kIPHTabSearchToolbarButtonFeature);
+    BrowserUserEducationInterface::From(browser())
+        ->MaybeShowStartupFeaturePromo(
+            feature_engagement::kIPHTabSearchToolbarButtonFeature);
   }
 }
 
@@ -3667,14 +3659,16 @@ content::KeyboardEventProcessingResult BrowserView::PreHandleKeyboardEvent(
 
 void BrowserView::PreHandleDragUpdate(const content::DropData& drop_data,
                                       const gfx::PointF& point) {
-  if (multi_contents_view_) {
+  if (multi_contents_view_ &&
+      multi_contents_view_->is_drag_and_drop_enabled()) {
     multi_contents_view_->drop_target_controller().OnWebContentsDragUpdate(
         drop_data, point, IsInSplitView());
   }
 }
 
 void BrowserView::PreHandleDragExit() {
-  if (multi_contents_view_) {
+  if (multi_contents_view_ &&
+      multi_contents_view_->is_drag_and_drop_enabled()) {
     multi_contents_view_->drop_target_controller().OnWebContentsDragExit();
   }
 }
@@ -4340,17 +4334,6 @@ bool BrowserView::CanChangeWindowIcon() const {
 views::View* BrowserView::GetInitiallyFocusedView() {
   return nullptr;
 }
-
-#if BUILDFLAG(IS_WIN)
-bool BrowserView::GetSupportsTitle() const {
-  return browser_->SupportsWindowFeature(Browser::FEATURE_TITLEBAR) ||
-         WebUITabStripContainerView::SupportsTouchableTabStrip(browser());
-}
-
-bool BrowserView::GetSupportsIcon() const {
-  return browser_->SupportsWindowFeature(Browser::FEATURE_TITLEBAR);
-}
-#endif
 
 bool BrowserView::ShouldShowWindowTitle() const {
 #if BUILDFLAG(IS_CHROMEOS)
@@ -5219,9 +5202,10 @@ void BrowserView::Layout(PassKey) {
         ->UpdateAnchor();
   }
 
-  if (feature_promo_controller_) {
-    feature_promo_controller_->bubble_factory_registry()
-        ->NotifyAnchorBoundsChanged(GetElementContext());
+  if (auto* const user_education =
+          UserEducationServiceFactory::GetForBrowserContext(GetProfile())) {
+    user_education->help_bubble_factory_registry().NotifyAnchorBoundsChanged(
+        GetElementContext());
   }
 }
 
@@ -5310,6 +5294,22 @@ void BrowserView::AddedToWidget() {
   // is initialized here.
   immersive_mode_controller_->Init(this);
   immersive_mode_controller_->AddObserver(this);
+
+  // WebAppFrameToolbarView depends on ImmersiveModeController so initialize it
+  // here.
+  if (GetIsWebAppType()) {
+    web_app_frame_toolbar_ = top_container_->AddChildView(
+        std::make_unique<WebAppFrameToolbarView>(this));
+    top_container_->set_web_app_frame_toolbar(web_app_frame_toolbar_);
+    if (ShouldShowWindowTitle()) {
+      web_app_window_title_ = top_container_->AddChildView(
+          std::make_unique<views::Label>(GetWindowTitle()));
+      web_app_window_title_->SetID(VIEW_ID_WINDOW_TITLE);
+    }
+  }
+
+  UpdateWindowControlsOverlayEnabled();
+  UpdateBorderlessModeEnabled();
 
   // TODO(crbug.com/40664862): Remove BrowserViewLayout dependence on
   // Widget and move to the constructor.
@@ -5633,16 +5633,16 @@ void BrowserView::UpdateDevToolsForContents(WebContents* web_contents,
   }
   contents_container_->DeprecatedLayoutImmediately();
 
+  views::View* contents_view;
+  if (multi_contents_view_) {
+    contents_view = multi_contents_view_;
+  } else {
+    contents_view = contents_container_view_;
+  }
   if (devtools) {
     // When strategy.hide_inspected_contents() returns true, we are hiding the
     // WebContents behind the devtools_web_view_. Otherwise, the WebContents
     // should be right above the devtools_web_view_.
-    views::View* contents_view;
-    if (multi_contents_view_) {
-      contents_view = multi_contents_view_;
-    } else {
-      contents_view = contents_web_view_;
-    }
     size_t devtools_index =
         contents_container_->GetIndexOf(devtools_web_view_).value();
     size_t contents_index =
@@ -5654,9 +5654,7 @@ void BrowserView::UpdateDevToolsForContents(WebContents* web_contents,
   }
 
   DevToolsDockedPlacement new_placement = GetDevToolsDockedPlacement(
-      multi_contents_view_ ? multi_contents_view_->bounds()
-                           : contents_web_view_->bounds(),
-      contents_container_->GetLocalBounds());
+      contents_view->bounds(), contents_container_->GetLocalBounds());
 
   // When browser window is resizing, the contents_container and web_contents
   // bounds can be out of sync, resulting in a state, where it is impossible to
@@ -6052,14 +6050,22 @@ void BrowserView::ShowHatsDialog(
 }
 
 void BrowserView::ShowIncognitoClearBrowsingDataDialog() {
-  IncognitoClearBrowsingDataDialogCoordinator::GetOrCreateForBrowser(browser())
-      ->Show(IncognitoClearBrowsingDataDialogInterface::Type::kDefaultBubble);
+  CHECK(toolbar_button_provider_);
+  browser()
+      ->GetFeatures()
+      .incognito_clear_browsing_data_dialog_coordinator()
+      ->Show(IncognitoClearBrowsingDataDialogInterface::Type::kDefaultBubble,
+             toolbar_button_provider_->GetAvatarToolbarButton());
 }
 
 void BrowserView::ShowIncognitoHistoryDisclaimerDialog() {
-  IncognitoClearBrowsingDataDialogCoordinator::GetOrCreateForBrowser(browser())
+  CHECK(toolbar_button_provider_);
+  browser()
+      ->GetFeatures()
+      .incognito_clear_browsing_data_dialog_coordinator()
       ->Show(IncognitoClearBrowsingDataDialogInterface::Type::
-                 kHistoryDisclaimerBubble);
+                 kHistoryDisclaimerBubble,
+             toolbar_button_provider_->GetAvatarToolbarButton());
 }
 
 bool BrowserView::IsTabModalPopupDeprecated() const {
@@ -6102,134 +6108,6 @@ std::unique_ptr<content::EyeDropper> BrowserView::OpenEyeDropper(
     content::RenderFrameHost* frame,
     content::EyeDropperListener* listener) {
   return ShowEyeDropper(frame, listener);
-}
-
-user_education::FeaturePromoControllerCommon*
-BrowserView::GetFeaturePromoControllerImpl() {
-  return feature_promo_controller_.get();
-}
-
-bool BrowserView::IsFeaturePromoQueued(const base::Feature& iph_feature) const {
-  return feature_promo_controller_ &&
-         feature_promo_controller_->GetPromoStatus(iph_feature) ==
-             user_education::FeaturePromoStatus::kQueued;
-}
-
-bool BrowserView::IsFeaturePromoActive(const base::Feature& iph_feature) const {
-  return feature_promo_controller_ &&
-         feature_promo_controller_->IsPromoActive(
-             iph_feature, user_education::FeaturePromoStatus::kContinued);
-}
-
-user_education::FeaturePromoResult BrowserView::CanShowFeaturePromo(
-    const base::Feature& iph_feature) const {
-  if (!initialized_) {
-    return user_education::FeaturePromoResult::kError;
-  }
-
-  if (!feature_promo_controller_) {
-    return user_education::FeaturePromoResult::kBlockedByContext;
-  }
-
-  return feature_promo_controller_->CanShowPromo(iph_feature);
-}
-
-void BrowserView::MaybeShowFeaturePromo(
-    user_education::FeaturePromoParams params) {
-  // Trying to show a promo before the browser is initialized can result in a
-  // failure to retrieve accelerators, which can cause issues for screen reader
-  // users.
-  if (!initialized_) {
-    LOG(ERROR) << "Attempting to show IPH " << params.feature->name
-               << " before browser initialization; IPH will not be shown.";
-    user_education::FeaturePromoController::PostShowPromoResult(
-        std::move(params.show_promo_result_callback),
-        user_education::FeaturePromoResult::kError);
-    return;
-  }
-
-  if (!feature_promo_controller_) {
-    user_education::FeaturePromoController::PostShowPromoResult(
-        std::move(params.show_promo_result_callback),
-        user_education::FeaturePromoResult::kBlockedByContext);
-    return;
-  }
-
-  feature_promo_controller_->MaybeShowPromo(std::move(params));
-}
-
-void BrowserView::MaybeShowStartupFeaturePromo(
-    user_education::FeaturePromoParams params) {
-  if (feature_promo_controller_) {
-    // Preconditions for feature promos may require the browser to be fully
-    // constructed before they can be run. Post this task to ensure browser
-    // initialization is complete before attempting to show startup promos.
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&user_education::FeaturePromoControllerCommon::
-                           MaybeShowStartupPromo,
-                       feature_promo_controller_->GetAsWeakPtr(),
-                       std::move(params)));
-  }
-}
-
-bool BrowserView::AbortFeaturePromo(const base::Feature& iph_feature) {
-  return feature_promo_controller_ &&
-         feature_promo_controller_->EndPromo(
-             iph_feature, user_education::EndFeaturePromoReason::kAbortPromo);
-}
-
-user_education::FeaturePromoHandle BrowserView::CloseFeaturePromoAndContinue(
-    const base::Feature& iph_feature) {
-  if (!feature_promo_controller_ ||
-      feature_promo_controller_->GetPromoStatus(iph_feature) !=
-          user_education::FeaturePromoStatus::kBubbleShowing) {
-    return user_education::FeaturePromoHandle();
-  }
-  return feature_promo_controller_->CloseBubbleAndContinuePromo(iph_feature);
-}
-
-bool BrowserView::NotifyFeaturePromoFeatureUsed(
-    const base::Feature& feature,
-    FeaturePromoFeatureUsedAction action) {
-  if (feature_promo_controller_) {
-    feature_promo_controller_->NotifyFeatureUsedIfValid(feature);
-    if (action == FeaturePromoFeatureUsedAction::kClosePromoIfPresent) {
-      return feature_promo_controller_->EndPromo(
-          feature, user_education::EndFeaturePromoReason::kFeatureEngaged);
-    }
-  }
-  return false;
-}
-
-void BrowserView::NotifyAdditionalConditionEvent(const char* event_name) {
-  if (!feature_promo_controller_) {
-    return;
-  }
-  if (auto* const tracker =
-          feature_engagement::TrackerFactory::GetForBrowserContext(
-              GetProfile())) {
-    tracker->NotifyEvent(event_name);
-  }
-}
-
-user_education::DisplayNewBadge BrowserView::MaybeShowNewBadgeFor(
-    const base::Feature& feature) {
-  auto* const service =
-      UserEducationServiceFactory::GetForBrowserContext(GetProfile());
-  if (!service || !service->new_badge_controller()) {
-    return user_education::DisplayNewBadge();
-  }
-  return service->new_badge_controller()->MaybeShowNewBadge(feature);
-}
-
-void BrowserView::NotifyNewBadgeFeatureUsed(const base::Feature& feature) {
-  auto* const service =
-      UserEducationServiceFactory::GetForBrowserContext(GetProfile());
-  if (service && service->new_badge_registry() &&
-      service->new_badge_registry()->IsFeatureRegistered(feature)) {
-    service->new_badge_controller()->NotifyFeatureUsedIfValid(feature);
-  }
 }
 
 void BrowserView::ActivateAppModalDialog() const {
@@ -6487,7 +6365,8 @@ void BrowserView::ApplyWatermarkSettings(const std::string& watermark_text) {
     PrefService* prefs = browser_->profile()->GetPrefs();
     watermark_view_->SetString(watermark_text,
                                enterprise_watermark::GetFillColor(prefs),
-                               enterprise_watermark::GetOutlineColor(prefs));
+                               enterprise_watermark::GetOutlineColor(prefs),
+                               enterprise_watermark::GetFontSize(prefs));
   }
 }
 
@@ -6512,9 +6391,5 @@ ADD_READONLY_PROPERTY_METADATA(bool, SupportsTabStrip)
 ADD_READONLY_PROPERTY_METADATA(bool, IsNormalType)
 ADD_READONLY_PROPERTY_METADATA(bool, IsWebAppType)
 ADD_READONLY_PROPERTY_METADATA(bool, TopControlsSlideBehaviorEnabled)
-#if BUILDFLAG(IS_WIN)
-ADD_READONLY_PROPERTY_METADATA(bool, SupportsTitle)
-ADD_READONLY_PROPERTY_METADATA(bool, SupportsIcon)
-#endif
 ADD_READONLY_PROPERTY_METADATA(float, TopControlsSlideBehaviorShownRatio)
 END_METADATA

@@ -63,6 +63,8 @@ static constexpr auto kTypeNameToFieldType =
          {"ADDRESS_HOME_CITY", ADDRESS_HOME_CITY},
          {"ADDRESS_HOME_STATE", ADDRESS_HOME_STATE},
          {"ADDRESS_HOME_ZIP", ADDRESS_HOME_ZIP},
+         {"ADDRESS_HOME_ZIP_PREFIX", ADDRESS_HOME_ZIP_PREFIX},
+         {"ADDRESS_HOME_ZIP_SUFFIX", ADDRESS_HOME_ZIP_SUFFIX},
          {"ADDRESS_HOME_COUNTRY", ADDRESS_HOME_COUNTRY},
          {"CREDIT_CARD_NAME_FULL", CREDIT_CARD_NAME_FULL},
          {"CREDIT_CARD_NUMBER", CREDIT_CARD_NUMBER},
@@ -207,6 +209,8 @@ bool IsFillableFieldType(FieldType field_type) {
     case ADDRESS_HOME_CITY:
     case ADDRESS_HOME_STATE:
     case ADDRESS_HOME_ZIP:
+    case ADDRESS_HOME_ZIP_PREFIX:
+    case ADDRESS_HOME_ZIP_SUFFIX:
     case ADDRESS_HOME_COUNTRY:
     case ADDRESS_HOME_STREET_ADDRESS:
     case ADDRESS_HOME_SORTING_CODE:
@@ -231,19 +235,10 @@ bool IsFillableFieldType(FieldType field_type) {
     case ADDRESS_HOME_STREET_LOCATION_AND_LANDMARK:
     case ADDRESS_HOME_DEPENDENT_LOCALITY_AND_LANDMARK:
     case DELIVERY_INSTRUCTIONS:
-    case PASSPORT_NUMBER:
     case LOYALTY_MEMBERSHIP_PROGRAM:
     case LOYALTY_MEMBERSHIP_PROVIDER:
     case LOYALTY_MEMBERSHIP_ID:
     case EMAIL_OR_LOYALTY_MEMBERSHIP_ID:
-    case VEHICLE_LICENSE_PLATE:
-    case VEHICLE_VIN:
-    case VEHICLE_MAKE:
-    case VEHICLE_MODEL:
-    case VEHICLE_YEAR:
-    case VEHICLE_PLATE_STATE:
-    case DRIVERS_LICENSE_REGION:
-    case DRIVERS_LICENSE_NUMBER:
       return true;
 
     case CREDIT_CARD_NAME_FULL:
@@ -279,6 +274,26 @@ bool IsFillableFieldType(FieldType field_type) {
     case SINGLE_USERNAME_WITH_INTERMEDIATE_VALUES:
       return true;
 
+    // Autofill AI types.
+    case DRIVERS_LICENSE_EXPIRATION_DATE:
+    case DRIVERS_LICENSE_ISSUE_DATE:
+    case DRIVERS_LICENSE_NAME_TAG:
+    case DRIVERS_LICENSE_NUMBER:
+    case DRIVERS_LICENSE_REGION:
+    case PASSPORT_EXPIRATION_DATE:
+    case PASSPORT_ISSUE_DATE:
+    case PASSPORT_ISSUING_COUNTRY:
+    case PASSPORT_NAME_TAG:
+    case PASSPORT_NUMBER:
+    case VEHICLE_LICENSE_PLATE:
+    case VEHICLE_MAKE:
+    case VEHICLE_MODEL:
+    case VEHICLE_OWNER_TAG:
+    case VEHICLE_PLATE_STATE:
+    case VEHICLE_VIN:
+    case VEHICLE_YEAR:
+      return true;
+
     // Not fillable credential fields.
     case NOT_PASSWORD:
     case NOT_USERNAME:
@@ -301,14 +316,6 @@ bool IsFillableFieldType(FieldType field_type) {
     case PRICE:
     case NUMERIC_QUANTITY:
     case SEARCH_TERM:
-    case PASSPORT_NAME_TAG:
-    case PASSPORT_ISSUING_COUNTRY:
-    case PASSPORT_EXPIRATION_DATE:
-    case PASSPORT_ISSUE_DATE:
-    case VEHICLE_OWNER_TAG:
-    case DRIVERS_LICENSE_NAME_TAG:
-    case DRIVERS_LICENSE_EXPIRATION_DATE:
-    case DRIVERS_LICENSE_ISSUE_DATE:
     case UNKNOWN_TYPE:
     case MAX_VALID_FIELD_TYPE:
       return false;
@@ -493,6 +500,10 @@ std::string_view FieldTypeToDeveloperRepresentationString(FieldType type) {
       return "State";
     case ADDRESS_HOME_ZIP:
       return "ZIP code";
+    case ADDRESS_HOME_ZIP_PREFIX:
+      return "ZIP code prefix";
+    case ADDRESS_HOME_ZIP_SUFFIX:
+      return "ZIP code suffix";
     case ADDRESS_HOME_COUNTRY:
       return "Country";
     case ADDRESS_HOME_OVERFLOW:
@@ -785,6 +796,8 @@ bool IsDateFieldType(FieldType field_type) {
     case ADDRESS_HOME_CITY:
     case ADDRESS_HOME_STATE:
     case ADDRESS_HOME_ZIP:
+    case ADDRESS_HOME_ZIP_PREFIX:
+    case ADDRESS_HOME_ZIP_SUFFIX:
     case ADDRESS_HOME_COUNTRY:
     case CREDIT_CARD_NAME_FULL:
     case CREDIT_CARD_NUMBER:

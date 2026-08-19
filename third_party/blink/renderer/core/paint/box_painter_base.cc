@@ -14,6 +14,7 @@
 #include "third_party/blink/renderer/core/inspector/inspector_trace_events.h"
 #include "third_party/blink/renderer/core/layout/layout_progress.h"
 #include "third_party/blink/renderer/core/paint/background_image_geometry.h"
+#include "third_party/blink/renderer/core/paint/border_shape_painter.h"
 #include "third_party/blink/renderer/core/paint/box_background_paint_context.h"
 #include "third_party/blink/renderer/core/paint/box_border_painter.h"
 #include "third_party/blink/renderer/core/paint/contoured_border_geometry.h"
@@ -28,6 +29,7 @@
 #include "third_party/blink/renderer/core/style/border_edge.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/style/shadow_list.h"
+#include "third_party/blink/renderer/core/style/style_border_shape.h"
 #include "third_party/blink/renderer/core/style/style_fetched_image.h"
 #include "third_party/blink/renderer/core/style/style_mask_source_image.h"
 #include "third_party/blink/renderer/platform/geometry/contoured_rect.h"
@@ -1299,10 +1301,12 @@ void BoxPainterBase::PaintFillLayer(
       style_, fill_layer_info, bg_layer, rect, object_has_multiple_boxes,
       flow_box_size, bleed_avoidance, border_padding_insets);
 
+  const StyleBorderShape* border_shape = style_.BorderShape();
+
   // Fast path for drawing simple color/image backgrounds.
   if (CanUseBottomLayerFastPath(fill_layer_info, bg_paint_context,
                                 bleed_avoidance, did_adjust_paint_rect) &&
-      border_rect.HasRoundCurvature() &&
+      border_rect.HasRoundCurvature() && !border_shape &&
       PaintFastBottomLayer(document_, node_, style_, context, fill_layer_info,
                            rect, border_rect.AsRoundedRect(), geometry,
                            image.get(), composite_op)) {
@@ -1310,7 +1314,14 @@ void BoxPainterBase::PaintFillLayer(
   }
 
   std::optional<RoundedInnerRectClipper> clip_to_border;
-  if (fill_layer_info.is_rounded_fill) {
+  std::optional<GraphicsContextStateSaver> border_shape_saver;
+  if (border_shape) {
+    DCHECK(!bg_paint_context.CanCompositeBackgroundAttachmentFixed());
+    border_shape_saver.emplace(context);
+    context.ClipPath(border_shape->InnerShape()
+                         .GetPath(gfx::RectF(rect), style_.EffectiveZoom(), 1)
+                         .GetSkPath());
+  } else if (fill_layer_info.is_rounded_fill) {
     DCHECK(!bg_paint_context.CanCompositeBackgroundAttachmentFixed());
     clip_to_border.emplace(context, rect, border_rect);
   }
@@ -1335,7 +1346,7 @@ void BoxPainterBase::PaintFillLayer(
       // https://drafts.fxtf.org/css-masking/#the-mask-clip
       case EFillBox::kPadding:
       case EFillBox::kContent: {
-        if (fill_layer_info.is_rounded_fill) {
+        if (fill_layer_info.is_rounded_fill || border_shape) {
           break;
         }
 
@@ -1419,6 +1430,9 @@ void BoxPainterBase::PaintBorder(const ImageResourceObserver& obj,
                                  const ComputedStyle& style,
                                  BackgroundBleedAvoidance bleed_avoidance,
                                  PhysicalBoxSides sides_to_include) {
+  if (BorderShapePainter::Paint(info.context, rect, style)) {
+    return;
+  }
   // border-image is not affected by border-radius.
   if (NinePieceImagePainter::Paint(info.context, obj, document, node, rect,
                                    style, style.BorderImage())) {

@@ -62,7 +62,10 @@ chrome.test.runTests([
   async function accessAlreadyGrantedForTabId() {
     // TODO(crbug.com/371432155): Port to desktop Android when chrome.tabs API
     // is available.
-    if (/Android/.test(navigator.userAgent)) {
+    const isAndroid = await new Promise((resolve) => {
+      chrome.runtime.getPlatformInfo(info => resolve(info.os == 'android'));
+    });
+    if (isAndroid) {
       chrome.test.succeed();
       return;
     }
@@ -80,12 +83,6 @@ chrome.test.runTests([
   // Tests that an error is returned when the extension adds a request for a
   // documentId that it can already access its current web contents.
   async function accessAlreadyGrantedForDocumentId() {
-    // TODO(crbug.com/371432155): Port to desktop Android when chrome.tabs API
-    // is available.
-    if (/Android/.test(navigator.userAgent)) {
-      chrome.test.succeed();
-      return;
-    }
     let tab = await navigateTo('requested.com');
     let frame = await chrome.webNavigation.getFrame({frameId: 0, tabId: tab.id})
 
@@ -101,12 +98,6 @@ chrome.test.runTests([
   // Tests that an error is returned when the extension adds a request with an
   // invalid pattern.
   async function invalidPattern() {
-    // TODO(crbug.com/371432155): Port to desktop Android when chrome.tabs API
-    // is available.
-    if (/Android/.test(navigator.userAgent)) {
-      chrome.test.succeed();
-      return;
-    }
     let tab = await navigateTo('requested.com');
 
     const request = {tabId: tab.id, pattern: 'invalid pattern'};

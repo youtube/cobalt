@@ -130,16 +130,6 @@ class VideoFrameSubmitter::FrameSinkBundleProxy
   }
 
   // Not used by VideoFrameSubmitter.
-  void SubmitCompositorFrameSync(
-      const viz::LocalSurfaceId& local_surface_id,
-      viz::CompositorFrame frame,
-      std::optional<viz::HitTestRegionList> hit_test_region_list,
-      uint64_t submit_time,
-      SubmitCompositorFrameSyncCallback callback) override {
-    NOTREACHED();
-  }
-
-  // Not used by VideoFrameSubmitter.
   void NotifyNewLocalSurfaceIdExpectedWhilePaused() override { NOTREACHED(); }
 
   void DidNotProduceFrame(const viz::BeginFrameAck& ack) override {
@@ -149,8 +139,9 @@ class VideoFrameSubmitter::FrameSinkBundleProxy
     bundle_->DidNotProduceFrame(frame_sink_id_.sink_id(), ack);
   }
 
-  void BindLayerContext(viz::mojom::blink::PendingLayerContextPtr context,
-                        bool draw_mode_is_gpu) override {}
+  void BindLayerContext(
+      viz::mojom::blink::PendingLayerContextPtr context,
+      viz::mojom::blink::LayerContextSettingsPtr settings) override {}
 
 #if BUILDFLAG(IS_ANDROID)
   void SetThreads(const WTF::Vector<viz::Thread>& threads) override {

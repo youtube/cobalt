@@ -9,6 +9,7 @@
 #include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
 #include "base/no_destructor.h"
+#include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/browsing_topics/browsing_topics_service_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
@@ -53,7 +54,9 @@
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_translate_action_listener.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/commerce/discounts_page_action_view_controller.h"
 #include "chrome/browser/ui/views/commerce/price_insights_page_action_view_controller.h"
+#include "chrome/browser/ui/views/commerce/product_specifications_page_action_view_controller.h"
 #include "chrome/browser/ui/views/file_system_access/file_system_access_page_action_controller.h"
 #include "chrome/browser/ui/views/intent_picker/intent_picker_view_page_action_controller.h"
 #include "chrome/browser/ui/views/page_action/action_ids.h"
@@ -186,18 +189,20 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
     }
 
     if (IsPageActionMigrated(PageActionIconType::kZoom)) {
-      zoom_view_controller_ = std::make_unique<zoom::ZoomViewController>(tab);
+      zoom_view_controller_ = std::make_unique<zoom::ZoomViewController>(
+          tab, *page_action_controller_);
     }
 
     if (IsPageActionMigrated(PageActionIconType::kPwaInstall)) {
       pwa_install_page_action_controller_ =
-          std::make_unique<PwaInstallPageActionController>(tab);
+          std::make_unique<PwaInstallPageActionController>(
+              tab, *page_action_controller_);
     }
 
     if (IsPageActionMigrated(PageActionIconType::kPriceInsights)) {
       commerce_price_insights_page_action_view_controller_ =
           std::make_unique<commerce::PriceInsightsPageActionViewController>(
-              tab);
+              tab, *page_action_controller_);
     }
 
     if (IsPageActionMigrated(PageActionIconType::kManagePasswords)) {
@@ -248,8 +253,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
             tab.GetContents());
 
     dwa_web_contents_observer_ =
-        std::make_unique<metrics::DwaWebContentsObserver>(
-            tab.GetContents());
+        std::make_unique<metrics::DwaWebContentsObserver>(tab.GetContents());
 
     if (tab_groups::TabGroupSyncService* tab_group_sync_service =
             tab_groups::SavedTabGroupUtils::GetServiceForProfile(profile)) {
@@ -270,7 +274,24 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
           std::make_unique<glic::GlicTabIndicatorHelper>(&tab);
     }
 #endif  // BUILDFLAG(ENABLE_GLIC)
-  }     // IsInNormalWindow() end.
+  }  // IsInNormalWindow() end.
+
+  // This block instantiates the page action controllers that depends on the
+  // `commerce_ui_tab_helper_` and not need to be created before.
+  if (commerce_ui_tab_helper_) {
+    if (IsPageActionMigrated(PageActionIconType::kDiscounts)) {
+      commerce_discounts_page_action_view_controller_ =
+          std::make_unique<commerce::DiscountsPageActionViewController>(
+              tab, *page_action_controller_, *commerce_ui_tab_helper_);
+    }
+
+    if (IsPageActionMigrated(PageActionIconType::kProductSpecifications)) {
+      commerce_product_specifications_page_action_view_controller_ =
+          std::make_unique<
+              commerce::ProductSpecificationsPageActionViewController>(
+              tab, *page_action_controller_, *commerce_ui_tab_helper_);
+    }
+  }
 
   customize_chrome_side_panel_controller_ =
       std::make_unique<customize_chrome::SidePanelControllerViews>(tab);
@@ -336,6 +357,10 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   tab_ui_helper_ = std::make_unique<TabUIHelper>(tab);
 
   task_manager::WebContentsTags::CreateForTabContents(tab.GetContents());
+
+  // TODO(crbug.com/425952887): Gate behind feature flag.
+  actor_ui_tab_controller_ =
+      std::make_unique<actor::ui::ActorUiTabController>(tab);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)

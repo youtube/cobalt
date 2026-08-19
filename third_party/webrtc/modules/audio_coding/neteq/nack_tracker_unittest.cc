@@ -10,10 +10,9 @@
 
 #include "modules/audio_coding/neteq/nack_tracker.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <vector>
 

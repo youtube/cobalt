@@ -12,9 +12,12 @@
 #include <string>
 #include <vector>
 
+#include "base/callback_list.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "base/types/pass_key.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/views/page_action/page_action_metrics_recorder_interface.h"
 #include "chrome/browser/ui/views/page_action/page_action_properties_provider.h"
@@ -36,6 +39,7 @@ class ImageModel;
 
 namespace page_actions {
 
+class PageActionView;
 class PageActionModelFactory;
 class PageActionModelInterface;
 class PageActionModelObserver;
@@ -54,6 +58,31 @@ struct SuggestionChipConfig {
 
   // Used in tests.
   auto operator<=>(const SuggestionChipConfig& other) const = default;
+};
+
+// Represents a scope during which a page action is considered active.
+// When this object is destroyed, the activity counter for the associated
+// action is decremented.
+class ScopedPageActionActivity {
+ public:
+  ScopedPageActionActivity(PageActionController& controller,
+                           actions::ActionId action_id);
+  ScopedPageActionActivity(ScopedPageActionActivity&& other) noexcept;
+  ScopedPageActionActivity& operator=(
+      ScopedPageActionActivity&& other) noexcept;
+  ~ScopedPageActionActivity();
+
+  // Not copyable.
+  ScopedPageActionActivity(const ScopedPageActionActivity&) = delete;
+  ScopedPageActionActivity& operator=(const ScopedPageActionActivity&) = delete;
+
+ private:
+  void RegisterWillDestroyControllerCallback();
+
+  raw_ptr<PageActionController> controller_;
+  actions::ActionId action_id_;
+
+  base::CallbackListSubscription on_will_destroy_controller_subscription_;
 };
 
 std::ostream& operator<<(std::ostream& os, const SuggestionChipConfig& config);
@@ -109,6 +138,11 @@ class PageActionController {
                                const std::u16string& override_tooltip) = 0;
   virtual void ClearOverrideTooltip(actions::ActionId action_id) = 0;
 
+  // Adds a scope of activity for the given action. Returns a scoped object
+  // that manages the activity counter. The action is considered active as
+  // long as at least one ScopedPageActionActivity object exists for it.
+  virtual ScopedPageActionActivity AddActivity(actions::ActionId action_id) = 0;
+
   // Adds an observer for the page action's underlying `PageActionModel`.
   virtual void AddObserver(
       actions::ActionId action_id,
@@ -126,10 +160,22 @@ class PageActionController {
   // back to each page action's normal visibility logic.
   virtual void SetShouldHidePageActions(bool should_hide_page_actions) = 0;
 
+  // Registers a callback executed right before the controller is destroyed.
+  virtual base::CallbackListSubscription RegisterOnWillDestroyCallback(
+      base::OnceCallback<void(PageActionController&)> callback) = 0;
+
   // Provides a metric recording callback to the caller. The callback won't run
   // if the page action controller is destroyed.
   virtual base::RepeatingCallback<void(PageActionTrigger)> GetClickCallback(
+      base::PassKey<PageActionView>,
       actions::ActionId action_id) = 0;
+
+  // Subscribes this controller to get `page_action_view` complete chip
+  // visibility change (it final state after animation).
+  virtual void RegisterIsChipShowingChangedCallback(
+      base::PassKey<PageActionView>,
+      actions::ActionId action_id,
+      PageActionView* page_action_view) = 0;
 
   static base::PassKey<PageActionController> PassKeyForTesting() {
     return base::PassKey<PageActionController>();
@@ -139,6 +185,11 @@ class PageActionController {
   static base::PassKey<PageActionController> PassKey() {
     return base::PassKey<PageActionController>();
   }
+
+ private:
+  friend class ScopedPageActionActivity;
+
+  virtual void DecrementActivityCounter(actions::ActionId action_id) = 0;
 };
 
 class PageActionControllerImpl : public PageActionController,
@@ -177,6 +228,7 @@ class PageActionControllerImpl : public PageActionController,
   void OverrideTooltip(actions::ActionId action_id,
                        const std::u16string& override_tooltip) override;
   void ClearOverrideTooltip(actions::ActionId action_id) override;
+  ScopedPageActionActivity AddActivity(actions::ActionId action_id) override;
   void AddObserver(
       actions::ActionId action_id,
       base::ScopedObservation<PageActionModelInterface,
@@ -185,7 +237,14 @@ class PageActionControllerImpl : public PageActionController,
       actions::ActionItem* action_item) override;
   void SetShouldHidePageActions(bool should_hide_page_actions) override;
   base::RepeatingCallback<void(PageActionTrigger)> GetClickCallback(
+      base::PassKey<PageActionView>,
       actions::ActionId action_id) override;
+  base::CallbackListSubscription RegisterOnWillDestroyCallback(
+      base::OnceCallback<void(PageActionController&)> callback) override;
+  void RegisterIsChipShowingChangedCallback(
+      base::PassKey<PageActionView>,
+      actions::ActionId action_id,
+      PageActionView* page_action_view) override;
 
   // PinnedToolbarActionsModel::Observer
   void OnActionsChanged() override;
@@ -197,10 +256,17 @@ class PageActionControllerImpl : public PageActionController,
       std::map<actions::ActionId,
                std::unique_ptr<PageActionPerActionMetricsRecorderInterface>>;
 
+  // Called by ScopedPageActionActivity when it's destroyed.
+  void DecrementActivityCounter(actions::ActionId action_id) override;
+
   // Creates a page action model for the given id, and initializes it's values.
   void Register(actions::ActionId action_id,
                 bool is_tab_active,
                 bool is_ephemeral);
+
+  // Triggered when `page_action_view` chip state visibility has changed and
+  // completed animation to the new state.
+  void OnIsChipShowingChanged(actions::ActionId id, bool is_chip_showing);
 
   PageActionModelInterface& FindPageActionModel(
       actions::ActionId action_id) const;
@@ -245,6 +311,9 @@ class PageActionControllerImpl : public PageActionController,
 
   PageActionModelsMap page_actions_;
 
+  // Tracks the number of active scopes for each action.
+  std::map<actions::ActionId, int> activity_counters_;
+
   // Metrics recorders associated with ephemeral page actions.
   // Each recorder handles logging UMA metrics for one specific action id.
   PageActionMetricsRecordersMap metrics_recorders_;
@@ -260,6 +329,9 @@ class PageActionControllerImpl : public PageActionController,
 
   base::CallbackListSubscription tab_activated_callback_subscription_;
   base::CallbackListSubscription tab_deactivated_callback_subscription_;
+
+  base::OnceCallbackList<void(PageActionController&)>
+      on_will_destroy_callback_list_;
 
   base::WeakPtrFactory<PageActionControllerImpl> weak_factory_{this};
 };

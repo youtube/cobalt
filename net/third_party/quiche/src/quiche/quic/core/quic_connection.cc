@@ -109,9 +109,6 @@ class QuicEncrypter;
 
 namespace {
 
-// Maximum number of consecutive sent nonretransmittable packets.
-const QuicPacketCount kMaxConsecutiveNonRetransmittablePackets = 19;
-
 // The minimum release time into future in ms.
 const int kMinReleaseTimeIntoFutureMs = 1;
 
@@ -200,62 +197,23 @@ QuicConnection::QuicConnection(
     ConnectionIdGeneratorInterface& generator)
     : framer_(supported_versions, helper->GetClock()->ApproximateNow(),
               perspective, server_connection_id.length()),
-      current_packet_content_(NO_FRAMES_RECEIVED),
-      is_current_packet_connectivity_probing_(false),
-      has_path_challenge_in_current_packet_(false),
-      current_effective_peer_migration_type_(NO_CHANGE),
       helper_(helper),
       alarm_factory_(alarm_factory),
-      per_packet_options_(nullptr),
       writer_(writer),
-      owns_writer_(owns_writer),
-      encryption_level_(ENCRYPTION_INITIAL),
       clock_(helper->GetClock()),
       random_generator_(helper->GetRandomGenerator()),
-      client_connection_id_is_set_(false),
       direct_peer_address_(initial_peer_address),
       default_path_(initial_self_address, QuicSocketAddress(),
                     /*client_connection_id=*/EmptyQuicConnectionId(),
                     server_connection_id,
                     /*stateless_reset_token=*/std::nullopt),
-      active_effective_peer_migration_type_(NO_CHANGE),
-      support_key_update_for_connection_(false),
-      current_packet_data_(nullptr),
-      should_last_packet_instigate_acks_(false),
-      max_undecryptable_packets_(0),
       max_tracked_packets_(GetQuicFlag(quic_max_tracked_packet_count)),
-      idle_timeout_connection_close_behavior_(
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET),
-      num_rtos_for_blackhole_detection_(0),
       uber_received_packet_manager_(&stats_),
-      pending_retransmission_alarm_(false),
-      defer_send_in_response_to_packets_(false),
-      arena_(),
       alarms_(this, arena_, *alarm_factory_),
-      visitor_(nullptr),
-      debug_visitor_(nullptr),
       packet_creator_(server_connection_id, &framer_, random_generator_, this),
       last_received_packet_info_(clock_->ApproximateNow()),
       sent_packet_manager_(perspective, clock_, random_generator_, &stats_,
                            GetDefaultCongestionControlType()),
-      version_negotiated_(false),
-      perspective_(perspective),
-      connected_(true),
-      can_truncate_connection_ids_(perspective == Perspective::IS_SERVER),
-      mtu_probe_count_(0),
-      previous_validated_mtu_(0),
-      peer_max_packet_size_(kDefaultMaxPacketSizeTransportParam),
-      largest_received_packet_size_(0),
-      write_error_occurred_(false),
-      consecutive_num_packets_with_no_retransmittable_frames_(0),
-      max_consecutive_num_packets_with_no_retransmittable_frames_(
-          kMaxConsecutiveNonRetransmittablePackets),
-      bundle_retransmittable_with_pto_ack_(false),
-      last_control_frame_id_(kInvalidControlFrameId),
-      is_path_degrading_(false),
-      flow_label_has_changed_(false),
-      processing_ack_frame_(false),
-      supports_release_time_(false),
       release_time_into_future_(QuicTime::Delta::Zero()),
       blackhole_detector_(
           this,
@@ -270,6 +228,10 @@ QuicConnection::QuicConnection(
       multi_port_probing_interval_(kDefaultMultiPortProbingInterval),
       connection_id_generator_(generator),
       received_client_addresses_cache_(kMaxReceivedClientAddressSize),
+      current_packet_content_(NO_FRAMES_RECEIVED),
+      perspective_(perspective),
+      owns_writer_(owns_writer),
+      can_truncate_connection_ids_(perspective == Perspective::IS_SERVER),
       least_unacked_plus_1_(GetQuicReloadableFlag(quic_least_unacked_plus_1)) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
@@ -549,6 +511,20 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
       retransmittable_on_wire_behavior_ = SEND_RANDOM_BYTES;
     }
   }
+
+  // Set retransmittable-on-wire timeout to different PTO based values.
+  if (perspective_ == Perspective::IS_CLIENT && version().HasIetfQuicFrames()) {
+    if (config.HasClientRequestedIndependentOption(kROW1, perspective_)) {
+      ping_manager_.set_num_ptos_for_retransmittable_on_wire_timeout(1);
+    }
+    if (config.HasClientRequestedIndependentOption(kROW2, perspective_)) {
+      ping_manager_.set_num_ptos_for_retransmittable_on_wire_timeout(2);
+    }
+    if (config.HasClientRequestedIndependentOption(kROW3, perspective_)) {
+      ping_manager_.set_num_ptos_for_retransmittable_on_wire_timeout(3);
+    }
+  }
+
   if (config.HasClientRequestedIndependentOption(k3AFF, perspective_)) {
     anti_amplification_factor_ = 3;
   }
@@ -3134,7 +3110,8 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
 
   if (!version_negotiated_) {
     if (perspective_ == Perspective::IS_CLIENT) {
-      QUICHE_DCHECK(!header.version_flag || header.form != GOOGLE_QUIC_PACKET);
+      QUICHE_DCHECK(!header.version_flag ||
+                    header.form != GOOGLE_QUIC_Q043_PACKET);
       version_negotiated_ = true;
       OnSuccessfulVersionNegotiation();
     }
@@ -3284,7 +3261,6 @@ void QuicConnection::MaybeBundleOpportunistically(
           FirstSendingPacketNumber() + kMinReceivedBeforeAckDecimation;
 
   if (should_bundle_ack_frequency) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 3, 3);
     ack_frequency_sent_ = true;
     auto frame = sent_packet_manager_.GetUpdatedAckFrequencyFrame();
     visitor_->SendAckFrequency(frame);
@@ -4138,7 +4114,6 @@ void QuicConnection::OnHandshakeComplete() {
   }
   if (send_ack_frequency_on_handshake_completion_ &&
       sent_packet_manager_.CanSendAckFrequency()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 2, 3);
     auto ack_frequency_frame =
         sent_packet_manager_.GetUpdatedAckFrequencyFrame();
     // This AckFrequencyFrame is meant to only update the max_ack_delay. All
@@ -4907,7 +4882,8 @@ void QuicConnection::SetPingAlarm() {
   }
   ping_manager_.SetAlarm(clock_->ApproximateNow(),
                          visitor_->ShouldKeepConnectionAlive(),
-                         sent_packet_manager_.HasInFlightPackets());
+                         sent_packet_manager_.HasInFlightPackets(),
+                         sent_packet_manager_.GetPtoDelay());
 }
 
 void QuicConnection::SetRetransmissionAlarm() {
@@ -6603,9 +6579,9 @@ void QuicConnection::OnRetransmittableOnWireTimeout() {
     if (connected_) {
       // Always reset PING alarm with has_in_flight_packets=true. This is used
       // to avoid re-arming the alarm in retransmittable-on-wire mode.
-      ping_manager_.SetAlarm(clock_->ApproximateNow(),
-                             visitor_->ShouldKeepConnectionAlive(),
-                             /*has_in_flight_packets=*/true);
+      ping_manager_.SetAlarm(
+          clock_->ApproximateNow(), visitor_->ShouldKeepConnectionAlive(),
+          /*has_in_flight_packets=*/true, sent_packet_manager_.GetPtoDelay());
     }
     return;
   }

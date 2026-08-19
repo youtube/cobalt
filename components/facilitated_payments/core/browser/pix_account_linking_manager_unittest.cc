@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/functional/callback.h"
 #include "base/test/task_environment.h"
 #include "components/autofill/core/browser/data_manager/payments/test_payments_data_manager.h"
 #include "components/autofill/core/browser/payments/payments_customer_data.h"
@@ -45,16 +46,34 @@ class PixAccountLinkingManagerTest : public testing::Test {
         std::make_unique<autofill::PaymentsCustomerData>("123456"));
     ON_CALL(client_, GetPaymentsDataManager)
         .WillByDefault(testing::Return(payments_data_manager_.get()));
-    mock_device_delegate_ = std::make_unique<MockDeviceDelegate>();
+    device_delegate_ = std::make_unique<MockDeviceDelegate>();
     ON_CALL(client_, GetDeviceDelegate)
-        .WillByDefault(testing::Return(mock_device_delegate_.get()));
-
-    // Success path setup. The Pix account linking user pref is default enabled.
-    ON_CALL(*mock_device_delegate(), IsPixAccountLinkingSupported)
-        .WillByDefault(testing::Return(true));
+        .WillByDefault(testing::Return(device_delegate_.get()));
     ON_CALL(client_, GetMultipleRequestFacilitatedPaymentsNetworkInterface)
         .WillByDefault(testing::Return(
             multiple_request_payments_network_interface_.get()));
+
+    // Success path setup. The Pix account linking user pref is default enabled.
+    ON_CALL(*device_delegate(), IsPixAccountLinkingSupported)
+        .WillByDefault(testing::Return(true));
+    // Simulate the payments server returns that the user is eligible for Pix
+    // account linking.
+    ON_CALL(*multiple_request_payments_network_interface(),
+            GetDetailsForCreatePaymentInstrument(testing::_, testing::_,
+                                                 testing::_))
+        .WillByDefault(testing::Invoke([](long, auto callback,
+                                          const std::string&) {
+          std::move(callback).Run(autofill::payments::PaymentsAutofillClient::
+                                      PaymentsRpcResult::kSuccess,
+                                  true);
+          return base::StrongAlias<autofill::payments::RequestIdTag,
+                                   std::string>();
+        }));
+    // Simulate user leaving and returning to Chrome, after which the callback
+    // that triggers showing the prompt is called.
+    ON_CALL(*device_delegate(), SetOnReturnToChromeCallback)
+        .WillByDefault(
+            [](base::OnceClosure callback) { std::move(callback).Run(); });
   }
 
   void TearDown() override {
@@ -65,9 +84,7 @@ class PixAccountLinkingManagerTest : public testing::Test {
  protected:
   MockFacilitatedPaymentsClient& client() { return client_; }
   PixAccountLinkingManager* manager() { return manager_.get(); }
-  MockDeviceDelegate* mock_device_delegate() {
-    return mock_device_delegate_.get();
-  }
+  MockDeviceDelegate* device_delegate() { return device_delegate_.get(); }
   inline PixAccountLinkingManagerTestApi test_api() {
     return PixAccountLinkingManagerTestApi(manager_.get());
   }
@@ -87,7 +104,7 @@ class PixAccountLinkingManagerTest : public testing::Test {
   std::unique_ptr<MockMultipleRequestFacilitatedPaymentsNetworkInterface>
       multiple_request_payments_network_interface_;
   signin::IdentityTestEnvironment identity_test_env_;
-  std::unique_ptr<MockDeviceDelegate> mock_device_delegate_;
+  std::unique_ptr<MockDeviceDelegate> device_delegate_;
 };
 
 TEST_F(PixAccountLinkingManagerTest, SuccessPathShowsPrompt) {
@@ -98,7 +115,7 @@ TEST_F(PixAccountLinkingManagerTest, SuccessPathShowsPrompt) {
 
 TEST_F(PixAccountLinkingManagerTest,
        PixAccountLinkingNotSupported_PromptNotShown) {
-  ON_CALL(*mock_device_delegate(), IsPixAccountLinkingSupported)
+  ON_CALL(*device_delegate(), IsPixAccountLinkingSupported)
       .WillByDefault(testing::Return(false));
 
   EXPECT_CALL(client(), ShowPixAccountLinkingPrompt).Times(0);
@@ -116,9 +133,67 @@ TEST_F(PixAccountLinkingManagerTest,
   manager()->MaybeShowPixAccountLinkingPrompt();
 }
 
+TEST_F(PixAccountLinkingManagerTest,
+       NoPaymentsProfile_ServerEligibilityNotChecked_PromptShown) {
+  payments_data_manager_->ClearPaymentsCustomerData();
+
+  // Backend call for GetDetailsForPaymentInstrument should not be called if
+  // user is not a payments customer. But, the prompt should still be shown.
+  EXPECT_CALL(
+      *multiple_request_payments_network_interface(),
+      GetDetailsForCreatePaymentInstrument(testing::_, testing::_, testing::_))
+      .Times(0);
+  EXPECT_CALL(client(), ShowPixAccountLinkingPrompt);
+
+  manager()->MaybeShowPixAccountLinkingPrompt();
+}
+
+TEST_F(PixAccountLinkingManagerTest,
+       ServerEligibilityCheckNotCompleted_PromptNotShown) {
+  // Simulate that the payments server hasn't yet returned eligibility.
+  EXPECT_CALL(
+      *multiple_request_payments_network_interface(),
+      GetDetailsForCreatePaymentInstrument(testing::_, testing::_, testing::_))
+      .WillOnce(testing::Return(
+          base::StrongAlias<autofill::payments::RequestIdTag, std::string>()));
+
+  EXPECT_CALL(client(), ShowPixAccountLinkingPrompt).Times(0);
+
+  manager()->MaybeShowPixAccountLinkingPrompt();
+}
+
+TEST_F(PixAccountLinkingManagerTest,
+       ServerEligibilityCheckReturnsIneligible_PromptNotShown) {
+  // Simulate that the payments server hasn't yet returned eligibility.
+  EXPECT_CALL(
+      *multiple_request_payments_network_interface(),
+      GetDetailsForCreatePaymentInstrument(testing::_, testing::_, testing::_))
+      .WillOnce(testing::Invoke([](long, auto callback, const std::string&) {
+        std::move(callback).Run(autofill::payments::PaymentsAutofillClient::
+                                    PaymentsRpcResult::kSuccess,
+                                false);
+        return base::StrongAlias<autofill::payments::RequestIdTag,
+                                 std::string>();
+      }));
+
+  EXPECT_CALL(client(), ShowPixAccountLinkingPrompt).Times(0);
+
+  manager()->MaybeShowPixAccountLinkingPrompt();
+}
+
+TEST_F(PixAccountLinkingManagerTest, UserNotReturnedToChrome_PromptNotShown) {
+  // Simulate user not returning to Chrome, so the callback is never run.
+  EXPECT_CALL(*device_delegate(), SetOnReturnToChromeCallback)
+      .WillOnce([](base::OnceClosure callback) {});
+
+  EXPECT_CALL(client(), ShowPixAccountLinkingPrompt).Times(0);
+
+  manager()->MaybeShowPixAccountLinkingPrompt();
+}
+
 TEST_F(PixAccountLinkingManagerTest, OnAccepted) {
   EXPECT_CALL(client(), DismissPrompt);
-  EXPECT_CALL(*mock_device_delegate(), LaunchPixAccountLinkingPage);
+  EXPECT_CALL(*device_delegate(), LaunchPixAccountLinkingPage);
 
   test_api().OnAccepted();
 }
@@ -135,57 +210,6 @@ TEST_F(PixAccountLinkingManagerTest, PromptDeclined_UserPrefUpdated) {
   // Verify that declining the prompt disables the account linking user pref.
   EXPECT_FALSE(autofill::prefs::IsFacilitatedPaymentsPixAccountLinkingEnabled(
       pref_service_.get()));
-}
-
-TEST_F(PixAccountLinkingManagerTest,
-       GetDetailsForCreatePaymentInstrumentBackendRequest) {
-  EXPECT_CALL(
-      *multiple_request_payments_network_interface(),
-      GetDetailsForCreatePaymentInstrument(testing::_, testing::_, testing::_));
-
-  manager()->MaybeShowPixAccountLinkingPrompt();
-}
-
-TEST_F(PixAccountLinkingManagerTest,
-       OnGetDetailsForCreatePaymentInstrumentResponseReceived_Eligible) {
-  test_api().OnGetDetailsForCreatePaymentInstrumentResponseReceived(
-      autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::kSuccess,
-      true);
-
-  EXPECT_TRUE(test_api().is_eligible_for_pix_account_linking().value());
-}
-
-TEST_F(PixAccountLinkingManagerTest,
-       OnGetDetailsForCreatePaymentInstrumentResponseReceived_NotEligible) {
-  test_api().OnGetDetailsForCreatePaymentInstrumentResponseReceived(
-      autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::kSuccess,
-      false);
-
-  EXPECT_FALSE(test_api().is_eligible_for_pix_account_linking().value());
-}
-
-TEST_F(
-    PixAccountLinkingManagerTest,
-    GetDetailsForCreatePaymentInstrumentResponseNotReceived_EligibilityNotSet) {
-  EXPECT_EQ(test_api().is_eligible_for_pix_account_linking(), std::nullopt);
-}
-
-TEST_F(
-    PixAccountLinkingManagerTest,
-    NoPaymentsCustomerData_GetDetailsForCreatePaymentInstrumentNotCalled_AccountLinkingEligible) {
-  payments_data_manager_->ClearPaymentsCustomerData();
-  // Backend call for GetDetailsForPaymentInstrument should not be called if
-  // user is not a payments customer.
-  EXPECT_CALL(
-      *multiple_request_payments_network_interface(),
-      GetDetailsForCreatePaymentInstrument(testing::_, testing::_, testing::_))
-      .Times(0);
-
-  manager()->MaybeShowPixAccountLinkingPrompt();
-
-  // If a user is not a payments customer, they are eligible for account linking
-  // by default.
-  EXPECT_TRUE(test_api().is_eligible_for_pix_account_linking().value());
 }
 
 }  // namespace payments::facilitated

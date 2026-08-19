@@ -42,45 +42,21 @@ const base::FeatureParam<bool> kInvalidateChoiceOnRestoreIsRetroactive{
     /*feature=*/&kInvalidateSearchEngineChoiceOnDeviceRestoreDetection,
     /*name=*/"is_retroactive", /*default_value=*/false};
 
-// Enables the search engine choice screen. Feature parameters below can
-// affect the actual triggering logic.
-// The default feature state is split by platform to ease potential merges
-// that could be needed if we need to change the state while waterfalling this
-// feature.
-COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
-BASE_FEATURE(kSearchEngineChoiceTrigger,
-             "SearchEngineChoiceTrigger",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-#if BUILDFLAG(IS_ANDROID)
-COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
-BASE_FEATURE(kRemoveSearchEngineChoiceAttribution,
-             "RemoveSearchEngineChoiceAttribution",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
-
 // Use an explicit "NO_REPROMPT" value as default to avoid reprompting users
 // who saw the choice screen in M121.
 COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
+BASE_FEATURE(kSearchEngineChoiceTriggerReprompt,
+             "SearchEngineChoiceTriggerReprompt",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
 const base::FeatureParam<std::string> kSearchEngineChoiceTriggerRepromptParams{
-    &kSearchEngineChoiceTrigger,
+    &kSearchEngineChoiceTriggerReprompt,
     /*name=*/"reprompt",
     /*default_value=*/kSearchEngineChoiceNoRepromptString};
 
-#if BUILDFLAG(IS_IOS)
-COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
-extern const base::FeatureParam<int> kSearchEngineChoiceMaximumSkipCount{
-    &kSearchEngineChoiceTrigger,
-    /*name=*/"maximum_skip_count",
-    /*default_value=*/10};
-#endif
-
 #if BUILDFLAG(IS_ANDROID)
 COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
-BASE_FEATURE(kClayBlocking, "ClayBlocking", base::FEATURE_ENABLED_BY_DEFAULT);
-
-COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
-BASE_FEATURE(kClaySnackbar, "ClaySnackbar", base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kClaySnackbar, "ClaySnackbar", base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)

@@ -44,6 +44,7 @@
 namespace supervised_user {
 
 namespace {
+
 using base::UserMetricsAction;
 
 // All prefs that configure the url filter.
@@ -104,16 +105,23 @@ SupervisedUserURLFilter* SupervisedUserService::GetURLFilter() const {
 
 bool SupervisedUserService::IsSupervisedLocally() const {
 #if BUILDFLAG(IS_ANDROID)
-  return IsLocalContentFilteringEnabled() ||
-         search_content_filters_observer_->IsEnabled();
+  return IsLocalBrowserFilteringEnabled() || IsLocalSearchFilteringEnabled();
 #else
   return false;
 #endif
 }
 
-bool SupervisedUserService::IsLocalContentFilteringEnabled() const {
+bool SupervisedUserService::IsLocalBrowserFilteringEnabled() const {
 #if BUILDFLAG(IS_ANDROID)
   return browser_content_filters_observer_->IsEnabled();
+#else
+  return false;
+#endif
+}
+
+bool SupervisedUserService::IsLocalSearchFilteringEnabled() const {
+#if BUILDFLAG(IS_ANDROID)
+  return search_content_filters_observer_->IsEnabled();
 #else
   return false;
 #endif
@@ -194,18 +202,21 @@ SupervisedUserService::SupervisedUserService(
       browser_content_filters_observer_(
           content_filters_observer_bridge_factory.Run(
               kBrowserContentFiltersSettingName,
-              base::BindRepeating(&EnableBrowserContentFilters,
-                                  std::ref(user_prefs)),
-              base::BindRepeating(&DisableBrowserContentFilters,
-                                  std::ref(user_prefs)))),
+              base::BindRepeating(
+                  &SupervisedUserService::EnableBrowserContentFilters,
+                  base::Unretained(this)),
+              base::BindRepeating(
+                  &SupervisedUserService::DisableBrowserContentFilters,
+                  base::Unretained(this)))),
       search_content_filters_observer_(
           content_filters_observer_bridge_factory.Run(
               kSearchContentFiltersSettingName,
               base::BindRepeating(
                   &SupervisedUserService::EnableSearchContentFilters,
                   base::Unretained(this)),
-              base::BindRepeating(&DisableSearchContentFilters,
-                                  std::ref(user_prefs))))
+              base::BindRepeating(
+                  &SupervisedUserService::DisableSearchContentFilters,
+                  base::Unretained(this))))
 #endif  // BUILDFLAG(IS_ANDROID)
 {
   CHECK(settings_service_->IsReady())
@@ -246,15 +257,11 @@ void SupervisedUserService::SetSettingsServiceActive(bool active) {
 
 void SupervisedUserService::SetUserSettingsActive(bool active) {
   if (active) {
-    user_prefs_->SetInteger(
-        policy::policy_prefs::kIncognitoModeAvailability,
-        static_cast<int>(policy::IncognitoModeAvailability::kDisabled));
     // Sets "Try to block mature sites" on user level.
     user_prefs_->SetBoolean(prefs::kSupervisedUserSafeSites, true);
     user_prefs_->SetInteger(prefs::kDefaultSupervisedUserFilteringBehavior,
                             static_cast<int>(FilteringBehavior::kAllow));
   } else {
-    user_prefs_->ClearPref(policy::policy_prefs::kIncognitoModeAvailability);
     user_prefs_->ClearPref(prefs::kSupervisedUserSafeSites);
     user_prefs_->ClearPref(prefs::kDefaultSupervisedUserFilteringBehavior);
   }
@@ -409,10 +416,48 @@ void SupervisedUserService::Shutdown() {
 
 #if BUILDFLAG(IS_ANDROID)
 void SupervisedUserService::EnableSearchContentFilters() {
-  supervised_user::EnableSearchContentFilters(user_prefs_.get());
+  ::supervised_user::EnableSearchContentFilters(user_prefs_.get());
+  ::supervised_user::DisableIncognitoMode(user_prefs_.get());
   observer_list_.Notify(
-      &SupervisedUserServiceObserver::OnSearchContentFiltersEnabled);
+      &SupervisedUserServiceObserver::OnSearchContentFiltersChanged);
 }
+void SupervisedUserService::DisableSearchContentFilters() {
+  ::supervised_user::DisableSearchContentFilters(user_prefs_.get());
+  if (!IsSupervisedLocally()) {
+    // Restore incognito mode iff all of the local parental controls are
+    // disabled.
+    ::supervised_user::EnableIncognitoMode(user_prefs_.get());
+  }
+  observer_list_.Notify(
+      &SupervisedUserServiceObserver::OnSearchContentFiltersChanged);
+}
+void SupervisedUserService::EnableBrowserContentFilters() {
+  ::supervised_user::EnableBrowserContentFilters(user_prefs_.get());
+  ::supervised_user::DisableIncognitoMode(user_prefs_.get());
+  observer_list_.Notify(
+      &SupervisedUserServiceObserver::OnBrowserContentFiltersChanged);
+}
+void SupervisedUserService::DisableBrowserContentFilters() {
+  ::supervised_user::DisableBrowserContentFilters(user_prefs_.get());
+  if (!IsSupervisedLocally()) {
+    // Restore incognito mode iff all of the local parental controls are
+    // disabled.
+    ::supervised_user::EnableIncognitoMode(user_prefs_.get());
+  }
+  observer_list_.Notify(
+      &SupervisedUserServiceObserver::OnBrowserContentFiltersChanged);
+}
+
+ContentFiltersObserverBridge*
+SupervisedUserService::browser_content_filters_observer() {
+  return browser_content_filters_observer_.get();
+}
+
+ContentFiltersObserverBridge*
+SupervisedUserService::search_content_filters_observer() {
+  return search_content_filters_observer_.get();
+}
+
 #endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace supervised_user

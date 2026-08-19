@@ -10,9 +10,8 @@
 
 #include "p2p/base/async_stun_tcp_socket.h"
 
-#include <stdint.h>
-#include <string.h>
-
+#include <cstddef>
+#include <cstring>
 #include <list>
 #include <memory>
 #include <string>

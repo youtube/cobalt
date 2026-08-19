@@ -25,7 +25,7 @@ class BackingStoreDatabaseImpl : public BackingStore::Database {
 
   // BackingStore::Database:
   const blink::IndexedDBDatabaseMetadata& GetMetadata() override;
-  PartitionedLockId GetLockId(int64_t object_store_id) const override;
+  std::string GetObjectStoreLockIdKey(int64_t object_store_id) const override;
   std::unique_ptr<BackingStore::Transaction> CreateTransaction(
       blink::mojom::IDBTransactionDurability durability,
       blink::mojom::IDBTransactionMode mode) override;
@@ -33,6 +33,11 @@ class BackingStoreDatabaseImpl : public BackingStore::Database {
                         base::OnceClosure on_complete) override;
 
  private:
+  // This is used when `db_` is null, which can happen if the DB has been
+  // deleted. This will be read if the database is deleted a second time, i.e.
+  // if two deleteDatabase requests are enqueued at the same time.
+  const blink::IndexedDBDatabaseMetadata placeholder_metadata_;
+
   base::WeakPtr<DatabaseConnection> db_;
 };
 

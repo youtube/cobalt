@@ -17,6 +17,8 @@
 #include <jni.h>
 
 #include <atomic>
+#include <cstdint>
+#include <cstring>
 
 #include "third_party/jni_zero/jni_zero_internal.h"
 

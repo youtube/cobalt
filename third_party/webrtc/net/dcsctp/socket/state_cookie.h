@@ -10,6 +10,7 @@
 #ifndef NET_DCSCTP_SOCKET_STATE_COOKIE_H_
 #define NET_DCSCTP_SOCKET_STATE_COOKIE_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <vector>

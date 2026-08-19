@@ -11,6 +11,7 @@
 
 #include "base/command_line.h"
 #include "base/values.h"
+#include "components/headless/test/test_meta_info.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/test/browser_test.h"
 #include "headless/test/headless_browser_test.h"
@@ -24,12 +25,28 @@ class HeadlessProtocolBrowserTest : public HeadlessDevTooledBrowserTest {
   ~HeadlessProtocolBrowserTest() override;
 
  protected:
-  void SetUpCommandLine(base::CommandLine* command_line) override;
+  // Implement this to provide the relative script name;
+  virtual std::string GetScriptName() = 0;
 
+  // Implement this for tests that need to pass extra parameters to
+  // JavaScript test body.
   virtual base::Value::Dict GetPageUrlExtraParams();
 
+  // Returns relative test data directory.
+  base::FilePath GetTestDataDir();
+
+  // Returns absolute script file path.
+  base::FilePath GetScriptPath();
+
+  bool IsSharedTestScript();
+
+  void SetUp() override;
+  void SetUpCommandLine(base::CommandLine* command_line) override;
+
  private:
-  // HeadlessWebContentsObserver implementation.
+  void StartEmbeddedTestServer();
+
+  // HeadlessDevTooledBrowserTest:
   void RunDevTooledTest() override;
 
   void OnceSetUp(base::Value::Dict params);
@@ -41,10 +58,38 @@ class HeadlessProtocolBrowserTest : public HeadlessDevTooledBrowserTest {
   void FinishTest();
 
  protected:
+  void LoadTestMetaInfo();
+
+  TestMetaInfo test_meta_info_;
   bool test_finished_ = false;
-  std::string test_folder_;
-  std::string script_name_;
 };
+
+#define HEADLESS_PROTOCOL_TEST(TEST_NAME, SCRIPT_NAME) \
+  HEADLESS_PROTOCOL_TEST_F(HeadlessProtocolBrowserTest, TEST_NAME, SCRIPT_NAME)
+
+#define HEADLESS_PROTOCOL_TEST_F(FIXTURE_NAME, TEST_NAME, SCRIPT_NAME) \
+  class FIXTURE_NAME##_##TEST_NAME : public FIXTURE_NAME {             \
+   public:                                                             \
+    std::string GetScriptName() override {                             \
+      return SCRIPT_NAME;                                              \
+    }                                                                  \
+  };                                                                   \
+                                                                       \
+  IN_PROC_BROWSER_TEST_F(FIXTURE_NAME##_##TEST_NAME, TEST_NAME) {      \
+    RunTest();                                                         \
+  }
+
+#define HEADLESS_PROTOCOL_TEST_P(FIXTURE_NAME, TEST_NAME, SCRIPT_NAME) \
+  class FIXTURE_NAME##_##TEST_NAME : public FIXTURE_NAME {             \
+   public:                                                             \
+    std::string GetScriptName() override {                             \
+      return SCRIPT_NAME;                                              \
+    }                                                                  \
+  };                                                                   \
+                                                                       \
+  IN_PROC_BROWSER_TEST_P(FIXTURE_NAME##_##TEST_NAME, TEST_NAME) {      \
+    RunTest();                                                         \
+  }
 
 }  // namespace headless
 

@@ -34,9 +34,14 @@ void FakeEndpointFetcher::PerformRequest(
 TestComposeboxQueryController::TestComposeboxQueryController(
     signin::IdentityManager* identity_manager,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-    version_info::Channel channel)
-    : ComposeboxQueryController(identity_manager, url_loader_factory, channel) {
-}
+    version_info::Channel channel,
+    std::string locale,
+    TemplateURLService* template_url_service)
+    : ComposeboxQueryController(identity_manager,
+                                url_loader_factory,
+                                channel,
+                                locale,
+                                template_url_service) {}
 TestComposeboxQueryController::~TestComposeboxQueryController() = default;
 
 std::unique_ptr<EndpointFetcher>
@@ -68,7 +73,15 @@ TestComposeboxQueryController::CreateEndpointFetcher(
           fake_cluster_info_response_.SerializeAsString();
     }
   } else {
-    NOTREACHED();
+    num_file_upload_requests_sent_++;
+    last_sent_fetch_url_ = fetch_url;
+    if (next_file_upload_request_should_return_error_) {
+      fake_server_response_code =
+          google_apis::ApiErrorCode::HTTP_INTERNAL_SERVER_ERROR;
+    }
+
+    last_sent_file_upload_request_ = lens::LensOverlayServerRequest();
+    last_sent_file_upload_request_->ParseFromString(request_string);
   }
 
   // Create the fake endpoint fetcher to return the fake response.

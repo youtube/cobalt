@@ -27,6 +27,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.Tab.LoadUrlResult;
 import org.chromium.chrome.browser.tab.TabHidingType;
 import org.chromium.chrome.browser.tab.TabObserver;
+import org.chromium.components.ukm.UkmRecorder;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContents;
@@ -63,7 +64,9 @@ public class CustomTabObserver extends EmptyTabObserver {
     private long mFirstCommitRealtimeMillis;
     private long mFirstCommitUptimeMillis;
 
-    // The TWA startup timestamp
+    // Version of android-browser-helper, or zero if not reported
+    private int mBrowserHelperVersion;
+    // System.uptimeMillis() when the TWA wrapper activity has started, or zero if not reported
     private long mTwaStartupUptimeMillis;
     private final List<Runnable> mTwaStartupTimeAvailableCallbacks = new ArrayList<>();
 
@@ -81,16 +84,17 @@ public class CustomTabObserver extends EmptyTabObserver {
     // Tracks what point in the first navigation after a Custom Tab launch we're in.
     private @State int mCurrentState;
 
-    private LargestContentfulPaintObserver mLCPObserver;
+    private PageLoadMetricsObserver mPageLoadMetricsObserver;
 
-    private class LargestContentfulPaintObserver implements PageLoadMetrics.Observer {
+    private class PageLoadMetricsObserver implements PageLoadMetrics.Observer {
         @Override
         public void onFirstContentfulPaint(
                 WebContents webContents,
                 long navigationId,
                 long navigationStartMicros,
                 long firstContentfulPaintMs) {
-            recordFirstContentfulPaint(navigationStartMicros / 1000 + firstContentfulPaintMs);
+            recordFirstContentfulPaint(
+                    webContents, navigationStartMicros / 1000 + firstContentfulPaintMs);
         }
 
         @Override
@@ -100,24 +104,59 @@ public class CustomTabObserver extends EmptyTabObserver {
                 long navigationStartMicros,
                 long largestContentfulPaintMs,
                 long largestContentfulPaintSize) {
-            recordLargestContentfulPaint(navigationStartMicros / 1000 + largestContentfulPaintMs);
-            PageLoadMetrics.removeObserver(mLCPObserver);
-            mLCPObserver = null;
+            recordLargestContentfulPaint(
+                    webContents, navigationStartMicros / 1000 + largestContentfulPaintMs);
+            PageLoadMetrics.removeObserver(mPageLoadMetricsObserver);
+            mPageLoadMetricsObserver = null;
+        }
+
+        @Override
+        public void onUserTimingMarkFullyLoaded(
+                WebContents webContents,
+                long navigationId,
+                long navigationStartMicros,
+                long markFullyLoadedMs) {
+            recordUserTiming(
+                    webContents,
+                    navigationStartMicros / 1000 + markFullyLoadedMs,
+                    "TimeToMarkFullyLoaded");
+        }
+
+        @Override
+        public void onUserTimingMarkFullyVisible(
+                WebContents webContents,
+                long navigationId,
+                long navigationStartMicros,
+                long markFullyVisibleMs) {
+            recordUserTiming(
+                    webContents,
+                    navigationStartMicros / 1000 + markFullyVisibleMs,
+                    "TimeToMarkFullyVisible");
+        }
+
+        @Override
+        public void onUserTimingMarkInteractive(
+                WebContents webContents,
+                long navigationId,
+                long navigationStartMicros,
+                long markInteractiveMs) {
+            recordUserTiming(
+                    webContents,
+                    navigationStartMicros / 1000 + markInteractiveMs,
+                    "TimeToMarkInteractive");
         }
     }
 
-    public CustomTabObserver(
-            boolean openedByChrome, SessionHolder<?> token, long twaStartupUptimeMillis) {
+    public CustomTabObserver(boolean openedByChrome, SessionHolder<?> token) {
         mCustomTabsConnection = openedByChrome ? null : CustomTabsConnection.getInstance();
         mSession = token;
         resetPageLoadTracking();
-        setTwaStartupTimestamp(twaStartupUptimeMillis);
     }
 
     private void trackNextLCP() {
-        if (mLCPObserver != null) return;
-        mLCPObserver = new LargestContentfulPaintObserver();
-        PageLoadMetrics.addObserver(mLCPObserver, true);
+        if (mPageLoadMetricsObserver != null) return;
+        mPageLoadMetricsObserver = new PageLoadMetricsObserver();
+        PageLoadMetrics.addObserver(mPageLoadMetricsObserver, true);
     }
 
     /**
@@ -137,7 +176,10 @@ public class CustomTabObserver extends EmptyTabObserver {
     }
 
     public void trackNextPageLoadForHiddenTab(
-            boolean usedSpeculation, boolean hasCommitted, Intent sourceIntent) {
+            WebContents webContents,
+            boolean usedSpeculation,
+            boolean hasCommitted,
+            Intent sourceIntent) {
         // If page load is already being tracked, it must have been an early nav - nothing to do
         // here.
         if (mIntentReceivedRealtimeMillis != 0) return;
@@ -148,7 +190,7 @@ public class CustomTabObserver extends EmptyTabObserver {
                 BrowserIntentUtils.getStartupUptimeMillis(sourceIntent);
         trackNextLCP();
         if (usedSpeculation && hasCommitted) {
-            recordFirstCommitNavigation();
+            recordFirstCommitNavigation(webContents);
         }
     }
 
@@ -235,10 +277,10 @@ public class CustomTabObserver extends EmptyTabObserver {
         mFirstCommitRealtimeMillis = SystemClock.elapsedRealtime();
         mFirstCommitUptimeMillis = SystemClock.uptimeMillis();
 
-        recordFirstCommitNavigation();
+        recordFirstCommitNavigation(tab.getWebContents());
     }
 
-    private void recordFirstCommitNavigation() {
+    private void recordFirstCommitNavigation(WebContents webContents) {
         if (mCustomTabsConnection == null) return;
         String suffix = null;
         long duration = 0;
@@ -273,24 +315,33 @@ public class CustomTabObserver extends EmptyTabObserver {
         }
         callOnTwaStartupTimeAvailable(
                 () -> {
+                    long twaDuration = mFirstCommitUptimeMillis - mTwaStartupUptimeMillis;
                     // The TWA durations are always relative to the startup time passed in the
                     // Intent.
                     RecordHistogram.recordCustomTimesHistogram(
                             "TrustedWebActivity.Startup.TimeToFirstCommitNavigation2"
                                     + (isTwaColdStart() ? ".Cold" : ".Warm"),
-                            mFirstCommitUptimeMillis - mTwaStartupUptimeMillis,
+                            twaDuration,
                             50,
                             DateUtils.MINUTE_IN_MILLIS,
                             50);
+                    RecordHistogram.recordSparseHistogram(
+                            "CustomTabs.AndroidBrowserHelper.Version", mBrowserHelperVersion);
+                    String metricName =
+                            "TimeToFirstCommitNavigation2." + (isTwaColdStart() ? "Cold" : "Warm");
+                    new UkmRecorder(webContents, "TrustedWebActivity.Startup")
+                            .addMetric(metricName, (int) twaDuration)
+                            .addMetric("AndroidBrowserHelper.Version", mBrowserHelperVersion)
+                            .record();
                 });
     }
 
-    private void recordFirstContentfulPaint(long fcpUptimeMillis) {
-        recordPaint(fcpUptimeMillis, "TimeToFirstContentfulPaint");
+    private void recordFirstContentfulPaint(WebContents webContents, long fcpUptimeMillis) {
+        recordPaint(webContents, fcpUptimeMillis, "TimeToFirstContentfulPaint");
     }
 
-    private void recordLargestContentfulPaint(long lcpUptimeMillis) {
-        recordPaint(lcpUptimeMillis, "TimeToLargestContentfulPaint2");
+    private void recordLargestContentfulPaint(WebContents webContents, long lcpUptimeMillis) {
+        recordPaint(webContents, lcpUptimeMillis, "TimeToLargestContentfulPaint2");
     }
 
     private boolean isTwaColdStart() {
@@ -306,7 +357,8 @@ public class CustomTabObserver extends EmptyTabObserver {
                 && mTwaStartupUptimeMillis < Process.getStartUptimeMillis();
     }
 
-    private void recordPaint(long paintUptimeMillis, String paintMetricName) {
+    private void recordPaint(
+            WebContents webContents, long paintUptimeMillis, String paintMetricName) {
         if (mCustomTabsConnection == null) return;
         String suffix = null;
         long duration = 0;
@@ -341,16 +393,35 @@ public class CustomTabObserver extends EmptyTabObserver {
         }
         callOnTwaStartupTimeAvailable(
                 () -> {
+                    long twaDuration = mFirstCommitUptimeMillis - mTwaStartupUptimeMillis;
                     // The TWA durations are always relative to the startup time passed in the
                     // Intent.
                     RecordHistogram.recordCustomTimesHistogram(
                             "TrustedWebActivity.Startup."
                                     + paintMetricName
                                     + (isTwaColdStart() ? ".Cold" : ".Warm"),
-                            mFirstCommitUptimeMillis - mTwaStartupUptimeMillis,
+                            twaDuration,
                             50,
                             DateUtils.MINUTE_IN_MILLIS,
                             50);
+                    String metricName =
+                            paintMetricName + "." + (isTwaColdStart() ? "Cold" : "Warm");
+                    new UkmRecorder(webContents, "TrustedWebActivity.Startup")
+                            .addMetric(metricName, (int) twaDuration)
+                            .record();
+                });
+    }
+
+    private void recordUserTiming(
+            WebContents webContents, long markUptimeMillis, String markMetricName) {
+        if (mCustomTabsConnection == null) return;
+        callOnTwaStartupTimeAvailable(
+                () -> {
+                    long twaDuration = markUptimeMillis - mTwaStartupUptimeMillis;
+                    String metricName = markMetricName + "." + (isTwaColdStart() ? "Cold" : "Warm");
+                    new UkmRecorder(webContents, "TrustedWebActivity.Startup")
+                            .addMetric(metricName, (int) twaDuration)
+                            .record();
                 });
     }
 
@@ -390,8 +461,13 @@ public class CustomTabObserver extends EmptyTabObserver {
         }
     }
 
-    public void setTwaStartupTimestamp(long startupUptimeMillis) {
-        if (startupUptimeMillis != 0) return;
+    public void setTwaStartupMetadata(int browserHelperVersion, long startupUptimeMillis) {
+        // Support for both were added in 2.6.1 (android-browser-helper version code 1), so we
+        // either get both or neither.
+        if (browserHelperVersion == 0 || startupUptimeMillis == 0) return;
+        assert mBrowserHelperVersion == 0;
+        mBrowserHelperVersion = browserHelperVersion;
+        assert mTwaStartupUptimeMillis == 0;
         mTwaStartupUptimeMillis = startupUptimeMillis;
         for (Runnable callback : mTwaStartupTimeAvailableCallbacks) {
             callback.run();

@@ -470,15 +470,14 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ Push(Immediate(StackFrame::INNER_JSENTRY_FRAME));
   __ bind(&cont);
 
-  // This builtins transitions into sandboxed execution mode.
-  // TODO(350324877): here we don't need to preserve rax/rcx/rdx, so we could
-  // optimize EnterSandbox to not push/pop any registers.
-  __ EnterSandbox();
-
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the exception.
   __ jmp(&invoke);
   __ BindExceptionHandler(&handler_entry);
+
+  // Exception handlers are always invoked in sandboxed execution mode, but
+  // this code runs unsandboxed, so here we need to manually ExitSandbox().
+  __ ExitSandbox();
 
   // Store the current pc as the handler offset. It's used later to create the
   // handler table.
@@ -504,9 +503,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ PopStackHandler();
 
   __ bind(&exit);
-  // TODO(350324877): here we only need to preserve rax, so we could optimize
-  // EnterSandbox to only push/pop that register.
-  __ ExitSandbox();
+
   // Check if the current stack frame is marked as the outermost JS frame.
   __ Pop(rbx);
   __ cmpq(rbx, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
@@ -588,6 +585,11 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // - intptr_t argc
   // - Address** argv (pointer to array of tagged Object pointers)
   // (see Handle::Invoke in execution.cc).
+
+  // This builtins transitions into sandboxed execution mode.
+  // TODO(350324877): here EnterSandbox doesn't need to preserve all registers.
+  __ EnterSandbox();
+  __ SetSandboxingModeForCurrentBuiltin(CodeSandboxingMode::kSandboxed);
 
   // Open a C++ scope for the FrameScope.
   {
@@ -692,6 +694,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // invocation.
   }
 
+  // TODO(350324877): here ExitSandbox doesn't need to preserve all registers.
+  __ ExitSandbox();
+
   __ ret(0);
 }
 
@@ -773,8 +778,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
                                               &done);
   }
 
-  __ LoadProtectedPointerField(
-      bytecode, FieldOperand(data, InterpreterData::kBytecodeArrayOffset));
+  __ LoadInterpreterDataBytecodeArray(bytecode, data);
 
   __ bind(&done);
   __ IsObjectType(bytecode, BYTECODE_ARRAY_TYPE, scratch1);
@@ -1794,8 +1798,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
       kUnknownIndirectPointerTag, kScratchRegister);
   __ IsObjectType(rbx, INTERPRETER_DATA_TYPE, kScratchRegister);
   __ j(not_equal, &builtin_trampoline, Label::kNear);
-  __ LoadProtectedPointerField(
-      rbx, FieldOperand(rbx, InterpreterData::kInterpreterTrampolineOffset));
+  __ LoadInterpreterDataInterpreterTrampoline(rbx, rbx);
   __ LoadCodeInstructionStart(rbx, rbx, kJSEntrypointTag);
   __ jmp(&trampoline_loaded, Label::kNear);
 
@@ -5119,6 +5122,11 @@ void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
 
 void Builtins::Generate_DeoptimizationEntry_LazyAfterFastCall(
     MacroAssembler* masm) {
+  // We get here directly after returning from a call to an API function from
+  // generated code. As such, we'll have left sandboxed execution mode for the
+  // call but haven't yet entered it again. Do so now.
+  __ EnterSandbox();
+
   // The deoptimizer may have been triggered right after the return of a fast
   // API call. In that case, exception handling and possible stack unwinding
   // did not happen yet.

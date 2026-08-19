@@ -683,8 +683,13 @@ public abstract class BrowserServicesIntentDataProvider {
         return ACTIVITY_SIDE_SHEET_POSITION_END;
     }
 
-    /** Return whether calling package should be allowed to present an interactive Omnibox. */
+    /** Return whether omnibox is allowed to be displayed in the CCT. */
     public boolean isInteractiveOmniboxAllowed() {
+        return false;
+    }
+
+    /** Return whether omnibox should be enabled for the calling package. */
+    public boolean isInteractiveOmniboxEnabled() {
         return false;
     }
 
@@ -792,9 +797,9 @@ public abstract class BrowserServicesIntentDataProvider {
     }
 
     /**
-     * @return the version of android_browser_helper, or null.
+     * @return the version code of android_browser_helper, or zero.
      */
-    public @Nullable Integer getAndroidBrowserHelperVersion() {
-        return null;
+    public int getAndroidBrowserHelperVersion() {
+        return 0;
     }
 }

@@ -157,6 +157,8 @@ class NetEqImpl : public NetEq {
   bool RegisterPayloadType(int rtp_payload_type,
                            const SdpAudioFormat& audio_format) override;
 
+  bool CreateDecoder(int rtp_payload_type) override;
+
   // Removes `rtp_payload_type` from the codec database. Returns 0 on success,
   // -1 on failure.
   int RemovePayloadType(uint8_t rtp_payload_type) override;

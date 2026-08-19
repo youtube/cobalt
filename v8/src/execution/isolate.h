@@ -234,15 +234,7 @@ class WaiterQueueNode;
   RETURN_VALUE_IF_EXCEPTION(isolate, (detector.AcceptSideEffects(), value))
 
 #define RETURN_EXCEPTION_IF_EXCEPTION(isolate) \
-  RETURN_VALUE_IF_EXCEPTION(isolate, kNullMaybeHandle)
-
-#define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
-  do {                                                        \
-    if ((call).IsNothing()) {                                 \
-      DCHECK((isolate)->has_exception());                     \
-      return value;                                           \
-    }                                                         \
-  } while (false)
+  RETURN_VALUE_IF_EXCEPTION(isolate, internal::kNullMaybe)
 
 /**
  * RETURN_RESULT_OR_FAILURE is used in functions with return type Object (such
@@ -266,7 +258,7 @@ class WaiterQueueNode;
   do {                                               \
     DirectHandle<Object> __result__;                 \
     Isolate* __isolate__ = (isolate);                \
-    if (!(call).ToHandle(&__result__)) {             \
+    if (!(call).To(&__result__)) {                   \
       DCHECK(__isolate__->has_exception());          \
       return ReadOnlyRoots(__isolate__).exception(); \
     }                                                \
@@ -276,7 +268,7 @@ class WaiterQueueNode;
 
 #define ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
   do {                                                              \
-    if (!(call).ToHandle(&dst)) {                                   \
+    if (!(call).To(&dst)) {                                         \
       DCHECK((isolate)->has_exception());                           \
       return value;                                                 \
     }                                                               \
@@ -290,7 +282,7 @@ class WaiterQueueNode;
   } while (false)
 
 #define ASSIGN_RETURN_ON_EXCEPTION(isolate, dst, call) \
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, kNullMaybeHandle)
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, internal::kNullMaybe)
 
 #define THROW_NEW_ERROR_RETURN_FAILURE(isolate, call)         \
   do {                                                        \
@@ -306,7 +298,7 @@ class WaiterQueueNode;
   } while (false)
 
 #define THROW_NEW_ERROR(isolate, call) \
-  THROW_NEW_ERROR_RETURN_VALUE(isolate, call, kNullMaybeHandle)
+  THROW_NEW_ERROR_RETURN_VALUE(isolate, call, internal::kNullMaybe)
 
 /**
  * RETURN_ON_EXCEPTION_VALUE conditionally returns the given value when the
@@ -340,7 +332,7 @@ class WaiterQueueNode;
  */
 #define RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
   do {                                                  \
-    if ((call).is_null()) {                             \
+    if ((call).IsEmpty()) {                             \
       DCHECK((isolate)->has_exception());               \
       return value;                                     \
     }                                                   \
@@ -394,7 +386,7 @@ class WaiterQueueNode;
  * Maybe<X> or Handle<X>, use RETURN_ON_EXCEPTION_VALUE instead.
  */
 #define RETURN_ON_EXCEPTION(isolate, call) \
-  RETURN_ON_EXCEPTION_VALUE(isolate, call, kNullMaybeHandle)
+  RETURN_ON_EXCEPTION_VALUE(isolate, call, internal::kNullMaybe)
 
 #define RETURN_FAILURE(isolate, should_throw, call) \
   do {                                              \
@@ -406,12 +398,12 @@ class WaiterQueueNode;
     }                                               \
   } while (false)
 
-#define MAYBE_RETURN(call, value)         \
-  do {                                    \
-    if ((call).IsNothing()) return value; \
+#define MAYBE_RETURN(call, value)       \
+  do {                                  \
+    if ((call).IsEmpty()) return value; \
   } while (false)
 
-#define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, kNullMaybeHandle)
+#define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, internal::kNullMaybe)
 
 #define API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
   do {                                                                  \
@@ -421,48 +413,14 @@ class WaiterQueueNode;
     }                                                                   \
   } while (false)
 
-#define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
-  do {                                                        \
-    if ((call).IsNothing()) {                                 \
-      DCHECK((isolate)->has_exception());                     \
-      return value;                                           \
-    }                                                         \
-  } while (false)
-
-#define MAYBE_RETURN_FAILURE_ON_EXCEPTION(isolate, call) \
-  do {                                                   \
-    Isolate* __isolate__ = (isolate);                    \
-    if ((call).IsNothing()) {                            \
-      DCHECK((__isolate__)->has_exception());            \
-      return ReadOnlyRoots(__isolate__).exception();     \
-    }                                                    \
-  } while (false)
-
-#define MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
-  do {                                                                    \
-    if (!(call).To(&dst)) {                                               \
-      DCHECK((isolate)->has_exception());                                 \
-      return value;                                                       \
-    }                                                                     \
-  } while (false)
-
-// Like MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE, but moves out of the call
+// Like ASSIGN_RETURN_ON_EXCEPTION_VALUE, but moves out of the call
 // instead of performing copy-assignment
-#define MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
-  do {                                                                  \
-    if (!(call).MoveTo(&dst)) {                                         \
-      DCHECK((isolate)->has_exception());                               \
-      return value;                                                     \
-    }                                                                   \
-  } while (false)
-
-#define MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call) \
-  do {                                                               \
-    Isolate* __isolate__ = (isolate);                                \
-    if (!(call).To(&dst)) {                                          \
-      DCHECK(__isolate__->has_exception());                          \
-      return ReadOnlyRoots(__isolate__).exception();                 \
-    }                                                                \
+#define MOVE_RETURN_ON_EXCEPTION(isolate, dst, call) \
+  do {                                               \
+    if (!(call).MoveTo(&dst)) {                      \
+      DCHECK((isolate)->has_exception());            \
+      return internal::kNullMaybe;                   \
+    }                                                \
   } while (false)
 
 #define FOR_WITH_HANDLE_SCOPE(isolate, loop_var_type, init, loop_var,      \
@@ -1917,7 +1875,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void CheckDetachedContextsAfterGC();
 
   // Detach the environment from its outer global object.
-  void DetachGlobal(DirectHandle<Context> env);
+  void DetachGlobal(DirectHandle<NativeContext> env);
 
   std::vector<Tagged<Object>>* startup_object_cache() {
     return &startup_object_cache_;
@@ -2368,7 +2326,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   bool IsOnCentralStack();
-  std::vector<std::unique_ptr<wasm::StackMemory>>& wasm_stacks() {
+  std::vector<std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter>>&
+  wasm_stacks() {
     return wasm_stacks_;
   }
 
@@ -2944,7 +2903,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   size_t stack_size_;
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;
-  std::vector<std::unique_ptr<wasm::StackMemory>> wasm_stacks_;
+  std::vector<std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter>>
+      wasm_stacks_;
 #if V8_ENABLE_DRUMBRAKE
   std::unique_ptr<wasm::WasmExecutionTimer> wasm_execution_timer_;
 #endif  // V8_ENABLE_DRUMBRAKE

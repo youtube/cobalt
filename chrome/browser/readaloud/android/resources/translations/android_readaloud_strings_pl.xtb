@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">Więcej opcji</translation>
 <translation id="565342223183747919">Kliknij, aby zmienić tryb odtwarzania</translation>
 <translation id="5694491020339060116">Menu szybkości odtwarzania</translation>
+<translation id="5961164658295696940">Kliknij, aby rozwinąć odtwarzacz i wyświetlić więcej opcji</translation>
 <translation id="5965409657393819302">Problem techniczny</translation>
 <translation id="6218961554829577610">Nie podobał mi się głos</translation>
 <translation id="6315170314923504164">Głos</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">Wczytuję…</translation>
 <translation id="6889157801232138307">Odtwarzacz „Odsłuchaj tę stronę”</translation>
 <translation id="7051308646573997571">Koralowy</translation>
-<translation id="7112750136794557642">Kliknij, aby rozwinąć odtwarzacz i wyświetlić więcej opcji.</translation>
 <translation id="7138678301420049075">Inne</translation>
 <translation id="7221920857098237570">Subtelny</translation>
 <translation id="7237590978482584900">Beztroski</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">Spokojny</translation>
 <translation id="8756370108715456837">Błędy merytoryczne</translation>
 <translation id="8953618380150219653">Odtwarzacz „Odsłuchaj tę stronę” otwarty na całą wysokość.</translation>
+<translation id="9087782179025630211">Suwak. Upłynęło: <ph name="ELAPSED" /> z <ph name="TOTAL" />.</translation>
 <translation id="978117257931832348">Niski</translation>
 </translationbundle>

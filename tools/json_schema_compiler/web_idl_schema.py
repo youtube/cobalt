@@ -123,18 +123,20 @@ def _ExtractNodeComment(node: IDLNode) -> str:
     greater than zero.
   """
 
-  # The IDL parser doesn't annotate Operation nodes with their line number
-  # correctly, but the Arguments child node will have the correct line number,
-  # so use that instead.
-  if node.GetClass() == 'Operation':
-    return _ExtractNodeComment(node.GetOneOf('Arguments'))
-
   # Extended attributes for a node can actually be formatted onto a preceding
   # line, so if this node has an extended attribute we instead look for the
   # description relative to the extended attribute node.
   ext_attribute_node = node.GetOneOf('ExtAttributes')
   if ext_attribute_node is not None:
     return _ExtractNodeComment(ext_attribute_node)
+
+  # The IDL parser doesn't annotate Operation nodes with their line number
+  # correctly, but the Arguments child node will have the correct line number,
+  # so use that instead.
+  # Note: If the Operation node had any extended attributes, it will have
+  # already been handled by the conditional before this one.
+  if node.GetClass() == 'Operation':
+    return _ExtractNodeComment(node.GetOneOf('Arguments'))
 
   # Look through the lines above the current node and extract every consecutive
   # line that is a comment until a blank or non-comment line is found.
@@ -319,12 +321,13 @@ class Type():
     elif type_details.IsA('Undefined'):
       properties['type'] = UndefinedType
     elif type_details.IsA('Promise'):
-      properties['type'] = 'promise'
-      # Promise types also have an associated type they resolve with. We
-      # represent this similar to how we represent arguments for Operations,
-      # with 'parameters' list that has a single element for the type.
+      # Promise types have an associated type they resolve with. We represent
+      # this similar to how we represent arguments for Operations, with a
+      # 'parameters' list that has a single element for the type.
       properties['parameters'] = self._ExtractParametersFromPromiseType(
           type_details, self.descriptions)
+      # TODO(crbug.com/428187556): It would be nice to explicitly mark these as
+      # 'type' = 'promise' as well once we're done migrating schemas to WebIDL.
     elif type_details.IsA('Sequence'):
       properties['type'] = 'array'
       # Sequences are used to represent array types, which have an associated
@@ -436,7 +439,13 @@ class FunctionReturn(TypedProperty):
   """Handles processing for function return values."""
 
   def Process(self) -> dict:
-    if 'type' in self.properties and self.properties['type'] == 'promise':
+    # If the descriptions use the 'Returns' key, we use that to extract a
+    # description to add to the return properties.
+    if self.descriptions and 'Returns' in self.descriptions:
+      self.properties['description'] = self.descriptions['Returns']
+    # If no type was specified but there is a parameters property, we can infer
+    # this is a promise definition for an asynchronous return.
+    if 'type' not in self.properties and 'parameters' in self.properties:
       # For legacy reasons, promise returns always get named "callback".
       self.properties['name'] = 'callback'
     else:
@@ -450,14 +459,17 @@ class PromiseType(TypedProperty):
   def Process(self) -> dict:
     if self.type_node.GetProperty('NULLABLE'):
       self.properties['optional'] = True
-    # If the descriptions use the 'PromiseValue' key, we use that to extract a
-    # name and description for the typed value the promise will resolve to. The
-    # comment consists of the name to use, followed by a colon + space and then
-    # the description string.
+    # If the descriptions use the 'PromiseValue' key, we use that to extract the
+    # name and any description for the typed value the promise will resolve to.
+    # The comment consists of the name to use, followed by an optional
+    # description string indicated by a colon + space and then the description.
     if self.descriptions and 'PromiseValue' in self.descriptions:
-      name, description = self.descriptions['PromiseValue'].split(': ', 1)
-      self.properties['name'] = name
-      self.properties['description'] = description
+      name_and_description = self.descriptions['PromiseValue'].split(': ', 1)
+      self.properties['name'] = name_and_description.pop(0)
+      # We only add the promise value description if one was included in the
+      # comment after the name.
+      if name_and_description:
+        self.properties['description'] = name_and_description.pop()
     return self.properties
 
 
@@ -508,6 +520,12 @@ class Operation:
     if (description_data.description):
       properties['description'] = description_data.description
 
+    callback_optional = True
+    for extended_attribute in GetExtendedAttributes(self.node):
+      attribute_name = extended_attribute.GetName()
+      if attribute_name == 'requiredCallback':
+        callback_optional = False
+
     parameters = []
     arguments_node = self.node.GetOneOf('Arguments')
     for argument in arguments_node.GetListOf('Argument'):
@@ -522,9 +540,23 @@ class Operation:
     if 'type' in return_type and return_type['type'] is UndefinedType:
       # This is an Undefined return, so we don't add anything.
       pass
-    elif 'type' in return_type and return_type['type'] == 'promise':
+    # If no type was specified but there is a parameters property, we can infer
+    # this is a promise definition for an asynchronous return.
+    elif 'type' not in return_type and 'parameters' in return_type:
+      # TODO(tjudkins): The optionality of the callback is only relevant for
+      # contexts that don't support promise based calls and for the few
+      # functions which don't support promise based calls, as the callback is
+      # always inherently optional when using a promise based call instead. It
+      # would be nice to just get rid of the 'optional' property here and always
+      # treat it as optional when we remove the context restrictions for promise
+      # based calls.
+      if callback_optional:
+        return_type['optional'] = True
       # For legacy reasons Promise based returns are represented on a
       # "returns_async" property.
+      # TODO(crbug.com/428187556): Once we've migrated schemas to WebIDL, we
+      # should be able to just use the 'returns' field with 'type' = 'promise'
+      # instead of the 'returns_async' property.
       properties['returns_async'] = return_type
     else:
       # Otherwise this is a typed return using either the 'type' key or '$ref'

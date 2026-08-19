@@ -74,6 +74,7 @@ if (rtc_include_tests) {
     deps = [
       ":encoder_config",
       ":streams_config",
+      "../../api:field_trials",
       "../../api:field_trials_view",
       "../../api:make_ref_counted",
       "../../api/units:data_rate",
@@ -85,7 +86,7 @@ if (rtc_include_tests) {
       "../../media:media_constants",
       "../../rtc_base:safe_conversions",
       "../../rtc_base/experiments:min_video_bitrate_experiment",
-      "../../test:explicit_key_value_config",
+      "../../test:create_test_field_trials",
       "../../test:test_support",
       "//third_party/abseil-cpp/absl/strings:string_view",
     ]

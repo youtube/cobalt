@@ -30,8 +30,8 @@
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_constants.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_view.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_view_controller_delegate.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_mutator.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_shortcuts_handler.h"
-#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_utils.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_container_view.h"
 #import "ios/chrome/browser/shared/model/profile/features.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
@@ -118,6 +118,12 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 @implementation NewTabPageHeaderViewController {
   BOOL _useNewBadgeForLensButton;
   BOOL _useNewBadgeForCustomizationMenu;
+  // Tracks if the mutator has already been notified of the Lens entrypoint
+  // "new" badge display.
+  BOOL _didNotifyLensBadgeDisplay;
+  // Tracks if the mutator has already been notified of the Homepage
+  // Customization "new" badge display.
+  BOOL _didNotifyCustomizationBadgeDisplay;
   BOOL _hasAccountError;
   // Constraint for the identity disc button width.
   NSLayoutConstraint* _identityDiscWidthConstraint;
@@ -127,6 +133,8 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
   NSLayoutConstraint* _identityDiscTrailingConstraint;
   // Constraint for the identity disc button's capsule-style width.
   NSLayoutConstraint* _identityDiscCapsuleWidthConstraint;
+  // Whether MIA is allowed by policy.
+  BOOL _MIAAllowedByPolicy;
 }
 
 - (instancetype)initWithUseNewBadgeForLensButton:(BOOL)useNewBadgeForLensButton
@@ -314,6 +322,8 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 
     self.headerView = [[NewTabPageHeaderView alloc]
         initWithUseNewBadgeForLensButton:_useNewBadgeForLensButton];
+    [self.headerView setMIAAllowedByPolicy:_MIAAllowedByPolicy];
+    self.headerView.NTPShortcutsHandler = self.NTPShortcutsHandler;
     self.headerView.isGoogleDefaultSearchEngine =
         self.isGoogleDefaultSearchEngine;
     self.headerView.placeholderText = self.placeholderText;
@@ -356,8 +366,25 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
   }
 }
 
+- (void)setIsGoogleDefaultSearchEngine:(BOOL)isGoogleDefaultSearchEngine {
+  _isGoogleDefaultSearchEngine = isGoogleDefaultSearchEngine;
+  self.headerView.isGoogleDefaultSearchEngine = isGoogleDefaultSearchEngine;
+}
+
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
+
+  if (_useNewBadgeForLensButton && !_didNotifyLensBadgeDisplay) {
+    [self.mutator notifyLensBadgeDisplayed];
+    _didNotifyLensBadgeDisplay = YES;
+  }
+
+  if (_useNewBadgeForCustomizationMenu &&
+      !_didNotifyCustomizationBadgeDisplay) {
+    [self.mutator notifyCustomizationBadgeDisplayed];
+    _didNotifyCustomizationBadgeDisplay = YES;
+  }
+
   // Check if the identity disc button was properly set before the view appears.
   DCHECK(self.identityDiscButton);
   DCHECK(self.identityDiscImage);
@@ -388,6 +415,12 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 
 - (void)setTabGroupIndicatorView:(TabGroupIndicatorView*)view {
   self.headerView.tabGroupIndicatorView = view;
+}
+
+- (void)setNTPShortcutsHandler:
+    (id<NewTabPageShortcutsHandler>)NTPShortcutsHandler {
+  _NTPShortcutsHandler = NTPShortcutsHandler;
+  self.headerView.NTPShortcutsHandler = NTPShortcutsHandler;
 }
 
 #pragma mark - FakeboxButtonsSnapshotProvider
@@ -445,6 +478,8 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
   self.accessibilityButton.clipsToBounds = YES;
   self.accessibilityButton.isAccessibilityElement = YES;
   self.accessibilityButton.accessibilityLabel = self.placeholderText;
+  self.accessibilityButton.accessibilityIdentifier =
+      kNTPFakeOmniboxAccessibilityButton;
   [self.fakeOmnibox addSubview:self.accessibilityButton];
   self.accessibilityButton.translatesAutoresizingMaskIntoConstraints = NO;
   AddSameConstraints(self.fakeOmnibox, self.accessibilityButton);
@@ -458,23 +493,10 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
       [[UIIndirectScribbleInteraction alloc] initWithDelegate:self];
   [self.fakeOmnibox addInteraction:scribbleInteraction];
 
-  [self.headerView.voiceSearchButton addTarget:self
-                                        action:@selector(loadVoiceSearch:)
-                              forControlEvents:UIControlEventTouchUpInside];
-  [self.headerView.voiceSearchButton addTarget:self
-                                        action:@selector(preloadVoiceSearch:)
-                              forControlEvents:UIControlEventTouchDown];
   if (self.headerView.lensButton) {
-    [self.headerView.lensButton addTarget:self
-                                   action:@selector(openLens)
-                         forControlEvents:UIControlEventTouchUpInside];
     [self.layoutGuideCenter referenceView:self.headerView.lensButton
                                 underName:kFakeboxLensIconGuide];
   }
-
-  [self.headerView.miaButton addTarget:self
-                                action:@selector(openMIA)
-                      forControlEvents:UIControlEventTouchUpInside];
 
   [self updateVoiceSearchDisplay];
 }
@@ -627,28 +649,6 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 
   button.accessibilityLabel = self.identityDiscAccessibilityLabel;
   button.clipsToBounds = YES;
-}
-
-- (void)openMIA {
-  [self.NTPShortcutsHandler openMIA];
-}
-
-- (void)openLens {
-  [self.NTPShortcutsHandler openLensViewFinder];
-}
-
-- (void)loadVoiceSearch:(id)sender {
-  DCHECK(self.voiceSearchIsEnabled);
-  UIView* voiceSearchButton = base::apple::ObjCCastStrict<UIView>(sender);
-  [self.NTPShortcutsHandler loadVoiceSearchFromView:voiceSearchButton];
-}
-
-- (void)preloadVoiceSearch:(id)sender {
-  DCHECK(self.voiceSearchIsEnabled);
-  [sender removeTarget:self
-                action:@selector(preloadVoiceSearch:)
-      forControlEvents:UIControlEventTouchDown];
-  [self.NTPShortcutsHandler preloadVoiceSearch];
 }
 
 - (void)fakeTapViewTapped {
@@ -828,6 +828,10 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
       setConstant:content_suggestions::DoodleHeight(self.logoVendor.showingLogo,
                                                     doodleShowing,
                                                     self.traitCollection)];
+  self.doodleTopMarginConstraint.constant =
+      content_suggestions::DoodleTopMargin(self.logoVendor.showingLogo,
+                                           self.logoVendor.isShowingDoodle,
+                                           self.traitCollection);
   self.headerViewHeightConstraint.constant =
       content_suggestions::HeightForLogoHeader(self.logoIsShowing,
                                                self.logoVendor.isShowingDoodle,
@@ -866,6 +870,7 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
   }
   _defaultSearchEngineName = defaultSearchEngineName;
   self.headerView.placeholderText = self.placeholderText;
+  self.accessibilityButton.accessibilityLabel = self.placeholderText;
 }
 
 - (void)setDefaultSearchEngineImage:(UIImage*)image {
@@ -891,6 +896,11 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
     [self.headerView removeIdentityDiscErrorBadge];
   }
   [self updateIdentityDiscAccessibilityLabelWithName:name email:email];
+}
+
+- (void)setMIAAllowedByPolicy:(BOOL)policyAllowed {
+  [_headerView setMIAAllowedByPolicy:policyAllowed];
+  _MIAAllowedByPolicy = policyAllowed;
 }
 
 #pragma mark - UserAccountImageUpdateDelegate

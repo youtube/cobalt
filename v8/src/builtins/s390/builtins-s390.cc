@@ -82,8 +82,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
 
   __ CmpS32(scratch1, Operand(INTERPRETER_DATA_TYPE));
   __ b(ne, is_unavailable);
-  __ LoadTaggedField(
-      data, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset));
+  __ LoadInterpreterDataBytecodeArray(data, data);
 
   __ bind(&done);
 }
@@ -2063,8 +2062,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
                        INTERPRETER_DATA_TYPE);
   __ bne(&builtin_trampoline);
 
-  __ LoadTaggedField(
-      r4, FieldMemOperand(r4, InterpreterData::kInterpreterTrampolineOffset));
+  __ LoadInterpreterDataInterpreterTrampoline(r4, r4);
   __ LoadCodeInstructionStart(r4, r4);
   __ b(&trampoline_loaded);
 
@@ -3784,16 +3782,6 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   DEFINE_PINNED(debug_event, desc.GetRegisterParameter(2));
   int catch_handler = __ pc_offset();
 
-  DEFINE_SCOPED(thread_in_wasm_flag_addr);
-  thread_in_wasm_flag_addr = r4;
-
-  // Unset thread_in_wasm_flag.
-  __ LoadU64(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ mov(r0, Operand(0));
-  __ StoreU32(r0, MemOperand(thread_in_wasm_flag_addr, 0), no_reg);
-
   // The exception becomes the parameter of the RejectPromise builtin, and the
   // promise is the return value of this wrapper.
   __ Move(reason, kReturnRegister0);
@@ -3956,16 +3944,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
     DCHECK_EQ(next_offset, stack_params_offset);
   }
 
-  {
-    DEFINE_SCOPED(thread_in_wasm_flag_addr);
-    __ LoadU64(thread_in_wasm_flag_addr,
-               MemOperand(kRootRegister,
-                          Isolate::thread_in_wasm_flag_address_offset()));
-    DEFINE_SCOPED(scratch);
-    __ mov(scratch, Operand(1));
-    __ StoreU32(scratch, MemOperand(thread_in_wasm_flag_addr, 0), no_reg);
-  }
-
   __ Zero(MemOperand(fp, StackSwitchFrameConstants::kGCScanSlotCountOffset));
   {
     DEFINE_SCOPED(call_target);
@@ -3980,14 +3958,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   // The wrapper_buffer has to be in r4 as the correct parameter register.
   regs.Reserve(kReturnRegister0, kReturnRegister1);
   ASSIGN_PINNED(wrapper_buffer, r4);
-  {
-    DEFINE_SCOPED(thread_in_wasm_flag_addr);
-    __ LoadU64(thread_in_wasm_flag_addr,
-               MemOperand(kRootRegister,
-                          Isolate::thread_in_wasm_flag_address_offset()));
-    __ mov(r0, Operand(0));
-    __ StoreU32(r0, MemOperand(thread_in_wasm_flag_addr, 0), no_reg);
-  }
 
   __ LoadU64(
       wrapper_buffer,

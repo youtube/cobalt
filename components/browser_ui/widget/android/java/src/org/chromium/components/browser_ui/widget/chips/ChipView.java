@@ -66,8 +66,8 @@ public class ChipView extends LinearLayout {
     private final @StyleRes int mSecondaryTextAppearanceId;
     private final int mEndIconWidth;
     private final int mEndIconHeight;
-    private final int mEndIconStartPadding;
-    private final int mEndIconEndPadding;
+    private final int mEndIconMarginStart;
+    private final int mEndIconMarginEnd;
     private final int mCornerRadius;
 
     private @Nullable ViewGroup mEndIconWrapper;
@@ -101,39 +101,27 @@ public class ChipView extends LinearLayout {
                         .obtainStyledAttributes(
                                 attrs, R.styleable.ChipView, defStyleAttr, defStyleRes);
 
-        boolean extendLateralPadding =
-                a.getBoolean(R.styleable.ChipView_extendLateralPadding, false);
-        boolean reduceEndPadding = a.getBoolean(R.styleable.ChipView_reduceEndPadding, false);
+        @Px
+        int chipStartPadding =
+                a.getDimensionPixelSize(
+                        R.styleable.ChipView_chipStartPadding,
+                        getResources().getDimensionPixelSize(R.dimen.chip_view_start_padding));
 
         @Px
-        int leadingElementPadding =
-                extendLateralPadding
-                        ? getResources()
-                                .getDimensionPixelSize(
-                                        R.dimen.chip_element_extended_leading_padding)
-                        : getResources()
-                                .getDimensionPixelSize(R.dimen.chip_element_leading_padding);
+        int chipEndPadding =
+                a.getDimensionPixelSize(
+                        R.styleable.ChipView_chipEndPadding,
+                        getResources().getDimensionPixelSize(R.dimen.chip_view_end_padding));
 
-        // End padding is already longer so no need to adjust in the 'extendLateralPadding' case.
-        @Px
-        int endPadding =
-                reduceEndPadding
-                        ? getResources().getDimensionPixelSize(R.dimen.chip_reduced_end_padding)
-                        : getResources().getDimensionPixelSize(R.dimen.chip_end_padding);
+        mEndIconMarginStart =
+                a.getDimensionPixelSize(
+                        R.styleable.ChipView_endIconMarginStart,
+                        getResources().getDimensionPixelSize(R.dimen.chip_end_icon_margin_start));
 
-        mEndIconStartPadding =
-                extendLateralPadding
-                        ? getResources()
-                                .getDimensionPixelSize(R.dimen.chip_end_icon_extended_margin_start)
-                        : getResources().getDimensionPixelSize(R.dimen.chip_end_icon_margin_start);
-
-        mEndIconEndPadding =
-                extendLateralPadding
-                        ? getResources()
-                                .getDimensionPixelSize(
-                                        R.dimen.chip_extended_end_padding_with_end_icon)
-                        : getResources()
-                                .getDimensionPixelSize(R.dimen.chip_end_padding_with_end_icon);
+        mEndIconMarginEnd =
+                a.getDimensionPixelSize(
+                        R.styleable.ChipView_endIconMarginEnd,
+                        getResources().getDimensionPixelSize(R.dimen.chip_end_icon_margin_end));
 
         boolean solidColorChip = a.getBoolean(R.styleable.ChipView_solidColorChip, false);
         int chipBorderWidthId =
@@ -191,8 +179,12 @@ public class ChipView extends LinearLayout {
                                 .getDimensionPixelSize(
                                         R.dimen.chip_text_multiline_vertical_padding));
         boolean textAlignStart = a.getBoolean(R.styleable.ChipView_textAlignStart, false);
-        boolean reduceTextStartPadding =
-                a.getBoolean(R.styleable.ChipView_reduceTextStartPadding, false);
+        @Px
+        int textStartPadding =
+                a.getDimensionPixelSize(
+                        R.styleable.ChipView_primaryTextStartPadding,
+                        getResources()
+                                .getDimensionPixelSize(R.dimen.chip_primary_text_start_padding));
         a.recycle();
 
         mStartIcon = new ChromeImageView(getContext());
@@ -201,7 +193,7 @@ public class ChipView extends LinearLayout {
 
         if (mUseRoundedStartIcon) {
             int chipHeight = getResources().getDimensionPixelOffset(R.dimen.chip_default_height);
-            leadingElementPadding = (chipHeight - iconHeight) / 2;
+            chipStartPadding = (chipHeight - iconHeight) / 2;
         }
 
         int loadingViewSize = getResources().getDimensionPixelSize(R.dimen.chip_loading_view_size);
@@ -222,7 +214,7 @@ public class ChipView extends LinearLayout {
         // Setting this enforces 16dp padding at the end and 8dp at the start (unless overridden).
         // For text, the start padding needs to be 16dp which is why a ChipTextView contributes the
         // remaining 8dp.
-        this.setPaddingRelative(leadingElementPadding, 0, endPadding, 0);
+        this.setPaddingRelative(chipStartPadding, 0, chipEndPadding, 0);
 
         mPrimaryText =
                 new AppCompatTextView(new ContextThemeWrapper(getContext(), R.style.ChipTextView));
@@ -243,13 +235,11 @@ public class ChipView extends LinearLayout {
             // Default of 'center' is defined in the ChipTextView style.
             mPrimaryText.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
         }
-        if (reduceTextStartPadding) {
-            mPrimaryText.setPaddingRelative(
-                    getResources().getDimensionPixelSize(R.dimen.chip_text_reduced_leading_padding),
-                    mPrimaryText.getPaddingTop(),
-                    mPrimaryText.getPaddingEnd(),
-                    mPrimaryText.getPaddingBottom());
-        }
+        mPrimaryText.setPaddingRelative(
+                textStartPadding,
+                mPrimaryText.getPaddingTop(),
+                mPrimaryText.getPaddingEnd(),
+                mPrimaryText.getPaddingBottom());
         addView(mPrimaryText);
 
         // Reset icon and background:
@@ -366,8 +356,8 @@ public class ChipView extends LinearLayout {
 
         FrameLayout.LayoutParams layoutParams =
                 new FrameLayout.LayoutParams(mEndIconWidth, mEndIconHeight);
-        layoutParams.setMarginStart(mEndIconStartPadding);
-        layoutParams.setMarginEnd(mEndIconEndPadding);
+        layoutParams.setMarginStart(mEndIconMarginStart);
+        layoutParams.setMarginEnd(mEndIconMarginEnd);
         layoutParams.gravity = Gravity.CENTER_VERTICAL;
         mEndIconWrapper.addView(endIcon, layoutParams);
         addView(
@@ -392,8 +382,8 @@ public class ChipView extends LinearLayout {
 
         FrameLayout.LayoutParams layoutParams =
                 new FrameLayout.LayoutParams(mEndIconWidth, mEndIconHeight);
-        layoutParams.setMarginStart(mEndIconStartPadding);
-        layoutParams.setMarginEnd(mEndIconEndPadding);
+        layoutParams.setMarginStart(mEndIconMarginStart);
+        layoutParams.setMarginEnd(mEndIconMarginEnd);
         layoutParams.gravity = Gravity.CENTER_VERTICAL;
         mEndIconWrapper.addView(endIcon, layoutParams);
         addView(

@@ -20,6 +20,7 @@
 #include "chrome/common/chrome_paths.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/service_worker_test_helpers.h"
@@ -425,7 +426,7 @@ IN_PROC_BROWSER_TEST_F(DeveloperPrivateApiTest, InspectOffscreenDocument) {
 
   // Create an offscreen document and wait for it to load.
   std::unique_ptr<OffscreenDocumentHost> offscreen_document;
-  GURL offscreen_url = extension->ResolveExtensionURL("offscreen.html");
+  GURL offscreen_url = extension->GetResourceURL("offscreen.html");
   {
     ExtensionHostTestHelper offscreen_waiter(profile(), extension->id());
     offscreen_waiter.RestrictToType(mojom::ViewType::kOffscreenDocument);

@@ -55,12 +55,12 @@ animation-range-end: normal
 animation-range-start: normal
 animation-timeline: auto
 animation-timing-function: ease
+animation-trigger-behavior: once
 animation-trigger-exit-range-end: auto
 animation-trigger-exit-range-start: auto
 animation-trigger-range-end: normal
 animation-trigger-range-start: normal
 animation-trigger-timeline: auto
-animation-trigger-type: once
 app-region: none
 appearance: none
 backdrop-filter: none
@@ -231,8 +231,8 @@ inset-block-start: auto
 inset-inline-end: auto
 inset-inline-start: auto
 interactivity: auto
-interest-target-hide-delay: 0.5s
-interest-target-show-delay: 0.5s
+interest-hide-delay: 0.5s
+interest-show-delay: 0.5s
 interpolate-size: numeric-only
 isolation: auto
 item-tolerance: normal
@@ -385,7 +385,7 @@ table-layout: auto
 text-align: start
 text-align-last: auto
 text-anchor: start
-text-autospace: normal
+text-autospace: no-autospace
 text-box-edge: auto
 text-box-trim: none
 text-decoration: none solid rgb(0, 0, 0)
@@ -409,6 +409,13 @@ text-underline-position: auto
 text-wrap-mode: wrap
 text-wrap-style: auto
 timeline-scope: none
+timeline-trigger-behavior: once
+timeline-trigger-exit-range-end: auto
+timeline-trigger-exit-range-start: auto
+timeline-trigger-name: none
+timeline-trigger-range-end: normal
+timeline-trigger-range-start: normal
+timeline-trigger-timeline: auto
 top: auto
 touch-action: auto
 transform: none

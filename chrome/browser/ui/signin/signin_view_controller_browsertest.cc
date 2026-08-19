@@ -54,9 +54,9 @@
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "base/path_service.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
-#include "chrome/browser/extensions/extension_sync_util.h"
 #include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
 #include "chrome/browser/extensions/signin_test_util.h"
+#include "chrome/browser/extensions/sync/extension_sync_util.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/webui/test_support/webui_interactive_test_mixin.h"
 #include "chrome/common/chrome_paths.h"
@@ -349,8 +349,9 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_TRUE(IsSignoutTab(tab));
 }
 
+// https://crbug.com/429624627: Test is flakily crashing.
 IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
-                       SignoutOrReauthWithPrompt_Cancel) {
+                       DISABLED_SignoutOrReauthWithPrompt_Cancel) {
   // Setup a primary account.
   AccountInfo primary_account_info = SetPrimaryAccount();
   ASSERT_TRUE(

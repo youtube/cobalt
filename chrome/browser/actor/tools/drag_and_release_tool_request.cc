@@ -4,6 +4,7 @@
 
 #include "chrome/browser/actor/tools/drag_and_release_tool_request.h"
 
+#include "chrome/browser/actor/tools/tool_request_visitor_functor.h"
 #include "chrome/common/actor.mojom.h"
 
 namespace actor {
@@ -19,6 +20,10 @@ DragAndReleaseToolRequest::DragAndReleaseToolRequest(TabHandle tab_handle,
 
 DragAndReleaseToolRequest::~DragAndReleaseToolRequest() = default;
 
+void DragAndReleaseToolRequest::Apply(ToolRequestVisitorFunctor& f) const {
+  f.Apply(*this);
+}
+
 std::string DragAndReleaseToolRequest::JournalEvent() const {
   return "DragAndRelease";
 }
@@ -26,8 +31,7 @@ std::string DragAndReleaseToolRequest::JournalEvent() const {
 mojom::ToolActionPtr DragAndReleaseToolRequest::ToMojoToolAction() const {
   auto drag = mojom::DragAndReleaseAction::New();
 
-  drag->from_target = PageToolRequest::ToMojoToolTarget(from_target_);
-  drag->to_target = PageToolRequest::ToMojoToolTarget(to_target_);
+  drag->to_target = to_target_.ToMojoToolTarget();
 
   return mojom::ToolAction::NewDragAndRelease(std::move(drag));
 }

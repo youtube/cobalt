@@ -11,10 +11,12 @@
 #ifndef MODULES_AUDIO_DEVICE_INCLUDE_MOCK_AUDIO_DEVICE_H_
 #define MODULES_AUDIO_DEVICE_INCLUDE_MOCK_AUDIO_DEVICE_H_
 
-#include <string>
+#include <cstdint>
 
 #include "api/audio/audio_device.h"
+#include "api/audio/audio_device_defines.h"
 #include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
 #include "test/gmock.h"
 
 namespace webrtc {

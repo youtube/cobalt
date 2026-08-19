@@ -257,7 +257,7 @@ static bool PseudoElementStylesEqual(const ComputedStyle& old_style,
     }
     // Highlight pseudo styles are stored in StyleHighlightData, and compared
     // like any other inherited field, yielding Difference::kInherited.
-    if (UsesHighlightPseudoInheritance(pseudo_id)) {
+    if (IsHighlightPseudoElement(pseudo_id)) {
       continue;
     }
     const ComputedStyle* new_pseudo_style =
@@ -820,6 +820,9 @@ StyleDifference ComputedStyle::VisualInvalidationDiff(
   }
   if (field_diff & kBorderRadius) {
     diff.SetBorderRadiusChanged();
+  }
+  if (field_diff & kBorderShape) {
+    diff.SetBorderShapeChanged();
   }
   if (field_diff & kClip) {
     bool has_clip = HasOutOfFlowPosition() && !HasAutoClip();
@@ -2772,17 +2775,19 @@ bool ComputedStyle::MarkerShouldBeInside(
       ListStylePosition() == EListStylePosition::kInside) {
     return true;
   }
-  // Force the marker of <li> elements with no <ol> or <ul> ancestor to have
-  // an inside position.
-  // TODO(crbug.com/41241289): This quirk predates WebKit, it was added to match
-  // the behavior of the Internet Explorer from that time. However, Microsoft
-  // ended up removing it (before switching to Blink), and Firefox never had it,
-  // so it may be possible to get rid of it.
-  if (IsA<HTMLLIElement>(parent) && !IsInsideListElement() &&
-      PseudoElementLayoutObjectIsNeeded(kPseudoIdMarker, marker_style,
-                                        &parent)) {
-    parent.GetDocument().CountUse(WebFeature::kInsideListMarkerPositionQuirk);
-    return true;
+  if (!RuntimeEnabledFeatures::ListStylePositionQuirkStandardEnabled()) {
+    // Force the marker of <li> elements with no <ol> or <ul> ancestor to have
+    // an inside position.
+    // TODO(crbug.com/41241289): This quirk predates WebKit, it was added to
+    // match the behavior of the Internet Explorer from that time. However,
+    // Microsoft ended up removing it (before switching to Blink), and Firefox
+    // never had it, so it may be possible to get rid of it.
+    if (IsA<HTMLLIElement>(parent) && !IsInsideListElement() &&
+        PseudoElementLayoutObjectIsNeeded(kPseudoIdMarker, marker_style,
+                                          &parent)) {
+      parent.GetDocument().CountUse(WebFeature::kInsideListMarkerPositionQuirk);
+      return true;
+    }
   }
   return false;
 }

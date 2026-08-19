@@ -17,12 +17,12 @@
 
 #include "api/array_view.h"
 #include "api/function_view.h"
+#include "api/transport/ecn_marking.h"
 #include "api/units/time_delta.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/common_header.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/rtpfb.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/network/ecn_marking.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 

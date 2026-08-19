@@ -329,10 +329,10 @@ public class CustomTabsConnection {
         return json;
     }
 
-    /*
+    /**
      * Logging for page load metrics callback, if service has enabled logging.
      *
-     * No rate-limiting, can be spammy if the app is misbehaved.
+     * <p>No rate-limiting, can be spammy if the app is misbehaved.
      *
      * @param args arguments of the callback.
      */
@@ -1118,7 +1118,9 @@ public class CustomTabsConnection {
                     bundleToJson(intent.getExtras()));
         }
 
-        if (ChromeBrowserInitializer.getInstance().isFullBrowserInitialized()) {
+        if (ChromeBrowserInitializer.getInstance().isFullBrowserInitialized()
+                && ChromeFeatureList.isEnabled(ChromeFeatureList.CCT_FIX_WARMUP)
+                && ChromeFeatureList.isEnabled(ChromeFeatureList.CCT_EARLY_NAV)) {
             CustomTabsConnectionJni.get().emitIntentHandledTrigger();
         }
 

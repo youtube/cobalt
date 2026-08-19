@@ -9,6 +9,7 @@
 <translation id="1115463765356382667">아래의 추천 작업을 완료하여 Chromium을 최대한 활용합니다.</translation>
 <translation id="1140315115515116765">Chromium을 기본 브라우저로 사용하면 가격 통계를 쉽게 확인할 수 있습니다</translation>
 <translation id="1185134272377778587">Chromium 정보</translation>
+<translation id="1229234641991056119">Chromium에서 Safari 비밀번호, 방문 기록, 북마크, 신용카드를 사용하세요</translation>
 <translation id="1257458525759135959">이미지를 저장하려면 '설정'을 탭하여 Chromium에 사진 추가 권한을 부여하세요.</translation>
 <translation id="1260702988262336471">Chromium 메뉴 열기</translation>
 <translation id="12739128458173458">이 탭을 다른 기기로 보내려면 두 기기 모두에서 Chromium에 로그인하세요.</translation>
@@ -174,6 +175,7 @@ Chromium 환경을 개선하는 데 데이터를 사용하는 설정을 더 보�
 <translation id="5203244847421322551">Chromium에서 비밀번호를 저장하고 자동 완성</translation>
 <translation id="5224391634244552924">저장된 비밀번호가 없습니다. 비밀번호를 저장하면 Chromium에서 확인할 수 있습니다.</translation>
 <translation id="5259423875997548710">Chromium에서 시각적 검색을 수행합니다.</translation>
+<translation id="5284913972719948193">Chromium에서 비밀번호, 방문 기록, 북마크, 신용카드를 사용하려면 데이터를 가져오세요</translation>
 <translation id="5308226104666789935">Chromium에서 업데이트를 확인할 수 없습니다.</translation>
 <translation id="5311557153294205270">Chromium의 북마크에 입력한 URL을 추가합니다.</translation>
 <translation id="5383251701169024761">저장된 비밀번호를 다른 앱에서 손쉽게 사용하려면 Chromium 자동 완성을 선택하세요.</translation>
@@ -307,6 +309,7 @@ Chromium 환경을 개선하는 데 데이터를 사용하는 설정을 더 보�
 <translation id="865600487977764604">로그인 상태일 때 Chromium에서 사용자를 보호하고 기타 Google 앱에서 사용자의 보안을 강화하는 데 사용될 수 있습니다.</translation>
 <translation id="8663480472502753423">Chromium을 최신 상태로 유지합니다.</translation>
 <translation id="8685813584220679697">이 사이트 및 Chromium에 로그인하세요.</translation>
+<translation id="8698780336333802489">Chromium으로 가져오기</translation>
 <translation id="8730503818204408000">Chromium 설정을 열어 Chromium을 기본 브라우저로 설정합니다.</translation>
 <translation id="8754966941001340678">Chromium에서는 향상된 보호 모드를 권장합니다.</translation>
 <translation id="8759037115129007407">가족 구성원이 비밀번호를 바로 받을 수 없습니다. Chromium을 업데이트하고 비밀번호를 동기화하도록 요청하세요. <ph name="BEGIN_LINK" />자세히 알아보기<ph name="END_LINK" /></translation>

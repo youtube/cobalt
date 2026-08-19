@@ -10,6 +10,7 @@
 
 #include "pc/test/android_test_initializer.h"
 
+#include <bits/pthread_types.h>
 #include <jni.h>
 #include <pthread.h>
 #include <stddef.h>

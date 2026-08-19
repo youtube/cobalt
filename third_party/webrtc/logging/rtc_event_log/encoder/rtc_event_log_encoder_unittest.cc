@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include "api/field_trials.h"
 #include "api/field_trials_view.h"
 #include "api/rtc_event_log/rtc_event.h"
 #include "api/rtc_event_log/rtc_event_log.h"
@@ -70,12 +71,10 @@
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/random.h"
 #include "rtc_base/time_utils.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 
 namespace webrtc {
-
-using test::ExplicitKeyValueConfig;
 
 class RtcEventLogEncoderTest
     : public ::testing::TestWithParam<
@@ -92,7 +91,7 @@ class RtcEventLogEncoderTest
   ~RtcEventLogEncoderTest() override = default;
 
   std::unique_ptr<RtcEventLogEncoder> CreateEncoder(
-      const FieldTrialsView& field_trials = ExplicitKeyValueConfig("")) {
+      const FieldTrialsView& field_trials = CreateTestFieldTrials()) {
     std::unique_ptr<RtcEventLogEncoder> encoder;
     switch (encoding_type_) {
       case RtcEventLog::EncodingType::Legacy:
@@ -1377,7 +1376,7 @@ TEST_P(RtcEventLogEncoderTest, RtcEventRtpPacketOutgoing) {
 
 TEST_P(RtcEventLogEncoderTest,
        RtcEventRtpPacketIncomingNoDependencyDescriptor) {
-  ExplicitKeyValueConfig no_dd(
+  FieldTrials no_dd = CreateTestFieldTrials(
       "WebRTC-RtcEventLogEncodeDependencyDescriptor/Disabled/");
   std::unique_ptr<RtcEventLogEncoder> encoder = CreateEncoder(no_dd);
   verifier_.ExpectDependencyDescriptorExtensionIsSet(false);
@@ -1386,7 +1385,7 @@ TEST_P(RtcEventLogEncoderTest,
 
 TEST_P(RtcEventLogEncoderTest,
        RtcEventRtpPacketOutgoingNoDependencyDescriptor) {
-  ExplicitKeyValueConfig no_dd(
+  FieldTrials no_dd = CreateTestFieldTrials(
       "WebRTC-RtcEventLogEncodeDependencyDescriptor/Disabled/");
   std::unique_ptr<RtcEventLogEncoder> encoder = CreateEncoder(no_dd);
   verifier_.ExpectDependencyDescriptorExtensionIsSet(false);
@@ -1447,7 +1446,7 @@ class RtcEventLogEncoderSimpleTest
         break;
       case RtcEventLog::EncodingType::NewFormat:
         encoder_ = std::make_unique<RtcEventLogEncoderNewFormat>(
-            ExplicitKeyValueConfig(""));
+            CreateTestFieldTrials());
         break;
       case RtcEventLog::EncodingType::ProtoFree:
         encoder_ = std::make_unique<RtcEventLogEncoderV3>();

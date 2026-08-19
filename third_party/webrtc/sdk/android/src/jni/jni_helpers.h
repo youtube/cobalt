@@ -16,9 +16,8 @@
 
 #include <jni.h>
 
-#include <string>
-
 #include "sdk/android/native_api/jni/java_types.h"
+#include "sdk/android/native_api/jni/jvm.h"
 #include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "sdk/android/src/jni/jvm.h"
 

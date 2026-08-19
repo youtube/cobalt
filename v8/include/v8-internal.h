@@ -264,11 +264,12 @@ constexpr uint64_t kSandboxedPointerShift = 64 - kSandboxSizeLog2;
 
 // Size of the guard regions surrounding the sandbox. This assumes a worst-case
 // scenario of a 32-bit unsigned index used to access an array of 64-bit values
-// with an additional 4GB (compressed pointer) offset. In particular, accesses
-// to TypedArrays are effectively computed as
+// with an additional offset of up to 32GB.
+// In particular, accesses to TypedArrays are effectively computed as
 // `entry_pointer = array->base + array->offset + index * array->element_size`.
+// (although in that case, the offset can only be up to 4GB large).
 // See also https://crbug.com/40070746 for more details.
-constexpr size_t kSandboxGuardRegionSize = 32ULL * GB + 4ULL * GB;
+constexpr size_t kSandboxGuardRegionSize = 64ULL * GB;
 
 static_assert((kSandboxGuardRegionSize % kSandboxAlignment) == 0,
               "The size of the guard regions around the sandbox must be a "
@@ -847,6 +848,24 @@ V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
 // mode based on the current context and the closure. This returns true if the
 // language mode is strict.
 V8_EXPORT bool ShouldThrowOnError(internal::Isolate* isolate);
+
+struct HandleScopeData final {
+  static constexpr uint32_t kSizeInBytes =
+      2 * kApiSystemPointerSize + 2 * kApiInt32Size;
+
+  Address* next;
+  Address* limit;
+  int level;
+  int sealed_level;
+
+  void Initialize() {
+    next = limit = nullptr;
+    sealed_level = level = 0;
+  }
+};
+
+static_assert(HandleScopeData::kSizeInBytes == sizeof(HandleScopeData));
+
 /**
  * This class exports constants and functionality from within v8 that
  * is necessary to implement inline functions in the v8 api.  Don't
@@ -1201,6 +1220,12 @@ class Internals {
     Address addr = reinterpret_cast<Address>(isolate) +
                    kIsolateEmbedderDataOffset + slot * kApiSystemPointerSize;
     return *reinterpret_cast<void* const*>(addr);
+  }
+
+  V8_INLINE static HandleScopeData* GetHandleScopeData(v8::Isolate* isolate) {
+    Address addr =
+        reinterpret_cast<Address>(isolate) + kIsolateHandleScopeDataOffset;
+    return reinterpret_cast<HandleScopeData*>(addr);
   }
 
   V8_INLINE static void IncrementLongTasksStatsCounter(v8::Isolate* isolate) {

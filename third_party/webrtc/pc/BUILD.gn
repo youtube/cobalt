@@ -574,6 +574,7 @@ rtc_library("rtp_transport") {
     "../api:field_trials_view",
     "../api/task_queue",
     "../api/task_queue:pending_task_safety_flag",
+    "../api/transport:ecn_marking",
     "../api/units:timestamp",
     "../call:rtp_receiver",
     "../call:video_receive_stream_api",
@@ -588,7 +589,6 @@ rtc_library("rtp_transport") {
     "../rtc_base:network_route",
     "../rtc_base:socket",
     "../rtc_base/containers:flat_set",
-    "../rtc_base/network:ecn_marking",
     "../rtc_base/network:received_packet",
     "../rtc_base/network:sent_packet",
   ]
@@ -1059,6 +1059,7 @@ rtc_library("sdp_munging_detector") {
   ]
   deps = [
     ":session_description",
+    "../api:field_trials_view",
     "../api:libjingle_peerconnection_api",
     "../api:rtp_parameters",
     "../media:codec",
@@ -1069,6 +1070,8 @@ rtc_library("sdp_munging_detector") {
     "../rtc_base:checks",
     "../rtc_base:logging",
     "//third_party/abseil-cpp/absl/algorithm:container",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
 rtc_library("sdp_offer_answer") {
@@ -2430,6 +2433,7 @@ if (rtc_include_tests && !build_with_chromium) {
       ":sctp_data_channel",
       ":sctp_transport",
       ":sctp_utils",
+      ":sdp_munging_detector",
       ":sdp_utils",
       ":session_description",
       ":simulcast_description",

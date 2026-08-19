@@ -83,6 +83,7 @@ struct ExtractCredentialsTestCase {
   AccountCredentials account_before_move;
   std::vector<AccountCredentials> existing_accounts;
   AccountCredentials account_after_move;
+  AccountMoveDecision expected_move_decision;
 };
 
 const ExtractCredentialsTestCase kExtractCredentialsTestCases[] = {
@@ -90,30 +91,37 @@ const ExtractCredentialsTestCase kExtractCredentialsTestCases[] = {
      .account_before_move = {GaiaId("A"), "new_tokenA", {1}},
      .existing_accounts = {{GaiaId("A"), "old_tokenA", {2}},
                            {GaiaId("B"), "old_tokenB", {2}}},
-     .account_after_move = {GaiaId("A"), "old_tokenA", {2}}},
+     .account_after_move = {GaiaId("A"), "old_tokenA", {2}},
+     .expected_move_decision = AccountMoveDecision::kCannotMoveAlreadyExists},
     {.test_suffix = "NotMovedKeyConflictExistingUnbound",
      .account_before_move = {GaiaId("A"), "new_tokenA", {1}},
      .existing_accounts = {{GaiaId("A"), "old_tokenA"},
                            {GaiaId("B"), "old_tokenB", {2}}},
-     .account_after_move = {GaiaId("A"), "old_tokenA"}},
+     .account_after_move = {GaiaId("A"), "old_tokenA"},
+     .expected_move_decision = AccountMoveDecision::kCannotMoveAlreadyExists},
     {.test_suffix = "MovedBoundOverridesExisting",
      .account_before_move = {GaiaId("A"), "new_tokenA", {1}},
      .existing_accounts = {{GaiaId("A"), "old_tokenA", {2}},
                            {GaiaId("B"), "old_tokenB"}},
-     .account_after_move = {GaiaId("A"), "new_tokenA", {1}}},
+     .account_after_move = {GaiaId("A"), "new_tokenA", {1}},
+     .expected_move_decision = AccountMoveDecision::kCanMoveWithRefreshToken},
     {.test_suffix = "MovedUnboundOverridesExisting",
      .account_before_move = {GaiaId("A"), "new_tokenA"},
      .existing_accounts = {{GaiaId("A"), "old_tokenA", {2}},
                            {GaiaId("B"), "old_tokenB", {2}}},
-     .account_after_move = {GaiaId("A"), "new_tokenA"}},
+     .account_after_move = {GaiaId("A"), "new_tokenA"},
+     .expected_move_decision = AccountMoveDecision::kCanMoveWithRefreshToken},
     {.test_suffix = "MovedBoundNoExisting",
      .account_before_move = {GaiaId("A"), "new_tokenA", {1}},
      .existing_accounts = {{GaiaId("B"), "old_tokenB"}},
-     .account_after_move = {GaiaId("A"), "new_tokenA", {1}}},
+     .account_after_move = {GaiaId("A"), "new_tokenA", {1}},
+     .expected_move_decision = AccountMoveDecision::kCanMoveWithRefreshToken},
     {.test_suffix = "MovedWithoutTokenKeyConflictNoExisting",
      .account_before_move = {GaiaId("A"), "new_tokenA", {1}},
      .existing_accounts = {{GaiaId("B"), "old_tokenB", {2}}},
-     .account_after_move = {GaiaId("A"), GaiaConstants::kInvalidRefreshToken}},
+     .account_after_move = {GaiaId("A"), GaiaConstants::kInvalidRefreshToken},
+     .expected_move_decision =
+         AccountMoveDecision::kCannotMoveInsertWithoutRefreshToken},
 };
 
 #endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
@@ -180,13 +188,17 @@ class MutableProfileOAuth2TokenServiceDelegateTest
     token_web_data_->Init(base::NullCallback());
   }
 
+  // "/GetToken" is a default endpoint for issuing access tokens.
   void AddSuccessfulOAuthTokenResponse() {
     client_->GetTestURLLoaderFactory()->AddResponse(
         GaiaUrls::GetInstance()->oauth2_token_url().spec(),
         GetValidTokenResponse("token", 3600));
   }
 
-  void AddSuccessfulBoundTokenResponse() {
+  // "/IssueToken" is an endpoint for issuing access tokens used with bound
+  // refresh tokens or when `switches::kUseIssueTokenToFetchAccessTokens` is
+  // enabled.
+  void AddSuccessfulIssueTokenResponse() {
     client_->GetTestURLLoaderFactory()->AddResponse(
         GaiaUrls::GetInstance()->oauth2_issue_token_url().spec(),
         GetValidBoundTokenResponse("access_token", base::Seconds(3600),
@@ -1250,9 +1262,11 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
 
   {
     testing::InSequence sequence;
-    // `OnAuthErrorChanged()` is not called when a token is updated without
-    // changing its error state.
-    EXPECT_CALL(observer, OnAuthErrorChanged).Times(0);
+    // `OnAuthErrorChanged()` is also called when a token is updated.
+    EXPECT_CALL(
+        observer,
+        OnAuthErrorChanged(account_id, GoogleServiceAuthError::AuthErrorNone(),
+                           testing::_));
     EXPECT_CALL(observer, OnRefreshTokenAvailable(account_id));
     EXPECT_CALL(observer, OnEndBatchChanges());
 
@@ -1940,7 +1954,7 @@ TEST_P(MutableProfileOAuth2TokenServiceDelegateWithChallengeParamTest,
       signin_metrics::SourceForRefreshTokenOperation::kUnknown,
       kFakeWrappedBindingKey);
 
-  AddSuccessfulBoundTokenResponse();
+  AddSuccessfulIssueTokenResponse();
 
   EXPECT_EQ(0, access_token_success_count_);
   EXPECT_EQ(0, access_token_failure_count_);
@@ -1970,9 +1984,7 @@ TEST_P(MutableProfileOAuth2TokenServiceDelegateWithChallengeParamTest,
       account_id, "refresh_token",
       signin_metrics::SourceForRefreshTokenOperation::kUnknown);
 
-  // Even though the token is not bound, the delegate will use the same fetcher
-  // because `kUseIssueTokenToFetchAccessTokens` is enabled.
-  AddSuccessfulBoundTokenResponse();
+  AddSuccessfulIssueTokenResponse();
 
   EXPECT_EQ(0, access_token_success_count_);
   EXPECT_EQ(0, access_token_failure_count_);
@@ -2037,6 +2049,7 @@ TEST_P(MutableProfileOAuth2TokenServiceDelegateExtractCredentialsParamTest,
 
   // Extract the credentials.
   ResetObserverCounts();
+  base::HistogramTester histogram_tester;
   const CoreAccountId account_to_move =
       CoreAccountId::FromGaiaId(GetParam().account_before_move.gaia_id);
   oauth2_service_delegate_->ExtractCredentials(&target_token_service,
@@ -2052,6 +2065,8 @@ TEST_P(MutableProfileOAuth2TokenServiceDelegateExtractCredentialsParamTest,
             GetParam().account_after_move.refresh_token);
   EXPECT_EQ(target_delegate->GetWrappedBindingKey(account_to_move),
             GetParam().account_after_move.binding_key);
+  histogram_tester.ExpectUniqueSample("Signin.MoveAccount.CanMoveToService",
+                                      GetParam().expected_move_decision, 1);
 }
 
 INSTANTIATE_TEST_SUITE_P(

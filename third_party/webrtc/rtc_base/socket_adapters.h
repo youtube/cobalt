@@ -76,13 +76,5 @@ class AsyncSSLSocket : public BufferedReadAdapter {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::AsyncSSLSocket;
-using ::webrtc::BufferedReadAdapter;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_SOCKET_ADAPTERS_H_

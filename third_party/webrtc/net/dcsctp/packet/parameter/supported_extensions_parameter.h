@@ -9,16 +9,15 @@
  */
 #ifndef NET_DCSCTP_PACKET_PARAMETER_SUPPORTED_EXTENSIONS_PARAMETER_H_
 #define NET_DCSCTP_PACKET_PARAMETER_SUPPORTED_EXTENSIONS_PARAMETER_H_
-#include <stddef.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
-#include <iterator>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "net/dcsctp/packet/parameter/parameter.h"
 #include "net/dcsctp/packet/tlv_trait.h"

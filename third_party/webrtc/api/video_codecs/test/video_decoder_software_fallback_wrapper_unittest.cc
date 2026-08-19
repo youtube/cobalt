@@ -18,6 +18,7 @@
 
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_type.h"
@@ -25,7 +26,7 @@
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
 #include "modules/video_coding/include/video_error_codes.h"
 #include "rtc_base/checks.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -36,7 +37,7 @@ class VideoDecoderSoftwareFallbackWrapperTest : public ::testing::Test {
       : VideoDecoderSoftwareFallbackWrapperTest("") {}
   explicit VideoDecoderSoftwareFallbackWrapperTest(
       const std::string& field_trials)
-      : field_trials_(field_trials),
+      : field_trials_(CreateTestFieldTrials(field_trials)),
         env_(CreateEnvironment(&field_trials_)),
         fake_decoder_(new CountingFakeDecoder()),
         fallback_wrapper_(CreateVideoDecoderSoftwareFallbackWrapper(
@@ -78,7 +79,7 @@ class VideoDecoderSoftwareFallbackWrapperTest : public ::testing::Test {
     int release_count_ = 0;
     int reset_count_ = 0;
   };
-  test::ExplicitKeyValueConfig field_trials_;
+  FieldTrials field_trials_;
   const Environment env_;
   // `fake_decoder_` is owned and released by `fallback_wrapper_`.
   CountingFakeDecoder* fake_decoder_;

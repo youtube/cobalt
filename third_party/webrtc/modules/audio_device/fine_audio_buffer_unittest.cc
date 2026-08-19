@@ -12,6 +12,7 @@
 
 #include <limits.h>
 
+#include <cstdint>
 #include <memory>
 
 #include "api/array_view.h"

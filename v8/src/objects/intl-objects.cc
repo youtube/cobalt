@@ -717,13 +717,10 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
   if (IsString(*locale_in)) {
     locale_str = Cast<String>(locale_in);
   } else if (IsJSReceiver(*locale_in)) {
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, locale_str,
-                                     Object::ToString(isolate, locale_in),
-                                     Nothing<std::string>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, locale_str,
+                               Object::ToString(isolate, locale_in));
   } else {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NewTypeError(MessageTemplate::kLanguageID),
-                                 Nothing<std::string>());
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kLanguageID));
   }
   std::string locale = locale_str->ToStdString();
   return Intl::ValidateAndCanonicalizeUnicodeLocaleId(isolate, locale);
@@ -735,11 +732,10 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
 Maybe<std::string> Intl::ValidateAndCanonicalizeUnicodeLocaleId(
     Isolate* isolate, std::string_view locale_in) {
   if (!IsStructurallyValidLanguageTag(locale_in)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidLanguageTag,
-                      isolate->factory()->NewStringFromAsciiChecked(locale_in)),
-        Nothing<std::string>());
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(
+                     MessageTemplate::kInvalidLanguageTag,
+                     isolate->factory()->NewStringFromAsciiChecked(locale_in)));
   }
 
   std::string locale(locale_in);
@@ -773,33 +769,27 @@ Maybe<std::string> Intl::ValidateAndCanonicalizeUnicodeLocaleId(
   icu::Locale icu_locale = icu::Locale::forLanguageTag(locale.c_str(), error);
 
   if (U_FAILURE(error) || icu_locale.isBogus()) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(
-            MessageTemplate::kInvalidLanguageTag,
-            isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
-        Nothing<std::string>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kInvalidLanguageTag,
+                                  isolate->factory()->NewStringFromAsciiChecked(
+                                      locale.c_str())));
   }
 
   // Use LocaleBuilder to validate locale.
   icu_locale = icu::LocaleBuilder().setLocale(icu_locale).build(error);
   icu_locale.canonicalize(error);
   if (U_FAILURE(error) || icu_locale.isBogus()) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(
-            MessageTemplate::kInvalidLanguageTag,
-            isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
-        Nothing<std::string>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kInvalidLanguageTag,
+                                  isolate->factory()->NewStringFromAsciiChecked(
+                                      locale.c_str())));
   }
   Maybe<std::string> maybe_to_language_tag = Intl::ToLanguageTag(icu_locale);
   if (maybe_to_language_tag.IsNothing()) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(
-            MessageTemplate::kInvalidLanguageTag,
-            isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
-        Nothing<std::string>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kInvalidLanguageTag,
+                                  isolate->factory()->NewStringFromAsciiChecked(
+                                      locale.c_str())));
   }
 
   return maybe_to_language_tag;
@@ -838,14 +828,11 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
   // 4. Else,
   // 4a. Let O be ? ToObject(locales).
   DirectHandle<JSReceiver> o;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, o,
-                                   Object::ToObject(isolate, locales),
-                                   Nothing<std::vector<std::string>>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, o, Object::ToObject(isolate, locales));
   // 5. Let len be ? ToLength(? Get(O, "length")).
   DirectHandle<Object> length_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, length_obj,
-                                   Object::GetLengthFromArrayLike(isolate, o),
-                                   Nothing<std::vector<std::string>>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, length_obj,
+                             Object::GetLengthFromArrayLike(isolate, o));
   // TODO(jkummerow): Spec violation: strictly speaking, we have to iterate
   // up to 2^53-1 if {length_obj} says so. Since cases above 2^32 probably
   // don't happen in practice (and would be very slow if they do), we'll keep
@@ -865,8 +852,7 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
     if (!maybe_found.FromJust()) continue;
     // 7c i. Let kValue be ? Get(O, Pk).
     DirectHandle<Object> k_value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, k_value, Object::GetProperty(&it),
-                                     Nothing<std::vector<std::string>>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, k_value, Object::GetProperty(&it));
     // 7c ii. If Type(kValue) is not String or Object, throw a TypeError
     // exception.
     // 7c iii. If Type(kValue) is Object and kValue has an [[InitializedLocale]]
@@ -1594,35 +1580,31 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
 
   // 2. Let mnfd be ? Get(options, "minimumFractionDigits").
   DirectHandle<Object> mnfd_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, mnfd_obj,
       JSReceiver::GetProperty(isolate, options,
-                              factory->minimumFractionDigits_string()),
-      Nothing<NumberFormatDigitOptions>());
+                              factory->minimumFractionDigits_string()));
 
   // 3. Let mxfd be ? Get(options, "maximumFractionDigits").
   DirectHandle<Object> mxfd_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, mxfd_obj,
       JSReceiver::GetProperty(isolate, options,
-                              factory->maximumFractionDigits_string()),
-      Nothing<NumberFormatDigitOptions>());
+                              factory->maximumFractionDigits_string()));
 
   // 4.  Let mnsd be ? Get(options, "minimumSignificantDigits").
   DirectHandle<Object> mnsd_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, mnsd_obj,
       JSReceiver::GetProperty(isolate, options,
-                              factory->minimumSignificantDigits_string()),
-      Nothing<NumberFormatDigitOptions>());
+                              factory->minimumSignificantDigits_string()));
 
   // 5. Let mxsd be ? Get(options, "maximumSignificantDigits").
   DirectHandle<Object> mxsd_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, mxsd_obj,
       JSReceiver::GetProperty(isolate, options,
-                              factory->maximumSignificantDigits_string()),
-      Nothing<NumberFormatDigitOptions>());
+                              factory->maximumSignificantDigits_string()));
 
   digit_options.rounding_priority = RoundingPriority::kAuto;
   digit_options.minimum_significant_digits = 0;
@@ -1641,18 +1623,16 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   // 8. If roundingIncrement is not in « 1, 2, 5, 10, 20, 25, 50, 100, 200, 250,
   // 500, 1000, 2000, 2500, 5000 », throw a RangeError exception.
   if (!IsValidRoundingIncrement(digit_options.rounding_increment)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
-                      factory->roundingIncrement_string()),
-        Nothing<NumberFormatDigitOptions>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                                  factory->roundingIncrement_string()));
   }
 
   // 9. Let roundingMode be ? GetOption(options, "roundingMode", string, «
   // "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand",
   // "halfTrunc", "halfEven" », "halfExpand").
   Maybe<RoundingMode> maybe_rounding_mode = GetStringOption<RoundingMode>(
-      isolate, options, "roundingMode", service,
+      isolate, options, isolate->factory()->roundingMode_string(), service,
       std::to_array<const std::string_view>(
           {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
            "halfExpand", "halfTrunc", "halfEven"}),
@@ -1670,7 +1650,8 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
 
   Maybe<RoundingPriority> maybe_rounding_priority =
       GetStringOption<RoundingPriority>(
-          isolate, options, "roundingPriority", service,
+          isolate, options, isolate->factory()->roundingPriority_string(),
+          service,
           std::to_array<const std::string_view>(
               {"auto", "morePrecision", "lessPrecision"}),
           std::array{RoundingPriority::kAuto, RoundingPriority::kMorePrecision,
@@ -1683,7 +1664,8 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   // string, « "auto", "stripIfInteger" », "auto").
   Maybe<TrailingZeroDisplay> maybe_trailing_zero_display =
       GetStringOption<TrailingZeroDisplay>(
-          isolate, options, "trailingZeroDisplay", service,
+          isolate, options, isolate->factory()->trailingZeroDisplay_string(),
+          service,
           std::to_array<const std::string_view>({"auto", "stripIfInteger"}),
           std::array{TrailingZeroDisplay::kAuto,
                      TrailingZeroDisplay::kStripIfInteger},
@@ -1784,10 +1766,9 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
       } else if (mnfd > mxfd) {
         // v. Else if mnfd is greater than mxfd, throw a RangeError
         // exception.
-        THROW_NEW_ERROR_RETURN_VALUE(
+        THROW_NEW_ERROR(
             isolate,
-            NewRangeError(MessageTemplate::kPropertyValueOutOfRange, mxfd_str),
-            Nothing<NumberFormatDigitOptions>());
+            NewRangeError(MessageTemplate::kPropertyValueOutOfRange, mxfd_str));
       }
       // vi. Set intlObj.[[MinimumFractionDigits]] to mnfd.
       digit_options.minimum_fraction_digits = mnfd;
@@ -1837,18 +1818,15 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
     // a. If intlObj.[[RoundingType]] is not fractionDigits, throw a TypeError
     // exception.
     if (digit_options.rounding_type != RoundingType::kFractionDigits) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NewTypeError(MessageTemplate::kBadRoundingType),
-          Nothing<NumberFormatDigitOptions>());
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kBadRoundingType));
     }
     // b. If intlObj.[[MaximumFractionDigits]] is not equal to
     // intlObj.[[MinimumFractionDigits]], throw a RangeError exception.
     if (digit_options.maximum_fraction_digits !=
         digit_options.minimum_fraction_digits) {
-      THROW_NEW_ERROR_RETURN_VALUE(
+      THROW_NEW_ERROR(
           isolate,
-          NewRangeError(MessageTemplate::kPropertyValueOutOfRange, mxfd_str),
-          Nothing<NumberFormatDigitOptions>());
+          NewRangeError(MessageTemplate::kPropertyValueOutOfRange, mxfd_str));
     }
   }
   return Just(digit_options);
@@ -2776,7 +2754,7 @@ Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(
     Isolate* isolate, DirectHandle<JSReceiver> options,
     const char* method_name) {
   return GetStringOption<Intl::MatcherOption>(
-      isolate, options, "localeMatcher", method_name,
+      isolate, options, isolate->factory()->localeMatcher_string(), method_name,
       std::to_array<const std::string_view>({"best fit", "lookup"}),
       std::array{Intl::MatcherOption::kBestFit, Intl::MatcherOption::kLookup},
       Intl::MatcherOption::kBestFit);
@@ -2787,18 +2765,17 @@ Maybe<bool> Intl::GetNumberingSystem(Isolate* isolate,
                                      const char* method_name,
                                      std::string& result) {
   DirectHandle<String> output;
-  Maybe<bool> maybe =
-      GetStringOption(isolate, options, "numberingSystem",
-                      std::span<std::string_view>(), method_name, &output);
+  Maybe<bool> maybe = GetStringOption(
+      isolate, options, isolate->factory()->numberingSystem_string(),
+      method_name, &output);
   MAYBE_RETURN(maybe, Nothing<bool>());
   if (maybe.FromJust()) {
     result = output->ToStdString();
     if (!IsWellFormedNumberingSystem(result)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
+      THROW_NEW_ERROR(
           isolate,
           NewRangeError(MessageTemplate::kInvalid,
-                        isolate->factory()->numberingSystem_string(), output),
-          Nothing<bool>());
+                        isolate->factory()->numberingSystem_string(), output));
     }
     return Just(true);
   }
@@ -3053,7 +3030,42 @@ DirectHandle<String> Intl::SourceString(Isolate* isolate,
   }
 }
 
-DirectHandle<String> Intl::DefaultTimeZone(Isolate* isolate) {
+MaybeHandle<String> Intl::TimeZoneIdToString(Isolate* isolate,
+                                             const icu::UnicodeString& id) {
+  // In CLDR (http://unicode.org/cldr/trac/ticket/9943), Etc/UTC is made
+  // a separate timezone ID from Etc/GMT even though they're still the same
+  // timezone. We have Etc/UTC because 'UTC', 'Etc/Universal',
+  // 'Etc/Zulu' and others are turned to 'Etc/UTC' by ICU. Etc/GMT comes
+  // from Etc/GMT0, Etc/GMT+0, Etc/GMT-0, Etc/Greenwich.
+  // ecma402#sec-canonicalizetimezonename step 3
+  if (id == UNICODE_STRING_SIMPLE("Etc/UTC") ||
+      id == UNICODE_STRING_SIMPLE("Etc/GMT")) {
+    return isolate->factory()->UTC_string();
+  }
+  // If the id is in the format of GMT[+-]hh:mm, change it to
+  // [+-]hh:mm.
+  if (id.startsWith(u"GMT", 3)) {
+    return Intl::ToString(isolate, id.tempSubString(3));
+  }
+  return Intl::ToString(isolate, id);
+}
+
+// Same logic as above but for std::string
+std::string Intl::TimeZoneIdToString(const icu::UnicodeString& id) {
+  if (id == UNICODE_STRING_SIMPLE("Etc/UTC") ||
+      id == UNICODE_STRING_SIMPLE("Etc/GMT")) {
+    return "UTC";
+  }
+  std::string result;
+  if (id.startsWith(u"GMT", 3)) {
+    return id.tempSubString(3).toUTF8String(result);
+  } else {
+    id.toUTF8String(result);
+  }
+  return result;
+}
+
+std::string Intl::DefaultTimeZone() {
   icu::UnicodeString id;
   {
     std::unique_ptr<icu::TimeZone> tz(icu::TimeZone::createDefault());
@@ -3063,8 +3075,7 @@ DirectHandle<String> Intl::DefaultTimeZone(Isolate* isolate) {
   icu::UnicodeString canonical;
   icu::TimeZone::getCanonicalID(id, canonical, status);
   DCHECK(U_SUCCESS(status));
-  return JSDateTimeFormat::TimeZoneIdToString(isolate, canonical)
-      .ToHandleChecked();
+  return Intl::TimeZoneIdToString(canonical);
 }
 
 namespace {

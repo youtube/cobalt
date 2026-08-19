@@ -425,7 +425,6 @@ rtc_library("input_volume_controller_unittests") {
     "../../../rtc_base:safe_minmax",
     "../../../rtc_base:stringutils",
     "../../../system_wrappers:metrics",
-    "../../../test:field_trial",
     "../../../test:fileutils",
     "../../../test:test_support",
     "//testing/gtest",

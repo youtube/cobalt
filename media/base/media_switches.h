@@ -212,11 +212,16 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kContextMenuSaveVideoFrameAs);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kContextMenuSearchForVideoFrame);
 #if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kChromeWideEchoCancellation);
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#endif  // BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+
+#if BUILDFLAG(SYSTEM_LOOPBACK_AS_AEC_REFERENCE)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kSystemLoopbackAsAecReference);
-MEDIA_EXPORT extern const base::FeatureParam<int> kAddedProcessingDelay;
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-#endif
+MEDIA_EXPORT extern const base::FeatureParam<bool>
+    kSystemLoopbackAsAecReferenceForcedOn;
+MEDIA_EXPORT extern const base::FeatureParam<int> kAddedProcessingDelayMs;
+MEDIA_EXPORT extern const base::FeatureParam<int> kAecDelayNumFilters;
+#endif  // BUILDFLAG(SYSTEM_LOOPBACK_AS_AEC_REFERENCE)
+
 #if (BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN))
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kEnforceSystemEchoCancellation);
 MEDIA_EXPORT extern const base::FeatureParam<bool>
@@ -310,7 +315,8 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kLiveCaptionWebAudio);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kLiveTranslate);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kLogSodaLoadFailures);
 #if BUILDFLAG(IS_MAC)
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kMacLoopbackAudioForScreenShare);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kMacCatapLoopbackAudioForCast);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kMacCatapLoopbackAudioForScreenShare);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseSCContentSharingPicker);
 #endif  // BUILDFLAG(IS_MAC)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaCapabilitiesQueryGpuFactories);
@@ -423,11 +429,6 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseAudioManagerMaxChannelLayout);
 // the media-player based HLS player will NOT be used. This will roll out first
 // on android, but will eventually land in desktop chrome as well.
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kBuiltInHlsPlayer);
-
-// This feature enables the buildin hls player to play and demux additional
-// media containers, including Fragmented and unfragmented MP4, as well as
-// raw AAC bytestreams. It does nothing if kBuiltInHlsPlayer is disabled.
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kBuiltInHlsMP4);
 #endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
 
 #if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
@@ -561,8 +562,17 @@ MEDIA_EXPORT std::string GetEffectiveAutoplayPolicy(
     const base::CommandLine& command_line);
 
 MEDIA_EXPORT bool IsChromeWideEchoCancellationEnabled();
+
+// Returns true if loopback-based AEC can be used for audio input streams that
+// are configured to do so.
 MEDIA_EXPORT bool IsSystemLoopbackAsAecReferenceEnabled();
-MEDIA_EXPORT std::optional<base::TimeDelta> GetAecAddedDelay();
+// Returns true if loopback-based AEC is enabled and its usage is forced, which
+// means that loopback-based AEC will be used instead of chrome-wide AEC.
+MEDIA_EXPORT bool IsSystemLoopbackAsAecReferenceForcedOn();
+#if BUILDFLAG(SYSTEM_LOOPBACK_AS_AEC_REFERENCE)
+MEDIA_EXPORT base::TimeDelta GetAecAddedDelay();
+MEDIA_EXPORT int GetAecDelayNumFilters();
+#endif
 MEDIA_EXPORT bool IsSystemEchoCancellationEnforced();
 MEDIA_EXPORT bool IsSystemEchoCancellationEnforcedAndAllowAgcInTandem();
 MEDIA_EXPORT bool IsSystemEchoCancellationEnforcedAndAllowNsInTandem();

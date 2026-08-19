@@ -359,16 +359,9 @@ AutofillProfile AutofillProfile::CreateFromJavaObject(
     std::u16string value =
         Java_AutofillProfile_getInfo(env, jprofile, field_type);
 
-    if (base::FeatureList::IsEnabled(
-            features::kAutofillFixEmptyFieldAndroidSettingsBug)) {
-      if (value != profile.GetInfo(field_type, app_locale) ||
-          status != profile.GetVerificationStatus(field_type)) {
-        modified_fields.emplace_back(field_type, value, status);
-      }
-    } else {
-      if (!value.empty()) {
-        modified_fields.emplace_back(field_type, value, status);
-      }
+    if (value != profile.GetInfo(field_type, app_locale) ||
+        status != profile.GetVerificationStatus(field_type)) {
+      modified_fields.emplace_back(field_type, value, status);
     }
   }
 
@@ -559,7 +552,7 @@ int AutofillProfile::Compare(const AutofillProfile& profile) const {
 
   // When adding field types, ensure that they don't need to be added here and
   // update the last checked value.
-  static_assert(FieldType::MAX_VALID_FIELD_TYPE == 190,
+  static_assert(FieldType::MAX_VALID_FIELD_TYPE == 203,
                 "New field type needs to be reviewed for inclusion in the "
                 "profile comparison logic.");
 

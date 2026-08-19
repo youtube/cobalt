@@ -105,7 +105,9 @@ public class ClosableTabListEditorTest {
                                     mModalDialogManager,
                                     /* desktopWindowStateManager= */ null,
                                     mEdgeToEdgeSupplier,
-                                    CreationMode.FULL_SCREEN);
+                                    CreationMode.FULL_SCREEN,
+                                    /* undoBarExplicitTrigger= */ null,
+                                    /* componentName= */ null);
 
                     mTabListEditorController = mTabListEditorCoordinator.getController();
                     mTabListEditorLayout =

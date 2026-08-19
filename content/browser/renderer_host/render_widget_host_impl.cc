@@ -247,7 +247,8 @@ std::vector<DropData::Metadata> DropDataToMetaData(const DropData& drop_data) {
   // On Aura, filenames are available before drop.
   for (const auto& file_info : drop_data.filenames) {
     if (!file_info.path.empty()) {
-      metadata.push_back(DropData::Metadata::CreateForFilePath(file_info.path));
+      metadata.push_back(DropData::Metadata::CreateForFilePath(
+          file_info.path, file_info.display_name));
     }
   }
 
@@ -3227,7 +3228,7 @@ void RenderWidgetHostImpl::RequestMouseLock(
   }
 
   delegate_->RequestToLockPointer(this, from_user_gesture,
-                                  is_last_unlocked_by_target_, false);
+                                  is_last_unlocked_by_target_);
   // We need to reset |is_last_unlocked_by_target_| here as we don't know
   // request source in |LostPointerLock()|.
   is_last_unlocked_by_target_ = false;

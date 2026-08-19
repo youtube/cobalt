@@ -1009,7 +1009,8 @@ void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
   if (slot_count() == 0 && create_closure_slot_count() == 0) {
     CHECK_EQ(ReadOnlyRoots(isolate).empty_feedback_metadata(), *this);
   } else {
-    FeedbackMetadataIterator iter(*this);
+    DisallowGarbageCollection no_gc;
+    FeedbackMetadataIterator iter(*this, no_gc);
     while (iter.HasNext()) {
       iter.Next();
       FeedbackSlotKind kind = iter.kind();
@@ -1489,6 +1490,10 @@ void SharedFunctionInfoWrapper::SharedFunctionInfoWrapperVerify(
   Object::VerifyPointer(isolate, shared_info());
 }
 
+void InterpreterData::InterpreterDataVerify(Isolate* isolate) {
+  CHECK(IsInterpreterData(this, isolate));
+}
+
 void JSGlobalProxy::JSGlobalProxyVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSGlobalProxyVerify(*this, isolate);
   CHECK(map()->is_access_check_needed());
@@ -1690,12 +1695,14 @@ void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
 
   Object::ObjectVerify(relocation_info(), isolate);
 
-  for (RelocIterator it(code); !it.done(); it.next()) {
-    it.rinfo()->Verify(isolate);
-    // Ensure that GC will not iterate twice over the same pointer.
-    if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {
-      CHECK(it.rinfo()->pc() != last_gc_pc);
-      last_gc_pc = it.rinfo()->pc();
+  if (!code->marked_for_deoptimization()) {
+    for (RelocIterator it(code); !it.done(); it.next()) {
+      it.rinfo()->Verify(isolate);
+      // Ensure that GC will not iterate twice over the same pointer.
+      if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {
+        CHECK(it.rinfo()->pc() != last_gc_pc);
+        last_gc_pc = it.rinfo()->pc();
+      }
     }
   }
 }
@@ -1949,8 +1956,7 @@ void JSArrayIterator::JSArrayIteratorVerify(Isolate* isolate) {
 
   if (IsJSTypedArray(iterated_object())) {
     // JSTypedArray::length is limited to Smi range.
-    CHECK(IsSmi(next_index()));
-    CHECK_LE(Object::NumberValue(next_index()), Smi::kMaxValue);
+    CHECK_LE(Object::NumberValue(next_index()), kMaxSafeInteger);
   } else if (IsJSArray(iterated_object())) {
     // JSArray::length is limited to Uint32 range.
     CHECK_LE(Object::NumberValue(next_index()), kMaxUInt32);

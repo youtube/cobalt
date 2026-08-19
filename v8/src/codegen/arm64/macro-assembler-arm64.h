@@ -622,6 +622,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // MOPS
   inline void Cpy(const Register& rd, const Register& rs, const Register& rn);
+  inline void Set(const Register& rd, const Register& rn, const Register& rs);
 
   inline void Dmb(BarrierDomain domain, BarrierType type);
   inline void Dsb(BarrierDomain domain, BarrierType type);
@@ -1043,6 +1044,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef);
 
+  void LoadInterpreterDataBytecodeArray(Register destination,
+                                        Register interpreter_data);
+  void LoadInterpreterDataInterpreterTrampoline(Register destination,
+                                                Register interpreter_data);
+
   inline void Fmov(VRegister fd, VRegister fn);
   inline void Fmov(VRegister fd, Register rn);
   // Provide explicit double and float interfaces for FP immediate moves, rather
@@ -1259,6 +1265,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void Abs(const Register& rd, const Register& rn);
   inline void Cnt(const Register& rd, const Register& rn);
   inline void Ctz(const Register& rd, const Register& rn);
+  inline void Smax(const Register& rd, const Register& rn,
+                   const Operand& operand);
+  inline void Smin(const Register& rd, const Register& rn,
+                   const Operand& operand);
+  inline void Umax(const Register& rd, const Register& rn,
+                   const Operand& operand);
+  inline void Umin(const Register& rd, const Register& rn,
+                   const Operand& operand);
 
   // Poke 'src' onto the stack. The offset is in bytes. The stack pointer must
   // be 16 byte aligned.
@@ -2485,7 +2499,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 // emitted is what you specified when creating the scope.
 class V8_NODISCARD InstructionAccurateScope {
  public:
-  explicit InstructionAccurateScope(MacroAssembler* masm, size_t count = 0)
+  explicit InstructionAccurateScope(MacroAssembler* masm, size_t count)
       : masm_(masm),
         block_pool_(masm, count * kInstrSize)
 #ifdef DEBUG
@@ -2493,12 +2507,11 @@ class V8_NODISCARD InstructionAccurateScope {
         size_(count * kInstrSize)
 #endif
   {
+    DCHECK_GT(count, 0);
     masm_->CheckVeneerPool(false, true, count * kInstrSize);
     masm_->StartBlockVeneerPool();
 #ifdef DEBUG
-    if (count != 0) {
-      masm_->bind(&start_);
-    }
+    masm_->bind(&start_);
     previous_allow_macro_instructions_ = masm_->allow_macro_instructions();
     masm_->set_allow_macro_instructions(false);
 #endif
@@ -2507,9 +2520,7 @@ class V8_NODISCARD InstructionAccurateScope {
   ~InstructionAccurateScope() {
     masm_->EndBlockVeneerPool();
 #ifdef DEBUG
-    if (start_.is_bound()) {
-      DCHECK(masm_->SizeOfCodeGeneratedSince(&start_) == size_);
-    }
+    DCHECK(masm_->SizeOfCodeGeneratedSince(&start_) == size_);
     masm_->set_allow_macro_instructions(previous_allow_macro_instructions_);
 #endif
   }

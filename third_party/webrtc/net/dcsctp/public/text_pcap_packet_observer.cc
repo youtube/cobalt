@@ -9,6 +9,9 @@
  */
 #include "net/dcsctp/public/text_pcap_packet_observer.h"
 
+#include <cstdint>
+
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "net/dcsctp/public/types.h"
 #include "rtc_base/logging.h"

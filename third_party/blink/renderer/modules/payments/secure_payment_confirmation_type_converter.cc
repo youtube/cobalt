@@ -10,7 +10,6 @@
 #include "third_party/blink/public/mojom/webauthn/authenticator.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_arraybuffer_arraybufferview.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_client_inputs.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_network_or_issuer_information.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_credential_instrument.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_entity_logo.h"
 #include "third_party/blink/renderer/modules/credentialmanagement/credential_manager_type_converters.h"
@@ -37,7 +36,9 @@ TypeConverter<payments::mojom::blink::SecurePaymentConfirmationRequestPtr,
       input->instrument()->displayName(),
       blink::KURL(input->instrument()->icon()),
       input->instrument()->iconMustBeShown(),
-      input->instrument()->hasDetails() ? input->instrument()->details() : "");
+      // WTF::String()'s empty constructor constructs a 'null' string.
+      input->instrument()->hasDetails() ? input->instrument()->details()
+                                        : blink::String());
 
   if (input->hasPayeeOrigin()) {
     output->payee_origin =
@@ -52,20 +53,6 @@ TypeConverter<payments::mojom::blink::SecurePaymentConfirmationRequestPtr,
     output->extensions =
         ConvertTo<blink::mojom::blink::AuthenticationExtensionsClientInputsPtr>(
             *input->extensions());
-  }
-
-  if (input->hasNetworkInfo()) {
-    output->network_info =
-        payments::mojom::blink::NetworkOrIssuerInformation::New(
-            input->networkInfo()->name(),
-            blink::KURL(input->networkInfo()->icon()));
-  }
-
-  if (input->hasIssuerInfo()) {
-    output->issuer_info =
-        payments::mojom::blink::NetworkOrIssuerInformation::New(
-            input->issuerInfo()->name(),
-            blink::KURL(input->issuerInfo()->icon()));
   }
 
   if (input->hasPaymentEntitiesLogos()) {

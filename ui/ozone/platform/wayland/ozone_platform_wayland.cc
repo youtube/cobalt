@@ -17,6 +17,7 @@
 #include "base/no_destructor.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
+#include "mojo/public/cpp/bindings/binder_map.h"
 #include "ui/base/buildflags.h"
 #include "ui/base/cursor/cursor_factory.h"
 #include "ui/base/dragdrop/os_exchange_data_provider_factory_ozone.h"
@@ -361,6 +362,9 @@ class OzonePlatformWayland : public OzonePlatform,
       // API is implemented.
       properties->supports_color_picker_dialog = false;
 
+      // TODO(crbug.com/425715421): Remove this once support is implemented.
+      properties->supports_split_view_drag_and_drop = false;
+
       initialised = true;
     }
 
@@ -477,6 +481,7 @@ class OzonePlatformWayland : public OzonePlatform,
     // TODO(b/324294360): This will cause a lot of dangling pointers, which
     // breaks linux wayland bot. Fix them and enable on linux as well.
 #if BUILDFLAG(IS_CHROMEOS) || !PA_BUILDFLAG(ENABLE_DANGLING_RAW_PTR_CHECKS)
+    cursor_factory_.reset();
     connection_.reset();
 #endif
   }

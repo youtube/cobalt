@@ -11,6 +11,7 @@
 #ifndef MODULES_AUDIO_DEVICE_TEST_AUDIO_DEVICE_IMPL_H_
 #define MODULES_AUDIO_DEVICE_TEST_AUDIO_DEVICE_IMPL_H_
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -23,6 +24,7 @@
 #include "modules/audio_device/include/test_audio_device.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 

@@ -131,18 +131,39 @@ bool intersect_shape(const Transform& otherToDevice, const Shape& otherShape,
     // coordinate space. This is possible if the relative transform between otherToDevice and
     // localToDevice is rectStaysRect.
     Transform storage{SkM44::kUninitialized_Constructor};
+
+    // We track `local` to `other` and use the `inverseMapRect` functions to map the `otherShape`
+    // into local space when possible. Using `localToOther` instead of `otherToLocal` allows the
+    // common case of a device-space clip (otherToDevice == I) and an axis-aligned draw to
+    // simply use `localToDevice` as `localToOther`.
     const Transform* localToOther;
+
     if (otherToDevice == localToDevice) {
         // No coordinate space conversion, so set to null to signal identity mapping is skippable.
         // NOTE: This case arises in clip-clip combinations when both were axis-aligned and pre-
         // transformed to device space.
         localToOther = nullptr;
+    } else if (otherToDevice.type() == Transform::Type::kIdentity &&
+               localToDevice.type() <= Transform::Type::kRectStaysRect) {
+        // Relative transform is (otherToDevice)^-1*localToDevice = localToDevice
+        localToOther = &localToDevice;
+    } else if (otherToDevice.type() <= Transform::Type::kRectStaysRect &&
+               localToDevice.type() == Transform::Type::kIdentity) {
+        // Relative transform is otherToDevice^-1*localToDevice = otherToDevice^-1
+        // (which may not occur in a common scenario but is harmless). Inverse() is mostly
+        // shuffling bytes around, not recomputing the inverse.
+        storage = Transform::Inverse(otherToDevice);
+        localToOther = &storage;
     } else {
-        // `otherShape` can't be trivially mapped to the local coordinate space
-        // TODO(b/424507089): This isn't actually true, if the relative transforms between the two
-        // preserve rects. The current code preserves the prior behavior for clip-clip combinations
-        // and more complex transform comparisons will be added in follow-up work to measure perf.
-        return false;
+        // Calculate (otherToDevice)^-1*localToDevice and see if the relative transform is
+        // of the right type.
+        storage = Transform(otherToDevice.inverse() * localToDevice);
+        if (storage.type() <= Transform::Type::kRectStaysRect) {
+            localToOther = &storage;
+        } else {
+            // `otherShape` can't be trivially mapped to the local coordinate space
+            return false;
+        }
     }
 
     SkRRect localOtherRRect;
@@ -1391,12 +1412,7 @@ Clip ClipStack::visitClipStackForDraw(const Transform& localToDevice,
 
         // Inverse-filled shapes always fill the entire device (restricted to the clip).
         if (styledShape.inverted()) {
-            // TODO(424506312): This currently preserves prior behavior and is necessary if we
-            // treat all draws as SkClipOp::kIntersect shapes. Switching inverse fills to
-            // kDifference would mean we could keep styledShape in the local space.
-            styledShape.setRect(transformedShapeBounds);
             drawBounds = deviceBounds;
-            shapeInDeviceSpace = true;
         } else {
             drawBounds = transformedShapeBounds.makeIntersect(deviceBounds);
         }
@@ -1426,7 +1442,8 @@ Clip ClipStack::visitClipStackForDraw(const Transform& localToDevice,
     }
 
     // If we made it here, the clip stack affects the draw in a complex way so iterate each element.
-    // A draw is a transformed shape that "intersects" the clip. We use empty inner bounds because
+    // A regular draw is a transformed shape that "intersects" the clip. An inverse-filled draw is
+    // equivalent to "difference". We use empty inner bounds because
     // there's currently no way to re-write the draw as the clip's geometry, so there's no need to
     // check if the draw contains the clip (vice versa is still checked and represents an unclipped
     // draw so is very useful to identify).
@@ -1434,7 +1451,8 @@ Clip ClipStack::visitClipStackForDraw(const Transform& localToDevice,
                           styledShape,
                           /*outerBounds=*/drawBounds,
                           /*innerBounds=*/Rect::InfiniteInverted(),
-                          /*op=*/SkClipOp::kIntersect,
+                          /*op=*/styledShape.inverted() ? SkClipOp::kDifference
+                                                        : SkClipOp::kIntersect,
                           /*containsChecksOnlyBounds=*/true};
 
     SkASSERT(outEffectiveElements);

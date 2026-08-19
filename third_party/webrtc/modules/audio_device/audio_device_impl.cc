@@ -10,8 +10,6 @@
 
 #include "modules/audio_device/audio_device_impl.h"
 
-#include <stddef.h>
-
 #include <cstdint>
 #include <memory>
 #include <utility>

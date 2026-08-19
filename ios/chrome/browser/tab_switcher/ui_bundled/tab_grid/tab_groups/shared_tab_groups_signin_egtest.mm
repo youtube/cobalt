@@ -11,12 +11,13 @@
 #import "components/data_sharing/public/features.h"
 #import "components/data_sharing/public/group_data.h"
 #import "components/data_sharing/test_support/test_utils.h"
+#import "components/signin/public/base/signin_pref_names.h"
+#import "components/strings/grit/components_strings.h"
 #import "components/sync/base/command_line_switches.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_matchers.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_group_app_interface.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_groups_constants.h"
@@ -41,6 +42,7 @@ using ::base::test::ios::kWaitForActionTimeout;
 using chrome_test_util::CreateTabGroupAtIndex;
 using chrome_test_util::FakeJoinFlowView;
 using chrome_test_util::FakeShareFlowView;
+using chrome_test_util::LongPressTabGroupCellAtIndex;
 using chrome_test_util::ManageGroupButton;
 using chrome_test_util::NavigationBarCancelButton;
 using chrome_test_util::NavigationBarSaveButton;
@@ -54,23 +56,6 @@ namespace {
 // Put the number at the beginning to avoid issues with sentence case, as the
 // keyboard default can differ iPhone vs iPad, simulator vs device.
 NSString* const kGroup1Name = @"1group";
-
-// Long press on the given matcher.
-void LongPressOn(id<GREYMatcher> matcher) {
-  // Ensure the element is visible.
-  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:matcher];
-  [ChromeEarlGreyUI waitForAppToIdle];
-  ConditionBlock condition = ^{
-    NSError* error = nil;
-    [[EarlGrey selectElementWithMatcher:matcher] performAction:grey_longPress()
-                                                         error:&error];
-    return error == nil;
-  };
-
-  GREYAssert(base::test::ios::WaitUntilConditionOrTimeout(
-                 base::test::ios::kWaitForUIElementTimeout, condition),
-             @"Long press failed.");
-}
 
 // Waits for the fake join flow view to appear.
 void WaitForFakeJoinFlowView() {
@@ -88,21 +73,12 @@ void WaitForFakeJoinFlowView() {
                  @"The fake join flow view did not appear.");
 }
 
-// Long presses a tab group cell.
-void LongPressTabGroupCellAtIndex(unsigned int index) {
-  // Make sure the cell has appeared. Otherwise, long pressing can be flaky.
-  [ChromeEarlGrey
-      waitForUIElementToAppearWithMatcher:TabGridGroupCellAtIndex(index)];
-  LongPressOn(TabGridGroupCellAtIndex(index));
-}
-
 // Returns the completely configured AppLaunchConfiguration (i.e. setting all
 // the underlying feature dependencies), with the Shared Tab Groups flavor as a
 // parameter.
 AppLaunchConfiguration SharedTabGroupAppLaunchConfiguration(
     bool join_only = false) {
   AppLaunchConfiguration config;
-  config.features_enabled.push_back(kTabGroupSync);
   config.features_enabled.push_back(
       collaboration::features::kCollaborationMessaging);
   config.features_enabled.push_back(
@@ -367,4 +343,37 @@ AppLaunchConfiguration SharedTabGroupAppLaunchConfiguration(
   [ChromeEarlGrey waitForMainTabCount:2];
 }
 
+// Tests joining a group when sign in is disabled.
+- (void)testJoinGroupSignedInDisabled {
+  [ChromeEarlGrey setBoolValue:NO forUserPref:prefs::kSigninAllowed];
+
+  [TabGroupAppInterface mockSharedEntitiesPreview];
+  GURL joinGroupURL = data_sharing::GetDataSharingUrl(data_sharing::GroupToken(
+      data_sharing::GroupId("resources%2F3be"), "CggHBicxA_slvx"));
+  [ChromeEarlGrey loadURL:joinGroupURL waitForCompletion:NO];
+
+  // Check that a sign in disabled alert is presented.
+  [[EarlGrey selectElementWithMatcher:grey_text(l10n_util::GetNSString(
+                                          IDS_COLLABORATION_SIGNED_OUT_HEADER))]
+      assertWithMatcher:grey_sufficientlyVisible()];
+  [[EarlGrey selectElementWithMatcher:grey_text(l10n_util::GetNSString(
+                                          IDS_COLLABORATION_SIGNED_OUT_BODY))]
+      assertWithMatcher:grey_sufficientlyVisible()];
+}
+
+// Tests sharing a group when sign in is disabled.
+- (void)testShareGroupSignedInDisabled {
+  [ChromeEarlGrey setBoolValue:NO forUserPref:prefs::kSigninAllowed];
+
+  // Open the tab grid.
+  [ChromeEarlGreyUI openTabGrid];
+
+  // Create a tab group with an item at 0.
+  CreateTabGroupAtIndex(0, kGroup1Name);
+
+  // Check that the share action is not available.
+  LongPressTabGroupCellAtIndex(0);
+  [[EarlGrey selectElementWithMatcher:ShareGroupButton()]
+      assertWithMatcher:grey_notVisible()];
+}
 @end

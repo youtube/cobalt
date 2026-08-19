@@ -11,11 +11,36 @@
 #include "audio/voip/voip_core.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <map>
 #include <memory>
+#include <optional>
 #include <utility>
+#include <vector>
 
+#include "api/array_view.h"
+#include "api/audio/audio_device.h"
+#include "api/audio/audio_processing.h"
+#include "api/audio_codecs/audio_decoder_factory.h"
+#include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/audio_codecs/audio_format.h"
+#include "api/call/transport.h"
+#include "api/environment/environment.h"
+#include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
+#include "api/voip/voip_base.h"
+#include "api/voip/voip_dtmf.h"
+#include "api/voip/voip_statistics.h"
+#include "api/voip/voip_volume_control.h"
+#include "audio/audio_transport_impl.h"
+#include "audio/voip/audio_channel.h"
+#include "call/audio_sender.h"
+#include "modules/audio_mixer/audio_mixer_impl.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/random.h"
+#include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 

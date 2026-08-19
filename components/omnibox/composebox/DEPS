@@ -2,6 +2,7 @@ include_rules = [
   "+components/endpoint_fetcher",
   "+components/lens",
   "+components/search",
+  "+components/search_engines",
   "+components/signin/public/base",
   "+components/signin/public/identity_manager",
   "+components/signin/public/identity_manager_factory",
@@ -10,5 +11,8 @@ include_rules = [
   "+net",
   "+services/network/public/cpp",
   "+services/network/test",
+  "+third_party/icu",
   "+third_party/lens_server_proto",
+  "+third_party/skia",
+  "+ui/gfx",
 ]

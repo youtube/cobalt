@@ -34,6 +34,10 @@ static inline void br_memset(br_word_t d, br_word_t v, br_word_t n) {
   OPENSSL_memset((void *)d, v, n);
 }
 
+static inline void br_memcxor(uintptr_t d, uintptr_t s, uintptr_t n, uintptr_t mask) {
+  constant_time_conditional_memxor((void*)d, (void*)s, n, mask);
+}
+
 // CPU Arithmetic
 
 static inline br_word_t br_full_add(br_word_t x, br_word_t y, br_word_t carry,

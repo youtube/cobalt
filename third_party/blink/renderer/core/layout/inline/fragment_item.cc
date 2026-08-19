@@ -76,7 +76,7 @@ FragmentItem::FragmentItem(const LayoutObject& layout_object,
                            const String& text_content,
                            const PhysicalSize& size,
                            bool is_hidden_for_paint)
-    : generated_text_({shape_result, text_content}),
+    : generated_text_({shape_result, nullptr, text_content}),
       rect_({PhysicalOffset(), size}),
       layout_object_(&layout_object),
       const_type_(kGeneratedText),
@@ -170,6 +170,7 @@ FragmentItem::FragmentItem(LogicalLineItem&& line_item,
           line_item.is_hidden_for_paint);
       has_over_annotation_ = line_item.has_over_annotation;
       has_under_annotation_ = line_item.has_under_annotation;
+      SetFitTextScale(line_item.fit_text_scale);
       return;
     }
 
@@ -180,6 +181,7 @@ FragmentItem::FragmentItem(LogicalLineItem&& line_item,
                      line_item.is_hidden_for_paint);
     has_over_annotation_ = line_item.has_over_annotation;
     has_under_annotation_ = line_item.has_under_annotation;
+    SetFitTextScale(line_item.fit_text_scale);
     return;
   }
 
@@ -198,6 +200,7 @@ FragmentItem::FragmentItem(LogicalLineItem&& line_item,
                      std::move(line_item.shape_result), line_item.text_content,
                      ToPhysicalSize(line_item.MarginSize(), writing_mode),
                      line_item.is_hidden_for_paint);
+    SetFitTextScale(line_item.fit_text_scale);
     return;
   }
 
@@ -766,6 +769,44 @@ const Font& FragmentItem::ScaledFont() const {
           DynamicTo<LayoutSVGInlineText>(GetLayoutObject()))
     return svg_inline_text->ScaledFont();
   return *Style().GetFont();
+}
+
+void FragmentItem::SetFitTextScale(FitTextScale scale) {
+  if (scale.scale == 1.0f) {
+    return;
+  }
+  auto* data = MakeGarbageCollected<SvgFragmentData>();
+  data->scale_type = scale.is_scaled_inline_only ? TextScaleType::kFitTextInline
+                                                 : TextScaleType::kFitText;
+  data->length_adjust_scale = scale.scale;
+  if (Type() == kText) {
+    text_.svg_data = data;
+  } else if (Type() == kGeneratedText) {
+    generated_text_.extra_data = data;
+  } else {
+    // Do not call this function for this Type().
+    NOTREACHED();
+  }
+  DCHECK_EQ(scale.scale, GetFitTextScale().scale);
+}
+
+FitTextScale FragmentItem::GetFitTextScale() const {
+  if (Type() == kText) {
+    if (const auto* data = text_.svg_data.Get()) {
+      auto type = data->scale_type;
+      if (type != TextScaleType::kLengthAdjust) {
+        return {data->length_adjust_scale,
+                type == TextScaleType::kFitTextInline};
+      }
+    }
+  } else if (Type() == kGeneratedText) {
+    if (const auto* data = generated_text_.extra_data.Get()) {
+      auto type = data->scale_type;
+      DCHECK(!data->IsSvg());
+      return {data->length_adjust_scale, type == TextScaleType::kFitTextInline};
+    }
+  }
+  return {};
 }
 
 String FragmentItem::ToString() const {

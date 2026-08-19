@@ -285,6 +285,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
             false, // Do not start a separate GPU process
             // TODO(b/377025565): Figure out what this means
             false, // Do not start in "minimal" or paused mode
+            /* singleProcess= */ true, // Cobalt always runs in single-process mode
+            /* scheduleFlushStartupTasks= */ false,
             new BrowserStartupController.StartupCallback() {
               @Override
               public void onSuccess() {

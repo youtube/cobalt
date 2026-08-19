@@ -224,7 +224,12 @@ void LossBasedBweV2::UpdateBandwidthEstimate(
     NewtonsMethodUpdate(candidate);
 
     const double candidate_objective = GetObjective(candidate);
-    if (candidate_objective > objective_max) {
+    if (candidate_objective > objective_max ||
+        (candidate_objective == objective_max &&
+         candidate.loss_limited_bandwidth >
+             best_candidate.loss_limited_bandwidth)) {
+      // Select the candidate with the highest objective or the one with the
+      // same objective but higher bandwidth if they are tied.
       objective_max = candidate_objective;
       best_candidate = candidate;
     }

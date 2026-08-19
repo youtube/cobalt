@@ -40,6 +40,7 @@
 import argparse
 import re
 import pathlib
+import os
 import subprocess
 import sys
 from typing import Tuple
@@ -73,7 +74,26 @@ _IGNORED_HEADERS = [
     "pipewire/.*.h",  # pipewire.
     "spa/.*.h",  # pipewire.
     "openssl/.*.h",  # openssl/boringssl.
+    "alsa/.*.h",  # ALSA.
+    "pulse/.*.h",  # PulseAudio.
 ]
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR = os.path.abspath(os.path.join(_SCRIPT_DIR, os.pardir, os.pardir))
+sys.path.append(os.path.join(_SRC_DIR, "build"))
+import find_depot_tools
+
+_GN_BINARY_PATH = os.path.join(find_depot_tools.DEPOT_TOOLS_PATH, "gn.py")
+
+
+# Check that the file is part of a build target on this platform.
+def _is_built(filename, work_dir):
+    gn_cmd = (_GN_BINARY_PATH, "refs", "-C", work_dir, filename)
+    gn_result = subprocess.run(gn_cmd,
+                               capture_output=True,
+                               text=True,
+                               check=False)
+    return gn_result.returncode == 0
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -191,7 +211,6 @@ def _modified_content(content: str) -> str:
     return modified_content
 
 
-
 # Transitioning the cmd type to tuple to prevent modification of
 # the original command from the callsite in main...
 def apply_include_cleaner_to_file(file_path: pathlib.Path, should_modify: bool,
@@ -265,6 +284,10 @@ def main() -> None:
     # do `cleaner foo.cc bar.cc`
     for file in args.files:
         if not file.suffix in _SUFFICES:
+            continue
+        if not _is_built(file, args.work_dir):
+            print(
+                f"Skipping include cleaner as {file} is not referenced by GN.")
             continue
         changes_generated = bool(
             apply_include_cleaner_to_file(file, should_modify, tuple(cmd))

@@ -56,11 +56,14 @@ if (is_android) {
 
     deps = [
       ":generated_jni",
+      "../../api:array_view",
       "../../api/audio:builtin_audio_processing_builder",
       "../../api/environment:environment_factory",
       "../../rtc_base:async_packet_socket",
       "../../rtc_base:async_udp_socket",
+      "../../rtc_base:checks",
       "../../rtc_base:logging",
+      "../../rtc_base:macromagic",
       "../../rtc_base:network",
       "../../rtc_base:socket_address",
       "../../rtc_base:socket_server",
@@ -78,6 +81,7 @@ if (is_android) {
       "//sdk/android:native_api_base",
       "//sdk/android:native_api_jni",
       "//third_party/abseil-cpp/absl/memory:memory",
+      "//third_party/jni_zero",
     ]
   }
 

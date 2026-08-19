@@ -82,7 +82,6 @@
 #include "third_party/blink/renderer/platform/graphics/bitmap_image.h"
 #include "third_party/blink/renderer/platform/graphics/blend_mode.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_deferred_paint_record.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_host.h"
 #include "third_party/blink/renderer/platform/graphics/flush_reason.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #if !BUILDFLAG(IS_COBALT)
@@ -1503,13 +1502,13 @@ GPUTexture* BaseRenderingContext2D::transferToGPUTexture(
   // host is already accelerated.
   // TODO(crbug.com/340911120): if the user requested WillReadFrequently, do we
   // want to behave differently here?
-  const bool host_is_accelerated = host->EnableAccelerationForCanvas2D();
+  EnableAccelerationIfPossible();
 
   // A texture needs to exist on the GPU. If we aren't able to enable
   // acceleration, the canvas pixels live on the CPU and we weren't able to
   // transfer them; in that case, WebGPU access is not possible.
   CanvasResourceProvider* provider = GetOrCreateCanvas2DResourceProvider();
-  if (!host_is_accelerated || !provider || !provider->IsAccelerated()) {
+  if (!provider || !provider->IsAccelerated()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       "Unable to transfer canvas to GPU.");
     return nullptr;
@@ -1630,7 +1629,7 @@ void BaseRenderingContext2D::transferBackFromGPUTexture(
       resource_provider_from_webgpu_access_.get();
   host->ReplaceResourceProviderForCanvas2D(
       std::move(resource_provider_from_webgpu_access_));
-  resource_provider->SetCanvasResourceHost(host);
+  resource_provider->SetDelegate(host);
 
   // Disassociate the WebGPU texture from the SharedImage to end its
   // SharedImage access.

@@ -9,8 +9,10 @@
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/passwords/views_utils.h"
+#include "chrome/grit/browser_resources.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/views/controls/button/image_button.h"
@@ -174,7 +176,7 @@ ui::ImageModel PasswordAddUsernameView::GetWindowIcon() {
 }
 
 void PasswordAddUsernameView::AddedToWidget() {
-  SetBubbleHeader(IDR_SAVE_PASSWORD, IDR_SAVE_PASSWORD_DARK);
+  SetBubbleHeaderLottie(IDR_AUTOFILL_SAVE_PASSWORD_LOTTIE);
 }
 
 void PasswordAddUsernameView::UpdateUsernameInModel() {

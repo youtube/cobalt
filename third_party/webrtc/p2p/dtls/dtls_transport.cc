@@ -17,6 +17,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
@@ -648,11 +649,12 @@ void DtlsTransportInternalImpl::ConnectToIceTransport() {
             }
             return std::make_pair(data, ack);
           },
-          [&](auto data, auto ack) {
+          [&](std::optional<ArrayView<uint8_t>> data,
+              std::optional<std::vector<uint32_t>> acks) {
             if (!dtls_in_stun_) {
               return;
             }
-            dtls_stun_piggyback_controller_.ReportDataPiggybacked(data, ack);
+            dtls_stun_piggyback_controller_.ReportDataPiggybacked(data, acks);
           }));
   SetPiggybackDtlsDataCallback([this](PacketTransportInternal* transport,
                                       const ReceivedIpPacket& packet) {

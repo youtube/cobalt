@@ -149,7 +149,7 @@ void EmitS128Load(InstructionSelector* selector, OpIndex node,
 void InstructionSelector::VisitStoreLane(OpIndex node) {
   const Simd128LaneMemoryOp& store = Get(node).Cast<Simd128LaneMemoryOp>();
   InstructionCode opcode = kRiscvS128StoreLane;
-  opcode |= LaneSizeField::encode(store.lane_size() * kBitsPerByte);
+  opcode |= EncodeElementWidth(ByteSizeToSew(store.lane_size()));
   if (store.kind.with_trap_handler) {
     opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
@@ -174,7 +174,7 @@ void InstructionSelector::VisitStoreLane(OpIndex node) {
 void InstructionSelector::VisitLoadLane(OpIndex node) {
   const Simd128LaneMemoryOp& load = this->Get(node).Cast<Simd128LaneMemoryOp>();
   InstructionCode opcode = kRiscvS128LoadLane;
-  opcode |= LaneSizeField::encode(load.lane_size() * kBitsPerByte);
+  opcode |= EncodeElementWidth(ByteSizeToSew(load.lane_size()));
   if (load.kind.with_trap_handler) {
     opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
@@ -1187,6 +1187,28 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(OpIndex node) {
     VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord32);
 }
 
+void InstructionSelector::VisitTaggedAtomicCompareExchange(OpIndex node) {
+  RiscvOperandGenerator g(this);
+  const AtomicRMWOp& atomic_op = Cast<AtomicRMWOp>(node);
+  OpIndex base = atomic_op.base();
+  OpIndex index = atomic_op.index();
+  OpIndex old_value = atomic_op.expected().value();
+  OpIndex new_value = atomic_op.value();
+  InstructionOperand inputs[] = {
+      g.UseUniqueRegister(base),
+      g.UseUniqueRegister(index),
+      g.UseUniqueRegister(old_value),
+      g.UseUniqueRegister(new_value),
+  };
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
+                                g.TempRegister()};
+  InstructionCode code = kAtomicCompareExchangeWithWriteBarrier |
+                         AddressingModeField::encode(kMode_MRR);
+  Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+       arraysize(temps), temps);
+}
+
 void InstructionSelector::VisitWord32AtomicBinaryOperation(
     OpIndex node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
@@ -1494,67 +1516,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(OpIndex node) {
        temps);
 }
 
-void InstructionSelector::VisitF64x2Min(OpIndex node) {
-  RiscvOperandGenerator g(this);
-  InstructionOperand temp1 = g.TempFpRegister(v0);
-  InstructionOperand mask_reg = g.TempFpRegister(v0);
-  InstructionOperand temp2 = g.TempFpRegister(kSimd128ScratchReg);
-  const int32_t kNaN = 0x7ff80000L, kNaNShift = 32;
-  const Operation& op = this->Get(node);
-  DCHECK_EQ(op.input_count, 2);
-  this->Emit(kRiscvVmfeqVv, temp1, g.UseRegister(op.input(0)),
-             g.UseRegister(op.input(0)), g.UseImmediate(E64),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVmfeqVv, temp2, g.UseRegister(op.input(1)),
-             g.UseRegister(op.input(1)), g.UseImmediate(E64),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVandVv, mask_reg, temp2, temp1, g.UseImmediate(E64),
-             g.UseImmediate(m1));
-
-  InstructionOperand temp3 = g.TempFpRegister(kSimd128ScratchReg);
-  InstructionOperand temp4 = g.TempFpRegister(kSimd128ScratchReg);
-  InstructionOperand temp5 = g.TempFpRegister(kSimd128ScratchReg);
-  this->Emit(kRiscvVmv, temp3, g.UseImmediate(kNaN), g.UseImmediate(E64),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVsll, temp4, temp3, g.UseImmediate(kNaNShift),
-             g.UseImmediate(E64), g.UseImmediate(m1));
-  this->Emit(kRiscvVfminVv, temp5, g.UseRegister(op.input(1)),
-             g.UseRegister(op.input(0)), g.UseImmediate(E64),
-             g.UseImmediate(m1), g.UseImmediate(Mask));
-  this->Emit(kRiscvVmv, g.DefineAsRegister(node), temp5, g.UseImmediate(E64),
-             g.UseImmediate(m1));
-}
-
-void InstructionSelector::VisitF64x2Max(OpIndex node) {
-  RiscvOperandGenerator g(this);
-  InstructionOperand temp1 = g.TempFpRegister(v0);
-  InstructionOperand mask_reg = g.TempFpRegister(v0);
-  InstructionOperand temp2 = g.TempFpRegister(kSimd128ScratchReg);
-  const int32_t kNaN = 0x7ff80000L, kNaNShift = 32;
-  const Operation& op = this->Get(node);
-  DCHECK_EQ(op.input_count, 2);
-  this->Emit(kRiscvVmfeqVv, temp1, g.UseRegister(op.input(0)),
-             g.UseRegister(op.input(0)), g.UseImmediate(E64),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVmfeqVv, temp2, g.UseRegister(op.input(1)),
-             g.UseRegister(op.input(1)), g.UseImmediate(E64),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVandVv, mask_reg, temp2, temp1, g.UseImmediate(E64),
-             g.UseImmediate(m1));
-
-  InstructionOperand temp3 = g.TempFpRegister(kSimd128ScratchReg);
-  InstructionOperand temp4 = g.TempFpRegister(kSimd128ScratchReg);
-  InstructionOperand temp5 = g.TempFpRegister(kSimd128ScratchReg);
-  this->Emit(kRiscvVmv, temp3, g.UseImmediate(kNaN), g.UseImmediate(E64),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVsll, temp4, temp3, g.UseImmediate(kNaNShift),
-             g.UseImmediate(E64), g.UseImmediate(m1));
-  this->Emit(kRiscvVfmaxVv, temp5, g.UseRegister(op.input(1)),
-             g.UseRegister(op.input(0)), g.UseImmediate(E64),
-             g.UseImmediate(m1), g.UseImmediate(Mask));
-  this->Emit(kRiscvVmv, g.DefineAsRegister(node), temp5, g.UseImmediate(E64),
-             g.UseImmediate(m1));
-}
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

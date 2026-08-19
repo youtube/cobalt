@@ -254,6 +254,11 @@ bool NetEqImpl::RegisterPayloadType(int rtp_payload_type,
          DecoderDatabase::kOK;
 }
 
+bool NetEqImpl::CreateDecoder(int rtp_payload_type) {
+  MutexLock lock(&mutex_);
+  return decoder_database_->GetDecoder(rtp_payload_type) != nullptr;
+}
+
 int NetEqImpl::RemovePayloadType(uint8_t rtp_payload_type) {
   MutexLock lock(&mutex_);
   int ret = decoder_database_->Remove(rtp_payload_type);

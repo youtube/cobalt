@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/auto_reset.h"
 #include "base/base_export.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
@@ -55,14 +56,9 @@
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "third_party/perfetto/protos/perfetto/trace/track_event/log_message.pbzero.h"
 
-#if !BUILDFLAG(IS_NACL)
-#include "base/auto_reset.h"
-#include "base/debug/crash_logging.h"
-#endif  // !BUILDFLAG(IS_NACL)
-
-#if defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
+#if defined(LEAK_SANITIZER)
 #include "base/debug/leak_annotations.h"
-#endif  // defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
+#endif  // defined(LEAK_SANITIZER)
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
@@ -97,10 +93,6 @@ typedef HANDLE FileHandle;
 
 #include "base/posix/safe_strerror.h"
 
-#if BUILDFLAG(IS_NACL)
-#include <sys/time.h>  // timespec doesn't seem to be in <time.h>
-#endif
-
 #define MAX_PATH PATH_MAX
 typedef FILE* FileHandle;
 #endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
@@ -129,7 +121,7 @@ typedef FILE* FileHandle;
 #include "base/fuchsia/scoped_fx_logger.h"
 #endif
 
-#if !BUILDFLAG(IS_NACL) && (!BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC))
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
 #include "base/logging/rust_logger.rs.h"
 #endif
 
@@ -183,7 +175,7 @@ std::unique_ptr<VlogInfo> VlogInfoFromCommandLine() {
       !command_line->HasSwitch(switches::kVModule)) {
     return nullptr;
   }
-#if defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
+#if defined(LEAK_SANITIZER)
   // See comments on |g_vlog_info|.
   ScopedLeakSanitizerDisabler lsan_disabler;
 #endif  // defined(LEAK_SANITIZER)
@@ -278,10 +270,6 @@ uint64_t TickCount() {
       static_cast<zx_time_t>(base::Time::kNanosecondsPerMicrosecond));
 #elif BUILDFLAG(IS_APPLE)
   return mach_absolute_time();
-#elif BUILDFLAG(IS_NACL)
-  // NaCl sadly does not have _POSIX_TIMERS enabled in sys/features.h
-  // So we have to use clock() for now.
-  return clock();
 #elif BUILDFLAG(IS_POSIX)
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -296,8 +284,6 @@ uint64_t TickCount() {
 void DeleteFilePath(const PathString& log_name) {
 #if BUILDFLAG(IS_WIN)
   DeleteFile(log_name.c_str());
-#elif BUILDFLAG(IS_NACL)
-  // Do nothing; unlink() isn't supported on NaCl.
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   unlink(log_name.c_str());
 #else
@@ -497,7 +483,6 @@ void WriteToFd(int fd, const char* data, size_t length) {
 #endif
 
 void SetLogFatalCrashKey(LogMessage* log_message) {
-#if !BUILDFLAG(IS_NACL)
   // In case of an out-of-memory condition, this code could be reentered when
   // constructing and storing the key. Using a static is not thread-safe, but if
   // multiple threads are in the process of a fatal crash at the same time, this
@@ -514,8 +499,6 @@ void SetLogFatalCrashKey(LogMessage* log_message) {
   static auto* const crash_key = base::debug::AllocateCrashKeyString(
       "LOG_FATAL", base::debug::CrashKeySize::Size1024);
   base::debug::SetCrashKeyString(crash_key, log_message->BuildCrashString());
-
-#endif  // !BUILDFLAG(IS_NACL)
 }
 
 std::string BuildCrashString(const char* file,
@@ -565,12 +548,6 @@ BASE_EXPORT logging::LogSeverity LOGGING_DCHECK = LOGGING_ERROR;
 std::ostream* g_swallow_stream;
 
 bool BaseInitLoggingImpl(const LoggingSettings& settings) {
-#if BUILDFLAG(IS_NACL)
-  // Can log only to the system debug log and stderr.
-  CHECK_EQ(settings.logging_dest & ~(LOG_TO_SYSTEM_DEBUG_LOG | LOG_TO_STDERR),
-           0u);
-#endif
-
 #if BUILDFLAG(IS_CHROMEOS)
   g_log_format = settings.log_format;
 #endif
@@ -585,7 +562,7 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
   }
 #endif
 
-#if !BUILDFLAG(IS_NACL) && (!BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC))
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   // Connects Rust logging with the //base logging functionality.
   internal::init_rust_log_crate();
 #endif
@@ -781,8 +758,7 @@ void LogMessage::Flush() {
   base::ScopedClearLastError scoped_clear_last_error;
 
   size_t stack_start = stream_.str().length();
-#if !defined(OFFICIAL_BUILD) && !BUILDFLAG(IS_NACL) && !defined(__UCLIBC__) && \
-    !BUILDFLAG(IS_AIX)
+#if !defined(OFFICIAL_BUILD) && !defined(__UCLIBC__) && !BUILDFLAG(IS_AIX)
   // Include a stack trace on a fatal, unless a debugger is attached.
   if (severity_ == LOGGING_FATAL && !base::debug::BeingDebugged()) {
     base::debug::StackTrace stack_trace;
@@ -1426,7 +1402,7 @@ void ScopedVmoduleSwitches::InitWithSwitches(
   // Make sure we are only initialized once.
   CHECK(!scoped_vlog_info_);
   {
-#if defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
+#if defined(LEAK_SANITIZER)
     // See comments on |g_vlog_info|.
     ScopedLeakSanitizerDisabler lsan_disabler;
 #endif  // defined(LEAK_SANITIZER)

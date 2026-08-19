@@ -38,6 +38,7 @@
 <translation id="1547469039832541117">Kończy wyróżnione zadanie.</translation>
 <translation id="1553461853655228091">Aby utworzyć mapę 3D Twojego otoczenia, Chromium potrzebuje uprawnień dostępu do kamery</translation>
 <translation id="1555494096857516577">{NUM_EXTENSIONS,plural, =1{To rozszerzenie nie jest już obsługiwane. Chromium zaleca jego usunięcie.}few{Te rozszerzenia nie są już obsługiwane. Chromium zaleca ich usunięcie.}many{Te rozszerzenia nie są już obsługiwane. Chromium zaleca ich usunięcie.}other{Te rozszerzenia nie są już obsługiwane. Chromium zaleca ich usunięcie.}}</translation>
+<translation id="1562320819937089394">Przypnij Chromium</translation>
 <translation id="1574377791422810894">Narzędzia bezpieczeństwa Chromium</translation>
 <translation id="1594928384848033697">Chromium chce usunąć Twoje dane z Menedżera haseł. Aby na to zezwolić, podaj hasło do systemu Windows.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{Administrator wymaga ponownego uruchomienia Chromium, by przeglądarka mogła zainstalować aktualizację}=1{Administrator wymaga ponownego uruchomienia Chromium, by przeglądarka mogła zainstalować aktualizację. Okno incognito nie otworzy się ponownie.}few{Administrator wymaga ponownego uruchomienia Chromium, by przeglądarka mogła zainstalować aktualizację. # okna incognito nie otworzą się ponownie.}many{Administrator wymaga ponownego uruchomienia Chromium, by przeglądarka mogła zainstalować aktualizację. # okien incognito nie otworzy się ponownie.}other{Administrator wymaga ponownego uruchomienia Chromium, by przeglądarka mogła zainstalować aktualizację. # okna incognito nie otworzy się ponownie.}}</translation>
@@ -244,6 +245,7 @@
 <translation id="4281844954008187215">Warunki korzystania z usługi</translation>
 <translation id="4285930937574705105">Instalacja nie powiodła się z powodu nieokreślonego błędu. Jeśli Chromium jest aktualnie uruchomiony, zamknij go i spróbuj ponownie.</translation>
 <translation id="4304713468139749426">Menedżer haseł</translation>
+<translation id="4334241893986177674">Przeszukaj ten zrzut ekranu</translation>
 <translation id="4334294535648607276">Pobieranie ukończone.</translation>
 <translation id="439358628917130594"><ph name="MANAGER" /> wymaga, aby przed korzystaniem z tego urządzenia przeczytać i zaakceptować Warunki korzystania z usługi. Nie rozszerzają, nie zmieniają ani nie ograniczają one Warunków korzystania z Chromium OS.</translation>
 <translation id="4407044323746248786">Zamknąć Chromium mimo to?</translation>
@@ -517,6 +519,7 @@ Chromium nie może odzyskać ustawień.</translation>
 <translation id="8004582292198964060">Przeglądarka</translation>
 <translation id="8010081455002666927">Wykrywaj automatycznie</translation>
 <translation id="8013436988911883588">Gdy Chromium będzie mieć dostęp, strony będą mogły prosić Cię o dostęp.</translation>
+<translation id="8031714377769448844">Przypnij przeglądarkę Chromium do paska zadań, aby mieć do niej szybki dostęp</translation>
 <translation id="80471789339884597">Dziękujemy za instalację. Przed rozpoczęciem korzystania z programu <ph name="BUNDLE_NAME" /> musisz ponownie uruchomić wszystkie przeglądarki.</translation>
 <translation id="8054112667659782652">Zawsze pokazuj skrót do wyszukiwania obrazów</translation>
 <translation id="8077498902115777962">Wyłącz działanie Chromium w tle w przypadku aplikacji</translation>
@@ -572,6 +575,7 @@ Chromium nie może odzyskać ustawień.</translation>
 <translation id="8704119203788522458">Oto Twoja przeglądarka Chromium</translation>
 <translation id="8719993436687031146">Chcesz zalogować się w Chromium?</translation>
 <translation id="8747073452963259673">lewy dolny róg obszaru wyszukiwania: po lewej stronie <ph name="LEFT" />%, u dołu <ph name="BOTTOM" />%</translation>
+<translation id="8768722695577490596">Hasła można usuwać tylko poza Chromium</translation>
 <translation id="878572486461146056">Błąd instalacji: administrator sieci zastosował zasady grupy, które uniemożliwiają instalację: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8796602469536043152">Chromium potrzebuje uprawnień dostępu do aparatu i mikrofonu na tej stronie</translation>
 <translation id="8818550178040858407">Chcesz zalogować się w Chromium?</translation>

@@ -10,9 +10,8 @@
 
 #include "modules/audio_coding/audio_network_adaptor/event_log_writer.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <memory>
 #include <optional>

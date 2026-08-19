@@ -10,16 +10,22 @@
 
 #include "modules/audio_device/audio_device_buffer.h"
 
-#include <string.h>
-
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <optional>
 
+#include "api/audio/audio_device_defines.h"
+#include "api/sequence_checker.h"
+#include "api/task_queue/task_queue_factory.h"
+#include "api/units/time_delta.h"
 #include "common_audio/signal_processing/include/signal_processing_library.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/time_utils.h"
+#include "rtc_base/timestamp_aligner.h"
 #include "rtc_base/trace_event.h"
 #include "system_wrappers/include/metrics.h"
 

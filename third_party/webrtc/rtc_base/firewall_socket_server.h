@@ -127,21 +127,5 @@ class FirewallManager {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::FD_ANY;
-using ::webrtc::FD_IN;
-using ::webrtc::FD_OUT;
-using ::webrtc::FirewallDirection;
-using ::webrtc::FirewallManager;
-using ::webrtc::FirewallProtocol;
-using ::webrtc::FirewallSocketServer;
-using ::webrtc::FP_ANY;
-using ::webrtc::FP_TCP;
-using ::webrtc::FP_UDP;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_FIREWALL_SOCKET_SERVER_H_

@@ -63,7 +63,7 @@
 #include "rtc_base/byte_buffer.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "system_wrappers/include/ntp_time.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/mock_transport.h"
@@ -74,7 +74,6 @@ namespace webrtc {
 
 namespace {
 
-using test::ExplicitKeyValueConfig;
 using ::testing::_;
 using ::testing::DoubleNear;
 using ::testing::ElementsAre;
@@ -187,10 +186,9 @@ class RtpVideoStreamReceiver2Test : public ::testing::Test,
   RtpVideoStreamReceiver2Test() : RtpVideoStreamReceiver2Test("") {}
   explicit RtpVideoStreamReceiver2Test(std::string field_trials)
       : time_controller_(Timestamp::Millis(100)),
-        env_(CreateEnvironment(
-            std::make_unique<ExplicitKeyValueConfig>(field_trials),
-            time_controller_.GetClock(),
-            time_controller_.GetTaskQueueFactory())),
+        env_(CreateEnvironment(CreateTestFieldTrialsPtr(field_trials),
+                               time_controller_.GetClock(),
+                               time_controller_.GetTaskQueueFactory())),
         task_queue_(time_controller_.GetTaskQueueFactory()->CreateTaskQueue(
             "RtpVideoStreamReceiver2Test",
             TaskQueueFactory::Priority::NORMAL)),

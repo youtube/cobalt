@@ -216,7 +216,7 @@ std::unique_ptr<Recorder> Context::makeInternalRecorder() const {
     return std::unique_ptr<Recorder>(new Recorder(fSharedContext, {}, this));
 }
 
-bool Context::insertRecording(const InsertRecordingInfo& info) {
+InsertStatus Context::insertRecording(const InsertRecordingInfo& info) {
     ASSERT_SINGLE_OWNER
 
     return fQueueManager->addRecording(info, this);
@@ -367,6 +367,7 @@ void Context::asyncReadPixels(std::unique_ptr<Recorder> recorder,
             recorder = this->makeInternalRecorder();
         }
         sk_sp<SkImage> flattened = CopyAsDraw(recorder.get(),
+                                              /*drawContext=*/nullptr,
                                               params.fSrcImage,
                                               params.fSrcRect,
                                               params.fDstImageInfo.colorInfo(),

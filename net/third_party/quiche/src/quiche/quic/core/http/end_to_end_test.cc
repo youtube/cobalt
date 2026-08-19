@@ -116,6 +116,7 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
@@ -6071,6 +6072,69 @@ TEST_P(EndToEndTest, ClientMultiPortMigrationOnPathDegrading) {
   stream->Reset(QuicRstStreamErrorCode::QUIC_STREAM_NO_ERROR);
 }
 
+TEST_P(EndToEndTest, ClientMultiPortMigrationOnPathDegradingOnRTO) {
+  client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC, kMPR1, kMPQM});
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames()) {
+    return;
+  }
+  client_.reset(EndToEndTest::CreateQuicClient(nullptr));
+  ASSERT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+
+  QuicConnection* client_connection = GetClientConnection();
+  QuicSpdyClientStream* stream = client_->GetOrCreateStream();
+  ASSERT_TRUE(stream);
+
+  // Increase the probing frequency to speed up this test.
+  client_connection->SetMultiPortProbingInterval(
+      QuicTime::Delta::FromMilliseconds(100));
+
+  SendSynchronousFooRequestAndCheckResponse();
+
+  // If no multiport connection is established, induce the client to validate an
+  // alternative path.
+  server_writer_->set_fake_packet_loss_percentage(100);
+  EXPECT_TRUE(client_->WaitUntil(1000, [&]() {
+    return client_connection->multi_port_stats()
+               ->num_multi_port_paths_created == 1;
+  }));
+  server_writer_->set_fake_packet_loss_percentage(0);
+
+  // Verify that the probing is triggered after multiport connection is
+  // established.
+  EXPECT_TRUE(client_->WaitUntil(1000, [&]() {
+    return 1u == client_connection->GetStats().num_path_response_received;
+  }));
+
+  auto original_self_addr = client_connection->self_address();
+  // Trigger client side path degrading
+  client_connection->OnPathDegradingDetected();
+  // Verify that the client address has changed due to migration.
+  EXPECT_NE(original_self_addr, client_connection->self_address());
+
+  // Send another request to trigger connection id retirement.
+  SendSynchronousFooRequestAndCheckResponse();
+  EXPECT_EQ(1u, client_connection->GetStats().num_retire_connection_id_sent);
+
+  // Verify new alternate path is created.
+  WaitForNewConnectionIds();
+  // Send another request to make sure the server will have a chance to
+  // establish new multiport connection on RTO.
+  SendSynchronousFooRequestAndCheckResponse();
+  // Simulate another RTO and verify that the probing on RTO is triggered again.
+  server_writer_->set_fake_packet_loss_percentage(100);
+  // Verify that a new multiport connection is established on RTO.
+  EXPECT_TRUE(client_->WaitUntil(2000, [&]() {
+    return client_connection->multi_port_stats()
+               ->num_multi_port_paths_created == 2;
+  }));
+  server_writer_->set_fake_packet_loss_percentage(0);
+  auto new_alt_path = QuicConnectionPeer::GetAlternativePath(client_connection);
+  EXPECT_NE(client_connection->self_address(), new_alt_path->self_address);
+
+  stream->Reset(QuicRstStreamErrorCode::QUIC_STREAM_NO_ERROR);
+}
+
 TEST_P(EndToEndTest, SimpleServerPreferredAddressTest) {
   use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());
@@ -7588,11 +7652,13 @@ TEST_P(EndToEndTest, WebTransportSessionServerBidirectionalStream) {
   ASSERT_TRUE(stream != nullptr);
   // Test the full Writev() API.
   const std::string kLongString = std::string(16 * 1024, 'a');
-  std::vector<absl::string_view> write_vector = {"foo", "bar", "test",
-                                                 kLongString};
+  std::array write_vector = {quiche::QuicheMemSlice::Copy("foo"),
+                             quiche::QuicheMemSlice::Copy("bar"),
+                             quiche::QuicheMemSlice::Copy("test"),
+                             quiche::QuicheMemSlice::Copy(kLongString)};
   quiche::StreamWriteOptions options;
   options.set_send_fin(true);
-  QUICHE_EXPECT_OK(stream->Writev(absl::MakeConstSpan(write_vector), options));
+  QUICHE_EXPECT_OK(stream->Writev(absl::MakeSpan(write_vector), options));
 
   std::string received_data = ReadDataFromWebTransportStreamUntilFin(stream);
   EXPECT_EQ(received_data, absl::StrCat("foobartest", kLongString));

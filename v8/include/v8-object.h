@@ -429,7 +429,7 @@ class V8_EXPORT Object : public Value {
    * be skipped by __proto__ and it does not consult the security
    * handler.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "V8 will stop providing access to hidden prototype (i.e. "
       "JSGlobalObject). Use GetPrototypeV2() instead. "
       "See http://crbug.com/333672197.")
@@ -616,29 +616,29 @@ class V8_EXPORT Object : public Value {
    * \param wrappable The C++ object instance that is wrapped by the JS object.
    */
   template <CppHeapPointerTag tag>
-  V8_DEPRECATE_SOON("Use `Wrap` with `Wrappable* wrappable` instead")
+  V8_DEPRECATED("Use `Wrap` with `Wrappable* wrappable` instead")
   static V8_INLINE
       void Wrap(v8::Isolate* isolate, const v8::Local<v8::Object>& wrapper,
                 void* wrappable);
   template <CppHeapPointerTag tag>
-  V8_DEPRECATE_SOON("Use `Wrap` with `Wrappable* wrappable` instead")
+  V8_DEPRECATED("Use `Wrap` with `Wrappable* wrappable` instead")
   static V8_INLINE
       void Wrap(v8::Isolate* isolate, const PersistentBase<Object>& wrapper,
                 void* wrappable);
   template <CppHeapPointerTag tag>
-  V8_DEPRECATE_SOON("Use `Wrap` with `Wrappable* wrappable` instead")
+  V8_DEPRECATED("Use `Wrap` with `Wrappable* wrappable` instead")
   static V8_INLINE
       void Wrap(v8::Isolate* isolate,
                 const BasicTracedReference<Object>& wrapper, void* wrappable);
-  V8_DEPRECATE_SOON("Use `Wrap` with `Wrappable* wrappable` instead")
+  V8_DEPRECATED("Use `Wrap` with `Wrappable* wrappable` instead")
   static V8_INLINE void Wrap(v8::Isolate* isolate,
                              const v8::Local<v8::Object>& wrapper,
                              void* wrappable, CppHeapPointerTag tag);
-  V8_DEPRECATE_SOON("Use `Wrap` with `Wrappable* wrappable` instead")
+  V8_DEPRECATED("Use `Wrap` with `Wrappable* wrappable` instead")
   static V8_INLINE void Wrap(v8::Isolate* isolate,
                              const PersistentBase<Object>& wrapper,
                              void* wrappable, CppHeapPointerTag tag);
-  V8_DEPRECATE_SOON("Use `Wrap` with `Wrappable* wrappable` instead")
+  V8_DEPRECATED("Use `Wrap` with `Wrappable* wrappable` instead")
   static V8_INLINE void Wrap(v8::Isolate* isolate,
                              const BasicTracedReference<Object>& wrapper,
                              void* wrappable, CppHeapPointerTag tag);

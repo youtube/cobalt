@@ -11,11 +11,12 @@
 #include "modules/audio_coding/include/audio_coding_module.h"
 
 #include <stdio.h>
-#include <string.h>
 
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <string>

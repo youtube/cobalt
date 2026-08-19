@@ -78,12 +78,10 @@ bool FakeWebState::IsRealized() const {
   return is_realized_;
 }
 
-WebState* FakeWebState::ForceRealized() {
+WebState* FakeWebState::ForceRealizedWithPolicy(RealizationPolicy policy) {
   if (!is_realized_) {
     is_realized_ = true;
-    for (auto& observer : observers_) {
-      observer.WebStateRealized(this);
-    }
+    NotifyWebStateRealized(observers_);
   }
   return this;
 }

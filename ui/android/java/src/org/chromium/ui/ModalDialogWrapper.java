@@ -18,6 +18,9 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+
 @JNINamespace("ui")
 @NullMarked
 public class ModalDialogWrapper implements ModalDialogProperties.Controller {
@@ -56,8 +59,21 @@ public class ModalDialogWrapper implements ModalDialogProperties.Controller {
     }
 
     @CalledByNative
-    private void withParagraph1(String text) {
-        mPropertyModelBuilder.with(ModalDialogProperties.MESSAGE_PARAGRAPH_1, text);
+    private void withMessageParagraphs(String[] paragraphs) {
+        mPropertyModelBuilder.with(
+                ModalDialogProperties.MESSAGE_PARAGRAPHS,
+                new ArrayList<>(Arrays.asList(paragraphs)));
+    }
+
+    @CalledByNative
+    private void withCheckbox(String text, boolean isChecked) {
+        mPropertyModelBuilder.with(ModalDialogProperties.CHECKBOX_TEXT, text);
+        mPropertyModelBuilder.with(ModalDialogProperties.CHECKBOX_CHECKED, isChecked);
+    }
+
+    @Override
+    public void onCheckboxChecked(boolean isChecked) {
+        ModalDialogWrapperJni.get().checkboxToggled(mNativeDelegatePtr, isChecked);
     }
 
     @Override
@@ -91,6 +107,8 @@ public class ModalDialogWrapper implements ModalDialogProperties.Controller {
         void positiveButtonClicked(long nativeModalDialogWrapper);
 
         void negativeButtonClicked(long nativeModalDialogWrapper);
+
+        void checkboxToggled(long nativeModalDialogWrapper, boolean isChecked);
 
         void dismissed(long nativeModalDialogWrapper);
 

@@ -12,6 +12,7 @@
 #define MODULES_AUDIO_DEVICE_INCLUDE_FAKE_AUDIO_DEVICE_H_
 
 #include "api/audio/audio_device.h"
+#include "api/ref_count.h"
 #include "modules/audio_device/include/audio_device_default.h"
 
 namespace webrtc {

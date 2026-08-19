@@ -426,7 +426,7 @@ int SimpleEntryImpl::WriteData(int stream_index,
   }
 
   if (stream_index < 0 || stream_index >= kSimpleEntryStreamCount ||
-      offset < 0 || buf_len < 0) {
+      offset < 0 || buf_len < 0 || (!buf && buf_len != 0)) {
     if (net_log_.IsCapturing()) {
       NetLogReadWriteComplete(
           net_log_, net::NetLogEventType::SIMPLE_CACHE_ENTRY_WRITE_END,
@@ -795,7 +795,7 @@ void SimpleEntryImpl::OpenEntryInternal(
   auto results = std::make_unique<SimpleEntryCreationResults>(
       SimpleEntryStat(last_used_, data_size_, sparse_data_size_));
 
-  int32_t trailer_prefetch_size = -1;
+  uint32_t trailer_prefetch_size = 0;
   base::Time last_used_time;
   if (SimpleBackendImpl* backend = backend_.get()) {
     if (cache_type_ == net::APP_CACHE) {
@@ -902,7 +902,7 @@ void SimpleEntryImpl::OpenOrCreateEntryInternal(
   auto results = std::make_unique<SimpleEntryCreationResults>(
       SimpleEntryStat(last_used_, data_size_, sparse_data_size_));
 
-  int32_t trailer_prefetch_size = -1;
+  uint32_t trailer_prefetch_size = 0;
   base::Time last_used_time;
   if (SimpleBackendImpl* backend = backend_.get()) {
     if (cache_type_ == net::APP_CACHE) {
@@ -1698,8 +1698,10 @@ void SimpleEntryImpl::SetStream0Data(net::IOBuffer* buf,
   int data_size = GetDataSize(0);
   if (offset == 0 && truncate) {
     stream_0_data_->SetCapacity(buf_len);
-    stream_0_data_->span().copy_from(
-        buf->first(base::checked_cast<size_t>(buf_len)));
+    if (buf_len) {
+      stream_0_data_->span().copy_from(
+          buf->first(base::checked_cast<size_t>(buf_len)));
+    }
     data_size_[0] = buf_len;
   } else {
     const int buffer_size =

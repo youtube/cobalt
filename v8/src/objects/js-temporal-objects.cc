@@ -25,6 +25,7 @@
 #include "src/strings/string-builder-inl.h"
 #include "src/temporal/temporal-parser.h"
 #include "temporal_rs/I128Nanoseconds.hpp"
+#include "temporal_rs/OwnedRelativeTo.hpp"
 #include "temporal_rs/Unit.hpp"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
@@ -52,7 +53,6 @@ template <typename T>
 using TemporalResult = diplomat::result<T, temporal_rs::TemporalError>;
 template <typename T>
 using TemporalAllocatedResult = TemporalResult<std::unique_ptr<T>>;
-
 
 using temporal::DurationRecord;
 using temporal::TimeDurationRecord;
@@ -87,9 +87,19 @@ enum Completeness {
   kPartial,
 };
 
-// For internal temporal_rs errors that should not occur
-#define NEW_TEMPORAL_INTERNAL_ERROR() \
-  NewTypeError(MessageTemplate::kTemporalRsError)
+// Common error strings
+static constexpr char kInvalidIsoDate[] = "Invalid ISO date.";
+static constexpr char kInvalidTime[] = "Invalid time";
+static constexpr char kFiniteInteger[] = "Expected finite integer.";
+static constexpr char kIntegerOutOfRange[] = "Integer out of range.";
+static constexpr char kOptionMustBeObject[] = "Option must be object: ";
+static constexpr char kCalendarMustBeString[] = "Calendar must be string.";
+static constexpr char kRoundToMissing[] = "Must specify a roundTo parameter.";
+static constexpr char kRoundToMustBeObject[] = "roundTo must be an object.";
+static constexpr char kYearMustBeObject[] = "year argument must be an object.";
+static constexpr char kTimeZoneMissing[] = "Must specify time zone.";
+static constexpr char kWithNoPartial[] =
+    "Argument to with() must contain some date/time fields.";
 
 #define ORDINARY_CREATE_FROM_CONSTRUCTOR(obj, target, new_target, T)           \
   DirectHandle<JSReceiver> new_target_receiver = Cast<JSReceiver>(new_target); \
@@ -99,9 +109,6 @@ enum Completeness {
       JSFunction::GetDerivedMap(isolate, target, new_target_receiver));        \
   DirectHandle<T> object =                                                     \
       Cast<T>(isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
-
-#define THROW_INVALID_RANGE(T) \
-  THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
 
 // Helper function to split the string into its two constituent encodings
 // and call two different functions depending on the encoding
@@ -132,31 +139,42 @@ RetVal HandleStringEncodings(
 // with error handling macros.
 //
 // Note that a lot of the types returned by Rust code prefer
-// move semantics, try using MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE
+// move semantics, try using MOVE_RETURN_ON_EXCEPTION
 template <typename ContainedValue>
 Maybe<ContainedValue> ExtractRustResult(
     Isolate* isolate, TemporalResult<ContainedValue>&& rust_result) {
   if (rust_result.is_err()) {
     auto err = std::move(rust_result).err().value();
+    Handle<String> msg;
+    if (err.msg.has_value()) {
+      bool success =
+          isolate->factory()->NewStringFromUtf8(err.msg.value()).ToHandle(&msg);
+      if (!success) {
+        msg = isolate->factory()->NewStringFromStaticChars("(utf8 error)");
+      }
+    } else {
+      // We need to have *some* message here even if Rust doesn't have one
+      msg = isolate->factory()->NewStringFromStaticChars("Unspecified error.");
+    }
     switch (err.kind) {
       case temporal_rs::ErrorKind::Type:
-        THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                     NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                     Nothing<ContainedValue>());
+        THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kTemporal, msg));
         break;
       case temporal_rs::ErrorKind::Range:
-        THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                     NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                     Nothing<ContainedValue>());
+        THROW_NEW_ERROR(isolate,
+                        NewRangeError(MessageTemplate::kTemporal, msg));
         break;
       case temporal_rs::ErrorKind::Syntax:
+        THROW_NEW_ERROR(isolate,
+                        NewSyntaxError(MessageTemplate::kTemporal, msg));
       case temporal_rs::ErrorKind::Assert:
       case temporal_rs::ErrorKind::Generic:
       default:
         // These cases shouldn't happen; the spec doesn't currently trigger
         // these errors
-        THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INTERNAL_ERROR(),
-                                     Nothing<ContainedValue>());
+        msg = isolate->factory()->NewStringFromStaticChars(
+            "Internal temporal_rs error.");
+        THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kTemporal, msg));
     }
     return Nothing<ContainedValue>();
   }
@@ -189,9 +207,8 @@ MaybeDirectHandle<JSType> ConstructRustWrappingType(
     TemporalResult<std::unique_ptr<typename JSType::RustType>>&& rust_result) {
   std::unique_ptr<typename JSType::RustType> rust_value = nullptr;
 
-  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
-      isolate, rust_value, ExtractRustResult(isolate, std::move(rust_result)),
-      MaybeDirectHandle<JSType>());
+  MOVE_RETURN_ON_EXCEPTION(isolate, rust_value,
+                           ExtractRustResult(isolate, std::move(rust_result)));
 
   return ConstructRustWrappingType<JSType>(isolate, target, new_target,
                                            std::move(rust_value));
@@ -218,46 +235,50 @@ MaybeDirectHandle<JSType> ConstructRustWrappingType(
 
 }  // namespace
 
-// Paired with DECL_ACCESSORS_FOR_RUST_WRAPPER
-// Can be omitted and overridden if needed.
-#define DEFINE_ACCESSORS_FOR_RUST_WRAPPER(field, JSType)        \
-  inline void JSType::initialize_with_wrapped_rust_value(       \
-      Tagged<Managed<JSType::RustType>> handle) {               \
-    this->set_##field(handle);                                  \
-  }                                                             \
-  inline const JSType::RustType& JSType::wrapped_rust() const { \
-    return *this->field()->raw();                               \
-  }
-
-DEFINE_ACCESSORS_FOR_RUST_WRAPPER(instant, JSTemporalInstant)
-DEFINE_ACCESSORS_FOR_RUST_WRAPPER(duration, JSTemporalDuration)
-DEFINE_ACCESSORS_FOR_RUST_WRAPPER(date, JSTemporalPlainDate)
-DEFINE_ACCESSORS_FOR_RUST_WRAPPER(date_time, JSTemporalPlainDateTime)
-DEFINE_ACCESSORS_FOR_RUST_WRAPPER(month_day, JSTemporalPlainMonthDay)
-DEFINE_ACCESSORS_FOR_RUST_WRAPPER(time, JSTemporalPlainTime)
-DEFINE_ACCESSORS_FOR_RUST_WRAPPER(year_month, JSTemporalPlainYearMonth)
-DEFINE_ACCESSORS_FOR_RUST_WRAPPER(zoned_date_time, JSTemporalZonedDateTime)
-
 namespace temporal {
 
 // ====== Numeric conversions ======
+
+template <typename IntegerType>
+bool IsInNumericRange(double d) {
+  return d > static_cast<double>(std::numeric_limits<IntegerType>::min()) &&
+         d < static_cast<double>(std::numeric_limits<IntegerType>::max());
+}
 
 // https://tc39.es/proposal-temporal/#sec-temporal-tointegerifintegral
 Maybe<double> ToIntegerIfIntegral(Isolate* isolate,
                                   DirectHandle<Object> argument) {
   // 1. Let number be ? ToNumber(argument).
   DirectHandle<Number> number;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, number, Object::ToNumber(isolate, argument), Nothing<double>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, number,
+                             Object::ToNumber(isolate, argument));
   double number_double = Object::NumberValue(*number);
   // 2. If number is not an integral Number, throw a RangeError exception.
   if (!std::isfinite(number_double) ||
       nearbyint(number_double) != number_double) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<double>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kFiniteInteger));
   }
   // 3. Return ℝ(number).
   return Just(number_double);
+}
+
+// temporal_rs currently accepts integer types in cases where
+// the spec uses a double (and bounds-checks later). This helper
+// allows safely converting objects to some known integer type.
+//
+// TODO(manishearth) This helper should be removed when it is unnecessary.
+// Tracked in https://github.com/boa-dev/temporal/issues/334
+template <typename IntegerType>
+Maybe<IntegerType> ToIntegerTypeIfIntegral(Isolate* isolate,
+                                           DirectHandle<Object> argument) {
+  double d;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, d,
+                             ToIntegerIfIntegral(isolate, argument));
+  if (!IsInNumericRange<IntegerType>(d)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kIntegerOutOfRange));
+  }
+
+  return Just(static_cast<IntegerType>(d));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-tointegerwithtruncation
@@ -265,13 +286,11 @@ Maybe<double> ToIntegerWithTruncation(Isolate* isolate,
                                       DirectHandle<Object> argument) {
   // 1. Let number be ? ToNumber(argument).
   double number;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, number, Object::IntegerValue(isolate, argument),
-      Nothing<double>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, number,
+                             Object::IntegerValue(isolate, argument));
   // 2. If number is NaN, +∞𝔽 or -∞𝔽, throw a RangeError exception.
   if (!std::isfinite(number)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<double>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kFiniteInteger));
   }
 
   // 3. Return truncate(number).
@@ -283,13 +302,12 @@ Maybe<double> ToPositiveIntegerWithTruncation(Isolate* isolate,
                                               DirectHandle<Object> argument) {
   // 1. Let integer be ?ToIntegerWithTruncation(argument).
   double integer;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, integer, ToIntegerWithTruncation(isolate, argument),
-      Nothing<double>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, integer,
+                             ToIntegerWithTruncation(isolate, argument));
   // 2. If integer is ≤ 0, throw a RangeError exception
   if (integer <= 0) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<double>());
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_RANGE_ERROR("Expected positive integer."));
   }
 
   // 3. Return integer.
@@ -305,14 +323,10 @@ template <typename IntegerType>
 Maybe<IntegerType> ToIntegerTypeWithTruncation(Isolate* isolate,
                                                DirectHandle<Object> argument) {
   double d;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, d, ToIntegerWithTruncation(isolate, argument),
-      Nothing<IntegerType>());
-  if (d < std::numeric_limits<IntegerType>::min() ||
-      d > std::numeric_limits<IntegerType>::max()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<IntegerType>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, d,
+                             ToIntegerWithTruncation(isolate, argument));
+  if (!IsInNumericRange<IntegerType>(d)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kIntegerOutOfRange));
   }
 
   return Just(static_cast<IntegerType>(d));
@@ -326,17 +340,72 @@ template <typename IntegerType>
 Maybe<IntegerType> ToPositiveIntegerTypeWithTruncation(
     Isolate* isolate, DirectHandle<Object> argument) {
   double d;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, d, ToPositiveIntegerWithTruncation(isolate, argument),
-      Nothing<IntegerType>());
-  if (d < std::numeric_limits<IntegerType>::min() ||
-      d > std::numeric_limits<IntegerType>::max()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<IntegerType>());
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, d, ToPositiveIntegerWithTruncation(isolate, argument));
+  if (!IsInNumericRange<IntegerType>(d)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kIntegerOutOfRange));
   }
 
   return Just(static_cast<IntegerType>(d));
+}
+
+static constexpr uint64_t kU64HighBitMask = uint64_t{1} << 63;
+
+// Throws RangeErrors for out-of-range BigInts, checking IsValidEpochNanoseconds
+Maybe<temporal_rs::I128Nanoseconds> GetI128FromBigInt(
+    Isolate* isolate, DirectHandle<BigInt> bigint) {
+  static constexpr char kNSOutOfRange[] = "Nanoseconds out of range.";
+
+  if (bigint->Words64Count() > 2) {
+    // 3. ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
+    // RangeError exception.
+    //
+    // This only performs part of the check, the rest of it is done below with
+    // is_valid()
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kNSOutOfRange));
+  }
+
+  uint64_t words[2] = {0, 0};
+  uint32_t word_count = 2;
+  int sign_bit = 0;
+  bigint->ToWordsArray64(&sign_bit, &word_count, words);
+
+  if ((words[1] & kU64HighBitMask) != 0) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kNSOutOfRange));
+  }
+
+  uint64_t high = words[1];
+  if (sign_bit == 1) {
+    high |= kU64HighBitMask;
+  }
+
+  temporal_rs::I128Nanoseconds ns;
+
+  ns.high = high;
+  ns.low = words[0];
+
+  if (!ns.is_valid()) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kNSOutOfRange));
+  }
+  return Just(ns);
+#undef NANOSECONDS_RANGE_ERROR
+}
+
+MaybeDirectHandle<BigInt> I128ToBigInt(Isolate* isolate,
+                                       temporal_rs::I128Nanoseconds ns) {
+  uint64_t words[2];
+  bool sign_bit;
+
+  if ((ns.high & temporal::kU64HighBitMask) != 0) {
+    sign_bit = true;
+    words[1] = ns.high & ~temporal::kU64HighBitMask;
+  } else {
+    sign_bit = false;
+    words[1] = ns.high;
+  }
+  words[0] = ns.low;
+
+  return BigInt::FromWords64(isolate, sign_bit, 2, words);
 }
 
 bool IsValidTime(double hour, double minute, double second, double millisecond,
@@ -412,8 +481,7 @@ bool IsValidIsoDate(double year, double month, double day) {
   // This check is technically needed later when we check if things are in the
   // Temporal range, but we do it now to ensure we can safely cast to int32_t
   // before passing to Rust See https://github.com/boa-dev/temporal/issues/334.
-  if (year < std::numeric_limits<int32_t>::min() ||
-      year > std::numeric_limits<int32_t>::max()) {
+  if (!IsInNumericRange<int32_t>(year)) {
     return false;
   }
 
@@ -437,74 +505,63 @@ bool IsValidIsoDate(double year, double month, double day) {
 // https://tc39.es/proposal-temporal/#sec-temporal-tomonthcode
 Maybe<std::string> ToMonthCode(Isolate* isolate,
                                DirectHandle<Object> argument) {
+  static constexpr char kMonthCodeOutOfRange[] = "Month code out of range.";
+
   // 1. Let monthCode be ?ToPrimitive(argument, string).
   DirectHandle<Object> mc_prim;
   if (IsJSReceiver(*argument)) {
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, mc_prim,
         JSReceiver::ToPrimitive(isolate, Cast<JSReceiver>(argument),
-                                ToPrimitiveHint::kString),
-        Nothing<std::string>());
+                                ToPrimitiveHint::kString));
   } else {
     mc_prim = argument;
   }
 
   // 2. If monthCode is not a String, throw a TypeError exception.
   if (!IsString(*mc_prim)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<std::string>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kMonthCodeOutOfRange));
   }
 
   auto month_code = Cast<String>(*mc_prim)->ToStdString();
 
   // 3. If the length of monthCode is not 3 or 4, throw a RangeError exception.
   if (month_code.size() != 3 && month_code.size() != 4) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<std::string>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kMonthCodeOutOfRange));
   }
 
   // 4. If the first code unit of monthCode is not 0x004D (LATIN CAPITAL LETTER
   // M), throw a RangeError exception.
   if (month_code[0] != 'M') {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<std::string>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kMonthCodeOutOfRange));
   }
   // 5. If the second code unit of monthCode is not in the inclusive interval
   // from 0x0030 (DIGIT ZERO) to 0x0039 (DIGIT NINE), throw a RangeError
   // exception.
   if (month_code[1] < '0' || month_code[1] > '9') {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<std::string>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kMonthCodeOutOfRange));
   }
   // 6. If the third code unit of monthCode is not in the inclusive interval
   // from 0x0030 (DIGIT ZERO) to 0x0039 (DIGIT NINE), throw a RangeError
   // exception.
   if (month_code[2] < '0' || month_code[2] > '9') {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<std::string>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kMonthCodeOutOfRange));
   }
   // 7. If the length of monthCode is 4 and the fourth code unit of monthCode is
   // not 0x004C (LATIN CAPITAL LETTER L), throw a RangeError exception.
   if (month_code.size() == 4 && month_code[3] != 'L') {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<std::string>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kMonthCodeOutOfRange));
   }
   // 8. Let monthCodeDigits be the substring of monthCode from 1 to 3.
   // 9. Let monthCodeInteger be ℝ(StringToNumber(monthCodeDigits)).
   // 10. If monthCodeInteger is 0 and the length of monthCode is not 4, throw a
   // RangeError exception.
   if (month_code[1] == '0' && month_code[2] == '0' && month_code.size() != 4) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<std::string>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kMonthCodeOutOfRange));
   }
   // 11. Return monthCode.
   return Just(month_code);
+#undef MONTHCODE_RANGE_ERROR
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporaloverflow
@@ -515,15 +572,16 @@ Maybe<temporal_rs::ArithmeticOverflow> ToTemporalOverflowHandleUndefined(
   if (IsUndefined(*options))
     return Just(temporal_rs::ArithmeticOverflow(
         temporal_rs::ArithmeticOverflow::Constrain));
+  auto overflow_ident = isolate->factory()->overflow_string();
   if (!IsJSReceiver(*options)) {
     // (GetOptionsObject) 3. Throw a TypeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<temporal_rs::ArithmeticOverflow>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR_WITH_ARG(
+                                 kOptionMustBeObject, overflow_ident));
   }
   // 2. Return ? GetOption(options, "overflow", « String », « "constrain",
   // "reject" », "constrain").
   return GetStringOption<temporal_rs::ArithmeticOverflow>(
-      isolate, Cast<JSReceiver>(options), "overflow", method_name,
+      isolate, Cast<JSReceiver>(options), overflow_ident, method_name,
       std::to_array<const std::string_view>({"constrain", "reject"}),
       std::to_array<temporal_rs::ArithmeticOverflow>(
           {temporal_rs::ArithmeticOverflow::Constrain,
@@ -531,6 +589,28 @@ Maybe<temporal_rs::ArithmeticOverflow> ToTemporalOverflowHandleUndefined(
       temporal_rs::ArithmeticOverflow::Constrain);
 }
 
+// https://tc39.es/proposal-temporal/#sec-temporal-getdirectionoption
+
+Maybe<temporal_rs::TransitionDirection> GetDirectionOption(
+    Isolate* isolate, DirectHandle<JSReceiver> options,
+    const char* method_name) {
+  // 1. Let stringValue be ? GetOption(options, "direction", string, « "next",
+  // "previous" », required).
+  temporal_rs::TransitionDirection dir;
+
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, dir,
+      GetStringOption<temporal_rs::TransitionDirection>(
+          isolate, Cast<JSReceiver>(options),
+          isolate->factory()->direction_string(), method_name,
+          std::to_array<const std::string_view>({"next", "previous"}),
+          std::to_array<temporal_rs::TransitionDirection>(
+              {temporal_rs::TransitionDirection::Next,
+               temporal_rs::TransitionDirection::Previous}),
+          std::nullopt));
+
+  return Just(dir);
+}
 // https://tc39.es/proposal-temporal/#sec-temporal-gettemporaldisambiguationoption
 // Also handles the undefined check from GetOptionsObject
 Maybe<temporal_rs::Disambiguation>
@@ -542,15 +622,16 @@ GetTemporalDisambiguationOptionHandleUndefined(Isolate* isolate,
     return Just(
         temporal_rs::Disambiguation(temporal_rs::Disambiguation::Reject));
   }
+  auto disambiguation_ident = isolate->factory()->disambiguation_string();
   if (!IsJSReceiver(*options)) {
     // (GetOptionsObject) 3. Throw a TypeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<temporal_rs::Disambiguation>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR_WITH_ARG(
+                                 kOptionMustBeObject, disambiguation_ident));
   }
   // 1. Let stringValue be ?GetOption(options, "disambiguation", string, «
   // "compatible", "earlier", "later", "reject" », "compatible").
   return GetStringOption<temporal_rs::Disambiguation>(
-      isolate, Cast<JSReceiver>(options), "overflow", method_name,
+      isolate, Cast<JSReceiver>(options), disambiguation_ident, method_name,
       std::to_array<const std::string_view>(
           {"compatible", "earlier", "later", "reject"}),
       std::to_array<temporal_rs::Disambiguation>({
@@ -571,15 +652,16 @@ Maybe<temporal_rs::OffsetDisambiguation> GetTemporalOffsetOptionHandleUndefined(
   if (IsUndefined(*options)) {
     return Just(fallback);
   }
+  auto offset_ident = isolate->factory()->offset_string();
   if (!IsJSReceiver(*options)) {
     // (GetOptionsObject) 3. Throw a TypeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<temporal_rs::OffsetDisambiguation>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR_WITH_ARG(
+                                 kOptionMustBeObject, offset_ident));
   }
   // 5. Let stringValue be ? GetOption(options, "offset", string, « "prefer",
   // "use", "ignore", "reject" », stringFallback).
   return GetStringOption<temporal_rs::OffsetDisambiguation>(
-      isolate, Cast<JSReceiver>(options), "overflow", method_name,
+      isolate, Cast<JSReceiver>(options), offset_ident, method_name,
       std::to_array<const std::string_view>(
           {"prefer", "use", "ignore", "reject"}),
       std::to_array<temporal_rs::OffsetDisambiguation>({
@@ -601,11 +683,10 @@ Maybe<temporal_rs::Precision> GetTemporalFractionalSecondDigitsOption(
   Factory* factory = isolate->factory();
   // 1. Let digitsValue be ?Get(options, "fractionalSecondDigits").
   DirectHandle<Object> digits_val;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, digits_val,
       JSReceiver::GetProperty(isolate, normalized_options,
-                              factory->fractionalSecondDigits_string()),
-      Nothing<temporal_rs::Precision>());
+                              factory->fractionalSecondDigits_string()));
 
   // 2. If digitsValue is undefined, return auto.
   if (IsUndefined(*digits_val)) {
@@ -615,17 +696,14 @@ Maybe<temporal_rs::Precision> GetTemporalFractionalSecondDigitsOption(
   // 3. If digitsValue is not a Number, then
   if (!IsNumber(*digits_val)) {
     DirectHandle<String> string;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, string,
-                                     Object::ToString(isolate, digits_val),
-                                     Nothing<temporal_rs::Precision>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, string,
+                               Object::ToString(isolate, digits_val));
     //  a. If ? ToString(digitsValue) is not "auto", throw a RangeError
     //  exception.
     if (!String::Equals(isolate, string, factory->auto_string())) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate,
-          NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
-                        factory->fractionalSecondDigits_string()),
-          Nothing<temporal_rs::Precision>());
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                                    factory->fractionalSecondDigits_string()));
     }
     //  b. Return auto.
     return Just(auto_val);
@@ -634,21 +712,17 @@ Maybe<temporal_rs::Precision> GetTemporalFractionalSecondDigitsOption(
   auto digits_num = Cast<Number>(*digits_val);
   auto digits_float = Object::NumberValue(digits_num);
   if (std::isnan(digits_float) || std::isinf(digits_float)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
-                      factory->fractionalSecondDigits_string()),
-        Nothing<temporal_rs::Precision>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                                  factory->fractionalSecondDigits_string()));
   }
   // 5. Let digitCount be floor(ℝ(digitsValue)).
   int64_t digit_count = std::floor(Object::NumberValue(digits_num));
   // 6. If digitCount < 0 or digitCount > 9, throw a RangeError exception.
   if (digit_count < 0 || digit_count > 9) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
-                      factory->fractionalSecondDigits_string()),
-        Nothing<temporal_rs::Precision>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                                  factory->fractionalSecondDigits_string()));
   }
 
   return Just(
@@ -680,9 +754,9 @@ Maybe<temporal_rs::Precision> GetTemporalFractionalSecondDigitsOption(
 // Unit::Auto to cover all the possible value for extraValues.
 Maybe<std::optional<Unit>> GetTemporalUnit(
     Isolate* isolate, DirectHandle<JSReceiver> normalized_options,
-    const char* key, UnitGroup unit_group, std::optional<Unit> default_value,
-    bool default_is_required, const char* method_name,
-    std::optional<Unit> extra_values = std::nullopt) {
+    DirectHandle<String> key, UnitGroup unit_group,
+    std::optional<Unit> default_value, bool default_is_required,
+    const char* method_name, std::optional<Unit> extra_values = std::nullopt) {
   std::span<const std::string_view> str_values;
   std::span<const std::optional<Unit::Value>> enum_values;
   switch (unit_group) {
@@ -805,24 +879,16 @@ Maybe<std::optional<Unit>> GetTemporalUnit(
   // 9. Let value be ? GetOption(normalizedOptions, key, "string",
   // allowedValues, defaultValue).
   std::optional<Unit::Value> value;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value,
-      GetStringOption<std::optional<Unit::Value>>(isolate, normalized_options,
-                                                  key, method_name, str_values,
-                                                  enum_values, default_value),
-      Nothing<std::optional<Unit>>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                             GetStringOption<std::optional<Unit::Value>>(
+                                 isolate, normalized_options, key, method_name,
+                                 str_values, enum_values, default_value));
 
   // 10. If value is undefined and default is required, throw a RangeError
   // exception.
   if (default_is_required && value == std::nullopt) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(
-            MessageTemplate::kValueOutOfRange,
-            isolate->factory()->undefined_value(),
-            isolate->factory()->NewStringFromAsciiChecked(method_name),
-            isolate->factory()->NewStringFromAsciiChecked(key)),
-        Nothing<std::optional<Unit>>());
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_RANGE_ERROR("Unit must be specified."));
   }
   // 12. Return value.
   if (value.has_value()) {
@@ -843,9 +909,8 @@ Maybe<temporal_rs::AnyCalendarKind> CanonicalizeCalendar(
   auto cal = temporal_rs::AnyCalendarKind::get_for_str(s);
 
   if (!cal.has_value()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 Nothing<temporal_rs::AnyCalendarKind>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR_WITH_ARG(
+                                 "Unknown calendar type", calendar));
   }
   // Other steps unnecessary, we're not storing these as -u- values but rather
   // as enums.
@@ -858,11 +923,10 @@ Maybe<uint32_t> GetRoundingIncrementOption(
   DirectHandle<Object> value;
 
   // 1. Let value be ? Get(options, "roundingIncrement").
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, value,
       JSReceiver::GetProperty(isolate, normalized_options,
-                              isolate->factory()->roundingIncrement_string()),
-      Nothing<uint32_t>());
+                              isolate->factory()->roundingIncrement_string()));
   // 2. If value is undefined, return 1𝔽.
   if (IsUndefined(*value)) {
     return Just(static_cast<uint32_t>(1));
@@ -870,15 +934,13 @@ Maybe<uint32_t> GetRoundingIncrementOption(
 
   // 3. Let integerIncrement be ? ToIntegerWithTruncation(value).
   double integer_increment;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, integer_increment, ToIntegerWithTruncation(isolate, value),
-      Nothing<uint32_t>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, integer_increment,
+                             ToIntegerWithTruncation(isolate, value));
 
   // 4. If integerIncrement < 1 or integerIncrement > 10**9, throw a RangeError
   // exception.
   if (integer_increment < 1 || integer_increment > 1e9) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<uint32_t>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kIntegerOutOfRange));
   }
 
   return Just(static_cast<uint32_t>(integer_increment));
@@ -899,11 +961,44 @@ Maybe<RoundingMode> GetRoundingModeOption(Isolate* isolate,
        RoundingMode::HalfExpand, RoundingMode::HalfTrunc,
        RoundingMode::HalfEven});
   return GetStringOption<RoundingMode>(
-      isolate, options, "roundingMode", method_name,
+      isolate, options, isolate->factory()->roundingMode_string(), method_name,
       std::to_array<const std::string_view>(
           {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
            "halfExpand", "halfTrunc", "halfEven"}),
       values, fallback);
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-getshowoffsetoption
+Maybe<temporal_rs::DisplayOffset> GetTemporalShowOffsetOption(
+    Isolate* isolate, DirectHandle<JSReceiver> options,
+    const char* method_name) {
+  // 1. Let stringValue be ?GetOption(options, "offset", string, « "auto",
+  // "never" », "auto").
+  // 2. If stringValue is "never", return never.
+  // 3. Return auto.
+  static const auto values = std::to_array<temporal_rs::DisplayOffset>(
+      {temporal_rs::DisplayOffset::Auto, temporal_rs::DisplayOffset::Never});
+  return GetStringOption<temporal_rs::DisplayOffset>(
+      isolate, options, isolate->factory()->offset_string(), method_name,
+      std::to_array<const std::string_view>({"auto", "never"}), values,
+      temporal_rs::DisplayOffset::Auto);
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-gettemporalshowtimezonenameoption
+Maybe<temporal_rs::DisplayTimeZone> GetTemporalShowTimeZoneNameOption(
+    Isolate* isolate, DirectHandle<JSReceiver> options,
+    const char* method_name) {
+  // 1. Let stringValue be ? GetOption(options, "timeZoneName", string, «
+  // "auto", "never", "critical" », "auto").
+  // 2. If stringValue is "never", return never.
+  // 3. If stringValue is "critical", return critical.
+  static const auto values = std::to_array<temporal_rs::DisplayTimeZone>(
+      {temporal_rs::DisplayTimeZone::Auto, temporal_rs::DisplayTimeZone::Never,
+       temporal_rs::DisplayTimeZone::Critical});
+  return GetStringOption<temporal_rs::DisplayTimeZone>(
+      isolate, options, isolate->factory()->offset_string(), method_name,
+      std::to_array<const std::string_view>({"auto", "never", "critical"}),
+      values, temporal_rs::DisplayTimeZone::Auto);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-getdifferencesettings
@@ -915,18 +1010,17 @@ Maybe<temporal_rs::DifferenceSettings> GetDifferenceSettingsWithoutChecks(
     std::optional<Unit> fallback_smallest_unit, const char* method_name) {
   DirectHandle<JSReceiver> options;
   // 1. Set options to ? GetOptionsObject(options).
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
-      Nothing<temporal_rs::DifferenceSettings>());
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name));
 
   // 2. Let largestUnit be ?GetTemporalUnitValuedOption(options, "largestUnit",
   // unitGroup, auto).
   std::optional<Unit> largest_unit;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, largest_unit,
-      GetTemporalUnit(isolate, options, "largestUnit", unit_group, Unit::Auto,
-                      false, method_name),
-      Nothing<temporal_rs::DifferenceSettings>());
+      GetTemporalUnit(isolate, options,
+                      isolate->factory()->largestUnit_string(), unit_group,
+                      Unit::Auto, false, method_name));
 
   // 3. If disallowedUnits contains largestUnit, throw a RangeError exception.
   // (skip, to be validated in Rust code)
@@ -935,28 +1029,26 @@ Maybe<temporal_rs::DifferenceSettings> GetDifferenceSettingsWithoutChecks(
 
   // 4. Let roundingIncrement be ?GetRoundingIncrementOption(options).
   uint32_t rounding_increment;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, rounding_increment,
-      temporal::GetRoundingIncrementOption(isolate, options),
-      Nothing<temporal_rs::DifferenceSettings>());
+      temporal::GetRoundingIncrementOption(isolate, options));
 
   // 5. Let roundingMode be ?GetRoundingModeOption(options, trunc).
   RoundingMode rounding_mode;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, rounding_mode,
       temporal::GetRoundingModeOption(isolate, options, RoundingMode::Trunc,
-                                      method_name),
-      Nothing<temporal_rs::DifferenceSettings>());
+                                      method_name));
 
   // 7. Let smallestUnit be ?GetTemporalUnitValuedOption(options,
   // "smallestUnit", unitGroup, fallbackSmallestUnit).
   std::optional<Unit> smallest_unit;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, largest_unit,
-      GetTemporalUnit(isolate, options, "smallestUnit", unit_group,
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, smallest_unit,
+      GetTemporalUnit(isolate, options,
+                      isolate->factory()->smallestUnit_string(), unit_group,
                       fallback_smallest_unit,
-                      !fallback_smallest_unit.has_value(), method_name),
-      Nothing<temporal_rs::DifferenceSettings>());
+                      !fallback_smallest_unit.has_value(), method_name));
 
   // remaining steps are validation, to be performed later
 
@@ -973,7 +1065,7 @@ Maybe<temporal_rs::DisplayCalendar> GetTemporalShowCalendarNameOption(
   // 1. Return ? GetOption(normalizedOptions, "calendarName", « String », «
   // "auto", "always", "never" », "auto").
   return GetStringOption<temporal_rs::DisplayCalendar>(
-      isolate, options, "calendarName", method_name,
+      isolate, options, isolate->factory()->calendarName_string(), method_name,
       std::to_array<const std::string_view>(
           {"auto", "always", "never", "critical"}),
       std::to_array<temporal_rs::DisplayCalendar>(
@@ -996,30 +1088,29 @@ std::optional<temporal_rs::AnyCalendarKind> ExtractCalendarFrom(
   // i. Return temporalCalendarLike.[[Calendar]].
   if (InstanceTypeChecker::IsJSTemporalPlainDate(instance_type)) {
     return Cast<JSTemporalPlainDate>(*calendar_like)
-        ->date()
-        ->raw()
-        ->calendar()
+        ->wrapped_rust()
+        .calendar()
         .kind();
   } else if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
     return Cast<JSTemporalPlainDateTime>(*calendar_like)
-        ->date_time()
-        ->raw()
-        ->calendar()
+        ->wrapped_rust()
+        .calendar()
         .kind();
   } else if (InstanceTypeChecker::IsJSTemporalPlainMonthDay(instance_type)) {
     return Cast<JSTemporalPlainMonthDay>(*calendar_like)
-        ->month_day()
-        ->raw()
-        ->calendar()
+        ->wrapped_rust()
+        .calendar()
         .kind();
   } else if (InstanceTypeChecker::IsJSTemporalPlainYearMonth(instance_type)) {
     return Cast<JSTemporalPlainYearMonth>(*calendar_like)
-        ->year_month()
-        ->raw()
-        ->calendar()
+        ->wrapped_rust()
+        .calendar()
         .kind();
-  } else if (IsJSTemporalZonedDateTime(*calendar_like)) {
-    UNIMPLEMENTED();
+  } else if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
+    return Cast<JSTemporalZonedDateTime>(*calendar_like)
+        ->wrapped_rust()
+        .calendar()
+        .kind();
   }
   return std::nullopt;
 }
@@ -1043,8 +1134,9 @@ Maybe<temporal_rs::AnyCalendarKind> ToTemporalCalendarIdentifier(
 
   // 2. If temporalCalendarLike is not a String, throw a TypeError exception.
   if (!IsString(*calendar_like)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<temporal_rs::AnyCalendarKind>());
+    THROW_NEW_ERROR(
+        isolate, NEW_TEMPORAL_TYPE_ERROR(
+                     "Calendar must be string or calendared Temporal object."));
   }
   // 3. Let identifier be ?ParseTemporalCalendarString(temporalCalendarLike).
   // 4. Return ?CanonicalizeCalendar(identifier).
@@ -1068,11 +1160,10 @@ Maybe<temporal_rs::AnyCalendarKind> GetTemporalCalendarIdentifierWithISODefault(
   }
   // 2. Let calendarLike be ?Get(item, "calendar").
   DirectHandle<Object> calendar;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, calendar,
       JSReceiver::GetProperty(isolate, options,
-                              isolate->factory()->calendar_string()),
-      Nothing<temporal_rs::AnyCalendarKind>());
+                              isolate->factory()->calendar_string()));
 
   // 3. If calendarLike is undefined, then
   if (IsUndefined(*calendar)) {
@@ -1093,90 +1184,45 @@ constexpr temporal_rs::ToStringRoundingOptions kToStringAuto =
 
 // ====== Stringification operations ======
 
+// Generic code for calling to_string()
+//
+// It has two varargs since there may be some implicit conversions between
+// the args passed to this method and the args expected by Rust.
+//
 // https://tc39.es/proposal-temporal/#sec-temporal-temporaldurationtostring
-MaybeDirectHandle<String> TemporalDurationToString(
-    Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
-    const temporal_rs::ToStringRoundingOptions&& options) {
-  std::string output;
-  // This is currently inefficient, can be improved after
-  // https://github.com/rust-diplomat/diplomat/issues/866 is fixed
-  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
-      isolate, output,
-      ExtractRustResult(isolate,
-                        duration->duration()->raw()->to_string(options)),
-      MaybeDirectHandle<String>());
-  IncrementalStringBuilder builder(isolate);
-  builder.AppendString(output);
-  return builder.Finish().ToHandleChecked();
-}
-
 // https://tc39.es/proposal-temporal/#sec-temporal-temporalinstanttostring
-MaybeDirectHandle<String> TemporalInstantToString(
-    Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
-    const temporal_rs::TimeZone* time_zone,
-    const temporal_rs::ToStringRoundingOptions&& options) {
-  std::string output;
+// https://tc39.es/proposal-temporal/#sec-temporal-temporalplaindatetostring
+// https://tc39.es/proposal-temporal/#sec-temporal-temporaltimerecordtostring
+// https://tc39.es/proposal-temporal/#sec-temporal-temporalisodatetimetostring
+// https://tc39.es/proposal-temporal/#sec-temporal-temporalplainyearmonthtostring
+// https://tc39.es/proposal-temporal/#sec-temporal-temporalplainmonthdaytostring
+// https://tc39.es/proposal-temporal/#sec-temporal-temporalplainzoneddatetimetostring
+template <typename JSType, typename... Args, typename... Args2>
+MaybeDirectHandle<String> GenericTemporalToString(
+    Isolate* isolate, DirectHandle<JSType> val,
+    std::string (JSType::RustType::*method)(Args2...) const, Args... args) {
   // This is currently inefficient, can be improved after
   // https://github.com/rust-diplomat/diplomat/issues/866 is fixed
-  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
-      isolate, output,
-      ExtractRustResult(
-          isolate,
-          instant->instant()->raw()->to_ixdtf_string_with_compiled_data(
-              time_zone, options)),
-      MaybeDirectHandle<String>());
+  auto output = (val->wrapped_rust().*method)(args...);
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(output);
   return builder.Finish().ToHandleChecked();
 }
 
-// https://tc39.es/proposal-temporal/#sec-temporal-temporaldatetostring
-MaybeDirectHandle<String> TemporalDateToString(
-    Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
-    temporal_rs::DisplayCalendar show_calendar) {
-  // This is currently inefficient, can be improved after
-  // https://github.com/rust-diplomat/diplomat/issues/866 is fixed
-  auto output = temporal_date->date()->raw()->to_ixdtf_string(show_calendar);
-
-  IncrementalStringBuilder builder(isolate);
-  builder.AppendString(output);
-  return builder.Finish().ToHandleChecked();
-}
-
-// https://tc39.es/proposal-temporal/#sec-temporal-isodatetimetostring
-// This automatically operates on the ISO date time within the
-// JSTemporalPlainDateTime, you do not need to perform any conversions to
-// extract it
-MaybeDirectHandle<String> ISODateTimeToString(
-    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> temporal_date_time,
-    const temporal_rs::ToStringRoundingOptions&& options,
-    temporal_rs::DisplayCalendar show_calendar) {
+// Same as the above, but bubbles out Rust errors
+template <typename JSType, typename... Args, typename... Args2>
+MaybeDirectHandle<String> GenericTemporalToString(
+    Isolate* isolate, DirectHandle<JSType> val,
+    TemporalResult<std::string> (JSType::RustType::*method)(Args2...) const,
+    Args... args) {
   std::string output;
   // This is currently inefficient, can be improved after
   // https://github.com/rust-diplomat/diplomat/issues/866 is fixed
-  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+  MOVE_RETURN_ON_EXCEPTION(
       isolate, output,
-      ExtractRustResult(isolate,
-                        temporal_date_time->date_time()->raw()->to_ixdtf_string(
-                            std::move(options), show_calendar)),
-      MaybeDirectHandle<String>());
-  IncrementalStringBuilder builder(isolate);
-  builder.AppendString(output);
-  return builder.Finish().ToHandleChecked();
-}
+      ExtractRustResult(isolate, (val->wrapped_rust().*method)(args...)));
 
-// https://tc39.es/proposal-temporal/#sec-temporal-timerecordtostring
-MaybeDirectHandle<String> TimeRecordToString(
-    Isolate* isolate, DirectHandle<JSTemporalPlainTime> time,
-    const temporal_rs::ToStringRoundingOptions&& options) {
-  std::string output;
-  // This is currently inefficient, can be improved after
-  // https://github.com/rust-diplomat/diplomat/issues/866 is fixed
-  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
-      isolate, output,
-      ExtractRustResult(isolate, time->time()->raw()->to_ixdtf_string(options)),
-      MaybeDirectHandle<String>());
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(output);
   return builder.Finish().ToHandleChecked();
@@ -1290,26 +1336,49 @@ temporal_rs::PartialDateTime GetDateTimeRecord(
 // Helper for ToTemporalPartialDurationRecord
 // Maybe<std::optional> since the Maybe handles errors and the optional handles
 // missing fields
-Maybe<std::optional<int64_t>> GetSingleDurationField(
+Maybe<std::optional<double>> GetSingleDurationField(
     Isolate* isolate, DirectHandle<JSReceiver> duration_like,
     DirectHandle<String> field_name) {
   DirectHandle<Object> val;
   //  Let val be ? Get(temporalDurationLike, fieldName).
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, val, JSReceiver::GetProperty(isolate, duration_like, field_name),
-      Nothing<std::optional<int64_t>>());
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, val,
+      JSReceiver::GetProperty(isolate, duration_like, field_name));
   // c. If val is not undefined, then
   if (IsUndefined(*val)) {
-    return Just((std::optional<int64_t>)std::nullopt);
+    return Just((std::optional<double>)std::nullopt);
   } else {
     double field;
     // 5. If val is not undefined, set result.[[val]] to
     // ?ToIntegerIfIntegral(val).
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, field, temporal::ToIntegerIfIntegral(isolate, val),
-        Nothing<std::optional<int64_t>>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, field,
+                               temporal::ToIntegerIfIntegral(isolate, val));
 
-    return Just(std::optional(static_cast<int64_t>(field)));
+    return Just(std::optional(field));
+  }
+}
+
+// GetSingleDurationField, but also casts into an integer, erroring if out of
+// range.
+//
+// Can be removed once https://github.com/boa-dev/temporal/issues/189 has been
+// fixed.
+Maybe<std::optional<int64_t>> GetSingleDurationFieldInteger(
+    Isolate* isolate, DirectHandle<JSReceiver> duration_like,
+    DirectHandle<String> field_name) {
+  std::optional<double> ret_opt;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, ret_opt,
+      GetSingleDurationField(isolate, duration_like, field_name));
+  if (ret_opt.has_value()) {
+    double ret = ret_opt.value();
+    if (!IsInNumericRange<int64_t>(ret)) {
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_RANGE_ERROR("Duration field out of range."));
+    }
+    return Just(std::optional(static_cast<int64_t>(ret)));
+  } else {
+    return Just((std::optional<int64_t>)std::nullopt);
   }
 }
 
@@ -1319,43 +1388,40 @@ Maybe<std::string> ToOffsetString(Isolate* isolate,
   // 1. Let offset be ?ToPrimitive(argument, string).
   DirectHandle<Object> offset_prim;
   if (IsJSReceiver(*argument)) {
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, offset_prim,
         JSReceiver::ToPrimitive(isolate, Cast<JSReceiver>(argument),
-                                ToPrimitiveHint::kString),
-        Nothing<std::string>());
+                                ToPrimitiveHint::kString));
   } else {
     offset_prim = argument;
   }
 
   // 2. If offset is not a String, throw a TypeError exception.
   if (!IsString(*offset_prim)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 {});
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR("Offset must be string."));
   }
 
   // 3. Perform ?ParseDateTimeUTCOffset(offset).
-  auto offset = Cast<String>(*offset_prim)->ToStdString();
+  auto offset_str = Cast<String>(offset_prim);
+  auto offset = offset_str->ToStdString();
 
   // Currently TimeZone::try_from_str parses identifiers and UTC offsets
   // at once. We check to ensure that this is UTC offset-like (not
   // identifier-like) before handing off to Rust.
   // TODO(manishearth) clean up after
-  // https://github.com/boa-dev/temporal/pull/348 lands.
+  // https://github.com/boa-dev/temporal/pull/376 lands.
 
   if (offset.size() == 0 || (offset[0] != '+' && offset[0] != '-')) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                 {});
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR_WITH_ARG("Invalid offset",
+                                                               offset_str));
   }
 
   // TODO(manishearth) this has a minor unnecessary cost of allocating a
   // TimeZone, but it can be obviated once
   // https://github.com/boa-dev/temporal/issues/330 is fixed.
-  MAYBE_RETURN_ON_EXCEPTION_VALUE(
+  RETURN_ON_EXCEPTION(
       isolate,
-      ExtractRustResult(isolate, temporal_rs::TimeZone::try_from_str(offset)),
-      Nothing<std::string>());
+      ExtractRustResult(isolate, temporal_rs::TimeZone::try_from_str(offset)));
 
   return Just(std::move(offset));
 }
@@ -1367,19 +1433,18 @@ Maybe<std::unique_ptr<temporal_rs::TimeZone>> ToTemporalTimeZoneIdentifier(
   // internal slot, then
   if (IsJSTemporalZonedDateTime(*tz_like)) {
     // i. Return temporalTimeZoneLike.[[TimeZone]].
-    // TODO(manishearth) we don't currently have a nice way to clone timezones
-    // See https://github.com/boa-dev/temporal/pull/344 and
-    // https://github.com/boa-dev/temporal/issues/330.
 
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-        Nothing<std::unique_ptr<temporal_rs::TimeZone>>());
+    return Just(Cast<JSTemporalZonedDateTime>(tz_like)
+                    ->zoned_date_time()
+                    ->raw()
+                    ->timezone()
+                    .clone());
   }
   // 2. If temporalTimeZoneLike is not a String, throw a TypeError exception.
   if (!IsString(*tz_like)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-        Nothing<std::unique_ptr<temporal_rs::TimeZone>>());
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_TYPE_ERROR(
+                        "Time zone must be string or ZonedDateTime object."));
   }
 
   DirectHandle<String> str = Cast<String>(tz_like);
@@ -1398,8 +1463,8 @@ Maybe<temporal_rs::PartialDuration> ToTemporalPartialDurationRecord(
   // 1. If temporalDurationLike is not an Object, then
   if (!IsJSReceiver(*duration_like_obj)) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<temporal_rs::PartialDuration>());
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_TYPE_ERROR("Must provide a duration."));
   }
 
   DirectHandle<JSReceiver> duration_like = Cast<JSReceiver>(duration_like_obj);
@@ -1421,66 +1486,61 @@ Maybe<temporal_rs::PartialDuration> ToTemporalPartialDurationRecord(
 
   // Steps 3-14: get each field in alphabetical order
 
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.days,
-      temporal::GetSingleDurationField(isolate, duration_like,
-                                       factory->days_string()),
-      Nothing<temporal_rs::PartialDuration>());
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+
+      temporal::GetSingleDurationFieldInteger(isolate, duration_like,
+                                              factory->days_string()));
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.hours,
+      temporal::GetSingleDurationFieldInteger(isolate, duration_like,
+                                              factory->hours_string()));
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result.microseconds,
       temporal::GetSingleDurationField(isolate, duration_like,
-                                       factory->hours_string()),
-      Nothing<temporal_rs::PartialDuration>());
-  std::optional<int64_t> us;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, us,
-      temporal::GetSingleDurationField(isolate, duration_like,
-                                       factory->microseconds_string()),
-      Nothing<temporal_rs::PartialDuration>());
-  if (us.has_value()) {
-    // This will improve after https://github.com/boa-dev/temporal/issues/189
-    result.microseconds = static_cast<double>(us.value());
-  }
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+                                       factory->microseconds_string()));
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.milliseconds,
-      temporal::GetSingleDurationField(isolate, duration_like,
-                                       factory->milliseconds_string()),
-      Nothing<temporal_rs::PartialDuration>());
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      temporal::GetSingleDurationFieldInteger(isolate, duration_like,
+                                              factory->milliseconds_string()));
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.minutes,
-      temporal::GetSingleDurationField(isolate, duration_like,
-                                       factory->minutes_string()),
-      Nothing<temporal_rs::PartialDuration>());
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      temporal::GetSingleDurationFieldInteger(isolate, duration_like,
+                                              factory->minutes_string()));
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.months,
+      temporal::GetSingleDurationFieldInteger(isolate, duration_like,
+                                              factory->months_string()));
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result.nanoseconds,
       temporal::GetSingleDurationField(isolate, duration_like,
-                                       factory->months_string()),
-      Nothing<temporal_rs::PartialDuration>());
-  std::optional<int64_t> ns;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, ns,
-      temporal::GetSingleDurationField(isolate, duration_like,
-                                       factory->nanoseconds_string()),
-      Nothing<temporal_rs::PartialDuration>());
-  if (ns.has_value()) {
-    // This will improve after https://github.com/boa-dev/temporal/issues/189
-    result.microseconds = static_cast<double>(ns.value());
-  }
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+                                       factory->nanoseconds_string()));
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.seconds,
-      temporal::GetSingleDurationField(isolate, duration_like,
-                                       factory->seconds_string()),
-      Nothing<temporal_rs::PartialDuration>());
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      temporal::GetSingleDurationFieldInteger(isolate, duration_like,
+                                              factory->seconds_string()));
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.weeks,
-      temporal::GetSingleDurationField(isolate, duration_like,
-                                       factory->weeks_string()),
-      Nothing<temporal_rs::PartialDuration>());
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      temporal::GetSingleDurationFieldInteger(isolate, duration_like,
+                                              factory->weeks_string()));
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.years,
-      temporal::GetSingleDurationField(isolate, duration_like,
-                                       factory->years_string()),
-      Nothing<temporal_rs::PartialDuration>());
+      temporal::GetSingleDurationFieldInteger(isolate, duration_like,
+                                              factory->years_string()));
+
+  // 24. If years is undefined, and months is undefined, and weeks is undefined,
+  // and days is undefined, and hours is undefined, and minutes is undefined,
+  // and seconds is undefined, and milliseconds is undefined, and microseconds
+  // is undefined, and nanoseconds is undefined, throw a TypeError exception.
+
+  if (!result.years.has_value() && !result.months.has_value() &&
+      !result.weeks.has_value() && !result.days.has_value() &&
+      !result.hours.has_value() && !result.minutes.has_value() &&
+      !result.seconds.has_value() && !result.milliseconds.has_value() &&
+      !result.microseconds.has_value() && !result.nanoseconds.has_value()) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                 "Did not provide any valid Duration fields."));
+  }
 
   return Just(result);
 }
@@ -1494,16 +1554,14 @@ Maybe<std::optional<IntegerType>> GetSingleTimeRecordField(
     DirectHandle<String> field_name, bool* any) {
   DirectHandle<Object> val;
   //  Let v be ?Get(temporalTimeLike, field_name).
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, val, JSReceiver::GetProperty(isolate, time_like, field_name),
-      Nothing<std::optional<IntegerType>>());
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, val, JSReceiver::GetProperty(isolate, time_like, field_name));
   // If val is not undefined, then
   if (!IsUndefined(*val)) {
     double field;
     // 5. a. Set result.[[Hour]] to ?ToIntegerWithTruncation(hour).
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, field, temporal::ToIntegerWithTruncation(isolate, val),
-        Nothing<std::optional<IntegerType>>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, field,
+                               temporal::ToIntegerWithTruncation(isolate, val));
     // b. Set any to true.
     *any = true;
 
@@ -1515,11 +1573,67 @@ Maybe<std::optional<IntegerType>> GetSingleTimeRecordField(
   }
 }
 
+// https://tc39.es/proposal-temporal/#sec-temporal-ispartialtemporalobject
+Maybe<bool> IsPartialTemporalObject(Isolate* isolate,
+                                    DirectHandle<Object> value) {
+  // 1. If value is not an Object, return false.
+  if (!IsHeapObject(*value)) {
+    return Just(false);
+  }
+  InstanceType instance_type =
+      Cast<HeapObject>(*value)->map(isolate)->instance_type();
+
+  if (!InstanceTypeChecker::IsJSReceiver(instance_type)) {
+    return Just(false);
+  }
+
+  auto value_recvr = Cast<JSReceiver>(value);
+
+  // 2. If value has an [[InitializedTemporalDate]],
+  // [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]],
+  // [[InitializedTemporalTime]], [[InitializedTemporalYearMonth]], or
+  // [[InitializedTemporalZonedDateTime]] internal slot, return false.
+  if (InstanceTypeChecker::IsJSTemporalPlainDate(instance_type) ||
+      InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type) ||
+      InstanceTypeChecker::IsJSTemporalPlainMonthDay(instance_type) ||
+      InstanceTypeChecker::IsJSTemporalPlainTime(instance_type) ||
+      InstanceTypeChecker::IsJSTemporalPlainYearMonth(instance_type) ||
+      InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
+    return Just(false);
+  }
+
+  // 3. Let calendarProperty be ? Get(value, "calendar").
+  DirectHandle<Object> cal;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, cal,
+      JSReceiver::GetProperty(isolate, value_recvr,
+                              isolate->factory()->calendar_string()));
+
+  // 4. If calendarProperty is not undefined, return false.
+  if (!IsUndefined(*cal)) {
+    return Just(false);
+  }
+
+  // 5. Let timeZoneProperty be ? Get(value, "timeZone").
+  DirectHandle<Object> tz;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, tz,
+      JSReceiver::GetProperty(isolate, value_recvr,
+                              isolate->factory()->timeZone_string()));
+
+  // 6. If timeZoneProperty is not undefined, return false.
+  if (!IsUndefined(*tz)) {
+    return Just(false);
+  }
+
+  // 7. return true
+  return Just(true);
+}
+
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporaltimerecord
 Maybe<temporal_rs::PartialTime> ToTemporalTimeRecord(
     Isolate* isolate, DirectHandle<JSReceiver> time_like,
     const char* method_name, Completeness completeness = kComplete) {
-  TEMPORAL_ENTER_FUNC();
   Factory* factory = isolate->factory();
 
   // 2. If completeness is complete, then
@@ -1547,40 +1661,34 @@ Maybe<temporal_rs::PartialTime> ToTemporalTimeRecord(
 
   // Steps 3-14: get each field in alphabetical order
 
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.hour,
-      temporal::GetSingleTimeRecordField<uint8_t>(isolate, time_like,
-                                                  factory->hour_string(), &any),
-      Nothing<temporal_rs::PartialTime>());
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      temporal::GetSingleTimeRecordField<uint8_t>(
+          isolate, time_like, factory->hour_string(), &any));
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.microsecond,
       temporal::GetSingleTimeRecordField<uint16_t>(
-          isolate, time_like, factory->microsecond_string(), &any),
-      Nothing<temporal_rs::PartialTime>());
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, time_like, factory->microsecond_string(), &any));
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.millisecond,
       temporal::GetSingleTimeRecordField<uint16_t>(
-          isolate, time_like, factory->millisecond_string(), &any),
-      Nothing<temporal_rs::PartialTime>());
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, time_like, factory->millisecond_string(), &any));
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.minute,
       temporal::GetSingleTimeRecordField<uint8_t>(
-          isolate, time_like, factory->minute_string(), &any),
-      Nothing<temporal_rs::PartialTime>());
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, time_like, factory->minute_string(), &any));
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.nanosecond,
       temporal::GetSingleTimeRecordField<uint16_t>(
-          isolate, time_like, factory->nanosecond_string(), &any),
-      Nothing<temporal_rs::PartialTime>());
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, time_like, factory->nanosecond_string(), &any));
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result.second,
       temporal::GetSingleTimeRecordField<uint8_t>(
-          isolate, time_like, factory->second_string(), &any),
-      Nothing<temporal_rs::PartialTime>());
+          isolate, time_like, factory->second_string(), &any));
 
   if (!any) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<temporal_rs::PartialTime>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                 "Must specify at least one time field."));
   }
 
   return Just(result);
@@ -1588,11 +1696,60 @@ Maybe<temporal_rs::PartialTime> ToTemporalTimeRecord(
 
 // Returned by PrepareCalendarFields
 struct CombinedRecord {
-  temporal_rs::PartialDate date;
-  temporal_rs::PartialTime time;
+  temporal_rs::PartialDate date = kNullPartialDate;
+  temporal_rs::PartialTime time = kNullPartialTime;
   std::optional<std::string> offset;
   std::optional<std::unique_ptr<temporal_rs::TimeZone>> time_zone;
+
+  // For use in generic contexts
+  template <typename Ret>
+  Ret To() &&;
 };
+
+template <>
+temporal_rs::PartialDate CombinedRecord::To() && {
+  DCHECK(!offset.has_value() && !time_zone.has_value());
+  DCHECK(!time.hour.has_value() && !time.minute.has_value() &&
+         !time.second.has_value() && !time.millisecond.has_value() &&
+         !time.microsecond.has_value() && !time.nanosecond.has_value());
+  return std::move(date);
+}
+template <>
+temporal_rs::PartialTime CombinedRecord::To() && {
+  DCHECK(!offset.has_value() && !time_zone.has_value());
+  DCHECK(!date.year.has_value() && !date.month.has_value() &&
+         date.month_code == "" && !date.day.has_value() && date.era == "" &&
+         !date.era_year.has_value() &&
+         date.calendar == temporal_rs::AnyCalendarKind::Iso);
+
+  return std::move(time);
+}
+
+template <>
+temporal_rs::PartialDateTime CombinedRecord::To() && {
+  DCHECK(!offset.has_value() && !time_zone.has_value());
+  return temporal_rs::PartialDateTime{
+      .date = std::move(date),
+      .time = std::move(time),
+  };
+}
+
+template <>
+temporal_rs::PartialZonedDateTime CombinedRecord::To() && {
+  auto record = temporal_rs::PartialZonedDateTime{
+      .date = std::move(date),
+      .time = std::move(time),
+      .offset = std::nullopt,
+      .timezone = nullptr,
+  };
+  if (time_zone.has_value()) {
+    record.timezone = time_zone.value().get();
+  }
+  if (offset.has_value()) {
+    record.offset = offset.value();
+  }
+  return record;
+}
 
 // An object that "owns" values borrowed in CombinedRecord,
 // to be passed in to PrepareCalendarFields by a caller that
@@ -1637,9 +1794,8 @@ Maybe<bool> GetSingleCalendarField(
     Maybe<OutType> (*conversion_func)(Isolate*, DirectHandle<Object>)) {
   // b. Let value be ?Get(fields, property).
   DirectHandle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, JSReceiver::GetProperty(isolate, fields, field_name),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, value, JSReceiver::GetProperty(isolate, fields, field_name));
 
   // c. If value is not undefined, then
   if (!IsUndefined(*value)) {
@@ -1649,8 +1805,7 @@ Maybe<bool> GetSingleCalendarField(
     // (perform conversion)
     // ix. Set result's field whose name is given in the Field Name column of
     // the same row to value.
-    MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
-        isolate, output, conversion_func(isolate, value), Nothing<bool>());
+    MOVE_RETURN_ON_EXCEPTION(isolate, output, conversion_func(isolate, value));
     return Just(true);
   }
 
@@ -1665,9 +1820,8 @@ Maybe<bool> GetSingleCalendarField(
                                                   DirectHandle<Object>)) {
   // b. Let value be ?Get(fields, property).
   DirectHandle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, JSReceiver::GetProperty(isolate, fields, field_name),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, value, JSReceiver::GetProperty(isolate, fields, field_name));
 
   // c. If value is not undefined, then
   if (!IsUndefined(*value)) {
@@ -1677,8 +1831,8 @@ Maybe<bool> GetSingleCalendarField(
     // (perform conversion)
     // ix. Set result's field whose name is given in the Field Name column of
     // the same row to value.
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, output, conversion_func(isolate, value), Nothing<bool>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, output,
+                               conversion_func(isolate, value));
     return Just(true);
   }
 
@@ -1699,11 +1853,9 @@ Maybe<bool> GetSingleCalendarField(
 #define ERA_CONDITION(cond) calendarUsesEras && (cond)
 
 #define NOOP_REQUIRED_CHECK
-#define TIMEZONE_REQUIRED_CHECK                                         \
-  if (!found && required_fields == RequiredFields::kTimeZone) {         \
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,                               \
-                                 NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(), \
-                                 Nothing<CombinedRecord>());            \
+#define TIMEZONE_REQUIRED_CHECK                                          \
+  if (!found && required_fields == RequiredFields::kTimeZone) {          \
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kTimeZoneMissing)); \
   }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-calendar-fields-records
@@ -1778,12 +1930,7 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
   bool calendarUsesEras = kind != temporal_rs::AnyCalendarKind::Iso;
 
   // 6. Let result be a Calendar Fields Record with all fields equal to unset.
-  CombinedRecord result = CombinedRecord{
-      .date = kNullPartialDate,
-      .time = kNullPartialTime,
-      .offset = std::nullopt,
-      .time_zone = std::nullopt,
-  };
+  CombinedRecord result;
 
   // This is not explicitly specced, but CombinedRecord contains the calendar
   // kind unlike the spec, and no caller of PrepareCalendarFields does anything
@@ -1837,12 +1984,11 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
   if (CONDITION(which_fields & CalendarFieldsFlag::fieldsFlag)) {              \
     Type propertyName;                                                         \
     bool found = 0;                                                            \
-    MAYBE_##AssignOrMove##_RETURN_ON_EXCEPTION_VALUE(                          \
+    AssignOrMove##_RETURN_ON_EXCEPTION(                                        \
         isolate, found,                                                        \
         GetSingleCalendarField(isolate, fields,                                \
                                isolate->factory()->propertyName##_string(),    \
-                               any, propertyName, Conversion),                 \
-        Nothing<CombinedRecord>());                                            \
+                               any, propertyName, Conversion));                \
     if (found) {                                                               \
       SETTER(resultField, propertyName);                                       \
     }                                                                          \
@@ -1856,8 +2002,8 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
   // 10. If requiredFieldNames is partial and any is false, then
   if (required_fields == RequiredFields::kPartial && !any) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<CombinedRecord>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                 "Must specify at least one calendar field."));
   }
 
   return Just(std::move(result));
@@ -1872,12 +2018,115 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
 #undef TIMEZONE_REQUIRED_CHECK
 #undef CALENDAR_FIELDS
 
+// ====== System time ======
+
+// https://tc39.es/proposal-temporal/#sec-systemtimezoneidentifier
+std::unique_ptr<temporal_rs::TimeZone> UTCTimeZone() {
+  // TODO(manishearth) This is a fallible method that in theory should
+  // never fail, but we should avoid this problem by using something infallible
+  // instead.
+  // Can be fixed after https://github.com/boa-dev/temporal/pull/358 lands
+  return temporal_rs::TimeZone::try_from_identifier_str("UTC").ok().value();
+}
+
+// https://tc39.es/proposal-temporal/#sec-systemtimezoneidentifier
+#ifdef V8_INTL_SUPPORT
+std::unique_ptr<temporal_rs::TimeZone> SystemTimeZoneIdentifier() {
+  auto tz_str = Intl::DefaultTimeZone();
+  auto tz = temporal_rs::TimeZone::try_from_identifier_str(tz_str).ok();
+  if (tz.has_value()) {
+    return std::move(tz).value();
+  }
+  return UTCTimeZone();
+}
+#else   //  V8_INTL_SUPPORT
+std::unique_ptr<temporal_rs::TimeZone> SystemTimeZoneIdentifier() {
+  return UTCTimeZone();
+}
+#endif  //  V8_INTL_SUPPORT
+
+// We don't have nanosecond precision counters, so it's pointless to perform
+// numeric conversions back and forth.
+//
+// https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
+// https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochmilliseconds
+int64_t SystemUTCEpochMilliseconds() {
+  double ms =
+      V8::GetCurrentPlatform()->CurrentClockTimeMillisecondsHighResolution();
+
+  auto min = static_cast<double>(std::numeric_limits<int64_t>::min());
+  auto max = static_cast<double>(std::numeric_limits<int64_t>::max());
+  double clamped = std::clamp(ms, min, max);
+
+  return static_cast<int64_t>(clamped);
+}
+
+// Gets a ZonedDateTime in the ISO calendar representing system time, using
+// either a passed in timezone or the system timezone.
+//
+// Primarily patterned off of Now.zonedDateTimeISO(), all other callers can
+// convert to specific types.
+//
+// https://tc39.es/proposal-temporal/#sec-temporal.now.zoneddatetimeiso
+// https://tc39.es/proposal-temporal/#sec-temporal.now.plaindatetimeiso
+// https://tc39.es/proposal-temporal/#sec-temporal.now.plaindateiso
+// https://tc39.es/proposal-temporal/#sec-temporal.now.plaintimeiso
+Maybe<std::unique_ptr<temporal_rs::ZonedDateTime>> GenericTemporalNowISO(
+    Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
+  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+
+  // 1. If temporalTimeZoneLike is undefined, then
+  if (IsUndefined(*temporal_time_zone_like)) {
+    // a. Let timeZone be SystemTimeZoneIdentifier().
+    time_zone = SystemTimeZoneIdentifier();
+    // 2. Else,
+  } else {
+    // a. Let timeZone be ? ToTemporalTimeZoneIdentifier(temporalTimeZoneLike).
+    MOVE_RETURN_ON_EXCEPTION(isolate, time_zone,
+                             temporal::ToTemporalTimeZoneIdentifier(
+                                 isolate, temporal_time_zone_like));
+  }
+
+  // 3. Let ns be SystemUTCEpochNanoseconds().
+  auto ms = SystemUTCEpochMilliseconds();
+
+  // 4. Return ! CreateTemporalZonedDateTime(ns, timeZone, "iso8601").
+  // TODO(manishearth) we can avoid the multiple layers of allocation here
+  // once https://github.com/boa-dev/temporal/pull/359 lands.
+  std::unique_ptr<temporal_rs::Instant> instant;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, instant,
+      ExtractRustResult(isolate,
+                        temporal_rs::Instant::from_epoch_milliseconds(ms)));
+  return Just(instant->to_zoned_date_time_iso(*time_zone));
+}
+
 // ====== Construction operations ======
+
+// Implementing val.toFoo() for different Temporal types Foo
+// (this is distinct from the ToTemporalFoo abstract operations below)
+template <typename DstType, typename SrcType>
+MaybeDirectHandle<DstType> GenericToTemporalMethod(
+    Isolate* isolate, DirectHandle<SrcType> val,
+    TemporalAllocatedResult<typename DstType::RustType> (
+        SrcType::RustType::*method)() const) {
+  return ConstructRustWrappingType<DstType>(isolate,
+                                            (val->wrapped_rust().*method)());
+}
+
+// Same as above, but for infallible conversions
+template <typename DstType, typename SrcType>
+MaybeDirectHandle<DstType> GenericToTemporalMethod(
+    Isolate* isolate, DirectHandle<SrcType> val,
+    std::unique_ptr<typename DstType::RustType> (SrcType::RustType::*method)()
+        const) {
+  return ConstructRustWrappingType<DstType>(isolate,
+                                            (val->wrapped_rust().*method)());
+}
 
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporalduration
 MaybeDirectHandle<JSTemporalDuration> ToTemporalDuration(
     Isolate* isolate, DirectHandle<Object> item, const char* method_name) {
-  TEMPORAL_ENTER_FUNC();
 
   // 1. If item is an Object and item has an [[InitializedTemporalDuration]]
   // internal slot, then a. a. Return ! CreateTemporalDuration(item.[[Years]],
@@ -1908,7 +2157,9 @@ MaybeDirectHandle<JSTemporalDuration> ToTemporalDuration(
   if (!IsJSReceiver(*item)) {
     // a. If item is not a String, throw a TypeError exception.
     if (!IsString(*item)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_TYPE_ERROR(
+                          "Duration argument must be Duration or string."));
     }
     DirectHandle<String> str = Cast<String>(item);
     // b. Let result be ? ParseTemporalDurationString(string).
@@ -1930,10 +2181,9 @@ MaybeDirectHandle<JSTemporalDuration> ToTemporalDuration(
   }
 
   temporal_rs::PartialDuration partial;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, partial,
-      temporal::ToTemporalPartialDurationRecord(isolate, item),
-      DirectHandle<JSTemporalDuration>());
+      temporal::ToTemporalPartialDurationRecord(isolate, item));
 
   return ConstructRustWrappingType<JSTemporalDuration>(
       isolate, temporal_rs::Duration::from_partial_duration(partial));
@@ -1942,7 +2192,6 @@ MaybeDirectHandle<JSTemporalDuration> ToTemporalDuration(
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporalinstant
 MaybeDirectHandle<JSTemporalInstant> ToTemporalInstant(
     Isolate* isolate, DirectHandle<Object> item, const char* method_name) {
-  TEMPORAL_ENTER_FUNC();
 
   // 1. If item is an Object, then
   // a. If item has an [[InitializedTemporalInstant]] or
@@ -1950,6 +2199,13 @@ MaybeDirectHandle<JSTemporalInstant> ToTemporalInstant(
   if (IsJSTemporalInstant(*item)) {
     auto instant = Cast<JSTemporalInstant>(item);
     auto ns = instant->instant()->raw()->epoch_nanoseconds();
+    // i. Return !CreateTemporalInstant(item.[[EpochNanoseconds]]).
+    return ConstructRustWrappingType<JSTemporalInstant>(
+        isolate, temporal_rs::Instant::try_new(ns));
+    // ... or  [[InitializedTemporalZonedDateTime]] internal slot
+  } else if (IsJSTemporalZonedDateTime(*item)) {
+    auto zdt = Cast<JSTemporalZonedDateTime>(item);
+    auto ns = zdt->zoned_date_time()->raw()->epoch_nanoseconds();
     // i. Return !CreateTemporalInstant(item.[[EpochNanoseconds]]).
     return ConstructRustWrappingType<JSTemporalInstant>(
         isolate, temporal_rs::Instant::try_new(ns));
@@ -1966,7 +2222,9 @@ MaybeDirectHandle<JSTemporalInstant> ToTemporalInstant(
   }
 
   if (!IsString(*item_prim)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(
+        isolate,
+        NEW_TEMPORAL_TYPE_ERROR("Instant argument must be Instant or string."));
   }
 
   DirectHandle<String> item_string = Cast<String>(item_prim);
@@ -1994,14 +2252,15 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
     Isolate* isolate, DirectHandle<Object> item,
     std::optional<temporal_rs::ArithmeticOverflow> overflow,
     const char* method_name) {
-  TEMPORAL_ENTER_FUNC();
   // 1. If options is not present, set options to undefined.
   // (handled by caller)
 
   // This error is eventually thrown by step 3; we perform a check early
   // so that we can optimize with InstanceType. Step 1 and 2 are unobservable.
   if (!IsHeapObject(*item)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(
+        isolate,
+        NEW_TEMPORAL_TYPE_ERROR("Time-like argument must be object or string"));
   }
   InstanceType instance_type =
       Cast<HeapObject>(*item)->map(isolate)->instance_type();
@@ -2027,10 +2286,9 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
     } else {
       // d. Let result be ?ToTemporalTimeRecord(item).
       DirectHandle<JSReceiver> item_recvr = Cast<JSReceiver>(item);
-      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION(
           isolate, record,
-          temporal::ToTemporalTimeRecord(isolate, item_recvr, method_name),
-          DirectHandle<JSTemporalPlainTime>());
+          temporal::ToTemporalTimeRecord(isolate, item_recvr, method_name));
 
       // RegulateTime/etc is handled by temporal_rs
       // caveat: https://github.com/boa-dev/temporal/issues/334
@@ -2043,7 +2301,9 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
   } else {
     // a. If item is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_TYPE_ERROR(
+                          "Time-like argument must be object or string"));
     }
     DirectHandle<String> str = Cast<String>(item);
 
@@ -2064,6 +2324,28 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
   }
 }
 
+// Instead of returning Midnight, just returns null, since temporal_rs
+// handles the midnight-setting
+//
+// https://tc39.es/proposal-temporal/#sec-temporal-totimerecordormidnight
+Maybe<const temporal_rs::PlainTime*> ToTimeRecordOrMidnight(
+    Isolate* isolate, DirectHandle<Object> item,
+    DirectHandle<JSTemporalPlainTime>& output_time, const char* method_name) {
+  // 1. If item is undefined, return MidnightTimeRecord().
+  if (IsUndefined(*item)) {
+    return Just(static_cast<const temporal_rs::PlainTime*>(nullptr));
+  }
+
+  // 2. Let plainTime be ? ToTemporalTime(item).
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, output_time,
+      ToTemporalTime(isolate, item, std::nullopt, method_name));
+
+  // 3. Return plainTime.[[Time]].
+  return Just(
+      static_cast<const temporal_rs::PlainTime*>(output_time->time()->raw()));
+}
+
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporaldate
 // Note this skips the options-parsing steps and instead asks the caller to pass
 // it in
@@ -2071,14 +2353,14 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
     Isolate* isolate, DirectHandle<Object> item,
     std::optional<temporal_rs::ArithmeticOverflow> overflow,
     const char* method_name) {
-  TEMPORAL_ENTER_FUNC();
   // 1. If options is not present, set options to undefined.
   // (handled by caller)
 
   // This error is eventually thrown by step 3a; we perform a check early
   // so that we can optimize with InstanceType. Step 1 and 2 are unobservable.
   if (!IsHeapObject(*item)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                 "Date argument must be object or string."));
   }
   InstanceType instance_type =
       Cast<HeapObject>(*item)->map(isolate)->instance_type();
@@ -2102,32 +2384,25 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
     } else if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
       // iii. Return !CreateTemporalDate(item.[[ISODateTime]].[[ISODate]],
       // item.[[Calendar]]).
-      record = GetDateRecord(Cast<JSTemporalPlainDate>(item));
+      record = GetDateRecord(Cast<JSTemporalPlainDateTime>(item));
     } else {
       // d. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
       temporal_rs::AnyCalendarKind kind = temporal_rs::AnyCalendarKind::Iso;
       DirectHandle<JSReceiver> item_recvr = Cast<JSReceiver>(item);
-      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION(
           isolate, kind,
           temporal::GetTemporalCalendarIdentifierWithISODefault(isolate,
-                                                                item_recvr),
-          DirectHandle<JSTemporalPlainDate>());
+                                                                item_recvr));
 
       // e. Let fields be ?PrepareCalendarFields(calendar, item, « year, month,
       // month-code, day», «», «»).
       CombinedRecordOwnership owners;
-      CombinedRecord fields = CombinedRecord{
-          .date = kNullPartialDate,
-          .time = kNullPartialTime,
-          .offset = std::nullopt,
-          .time_zone = std::nullopt,
-      };
+      CombinedRecord fields;
 
-      MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      MOVE_RETURN_ON_EXCEPTION(
           isolate, fields,
           PrepareCalendarFields(isolate, kind, item_recvr, kAllDateFlags,
-                                RequiredFields::kNone, owners),
-          DirectHandle<JSTemporalPlainDate>());
+                                RequiredFields::kNone, owners));
       return ConstructRustWrappingType<JSTemporalPlainDate>(
           isolate, temporal_rs::PlainDate::from_partial(fields.date, overflow));
     }
@@ -2138,11 +2413,12 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
   } else {
     // a. If item is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                   "Date argument must be object or string."));
     }
     DirectHandle<String> str = Cast<String>(item);
 
-    // Rest of the steps handled in Rust
+    // Rest of the steps handled in Rust.
 
     auto rust_result =
         HandleStringEncodings<TemporalAllocatedResult<temporal_rs::PlainDate>>(
@@ -2168,14 +2444,15 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
     Isolate* isolate, DirectHandle<Object> item,
     std::optional<temporal_rs::ArithmeticOverflow> overflow,
     const char* method_name) {
-  TEMPORAL_ENTER_FUNC();
   // 1. If options is not present, set options to undefined.
   // (handled by caller)
 
   // This error is eventually thrown by step 3; we perform a check early
   // so that we can optimize with InstanceType. Step 1 and 2 are unobservable.
   if (!IsHeapObject(*item)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(
+        isolate,
+        NEW_TEMPORAL_TYPE_ERROR("DateTime argument must be object or string."));
   }
   InstanceType instance_type =
       Cast<HeapObject>(*item)->map(isolate)->instance_type();
@@ -2204,31 +2481,23 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
       // d. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
       temporal_rs::AnyCalendarKind kind = temporal_rs::AnyCalendarKind::Iso;
       DirectHandle<JSReceiver> item_recvr = Cast<JSReceiver>(item);
-      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION(
           isolate, kind,
           temporal::GetTemporalCalendarIdentifierWithISODefault(isolate,
-                                                                item_recvr),
-          kNullMaybeHandle);
+                                                                item_recvr));
 
       // e. Let fields be ?PrepareCalendarFields(calendar, item, « year, month,
       // month-code, day», « hour, minute, second, millisecond, microsecond,
       // nanosecond», «»).
       CombinedRecordOwnership owners;
-      CombinedRecord fields = CombinedRecord{
-          .date = kNullPartialDate,
-          .time = kNullPartialTime,
-          .offset = std::nullopt,
-          .time_zone = std::nullopt,
-      };
+      CombinedRecord fields;
       using enum CalendarFieldsFlag;
-      MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      MOVE_RETURN_ON_EXCEPTION(
           isolate, fields,
           PrepareCalendarFields(isolate, kind, item_recvr,
                                 kAllDateFlags | kTimeFields,
-                                RequiredFields::kNone, owners),
-          kNullMaybeHandle);
-      record.date = fields.date;
-      record.time = fields.time;
+                                RequiredFields::kNone, owners));
+      record = std::move(fields).To<temporal_rs::PartialDateTime>();
     }
 
     return ConstructRustWrappingType<JSTemporalPlainDateTime>(
@@ -2237,7 +2506,9 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
   } else {
     // 3. If item is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_TYPE_ERROR(
+                          "DateTime argument must be object or string."));
     }
     DirectHandle<String> str = Cast<String>(item);
 
@@ -2267,14 +2538,15 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
     Isolate* isolate, DirectHandle<Object> item,
     std::optional<temporal_rs::ArithmeticOverflow> overflow,
     const char* method_name) {
-  TEMPORAL_ENTER_FUNC();
   // 1. If options is not present, set options to undefined.
   // (handled by caller)
 
   // This error is eventually thrown by step 3; we perform a check early
   // so that we can optimize with InstanceType. Step 1 and 2 are unobservable.
   if (!IsHeapObject(*item)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_TYPE_ERROR(
+                        "YearMonth argument must be object or string."));
   }
   InstanceType instance_type =
       Cast<HeapObject>(*item)->map(isolate)->instance_type();
@@ -2296,30 +2568,23 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
     } else {
       // b. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
       DirectHandle<JSReceiver> item_recvr = Cast<JSReceiver>(item);
-      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION(
           isolate, kind,
           temporal::GetTemporalCalendarIdentifierWithISODefault(isolate,
-                                                                item_recvr),
-          kNullMaybeHandle);
+                                                                item_recvr));
 
       // c. Let fields be ?PrepareCalendarFields(calendar, item, « year, month,
       // month-code», «», «»).
       CombinedRecordOwnership owners;
-      CombinedRecord fields = CombinedRecord{
-          .date = kNullPartialDate,
-          .time = kNullPartialTime,
-          .offset = std::nullopt,
-          .time_zone = std::nullopt,
-      };
+      CombinedRecord fields;
 
       using enum CalendarFieldsFlag;
 
-      MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      MOVE_RETURN_ON_EXCEPTION(
           isolate, fields,
           PrepareCalendarFields(isolate, kind, item_recvr,
                                 kYearFields | kMonthFields,
-                                RequiredFields::kNone, owners),
-          kNullMaybeHandle);
+                                RequiredFields::kNone, owners));
 
       // Remaining steps handled in Rust
 
@@ -2343,7 +2608,9 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
   } else {
     // 3. If item is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_TYPE_ERROR(
+                          "YearMonth argument must be object or string."));
     }
     DirectHandle<String> str = Cast<String>(item);
 
@@ -2375,14 +2642,15 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
     std::optional<temporal_rs::OffsetDisambiguation> offset_option,
     std::optional<temporal_rs::ArithmeticOverflow> overflow,
     const char* method_name) {
-  TEMPORAL_ENTER_FUNC();
   // 1. If options is not present, set options to undefined.
   // (handled by caller)
 
   // This error is eventually thrown by step 3; we perform a check early
   // so that we can optimize with InstanceType. Step 1 and 2 are unobservable.
   if (!IsHeapObject(*item)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_TYPE_ERROR(
+                        "ZonedDateTime argument must be object or string."));
   }
   InstanceType instance_type =
       Cast<HeapObject>(*item)->map(isolate)->instance_type();
@@ -2411,63 +2679,47 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
       // b. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
       temporal_rs::AnyCalendarKind kind = temporal_rs::AnyCalendarKind::Iso;
       DirectHandle<JSReceiver> item_recvr = Cast<JSReceiver>(item);
-      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION(
           isolate, kind,
           temporal::GetTemporalCalendarIdentifierWithISODefault(isolate,
-                                                                item_recvr),
-          kNullMaybeHandle);
+                                                                item_recvr));
 
       // e. c. Let fields be ? PrepareCalendarFields(calendar, item, « year,
       // month, month-code, day», « hour, minute, second, millisecond,
       // microsecond, nanosecond, offset, time-zone», « time-zone»).
       CombinedRecordOwnership owners;
-      CombinedRecord fields = CombinedRecord{
-          .date = kNullPartialDate,
-          .time = kNullPartialTime,
-          .offset = std::nullopt,
-          .time_zone = std::nullopt,
-      };
+      CombinedRecord fields;
       using enum CalendarFieldsFlag;
-      MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      MOVE_RETURN_ON_EXCEPTION(
           isolate, fields,
           PrepareCalendarFields(
               isolate, kind, item_recvr,
               kAllDateFlags | kTimeFields | kOffset | kTimeZone,
-              RequiredFields::kTimeZone, owners),
-          kNullMaybeHandle);
-
-      auto record = temporal_rs::PartialZonedDateTime{
-          .date = fields.date,
-          .time = fields.time,
-          .offset = std::nullopt,
-          .timezone = nullptr,
-      };
-      if (fields.time_zone.has_value()) {
-        record.timezone = fields.time_zone.value().get();
-      }
-      if (fields.offset.has_value()) {
-        record.offset = fields.offset.value();
-      }
+              RequiredFields::kTimeZone, owners));
 
       return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-          isolate, temporal_rs::ZonedDateTime::from_partial(
-                       record, overflow, disambiguation, offset_option));
+          isolate,
+          temporal_rs::ZonedDateTime::from_partial(
+              std::move(fields).To<temporal_rs::PartialZonedDateTime>(),
+              overflow, disambiguation, offset_option));
     }
 
   } else {
     // 3. If item is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_TYPE_ERROR(
+                          "ZonedDateTime argument must be object or string."));
     }
     DirectHandle<String> str = Cast<String>(item);
 
-    // Default value from GetTemporalDisambiguationOption
+    // Default value from GetTemporalDisambiguationOption.
     auto disambiguation_defaulted =
         disambiguation.value_or(temporal_rs::Disambiguation::Compatible);
     auto offset_defaulted =
         offset_option.value_or(temporal_rs::OffsetDisambiguation::Reject);
 
-    // Rest of the steps handled in Rust
+    // Rest of the steps handled in Rust.
 
     auto rust_result = HandleStringEncodings<
         TemporalAllocatedResult<temporal_rs::ZonedDateTime>>(
@@ -2495,14 +2747,15 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
     Isolate* isolate, DirectHandle<Object> item,
     std::optional<temporal_rs::ArithmeticOverflow> overflow,
     const char* method_name) {
-  TEMPORAL_ENTER_FUNC();
   // 1. If options is not present, set options to undefined.
   // (handled by caller)
 
   // This error is eventually thrown by step 3; we perform a check early
   // so that we can optimize with InstanceType. Step 1 and 2 are unobservable.
   if (!IsHeapObject(*item)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(
+        isolate,
+        NEW_TEMPORAL_TYPE_ERROR("MonthDay argument must be object or string."));
   }
   InstanceType instance_type =
       Cast<HeapObject>(*item)->map(isolate)->instance_type();
@@ -2528,30 +2781,23 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
     } else {
       // b. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
       DirectHandle<JSReceiver> item_recvr = Cast<JSReceiver>(item);
-      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION(
           isolate, kind,
           temporal::GetTemporalCalendarIdentifierWithISODefault(isolate,
-                                                                item_recvr),
-          kNullMaybeHandle);
+                                                                item_recvr));
 
       // c. Let fields be ?PrepareCalendarFields(calendar, item, « year, month,
       // month-code, day», «», «»).
       CombinedRecordOwnership owners;
-      CombinedRecord fields = CombinedRecord{
-          .date = kNullPartialDate,
-          .time = kNullPartialTime,
-          .offset = std::nullopt,
-          .time_zone = std::nullopt,
-      };
+      CombinedRecord fields;
 
       using enum CalendarFieldsFlag;
 
-      MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      MOVE_RETURN_ON_EXCEPTION(
           isolate, fields,
           PrepareCalendarFields(isolate, kind, item_recvr,
                                 kYearFields | kMonthFields,
-                                RequiredFields::kNone, owners),
-          kNullMaybeHandle);
+                                RequiredFields::kNone, owners));
 
       // Remaining steps handled in Rust
 
@@ -2576,7 +2822,9 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
   } else {
     // 3. If item is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_TYPE_ERROR(
+                          "MonthDay argument must be object or string."));
     }
     DirectHandle<String> str = Cast<String>(item);
     DirectHandle<JSTemporalPlainDate> result;
@@ -2600,15 +2848,60 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
   }
 }
 
+// For calling ToTemporalFoo in generic contexts.
+// Note that this ignores any options other than `overflow`.
+template <typename JSType>
+MaybeDirectHandle<JSType> ToTemporalGeneric(
+    Isolate* isolate, DirectHandle<Object> item,
+    std::optional<temporal_rs::ArithmeticOverflow> overflow,
+    const char* method_name);
+
+#define DEFINE_TO_TEMPORAL_GENERIC(Type)                           \
+  template <>                                                      \
+  MaybeDirectHandle<JSTemporalPlain##Type>                         \
+  ToTemporalGeneric<JSTemporalPlain##Type>(                        \
+      Isolate * isolate, DirectHandle<Object> item,                \
+      std::optional<temporal_rs::ArithmeticOverflow> overflow,     \
+      const char* method_name) {                                   \
+    return ToTemporal##Type(isolate, item, overflow, method_name); \
+  }
+
+DEFINE_TO_TEMPORAL_GENERIC(Time)
+DEFINE_TO_TEMPORAL_GENERIC(Date)
+DEFINE_TO_TEMPORAL_GENERIC(DateTime)
+DEFINE_TO_TEMPORAL_GENERIC(YearMonth)
+DEFINE_TO_TEMPORAL_GENERIC(MonthDay)
+
+#undef DEFINE_TO_TEMPORAL_GENERIC
+
+// These two have a different number of arguments
+template <>
+MaybeDirectHandle<JSTemporalInstant> ToTemporalGeneric<JSTemporalInstant>(
+    Isolate* isolate, DirectHandle<Object> item,
+    std::optional<temporal_rs::ArithmeticOverflow> overflow,
+    const char* method_name) {
+  return ToTemporalInstant(isolate, item, method_name);
+}
+
+template <>
+MaybeDirectHandle<JSTemporalZonedDateTime>
+ToTemporalGeneric<JSTemporalZonedDateTime>(
+    Isolate* isolate, DirectHandle<Object> item,
+    std::optional<temporal_rs::ArithmeticOverflow> overflow,
+    const char* method_name) {
+  return ToTemporalZonedDateTime(isolate, item, std::nullopt, std::nullopt,
+                                 overflow, method_name);
+}
+
 // A class that wraps a PlainDate or a ZonedDateTime that allows
 // them to be either owned in a unique_ptr or borrowed.
 //
 // Setters should only be called once (this is not a safety
 // invariant, but the spec should not be setting things multiple
 // times)
-class OwnedRelativeTo {
+class RelativeTo {
  public:
-  OwnedRelativeTo()
+  RelativeTo()
       : date_(std::nullopt),
         zoned_(std::nullopt),
         date_ptr_(nullptr),
@@ -2616,28 +2909,37 @@ class OwnedRelativeTo {
 
   // These methods are not constructors so that they can be explicitly invoked,
   // to avoid e.g. passing in an owned type as a pointer.
-  static OwnedRelativeTo Owned(std::unique_ptr<temporal_rs::PlainDate>&& val) {
-    OwnedRelativeTo ret;
+  static RelativeTo Owned(std::unique_ptr<temporal_rs::PlainDate>&& val) {
+    RelativeTo ret;
     ret.date_ = std::move(val);
-    ret.date_ptr_ = val.get();
+    ret.date_ptr_ = ret.date_.value().get();
     return ret;
   }
-  static OwnedRelativeTo Owned(
-      std::unique_ptr<temporal_rs::ZonedDateTime>&& val) {
-    OwnedRelativeTo ret;
+  static RelativeTo Owned(std::unique_ptr<temporal_rs::ZonedDateTime>&& val) {
+    RelativeTo ret;
     ret.zoned_ = std::move(val);
-    ret.zoned_ptr_ = val.get();
+    ret.zoned_ptr_ = ret.zoned_.value().get();
     return ret;
   }
 
-  static OwnedRelativeTo Borrowed(temporal_rs::PlainDate const* val) {
-    OwnedRelativeTo ret;
+  static RelativeTo Owned(temporal_rs::OwnedRelativeTo&& owned) {
+    if (owned.date) {
+      return Owned(std::move(owned.date));
+    } else if (owned.zoned) {
+      return Owned(std::move(owned.zoned));
+    }
+
+    return RelativeTo();
+  }
+
+  static RelativeTo Borrowed(temporal_rs::PlainDate const* val) {
+    RelativeTo ret;
     ret.date_ptr_ = val;
     return ret;
   }
 
-  static OwnedRelativeTo Borrowed(temporal_rs::ZonedDateTime const* val) {
-    OwnedRelativeTo ret;
+  static RelativeTo Borrowed(temporal_rs::ZonedDateTime const* val) {
+    RelativeTo ret;
     ret.zoned_ptr_ = val;
     return ret;
   }
@@ -2658,33 +2960,33 @@ class OwnedRelativeTo {
 
 // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalrelativetooption
 // Also handles the undefined case from GetOptionsObject
-Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
+Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
     Isolate* isolate, DirectHandle<Object> options) {
-  OwnedRelativeTo ret;
+  RelativeTo ret;
 
   // Default is empty
   if (IsUndefined(*options)) {
-    return Just(OwnedRelativeTo());
+    return Just(RelativeTo());
   }
 
+  auto relativeto_ident = isolate->factory()->relativeTo_string();
   if (!IsJSReceiver(*options)) {
     // (GetOptionsObject) 3. Throw a TypeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<OwnedRelativeTo>());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR_WITH_ARG(
+                                 kOptionMustBeObject, relativeto_ident));
   }
 
   // 1. Let value be ?Get(options, "relativeTo").
   DirectHandle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, value,
       JSReceiver::GetProperty(isolate, Cast<JSReceiver>(options),
-                              isolate->factory()->relativeTo_string()),
-      Nothing<OwnedRelativeTo>());
+                              relativeto_ident));
 
   // 2. If value is undefined, return the Record { [[PlainRelativeTo]]:
   // undefined, [[ZonedRelativeTo]]: undefined }.
   if (IsUndefined(*value)) {
-    return Just(OwnedRelativeTo());
+    return Just(RelativeTo());
   }
 
   // 3. Let offsetBehaviour be option.
@@ -2694,8 +2996,8 @@ Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
   // so that we can optimize with InstanceType. Step 5-6 are unobservable
   // in this case.
   if (!IsHeapObject(*value)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 {});
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                 "relativeTo must be object or string."));
   }
   InstanceType instance_type =
       Cast<HeapObject>(*value)->map(isolate)->instance_type();
@@ -2707,7 +3009,7 @@ Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
     if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
       // i. Return the Record { [[PlainRelativeTo]]: undefined,
       // [[ZonedRelativeTo]]: value }.
-      return Just(OwnedRelativeTo::Borrowed(
+      return Just(RelativeTo::Borrowed(
           Cast<JSTemporalZonedDateTime>(value)->zoned_date_time()->raw()));
     }
 
@@ -2715,7 +3017,7 @@ Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
     if (InstanceTypeChecker::IsJSTemporalPlainDate(instance_type)) {
       // i. Return the Record { [[PlainRelativeTo]]: value, [[ZonedRelativeTo]]:
       // undefined }.
-      return Just(OwnedRelativeTo::Borrowed(
+      return Just(RelativeTo::Borrowed(
           Cast<JSTemporalPlainDate>(value)->date()->raw()));
     }
 
@@ -2724,44 +3026,36 @@ Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
       // i. Let plainDate be
       // !CreateTemporalDate(value.[[ISODateTime]].[[ISODate]],
       // value.[[Calendar]]).
-      auto date_record = GetDateRecord(Cast<JSTemporalPlainDate>(value));
+      auto date_record = GetDateRecord(Cast<JSTemporalPlainDateTime>(value));
       std::unique_ptr<temporal_rs::PlainDate> plain_date = nullptr;
 
-      MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+      MOVE_RETURN_ON_EXCEPTION(
           isolate, plain_date,
           ExtractRustResult(isolate, temporal_rs::PlainDate::from_partial(
-                                         date_record, std::nullopt)),
-          {});
+                                         date_record, std::nullopt)));
       // ii. Return the Record { [[PlainRelativeTo]]: plainDate,
       // [[ZonedRelativeTo]]: undefined }.
-      return Just(OwnedRelativeTo::Owned(std::move(plain_date)));
+      return Just(RelativeTo::Owned(std::move(plain_date)));
     }
     // d. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(value).
     temporal_rs::AnyCalendarKind kind = temporal_rs::AnyCalendarKind::Iso;
     auto value_recvr = Cast<JSReceiver>(value);
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, kind,
         temporal::GetTemporalCalendarIdentifierWithISODefault(isolate,
-                                                              value_recvr),
-        {});
+                                                              value_recvr));
     // e. Let fields be ? PrepareCalendarFields(calendar, value, « year, month,
     // month-code, day », « hour, minute, second, millisecond, microsecond,
     // nanosecond, offset, time-zone », «»).
     CombinedRecordOwnership owners;
-    CombinedRecord fields = CombinedRecord{
-        .date = kNullPartialDate,
-        .time = kNullPartialTime,
-        .offset = std::nullopt,
-        .time_zone = std::nullopt,
-    };
+    CombinedRecord fields;
 
     using enum CalendarFieldsFlag;
-    MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+    MOVE_RETURN_ON_EXCEPTION(
         isolate, fields,
         PrepareCalendarFields(isolate, kind, value_recvr,
                               kAllDateFlags | kTimeFields | kOffset | kTimeZone,
-                              RequiredFields::kNone, owners),
-        {});
+                              RequiredFields::kNone, owners));
 
     // f. Let result be ? InterpretTemporalDateTimeFields(calendar, fields,
     // constrain).
@@ -2790,287 +3084,363 @@ Maybe<OwnedRelativeTo> GetTemporalRelativeToOptionHandleUndefined(
     record.time = fields.time;
 
     // We use different construction methods for ZonedDateTime in these two
-    // branches, so we've pulled steps 10-12 into this branch
+    // branches, so we've pulled steps 7-12 into this branch
 
+    // 7. If timeZone is unset, then
+    if (!record.timezone) {
+      // a. Let plainDate be ? CreateTemporalDate(isoDate, calendar).
+      std::unique_ptr<temporal_rs::PlainDate> plain_relative_to;
+      MOVE_RETURN_ON_EXCEPTION(
+          isolate, plain_relative_to,
+          ExtractRustResult(isolate, temporal_rs::PlainDate::from_partial(
+                                         record.date, overflow)));
+
+      // b. Return the Record { [[PlainRelativeTo]]: plainDate,
+      // [[ZonedRelativeTo]]: undefined }.
+      return Just(RelativeTo::Owned(std::move(plain_relative_to)));
+    }
+    // 8. If offsetBehaviour is option, then
+    // a. Let offsetNs be ! ParseDateTimeUTCOffset(offsetString).
+    // 9. Else,
+    // a. Let offsetNs be 0.
     // 10. Let epochNanoseconds be ? InterpretISODateTimeOffset(isoDate, time,
     // offsetBehaviour, offsetNs, timeZone, compatible, reject, matchBehaviour).
 
     // 11. Let zonedRelativeTo be !
     // CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
 
+    // (All these steps handled in Rust)
+
     std::unique_ptr<temporal_rs::ZonedDateTime> zoned_relative_to;
-    MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+    MOVE_RETURN_ON_EXCEPTION(
         isolate, zoned_relative_to,
         ExtractRustResult(
             isolate,
             temporal_rs::ZonedDateTime::from_partial(
                 record, overflow, temporal_rs::Disambiguation::Compatible,
-                temporal_rs::OffsetDisambiguation::Reject)),
-        {});
+                temporal_rs::OffsetDisambiguation::Reject)));
     // 12. Return the Record { [[PlainRelativeTo]]: undefined,
     // [[ZonedRelativeTo]]: zonedRelativeTo }.
-    return Just(OwnedRelativeTo::Owned(std::move(zoned_relative_to)));
+    return Just(RelativeTo::Owned(std::move(zoned_relative_to)));
 
     // 6. Else,
   } else {
     // a. If value is not a String, throw a TypeError exception.
     if (!InstanceTypeChecker::IsString(instance_type)) {
-      THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                   NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(), {});
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                   "relativeTo must be object or string."));
     }
 
     DirectHandle<String> str = Cast<String>(value);
 
-    // 10. Let epochNanoseconds be ? InterpretISODateTimeOffset(isoDate, time,
-    // offsetBehaviour, offsetNs, timeZone, compatible, reject, matchBehaviour).
+    // b. Let result be ? ParseISODateTime(value, «
+    // TemporalDateTimeString[+Zoned], TemporalDateTimeString[~Zoned] »). Rest
+    // of the steps handled in Rust
+    temporal_rs::OwnedRelativeTo relative_to;
 
-    // 11. Let zonedRelativeTo be !
-    // CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
-
-    auto disambiguation = temporal_rs::Disambiguation::Compatible;
-    auto offset = temporal_rs::OffsetDisambiguation::Reject;
-
-    // Rest of the steps handled in Rust
-
-    auto rust_result = HandleStringEncodings<
-        TemporalAllocatedResult<temporal_rs::ZonedDateTime>>(
-        isolate, str,
-        [&disambiguation, &offset](std::string_view view)
-            -> TemporalAllocatedResult<temporal_rs::ZonedDateTime> {
-          return temporal_rs::ZonedDateTime::from_utf8(view, disambiguation,
-                                                       offset);
-        },
-        [&disambiguation, &offset](std::u16string_view view)
-            -> TemporalAllocatedResult<temporal_rs::ZonedDateTime> {
-          return temporal_rs::ZonedDateTime::from_utf16(view, disambiguation,
-                                                        offset);
-        });
-
-    std::unique_ptr<temporal_rs::ZonedDateTime> zoned_relative_to;
-
-    MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
-        isolate, zoned_relative_to,
-        ExtractRustResult(isolate, std::move(rust_result)), {});
+    // TODO(manishearth) This should use HandleStringEncodings
+    // and not allocate a string once
+    // https://github.com/boa-dev/temporal/issues/374 lands
+    auto std_str = str->ToStdString();
+    MOVE_RETURN_ON_EXCEPTION(
+        isolate, relative_to,
+        ExtractRustResult(isolate,
+                          temporal_rs::OwnedRelativeTo::try_from_str(std_str)));
 
     // 12. Return the Record { [[PlainRelativeTo]]: undefined,
     // [[ZonedRelativeTo]]: zonedRelativeTo }.
-    return Just(OwnedRelativeTo::Owned(std::move(zoned_relative_to)));
+    return Just(RelativeTo::Owned(std::move(relative_to)));
   }
 }
 
 // ====== Difference operations ======
 
-enum DifferenceOperation {
-  kSince,
-  kUntil,
-};
+template <typename RustType>
+using DifferenceOperation = TemporalAllocatedResult<temporal_rs::Duration> (
+    RustType::*)(const RustType&, temporal_rs::DifferenceSettings) const;
 
-MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalInstant(
-    Isolate* isolate, DifferenceOperation operation,
-    DirectHandle<JSTemporalInstant> handle, DirectHandle<Object> other_obj,
-    DirectHandle<Object> options, const char* method_name) {
-  // 1. Set other to ?ToTemporalInstant(other).
-  DirectHandle<JSTemporalInstant> other;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, other,
-      temporal::ToTemporalInstant(isolate, other_obj, method_name));
-
-  auto settings = temporal_rs::DifferenceSettings{.largest_unit = std::nullopt,
-                                                  .smallest_unit = std::nullopt,
-                                                  .rounding_mode = std::nullopt,
-                                                  .increment = std::nullopt};
-
-  // 2. Let resolvedOptions be ? GetOptionsObject(options).
-  // 3. Let settings be ? GetDifferenceSettings(operation, resolvedOptions,
-  // time, « », nanosecond, second).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, settings,
-      temporal::GetDifferenceSettingsWithoutChecks(
-          isolate, options, UnitGroup::kTime, Unit::Nanosecond, method_name),
-      DirectHandle<JSTemporalDuration>());
-
-  // Remaining steps handled by temporal_rs
-  // operation negation (step 6) is also handled in temporal_rs
-  auto this_rust = handle->instant()->raw();
-  auto other_rust = other->instant()->raw();
-
-  auto diff = operation == kUntil ? this_rust->until(*other_rust, settings)
-                                  : this_rust->since(*other_rust, settings);
-
-  return ConstructRustWrappingType<JSTemporalDuration>(isolate,
-                                                       std::move(diff));
-}
-
-MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainTime(
-    Isolate* isolate, DifferenceOperation operation,
-    DirectHandle<JSTemporalPlainTime> handle, DirectHandle<Object> other_obj,
-    DirectHandle<Object> options, const char* method_name) {
-  // 1. Set other to ?ToTemporalInstant(other).
-  DirectHandle<JSTemporalPlainTime> other;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, other,
-      temporal::ToTemporalTime(isolate, other_obj, std::nullopt, method_name));
-
-  auto settings = temporal_rs::DifferenceSettings{.largest_unit = std::nullopt,
-                                                  .smallest_unit = std::nullopt,
-                                                  .rounding_mode = std::nullopt,
-                                                  .increment = std::nullopt};
-
-  // 2. Let resolvedOptions be ? GetOptionsObject(options).
-  // 3. Let settings be ? GetDifferenceSettings(operation, resolvedOptions,
-  // time, « », nanosecond, second).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, settings,
-      temporal::GetDifferenceSettingsWithoutChecks(
-          isolate, options, UnitGroup::kTime, Unit::Nanosecond, method_name),
-      DirectHandle<JSTemporalDuration>());
-
-  // Remaining steps handled by temporal_rs
-  // operation negation (step 6) is also handled in temporal_rs
-  auto this_rust = handle->time()->raw();
-  auto other_rust = other->time()->raw();
-
-  auto diff = operation == kUntil ? this_rust->until(*other_rust, settings)
-                                  : this_rust->since(*other_rust, settings);
-
-  return ConstructRustWrappingType<JSTemporalDuration>(isolate,
-                                                       std::move(diff));
-}
-
+// Generic function for all DifferenceTemporalFoo operations
+//
+// https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalinstant
 // https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaindate
-MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainDate(
-    Isolate* isolate, DifferenceOperation operation,
-    DirectHandle<JSTemporalPlainDate> handle, DirectHandle<Object> other_obj,
-    DirectHandle<Object> options, const char* method_name) {
+// https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaindatetime
+// https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplainyearmonth
+// https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalzoneddatetime
+template <typename JSType>
+MaybeDirectHandle<JSTemporalDuration> GenericDifferenceTemporal(
+    Isolate* isolate, DifferenceOperation<typename JSType::RustType> operation,
+    UnitGroup group, Unit fallback_smallest_unit, DirectHandle<JSType> handle,
+    DirectHandle<Object> other_obj, DirectHandle<Object> options,
+    const char* method_name) {
+  // Steps are written for PlainDate, but are similar for other types
+
   // 1. Set other to ?ToTemporalDate(other).
-  DirectHandle<JSTemporalPlainDate> other;
+  DirectHandle<JSType> other;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, other,
-      temporal::ToTemporalDate(isolate, other_obj, std::nullopt, method_name));
+      temporal::ToTemporalGeneric<JSType>(isolate, other_obj, std::nullopt,
+                                          method_name));
 
   auto settings = temporal_rs::DifferenceSettings{.largest_unit = std::nullopt,
                                                   .smallest_unit = std::nullopt,
                                                   .rounding_mode = std::nullopt,
                                                   .increment = std::nullopt};
 
-  auto this_rust = handle->date()->raw();
-  auto other_rust = other->date()->raw();
+  auto& this_rust = handle->wrapped_rust();
+  auto& other_rust = other->wrapped_rust();
 
-  // 2. If CalendarEquals(temporalDate.[[Calendar]], other.[[Calendar]]) is
-  // false, throw a RangeError exception.
-  if (this_rust->calendar().kind() != other_rust->calendar().kind()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+  // This step only exists for calendared types (everything other than PlainTime
+  // and Instant)
+  if constexpr (JSType::kTypeContainsCalendar) {
+    // 2. If CalendarEquals(temporalDate.[[Calendar]], other.[[Calendar]]) is
+    // false, throw a RangeError exception.
+    if (this_rust.calendar().kind() != other_rust.calendar().kind()) {
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_RANGE_ERROR("Mismatched calendars."));
+    }
   }
 
   // 3. Let resolvedOptions be ?GetOptionsObject(options).
   // 4. Let settings be ? GetDifferenceSettings(operation, resolvedOptions,
   // date, « », day, day).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, settings,
       temporal::GetDifferenceSettingsWithoutChecks(
-          isolate, options, UnitGroup::kDate, Unit::Day, method_name),
-      DirectHandle<JSTemporalDuration>());
+          isolate, options, group, fallback_smallest_unit, method_name));
 
   // Remaining steps handled by temporal_rs
-  // operation negation (step 6) is also handled in temporal_rs
+  // operation negation (step 6) is also handled in temporal_rs, we should not
+  // negate again here.
 
-  auto diff = operation == kUntil ? this_rust->until(*other_rust, settings)
-                                  : this_rust->since(*other_rust, settings);
+  auto diff = (this_rust.*operation)(other_rust, settings);
 
   return ConstructRustWrappingType<JSTemporalDuration>(isolate,
                                                        std::move(diff));
 }
 
-// https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaindatetime
-MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainDateTime(
-    Isolate* isolate, DifferenceOperation operation,
-    DirectHandle<JSTemporalPlainDateTime> handle,
-    DirectHandle<Object> other_obj, DirectHandle<Object> options,
+// ====== Add operations ======
+
+// Wrapping Rust-side ::add and ::subtract methods
+// OverflowArgument is generic since some of these
+// methods take std::optional.
+template <typename RustType, typename OverflowArgument>
+using BinaryOperation = TemporalAllocatedResult<RustType> (RustType::*)(
+    const temporal_rs::Duration&, OverflowArgument) const;
+
+// https://tc39.es/proposal-temporal/#sec-temporal-adddurationtodate
+// https://tc39.es/proposal-temporal/#sec-temporal-adddurationtodatetime
+// https://tc39.es/proposal-temporal/#sec-temporal-adddurationtoyearmonth
+// https://tc39.es/proposal-temporal/#sec-temporal-adddurationtozoneddatetime
+template <typename JSType, typename OverflowArgument =
+                               std::optional<temporal_rs::ArithmeticOverflow>>
+MaybeDirectHandle<JSType> AddDurationToGeneric(
+    Isolate* isolate,
+    BinaryOperation<typename JSType::RustType, OverflowArgument> operation,
+    DirectHandle<JSType> temporal_js_type,
+    DirectHandle<Object> temporal_duration_like,
+    DirectHandle<Object> options_obj, const char* method_name) {
+  // 1. Let duration be ? ToTemporalDuration(temporalDurationLike).
+  DirectHandle<JSTemporalDuration> other_duration;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, other_duration,
+                             temporal::ToTemporalDuration(
+                                 isolate, temporal_duration_like, method_name));
+
+  // 2. If operation is subtract, set duration to
+  // CreateNegatedTemporalDuration(duration).
+
+  // (handled by Rust, we should not double-negate)
+
+  // 3. Let resolvedOptions be ?GetOptionsObject(options).
+  // 4. Let overflow be ?GetTemporalOverflowOption(resolvedOptions).
+  temporal_rs::ArithmeticOverflow overflow;
+
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, overflow,
+                             temporal::ToTemporalOverflowHandleUndefined(
+                                 isolate, options_obj, method_name));
+
+  // Remaining steps handled in Rust.
+  auto added = (temporal_js_type->wrapped_rust().*operation)(
+      *other_duration->duration()->raw(), overflow);
+
+  return ConstructRustWrappingType<JSType>(isolate, std::move(added));
+}
+// ====== .with() methods ======
+
+// Helper for GenericWith: extract relevant options from options_obj, call
+// .with() on Rust type.
+//
+// Steps 8 and later from
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.with
+template <typename JSType, typename PartialType>
+MaybeDirectHandle<JSType> GenericWithHelper(
+    Isolate* isolate, const typename JSType::RustType& rust_object,
+    CombinedRecord&& fields, DirectHandle<Object> options_obj,
     const char* method_name) {
-  // 1. Set other to ?ToTemporalDate(other).
-  DirectHandle<JSTemporalPlainDateTime> other;
+  // 8. Let resolvedOptions be ? GetOptionsObject(options).
+  // 9. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+  temporal_rs::ArithmeticOverflow overflow;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, other,
-      temporal::ToTemporalDateTime(isolate, other_obj, std::nullopt,
-                                   method_name));
+      isolate, overflow,
+      ToTemporalOverflowHandleUndefined(isolate, options_obj, method_name));
 
-  auto settings = temporal_rs::DifferenceSettings{.largest_unit = std::nullopt,
-                                                  .smallest_unit = std::nullopt,
-                                                  .rounding_mode = std::nullopt,
-                                                  .increment = std::nullopt};
-
-  auto this_rust = handle->date_time()->raw();
-  auto other_rust = other->date_time()->raw();
-
-  // 2. If CalendarEquals(dateTime.[[Calendar]], other.[[Calendar]]) is false,
-  // throw a RangeError exception.
-  if (this_rust->calendar().kind() != other_rust->calendar().kind()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
-  }
-
-  // 3. Let resolvedOptions be ? GetOptionsObject(options).
-  // 4. Let settings be ? GetDifferenceSettings(operation, resolvedOptions,
-  // date, « », day, day).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, settings,
-      temporal::GetDifferenceSettingsWithoutChecks(
-          isolate, options, UnitGroup::kDateTime, Unit::Nanosecond,
-          method_name),
-      kNullMaybeHandle);
-
-  // Remaining steps handled by temporal_rs
-  // operation negation (step 6) is also handled in temporal_rs
-
-  auto diff = operation == kUntil ? this_rust->until(*other_rust, settings)
-                                  : this_rust->since(*other_rust, settings);
-
-  return ConstructRustWrappingType<JSTemporalDuration>(isolate,
-                                                       std::move(diff));
+  // Rest handled by Rust.
+  return ConstructRustWrappingType<JSType>(
+      isolate, rust_object.with(std::move(fields).To<PartialType>(), overflow));
 }
 
-// https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplainyearmonth
-MaybeDirectHandle<JSTemporalDuration> DifferenceTemporalPlainYearMonth(
-    Isolate* isolate, DifferenceOperation operation,
-    DirectHandle<JSTemporalPlainYearMonth> handle,
-    DirectHandle<Object> other_obj, DirectHandle<Object> options,
+// ZonedDateTime needs to extract extra options
+//
+// Steps 19 and later in
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.with
+template <>
+MaybeDirectHandle<JSTemporalZonedDateTime>
+GenericWithHelper<JSTemporalZonedDateTime, temporal_rs::PartialZonedDateTime>(
+    Isolate* isolate, const typename temporal_rs::ZonedDateTime& rust_object,
+    CombinedRecord&& fields, DirectHandle<Object> options_obj,
     const char* method_name) {
-  // 1. Set other to ?ToTemporalYearMonth(other).
-  DirectHandle<JSTemporalPlainYearMonth> other;
+  // 19. Let resolvedOptions be ? GetOptionsObject(options).
+
+  // (Not explicitly needed since we use HandleUndefined methods)
+
+  temporal_rs::Disambiguation disambiguation;
+  temporal_rs::OffsetDisambiguation offset_option;
+  temporal_rs::ArithmeticOverflow overflow;
+
+  // 20. Let disambiguation be
+  // ? GetTemporalDisambiguationOption(resolvedOptions).
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, other,
-      temporal::ToTemporalYearMonth(isolate, other_obj, std::nullopt,
-                                    method_name));
+      isolate, disambiguation,
+      temporal::GetTemporalDisambiguationOptionHandleUndefined(
+          isolate, options_obj, method_name));
+  // 21. Let offset be ? GetTemporalOffsetOption(resolvedOptions, prefer).
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, offset_option,
+      temporal::GetTemporalOffsetOptionHandleUndefined(
+          isolate, options_obj, temporal_rs::OffsetDisambiguation::Prefer,
+          method_name));
+  // 22. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, overflow,
+      ToTemporalOverflowHandleUndefined(isolate, options_obj, method_name));
 
-  auto settings = temporal_rs::DifferenceSettings{.largest_unit = std::nullopt,
-                                                  .smallest_unit = std::nullopt,
-                                                  .rounding_mode = std::nullopt,
-                                                  .increment = std::nullopt};
+  // Rest handled by Rust.
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate, rust_object.with(
+                   std::move(fields).To<temporal_rs::PartialZonedDateTime>(),
+                   disambiguation, offset_option, overflow));
+}
 
-  auto this_rust = handle->year_month()->raw();
-  auto other_rust = other->year_month()->raw();
-  // 2. Let calendar be yearMonth.[[Calendar]].
-  // 3. If CalendarEquals(temporalDate.[[Calendar]], other.[[Calendar]]) is
-  // false, throw a RangeError exception.
-  if (this_rust->calendar().kind() != other_rust->calendar().kind()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.with
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.with
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.with
+// https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.with
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.with
+//
+// The function has comments for PlainDate, but the non-Rust-side code for the
+// others is identical.
+template <typename JSType, typename PartialType>
+MaybeDirectHandle<JSType> GenericWith(Isolate* isolate,
+                                      DirectHandle<JSType> this_obj,
+                                      DirectHandle<Object> temporal_like_obj,
+                                      DirectHandle<Object> options_obj,
+                                      CalendarFieldsFlags flags,
+                                      const char* method_name) {
+  // 1. Let temporalDate be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalDate,
+  // [[InitializedTemporalDate]]).
+
+  // (handled by type system)
+
+  // 3. If ? IsPartialTemporalObject(temporalDateLike) is false, throw a
+  // TypeError exception.
+
+  bool is_partial = false;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, is_partial, IsPartialTemporalObject(isolate, temporal_like_obj));
+  if (!is_partial) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kWithNoPartial));
   }
-  // 4. Let resolvedOptions be ? GetOptionsObject(options).
-  // 5. Let settings be ? GetDifferenceSettings(operation, resolvedOptions,
-  // date, « », day, day).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, settings,
-      temporal::GetDifferenceSettingsWithoutChecks(
-          isolate, options, UnitGroup::kDate, Unit::Day, method_name),
-      DirectHandle<JSTemporalDuration>());
+  // IsPartialTemporalObject only returns true for valid JSReceivers.
+  auto options_recvr = Cast<JSReceiver>(temporal_like_obj);
 
-  // Remaining steps handled by temporal_rs
-  // operation negation (step 6) is also handled in temporal_rs
+  auto& rust_object = this_obj->wrapped_rust();
+  // 4. Let calendar be temporalDate.[[Calendar]].
+  auto kind = rust_object.calendar().kind();
 
-  auto diff = operation == kUntil ? this_rust->until(*other_rust, settings)
-                                  : this_rust->since(*other_rust, settings);
+  // 5. Let fields be ISODateToFields(calendar, temporalDate.[[ISODate]], date).
 
-  return ConstructRustWrappingType<JSTemporalDuration>(isolate,
-                                                       std::move(diff));
+  // (handled in Rust code, not observable)
+
+  // 6. Let partialDate be ? PrepareCalendarFields(calendar, temporalDateLike, «
+  // year, month, month-code, day », « », partial).
+
+  CombinedRecordOwnership owners;
+  CombinedRecord fields;
+
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, fields,
+      PrepareCalendarFields(isolate, kind, options_recvr, flags,
+                            RequiredFields::kPartial, owners));
+
+  // 7. Set fields to CalendarMergeFields(calendar, fields, partialDate).
+
+  // (handled in Rust code, not observable)
+
+  // Fetching options handled by GenericWithHelper.
+  // Remaining steps handled by Rust code called by GenericWithHelper.
+
+  return GenericWithHelper<JSType, PartialType>(
+      isolate, rust_object, std::move(fields), options_obj, method_name);
+}
+
+// ====== Misc ======
+
+V8_WARN_UNUSED_RESULT Maybe<std::unique_ptr<temporal_rs::TimeZone>>
+ToRustTimeZone(Isolate* isolate, std::string_view tz) {
+  return ExtractRustResult(isolate, temporal_rs::TimeZone::try_from_str(tz));
+}
+
+// Partial implementation:
+//
+// https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldatetime
+Maybe<int64_t> GetEpochMillisecondsForDateTime(Isolate* isolate,
+                                               temporal_rs::PlainDateTime& date,
+                                               std::string_view time_zone) {
+  std::unique_ptr<temporal_rs::TimeZone> tz;
+  MOVE_RETURN_ON_EXCEPTION(isolate, tz, ToRustTimeZone(isolate, time_zone));
+
+  //  2. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]],
+  //  isoDateTime, compatible).
+  std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, zdt,
+      ExtractRustResult(isolate,
+                        date.to_zoned_date_time(
+                            *tz, temporal_rs::Disambiguation::Compatible)));
+  return Just(zdt->epoch_milliseconds());
+}
+
+// Partial implementation:
+//
+// https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate
+// https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalmonthday
+// https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalyearmonth
+Maybe<int64_t> GetEpochMillisecondsForDate(
+    Isolate* isolate, temporal_rs::PlainDate& date, std::string_view time_zone,
+    temporal_rs::PlainTime* time = nullptr) {
+  std::unique_ptr<temporal_rs::TimeZone> tz;
+  MOVE_RETURN_ON_EXCEPTION(isolate, tz, ToRustTimeZone(isolate, time_zone));
+
+  // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalDate.[[ISODate]],
+  // NoonTimeRecord()).
+  // 3. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]],
+  // isoDateTime, compatible).
+
+  std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, zdt,
+      ExtractRustResult(isolate, date.to_zoned_date_time(*tz, time)));
+  return Just(zdt->epoch_milliseconds());
 }
 
 }  // namespace temporal
@@ -3092,78 +3462,102 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Constructor(
                                  isolate->factory()->NewStringFromAsciiChecked(
                                      "Temporal.Duration")));
   }
-  // 2. Let y be ? ToIntegerIfIntegral(years).
-  double y;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, y, temporal::ToIntegerIfIntegral(isolate, years),
-      DirectHandle<JSTemporalDuration>());
+  // 2. If years is undefined, let y be 0; else let y be
+  // ? ToIntegerIfIntegral(years).
+  int64_t y = 0;
+  if (!IsUndefined(*years)) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, y, temporal::ToIntegerTypeIfIntegral<int64_t>(isolate, years));
+  }
 
-  // 3. Let mo be ? ToIntegerIfIntegral(months).
-  double mo;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, mo, temporal::ToIntegerIfIntegral(isolate, months),
-      DirectHandle<JSTemporalDuration>());
+  // 3. If months is undefined, let mo be 0; else let mo be
+  // ? ToIntegerIfIntegral(months).
+  int64_t mo = 0;
+  if (!IsUndefined(*months)) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, mo,
+        temporal::ToIntegerTypeIfIntegral<int64_t>(isolate, months));
+  }
 
-  // 4. Let w be ? ToIntegerIfIntegral(weeks).
-  double w;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, w, temporal::ToIntegerIfIntegral(isolate, weeks),
-      DirectHandle<JSTemporalDuration>());
+  // 4. If weeks is undefined, let w be 0; else let w be
+  // ? ToIntegerIfIntegral(weeks).
+  int64_t w = 0;
+  if (!IsUndefined(*weeks)) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, w, temporal::ToIntegerTypeIfIntegral<int64_t>(isolate, weeks));
+  }
 
-  // 5. Let d be ? ToIntegerIfIntegral(days).
-  double d;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, d, temporal::ToIntegerIfIntegral(isolate, days),
-      DirectHandle<JSTemporalDuration>());
+  // 5. If days is undefined, let d be 0; else let d be
+  // ? ToIntegerIfIntegral(days).
+  int64_t d = 0;
+  if (!IsUndefined(*days)) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, d, temporal::ToIntegerTypeIfIntegral<int64_t>(isolate, days));
+  }
 
-  // 6. Let h be ? ToIntegerIfIntegral(hours).
-  double h;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, h, temporal::ToIntegerIfIntegral(isolate, hours),
-      DirectHandle<JSTemporalDuration>());
+  // 6. If hours is undefined, let h be 0; else let h be
+  // ? ToIntegerIfIntegral(hours).
+  int64_t h = 0;
+  if (!IsUndefined(*hours)) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, h, temporal::ToIntegerTypeIfIntegral<int64_t>(isolate, hours));
+  }
 
-  // 7. Let m be ? ToIntegerIfIntegral(minutes).
-  double m;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, m, temporal::ToIntegerIfIntegral(isolate, minutes),
-      DirectHandle<JSTemporalDuration>());
+  // 7. If minutes is undefined, let m be 0; else let m be
+  // ? ToIntegerIfIntegral(minutes).
+  int64_t m = 0;
+  if (!IsUndefined(*minutes)) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, m,
+        temporal::ToIntegerTypeIfIntegral<int64_t>(isolate, minutes));
+  }
 
-  // 8. Let s be ? ToIntegerIfIntegral(seconds).
-  double s;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, s, temporal::ToIntegerIfIntegral(isolate, seconds),
-      DirectHandle<JSTemporalDuration>());
+  // 8. If seconds is undefined, let s be 0; else let s be
+  // ? ToIntegerIfIntegral(seconds).
+  int64_t s = 0;
+  if (!IsUndefined(*seconds)) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, s,
+        temporal::ToIntegerTypeIfIntegral<int64_t>(isolate, seconds));
+  }
 
-  // 9. Let ms be ? ToIntegerIfIntegral(milliseconds).
-  double ms;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, ms, temporal::ToIntegerIfIntegral(isolate, milliseconds),
-      DirectHandle<JSTemporalDuration>());
+  // 9. If milliseconds is undefined, let ms be 0; else let ms be
+  // ? ToIntegerIfIntegral(milliseconds).
+  int64_t ms = 0;
+  if (!IsUndefined(*milliseconds)) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, ms,
+        temporal::ToIntegerTypeIfIntegral<int64_t>(isolate, milliseconds));
+  }
 
-  // 10. Let mis be ? ToIntegerIfIntegral(microseconds).
-  double mis;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, mis, temporal::ToIntegerIfIntegral(isolate, microseconds),
-      DirectHandle<JSTemporalDuration>());
+  // 10. If microseconds is undefined, let mis be 0; else let mis be
+  // ? ToIntegerIfIntegral(microseconds).
+  double mis = 0;
+  if (!IsUndefined(*microseconds)) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, mis, temporal::ToIntegerIfIntegral(isolate, microseconds));
+  }
 
-  // 11. Let ns be ? ToIntegerIfIntegral(nanoseconds).
-  double ns;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, ns, temporal::ToIntegerIfIntegral(isolate, nanoseconds),
-      DirectHandle<JSTemporalDuration>());
+  // 11. If nanoseconds is undefined, let ns be 0; else let ns be
+  // ? ToIntegerIfIntegral(nanoseconds).
+  double ns = 0;
+  if (!IsUndefined(*nanoseconds)) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, ns, temporal::ToIntegerIfIntegral(isolate, nanoseconds));
+  }
 
   // 12. Return ?CreateTemporalDuration(y, mo, w, d, h, m, s, ms, mis, ns,
   // NewTarget).
   return ConstructRustWrappingType<JSTemporalDuration>(
-      isolate,
-      temporal_rs::Duration::create(y, mo, w, d, h, m, s, ms, mis, ms));
+      isolate, target, new_target,
+      temporal_rs::Duration::create(y, mo, w, d, h, m, s, ms, mis, ns));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.duration.compare
 MaybeDirectHandle<Smi> JSTemporalDuration::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj, DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.Duration.compare";
+  static const char method_name[] = "Temporal.Duration.compare";
   DirectHandle<JSTemporalDuration> one;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, one,
@@ -3173,21 +3567,18 @@ MaybeDirectHandle<Smi> JSTemporalDuration::Compare(
       isolate, two,
       temporal::ToTemporalDuration(isolate, two_obj, method_name));
 
-  temporal::OwnedRelativeTo relative_to;
+  temporal::RelativeTo relative_to;
 
-  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
-      isolate, relative_to,
-      temporal::GetTemporalRelativeToOptionHandleUndefined(isolate,
-                                                           options_obj),
-      kNullMaybeHandle);
+  MOVE_RETURN_ON_EXCEPTION(isolate, relative_to,
+                           temporal::GetTemporalRelativeToOptionHandleUndefined(
+                               isolate, options_obj));
 
   int8_t comparison = 0;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, comparison,
       ExtractRustResult(isolate,
                         one->duration()->raw()->compare(*two->duration()->raw(),
-                                                        relative_to.ToRust())),
-      kNullMaybeHandle);
+                                                        relative_to.ToRust())));
 
   return direct_handle(Smi::FromInt(comparison), isolate);
 }
@@ -3195,7 +3586,7 @@ MaybeDirectHandle<Smi> JSTemporalDuration::Compare(
 // https://tc39.es/proposal-temporal/#sec-temporal.duration.from
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::From(
     Isolate* isolate, DirectHandle<Object> item) {
-  const char method_name[] = "Temporal.Duration.from";
+  static const char method_name[] = "Temporal.Duration.from";
 
   return temporal::ToTemporalDuration(isolate, item, method_name);
 }
@@ -3204,7 +3595,105 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::From(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Round(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> round_to_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.Duration.prototype.round";
+  // 1. Let duration be the this value.
+  // 2. Perform ? RequireInternalSlot(duration,
+  // [[InitializedTemporalDuration]]).
+
+  // (handled by type system)
+  // 3. If roundTo is undefined, then
+  if (IsUndefined(*round_to_obj)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMissing));
+  }
+
+  DirectHandle<JSReceiver> round_to;
+  auto factory = isolate->factory();
+
+  // 4. If roundTo is a String, then
+  if (IsString(*round_to_obj)) {
+    // a. Let paramString be roundTo.
+    DirectHandle<String> param_string = Cast<String>(round_to_obj);
+    // b. Set roundTo to ! OrdinaryObjectCreate(null).
+    round_to = factory->NewJSObjectWithNullProto();
+    // TODO(manishearth) Ideally we don't have to perform this allocation
+    // c. Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit",
+    // paramString).
+    CHECK(JSReceiver::CreateDataProperty(isolate, round_to,
+                                         factory->smallestUnit_string(),
+                                         param_string, Just(kThrowOnError))
+              .FromJust());
+    // 5. Else,
+  } else {
+    // a. Set roundTo to ? GetOptionsObject(roundTo).
+    // We have already checked for undefined, we can hoist the JSReceiver
+    // check out and just cast
+    if (!IsJSReceiver(*round_to_obj)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMustBeObject));
+    }
+    round_to = Cast<JSReceiver>(round_to_obj);
+  }
+
+  // 6. Let smallestUnitPresent be true.
+  // 7. Let largestUnitPresent be true.
+
+  // (handled by Rust)
+
+  // 8. NOTE: (...)
+
+  // 9. Let largestUnit be ? GetTemporalUnitValuedOption(roundTo, "largestUnit",
+  // datetime, unset, « auto »).
+  std::optional<Unit> largest_unit;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, largest_unit,
+      temporal::GetTemporalUnit(
+          isolate, round_to, factory->largestUnit_string(),
+          UnitGroup::kDateTime, std::nullopt, false, method_name, Unit::Auto));
+
+  // 10. Let relativeToRecord be ? GetTemporalRelativeToOption(roundTo).
+  // 11. Let zonedRelativeTo be relativeToRecord.[[ZonedRelativeTo]].
+  // 12. Let plainRelativeTo be relativeToRecord.[[PlainRelativeTo]].
+
+  temporal::RelativeTo relative_to;
+
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, relative_to,
+      temporal::GetTemporalRelativeToOptionHandleUndefined(isolate, round_to));
+
+  // 13. Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+
+  uint32_t rounding_increment;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, rounding_increment,
+      temporal::GetRoundingIncrementOption(isolate, round_to));
+
+  // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
+  RoundingMode rounding_mode;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, rounding_mode,
+      temporal::GetRoundingModeOption(isolate, round_to,
+                                      RoundingMode::HalfExpand, method_name));
+
+  // 15. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
+  // "smallestUnit", datetime, unset).
+  std::optional<Unit> smallest_unit;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, smallest_unit,
+      temporal::GetTemporalUnit(
+          isolate, round_to, factory->smallestUnit_string(),
+          UnitGroup::kDateTime, std::nullopt, false, method_name));
+
+  // Rest of the steps handled in Rust
+
+  auto options = temporal_rs::RoundingOptions{.largest_unit = largest_unit,
+                                              .smallest_unit = smallest_unit,
+                                              .rounding_mode = rounding_mode,
+                                              .increment = rounding_increment};
+
+  auto rounded =
+      duration->duration()->raw()->round(options, relative_to.ToRust());
+  return ConstructRustWrappingType<JSTemporalDuration>(isolate,
+                                                       std::move(rounded));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.total
@@ -3212,7 +3701,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Round(
 MaybeDirectHandle<Number> JSTemporalDuration::Total(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> total_of_obj) {
-  const char method_name[] = "Temporal.Duration.prototype.total";
+  static const char method_name[] = "Temporal.Duration.prototype.total";
   // 1. Let duration be the this value.
   // 2. Perform ? RequireInternalSlot(duration,
   // [[InitializedTemporalDuration]]).
@@ -3221,7 +3710,8 @@ MaybeDirectHandle<Number> JSTemporalDuration::Total(
 
   // 3. If totalOf is undefined, throw a TypeError exception.
   if (IsUndefined(*total_of_obj)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(
+        isolate, NEW_TEMPORAL_TYPE_ERROR("Must specify a totalOf parameter"));
   }
 
   DirectHandle<JSReceiver> total_of;
@@ -3244,7 +3734,8 @@ MaybeDirectHandle<Number> JSTemporalDuration::Total(
     // We have already checked for undefined, we can hoist the JSReceiver
     // check out and just cast
     if (!IsJSReceiver(*total_of_obj)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate,
+                      NEW_TEMPORAL_TYPE_ERROR("totalOf must be an object."));
     }
     total_of = Cast<JSReceiver>(total_of_obj);
   }
@@ -3255,32 +3746,29 @@ MaybeDirectHandle<Number> JSTemporalDuration::Total(
   // 8. Let zonedRelativeTo be relativeToRecord.[[ZonedRelativeTo]].
   // 9. Let plainRelativeTo be relativeToRecord.[[PlainRelativeTo]].
 
-  temporal::OwnedRelativeTo relative_to;
+  temporal::RelativeTo relative_to;
 
-  MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+  MOVE_RETURN_ON_EXCEPTION(
       isolate, relative_to,
-      temporal::GetTemporalRelativeToOptionHandleUndefined(isolate,
-                                                           total_of_obj),
-      kNullMaybeHandle);
+      temporal::GetTemporalRelativeToOptionHandleUndefined(isolate, total_of));
 
   // 10. Let unit be ? GetTemporalUnitValuedOption(totalOf, "unit", datetime,
   // required).
   std::optional<Unit> unit;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, unit,
-      temporal::GetTemporalUnit(isolate, total_of, "unit", UnitGroup::kDateTime,
-                                std::nullopt, true, method_name),
-      kNullMaybeHandle);
+      temporal::GetTemporalUnit(
+          isolate, total_of, isolate->factory()->unit_string(),
+          UnitGroup::kDateTime, std::nullopt, true, method_name));
   // We set required to true.
   DCHECK(unit.has_value());
 
   // Remaining steps handled in Rust
   double ret;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, ret,
       ExtractRustResult(isolate, duration->duration()->raw()->total(
-                                     unit.value(), relative_to.ToRust())),
-      kNullMaybeHandle);
+                                     unit.value(), relative_to.ToRust())));
 
   return factory->NewNumber(ret);
 }
@@ -3290,11 +3778,9 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::With(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> temporal_duration_like) {
   temporal_rs::PartialDuration partial;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, partial,
-      temporal::ToTemporalPartialDurationRecord(isolate,
-                                                temporal_duration_like),
-      DirectHandle<JSTemporalDuration>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, partial,
+                             temporal::ToTemporalPartialDurationRecord(
+                                 isolate, temporal_duration_like));
   if (!partial.years.has_value()) {
     partial.years = duration->duration()->raw()->years();
   }
@@ -3364,7 +3850,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Abs(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Add(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  const char method_name[] = "Temporal.Duration.prototype.add";
+  static const char method_name[] = "Temporal.Duration.prototype.add";
 
   DirectHandle<JSTemporalDuration> other_duration;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -3381,7 +3867,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Add(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  const char method_name[] = "Temporal.Duration.prototype.subtract";
+  static const char method_name[] = "Temporal.Duration.prototype.subtract";
 
   DirectHandle<JSTemporalDuration> other_duration;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -3394,26 +3880,11 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Subtract(
                                                        std::move(result));
 }
 
-// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.tojson
-MaybeDirectHandle<String> JSTemporalDuration::ToJSON(
-    Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
-  return temporal::TemporalDurationToString(isolate, duration,
-                                            std::move(temporal::kToStringAuto));
-}
-
-// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.tolocalestring
-MaybeDirectHandle<String> JSTemporalDuration::ToLocaleString(
-    Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
-    DirectHandle<Object> locales, DirectHandle<Object> options) {
-  return temporal::TemporalDurationToString(isolate, duration,
-                                            std::move(temporal::kToStringAuto));
-}
-
 // https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.tostring
 MaybeDirectHandle<String> JSTemporalDuration::ToString(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.Duration.prototype.toString";
+  static const char method_name[] = "Temporal.Duration.prototype.toString";
 
   // 3. Let resolvedOptions be ?GetOptionsObject(options).
   DirectHandle<JSReceiver> options;
@@ -3423,31 +3894,27 @@ MaybeDirectHandle<String> JSTemporalDuration::ToString(
   // 5. Let digits be ?GetTemporalFractionalSecondDigitsOption(resolvedOptions).
 
   temporal_rs::Precision digits;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, digits,
-      temporal::GetTemporalFractionalSecondDigitsOption(isolate, options,
-                                                        method_name),
-      DirectHandle<String>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, digits,
+                             temporal::GetTemporalFractionalSecondDigitsOption(
+                                 isolate, options, method_name));
 
   // 6. Let roundingMode be ? GetRoundingModeOption(resolvedOptions, trunc).
 
   RoundingMode rounding_mode;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, rounding_mode,
       temporal::GetRoundingModeOption(isolate, options, RoundingMode::Trunc,
-                                      method_name),
-      DirectHandle<String>());
+                                      method_name));
 
   // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions,
   // "smallestUnit", time, unset).
 
   std::optional<Unit> smallest_unit;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(isolate, options, "smallestUnit",
-                                UnitGroup::kTime, std::nullopt, false,
-                                method_name),
-      DirectHandle<String>());
+      temporal::GetTemporalUnit(
+          isolate, options, isolate->factory()->smallestUnit_string(),
+          UnitGroup::kTime, std::nullopt, false, method_name));
 
   // 8-17 performed by Rust
   auto rust_options = temporal_rs::ToStringRoundingOptions{
@@ -3456,8 +3923,26 @@ MaybeDirectHandle<String> JSTemporalDuration::ToString(
       .rounding_mode = rounding_mode,
   };
 
-  return temporal::TemporalDurationToString(isolate, duration,
-                                            std::move(rust_options));
+  return temporal::GenericTemporalToString(isolate, duration,
+                                           &temporal_rs::Duration::to_string,
+                                           std::move(rust_options));
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.tojson
+MaybeDirectHandle<String> JSTemporalDuration::ToJSON(
+    Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
+  return temporal::GenericTemporalToString(isolate, duration,
+                                           &temporal_rs::Duration::to_string,
+                                           std::move(temporal::kToStringAuto));
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.tolocalestring
+MaybeDirectHandle<String> JSTemporalDuration::ToLocaleString(
+    Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
+    DirectHandle<Object> locales, DirectHandle<Object> options) {
+  return temporal::GenericTemporalToString(isolate, duration,
+                                           &temporal_rs::Duration::to_string,
+                                           std::move(temporal::kToStringAuto));
 }
 
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Constructor(
@@ -3475,19 +3960,16 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Constructor(
   }
   // 2. Let y be ? ToIntegerWithTruncation(isoYear).
   double y = 0;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, y, temporal::ToIntegerWithTruncation(isolate, iso_year_obj),
-      kNullMaybeHandle);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, y, temporal::ToIntegerWithTruncation(isolate, iso_year_obj));
   // 3. Let m be ? ToIntegerWithTruncation(isoMonth).
   double m = 0;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, m, temporal::ToIntegerWithTruncation(isolate, iso_month_obj),
-      kNullMaybeHandle);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, m, temporal::ToIntegerWithTruncation(isolate, iso_month_obj));
   // 4. Let d be ? ToIntegerWithTruncation(isoDay).
   double d = 0;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, d, temporal::ToIntegerWithTruncation(isolate, iso_day_obj),
-      kNullMaybeHandle);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, d, temporal::ToIntegerWithTruncation(isolate, iso_day_obj));
 
   // 5. If calendar is undefined, set calendar to "iso8601".
   temporal_rs::AnyCalendarKind calendar = temporal_rs::AnyCalendarKind::Iso;
@@ -3495,18 +3977,17 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Constructor(
   if (!IsUndefined(*calendar_like)) {
     // 6. If calendar is not a String, throw a TypeError exception.
     if (!IsString(*calendar_like)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kCalendarMustBeString));
     }
 
     // 7. Set calendar to ?CanonicalizeCalendar(calendar).
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, calendar,
-        temporal::CanonicalizeCalendar(isolate, Cast<String>(calendar_like)),
-        kNullMaybeHandle);
+        temporal::CanonicalizeCalendar(isolate, Cast<String>(calendar_like)));
   }
   // 8. If IsValidISODate(y, m, d) is false, throw a RangeError exception.
   if (!temporal::IsValidIsoDate(y, m, d)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kInvalidIsoDate));
   }
 
   // Rest of the steps handled in Rust
@@ -3526,7 +4007,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Constructor(
 MaybeDirectHandle<Smi> JSTemporalPlainDate::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
-  const char method_name[] = "Temporal.PlainDate.compare";
+  static const char method_name[] = "Temporal.PlainDate.compare";
   DirectHandle<JSTemporalPlainDate> one;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, one,
@@ -3545,7 +4026,7 @@ MaybeDirectHandle<Smi> JSTemporalPlainDate::Compare(
 MaybeDirectHandle<Oddball> JSTemporalPlainDate::Equals(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> other_obj) {
-  const char method_name[] = "Temporal.PlainDate.prototype.equals";
+  static const char method_name[] = "Temporal.PlainDate.prototype.equals";
 
   DirectHandle<JSTemporalPlainDate> other;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -3561,31 +4042,32 @@ MaybeDirectHandle<Oddball> JSTemporalPlainDate::Equals(
 MaybeDirectHandle<JSTemporalPlainYearMonth>
 JSTemporalPlainDate::ToPlainYearMonth(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date) {
-  return ConstructRustWrappingType<JSTemporalPlainYearMonth>(
-      isolate, temporal_date->date()->raw()->to_plain_year_month());
+  return temporal::GenericToTemporalMethod<JSTemporalPlainYearMonth>(
+      isolate, temporal_date, &temporal_rs::PlainDate::to_plain_year_month);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.toplainmonthday
 MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainDate::ToPlainMonthDay(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date) {
-  return ConstructRustWrappingType<JSTemporalPlainMonthDay>(
-      isolate, temporal_date->date()->raw()->to_plain_month_day());
+  return temporal::GenericToTemporalMethod<JSTemporalPlainMonthDay>(
+      isolate, temporal_date, &temporal_rs::PlainDate::to_plain_month_day);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.toplaindatetime
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDate::ToPlainDateTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_time_obj) {
-  const char method_name[] = "Temporal.PlainDate.toPlainDateTime";
-  const temporal_rs::PlainTime* maybe_time = nullptr;
-  DirectHandle<JSTemporalPlainTime> time;
-  if (!IsUndefined(*temporal_time_obj)) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, time,
-        temporal::ToTemporalTime(isolate, temporal_time_obj, std::nullopt,
-                                 method_name));
-    maybe_time = time->time()->raw();
-  }
+  static const char method_name[] = "Temporal.PlainDate.toPlainDateTime";
+
+  // 3. Let time be ? ToTimeRecordOrMidnight(temporalTime).
+  const temporal_rs::PlainTime* maybe_time;
+  DirectHandle<JSTemporalPlainTime> time_output;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, maybe_time,
+      temporal::ToTimeRecordOrMidnight(isolate, temporal_time_obj, time_output,
+                                       method_name));
+
+  // Rest of the steps handled in Rust.
   return ConstructRustWrappingType<JSTemporalPlainDateTime>(
       isolate, temporal_date->date()->raw()->to_plain_date_time(maybe_time));
 }
@@ -3595,21 +4077,101 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::With(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_date_like_obj,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.PlainDate.prototype.with";
+  return temporal::GenericWith<JSTemporalPlainDate, temporal_rs::PartialDate>(
+      isolate, temporal_date, temporal_date_like_obj, options_obj,
+      temporal::kAllDateFlags, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.withcalendar
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::WithCalendar(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> calendar_id) {
-  UNIMPLEMENTED();
+  // 3. Let calendar be ? ToTemporalCalendarIdentifier(calendarLike).
+  temporal_rs::AnyCalendarKind calendar_kind;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar_kind,
+      temporal::ToTemporalCalendarIdentifier(isolate, calendar_id));
+
+  // Rest of the steps handled in Rust
+  return ConstructRustWrappingType<JSTemporalPlainDate>(
+      isolate, temporal_date->date()->raw()->with_calendar(calendar_kind));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tozoneddatetime
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> item_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.PlainDate.toZonedDateTime";
+  // 1. Let temporalDate be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalDate,
+  // [[InitializedTemporalDate]]).
+
+  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+  DirectHandle<Object> temporal_time_obj;
+
+  // 3. If item is an Object, then
+  if (IsJSReceiver(*item_obj)) {
+    DirectHandle<JSReceiver> item = Cast<JSReceiver>(item_obj);
+    // a. Let timeZoneLike be ? Get(item, "timeZone").
+    DirectHandle<Object> time_zone_like;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, time_zone_like,
+        JSReceiver::GetProperty(isolate, item,
+                                isolate->factory()->timeZone_string()));
+    // b. If timeZoneLike is undefined, then
+    if (IsUndefined(*time_zone_like)) {
+      // i. Let timeZone be ? ToTemporalTimeZoneIdentifier(item).
+      MOVE_RETURN_ON_EXCEPTION(
+          isolate, time_zone,
+          temporal::ToTemporalTimeZoneIdentifier(isolate, item));
+      // ii. Let temporalTime be undefined.
+
+      // c. Else,
+    } else {
+      // i. Let timeZone be ? ToTemporalTimeZoneIdentifier(timeZoneLike).
+      MOVE_RETURN_ON_EXCEPTION(
+          isolate, time_zone,
+          temporal::ToTemporalTimeZoneIdentifier(isolate, time_zone_like));
+      // ii. Let temporalTime be ? Get(item, "plainTime").
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, temporal_time_obj,
+          JSReceiver::GetProperty(isolate, item,
+                                  isolate->factory()->plainTime_string()));
+    }
+    // 4. Else,
+  } else {
+    // a. Let timeZone be ? ToTemporalTimeZoneIdentifier(item).
+    MOVE_RETURN_ON_EXCEPTION(
+        isolate, time_zone,
+        temporal::ToTemporalTimeZoneIdentifier(isolate, item_obj));
+    // b. Let temporalTime be undefined.
+  }
+
+  DCHECK(time_zone);
+
+  DirectHandle<JSTemporalPlainTime> temporal_time;
+  temporal_rs::PlainTime* temporal_time_rust = nullptr;
+
+  // 5. If temporalTime is undefined, then
+  if (temporal_time_obj.is_null() || IsUndefined(*temporal_time_obj)) {
+    // a. Let epochNs be ? GetStartOfDay(timeZone, temporalDate.[[ISODate]]).
+    // (handled in Rust by temporal_time_rust being a null pointer)
+
+    // 6. Else,
+  } else {
+    // a. Set temporalTime to ? ToTemporalTime(temporalTime).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, temporal_time,
+        temporal::ToTemporalTime(isolate, temporal_time_obj, std::nullopt,
+                                 method_name));
+    temporal_time_rust = temporal_time->time()->raw();
+    // (Rest of the steps handled in Rust)
+  }
+
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate, temporal_date->date()->raw()->to_zoned_date_time(
+                   *time_zone, temporal_time_rust));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.add
@@ -3617,7 +4179,12 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Add(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_duration_like,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.PlainDate.prototype.add";
+  // 3. Return ? AddDurationToDate(add, temporalDate, temporalDurationLike,
+  // options).
+  return temporal::AddDurationToGeneric(isolate, &temporal_rs::PlainDate::add,
+                                        temporal_date, temporal_duration_like,
+                                        options_obj, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.subtract
@@ -3625,51 +4192,52 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> temporal_duration_like,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.PlainDate.prototype.subtract";
+  // 3. Return ? AddDurationToDate(subtract, temporalDate, temporalDurationLike,
+  // options).
+  return temporal::AddDurationToGeneric<JSTemporalPlainDate>(
+      isolate, &temporal_rs::PlainDate::subtract, temporal_date,
+      temporal_duration_like, options_obj, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.until
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDate::Until(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainDate.prototype.until";
+  static const char method_name[] = "Temporal.PlainDate.prototype.until";
 
-  return temporal::DifferenceTemporalPlainDate(
-      isolate, temporal::DifferenceOperation::kUntil, handle, other, options,
-      method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::PlainDate::until, UnitGroup::kDate, Unit::Day,
+      handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.since
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDate::Since(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainDate.prototype.since";
+  static const char method_name[] = "Temporal.PlainDate.prototype.since";
 
-  return temporal::DifferenceTemporalPlainDate(
-      isolate, temporal::DifferenceOperation::kSince, handle, other, options,
-      method_name);
-}
-
-// https://tc39.es/proposal-temporal/#sec-temporal.now.plaindate
-MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Now(
-    Isolate* isolate, DirectHandle<Object> calendar_like,
-    DirectHandle<Object> temporal_time_zone_like) {
-  UNIMPLEMENTED();
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::PlainDate::since, UnitGroup::kDate, Unit::Day,
+      handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.plaindateiso
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::NowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
-  UNIMPLEMENTED();
+  std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, zdt,
+      temporal::GenericTemporalNowISO(isolate, temporal_time_zone_like));
+  return ConstructRustWrappingType<JSTemporalPlainDate>(isolate,
+                                                        zdt->to_plain_date());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.from
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainDate.from";
+  static const char method_name[] = "Temporal.PlainDate.from";
   DirectHandle<JSTemporalPlainDate> item;
 
   // Options parsing hoisted out of ToTemporalTime
@@ -3677,27 +4245,18 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::From(
   temporal_rs::ArithmeticOverflow overflow;
   // (ToTemporalDate) i. Let resolvedOptions be ?GetOptionsObject(options).
   // (ToTemporalDate) ii. Perform ?GetTemporalOverflowOption(resolvedOptions).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, overflow,
-      temporal::ToTemporalOverflowHandleUndefined(isolate, options_obj,
-                                                  method_name),
-      DirectHandle<JSTemporalPlainDate>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, overflow,
+                             temporal::ToTemporalOverflowHandleUndefined(
+                                 isolate, options_obj, method_name));
 
   return temporal::ToTemporalDate(isolate, item_obj, overflow, method_name);
-}
-
-// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tojson
-MaybeDirectHandle<String> JSTemporalPlainDate::ToJSON(
-    Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date) {
-  return temporal::TemporalDateToString(isolate, temporal_date,
-                                        temporal_rs::DisplayCalendar::Auto);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tostring
 MaybeDirectHandle<String> JSTemporalPlainDate::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainDate.prototype.toString";
+  static const char method_name[] = "Temporal.PlainDate.prototype.toString";
 
   // 3. Let resolvedOptions be ?GetOptionsObject(options).
   DirectHandle<JSReceiver> options;
@@ -3706,22 +4265,37 @@ MaybeDirectHandle<String> JSTemporalPlainDate::ToString(
 
   // 4. Let showCalendar be ?GetTemporalShowCalendarNameOption(resolvedOptions).
   temporal_rs::DisplayCalendar show_calendar;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, show_calendar,
-      temporal::GetTemporalShowCalendarNameOption(isolate, options,
-                                                  method_name),
-      DirectHandle<String>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, show_calendar,
+                             temporal::GetTemporalShowCalendarNameOption(
+                                 isolate, options, method_name));
 
   // 5. Return TemporalDateToString(temporalDate, showCalendar).
-  return temporal::TemporalDateToString(isolate, temporal_date, show_calendar);
+  return temporal::GenericTemporalToString(
+      isolate, temporal_date, &temporal_rs::PlainDate::to_ixdtf_string,
+      show_calendar);
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tojson
+MaybeDirectHandle<String> JSTemporalPlainDate::ToJSON(
+    Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date) {
+  return temporal::GenericTemporalToString(
+      isolate, temporal_date, &temporal_rs::PlainDate::to_ixdtf_string,
+      temporal_rs::DisplayCalendar::Auto);
 }
 
 // https://tc39.es/proposal-temporal/#sup-temporal.plaindate.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainDate::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
-  return temporal::TemporalDateToString(isolate, temporal_date,
-                                        temporal_rs::DisplayCalendar::Auto);
+  return temporal::GenericTemporalToString(
+      isolate, temporal_date, &temporal_rs::PlainDate::to_ixdtf_string,
+      temporal_rs::DisplayCalendar::Auto);
+}
+
+Maybe<int64_t> JSTemporalPlainDate::GetEpochMillisecondsFor(
+    Isolate* isolate, std::string_view time_zone) {
+  return temporal::GetEpochMillisecondsForDate(isolate, *this->date()->raw(),
+                                               time_zone);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-createtemporaldatetime
@@ -3743,69 +4317,62 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Constructor(
   }
   // 2. Set isoYear to ?ToIntegerWithTruncation(isoYear).
   double y = 0;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, y, temporal::ToIntegerWithTruncation(isolate, iso_year_obj),
-      kNullMaybeHandle);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, y, temporal::ToIntegerWithTruncation(isolate, iso_year_obj));
   // 3. Set isoMonth to ?ToIntegerWithTruncation(isoMonth).
   double m = 0;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, m, temporal::ToIntegerWithTruncation(isolate, iso_month_obj),
-      kNullMaybeHandle);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, m, temporal::ToIntegerWithTruncation(isolate, iso_month_obj));
   // 4. Set isoDay to ?ToIntegerWithTruncation(isoDay).
   double d = 0;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, d, temporal::ToIntegerWithTruncation(isolate, iso_day_obj),
-      kNullMaybeHandle);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, d, temporal::ToIntegerWithTruncation(isolate, iso_day_obj));
 
   // 5. If hour is undefined, set hour to 0; else set hour to ?
   // ToIntegerWithTruncation(hour).
   double hour = 0;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, hour, temporal::ToIntegerWithTruncation(isolate, hour_obj),
-      kNullMaybeHandle);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, hour, temporal::ToIntegerWithTruncation(isolate, hour_obj));
   // 6. If minute is undefined, set minute to 0; else set minute to ?
   // ToIntegerWithTruncation(minute).
   double minute = 0;
   if (!IsUndefined(*minute_obj)) {
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, minute, temporal::ToIntegerWithTruncation(isolate, minute_obj),
-        kNullMaybeHandle);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, minute,
+        temporal::ToIntegerWithTruncation(isolate, minute_obj));
   }
   // 7. If second is undefined, set second to 0; else set second to ?
   // ToIntegerWithTruncation(second).
   double second = 0;
   if (!IsUndefined(*second_obj)) {
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, second, temporal::ToIntegerWithTruncation(isolate, second_obj),
-        kNullMaybeHandle);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, second,
+        temporal::ToIntegerWithTruncation(isolate, second_obj));
   }
   // 8. If millisecond is undefined, set millisecond to 0; else set millisecond
   // to ? ToIntegerWithTruncation(millisecond).
   double millisecond = 0;
   if (!IsUndefined(*millisecond_obj)) {
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, millisecond,
-        temporal::ToIntegerWithTruncation(isolate, millisecond_obj),
-        kNullMaybeHandle);
+        temporal::ToIntegerWithTruncation(isolate, millisecond_obj));
   }
   // 9. If microsecond is undefined, set microsecond to 0; else set microsecond
   // to ? ToIntegerWithTruncation(microsecond).
 
   double microsecond = 0;
   if (!IsUndefined(*microsecond_obj)) {
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, microsecond,
-        temporal::ToIntegerWithTruncation(isolate, microsecond_obj),
-        kNullMaybeHandle);
+        temporal::ToIntegerWithTruncation(isolate, microsecond_obj));
   }
   // 10. If nanosecond is undefined, set nanosecond to 0; else set nanosecond to
   // ? ToIntegerWithTruncation(nanosecond).
   double nanosecond = 0;
   if (!IsUndefined(*nanosecond_obj)) {
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, nanosecond,
-        temporal::ToIntegerWithTruncation(isolate, nanosecond_obj),
-        kNullMaybeHandle);
+        temporal::ToIntegerWithTruncation(isolate, nanosecond_obj));
   }
 
   // 11. If calendar is undefined, set calendar to "iso8601".
@@ -3814,25 +4381,24 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Constructor(
   if (!IsUndefined(*calendar_like)) {
     // 12. If calendar is not a String, throw a TypeError exception.
     if (!IsString(*calendar_like)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kCalendarMustBeString));
     }
 
     // 13. Set calendar to ?CanonicalizeCalendar(calendar).
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, calendar,
-        temporal::CanonicalizeCalendar(isolate, Cast<String>(calendar_like)),
-        kNullMaybeHandle);
+        temporal::CanonicalizeCalendar(isolate, Cast<String>(calendar_like)));
   }
   // 14. If IsValidISODate(isoYear, isoMonth, isoDay) is false, throw a
   // RangeError exception.
   if (!temporal::IsValidIsoDate(y, m, d)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kInvalidIsoDate));
   }
   // 16. If IsValidTime(hour, minute, second, millisecond, microsecond,
   // nanosecond) is false, throw a RangeError exception.
   if (!temporal::IsValidTime(hour, minute, second, millisecond, microsecond,
                              nanosecond)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kInvalidTime));
   }
 
   // Rest of the steps handled in Rust.
@@ -3855,7 +4421,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Constructor(
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainDateTime.from";
+  static const char method_name[] = "Temporal.PlainDateTime.from";
   DirectHandle<JSTemporalPlainDateTime> item;
 
   // Options parsing hoisted out of ToTemporalDateTime
@@ -3864,11 +4430,9 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::From(
   // (ToTemporalDateTime) i. Let resolvedOptions be ?GetOptionsObject(options).
   // (ToTemporalDateTime) ii. Perform
   // ?GetTemporalOverflowOption(resolvedOptions).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, overflow,
-      temporal::ToTemporalOverflowHandleUndefined(isolate, options_obj,
-                                                  method_name),
-      kNullMaybeHandle);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, overflow,
+                             temporal::ToTemporalOverflowHandleUndefined(
+                                 isolate, options_obj, method_name));
 
   return temporal::ToTemporalDateTime(isolate, item_obj, overflow, method_name);
 }
@@ -3877,7 +4441,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::From(
 MaybeDirectHandle<Smi> JSTemporalPlainDateTime::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
-  const char method_name[] = "Temporal.PlainDateTime.compare";
+  static const char method_name[] = "Temporal.PlainDateTime.compare";
   DirectHandle<JSTemporalPlainDateTime> one;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, one,
                              temporal::ToTemporalDateTime(
@@ -3896,7 +4460,7 @@ MaybeDirectHandle<Smi> JSTemporalPlainDateTime::Compare(
 MaybeDirectHandle<Oddball> JSTemporalPlainDateTime::Equals(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> other_obj) {
-  const char method_name[] = "Temporal.PlainDateTime.prototype.equals";
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.equals";
 
   DirectHandle<JSTemporalPlainDateTime> other;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -3915,7 +4479,14 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::With(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> temporal_date_time_like_obj,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.with";
+
+  using enum temporal::CalendarFieldsFlag;
+
+  return temporal::GenericWith<JSTemporalPlainDateTime,
+                               temporal_rs::PartialDateTime>(
+      isolate, date_time, temporal_date_time_like_obj, options_obj,
+      temporal::kAllDateFlags | kTimeFields, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.withcalendar
@@ -3923,7 +4494,15 @@ MaybeDirectHandle<JSTemporalPlainDateTime>
 JSTemporalPlainDateTime::WithCalendar(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> temporal_date,
     DirectHandle<Object> calendar_id) {
-  UNIMPLEMENTED();
+  // 3. Let calendar be ? ToTemporalCalendarIdentifier(calendarLike).
+  temporal_rs::AnyCalendarKind calendar_kind;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar_kind,
+      temporal::ToTemporalCalendarIdentifier(isolate, calendar_id));
+
+  // Rest of the steps handled in Rust
+  return ConstructRustWrappingType<JSTemporalPlainDateTime>(
+      isolate, temporal_date->date_time()->raw()->with_calendar(calendar_kind));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.withplaintime
@@ -3931,21 +4510,20 @@ MaybeDirectHandle<JSTemporalPlainDateTime>
 JSTemporalPlainDateTime::WithPlainTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> plain_time_like) {
-  UNIMPLEMENTED();
-}
+  static const char method_name[] =
+      "Temporal.PlainDateTime.prototype.withPlainTime";
 
-// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.toplainyearmonth
-MaybeDirectHandle<JSTemporalPlainYearMonth>
-JSTemporalPlainDateTime::ToPlainYearMonth(
-    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
-  UNIMPLEMENTED();
-}
+  // 3. Let time be ? ToTimeRecordOrMidnight(plainTimeLike).
+  const temporal_rs::PlainTime* maybe_time;
+  DirectHandle<JSTemporalPlainTime> time_output;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, maybe_time,
+      temporal::ToTimeRecordOrMidnight(isolate, plain_time_like, time_output,
+                                       method_name));
 
-// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.toplainmonthday
-MaybeDirectHandle<JSTemporalPlainMonthDay>
-JSTemporalPlainDateTime::ToPlainMonthDay(
-    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
-  UNIMPLEMENTED();
+  // Rest of the steps handled in Rust.
+  return ConstructRustWrappingType<JSTemporalPlainDateTime>(
+      isolate, date_time->date_time()->raw()->with_time(maybe_time));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tozoneddatetime
@@ -3954,31 +4532,35 @@ JSTemporalPlainDateTime::ToZonedDateTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> temporal_time_zone_like,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
-}
+  static const char method_name[] =
+      "Temporal.PlainDateTime.prototype.toZonedDateTime";
+  // 3. Let timeZone be ? ToTemporalTimeZoneIdentifier(temporalTimeZoneLike).
+  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, time_zone,
+      temporal::ToTemporalTimeZoneIdentifier(isolate, temporal_time_zone_like));
+  // 4. Let resolvedOptions be ? GetOptionsObject(options).
+  // 5. Let disambiguation be ?
+  // GetTemporalDisambiguationOption(resolvedOptions).
 
-// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tojson
-MaybeDirectHandle<String> JSTemporalPlainDateTime::ToJSON(
-    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
-  return temporal::ISODateTimeToString(isolate, date_time,
-                                       std::move(temporal::kToStringAuto),
-                                       temporal_rs::DisplayCalendar::Auto);
-}
+  temporal_rs::Disambiguation disambiguation;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, disambiguation,
+      temporal::GetTemporalDisambiguationOptionHandleUndefined(
+          isolate, options_obj, method_name));
 
-// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tolocalestring
-MaybeDirectHandle<String> JSTemporalPlainDateTime::ToLocaleString(
-    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
-    DirectHandle<Object> locales, DirectHandle<Object> options) {
-  return temporal::ISODateTimeToString(isolate, date_time,
-                                       std::move(temporal::kToStringAuto),
-                                       temporal_rs::DisplayCalendar::Auto);
+  // Rest of the steps handled in Rust.
+
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate, date_time->date_time()->raw()->to_zoned_date_time(
+                   *time_zone, disambiguation));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tostring
 MaybeDirectHandle<String> JSTemporalPlainDateTime::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.DateTime.prototype.toString";
+  static const char method_name[] = "Temporal.DateTime.prototype.toString";
 
   // 3. Let resolvedOptions be ?GetOptionsObject(options).
   DirectHandle<JSReceiver> options;
@@ -3987,37 +4569,31 @@ MaybeDirectHandle<String> JSTemporalPlainDateTime::ToString(
 
   // 5. Let showCalendar be ?GetTemporalShowCalendarNameOption(resolvedOptions).
   temporal_rs::DisplayCalendar show_calendar;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, show_calendar,
-      temporal::GetTemporalShowCalendarNameOption(isolate, options,
-                                                  method_name),
-      DirectHandle<String>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, show_calendar,
+                             temporal::GetTemporalShowCalendarNameOption(
+                                 isolate, options, method_name));
 
   // 5. Let digits be ?GetTemporalFractionalSecondDigitsOption(resolvedOptions).
   temporal_rs::Precision digits;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, digits,
-      temporal::GetTemporalFractionalSecondDigitsOption(isolate, options,
-                                                        method_name),
-      DirectHandle<String>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, digits,
+                             temporal::GetTemporalFractionalSecondDigitsOption(
+                                 isolate, options, method_name));
 
   // 6. Let roundingMode be ? GetRoundingModeOption(resolvedOptions, trunc).
   RoundingMode rounding_mode;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, rounding_mode,
       temporal::GetRoundingModeOption(isolate, options, RoundingMode::Trunc,
-                                      method_name),
-      DirectHandle<String>());
+                                      method_name));
 
   // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions,
   // "smallestUnit", time, unset).
   std::optional<Unit> smallest_unit;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(isolate, options, "smallestUnit",
-                                UnitGroup::kTime, std::nullopt, false,
-                                method_name),
-      DirectHandle<String>());
+      temporal::GetTemporalUnit(
+          isolate, options, isolate->factory()->smallestUnit_string(),
+          UnitGroup::kTime, std::nullopt, false, method_name));
 
   // Rest of the steps handled in Rust
   auto rust_options = temporal_rs::ToStringRoundingOptions{
@@ -4025,78 +4601,185 @@ MaybeDirectHandle<String> JSTemporalPlainDateTime::ToString(
       .smallest_unit = smallest_unit,
       .rounding_mode = rounding_mode,
   };
-  return temporal::ISODateTimeToString(isolate, date_time,
-                                       std::move(rust_options), show_calendar);
+  return temporal::GenericTemporalToString(
+      isolate, date_time, &temporal_rs::PlainDateTime::to_ixdtf_string,
+      std::move(rust_options), show_calendar);
 }
 
-// https://tc39.es/proposal-temporal/#sec-temporal.now.plaindatetime
-MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Now(
-    Isolate* isolate, DirectHandle<Object> calendar_like,
-    DirectHandle<Object> temporal_time_zone_like) {
-  UNIMPLEMENTED();
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tojson
+MaybeDirectHandle<String> JSTemporalPlainDateTime::ToJSON(
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
+  return temporal::GenericTemporalToString(
+      isolate, date_time, &temporal_rs::PlainDateTime::to_ixdtf_string,
+      std::move(temporal::kToStringAuto), temporal_rs::DisplayCalendar::Auto);
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tolocalestring
+MaybeDirectHandle<String> JSTemporalPlainDateTime::ToLocaleString(
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
+    DirectHandle<Object> locales, DirectHandle<Object> options) {
+  return temporal::GenericTemporalToString(
+      isolate, date_time, &temporal_rs::PlainDateTime::to_ixdtf_string,
+      std::move(temporal::kToStringAuto), temporal_rs::DisplayCalendar::Auto);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.plaindatetimeiso
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::NowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
-  UNIMPLEMENTED();
+  std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, zdt,
+      temporal::GenericTemporalNowISO(isolate, temporal_time_zone_like));
+  return ConstructRustWrappingType<JSTemporalPlainDateTime>(
+      isolate, zdt->to_plain_datetime());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.round
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Round(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> round_to_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.round";
+  // 1. Let dateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(dateTime,
+  // [[InitializedTemporalDateTime]]).
+
+  // (handled by type system)
+
+  // 3. If roundTo is undefined, then
+  if (IsUndefined(*round_to_obj)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMissing));
+  }
+
+  DirectHandle<JSReceiver> round_to;
+  auto factory = isolate->factory();
+
+  // 4. If roundTo is a String, then
+  if (IsString(*round_to_obj)) {
+    // a. Let paramString be roundTo.
+    DirectHandle<String> param_string = Cast<String>(round_to_obj);
+    // b. Set roundTo to ! OrdinaryObjectCreate(null).
+    round_to = factory->NewJSObjectWithNullProto();
+    // c. c. Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit",
+    // paramString).
+    CHECK(JSReceiver::CreateDataProperty(isolate, round_to,
+                                         factory->smallestUnit_string(),
+                                         param_string, Just(kThrowOnError))
+              .FromJust());
+    // 5. Else,
+  } else {
+    // a. Set roundTo to ? GetOptionsObject(roundTo).
+    // We have already checked for undefined, we can hoist the JSReceiver
+    // check out and just cast
+    if (!IsJSReceiver(*round_to_obj)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMustBeObject));
+    }
+    round_to = Cast<JSReceiver>(round_to_obj);
+  }
+
+  // 6. NOTE: (...)
+
+  // 7. Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+
+  uint32_t rounding_increment;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, rounding_increment,
+      temporal::GetRoundingIncrementOption(isolate, round_to));
+
+  // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
+  RoundingMode rounding_mode;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, rounding_mode,
+      temporal::GetRoundingModeOption(isolate, round_to,
+                                      RoundingMode::HalfExpand, method_name));
+
+  // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
+  // "smallestUnit", time, required, « day »).
+  std::optional<Unit> smallest_unit;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, smallest_unit,
+      temporal::GetTemporalUnit(
+          isolate, round_to, factory->smallestUnit_string(),
+          UnitGroup::kDateTime, std::nullopt, true, method_name, Unit::Day));
+
+  // Rest of the steps handled in Rust
+
+  auto options = temporal_rs::RoundingOptions{.largest_unit = std::nullopt,
+                                              .smallest_unit = smallest_unit,
+                                              .rounding_mode = rounding_mode,
+                                              .increment = rounding_increment};
+
+  auto rounded = date_time->date_time()->raw()->round(options);
+  return ConstructRustWrappingType<JSTemporalPlainDateTime>(isolate,
+                                                            std::move(rounded));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.add
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Add(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.add";
+  // 3. Return ? AddDurationToDateTime(add, temporalDate, temporalDurationLike,
+  // options).
+  return temporal::AddDurationToGeneric(
+      isolate, &temporal_rs::PlainDateTime::add, date_time,
+      temporal_duration_like, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.subtract
 MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.subtract";
+  // 3. Return ? AddDurationToDateTime(subtract, temporalDate,
+  // temporalDurationLike, options).
+  return temporal::AddDurationToGeneric(
+      isolate, &temporal_rs::PlainDateTime::subtract, date_time,
+      temporal_duration_like, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.until
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDateTime::Until(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainDateTime.prototype.until";
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.until";
 
-  return temporal::DifferenceTemporalPlainDateTime(
-      isolate, temporal::DifferenceOperation::kUntil, handle, other, options,
-      method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::PlainDateTime::until, UnitGroup::kDateTime,
+      Unit::Nanosecond, handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.since
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainDateTime::Since(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainDateTime.prototype.since";
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.since";
 
-  return temporal::DifferenceTemporalPlainDateTime(
-      isolate, temporal::DifferenceOperation::kSince, handle, other, options,
-      method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::PlainDateTime::since, UnitGroup::kDateTime,
+      Unit::Nanosecond, handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.toplaindate
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDateTime::ToPlainDate(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
-  UNIMPLEMENTED();
+  return temporal::GenericToTemporalMethod<JSTemporalPlainDate>(
+      isolate, date_time, &temporal_rs::PlainDateTime::to_plain_date);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.toplaintime
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainDateTime::ToPlainTime(
     Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
-  UNIMPLEMENTED();
+  return temporal::GenericToTemporalMethod<JSTemporalPlainTime>(
+      isolate, date_time, &temporal_rs::PlainDateTime::to_plain_time);
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate
+V8_WARN_UNUSED_RESULT Maybe<int64_t>
+JSTemporalPlainDateTime::GetEpochMillisecondsFor(Isolate* isolate,
+                                                 std::string_view time_zone) {
+  return temporal::GetEpochMillisecondsForDateTime(isolate, *date_time()->raw(),
+                                                   time_zone);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday
@@ -4120,14 +4803,12 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::Constructor(
 
   // 3. Let m be ? ToIntegerWithTruncation(isoMonth).
   double m = 0;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, m, temporal::ToIntegerWithTruncation(isolate, iso_month_obj),
-      kNullMaybeHandle);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, m, temporal::ToIntegerWithTruncation(isolate, iso_month_obj));
   // 4. Let d be ? ToIntegerWithTruncation(isoYear).
   double d = 0;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, d, temporal::ToIntegerWithTruncation(isolate, iso_day_obj),
-      kNullMaybeHandle);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, d, temporal::ToIntegerWithTruncation(isolate, iso_day_obj));
 
   // 5. If calendar is undefined, set calendar to "iso8601".
   temporal_rs::AnyCalendarKind calendar = temporal_rs::AnyCalendarKind::Iso;
@@ -4135,26 +4816,24 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::Constructor(
   if (!IsUndefined(*calendar_like)) {
     // 6. If calendar is not a String, throw a TypeError exception.
     if (!IsString(*calendar_like)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kCalendarMustBeString));
     }
 
     // 7. Set calendar to ?CanonicalizeCalendar(calendar).
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, calendar,
-        temporal::CanonicalizeCalendar(isolate, Cast<String>(calendar_like)),
-        kNullMaybeHandle);
+        temporal::CanonicalizeCalendar(isolate, Cast<String>(calendar_like)));
   }
 
   if (!IsUndefined(*reference_iso_year_obj)) {
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, reference_iso_year,
-        temporal::ToIntegerWithTruncation(isolate, reference_iso_year_obj),
-        kNullMaybeHandle);
+        temporal::ToIntegerWithTruncation(isolate, reference_iso_year_obj));
   }
 
   // 9. If IsValidISODate(ref, m, d) is false, throw a RangeError exception.
   if (!temporal::IsValidIsoDate(reference_iso_year, m, d)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kInvalidIsoDate));
   }
   // Rest of the steps handled in Rust.
 
@@ -4174,7 +4853,7 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::Constructor(
 MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainMonthDay.from";
+  static const char method_name[] = "Temporal.PlainMonthDay.from";
   DirectHandle<JSTemporalPlainMonthDay> item;
 
   // Options parsing hoisted out of ToTemporalYearMonth
@@ -4182,11 +4861,9 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::From(
   temporal_rs::ArithmeticOverflow overflow;
   // (ToTemporalDate) i. Let resolvedOptions be ?GetOptionsObject(options).
   // (ToTemporalDate) ii. Perform ?GetTemporalOverflowOption(resolvedOptions).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, overflow,
-      temporal::ToTemporalOverflowHandleUndefined(isolate, options_obj,
-                                                  method_name),
-      DirectHandle<JSTemporalPlainMonthDay>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, overflow,
+                             temporal::ToTemporalOverflowHandleUndefined(
+                                 isolate, options_obj, method_name));
 
   return temporal::ToTemporalMonthDay(isolate, item_obj, overflow, method_name);
 }
@@ -4195,7 +4872,7 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::From(
 MaybeDirectHandle<Oddball> JSTemporalPlainMonthDay::Equals(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
     DirectHandle<Object> other_obj) {
-  const char method_name[] = "Temporal.PlainMonthDay.prototype.equals";
+  static const char method_name[] = "Temporal.PlainMonthDay.prototype.equals";
 
   DirectHandle<JSTemporalPlainMonthDay> other;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -4214,40 +4891,105 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::With(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> temporal_month_day,
     DirectHandle<Object> temporal_month_day_like_obj,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.PlainYearMonth.prototype.with";
+
+  using enum temporal::CalendarFieldsFlag;
+
+  return temporal::GenericWith<JSTemporalPlainMonthDay,
+                               temporal_rs::PartialDate>(
+      isolate, temporal_month_day, temporal_month_day_like_obj, options_obj,
+      kDay | kMonthFields, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.toplaindate
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainMonthDay::ToPlainDate(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
     DirectHandle<Object> item_obj) {
-  UNIMPLEMENTED();
-}
+  // 1. Let monthDay be the this value.
+  // 2. Perform ? RequireInternalSlot(monthDay,
+  // [[InitializedTemporalMonthDay]]).
 
-// https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.getisofields
-MaybeDirectHandle<JSReceiver> JSTemporalPlainMonthDay::GetISOFields(
-    Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day) {
-  UNIMPLEMENTED();
-}
+  // (handled by type system)
 
-// https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.tojson
-MaybeDirectHandle<String> JSTemporalPlainMonthDay::ToJSON(
-    Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day) {
-  UNIMPLEMENTED();
+  // 3. If item is not an Object, then
+  if (!IsJSReceiver(*item_obj)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kYearMustBeObject));
+  }
+  DirectHandle<JSReceiver> item = Cast<JSReceiver>(item_obj);
+  // 4. Let calendar be monthDay.[[Calendar]].
+  auto calendar = month_day->month_day()->raw()->calendar().kind();
+  // 5. Let fields be ISODateToFields(calendar, monthDay.[[ISODate]],
+  // month-day).
+
+  // (handled in Rust)
+
+  // 6. Let inputFields be ? PrepareCalendarFields(calendar, item, « year », «
+  // », « »).
+
+  using enum temporal::CalendarFieldsFlag;
+  temporal::CombinedRecordOwnership owners;
+  temporal::CombinedRecord fields;
+
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, fields,
+      temporal::PrepareCalendarFields(isolate, calendar, item, kYearFields,
+                                      temporal::RequiredFields::kNone, owners));
+
+  auto partial_date = std::move(fields).To<temporal_rs::PartialDate>();
+  return ConstructRustWrappingType<JSTemporalPlainDate>(
+      isolate, month_day->month_day()->raw()->to_plain_date(partial_date));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.tostring
 MaybeDirectHandle<String> JSTemporalPlainMonthDay::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
-    DirectHandle<Object> options) {
-  UNIMPLEMENTED();
+    DirectHandle<Object> options_obj) {
+  static const char method_name[] = "Temporal.PlainMonthDay.prototype.toString";
+
+  // 3. Let resolvedOptions be ?GetOptionsObject(options).
+  DirectHandle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name));
+
+  // 4. Let showCalendar be ?GetTemporalShowCalendarNameOption(resolvedOptions).
+  temporal_rs::DisplayCalendar show_calendar;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, show_calendar,
+                             temporal::GetTemporalShowCalendarNameOption(
+                                 isolate, options, method_name));
+
+  // 5. Return TemporalYearMonthToString(monthDay, showCalendar).
+  return temporal::GenericTemporalToString(
+      isolate, month_day, &temporal_rs::PlainMonthDay::to_ixdtf_string,
+      show_calendar);
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.tojson
+MaybeDirectHandle<String> JSTemporalPlainMonthDay::ToJSON(
+    Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day) {
+  return temporal::GenericTemporalToString(
+      isolate, month_day, &temporal_rs::PlainMonthDay::to_ixdtf_string,
+      temporal_rs::DisplayCalendar::Auto);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainMonthDay::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
-  UNIMPLEMENTED();
+  return temporal::GenericTemporalToString(
+      isolate, month_day, &temporal_rs::PlainMonthDay::to_ixdtf_string,
+      temporal_rs::DisplayCalendar::Auto);
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalmonthday
+Maybe<int64_t> JSTemporalPlainMonthDay::GetEpochMillisecondsFor(
+    Isolate* isolate, std::string_view time_zone) {
+  std::unique_ptr<temporal_rs::PlainDate> date;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, date,
+      ExtractRustResult(isolate,
+                        month_day()->raw()->to_plain_date(std::nullopt)));
+  return temporal::GetEpochMillisecondsForDate(isolate, *date, time_zone);
 }
 
 MaybeDirectHandle<JSTemporalPlainYearMonth>
@@ -4271,14 +5013,12 @@ JSTemporalPlainYearMonth::Constructor(
 
   // 3. Let y be ? ToIntegerWithTruncation(isoYear).
   double y = 0;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, y, temporal::ToIntegerWithTruncation(isolate, iso_year_obj),
-      kNullMaybeHandle);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, y, temporal::ToIntegerWithTruncation(isolate, iso_year_obj));
   // 4. Let m be ? ToIntegerWithTruncation(isoMonth).
   double m = 0;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, m, temporal::ToIntegerWithTruncation(isolate, iso_month_obj),
-      kNullMaybeHandle);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, m, temporal::ToIntegerWithTruncation(isolate, iso_month_obj));
 
   // 5. If calendar is undefined, set calendar to "iso8601".
   temporal_rs::AnyCalendarKind calendar = temporal_rs::AnyCalendarKind::Iso;
@@ -4286,26 +5026,24 @@ JSTemporalPlainYearMonth::Constructor(
   if (!IsUndefined(*calendar_like)) {
     // 6. If calendar is not a String, throw a TypeError exception.
     if (!IsString(*calendar_like)) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kCalendarMustBeString));
     }
 
     // 7. Set calendar to ?CanonicalizeCalendar(calendar).
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, calendar,
-        temporal::CanonicalizeCalendar(isolate, Cast<String>(calendar_like)),
-        kNullMaybeHandle);
+        temporal::CanonicalizeCalendar(isolate, Cast<String>(calendar_like)));
   }
 
   if (!IsUndefined(*reference_iso_day_obj)) {
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, reference_iso_day,
-        temporal::ToIntegerWithTruncation(isolate, reference_iso_day_obj),
-        kNullMaybeHandle);
+        temporal::ToIntegerWithTruncation(isolate, reference_iso_day_obj));
   }
 
   // 9. If IsValidISODate(y, m, ref) is false, throw a RangeError exception.
   if (!temporal::IsValidIsoDate(y, m, reference_iso_day)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kInvalidIsoDate));
   }
   // Rest of the steps handled in Rust.
 
@@ -4325,7 +5063,7 @@ JSTemporalPlainYearMonth::Constructor(
 MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainYearMonth.from";
+  static const char method_name[] = "Temporal.PlainYearMonth.from";
   DirectHandle<JSTemporalPlainYearMonth> item;
 
   // Options parsing hoisted out of ToTemporalYearMonth
@@ -4333,11 +5071,9 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::From(
   temporal_rs::ArithmeticOverflow overflow;
   // (ToTemporalDate) i. Let resolvedOptions be ?GetOptionsObject(options).
   // (ToTemporalDate) ii. Perform ?GetTemporalOverflowOption(resolvedOptions).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, overflow,
-      temporal::ToTemporalOverflowHandleUndefined(isolate, options_obj,
-                                                  method_name),
-      DirectHandle<JSTemporalPlainYearMonth>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, overflow,
+                             temporal::ToTemporalOverflowHandleUndefined(
+                                 isolate, options_obj, method_name));
 
   return temporal::ToTemporalYearMonth(isolate, item_obj, overflow,
                                        method_name);
@@ -4347,7 +5083,7 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::From(
 MaybeDirectHandle<Smi> JSTemporalPlainYearMonth::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
-  const char method_name[] = "Temporal.PlainYearMonth.compare";
+  static const char method_name[] = "Temporal.PlainYearMonth.compare";
   DirectHandle<JSTemporalPlainYearMonth> one;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, one,
                              temporal::ToTemporalYearMonth(
@@ -4367,7 +5103,7 @@ MaybeDirectHandle<Smi> JSTemporalPlainYearMonth::Compare(
 MaybeDirectHandle<Oddball> JSTemporalPlainYearMonth::Equals(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> other_obj) {
-  const char method_name[] = "Temporal.PlainYearMonth.prototype.equals";
+  static const char method_name[] = "Temporal.PlainYearMonth.prototype.equals";
 
   DirectHandle<JSTemporalPlainYearMonth> other;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -4385,38 +5121,47 @@ MaybeDirectHandle<Oddball> JSTemporalPlainYearMonth::Equals(
 MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::Add(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.PlainYearMonth.prototype.add";
+  // 3. Return ? AddDurationToYearMonth(add, temporalDate, temporalDurationLike,
+  // options).
+  return temporal::AddDurationToGeneric(
+      isolate, &temporal_rs::PlainYearMonth::add, year_month,
+      temporal_duration_like, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.subtract
 MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
-  UNIMPLEMENTED();
+  static const char method_name[] =
+      "Temporal.PlainYearMonth.prototype.subtract";
+  // 3. Return ? AddDurationToYearMonth(subtract, temporalDate,
+  // temporalDurationLike, options).
+  return temporal::AddDurationToGeneric(
+      isolate, &temporal_rs::PlainYearMonth::subtract, year_month,
+      temporal_duration_like, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.until
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainYearMonth::Until(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainYearMonth.prototype.until";
+  static const char method_name[] = "Temporal.PlainYearMonth.prototype.until";
 
-  return temporal::DifferenceTemporalPlainYearMonth(
-      isolate, temporal::DifferenceOperation::kUntil, handle, other, options,
-      method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::PlainYearMonth::until, UnitGroup::kDate, Unit::Day,
+      handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.since
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainYearMonth::Since(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainYearMonth.prototype.since";
+  static const char method_name[] = "Temporal.PlainYearMonth.prototype.since";
 
-  return temporal::DifferenceTemporalPlainYearMonth(
-      isolate, temporal::DifferenceOperation::kSince, handle, other, options,
-      method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::PlainYearMonth::since, UnitGroup::kDate, Unit::Day,
+      handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.with
@@ -4425,34 +5170,105 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::With(
     DirectHandle<JSTemporalPlainYearMonth> temporal_year_month,
     DirectHandle<Object> temporal_year_month_like_obj,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.PlainYearMonth.prototype.with";
+
+  using enum temporal::CalendarFieldsFlag;
+
+  return temporal::GenericWith<JSTemporalPlainYearMonth,
+                               temporal_rs::PartialDate>(
+      isolate, temporal_year_month, temporal_year_month_like_obj, options_obj,
+      kYearFields | kMonthFields, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.toplaindate
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainYearMonth::ToPlainDate(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> item_obj) {
-  UNIMPLEMENTED();
-}
+  // 1. Let yearMonth be the this value.
+  // 2. Perform ? RequireInternalSlot(yearMonth,
+  // [[InitializedTemporalYearMonth]]).
 
-// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tojson
-MaybeDirectHandle<String> JSTemporalPlainYearMonth::ToJSON(
-    Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month) {
-  UNIMPLEMENTED();
+  // (handled by type system)
+
+  // 3. If item is not an Object, then
+  if (!IsJSReceiver(*item_obj)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kYearMustBeObject));
+  }
+  DirectHandle<JSReceiver> item = Cast<JSReceiver>(item_obj);
+  // 4. Let calendar be yearMonth.[[Calendar]].
+  auto calendar = year_month->year_month()->raw()->calendar().kind();
+  // 5. Let fields be ISODateToFields(calendar, yearMonth.[[ISODate]],
+  // year-month).
+
+  // (handled in Rust)
+
+  // 6. Let inputFields be ? PrepareCalendarFields(calendar, item, « day », « »,
+  // « »).
+
+  using enum temporal::CalendarFieldsFlag;
+  temporal::CombinedRecordOwnership owners;
+  temporal::CombinedRecord fields;
+
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, fields,
+      temporal::PrepareCalendarFields(isolate, calendar, item, kYearFields,
+                                      temporal::RequiredFields::kNone, owners));
+  auto partial_date = std::move(fields).To<temporal_rs::PartialDate>();
+  return ConstructRustWrappingType<JSTemporalPlainDate>(
+      isolate, year_month->year_month()->raw()->to_plain_date(partial_date));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tostring
 MaybeDirectHandle<String> JSTemporalPlainYearMonth::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
-    DirectHandle<Object> options) {
-  UNIMPLEMENTED();
+    DirectHandle<Object> options_obj) {
+  static const char method_name[] =
+      "Temporal.PlainYearMonth.prototype.toString";
+
+  // 3. Let resolvedOptions be ?GetOptionsObject(options).
+  DirectHandle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name));
+
+  // 4. Let showCalendar be ?GetTemporalShowCalendarNameOption(resolvedOptions).
+  temporal_rs::DisplayCalendar show_calendar;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, show_calendar,
+                             temporal::GetTemporalShowCalendarNameOption(
+                                 isolate, options, method_name));
+
+  // 5. Return TemporalYearMonthToString(yearMonth, showCalendar).
+  return temporal::GenericTemporalToString(
+      isolate, year_month, &temporal_rs::PlainYearMonth::to_ixdtf_string,
+      show_calendar);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainYearMonth::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
-  UNIMPLEMENTED();
+  return temporal::GenericTemporalToString(
+      isolate, year_month, &temporal_rs::PlainYearMonth::to_ixdtf_string,
+      temporal_rs::DisplayCalendar::Auto);
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalyearmonth
+Maybe<int64_t> JSTemporalPlainYearMonth::GetEpochMillisecondsFor(
+    Isolate* isolate, std::string_view time_zone) {
+  std::unique_ptr<temporal_rs::PlainDate> date;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, date,
+      ExtractRustResult(isolate,
+                        year_month()->raw()->to_plain_date(std::nullopt)));
+  return temporal::GetEpochMillisecondsForDate(isolate, *date, time_zone);
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tojson
+MaybeDirectHandle<String> JSTemporalPlainYearMonth::ToJSON(
+    Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month) {
+  return temporal::GenericTemporalToString(
+      isolate, year_month, &temporal_rs::PlainYearMonth::to_ixdtf_string,
+      temporal_rs::DisplayCalendar::Auto);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-plaintime-constructor
@@ -4474,61 +5290,57 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
   // ToIntegerWithTruncation(hour).
   double hour = 0;
   if (!IsUndefined(*hour_obj)) {
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, hour, temporal::ToIntegerWithTruncation(isolate, hour_obj),
-        kNullMaybeHandle);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, hour, temporal::ToIntegerWithTruncation(isolate, hour_obj));
   }
   // 3. If minute is undefined, set minute to 0; else set minute to ?
   // ToIntegerWithTruncation(minute).
   double minute = 0;
   if (!IsUndefined(*minute_obj)) {
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, minute, temporal::ToIntegerWithTruncation(isolate, minute_obj),
-        kNullMaybeHandle);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, minute,
+        temporal::ToIntegerWithTruncation(isolate, minute_obj));
   }
   // 4. If second is undefined, set second to 0; else set second to ?
   // ToIntegerWithTruncation(second).
   double second = 0;
   if (!IsUndefined(*second_obj)) {
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, second, temporal::ToIntegerWithTruncation(isolate, second_obj),
-        kNullMaybeHandle);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, second,
+        temporal::ToIntegerWithTruncation(isolate, second_obj));
   }
   // 5. If millisecond is undefined, set millisecond to 0; else set millisecond
   // to ? ToIntegerWithTruncation(millisecond).
   double millisecond = 0;
   if (!IsUndefined(*millisecond_obj)) {
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, millisecond,
-        temporal::ToIntegerWithTruncation(isolate, millisecond_obj),
-        kNullMaybeHandle);
+        temporal::ToIntegerWithTruncation(isolate, millisecond_obj));
   }
   // 6. If microsecond is undefined, set microsecond to 0; else set microsecond
   // to ? ToIntegerWithTruncation(microsecond).
 
   double microsecond = 0;
   if (!IsUndefined(*microsecond_obj)) {
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, microsecond,
-        temporal::ToIntegerWithTruncation(isolate, microsecond_obj),
-        kNullMaybeHandle);
+        temporal::ToIntegerWithTruncation(isolate, microsecond_obj));
   }
   // 7. If nanosecond is undefined, set nanosecond to 0; else set nanosecond to
   // ? ToIntegerWithTruncation(nanosecond).
 
   double nanosecond = 0;
   if (!IsUndefined(*nanosecond_obj)) {
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, nanosecond,
-        temporal::ToIntegerWithTruncation(isolate, nanosecond_obj),
-        kNullMaybeHandle);
+        temporal::ToIntegerWithTruncation(isolate, nanosecond_obj));
   }
 
   // 8. If IsValidTime(hour, minute, second, millisecond, microsecond,
   // nanosecond) is false, throw a RangeError exception.
   if (!temporal::IsValidTime(hour, minute, second, millisecond, microsecond,
                              nanosecond)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kInvalidTime));
   }
 
   // Rest of the steps handled in Rust
@@ -4541,15 +5353,15 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
       static_cast<uint8_t>(hour), static_cast<uint8_t>(minute),
       static_cast<uint8_t>(second), static_cast<uint16_t>(millisecond),
       static_cast<uint16_t>(microsecond), static_cast<uint16_t>(nanosecond));
-  return ConstructRustWrappingType<JSTemporalPlainTime>(isolate,
-                                                        std::move(rust_object));
+  return ConstructRustWrappingType<JSTemporalPlainTime>(
+      isolate, target, new_target, std::move(rust_object));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.compare
 MaybeDirectHandle<Smi> JSTemporalPlainTime::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
-  const char method_name[] = "Temporal.PlainTime.compare";
+  static const char method_name[] = "Temporal.PlainTime.compare";
   DirectHandle<JSTemporalPlainTime> one;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, one,
@@ -4568,14 +5380,94 @@ MaybeDirectHandle<Smi> JSTemporalPlainTime::Compare(
 MaybeDirectHandle<Oddball> JSTemporalPlainTime::Equals(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> other_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.PlainTime.prototype.equals";
+
+  // 3. Set other to ? ToTemporalTime(other).
+  DirectHandle<JSTemporalPlainTime> other;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other,
+      temporal::ToTemporalTime(isolate, other_obj, std::nullopt, method_name));
+
+  // Rest of the steps handled in Rust
+  auto equals = temporal_time->time()->raw()->equals(*other->time()->raw());
+
+  return isolate->factory()->ToBoolean(equals);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.round
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Round(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> round_to_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.round";
+  // 1. Let temporalTime be the this value.
+  // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalTime]]).
+
+  // (handled by type system)
+
+  // 3. If roundTo is undefined, then
+  if (IsUndefined(*round_to_obj)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMissing));
+  }
+
+  DirectHandle<JSReceiver> round_to;
+  auto factory = isolate->factory();
+
+  // 4. If roundTo is a String, then
+  if (IsString(*round_to_obj)) {
+    // a. Let paramString be roundTo.
+    DirectHandle<String> param_string = Cast<String>(round_to_obj);
+    // b. Set roundTo to ! OrdinaryObjectCreate(null).
+    round_to = factory->NewJSObjectWithNullProto();
+    // TODO(manishearth) Ideally we don't have to perform this allocation
+    // c. Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit",
+    // paramString).
+    CHECK(JSReceiver::CreateDataProperty(isolate, round_to,
+                                         factory->smallestUnit_string(),
+                                         param_string, Just(kThrowOnError))
+              .FromJust());
+    // 5. Else,
+  } else {
+    // a. Set roundTo to ? GetOptionsObject(roundTo).
+    // We have already checked for undefined, we can hoist the JSReceiver
+    // check out and just cast
+    if (!IsJSReceiver(*round_to_obj)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMustBeObject));
+    }
+    round_to = Cast<JSReceiver>(round_to_obj);
+  }
+
+  // 6. NOTE: (...)
+
+  // 7. Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+
+  uint32_t rounding_increment;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, rounding_increment,
+      temporal::GetRoundingIncrementOption(isolate, round_to));
+
+  // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
+  RoundingMode rounding_mode;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, rounding_mode,
+      temporal::GetRoundingModeOption(isolate, round_to,
+                                      RoundingMode::HalfExpand, method_name));
+
+  // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
+  // "smallestUnit", time, required).
+  std::optional<Unit> smallest_unit;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, smallest_unit,
+      temporal::GetTemporalUnit(
+          isolate, round_to, factory->smallestUnit_string(), UnitGroup::kTime,
+          std::nullopt, true, method_name));
+
+  // Rest of the steps handled in Rust
+
+  auto rounded = temporal_time->time()->raw()->round(
+      smallest_unit.value(), rounding_increment, rounding_mode);
+  return ConstructRustWrappingType<JSTemporalPlainTime>(isolate,
+                                                        std::move(rounded));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.with
@@ -4583,20 +5475,58 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::With(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> temporal_time_like_obj,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.PlainTime.prototype.with";
+
+  // 3. If ? IsPartialTemporalObject(temporalTimeLike) is false, throw a
+  // TypeError exception.
+  bool is_partial = false;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, is_partial,
+      temporal::IsPartialTemporalObject(isolate, temporal_time_like_obj));
+
+  if (!is_partial) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kWithNoPartial));
+  }
+
+  // 4. Let partialTime be ? ToTemporalTimeRecord(temporalTimeLike, partial).
+  temporal_rs::PartialTime partial_time = temporal::kNullPartialTime;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, partial_time,
+      temporal::ToTemporalTimeRecord(isolate,
+                                     Cast<JSObject>(temporal_time_like_obj),
+                                     method_name, kPartial));
+
+  // Intervening steps handled by Rust, but are not externally observable
+
+  // 17. Let resolvedOptions be ? GetOptionsObject(options).
+  // 18. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+
+  temporal_rs::ArithmeticOverflow overflow;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, overflow,
+                             temporal::ToTemporalOverflowHandleUndefined(
+                                 isolate, options_obj, method_name));
+
+  // Handled by Rust
+  return ConstructRustWrappingType<JSTemporalPlainTime>(
+      isolate, temporal_time->time()->raw()->with(partial_time, overflow));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.plaintimeiso
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::NowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
-  UNIMPLEMENTED();
+  std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, zdt,
+      temporal::GenericTemporalNowISO(isolate, temporal_time_zone_like));
+  return ConstructRustWrappingType<JSTemporalPlainTime>(isolate,
+                                                        zdt->to_plain_time());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.from
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainTime.from";
+  static const char method_name[] = "Temporal.PlainTime.from";
   DirectHandle<JSTemporalPlainTime> item;
 
   // Options parsing hoisted out of ToTemporalTime
@@ -4604,11 +5534,9 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::From(
   temporal_rs::ArithmeticOverflow overflow;
   // (ToTemporalTime) i. Let resolvedOptions be ?GetOptionsObject(options).
   // (ToTemporalTime) ii. Perform ?GetTemporalOverflowOption(resolvedOptions).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, overflow,
-      temporal::ToTemporalOverflowHandleUndefined(isolate, options_obj,
-                                                  method_name),
-      DirectHandle<JSTemporalPlainTime>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, overflow,
+                             temporal::ToTemporalOverflowHandleUndefined(
+                                 isolate, options_obj, method_name));
 
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, item,
@@ -4621,8 +5549,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::From(
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Add(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> temporal_duration_like) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainTime.prototype.add";
+  static const char method_name[] = "Temporal.PlainTime.prototype.add";
 
   DirectHandle<JSTemporalDuration> other_duration;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, other_duration,
@@ -4640,8 +5567,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Add(
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> temporal_duration_like) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainTime.prototype.subtract";
+  static const char method_name[] = "Temporal.PlainTime.prototype.subtract";
 
   DirectHandle<JSTemporalDuration> other_duration;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, other_duration,
@@ -4659,46 +5585,30 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Subtract(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainTime::Until(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainTime.prototype.until";
+  static const char method_name[] = "Temporal.PlainTime.prototype.until";
 
-  return temporal::DifferenceTemporalPlainTime(
-      isolate, temporal::DifferenceOperation::kUntil, handle, other, options,
-      method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::PlainTime::until, UnitGroup::kTime,
+      Unit::Nanosecond, handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.since
 MaybeDirectHandle<JSTemporalDuration> JSTemporalPlainTime::Since(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.PlainTime.prototype.since";
+  static const char method_name[] = "Temporal.PlainTime.prototype.since";
 
-  return temporal::DifferenceTemporalPlainTime(
-      isolate, temporal::DifferenceOperation::kSince, handle, other, options,
-      method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::PlainTime::since, UnitGroup::kTime,
+      Unit::Nanosecond, handle, other, options, method_name);
 }
 
-// https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tojson
-MaybeDirectHandle<String> JSTemporalPlainTime::ToJSON(
-    Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time) {
-  return temporal::TimeRecordToString(isolate, temporal_time,
-                                      std::move(temporal::kToStringAuto));
-}
-
-// https://tc39.es/proposal-temporal/#sup-temporal.plaintime.prototype.tolocalestring
-MaybeDirectHandle<String> JSTemporalPlainTime::ToLocaleString(
-    Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
-    DirectHandle<Object> locales, DirectHandle<Object> options) {
-  return temporal::TimeRecordToString(isolate, temporal_time,
-                                      std::move(temporal::kToStringAuto));
-}
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tostring
 MaybeDirectHandle<String> JSTemporalPlainTime::ToString(
     Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.PlainTime.prototype.toString";
+  static const char method_name[] = "Temporal.PlainTime.prototype.toString";
   // 3. Let resolvedOptions be ?GetOptionsObject(options).
   DirectHandle<JSReceiver> options;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -4707,31 +5617,27 @@ MaybeDirectHandle<String> JSTemporalPlainTime::ToString(
   // 5. Let digits be ?GetTemporalFractionalSecondDigitsOption(resolvedOptions).
 
   temporal_rs::Precision digits;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, digits,
-      temporal::GetTemporalFractionalSecondDigitsOption(isolate, options,
-                                                        method_name),
-      DirectHandle<String>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, digits,
+                             temporal::GetTemporalFractionalSecondDigitsOption(
+                                 isolate, options, method_name));
 
   // 6. Let roundingMode be ? GetRoundingModeOption(resolvedOptions, trunc).
 
   RoundingMode rounding_mode;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, rounding_mode,
       temporal::GetRoundingModeOption(isolate, options, RoundingMode::Trunc,
-                                      method_name),
-      DirectHandle<String>());
+                                      method_name));
 
   // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions,
   // "smallestUnit", time, unset).
 
   std::optional<Unit> smallest_unit;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(isolate, options, "smallestUnit",
-                                UnitGroup::kTime, std::nullopt, false,
-                                method_name),
-      DirectHandle<String>());
+      temporal::GetTemporalUnit(
+          isolate, options, isolate->factory()->smallestUnit_string(),
+          UnitGroup::kTime, std::nullopt, false, method_name));
 
   // 8-10 performed by Rust
   auto rust_options = temporal_rs::ToStringRoundingOptions{
@@ -4740,8 +5646,47 @@ MaybeDirectHandle<String> JSTemporalPlainTime::ToString(
       .rounding_mode = rounding_mode,
   };
 
-  return temporal::TimeRecordToString(isolate, temporal_time,
-                                      std::move(rust_options));
+  return temporal::GenericTemporalToString(
+      isolate, temporal_time, &temporal_rs::PlainTime::to_ixdtf_string,
+      std::move(rust_options));
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tojson
+MaybeDirectHandle<String> JSTemporalPlainTime::ToJSON(
+    Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time) {
+  return temporal::GenericTemporalToString(
+      isolate, temporal_time, &temporal_rs::PlainTime::to_ixdtf_string,
+      std::move(temporal::kToStringAuto));
+}
+
+// https://tc39.es/proposal-temporal/#sup-temporal.plaintime.prototype.tolocalestring
+MaybeDirectHandle<String> JSTemporalPlainTime::ToLocaleString(
+    Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
+    DirectHandle<Object> locales, DirectHandle<Object> options) {
+  return temporal::GenericTemporalToString(
+      isolate, temporal_time, &temporal_rs::PlainTime::to_ixdtf_string,
+      std::move(temporal::kToStringAuto));
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate
+Maybe<int64_t> JSTemporalPlainTime::GetEpochMillisecondsFor(
+    Isolate* isolate, std::string_view time_zone) {
+  // 1. Let isoDate be CreateISODateRecord(1970, 1, 1).
+
+  std::unique_ptr<temporal_rs::PlainDate> pd;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, pd,
+      ExtractRustResult(isolate,
+                        temporal_rs::PlainDate::try_new(
+                            1970, 1, 1, temporal_rs::AnyCalendarKind::Iso)));
+
+  // 2. Let isoDateTime be CombineISODateAndTimeRecord(isoDate,
+  // temporalTime.[[Time]]).
+  // 3. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]],
+  // isoDateTime, compatible).
+
+  return temporal::GetEpochMillisecondsForDate(isolate, *pd, time_zone,
+                                               time()->raw());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime
@@ -4750,21 +5695,97 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
     DirectHandle<HeapObject> new_target,
     DirectHandle<Object> epoch_nanoseconds_obj,
     DirectHandle<Object> time_zone_like, DirectHandle<Object> calendar_like) {
-  UNIMPLEMENTED();
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  if (IsUndefined(*new_target)) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
+                                 isolate->factory()->NewStringFromAsciiChecked(
+                                     "Temporal.ZonedDateTime")));
+  }
+
+  // 2. Set epochNanoseconds to ? ToBigInt(epochNanoseconds).
+  DirectHandle<BigInt> epoch_nanoseconds;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, epoch_nanoseconds,
+      BigInt::FromObject(isolate, epoch_nanoseconds_obj));
+
+  // 3. If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
+  // RangeError exception.
+  temporal_rs::I128Nanoseconds ns;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, ns, temporal::GetI128FromBigInt(isolate, epoch_nanoseconds));
+
+  // 4. If timeZone is not a String, throw a TypeError exception.
+  if (!IsString(*time_zone_like)) {
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_TYPE_ERROR("Time zone must be string"));
+  }
+
+  auto tz_str = Cast<String>(time_zone_like);
+
+  auto tz_stdstr = tz_str->ToStdString();
+
+  // 5. Let timeZoneParse be ? ParseTimeZoneIdentifier(timeZone).
+  // 6. If timeZoneParse.[[OffsetMinutes]] is empty, then
+  //   a. Let identifierRecord be
+  //   GetAvailableNamedTimeZoneIdentifier(timeZoneParse.[[Name]]). b. If
+  //   identifierRecord is empty, throw a RangeError exception. c. Set timeZone
+  //   to identifierRecord.[[Identifier]].
+  // 7. Else,
+  //   a. Set timeZone to
+  //   FormatOffsetTimeZoneIdentifier(timeZoneParse.[[OffsetMinutes]]).
+  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, time_zone,
+      ExtractRustResult(
+          isolate, temporal_rs::TimeZone::try_from_identifier_str(tz_stdstr)));
+
+  if (!time_zone->is_valid()) {
+    THROW_NEW_ERROR(
+        isolate, NEW_TEMPORAL_RANGE_ERROR_WITH_ARG("Invalid timezone", tz_str));
+  }
+
+  // 8. If calendar is undefined, set calendar to "iso8601".
+  temporal_rs::AnyCalendarKind calendar = temporal_rs::AnyCalendarKind::Iso;
+
+  // We pre-parsed "iso8601" so we can do steps 9 and 10 in a branch
+  if (!IsUndefined(*calendar_like)) {
+    // 9. If calendar is not a String, throw a TypeError exception.
+    if (!IsString(*calendar_like)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kCalendarMustBeString));
+    }
+
+    // 10. Set calendar to ? CanonicalizeCalendar(calendar).
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, calendar,
+        temporal::CanonicalizeCalendar(isolate, Cast<String>(calendar_like)),
+        kNullMaybeHandle);
+  }
+
+  // 11. Return ? CreateTemporalZonedDateTime(epochNanoseconds, timeZone,
+  // calendar, NewTarget).
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate, target, new_target,
+      temporal_rs::ZonedDateTime::try_new(ns, calendar, *time_zone));
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.hoursinday
-MaybeDirectHandle<Object> JSTemporalZonedDateTime::HoursInDay(
+MaybeDirectHandle<Smi> JSTemporalZonedDateTime::HoursInDay(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+
+  uint8_t hours;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, hours,
+      ExtractRustResult(
+          isolate, zoned_date_time->zoned_date_time()->raw()->hours_in_day()));
+  return direct_handle(Smi::FromInt(hours), isolate);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.from
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::From(
     Isolate* isolate, DirectHandle<Object> item_obj,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.ZonedDateTime.from";
+  static const char method_name[] = "Temporal.ZonedDateTime.from";
   DirectHandle<JSTemporalPlainDateTime> item;
 
   // Options parsing hoisted out of ToTemporalZonedDateTime
@@ -4777,27 +5798,23 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::From(
   //
   // (ToTemporalZonedDateTime) h. Let disambiguation be
   // ?GetTemporalDisambiguationOption(resolvedOptions).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, disambiguation,
       temporal::GetTemporalDisambiguationOptionHandleUndefined(
-          isolate, options_obj, method_name),
-      kNullMaybeHandle);
+          isolate, options_obj, method_name));
 
   // (ToTemporalZonedDateTime) i. Let offsetOption be
   // ?GetTemporalOffsetOption(resolvedOptions, reject).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, offset_option,
       temporal::GetTemporalOffsetOptionHandleUndefined(
           isolate, options_obj, temporal_rs::OffsetDisambiguation::Reject,
-          method_name),
-      kNullMaybeHandle);
+          method_name));
   // (ToTemporalZonedDateTime) ii. Perform
   // ?GetTemporalOverflowOption(resolvedOptions).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, overflow,
-      temporal::ToTemporalOverflowHandleUndefined(isolate, options_obj,
-                                                  method_name),
-      kNullMaybeHandle);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, overflow,
+                             temporal::ToTemporalOverflowHandleUndefined(
+                                 isolate, options_obj, method_name));
 
   return temporal::ToTemporalZonedDateTime(
       isolate, item_obj, disambiguation, offset_option, overflow, method_name);
@@ -4807,8 +5824,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::From(
 MaybeDirectHandle<Smi> JSTemporalZonedDateTime::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.ZonedDateTime.compare";
+  static const char method_name[] = "Temporal.ZonedDateTime.compare";
   DirectHandle<JSTemporalZonedDateTime> one;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, one,
                              temporal::ToTemporalZonedDateTime(
@@ -4830,7 +5846,20 @@ MaybeDirectHandle<Smi> JSTemporalZonedDateTime::Compare(
 MaybeDirectHandle<Oddball> JSTemporalZonedDateTime::Equals(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> other_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.ZonedDateTime.prototype.equals";
+
+  // 3. Set other to ? ToTemporalZonedDateTime(other).
+  DirectHandle<JSTemporalZonedDateTime> other;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, other,
+                             temporal::ToTemporalZonedDateTime(
+                                 isolate, other_obj, std::nullopt, std::nullopt,
+                                 std::nullopt, method_name));
+
+  // Rest of the steps handled in Rust.
+  auto equals = zoned_date_time->zoned_date_time()->raw()->equals(
+      *other->zoned_date_time()->raw());
+
+  return isolate->factory()->ToBoolean(equals);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.with
@@ -4838,8 +5867,14 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::With(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> temporal_zoned_date_time_like_obj,
     DirectHandle<Object> options_obj) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.ZonedDateTime.prototype.with";
+
+  using enum temporal::CalendarFieldsFlag;
+
+  return temporal::GenericWith<JSTemporalZonedDateTime,
+                               temporal_rs::PartialZonedDateTime>(
+      isolate, zoned_date_time, temporal_zoned_date_time_like_obj, options_obj,
+      temporal::kAllDateFlags | kTimeFields | kOffset, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withcalendar
@@ -4847,7 +5882,16 @@ MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalZonedDateTime::WithCalendar(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> temporal_date,
     DirectHandle<Object> calendar_id) {
-  UNIMPLEMENTED();
+  // 3. Let calendar be ? ToTemporalCalendarIdentifier(calendarLike).
+  temporal_rs::AnyCalendarKind calendar_kind;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar_kind,
+      temporal::ToTemporalCalendarIdentifier(isolate, calendar_id));
+
+  // Rest of the steps handled in Rust
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate,
+      temporal_date->zoned_date_time()->raw()->with_calendar(calendar_kind));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withplaintime
@@ -4855,8 +5899,58 @@ MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalZonedDateTime::WithPlainTime(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> plain_time_like) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  static const char method_name[] =
+      "Temporal.ZonedDateTime.prototype.withPlainTime";
+  // 1. Let zonedDateTime be the this value.
+  //
+  // 2. Perform ? RequireInternalSlot(zonedDateTime,
+  // [[InitializedTemporalZonedDateTime]]).
+  //
+  // 3. Let timeZone be zonedDateTime.[[TimeZone]].
+  //
+  // 4. Let calendar be zonedDateTime.[[Calendar]].
+
+  // (handled by type system)
+
+  // 5. Let isoDateTime be GetISODateTimeFor(timeZone,
+  // zonedDateTime.[[EpochNanoseconds]]).
+
+  // (handled later in Rust, idempotent)
+
+  DirectHandle<JSTemporalPlainTime> plain_time_obj;
+  temporal_rs::PlainTime* plain_time = nullptr;
+
+  // 6. If plainTimeLike is undefined, then
+  if (IsUndefined(*plain_time_like)) {
+    // a. Let epochNs be ? GetStartOfDay(timeZone, isoDateTime.[[ISODate]]).
+
+    // (handled later in Rust, there are no steps between this and the Rust
+    // call. Rust handles this by detecting a null time argument)
+
+    // 7. Else,
+  } else {
+    // a. Let plainTime be ? ToTemporalTime(plainTimeLike).
+
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, plain_time_obj,
+        temporal::ToTemporalTime(isolate, plain_time_like, std::nullopt,
+                                 method_name));
+
+    plain_time = plain_time_obj->time()->raw();
+    // b. Let resultISODateTime be
+    // CombineISODateAndTimeRecord(isoDateTime.[[ISODate]], plainTime.[[Time]]).
+    // c. Let epochNs be ? GetEpochNanosecondsFor(timeZone, resultISODateTime,
+    // compatible).
+
+    // (handled later in Rust, there are no steps between this and the Rust
+    // call)
+  }
+
+  // Rest of the steps handled in Rust.
+
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate,
+      zoned_date_time->zoned_date_time()->raw()->with_plain_time(plain_time));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withtimezone
@@ -4864,156 +5958,401 @@ MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalZonedDateTime::WithTimeZone(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> time_zone_like) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
-}
+  // 3. Let timeZone be ? ToTemporalTimeZoneIdentifier(timeZoneLike).
+  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, time_zone,
+      temporal::ToTemporalTimeZoneIdentifier(isolate, time_zone_like));
 
-// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tojson
-MaybeDirectHandle<String> JSTemporalZonedDateTime::ToJSON(
-    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
-}
-
-// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tolocalestring
-MaybeDirectHandle<String> JSTemporalZonedDateTime::ToLocaleString(
-    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
-    DirectHandle<Object> locales, DirectHandle<Object> options) {
-  UNIMPLEMENTED();
+  // 4. Return ! CreateTemporalZonedDateTime(zonedDateTime.[[EpochNanoseconds]],
+  // timeZone, zonedDateTime.[[Calendar]]).
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate,
+      zoned_date_time->zoned_date_time()->raw()->with_timezone(*time_zone));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tostring
 MaybeDirectHandle<String> JSTemporalZonedDateTime::ToString(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> options_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.ZonedDateTime.prototype.toString";
+
+  // 3. Let resolvedOptions be ?GetOptionsObject(options).
+  DirectHandle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name));
+
+  // 5. Let showCalendar be ?GetTemporalShowCalendarNameOption(resolvedOptions).
+  temporal_rs::DisplayCalendar show_calendar;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, show_calendar,
+                             temporal::GetTemporalShowCalendarNameOption(
+                                 isolate, options, method_name));
+
+  // 6. Let digits be ?GetTemporalFractionalSecondDigitsOption(resolvedOptions).
+  temporal_rs::Precision digits;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, digits,
+                             temporal::GetTemporalFractionalSecondDigitsOption(
+                                 isolate, options, method_name));
+
+  // 7. Let showOffset be ? GetTemporalShowOffsetOption(resolvedOptions)..
+  temporal_rs::DisplayOffset show_offset;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, show_offset,
+      temporal::GetTemporalShowOffsetOption(isolate, options, method_name));
+
+  // 8. Let roundingMode be ? GetRoundingModeOption(resolvedOptions, trunc).
+  RoundingMode rounding_mode;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, rounding_mode,
+      temporal::GetRoundingModeOption(isolate, options, RoundingMode::Trunc,
+                                      method_name));
+
+  // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions,
+  // "smallestUnit", time, unset).
+  std::optional<Unit> smallest_unit;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, smallest_unit,
+      temporal::GetTemporalUnit(
+          isolate, options, isolate->factory()->smallestUnit_string(),
+          UnitGroup::kTime, std::nullopt, false, method_name));
+
+  // 10. If smallestUnit is hour, throw a RangeError exception.
+  if (smallest_unit == Unit::Hour) {
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_RANGE_ERROR("smallestUnit cannot be Hour."));
+  }
+
+  // 11. Let showTimeZone be
+  // ? GetTemporalShowTimeZoneNameOption(resolvedOptions).
+  temporal_rs::DisplayTimeZone show_tz;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, show_tz,
+                             temporal::GetTemporalShowTimeZoneNameOption(
+                                 isolate, options, method_name));
+
+  // Rest of the steps handled in Rust
+  auto rust_options = temporal_rs::ToStringRoundingOptions{
+      .precision = digits,
+      .smallest_unit = smallest_unit,
+      .rounding_mode = rounding_mode,
+  };
+  return temporal::GenericTemporalToString(
+      isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_ixdtf_string,
+      show_offset, show_tz, show_calendar, std::move(rust_options));
 }
 
-// https://tc39.es/proposal-temporal/#sec-temporal.now.zoneddatetime
-MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Now(
-    Isolate* isolate, DirectHandle<Object> calendar_like,
-    DirectHandle<Object> temporal_time_zone_like) {
-  UNIMPLEMENTED();
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tojson
+MaybeDirectHandle<String> JSTemporalZonedDateTime::ToJSON(
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
+  return temporal::GenericTemporalToString(
+      isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_ixdtf_string,
+      temporal_rs::DisplayOffset::Auto, temporal_rs::DisplayTimeZone::Auto,
+      temporal_rs::DisplayCalendar::Auto, std::move(temporal::kToStringAuto));
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tolocalestring
+MaybeDirectHandle<String> JSTemporalZonedDateTime::ToLocaleString(
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
+    DirectHandle<Object> locales, DirectHandle<Object> options) {
+  return temporal::GenericTemporalToString(
+      isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_ixdtf_string,
+      temporal_rs::DisplayOffset::Auto, temporal_rs::DisplayTimeZone::Auto,
+      temporal_rs::DisplayCalendar::Auto, std::move(temporal::kToStringAuto));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.zoneddatetimeiso
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::NowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, zdt,
+      temporal::GenericTemporalNowISO(isolate, temporal_time_zone_like));
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(isolate,
+                                                            std::move(zdt));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.round
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> round_to_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.PlainDateTime.prototype.round";
+  // 1. Let zonedDateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(zonedDateTime,
+  // [[InitializedTemporalZonedDateTime]]).
+
+  // (handled by type system)
+
+  // 3. If roundTo is undefined, then
+  if (IsUndefined(*round_to_obj)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMissing));
+  }
+
+  DirectHandle<JSReceiver> round_to;
+  auto factory = isolate->factory();
+
+  // 4. If roundTo is a String, then
+  if (IsString(*round_to_obj)) {
+    // a. Let paramString be roundTo.
+    DirectHandle<String> param_string = Cast<String>(round_to_obj);
+    // b. Set roundTo to ! OrdinaryObjectCreate(null).
+    round_to = factory->NewJSObjectWithNullProto();
+    // c. c. Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit",
+    // paramString).
+    CHECK(JSReceiver::CreateDataProperty(isolate, round_to,
+                                         factory->smallestUnit_string(),
+                                         param_string, Just(kThrowOnError))
+              .FromJust());
+    // 5. Else,
+  } else {
+    // a. Set roundTo to ? GetOptionsObject(roundTo).
+    // We have already checked for undefined, we can hoist the JSReceiver
+    // check out and just cast
+    if (!IsJSReceiver(*round_to_obj)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMustBeObject));
+    }
+    round_to = Cast<JSReceiver>(round_to_obj);
+  }
+
+  // 6. NOTE: (...)
+
+  // 7. Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+
+  uint32_t rounding_increment;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, rounding_increment,
+      temporal::GetRoundingIncrementOption(isolate, round_to));
+
+  // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
+  RoundingMode rounding_mode;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, rounding_mode,
+      temporal::GetRoundingModeOption(isolate, round_to,
+                                      RoundingMode::HalfExpand, method_name));
+
+  // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
+  // "smallestUnit", time, required, « day »).
+  std::optional<Unit> smallest_unit;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, smallest_unit,
+      temporal::GetTemporalUnit(
+          isolate, round_to, factory->smallestUnit_string(), UnitGroup::kTime,
+          std::nullopt, true, method_name, Unit::Day));
+
+  // Rest of the steps handled in Rust
+
+  auto options = temporal_rs::RoundingOptions{.largest_unit = std::nullopt,
+                                              .smallest_unit = smallest_unit,
+                                              .rounding_mode = rounding_mode,
+                                              .increment = rounding_increment};
+
+  auto rounded = zoned_date_time->zoned_date_time()->raw()->round(options);
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(isolate,
+                                                            std::move(rounded));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.add
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Add(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.ZonedDateTime.prototype.add";
+  // 3. Return ? AddDurationToZonedDateTime(add, temporalDate,
+  // temporalDurationLike, options).
+  return temporal::AddDurationToGeneric(
+      isolate, &temporal_rs::ZonedDateTime::add, zoned_date_time,
+      temporal_duration_like, options, method_name);
 }
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.subtract
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> temporal_duration_like, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.ZonedDateTime.prototype.subtract";
+  // 3. Return ? AddDurationToZonedDateTime(subtract, temporalDate,
+  // temporalDurationLike, options).
+  return temporal::AddDurationToGeneric(
+      isolate, &temporal_rs::ZonedDateTime::subtract, zoned_date_time,
+      temporal_duration_like, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.until
 MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Until(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.ZonedDateTime.prototype.since";
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::ZonedDateTime::until, UnitGroup::kDateTime,
+      Unit::Nanosecond, handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.since
 MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Since(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> handle,
     DirectHandle<Object> other, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.ZonedDateTime.prototype.since";
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::ZonedDateTime::since, UnitGroup::kDateTime,
+      Unit::Nanosecond, handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.instant
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Now(Isolate* isolate) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  auto ms = temporal::SystemUTCEpochMilliseconds();
+  return ConstructRustWrappingType<JSTemporalInstant>(
+      isolate, temporal_rs::Instant::from_epoch_milliseconds(ms));
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds
 MaybeDirectHandle<Object> JSTemporalZonedDateTime::OffsetNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  int64_t offset_ns;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, offset_ns,
+      ExtractRustResult(
+          isolate,
+          zoned_date_time->zoned_date_time()->raw()->offset_nanoseconds()));
+  return isolate->factory()->NewNumberFromInt64(offset_ns);
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.epochnanoseconds
 MaybeDirectHandle<BigInt> JSTemporalZonedDateTime::EpochNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  return temporal::I128ToBigInt(
+      isolate, zoned_date_time->zoned_date_time()->raw()->epoch_nanoseconds());
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.timezoneid
 MaybeDirectHandle<String> JSTemporalZonedDateTime::TimeZoneId(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  std::string id;
+
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, id,
+      ExtractRustResult(
+          isolate,
+          zoned_date_time->zoned_date_time()->raw()->timezone().identifier()));
+
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendString(id);
+  return builder.Finish().ToHandleChecked();
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.offset
 MaybeDirectHandle<String> JSTemporalZonedDateTime::Offset(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+
+  std::string offset;
+
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, offset,
+      ExtractRustResult(isolate,
+                        zoned_date_time->zoned_date_time()->raw()->offset()));
+
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendString(offset);
+  return builder.Finish().ToHandleChecked();
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.startofday
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::StartOfDay(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate, zoned_date_time->zoned_date_time()->raw()->start_of_day());
 }
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.gettimezonetransition
-MaybeDirectHandle<JSTemporalZonedDateTime>
+MaybeDirectHandle<UnionOf<JSTemporalZonedDateTime, Null>>
 JSTemporalZonedDateTime::GetTimeZoneTransition(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
-    DirectHandle<Object> direction_param) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+    DirectHandle<Object> direction_param_obj) {
+  static const char method_name[] =
+      "Temporal.ZonedDateTime.prototype.getTimeZoneTransition";
+
+  // 4. If directionParam is undefined, throw a TypeError exception.
+  if (IsUndefined(*direction_param_obj)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                 "Must specify a direction parameter."));
+  }
+
+  // 3. If roundTo is undefined, then
+
+  DirectHandle<JSReceiver> direction_param;
+  auto factory = isolate->factory();
+
+  // 5. If directionParam is a String, then
+  if (IsString(*direction_param_obj)) {
+    // a. a. Let paramString be directionParam.
+    DirectHandle<String> param_string = Cast<String>(direction_param_obj);
+    //  b. Set directionParam to OrdinaryObjectCreate(null).
+    direction_param = factory->NewJSObjectWithNullProto();
+    // TODO(manishearth) Ideally we don't have to perform this allocation
+    // c. Perform ! CreateDataPropertyOrThrow(directionParam, "direction",
+    // paramString).
+    CHECK(JSReceiver::CreateDataProperty(isolate, direction_param,
+                                         factory->direction_string(),
+                                         param_string, Just(kThrowOnError))
+              .FromJust());
+    // 6. Else,
+  } else {
+    // a. Set directionParam to ? GetOptionsObject(directionParam).
+    // We have already checked for undefined, we can hoist the JSReceiver
+    // check out and just cast
+    if (!IsJSReceiver(*direction_param_obj)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
+                                   "directionParam must be object or string."));
+    }
+    direction_param = Cast<JSReceiver>(direction_param_obj);
+  }
+
+  // 7. Let direction be ? GetDirectionOption(directionParam).
+  temporal_rs::TransitionDirection dir;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, dir,
+      temporal::GetDirectionOption(isolate, direction_param, method_name));
+
+  // Steps 8-10 handled in Rust.
+  std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, zdt,
+      ExtractRustResult(
+          isolate,
+          zoned_date_time->zoned_date_time()->raw()->get_time_zone_transition(
+              dir)));
+
+  // 11. If transition is null, return null.
+  if (!zdt) {
+    return isolate->factory()->null_value();
+  }
+
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(isolate,
+                                                            std::move(zdt));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toinstant
 MaybeDirectHandle<JSTemporalInstant> JSTemporalZonedDateTime::ToInstant(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  TEMPORAL_ENTER_FUNC();
-  UNIMPLEMENTED();
+  return temporal::GenericToTemporalMethod<JSTemporalInstant>(
+      isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_instant);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toplaindate
 MaybeDirectHandle<JSTemporalPlainDate> JSTemporalZonedDateTime::ToPlainDate(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  UNIMPLEMENTED();
+  return temporal::GenericToTemporalMethod<JSTemporalPlainDate>(
+      isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_plain_date);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toplaintime
 MaybeDirectHandle<JSTemporalPlainTime> JSTemporalZonedDateTime::ToPlainTime(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  UNIMPLEMENTED();
+  return temporal::GenericToTemporalMethod<JSTemporalPlainTime>(
+      isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_plain_time);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toplaindatetime
 MaybeDirectHandle<JSTemporalPlainDateTime>
 JSTemporalZonedDateTime::ToPlainDateTime(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  UNIMPLEMENTED();
+  return temporal::GenericToTemporalMethod<JSTemporalPlainDateTime>(
+      isolate, zoned_date_time, &temporal_rs::ZonedDateTime::to_plain_datetime);
 }
 
 namespace temporal {
@@ -5024,29 +6363,10 @@ MaybeDirectHandle<JSTemporalInstant> CreateTemporalInstantWithValidityCheck(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<HeapObject> new_target,
     DirectHandle<BigInt> epoch_nanoseconds) {
-  TEMPORAL_ENTER_FUNC();
-  if (epoch_nanoseconds->Words64Count() > 2) {
-    // 3. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
-    // RangeError exception.
-    // Most validation is performed by the Instant ctor.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
-  }
 
-  uint64_t words[2] = {0, 0};
-  uint32_t word_count = 2;
-  int sign_bit = 0;
-  epoch_nanoseconds->ToWordsArray64(&sign_bit, &word_count, words);
-
-  if (words[1] > std::numeric_limits<int64_t>::max()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
-  }
-
-  int64_t high = static_cast<int64_t>(words[1]);
-  if (sign_bit == 1) {
-    high = -high;
-  }
-
-  auto ns = temporal_rs::I128Nanoseconds{.high = high, .low = words[0]};
+  temporal_rs::I128Nanoseconds ns;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, ns,
+                             GetI128FromBigInt(isolate, epoch_nanoseconds));
 
   return ConstructRustWrappingType<JSTemporalInstant>(
       isolate, target, new_target, temporal_rs::Instant::try_new(ns));
@@ -5054,7 +6374,6 @@ MaybeDirectHandle<JSTemporalInstant> CreateTemporalInstantWithValidityCheck(
 
 MaybeDirectHandle<JSTemporalInstant> CreateTemporalInstantWithValidityCheck(
     Isolate* isolate, DirectHandle<BigInt> epoch_nanoseconds) {
-  TEMPORAL_ENTER_FUNC();
   auto ctor = JSTemporalInstant::GetConstructorTarget(isolate);
   return CreateTemporalInstantWithValidityCheck(isolate, ctor, ctor,
                                                 epoch_nanoseconds);
@@ -5067,7 +6386,6 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Constructor(
     Isolate* isolate, DirectHandle<JSFunction> target,
     DirectHandle<HeapObject> new_target,
     DirectHandle<Object> epoch_nanoseconds_obj) {
-  TEMPORAL_ENTER_FUNC();
   // 1. If NewTarget is undefined, then
   if (IsUndefined(*new_target)) {
     // a. Throw a TypeError exception.
@@ -5089,7 +6407,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Constructor(
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.from
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::From(
     Isolate* isolate, DirectHandle<Object> item) {
-  const char method_name[] = "Temporal.Instant.from";
+  static const char method_name[] = "Temporal.Instant.from";
   DirectHandle<JSTemporalInstant> item_instant;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, item_instant,
@@ -5100,29 +6418,74 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::From(
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.fromepochmilliseconds
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::FromEpochMilliseconds(
-    Isolate* isolate, DirectHandle<Object> item) {
-  UNIMPLEMENTED();
+    Isolate* isolate, DirectHandle<Object> epoch_milliseconds) {
+  // 1. Let number be ? ToNumber(epochMilliseconds).
+  DirectHandle<Number> number;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, number,
+                             Object::ToNumber(isolate, epoch_milliseconds));
+  double ms = Object::NumberValue(*number);
+
+  // 2. Set epochMilliseconds to ?NumberToBigInt(epochMilliseconds).
+  //
+  // Instead of allocating a BigInt, we perform the necessary check from
+  // NumberToBigInt and cast:
+  //
+  // (NumberToBigInt) 1. If number is not an integral Number, throw a RangeError
+  // exception.
+  if (!std::isfinite(ms) || !temporal::IsInNumericRange<int64_t>(ms) ||
+      nearbyint(ms) != ms) {
+    THROW_NEW_ERROR(isolate,
+                    NEW_TEMPORAL_RANGE_ERROR("Expected finite integer."));
+  }
+  auto ms_int = static_cast<int64_t>(ms);
+
+  // 3. Let epochNanoseconds be epochMilliseconds × ℤ(10**6).
+  // 4. If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
+  // RangeError exception.
+  //
+  // (Rest of the steps handled by Rust)
+
+  return ConstructRustWrappingType<JSTemporalInstant>(
+      isolate, temporal_rs::Instant::from_epoch_milliseconds(ms_int));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.fromepochnanoseconds
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::FromEpochNanoseconds(
-    Isolate* isolate, DirectHandle<Object> item) {
-  UNIMPLEMENTED();
+    Isolate* isolate, DirectHandle<Object> epoch_nanoseconds_obj) {
+  // 1. Set epochNanoseconds to ? ToBigInt(epochNanoseconds).
+  DirectHandle<BigInt> epoch_nanoseconds;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, epoch_nanoseconds,
+      BigInt::FromObject(isolate, epoch_nanoseconds_obj));
+
+  // Rest of the steps handled by CreateTemporalInstantWithValidityCheck
+
+  return temporal::CreateTemporalInstantWithValidityCheck(isolate,
+                                                          epoch_nanoseconds);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.compare
 MaybeDirectHandle<Smi> JSTemporalInstant::Compare(
     Isolate* isolate, DirectHandle<Object> one_obj,
     DirectHandle<Object> two_obj) {
-  UNIMPLEMENTED();
+  static const char method_name[] = "Temporal.Instant.compare";
+  DirectHandle<JSTemporalInstant> one;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, one, temporal::ToTemporalInstant(isolate, one_obj, method_name));
+  DirectHandle<JSTemporalInstant> two;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, two, temporal::ToTemporalInstant(isolate, two_obj, method_name));
+
+  return direct_handle(
+      Smi::FromInt(one->instant()->raw()->compare(*two->instant()->raw())),
+      isolate);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.equals
 MaybeDirectHandle<Oddball> JSTemporalInstant::Equals(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> other_obj) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.Instant.prototype.equals";
+  static const char method_name[] = "Temporal.Instant.prototype.equals";
 
   DirectHandle<JSTemporalInstant> other;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -5142,15 +6505,14 @@ MaybeDirectHandle<Oddball> JSTemporalInstant::Equals(
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Round(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> round_to_obj) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.Instant.prototype.round";
+  static const char method_name[] = "Temporal.Instant.prototype.round";
   Factory* factory = isolate->factory();
   // 1. Let instant be the this value.
   // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
   // 3. If roundTo is undefined, then
   if (IsUndefined(*round_to_obj)) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kRoundToMissing));
   }
   DirectHandle<JSReceiver> round_to;
   // 4. If Type(roundTo) is String, then
@@ -5176,28 +6538,25 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Round(
 
   // 7. Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
   uint32_t rounding_increment;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, rounding_increment,
-      temporal::GetRoundingIncrementOption(isolate, round_to),
-      DirectHandle<JSTemporalInstant>());
+      temporal::GetRoundingIncrementOption(isolate, round_to));
 
   // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
   RoundingMode rounding_mode;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, rounding_mode,
       temporal::GetRoundingModeOption(isolate, round_to,
-                                      RoundingMode::HalfExpand, method_name),
-      DirectHandle<JSTemporalInstant>());
+                                      RoundingMode::HalfExpand, method_name));
 
   // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo,
   // "smallestUnit", time, required
   std::optional<Unit> smallest_unit;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(isolate, round_to, "smallestUnit",
-                                UnitGroup::kTime, std::nullopt, true,
-                                method_name),
-      DirectHandle<JSTemporalInstant>());
+      temporal::GetTemporalUnit(
+          isolate, round_to, isolate->factory()->smallestUnit_string(),
+          UnitGroup::kTime, std::nullopt, true, method_name));
 
   auto options = temporal_rs::RoundingOptions{.largest_unit = std::nullopt,
                                               .smallest_unit = smallest_unit,
@@ -5212,7 +6571,6 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Round(
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.epochmilliseconds
 MaybeDirectHandle<Number> JSTemporalInstant::EpochMilliseconds(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle) {
-  TEMPORAL_ENTER_FUNC();
   int64_t ms = handle->instant()->raw()->epoch_milliseconds();
 
   return isolate->factory()->NewNumberFromInt64(ms);
@@ -5221,54 +6579,31 @@ MaybeDirectHandle<Number> JSTemporalInstant::EpochMilliseconds(
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.epochnanoseconds
 MaybeDirectHandle<BigInt> JSTemporalInstant::EpochNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle) {
-  TEMPORAL_ENTER_FUNC();
-  temporal_rs::I128Nanoseconds ns =
-      handle->instant()->raw()->epoch_nanoseconds();
-  uint64_t words[2];
-  bool sign_bit;
-  if (ns.high < 0) {
-    sign_bit = true;
-    words[1] = static_cast<uint64_t>(-ns.high);
-  } else {
-    sign_bit = false;
-    words[1] = static_cast<uint64_t>(ns.high);
-  }
-  words[0] = ns.low;
-  return BigInt::FromWords64(isolate, sign_bit, 2, words);
+
+  return temporal::I128ToBigInt(isolate,
+                                handle->instant()->raw()->epoch_nanoseconds());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tozoneddatetime
 MaybeDirectHandle<JSTemporalZonedDateTime>
 JSTemporalInstant::ToZonedDateTimeISO(Isolate* isolate,
-                                      DirectHandle<JSTemporalInstant> handle,
-                                      DirectHandle<Object> item_obj) {
-  TEMPORAL_ENTER_FUNC();
+                                      DirectHandle<JSTemporalInstant> instant,
+                                      DirectHandle<Object> time_zone_obj) {
+  // 3. Let timeZone be ? ToTemporalTimeZoneIdentifier(temporalTimeZoneLike).
+  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+  MOVE_RETURN_ON_EXCEPTION(
+      isolate, time_zone,
+      temporal::ToTemporalTimeZoneIdentifier(isolate, time_zone_obj));
 
-  UNIMPLEMENTED();
-}
-
-// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tojson
-MaybeDirectHandle<String> JSTemporalInstant::ToJSON(
-    Isolate* isolate, DirectHandle<JSTemporalInstant> instant) {
-  TEMPORAL_ENTER_FUNC();
-
-  return temporal::TemporalInstantToString(isolate, instant, nullptr,
-                                           std::move(temporal::kToStringAuto));
-}
-
-// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tolocalestring
-MaybeDirectHandle<String> JSTemporalInstant::ToLocaleString(
-    Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
-    DirectHandle<Object> locales, DirectHandle<Object> options) {
-  return temporal::TemporalInstantToString(isolate, instant, nullptr,
-                                           std::move(temporal::kToStringAuto));
+  return ConstructRustWrappingType<JSTemporalZonedDateTime>(
+      isolate, instant->instant()->raw()->to_zoned_date_time_iso(*time_zone));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tostring
 MaybeDirectHandle<String> JSTemporalInstant::ToString(
     Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
     DirectHandle<Object> options_obj) {
-  const char method_name[] = "Temporal.Instant.prototype.toString";
+  static const char method_name[] = "Temporal.Instant.prototype.toString";
 
   // 3. Set options to ? GetOptionsObject(options).
   DirectHandle<JSReceiver> options;
@@ -5279,56 +6614,48 @@ MaybeDirectHandle<String> JSTemporalInstant::ToString(
   // GetTemporalFractionalSecondDigitsOption(resolvedOptions).
 
   temporal_rs::Precision digits;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, digits,
-      temporal::GetTemporalFractionalSecondDigitsOption(isolate, options,
-                                                        method_name),
-      DirectHandle<String>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, digits,
+                             temporal::GetTemporalFractionalSecondDigitsOption(
+                                 isolate, options, method_name));
 
   // 6. Let roundingMode be ? GetRoundingModeOption(resolvedOptions, trunc).
 
   RoundingMode rounding_mode;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, rounding_mode,
       temporal::GetRoundingModeOption(isolate, options, RoundingMode::Trunc,
-                                      method_name),
-      DirectHandle<String>());
+                                      method_name));
 
   // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions,
   // "smallestUnit", time, unset).
   std::optional<Unit> smallest_unit;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, smallest_unit,
-      temporal::GetTemporalUnit(isolate, options, "smallestUnit",
-                                UnitGroup::kTime, std::nullopt, false,
-                                method_name),
-      DirectHandle<String>());
+      temporal::GetTemporalUnit(
+          isolate, options, isolate->factory()->smallestUnit_string(),
+          UnitGroup::kTime, std::nullopt, false, method_name));
 
   // 8. If smallestUnit is hour, throw a RangeError exception.
   if (smallest_unit == Unit::Hour) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
-                      isolate->factory()->smallestUnit_string()),
-        DirectHandle<String>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                                  isolate->factory()->smallestUnit_string()));
   }
 
   // 9. Let timeZone be ? Get(resolvedOptions, "timeZone").
   DirectHandle<Object> time_zone;
   //  Let val be ? Get(temporalDurationLike, fieldName).
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, time_zone,
       JSReceiver::GetProperty(isolate, options,
-                              isolate->factory()->timeZone_string()),
-      DirectHandle<String>());
+                              isolate->factory()->timeZone_string()));
   std::unique_ptr<temporal_rs::TimeZone> rust_time_zone;
   // 10. If timeZone is not undefined, then
   if (!IsUndefined(*time_zone)) {
     // a. Set timeZone to ? ToTemporalTimeZoneIdentifier(timeZone).
-    MAYBE_MOVE_RETURN_ON_EXCEPTION_VALUE(
+    MOVE_RETURN_ON_EXCEPTION(
         isolate, rust_time_zone,
-        temporal::ToTemporalTimeZoneIdentifier(isolate, time_zone),
-        DirectHandle<String>());
+        temporal::ToTemporalTimeZoneIdentifier(isolate, time_zone));
   }
 
   auto rust_options = temporal_rs::ToStringRoundingOptions{
@@ -5337,16 +6664,38 @@ MaybeDirectHandle<String> JSTemporalInstant::ToString(
       .rounding_mode = rounding_mode,
   };
 
-  return temporal::TemporalInstantToString(
-      isolate, instant, rust_time_zone.get(), std::move(rust_options));
+  return temporal::GenericTemporalToString(
+      isolate, instant,
+      &temporal_rs::Instant::to_ixdtf_string_with_compiled_data,
+      rust_time_zone.get(), std::move(rust_options));
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tojson
+MaybeDirectHandle<String> JSTemporalInstant::ToJSON(
+    Isolate* isolate, DirectHandle<JSTemporalInstant> instant) {
+
+  return temporal::GenericTemporalToString(
+      isolate, instant,
+      &temporal_rs::Instant::to_ixdtf_string_with_compiled_data, nullptr,
+      std::move(temporal::kToStringAuto));
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tolocalestring
+MaybeDirectHandle<String> JSTemporalInstant::ToLocaleString(
+    Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
+    DirectHandle<Object> locales, DirectHandle<Object> options) {
+
+  return temporal::GenericTemporalToString(
+      isolate, instant,
+      &temporal_rs::Instant::to_ixdtf_string_with_compiled_data, nullptr,
+      std::move(temporal::kToStringAuto));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.add
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Add(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> temporal_duration_like) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.Duration.prototype.add";
+  static const char method_name[] = "Temporal.Duration.prototype.add";
 
   DirectHandle<JSTemporalDuration> other_duration;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, other_duration,
@@ -5364,9 +6713,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Add(
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Subtract(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     DirectHandle<Object> temporal_duration_like) {
-  TEMPORAL_ENTER_FUNC();
-
-  const char method_name[] = "Temporal.Duration.prototype.subtract";
+  static const char method_name[] = "Temporal.Duration.prototype.subtract";
 
   DirectHandle<JSTemporalDuration> other_duration;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, other_duration,
@@ -5383,42 +6730,38 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Subtract(
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.until
 MaybeDirectHandle<JSTemporalDuration> JSTemporalInstant::Until(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
-    DirectHandle<Object> other_obj, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.Instant.prototype.until";
+    DirectHandle<Object> other, DirectHandle<Object> options) {
+  static const char method_name[] = "Temporal.Instant.prototype.until";
 
-  return temporal::DifferenceTemporalInstant(
-      isolate, temporal::DifferenceOperation::kUntil, handle, other_obj,
-      options, method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::Instant::until, UnitGroup::kTime, Unit::Nanosecond,
+      handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.since
 MaybeDirectHandle<JSTemporalDuration> JSTemporalInstant::Since(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
-    DirectHandle<Object> other_obj, DirectHandle<Object> options) {
-  TEMPORAL_ENTER_FUNC();
-  const char method_name[] = "Temporal.Instant.prototype.since";
+    DirectHandle<Object> other, DirectHandle<Object> options) {
+  static const char method_name[] = "Temporal.Instant.prototype.since";
 
-  return temporal::DifferenceTemporalInstant(
-      isolate, temporal::DifferenceOperation::kSince, handle, other_obj,
-      options, method_name);
+  return temporal::GenericDifferenceTemporal(
+      isolate, &temporal_rs::Instant::since, UnitGroup::kTime, Unit::Nanosecond,
+      handle, other, options, method_name);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.timezoneid
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> JSTemporalNowTimeZoneId(
     Isolate* isolate) {
-  UNIMPLEMENTED();
+  // 1. Return SystemTimeZoneIdentifier().
+#ifdef V8_INTL_SUPPORT
+  auto tz_str = Intl::DefaultTimeZone();
+
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendString(tz_str);
+  return builder.Finish().ToHandleChecked();
+#else
+  return isolate->factory()->UTC_string();
+#endif
 }
 
-namespace temporal {
-
-// A simple convenient function to avoid the need to unnecessarily exposing
-// the definition of enum Disambiguation.
-MaybeDirectHandle<JSTemporalInstant> BuiltinTimeZoneGetInstantForCompatible(
-    Isolate* isolate, DirectHandle<JSReceiver> time_zone,
-    DirectHandle<JSTemporalPlainDateTime> date_time, const char* method_name) {
-  UNIMPLEMENTED();
-}
-
-}  // namespace temporal
 }  // namespace v8::internal
