@@ -32,6 +32,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <cstdlib>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -66,12 +67,13 @@ int64_t SbSystemGetUsedGPUMemory() {
   // 00000000a0c016f1      30455      17528
   // 000000004e911e4b      30434        170
   // 000000005e2f4eff      30255        419
-  char buffer[2048];
+  char buffer[4096];
   int bytes_read = file.ReadAll(buffer, sizeof(buffer) - 1);
   if (bytes_read <= 0) {
     SB_DLOG(INFO) << "Read 0 bytes from Mali sysfs node.";
     return 0;
   }
+  buffer[bytes_read] = '\0';
   SB_DLOG(INFO) << "Read " << bytes_read << " bytes from Mali GPU sysfs node.";
 
   std::string_view text(buffer, bytes_read);
@@ -100,8 +102,12 @@ int64_t SbSystemGetUsedGPUMemory() {
     return 0;
   }
 
-  std::string num_str = std::string(text.substr(num_pos));
-  int64_t pages = std::stoll(num_str);
+  char* endptr = nullptr;
+  int64_t pages = strtoll(buffer + num_pos, &endptr, 10);
+  if (endptr == buffer + num_pos) {
+    SB_DLOG(ERROR) << "Failed to parse pages count for PID " << pid_str;
+    return 0;
+  }
   long page_size = sysconf(_SC_PAGE_SIZE);
 
   SB_DLOG(INFO) << "Mali GPU sysfs entry for PID " << pid_str << ": " << pages
