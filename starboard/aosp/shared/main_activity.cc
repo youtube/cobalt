@@ -48,8 +48,8 @@ void StarboardMain() {
 
   std::vector<std::string> args;
   args.push_back("cobalt_loader");
-  // Don't use "/dev/shm" for shared memory; it does not exist on Android
-  // With this switch it falls back to GetTempDir()
+  // Don't use "/dev/shm" for shared memory; it does not exist on Android.
+  // With this switch it falls back to GetTempDir().
   args.push_back("--disable-dev-shm-usage");
   starboard::StarboardBridge::GetInstance()->AppendArgs(env, &args);
 
