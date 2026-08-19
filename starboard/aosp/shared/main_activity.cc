@@ -15,7 +15,6 @@
 #include <jni.h>
 #include <limits.h>
 #include <pthread.h>
-#include <stdlib.h>
 #include <unistd.h>
 
 #include <string>
@@ -44,11 +43,6 @@ void StarboardMain() {
                       sizeof(files_dir))) {
     if (chdir(files_dir) != 0) {
       SB_LOG(WARNING) << "cobalt_loader: chdir to " << files_dir << " failed";
-    }
-    // point TMPDIR at the writable app files directory
-    if (setenv("TMPDIR", files_dir, 1) != 0) {
-      SB_LOG(WARNING) << "cobalt_loader: setenv TMPDIR to " << files_dir
-                      << " failed";
     }
   }
 
