@@ -72,6 +72,47 @@ uint64_t PerformanceExtensions::measureReservedVirtualMemory(
   return virtual_memory_size;
 }
 
+uint64_t PerformanceExtensions::measureRssHighWaterMarkMemory(
+    ScriptState* script_state,
+    const Performance&) {
+  uint64_t rss_hwm_memory = 0;
+  BindRemotePerformance(script_state)
+      ->MeasureRssHighWaterMarkMemory(&rss_hwm_memory);
+  return rss_hwm_memory;
+}
+
+uint64_t PerformanceExtensions::measureUsedRssAnonMemory(
+    ScriptState* script_state,
+    const Performance&) {
+  uint64_t rss_anon_memory = 0;
+  BindRemotePerformance(script_state)
+      ->MeasureUsedRssAnonMemory(&rss_anon_memory);
+  return rss_anon_memory;
+}
+
+uint64_t PerformanceExtensions::measureTotalCpuMemory(ScriptState* script_state,
+                                                      const Performance&) {
+  uint64_t total_cpu_memory = 0;
+  BindRemotePerformance(script_state)->MeasureTotalCpuMemory(&total_cpu_memory);
+  return total_cpu_memory;
+}
+
+uint64_t PerformanceExtensions::measureUsedPssMemory(ScriptState* script_state,
+                                                     const Performance&) {
+  uint64_t pss_memory = 0;
+  BindRemotePerformance(script_state)->MeasureUsedPssMemory(&pss_memory);
+  return pss_memory;
+}
+
+uint64_t PerformanceExtensions::measureApplicationLimitMemory(
+    ScriptState* script_state,
+    const Performance&) {
+  uint64_t app_limit_memory = 0;
+  BindRemotePerformance(script_state)
+      ->MeasureApplicationLimitMemory(&app_limit_memory);
+  return app_limit_memory;
+}
+
 ScriptPromise<IDLDouble> PerformanceExtensions::getAppStartupTimeStamp(
     ScriptState* script_state,
     const Performance& performance_obj,
