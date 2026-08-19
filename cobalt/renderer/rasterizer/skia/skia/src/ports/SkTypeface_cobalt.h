@@ -45,9 +45,8 @@ class SkTypeface_Cobalt : public SkTypeface_FreeType {
  protected:
   sk_sp<SkTypeface> onMakeClone(const SkFontArguments& args) const override;
 
-  void onCharsToGlyphs(const SkUnichar uni[],
-                       int count,
-                       SkGlyphID glyphs[]) const override;
+  void onCharsToGlyphs(SkSpan<const SkUnichar> uni,
+                       SkSpan<SkGlyphID> glyphs) const override;
 
   void onGetFamilyName(SkString* family_name) const override;
 
