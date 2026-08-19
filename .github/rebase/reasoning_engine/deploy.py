@@ -22,6 +22,11 @@ os.environ["GOOGLE_API_USE_CLIENT_CERTIFICATE"] = "false"
 os.environ["GOOGLE_API_USE_MTLS_ENDPOINT"] = "never"
 
 import cloudpickle
+import warnings
+
+# Suppress google.auth UserWarning about ADC quota project on Cloudtop
+warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
+
 import vertexai
 from vertexai.preview import reasoning_engines
 

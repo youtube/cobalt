@@ -4,10 +4,9 @@
 
 Supports:
   1. Vertex AI (GCP Project + Service Account / gcloud ADC access token)
-  2. Google AI Studio (API Key)
+  2. Google AI Studio (API Key or Bearer Token with target-specific scopes)
 
-Tests connection, latency, and C++ code conflict resolution without 429
-rate limits.
+Tests connection, latency, and reasoning configurations.
 """
 
 import argparse
@@ -18,16 +17,15 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from typing import Dict
+from typing import Dict, List, Optional
 
 import google.auth
 import google.auth.transport.requests
 
 
-def get_gcp_access_token() -> str:
+def get_gcp_access_token(scopes: List[str]) -> str:
   """Retrieves GCP OAuth access token natively using google-auth ADC."""
-  credentials, _ = google.auth.default(
-      scopes=["https://www.googleapis.com/auth/cloud-platform"])
+  credentials, _ = google.auth.default(scopes=scopes)
   request = google.auth.transport.requests.Request()
   credentials.refresh(request)
   if not credentials.token:
@@ -44,9 +42,31 @@ def test_vertex_ai_query(
     prompt: str = "Return OK",
 ) -> Dict[str, any]:
   """Tests an API call against Google Cloud Vertex AI endpoint."""
-  url = (f"https://{location}-aiplatform.googleapis.com/v1/projects/"
-         f"{project_id}/locations/{location}/publishers/google/models/"
-         f"{model}:generateContent")
+  # Vertex AI beta endpoint is strictly v1beta1 (with a '1')
+  api_version = "v1beta1" if "gemini-3." in model else "v1"
+
+  # Resolve Host Location DNS mappings for multi-regions
+  if location == "us":
+    host_location = "us-central1"
+  elif location == "eu":
+    host_location = "europe-west3"
+  else:
+    host_location = location
+
+  url = (f"https://{host_location}-aiplatform.googleapis.com/"
+         f"{api_version}/projects/{project_id}/locations/{location}/"
+         f"publishers/google/models/{model}:generateContent")
+
+  generation_config = {
+      "maxOutputTokens": 2048,
+  }
+
+  # Inject thinking configuration and strip temperature for Gemini 3.x models
+  if "gemini-3." in model:
+    generation_config["thinkingConfig"] = {"thinkingLevel": "medium"}
+  else:
+    generation_config["temperature"] = 0.1
+
   payload = {
       "contents": [{
           "role": "user",
@@ -54,10 +74,7 @@ def test_vertex_ai_query(
               "text": prompt
           }],
       }],
-      "generationConfig": {
-          "temperature": 0.1,
-          "maxOutputTokens": 2048,
-      },
+      "generationConfig": generation_config,
   }
   data = json.dumps(payload).encode("utf-8")
   req = urllib.request.Request(
@@ -87,6 +104,7 @@ def test_vertex_ai_query(
           "prompt_tokens": usage.get("promptTokenCount", 0),
           "candidates_tokens": usage.get("candidatesTokenCount", 0),
           "total_tokens": usage.get("totalTokenCount", 0),
+          "thinking_tokens": usage.get("thoughtsTokenCount", 0),
       }
   except urllib.error.HTTPError as e:
     body = e.read().decode("utf-8") if e.fp else ""
@@ -99,29 +117,52 @@ def test_vertex_ai_query(
 
 
 def test_ai_studio_query(
-    api_key: str,
     model: str,
+    api_key: Optional[str] = None,
+    access_token: Optional[str] = None,
     prompt: str = "Return OK",
 ) -> Dict[str, any]:
   """Tests an API call against Google AI Studio endpoint."""
-  url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-         f"{model}:generateContent?key={api_key}")
+  if api_key:
+    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+           f"{model}:generateContent?key={api_key}")
+    headers = {"Content-Type": "application/json"}
+  elif access_token:
+    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+           f"{model}:generateContent")
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {access_token}",
+    }
+  else:
+    return {
+        "success": False,
+        "error": "No credentials (API key or OAuth token) provided.",
+    }
+
+  generation_config = {
+      "maxOutputTokens": 2048,
+  }
+
+  # Inject thinking configuration and strip temperature for Gemini 3.x models
+  if "gemini-3." in model:
+    generation_config["thinkingConfig"] = {"thinkingLevel": "medium"}
+  else:
+    generation_config["temperature"] = 0.1
+
   payload = {
       "contents": [{
           "parts": [{
               "text": prompt
           }]
       }],
-      "generationConfig": {
-          "temperature": 0.1,
-          "maxOutputTokens": 2048,
-      },
+      "generationConfig": generation_config,
   }
   data = json.dumps(payload).encode("utf-8")
   req = urllib.request.Request(
       url,
       data=data,
-      headers={"Content-Type": "application/json"},
+      headers=headers,
       method="POST",
   )
   ctx = ssl.create_default_context()
@@ -142,6 +183,7 @@ def test_ai_studio_query(
           "prompt_tokens": usage.get("promptTokenCount", 0),
           "candidates_tokens": usage.get("candidatesTokenCount", 0),
           "total_tokens": usage.get("totalTokenCount", 0),
+          "thinking_tokens": usage.get("thoughtsTokenCount", 0),
       }
   except urllib.error.HTTPError as e:
     body = e.read().decode("utf-8") if e.fp else ""
@@ -158,10 +200,16 @@ def main():
   parser = argparse.ArgumentParser(
       description="Test Vertex AI and Google AI Studio API connections.")
   parser.add_argument(
+      "--target",
+      choices=["studio", "vertex"],
+      default="studio",
+      help="API target: 'studio' or 'vertex'. Default: 'studio'.",
+  )
+  parser.add_argument(
       "--project-id",
       default=os.environ.get("GCP_PROJECT") or
       os.environ.get("GOOGLE_CLOUD_PROJECT"),
-      help="GCP Project ID for Vertex AI.",
+      help="GCP Project ID for authentication/Vertex AI.",
   )
   parser.add_argument(
       "--location",
@@ -175,42 +223,46 @@ def main():
   )
   parser.add_argument(
       "--models",
+      "--model",
       nargs="+",
-      default=["gemini-2.5-flash", "gemini-2.5-pro"],
+      dest="models",
+      default=["gemini-3.7-flash"],
       help="Models to test.",
   )
   args = parser.parse_args()
 
   print("=" * 70)
-  print("[TEST] GEMINI & VERTEX AI CONNECTION DIAGNOSTIC")
-  if args.project_id:
+  print("[TEST] GEMINI CONNECTION DIAGNOSTIC")
+  if args.target == "vertex":
     print("[ENTERPRISE] Mode:      Vertex AI (Enterprise Project Quota)")
     print(f"[ENTERPRISE] Project:   {args.project_id}")
     print(f"[LOCATION]   Location:  {args.location}")
-  elif args.api_key:
-    print("[KEY] Mode:            Google AI Studio (Personal API Key)")
   else:
-    print(
-        "[FAIL] Set $GCP_PROJECT or pass --project-id / --api-key.",
-        file=sys.stderr,
-    )
-    sys.exit(1)
+    print("[DEVELOPER]  Mode:      Google AI Studio (generativelanguage)")
+    if args.api_key:
+      print("[KEY]        Auth Type: API Key")
+    else:
+      print("[AUTH]       Auth Type: GCP OAuth Access Token")
   print("=" * 70)
 
   token = None
-  if args.project_id:
+  if args.target == "vertex" or (args.target == "studio" and not args.api_key):
     print("\n[AUTH] 1. Acquiring Google Cloud OAuth Access Token...")
-    token = get_gcp_access_token()
-    if not token:
-      print("[FAIL] Failed to obtain GCP access token.", file=sys.stderr)
+    scopes = (["https://www.googleapis.com/auth/cloud-platform"]
+              if args.target == "vertex" else
+              ["https://www.googleapis.com/auth/generative-language"])
+    try:
+      token = get_gcp_access_token(scopes=scopes)
+      masked = token[:6] + "..." + token[-4:]
+      print(f"[OK] Acquired Access Token: {masked}")
+    except (RuntimeError, OSError, Exception) as e:  # pylint: disable=broad-exception-caught
+      print(f"[FAIL] Failed to obtain GCP credentials: {e}", file=sys.stderr)
       sys.exit(1)
-    masked = token[:6] + "..." + token[-4:]
-    print(f"[OK] Acquired Access Token: {masked}")
 
   print("\n[FAST] 2. Benchmarking Model Endpoints & Latency...")
   for model_name in args.models:
     print(f"\n  Testing endpoint: {model_name}...")
-    if args.project_id and token:
+    if args.target == "vertex":
       res = test_vertex_ai_query(
           project_id=args.project_id,
           location=args.location,
@@ -221,6 +273,7 @@ def main():
       res = test_ai_studio_query(
           api_key=args.api_key,
           model=model_name,
+          access_token=token,
       )
 
     if res.get("success"):
@@ -228,10 +281,13 @@ def main():
       res_lat = res.get("latency_sec", 0.0)
       p_tok = res.get("prompt_tokens", 0)
       c_tok = res.get("candidates_tokens", 0)
+      th_tok = res.get("thinking_tokens", 0)
       print(f"    [OK] Response: {res_text}")
       print(f"    Latency:       {res_lat:.2f}s")
       print(f"    Prompt Tokens: {p_tok}")
       print(f"    Output Tokens: {c_tok}")
+      if th_tok > 0:
+        print(f"    Thinking Tokens: {th_tok}")
     else:
       err_msg = res.get("error")
       print(f"    [FAIL] Error: {err_msg}", file=sys.stderr)

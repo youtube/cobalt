@@ -187,3 +187,113 @@ def record_successful_fix(
 
   with open(path, "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2)
+
+
+DEFAULT_FAILURE_FILE = os.path.join(
+    REPO_ROOT,
+    "out",
+    "memory",
+    "failure_records.json",
+)
+
+
+def record_failure(
+    phase: str,
+    target: str,
+    error_message: str,
+    *,
+    attempt_num: int = 1,
+    details: str = "",
+    failure_path: Optional[str] = None,
+):
+  """Persists a build/rebase failure record to memory bank."""
+  path = failure_path or DEFAULT_FAILURE_FILE
+  os.makedirs(os.path.dirname(path), exist_ok=True)
+  records = []
+  if os.path.isfile(path) and os.path.getsize(path) > 0:
+    try:
+      with open(path, "r", encoding="utf-8") as f:
+        records = json.load(f)
+    except (json.JSONDecodeError, OSError):
+      records = []
+
+  records.append({
+      "phase": phase,
+      "target": target,
+      "error_message": error_message[:1000],
+      "attempt_num": attempt_num,
+      "details": details[:2000],
+  })
+
+  # Keep last 50 failure records
+  records = records[-50:]
+  try:
+    with open(path, "w", encoding="utf-8") as f:
+      json.dump(records, f, indent=2)
+  except OSError:
+    pass
+
+
+def load_latest_failure(failure_path: Optional[str] = None,
+                        repo_root: Optional[str] = None) -> str:
+  """Retrieves the latest failure description from memory or pipeline logs."""
+  path = failure_path or DEFAULT_FAILURE_FILE
+  if os.path.isfile(path) and os.path.getsize(path) > 0:
+    try:
+      with open(path, "r", encoding="utf-8") as f:
+        records = json.load(f)
+      if records:
+        last = records[-1]
+        p_val = last.get("phase", "Unknown")
+        t_val = last.get("target", "Unknown")
+        a_val = last.get("attempt_num", 1)
+        e_val = last.get("error_message", "")
+        d_val = last.get("details", "")
+        return (f"Phase: {p_val}\n"
+                f"Target: {t_val}\n"
+                f"Attempt: {a_val}\n"
+                f"Error: {e_val}\n"
+                f"Details: {d_val}")
+    except (json.JSONDecodeError, OSError):
+      pass
+
+  # Fallback: Parse latest failure from siso_output or out/rebase_pipeline.log
+  root = repo_root or REPO_ROOT
+  siso_file = os.path.join(root, "out", "android-arm_devel", "siso_output")
+  if os.path.isfile(siso_file) and os.path.getsize(siso_file) > 0:
+    try:
+      with open(siso_file, "r", encoding="utf-8", errors="replace") as f:
+        siso_content = f.read(2000)
+      if siso_content.strip():
+        return f"Siso Action Failure:\n{siso_content.strip()}"
+    except OSError:
+      pass
+
+  log_file = os.path.join(root, "out", "rebase_pipeline.log")
+  if os.path.isfile(log_file):
+    try:
+      with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+        lines = f.readlines()
+      err_block = []
+      for line in reversed(lines[-300:]):
+        sline = line.strip()
+        if (sline.startswith(("ERROR at //", "[FAIL]", "FAILED:", "Error:",
+                              "Traceback (most recent call last):")) or
+            "Can't include this header" in sline):
+          err_block.insert(0, sline)
+          if len(err_block) >= 20:
+            break
+        elif err_block:
+          err_block.insert(0, sline)
+          if len(err_block) >= 20:
+            break
+
+      if err_block:
+        return "\n".join(err_block)
+
+      tail_lines = [line.strip() for line in lines[-25:] if line.strip()]
+      return "\n".join(tail_lines)
+    except OSError:
+      pass
+
+  return "No recent failure records found."

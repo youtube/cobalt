@@ -3,10 +3,12 @@
 """End-to-end automated Cobalt Chromium rebase pipeline runner.
 
 Executes all rebase phases in sequence:
-  Phase 1: Conflict Resolution (DEPS, C++, Java, GN) + gclient sync.
+  Phase 1: Conflict Resolution (prioritizing DEPS & toolchain build files first,
+           then GN build configs, then C++/Java source files).
+  Phase 1.5: Toolchain & Dependency Sync (gclient sync -D).
   Phase 2: GN Build Generation & Verification (cobalt/build/gn.py).
-  Phase 3: autoninja Compiler Self-Healing Loop (up to 60 iterations).
-  Phase 4: Comprehensive result.md generation with status.
+  Phase 3: autoninja Compiler Self-Healing Loop (up to 100 iterations).
+  Phase 4: Comprehensive M140_rebase_summary.md generation with metrics.
 """
 
 import argparse
@@ -16,15 +18,23 @@ import subprocess
 import sys
 import time
 from typing import List, Optional
+import warnings
 
-from autoninja_loop import apply_patch_or_replacement
+from autoninja_loop import (
+    apply_patch_or_replacement,
+    execute_local_tool,
+)
 from reasoning_engine import CobaltReasoningEngine
 from rebase_memory import (
     load_past_experience,
     pull_memory_from_gcs,
+    record_failure,
     record_successful_fix,
     sync_memory_to_gcs,
 )
+
+# Suppress google.auth UserWarning about ADC quota project on Cloudtop
+warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
 
 
 def run_cmd(cmd: List[str], cwd: Optional[str] = None) -> int:
@@ -105,25 +115,6 @@ def self_heal_gn_generation(
       )
       return False
 
-    # Extract file context from error trace
-    file_matches = re.findall(r"([a-zA-Z0-9_/\.\-]+\.gn[i]?)", output)
-    unique_gn_files = []
-    for f in file_matches:
-      full_p = os.path.join(repo_path, f) if not os.path.isabs(f) else f
-      if os.path.isfile(full_p) and full_p not in unique_gn_files:
-        unique_gn_files.append(full_p)
-
-    file_contexts = []
-    for gnf in unique_gn_files[:3]:
-      try:
-        with open(gnf, "r", encoding="utf-8") as gf:
-          lines = gf.readlines()
-        rel_f = os.path.relpath(gnf, repo_path)
-        file_snippet = "".join(lines[:120])
-        file_contexts.append(f"### File: {rel_f}\n```\n{file_snippet}\n```")
-      except OSError:
-        pass
-
     error_summary = output.strip().splitlines()[0] if output.strip() else ""
     if error_summary == last_error_summary:
       stuck_count += 1
@@ -132,24 +123,121 @@ def self_heal_gn_generation(
     last_error_summary = error_summary
 
     use_pro = stuck_count >= 2
+    # Escalate to full file context if scoping failed (stuck) or for
+    # structural brace mismatches that transcend local scope.
+    is_structural_break = any(kw in output.lower() for kw in (
+        "unexpected token '}'",
+        "unexpected token '{'",
+        "expecting assignment",
+    ))
+    send_full_file = use_pro or is_structural_break or (stuck_count >= 1)
+
     if use_pro:
       print(
           "  - [PRO_REASONING] Repeated GN error. Escalating to Pro...",
           file=sys.stderr,
       )
 
-    print(
-        "  - Querying Vertex AI Reasoning Engine to repair GN build...",
-        file=sys.stderr,
+    # Extract file context from error trace
+    unique_gn_files: dict[str, Optional[int]] = {}
+
+    # 1. Resolve GN targets: "The target: //gpu/command_buffer/service:impl"
+    target_matches = re.findall(r"target(?:\(s\))?:\s+//([a-zA-Z0-9_/\.\-]+):",
+                                output)
+    for t_dir in target_matches:
+      gn_path = os.path.join(repo_path, t_dir, "BUILD.gn")
+      if os.path.isfile(gn_path):
+        unique_gn_files[gn_path] = None
+
+    # 2. Resolve source errors: "ERROR at //gpu/command_buffer/service/err.cc"
+    src_pattern = (r"ERROR at //([a-zA-Z0-9_/\.\-]+)/[a-zA-Z0-9_/\.\-]+\."
+                   r"(?:cc|h|mm|cpp|c):")
+    for s_dir in re.findall(src_pattern, output):
+      gn_path = os.path.join(repo_path, s_dir, "BUILD.gn")
+      if os.path.isfile(gn_path):
+        unique_gn_files[gn_path] = None
+
+    # 3. Direct .gn / .gni matches from error trace
+    gn_error_matches = re.findall(
+        r"(?:ERROR at //|[/\s])([a-zA-Z0-9_/\.\-]+\.gn[i]?)(?::(\d+))?",
+        output,
     )
-    res_ai = reasoning_engine.heal_gn_error(
-        error_trace=output[:3000],
-        file_context="\n\n".join(file_contexts),
-        attempt_history="\n".join(attempt_history[-3:]),
-        past_experience=past_experience,
-        use_pro=use_pro,
+    for f, line_str in gn_error_matches:
+      if "BUILDCONFIG.gn" in f and unique_gn_files:
+        continue
+      full_p = os.path.join(repo_path, f) if not os.path.isabs(f) else f
+      if os.path.isfile(full_p):
+        target_line = int(line_str) if line_str else None
+        if full_p not in unique_gn_files or target_line is not None:
+          unique_gn_files[full_p] = target_line
+
+    file_contexts = []
+    for gnf, target_line in list(unique_gn_files.items())[:3]:
+      try:
+        with open(gnf, "r", encoding="utf-8") as gf:
+          file_content = gf.read()
+        rel_f = os.path.relpath(gnf, repo_path)
+        if send_full_file or target_line is None:
+          file_contexts.append(
+              f"### Full File: {rel_f}\n```gn\n{file_content}\n```")
+        else:
+          lines = file_content.splitlines(keepends=True)
+          start_idx = max(0, target_line - 60)
+          end_idx = min(len(lines), target_line + 60)
+          snippet = "".join(lines[start_idx:end_idx])
+          file_contexts.append(
+              f"### File: {rel_f} (Lines {start_idx + 1}-{end_idx})\n"
+              f"```gn\n{snippet}\n```")
+      except OSError:
+        pass
+
+    record_failure(
+        phase="Phase 2 (GN Generation)",
+        target=f"{platform}_{build_type}",
+        error_message=output.splitlines()[0] if output else "GN Error",
+        attempt_num=attempt,
+        details="\n".join(output.splitlines()[:20]),
     )
-    ai_fix = res_ai.get("patch", "")
+
+    investigation_history: List[str] = []
+    max_tool_rounds = 4
+    ai_fix = ""
+
+    for round_idx in range(1, max_tool_rounds + 1):
+      investigation_text = "\n\n".join(investigation_history)
+      print(
+          f"  - Querying Vertex AI Reasoning Engine (Round {round_idx}/"
+          f"{max_tool_rounds})...",
+          file=sys.stderr,
+      )
+      try:
+        res_ai = reasoning_engine.heal_gn_error(
+            error_trace=output[:3000],
+            file_context="\n\n".join(file_contexts),
+            attempt_history="\n".join(attempt_history[-3:]),
+            past_experience=past_experience,
+            investigation_history=investigation_text,
+            use_pro=use_pro,
+        )
+        ai_resp = res_ai.get("patch", "").strip()
+      except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"  [WARNING] Vertex AI call failed: {e}", file=sys.stderr)
+        break
+
+      tool_match = re.search(r"^(TOOL_[A-Z_]+:.*)$", ai_resp, re.MULTILINE)
+      if tool_match and round_idx < max_tool_rounds:
+        tool_cmd = tool_match.group(1).strip()
+        print(
+            f"    [TOOL_USE] Model requested: {tool_cmd}",
+            file=sys.stderr,
+        )
+        tool_res = execute_local_tool(tool_cmd, repo_path=repo_path)
+        investigation_history.append(
+            f"Tool Call: `{tool_cmd}`\nResult:\n{tool_res}")
+        continue
+
+      ai_fix = ai_resp
+      break
 
     if modified := apply_patch_or_replacement(ai_fix, repo_path=repo_path):
       mod_names = [os.path.relpath(mf, repo_path) for mf in modified]
@@ -297,6 +385,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
       help="Skip Phase 1 (Conflict resolution).",
   )
   parser.add_argument(
+      "--skip-sync",
+      action="store_true",
+      help="Skip gclient runhooks / sync.",
+  )
+  parser.add_argument(
       "--skip-gn",
       action="store_true",
       help="Skip Phase 2 (cobalt/build/gn.py).",
@@ -396,6 +489,25 @@ def run_pipeline(args: argparse.Namespace) -> int:
       )
       return rc
     print("[OK] Phase 1 Completed Successfully.", file=sys.stderr)
+
+  # -------------------------------------------------------------------------
+  # Toolchain & Dependency Sync: gclient sync -D (Clang, Rust, GCS packages)
+  # -------------------------------------------------------------------------
+  if not getattr(args, "skip_sync", False):
+    print("\n" + "=" * 80, file=sys.stderr)
+    print(
+        "[PHASE] Toolchain & Dependency Sync (gclient sync -D)",
+        file=sys.stderr,
+    )
+    print("=" * 80, file=sys.stderr)
+    rc_sync = run_cmd(["gclient", "sync", "-D"], cwd=args.repo_path)
+    if rc_sync != 0:
+      print(
+          f"[WARNING] gclient sync returned {rc_sync}. Proceeding...",
+          file=sys.stderr,
+      )
+    else:
+      print("[OK] Toolchains and dependencies synced cleanly.", file=sys.stderr)
 
   # -------------------------------------------------------------------------
   # PHASE 2: GN Generation & Header Verification (cobalt/build/gn.py)

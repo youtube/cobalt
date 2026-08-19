@@ -15,9 +15,13 @@ import re
 import subprocess
 import sys
 from typing import Dict, List, Optional, Set, Tuple
+import warnings
 
 from reasoning_engine import CobaltReasoningEngine
 from rebase_memory import load_past_experience, record_successful_fix
+
+# Suppress google.auth UserWarning about ADC quota project on Cloudtop
+warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
 
 
 @dataclasses.dataclass
@@ -55,35 +59,95 @@ def get_clean_build_env(
   return clean_env
 
 
+def resolve_repo_file_path(raw_path: str, repo_path: str) -> str:
+  """Resolves compiler output paths into an existing absolute file path."""
+  clean = raw_path.strip().lstrip("\"'")
+  if clean.startswith("//"):
+    clean = clean[2:]
+
+  # 1. Direct absolute or relative join
+  direct = os.path.join(repo_path, clean) if not os.path.isabs(clean) else clean
+  if os.path.isfile(direct):
+    return os.path.abspath(direct)
+
+  # 2. Strip leading ../ and ./
+  stripped = clean
+  while stripped.startswith(("../", "./")):
+    stripped = stripped.split("/", 1)[1] if "/" in stripped else ""
+
+  if stripped:
+    cand_direct = os.path.join(repo_path, stripped)
+    if os.path.isfile(cand_direct):
+      return os.path.abspath(cand_direct)
+
+    # 3. Check cobalt/ prefix
+    cand_cobalt = os.path.join(repo_path, "cobalt", stripped)
+    if os.path.isfile(cand_cobalt):
+      return os.path.abspath(cand_cobalt)
+
+  # 4. Siso config fallback
+  if "main.star" in clean or clean.endswith(".star"):
+    siso_cand = os.path.join(repo_path, "build/config/siso",
+                             os.path.basename(clean))
+    if os.path.isfile(siso_cand):
+      return os.path.abspath(siso_cand)
+
+  # 5. Search by basename as last resort
+  fname = os.path.basename(clean)
+  if fname:
+    try:
+      res = subprocess.run(
+          ["find", repo_path, "-name", fname, "-not", "-path", "*/.*"],
+          capture_output=True,
+          text=True,
+          check=False,
+      )
+      matches = [m.strip() for m in res.stdout.splitlines() if m.strip()]
+      if matches:
+        return os.path.abspath(matches[0])
+    except (OSError, subprocess.SubprocessError):
+      pass
+
+  return direct
+
+
 def parse_compiler_errors(build_output: str,
                           repo_path: str) -> List[CompilerDiagnostic]:
-  """Parses Clang/GCC compiler diagnostics from ninja stdout/stderr."""
+  """Parses Clang/GCC/TypeScript compiler and action diagnostics."""
   diagnostics: List[CompilerDiagnostic] = []
   clang_error_pattern = re.compile(
+      r"^\s*(?:\d+\.\d+s\s+)?(?:fatal\s+)?"
+      r"(?:error|Error|ERROR):\s*(?:@config//|//)?"
+      r"([a-zA-Z0-9_/\.\-]+):(\d+):(?:(\d+):)?\s+(.+)$")
+  standard_error_pattern = re.compile(
       r"^([a-zA-Z0-9_/\.\-]+):(\d+):(?:(\d+):)?\s+(?:fatal\s+)?error:\s+(.+)$")
+  ts_error_pattern = re.compile(
+      r"^([a-zA-Z0-9_/\.\-]+):(\d+):(?:(\d+):)?\s+-\s+error\s+(TS\d+:\s+.+)$")
   note_pattern = re.compile(
       r"^([a-zA-Z0-9_/\.\-]+):(\d+):(?:(\d+):)?\s+note:\s+(.+)$")
 
   lines = build_output.splitlines()
   i = 0
   while i < len(lines):
-    line = lines[i]
-    match = clang_error_pattern.match(line)
+    line = re.sub(r"\x1b\[[0-9;]*m", "", lines[i])
+    match = (
+        standard_error_pattern.match(line) or clang_error_pattern.match(line) or
+        ts_error_pattern.match(line))
     if match:
       raw_path, line_str, col_str, error_msg = match.groups()
       line_no = int(line_str)
       col_no = int(col_str) if col_str else 0
 
-      abs_path = (
-          os.path.join(repo_path, raw_path)
-          if not os.path.isabs(raw_path) else raw_path)
+      abs_path = resolve_repo_file_path(raw_path, repo_path)
 
       snippet_lines = [line]
       notes = []
       i += 1
       while i < len(lines):
-        next_line = lines[i]
-        if clang_error_pattern.match(next_line):
+        next_line = re.sub(r"\x1b\[[0-9;]*m", "", lines[i])
+        if (standard_error_pattern.match(next_line) or
+            clang_error_pattern.match(next_line) or
+            ts_error_pattern.match(next_line)):
           break
         if next_line.startswith("[") and "]" in next_line:
           break
@@ -105,13 +169,87 @@ def parse_compiler_errors(build_output: str,
     else:
       i += 1
 
+  # Fallback: Parse Ninja missing dependency / missing rule graph errors
+  if not diagnostics:
+    ninja_missing_pattern = re.compile(
+        r"[\"']([^\"']+)[\"'],\s+needed by\s+[\"']([^\"']+)[\"'],"
+        r"\s+missing and no known rule to make it")
+    for line in lines:
+      m = ninja_missing_pattern.search(line)
+      if m:
+        missing_file, needed_by = m.groups()
+        ref_file, ref_line = find_referencing_build_file(
+            missing_file, repo_path)
+        target_file = ref_file or os.path.join(repo_path, "BUILD.gn")
+
+        clean_rel = missing_file.strip("\"'").lstrip("./")
+        abs_missing = (
+            os.path.join(repo_path, clean_rel)
+            if not os.path.isabs(clean_rel) else clean_rel)
+        missing_dir = os.path.dirname(abs_missing)
+        diag_notes = [f"Referenced at: {target_file}:{ref_line}"]
+        if os.path.isdir(missing_dir):
+          existing_files = os.listdir(missing_dir)
+          rel_dir = os.path.relpath(missing_dir, repo_path)
+          diag_notes.append(
+              f"Actual files on disk in '{rel_dir}': {existing_files}")
+
+        diagnostics.append(
+            CompilerDiagnostic(
+                file_path=target_file,
+                line_number=ref_line,
+                column=1,
+                error_message=(f"Missing dependency on disk: '{missing_file}' "
+                               f"(needed by '{needed_by}')"),
+                raw_snippet=line.strip(),
+                notes=diag_notes,
+            ))
+        break
+
   return diagnostics
 
 
-def get_source_context(file_path: str,
-                       error_line: int,
-                       window: int = 40) -> str:
-  """Reads source file context around the compiler error line."""
+def find_referencing_build_file(missing_filename: str,
+                                repo_path: str) -> Tuple[Optional[str], int]:
+  """Locates the BUILD.gn/gni/DEPS/star file referencing a missing dep."""
+  base_name = os.path.basename(missing_filename.strip("\"'"))
+  try:
+    res = subprocess.run(
+        [
+            "git",
+            "grep",
+            "-n",
+            base_name,
+            "--",
+            "*.gn",
+            "*.gni",
+            "DEPS",
+            "*.star",
+        ],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    for line in res.stdout.splitlines():
+      parts = line.split(":", 2)
+      if len(parts) >= 2:
+        rel_f, line_s = parts[0], parts[1]
+        abs_f = os.path.join(repo_path, rel_f)
+        if os.path.isfile(abs_f) and line_s.isdigit():
+          return abs_f, int(line_s)
+  except (OSError, subprocess.SubprocessError):
+    pass
+  return None, 1
+
+
+def get_source_context(
+    file_path: str,
+    error_line: int,
+    window: int = 60,
+    send_full_file: bool = False,
+) -> str:
+  """Reads source file context around the compiler error line or full file."""
   if not os.path.isfile(file_path):
     return f"[File not found on disk: {file_path}]"
 
@@ -119,8 +257,12 @@ def get_source_context(file_path: str,
     with open(file_path, "r", encoding="utf-8", errors="replace") as f:
       lines = f.read().splitlines()
 
-    start_line = max(0, error_line - window - 1)
-    end_line = min(len(lines), error_line + window)
+    if send_full_file:
+      start_line = 0
+      end_line = len(lines)
+    else:
+      start_line = max(0, error_line - window - 1)
+      end_line = min(len(lines), error_line + window)
 
     numbered_lines = [
         f"{i+1:4d} | {lines[i]}" for i in range(start_line, end_line)
@@ -219,22 +361,21 @@ def apply_patch_or_replacement(patch_text: str, repo_path: str) -> List[str]:
     Returns:
         List of modified file paths if successful, or empty list on failure.
     """
-  if "<<<<<<< SEARCH" in patch_text and "=======" in patch_text:
+  clean_text = patch_text.strip()
+  clean_text = re.sub(r"^```[a-zA-Z0-9_-]*\n", "", clean_text)
+  clean_text = re.sub(r"\n```$", "", clean_text)
+
+  if "<<<<<<< SEARCH" in clean_text and "=======" in clean_text:
     sr_pattern = re.compile(
-        r"FILE:\s*([a-zA-Z0-9_/\.\-]+)\s*\n"
+        r"(?:FILE|Target File):\s*([a-zA-Z0-9_/\.\-]+)\s*\n"
         r"<<<<<<<\s*SEARCH\n(.*?)\n=======\n(.*?)\n>>>>>>>\s*REPLACE",
         re.DOTALL,
     )
-    matches = sr_pattern.findall(patch_text)
+    matches = sr_pattern.findall(clean_text)
     if matches:
       modified_files = []
       for rel_file, search_b, replace_b in matches:
-        clean_rel = rel_file.strip()
-        if clean_rel.startswith("//"):
-          clean_rel = clean_rel[2:]
-        target_file = (
-            os.path.join(repo_path, clean_rel)
-            if not os.path.isabs(clean_rel) else clean_rel)
+        target_file = resolve_repo_file_path(rel_file, repo_path)
         applied = apply_search_replace(target_file, search_b, replace_b)
         if applied:
           modified_files.append(target_file)
@@ -242,7 +383,7 @@ def apply_patch_or_replacement(patch_text: str, repo_path: str) -> List[str]:
           return []
       return modified_files
 
-  return apply_unified_diff(patch_text, repo_path)
+  return apply_unified_diff(clean_text, repo_path)
 
 
 def apply_unified_diff(diff_text: str, repo_path: str) -> List[str]:
@@ -256,11 +397,7 @@ def apply_unified_diff(diff_text: str, repo_path: str) -> List[str]:
     return []
 
   rel_file = file_match.group(1).strip()
-  if rel_file.startswith("//"):
-    rel_file = rel_file[2:]
-  file_path = (
-      os.path.join(repo_path, rel_file)
-      if not os.path.isabs(rel_file) else rel_file)
+  file_path = resolve_repo_file_path(rel_file, repo_path)
 
   if not os.path.isfile(file_path):
     return []
@@ -318,12 +455,14 @@ def run_autoninja_build(
     out_dir: str,
     target: str,
     cobalt_root: str,
+    *,
     depot_tools_path: Optional[str] = None,
     timeout_seconds: int = 600,
+    keep_going: int = 1,
 ) -> Tuple[bool, str, str]:
   """Runs autoninja build command with a clean environment."""
   clean_env = get_clean_build_env(depot_tools_path)
-  cmd = ["autoninja", "-k", "0", "-C", f"out/{out_dir}", target]
+  cmd = ["autoninja", "-k", str(keep_going), "-C", f"out/{out_dir}", target]
   src_dir = (
       os.path.join(cobalt_root, "src") if os.path.isdir(
           os.path.join(cobalt_root, "src")) else cobalt_root)
@@ -350,6 +489,107 @@ def run_autoninja_build(
     return False, "", f"Build execution failed: {e}"
 
 
+def execute_local_tool(tool_cmd: str, repo_path: str) -> str:
+  """Executes local file-inspection and search tools for reasoning engine."""
+  cmd = tool_cmd.strip()
+  if cmd.startswith("TOOL_READ_FILE:"):
+    parts = cmd.split(":", 1)[1].strip().split()
+    if not parts:
+      return "[ERROR] Missing file path in TOOL_READ_FILE"
+    rel_path = parts[0]
+    line_range = parts[1] if len(parts) > 1 else ""
+    full_path = resolve_repo_file_path(rel_path, repo_path)
+    if not os.path.isfile(full_path):
+      return f"[ERROR] File not found: {rel_path}"
+    try:
+      with open(full_path, "r", encoding="utf-8", errors="replace") as f:
+        lines = f.readlines()
+      if "-" in line_range:
+        s_str, e_str = line_range.split("-", 1)
+        s_line = max(1, int(s_str))
+        e_line = min(len(lines), int(e_str))
+      else:
+        s_line, e_line = 1, min(len(lines), 150)
+      numbered = [f"{i:4d} | {lines[i-1]}" for i in range(s_line, e_line + 1)]
+      return (f"File: {rel_path} (Lines {s_line}-{e_line})\n" +
+              "".join(numbered))
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      return f"[ERROR] Could not read file: {e}"
+
+  if cmd.startswith("TOOL_FIND_FILE:"):
+    pattern = cmd.split(":", 1)[1].strip()
+    try:
+      res = subprocess.run(
+          ["find", ".", "-name", pattern, "-not", "-path", "*/.*"],
+          cwd=repo_path,
+          capture_output=True,
+          text=True,
+          check=False,
+      )
+      matches = [
+          m.lstrip("./") for m in res.stdout.splitlines()[:20] if m.strip()
+      ]
+      return ("Matching Files:\n" + "\n".join(matches)
+              if matches else f"No files matched pattern: {pattern}")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      return f"[ERROR] Find failed: {e}"
+
+  if cmd.startswith("TOOL_GREP:"):
+    query = cmd.split(":", 1)[1].strip()
+    try:
+      res = subprocess.run(
+          [
+              "git",
+              "grep",
+              "-n",
+              "-I",
+              "--max-count=15",
+              query,
+              "--",
+              "*.gn",
+              "*.gni",
+              "*.h",
+              "*.cc",
+              "*.java",
+          ],
+          cwd=repo_path,
+          capture_output=True,
+          text=True,
+          check=False,
+      )
+      return (res.stdout.strip()
+              if res.stdout.strip() else f"No matches found for: {query}")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      return f"[ERROR] Grep failed: {e}"
+
+  if cmd.startswith("TOOL_GIT_SHOW:"):
+    ref = cmd.split(":", 1)[1].strip()
+    try:
+      res = subprocess.run(
+          ["git", "show", ref],
+          cwd=repo_path,
+          capture_output=True,
+          text=True,
+          check=False,
+      )
+      return (res.stdout[:3000] if res.stdout else f"Could not show ref: {ref}")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      return f"[ERROR] Git show failed: {e}"
+
+  return f"[ERROR] Unknown tool command: {cmd}"
+
+
+def read_siso_output_snippet(siso_out_path: str, max_bytes: int = 65536) -> str:
+  """Safely reads the top failed action traces from siso_output."""
+  if not os.path.isfile(siso_out_path):
+    return ""
+  try:
+    with open(siso_out_path, "r", encoding="utf-8", errors="replace") as sf:
+      return sf.read(max_bytes)
+  except OSError:
+    return ""
+
+
 def run_compiler_self_healing_loop(
     out_dir: str,
     target: str,
@@ -360,6 +600,7 @@ def run_compiler_self_healing_loop(
     location: str = "us-central1",
     model: str = "gemini-2.5-flash",
     skills_dir: Optional[str] = None,
+    keep_going: int = 1,
 ) -> bool:
   """Executes the autoninja build and iterative self-healing repair loop."""
   src_dir = (
@@ -380,6 +621,7 @@ def run_compiler_self_healing_loop(
   )
   print(f"  - Max Iterations: {max_iterations}", file=sys.stderr)
   print(f"  - Vertex Model:   {model}", file=sys.stderr)
+  print(f"  - Keep Going (-k): {keep_going}", file=sys.stderr)
   print("=" * 80, file=sys.stderr)
 
   seen_errors: Set[str] = set()
@@ -396,6 +638,7 @@ def run_compiler_self_healing_loop(
         out_dir=out_dir,
         target=target,
         cobalt_root=cobalt_root,
+        keep_going=keep_going,
     )
 
     if success:
@@ -408,6 +651,11 @@ def run_compiler_self_healing_loop(
       return True
 
     build_log = f"{stdout_txt}\n{stderr_txt}"
+    siso_out_path = os.path.join(src_dir, f"out/{out_dir}/siso_output")
+    siso_snippet = read_siso_output_snippet(siso_out_path)
+    if siso_snippet:
+      build_log += f"\n\n--- SISO OUTPUT ---\n{siso_snippet}"
+
     diagnostics = parse_compiler_errors(build_log, repo_path=src_dir)
 
     if not diagnostics:
@@ -444,23 +692,61 @@ def run_compiler_self_healing_loop(
           file=sys.stderr,
       )
 
+    is_structural_break = any(kw in first_diag.error_message.lower() for kw in (
+        "unexpected token",
+        "expected '}'",
+        "expected ';'",
+        "unclosed",
+        "mismatched",
+        "extraneous closing",
+    ))
+    send_full_file = escalate_pro or is_structural_break
+
     source_excerpt = get_source_context(
-        first_diag.file_path, first_diag.line_number, window=40)
+        first_diag.file_path,
+        first_diag.line_number,
+        window=60,
+        send_full_file=send_full_file,
+    )
     past_exp = load_past_experience()
 
     rel_target = os.path.relpath(first_diag.file_path, src_dir)
     source_context_payload = (
         f"### Target File: {rel_target}\n```\n{source_excerpt}\n```\n")
 
-    resp = reasoning_engine.heal_compiler_error(
-        target=target,
-        diagnostics=first_diag.raw_snippet,
-        source_contexts=source_context_payload,
-        past_experience=past_exp,
-        use_pro=escalate_pro,
-    )
+    investigation_history: List[str] = []
+    max_tool_rounds = 4
+    patch = ""
+    model_used = ""
 
-    patch = resp.get("patch", "")
+    for round_idx in range(1, max_tool_rounds + 1):
+      inv_text = "\n\n".join(investigation_history)
+      resp = reasoning_engine.heal_compiler_error(
+          target=target,
+          diagnostics=first_diag.raw_snippet,
+          source_contexts=source_context_payload,
+          past_experience=past_exp,
+          investigation_history=inv_text,
+          use_pro=escalate_pro,
+      )
+      ai_resp = resp.get("patch", "").strip()
+      model_used = resp.get("model_used", "")
+
+      tool_match = re.search(r"^(TOOL_[A-Z_]+:.*)$", ai_resp, re.MULTILINE)
+      if tool_match and round_idx < max_tool_rounds:
+        tool_cmd = tool_match.group(1).strip()
+        print(
+            f"    [TOOL_USE] Model requested: {tool_cmd}",
+            file=sys.stderr,
+        )
+        tool_res = execute_local_tool(tool_cmd, repo_path=src_dir)
+        investigation_history.append(
+            f"Tool Call: `{tool_cmd}`\nResult:\n{tool_res}")
+        continue
+
+      patch = ai_resp
+      break
+
     if not patch:
       print(
           "[autoninja_loop] [FAIL] AI returned empty patch. "
@@ -469,7 +755,6 @@ def run_compiler_self_healing_loop(
       )
       continue
 
-    model_used = resp.get("model_used", "")
     print(
         f"[autoninja_loop] Applying AI patch using {model_used}...",
         file=sys.stderr,
@@ -481,6 +766,21 @@ def run_compiler_self_healing_loop(
           f"[autoninja_loop] [OK] Patch applied cleanly to {rel_target}.",
           file=sys.stderr,
       )
+      if any(f.endswith((".gn", ".gni", ".star")) for f in applied):
+        print(
+            "[autoninja_loop] Build files modified. Regenerating GN...",
+            file=sys.stderr,
+        )
+        parts = out_dir.split("_")
+        plat = parts[0] if parts else "android-arm"
+        cfg = parts[1] if len(parts) > 1 else "devel"
+        gn_script = os.path.join(src_dir, "cobalt/build/gn.py")
+        subprocess.run(
+            [sys.executable, gn_script, "-p", plat, "-C", cfg],
+            cwd=src_dir,
+            check=False,
+        )
+
       record_successful_fix(
           category="Compiler",
           target_file=rel_target,
@@ -555,6 +855,13 @@ def main():
           "~/cobalt/src/.github/rebase/reasoning_engine/skills"),
       help="Path to skills directory",
   )
+  parser.add_argument(
+      "--keep-going",
+      "-k",
+      type=int,
+      default=1,
+      help="autoninja -k value (default: 1, halts on first failure)",
+  )
   args = parser.parse_args()
 
   success = run_compiler_self_healing_loop(
@@ -566,6 +873,7 @@ def main():
       location=args.location,
       model=args.model,
       skills_dir=args.skills_dir,
+      keep_going=args.keep_going,
   )
   sys.exit(0 if success else 1)
 

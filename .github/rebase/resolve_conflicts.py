@@ -20,12 +20,16 @@ import subprocess
 import sys
 import time
 from typing import Dict, List, Optional, Tuple
+import warnings
 
 from google import genai
 from google.genai import types
 
 from reasoning_engine import load_skill
 from token_usage import TokenUsage
+
+# Suppress google.auth UserWarning about ADC quota project on Cloudtop
+warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
 
 
 class GeminiAPIError(Exception):
@@ -185,8 +189,29 @@ def detect_language(file_path: str) -> str:
   return mapping.get(ext, "Source Code")
 
 
+def sort_conflict_priority(file_path: str) -> Tuple[int, str]:
+  """Prioritizes toolchain sync scripts and build configs before sources.
+
+  Execution order:
+    0: DEPS (submodules and package dependencies)
+    1: Toolchain sync scripts (tools/clang/scripts/update.py, update_rust.py)
+    2: Siso build configs (build/config/siso/*.star)
+    3: GN build configuration files (*.gn, *.gni)
+    4: C++/Java source files (.cc, .h, .mm, .java)
+  """
+  if file_path == "DEPS":
+    return (0, file_path)
+  if file_path.startswith(("tools/clang/", "tools/rust/")):
+    return (1, file_path)
+  if file_path.startswith("build/config/siso/"):
+    return (2, file_path)
+  if file_path.endswith((".gn", ".gni", ".star")):
+    return (3, file_path)
+  return (4, file_path)
+
+
 def find_all_conflicted_files(repo_path: str) -> List[str]:
-  """Finds all conflicted files across the repository."""
+  """Finds all conflicted files across the repository, excluding .github/."""
   conflicted = set()
 
   try:
@@ -199,14 +224,15 @@ def find_all_conflicted_files(repo_path: str) -> List[str]:
     )
     for f in res.stdout.splitlines():
       f = f.strip()
-      if f and os.path.isfile(os.path.join(repo_path, f)):
+      if (f and not f.startswith(".github/") and
+          os.path.isfile(os.path.join(repo_path, f))):
         conflicted.add(f)
   except (OSError, subprocess.SubprocessError):
     pass
 
   try:
     res = subprocess.run(
-        ["git", "grep", "-l", "^<<<<<<<"],
+        ["git", "grep", "-l", "^<<<<<<<", "--", ":!.github/*"],
         cwd=repo_path,
         capture_output=True,
         text=True,
@@ -214,12 +240,13 @@ def find_all_conflicted_files(repo_path: str) -> List[str]:
     )
     for f in res.stdout.splitlines():
       f = f.strip()
-      if f and os.path.isfile(os.path.join(repo_path, f)):
+      if (f and not f.startswith(".github/") and
+          os.path.isfile(os.path.join(repo_path, f))):
         conflicted.add(f)
   except (OSError, subprocess.SubprocessError):
     pass
 
-  return sorted(conflicted)
+  return sorted(conflicted, key=sort_conflict_priority)
 
 
 def extract_conflict_blocks(content: str,
@@ -632,7 +659,48 @@ def is_binary_or_huge_data(file_path: str) -> bool:
   except OSError:
     pass
 
-  return False
+
+_COBALT_SIGNATURES = (
+    "buildflag(is_cobalt)",
+    "buildflag(use_starboard_media)",
+    "defined(starboard)",
+    "checkout_cobalt_internal",
+    "checkout_copybara",
+    "starboard/",
+    "namespace cobalt",
+)
+
+
+def try_deterministic_fast_path(
+    b: ConflictBlock,
+    file_path: str,
+) -> Optional[str]:
+  """Fast-paths deterministic formatting/reordering/third-party conflicts."""
+  # 1. Whitespace & indentation only difference
+  if "".join(b.ours_content.split()) == "".join(b.theirs_content.split()):
+    return b.theirs_content
+
+  # 2. Identical set of items (re-sorted or reformatted list of files/rules)
+  ours_items = sorted(
+      l.strip().rstrip(",") for l in b.ours_content.splitlines() if l.strip())
+  theirs_items = sorted(
+      l.strip().rstrip(",") for l in b.theirs_content.splitlines() if l.strip())
+  if ours_items and ours_items == theirs_items:
+    return b.theirs_content
+
+  # 3. Base matching: OURS made zero changes relative to BASE
+  if b.base_content and b.ours_content == b.base_content:
+    return b.theirs_content
+
+  # 4. Third-party file with no Cobalt customizations
+  if "third_party/" in file_path:
+    has_cobalt = any(
+        sig in b.ours_content.lower() for sig in _COBALT_SIGNATURES)
+    if not has_cobalt:
+      if b.base_content is None or b.ours_content == b.base_content:
+        return b.theirs_content
+
+  return None
 
 
 def resolve_file_conflicts(
@@ -725,136 +793,146 @@ def resolve_file_conflicts(
                                                   1)
       continue
 
-    ctx_before = b.context_before
-    ctx_after = b.context_after
-    investigation_history = []
+    # Fast-path: deterministic whitespace, list reordering, or clean third-party
+    resolved_chunk = try_deterministic_fast_path(b, file_path)
+    if resolved_chunk is not None:
+      print(
+          f"    [FAST] Block #{b.index}: Auto-resolved (deterministic "
+          f"fast-path).",
+          file=sys.stderr,
+      )
+    else:
+      ctx_before = b.context_before
+      ctx_after = b.context_after
+      investigation_history = []
 
-    resolved_chunk = None
-    for round_idx in range(1, max_tool_rounds + 2):
-      history_text = "\n\n".join(investigation_history)
-      is_final_round = round_idx > max_tool_rounds
+      for round_idx in range(1, max_tool_rounds + 2):
+        history_text = "\n\n".join(investigation_history)
+        is_final_round = round_idx > max_tool_rounds
 
-      if is_final_round:
-        final_instruction = (
-            f"### FINAL RESOLUTION REQUIRED (Investigation budget of "
-            f"{max_tool_rounds} rounds reached):\n"
-            "Based on evidence above, return ONLY the final clean "
-            "code. If you cannot resolve it, return "
-            "`ESCALATE_TO_HUMAN: <reason>`.")
-      else:
-        final_instruction = (
-            "If you need to inspect an external header or grep a "
-            "symbol, output a single `TOOL_` command line. Otherwise "
-            "return ONLY the resolved replacement code snippet.")
-
-      prompt = (f"Target File: {file_path} ({language})\n"
-                f"{git_context}\n\n"
-                f"Context before conflict:\n{ctx_before}\n\n"
-                f"Conflict block to resolve:\n{b.raw_block}\n\n"
-                f"Context after conflict:\n{ctx_after}\n\n"
-                f"{history_text}\n\n"
-                f"Task: Resolve this specific merge conflict for {file_path}. "
-                "Preserve all Cobalt macros "
-                "(#if BUILDFLAG(USE_STARBOARD_MEDIA), "
-                "#if BUILDFLAG(IS_COBALT), #if defined(STARBOARD)), custom "
-                "variables (checkout_cobalt_internal, checkout_copybara), "
-                "platform shims, and Cobalt runtime behavior while adopting "
-                "upstream updates.\n\n"
-                f"{final_instruction}")
-
-      try:
-        resp = query_gemini(
-            prompt=prompt,
-            system_instruction=system_instruction,
-            api_key=api_key,
-            project_id=project_id,
-            location=location,
-            model=model,
-            timeout_seconds=timeout_seconds,
-            max_retries=max_retries,
-            mock_mode=mock_mode,
-            token_tracker=tracker,
-        )
-      except GeminiAPIError as e:
-        print(
-            f"    [WARNING] Backend API Error on Block #{b.index}: "
-            f"{e}. Escalating to human review and proceeding.",
-            file=sys.stderr,
-        )
-        esc_list.append(
-            EscalationItem(
-                file_path=file_path,
-                block_index=b.index,
-                reason=f"Gemini API Error: {e}",
-            ))
-        resolved_chunk = None
-        break
-
-      # Check if model invoked a tool
-      tool_match = re.search(r"^(TOOL_[A-Z_]+:.*)$", resp.strip(), re.MULTILINE)
-      if tool_match and not is_final_round:
-        tool_cmd = tool_match.group(1).strip()
-        print(
-            f"    [SEARCH] [Investigation Round {round_idx}/"
-            f"{max_tool_rounds}] Model requested: {tool_cmd}",
-            file=sys.stderr,
-        )
-
-        if tool_cmd.startswith("TOOL_EXPAND_CONTEXT:"):
-          try:
-            n_lines = int(tool_cmd.split(":", 1)[1].strip())
-          except ValueError:
-            n_lines = 80
-          expanded = extract_conflict_blocks(
-              original_content, context_lines=n_lines)
-          matching_exp = [eb for eb in expanded if eb.index == b.index]
-          if matching_exp:
-            ctx_before = matching_exp[0].context_before
-            ctx_after = matching_exp[0].context_after
-          tool_output = (
-              f"Context expanded to {n_lines} lines before and after.")
+        if is_final_round:
+          final_instruction = (
+              f"### FINAL RESOLUTION REQUIRED (Investigation budget of "
+              f"{max_tool_rounds} rounds reached):\n"
+              "Based on evidence above, return ONLY the final clean "
+              "code. If you cannot resolve it, return "
+              "`ESCALATE_TO_HUMAN: <reason>`.")
         else:
-          tool_output = execute_local_tool(tool_cmd, repo_path=repo_path)
+          final_instruction = (
+              "If you need to inspect an external header or grep a "
+              "symbol, output a single `TOOL_` command line. Otherwise "
+              "return ONLY the resolved replacement code snippet.")
 
-        investigation_history.append(
-            f"Model Tool Call: `{tool_cmd}`\nResult:\n{tool_output}")
-        continue
+        prompt = (
+            f"Target File: {file_path} ({language})\n"
+            f"{git_context}\n\n"
+            f"Context before conflict:\n{ctx_before}\n\n"
+            f"Conflict block to resolve:\n{b.raw_block}\n\n"
+            f"Context after conflict:\n{ctx_after}\n\n"
+            f"{history_text}\n\n"
+            f"Task: Resolve this specific merge conflict for {file_path}. "
+            "Preserve all Cobalt macros "
+            "(#if BUILDFLAG(USE_STARBOARD_MEDIA), "
+            "#if BUILDFLAG(IS_COBALT), #if defined(STARBOARD)), custom "
+            "variables (checkout_cobalt_internal, checkout_copybara), "
+            "platform shims, and Cobalt runtime behavior while adopting "
+            "upstream updates.\n\n"
+            f"{final_instruction}")
 
-      # Check if model requested human escalation
-      if "ESCALATE_TO_HUMAN:" in resp:
-        reason = resp.split("ESCALATE_TO_HUMAN:", 1)[1].strip()
-        print(
-            f"    [WARNING] Complex conflict escalated: {reason}",
-            file=sys.stderr,
-        )
-        esc_list.append(
-            EscalationItem(
-                file_path=file_path,
-                block_index=b.index,
-                reason=reason,
-            ))
-        resolved_chunk = None
+        try:
+          resp = query_gemini(
+              prompt=prompt,
+              system_instruction=system_instruction,
+              api_key=api_key,
+              project_id=project_id,
+              location=location,
+              model=model,
+              timeout_seconds=timeout_seconds,
+              max_retries=max_retries,
+              mock_mode=mock_mode,
+              token_tracker=tracker,
+          )
+        except GeminiAPIError as e:
+          print(
+              f"    [WARNING] Backend API Error on Block #{b.index}: "
+              f"{e}. Escalating to human review and proceeding.",
+              file=sys.stderr,
+          )
+          esc_list.append(
+              EscalationItem(
+                  file_path=file_path,
+                  block_index=b.index,
+                  reason=f"Gemini API Error: {e}",
+              ))
+          resolved_chunk = None
+          break
+
+        # Check if model invoked a tool
+        tool_match = re.search(r"^(TOOL_[A-Z_]+:.*)$", resp.strip(),
+                               re.MULTILINE)
+        if tool_match and not is_final_round:
+          tool_cmd = tool_match.group(1).strip()
+          print(
+              f"    [SEARCH] [Investigation Round {round_idx}/"
+              f"{max_tool_rounds}] Model requested: {tool_cmd}",
+              file=sys.stderr,
+          )
+
+          if tool_cmd.startswith("TOOL_EXPAND_CONTEXT:"):
+            try:
+              n_lines = int(tool_cmd.split(":", 1)[1].strip())
+            except ValueError:
+              n_lines = 80
+            expanded = extract_conflict_blocks(
+                original_content, context_lines=n_lines)
+            matching_exp = [eb for eb in expanded if eb.index == b.index]
+            if matching_exp:
+              ctx_before = matching_exp[0].context_before
+              ctx_after = matching_exp[0].context_after
+            tool_output = (
+                f"Context expanded to {n_lines} lines before and after.")
+          else:
+            tool_output = execute_local_tool(tool_cmd, repo_path=repo_path)
+
+          investigation_history.append(
+              f"Model Tool Call: `{tool_cmd}`\nResult:\n{tool_output}")
+          continue
+
+        # Check if model requested human escalation
+        if "ESCALATE_TO_HUMAN:" in resp:
+          reason = resp.split("ESCALATE_TO_HUMAN:", 1)[1].strip()
+          print(
+              f"    [WARNING] Complex conflict escalated: {reason}",
+              file=sys.stderr,
+          )
+          esc_list.append(
+              EscalationItem(
+                  file_path=file_path,
+                  block_index=b.index,
+                  reason=reason,
+              ))
+          resolved_chunk = None
+          break
+
+        # If still emitted a tool command on final round
+        if tool_match and is_final_round:
+          print(
+              f"    [WARNING] Exhausted investigation budget ("
+              f"{max_tool_rounds} rounds). Flagging for human review.",
+              file=sys.stderr,
+          )
+          esc_list.append(
+              EscalationItem(
+                  file_path=file_path,
+                  block_index=b.index,
+                  reason=(f"Investigation budget of {max_tool_rounds} rounds "
+                          f"exhausted"),
+              ))
+          resolved_chunk = None
+          break
+
+        resolved_chunk = resp
         break
-
-      # If still emitted a tool command on final round
-      if tool_match and is_final_round:
-        print(
-            f"    [WARNING] Exhausted investigation budget ("
-            f"{max_tool_rounds} rounds). Flagging for human review.",
-            file=sys.stderr,
-        )
-        esc_list.append(
-            EscalationItem(
-                file_path=file_path,
-                block_index=b.index,
-                reason=(f"Investigation budget of {max_tool_rounds} rounds "
-                        f"exhausted"),
-            ))
-        resolved_chunk = None
-        break
-
-      resolved_chunk = resp
-      break
 
     if resolved_chunk is None:
       all_resolved = False
