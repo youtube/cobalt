@@ -63,8 +63,8 @@ class CobaltReasoningEngine:
       self,
       *,
       project_id: Optional[str] = None,
-      location: str = "us-central1",
-      flash_model: str = "gemini-2.5-flash",
+      location: str = "global",
+      flash_model: str = "gemini-3.7-flash",
       pro_model: str = "gemini-2.5-pro",
       skills_dir: Optional[str] = None,
   ):
@@ -145,6 +145,23 @@ class CobaltReasoningEngine:
           backoff *= 1.5
     return None
 
+  def _create_generation_config(
+      self,
+      chosen_model: str,
+      system_instruction: str,
+      temperature: float = 0.1,
+  ) -> types.GenerateContentConfig:
+    """Constructs model-specific GenerateContentConfig."""
+    if "gemini-3." in chosen_model or "thinking" in chosen_model.lower():
+      return types.GenerateContentConfig(
+          system_instruction=system_instruction,
+          thinking_config=types.ThinkingConfig(thinking_budget=1024),
+      )
+    return types.GenerateContentConfig(
+        system_instruction=system_instruction,
+        temperature=temperature,
+    )
+
   def query(self, action: str = "resolve_conflict", **kwargs) -> Dict[str, Any]:
     """Primary query dispatcher for Vertex AI Reasoning Engine."""
     if action == "resolve_conflict":
@@ -193,10 +210,7 @@ class CobaltReasoningEngine:
     resp = self._generate_content_with_retry(
         model=chosen_model,
         contents=prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=sys_inst,
-            temperature=0.1,
-        ),
+        config=self._create_generation_config(chosen_model, sys_inst),
     )
     return {
         "status": "SUCCESS" if resp and resp.text else "ERROR",
@@ -246,10 +260,7 @@ class CobaltReasoningEngine:
     resp = self._generate_content_with_retry(
         model=chosen_model,
         contents=prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=sys_inst,
-            temperature=0.1,
-        ),
+        config=self._create_generation_config(chosen_model, sys_inst),
     )
     return {
         "status": "SUCCESS" if resp and resp.text else "ERROR",
@@ -301,10 +312,7 @@ class CobaltReasoningEngine:
     resp = self._generate_content_with_retry(
         model=chosen_model,
         contents=prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=sys_inst,
-            temperature=0.1,
-        ),
+        config=self._create_generation_config(chosen_model, sys_inst),
     )
     return {
         "status": "SUCCESS" if resp and resp.text else "ERROR",
@@ -362,10 +370,8 @@ class CobaltReasoningEngine:
     resp = self._generate_content_with_retry(
         model=chosen_model,
         contents=contents,
-        config=types.GenerateContentConfig(
-            system_instruction=sys_inst,
-            temperature=0.2,
-        ),
+        config=self._create_generation_config(
+            chosen_model, sys_inst, temperature=0.2),
     )
     return {
         "status": "SUCCESS" if resp and resp.text else "ERROR",

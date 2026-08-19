@@ -51,9 +51,9 @@ def self_heal_gn_generation(
     build_type: str,
     *,
     gn_check: bool = True,
-    model: str = "gemini-2.5-flash",
+    model: str = "gemini-3.7-flash",
     project_id: Optional[str] = None,
-    location: str = "us-central1",
+    location: str = "global",
     max_retries: int = 50,
 ) -> bool:
   """Executes cobalt/build/gn.py with self-healing AI feedback loop."""
@@ -371,13 +371,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
   )
   parser.add_argument(
       "--location",
-      default=os.environ.get("GCP_LOCATION", "us-central1"),
-      help="Vertex AI Region (default: us-central1).",
+      default=os.environ.get("GCP_LOCATION", "global"),
+      help="Vertex AI Region (default: global).",
   )
   parser.add_argument(
       "--model",
-      default=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
-      help="Gemini model name (e.g. gemini-2.5-flash, gemini-2.5-pro).",
+      default=os.environ.get("GEMINI_MODEL", "gemini-3.7-flash"),
+      help="Gemini model name (e.g. gemini-3.7-flash, gemini-2.5-pro).",
   )
   parser.add_argument(
       "--skip-conflicts",

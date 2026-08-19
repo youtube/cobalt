@@ -78,13 +78,13 @@ def main():
   )
   parser.add_argument(
       "--location",
-      default=os.environ.get("GCP_LOCATION", "us-central1"),
-      help="Vertex AI region (default: us-central1)",
+      default=os.environ.get("GCP_LOCATION", "global"),
+      help="Vertex AI region (default: global)",
   )
   parser.add_argument(
       "--model",
-      default=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
-      help="Default Gemini model (default: gemini-2.5-flash)",
+      default=os.environ.get("GEMINI_MODEL", "gemini-3.7-flash"),
+      help="Default Gemini model (default: gemini-3.7-flash)",
   )
   parser.add_argument(
       "--mode",
