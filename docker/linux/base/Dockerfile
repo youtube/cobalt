@@ -34,5 +34,3 @@ RUN apt update -qqy \
     && /opt/clean-after-apt.sh
 
 CMD ["/usr/bin/python3","--version"]
-
-# Force rebuild in PR
