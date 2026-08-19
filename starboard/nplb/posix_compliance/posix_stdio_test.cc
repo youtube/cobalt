@@ -36,9 +36,12 @@ void* ConcurrentFcloseWorker(void* context) {
   auto* ctx = static_cast<ConcurrentWorkerContext*>(context);
   while (!ctx->stop->load(std::memory_order_relaxed)) {
     FILE* file = fopen("/dev/null", "w");
+    EXPECT_NE(file, nullptr);
     if (file) {
       fputs("testing concurrent fclose and fflush\n", file);
       EXPECT_EQ(fclose(file), 0);
+    } else {
+      break;
     }
   }
   return nullptr;
