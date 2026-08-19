@@ -14,6 +14,7 @@
 
 import("//build/config/android/rules.gni")
 import("//cobalt/android/manifest.gni")
+import("//starboard/content/ssl/certs.gni")
 
 template("modular_apk") {
   _name = invoker.module_name
@@ -43,6 +44,12 @@ template("modular_apk") {
       ":copy_${_name}_empty_fonts($default_toolchain)",
       ":copy_${_name}_lib($default_toolchain)",
     ]
+
+    foreach(_cert, network_certs) {
+      renaming_sources += [ _cert ]
+      renaming_destinations +=
+          [ "app/cobalt/content/ssl/certs/" + get_path_info(_cert, "file") ]
+    }
 
     if (_name == "cobalt") {
       renaming_sources += [ "$root_build_dir/cobalt_shell.pak" ]
