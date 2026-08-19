@@ -15,7 +15,7 @@
 
 from __future__ import print_function
 
-import imp  # pylint: disable=deprecated-module
+import importlib.util
 import os
 
 from starboard.build.platform_configuration import PlatformConfiguration
@@ -32,5 +32,7 @@ class AndroidConfiguration(PlatformConfiguration):
     """Gets the module used to launch applications on this platform."""
     module_path = os.path.abspath(
         os.path.join(os.path.dirname(__file__), 'launcher.py'))
-    launcher_module = imp.load_source('launcher', module_path)
+    spec = importlib.util.spec_from_file_location('launcher', module_path)
+    launcher_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(launcher_module)
     return launcher_module
