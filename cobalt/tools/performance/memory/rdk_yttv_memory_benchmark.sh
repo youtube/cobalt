@@ -76,10 +76,12 @@ if [ -n "$URL_PARAMS" ]; then
     # Strip any leading '?' or '&' from URL_PARAMS
     URL_PARAMS="${URL_PARAMS#\?}"
     URL_PARAMS="${URL_PARAMS#\&}"
-    if [ -n "$QUERY_PARAMS" ]; then
-        QUERY_PARAMS="${QUERY_PARAMS}&${URL_PARAMS}"
-    else
-        QUERY_PARAMS="${URL_PARAMS}"
+    if [ -n "$URL_PARAMS" ]; then
+        if [ -n "$QUERY_PARAMS" ]; then
+            QUERY_PARAMS="${QUERY_PARAMS}&${URL_PARAMS}"
+        else
+            QUERY_PARAMS="${URL_PARAMS}"
+        fi
     fi
 fi
 
