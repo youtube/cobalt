@@ -15,6 +15,7 @@
 #include <jni.h>
 #include <limits.h>
 #include <pthread.h>
+#include <stddef.h>
 #include <unistd.h>
 
 #include <string>
@@ -31,9 +32,11 @@ int main(int argc, char** argv);
 namespace {
 
 // Cobalt normally runs main() on the process's main thread, which has a large
-// (typically 8 MB) stack. Here it runs on a dedicated thread instead, and
-// bionic's default thread stack is only ~1 MB.
-constexpr size_t kStarboardMainStackSize = 8 * 1024 * 1024;
+// stack. Here it runs on a dedicated thread instead, and the 1MB (Android
+// default) stack size is not enough for InstallationManager, which reads its
+// store file into a 1MB stack buffer. Use 2MB, the same size Cobalt 25 and RDK
+// use.
+constexpr size_t kStarboardMainStackSize = 2 * 1024 * 1024;
 
 void* StarboardMain(void* /*context*/) {
   pthread_setname_np(pthread_self(), "StarboardMain");
@@ -71,9 +74,17 @@ namespace starboard {
 
 void JNI_MainActivity_StartLoader(JNIEnv* env) {
   pthread_attr_t attr;
-  pthread_attr_init(&attr);
-  pthread_attr_setstacksize(&attr, kStarboardMainStackSize);
-  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+  if (pthread_attr_init(&attr) != 0) {
+    SB_LOG(ERROR) << "Failed to initialize StarboardMain thread attributes";
+    return;
+  }
+
+  if (pthread_attr_setstacksize(&attr, kStarboardMainStackSize) != 0 ||
+      pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED) != 0) {
+    SB_LOG(ERROR) << "Failed to set StarboardMain thread attributes";
+    pthread_attr_destroy(&attr);
+    return;
+  }
 
   pthread_t thread;
   if (pthread_create(&thread, &attr, &StarboardMain, nullptr) != 0) {
