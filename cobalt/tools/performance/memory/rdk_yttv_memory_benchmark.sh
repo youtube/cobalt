@@ -39,6 +39,10 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --url-params)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --url-params requires an argument."
+                exit 1
+            fi
             URL_PARAMS="$2"
             shift 2
             ;;
