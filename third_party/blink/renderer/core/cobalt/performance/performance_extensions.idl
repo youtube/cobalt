@@ -33,9 +33,6 @@
     // Returns the amount of GPU memory used by the Cobalt process in bytes.
     [CallWith=ScriptState, RaisesException] unsigned long long measureUsedGpuMemory();
 
-    // Returns the total amount of GPU memory available on the device in bytes.
-    [CallWith=ScriptState, RaisesException] unsigned long long measureTotalGpuMemory();
-
     // Returns the application startup timestamp in millisecs (ms).
     [CallWith=ScriptState, RaisesException] Promise<DOMHighResTimeStamp> getAppStartupTimeStamp();
 };

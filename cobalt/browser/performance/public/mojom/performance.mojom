@@ -55,10 +55,6 @@ interface CobaltPerformance {
   [Sync]
   MeasureUsedGpuMemory() => (bool is_supported, uint64 bytes);
 
-  // Get the total amount of GPU memory available to the application, in bytes.
-  [Sync]
-  MeasureTotalGpuMemory() => (bool is_supported, uint64 bytes);
-
   // Get the application startup timestamp in microseconds (us).
   [Sync]
   GetAppStartupTimeStamp() => (int64 timestamp);

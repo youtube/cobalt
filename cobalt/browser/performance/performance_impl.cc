@@ -224,6 +224,8 @@ void PerformanceImpl::MeasureApplicationLimitMemory(
       std::move(callback));
 #else
   std::move(callback).Run(0);
+}
+
 void PerformanceImpl::MeasureUsedGpuMemory(
     MeasureUsedGpuMemoryCallback callback) {
 #if BUILDFLAG(IS_STARBOARD)
@@ -263,38 +265,6 @@ void PerformanceImpl::MeasureUsedGpuMemory(
   std::move(callback).Run(false, 0);
 #else
   std::move(callback).Run(false, 0);
-#endif
-}
-
-void PerformanceImpl::MeasureTotalGpuMemory(
-    MeasureTotalGpuMemoryCallback callback) {
-#if BUILDFLAG(IS_STARBOARD)
-  if (!SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
-    std::move(callback).Run(false, 0);
-    return;
-  }
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-      base::BindOnce([]() -> uint64_t { return SbSystemGetTotalGPUMemory(); }),
-      base::BindOnce(
-          [](MeasureTotalGpuMemoryCallback cb, uint64_t bytes) {
-            if (bytes == 0) {
-              std::move(cb).Run(false, 0);
-              return;
-            }
-            std::move(cb).Run(true, bytes);
-          },
-          std::move(callback)));
-#elif BUILDFLAG(IS_ANDROID)
-  // On Android SoCs (UMA), the CPU and GPU share one unified system RAM pool
-  // which can be measured by total CPU memory.
-  std::move(callback).Run(false, 0);
-#elif BUILDFLAG(IS_IOS_TVOS)
-  NOTIMPLEMENTED();
-  std::move(callback).Run(false, 0);
-#else
-  std::move(callback).Run(false, 0);
-
 #endif
 }
 

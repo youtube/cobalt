@@ -111,7 +111,6 @@ uint64_t PerformanceExtensions::measureApplicationLimitMemory(
   BindRemotePerformance(script_state)
       ->MeasureApplicationLimitMemory(&app_limit_memory);
   return app_limit_memory;
-
 }
 
 uint64_t PerformanceExtensions::measureUsedGpuMemory(
@@ -130,23 +129,6 @@ uint64_t PerformanceExtensions::measureUsedGpuMemory(
   }
   return used_gpu_memory;
 }
-
-uint64_t PerformanceExtensions::measureTotalGpuMemory(
-    ScriptState* script_state,
-    const Performance&,
-    ExceptionState& exception_state) {
-  bool is_supported = false;
-  uint64_t total_gpu_memory = 0;
-  BindRemotePerformance(script_state)
-      ->MeasureTotalGpuMemory(&is_supported, &total_gpu_memory);
-  if (!is_supported) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kNotSupportedError,
-        "Total GPU memory measurement is not supported on this platform.");
-    return 0;
-  }
-  return total_gpu_memory;
-
 
 ScriptPromise<IDLDouble> PerformanceExtensions::getAppStartupTimeStamp(
     ScriptState* script_state,

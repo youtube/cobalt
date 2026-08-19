@@ -55,7 +55,6 @@ class PerformanceImpl
   void MeasureApplicationLimitMemory(
       MeasureApplicationLimitMemoryCallback) override;
   void MeasureUsedGpuMemory(MeasureUsedGpuMemoryCallback) override;
-  void MeasureTotalGpuMemory(MeasureTotalGpuMemoryCallback) override;
   void GetAppStartupTimeStamp(GetAppStartupTimeStampCallback callback) override;
 
  private:
