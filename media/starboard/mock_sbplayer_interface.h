@@ -91,15 +91,14 @@ class MockSbPlayerInterface : public SbPlayerInterface {
                void*),
               (override));
   MOCK_METHOD(void, SetUrlPlayerDrmSystem, (SbPlayer, SbDrmSystem), (override));
-  MOCK_METHOD(void,
-              GetUrlPlayerExtraInfo,
-              (SbPlayer, SbUrlPlayerExtraInfo*),
-              (override));
-
   bool GetUrlPlayerOutputModeSupported(
       SbPlayerOutputMode /*output_mode*/) override {
     return true;
   }
+  MOCK_METHOD(void,
+              GetUrlPlayerExtraInfo,
+              (SbPlayer, SbUrlPlayerExtraInfo*),
+              (override));
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
   bool GetAudioConfiguration(
