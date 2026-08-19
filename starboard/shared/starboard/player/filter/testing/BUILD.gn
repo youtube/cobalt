@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import("//cobalt/build/modular_executable.gni")
+import("//testing/test.gni")
 
 if (current_toolchain == starboard_toolchain) {
   if (is_cobalt_hermetic_build) {
@@ -20,7 +21,7 @@ if (current_toolchain == starboard_toolchain) {
     _benchmark_type = "executable"
   }
 
-  source_set("player_filter_tests") {
+  test("player_filter_tests") {
     testonly = true
 
     sources = [
@@ -52,6 +53,7 @@ if (current_toolchain == starboard_toolchain) {
     deps = cobalt_platform_dependencies
     deps += [
       "//$starboard_path:starboard_platform",
+      "//starboard:starboard_test_main",
       "//starboard/egl_and_gles:buildflags",
       "//starboard/shared/starboard/player:player_test_data",
       "//starboard/shared/starboard/player/filter:filter_based_player_sources",
