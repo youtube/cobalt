@@ -28,6 +28,7 @@
 #include "build/buildflag.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
+#include "cobalt/browser/memory_ablation.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/switches.h"
@@ -230,6 +231,8 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 
   cobalt::memory::CobaltMemoryAttributionManager::Get()->Start();
 
+  MaybeApplyMemoryAblation();
+
 #if !BUILDFLAG(IS_ANDROIDTV)
   auto* client = CobaltContentBrowserClient::Get();
   CHECK(client) << "CobaltContentBrowserClient::Get() returned NULL in "
@@ -238,13 +241,13 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 #if BUILDFLAG(USE_EVERGREEN)
-  // It would probably be harmless but confusing to add this annotation on
-  // platforms that do not support native stability tracking.
+  auto* native_stability_manager =
+      h5vcc_native_stability::NativeStabilityManager::GetInstance();
 
   // TODO: b/528362453 - Consider moving this to an earlier startup stage (e.g.
   // PreEarlyInitialization) to ensure early startup crashes are also tagged.
-  h5vcc_native_stability::NativeStabilityManager::GetInstance()
-      ->ArmCrashUuidAnnotation();
+  native_stability_manager->ArmCrashUuidAnnotation();
+  native_stability_manager->PruneStorage();
 #endif  // BUILDFLAG(USE_EVERGREEN)
 
   int result = ShellBrowserMainParts::PreMainMessageLoopRun();

@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -102,7 +102,7 @@ jobs:
       matrix:
         upstream_branch: ${{ fromJson(needs.initialize.outputs.upstream_branches) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: chromium/${{ matrix.upstream_branch.milestone }}
           filter: blob:none

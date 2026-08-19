@@ -415,12 +415,6 @@ void Shell::SetShellCreatedCallback(
 }
 
 // static
-bool Shell::ShouldHideToolbar() {
-  return base::CommandLine::ForCurrentProcess()->HasSwitch(
-      switches::kContentShellHideToolbar);
-}
-
-// static
 Shell* Shell::FromWebContents(WebContents* web_contents) {
   for (Shell* window : windows_) {
     if (window->web_contents() && window->web_contents() == web_contents) {
@@ -779,19 +773,6 @@ void Shell::Stop() {
   web_contents_->Stop();
 }
 
-void Shell::UpdateNavigationControls(bool should_show_loading_ui) {
-  int current_index = web_contents_->GetController().GetCurrentEntryIndex();
-  int max_index = web_contents_->GetController().GetEntryCount() - 1;
-
-  g_platform->EnableUIControl(this, ShellPlatformDelegate::BACK_BUTTON,
-                              current_index > 0);
-  g_platform->EnableUIControl(this, ShellPlatformDelegate::FORWARD_BUTTON,
-                              current_index < max_index);
-  g_platform->EnableUIControl(
-      this, ShellPlatformDelegate::STOP_BUTTON,
-      should_show_loading_ui && web_contents_->IsLoading());
-}
-
 void Shell::ShowDevTools() {
   if (!devtools_frontend_) {
     auto* devtools_frontend = ShellDevToolsFrontend::Show(web_contents());
@@ -884,12 +865,6 @@ WebContents* Shell::OpenURLFromTab(
   return target;
 }
 
-void Shell::LoadingStateChanged(WebContents* source,
-                                bool should_show_loading_ui) {
-  UpdateNavigationControls(should_show_loading_ui);
-  g_platform->SetIsLoading(this, source->IsLoading());
-}
-
 void Shell::EnterFullscreenModeForTab(
     RenderFrameHost* requesting_frame,
     const blink::mojom::FullscreenOptions& options) {
@@ -971,13 +946,6 @@ bool Shell::CanOverscrollContent() {
 #endif
 }
 
-void Shell::NavigationStateChanged(WebContents* source,
-                                   InvalidateTypes changed_flags) {
-  if (changed_flags & INVALIDATE_TYPE_URL) {
-    g_platform->SetAddressBarURL(this, source->GetVisibleURL());
-  }
-}
-
 JavaScriptDialogManager* Shell::GetJavaScriptDialogManager(
     WebContents* source) {
   if (!dialog_manager_) {
@@ -1010,8 +978,9 @@ void Shell::ActivateContents(WebContents* contents) {
   }
 }
 
-bool Shell::IsBackForwardCacheSupported(WebContents& web_contents) {
-  return true;
+bool Shell::IsBackForwardCacheSupported(WebContents& /*web_contents*/) {
+  return !base::CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kDisableBackForwardCache);
 }
 
 PreloadingEligibility Shell::IsPrerender2Supported(
@@ -1161,6 +1130,19 @@ void Shell::OnVisibilityChanged(Visibility visibility) {
   if (visibility == Visibility::VISIBLE && pending_focus_) {
     // Retry the pending focus now that the window is visible in Aura.
     Focus();
+  }
+
+  // When the OS backgrounds the app (resulting in Visibility::HIDDEN state),
+  // tearing down the PiP session from here ensures the
+  // VideoPictureInPictureWindowController pauses the video and destroys the UI
+  // overlay window.
+  // See: b/532272209
+  if (base::FeatureList::IsEnabled(cobalt::features::kEnablePictureInPicture) &&
+      visibility == content::Visibility::HIDDEN && web_contents() &&
+      web_contents()->HasPictureInPictureVideo()) {
+    content::PictureInPictureWindowController::
+        GetOrCreateVideoPictureInPictureController(web_contents())
+            ->Close(/*should_pause_video=*/true);
   }
 }
 
