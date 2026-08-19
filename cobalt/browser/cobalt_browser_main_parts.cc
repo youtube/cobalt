@@ -28,6 +28,7 @@
 #include "build/buildflag.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
+#include "cobalt/browser/memory_ablation.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/switches.h"
@@ -229,6 +230,8 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 #endif
 
   cobalt::memory::CobaltMemoryAttributionManager::Get()->Start();
+
+  MaybeApplyMemoryAblation();
 
 #if !BUILDFLAG(IS_ANDROIDTV)
   auto* client = CobaltContentBrowserClient::Get();

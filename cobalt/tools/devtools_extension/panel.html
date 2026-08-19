@@ -26,7 +26,7 @@
       </div>
     </header>
 
-    <!-- Primary Section: Session Median Telemetry (12 Continuous P50 Allocators) -->
+    <!-- Primary Section: Session P50 Memory Breakdown (12 Continuous P50 Allocators) -->
     <section class="table-section">
       <div class="section-header">
         <div class="title-row">
@@ -65,6 +65,44 @@
           </tr>
         </tbody>
       </table>
+    </section>
+
+    <!-- Real-Time Live Memory Time Series Section (1 Hz Streaming) -->
+    <section class="chart-section">
+      <div class="section-header">
+        <div class="title-row">
+          <div class="section-title">📈 Real-Time Live Memory</div>
+          <div id="streaming-badge" class="streaming-badge inactive">● 1 Hz Inactive</div>
+        </div>
+        <div class="section-instruction">
+          Instantaneous physical memory footprint sampled at 1 Hz over a rolling 60-second window, displaying GC sawtooth patterns and live allocation spikes.
+        </div>
+      </div>
+
+      <!-- Time Series Canvas Visualizer -->
+      <div class="chart-canvas-container">
+        <canvas id="live-memory-chart" height="150"></canvas>
+        <div id="chart-tooltip" class="chart-tooltip" style="display: none;"></div>
+      </div>
+
+      <!-- Real-Time Live Meter Badges -->
+      <div class="live-legend-bar">
+        <div class="live-legend-chip chip-rss">
+          <span class="live-legend-dot dot-rss"></span>
+          <span class="live-legend-label">RSS (Live):</span>
+          <span id="live-val-rss" class="live-legend-val">-- MB</span>
+        </div>
+        <div class="live-legend-chip chip-pmf">
+          <span class="live-legend-dot dot-pmf"></span>
+          <span class="live-legend-label">PMF (Live):</span>
+          <span id="live-val-pmf" class="live-legend-val">-- MB</span>
+        </div>
+        <div class="live-legend-chip chip-v8">
+          <span class="live-legend-dot dot-v8"></span>
+          <span class="live-legend-label">V8 Heap (Live):</span>
+          <span id="live-val-v8" class="live-legend-val">-- MB</span>
+        </div>
+      </div>
     </section>
 
     <!-- Lifecycle Peak Memory Section -->
