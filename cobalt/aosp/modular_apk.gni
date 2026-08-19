@@ -71,6 +71,10 @@ template("modular_apk") {
       "//components/crash/core/app:chrome_crashpad_handler_named_as_so($native_toolchain)",
     ]
 
+    if (_name == "nplb") {
+      deps += [ "//cobalt/aosp:nplb_instrumentation_java" ]
+    }
+
     loadable_modules = [
       "$root_build_dir/libc++_shared.so",
       "$root_build_dir/native_target/libchrome_crashpad_handler.so",

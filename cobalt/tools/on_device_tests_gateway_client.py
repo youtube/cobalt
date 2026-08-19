@@ -175,9 +175,14 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
   # TODO: b/432536319 - Use flag to determine file ending.
 
   if args.device_family == 'android':
+    if target_name.endswith('_loader'):
+      module_name = target_name[:-len('_loader')]
+      apk_file = f'{module_name}.apk'
+    else:
+      apk_file = f'{target_name}-debug.apk'
     res = [
-        f'test_apk={args.gcs_archive_path}/{target_name}-debug.apk',
-        f'build_apk={args.gcs_archive_path}/{target_name}-debug.apk',
+        f'test_apk={args.gcs_archive_path}/{apk_file}',
+        f'build_apk={args.gcs_archive_path}/{apk_file}',
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
 
