@@ -30,7 +30,7 @@ namespace {
 typedef NS_ENUM(NSInteger, NavigationDirection) {
 =======
 typedef NS_ENUM(NSInteger, RemoteButton) {
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   kUp,
   kDown,
   kLeft,
@@ -40,7 +40,7 @@ typedef NS_ENUM(NSInteger, RemoteButton) {
   kMediaPlayPause,
   kSelect,
   kMenu,
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   kNone
 };
 
@@ -177,7 +177,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 #else
     [self addSwipeAndPanGestureRecognizers];
 #endif
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
   return self;
 }
@@ -281,7 +281,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     if ([swipeGesture isKindOfClass:[UISwipeGestureRecognizer class]]) {
       [panGesture requireGestureRecognizerToFail:swipeGesture];
     }
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 }
 
@@ -356,7 +356,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
                            eventType:blink::WebInputEvent::Type::kKeyDown];
   [self sendKeyEventWithRemoteButton:button
                            eventType:blink::WebInputEvent::Type::kKeyUp];
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 - (void)handlePan:(UIPanGestureRecognizer*)gesture {
@@ -520,7 +520,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
                                 ui::EventTimeForNow());
 
   switch (remoteButton) {
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     case kLeft:
       event.native_key_code = UIKeyboardHIDUsageKeyboardLeftArrow;
       event.dom_code = static_cast<int>(ui::DomCode::ARROW_LEFT);
@@ -577,7 +577,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
       break;
     case kNone:
       return NO;
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   _view->SendKeyEvent(
@@ -850,7 +850,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 }
 #endif
 
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #pragma mark - UIGestureRecognizerDelegate
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer*)gestureRecognizer

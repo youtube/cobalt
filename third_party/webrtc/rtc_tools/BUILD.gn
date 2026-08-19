@@ -244,7 +244,7 @@ if (!is_component_build) {
   # is_component_build=true because it depends on WebRTC testonly code
   # which is not part of //third_party/webrtc_overrides:webrtc_component.
 
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   rtc_executable("video_replay") {
     visibility = [ "*" ]
     testonly = true

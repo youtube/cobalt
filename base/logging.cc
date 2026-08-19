@@ -128,7 +128,7 @@ typedef FILE* FileHandle;
 #include "base/logging/rust_logger.rs.h"
 #endif
 
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 namespace logging {
 
 namespace {
@@ -569,7 +569,7 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
 <<<<<<< HEAD
 =======
 #if !BUILDFLAG(IS_NACL) && (!BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC))
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Connects Rust logging with the //base logging functionality.
   internal::init_rust_log_crate();
 

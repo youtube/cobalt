@@ -308,7 +308,7 @@ DbStatus DomStorageDatabase::Put(KeyView key, ValueView value) const {
 #else
   return db_->Put(leveldb::WriteOptions(), MakeSlice(key), MakeSlice(value));
 #endif
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 DbStatus DomStorageDatabase::GetPrefixed(
@@ -371,7 +371,7 @@ DbStatus DomStorageDatabase::Commit(leveldb::WriteBatch* batch) const {
 #else
   return db_->Write(leveldb::WriteOptions(), batch);
 #endif
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 DbStatus DomStorageDatabase::RewriteDB() {

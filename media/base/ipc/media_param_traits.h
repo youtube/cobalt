@@ -48,7 +48,7 @@ struct ParamTraits<media::EncryptionPattern> {
 };
 
 =======
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace IPC
 
 #endif  // MEDIA_BASE_IPC_MEDIA_PARAM_TRAITS_H_

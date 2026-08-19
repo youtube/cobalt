@@ -2849,7 +2849,7 @@ config("optimize_speed") {
       } else {
         cflags = [ "-O3" ] + common_optimize_on_cflags
       }
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
   } else if (optimize_for_fuzzing) {
     cflags = [ "-O1" ] + common_optimize_on_cflags
@@ -2877,7 +2877,7 @@ config("default_optimization") {
     # It gets optimized the same way regardless of the type of build.
     configs = [ "//build/config/nacl:irt_optimize" ]
   } else if (is_debug || is_cobalt && cobalt_debugging_enabled) {
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     configs = [ ":no_optimize" ]
   } else if (optimize_for_fuzzing) {
     assert(!is_win, "Fuzzing optimize level not supported on Windows")

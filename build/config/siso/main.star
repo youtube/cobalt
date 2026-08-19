@@ -14,7 +14,7 @@ load("./blink_all.star", "blink_all")
 load("./config.star", "config")
 =======
 load("./cobalt.star", "cobalt")
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 load("./gn_logs.star", "gn_logs")
 load("./linux.star", chromium_linux = "chromium")
 load("./mac.star", chromium_mac = "chromium")

@@ -28,7 +28,7 @@ group("service") {
   } else {
     public_deps = [ ":service_sources" ]
   }
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4ee74211cf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 group("gles2") {
