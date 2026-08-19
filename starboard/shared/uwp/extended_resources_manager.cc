@@ -16,6 +16,8 @@
 
 #include <ppltasks.h>
 
+#include <memory>
+
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
@@ -47,6 +49,7 @@ using ::starboard::xb1::shared::GpuVideoDecoderBase;
 using ::starboard::xb1::shared::VpxVideoDecoder;
 #endif  // defined(INTERNAL_BUILD)
 
+const SbTime kAcquireTimeout = 10 * kSbTimeSecond;
 const SbTime kReleaseTimeout = kSbTimeSecond;
 
 // kFrameBuffersPoolMemorySize is the size of gpu memory heap for common use
@@ -180,7 +183,17 @@ void ExtendedResourcesManager::Quit() {
   pending_extended_resources_release_.store(true);
 }
 
+void ExtendedResourcesManager::ResetNonrecoverableFailure() {
+  ScopedLock scoped_lock(mutex_);
+  if (is_nonrecoverable_failure_.load()) {
+    SB_LOG(INFO) << "Resetting nonrecoverable failure state and retry counter.";
+    is_nonrecoverable_failure_.store(false);
+    consecutive_acquire_failures_ = 0;
+  }
+}
+
 void ExtendedResourcesManager::ReleaseBuffersHeap() {
+  ScopedLock scoped_lock(mutex_);
   d3d12FrameBuffersHeap_.Reset();
 }
 
@@ -321,9 +334,10 @@ bool ExtendedResourcesManager::AcquireExtendedResourcesInternal() {
     auto extended_resources_mode_enable_task =
         concurrency::create_task(::starboard::xb1::shared::Acquire());
 
-    Semaphore semaphore;
+    auto semaphore = std::make_shared<Semaphore>();
+    std::weak_ptr<Semaphore> weak_semaphore = semaphore;
     extended_resources_mode_enable_task.then(
-        [this, &semaphore](concurrency::task<bool> task) {
+        [this, weak_semaphore](concurrency::task<bool> task) {
           try {
             if (task.get()) {
               is_extended_resources_acquired_.store(true);
@@ -339,17 +353,30 @@ bool ExtendedResourcesManager::AcquireExtendedResourcesInternal() {
           } catch (...) {
             SB_LOG(ERROR) << "Exception on acquiring extended resources.";
           }
-          semaphore.Put();
+          if (auto semaphore = weak_semaphore.lock()) {
+            semaphore->Put();
+          }
         });
-    if (semaphore.TakeWait(10 * kSbTimeSecond)) {
+    if (!semaphore->TakeWait(kAcquireTimeout)) {
+      // Timeout - mark as nonrecoverable failure
       acquisition_condition_.Signal();
-      // If extended resource acquisition was not successful after the wait
-      // time, signal a nonrecoverable failure, unless a release of
-      // extended resources has since been requested.
+      SB_LOG(ERROR) << "Extended resource mode acquisition timed out";
+      OnNonrecoverableFailure();
+    } else {
+      // Semaphore signaled - task completed, check if acquisition failed
       if (!is_extended_resources_acquired_.load() &&
           !pending_extended_resources_release_.load()) {
-        SB_LOG(WARNING) << "Extended resource mode acquisition timed out";
-        OnNonrecoverableFailure();
+        consecutive_acquire_failures_++;
+        SB_LOG(WARNING) << "Extended resource mode acquisition failed"
+                        << " (attempt " << consecutive_acquire_failures_
+                        << " of " << kMaxConsecutiveAcquireFailures << ")";
+        // Only mark as nonrecoverable after multiple consecutive failures
+        if (consecutive_acquire_failures_ >= kMaxConsecutiveAcquireFailures) {
+          SB_LOG(ERROR) << "Extended resource acquisition failed "
+                        << kMaxConsecutiveAcquireFailures
+                        << " times, marking as nonrecoverable.";
+          OnNonrecoverableFailure();
+        }
       }
     }
   }
@@ -358,6 +385,8 @@ bool ExtendedResourcesManager::AcquireExtendedResourcesInternal() {
     SB_LOG(INFO) << "AcquireExtendedResourcesInternal() failed.";
     return false;
   }
+  // Reset failure counter on successful acquisition
+  consecutive_acquire_failures_ = 0;
   return is_extended_resources_acquired_.load();
 }
 
@@ -535,15 +564,18 @@ void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
   auto extended_resources_mode_disable_task =
       concurrency::create_task([] { ::starboard::xb1::shared::Release(); });
 
-  Semaphore semaphore;
+  auto semaphore = std::make_shared<Semaphore>();
+  std::weak_ptr<Semaphore> weak_semaphore = semaphore;
   extended_resources_mode_disable_task.then(
-      [this, &semaphore](concurrency::task<void> task) {
+      [this, weak_semaphore](concurrency::task<void> task) {
         try {
           acquisition_condition_.Signal();
           // ReleaseExtendedResources has no return value but a call to get()
           // will bubble up any exceptions thrown during the task.
           task.get();
           SB_LOG(INFO) << "Released extended resources.";
+          // Reset failure counter on successful release to start fresh
+          consecutive_acquire_failures_ = 0;
         } catch (const std::exception& e) {
           SB_LOG(ERROR) << "Exception on releasing extended resources: "
                         << e.what();
@@ -554,9 +586,11 @@ void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
         }
         is_extended_resources_acquired_.store(false);
         pending_extended_resources_release_.store(false);
-        semaphore.Put();
+        if (auto semaphore = weak_semaphore.lock()) {
+          semaphore->Put();
+        }
       });
-  if (!semaphore.TakeWait(kReleaseTimeout)) {
+  if (!semaphore->TakeWait(kReleaseTimeout)) {
     acquisition_condition_.Signal();
     // If extended resources are still acquired or the release is still pending
     // after the wait time, signal a nonrecoverable failure.
