@@ -21,12 +21,24 @@
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 
+#if BUILDFLAG(IS_POSIX)
+#include <unistd.h>
+#endif
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+#include "base/debug/proc_maps_linux.h"
+#endif
+
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
 
 using ::starboard::StarboardBridge;
 #elif BUILDFLAG(IS_STARBOARD)
 #include "starboard/common/time.h"
+#endif
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/system.h"
 #endif
 
 namespace performance {
@@ -59,7 +71,7 @@ void PerformanceImpl::MeasureAvailableCpuMemory(
 }
 
 void PerformanceImpl::MeasureUsedCpuMemory(
-    MeasureAvailableCpuMemoryCallback callback) {
+    MeasureUsedCpuMemoryCallback callback) {
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
       base::BindOnce([]() -> uint64_t {
@@ -109,6 +121,100 @@ void PerformanceImpl::MeasureReservedVirtualMemory(
         return info.has_value() ? info->vm_size_bytes : 0;
       }),
       std::move(callback));
+}
+
+void PerformanceImpl::MeasureRssHighWaterMarkMemory(
+    MeasureRssHighWaterMarkMemoryCallback callback) {
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t {
+        auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
+            base::GetCurrentProcessHandle());
+        if (!process_metrics) {
+          return 0;
+        }
+        auto info = process_metrics->GetMemoryInfo();
+        return info.has_value() ? info->vm_hwm_bytes : 0;
+      }),
+      std::move(callback));
+#else
+  std::move(callback).Run(0);
+#endif
+}
+
+void PerformanceImpl::MeasureUsedRssAnonMemory(
+    MeasureUsedRssAnonMemoryCallback callback) {
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t {
+        auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
+            base::GetCurrentProcessHandle());
+        if (!process_metrics) {
+          return 0;
+        }
+        auto info = process_metrics->GetMemoryInfo();
+        return info.has_value() ? info->rss_anon_bytes : 0;
+      }),
+      std::move(callback));
+#else
+  std::move(callback).Run(0);
+#endif
+}
+
+void PerformanceImpl::MeasureTotalCpuMemory(
+    MeasureTotalCpuMemoryCallback callback) {
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t {
+#if BUILDFLAG(IS_POSIX) && defined(_SC_PHYS_PAGES)
+        long pages = sysconf(_SC_PHYS_PAGES);
+#if defined(_SC_PAGESIZE)
+        long page_size = sysconf(_SC_PAGESIZE);
+#elif defined(_SC_PAGE_SIZE)
+        long page_size = sysconf(_SC_PAGE_SIZE);
+#else
+        long page_size = -1;
+#endif
+        if (pages > 0 && page_size > 0) {
+          return static_cast<uint64_t>(pages) *
+                 static_cast<uint64_t>(page_size);
+        }
+#endif
+        return 0;
+      }),
+      std::move(callback));
+}
+
+void PerformanceImpl::MeasureUsedPssMemory(
+    MeasureUsedPssMemoryCallback callback) {
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t {
+        auto smaps_rollup = base::debug::ReadAndParseSmapsRollup();
+        return smaps_rollup.has_value() ? smaps_rollup->pss : 0;
+      }),
+      std::move(callback));
+#else
+  std::move(callback).Run(0);
+#endif
+}
+
+void PerformanceImpl::MeasureApplicationLimitMemory(
+    MeasureApplicationLimitMemoryCallback callback) {
+#if BUILDFLAG(IS_STARBOARD)
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t {
+        int64_t limit = SbSystemGetTotalCPUMemory();
+        return limit > 0 ? static_cast<uint64_t>(limit) : 0;
+      }),
+      std::move(callback));
+#else
+  std::move(callback).Run(0);
+#endif
 }
 
 void PerformanceImpl::GetAppStartupTimeStamp(
