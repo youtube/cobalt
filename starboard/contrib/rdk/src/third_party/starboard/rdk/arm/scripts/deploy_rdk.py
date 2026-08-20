@@ -173,6 +173,7 @@ def package_and_deploy(
     remote_dir: str,
     deps_file: Optional[Path],
     mode: str,
+    deploy_extract: bool = False,
 ) -> None:
     """Packages artifacts using runtime_deps and pushes to device."""
     print("=== Packaging & Deploying artifacts ===")
@@ -193,9 +194,29 @@ def package_and_deploy(
 
     print(f"Packaging with: {' '.join(tar_cmd)}")
     run_command(tar_cmd)
+    if deploy_extract:
+        if not remote_dir or remote_dir == "/":
+            print(f"Error: remote_dir '{remote_dir}' is invalid or dangerous for cleanup.")
+            sys.exit(1)
+        print("=== Cleaning previous remote deployment ===")
+        # Remove old app directories and binaries, ignoring errors if they don't exist
+        run_remote_command(
+            f"rm -rf {remote_dir}/app {remote_dir}/*.so {remote_dir}/loader_app {remote_dir}/*.lz4 {remote_dir}/archive.tar.gz || true",
+            device_id, device_ip, check=False)
+
     run_remote_command(f"mkdir -p {remote_dir}", device_id, device_ip)
     push_to_device(archive_name, f"{remote_dir}/", device_id, device_ip)
     Path(archive_name).unlink(missing_ok=True)
+
+    if deploy_extract:
+        print("=== Extracting archive on device ===")
+        extract_cmds = [
+            f"cd {remote_dir}",
+            "tar -xzf archive.tar.gz",
+            "rm archive.tar.gz",
+            f"chmod -R 777 {remote_dir}",
+        ]
+        run_remote_command(" && ".join(extract_cmds), device_id, device_ip)
 
 
 def ensure_dolby_vision_policy(device_id: Optional[str], device_ip: Optional[str]) -> None:
@@ -436,6 +457,11 @@ def parse_args() -> argparse.Namespace:
         "--force-deploy",
         action="store_true",
         help="Force deployment even if up-to-date.",
+    )
+    parser.add_argument(
+        "--deploy-extract",
+        action="store_true",
+        help="During deployment, cleans previous remote image and extracts archive directly on device.",
     )
     parser.add_argument(
         "--deeplink",
@@ -819,7 +845,7 @@ def main() -> None:
     except Exception as e:
         print(f"[WARNING] Failed to check if remote directory exists: {e}")
 
-    skip_deployment = args.skip_deploy or (is_up_to_date and not args.force_deploy and remote_dir_exists)
+    skip_deployment = args.skip_deploy or (is_up_to_date and not args.force_deploy and not args.deploy_extract and remote_dir_exists)
 
     deployed_archive = False
     if skip_deployment:
@@ -830,8 +856,10 @@ def main() -> None:
         if args.only_lib:
             deploy_only_lib(device_id, device_ip, out_dir, remote_dir)
         else:
-            package_and_deploy(device_id, device_ip, out_dir, remote_dir, deps_file, "executable" if args.tests else args.mode)
-            deployed_archive = True
+            package_and_deploy(device_id, device_ip, out_dir, remote_dir, deps_file, "executable" if args.tests else args.mode, deploy_extract=args.deploy_extract)
+            # If we already extracted it during package_and_deploy because of deploy-extract,
+            # we do not need launch_on_device to extract it again.
+            deployed_archive = not args.deploy_extract
 
     if args.run:
         ensure_dolby_vision_policy(device_id, device_ip)
