@@ -31,14 +31,10 @@
 #include "services/audio/service_factory.h"
 #include "services/data_decoder/data_decoder_service.h"
 #include "services/network/network_service.h"
-<<<<<<< HEAD
-#include "services/on_device_model/on_device_model_service.h"
-#include "services/on_device_model/public/mojom/on_device_model_service.mojom.h"
-=======
 #if !BUILDFLAG(IS_COBALT)
 #include "services/on_device_model/on_device_model_service.h"  // nogncheck
+#include "services/on_device_model/public/mojom/on_device_model_service.mojom.h"  // nogncheck
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "services/tracing/public/mojom/tracing_service.mojom.h"
 #include "services/tracing/tracing_service.h"
 #include "services/video_capture/public/mojom/video_capture_service.mojom.h"
