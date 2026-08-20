@@ -463,24 +463,9 @@ HTMLDocumentParser::HTMLDocumentParser(Document& document,
   if (!document.GetFrame() && !document.IsPrefetchOnly())
     return;
 
-<<<<<<< HEAD
   if (prefetch_policy == kAllowPrefetching && !ShouldSkipPreloadScan()) {
     preloader_ = MakeGarbageCollected<HTMLResourcePreloader>(document);
   }
-=======
-  if (prefetch_policy == kAllowPrefetching) {
-#if BUILDFLAG(IS_COBALT)
-    if (!base::FeatureList::IsEnabled(
-            features::kCobaltBypassHTMLPreloadScanner)) {
-      preloader_ = MakeGarbageCollected<HTMLResourcePreloader>(document);
-    }
-#else
-    preloader_ = MakeGarbageCollected<HTMLResourcePreloader>(document);
-#endif  // BUILDFLAG(IS_COBALT)
-  }
-
-  should_skip_preload_scan_ = ShouldSkipPreloadScan();
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 HTMLDocumentParser::~HTMLDocumentParser() {
