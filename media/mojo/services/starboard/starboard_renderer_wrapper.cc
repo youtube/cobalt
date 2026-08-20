@@ -73,8 +73,6 @@ class ProxyDemuxerStream : public DemuxerStream {
     return bridge_->SupportsConfigChanges(type_);
   }
 
-  std::string mime_type() const override { return bridge_->GetMimeType(type_); }
-
   void EnableBitstreamConverter() override {
     bridge_->EnableBitstreamConverter(type_);
   }
@@ -305,7 +303,7 @@ void StarboardRendererWrapper::SetCdm(CdmContext* cdm_context,
 }
 
 void StarboardRendererWrapper::SetLatencyHint(
-    absl::optional<base::TimeDelta> latency_hint) {
+    std::optional<base::TimeDelta> latency_hint) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   GetRenderer()->SetLatencyHint(latency_hint);
 }

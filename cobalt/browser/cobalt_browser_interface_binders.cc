@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 
+#include <optional>
+
 #include "base/functional/bind.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
@@ -97,7 +99,7 @@ void ForwardToJavaFrame(content::RenderFrameHost* render_frame_host,
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 
 void PopulateCobaltFrameBinders(
-    absl::optional<int64_t> app_startup_timestamp,
+    std::optional<int64_t> app_startup_timestamp,
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map) {
 // We want to use the Java Mojo implementation for 1P ATV only.
@@ -181,9 +183,25 @@ void PopulateCobaltFrameBinders(
 
   binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
+#if BUILDFLAG(USE_EVERGREEN)
   binder_map->Add<h5vcc_native_stability::mojom::H5vccNativeStability>(
       base::BindRepeating(
           &h5vcc_native_stability::H5vccNativeStabilityImpl::Create));
+#else
+  // For platforms not (yet) supporting native stability reporting, register
+  // a stub binder that ignores binding requests and drops the receiver. This
+  // prevents the browser from terminating the frame's Mojo broker if the
+  // interface is requested, while ensuring no disk I/O or state modification
+  // occurs on unsupported platforms.
+  binder_map->Add<h5vcc_native_stability::mojom::H5vccNativeStability>(
+      base::BindRepeating(
+          [](content::RenderFrameHost*,
+             mojo::PendingReceiver<
+                 h5vcc_native_stability::mojom::H5vccNativeStability>) {
+            VLOG(1) << "Ignoring H5vccNativeStability request for "
+                    << "non-Evergreen build.";
+          }));
+#endif
   binder_map->Add<media::mojom::PlatformWindowProvider>(
       base::BindRepeating(&BindPlatformWindowProvider));
   binder_map->Add<h5vcc_platform_service::mojom::H5vccPlatformServiceManager>(

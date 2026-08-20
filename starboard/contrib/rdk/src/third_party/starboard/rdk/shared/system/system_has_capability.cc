@@ -11,19 +11,20 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#include <sys/stat.h>
-#include "starboard/system.h"
+#include <unistd.h>
 
+#include "starboard/system.h"
 #include "starboard/common/log.h"
 
 bool SbSystemHasCapability(SbSystemCapabilityId capability_id) {
   switch (capability_id) {
     case kSbSystemCapabilityReversedEnterAndBack:
       return false;
-    case kSbSystemCapabilityCanQueryGPUMemoryStats:
-      struct stat buffer;
-      static bool gpu_stats_exists_cached = (stat("/sys/fs/cgroup/gpu/gpu.usage_in_bytes", &buffer) == 0);
-      return gpu_stats_exists_cached;
+    case kSbSystemCapabilityCanQueryGPUMemoryStats: {
+      static const bool kHasGpuMemoryStats =
+          (access("/sys/class/misc/mali0/device/gpu_memory", R_OK) == 0);
+      return kHasGpuMemoryStats;
+    }
   }
 
   SB_DLOG(WARNING) << "Unrecognized capability: " << capability_id;

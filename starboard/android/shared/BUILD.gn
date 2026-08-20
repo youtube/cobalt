@@ -23,6 +23,8 @@ import("//testing/test.gni")
 # Configuration for overall Android Starboard Platform.
 ##########################################################
 
+assert(is_starboard_toolchain)
+
 config("starboard_platform_libs") {
   libs = [
     "EGL",
@@ -347,6 +349,7 @@ static_library("starboard_platform") {
       "asset_manager.cc",
       "asset_manager.h",
       "posix_emu/access.cc",
+      "posix_emu/alarm.cc",
       "posix_emu/errno.cc",
       "posix_emu/file.cc",
       "posix_emu/net_if.cc",
@@ -384,7 +387,7 @@ static_library("starboard_base_symbolize") {
     "//starboard:starboard_headers_only",
     "//starboard/common:common_headers_only",
   ]
-  if (is_starboard && current_toolchain == starboard_toolchain) {
+  if (is_starboard) {
     public_deps = [ "//starboard/elf_loader:evergreen_info" ]
   }
 

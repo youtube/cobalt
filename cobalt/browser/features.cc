@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/features.h"
 
+#include "cobalt/build/configs/buildflags.h"
+
 namespace cobalt {
 namespace features {
 
@@ -32,10 +34,6 @@ const base::FeatureParam<std::string> kTestFinchFeatureParam{
 
 BASE_FEATURE(kHangReporting,
              "HangReporting",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kUseIPv4ForDNS,
-             "UseIPv4ForDNS",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCobaltMetricsIntervalFeature,
@@ -70,6 +68,25 @@ BASE_FEATURE(kDisableSplashScreen,
 BASE_FEATURE(kForceVideoSplashScreen,
              "ForceVideoSplashScreen",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kEnablePictureInPicture,
+             "PictureInPicture",
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else   // BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif  // BUILDFLAG(IS_ANDROID)
+);
+
+BASE_FEATURE(kCobaltNativeMemoryAblation,
+             "CobaltNativeMemoryAblation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kMemoryAblationSizeMBParam{
+    &kCobaltNativeMemoryAblation, "ablation_size_mb", 0};
+
+const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam{
+    &kCobaltNativeMemoryAblation, "ablation_delay", base::Seconds(0)};
 
 }  // namespace features
 }  // namespace cobalt

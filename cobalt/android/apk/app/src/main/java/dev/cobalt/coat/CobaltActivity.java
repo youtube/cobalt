@@ -18,7 +18,6 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.content.Intent;
 import android.net.Uri;
-import java.util.Locale;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -31,7 +30,6 @@ import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.view.WindowManager;
-
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
@@ -57,6 +55,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.chromium.base.CommandLine;
@@ -141,7 +140,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
         }
       };
   private boolean mWasDisplayOn = true;
-
 
   @VisibleForTesting
   static String[] appendArgsFromMetaData(Bundle metaData, String[] commandLineArgs) {
@@ -562,8 +560,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     }
     WebContents webContents = getActiveWebContents();
     if (webContents != null
-        && (isNvidiaShield()
-            || getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
+        && (isNvidiaShield() || getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
       // document.onresume event
       webContents.onResume();
     }
@@ -616,6 +613,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
         // If ENABLE_FREEZE is specified, fire freeze event immediately
         webContents.onFreeze();
       }
+    }
+
+    if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING)) {
+      CobaltContentBrowserClient.flushCookiesAndLocalStorage();
     }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {

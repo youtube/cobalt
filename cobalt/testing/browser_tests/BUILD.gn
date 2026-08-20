@@ -100,10 +100,11 @@ static_library("cobalt_browsertests_test_runner") {
     "//base:i18n",
     "//base/test:test_config",
     "//build:chromeos_buildflags",
-    "//cobalt/browser:browser",
+    "//cobalt/browser",
+    "//cobalt/common/features",
     "//cobalt/shell:cobalt_shell_app",
-    "//components/network_session_configurator/common:common",
-    "//components/services/storage:storage",
+    "//components/network_session_configurator/common",
+    "//components/services/storage",
     "//content/app:for_content_tests",
     "//content/browser:for_content_tests",
     "//content/test:test_support",
@@ -223,6 +224,7 @@ test("cobalt_browsertests") {
     "//cobalt/browser/metrics/cobalt_memory_threshold_browsertest.cc",
     "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
     "//cobalt/browser/metrics/font_metrics_browsertest.cc",
+    "//cobalt/browser/metrics/highest_pmf_reporter_browsertest.cc",
     "content_main_runner_impl_browsertest.cc",
 
     #"encrypted_media_browsertest.cc",
@@ -233,6 +235,7 @@ test("cobalt_browsertests") {
     #"media_source_browsertest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
     "navigation_browsertest.cc",
+    "picture_in_picture_browsertest.cc",
     "privacy_sandbox_disabled_browsertest.cc",
 
     #"session_history_browsertest.cc",
@@ -269,7 +272,7 @@ test("cobalt_browsertests") {
     public_deps += [
       "//cobalt:common",
       "//cobalt/shell:cobalt_shell_lib",
-      "//ui/ozone/platform/starboard:starboard",
+      "//ui/ozone/platform/starboard",
     ]
   }
 
@@ -280,10 +283,11 @@ test("cobalt_browsertests") {
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
     "//cc/slim",
-    "//cobalt/browser:browser",
+    "//cobalt/browser",
     "//cobalt/browser:global_features",
     "//cobalt/browser:metrics",
     "//cobalt/browser:switches",
+    "//cobalt/common/features",
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//components/attribution_reporting:mojom",
@@ -299,7 +303,7 @@ test("cobalt_browsertests") {
     "//components/services/storage",
     "//components/services/storage/public/cpp",
     "//components/ukm:test_support",
-    "//components/url_formatter:url_formatter",
+    "//components/url_formatter",
     "//components/viz/host",
     "//components/viz/test:test_support",
     "//components/web_package",
@@ -346,8 +350,8 @@ test("cobalt_browsertests") {
     "//services/device/public/cpp/generic_sensor",
     "//services/device/public/mojom",
     "//services/device/public/mojom:generic_sensor",
-    "//services/image_annotation/public/cpp:cpp",
-    "//services/image_annotation/public/mojom:mojom",
+    "//services/image_annotation/public/cpp",
+    "//services/image_annotation/public/mojom",
     "//services/metrics",
     "//services/metrics/public/cpp:ukm_builders",
     "//services/network:test_support",
@@ -364,6 +368,7 @@ test("cobalt_browsertests") {
     "//storage/browser",
     "//storage/browser:test_support",
     "//third_party/blink/public:blink",
+    "//third_party/blink/renderer/controller",
     "//third_party/leveldatabase",
     "//third_party/mesa_headers",
     "//third_party/re2",
@@ -380,7 +385,7 @@ test("cobalt_browsertests") {
     "//ui/display",
     "//ui/display:test_support",
     "//ui/events:test_support",
-    "//ui/events/blink:blink",
+    "//ui/events/blink",
     "//ui/gfx",
     "//ui/gfx:gfx_switches",
     "//ui/gfx/geometry",
@@ -394,6 +399,7 @@ test("cobalt_browsertests") {
     "//ui/webui:test_support",
   ]
 
+  data = []
   data_deps = [
     ":cobalt_test_bundle_data",
     "//cobalt/shell:pak",
@@ -405,8 +411,9 @@ test("cobalt_browsertests") {
     bundle_deps = [
       ":cobalt_shell_pak_bundle_data",
       ":cobalt_test_bundle_data",
+      "//content/test:content_test_bundle_data",
     ]
-    deps += [ "//starboard/common:common" ]
+    deps += [ "//starboard/common" ]
   }
 
   if (is_android) {
@@ -419,8 +426,8 @@ test("cobalt_browsertests") {
       "//content/test:android_test_message_pump_support",
       "//services/data_decoder/public/cpp/android:safe_json_java",
       "//testing/android/native_test:native_test_support",
-      "//ui/android:android",
-      "//ui/touch_selection:touch_selection",
+      "//ui/android",
+      "//ui/touch_selection",
     ]
     android_manifest =
         "${target_gen_dir}/cobalt_browsertests_apk/AndroidManifest.xml"
@@ -430,7 +437,7 @@ test("cobalt_browsertests") {
 
   if (is_linux) {
     deps += [ "//third_party/libyuv" ]
-    data = [
+    data += [
       "//net/tools/testserver/",
       "//third_party/pywebsocket3/src/mod_pywebsocket/",
     ]
@@ -443,6 +450,7 @@ test("cobalt_browsertests") {
       "//starboard:starboard_headers_only",
     ]
     data_deps += [ ":cobalt_browsertests_runner_script" ]
+    data += [ "//content/test/data/title1.html" ]
 
     # Modular build does not call generate_wrapper().
     if (!use_custom_libc) {
@@ -460,8 +468,8 @@ test("cobalt_browsertests") {
 
   if (is_linux && !is_tsan) {
     deps += [
-      "//components/variations:variations",
-      "//components/variations/field_trial_config:field_trial_config",
+      "//components/variations",
+      "//components/variations/field_trial_config",
       "//mojo/public/cpp/platform",
       "//mojo/public/mojom/base",
     ]

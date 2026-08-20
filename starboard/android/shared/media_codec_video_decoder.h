@@ -80,7 +80,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   };
 
   struct PlatformOptions {
-    bool force_big_endian_hdr_metadata = false;
     int64_t reset_delay_usec = 0;
     int64_t flush_delay_usec = 0;
   };
@@ -186,9 +185,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // the main player and SW decoder for sub players.
   const bool require_software_codec_;
 
-  // Force endianness of HDR Metadata.
-  const bool force_big_endian_hdr_metadata_;
-
   const std::optional<int> tunnel_mode_audio_session_id_;
 
   // Set the maximum size in bytes of an input buffer for video.
@@ -206,10 +202,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const int64_t reset_delay_usec_;
   const int64_t flush_delay_usec_;
   const bool skip_flush_on_decoder_teardown_;
-
-  // By default, we reset the surface view after every playback. This flag
-  // enables clearing the surface view, instead of resetting it.
-  const bool force_clear_surface_;
 
   // Codec initialization will be delayed until the decoder receives enough
   // inputs to estimate video fps when |needs_fps_to_initialize_codec_| is true.
