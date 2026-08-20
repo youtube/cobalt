@@ -5349,6 +5349,7 @@ TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
     op_result.response = temp_crx_path;
 #endif
     Unpacker::Unpack(
+        "gjpmebpgbhcamgdgjcmnjfhggjpgcimm",
         std::vector<uint8_t>(std::begin(gjpm_hash), std::end(gjpm_hash)),
         op_result,
 #else
