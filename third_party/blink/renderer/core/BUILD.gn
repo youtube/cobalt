@@ -10,11 +10,8 @@ import("//build/config/python.gni")
 import("//build/config/ui.gni")
 import("//build/nocompile.gni")
 import("//build/toolchain/toolchain.gni")
-<<<<<<< HEAD
 import("//content/common/features.gni")
-=======
 import("//content/browser/devtools/features.gni")
->>>>>>> d7fb6d1d99 (Remove devtools from gold builds (#11195))
 import("//media/media_options.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
