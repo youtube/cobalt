@@ -34,11 +34,7 @@
 #include "chrome/browser/net/key_pinning.pb.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "content/public/browser/network_service_instance.h"
-<<<<<<< HEAD
 #include "net/base/hash_value.h"
-#include "net/cert/root_store_proto_lite/root_store.pb.h"
-=======
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "net/net_buildflags.h"
 #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom.h"
 #include "services/network/public/cpp/network_service_buildflags.h"
