@@ -154,14 +154,13 @@ GpuChannelSharedImageInterface::CreateSharedImageForD3D11Video(
 }
 #endif
 
-<<<<<<< HEAD
 SharedImageFactory* GpuChannelSharedImageInterface::GetSharedImageFactory() {
   if (!shared_image_stub_) {
     return nullptr;
   }
   return shared_image_stub_->factory();
 }
-=======
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 scoped_refptr<ClientSharedImage>
 GpuChannelSharedImageInterface::CreateSharedImageForStarboardGLTexture(
@@ -216,7 +215,6 @@ GpuChannelSharedImageInterface::CreateSharedImageForStarboardGLTexture(
       texture_targets.empty() ? GL_TEXTURE_2D : texture_targets[0]));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 bool GpuChannelSharedImageInterface::MakeContextCurrent(bool needs_gl) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
