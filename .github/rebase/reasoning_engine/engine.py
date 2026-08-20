@@ -62,17 +62,21 @@ class CobaltReasoningEngine:
   def __init__(
       self,
       *,
+      resource_id: Optional[str] = None,
       project_id: Optional[str] = None,
       location: str = "global",
-      flash_model: str = "gemini-3.7-flash",
+      flash_model: Optional[str] = None,
       pro_model: str = "gemini-2.5-pro",
       skills_dir: Optional[str] = None,
   ):
+    self.resource_id = (
+        resource_id or os.environ.get("REASONING_ENGINE_ID") or
+        os.environ.get("REASONING_ENGINE_RESOURCE_ID"))
     self.project_id = (
         project_id or os.environ.get("GCP_PROJECT") or
         os.environ.get("GOOGLE_CLOUD_PROJECT"))
     self.location = location
-    self.flash_model = flash_model
+    self.flash_model = flash_model or "gemini-3.7-flash"
     self.pro_model = pro_model
     self.skills_dir = skills_dir or SKILLS_DIR
     self.skill_cache: Dict[str, str] = {
@@ -86,6 +90,7 @@ class CobaltReasoningEngine:
             load_skill("compiler_healing", self.skills_dir),
     }
     self.client: Optional[genai.Client] = None
+    self.remote_engine: Any = None
 
   def set_up(self):
     """Initializes Google GenAI client in remote Vertex AI container."""
@@ -94,6 +99,32 @@ class CobaltReasoningEngine:
         project=self.project_id,
         location=self.location,
     )
+
+  def _get_remote_engine(self) -> Any:
+    """Initializes and returns remote Vertex AI Reasoning Engine proxy."""
+    if self.remote_engine is None and self.resource_id:
+      try:
+        import vertexai  # pylint: disable=import-outside-toplevel
+        from vertexai.preview import reasoning_engines  # pylint: disable=import-outside-toplevel
+        vertexai.init(project=self.project_id, location=self.location)
+        res_name = self.resource_id
+        if not res_name.startswith("projects/"):
+          res_name = (f"projects/{self.project_id}/locations/{self.location}/"
+                      f"reasoningEngines/{self.resource_id}")
+        print(
+            "  [REASONING_ENGINE] Connecting to hosted Reasoning Engine: "
+            f"{res_name}",
+            file=sys.stderr,
+        )
+        self.remote_engine = reasoning_engines.ReasoningEngine(res_name)
+      except Exception as e:  # pylint: disable=broad-exception-caught
+        print(
+            "  [REASONING_ENGINE] Failed to connect to remote Reasoning "
+            f"Engine: {e}. Falling back to direct Vertex AI calls.",
+            file=sys.stderr,
+        )
+        self.remote_engine = None
+    return self.remote_engine
 
   def _get_client(self) -> genai.Client:
     """Returns active client instance, initializing if needed."""
@@ -162,6 +193,24 @@ class CobaltReasoningEngine:
         temperature=temperature,
     )
 
+  def generate_content(
+      self,
+      contents: Any,
+      system_instruction: str = "",
+      *,
+      model: Optional[str] = None,
+      temperature: float = 0.1,
+  ) -> Optional[types.GenerateContentResponse]:
+    """Generates content via Vertex AI with automatic rate-limit retries."""
+    chosen_model = model or self.flash_model
+    config = self._create_generation_config(
+        chosen_model, system_instruction, temperature=temperature)
+    return self._generate_content_with_retry(
+        model=chosen_model,
+        contents=contents,
+        config=config,
+    )
+
   def query(self, action: str = "resolve_conflict", **kwargs) -> Dict[str, Any]:
     """Primary query dispatcher for Vertex AI Reasoning Engine."""
     if action == "resolve_conflict":
@@ -190,6 +239,29 @@ class CobaltReasoningEngine:
       use_pro: bool = False,
   ) -> Dict[str, Any]:
     """Resolves source/DEPS merge conflicts on Vertex AI."""
+    remote = self._get_remote_engine()
+    if remote is not None:
+      try:
+        return remote.query(
+            action="resolve_conflict",
+            file_path=file_path,
+            language=language,
+            raw_conflict=raw_conflict,
+            context_before=context_before,
+            context_after=context_after,
+            git_context=git_context,
+            past_experience=past_experience,
+            investigation_history=investigation_history,
+            instruction=instruction,
+            use_pro=use_pro,
+        )
+      except Exception as e:  # pylint: disable=broad-exception-caught
+        print(
+            f"  [REASONING_ENGINE] Remote Reasoning Engine query failed: {e}. "
+            "Falling back to direct Vertex AI call.",
+            file=sys.stderr,
+        )
+
     chosen_model = self.pro_model if use_pro else self.flash_model
     rebase_skill = self._get_skill("cobalt_rebase")
     conflict_skill = self._get_skill("conflict_resolution")
@@ -243,6 +315,25 @@ class CobaltReasoningEngine:
       use_pro: bool = False,
   ) -> Dict[str, Any]:
     """Diagnoses and fixes GN generation errors on Vertex AI."""
+    remote = self._get_remote_engine()
+    if remote is not None:
+      try:
+        return remote.query(
+            action="heal_gn_error",
+            error_trace=error_trace,
+            file_context=file_context,
+            attempt_history=attempt_history,
+            past_experience=past_experience,
+            investigation_history=investigation_history,
+            use_pro=use_pro,
+        )
+      except Exception as e:  # pylint: disable=broad-exception-caught
+        print(
+            f"  [REASONING_ENGINE] Remote Reasoning Engine query failed: {e}. "
+            "Falling back to direct Vertex AI call.",
+            file=sys.stderr,
+        )
+
     chosen_model = self.pro_model if use_pro else self.flash_model
     rebase_skill = self._get_skill("cobalt_rebase")
     gn_skill = self._get_skill("gn_healing")
@@ -293,6 +384,24 @@ class CobaltReasoningEngine:
       use_pro: bool = False,
   ) -> Dict[str, Any]:
     """Diagnoses and repairs C++/Java compilation errors on Vertex AI."""
+    remote = self._get_remote_engine()
+    if remote is not None:
+      try:
+        return remote.query(
+            action="heal_compiler_error",
+            target=target,
+            diagnostics=diagnostics,
+            source_contexts=source_contexts,
+            past_experience=past_experience,
+            investigation_history=investigation_history,
+            use_pro=use_pro,
+        )
+      except Exception as e:  # pylint: disable=broad-exception-caught
+        print(
+            f"  [REASONING_ENGINE] Remote Reasoning Engine query failed: {e}. "
+            "Falling back to direct Vertex AI call.",
+            file=sys.stderr,
+        )
     chosen_model = self.pro_model if use_pro else self.flash_model
     rebase_skill = self._get_skill("cobalt_rebase")
     compiler_skill = self._get_skill("compiler_healing")

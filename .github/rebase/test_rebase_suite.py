@@ -8,14 +8,17 @@ import tempfile
 import unittest
 
 from autoninja import parse_compiler_errors
-from base_resolver import apply_patch_or_replacement, execute_local_tool
+from base_resolver import (
+    apply_patch_or_replacement,
+    execute_local_tool,
+    get_chromium_milestone,
+)
 from rebase_memory import load_past_experience, record_successful_fix
 from conflicts import (
     detect_language,
     extract_conflict_blocks,
     resolve_file_conflicts,
 )
-from run_rebase_pipeline import get_chromium_milestone
 from token_usage import TokenUsage
 
 SAMPLE_DEPS_CONFLICT = """git_dependencies = "SYNC"
@@ -107,8 +110,6 @@ class TestRebaseAutomationSuite(unittest.TestCase):
           file_path=tmp_path,
           repo_path=os.path.dirname(tmp_path),
           git_context="",
-          skills_dir=None,
-          model="gemini-3.7-flash",
           mock_mode=True,
           token_tracker=tracker,
           escalations=escalations,
@@ -144,8 +145,6 @@ class TestRebaseAutomationSuite(unittest.TestCase):
           file_path=tmp_path,
           repo_path=os.path.dirname(tmp_path),
           git_context="",
-          skills_dir=None,
-          model="gemini-3.7-flash",
           mock_mode=True,
           token_tracker=tracker,
           escalations=escalations,

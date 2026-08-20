@@ -16,11 +16,10 @@ import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import warnings
 
-from google.genai import types
-
 from base_resolver import (
     BaseResolver,
     execute_local_tool,
+    get_chromium_milestone,
 )
 from gclient_sync import GClientSyncResolver
 from reasoning_engine import CobaltReasoningEngine, load_skill
@@ -312,14 +311,13 @@ def query_gemini_for_conflict(
     prompt: str,
     system_instruction: str,
     *,
-    model: str = "gemini-3.7-flash",
-    project_id: Optional[str] = None,
-    location: str = "global",
-    token_tracker: Optional[TokenUsage] = None,
     engine: Optional[CobaltReasoningEngine] = None,
+    token_tracker: Optional[TokenUsage] = None,
     mock_mode: bool = False,
 ) -> str:
   """Queries Gemini via Vertex AI Reasoning Engine."""
+  reasoning_engine = engine or CobaltReasoningEngine()
+  model = reasoning_engine.flash_model
   if mock_mode:
     if token_tracker:
       prompt_est = len(prompt) // 4
@@ -339,21 +337,11 @@ def query_gemini_for_conflict(
         theirs_lines.append(line)
     return "\n".join(theirs_lines)
 
-  reasoning_engine = engine or CobaltReasoningEngine(
-      project_id=project_id,
-      location=location,
-      flash_model=model,
-  )
   try:
-    gen_config = types.GenerateContentConfig(
-        system_instruction=system_instruction,
-        temperature=0.1,
-        max_output_tokens=8192,
-    )
-    resp = reasoning_engine._generate_content_with_retry(  # pylint: disable=protected-access
-        model=model,
+    resp = reasoning_engine.generate_content(
         contents=prompt,
-        config=gen_config,
+        system_instruction=system_instruction,
+        model=model,
     )
     if token_tracker and resp and resp.usage_metadata:
       p_tok = resp.usage_metadata.prompt_token_count or 0
@@ -374,14 +362,11 @@ def resolve_file_conflicts(
     repo_path: str,
     git_context: str,
     *,
+    engine: Optional[CobaltReasoningEngine] = None,
     skills_dir: Optional[str] = None,
-    project_id: Optional[str] = None,
-    location: str = "global",
-    model: str = "gemini-3.7-flash",
     token_tracker: Optional[TokenUsage] = None,
     escalations: Optional[List[EscalationItem]] = None,
     max_tool_rounds: int = 5,
-    engine: Optional[CobaltReasoningEngine] = None,
     mock_mode: bool = False,
 ) -> bool:
   """Resolves all conflict markers in a specific file."""
@@ -402,7 +387,8 @@ def resolve_file_conflicts(
       f"{rel_path} ({lang})...",
       file=sys.stderr,
   )
-  sys_instruction = build_system_instruction(lang, skills_dir)
+  effective_skills = (skills_dir or (engine.skills_dir if engine else None))
+  sys_instruction = build_system_instruction(lang, effective_skills)
 
   for block in blocks:
     print(
@@ -424,11 +410,8 @@ def resolve_file_conflicts(
         resp = query_gemini_for_conflict(
             prompt=prompt,
             system_instruction=sys_instruction,
-            model=model,
-            project_id=project_id,
-            location=location,
-            token_tracker=token_tracker,
             engine=engine,
+            token_tracker=token_tracker,
             mock_mode=mock_mode,
         )
       except GeminiAPIError as e:
@@ -536,22 +519,6 @@ def write_result_report(
     f.write("\n".join(lines))
 
 
-def get_chromium_milestone(repo_path: Optional[str] = None) -> str:
-  """Reads the Chromium major milestone from chrome/VERSION (e.g. 'M138')."""
-  base = repo_path or os.path.expanduser("~/cobalt/src")
-  version_file = os.path.join(base, "chrome", "VERSION")
-  if os.path.isfile(version_file):
-    try:
-      with open(version_file, "r", encoding="utf-8") as f:
-        for line in f:
-          if line.startswith("MAJOR="):
-            major_ver = line.strip().split("=")[1]
-            return f"M{major_ver}"
-    except OSError:
-      pass
-  return "M_Unknown"
-
-
 class ConflictResolver(BaseResolver):
   """Self-healing resolver for git merge conflicts (DEPS & source files)."""
 
@@ -559,11 +526,8 @@ class ConflictResolver(BaseResolver):
       self,
       repo_path: str,
       *,
+      engine: Optional[CobaltReasoningEngine] = None,
       max_iterations: int = 5,
-      project_id: Optional[str] = None,
-      location: str = "global",
-      model: str = "gemini-3.7-flash",
-      skills_dir: Optional[str] = None,
       files: Optional[List[str]] = None,
       skip_sync: bool = False,
       report_path: Optional[str] = None,
@@ -571,11 +535,8 @@ class ConflictResolver(BaseResolver):
   ):
     super().__init__(
         repo_path=repo_path,
+        engine=engine,
         max_iterations=max_iterations,
-        project_id=project_id,
-        location=location,
-        model=model,
-        skills_dir=skills_dir,
         on_patch_applied_fn=on_patch_applied_fn,
     )
     self.explicit_files = files
@@ -604,13 +565,14 @@ class ConflictResolver(BaseResolver):
 
     remaining: List[str] = []
     for tf in target_files:
-      if os.path.isfile(tf):
-        try:
-          with open(tf, "r", encoding="utf-8", errors="replace") as f:
-            if extract_conflict_blocks(f.read()):
-              remaining.append(os.path.relpath(tf, self.repo_path))
-        except OSError:
-          pass
+      if not os.path.isfile(tf):
+        continue
+      try:
+        with open(tf, "r", encoding="utf-8", errors="replace") as f:
+          if extract_conflict_blocks(f.read()):
+            remaining.append(os.path.relpath(tf, self.repo_path))
+      except OSError:
+        pass
 
     if not remaining:
       return True, "No conflict markers remaining in repository.", ""
@@ -632,13 +594,14 @@ class ConflictResolver(BaseResolver):
 
     remaining: List[str] = []
     for tf in target_files:
-      if os.path.isfile(tf):
-        try:
-          with open(tf, "r", encoding="utf-8", errors="replace") as f:
-            if extract_conflict_blocks(f.read()):
-              remaining.append(tf)
-        except OSError:
-          pass
+      if not os.path.isfile(tf):
+        continue
+      try:
+        with open(tf, "r", encoding="utf-8", errors="replace") as f:
+          if extract_conflict_blocks(f.read()):
+            remaining.append(tf)
+      except OSError:
+        pass
     return remaining
 
   def resolve_diagnostic(
@@ -654,10 +617,7 @@ class ConflictResolver(BaseResolver):
         file_path=tf,
         repo_path=self.repo_path,
         git_context=self.git_context,
-        skills_dir=self.skills_dir,
-        project_id=self.project_id,
-        location=self.location,
-        model=self.model,
+        skills_dir=self.reasoning_engine.skills_dir,
         token_tracker=self.token_tracker,
         escalations=self.escalations,
         engine=self.reasoning_engine,
@@ -705,10 +665,7 @@ class ConflictResolver(BaseResolver):
           file_path=tf,
           repo_path=self.repo_path,
           git_context=self.git_context,
-          skills_dir=self.skills_dir,
-          project_id=self.project_id,
-          location=self.location,
-          model=self.model,
+          skills_dir=self.reasoning_engine.skills_dir,
           token_tracker=self.token_tracker,
           escalations=self.escalations,
           engine=self.reasoning_engine,
@@ -725,10 +682,7 @@ class ConflictResolver(BaseResolver):
     if deps_resolved and not self.skip_sync:
       sync_resolver = GClientSyncResolver(
           repo_path=self.repo_path,
-          project_id=self.project_id,
-          location=self.location,
-          model=self.model,
-          skills_dir=self.skills_dir,
+          engine=self.reasoning_engine,
       )
       sync_success = sync_resolver.run_resolution_loop()
 

@@ -20,6 +20,7 @@ from base_resolver import (
     BaseResolver,
     get_clean_build_env,
 )
+from reasoning_engine import CobaltReasoningEngine
 
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
@@ -69,21 +70,15 @@ class GClientSyncResolver(BaseResolver):
       self,
       repo_path: str,
       *,
+      engine: Optional[CobaltReasoningEngine] = None,
       flags: Optional[List[str]] = None,
       max_iterations: int = 10,
-      project_id: Optional[str] = None,
-      location: str = "global",
-      model: str = "gemini-3.7-flash",
-      skills_dir: Optional[str] = None,
       on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,
   ):
     super().__init__(
         repo_path=repo_path,
+        engine=engine,
         max_iterations=max_iterations,
-        project_id=project_id,
-        location=location,
-        model=model,
-        skills_dir=skills_dir,
         on_patch_applied_fn=on_patch_applied_fn,
     )
     self.flags = flags if flags is not None else ["-D"]

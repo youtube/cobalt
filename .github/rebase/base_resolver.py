@@ -45,6 +45,22 @@ def get_clean_build_env(
   return clean_env
 
 
+def get_chromium_milestone(repo_path: Optional[str] = None) -> str:
+  """Reads the Chromium major milestone from chrome/VERSION (e.g. 'M138')."""
+  base = repo_path or os.path.expanduser("~/cobalt/src")
+  version_file = os.path.join(base, "chrome", "VERSION")
+  if os.path.isfile(version_file):
+    try:
+      with open(version_file, "r", encoding="utf-8") as f:
+        for line in f:
+          if line.startswith("MAJOR="):
+            major_ver = line.strip().split("=")[1]
+            return f"M{major_ver}"
+    except OSError:
+      pass
+  return "M_Unknown"
+
+
 def resolve_repo_file_path(raw_path: str, repo_path: str) -> str:
   """Resolves command / compiler output paths into an existing file path."""
   clean = raw_path.strip().lstrip("\"'")
@@ -390,28 +406,20 @@ class BaseResolver(abc.ABC):
       self,
       repo_path: str,
       *,
+      engine: Optional[CobaltReasoningEngine] = None,
       max_iterations: int = 50,
-      project_id: Optional[str] = None,
-      location: str = "global",
-      model: str = "gemini-3.7-flash",
-      skills_dir: Optional[str] = None,
       on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,
   ):
     self.repo_path = repo_path
     self.max_iterations = max_iterations
-    self.project_id = project_id
-    self.location = location
-    self.model = model
-    self.skills_dir = skills_dir
     self.on_patch_applied_fn = on_patch_applied_fn
-
-    self.reasoning_engine = CobaltReasoningEngine(
-        project_id=project_id,
-        location=location,
-        flash_model=model,
-        skills_dir=skills_dir,
-    )
+    self.reasoning_engine = engine or CobaltReasoningEngine()
     self.past_experience = load_past_experience()
+
+  @property
+  def model(self) -> str:
+    """Active primary model name from reasoning engine."""
+    return self.reasoning_engine.flash_model
 
   @property
   @abc.abstractmethod

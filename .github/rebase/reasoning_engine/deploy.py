@@ -53,7 +53,7 @@ def deploy_reasoning_engine(
     *,
     staging_bucket: Optional[str] = None,
     display_name: str = "CobaltReasoningEngine",
-    flash_model: str = "gemini-2.5-flash",
+    flash_model: str = "gemini-3.5-flash",
     pro_model: str = "gemini-2.5-pro",
 ) -> str:
   """Deploys a new CobaltReasoningEngine instance to Vertex AI."""
@@ -102,7 +102,7 @@ def update_reasoning_engine(
     *,
     staging_bucket: Optional[str] = None,
     display_name: str = "CobaltReasoningEngine",
-    flash_model: str = "gemini-2.5-flash",
+    flash_model: str = "gemini-3.5-flash",
     pro_model: str = "gemini-2.5-pro",
 ):
   """Updates an existing Reasoning Engine instance on Vertex AI."""
@@ -210,7 +210,7 @@ def main():
   )
   parser.add_argument(
       "--flash-model",
-      default=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+      default=os.environ.get("GEMINI_MODEL", "gemini-3.5-flash"),
       help="Default Flash model.",
   )
   parser.add_argument(

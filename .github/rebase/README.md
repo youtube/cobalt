@@ -95,13 +95,13 @@ The pipeline decomposes rebase automation into five sequential, object-oriented 
 
 ### Running the End-to-End Pipeline
 
-To execute all phases sequentially for Android (`cobalt_apk`):
+To execute all phases sequentially for Android (`cobalt_apk`) connected to your hosted Reasoning Engine:
 ```bash
 python3 .github/rebase/run_rebase_pipeline.py \
   --platform android-arm \
   --build-type devel \
   --target cobalt_apk \
-  --model gemini-3.7-flash
+  --reasoning-engine-id "<YOUR_REASONING_ENGINE_RESOURCE_ID>"
 ```
 
 For Linux Desktop:
@@ -110,7 +110,7 @@ python3 .github/rebase/run_rebase_pipeline.py \
   --platform linux-x64x11 \
   --build-type devel \
   --target cobalt \
-  --model gemini-3.7-flash
+  --reasoning-engine-id "<YOUR_REASONING_ENGINE_RESOURCE_ID>"
 ```
 
 ---

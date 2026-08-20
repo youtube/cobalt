@@ -21,6 +21,7 @@ from base_resolver import (
     get_clean_build_env,
     resolve_repo_file_path,
 )
+from reasoning_engine import CobaltReasoningEngine
 
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
@@ -134,8 +135,7 @@ def parse_compiler_errors(build_output: str,
         r"[\"']([^\"']+)[\"'],\s+needed by\s+[\"']([^\"']+)[\"'],"
         r"\s+missing and no known rule to make it")
     for line in lines:
-      m = ninja_missing_pattern.search(line)
-      if m:
+      if m := ninja_missing_pattern.search(line):
         missing_file, _ = m.groups()
         ref_file, ref_line = find_referencing_build_file(
             missing_file, repo_path)
@@ -189,20 +189,14 @@ class AutoninjaResolver(BaseResolver):
       target: str,
       *,
       keep_going: int = 1,
+      engine: Optional[CobaltReasoningEngine] = None,
       max_iterations: int = 60,
-      project_id: Optional[str] = None,
-      location: str = "global",
-      model: str = "gemini-3.7-flash",
-      skills_dir: Optional[str] = None,
       on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,
   ):
     super().__init__(
         repo_path=repo_path,
+        engine=engine,
         max_iterations=max_iterations,
-        project_id=project_id,
-        location=location,
-        model=model,
-        skills_dir=skills_dir,
         on_patch_applied_fn=on_patch_applied_fn,
     )
     self.out_dir = out_dir

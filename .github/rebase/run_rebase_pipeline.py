@@ -19,9 +19,11 @@ from typing import List, Optional
 import warnings
 
 from autoninja import AutoninjaResolver
+from base_resolver import get_chromium_milestone
 from conflicts import ConflictResolver
 from gclient_sync import GClientSyncResolver
 from gn_gen import GNGenResolver
+from reasoning_engine import CobaltReasoningEngine
 from rebase_memory import (
     pull_memory_from_gcs,
     sync_memory_to_gcs,
@@ -29,22 +31,6 @@ from rebase_memory import (
 
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
-
-
-def get_chromium_milestone(repo_path: Optional[str] = None) -> str:
-  """Reads the Chromium major milestone from chrome/VERSION (e.g. 'M138')."""
-  base = repo_path or os.path.expanduser("~/cobalt/src")
-  version_file = os.path.join(base, "chrome", "VERSION")
-  if os.path.isfile(version_file):
-    try:
-      with open(version_file, "r", encoding="utf-8") as f:
-        for line in f:
-          if line.startswith("MAJOR="):
-            major_ver = line.strip().split("=")[1]
-            return f"M{major_ver}"
-    except OSError:
-      pass
-  return "M_Unknown"
 
 
 def _write_final_report(
@@ -141,9 +127,22 @@ def build_arg_parser() -> argparse.ArgumentParser:
       help="Vertex AI Region (default: global).",
   )
   parser.add_argument(
+      "--reasoning-engine-id",
+      default=os.environ.get("REASONING_ENGINE_ID") or
+      os.environ.get("REASONING_ENGINE_RESOURCE_ID"),
+      help="Hosted Vertex AI Reasoning Engine resource ID or full name.",
+  )
+  parser.add_argument(
+      "--skills-dir",
+      default=None,
+      help=(
+          "Directory path containing declarative rebase skills markdown files."
+      ),
+  )
+  parser.add_argument(
       "--model",
-      default=os.environ.get("GEMINI_MODEL", "gemini-3.7-flash"),
-      help="Gemini model name (e.g. gemini-3.7-flash, gemini-2.5-pro).",
+      default=os.environ.get("GEMINI_MODEL"),
+      help="Optional Gemini model override (e.g. gemini-3.7-flash).",
   )
   parser.add_argument(
       "--skip-conflicts",
@@ -204,7 +203,11 @@ def run_pipeline(args: argparse.Namespace) -> int:
       "[START] STARTING AUTOMATED COBALT CHROMIUM REBASE PIPELINE",
       file=sys.stderr,
   )
-  print(f"  - Model:      {args.model}", file=sys.stderr)
+  if args.reasoning_engine_id:
+    print(f"  - Reasoning Engine: {args.reasoning_engine_id}", file=sys.stderr)
+  else:
+    effective_model = args.model or "gemini-3.7-flash"
+    print(f"  - Model:      {effective_model}", file=sys.stderr)
   print(f"  - Platform:   {args.platform}", file=sys.stderr)
   print(f"  - Config:     {args.build_type}", file=sys.stderr)
   print(f"  - Out Dir:    out/{out_dir}", file=sys.stderr)
@@ -214,26 +217,28 @@ def run_pipeline(args: argparse.Namespace) -> int:
   print("=" * 80, file=sys.stderr)
 
   # -------------------------------------------------------------------------
-  # RESOLVER SETUP & DEPENDENCY INJECTION
+  # REASONING ENGINE & RESOLVER SETUP
   # -------------------------------------------------------------------------
+  reasoning_engine = CobaltReasoningEngine(
+      resource_id=args.reasoning_engine_id,
+      project_id=args.project_id,
+      location=args.location,
+      flash_model=args.model,
+      skills_dir=args.skills_dir,
+  )
+
   # Phase 1: Conflict Resolver
   conflict_resolver = ConflictResolver(
       repo_path=args.repo_path,
-      project_id=args.project_id,
-      location=args.location,
-      model=args.model,
-      skills_dir=args.skills_dir,
+      engine=reasoning_engine,
       skip_sync=True,  # Phase 2 handles gclient sync
   )
 
   # Phase 2: Shared Sync Resolver
   sync_resolver = GClientSyncResolver(
       repo_path=args.repo_path,
+      engine=reasoning_engine,
       max_iterations=10,
-      project_id=args.project_id,
-      location=args.location,
-      model=args.model,
-      skills_dir=args.skills_dir,
   )
 
   def on_gn_patch_applied(modified_files: List[str]) -> None:
@@ -252,10 +257,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
       build_type=args.build_type,
       gn_check=True,
       max_iterations=args.max_gn_iterations,
-      project_id=args.project_id,
-      location=args.location,
-      model=args.model,
-      skills_dir=args.skills_dir,
+      engine=reasoning_engine,
       on_patch_applied_fn=on_gn_patch_applied,
   )
 
@@ -281,10 +283,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
       out_dir=out_dir,
       target=effective_target,
       max_iterations=args.max_build_iterations,
-      project_id=args.project_id,
-      location=args.location,
-      model=args.model,
-      skills_dir=args.skills_dir,
+      engine=reasoning_engine,
       on_patch_applied_fn=on_build_patch_applied,
   )
 
