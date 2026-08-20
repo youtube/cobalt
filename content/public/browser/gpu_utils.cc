@@ -26,6 +26,7 @@
 #include "media/base/media_switches.h"
 #include "media/gpu/buildflags.h"
 #include "media/media_buildflags.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "third_party/blink/public/common/features.h"
 #include "ui/gfx/switches.h"
 #include "ui/gl/gl_features.h"
@@ -148,7 +149,20 @@ void CleanupGpuProcessOnBackground(base::OnceClosure callback) {
       base::BindOnce(
           [](base::OnceClosure callback, content::GpuProcessHost* host) {
             if (host && host->gpu_service()) {
-              host->gpu_service()->OnBackgroundCleanup(std::move(callback));
+              host->gpu_service()->OnBackgroundCleanup();
+              auto barrier_callback =
+                  mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+                      base::BindOnce(
+                          [](base::OnceClosure cb,
+                             const gpu::VideoMemoryUsageStats&) {
+                            if (cb) {
+                              std::move(cb).Run();
+                            }
+                          },
+                          std::move(callback)),
+                      gpu::VideoMemoryUsageStats());
+              host->gpu_service()->GetVideoMemoryUsageStats(
+                  std::move(barrier_callback));
             } else if (callback) {
               std::move(callback).Run();
             }
