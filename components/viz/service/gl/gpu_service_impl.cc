@@ -1206,6 +1206,12 @@ void GpuServiceImpl::OnBackgroundCleanupGpuMainThread(
     return;
   }
   gpu_channel_manager_->OnBackgroundCleanup();
+#if BUILDFLAG(IS_COBALT)
+  gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
+  if (display && display->IsInitialized()) {
+    display->Shutdown();
+  }
+#endif
   if (callback) {
     std::move(callback).Run();
   }
@@ -1263,6 +1269,24 @@ void GpuServiceImpl::OnForegrounded() {
 }
 
 void GpuServiceImpl::OnForegroundedOnMainThread() {
+#if BUILDFLAG(IS_COBALT)
+  gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
+  if (display) {
+    if (!display->IsInitialized()) {
+      gl::init::GetOrInitializeGLOneOffPlatformImplementation(
+          /*fallback_to_software_gl=*/false,
+          /*disable_gl_drawing=*/false,
+          /*init_extensions=*/true,
+          gl::GpuPreference::kDefault);
+    }
+    if (display->IsInitialized()) {
+      scoped_refptr<gl::GLSurface> surface =
+          gl::init::CreateOffscreenGLSurface(display, gfx::Size());
+      gpu_channel_manager_->SetDefaultOffscreenSurface(std::move(surface));
+    }
+  }
+#endif
+
   if (visibility_changed_callback_) {
     visibility_changed_callback_.Run(true);
     if (gpu_preferences_.enable_gpu_benchmarking_extension) {

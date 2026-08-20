@@ -155,6 +155,16 @@ void CleanupGpuProcessOnBackground(base::OnceClosure callback) {
           },
           std::move(callback)));
 }
+
+void RestoreGpuProcessOnForeground() {
+  GpuProcessHost::CallOnUI(
+      FROM_HERE, GPU_PROCESS_KIND_SANDBOXED, false /* force_create */,
+      base::BindOnce([](content::GpuProcessHost* host) {
+        if (host && host->gpu_service()) {
+          host->gpu_service()->OnForegrounded();
+        }
+      }));
+}
 #endif
 
 gpu::GpuChannelEstablishFactory* GetGpuChannelEstablishFactory() {

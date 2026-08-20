@@ -173,13 +173,13 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
 
   GpuChannel* LookupChannel(int32_t client_id) const;
 
-#if BUILDFLAG(IS_COBALT)
-  // Lazily creates or returns the cached default offscreen surface to allow
-  // memory reclamation during background suspend.
-  gl::GLSurface* default_offscreen_surface();
-#else
   gl::GLSurface* default_offscreen_surface() const {
     return default_offscreen_surface_.get();
+  }
+
+#if BUILDFLAG(IS_COBALT)
+  void SetDefaultOffscreenSurface(scoped_refptr<gl::GLSurface> surface) {
+    default_offscreen_surface_ = std::move(surface);
   }
 #endif
 

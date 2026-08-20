@@ -51,9 +51,6 @@
 #include "ui/gl/gl_share_group.h"
 #include "ui/gl/gl_surface_egl.h"
 #include "ui/gl/gl_version_info.h"
-#if BUILDFLAG(IS_COBALT)
-#include "ui/gl/gl_utils.h"
-#endif
 #include "ui/gl/init/gl_factory.h"
 
 #if BUILDFLAG(USE_DAWN)
@@ -829,13 +826,7 @@ void GpuChannelManager::OnBackgroundCleanup() {
     default_offscreen_surface_ = nullptr;
   }
 
-  // 5. Terminate the EGL display connection so all driver display resources are released.
-  gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
-  if (display && display->IsInitialized()) {
-    display->Shutdown();
-  }
-
-  // 6. Clear CPU-side font and 2D raster caches.
+  // 5. Clear CPU-side font and 2D raster caches.
   SkGraphics::PurgeAllCaches();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -919,30 +910,6 @@ void GpuChannelManager::HandleMemoryPressure(
   TrimD3DResources(shared_context_state_);
 #endif  // BUILDFLAG(IS_WIN)
 }
-
-#if BUILDFLAG(IS_COBALT)
-// Lazily instantiates the default offscreen surface on demand to minimize memory
-// usage and allow full destruction and release of underlying EGL surface
-// resources during background suspend.
-gl::GLSurface* GpuChannelManager::default_offscreen_surface() {
-  if (!default_offscreen_surface_) {
-    gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
-    if (!display) {
-      return nullptr;
-    }
-    if (!display->IsInitialized()) {
-      gl::init::GetOrInitializeGLOneOffPlatformImplementation(
-          /*fallback_to_software_gl=*/false,
-          /*disable_gl_drawing=*/false,
-          /*init_extensions=*/true,
-          gl::GpuPreference::kDefault);
-    }
-    default_offscreen_surface_ = gl::init::CreateOffscreenGLSurface(
-        display, gfx::Size());
-  }
-  return default_offscreen_surface_.get();
-}
-#endif  // BUILDFLAG(IS_COBALT)
 
 scoped_refptr<SharedContextState> GpuChannelManager::GetSharedContextState(
     ContextResult* result) {

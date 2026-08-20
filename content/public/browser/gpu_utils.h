@@ -25,6 +25,9 @@ CONTENT_EXPORT void KillGpuProcess();
 // Cleans up GL contexts, caches, and surfaces in the GPU service on background.
 CONTENT_EXPORT void CleanupGpuProcessOnBackground(
     base::OnceClosure callback = base::OnceClosure());
+
+// Restores GL display and surface resources in the GPU service on foreground.
+CONTENT_EXPORT void RestoreGpuProcessOnForeground();
 #endif
 
 CONTENT_EXPORT gpu::GpuChannelEstablishFactory* GetGpuChannelEstablishFactory();
