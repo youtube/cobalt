@@ -34,9 +34,8 @@
           <div id="sampling-progress" class="sampling-badge">0 / 12 Reported</div>
         </div>
         <div class="section-instruction">
-          Aggregated median (P50) memory footprint across continuous native and managed allocators since launch,
-          mirroring production Kimono / PLX telemetry (<code>go/kimono-memory-metrics</code>).
-          Demonstrates physical memory distribution beyond the JavaScript heap.
+          Session steady-state median (P50) of total physical CPU RAM (RSS) broken down across native C++, V8, graphics, and system allocators, continuously updated in real time since app launch.
+          Mirrors production telemetry (<code>go/kimono-memory-metrics</code> and <code>go/evergreen-memory-metrics</code>).
         </div>
         <div id="sampling-hint" class="sampling-hint" style="display: none;">
           💡 <strong>Sampling Tip:</strong> P50 metrics are computed from background UMA memory dumps. To accelerate sampling to every 3 seconds during development, launch Cobalt with <code>--enable-features=CobaltMetricsInterval:memory-metrics-interval/3</code>.
