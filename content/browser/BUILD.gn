@@ -3740,7 +3740,7 @@ source_set("browser") {
     sources = []
     sources = _filtered_sources
     deps -= [
-      "//components/browsing_topics/common:common",
+      "//components/browsing_topics/common",
       "//content/browser/aggregation_service/proto:aggregatable_report_proto",
       "//content/browser/attribution_reporting:attribution_reporting_proto",
       "//content/browser/attribution_reporting:internals_mojo_bindings",
