@@ -13,14 +13,10 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
-<<<<<<< HEAD
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
-#include "third_party/cld_3/src/src/nnet_language_identifier.h"
-=======
 #if !BUILDFLAG(IS_COBALT)
 #include "third_party/cld_3/src/src/nnet_language_identifier.h"  // nogncheck
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "ui/accessibility/ax_enums.mojom-forward.h"
 #include "ui/accessibility/ax_export.h"
 #include "ui/accessibility/ax_tree_observer.h"
