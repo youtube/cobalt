@@ -419,6 +419,14 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
                   const std::string& content_type,
                   const std::string& codecs);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Starboard-specific implementations of CanChangeType() and ChangeType()
+  // that accept in the full mime_type string from the web app.
+  bool CanChangeType(const std::string& id, 
+                     const std::string& target_mime_type);
+  void ChangeType(const std::string& id, const std::string& target_mime_type);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // If the buffer is full, attempts to try to free up space, as specified in
   // the "Coded Frame Eviction Algorithm" in the Media Source Extensions Spec.
   // Returns false iff buffer is still full after running eviction.
