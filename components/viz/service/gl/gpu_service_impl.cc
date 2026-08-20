@@ -1023,6 +1023,14 @@ void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
     return;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  if (is_backgrounded_) {
+    pending_establish_gpu_channel_requests_.push_back(
+        {client_id, client_tracing_id, is_gpu_host, std::move(callback)});
+    return;
+  }
+#endif
+
   auto channel_token = base::UnguessableToken::Create();
   gpu::GpuChannel* gpu_channel = gpu_channel_manager_->EstablishChannel(
       channel_token, client_id, client_tracing_id, is_gpu_host, gpu_extra_info_,
@@ -1205,6 +1213,7 @@ void GpuServiceImpl::OnBackgroundCleanupGpuMainThread() {
   DVLOG(1) << "GPU: Performing background cleanup";
   gpu_channel_manager_->OnBackgroundCleanup();
 #if BUILDFLAG(IS_COBALT)
+  is_backgrounded_ = true;
   gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
   if (display && display->IsInitialized()) {
     display->Shutdown();
@@ -1265,6 +1274,7 @@ void GpuServiceImpl::OnForegrounded() {
 
 void GpuServiceImpl::OnForegroundedOnMainThread() {
 #if BUILDFLAG(IS_COBALT)
+  is_backgrounded_ = false;
   gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
   if (display) {
     if (!display->IsInitialized()) {
@@ -1279,6 +1289,13 @@ void GpuServiceImpl::OnForegroundedOnMainThread() {
           gl::init::CreateOffscreenGLSurface(display, gfx::Size());
       gpu_channel_manager_->SetDefaultOffscreenSurface(std::move(surface));
     }
+  }
+
+  auto pending_requests = std::move(pending_establish_gpu_channel_requests_);
+  pending_establish_gpu_channel_requests_.clear();
+  for (auto& request : pending_requests) {
+    EstablishGpuChannel(request.client_id, request.client_tracing_id,
+                        request.is_gpu_host, std::move(request.callback));
   }
 #endif
 
