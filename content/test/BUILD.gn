@@ -873,11 +873,10 @@ static_library("test_support") {
     public_deps += [ "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.mediacodec:fuchsia.mediacodec_hlcpp" ]
   }
 
-<<<<<<< HEAD
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-=======
+
   if (is_cobalt) {
     sources -= [
       "../browser/bluetooth/test/mock_bluetooth_delegate.cc",
@@ -897,7 +896,6 @@ static_library("test_support") {
       "../public/test/test_devtools_protocol_client.h",
     ]
   }
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 # Fuchsia performance tests on smart displays use web_engine and a browser
@@ -2477,11 +2475,10 @@ test("content_browsertests") {
     ]
   }
 
-<<<<<<< HEAD
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-=======
+
   if (!enable_devtools_backend) {
     sources -= [
       "../browser/devtools/devtools_issue_storage_browsertest.cc",
@@ -2514,7 +2511,6 @@ test("content_browsertests") {
       "//content/browser/attribution_reporting:registration_result_mojom",
     ]
   }
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 grit("web_ui_mojo_test_resources") {
@@ -3748,11 +3744,10 @@ test("content_unittests") {
     deps += [ "//chromecast:chromecast_buildflags" ]
   }
 
-<<<<<<< HEAD
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-=======
+
   if (!enable_privacy_sandbox_apis) {
     _filtered_sources = filter_exclude(sources, [
       "../browser/browsing_topics/*",
@@ -3783,7 +3778,6 @@ test("content_unittests") {
       "//content/browser/private_aggregation:for_content_tests",
     ]
   }
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 if (is_ios) {
