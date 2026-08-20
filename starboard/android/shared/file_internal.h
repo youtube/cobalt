@@ -55,6 +55,9 @@ bool IsAndroidAssetPath(const char* path);
 AAsset* OpenAndroidAsset(const char* path);
 AAssetDir* OpenAndroidAssetDir(const char* path);
 
+// Returns the fallback for the given asset path, or an empty string if none.
+std::string FallbackPath(const std::string& path);
+
 }  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_FILE_INTERNAL_H_
