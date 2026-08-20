@@ -88,18 +88,11 @@ enable_linux_installer = false
 # We use Chromium root store
 use_nss_certs = false
 
-# Override from components/nacl/features.gni
-# Disables Pepper API (PPAPI) plugin support.
-enable_ppapi = false
-
 # Disable D-Bus
 use_dbus = false
 
 # Embed ICU data in the cobalt binary
 icu_use_data_file = false
-
-# Disable the Pepper API (PPAPI) plugin support
-enable_ppapi = false
 
 # Enable the compiler size optimizations e.g. -Os.
 optimize_for_size = true
