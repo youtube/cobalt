@@ -37,23 +37,6 @@ base::FilePath GetMemoryToolsDir() {
       .AppendASCII("memory");
 }
 
-TEST(VerifyMemoryTraceTest, RunPythonUnitTestSuite) {
-  base::FilePath script_path =
-      GetMemoryToolsDir().AppendASCII("verify_memory_trace_unittest.py");
-
-  base::CommandLine cmd(base::FilePath(FILE_PATH_LITERAL("python3")));
-  cmd.AppendArgPath(script_path);
-
-  std::string output;
-  int exit_code = -1;
-  bool success = base::GetAppOutputWithExitCode(cmd, &output, &exit_code);
-
-  EXPECT_TRUE(success) << "Failed to run verify_memory_trace_unittest.py.";
-  EXPECT_EQ(0, exit_code)
-      << "verify_memory_trace_unittest.py failed with output:\n"
-      << output;
-}
-
 TEST(VerifyMemoryTraceTest, CleanTraceProceeds) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -190,6 +173,91 @@ TEST(VerifyMemoryTraceTest, IncompleteTraceAborts) {
   EXPECT_NE(output.find("[SIGNAL: ABORT]"), std::string::npos)
       << "Expected [SIGNAL: ABORT] in output:\n"
       << output;
+}
+
+TEST(VerifyMemoryTraceTest, MissingProcessMmapsAborts) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  base::FilePath trace_path =
+      temp_dir.GetPath().AppendASCII("missing_mmaps.json");
+  std::string trace_content = R"({
+    "traceEvents": [
+      {
+        "cat": "disabled-by-default-memory-infra",
+        "name": "periodic_interval",
+        "args": {
+          "dumps": {
+            "heaps_v2": {"allocators": {}}
+          }
+        }
+      }
+    ]
+  })";
+  ASSERT_TRUE(base::WriteFile(trace_path, trace_content));
+
+  base::FilePath script_path =
+      GetMemoryToolsDir().AppendASCII("verify_memory_trace.py");
+
+  base::CommandLine cmd(base::FilePath(FILE_PATH_LITERAL("python3")));
+  cmd.AppendArgPath(script_path);
+  cmd.AppendArgPath(trace_path);
+
+  std::string output;
+  int exit_code = -1;
+  bool success = base::GetAppOutputWithExitCode(cmd, &output, &exit_code);
+
+  EXPECT_TRUE(success);
+  EXPECT_EQ(1, exit_code);
+  EXPECT_NE(output.find("[SIGNAL: ABORT]"), std::string::npos);
+}
+
+TEST(VerifyMemoryTraceTest, CorruptedJsonAborts) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  base::FilePath trace_path =
+      temp_dir.GetPath().AppendASCII("corrupted_trace.json");
+  std::string trace_content = "{ this is invalid json ::: ";
+  ASSERT_TRUE(base::WriteFile(trace_path, trace_content));
+
+  base::FilePath script_path =
+      GetMemoryToolsDir().AppendASCII("verify_memory_trace.py");
+
+  base::CommandLine cmd(base::FilePath(FILE_PATH_LITERAL("python3")));
+  cmd.AppendArgPath(script_path);
+  cmd.AppendArgPath(trace_path);
+
+  std::string output;
+  int exit_code = -1;
+  bool success = base::GetAppOutputWithExitCode(cmd, &output, &exit_code);
+
+  EXPECT_TRUE(success);
+  EXPECT_EQ(1, exit_code);
+  EXPECT_NE(output.find("[SIGNAL: ABORT]"), std::string::npos);
+}
+
+TEST(VerifyMemoryTraceTest, NonExistentFileAborts) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  base::FilePath trace_path =
+      temp_dir.GetPath().AppendASCII("non_existent_file.json");
+
+  base::FilePath script_path =
+      GetMemoryToolsDir().AppendASCII("verify_memory_trace.py");
+
+  base::CommandLine cmd(base::FilePath(FILE_PATH_LITERAL("python3")));
+  cmd.AppendArgPath(script_path);
+  cmd.AppendArgPath(trace_path);
+
+  std::string output;
+  int exit_code = -1;
+  bool success = base::GetAppOutputWithExitCode(cmd, &output, &exit_code);
+
+  EXPECT_TRUE(success);
+  EXPECT_EQ(1, exit_code);
+  EXPECT_NE(output.find("[SIGNAL: ABORT]"), std::string::npos);
 }
 
 }  // namespace
