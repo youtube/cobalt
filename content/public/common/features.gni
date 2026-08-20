@@ -6,7 +6,6 @@ import("//build/config/cast.gni")
 import("//build/config/features.gni")
 
 declare_args() {
-<<<<<<< HEAD
   # Enables basic plugin support. This enables support for registering and
   # looking up plugins.
   #
@@ -17,19 +16,10 @@ declare_args() {
   # This flag is true only on ChromeOS unofficial builds
   # (dev mode and test images).
   enable_pwa_install_on_cros_test = is_chromeos && !is_official_build
-}
 
-# Screen capture is enabled on most platforms. Currently, screen capture
-# is only enabled for desktop Android, but should be enabled on all Android
-# at some point once the feature is stable. See crbug.com/40418135.
-enable_screen_capture = is_linux || is_chromeos || (is_apple && use_blink) ||
-                        is_win || is_android || is_fuchsia
-=======
   # Screen capture is enabled on most platforms. Currently, screen capture
   # is only enabled for desktop Android, but should be enabled on all Android
   # at some point once the feature is stable. See crbug.com/40418135.
   enable_screen_capture = is_linux || is_chromeos || (is_apple && use_blink) ||
                           is_win || is_android || is_fuchsia
-
 }
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
