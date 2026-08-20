@@ -102,7 +102,8 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
   // the unpacker accepts any developer key. `path` is the current location
   // of the CRX.
 #if BUILDFLAG(IS_STARBOARD)
-  Unpacker(const OperationResult& crx_operation_result,
+  Unpacker(const std::string& app_id,
+           const OperationResult& crx_operation_result,
            std::unique_ptr<Unzipper> unzipper,
            base::OnceCallback<void(const Result& result)> callback);
 #else

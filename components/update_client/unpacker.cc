@@ -47,10 +47,12 @@ namespace update_client {
 Unpacker::Result::Result() = default;
 
 #if BUILDFLAG(IS_STARBOARD)
-Unpacker::Unpacker(const OperationResult& crx_operation_result,
+Unpacker::Unpacker(const std::string& app_id,
+                   const OperationResult& crx_operation_result,
                    std::unique_ptr<Unzipper> unzipper,
                    base::OnceCallback<void(const Result& result)> callback)
-    : result_(crx_operation_result),
+    : app_id_(app_id),
+      result_(crx_operation_result),
 #if !defined(IN_MEMORY_UPDATES)
       path_(crx_operation_result.response),
 #endif
@@ -65,8 +67,8 @@ void Unpacker::Unpack(const std::string& app_id,
                       std::unique_ptr<Unzipper> unzipper,
                       crx_file::VerifierFormat crx_format,
                       base::OnceCallback<void(const Result& result)> callback) {
-  base::WrapRefCounted(
-      new Unpacker(crx_operation_result, std::move(unzipper), std::move(callback)))
+  base::WrapRefCounted(new Unpacker(app_id, crx_operation_result,
+                                    std::move(unzipper), std::move(callback)))
       ->Verify(pk_hash, crx_format);
 }
 #else
