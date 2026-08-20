@@ -692,6 +692,8 @@ public class MediaDrmBridge {
       // Throw NotProvisionedException so that we can attemptProvisioning().
       throw e;
     } catch (MediaDrmException e) {
+      // Other MediaDrmExceptions (e.g. ResourceBusyException) are not
+      // recoverable.
       Log.e(TAG, "Cannot open a new session", e);
       release();
       return null;

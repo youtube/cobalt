@@ -23,6 +23,8 @@ import("//testing/test.gni")
 # Configuration for overall Android Starboard Platform.
 ##########################################################
 
+assert(is_starboard_toolchain)
+
 config("starboard_platform_libs") {
   libs = [
     "EGL",
@@ -111,6 +113,8 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/system_request_focus.cc",
     "//starboard/shared/stub/system_request_reveal.cc",
     "//starboard/shared/stub/system_sign_with_certification_secret_key.cc",
+    "aaudio_loader.cc",
+    "aaudio_loader.h",
     "accessibility_extension.cc",
     "accessibility_extension.h",
     "accessibility_get_caption_settings.cc",
@@ -195,11 +199,11 @@ static_library("starboard_platform") {
     "media_is_buffer_pool_allocate_on_demand.cc",
     "media_is_key_system_supported.cc",
     "media_is_video_supported.cc",
-    "media_resource_tracker.cc",
-    "media_resource_tracker.h",
     "memfd_media_buffer_pool.cc",
     "memfd_media_buffer_pool.h",
     "microphone_impl.cc",
+    "ndk_audio_track.cc",
+    "ndk_audio_track.h",
     "ndk_media_codec.cc",
     "ndk_media_codec.h",
     "ndk_media_utils.cc",
@@ -213,11 +217,9 @@ static_library("starboard_platform") {
     "player_get_maximum_number_of_samples_per_write.cc",
     "player_get_preferred_output_mode.cc",
     "player_set_bounds.cc",
-    "player_set_max_video_input_size.cc",
-    "player_set_max_video_input_size.h",
     "player_set_playback_rate.cc",
-    "player_set_video_surface_view.cc",
-    "player_set_video_surface_view.h",
+    "player_settings.cc",
+    "player_settings.h",
 
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "posix_emu/dirent.cc",
@@ -347,6 +349,7 @@ static_library("starboard_platform") {
       "asset_manager.cc",
       "asset_manager.h",
       "posix_emu/access.cc",
+      "posix_emu/alarm.cc",
       "posix_emu/errno.cc",
       "posix_emu/file.cc",
       "posix_emu/net_if.cc",
@@ -384,7 +387,7 @@ static_library("starboard_base_symbolize") {
     "//starboard:starboard_headers_only",
     "//starboard/common:common_headers_only",
   ]
-  if (is_starboard && current_toolchain == starboard_toolchain) {
+  if (is_starboard) {
     public_deps = [ "//starboard/elf_loader:evergreen_info" ]
   }
 
@@ -445,13 +448,14 @@ test("starboard_platform_tests") {
               "media_codec_decoder_test.cc",
               "media_codec_video_decoder_helpers_test.cc",
               "media_codec_video_decoder_test.cc",
-              "media_resource_tracker_test.cc",
               "memfd_media_buffer_pool_test.cc",
               "mock_media_capabilities_cache.cc",
               "mock_media_capabilities_cache.h",
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
               "video_frame_tracker_test.cc",
+              "video_max_video_input_size_test.cc",
+              "video_surface_view_test.cc",
             ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]

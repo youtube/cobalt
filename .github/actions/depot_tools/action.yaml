@@ -45,13 +45,15 @@ runs:
 
     - name: Set CIPD Cache Directory
       if: steps.cache-path.outputs.path != ''
-      run: echo "CIPD_CACHE_DIR=${{ steps.cache-path.outputs.path }}/cipd-cache" >> ${GITHUB_ENV}
+      env:
+        CACHE_PATH: ${{ steps.cache-path.outputs.path }}
+      run: echo "CIPD_CACHE_DIR=${CACHE_PATH}/cipd-cache" >> "${GITHUB_ENV}"
       shell: bash
 
     - name: Bootstrap Bundled python3
       run: |
-        # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
-        source ${GITHUB_WORKSPACE}/cobalt/depot_tools/bootstrap_python3 && bootstrap_python3
+        # Must be run manually as ${DEPOT_TOOLS_UPDATE} is 0 in CI, skipping the bootstrap.
+        source "${GITHUB_WORKSPACE}/cobalt/depot_tools/bootstrap_python3" && bootstrap_python3
       shell: bash
 
     - name: Disable Chromium client side build telemetry
@@ -79,12 +81,14 @@ runs:
 
     - name: Set target OS
       shell: bash
+      working-directory: cobalt
+      env:
+        PLATFORM: ${{ matrix.platform }}
       run: |
-        cd cobalt
         if ! grep -q "target_os" .gclient; then
-          if [[ "${{ matrix.platform }}" == *"android"* ]]; then
+          if [[ "${PLATFORM}" == *"android"* ]]; then
             echo "target_os=['android']" >> .gclient
-          elif [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
+          elif [[ "${PLATFORM}" == *"tvos"* ]]; then
             echo "target_os=['ios']" >> .gclient
           fi
         fi
@@ -92,12 +96,14 @@ runs:
 
     - name: Set target CPU
       shell: bash
+      working-directory: cobalt
+      env:
+        PLATFORM: ${{ matrix.platform }}
       run: |
-        cd cobalt
         if ! grep -q "target_cpu" .gclient; then
-          if [[ "${{ matrix.platform }}" == *"evergreen-arm64"* ]]; then
+          if [[ "${PLATFORM}" == *"evergreen-arm64"* ]]; then
             echo "target_cpu=['x64', 'arm64']" >> .gclient
-          elif [[ "${{ matrix.platform }}" == *"evergreen-arm"* ]]; then
+          elif [[ "${PLATFORM}" == *"evergreen-arm"* ]]; then
             echo "target_cpu=['x64', 'arm']" >> .gclient
           fi
         fi
@@ -108,24 +114,28 @@ runs:
       with:
         use_gcloud: ${{ inputs.use_gcloud }}
 
-    - name: Run gclient sync
+    - name: Clean dirty sub-repositories
       shell: bash
       if: inputs.run_sync == 'true'
-      env:
-        REF: ${{ github.sha }}
+      working-directory: cobalt/src
       run: |
-        cd cobalt/src
         # Identify and delete dirty sub-repositories
         git -c core.quotepath=false status --porcelain -unormal | while IFS= read -r line; do
           path="${line:3}"
           clean_path="${path%/}"
-          if [[ -d "$clean_path" && -d "$clean_path/.git" ]]; then
-            echo "Deleting conflicting sub-repo: $clean_path"
-            rm -rf "$clean_path"
+          if [[ -d "${clean_path}" && -d "${clean_path}/.git" ]]; then
+            echo "Deleting conflicting sub-repo: ${clean_path}"
+            rm -rf "${clean_path}"
           fi
         done
 
-        cd ..
+    - name: Run gclient sync
+      shell: bash
+      if: inputs.run_sync == 'true'
+      working-directory: cobalt
+      env:
+        REF: ${{ github.sha }}
+      run: |
         gclient sync \
           --verbose \
           --shallow \
@@ -137,7 +147,7 @@ runs:
 
     - name: Run gclient runhooks
       if: inputs.run_sync == 'true'
+      working-directory: cobalt
       run: |
-        cd cobalt
         gclient runhooks --verbose
       shell: bash

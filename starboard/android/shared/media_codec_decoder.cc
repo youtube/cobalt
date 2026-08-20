@@ -132,7 +132,6 @@ MediaCodecDecoder::CreateForVideo(
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
     std::optional<int> tunnel_mode_audio_session_id,
     bool enable_frame_renderer_listener,
-    bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
     bool use_dual_threads,
@@ -146,9 +145,8 @@ MediaCodecDecoder::CreateForVideo(
       video_codec, frame_size_hint, max_frame_size, fps, j_output_surface,
       drm_system, color_metadata, require_software_codec, frame_rendered_cb,
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
-      enable_frame_renderer_listener, force_big_endian_hdr_metadata,
-      max_video_input_size, flush_delay_usec, use_dual_threads,
-      skip_video_frames_over_60_fps,
+      enable_frame_renderer_listener, max_video_input_size, flush_delay_usec,
+      use_dual_threads, skip_video_frames_over_60_fps,
       ignore_mediacodec_callbacks_during_flushing, enable_ndk_video,
       enable_trivial_optimizations, &error_message);
   if (!decoder->media_codec_bridge_) {
@@ -217,7 +215,6 @@ MediaCodecDecoder::MediaCodecDecoder(
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
     std::optional<int> tunnel_mode_audio_session_id,
     bool enable_frame_renderer_listener,
-    bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
     bool use_dual_threads,
@@ -258,8 +255,7 @@ MediaCodecDecoder::MediaCodecDecoder(
       {max_video_input_size, skip_video_frames_over_60_fps,
        ignore_mediacodec_callbacks_during_flushing,
        enable_frame_renderer_listener, require_secured_decoder,
-       require_software_codec, force_big_endian_hdr_metadata,
-       tunnel_mode_audio_session_id, enable_ndk_video});
+       require_software_codec, tunnel_mode_audio_session_id, enable_ndk_video});
 
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
@@ -482,7 +478,8 @@ void MediaCodecDecoder::AudioDecoderThreadFunc() {
         host_->RefreshOutputFormat(media_codec_bridge_.get());
       } else {
         host_->ProcessOutputBuffer(media_codec_bridge_.get(),
-                                   dequeue_output_result);
+                                   dequeue_output_result,
+                                   GetNumberOfPendingInputs());
       }
     }
 
@@ -546,7 +543,8 @@ void MediaCodecDecoder::VideoDecoderThreadFunc() {
       } else {
         SB_DCHECK(!tunnel_mode_enabled_);
         host_->ProcessOutputBuffer(media_codec_bridge_.get(),
-                                   dequeue_output_result);
+                                   dequeue_output_result,
+                                   GetNumberOfPendingInputs());
       }
       dequeue_output_results.erase(dequeue_output_results.begin());
     }
@@ -635,7 +633,8 @@ void MediaCodecDecoder::OutputThreadFunc() {
         host_->RefreshOutputFormat(media_codec_bridge_.get());
       } else if (!tunnel_mode_enabled_) {
         host_->ProcessOutputBuffer(media_codec_bridge_.get(),
-                                   dequeue_output_result);
+                                   dequeue_output_result,
+                                   GetNumberOfPendingInputs());
       }
       dequeue_output_results.erase(dequeue_output_results.begin());
     } else {

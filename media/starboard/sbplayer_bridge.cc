@@ -38,7 +38,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/experimental/experimental_features.h"
-#include "starboard/extension/player_set_video_surface_view.h"
+#include "starboard/extension/player_settings.h"
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
 #include "cobalt/base/statistics.h"
@@ -46,9 +46,6 @@
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS)
 #include "cobalt/media/base/format_support_query_metrics.h"
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS)
-#if BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
-#include "starboard/extension/player_set_max_video_input_size.h"
-#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
 
 namespace media {
 
@@ -168,7 +165,7 @@ GetStarboardExtensionExperimentalFeatures(
 SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
 SbPlayerBridge::SbPlayerBridge(
     SbPlayerInterface* interface,
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
@@ -214,7 +211,7 @@ SbPlayerBridge::SbPlayerBridge(
                                        weak_factory_.GetWeakPtr()));
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 }
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 SbPlayerBridge::SbPlayerBridge(
     SbPlayerInterface* interface,
@@ -222,9 +219,7 @@ SbPlayerBridge::SbPlayerBridge(
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     const AudioDecoderConfig& audio_config,
-    const std::string& audio_mime_type,
     const VideoDecoderConfig& video_config,
-    const std::string& video_mime_type,
     SbWindow window,
     SbDrmSystem drm_system,
     Host* host,
@@ -266,10 +261,10 @@ SbPlayerBridge::SbPlayerBridge(
       ,
       surface_view_(surface_view)
 #endif  // BUILDFLAG(IS_ANDROID)
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
       ,
       is_url_based_(false)
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
       ,
       cval_stats_(&interface->cval_stats_),
@@ -294,10 +289,10 @@ SbPlayerBridge::SbPlayerBridge(
   video_stream_info_.codec = kSbMediaVideoCodecNone;
 
   if (audio_config.IsValidConfig()) {
-    UpdateAudioConfig(audio_config, audio_mime_type);
+    UpdateAudioConfig(audio_config);
   }
   if (video_config.IsValidConfig()) {
-    UpdateVideoConfig(video_config, video_mime_type);
+    UpdateVideoConfig(video_config);
     SendColorSpaceHistogram();
   }
 
@@ -330,8 +325,7 @@ SbPlayerBridge::~SbPlayerBridge() {
   }
 }
 
-void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
-                                       const std::string& mime_type) {
+void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(audio_config.IsValidConfig());
 
@@ -339,14 +333,12 @@ void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
             << audio_config.AsHumanReadableString();
 
   audio_config_ = audio_config;
-  audio_mime_type_ = mime_type;
   audio_stream_info_ = MediaAudioConfigToSbMediaAudioStreamInfo(
-      audio_config_, audio_mime_type_.c_str());
+      audio_config_, audio_config_.mime_type().c_str());
   LOG(INFO) << "Converted to SbMediaAudioStreamInfo -- " << audio_stream_info_;
 }
 
-void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
-                                       const std::string& mime_type) {
+void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(video_config.IsValidConfig());
 
@@ -360,11 +352,10 @@ void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
       static_cast<int>(video_config_.natural_size().height());
   video_stream_info_.codec =
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
-  video_stream_info_.color_metadata =
-      MediaToSbMediaColorMetadata(video_config_.color_space_info(),
-                                  video_config_.hdr_metadata(), mime_type);
-  video_mime_type_ = mime_type;
-  video_stream_info_.mime = video_mime_type_.c_str();
+  video_stream_info_.color_metadata = MediaToSbMediaColorMetadata(
+      video_config_.color_space_info(), video_config_.hdr_metadata(),
+      video_config_.mime_type());
+  video_stream_info_.mime = video_config_.mime_type().c_str();
   video_stream_info_.max_video_capabilities = max_video_capabilities_.c_str();
   LOG(INFO) << "Converted to SbMediaVideoStreamInfo -- " << video_stream_info_;
 }
@@ -373,9 +364,9 @@ void SbPlayerBridge::WriteBuffers(
     DemuxerStream::Type type,
     const std::vector<scoped_refptr<DecoderBuffer>>& buffers) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   DCHECK(!is_url_based_);
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   if (allow_resume_after_suspend_) {
@@ -512,7 +503,7 @@ SbPlayerBridge::GetAudioConfigurations() {
   return configurations;
 }
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
 void SbPlayerBridge::GetUrlPlayerBufferedTimeRanges(
     TimeDelta* buffer_start_time,
     TimeDelta* buffer_length_time) {
@@ -600,7 +591,7 @@ void SbPlayerBridge::SetDrmSystem(SbDrmSystem drm_system) {
   drm_system_ = drm_system;
   sbplayer_interface_->SetUrlPlayerDrmSystem(player_, drm_system);
 }
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 void SbPlayerBridge::Suspend() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -646,7 +637,7 @@ void SbPlayerBridge::Resume(SbWindow window) {
   decoder_buffer_cache_.StartResuming();
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   if (is_url_based_) {
     CreateUrlPlayer(url_);
     if (SbDrmSystemIsValid(drm_system_)) {
@@ -655,9 +646,9 @@ void SbPlayerBridge::Resume(SbWindow window) {
   } else {
     CreatePlayer();
   }
-#else   // SB_HAS(PLAYER_WITH_URL)
+#else   // BUILDFLAG(IS_IOS_TVOS)
   CreatePlayer();
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   if (SbPlayerIsValid(player_)) {
     state_ = kResuming;
@@ -665,7 +656,7 @@ void SbPlayerBridge::Resume(SbWindow window) {
   }
 }
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
 // static
 void SbPlayerBridge::EncryptedMediaInitDataEncounteredCB(
     SbPlayer player,
@@ -715,7 +706,7 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
 
   UpdateBounds();
 }
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 void SbPlayerBridge::CreatePlayer() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -762,34 +753,26 @@ void SbPlayerBridge::CreatePlayer() {
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   cval_stats_->StartTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+  const StarboardExtensionPlayerSettingsApi* player_settings_extension =
+      static_cast<const StarboardExtensionPlayerSettingsApi*>(
+          SbSystemGetExtension(kStarboardExtensionPlayerSettingsName));
+  if (player_settings_extension &&
+      strcmp(player_settings_extension->name,
+             kStarboardExtensionPlayerSettingsName) == 0 &&
+      player_settings_extension->version >= 1) {
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
-  const StarboardExtensionPlayerSetMaxVideoInputSizeApi*
-      player_set_max_video_input_size_extension =
-          static_cast<const StarboardExtensionPlayerSetMaxVideoInputSizeApi*>(
-              SbSystemGetExtension(
-                  kStarboardExtensionPlayerSetMaxVideoInputSizeName));
-  if (player_set_max_video_input_size_extension &&
-      strcmp(player_set_max_video_input_size_extension->name,
-             kStarboardExtensionPlayerSetMaxVideoInputSizeName) == 0 &&
-      player_set_max_video_input_size_extension->version >= 1) {
-    player_set_max_video_input_size_extension
-        ->SetMaxVideoInputSizeForCurrentThread(max_video_input_size_);
-  }
+    if (player_settings_extension->SetMaxVideoInputSizeForCurrentThread) {
+      player_settings_extension->SetMaxVideoInputSizeForCurrentThread(
+          max_video_input_size_);
+    }
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
 #if BUILDFLAG(IS_ANDROID)
-  const StarboardExtensionPlayerSetVideoSurfaceViewApi*
-      player_set_video_surface_view_extension =
-          static_cast<const StarboardExtensionPlayerSetVideoSurfaceViewApi*>(
-              SbSystemGetExtension(
-                  kStarboardExtensionPlayerSetVideoSurfaceViewName));
-  if (player_set_video_surface_view_extension &&
-      strcmp(player_set_video_surface_view_extension->name,
-             kStarboardExtensionPlayerSetVideoSurfaceViewName) == 0 &&
-      player_set_video_surface_view_extension->version >= 1) {
-    player_set_video_surface_view_extension
-        ->SetVideoSurfaceViewForCurrentThread(surface_view_);
-  }
+    if (player_settings_extension->SetVideoSurfaceViewForCurrentThread) {
+      player_settings_extension->SetVideoSurfaceViewForCurrentThread(
+          surface_view_);
+    }
 #endif  // BUILDFLAG(IS_ANDROID)
+  }
 
   const StarboardExtensionExperimentalFeaturesConfigurationApi*
       experimental_features_extension = static_cast<
@@ -808,17 +791,11 @@ void SbPlayerBridge::CreatePlayer() {
         &extension_features);
   }
 
-  const bool should_get_decode_target_graphics_context_provider =
-      output_mode_ == kSbPlayerOutputModeDecodeToTexture ||
-      experimental_features_.GetBool(kMediaForceClearSurfaceView);
-
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::PlayerErrorCB, this,
-      should_get_decode_target_graphics_context_provider
-          ? get_decode_target_graphics_context_provider_func_.Run()
-          : nullptr);
+      get_decode_target_graphics_context_provider_func_.Run());
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
@@ -842,9 +819,9 @@ void SbPlayerBridge::CreatePlayer() {
 void SbPlayerBridge::WriteNextBuffersFromCache(DemuxerStream::Type type,
                                                int max_buffers_per_write) {
   DCHECK(state_ != kSuspended);
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   DCHECK(!is_url_based_);
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   DCHECK(SbPlayerIsValid(player_));
 
@@ -875,9 +852,9 @@ void SbPlayerBridge::WriteBuffersInternal(
     const SbMediaAudioStreamInfo* audio_stream_info,
     const SbMediaVideoStreamInfo* video_stream_info) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   DCHECK(!is_url_based_);
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   auto sample_type = DemuxerStreamTypeToSbMediaType(type);
   if (buffers.size() == 1 && buffers[0]->end_of_stream()) {
@@ -1112,9 +1089,9 @@ void SbPlayerBridge::OnDecoderStatus(SbPlayer player,
                                      SbMediaType type,
                                      SbPlayerDecoderState state,
                                      int ticket) {
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   DCHECK(!is_url_based_);
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (player_ != player || ticket != ticket_) {
@@ -1230,9 +1207,9 @@ void SbPlayerBridge::OnPlayerError(SbPlayer player,
 }
 
 void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   DCHECK(!is_url_based_);
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (enable_batched_buffer_deallocation_) {
@@ -1447,7 +1424,7 @@ void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
           sample_buffer));
 }
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
 SbPlayerOutputMode SbPlayerBridge::ComputeSbUrlPlayerOutputMode(
     SbPlayerOutputMode default_output_mode) {
   // Try to choose the output mode according to the passed in value of
@@ -1468,7 +1445,7 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbUrlPlayerOutputMode(
 
   return output_mode;
 }
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
     SbPlayerOutputMode default_output_mode) const {

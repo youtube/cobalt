@@ -49,6 +49,7 @@
 #include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
+#include "cobalt/build/configs/buildflags.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
 #include "cobalt/shell/browser/shell.h"
@@ -65,6 +66,7 @@
 #include "components/variations/pref_names.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/overlay_window.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -85,7 +87,8 @@
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/updater/updater_module.h"  //nogncheck
-#include "content/public/browser/storage_partition.h"
+#include "starboard/extension/installation_manager.h"
+#include "starboard/system.h"
 #endif  // BUILDFLAG(USE_EVERGREEN)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -101,6 +104,10 @@
 #include "cobalt/browser/cobalt_crash_annotations.h"  // nogncheck
 #endif                                                // BUILDFLAG(IS_STARBOARD)
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#include "cobalt/browser/proxy_server_support.h"
+#endif
 
 namespace cobalt {
 
@@ -219,7 +226,7 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
 }
 
 CobaltContentBrowserClient::CobaltContentBrowserClient(
-    absl::optional<int64_t> startup_timestamp,
+    std::optional<int64_t> startup_timestamp,
     const std::string& deep_link,
     bool is_visible)
     : startup_timestamp_(startup_timestamp),
@@ -248,6 +255,45 @@ CobaltContentBrowserClient::~CobaltContentBrowserClient() {
 CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
   return static_cast<CobaltContentBrowserClient*>(
       content::ShellContentBrowserClient::Get());
+}
+
+#if BUILDFLAG(IS_ANDROID)
+base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "enable-gpu-shader-disk-cache")) {
+    base::FilePath user_data_dir;
+    if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
+        !user_data_dir.empty()) {
+      return user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache"));
+    }
+  }
+  return base::FilePath();
+}
+
+base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "enable-gpu-shader-disk-cache")) {
+    base::FilePath user_data_dir;
+    if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
+        !user_data_dir.empty()) {
+      return user_data_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
+    }
+  }
+  return base::FilePath();
+}
+#endif
+
+std::unique_ptr<content::VideoOverlayWindow>
+CobaltContentBrowserClient::CreateWindowForVideoPictureInPicture(
+    content::VideoPictureInPictureWindowController* controller) {
+  // TODO: b/532158001 - Support PiP on Linux.
+  // PiP is currently only supported on Android. On other platforms, calling
+  // Create() allocates a dummy object that leaks memory, so we return nullptr.
+#if BUILDFLAG(IS_ANDROID)
+  return content::VideoOverlayWindow::Create(controller);
+#else   // BUILDFLAG(IS_ANDROID)
+  return nullptr;
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 std::unique_ptr<content::BrowserMainParts>
@@ -280,15 +326,10 @@ void CobaltContentBrowserClient::CreateThrottlesForNavigation(
 content::GeneratedCodeCacheSettings
 CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
     content::BrowserContext* context) {
-  // Default compiled javascript quota in Cobalt 25 is 3 MB:
+  // Default compiled javascript quota in Cobalt 25 was 3 MB:
   // https://github.com/youtube/cobalt/blob/3ccdb04a5e36c2597fe7066039037eabf4906ba5/cobalt/network/disk_cache/resource_type.cc#L72
-  // When enable-optimized-v8-code-cache switch is set, increase to 5 MB for
-  // YouTube TV.
-  size_t size = 3 * 1024 * 1024;
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "enable-optimized-v8-code-cache")) {
-    size = 5 * 1024 * 1024;
-  }
+  // Increased to 5 MB for Cobalt 27+.
+  size_t size = 5 * 1024 * 1024;
   base::FilePath cache_path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
   return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
@@ -398,6 +439,22 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
         base::FilePath(kSCTAuditingPendingReportsFileName);
   }
 
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "max-http-cache-size")) {
+    std::string size_str =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+            "max-http-cache-size");
+    int parsed_size = 0;
+    if (base::StringToInt(size_str, &parsed_size)) {
+      network_context_params->http_cache_max_size = parsed_size;
+    }
+  }
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  cobalt::browser::ConfigureProxyFromCommandLineIfNeeded(
+      network_context_params);
+#endif
+
   network_context_params->enable_certificate_reporting = true;
 
   network_context_params->sct_auditing_mode =
@@ -431,10 +488,14 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
   auto* storage_partition =
       web_contents->GetPrimaryMainFrame()->GetStoragePartition();
   if (storage_partition && !updater::UpdaterModule::GetInstance()) {
-    LOG(INFO) << "Creating UpdaterModule singleton.";
-    updater::UpdaterModule::CreateInstance(
-        storage_partition->GetURLLoaderFactoryForBrowserProcess(),
-        GetUserAgent(), updater::kDefaultUpdateCheckDelay);
+    if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
+      LOG(INFO) << "Creating UpdaterModule singleton.";
+      updater::UpdaterModule::CreateInstance(
+          storage_partition->GetURLLoaderFactoryForBrowserProcess(),
+          GetUserAgent(), updater::kDefaultUpdateCheckDelay);
+    } else {
+      LOG(INFO) << "Evergreen Lite mode detected, disabling UpdaterModule.";
+    }
   }
 #endif
 }

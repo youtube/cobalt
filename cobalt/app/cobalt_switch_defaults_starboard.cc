@@ -51,8 +51,6 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       ::switches::kForceVideoOverlays,
       // Disable multiprocess mode.
       ::switches::kSingleProcess,
-      // Hide content shell toolbar.
-      ::switches::kContentShellHideToolbar,
       // Accelerated GL is blanket disabled for Linux. Ignore the GPU
       // blocklist to enable it.
       ::switches::kIgnoreGpuBlocklist,
@@ -108,9 +106,10 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       {::switches::kUseCmdDecoder, "passthrough"},
       // Set the default size for the content shell/starboard window.
       {::switches::kContentShellHostWindowSize, "1920x1080"},
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
       // Enable remote Devtools access.
       {::switches::kRemoteDebuggingPort, "9222"},
-      {::switches::kRemoteAllowOrigins, "http://localhost:9222"},
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
       // kEnableLowEndDeviceMode sets MSAA to 4 (and not 8, the default). But
       // we set it explicitly just in case.
       {blink::switches::kGpuRasterizationMSAASampleCount, "4"},
@@ -126,12 +125,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        "--no-decommit-pooled-pages "
        // Enable memory saving mode with little v8 performance tradeoff.
        "--optimize-for-size "
-       // Set initial old space size to 64MB and max old space size to 512MB.
-       "--initial-old-space-size=64 "
+       // Set initial old space size to 16MB and max old space size to 512MB.
+       "--initial-old-space-size=16 "
        "--max-old-space-size=512 "
-       // Disable v8 optimizing compilers (turbofan, maglev, sparkplug).
-       "--disable-optimizing-compilers "
-       "--no-sparkplug "
        // Disable v8 concurrent marking by default.
        "--no-concurrent-marking"},
       // Limit GPU memory available to 64MB.

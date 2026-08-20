@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <thread>
-
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/strings/string_number_conversions.h"
@@ -21,13 +19,11 @@
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/log_internal.h"
-#include "starboard/android/shared/media_resource_tracker.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-#include "starboard/shared/starboard/features.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
@@ -110,24 +106,6 @@ void JNI_BaseStarboardBridge_CloseNativeStarboard(JNIEnv* env,
                                                   jlong nativeApp) {
   auto* app = reinterpret_cast<ApplicationAndroid*>(nativeApp);
   delete app;
-
-  if (features::FeatureList::IsEnabled(
-          features::kWaitForMediaResourcesOnShutdown)) {
-    std::thread([]() {
-      constexpr int kTimeoutMs = 2'000;
-      int remaining_count =
-          MediaResourceTracker::GetInstance()->WaitUntilZero(kTimeoutMs);
-      if (remaining_count > 0) {
-        SB_LOG(WARNING) << "Timed out waiting for all media resources to be "
-                           "destroyed. Active count: "
-                        << remaining_count;
-      }
-      exit(0);
-    }).detach();
-    return;
-  }
-
-  exit(0);
 }
 
 void JNI_BaseStarboardBridge_InitializePlatformAudioSink(JNIEnv* env) {
@@ -335,6 +313,11 @@ SB_EXPORT_ANDROID double StarboardBridge::GetScreenDiagonal(JNIEnv* env) {
 SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_BaseStarboardBridge_closeApp(env, j_starboard_bridge_);
+}
+
+void StarboardBridge::RequestStop(JNIEnv* env, jint error_level) {
+  SB_CHECK(env);
+  Java_BaseStarboardBridge_requestStop(env, j_starboard_bridge_, error_level);
 }
 
 std::string StarboardBridge::GetTimeZoneId(JNIEnv* env) {

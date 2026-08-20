@@ -29,29 +29,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstdint>
+
 #include "starboard/system.h"
 
-#include "starboard/common/file.h"
-#include "starboard/common/log.h"
-#include "starboard/common/string.h"
-
 int64_t SbSystemGetTotalGPUMemory() {
-  starboard::ScopedFile status_file(
-    "/sys/fs/cgroup/gpu/gpu.limit_in_bytes",
-    O_RDONLY);
-
-  if (status_file.IsValid()) {
-    const int kBufferSize = 512;
-    char buffer[kBufferSize];
-    int bytes_read = status_file.ReadAll(buffer, kBufferSize);
-    if (bytes_read == kBufferSize) {
-      bytes_read = kBufferSize - 1;
-    }
-    buffer[bytes_read] = '\0';
-    int64_t limit_in_bytes = strtoll(buffer, nullptr, 10);
-    if (limit_in_bytes > 0)
-      return limit_in_bytes;
-  }
-
+  // On UMA (Unified Memory Architecture) platforms, GPU and CPU share system
+  // memory. There is no separate dedicated GPU memory pool, so dedicated GPU
+  // memory is 0.
   return 0;
 }

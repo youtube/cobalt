@@ -92,6 +92,28 @@ group("gn_all") {
   }
 }
 
+# Target containing the SbEventHandle implementation, kept separate from ":common"
+# so tests defining their own entry point/mock can omit it or link it as needed.
+static_library("sb_event_handle") {
+  sources = [ "app/sb_event_handle.cc" ]
+  deps = [
+    ":common",
+    "//base",
+    "//starboard:starboard_group",
+  ]
+}
+
+# Target containing the default app/cobalt.cc entry point.
+static_library("cobalt_app") {
+  sources = [ "app/cobalt.cc" ]
+  deps = [
+    ":common",
+    ":sb_event_handle",
+    "//base",
+    "//starboard:starboard_group",
+  ]
+}
+
 group("cobalt_browsertests") {
   testonly = true
 
@@ -107,6 +129,7 @@ if (is_ios && target_platform == "tvos") {
     deps = [
       ":common",
       "//base",
+      "//cobalt/browser/tvos:plist_info",
       "//cobalt/browser/tvos/intents:yt_intents",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
@@ -121,7 +144,7 @@ if (is_ios && target_platform == "tvos") {
 
     intents_target = "//cobalt/browser/tvos/intents:yt_intents"
 
-    data_deps = [ "//tools/v8_context_snapshot:v8_context_snapshot" ]
+    data_deps = [ "//tools/v8_context_snapshot" ]
 
     bundle_identifier = cobalt_bundle_identifier
     entitlements_path = "//cobalt/shell/app/tvos-entitlements.plist"
@@ -140,6 +163,7 @@ if (is_ios && target_platform == "tvos") {
     deps = [
       ":common",
       "//base",
+      "//cobalt/browser/tvos:plist_info",
       "//cobalt/browser/tvos/intents:yt_intents",
       "//cobalt/shell:cobalt_shell_lib",
       "//components/crash/core/app",
@@ -188,11 +212,10 @@ if (is_ios && target_platform == "tvos") {
     cobalt_target_type = "executable"
   }
   target(cobalt_target_type, "cobalt") {
-    sources = [ "app/cobalt.cc" ]
-
     configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
 
     deps = [
+      ":cobalt_app",
       ":common",
       "//base",
       "//starboard:starboard_headers_only",
@@ -203,7 +226,7 @@ if (is_ios && target_platform == "tvos") {
       deps += [ "//third_party/musl:headers" ]
     }
     if (is_starboard) {
-      deps += [ "//ui/ozone/platform/starboard:starboard" ]
+      deps += [ "//ui/ozone/platform/starboard" ]
     } else {
       # Web test support only built for the linux-x64x11-no-starboard target.
       testonly = true
@@ -216,7 +239,7 @@ if (is_ios && target_platform == "tvos") {
 
     data_deps = [
       "//cobalt/shell:pak",
-      "//tools/v8_context_snapshot:v8_context_snapshot",
+      "//tools/v8_context_snapshot",
     ]
   }
 
@@ -271,7 +294,7 @@ source_set("common") {
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//cobalt/utility",
-    "//components/memory_system:memory_system",
+    "//components/memory_system",
     "//content/public/app",
     "//gpu/command_buffer/service",
     "//media",
@@ -287,11 +310,11 @@ source_set("common") {
   }
 
   if (is_starboard) {
-    deps += [ "//ui/ozone/platform/starboard:starboard" ]
+    deps += [ "//ui/ozone/platform/starboard" ]
   }
 
   if (use_evergreen) {
-    deps += [ "//cobalt/updater:updater" ]
+    deps += [ "//cobalt/updater" ]
   }
 }
 
@@ -326,7 +349,9 @@ test("cobalt_unittests") {
     "//cobalt/browser/experiments/experiment_config_manager_unittest.cc",
     "//cobalt/browser/global_features_unittest.cc",
     "//cobalt/browser/h5vcc_metrics/histogram_fetcher_test.cc",
+    "//cobalt/browser/h5vcc_native_stability/native_stability_manager_unittest.cc",
     "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
+    "//cobalt/browser/memory_ablation_unittest.cc",
     "//cobalt/browser/metrics/cobalt_detailed_metrics_delegate_unittest.cc",
     "//cobalt/browser/metrics/cobalt_enabled_state_provider_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_log_uploader_test.cc",
@@ -334,6 +359,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
+    "//cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager_unittest.cc",
   ]
 
   # The symbolizer pipeline test requires launching external Python and
@@ -359,10 +385,11 @@ test("cobalt_unittests") {
     ]
   }
 
+  sources += [ "//cobalt/shell/browser/shell_test_support.h" ]
+
   if (!is_android) {
     sources += [
       "//cobalt/shell/browser/lifecycle_unittest.cc",
-      "//cobalt/shell/browser/shell_test_support.h",
       "//cobalt/shell/browser/splash_screen_unittest.cc",
     ]
   }
@@ -387,6 +414,8 @@ test("cobalt_unittests") {
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/browser/h5vcc_native_stability",
+    "//cobalt/browser/h5vcc_native_stability/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/user_agent",
@@ -422,7 +451,7 @@ test("cobalt_unittests") {
     "//content/public/common:switches",
     "//content/test:test_support",
     "//gpu/config",
-    "//sandbox/policy:policy",
+    "//sandbox/policy",
     "//ui/events/devices",
   ]
 

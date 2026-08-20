@@ -7,12 +7,12 @@
   "test_on_host": true,
   "test_on_device": true,
   "test_device_family": "android",
-  "test_e2e": true,
+  "test_e2e": false,
   "test_yts": true,
   "test_yts_playback": true,
   "comment_test_browser": "test_browser controls desktop browser tests on host. Set to false for Android because browser tests run on physical devices via test_on_device.",
   "test_browser": false,
-  "test_yts_wpt": false,
+  "test_yts_wpt": true,
   "test_root_target": "//cobalt/android:cobalt_apk",
   "e2e_test_targets": [
     {
@@ -97,7 +97,7 @@
   "yts_wpt_test_targets": [
     {
       "target": "testing/container/wpt:yts_wpt_test_android_arm_devices",
-      "test_attempts": "3"
+      "test_attempts": "2"
     }
   ],
   "test_dimensions": {

@@ -20,6 +20,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_resource.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
@@ -71,8 +72,6 @@ class ProxyDemuxerStream : public DemuxerStream {
   bool SupportsConfigChanges() override {
     return bridge_->SupportsConfigChanges(type_);
   }
-
-  std::string mime_type() const override { return bridge_->GetMimeType(type_); }
 
   void EnableBitstreamConverter() override {
     bridge_->EnableBitstreamConverter(type_);
@@ -178,11 +177,6 @@ StarboardRendererWrapper::StarboardRendererWrapper(
     )
     :
 #endif  // BUILDFLAG(IS_ANDROID)
-      renderer_extension_receiver_(
-          this,
-          std::move(traits.renderer_extension_receiver)),
-      client_extension_remote_(std::move(traits.client_extension_remote),
-                               traits.task_runner),
       video_geometry_setter_service_(traits.video_geometry_setter_service),
       overlay_plane_id_(traits.overlay_plane_id),
       renderer_(
@@ -199,7 +193,12 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           ,
           std::move(traits.android_overlay_factory_cb)
 #endif  // BUILDFLAG(IS_ANDROID)
-      ) {
+              ),
+      renderer_extension_receiver_(
+          this,
+          std::move(traits.renderer_extension_receiver)),
+      client_extension_remote_(std::move(traits.client_extension_remote),
+                               traits.task_runner) {
   DETACH_FROM_THREAD(thread_checker_);
   base::SequenceBound<StarboardGpuFactoryImpl> gpu_factory_impl(
       traits.gpu_task_runner,
@@ -304,7 +303,7 @@ void StarboardRendererWrapper::SetCdm(CdmContext* cdm_context,
 }
 
 void StarboardRendererWrapper::SetLatencyHint(
-    absl::optional<base::TimeDelta> latency_hint) {
+    std::optional<base::TimeDelta> latency_hint) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   GetRenderer()->SetLatencyHint(latency_hint);
 }
@@ -514,6 +513,13 @@ void StarboardRendererWrapper::InitializeWithBypassBridge(
       std::move(audio_proxy), std::move(video_proxy));
   std::move(callback).Run(true);
 }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+void StarboardRendererWrapper::SetSourceUrl(const std::string& source_url) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  GetRenderer()->SetSourceUrl(source_url);
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 #if BUILDFLAG(IS_ANDROID)
 void StarboardRendererWrapper::OnOverlayInfoChanged(

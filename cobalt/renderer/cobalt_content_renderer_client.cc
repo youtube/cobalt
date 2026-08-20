@@ -20,6 +20,7 @@
 
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -33,10 +34,10 @@
 #include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/base/starboard/experimental_features.h"
+#include "media/base/starboard/sbmedia_interface.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #include "media/starboard/starboard_media_external_memory_allocator.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
-#include "starboard/media.h"
 #include "starboard/player.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
@@ -45,6 +46,10 @@
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
 #include "ui/gfx/geometry/size_conversions.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "media/starboard/url_player_demuxer.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace cobalt {
 
@@ -219,7 +224,6 @@ void CobaltContentRendererClient::RenderThreadStarted() {
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
-  CHECK(content::RenderThread::IsMainThread());
   ::media::SupportedCodecs codecs = GetStarboardEmeSupportedCodecs();
 
   using Robustness = cdm::WidevineKeySystemInfo::Robustness;
@@ -262,7 +266,6 @@ std::unique_ptr<::media::KeySystemSupportRegistration>
 CobaltContentRendererClient::GetSupportedKeySystems(
     content::RenderFrame* render_frame,
     ::media::GetSupportedKeySystemsCB cb) {
-  CHECK(content::RenderThread::IsMainThread());
   ::media::KeySystemInfos key_systems;
   AddStarboardCmaKeySystems(&key_systems);
   std::move(cb).Run(std::move(key_systems));
@@ -271,11 +274,11 @@ CobaltContentRendererClient::GetSupportedKeySystems(
 
 bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
     const ::media::AudioType& type) {
-  CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromAudioType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
-    support_type = SbMediaCanPlayMimeAndKeySystem(mime.c_str(), "");
+    support_type = ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+        mime.c_str(), "");
   }
   bool result = support_type != kSbMediaSupportTypeNotSupported;
   LOG(INFO) << __func__ << "(" << type.codec << ") -> "
@@ -285,11 +288,11 @@ bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
 
 bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
     const ::media::VideoType& type) {
-  CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromVideoType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
-    support_type = SbMediaCanPlayMimeAndKeySystem(mime.c_str(), "");
+    support_type = ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+        mime.c_str(), "");
   }
   bool result = support_type != kSbMediaSupportTypeNotSupported;
   LOG(INFO) << __func__ << "(" << type.codec << ") -> "
@@ -370,6 +373,20 @@ void CobaltContentRendererClient::PostSandboxInitialized() {
     unregister_thread_closure = base::HangWatcher::RegisterThread(
         base::HangWatcher::ThreadType::kRendererThread);
   }
+}
+
+std::unique_ptr<::media::Demuxer>
+CobaltContentRendererClient::OverrideDemuxerForUrl(
+    content::RenderFrame* render_frame,
+    const GURL& url,
+    scoped_refptr<base::SequencedTaskRunner> task_runner) {
+#if BUILDFLAG(IS_IOS_TVOS)
+  if (::media::IsHlsUrl(url)) {
+    return std::make_unique<::media::UrlPlayerDemuxer>(std::move(task_runner),
+                                                       url);
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+  return nullptr;
 }
 
 }  // namespace cobalt

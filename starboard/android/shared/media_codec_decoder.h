@@ -55,7 +55,8 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   class Host {
    public:
     virtual void ProcessOutputBuffer(MediaCodec* media_codec,
-                                     const DequeueOutputResult& output) = 0;
+                                     const DequeueOutputResult& output,
+                                     int number_of_pending_inputs) = 0;
     virtual void OnEndOfStreamWritten(MediaCodec* media_codec) = 0;
     virtual void RefreshOutputFormat(MediaCodec* media_codec) = 0;
     // This function gets called frequently on the decoding thread to give the
@@ -99,7 +100,6 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
       std::optional<int> tunnel_mode_audio_session_id,
       bool enable_frame_renderer_listener,
-      bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
       bool use_dual_threads,
@@ -134,7 +134,6 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
       std::optional<int> tunnel_mode_audio_session_id,
       bool enable_frame_renderer_listener,
-      bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
       bool use_dual_threads,

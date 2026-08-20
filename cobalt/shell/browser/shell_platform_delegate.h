@@ -56,8 +56,6 @@ class WebContents;
 
 class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
  public:
-  enum UIControl { BACK_BUTTON, FORWARD_BUTTON, STOP_BUTTON };
-
   ShellPlatformDelegate();
   virtual ~ShellPlatformDelegate();
 
@@ -112,17 +110,6 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
   // Resize the web contents in the shell window to the given size.
   virtual void ResizeWebContent(Shell* shell, const gfx::Size& content_size);
 
-  // Enable/disable a button.
-  virtual void EnableUIControl(Shell* shell,
-                               UIControl control,
-                               bool is_enabled);
-
-  // Updates the url in the url bar.
-  virtual void SetAddressBarURL(Shell* shell, const GURL& url);
-
-  // Sets whether the spinner is spinning.
-  virtual void SetIsLoading(Shell* shell, bool loading);
-
   // Set the title of shell window
   virtual void SetTitle(Shell* shell, const std::u16string& title);
 
@@ -167,8 +154,9 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
                                   WebContents* web_contents,
                                   bool enter_fullscreen);
 
-  bool IsFullscreenForTabOrPending(Shell* shell,
-                                   const WebContents* web_contents) const;
+  virtual bool IsFullscreenForTabOrPending(
+      Shell* shell,
+      const WebContents* web_contents) const;
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
