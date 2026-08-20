@@ -228,17 +228,7 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
     // command buffer doesn't support it. There is no way to disable the
     // behavior for a non-ANGLE context but Chrome can't rely on it.
     context_attributes.push_back(EGL_CONTEXT_BIND_GENERATES_RESOURCE_CHROMIUM);
-<<<<<<< HEAD
     context_attributes.push_back(EGL_FALSE);
-=======
-    context_attributes.push_back(attribs.bind_generates_resource ? EGL_TRUE
-                                                                 : EGL_FALSE);
-  } else {
-    // TODO: b/486053854 - Cobalt: Reset unsupported attribs to EGL defaults
-  #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-    DCHECK(attribs.bind_generates_resource);
-  #endif
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   if (gl_display_->ext->b_EGL_ANGLE_create_context_webgl_compatibility) {
