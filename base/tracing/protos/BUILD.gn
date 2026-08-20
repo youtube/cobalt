@@ -7,12 +7,6 @@ import("//third_party/protobuf/proto_library.gni")
 import("//tools/grit/grit_rule.gni")
 import("sources.gni")
 
-<<<<<<< HEAD
-# Generates only a proto descriptor. This must only have a single entry in
-# `sources`, because `generate_descriptor` adds a `--dependency_out` argument to
-# protoc. With multiple sources protoc fails with the error: "Can only process
-# one input file when using --dependency_out=FILE."
-=======
 if (is_cobalt) {
   import("//starboard/build/config/toolchain_variables.gni")
 }
@@ -25,7 +19,10 @@ if (is_cobalt && is_partner_toolchain) {
     public_deps = [ "//copied_base/base/tracing/protos:chrome_track_event_gen" ]
   }
 } else {
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+# Generates only a proto descriptor. This must only have a single entry in
+# `sources`, because `generate_descriptor` adds a `--dependency_out` argument to
+# protoc. With multiple sources protoc fails with the error: "Can only process
+# one input file when using --dependency_out=FILE."
 proto_library("chrome_track_event") {
   proto_in_dir = "//"
   proto_out_dir = "base/tracing/protos"
