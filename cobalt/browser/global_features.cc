@@ -48,11 +48,8 @@ constexpr base::FilePath::CharType kMetricsConfigFilename[] =
 GlobalFeatures::GlobalFeatures() {
   CreateExperimentConfig();
   CreateMetricsServices();
-  // InitializeActiveConfigData needs ExperimentConfigManager to determine
-  // the experiment config type.
   experiment_config_manager_ = std::make_unique<ExperimentConfigManager>(
       experiment_config_.get(), metrics_local_state_.get());
-  InitializeActiveConfigData();
 }
 
 // static
@@ -190,11 +187,9 @@ void GlobalFeatures::CreateMetricsLocalState() {
   metrics_local_state_ = pref_service_factory.Create(std::move(pref_registry));
 }
 
-void GlobalFeatures::InitializeActiveConfigData() {
+void GlobalFeatures::InitializeActiveConfigData(
+    ExperimentConfigType experiment_config_type) {
   DCHECK(experiment_config_);
-  DCHECK(experiment_config_manager_);
-  auto experiment_config_type =
-      experiment_config_manager_->GetExperimentConfigType();
   if (experiment_config_type == ExperimentConfigType::kEmptyConfig) {
     return;
   }
