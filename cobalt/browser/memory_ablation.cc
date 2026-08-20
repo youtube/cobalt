@@ -21,7 +21,6 @@
 
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/task/sequenced_task_runner.h"
@@ -58,8 +57,6 @@ void DoMemoryAblationInBackground(
   if (!buffer) {
     base::UmaHistogramEnumeration("Cobalt.Features.NativeMemoryAblation.Result",
                                   NativeMemoryAblationResult::kOomFailure);
-    LOG(ERROR) << "Failed to allocate " << size_mb
-               << " MB for native memory ablation (OOM).";
     return;
   }
 
@@ -108,9 +105,6 @@ void MaybeApplyMemoryAblation() {
   if (size_mb > kMaxAblationSizeMB) {
     base::UmaHistogramEnumeration("Cobalt.Features.NativeMemoryAblation.Result",
                                   NativeMemoryAblationResult::kExceedsMaxLimit);
-    LOG(ERROR) << "Requested ablation size " << size_mb
-               << " MB exceeds maximum allowable limit (" << kMaxAblationSizeMB
-               << " MB). Ablation skipped.";
     return;
   }
 
