@@ -30,6 +30,8 @@
 
     // Returns the application CPU memory limit in bytes.
     [CallWith=ScriptState] unsigned long long measureApplicationLimitMemory();
+    // Returns the amount of GPU memory used by the Cobalt process in bytes.
+    [CallWith=ScriptState, RaisesException] unsigned long long measureUsedGpuMemory();
 
     // Returns the application startup timestamp in millisecs (ms).
     [CallWith=ScriptState, RaisesException] Promise<DOMHighResTimeStamp> getAppStartupTimeStamp();
