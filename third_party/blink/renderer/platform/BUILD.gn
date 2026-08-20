@@ -1992,7 +1992,7 @@ component("platform") {
       "//components/language_detection/content/common:common_blink",
       "//components/language_detection/content/renderer",
       "//components/language_detection/core",
-      "//components/translate/core/language_detection:language_detection",
+      "//components/translate/core/language_detection",
     ]
   }
 }

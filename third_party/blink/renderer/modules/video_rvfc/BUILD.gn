@@ -12,13 +12,9 @@ blink_modules_sources("video_rvfc") {
     "video_frame_request_callback_collection.h",
   ]
 
-<<<<<<< HEAD
   deps = [ "//third_party/blink/renderer/modules/xr" ]
-=======
-  deps = [ "//third_party/blink/renderer/modules/xr:xr" ]
 
   if (is_cobalt) {
-    deps -= [ "//third_party/blink/renderer/modules/xr:xr" ]
+    deps -= [ "//third_party/blink/renderer/modules/xr" ]
   }
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }

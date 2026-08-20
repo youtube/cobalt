@@ -18,13 +18,8 @@ if (enable_privacy_sandbox_apis) {
       "validate_blink_interest_group.h",
     ]
 
-<<<<<<< HEAD
-  deps = [ "//third_party/blink/renderer/modules/geolocation" ]
-}
-=======
-    deps = [ "//third_party/blink/renderer/modules/geolocation:geolocation" ]
+    deps = [ "//third_party/blink/renderer/modules/geolocation" ]
   }
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   source_set("unit_tests") {
     testonly = true
@@ -33,19 +28,6 @@ if (enable_privacy_sandbox_apis) {
       "validate_blink_interest_group_test.cc",
     ]
 
-<<<<<<< HEAD
-  deps = [
-    "//base",
-    "//mojo/public/cpp/test_support:test_utils",
-    "//testing/gmock",
-    "//testing/gtest",
-    "//third_party/blink/public:test_headers",
-    "//third_party/blink/public/common:headers",
-    "//third_party/blink/renderer/modules",
-    "//third_party/blink/renderer/platform:test_support",
-    "//url",
-  ]
-=======
     deps = [
       "//base",
       "//mojo/public/cpp/test_support:test_utils",
@@ -53,10 +35,9 @@ if (enable_privacy_sandbox_apis) {
       "//testing/gtest",
       "//third_party/blink/public:test_headers",
       "//third_party/blink/public/common:headers",
-      "//third_party/blink/renderer/modules:modules",
+      "//third_party/blink/renderer/modules",
       "//third_party/blink/renderer/platform:test_support",
       "//url",
     ]
   }
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
