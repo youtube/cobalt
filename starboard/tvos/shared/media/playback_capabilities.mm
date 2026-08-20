@@ -99,6 +99,8 @@ class PlaybackCapabilitiesImpl {
   PlaybackCapabilitiesImpl()
       : is_hw_vp9_supported_(
             VTIsHardwareDecodeSupported(kCMVideoCodecType_VP9)),
+        is_hw_av1_supported_(
+            VTIsHardwareDecodeSupported(kCMVideoCodecType_AV1)),
         is_apple_tv_hd_(IsAppleTVHDPriv()),
         is_apple_tv_4k_(IsAppleTV4KPriv()) {
     ObserverRegistry::RegisterObserver(&observer_);
@@ -137,6 +139,8 @@ class PlaybackCapabilitiesImpl {
   }
 
   bool IsHwVp9Supported() const { return is_hw_vp9_supported_; }
+
+  bool IsHwAv1Supported() const { return is_hw_av1_supported_; }
 
   bool IsAppleTVHD() const { return is_apple_tv_hd_; }
 
@@ -215,6 +219,7 @@ class PlaybackCapabilitiesImpl {
   }
 
   const bool is_hw_vp9_supported_;
+  const bool is_hw_av1_supported_;
   const bool is_apple_tv_hd_;
   const bool is_apple_tv_4k_;
 
@@ -241,6 +246,11 @@ void PlaybackCapabilities::InitializeInBackground() {
 // static
 bool PlaybackCapabilities::IsHwVp9Supported() {
   return GetInstance()->IsHwVp9Supported();
+}
+
+// static
+bool PlaybackCapabilities::IsHwAv1Supported() {
+  return GetInstance()->IsHwAv1Supported();
 }
 
 // static
