@@ -842,16 +842,15 @@ group("gn_all") {
     deps += [ "//internal:all" ]
   }
 
-<<<<<<< HEAD
   if (checkout_clusterfuzz_data) {
     deps += [ "//clusterfuzz-data:all" ]
-=======
+  }
+
   if (is_cobalt) {
     deps += [
       "//cobalt:gn_all",
       "//cobalt:cobalt_browsertests",
     ]
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 }
 
