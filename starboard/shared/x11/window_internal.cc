@@ -148,6 +148,9 @@ void SbWindowPrivate::BeginComposite() {
     width = window_attributes.width;
     height = window_attributes.height;
     unhandled_resize = true;
+    if (gl_window != None) {
+      XResizeWindow(display, gl_window, width, height);
+    }
     if (composition_pixmap != None) {
       XFreePixmap(display, composition_pixmap);
       composition_pixmap = None;
