@@ -28,6 +28,7 @@
 #include "media/base/video_frame.h"
 #include "media/mojo/clients/mojo_renderer.h"
 #include "media/mojo/common/starboard/empty_media_resource.h"
+#include "media/mojo/mojom/video_decoder.mojom.h"
 #include "media/renderers/video_overlay_factory.h"
 #include "media/video/gpu_video_accelerator_factories.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
