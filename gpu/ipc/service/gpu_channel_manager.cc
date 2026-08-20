@@ -926,6 +926,10 @@ scoped_refptr<SharedContextState> GpuChannelManager::GetSharedContextState(
       base::FeatureList::IsEnabled(features::kDefaultANGLEMetal);
 
   scoped_refptr<gl::GLSurface> surface = default_offscreen_surface();
+  if (!surface) {
+    *result = ContextResult::kTransientFailure;
+    return nullptr;
+  }
   bool use_virtualized_gl_contexts = false;
 #if BUILDFLAG(IS_MAC)
   // Virtualize GpuPreference::kLowPower contexts by default on OS X to prevent
