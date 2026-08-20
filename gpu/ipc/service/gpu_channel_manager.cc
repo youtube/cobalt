@@ -850,7 +850,6 @@ void GpuChannelManager::OnApplicationBackgrounded() {
 }
 
 void GpuChannelManager::OnApplicationForegounded() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   application_backgrounded_ = false;
 }
 

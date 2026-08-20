@@ -158,9 +158,7 @@ void ShellPlatformDelegate::OnReveal() {
   if (IsVisible()) {
     return;
   }
-#if BUILDFLAG(IS_COBALT)
-  content::RestoreGpuProcessOnForeground();
-#endif
+  content::RestoreGpuProcessOnUI();
   // Used to ensure we only register as observer once, even if there are
   // multiple windows to wait for.
   bool started_waiting = false;
@@ -325,7 +323,7 @@ void ShellPlatformDelegate::OnAllFramesConcealed(
   }
   is_visible_ = false;
 
-  content::CleanupGpuProcessOnBackground(base::BindOnce([]() {
+  content::CleanupGpuProcessOnUI(base::BindOnce([]() {
     cobalt::CobaltLifecycleManager::GetInstance()->OnGpuCleanupCompleted();
   }));
 
