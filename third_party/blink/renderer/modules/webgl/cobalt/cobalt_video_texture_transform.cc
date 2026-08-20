@@ -35,7 +35,7 @@ WebGLExtensionName CobaltVideoTextureTransform::GetName() const {
 
 bool CobaltVideoTextureTransform::Supported(
     WebGLRenderingContextBase* context) {
-#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_ANDROID)
   // Currently specific to Android, where MediaCodec hardware decoders allocate
   // macroblock-aligned GraphicBuffer surfaces sampled via
   // GL_OES_EGL_image_external.
@@ -43,7 +43,7 @@ bool CobaltVideoTextureTransform::Supported(
       "GL_OES_EGL_image_external");
 #else
   return false;
-#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_ANDROIDTV)
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 const char* CobaltVideoTextureTransform::ExtensionName() {
