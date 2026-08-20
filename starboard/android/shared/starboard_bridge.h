@@ -33,7 +33,7 @@ class StarboardBridge {
   // Returns the singleton.
   static StarboardBridge* GetInstance();
 
-  void Initialize(JNIEnv* env, jobject obj);
+  void Initialize(JNIEnv* env, const jni_zero::JavaRef<jobject>& obj);
 
   int64_t GetAppStartTimestamp(JNIEnv* env);
 
