@@ -148,43 +148,38 @@ std::unique_ptr<ui::Event> PlatformEventSourceStarboard::CreateMouseInputEvent(
     return CreateMouseWheelInputEvent(event);
   }
 
+  int flags = GetEventFlags(*input_data);
+  int changed_button_flags = 0;
   ui::EventType event_type = ui::EventType::kUnknown;
+
   switch (input_data->type) {
     case kSbInputEventTypeMove:
       event_type = ui::EventType::kMouseMoved;
+      flags |= current_pressed_mouse_buttons_;
       break;
     case kSbInputEventTypePress:
       event_type = ui::EventType::kMousePressed;
+      changed_button_flags = GetMouseButtonFromKey(input_data->key);
+      current_pressed_mouse_buttons_ |= changed_button_flags;
+      flags |= current_pressed_mouse_buttons_;
       break;
     case kSbInputEventTypeUnpress:
       event_type = ui::EventType::kMouseReleased;
+      if (input_data->key != kSbKeyUnknown) {
+        changed_button_flags = GetMouseButtonFromKey(input_data->key);
+      } else if (current_pressed_mouse_buttons_ != 0) {
+        // Fallback: if key is omitted on release, release the currently held
+        // button.
+        changed_button_flags = current_pressed_mouse_buttons_;
+      } else {
+        changed_button_flags = ui::EF_LEFT_MOUSE_BUTTON;
+      }
+      current_pressed_mouse_buttons_ &= ~changed_button_flags;
+      flags |= current_pressed_mouse_buttons_;
+      flags &= ~changed_button_flags;
       break;
     default:
       return nullptr;
-  }
-
-  int flags = GetEventFlags(*input_data);
-  int changed_button_flags = 0;
-
-  if (input_data->type == kSbInputEventTypePress) {
-    changed_button_flags = GetMouseButtonFromKey(input_data->key);
-    current_pressed_mouse_buttons_ |= changed_button_flags;
-    flags |= current_pressed_mouse_buttons_;
-  } else if (input_data->type == kSbInputEventTypeUnpress) {
-    if (input_data->key != kSbKeyUnknown) {
-      changed_button_flags = GetMouseButtonFromKey(input_data->key);
-    } else if (current_pressed_mouse_buttons_ != 0) {
-      // Fallback: if key is omitted on release, release the currently held
-      // button.
-      changed_button_flags = current_pressed_mouse_buttons_;
-    } else {
-      changed_button_flags = ui::EF_LEFT_MOUSE_BUTTON;
-    }
-    current_pressed_mouse_buttons_ &= ~changed_button_flags;
-    flags |= current_pressed_mouse_buttons_;
-    flags &= ~changed_button_flags;
-  } else if (input_data->type == kSbInputEventTypeMove) {
-    flags |= current_pressed_mouse_buttons_;
   }
 
   return std::make_unique<ui::MouseEvent>(
