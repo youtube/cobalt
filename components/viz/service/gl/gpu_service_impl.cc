@@ -1188,17 +1188,8 @@ void GpuServiceImpl::DestroyAllChannels() {
 }
 
 void GpuServiceImpl::OnBackgroundCleanup() {
-  DCHECK(io_runner_->BelongsToCurrentThread());
-  if (compositor_gpu_thread_) {
-    compositor_gpu_thread_->task_runner()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&GpuServiceImpl::OnBackgroundCleanupCompositorGpuThread,
-                       weak_ptr_));
-  }
-  main_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&GpuServiceImpl::OnBackgroundCleanupGpuMainThread,
-                     weak_ptr_));
+  OnBackgroundCleanupGpuMainThread();
+  OnBackgroundCleanupCompositorGpuThread();
 }
 
 void GpuServiceImpl::OnBackgroundCleanupGpuMainThread() {
@@ -1211,6 +1202,7 @@ void GpuServiceImpl::OnBackgroundCleanupGpuMainThread() {
                        weak_ptr_));
     return;
   }
+  DVLOG(1) << "GPU: Performing background cleanup";
   gpu_channel_manager_->OnBackgroundCleanup();
 #if BUILDFLAG(IS_COBALT)
   gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
