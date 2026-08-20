@@ -4102,7 +4102,6 @@ Extensions Context::generateSupportedExtensions() const
     // Blob cache extension is provided by the ANGLE frontend
     supportedExtensions.blobCacheANGLE = true;
 
-<<<<<<< HEAD
     // Disable extensions that are implemented through shader compiler transformations
     if (mState.usesPassthroughShaders())
     {
@@ -4118,11 +4117,10 @@ Extensions Context::generateSupportedExtensions() const
             supportedExtensions.shaderNoperspectiveInterpolationNV = false;
         }
     }
-=======
+
 #if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     supportedExtensions.EGLImageExternalOES = true;
 #endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     return supportedExtensions;
 }
