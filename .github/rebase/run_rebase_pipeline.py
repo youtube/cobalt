@@ -13,277 +13,22 @@ Executes all rebase phases in sequence:
 
 import argparse
 import os
-import re
-import subprocess
 import sys
 import time
 from typing import List, Optional
 import warnings
 
-from autoninja_loop import (
-    apply_patch_or_replacement,
-    execute_local_tool,
-)
-from reasoning_engine import CobaltReasoningEngine
+from autoninja import AutoninjaResolver
+from conflicts import ConflictResolver
+from gclient_sync import GClientSyncResolver
+from gn_gen import GNGenResolver
 from rebase_memory import (
-    load_past_experience,
     pull_memory_from_gcs,
-    record_failure,
-    record_successful_fix,
     sync_memory_to_gcs,
 )
 
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
-
-
-def run_cmd(cmd: List[str], cwd: Optional[str] = None) -> int:
-  """Executes a shell command and streams output to stderr."""
-  cmd_str = " ".join(cmd)
-  print(f"\n[pipeline] >>> Executing: {cmd_str}", file=sys.stderr)
-  res = subprocess.run(cmd, cwd=cwd, check=False)
-  return res.returncode
-
-
-def self_heal_gn_generation(
-    repo_path: str,
-    platform: str,
-    build_type: str,
-    *,
-    gn_check: bool = True,
-    model: str = "gemini-3.7-flash",
-    project_id: Optional[str] = None,
-    location: str = "global",
-    max_retries: int = 50,
-) -> bool:
-  """Executes cobalt/build/gn.py with self-healing AI feedback loop."""
-  gn_script = os.path.join(repo_path, "cobalt", "build", "gn.py")
-  cmd = [sys.executable, gn_script, "-p", platform, "-C", build_type]
-  if gn_check:
-    cmd.append("--check")
-
-  depot_tools = os.path.expanduser("~/depot_tools")
-  clean_env = {
-      k: v for k, v in os.environ.items() if not k.startswith("ANTIGRAVITY_")
-  }
-  if os.path.isdir(depot_tools):
-    orig_path = clean_env.get("PATH", "")
-    clean_env["PATH"] = f"{depot_tools}:{orig_path}"
-
-  attempt_history: List[str] = []
-  last_error_summary = ""
-  stuck_count = 0
-
-  reasoning_engine = CobaltReasoningEngine(
-      project_id=project_id,
-      location=location,
-      flash_model=model,
-  )
-  past_experience = load_past_experience()
-
-  for attempt in range(1, max_retries + 1):
-    cmd_str = " ".join(cmd)
-    print(
-        f"\n[pipeline] Running GN gen (attempt {attempt}/{max_retries}): "
-        f"{cmd_str}",
-        file=sys.stderr,
-    )
-    res = subprocess.run(
-        cmd,
-        cwd=repo_path,
-        capture_output=True,
-        text=True,
-        env=clean_env,
-        check=False,
-    )
-    if res.returncode == 0:
-      print(
-          f"[OK] GN generation and header verification passed: "
-          f"out/{platform}_{build_type}",
-          file=sys.stderr,
-      )
-      return True
-
-    output = f"{res.stdout}\n{res.stderr}"
-    print(f"[FAIL] GN generation failed:\n{output}", file=sys.stderr)
-
-    if attempt == max_retries:
-      print(
-          f"[pipeline] GN self-healing exhausted after {max_retries} "
-          "attempts.",
-          file=sys.stderr,
-      )
-      return False
-
-    error_summary = output.strip().splitlines()[0] if output.strip() else ""
-    if error_summary == last_error_summary:
-      stuck_count += 1
-    else:
-      stuck_count = 0
-    last_error_summary = error_summary
-
-    use_pro = stuck_count >= 2
-    # Escalate to full file context if scoping failed (stuck) or for
-    # structural brace mismatches that transcend local scope.
-    is_structural_break = any(kw in output.lower() for kw in (
-        "unexpected token '}'",
-        "unexpected token '{'",
-        "expecting assignment",
-    ))
-    send_full_file = use_pro or is_structural_break or (stuck_count >= 1)
-
-    if use_pro:
-      print(
-          "  - [PRO_REASONING] Repeated GN error. Escalating to Pro...",
-          file=sys.stderr,
-      )
-
-    # Extract file context from error trace
-    unique_gn_files: dict[str, Optional[int]] = {}
-
-    # 1. Resolve GN targets: "The target: //gpu/command_buffer/service:impl"
-    target_matches = re.findall(r"target(?:\(s\))?:\s+//([a-zA-Z0-9_/\.\-]+):",
-                                output)
-    for t_dir in target_matches:
-      gn_path = os.path.join(repo_path, t_dir, "BUILD.gn")
-      if os.path.isfile(gn_path):
-        unique_gn_files[gn_path] = None
-
-    # 2. Resolve source errors: "ERROR at //gpu/command_buffer/service/err.cc"
-    src_pattern = (r"ERROR at //([a-zA-Z0-9_/\.\-]+)/[a-zA-Z0-9_/\.\-]+\."
-                   r"(?:cc|h|mm|cpp|c):")
-    for s_dir in re.findall(src_pattern, output):
-      gn_path = os.path.join(repo_path, s_dir, "BUILD.gn")
-      if os.path.isfile(gn_path):
-        unique_gn_files[gn_path] = None
-
-    # 3. Direct .gn / .gni matches from error trace
-    gn_error_matches = re.findall(
-        r"(?:ERROR at //|[/\s])([a-zA-Z0-9_/\.\-]+\.gn[i]?)(?::(\d+))?",
-        output,
-    )
-    for f, line_str in gn_error_matches:
-      if "BUILDCONFIG.gn" in f and unique_gn_files:
-        continue
-      full_p = os.path.join(repo_path, f) if not os.path.isabs(f) else f
-      if os.path.isfile(full_p):
-        target_line = int(line_str) if line_str else None
-        if full_p not in unique_gn_files or target_line is not None:
-          unique_gn_files[full_p] = target_line
-
-    # 4. Resolve caller in "whence it was imported" and "Previous declaration"
-    import_matches = re.findall(
-        r"See //([a-zA-Z0-9_/\.\-]+\.gn[i]?)(?::(\d+))?:\s+"
-        r"(?:whence it was imported|Previous declaration)",
-        output,
-    )
-    for f, line_str in import_matches:
-      full_p = os.path.join(repo_path, f) if not os.path.isabs(f) else f
-      if os.path.isfile(full_p):
-        target_line = int(line_str) if line_str else None
-        unique_gn_files[full_p] = target_line
-
-    # 5. Resolve unresolved dependencies: "needs //path/to/target:name"
-    needs_matches = re.findall(
-        r"needs\s+//([a-zA-Z0-9_/\.\-]+):[a-zA-Z0-9_/\.\-]+", output)
-    for target_dir in needs_matches:
-      gn_path = os.path.join(repo_path, target_dir, "BUILD.gn")
-      if os.path.isfile(gn_path):
-        unique_gn_files[gn_path] = None
-
-    file_contexts = []
-    for gnf, target_line in list(unique_gn_files.items())[:3]:
-      try:
-        with open(gnf, "r", encoding="utf-8") as gf:
-          file_content = gf.read()
-        rel_f = os.path.relpath(gnf, repo_path)
-        if send_full_file or target_line is None:
-          file_contexts.append(
-              f"### Full File: {rel_f}\n```gn\n{file_content}\n```")
-        else:
-          lines = file_content.splitlines(keepends=True)
-          start_idx = max(0, target_line - 60)
-          end_idx = min(len(lines), target_line + 60)
-          snippet = "".join(lines[start_idx:end_idx])
-          file_contexts.append(
-              f"### File: {rel_f} (Lines {start_idx + 1}-{end_idx})\n"
-              f"```gn\n{snippet}\n```")
-      except OSError:
-        pass
-
-    record_failure(
-        phase="Phase 3 (GN Generation)",
-        target=f"{platform}_{build_type}",
-        error_message=output.splitlines()[0] if output else "GN Error",
-        attempt_num=attempt,
-        details="\n".join(output.splitlines()[:20]),
-    )
-
-    investigation_history: List[str] = []
-    max_tool_rounds = 4
-    ai_fix = ""
-
-    for round_idx in range(1, max_tool_rounds + 1):
-      investigation_text = "\n\n".join(investigation_history)
-      print(
-          f"  - Querying Vertex AI Reasoning Engine (Round {round_idx}/"
-          f"{max_tool_rounds})...",
-          file=sys.stderr,
-      )
-      try:
-        res_ai = reasoning_engine.heal_gn_error(
-            error_trace=output[:32768],
-            file_context="\n\n".join(file_contexts),
-            attempt_history="\n".join(attempt_history[-3:]),
-            past_experience=past_experience,
-            investigation_history=investigation_text,
-            use_pro=use_pro,
-        )
-        ai_resp = res_ai.get("patch", "").strip()
-      except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"  [WARNING] Vertex AI call failed: {e}", file=sys.stderr)
-        break
-
-      tool_match = re.search(r"^(TOOL_[A-Z_]+:.*)$", ai_resp, re.MULTILINE)
-      if tool_match and round_idx < max_tool_rounds:
-        tool_cmd = tool_match.group(1).strip()
-        print(
-            f"    [TOOL_USE] Model requested: {tool_cmd}",
-            file=sys.stderr,
-        )
-        tool_res = execute_local_tool(tool_cmd, repo_path=repo_path)
-        investigation_history.append(
-            f"Tool Call: `{tool_cmd}`\nResult:\n{tool_res}")
-        continue
-
-      ai_fix = ai_resp
-      break
-
-    if modified := apply_patch_or_replacement(ai_fix, repo_path=repo_path):
-      mod_names = [os.path.relpath(mf, repo_path) for mf in modified]
-      for rel in mod_names:
-        print(f"  [OK] Applied GN fix to: {rel}", file=sys.stderr)
-        record_successful_fix(
-            category="GN",
-            target_file=rel,
-            error_signature=(output.splitlines()[0] if output else "GN Error"),
-            fix_summary=f"Resolved on attempt {attempt}/{max_retries}",
-            solution_snippet=ai_fix,
-        )
-      mod_joined = ", ".join(mod_names)
-      attempt_history.append(
-          f"Attempt #{attempt}: Modified {mod_joined}. "
-          "If the error persists, do not repeat these exact changes.")
-    else:
-      print(
-          "  [WARNING] AI did not generate an auto-applicable fix.",
-          file=sys.stderr,
-      )
-      attempt_history.append(
-          f"Attempt #{attempt}: Model did not produce an applicable "
-          "patch.")
-
-  return False
 
 
 def get_chromium_milestone(repo_path: Optional[str] = None) -> str:
@@ -444,11 +189,6 @@ def build_arg_parser() -> argparse.ArgumentParser:
 def run_pipeline(args: argparse.Namespace) -> int:
   """Executes the end-to-end multi-phase Cobalt rebase pipeline."""
   rebase_dir = os.path.dirname(os.path.abspath(__file__))
-  proj_arg = ["--project-id", args.project_id] if args.project_id else []
-  loc_arg = ["--location", args.location] if args.location else []
-  model_arg = ["--model", args.model]
-  auth_args = proj_arg + loc_arg
-
   out_dir = f"{args.platform}_{args.build_type}"
   effective_target = args.target
   if effective_target == "cobalt" and args.platform.startswith("android"):
@@ -474,28 +214,94 @@ def run_pipeline(args: argparse.Namespace) -> int:
   print("=" * 80, file=sys.stderr)
 
   # -------------------------------------------------------------------------
-  # PHASE 1: Unified Conflict Resolution (DEPS + Source) & gclient sync
+  # RESOLVER SETUP & DEPENDENCY INJECTION
+  # -------------------------------------------------------------------------
+  # Phase 1: Conflict Resolver
+  conflict_resolver = ConflictResolver(
+      repo_path=args.repo_path,
+      project_id=args.project_id,
+      location=args.location,
+      model=args.model,
+      skills_dir=args.skills_dir,
+      skip_sync=True,  # Phase 2 handles gclient sync
+  )
+
+  # Phase 2: Shared Sync Resolver
+  sync_resolver = GClientSyncResolver(
+      repo_path=args.repo_path,
+      max_iterations=10,
+      project_id=args.project_id,
+      location=args.location,
+      model=args.model,
+      skills_dir=args.skills_dir,
+  )
+
+  def on_gn_patch_applied(modified_files: List[str]) -> None:
+    """Triggered if GN healing touches DEPS or other dependency files."""
+    if any(os.path.basename(f) == "DEPS" for f in modified_files):
+      print(
+          "[Phase 3] DEPS was modified by GN fix. Re-running gclient sync...",
+          file=sys.stderr,
+      )
+      sync_resolver.run_resolution_loop()
+
+  # Phase 3: Shared GN Resolver
+  gn_resolver = GNGenResolver(
+      repo_path=args.repo_path,
+      platform=args.platform,
+      build_type=args.build_type,
+      gn_check=True,
+      max_iterations=args.max_gn_iterations,
+      project_id=args.project_id,
+      location=args.location,
+      model=args.model,
+      skills_dir=args.skills_dir,
+      on_patch_applied_fn=on_gn_patch_applied,
+  )
+
+  def on_build_patch_applied(modified_files: List[str]) -> None:
+    """Triggered if compiler loop touches DEPS or GN build files."""
+    if any(os.path.basename(f) == "DEPS" for f in modified_files):
+      print(
+          "[Phase 4] DEPS modified by compiler fix. Re-running gclient sync...",
+          file=sys.stderr,
+      )
+      sync_resolver.run_resolution_loop()
+
+    if any(f.endswith((".gn", ".gni", ".star")) for f in modified_files):
+      print(
+          "[Phase 4] Build files modified. Re-running GN generation...",
+          file=sys.stderr,
+      )
+      gn_resolver.run_resolution_loop()
+
+  # Phase 4: autoninja Compiler Resolver
+  autoninja_resolver = AutoninjaResolver(
+      repo_path=args.repo_path,
+      out_dir=out_dir,
+      target=effective_target,
+      max_iterations=args.max_build_iterations,
+      project_id=args.project_id,
+      location=args.location,
+      model=args.model,
+      skills_dir=args.skills_dir,
+      on_patch_applied_fn=on_build_patch_applied,
+  )
+
+  # -------------------------------------------------------------------------
+  # PHASE 1: Unified Conflict Resolution (DEPS + Source)
   # -------------------------------------------------------------------------
   if not args.skip_conflicts:
     print("\n" + "=" * 80, file=sys.stderr)
     print(
-        "[PHASE] PHASE 1: Unified Conflict Resolution & gclient sync",
+        "[PHASE] PHASE 1: Unified Conflict Resolution (DEPS + Source)",
         file=sys.stderr,
     )
     print("=" * 80, file=sys.stderr)
-    conflicts_script = os.path.join(rebase_dir, "resolve_conflicts.py")
-    cmd_p1 = [
-        sys.executable,
-        conflicts_script,
-        "--repo-path",
-        args.repo_path,
-        "--cobalt-root",
-        args.cobalt_root,
-    ] + auth_args + model_arg
-    rc = run_cmd(cmd_p1, cwd=args.repo_path)
-    if rc != 0:
+    conflict_ok = conflict_resolver.run_resolution_loop()
+    if not conflict_ok:
       print(
-          f"[FAIL] Phase 1 Conflict Resolution failed (Exit Code: {rc}).",
+          "[FAIL] Phase 1 Conflict Resolution failed.",
           file=sys.stderr,
       )
       _write_final_report(
@@ -508,10 +314,9 @@ def run_pipeline(args: argparse.Namespace) -> int:
           elapsed_seconds=time.time() - start_time,
           repo_path=args.repo_path,
       )
-      return rc
+      return 1
     print("[OK] Phase 1 Completed Successfully.", file=sys.stderr)
 
-  # -------------------------------------------------------------------------
   # -------------------------------------------------------------------------
   # PHASE 2: Toolchain & Dependency Sync: gclient sync -D
   # -------------------------------------------------------------------------
@@ -522,18 +327,10 @@ def run_pipeline(args: argparse.Namespace) -> int:
         file=sys.stderr,
     )
     print("=" * 80, file=sys.stderr)
-    rc_sync = run_cmd(["gclient", "sync", "-D"], cwd=args.repo_path)
-    if rc_sync != 0:
+    sync_ok = sync_resolver.run_resolution_loop()
+    if not sync_ok:
       print(
-          f"[WARNING] gclient sync returned {rc_sync}. Retrying with "
-          "--force --reset...",
-          file=sys.stderr,
-      )
-      rc_sync = run_cmd(["gclient", "sync", "-D", "--force", "--reset"],
-                        cwd=args.repo_path)
-    if rc_sync != 0:
-      print(
-          f"[FAIL] Phase 2 Toolchain Sync failed (Exit Code: {rc_sync}).",
+          "[FAIL] Phase 2 Toolchain Sync failed.",
           file=sys.stderr,
       )
       _write_final_report(
@@ -546,7 +343,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
           elapsed_seconds=time.time() - start_time,
           repo_path=args.repo_path,
       )
-      return rc_sync
+      return 1
     print("[OK] Phase 2 Completed Successfully.", file=sys.stderr)
 
   # -------------------------------------------------------------------------
@@ -559,16 +356,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
         file=sys.stderr,
     )
     print("=" * 80, file=sys.stderr)
-    gn_ok = self_heal_gn_generation(
-        repo_path=args.repo_path,
-        platform=args.platform,
-        build_type=args.build_type,
-        gn_check=True,
-        model=args.model,
-        project_id=args.project_id,
-        location=args.location,
-        max_retries=args.max_gn_iterations,
-    )
+    gn_ok = gn_resolver.run_resolution_loop()
     if not gn_ok:
       print(
           "[FAIL] Phase 3 GN Generation & Header Verification failed.",
@@ -598,24 +386,10 @@ def run_pipeline(args: argparse.Namespace) -> int:
         file=sys.stderr,
     )
     print("=" * 80, file=sys.stderr)
-    autoninja_script = os.path.join(rebase_dir, "autoninja_loop.py")
-    cmd_p3 = [
-        sys.executable,
-        autoninja_script,
-        "--out-dir",
-        out_dir,
-        "--target",
-        effective_target,
-        "--cobalt-root",
-        args.cobalt_root,
-        "--max-iterations",
-        str(args.max_build_iterations),
-    ] + auth_args + model_arg
-    rc = run_cmd(cmd_p3, cwd=args.repo_path)
-    if rc != 0:
+    build_ok = autoninja_resolver.run_resolution_loop()
+    if not build_ok:
       print(
-          "[FAIL] Phase 4 Compiler Feedback Loop failed (Exit "
-          f"Code: {rc}).",
+          "[FAIL] Phase 4 Compiler Feedback Loop failed.",
           file=sys.stderr,
       )
       _write_final_report(
@@ -628,7 +402,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
           elapsed_seconds=time.time() - start_time,
           repo_path=args.repo_path,
       )
-      return rc
+      return 1
     print("[OK] Phase 4 Completed Successfully.", file=sys.stderr)
 
   elapsed = time.time() - start_time

@@ -1,47 +1,49 @@
 # Automated Cobalt Chromium Rebase & Self-Healing Pipeline
 
-An autonomous, multi-phase AI-driven engineering pipeline powered by Google Cloud Vertex AI and Gemini. Designed to resolve merge conflicts, repair GN build definitions, and heal C++/Java compilation breaks across Chromium milestone upgrades (e.g. M138 to M139) for Cobalt.
+An autonomous, multi-phase AI-driven engineering pipeline powered by Google Cloud Vertex AI and Gemini. Designed to resolve merge conflicts, repair GN build definitions, and heal C++/Java compilation breaks across Chromium milestone upgrades (e.g. M138 to M139, M139 to M140) for Cobalt.
 
 ---
 
 ## 1. Architecture Overview
 
-The pipeline executes in sequential, self-healing phases:
+The pipeline decomposes rebase automation into five sequential, object-oriented self-healing phases built upon an extensible `BaseResolver` architecture:
 
 ```
 +-----------------------------------------------------------------------------+
-| Phase 1: Unified Conflict Resolution (resolve_conflicts.py)                 |
+| Phase 1: Unified Conflict Resolution (conflicts.py -> ConflictResolver)     |
 |   - Resolves DEPS merge conflicts & validates Python AST syntax             |
 |   - Resolves C++, Java, GN, and config file conflict blocks                 |
-|   - Fast-path adopts upstream (--theirs) for binary/fuzz corpus files       |
+|   - Multi-turn tool inspection (Read, Find, Grep, Git Show)                 |
 +-----------------------------------------------------------------------------+
                                      |
                                      v
 +-----------------------------------------------------------------------------+
-| Phase 2: Toolchain & Dependency Sync (gclient sync -D)                      |
+| Phase 2: Toolchain & Dependency Sync (gclient_sync.py -> GClientSyncResolver)|
 |   - Synchronizes Clang, Rust, NDK, node_modules, and CIPD packages          |
-|   - Self-healing retry with --force --reset                                 |
+|   - Auto-recovers with --force --reset and heals DEPS syntax errors         |
 +-----------------------------------------------------------------------------+
                                      |
                                      v
 +-----------------------------------------------------------------------------+
-| Phase 3: GN Generation & Header Verification (cobalt/build/gn.py)           |
+| Phase 3: GN Generation & Header Verification (gn_gen.py -> GNGenResolver)   |
 |   - Executes `cobalt/build/gn.py -p <platform> -C <build_type> --check`     |
-|   - Resolves bridge targets (group/component) and duplicate argument imports|
+|   - Deep 32KB trace parsing, target bridge resolution, import repair        |
+|   - Callback hook: Auto-reruns Phase 2 sync if DEPS is modified             |
 +-----------------------------------------------------------------------------+
                                      |
                                      v
 +-----------------------------------------------------------------------------+
-| Phase 4: Compiler Self-Healing Loop (autoninja_loop.py)                     |
+| Phase 4: Compiler Self-Healing Loop (autoninja.py -> AutoninjaResolver)     |
 |   - Invokes `autoninja -k 1 -C out/<dir> <target>`                          |
 |   - Third-party source protection guardrail (routes fixes to BUILD.gn)      |
 |   - Generates surgical SEARCH/REPLACE code patches via Vertex AI            |
 |   - Escalates to Pro model (gemini-2.5-pro) on repeat diagnostics           |
+|   - Callback hooks: Auto-reruns Phase 2 on DEPS and Phase 3 on build files  |
 +-----------------------------------------------------------------------------+
                                      |
                                      v
 +-----------------------------------------------------------------------------+
-| Phase 5: Knowledge Bank Sync & Report Generation                            |
+| Phase 5: Knowledge Bank Sync & Report Generation (rebase_memory.py)         |
 |   - Records working code patches to out/memory/knowledge_bank.json          |
 |   - Uploads knowledge bank to Google Cloud Storage (GCS) if configured      |
 |   - Generates final execution summary in results/M140_rebase_summary.md     |
@@ -55,26 +57,24 @@ The pipeline executes in sequential, self-healing phases:
 ```
 .github/rebase/
 │
-├── reasoning_engine/                   # [DEPLOYED TO VERTEX AI]
-│   ├── __init__.py                     # Package initialization
-│   ├── engine.py                       # CobaltReasoningEngine service definition
-│   ├── deploy.py                       # Vertex AI deployment & lifecycle CLI
-│   ├── requirements.txt                # Container runtime dependencies
-│   └── skills/                         # Declarative domain instructions (Markdown)
-│       ├── cobalt_rebase.md            # Master guidelines & behavior preservation
-│       ├── compiler_healing.md         # Compiler & linker break repair heuristics
-│       ├── gn_healing.md               # GN build rules & visibility repair
-│       └── conflict_resolution.md      # DEPS AST & merge conflict rules
+├── base_resolver.py       # [CORE] Abstract base class (loop, tools, guards, patch engine)
+├── conflicts.py           # [PHASE 1] ConflictResolver library (DEPS & source conflicts)
+├── gclient_sync.py        # [PHASE 2] GClientSyncResolver library (toolchain sync)
+├── gn_gen.py              # [PHASE 3] GNGenResolver library (GN build verification)
+├── autoninja.py           # [PHASE 4] AutoninjaResolver library (compiler feedback loop)
+├── rebase_memory.py       # [PHASE 5] GCS long-term knowledge bank & metrics
+├── run_rebase_pipeline.py # [ORCHESTRATOR] Clean orchestrator managing Phase 1-5 execution
+├── token_usage.py         # Token tracking and cost metrics
+├── test_rebase_suite.py   # Comprehensive unit test suite
 │
-├── run_rebase_pipeline.py              # [CI RUNNER] End-to-end multi-phase orchestrator
-├── autoninja_loop.py                   # [CI RUNNER] autoninja compiler healing loop
-├── resolve_conflicts.py                # [CI RUNNER] Multi-file conflict resolver
-├── rebase_memory.py                    # [CI RUNNER] Memory bank interface & GCS sync
-├── test_rebase_suite.py                # [CI RUNNER] Comprehensive unit test suite
-├── test_api_connection.py            # [CI RUNNER] Vertex AI connectivity diagnostic
-├── results/                            # [ARTIFACTS] Generated summaries
-│   └── M139_rebase_summary.md
-└── README.md                           # Documentation & operational manual
+└── reasoning_engine/      # [DEPLOYED TO VERTEX AI]
+    ├── engine.py          # CobaltReasoningEngine service definition
+    ├── deploy.py          # Vertex AI deployment & lifecycle CLI
+    └── skills/            # Declarative domain instructions (Markdown)
+        ├── cobalt_rebase.md       # Master guidelines & behavior preservation
+        ├── compiler_healing.md    # Compiler & linker break repair heuristics
+        ├── gn_healing.md          # GN build rules & visibility repair
+        └── conflict_resolution.md # DEPS AST & merge conflict rules
 ```
 
 ---
@@ -86,7 +86,7 @@ The pipeline executes in sequential, self-healing phases:
    ```bash
    gcloud auth application-default login
    export GCP_PROJECT="your-gcp-project-id"
-   export GCP_LOCATION="us-central1"
+   export GCP_LOCATION="global"
    ```
 2. **Environment**:
    Ensure `depot_tools` is in your `PATH`.
@@ -95,13 +95,13 @@ The pipeline executes in sequential, self-healing phases:
 
 ### Running the End-to-End Pipeline
 
-To execute all three phases sequentially for Android (`cobalt_apk`):
+To execute all phases sequentially for Android (`cobalt_apk`):
 ```bash
 python3 .github/rebase/run_rebase_pipeline.py \
   --platform android-arm \
   --build-type devel \
   --target cobalt_apk \
-  --model gemini-2.5-flash
+  --model gemini-3.7-flash
 ```
 
 For Linux Desktop:
@@ -110,84 +110,131 @@ python3 .github/rebase/run_rebase_pipeline.py \
   --platform linux-x64x11 \
   --build-type devel \
   --target cobalt \
-  --model gemini-2.5-flash
+  --model gemini-3.7-flash
 ```
 
 ---
 
-### Running Individual Phases
+### Selective Phase Execution via Flags
 
-* **Phase 1 Only (Conflict Resolution)**:
+You can skip or run specific phases using orchestrator flags:
+
+* **Skip merge conflicts (e.g. if already resolved)**:
   ```bash
-  python3 .github/rebase/resolve_conflicts.py
+  python3 .github/rebase/run_rebase_pipeline.py --skip-conflicts ...
   ```
 
-* **Phase 3 Only (Compiler Self-Healing)**:
+* **Skip toolchain sync**:
   ```bash
-  python3 .github/rebase/autoninja_loop.py \
-    --out-dir android-arm_devel \
-    --target cobalt_apk
+  python3 .github/rebase/run_rebase_pipeline.py --skip-sync ...
+  ```
+
+* **Skip GN generation**:
+  ```bash
+  python3 .github/rebase/run_rebase_pipeline.py --skip-gn ...
+  ```
+
+* **Skip compiler build (e.g. only run conflict resolution & sync)**:
+  ```bash
+  python3 .github/rebase/run_rebase_pipeline.py --skip-build ...
   ```
 
 ---
 
-## 4. Vertex AI Reasoning Engine Deployment (`reasoning_engine/deploy.py`)
+## 4. Object-Oriented Resolver Design (`BaseResolver`)
 
-To deploy, update, or list managed Reasoning Engine instances on Google Cloud Vertex AI:
+Every phase is a subclass of `BaseResolver` in `base_resolver.py`:
 
-* **Deploy**:
-  ```bash
-  python3 .github/rebase/reasoning_engine/deploy.py deploy \
-    --project-id "$GCP_PROJECT" \
-    --location "us-central1" \
-    --staging-bucket "gs://your-staging-bucket"
-  ```
+```mermaid
+classDiagram
+    class BaseResolver {
+        <<abstract>>
+        +str repo_path
+        +CobaltReasoningEngine reasoning_engine
+        +int max_iterations
+        +execute_local_tool(tool_cmd) str
+        +apply_patch_or_replacement(patch) List[str]
+        +is_unmodified_third_party(file) bool
+        +get_clean_build_env() Dict
+        +run_resolution_loop() bool
+        #run_command(iteration)* Tuple
+        #extract_diagnostics(output, siso_output)* List
+        #resolve_diagnostic(diag, history, use_pro)* Tuple
+        +on_patch_applied(modified_files) void
+    }
 
-* **Update**:
-  ```bash
-  python3 .github/rebase/reasoning_engine/deploy.py update \
-    --resource-id "<REASONING_ENGINE_ID>" \
-    --project-id "$GCP_PROJECT" \
-    --location "us-central1" \
-    --staging-bucket "gs://your-staging-bucket"
-  ```
+    class ConflictResolver {
+        #run_command()
+        #extract_diagnostics()
+        #resolve_diagnostic()
+    }
+    class GClientSyncResolver {
+        +flags List
+        #run_command()
+        #extract_diagnostics()
+        #resolve_diagnostic()
+    }
+    class GNGenResolver {
+        +platform str
+        +build_type str
+        +gn_check bool
+        #run_command()
+        #extract_diagnostics()
+        #resolve_diagnostic()
+    }
+    class AutoninjaResolver {
+        +out_dir str
+        +target str
+        +keep_going int
+        #run_command()
+        #extract_diagnostics()
+        #resolve_diagnostic()
+    }
 
-* **List**:
-  ```bash
-  python3 .github/rebase/reasoning_engine/deploy.py list \
-    --project-id "$GCP_PROJECT" \
-    --location "us-central1"
-  ```
+    BaseResolver <|-- ConflictResolver : Phase 1 (conflicts.py)
+    BaseResolver <|-- GClientSyncResolver : Phase 2 (gclient_sync.py)
+    BaseResolver <|-- GNGenResolver : Phase 3 (gn_gen.py)
+    BaseResolver <|-- AutoninjaResolver : Phase 4 (autoninja.py)
+```
+
+### Inter-Phase Callbacks (`on_patch_applied_fn`)
+Resolvers communicate dynamically without hardcoded coupling via callbacks configured in `run_rebase_pipeline.py`:
+- **Phase 3/4 $\to$ Phase 2**: When a patch modifies `DEPS`, `sync_resolver` is automatically triggered.
+- **Phase 4 $\to$ Phase 3**: When a compiler patch modifies `.gn`, `.gni`, or `.star` files, `gn_resolver` is automatically triggered to refresh the build graph.
 
 ---
 
 ## 5. Domain Skills (`reasoning_engine/skills/`)
 
-Prompts and domain rules are decoupled from Python code. To adjust rebase heuristics or add new patterns for future Chromium rolls (e.g. M140), edit the markdown files in `reasoning_engine/skills/`:
+Rebase heuristics and error patterns are maintained in declarative Markdown files loaded directly into Vertex AI prompts:
 
 * **`reasoning_engine/skills/cobalt_rebase.md`**: Master behavior preservation principles, Starboard macros (`USE_STARBOARD_MEDIA`, `IS_COBALT`), and investigation workflows using Chromium Code Search (`source.chromium.org`) and Gitiles (`chromium.googlesource.com`).
-* **`reasoning_engine/skills/compiler_healing.md`**: C++/Java header splits (e.g. `base/notimplemented.h`, `base/timer/elapsed_timer.h`), method signature updates, and linker stubs.
-* **`reasoning_engine/skills/gn_healing.md`**: GN visibility rules and template variable forwarding.
+* **`reasoning_engine/skills/compiler_healing.md`**: C++/Java header splits (e.g. `base/notimplemented.h`, `base/timer/elapsed_timer.h`), method signature updates, and Mojo union patterns (`blink::mojom::MatchResponse`).
+* **`reasoning_engine/skills/gn_healing.md`**: GN visibility rules, target bridge synthesis (`group("freetype")`), and duplicate argument import rules.
 * **`reasoning_engine/skills/conflict_resolution.md`**: Upstream roll priority, DEPS syntax rules, and multi-turn tool commands.
 
 ---
 
 ## 6. Long-Term Knowledge Bank & GCS Sync
 
-Successful code fixes are recorded in `out/memory/knowledge_bank.json` and fed into future Gemini prompts as few-shot working examples.
+Verified fixes are recorded in `out/memory/knowledge_bank.json` and fed into future Gemini prompts as few-shot working examples.
 
 To persist the knowledge bank across ephemeral build machines via GCS:
 ```bash
 export GCS_MEMORY_URI="gs://your-bucket-name/rebase_memory/knowledge_bank.json"
 ```
-The pipeline will automatically **pull** existing memory at startup and **push** new fixes upon completion using the native `google-cloud-storage` client library.
+The pipeline automatically **pulls** existing memory at startup and **pushes** new fixes upon completion using the native `google-cloud-storage` client library.
 
 ---
 
-## 7. Running Unit Tests
+## 7. Running Unit Tests & Quality Checks
 
-To run the local unit test suite (verifies conflict extractors, AST validation, diagnostic parsers, and GN diff application):
+* **Run Unit Tests**:
+  ```bash
+  python3 -m unittest discover -s .github/rebase -p "test_*.py"
+  ```
 
-```bash
-python3 .github/rebase/test_rebase_suite.py
-```
+* **Run Code Quality Check**:
+  ```bash
+  ~/depot_tools/pylint-3.2 .github/rebase/*.py .github/rebase/reasoning_engine/*.py
+  ```

@@ -7,11 +7,11 @@ import os
 import tempfile
 import unittest
 
-from autoninja_loop import apply_patch_or_replacement, parse_compiler_errors
+from autoninja import parse_compiler_errors
+from base_resolver import apply_patch_or_replacement, execute_local_tool
 from rebase_memory import load_past_experience, record_successful_fix
-from resolve_conflicts import (
+from conflicts import (
     detect_language,
-    execute_local_tool,
     extract_conflict_blocks,
     resolve_file_conflicts,
 )
@@ -108,10 +108,7 @@ class TestRebaseAutomationSuite(unittest.TestCase):
           repo_path=os.path.dirname(tmp_path),
           git_context="",
           skills_dir=None,
-          api_key=None,
-          model="gemini-flash-latest",
-          timeout_seconds=60,
-          max_retries=5,
+          model="gemini-3.7-flash",
           mock_mode=True,
           token_tracker=tracker,
           escalations=escalations,
@@ -148,10 +145,7 @@ class TestRebaseAutomationSuite(unittest.TestCase):
           repo_path=os.path.dirname(tmp_path),
           git_context="",
           skills_dir=None,
-          api_key=None,
-          model="gemini-flash-latest",
-          timeout_seconds=60,
-          max_retries=5,
+          model="gemini-3.7-flash",
           mock_mode=True,
           token_tracker=tracker,
           escalations=escalations,

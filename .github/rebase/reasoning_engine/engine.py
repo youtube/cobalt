@@ -185,6 +185,8 @@ class CobaltReasoningEngine:
       context_after: str = "",
       git_context: str = "",
       past_experience: str = "",
+      investigation_history: str = "",
+      instruction: str = "",
       use_pro: bool = False,
   ) -> Dict[str, Any]:
     """Resolves source/DEPS merge conflicts on Vertex AI."""
@@ -195,18 +197,30 @@ class CobaltReasoningEngine:
     past_lessons_section = (
         f"--- Past Successful Lessons ---\n{past_experience}\n\n"
         if past_experience else "")
+    investigation_section = (
+        f"--- Investigation Tool Results ---\n{investigation_history}\n\n"
+        if investigation_history else "")
 
     sys_inst = (
         f"You are an expert Chromium and Cobalt engineer ({language}).\n\n"
         f"--- General Rebase Guidelines ---\n{rebase_skill}\n\n"
         f"--- Conflict Resolution Skill ---\n{conflict_skill}\n")
+    task_inst = instruction or (
+        "Task: Resolve this specific merge conflict. Preserve all Cobalt "
+        "macros (#if BUILDFLAG(USE_STARBOARD_MEDIA), #if BUILDFLAG(IS_COBALT), "
+        "#if defined(STARBOARD)), custom variables (checkout_cobalt_internal, "
+        "checkout_copybara), platform shims, and Cobalt runtime behavior "
+        "while adopting upstream updates.\nReturn ONLY the exact replacement "
+        "code for the block.")
+
     prompt = (f"Target File: {file_path} ({language})\n"
               f"{git_context}\n\n"
               f"{past_lessons_section}"
               f"Context before conflict:\n{context_before}\n\n"
               f"Conflicted Block to Resolve:\n{raw_conflict}\n\n"
               f"Context after conflict:\n{context_after}\n\n"
-              "Task: Return ONLY the exact replacement code for the block.")
+              f"{investigation_section}"
+              f"{task_inst}")
     resp = self._generate_content_with_retry(
         model=chosen_model,
         contents=prompt,
