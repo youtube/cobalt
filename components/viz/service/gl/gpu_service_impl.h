@@ -243,7 +243,7 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   void DisplayRemoved() override;
   void DisplayMetricsChanged() override;
   void DestroyAllChannels() override;
-  void OnBackgroundCleanup(OnBackgroundCleanupCallback callback) override;
+  void OnBackgroundCleanup() override;
   void OnBackgrounded() override;
   void OnForegrounded() override;
 #if !BUILDFLAG(IS_ANDROID)
@@ -454,7 +454,7 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   void OnBackgroundedOnMainThread();
   void OnForegroundedOnMainThread();
 
-  void OnBackgroundCleanupGpuMainThread(base::OnceClosure callback);
+  void OnBackgroundCleanupGpuMainThread();
   void OnBackgroundCleanupCompositorGpuThread();
 
   // Ensure that all peak memory tracking occurs on the main thread as all

@@ -125,9 +125,7 @@ class TestGpuService : public viz::mojom::GpuService {
   void DisplayRemoved() override {}
   void DisplayMetricsChanged() override {}
   void DestroyAllChannels() override {}
-  void OnBackgroundCleanup(OnBackgroundCleanupCallback callback) override {
-    std::move(callback).Run();
-  }
+  void OnBackgroundCleanup() override {}
   void OnBackgrounded() override {}
   void OnForegrounded() override {}
 #if !BUILDFLAG(IS_ANDROID)

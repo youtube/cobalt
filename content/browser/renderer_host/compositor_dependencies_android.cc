@@ -161,7 +161,7 @@ void CompositorDependenciesAndroid::DoLowEndBackgroundCleanup() {
   // lose all renderer contexts.
   auto* host = GpuProcessHost::Get();
   if (host) {
-    host->gpu_service()->OnBackgroundCleanup(base::DoNothing());
+    host->gpu_service()->OnBackgroundCleanup();
   }
 }
 
