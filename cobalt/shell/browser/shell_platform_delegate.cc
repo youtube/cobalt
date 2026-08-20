@@ -158,6 +158,9 @@ void ShellPlatformDelegate::OnReveal() {
   if (IsVisible()) {
     return;
   }
+#if BUILDFLAG(IS_COBALT)
+  content::RestoreGpuProcessOnForeground();
+#endif
   // Used to ensure we only register as observer once, even if there are
   // multiple windows to wait for.
   bool started_waiting = false;
