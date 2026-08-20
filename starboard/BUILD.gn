@@ -257,7 +257,7 @@ if (current_toolchain == starboard_toolchain) {
     if (platform_tests_path != "" && !(is_android && is_starboard)) {
       deps += [ platform_tests_path ]
     }
-    if (sb_filter_based_player) {
+    if (sb_filter_based_player && !is_android) {
       deps += [ "//starboard/shared/starboard/player/filter/testing:player_filter_tests_sources" ]
     }
     if (use_evergreen && use_crashpad) {
