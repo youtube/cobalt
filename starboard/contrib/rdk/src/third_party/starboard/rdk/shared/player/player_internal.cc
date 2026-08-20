@@ -84,7 +84,7 @@ int Player::MaxNumberOfSamplesPerWrite() {
   return kMaxNumberOfSamplesPerWrite;
 }
 
-using ::starboard::shared::starboard::media::IsSDRVideo;
+using ::starboard::IsSDRVideo;
 // **************************** GST/GLIB Helpers **************************** //
 
 namespace {
@@ -881,13 +881,13 @@ static void AddVideoMimeToGstCaps(GstCaps* caps, const char* mime) {
     return;
   }
 
-  const ::starboard::shared::starboard::media::MimeType mime_type { mime };
-  if (!mime_type.is_valid()) {
+  auto mime_type = ::starboard::MimeType::Create(mime);
+  if (!mime_type.has_value()) {
     GST_DEBUG("Invalid mime_type.");
     return;
   }
 
-  const auto& codecs = mime_type.GetCodecs();
+  const auto& codecs = mime_type->GetCodecs();
   if (codecs.size() != 1) {
     GST_DEBUG("Incorrect codecs size.");
     return;
@@ -1100,12 +1100,12 @@ static GstBuffer* CreateGstBuffer(const SbPlayerSampleInfo& sample_info,
     guint64 start_clip = 0, end_clip = 0;
 
     if (info.discarded_duration_from_front > 0) {
-      start_clip = (info.discarded_duration_from_front == kSbInt64Max)
+      start_clip = (info.discarded_duration_from_front == std::numeric_limits<int64_t>::max())
         ? kMaxGstClockTime : static_cast<guint64>(info.discarded_duration_from_front * GST_USECOND);
     }
 
     if (info.discarded_duration_from_back > 0) {
-      end_clip = (info.discarded_duration_from_back == kSbInt64Max)
+      end_clip = (info.discarded_duration_from_back == std::numeric_limits<int64_t>::max())
         ? kMaxGstClockTime : static_cast<guint64>(info.discarded_duration_from_back * GST_USECOND);
     }
 
@@ -1216,22 +1216,6 @@ enum class MediaType {
   kAudio = 1,
   kVideo = 2,
   kBoth = kAudio | kVideo
-};
-
-class ScopedUnlock {
- public:
-  explicit ScopedUnlock(const ::starboard::Mutex& mutex)
-    : mutex_(mutex) {
-    mutex_.DCheckAcquired();
-    mutex_.Release();
-  }
-  ~ScopedUnlock() {
-    mutex_.Acquire();
-  }
-private:
-  const ::starboard::Mutex& mutex_;
-  ScopedUnlock(const ScopedUnlock&) = delete;
-  void operator=(const ScopedUnlock&) = delete;
 };
 
 struct Task {
@@ -1667,7 +1651,7 @@ class PlayerImpl : public Player {
   guint source_setup_id_{0};
   guint bus_watch_id_{0};
   std::thread playback_thread_;
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   std::mutex source_setup_mutex_;
   std::condition_variable source_setup_condition_;
   std::mutex seek_mutex_;
@@ -1920,9 +1904,6 @@ PlayerImpl::PlayerImpl(SbPlayer player,
       g_usleep(1);
   } else {
      SB_NOTREACHED();
-  }
-  else {
-    SB_NOTREACHED();
   }
   GetPlayerRegistry()->Add(this);
 }

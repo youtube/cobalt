@@ -54,10 +54,18 @@
 
 MODULE_NAME_DECLARATION(BUILD_REFERENCE);
 
+using namespace WPEFramework;
+
 namespace third_party {
 namespace starboard {
 namespace rdk {
 namespace shared {
+
+using ::starboard::ApplicationRdk;
+using ::starboard::ScopedFile;
+using ::starboard::AudioConfigurationChanged;
+using ::starboard::GetMediaAudioConnectorName;
+using ::starboard::MimeSupportabilityCache;
 
 namespace {
 
@@ -253,9 +261,6 @@ public:
     }
 
     std::lock_guard lock(mutex_);
-
-    bool was_cc_enabled = caption_settings_.is_enabled;
-    bool was_highcontrast_enabled = display_settings_.is_high_contrast_text_enabled;
 
     bool was_cc_enabled = caption_settings_.is_enabled;
     bool was_highcontrast_enabled = display_settings_.is_high_contrast_text_enabled;

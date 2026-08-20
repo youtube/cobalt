@@ -26,7 +26,7 @@ namespace accessibility {
 
 bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
   if (!out_setting ||
-      !::starboard::common::MemoryIsZero(
+      !::starboard::MemoryIsZero(
         out_setting, sizeof(SbAccessibilityTextToSpeechSettings))) {
     return false;
   }
@@ -38,7 +38,7 @@ bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
 
 bool GetDisplaySettings(SbAccessibilityDisplaySettings* out_setting) {
   if (!out_setting ||
-      !::starboard::common::MemoryIsZero(
+      !::starboard::MemoryIsZero(
         out_setting, sizeof(SbAccessibilityDisplaySettings))) {
     return false;
   }
@@ -48,7 +48,7 @@ bool GetDisplaySettings(SbAccessibilityDisplaySettings* out_setting) {
 
 bool GetCaptionSettings(SbAccessibilityCaptionSettings* out_setting) {
   if (!out_setting ||
-      !::starboard::common::MemoryIsZero(
+      !::starboard::MemoryIsZero(
           out_setting, sizeof(SbAccessibilityCaptionSettings))) {
     return false;
   }

@@ -802,12 +802,9 @@ const void* DrmSystemOcdm::GetMetrics(int* size) {
     std::string buffer;
     auto rc = g_ocdmGetMetrics(ocdm_system_, buffer);
     if (rc == ERROR_NONE) {
-      uint16_t buffer_length = buffer.size();
-      uint16_t out_length = (((buffer_length * 8) / 6) + 4) * sizeof(TCHAR);
+      size_t out_length = modp_b64_encode_len(buffer.size());
       metrics_.resize(out_length, '\0');
-      out_length = WPEFramework::Core::URL::Base64Encode(
-          reinterpret_cast<const uint8_t*>(buffer.data()), buffer_length,
-          reinterpret_cast<char*>(metrics_.data()), out_length, false);
+      out_length = modp_b64_encode(&(metrics_[0]), buffer.data(), buffer.size());
       metrics_.resize(out_length);
     }
   }

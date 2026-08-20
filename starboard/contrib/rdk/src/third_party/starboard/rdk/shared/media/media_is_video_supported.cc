@@ -43,9 +43,6 @@
 
 namespace starboard {
 
-using starboard::shared::starboard::media::IsSDRVideo;
-using ::starboard::shared::starboard::media::MimeType;
-
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            const MimeType* content_type,
                            int /*profile*/,

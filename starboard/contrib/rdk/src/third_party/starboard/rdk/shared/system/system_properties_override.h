@@ -44,6 +44,8 @@ public:
   static bool GetIfa(std::string &out);
   static bool GetIfaType(std::string &out);
   static bool GetLmtAdTracking(std::string &out);
+};
+
 }  // namespace third_party::starboard::rdk::shared::system
 
 namespace starboard {

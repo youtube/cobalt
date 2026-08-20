@@ -33,11 +33,16 @@
 #include "third_party/starboard/rdk/shared/application_rdk.h"
 #include "third_party/starboard/rdk/shared/platform/platform_interface.h"
 
+using namespace third_party::starboard::rdk::shared;
 using ::starboard::ApplicationRdk;
 
 SbWindowPrivate::SbWindowPrivate(const SbWindowOptions* /* options */) { }
 
 SbWindowPrivate::~SbWindowPrivate() { }
+
+void* SbWindowPrivate::Native() const {
+  return reinterpret_cast<void*>(ApplicationRdk::Get()->GetNativeWindow());
+}
 
 int SbWindowPrivate::Width() const {
   return ApplicationRdk::Get()->GetWindowWidth();
@@ -54,4 +59,8 @@ float SbWindowPrivate::VideoPixelRatio() const {
   float max_ratio = ( window_height < 1080 )
     ? 1.5f : ( video_resolution.height <= 2160 ? 2.f : 4.f );
   return std::min(ratio, max_ratio);
+}
+
+float SbWindowPrivate::DiagonalSizeInInches() const {
+  return platform::device().diagonal_size_in_inches().value_or(.0f);
 }

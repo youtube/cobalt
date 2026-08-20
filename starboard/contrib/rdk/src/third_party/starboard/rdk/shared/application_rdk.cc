@@ -40,6 +40,7 @@
 #include "third_party/starboard/rdk/shared/log_override.h"
 #include "third_party/starboard/rdk/shared/time_constants.h"
 #include "third_party/starboard/rdk/shared/platform/platform_interface.h"
+#include "third_party/starboard/rdk/shared/libcobalt.h"
 
 #include <fcntl.h>
 #include <poll.h>
@@ -467,11 +468,11 @@ int64_t ApplicationRdk::CheckMemoryUsage() {
 }
 
 void ApplicationRdk::InjectAccessibilitySettingsChanged() {
-  Inject(new Event(kSbEventTypeAccessibilitySettingsChanged, NULL, NULL));
+  // Event deprecated in Starboard 17+
 }
 
 void ApplicationRdk::InjectAccessibilityCaptionSettingsChanged() {
-  Inject(new Event(kSbEventTypeAccessibilityCaptionSettingsChanged, NULL, NULL));
+  // Event deprecated in Starboard 17+
 }
 
 void ApplicationRdk::InjectAccessibilityTextToSpeechSettingsChanged() {

@@ -62,7 +62,7 @@ bool CopyStringAndTestIfSuccess(char* out_value,
                                 const char* from_value) {
   if (strlen(from_value) + 1 > value_length)
     return false;
-  starboard::strlcpy<char>(out_value, from_value, value_length);
+  ::starboard::strlcpy(out_value, from_value, value_length);
   return true;
 }
 
@@ -191,7 +191,7 @@ bool GetCertificationScope(char* out_value, int value_length) {
   buf[sz] = 0;
 
   SB_LOG(INFO) << "Device cert scope: '" << buf.data() << "'";
-  return starboard::strlcpy<char>(out_value, buf.data(), value_length);
+  return ::starboard::strlcpy(out_value, buf.data(), value_length);
 }
 
 bool GetLimitAdTracking(char* out_value, int value_length) {
