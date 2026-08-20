@@ -1,24 +1,29 @@
-# Cobalt Rebase Resolution & Verification Report
+# Cobalt Rebase Resolution Report
 
 ## 1. Executive Summary
-- **Status**: **SUCCESS (All Phases Complete)**
-- **Platform**: `android-arm`
-- **Build Type**: `devel`
-- **Target**: `cobalt_apk`
-- **Reasoning Model**: `gemini-2.5-flash` (with `gemini-2.5-pro` escalation)
-- **Total Execution Time**: `881.2s`
+- **Target Roll / Commit**: CONFLICTED Cherry pick commit 464282e07000e49becb2122b21fdfc90160de83a: Update to 139.7244.
+- **Upstream SHA**: `5455e7a1ab81ebdf8c46e732aaa0fef54c886fcf`
+- **Associated Chromium Bugs**:
+- **Total Conflicted Files Processed**: 0
+- **Escalations Flagged for Review**: 1
+- **gclient sync**: SUCCESS
 
-## 2. Rebase Pipeline Stages
-| Phase | Stage | Description | Status |
-| :--- | :--- | :--- | :--- |
-| **Phase 1** | Conflict Resolution | Unified DEPS & source conflict repair | [OK] Completed |
-| **Phase 2** | GN Config Check | `cobalt/build/gn.py --check` validation | [OK] Completed |
-| **Phase 3** | Compiler Loop | `autoninja` compiler self-healing | [OK] Clean |
+## 2. Resolved Files
+| Target File | Language / Type | Status |
+| :--- | :--- | :--- |
+| None | - | No conflicts detected |
 
-## 3. Behavior Preservation
-- **Starboard Media**: Preserved `#if BUILDFLAG(USE_STARBOARD_MEDIA)` and Starboard media pipelines.
-- **Cobalt Macros**: Preserved `#if BUILDFLAG(IS_COBALT)` and platform-specific shims.
-- **DEPS Custom Pins**: Maintained `checkout_cobalt_internal` and `checkout_copybara` pins.
+## [WARNING] Human Escalations & Complex Conflicts
+| Target File | Block | Reasoning / Recommendation |
+| :--- | :--- | :--- |
+| `render_widget_host_view_tvos_uiview.mm` | Block #1 | Investigation budget of 5 rounds exhausted |
 
-## 4. Long-Term Knowledge Bank
-All successful fixes from this run are permanently recorded to `memory/knowledge_bank.json`.
+## 3. AI Token Metrics
+| Model | Calls | Prompt Tokens | Completion Tokens | Total Tokens |
+| :--- | :--- | :--- | :--- | :--- |
+| `gemini-3.5-flash` | 57 | 1,292,125 | 7,452 | 1,339,015 |
+
+## 4. Verification
+```text
+All files processed.
+```

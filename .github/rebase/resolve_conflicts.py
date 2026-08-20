@@ -123,10 +123,11 @@ def execute_local_tool(tool_command: str, repo_path: str) -> str:
     pattern = stripped.split("TOOL_GREP:", 1)[1].strip()
     try:
       res = subprocess.run(
-          ["git", "grep", "-n", "-m", "6", "--", pattern],
+          ["git", "grep", "-I", "-n", "-m", "6", "--", pattern],
           cwd=repo_path,
           capture_output=True,
           text=True,
+          errors="replace",
           check=False,
       )
       out = res.stdout.strip()
@@ -147,6 +148,7 @@ def execute_local_tool(tool_command: str, repo_path: str) -> str:
           cwd=repo_path,
           capture_output=True,
           text=True,
+          errors="replace",
           check=False,
       )
       out = res.stdout.strip()[:2500]
@@ -232,10 +234,11 @@ def find_all_conflicted_files(repo_path: str) -> List[str]:
 
   try:
     res = subprocess.run(
-        ["git", "grep", "-l", "^<<<<<<<", "--", ":!.github/*"],
+        ["git", "grep", "-I", "-l", "^<<<<<<<", "--", ":!.github/*"],
         cwd=repo_path,
         capture_output=True,
         text=True,
+        errors="replace",
         check=False,
     )
     for f in res.stdout.splitlines():
@@ -711,8 +714,8 @@ def resolve_file_conflicts(
     skills_dir: Optional[str] = None,
     api_key: Optional[str] = None,
     project_id: Optional[str] = None,
-    location: str = "us-central1",
-    model: str = "gemini-2.5-flash",
+    location: str = "global",
+    model: str = "gemini-3.7-flash",
     timeout_seconds: int = 180,
     max_retries: int = 5,
     mock_mode: bool = False,
@@ -1102,13 +1105,13 @@ def main():
   )
   parser.add_argument(
       "--location",
-      default=os.environ.get("GCP_LOCATION", "us-central1"),
-      help="Vertex AI Region (default: us-central1).",
+      default=os.environ.get("GCP_LOCATION", "global"),
+      help="Vertex AI Region (default: global).",
   )
   parser.add_argument(
       "--model",
-      default=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
-      help="Gemini model name (e.g. gemini-2.5-flash, gemini-2.5-pro).",
+      default=os.environ.get("GEMINI_MODEL", "gemini-3.7-flash"),
+      help="Gemini model name (e.g. gemini-3.7-flash, gemini-2.5-pro).",
   )
   parser.add_argument(
       "--api-key",

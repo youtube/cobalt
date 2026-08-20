@@ -343,6 +343,36 @@ def apply_search_replace(file_path: str, search_block: str,
   return False
 
 
+def is_unmodified_third_party(file_path: str, repo_path: str) -> bool:
+  """Checks if a file is third-party source code without Cobalt changes."""
+  rel = os.path.relpath(file_path, repo_path)
+  # GN build configs (*.gn, *.gni, *.star) are Chromium/Cobalt recipes
+  if rel.endswith((".gn", ".gni", ".star")):
+    return False
+  if not rel.startswith("third_party/"):
+    return False
+  # Cobalt/Starboard-specific files hosted under third_party
+  if "cobalt" in rel.lower() or "starboard" in rel.lower():
+    return False
+  try:
+    with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+      content = f.read()
+    if any(
+        m in content for m in (
+            "BUILDFLAG(IS_COBALT)",
+            "BUILDFLAG(USE_STARBOARD_MEDIA)",
+            "STARBOARD",
+            "Cobalt",
+            "Starboard",
+            "is_starboard",
+            "is_cobalt",
+        )):
+      return False
+  except OSError:
+    pass
+  return True
+
+
 def apply_patch_or_replacement(patch_text: str, repo_path: str) -> List[str]:
   """Parses and dispatches AI model output containing one or more code edits.
 
@@ -376,6 +406,13 @@ def apply_patch_or_replacement(patch_text: str, repo_path: str) -> List[str]:
       modified_files = []
       for rel_file, search_b, replace_b in matches:
         target_file = resolve_repo_file_path(rel_file, repo_path)
+        if is_unmodified_third_party(target_file, repo_path):
+          print(
+              f"  [GUARD] Rejecting patch on unmodified third-party file: "
+              f"{rel_file}. Patch the referencing BUILD.gn instead.",
+              file=sys.stderr,
+          )
+          return []
         applied = apply_search_replace(target_file, search_b, replace_b)
         if applied:
           modified_files.append(target_file)
@@ -400,6 +437,14 @@ def apply_unified_diff(diff_text: str, repo_path: str) -> List[str]:
   file_path = resolve_repo_file_path(rel_file, repo_path)
 
   if not os.path.isfile(file_path):
+    return []
+
+  if is_unmodified_third_party(file_path, repo_path):
+    print(
+        f"  [GUARD] Rejecting unified diff on unmodified third-party file: "
+        f"{rel_file}. Patch the referencing BUILD.gn instead.",
+        file=sys.stderr,
+    )
     return []
 
   with open(file_path, "r", encoding="utf-8") as f:
@@ -524,6 +569,7 @@ def execute_local_tool(tool_cmd: str, repo_path: str) -> str:
           cwd=repo_path,
           capture_output=True,
           text=True,
+          errors="replace",
           check=False,
       )
       matches = [
@@ -555,6 +601,7 @@ def execute_local_tool(tool_cmd: str, repo_path: str) -> str:
           cwd=repo_path,
           capture_output=True,
           text=True,
+          errors="replace",
           check=False,
       )
       return (res.stdout.strip()
@@ -570,6 +617,7 @@ def execute_local_tool(tool_cmd: str, repo_path: str) -> str:
           cwd=repo_path,
           capture_output=True,
           text=True,
+          errors="replace",
           check=False,
       )
       return (res.stdout[:3000] if res.stdout else f"Could not show ref: {ref}")
@@ -597,8 +645,8 @@ def run_compiler_self_healing_loop(
     *,
     max_iterations: int = 60,
     project_id: Optional[str] = None,
-    location: str = "us-central1",
-    model: str = "gemini-2.5-flash",
+    location: str = "global",
+    model: str = "gemini-3.7-flash",
     skills_dir: Optional[str] = None,
     keep_going: int = 1,
 ) -> bool:
@@ -713,6 +761,15 @@ def run_compiler_self_healing_loop(
     rel_target = os.path.relpath(first_diag.file_path, src_dir)
     source_context_payload = (
         f"### Target File: {rel_target}\n```\n{source_excerpt}\n```\n")
+
+    if is_unmodified_third_party(first_diag.file_path, src_dir):
+      source_context_payload += (
+          f"\n> [!CRITICAL_GUARD] '{rel_target}' is pure upstream third-party "
+          "code without Cobalt modifications. DO NOT patch this file.\n"
+          f"> The error ('{first_diag.error_message}') is caused by missing "
+          "include_dirs, defines, or dependencies in the referencing BUILD.gn "
+          "(e.g. skia/BUILD.gn). Use TOOL_READ_FILE or TOOL_FIND_FILE to "
+          "locate and patch the referencing BUILD.gn instead.\n")
 
     investigation_history: List[str] = []
     max_tool_rounds = 4

@@ -39,3 +39,4 @@ If you need to inspect referencing build files, headers, or upstream definitions
 - Explicit logging headers: Add `#include "base/logging.h"` wherever LOG() or DLOG() macros are referenced.
 - NavigationThrottle: Constructor requires `content::NavigationThrottleRegistry& registry`.
 - JavascriptInjector: Use the 3-argument signature without empty origin list.
+- CacheStorage MatchResponse (Mojom Union): In M140, `blink::mojom::MatchResponse` is a union (`union MatchResponse { FetchAPIResponse response; EagerResponse eager_response; };`). Do not access `.body` or `.blob` directly on `MatchResponsePtr`. Extract the `FetchAPIResponsePtr` using `match_response->is_response() ? match_response->get_response() : ...` and access `response->blob`.

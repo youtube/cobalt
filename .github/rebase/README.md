@@ -6,7 +6,7 @@ An autonomous, multi-phase AI-driven engineering pipeline powered by Google Clou
 
 ## 1. Architecture Overview
 
-The pipeline executes in three automated, self-healing phases:
+The pipeline executes in sequential, self-healing phases:
 
 ```
 +-----------------------------------------------------------------------------+
@@ -14,31 +14,37 @@ The pipeline executes in three automated, self-healing phases:
 |   - Resolves DEPS merge conflicts & validates Python AST syntax             |
 |   - Resolves C++, Java, GN, and config file conflict blocks                 |
 |   - Fast-path adopts upstream (--theirs) for binary/fuzz corpus files       |
-|   - Self-healing gclient sync loop                                          |
 +-----------------------------------------------------------------------------+
                                      |
                                      v
 +-----------------------------------------------------------------------------+
-| Phase 2: GN Generation & Header Verification (run_rebase_pipeline.py)       |
+| Phase 2: Toolchain & Dependency Sync (gclient sync -D)                      |
+|   - Synchronizes Clang, Rust, NDK, node_modules, and CIPD packages          |
+|   - Self-healing retry with --force --reset                                 |
++-----------------------------------------------------------------------------+
+                                     |
+                                     v
++-----------------------------------------------------------------------------+
+| Phase 3: GN Generation & Header Verification (cobalt/build/gn.py)           |
 |   - Executes `cobalt/build/gn.py -p <platform> -C <build_type> --check`     |
-|   - Iteratively diagnoses and repairs visibility & template forwarding      |
+|   - Resolves bridge targets (group/component) and duplicate argument imports|
 +-----------------------------------------------------------------------------+
                                      |
                                      v
 +-----------------------------------------------------------------------------+
-| Phase 3: Compiler Self-Healing Loop (autoninja_loop.py)                     |
-|   - Invokes `autoninja -C out/<dir> <target>`                               |
-|   - Parses Clang/GCC error diagnostics                                      |
+| Phase 4: Compiler Self-Healing Loop (autoninja_loop.py)                     |
+|   - Invokes `autoninja -k 1 -C out/<dir> <target>`                          |
+|   - Third-party source protection guardrail (routes fixes to BUILD.gn)      |
 |   - Generates surgical SEARCH/REPLACE code patches via Vertex AI            |
 |   - Escalates to Pro model (gemini-2.5-pro) on repeat diagnostics           |
 +-----------------------------------------------------------------------------+
                                      |
                                      v
 +-----------------------------------------------------------------------------+
-| Post-Rebase: Knowledge Bank Sync & Report Generation                        |
+| Phase 5: Knowledge Bank Sync & Report Generation                            |
 |   - Records working code patches to out/memory/knowledge_bank.json          |
 |   - Uploads knowledge bank to Google Cloud Storage (GCS) if configured      |
-|   - Generates final execution summary in results/M139_rebase_summary.md     |
+|   - Generates final execution summary in results/M140_rebase_summary.md     |
 +-----------------------------------------------------------------------------+
 ```
 

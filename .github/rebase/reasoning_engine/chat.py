@@ -171,8 +171,8 @@ def main():
         parts = user_input.split(maxsplit=1)
         if len(parts) > 1:
           target_model = parts[1].strip()
-          if target_model in ("flash", "gemini-2.5-flash"):
-            current_model = "gemini-2.5-flash"
+          if target_model in ("flash", "gemini-3.7-flash", "3.7"):
+            current_model = "gemini-3.7-flash"
           elif target_model in ("pro", "gemini-2.5-pro"):
             current_model = "gemini-2.5-pro"
           else:

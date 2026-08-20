@@ -21,7 +21,12 @@ If you need to inspect files or locate relocated sources, output a single tool c
 3. VISIBILITY ERRORS:
    - If "Dependency not allowed... The item X cannot depend on Y because it is not in Y's visibility list" occurs:
    - Replace private dependency Y with the allowed public sub-target or component interface.
-4. STRICT OUTPUT:
+4. DUPLICATE BUILD ARGUMENT / ERRONEOUS IMPORTS:
+   - If "Duplicate build argument declaration: <arg> ... Previous declaration: <file1> ... whence it was imported: <caller>" occurs:
+   - Do NOT delete or modify args inside `third_party/` packages.
+   - Look at the caller file listed in "whence it was imported" (e.g. `skia/BUILD.gn`).
+   - Remove or replace the erroneous `import("//third_party/.../skia.gni")` in the caller file with the standard Chromium config import (e.g. `import("//build/config/freetype/freetype.gni")`).
+5. STRICT OUTPUT:
    - When returning the fix, output ONLY standard SEARCH / REPLACE blocks:
      FILE: <relative_filepath>
      <<<<<<< SEARCH

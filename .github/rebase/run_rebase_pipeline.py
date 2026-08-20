@@ -5,10 +5,10 @@
 Executes all rebase phases in sequence:
   Phase 1: Conflict Resolution (prioritizing DEPS & toolchain build files first,
            then GN build configs, then C++/Java source files).
-  Phase 1.5: Toolchain & Dependency Sync (gclient sync -D).
-  Phase 2: GN Build Generation & Verification (cobalt/build/gn.py).
-  Phase 3: autoninja Compiler Self-Healing Loop (up to 100 iterations).
-  Phase 4: Comprehensive M140_rebase_summary.md generation with metrics.
+  Phase 2: Toolchain & Dependency Sync (gclient sync -D).
+  Phase 3: GN Build Generation & Verification (cobalt/build/gn.py).
+  Phase 4: autoninja Compiler Self-Healing Loop (up to 100 iterations).
+  Phase 5: Comprehensive M140_rebase_summary.md generation with metrics.
 """
 
 import argparse
@@ -171,6 +171,26 @@ def self_heal_gn_generation(
         if full_p not in unique_gn_files or target_line is not None:
           unique_gn_files[full_p] = target_line
 
+    # 4. Resolve caller in "whence it was imported" and "Previous declaration"
+    import_matches = re.findall(
+        r"See //([a-zA-Z0-9_/\.\-]+\.gn[i]?)(?::(\d+))?:\s+"
+        r"(?:whence it was imported|Previous declaration)",
+        output,
+    )
+    for f, line_str in import_matches:
+      full_p = os.path.join(repo_path, f) if not os.path.isabs(f) else f
+      if os.path.isfile(full_p):
+        target_line = int(line_str) if line_str else None
+        unique_gn_files[full_p] = target_line
+
+    # 5. Resolve unresolved dependencies: "needs //path/to/target:name"
+    needs_matches = re.findall(
+        r"needs\s+//([a-zA-Z0-9_/\.\-]+):[a-zA-Z0-9_/\.\-]+", output)
+    for target_dir in needs_matches:
+      gn_path = os.path.join(repo_path, target_dir, "BUILD.gn")
+      if os.path.isfile(gn_path):
+        unique_gn_files[gn_path] = None
+
     file_contexts = []
     for gnf, target_line in list(unique_gn_files.items())[:3]:
       try:
@@ -192,7 +212,7 @@ def self_heal_gn_generation(
         pass
 
     record_failure(
-        phase="Phase 2 (GN Generation)",
+        phase="Phase 3 (GN Generation)",
         target=f"{platform}_{build_type}",
         error_message=output.splitlines()[0] if output else "GN Error",
         attempt_num=attempt,
@@ -212,7 +232,7 @@ def self_heal_gn_generation(
       )
       try:
         res_ai = reasoning_engine.heal_gn_error(
-            error_trace=output[:3000],
+            error_trace=output[:32768],
             file_context="\n\n".join(file_contexts),
             attempt_history="\n".join(attempt_history[-3:]),
             past_experience=past_experience,
@@ -316,8 +336,9 @@ def _write_final_report(
 | Phase | Stage | Description | Status |
 | :--- | :--- | :--- | :--- |
 | **Phase 1** | Conflict Resolution | Unified DEPS & source conflict repair | [OK] Completed |
-| **Phase 2** | GN Config Check | `cobalt/build/gn.py --check` validation | [OK] Completed |
-| **Phase 3** | autoninja Loop | autoninja compiler healing | {comp_status} |
+| **Phase 2** | Toolchain Sync | `gclient sync -D` toolchain & CIPD sync | [OK] Completed |
+| **Phase 3** | GN Config Check | `cobalt/build/gn.py --check` validation | [OK] Completed |
+| **Phase 4** | autoninja Loop | autoninja compiler healing | {comp_status} |
 """
   try:
     with open(report_path, "w", encoding="utf-8") as f:
@@ -387,17 +408,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
   parser.add_argument(
       "--skip-sync",
       action="store_true",
-      help="Skip gclient runhooks / sync.",
+      help="Skip Phase 2 (gclient sync -D).",
   )
   parser.add_argument(
       "--skip-gn",
       action="store_true",
-      help="Skip Phase 2 (cobalt/build/gn.py).",
+      help="Skip Phase 3 (cobalt/build/gn.py).",
   )
   parser.add_argument(
       "--skip-build",
       action="store_true",
-      help="Skip Phase 3 (autoninja compiler loop).",
+      help="Skip Phase 4 (autoninja compiler loop).",
   )
   parser.add_argument(
       "--max-gn-iterations",
@@ -491,31 +512,50 @@ def run_pipeline(args: argparse.Namespace) -> int:
     print("[OK] Phase 1 Completed Successfully.", file=sys.stderr)
 
   # -------------------------------------------------------------------------
-  # Toolchain & Dependency Sync: gclient sync -D (Clang, Rust, GCS packages)
+  # -------------------------------------------------------------------------
+  # PHASE 2: Toolchain & Dependency Sync: gclient sync -D
   # -------------------------------------------------------------------------
   if not getattr(args, "skip_sync", False):
     print("\n" + "=" * 80, file=sys.stderr)
     print(
-        "[PHASE] Toolchain & Dependency Sync (gclient sync -D)",
+        "[PHASE] PHASE 2: Toolchain & Dependency Sync (gclient sync -D)",
         file=sys.stderr,
     )
     print("=" * 80, file=sys.stderr)
     rc_sync = run_cmd(["gclient", "sync", "-D"], cwd=args.repo_path)
     if rc_sync != 0:
       print(
-          f"[WARNING] gclient sync returned {rc_sync}. Proceeding...",
+          f"[WARNING] gclient sync returned {rc_sync}. Retrying with "
+          "--force --reset...",
           file=sys.stderr,
       )
-    else:
-      print("[OK] Toolchains and dependencies synced cleanly.", file=sys.stderr)
+      rc_sync = run_cmd(["gclient", "sync", "-D", "--force", "--reset"],
+                        cwd=args.repo_path)
+    if rc_sync != 0:
+      print(
+          f"[FAIL] Phase 2 Toolchain Sync failed (Exit Code: {rc_sync}).",
+          file=sys.stderr,
+      )
+      _write_final_report(
+          rebase_dir=rebase_dir,
+          platform=args.platform,
+          build_type=args.build_type,
+          target=effective_target,
+          model=args.model,
+          status="FAILED (Phase 2: gclient sync)",
+          elapsed_seconds=time.time() - start_time,
+          repo_path=args.repo_path,
+      )
+      return rc_sync
+    print("[OK] Phase 2 Completed Successfully.", file=sys.stderr)
 
   # -------------------------------------------------------------------------
-  # PHASE 2: GN Generation & Header Verification (cobalt/build/gn.py)
+  # PHASE 3: GN Generation & Header Verification (cobalt/build/gn.py)
   # -------------------------------------------------------------------------
   if not args.skip_gn:
     print("\n" + "=" * 80, file=sys.stderr)
     print(
-        "[PHASE] PHASE 2: GN Build Generation (cobalt/build/gn.py)",
+        "[PHASE] PHASE 3: GN Build Generation (cobalt/build/gn.py)",
         file=sys.stderr,
     )
     print("=" * 80, file=sys.stderr)
@@ -531,7 +571,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
     )
     if not gn_ok:
       print(
-          "[FAIL] Phase 2 GN Generation & Header Verification failed.",
+          "[FAIL] Phase 3 GN Generation & Header Verification failed.",
           file=sys.stderr,
       )
       _write_final_report(
@@ -540,20 +580,20 @@ def run_pipeline(args: argparse.Namespace) -> int:
           build_type=args.build_type,
           target=effective_target,
           model=args.model,
-          status="FAILED (Phase 2: GN Generation)",
+          status="FAILED (Phase 3: GN Generation)",
           elapsed_seconds=time.time() - start_time,
           repo_path=args.repo_path,
       )
       return 1
-    print("[OK] Phase 2 Completed Successfully.", file=sys.stderr)
+    print("[OK] Phase 3 Completed Successfully.", file=sys.stderr)
 
   # -------------------------------------------------------------------------
-  # PHASE 3: autoninja Compiler Self-Healing Loop
+  # PHASE 4: autoninja Compiler Self-Healing Loop
   # -------------------------------------------------------------------------
   if not args.skip_build:
     print("\n" + "=" * 80, file=sys.stderr)
     print(
-        f"[PHASE] PHASE 3: autoninja Compiler Loop "
+        f"[PHASE] PHASE 4: autoninja Compiler Loop "
         f"(Target: {effective_target})",
         file=sys.stderr,
     )
@@ -574,7 +614,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
     rc = run_cmd(cmd_p3, cwd=args.repo_path)
     if rc != 0:
       print(
-          "[FAIL] Phase 3 Compiler Feedback Loop failed (Exit "
+          "[FAIL] Phase 4 Compiler Feedback Loop failed (Exit "
           f"Code: {rc}).",
           file=sys.stderr,
       )
@@ -584,12 +624,12 @@ def run_pipeline(args: argparse.Namespace) -> int:
           build_type=args.build_type,
           target=effective_target,
           model=args.model,
-          status="FAILED (Phase 3: Compiler Loop)",
+          status="FAILED (Phase 4: Compiler Loop)",
           elapsed_seconds=time.time() - start_time,
           repo_path=args.repo_path,
       )
       return rc
-    print("[OK] Phase 3 Completed Successfully.", file=sys.stderr)
+    print("[OK] Phase 4 Completed Successfully.", file=sys.stderr)
 
   elapsed = time.time() - start_time
   summary_path = _write_final_report(
