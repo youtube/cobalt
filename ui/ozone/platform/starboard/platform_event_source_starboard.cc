@@ -150,10 +150,6 @@ std::unique_ptr<ui::Event> PlatformEventSourceStarboard::CreateMouseInputEvent(
   }
   const auto* input_data = static_cast<const SbInputData*>(event->data);
 
-  if (input_data->type == kSbInputEventTypeWheel) {
-    return CreateMouseWheelInputEvent(event);
-  }
-
   int flags = GetEventFlags(*input_data);
   int changed_button_flags = 0;
   ui::EventType event_type = ui::EventType::kUnknown;
@@ -238,20 +234,24 @@ void PlatformEventSourceStarboard::HandleEvent(const SbEvent* event) {
   const auto* input_data = static_cast<const SbInputData*>(event->data);
   std::unique_ptr<ui::Event> ui_event;
 
-  switch (input_data->device_type) {
-    case kSbInputDeviceTypeKeyboard:
-    case kSbInputDeviceTypeRemote:
-      ui_event = CreateKeyboardRemoteInputEvent(event);
-      break;
-    case kSbInputDeviceTypeMouse:
-      ui_event = CreateMouseInputEvent(event);
-      break;
-    case kSbInputDeviceTypeTouchScreen:
-    case kSbInputDeviceTypeTouchPad:
-      ui_event = CreateTouchInputEvent(event);
-      break;
-    default:
-      return;
+  if (input_data->type == kSbInputEventTypeWheel) {
+    ui_event = CreateMouseWheelInputEvent(event);
+  } else {
+    switch (input_data->device_type) {
+      case kSbInputDeviceTypeKeyboard:
+      case kSbInputDeviceTypeRemote:
+        ui_event = CreateKeyboardRemoteInputEvent(event);
+        break;
+      case kSbInputDeviceTypeMouse:
+        ui_event = CreateMouseInputEvent(event);
+        break;
+      case kSbInputDeviceTypeTouchScreen:
+      case kSbInputDeviceTypeTouchPad:
+        ui_event = CreateTouchInputEvent(event);
+        break;
+      default:
+        return;
+    }
   }
 
   if (!ui_event) {

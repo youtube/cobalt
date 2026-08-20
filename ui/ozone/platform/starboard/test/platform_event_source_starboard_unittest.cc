@@ -291,7 +291,8 @@ TEST(PlatformEventSourceStarboardHelpersTest, CreateMouseInputEvent) {
     EXPECT_EQ(mouse_event->changed_button_flags(), ui::EF_LEFT_MOUSE_BUTTON);
   }
 
-  // Mouse wheel dispatched via CreateMouseInputEvent.
+  // Wheel events are handled in HandleEvent via CreateMouseWheelInputEvent,
+  // so CreateMouseInputEvent should return nullptr.
   {
     SbInputData input_data = {};
     input_data.type = kSbInputEventTypeWheel;
@@ -307,8 +308,7 @@ TEST(PlatformEventSourceStarboardHelpersTest, CreateMouseInputEvent) {
 
     std::unique_ptr<ui::Event> event =
         event_source.CreateMouseInputEvent(&sb_event);
-    ASSERT_NE(event, nullptr);
-    EXPECT_EQ(event->type(), ui::EventType::kMousewheel);
+    EXPECT_EQ(event, nullptr);
   }
 
   // Unsupported input event type returns nullptr.
@@ -552,6 +552,31 @@ TEST_F(PlatformEventSourceStarboardTest, HandleMouseWheelEvent) {
             gfx::Vector2d(-2 * ui::MouseWheelEvent::kWheelDelta,
                           3 * ui::MouseWheelEvent::kWheelDelta));
   EXPECT_EQ(observer_.last_flags(), ui::EF_NONE);
+}
+
+TEST_F(PlatformEventSourceStarboardTest, HandleMouseWheelEvent_NonMouseDevice) {
+  const SbInputDeviceType kNonMouseDeviceTypes[] = {
+      kSbInputDeviceTypeTouchPad,
+      kSbInputDeviceTypeRemote,
+  };
+
+  for (SbInputDeviceType device_type : kNonMouseDeviceTypes) {
+    SCOPED_TRACE(device_type);
+    SbInputData input_data = {};
+    input_data.type = kSbInputEventTypeWheel;
+    input_data.device_type = device_type;
+    input_data.position.x = 150.0f;
+    input_data.position.y = 250.0f;
+    input_data.delta.x = 0.0f;
+    input_data.delta.y = 1.0f;
+
+    SendInputEvent(input_data);
+
+    EXPECT_EQ(observer_.last_event_type(), ui::EventType::kMousewheel);
+    EXPECT_EQ(observer_.last_location(), gfx::PointF(150.0f, 250.0f));
+    EXPECT_EQ(observer_.last_wheel_offset(),
+              gfx::Vector2d(0, -1 * ui::MouseWheelEvent::kWheelDelta));
+  }
 }
 
 TEST_F(PlatformEventSourceStarboardTest, HandleKeyboardEvent) {
