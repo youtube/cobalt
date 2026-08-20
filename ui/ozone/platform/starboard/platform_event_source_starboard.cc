@@ -81,6 +81,12 @@ int GetMouseButtonFromKey(SbKey key) {
   }
 }
 
+void DeliverEventHandler(std::unique_ptr<ui::Event> ui_event) {
+  static_cast<PlatformEventSourceStarboard*>(
+      ui::PlatformEventSource::GetInstance())
+      ->DeliverEvent(std::move(ui_event));
+}
+
 }  // namespace
 
 std::unique_ptr<ui::Event>
@@ -221,16 +227,6 @@ std::unique_ptr<ui::Event> PlatformEventSourceStarboard::CreateTouchInputEvent(
       ui::PointerDetails(ui::EventPointerType::kTouch, data.device_id,
                          data.size.x, data.size.y, pressure));
 }
-
-namespace {
-
-void DeliverEventHandler(std::unique_ptr<ui::Event> ui_event) {
-  static_cast<PlatformEventSourceStarboard*>(
-      ui::PlatformEventSource::GetInstance())
-      ->DeliverEvent(std::move(ui_event));
-}
-
-}  // namespace
 
 void PlatformEventSourceStarboard::HandleEvent(const SbEvent* event) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
