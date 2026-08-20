@@ -692,7 +692,7 @@ scoped_refptr<Channel> Channel::Create(
 
 #if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD) && \
     (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID))
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return new ChannelLinux(delegate, std::move(connection_params), handle_policy,
                           io_task_runner);
 #else
@@ -704,7 +704,7 @@ scoped_refptr<Channel> Channel::Create(
 <<<<<<< HEAD
 =======
 #if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID))
 // static
 bool Channel::SupportsChannelUpgrade() {

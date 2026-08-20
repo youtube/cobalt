@@ -68,4 +68,4 @@ the format of the existing examples.
 
 Changes to `common.minimal.md` should be done carefully as it's meant to be used
 broadly.
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

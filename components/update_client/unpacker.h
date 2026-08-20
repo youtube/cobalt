@@ -90,7 +90,7 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
                      base::OnceCallback<void(const Result& result)> callback);
 #else
   static void Unpack(const std::vector<uint8_t>& pk_hash,
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
                      const base::FilePath& path,
                      std::unique_ptr<Unzipper> unzipper,
                      crx_file::VerifierFormat crx_format,
@@ -114,7 +114,7 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
            base::OnceCallback<void(const Result& result)> callback);
 #else
   Unpacker(const base::FilePath& path,
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
            std::unique_ptr<Unzipper> unzipper,
            base::OnceCallback<void(const Result& result)> callback);
 #endif
@@ -152,7 +152,7 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
   OperationResult result_;
 #endif
 #if !defined(IN_MEMORY_UPDATES)
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   base::FilePath path_;
 #endif
   std::unique_ptr<Unzipper> unzipper_;

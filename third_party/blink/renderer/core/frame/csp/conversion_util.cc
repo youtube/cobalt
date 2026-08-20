@@ -47,7 +47,7 @@ network::mojom::blink::CSPSourceListPtr ConvertSourceList(
 #else
       source_list.report_sample, source_list.report_hash_algorithm);
 #endif
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 }  // namespace

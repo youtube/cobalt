@@ -989,7 +989,7 @@ void HangWatcher::Run() {
 #endif
 
     if (has_work &&
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         g_keep_monitoring.load(std::memory_order_relaxed)) {
       Monitor();
       if (after_monitor_closure_for_testing_) {
@@ -1450,7 +1450,7 @@ void HangWatcher::DoDumpWithoutCrashing(
 #endif  // BUILDFLAG(IS_STARBOARD)
 #endif  // BUILDFLAG(IS_COBALT)
 #endif  // !BUILDFLAG(IS_NACL)
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // To avoid capturing more than one hang that blames a subset of the same
   // threads it's necessary to keep track of what is the furthest deadline

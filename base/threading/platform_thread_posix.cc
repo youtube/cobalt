@@ -369,7 +369,7 @@ bool PlatformThreadBase::CanChangeThreadType(ThreadType from, ThreadType to) {
 #if BUILDFLAG(IS_NACL) || BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   return false;
 #else
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (from >= to) {
     // Decreasing thread priority on POSIX is always allowed.
     return true;
@@ -382,7 +382,7 @@ bool PlatformThreadBase::CanChangeThreadType(ThreadType from, ThreadType to) {
 <<<<<<< HEAD
 =======
 #endif  // BUILDFLAG(IS_NACL) || BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 namespace internal {

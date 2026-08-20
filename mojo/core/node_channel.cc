@@ -268,7 +268,7 @@ scoped_refptr<NodeChannel> NodeChannel::Create(
 #elif BUILDFLAG(IS_STARBOARD)
   LOG(FATAL) << "Multi-process not yet supported on Starboard";
 #else
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return new NodeChannel(delegate, std::move(connection_params),
                          channel_handle_policy, io_task_runner,
                          process_error_callback);
@@ -490,7 +490,7 @@ void NodeChannel::BindBrokerHost(PlatformHandle broker_host_handle) {
 #if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_FUCHSIA)
 =======
 #if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_FUCHSIA)
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   DCHECK(broker_host_handle.is_valid());
   BindBrokerHostData* data;
   std::vector<PlatformHandle> handles;
@@ -564,7 +564,7 @@ NodeChannel::NodeChannel(
       process_error_callback_(process_error_callback)
 #if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
       ,
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       channel_(Channel::Create(this,
                                std::move(connection_params),
                                channel_handle_policy,
@@ -582,7 +582,7 @@ void NodeChannel::CreateAndBindLocalBrokerHost(
 #if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_FUCHSIA)
 =======
 #if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_FUCHSIA)
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Self-owned.
   ConnectionParams connection_params(
       PlatformChannelEndpoint(std::move(broker_host_handle)));
@@ -897,7 +897,7 @@ void NodeChannel::OfferChannelUpgrade() {
 <<<<<<< HEAD
 =======
 #if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   base::AutoLock lock(channel_lock_);
   channel_->OfferChannelUpgrade();
 }

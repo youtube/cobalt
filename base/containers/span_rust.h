@@ -17,7 +17,7 @@
 #error "span_rust.h included under IS_NACL"
 #endif
 
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 namespace base {
 
 // Creates a Rust slice from a span.

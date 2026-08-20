@@ -1655,7 +1655,7 @@ TEST(ContentSecurityPolicy, ParseSerializedSourceList) {
             csp->cobalt_insecure_local_network = true;
             return csp;
           }),
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
           "The source list for the Content Security Policy directive "
           "'script-src' contains an invalid source: ''wrong''. It will be "
           "ignored.",
@@ -1674,7 +1674,7 @@ TEST(ContentSecurityPolicy, ParseSerializedSourceList) {
           "ignored.",
       },
 #endif
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   };
 
   for (auto& test : cases) {

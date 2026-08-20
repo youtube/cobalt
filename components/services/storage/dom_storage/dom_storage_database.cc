@@ -107,7 +107,7 @@ DbStatus ForEachWithPrefix(leveldb::DB* db,
 
 }  // namespace
 
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 DomStorageDatabase::KeyValuePair::KeyValuePair() = default;
 
 DomStorageDatabase::KeyValuePair::~KeyValuePair() = default;
@@ -286,7 +286,7 @@ bool DomStorageDatabase::OnMemoryDump(
                          base::trace_event::MemoryAllocatorDump::kUnitsBytes,
                          dump->GetSizeInternal());
   return true;
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 }  // namespace storage

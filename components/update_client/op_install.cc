@@ -246,7 +246,7 @@ void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
 #if BUILDFLAG(IS_STARBOARD)
             const OperationResult& crx_operation_result,
 #else
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
             const base::FilePath& crx_file,
 #endif
             std::unique_ptr<Unzipper> unzipper,
@@ -358,7 +358,7 @@ base::OnceClosure InstallOperation(
 =======
           crx_file, std::move(unzipper), pk_hash, crx_format));
 #endif
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return base::DoNothing();
 }
 

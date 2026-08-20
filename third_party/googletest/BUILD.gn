@@ -145,7 +145,7 @@ source_set("gtest") {
   if (!build_with_chromium) {
 =======
   if (is_nacl || !build_with_chromium || is_starboard) {
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     defines += [ "GTEST_DISABLE_PRINT_STACK_TRACE" ]
     sources -= [
       "custom/gtest/internal/custom/stack_trace_getter.cc",

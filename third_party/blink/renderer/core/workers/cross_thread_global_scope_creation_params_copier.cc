@@ -80,7 +80,7 @@ network::mojom::blink::CSPSourceListPtr CSPSourceListIsolatedCopy(
 #else
       in->report_sample, in->report_hash_algorithm);
 #endif
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 HashMap<network::mojom::blink::CSPDirectiveName,

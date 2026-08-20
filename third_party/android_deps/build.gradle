@@ -25,7 +25,7 @@ dependencies {
     compile 'com.google.firebase:firebase-iid:21.1.0'
     compile 'com.google.firebase:firebase-messaging:24.1.0'
     compile 'com.google.j2objc:j2objc-annotations:2.8'
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     // buildCompile needed because we add a custom dep of onto this from guava
     // to fix "unknown enum constant ReflectionSupport$Level.FULL".
     buildCompile 'com.google.j2objc:j2objc-annotations:2.8'

@@ -11,7 +11,7 @@ and agent types in use.
 =======
 Googler-only docs: http://go/chrome-coding-with-ai-agents
 
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 ## Directory Structure
 
 ### Prompts
@@ -74,7 +74,7 @@ Chrome-approved extensions & MCP servers. See [`//agents/extensions/README.md`].
 Use `agents/extensions/install.py` to list and configure available servers.
 
 [`//agents/extensions/README.md`]: /agents/extensions/README.md
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 ## Contributing
 
@@ -87,7 +87,7 @@ and include OWNERS.
 =======
 New MCP server configurations should be for owned and supported MCP servers and
 include OWNERS.
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 Changes to `common.GEMINI.md` should be done carefully as it's meant to be used
 broadly.

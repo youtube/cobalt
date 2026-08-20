@@ -55,7 +55,7 @@ network::mojom::CSPSourceListPtr BuildCSPSourceList(
 #else
       source_list.report_sample, source_list.report_hash_algorithm);
 #endif // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 std::vector<blink::WebString> ToVectorOfWebStrings(

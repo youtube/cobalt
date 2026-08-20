@@ -257,7 +257,7 @@ void HandleAvailableSpace(
 #if defined(IN_MEMORY_UPDATES)
                      event_adder, crx_str, std::move(callback))));
 #else
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
                      event_adder, std::move(callback))));
 #endif
 }
@@ -311,7 +311,7 @@ base::OnceClosure DownloadOperation(
                      crx_str,
 #endif
                      std::move(callback)));
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 7d60f81f606 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return base::BindOnce(&Cancellation::Cancel, cancellation);
 }
 
