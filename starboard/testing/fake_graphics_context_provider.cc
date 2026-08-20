@@ -18,6 +18,7 @@
 
 #include <condition_variable>
 #include <mutex>
+#include <vector>
 
 #include "starboard/common/gettid.h"
 #include "starboard/common/log.h"
