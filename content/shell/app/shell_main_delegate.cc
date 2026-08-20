@@ -22,9 +22,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/trace_event/trace_log.h"
 #include "build/build_config.h"
-#if !BUILDFLAG(IS_ANDROIDTV)
 #include "components/crash/core/common/crash_key.h"
-#endif
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
 #include "content/common/content_constants_internal.h"
@@ -57,7 +55,7 @@
 #include "content/shell/android/shell_descriptors.h"
 #endif
 
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
+#if !BUILDFLAG(IS_FUCHSIA)
 #include "components/crash/core/app/crashpad.h"  // nogncheck
 #endif
 
@@ -103,18 +101,12 @@ enum class LoggingDest {
 #endif
 };
 
-<<<<<<< HEAD
 #if !BUILDFLAG(IS_FUCHSIA)
 content::ShellCrashReporterClient& GetShellCrashReporterClient() {
   static base::NoDestructor<content::ShellCrashReporterClient>
       shell_crash_client;
   return *shell_crash_client;
 }
-=======
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
-base::LazyInstance<content::ShellCrashReporterClient>::Leaky
-    g_shell_crash_client = LAZY_INSTANCE_INITIALIZER;
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -287,7 +279,7 @@ void ShellMainDelegate::PreSandboxStartup() {
 // Disable platform crash handling and initialize the crash reporter, if
 // requested.
 // TODO(crbug.com/40188745): Implement crash reporter integration for Fuchsia.
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
+#if !BUILDFLAG(IS_FUCHSIA)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableCrashReporter)) {
     std::string process_type =
@@ -303,11 +295,9 @@ void ShellMainDelegate::PreSandboxStartup() {
 #endif
     }
   }
-#endif  // !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
+#endif  // !BUILDFLAG(IS_FUCHSIA)
 
-#if !BUILDFLAG(IS_ANDROIDTV)
   crash_reporter::InitializeCrashKeys();
-#endif  // !BUILDFLAG(IS_ANDROIDTV)
 
   InitializeResourceBundle();
 }
@@ -361,7 +351,6 @@ std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 void ShellMainDelegate::ZygoteForked() {
-#if !BUILDFLAG(IS_ANDROIDTV)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableCrashReporter)) {
     std::string process_type =
@@ -371,7 +360,6 @@ void ShellMainDelegate::ZygoteForked() {
     crash_reporter::SetFirstChanceExceptionHandler(
         v8::TryHandleWebAssemblyTrapPosix);
   }
-#endif  // !BUILDFLAG(IS_ANDROIDTV)
 }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
