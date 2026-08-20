@@ -482,11 +482,10 @@ test("device_unittests") {
     deps += [ "//chromeos/dbus/u2f" ]
   }
 
-<<<<<<< HEAD
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-=======
+
   # The following tests fail to build when udev is disabled.
   if (is_cobalt && is_linux_without_udev) {
     sources -= [
@@ -497,7 +496,6 @@ test("device_unittests") {
       "fido/make_credential_handler_unittest.cc",
     ]
   }
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 if (is_android) {
