@@ -128,7 +128,7 @@ void GetSmapsRollup(base::ProcessHandle handle,
   *swap_pss = value->swap_pss;
 }
 #else   // !BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
-void GetSmapsRollup(uint32_t* pss, uint32_t* swap_pss) {
+void GetSmapsRollup(size_t* pss, size_t* swap_pss) {
   auto value = base::debug::ReadAndParseSmapsRollup();
   if (!value) {
     *pss = 0;
@@ -524,14 +524,6 @@ uint32_t CountMappings(base::ProcessId pid) {
   return newline_characters;
 }
 
-<<<<<<< HEAD
-// Get values from smaps_rollup for the current process.
-void GetSmapsRollup(size_t* pss, size_t* swap_pss) {
-  auto value = base::debug::ReadAndParseSmapsRollup();
-  if (!value) {
-    *pss = 0;
-    *swap_pss = 0;
-=======
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 #if !BUILDFLAG(IS_ANDROID)
 struct LibChrobaltMem {
@@ -553,7 +545,6 @@ void GetSmapsRollup(base::ProcessId pid,
       "/smaps";
   base::ScopedFILE smaps_file(fopen(file_name.c_str(), "r"));
   if (!smaps_file) {
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return;
   }
 
@@ -867,24 +858,15 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
     dump->mappings_count = CountMappings(handle);
   }
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_PSS)) {
-<<<<<<< HEAD
     size_t pss, swap_pss;
-    GetSmapsRollup(&pss, &swap_pss);
-    dump->pss_kb = pss / 1024;
-    dump->swap_pss_kb = swap_pss / 1024;
-=======
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
-    size_t pss, swap_pss;
     GetSmapsRollup(handle, &pss, &swap_pss);
+#else
+    GetSmapsRollup(&pss, &swap_pss);
+#endif
     dump->pss_kb = base::saturated_cast<uint32_t>(pss / 1024);
     dump->swap_pss_kb = base::saturated_cast<uint32_t>(swap_pss / 1024);
-#else
-    GetSmapsRollup(&dump->pss_kb, &dump->swap_pss_kb);
-#endif
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
-
-
 
 #if BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(SUPPORTS_CODE_ORDERING)
@@ -1080,7 +1062,7 @@ bool OSMetrics::FillDetailedMetrics(base::ProcessHandle handle,
   size_t rollup_pss_kb = rollup_pss / 1024;
   size_t abs_diff = (total_pss_kb > rollup_pss_kb) ? (total_pss_kb - rollup_pss_kb)
                                                   : (rollup_pss_kb - total_pss_kb);
-  
+
   bool use_mock = false;
   {
     base::AutoLock testing_lock(GetTestingGlobalsLock());
