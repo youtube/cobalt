@@ -17,6 +17,9 @@
 
 #include <jni.h>
 
+#include <string>
+#include <vector>
+
 #include "base/memory/singleton.h"
 #include "starboard/common/size.h"
 #include "third_party/jni_zero/jni_zero.h"
