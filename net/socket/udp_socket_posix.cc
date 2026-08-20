@@ -34,11 +34,8 @@
 #include "base/rand_util.h"
 #include "base/task/current_thread.h"
 #include "base/task/thread_pool.h"
-<<<<<<< HEAD
-#include "base/trace_event/trace_event.h"
-=======
 #include "base/time/time.h"
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#include "base/trace_event/trace_event.h"
 #include "net/base/cronet_buildflags.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_address.h"
