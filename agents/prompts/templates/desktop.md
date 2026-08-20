@@ -1,12 +1,3 @@
-<<<<<<< HEAD
-### Desktop Chrome Instructions
-
-Before starting any tasks, you **MUST** read the following files to better
-understand design principles and commonly components within Chrome.
-*  docs/chrome_browser_design_principles.md
-*  docs/ui/views/overview.md
-
-=======
 # Desktop Chrome Instructions
 
 Instructions that are relevant when targeting desktop platforms (when
@@ -28,4 +19,3 @@ Always build relevant targets after making edits. Typical targets could be:
   * `interactive_ui_tests` - integration tests for desktop chrome that
     cannot be run in parallel as they require exclusive control of OS or
     window-manager.
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
