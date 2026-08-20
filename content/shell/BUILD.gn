@@ -10,11 +10,8 @@ import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/ui.gni")
 import("//build/config/win/console_app.gni")
 import("//build/config/win/manifest.gni")
-<<<<<<< HEAD
-import("//content/public/common/features.gni")
-=======
 import("//content/browser/devtools/features.gni")
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+import("//content/public/common/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
 import("//gpu/vulkan/features.gni")
 import("//media/media_options.gni")
@@ -492,11 +489,10 @@ static_library("content_shell_lib") {
     deps += [ "//ui/ozone" ]
   }
 
-<<<<<<< HEAD
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-=======
+
   if (is_cobalt && use_starboard_media) {
     deps += [
       "//starboard:starboard_group",
@@ -507,7 +503,6 @@ static_library("content_shell_lib") {
       ]
     }
   }
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 grit("content_shell_resources_grit") {
