@@ -401,13 +401,8 @@ static jni_zero::ScopedJavaLocalRef<jobject> Java_SampleForTests_addStructA(
       "addStructA",
       "(Lorg/jni_zero/SampleForTests$InnerStructA;Lorg/jni_zero/extrapackage/ImportsTinySample;)Lorg/jni_zero/SampleForTests$InnerStructA;",
       &cached_method_id);
-<<<<<<< HEAD
   auto _ret = env->CallObjectMethod(obj.obj(), call_context.method_id(), a.obj());
   return jni_zero::ScopedJavaLocalRef<jobject>::Adopt(env, _ret);
-=======
-  auto _ret = env->CallObjectMethod(obj.obj(), call_context.method_id(), a.obj(), b.obj());
-  return jni_zero::ScopedJavaLocalRef<jobject>(env, _ret);
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 static jni_zero::ScopedJavaLocalRef<jclass> Java_SampleForTests_getClass(
