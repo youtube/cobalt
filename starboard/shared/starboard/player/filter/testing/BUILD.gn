@@ -67,6 +67,9 @@ if (current_toolchain == starboard_toolchain) {
       ":player_filter_tests_sources",
       "//starboard:starboard_test_main",
     ]
+    if (is_android) {
+      deps += [ "//starboard/shared/starboard/player:player_test_data" ]
+    }
   }
 
   target(_benchmark_type, "player_filter_benchmarks") {
