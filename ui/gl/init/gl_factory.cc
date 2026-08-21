@@ -150,9 +150,7 @@ GLDisplay* InitializeGLNoExtensionsOneOff(bool init_bindings,
 }
 
 bool InitializeStaticGLBindingsOneOff() {
-  if (GetGLImplementation() != kGLImplementationNone) {
-    return true;
-  }
+  DCHECK_EQ(kGLImplementationNone, GetGLImplementation());
   GPU_STARTUP_TRACE_EVENT("gl::init::InitializeStaticGLBindingsOneOff");
 
   GLImplementationParts impl = GetRequestedGLImplementation();
