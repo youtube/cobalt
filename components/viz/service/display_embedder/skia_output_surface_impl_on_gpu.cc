@@ -2536,6 +2536,13 @@ void SkiaOutputSurfaceImplOnGpu::MarkContextLost(ContextLostReason reason) {
   }
 
   context_state_->MarkContextLost();
+#if BUILDFLAG(IS_COBALT)
+  output_device_.reset();
+  if (gl_surface_) {
+    gl_surface_->Destroy();
+    gl_surface_ = nullptr;
+  }
+#endif
   if (context_lost_callback_) {
     PostTaskToClientThread(std::move(context_lost_callback_));
   }

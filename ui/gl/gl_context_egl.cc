@@ -411,9 +411,11 @@ void GLContextEGL::Destroy() {
   ReleaseBackpressureFences();
   OnContextWillDestroy();
   if (context_) {
-    if (!eglDestroyContext(gl_display_->GetDisplay(), context_)) {
-      LOG(ERROR) << "eglDestroyContext failed with error "
-                 << GetLastEGLErrorString();
+    if (gl_display_ && gl_display_->GetDisplay() != EGL_NO_DISPLAY) {
+      if (!eglDestroyContext(gl_display_->GetDisplay(), context_)) {
+        LOG(ERROR) << "eglDestroyContext failed with error "
+                   << GetLastEGLErrorString();
+      }
     }
 
     context_ = nullptr;
