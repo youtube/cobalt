@@ -345,14 +345,25 @@ void AppEventDelegate::ExecuteStepOnUIThread(ApplicationState next_state,
 
   base::OnceClosure quit_closure;
   bool should_execute_next_step = false;
+  bool is_intermediate = false;
+  ApplicationState logging_target_state;
   {
     base::AutoLock lock(lock_);
     SetApplicationState(next_state);
+    is_intermediate = (application_state_ != target_state_);
+    logging_target_state = target_state_;
     if (next_state == ApplicationState::kStopped) {
       quit_closure = std::move(quit_closure_);
     } else {
       should_execute_next_step = true;
     }
+  }
+
+  if (is_intermediate) {
+    LOG(INFO) << "Transition to " << GetStateString(next_state)
+              << " complete (target: " << GetStateString(logging_target_state) << ")";
+  } else {
+    LOG(INFO) << "Transition to " << GetStateString(next_state) << " complete";
   }
 
   if (quit_closure) {
@@ -388,18 +399,14 @@ void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
   CHECK_GT(state, ApplicationState::kInitial);
   CHECK_LE(state, ApplicationState::kStopped);
 
-  LOG(INFO) << "AppEventDelegate::TransitionToLifeCycleState called, current="
-            << static_cast<int>(application_state_) << " ("
-            << GetStateString(application_state_)
-            << ") target=" << static_cast<int>(state) << " ("
-            << GetStateString(state) << ")";
+  LOG(INFO) << "Transitioning from " << GetStateString(application_state_)
+            << " to " << GetStateString(state);
 
   target_state_ = state;
 
   if (is_transitioning_) {
-    LOG(INFO) << "Transition already in progress. Updated target_state_ to "
-              << static_cast<int>(state) << " (" << GetStateString(state)
-              << ")";
+    DLOG(INFO) << "Transition already in progress. Updated target to "
+               << GetStateString(state);
     return;
   } else {
     is_transitioning_ = true;
