@@ -68,10 +68,10 @@
 namespace cobalt {
 
 namespace {
-// A timeout of 2 seconds was chosen to be long enough to allow for any
-// normal operations to complete, but short enough to avoid unnecessary
-// user-perceived delays.
-constexpr base::TimeDelta kTransitionTimeout = base::Seconds(2);
+// A transition timeout of 5 seconds allows for any normal frame ACKs or
+// asynchronous GPU cleanup sequences to complete following
+// CobaltLifecycleManager's 2-second frame timeout.
+constexpr base::TimeDelta kTransitionTimeout = base::Seconds(5);
 }  // namespace
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -145,6 +145,8 @@ class AppEventRunnerImpl : public AppEventRunner,
   }
 
   void DoStop() override {
+    base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_blocking;
+
     content::Shell::OnStop();
 
     content::Shell::Shutdown();
@@ -215,10 +217,21 @@ class AppEventRunnerImpl : public AppEventRunner,
   void DoConceal() override {
     content::Shell::OnConceal();
     WaitForAck(PendingAck::kConceal);
-    base::MemoryPressureListener::NotifyMemoryPressure(
-        base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+
+    // Run memory pressure notification and partition alloc reclamation in a
+    // posted task. This prevents slowing down the synchronous conceal step.
+    // We are guaranteed that this task will be executed before any subsequent
+    // DoFreeze() returns, because DoFreeze invokes a blocking RunLoop inside
+    // WaitForAck(PendingAck::kCookieFlush) which will drain this task queue.
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce([] {
+          base::MemoryPressureListener::NotifyMemoryPressure(
+              base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+          // Chromium's memory pressure listeners are invoked asynchronously on
+          // all threads. Explicitly calling ReclaimAll here forces
+          // PartitionAlloc to synchronously purge its thread caches for the
+          // main thread right now, avoiding relying solely on the asynchronous
+          // signal propagation.
           ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
         }));
   }
