@@ -859,7 +859,7 @@ void ApplicationX11::Teardown() {
 }
 
 bool ApplicationX11::MayHaveSystemEvents() {
-  return display_ && !windows_.empty();
+  return display_ != nullptr;
 }
 
 Application::Event* ApplicationX11::WaitForSystemEventWithTimeout(
@@ -890,10 +890,12 @@ Application::Event* ApplicationX11::WaitForSystemEventWithTimeout(
 }
 
 void ApplicationX11::WakeSystemEventWait() {
-  SB_CHECK(!windows_.empty());
-  XSendAtom((*windows_.begin())->window, wake_up_atom_);
-  SB_CHECK(dev_input_);
-  dev_input_->WakeSystemEventWait();
+  if (!windows_.empty()) {
+    XSendAtom((*windows_.begin())->window, wake_up_atom_);
+  }
+  if (dev_input_) {
+    dev_input_->WakeSystemEventWait();
+  }
 }
 
 bool ApplicationX11::EnsureX() {
